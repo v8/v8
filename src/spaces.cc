@@ -1414,7 +1414,7 @@ static void ReportHistogram(bool print_spill) {
   PrintF("\n  Object Histogram:\n");
   for (int i = 0; i <= LAST_TYPE; i++) {
     if (heap_histograms[i].number() > 0) {
-      PrintF("    %-33s%10d (%10d bytes)\n",
+      PrintF("    %-34s%10d (%10d bytes)\n",
              heap_histograms[i].name(),
              heap_histograms[i].number(),
              heap_histograms[i].bytes());
@@ -1431,7 +1431,7 @@ static void ReportHistogram(bool print_spill) {
   STRING_TYPE_LIST(INCREMENT)
 #undef INCREMENT
   if (string_number > 0) {
-    PrintF("    %-33s%10d (%10d bytes)\n\n", "STRING_TYPE", string_number,
+    PrintF("    %-34s%10d (%10d bytes)\n\n", "STRING_TYPE", string_number,
            string_bytes);
   }
 
@@ -1500,7 +1500,7 @@ void NewSpace::ReportStatistics() {
     PrintF("\n  Object Histogram:\n");
     for (int i = 0; i <= LAST_TYPE; i++) {
       if (allocated_histogram_[i].number() > 0) {
-        PrintF("    %-33s%10d (%10d bytes)\n",
+        PrintF("    %-34s%10d (%10d bytes)\n",
                allocated_histogram_[i].name(),
                allocated_histogram_[i].number(),
                allocated_histogram_[i].bytes());
