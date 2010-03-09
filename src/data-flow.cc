@@ -431,11 +431,17 @@ void FlowGraphBuilder::VisitAssignment(Assignment* expr) {
   // Left-hand side can be a variable or property (or reference error) but
   // not both.
   ASSERT(var == NULL || prop == NULL);
-  if (prop != NULL) {
+  if (var != NULL) {
+    Visit(expr->value());
+    Slot* slot = var->slot();
+    if (slot != NULL &&
+        (slot->type() == Slot::LOCAL || slot->type() == Slot::PARAMETER)) {
+      definitions_.Add(expr);
+    }
+
+  } else if (prop != NULL) {
     Visit(prop->obj());
     if (!prop->key()->IsPropertyName()) Visit(prop->key());
-  }
-  if (var != NULL || prop != NULL) {
     Visit(expr->value());
   }
   graph_.AppendInstruction(expr);
@@ -492,6 +498,14 @@ void FlowGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
 
 void FlowGraphBuilder::VisitCountOperation(CountOperation* expr) {
   Visit(expr->expression());
+  Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
+  if (var != NULL) {
+    Slot* slot = var->slot();
+    if (slot != NULL &&
+        (slot->type() == Slot::LOCAL || slot->type() == Slot::PARAMETER)) {
+      definitions_.Add(expr);
+    }
+  }
   graph_.AppendInstruction(expr);
 }
 

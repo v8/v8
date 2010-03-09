@@ -385,7 +385,12 @@ class JoinNode: public Node {
 // traversal orders as a byproduct.
 class FlowGraphBuilder: public AstVisitor {
  public:
-  FlowGraphBuilder() : global_exit_(NULL), preorder_(4), postorder_(4) {}
+  FlowGraphBuilder()
+      : global_exit_(NULL),
+        preorder_(4),
+        postorder_(4),
+        definitions_(4) {
+  }
 
   void Build(FunctionLiteral* lit);
 
@@ -405,6 +410,11 @@ class FlowGraphBuilder: public AstVisitor {
   ExitNode* global_exit_;
   ZoneList<Node*> preorder_;
   ZoneList<Node*> postorder_;
+
+  // The flow graph builder collects a list of definitions (assignments and
+  // count operations) to stack-allocated variables to use for reaching
+  // definitions analysis.
+  ZoneList<AstNode*> definitions_;
 
   DISALLOW_COPY_AND_ASSIGN(FlowGraphBuilder);
 };
