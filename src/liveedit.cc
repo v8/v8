@@ -320,9 +320,9 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
   FunctionInfoListener listener;
+  Handle<Object> original_source = Handle<Object>(script->source());
   script->set_source(*source);
   active_function_info_listener = &listener;
-  Handle<Object> original_source = Handle<Object>(script->source());
   CompileScriptForTracker(script);
   active_function_info_listener = NULL;
   script->set_source(*original_source);

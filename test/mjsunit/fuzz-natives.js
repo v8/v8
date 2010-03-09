@@ -158,7 +158,8 @@ var knownProblems = {
   "LiveEditReplaceScript": true,
   "LiveEditReplaceFunctionCode": true,
   "LiveEditRelinkFunctionToScript": true,
-  "LiveEditPatchFunctionPositions": true
+  "LiveEditPatchFunctionPositions": true,
+  "LiveEditCheckStackActivations": true
 };
 
 var currentlyUncallable = {

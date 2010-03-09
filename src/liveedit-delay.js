@@ -47,39 +47,9 @@
 Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
     change_log) {
 
-  function Assert(condition, message) {
-    if (!condition) {
-      if (message) {
-        throw "Assert " + message;
-      } else {
-        throw "Assert";
-      }
-    }
-  }
-    
-  // An object describing function compilation details. Its index fields
-  // apply to indexes inside array that stores these objects.
-  function FunctionCompileInfo(raw_array) {
-    this.function_name = raw_array[0];
-    this.start_position = raw_array[1];
-    this.end_position = raw_array[2];
-    this.param_num = raw_array[3];
-    this.code = raw_array[4];
-    this.scope_info = raw_array[5];
-    this.outer_index = raw_array[6];
-    this.next_sibling_index = null;
-    this.raw_array = raw_array;
-  }
-  
-  // A structure describing SharedFunctionInfo.
-  function SharedInfoWrapper(raw_array) {
-    this.function_name = raw_array[0];
-    this.start_position = raw_array[1];
-    this.end_position = raw_array[2];
-    this.info = raw_array[3];
-    this.raw_array = raw_array;
-  }
-  
+  // So far the function works as namespace.
+  var liveedit = Debug.LiveEditChangeScript;
+  var Assert = liveedit.Assert;
 
   // Fully compiles source string as a script. Returns Array of
   // FunctionCompileInfo -- a descriptions of all functions of the script.
@@ -98,7 +68,7 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
     var compile_info = new Array();
     var old_index_map = new Array();
     for (var i = 0; i < raw_compile_info.length; i++) {
-        compile_info.push(new FunctionCompileInfo(raw_compile_info[i]));
+        compile_info.push(new liveedit.FunctionCompileInfo(raw_compile_info[i]));
         old_index_map.push(i);
     }
     
@@ -169,30 +139,6 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
     return index;
   }
 
-  // Compares a function interface old and new version, whether it
-  // changed or not.
-  function CompareFunctionExpectations(function_info1, function_info2) {
-    // Check that function has the same number of parameters (there may exist
-    // an adapter, that won't survive function parameter number change).
-    if (function_info1.param_num != function_info2.param_num) {
-      return false;
-    }
-    var scope_info1 = function_info1.scope_info;
-    var scope_info2 = function_info2.scope_info;
-    
-    if (!scope_info1) {
-      return !scope_info2;
-    }
-    
-    if (scope_info1.length != scope_info2.length) {
-      return false;
-    }
-
-    // Check that outer scope structure is not changed. Otherwise the function
-    // will not properly work with existing scopes.
-    return scope_info1.toString() == scope_info2.toString(); 
-  }
-  
   // Variable forward declarations. Preprocessor "Minifier" needs them.
   var old_compile_info;
   var shared_infos;
@@ -265,6 +211,12 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
 
   // Find all SharedFunctionInfo's that are compiled from this script.
   var shared_raw_list = %LiveEditFindSharedFunctionInfosForScript(script);
+
+  var shared_infos = new Array();
+
+  for (var i = 0; i < shared_raw_list.length; i++) {
+    shared_infos.push(new liveedit.SharedInfoWrapper(shared_raw_list[i]));
+  }
   
   // Gather compile information about old version of script.
   var old_compile_info = DebugGatherCompileInfo(old_source);
@@ -274,12 +226,13 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   try {
     new_compile_info = DebugGatherCompileInfo(new_source);
   } catch (e) {
-    throw "Failed to compile new version of script: " + e;
+    throw new liveedit.Failure("Failed to compile new version of script: " + e);
   }
 
   // An index of a single function, that is going to have its code replaced.
   var function_being_patched =
-      FindChangedFunction(old_compile_info, change_pos, change_len_old); 
+      FindChangedFunction(old_compile_info, change_pos, change_len_old);
+
   // In old and new script versions function with a change should have the
   // same indexes.
   var function_being_patched2 =
@@ -290,7 +243,8 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   // Check that function being patched has the same expectations in a new
   // version. Otherwise we cannot safely patch its behavior and should
   // choose the outer function instead.
-  while (!CompareFunctionExpectations(old_compile_info[function_being_patched],
+  while (!liveedit.CompareFunctionExpectations(
+      old_compile_info[function_being_patched],
       new_compile_info[function_being_patched])) {
 
     Assert(old_compile_info[function_being_patched].outer_index == 
@@ -300,21 +254,17 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
     Assert(function_being_patched != -1);
   }
   
-  // TODO: Need to check here that there are no activations of the function
-  // being patched on stack.  
+  // Check that function being patched is not currently on stack.
+  liveedit.CheckStackActivations(
+      [ FindFunctionInfo(function_being_patched) ], change_log );
+  
 
   // Committing all changes.
-  var old_script_name = script.name + " (old)";
+  var old_script_name = liveedit.CreateNameForOldScript(script); 
 
   // Update the script text and create a new script representing an old
   // version of the script.
   var old_script = %LiveEditReplaceScript(script, new_source, old_script_name);
-
-  var shared_infos = new Array();
-
-  for (var i = 0; i < shared_raw_list.length; i++) {
-    shared_infos.push(new SharedInfoWrapper(shared_raw_list[i]));
-  }
 
   PatchCode(new_compile_info[function_being_patched],
       FindFunctionInfo(function_being_patched));
@@ -364,3 +314,113 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   }
 }
 
+Debug.LiveEditChangeScript.Assert = function(condition, message) {
+  if (!condition) {
+    if (message) {
+      throw "Assert " + message;
+    } else {
+      throw "Assert";
+    }
+  }
+}
+    
+// An object describing function compilation details. Its index fields
+// apply to indexes inside array that stores these objects.
+Debug.LiveEditChangeScript.FunctionCompileInfo = function(raw_array) {
+  this.function_name = raw_array[0];
+  this.start_position = raw_array[1];
+  this.end_position = raw_array[2];
+  this.param_num = raw_array[3];
+  this.code = raw_array[4];
+  this.scope_info = raw_array[5];
+  this.outer_index = raw_array[6];
+  this.next_sibling_index = null;
+  this.raw_array = raw_array;
+}
+  
+// A structure describing SharedFunctionInfo.
+Debug.LiveEditChangeScript.SharedInfoWrapper = function(raw_array) {
+  this.function_name = raw_array[0];
+  this.start_position = raw_array[1];
+  this.end_position = raw_array[2];
+  this.info = raw_array[3];
+  this.raw_array = raw_array;
+}
+
+// Adds a suffix to script name to mark that it is old version.
+Debug.LiveEditChangeScript.CreateNameForOldScript = function(script) {
+  // TODO(635): try better than this; support several changes.
+  return script.name + " (old)";
+}
+
+// Compares a function interface old and new version, whether it
+// changed or not.
+Debug.LiveEditChangeScript.CompareFunctionExpectations =
+    function(function_info1, function_info2) {
+  // Check that function has the same number of parameters (there may exist
+  // an adapter, that won't survive function parameter number change).
+  if (function_info1.param_num != function_info2.param_num) {
+    return false;
+  }
+  var scope_info1 = function_info1.scope_info;
+  var scope_info2 = function_info2.scope_info;
+  
+  if (!scope_info1) {
+    return !scope_info2;
+  }
+  
+  if (scope_info1.length != scope_info2.length) {
+    return false;
+  }
+
+  // Check that outer scope structure is not changed. Otherwise the function
+  // will not properly work with existing scopes.
+  return scope_info1.toString() == scope_info2.toString(); 
+}
+
+// For array of wrapped shared function infos checks that none of them
+// have activations on stack (of any thread). Throws a Failure exception
+// if this proves to be false.
+Debug.LiveEditChangeScript.CheckStackActivations = function(shared_wrapper_list,
+                                                            change_log) {
+  var liveedit = Debug.LiveEditChangeScript;
+	  
+  var shared_list = new Array();
+  for (var i = 0; i < shared_wrapper_list.length; i++) {
+    shared_list[i] = shared_wrapper_list[i].info;
+  }
+  var result = %LiveEditCheckStackActivations(shared_list);
+  var problems = new Array();
+  for (var i = 0; i < shared_list.length; i++) {
+    if (result[i] == liveedit.FunctionPatchabilityStatus.FUNCTION_BLOCKED_ON_STACK) {
+      var shared = shared_list[i];
+      var description = {
+          name: shared.function_name,
+          start_pos: shared.start_position, 
+          end_pos: shared.end_position
+      };
+      problems.push(description);
+    }
+  }
+  if (problems.length > 0) {
+    change_log.push( { functions_on_stack: problems } );
+    throw new liveedit.Failure("Blocked by functions on stack");
+  }
+}
+
+// A copy of the FunctionPatchabilityStatus enum from liveedit.h
+Debug.LiveEditChangeScript.FunctionPatchabilityStatus = {
+    FUNCTION_AVAILABLE_FOR_PATCH: 0,
+    FUNCTION_BLOCKED_ON_STACK: 1
+}
+
+
+// A logical failure in liveedit process. This means that change_log
+// is valid and consistent description of what happened.
+Debug.LiveEditChangeScript.Failure = function(message) {
+  this.message = message;
+}
+
+Debug.LiveEditChangeScript.Failure.prototype.toString = function() {
+  return "LiveEdit Failure: " + this.message;     
+}

@@ -1986,9 +1986,18 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
   }
   
   var change_log = new Array();
-  Debug.LiveEditChangeScript(the_script, change_pos, change_len, new_string,
-                             change_log);
-      
+  try {
+    Debug.LiveEditChangeScript(the_script, change_pos, change_len, new_string,
+                               change_log);
+  } catch (e) {
+    if (e instanceof Debug.LiveEditChangeScript.Failure) {
+      // Let's treat it as a "success" so that body with change_log will be
+      // sent back. "change_log" will have "failure" field set.
+      change_log.push( { failure: true } ); 
+    } else {
+      throw e;
+    }
+  }
   response.body = {change_log: change_log};
 };
 
