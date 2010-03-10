@@ -387,43 +387,68 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
   // Unfortunately, that means this code is nearly duplicated, here and in
   // jsregexp.cc.
   if (regexp.global) {
-    var numberOfCaptures = NUMBER_OF_CAPTURES(matchInfo) >> 1;
     var previous = 0;
-    do {
-      var startOfMatch = matchInfo[CAPTURE0];
-      result.addSpecialSlice(previous, startOfMatch);
-      previous = matchInfo[CAPTURE1];
-      if (numberOfCaptures == 1) {
+    var startOfMatch;
+    if (NUMBER_OF_CAPTURES(matchInfo) == 2) {
+      // Both branches contain essentially the same loop except for the call
+      // to the replace function. The branch is put outside of the loop for
+      // speed
+      do {
+        startOfMatch = matchInfo[CAPTURE0];
+        result.addSpecialSlice(previous, startOfMatch);
+        previous = matchInfo[CAPTURE1];
         var match = SubString(subject, startOfMatch, previous);
         // Don't call directly to avoid exposing the built-in global object.
         result.add(replace.call(null, match, startOfMatch, subject));
-      } else {
-        result.add(ApplyReplacementFunction(replace, matchInfo, subject));
-      }
-      // Can't use matchInfo any more from here, since the function could
-      // overwrite it.
-      // Continue with the next match.
-      // Increment previous if we matched an empty string, as per ECMA-262
-      // 15.5.4.10.
-      if (previous == startOfMatch) {
-        // Add the skipped character to the output, if any.
-        if (previous < subject.length) {
-          result.addSpecialSlice(previous, previous + 1);
+        // Can't use matchInfo any more from here, since the function could
+        // overwrite it.
+        // Continue with the next match.
+        // Increment previous if we matched an empty string, as per ECMA-262
+        // 15.5.4.10.
+        if (previous == startOfMatch) {
+          // Add the skipped character to the output, if any.
+          if (previous < subject.length) {
+            result.addSpecialSlice(previous, previous + 1);
+          }
+          previous++;
+          // Per ECMA-262 15.10.6.2, if the previous index is greater than the
+          // string length, there is no match
+          if (previous > subject.length) {
+            return result.generate();
+          }
         }
-        previous++;
-      }
-
-      // Per ECMA-262 15.10.6.2, if the previous index is greater than the
-      // string length, there is no match
-      matchInfo = (previous > subject.length)
-          ? null
-          : DoRegExpExec(regexp, subject, previous);
-    } while (!IS_NULL(matchInfo));
-
-    // Tack on the final right substring after the last match, if necessary.
-    if (previous < subject.length) {
-      result.addSpecialSlice(previous, subject.length);
+        matchInfo = DoRegExpExec(regexp, subject, previous);
+      } while (!IS_NULL(matchInfo));
+    } else {
+      do {
+        startOfMatch = matchInfo[CAPTURE0];
+        result.addSpecialSlice(previous, startOfMatch);
+        previous = matchInfo[CAPTURE1];
+        result.add(ApplyReplacementFunction(replace, matchInfo, subject));
+        // Can't use matchInfo any more from here, since the function could
+        // overwrite it.
+        // Continue with the next match.
+        // Increment previous if we matched an empty string, as per ECMA-262
+        // 15.5.4.10.
+        if (previous == startOfMatch) {
+          // Add the skipped character to the output, if any.
+          if (previous < subject.length) {
+            result.addSpecialSlice(previous, previous + 1);
+          }
+          previous++;
+          // Per ECMA-262 15.10.6.2, if the previous index is greater than the
+          // string length, there is no match
+          if (previous > subject.length) {
+            return result.generate();
+          }
+        }
+        matchInfo = DoRegExpExec(regexp, subject, previous);
+      } while (!IS_NULL(matchInfo));
     }
+
+    // Tack on the final right substring after the last match.
+    result.addSpecialSlice(previous, subject.length);
+
   } else { // Not a global regexp, no need to loop.
     result.addSpecialSlice(0, matchInfo[CAPTURE0]);
     var endOfMatch = matchInfo[CAPTURE1];
