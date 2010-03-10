@@ -283,6 +283,7 @@ static void SanityCheck() {
 #endif
   CHECK(Top::global()->IsJSObject());
   CHECK(Top::global_context()->IsContext());
+  CHECK(Top::special_function_table()->IsFixedArray());
   CHECK(Heap::symbol_table()->IsSymbolTable());
   CHECK(!Factory::LookupAsciiSymbol("Empty")->IsFailure());
 }

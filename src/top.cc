@@ -950,6 +950,27 @@ Handle<Context> Top::GetCallingGlobalContext() {
 }
 
 
+bool Top::CanHaveSpecialFunctions(JSObject* object) {
+  return object->IsJSArray();
+}
+
+
+Object* Top::LookupSpecialFunction(JSObject* receiver,
+                                   JSObject* prototype,
+                                   JSFunction* function) {
+  if (CanHaveSpecialFunctions(receiver)) {
+    FixedArray* table = context()->global_context()->special_function_table();
+    for (int index = 0; index < table->length(); index +=3) {
+      if ((prototype == table->get(index)) &&
+          (function == table->get(index+1))) {
+        return table->get(index+2);
+      }
+    }
+  }
+  return Heap::undefined_value();
+}
+
+
 char* Top::ArchiveThread(char* to) {
   memcpy(to, reinterpret_cast<char*>(&thread_local_), sizeof(thread_local_));
   InitializeThreadLocal();

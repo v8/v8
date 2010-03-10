@@ -326,7 +326,8 @@ class StubCompiler BASE_EMBEDDED {
     RECEIVER_MAP_CHECK,
     STRING_CHECK,
     NUMBER_CHECK,
-    BOOLEAN_CHECK
+    BOOLEAN_CHECK,
+    JSARRAY_HAS_FAST_ELEMENTS_CHECK
   };
 
   StubCompiler() : scope_(), masm_(NULL, 256), failure_(NULL) { }

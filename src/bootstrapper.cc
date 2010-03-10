@@ -245,14 +245,11 @@ class Genesis BASE_EMBEDDED {
       bool make_prototype_enumerable = false);
   void MakeFunctionInstancePrototypeWritable();
 
-  Handle<JSFunction> MakeFunctionForBuiltin(Handle<String> name,
-                                            Handle<Code> code);
+  void AddSpecialFunction(Handle<JSObject> prototype,
+                          const char* name,
+                          Handle<Code> code);
 
-  void OverrideWithSpecialFunction(Handle<JSObject> prototype,
-                                   const char* name,
-                                   Handle<Code> code);
-
-  void InstallSpecialFunctions();
+  void BuildSpecialFunctionTable();
 
   static bool CompileBuiltin(int index);
   static bool CompileNative(Vector<const char> name, Handle<String> source);
@@ -779,6 +776,8 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     global_context()->set_call_as_constructor_delegate(*delegate);
     delegate->shared()->DontAdaptArguments();
   }
+
+  global_context()->set_special_function_table(Heap::empty_fixed_array());
 
   // Initialize the out of memory slot.
   global_context()->set_out_of_memory(Heap::false_value());
@@ -1458,35 +1457,33 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 }
 
 
-Handle<JSFunction> Genesis::MakeFunctionForBuiltin(Handle<String> name,
-                                                   Handle<Code> code) {
-  Handle<JSFunction> optimized = Factory::NewFunction(name,
-                                                      JS_OBJECT_TYPE,
-                                                      JSObject::kHeaderSize,
-                                                      code,
-                                                      false);
-  optimized->shared()->DontAdaptArguments();
-  return optimized;
-}
-
-
-void Genesis::OverrideWithSpecialFunction(Handle<JSObject> prototype,
-                                          const char* name,
-                                          Handle<Code> code) {
+void Genesis::AddSpecialFunction(Handle<JSObject> prototype,
+                                 const char* name,
+                                 Handle<Code> code) {
   Handle<String> key = Factory::LookupAsciiSymbol(name);
-  Handle<Object> old_value = GetProperty(prototype, key);
-  // Check if the function is present in the first place.
-  // For example, FLAG_natives_file could affect if Array functions
-  // are installed at all.
-  if (!old_value->IsJSFunction()) return;
-  int old_length = Handle<JSFunction>::cast(old_value)->shared()->length();
-  Handle<JSFunction> optimized = MakeFunctionForBuiltin(key, code);
-  optimized->shared()->set_length(old_length);
-  SetProperty(prototype, key, optimized, NONE);
+  Handle<Object> value = Handle<Object>(prototype->GetProperty(*key));
+  if (value->IsJSFunction()) {
+    Handle<JSFunction> optimized = Factory::NewFunction(key,
+                                                        JS_OBJECT_TYPE,
+                                                        JSObject::kHeaderSize,
+                                                        code,
+                                                        false);
+    optimized->shared()->DontAdaptArguments();
+    int len = global_context()->special_function_table()->length();
+    Handle<FixedArray> new_array = Factory::NewFixedArray(len + 3);
+    for (int index = 0; index < len; index++) {
+      new_array->set(index,
+                     global_context()->special_function_table()->get(index));
+    }
+    new_array->set(len+0, *prototype);
+    new_array->set(len+1, *value);
+    new_array->set(len+2, *optimized);
+    global_context()->set_special_function_table(*new_array);
+  }
 }
 
 
-void Genesis::InstallSpecialFunctions() {
+void Genesis::BuildSpecialFunctionTable() {
   HandleScope scope;
   Handle<JSObject> global = Handle<JSObject>(global_context()->global());
   // Add special versions for some Array.prototype functions.
@@ -1504,24 +1501,18 @@ void Genesis::InstallSpecialFunctions() {
   } else {
     special_prototype = visible_prototype;
   }
-  OverrideWithSpecialFunction(
-      special_prototype, "pop",
-      Handle<Code>(Builtins::builtin(Builtins::ArrayPop)));
-  OverrideWithSpecialFunction(
-      special_prototype, "push",
-      Handle<Code>(Builtins::builtin(Builtins::ArrayPush)));
-  OverrideWithSpecialFunction(
-      special_prototype, "shift",
-      Handle<Code>(Builtins::builtin(Builtins::ArrayShift)));
-  OverrideWithSpecialFunction(
-      special_prototype, "unshift",
-      Handle<Code>(Builtins::builtin(Builtins::ArrayUnshift)));
-  OverrideWithSpecialFunction(
-      special_prototype, "slice",
-      Handle<Code>(Builtins::builtin(Builtins::ArraySlice)));
-  OverrideWithSpecialFunction(
-      special_prototype, "splice",
-      Handle<Code>(Builtins::builtin(Builtins::ArraySplice)));
+  AddSpecialFunction(special_prototype, "pop",
+                     Handle<Code>(Builtins::builtin(Builtins::ArrayPop)));
+  AddSpecialFunction(special_prototype, "push",
+                     Handle<Code>(Builtins::builtin(Builtins::ArrayPush)));
+  AddSpecialFunction(special_prototype, "shift",
+                     Handle<Code>(Builtins::builtin(Builtins::ArrayShift)));
+  AddSpecialFunction(special_prototype, "unshift",
+                     Handle<Code>(Builtins::builtin(Builtins::ArrayUnshift)));
+  AddSpecialFunction(special_prototype, "slice",
+                     Handle<Code>(Builtins::builtin(Builtins::ArraySlice)));
+  AddSpecialFunction(special_prototype, "splice",
+                     Handle<Code>(Builtins::builtin(Builtins::ArraySplice)));
 }
 
 
@@ -1548,7 +1539,7 @@ Genesis::Genesis(Handle<Object> global_object,
   if (!InstallNatives()) return;
 
   MakeFunctionInstancePrototypeWritable();
-  InstallSpecialFunctions();
+  BuildSpecialFunctionTable();
 
   if (!ConfigureGlobalObjects(global_template)) return;
 

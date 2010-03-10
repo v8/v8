@@ -916,6 +916,18 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       break;
     }
 
+    case JSARRAY_HAS_FAST_ELEMENTS_CHECK:
+      CheckPrototypes(JSObject::cast(object), r1, holder, r3, r0, name, &miss);
+      // Make sure object->HasFastElements().
+      // Get the elements array of the object.
+      __ ldr(r3, FieldMemOperand(r1, JSObject::kElementsOffset));
+      // Check that the object is in fast mode (not dictionary).
+      __ ldr(r0, FieldMemOperand(r3, HeapObject::kMapOffset));
+      __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+      __ cmp(r0, ip);
+      __ b(ne, &miss);
+      break;
+
     default:
       UNREACHABLE();
   }
