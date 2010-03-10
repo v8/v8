@@ -239,14 +239,29 @@ function StringReplace(search, replace) {
 }
 
 
+var cachedReplaceSubject;
+var cachedReplaceRegexp;
+var cachedReplaceReplacement;
+var cachedReplaceAnswer;
+
 // Helper function for regular expressions in String.prototype.replace.
 function StringReplaceRegExp(subject, regexp, replace) {
+  if (%_ObjectEquals(replace, cachedReplaceReplacement) &&
+      %_ObjectEquals(subject, cachedReplaceSubject) &&
+      %_ObjectEquals(regexp, cachedReplaceRegexp)) {
+    return cachedReplaceAnswer;
+  }
   replace = TO_STRING_INLINE(replace);
-  return %StringReplaceRegExpWithString(subject,
-                                        regexp,
-                                        replace,
-                                        lastMatchInfo);
-};
+  var answer = %StringReplaceRegExpWithString(subject,
+                                              regexp,
+                                              replace,
+                                              lastMatchInfo);
+  cachedReplaceSubject = subject;
+  cachedReplaceRegexp = regexp;
+  cachedReplaceReplacement = replace;
+  cachedReplaceAnswer = answer;
+  return answer;
+}
 
 
 // Expand the $-expressions in the string and return a new string with
