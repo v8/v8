@@ -719,16 +719,26 @@ function StringTrimRight() {
   return %StringTrim(TO_STRING_INLINE(this), false, true);
 }
 
+var static_charcode_array = new $Array(4);
+
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
-  if (n == 1) return %_CharFromCode(ToNumber(code) & 0xffff)
+  if (n == 1) {
+    if (!%_IsSmi(code)) code = ToNumber(code);
+    return %_CharFromCode(code & 0xffff);
+  }
 
   // NOTE: This is not super-efficient, but it is necessary because we
   // want to avoid converting to numbers from within the virtual
   // machine. Maybe we can find another way of doing this?
-  var codes = new $Array(n);
-  for (var i = 0; i < n; i++) codes[i] = ToNumber(%_Arguments(i));
+  var codes = static_charcode_array;
+  for (var i = 0; i < n; i++) {
+    var code = %_Arguments(i);
+    if (!%_IsSmi(code)) code = ToNumber(code);
+    codes[i] = code;
+  }
+  codes.length = n;
   return %StringFromCharCodeArray(codes);
 }
 
