@@ -239,20 +239,17 @@ void FlowGraphBuilder::VisitBreakStatement(BreakStatement* stmt) {
 
 
 void FlowGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
-  Visit(stmt->expression());
-  graph_.AppendInstruction(stmt);
-  graph_.AppendNode(global_exit());
+  SetStackOverflow();
 }
 
 
 void FlowGraphBuilder::VisitWithEnterStatement(WithEnterStatement* stmt) {
-  Visit(stmt->expression());
-  graph_.AppendInstruction(stmt);
+  SetStackOverflow();
 }
 
 
 void FlowGraphBuilder::VisitWithExitStatement(WithExitStatement* stmt) {
-  graph_.AppendInstruction(stmt);
+  SetStackOverflow();
 }
 
 
@@ -262,44 +259,12 @@ void FlowGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 
 
 void FlowGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  JoinNode* join = new JoinNode();
-  FlowGraph original = graph_;
-  graph_ = FlowGraph::Empty();
-  Visit(stmt->body());
-
-  FlowGraph body = graph_;
-  graph_ = FlowGraph::Empty();
-  Visit(stmt->cond());
-
-  BranchNode* branch = new BranchNode();
-
-  // Add body, condition and branch.
-  original.AppendNode(join);
-  original.AppendGraph(&body);
-  original.AppendGraph(&graph_);  // The condition.
-  original.AppendNode(branch);
-
-  // Tie the knot.
-  branch->AddSuccessor(join);
-  join->AddPredecessor(branch);
-
-  graph_ = original;
+  SetStackOverflow();
 }
 
 
 void FlowGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
-  JoinNode* join = new JoinNode();
-  FlowGraph original = graph_;
-  graph_ = FlowGraph::Empty();
-  Visit(stmt->cond());
-
-  BranchNode* branch = new BranchNode();
-  FlowGraph condition = graph_;
-  graph_ = FlowGraph::Empty();
-  Visit(stmt->body());
-
-  original.Loop(join, &condition, branch, &graph_);
-  graph_ = original;
+  SetStackOverflow();
 }
 
 
@@ -324,17 +289,7 @@ void FlowGraphBuilder::VisitForStatement(ForStatement* stmt) {
 
 
 void FlowGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
-  Visit(stmt->enumerable());
-
-  JoinNode* join = new JoinNode();
-  FlowGraph empty;
-  BranchNode* branch = new BranchNode();
-  FlowGraph original = graph_;
-  graph_ = FlowGraph::Empty();
-  Visit(stmt->body());
-
-  original.Loop(join, &empty, branch, &graph_);
-  graph_ = original;
+  SetStackOverflow();
 }
 
 
@@ -349,36 +304,23 @@ void FlowGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void FlowGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  graph_.AppendInstruction(stmt);
+  SetStackOverflow();
 }
 
 
 void FlowGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
-  graph_.AppendInstruction(expr);
+  SetStackOverflow();
 }
 
 
 void FlowGraphBuilder::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* expr) {
-  graph_.AppendInstruction(expr);
+  SetStackOverflow();
 }
 
 
 void FlowGraphBuilder::VisitConditional(Conditional* expr) {
-  Visit(expr->condition());
-
-  BranchNode* branch = new BranchNode();
-  FlowGraph original = graph_;
-  graph_ = FlowGraph::Empty();
-  Visit(expr->then_expression());
-
-  FlowGraph left = graph_;
-  graph_ = FlowGraph::Empty();
-  Visit(expr->else_expression());
-
-  JoinNode* join = new JoinNode();
-  original.Split(branch, &left, &graph_, join);
-  graph_ = original;
+  SetStackOverflow();
 }
 
 
@@ -398,30 +340,22 @@ void FlowGraphBuilder::VisitLiteral(Literal* expr) {
 
 
 void FlowGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
-  graph_.AppendInstruction(expr);
+  SetStackOverflow();
 }
 
 
 void FlowGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
-  ZoneList<ObjectLiteral::Property*>* properties = expr->properties();
-  for (int i = 0, len = properties->length(); i < len; i++) {
-    Visit(properties->at(i)->value());
-  }
-  graph_.AppendInstruction(expr);
+  SetStackOverflow();
 }
 
 
 void FlowGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
-  ZoneList<Expression*>* values = expr->values();
-  for (int i = 0, len = values->length(); i < len; i++) {
-    Visit(values->at(i));
-  }
-  graph_.AppendInstruction(expr);
+  SetStackOverflow();
 }
 
 
 void FlowGraphBuilder::VisitCatchExtensionObject(CatchExtensionObject* expr) {
-  graph_.AppendInstruction(expr);
+  SetStackOverflow();
 }
 
 
@@ -445,8 +379,7 @@ void FlowGraphBuilder::VisitAssignment(Assignment* expr) {
 
 
 void FlowGraphBuilder::VisitThrow(Throw* expr) {
-  Visit(expr->exception());
-  graph_.AppendInstruction(expr);
+  SetStackOverflow();
 }
 
 
@@ -468,27 +401,34 @@ void FlowGraphBuilder::VisitCall(Call* expr) {
 
 
 void FlowGraphBuilder::VisitCallNew(CallNew* expr) {
-  Visit(expr->expression());
-  ZoneList<Expression*>* arguments = expr->arguments();
-  for (int i = 0, len = arguments->length(); i < len; i++) {
-    Visit(arguments->at(i));
-  }
-  graph_.AppendInstruction(expr);
+  SetStackOverflow();
 }
 
 
 void FlowGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
-  ZoneList<Expression*>* arguments = expr->arguments();
-  for (int i = 0, len = arguments->length(); i < len; i++) {
-    Visit(arguments->at(i));
-  }
-  graph_.AppendInstruction(expr);
+  SetStackOverflow();
 }
 
 
 void FlowGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
-  Visit(expr->expression());
-  graph_.AppendInstruction(expr);
+  switch (expr->op()) {
+    case Token::NOT:
+    case Token::BIT_NOT:
+    case Token::DELETE:
+    case Token::TYPEOF:
+    case Token::VOID:
+      SetStackOverflow();
+      break;
+
+    case Token::ADD:
+    case Token::SUB:
+      Visit(expr->expression());
+      graph_.AppendInstruction(expr);
+      break;
+
+    default:
+      UNREACHABLE();
+  }
 }
 
 
@@ -503,48 +443,26 @@ void FlowGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
 
 void FlowGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
-  Visit(expr->left());
 
   switch (expr->op()) {
     case Token::COMMA:
-      Visit(expr->right());
+    case Token::OR:
+    case Token::AND:
+      SetStackOverflow();
       break;
-
-    case Token::OR: {
-      BranchNode* branch = new BranchNode();
-      FlowGraph original = graph_;
-      graph_ = FlowGraph::Empty();
-      Visit(expr->right());
-      FlowGraph empty;
-      JoinNode* join = new JoinNode();
-      original.Split(branch, &empty, &graph_, join);
-      graph_ = original;
-      break;
-    }
-
-    case Token::AND: {
-      BranchNode* branch = new BranchNode();
-      FlowGraph original = graph_;
-      graph_ = FlowGraph::Empty();
-      Visit(expr->right());
-      FlowGraph empty;
-      JoinNode* join = new JoinNode();
-      original.Split(branch, &graph_, &empty, join);
-      graph_ = original;
-      break;
-    }
 
     case Token::BIT_OR:
     case Token::BIT_XOR:
     case Token::BIT_AND:
     case Token::SHL:
-    case Token::SAR:
     case Token::SHR:
     case Token::ADD:
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
     case Token::MOD:
+    case Token::SAR:
+      Visit(expr->left());
       Visit(expr->right());
       graph_.AppendInstruction(expr);
       break;
@@ -556,14 +474,33 @@ void FlowGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
 
 
 void FlowGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
-  Visit(expr->left());
-  Visit(expr->right());
-  graph_.AppendInstruction(expr);
+  switch (expr->op()) {
+    case Token::EQ:
+    case Token::NE:
+    case Token::EQ_STRICT:
+    case Token::NE_STRICT:
+    case Token::INSTANCEOF:
+    case Token::IN:
+      SetStackOverflow();
+      break;
+
+    case Token::LT:
+    case Token::GT:
+    case Token::LTE:
+    case Token::GTE:
+      Visit(expr->left());
+      Visit(expr->right());
+      graph_.AppendInstruction(expr);
+      break;
+
+    default:
+      UNREACHABLE();
+  }
 }
 
 
 void FlowGraphBuilder::VisitThisFunction(ThisFunction* expr) {
-  graph_.AppendInstruction(expr);
+  SetStackOverflow();
 }
 
 
