@@ -397,12 +397,6 @@ void MacroAssembler::AbortIfNotNumber(Register object, const char* msg) {
 }
 
 
-void MacroAssembler::AbortIfNotSmi(Register object, const char* msg) {
-  test(object, Immediate(kSmiTagMask));
-  Assert(equal, msg);
-}
-
-
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, Operand(esp));

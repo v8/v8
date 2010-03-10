@@ -58,27 +58,13 @@ AST_NODE_LIST(DECL_ACCEPT)
 // ----------------------------------------------------------------------------
 // Implementation of other node functionality.
 
-Assignment* ExpressionStatement::StatementAsSimpleAssignment() {
-  return (expression()->AsAssignment() != NULL &&
-          !expression()->AsAssignment()->is_compound())
-      ? expression()->AsAssignment()
-      : NULL;
-}
-
-
-CountOperation* ExpressionStatement::StatementAsCountOperation() {
-  return expression()->AsCountOperation();
-}
-
-
 VariableProxy::VariableProxy(Handle<String> name,
                              bool is_this,
                              bool inside_with)
   : name_(name),
     var_(NULL),
     is_this_(is_this),
-    inside_with_(inside_with),
-    is_trivial_(false) {
+    inside_with_(inside_with) {
   // names must be canonicalized for fast equality checks
   ASSERT(name->IsSymbol());
 }

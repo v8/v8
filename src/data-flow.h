@@ -43,6 +43,7 @@ class BitVector: public ZoneObject {
       : length_(length),
         data_length_(SizeFor(length)),
         data_(Zone::NewArray<uint32_t>(data_length_)) {
+    ASSERT(length > 0);
     Clear();
   }
 
@@ -484,41 +485,6 @@ class LivenessAnalyzer : public AstVisitor {
   DISALLOW_COPY_AND_ASSIGN(LivenessAnalyzer);
 };
 
-
-// Computes the set of assigned variables and annotates variables proxies
-// that are trivial sub-expressions and for-loops where the loop variable
-// is guaranteed to be a smi.
-class AssignedVariablesAnalyzer : public AstVisitor {
- public:
-  explicit AssignedVariablesAnalyzer(FunctionLiteral* fun);
-
-  void Analyze();
-
- private:
-  Variable* FindSmiLoopVariable(ForStatement* stmt);
-
-  int BitIndex(Variable* var);
-
-  void RecordAssignedVar(Variable* var);
-
-  void MarkIfTrivial(Expression* expr);
-
-  // Visits an expression saving the accumulator before, clearing
-  // it before visting and restoring it after visiting.
-  void ProcessExpression(Expression* expr);
-
-  // AST node visit functions.
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
-  AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
-  FunctionLiteral* fun_;
-
-  // Accumulator for assigned variables set.
-  BitVector av_;
-
-  DISALLOW_COPY_AND_ASSIGN(AssignedVariablesAnalyzer);
-};
 
 } }  // namespace v8::internal
 
