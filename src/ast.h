@@ -137,6 +137,7 @@ class AstNode: public ZoneObject {
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
   virtual IterationStatement* AsIterationStatement() { return NULL; }
   virtual UnaryOperation* AsUnaryOperation() { return NULL; }
+  virtual CountOperation* AsCountOperation() { return NULL; }
   virtual BinaryOperation* AsBinaryOperation() { return NULL; }
   virtual Assignment* AsAssignment() { return NULL; }
   virtual FunctionLiteral* AsFunctionLiteral() { return NULL; }
@@ -160,6 +161,9 @@ class Statement: public AstNode {
 
   virtual Statement* AsStatement()  { return this; }
   virtual ReturnStatement* AsReturnStatement() { return NULL; }
+
+  virtual Assignment* StatementAsSimpleAssignment() { return NULL; }
+  virtual CountOperation* StatementAsCountOperation() { return NULL; }
 
   bool IsEmpty() { return AsEmptyStatement() != NULL; }
 
@@ -321,6 +325,16 @@ class Block: public BreakableStatement {
 
   virtual void Accept(AstVisitor* v);
 
+  virtual Assignment* StatementAsSimpleAssignment() {
+    if (statements_.length() != 1) return NULL;
+    return statements_[0]->StatementAsSimpleAssignment();
+  }
+
+  virtual CountOperation* StatementAsCountOperation() {
+    if (statements_.length() != 1) return NULL;
+    return statements_[0]->StatementAsCountOperation();
+  }
+
   void AddStatement(Statement* statement) { statements_.Add(statement); }
 
   ZoneList<Statement*>* statements() { return &statements_; }
@@ -442,8 +456,8 @@ class ForStatement: public IterationStatement {
         init_(NULL),
         cond_(NULL),
         next_(NULL),
-        may_have_function_literal_(true) {
-  }
+        may_have_function_literal_(true),
+        loop_variable_(NULL) {}
 
   void Initialize(Statement* init,
                   Expression* cond,
@@ -464,12 +478,17 @@ class ForStatement: public IterationStatement {
     return may_have_function_literal_;
   }
 
+  bool is_fast_smi_loop() { return loop_variable_ != NULL; }
+  Variable* loop_variable() { return loop_variable_; }
+  void set_loop_variable(Variable* var) { loop_variable_ = var; }
+
  private:
   Statement* init_;
   Expression* cond_;
   Statement* next_;
   // True if there is a function literal subexpression in the condition.
   bool may_have_function_literal_;
+  Variable* loop_variable_;
 
   friend class AstOptimizer;
 };
@@ -506,6 +525,9 @@ class ExpressionStatement: public Statement {
 
   // Type testing & conversion.
   virtual ExpressionStatement* AsExpressionStatement() { return this; }
+
+  virtual Assignment* StatementAsSimpleAssignment();
+  virtual CountOperation* StatementAsCountOperation();
 
   void set_expression(Expression* e) { expression_ = e; }
   Expression* expression() { return expression_; }
@@ -964,7 +986,7 @@ class VariableProxy: public Expression {
 
   // Reading from a mutable variable is a side effect, but 'this' is
   // immutable.
-  virtual bool IsTrivial() { return is_this(); }
+  virtual bool IsTrivial() { return is_trivial_; }
 
   bool IsVariable(Handle<String> n) {
     return !is_this() && name().is_identical_to(n);
@@ -979,6 +1001,8 @@ class VariableProxy: public Expression {
   Variable* var() const  { return var_; }
   bool is_this() const  { return is_this_; }
   bool inside_with() const  { return inside_with_; }
+  bool is_trivial() { return is_trivial_; }
+  void set_is_trivial(bool b) { is_trivial_ = b; }
 
   // Bind this proxy to the variable var.
   void BindTo(Variable* var);
@@ -988,6 +1012,7 @@ class VariableProxy: public Expression {
   Variable* var_;  // resolved variable, or NULL
   bool is_this_;
   bool inside_with_;
+  bool is_trivial_;
 
   VariableProxy(Handle<String> name, bool is_this, bool inside_with);
   explicit VariableProxy(bool is_this);
@@ -1246,6 +1271,8 @@ class CountOperation: public Expression {
 
   virtual void Accept(AstVisitor* v);
 
+  virtual CountOperation* AsCountOperation() { return this; }
+
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
   Token::Value op() const { return op_; }
@@ -1323,6 +1350,8 @@ class Assignment: public Expression {
 
   virtual void Accept(AstVisitor* v);
   virtual Assignment* AsAssignment() { return this; }
+
+  Assignment* AsSimpleAssignment() { return !is_compound() ? this : NULL; }
 
   Token::Value binary_op() const;
 

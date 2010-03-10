@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "data-flow.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -1031,6 +1032,445 @@ void LivenessAnalyzer::VisitCompareOperation(CompareOperation* expr) {
 
 
 void LivenessAnalyzer::VisitThisFunction(ThisFunction* expr) {
+  UNREACHABLE();
+}
+
+
+AssignedVariablesAnalyzer::AssignedVariablesAnalyzer(FunctionLiteral* fun)
+    : fun_(fun),
+      av_(fun->scope()->num_parameters() + fun->scope()->num_stack_slots()) {}
+
+
+void AssignedVariablesAnalyzer::Analyze() {
+  ASSERT(av_.length() > 0);
+  VisitStatements(fun_->body());
+}
+
+
+Variable* AssignedVariablesAnalyzer::FindSmiLoopVariable(ForStatement* stmt) {
+  // The loop must have all necessary parts.
+  if (stmt->init() == NULL || stmt->cond() == NULL || stmt->next() == NULL) {
+    return NULL;
+  }
+  // The initialization statement has to be a simple assignment.
+  Assignment* init = stmt->init()->StatementAsSimpleAssignment();
+  if (init == NULL) return NULL;
+
+  // We only deal with local variables.
+  Variable* loop_var = init->target()->AsVariableProxy()->AsVariable();
+  if (!loop_var->IsStackAllocated()) return NULL;
+
+  // The initial value has to be a smi.
+  Literal* init_lit = init->value()->AsLiteral();
+  if (init_lit == NULL || !init_lit->handle()->IsSmi()) return NULL;
+  int init_value = Smi::cast(*init_lit->handle())->value();
+
+  // The condition must be a compare of variable with <, <=, >, or >=.
+  CompareOperation* cond = stmt->cond()->AsCompareOperation();
+  if (cond == NULL) return NULL;
+  if (cond->op() != Token::LT
+      && cond->op() != Token::LTE
+      && cond->op() != Token::GT
+      && cond->op() != Token::GTE) return NULL;
+
+  // The lhs must be the same variable as in the init expression.
+  if (cond->left()->AsVariableProxy()->AsVariable() != loop_var) return NULL;
+
+  // The rhs must be a smi.
+  Literal* term_lit = cond->right()->AsLiteral();
+  if (term_lit == NULL || !term_lit->handle()->IsSmi()) return NULL;
+  int term_value = Smi::cast(*term_lit->handle())->value();
+
+  // The count operation updates the same variable as in the init expression.
+  CountOperation* update = stmt->next()->StatementAsCountOperation();
+  if (update == NULL) return NULL;
+  if (update->expression()->AsVariableProxy()->AsVariable() != loop_var) {
+    return NULL;
+  }
+
+  // The direction of the count operation must agree with the start and the end
+  // value. We currently do not allow the initial value to be the same as the
+  // terminal value. This _would_ be ok as long as the loop body never executes
+  // or executes exactly one time.
+  if (init_value == term_value) return NULL;
+  if (init_value < term_value && update->op() != Token::INC) return NULL;
+  if (init_value > term_value && update->op() != Token::DEC) return NULL;
+
+  // Found a smi loop variable.
+  return loop_var;
+}
+
+int AssignedVariablesAnalyzer::BitIndex(Variable* var) {
+  ASSERT(var != NULL);
+  ASSERT(var->IsStackAllocated());
+  Slot* slot = var->slot();
+  if (slot->type() == Slot::PARAMETER) {
+    return slot->index();
+  } else {
+    return fun_->scope()->num_parameters() + slot->index();
+  }
+}
+
+
+void AssignedVariablesAnalyzer::RecordAssignedVar(Variable* var) {
+  ASSERT(var != NULL);
+  if (var->IsStackAllocated()) {
+    av_.Add(BitIndex(var));
+  }
+}
+
+
+void AssignedVariablesAnalyzer::MarkIfTrivial(Expression* expr) {
+  Variable* var = expr->AsVariableProxy()->AsVariable();
+  if (var != NULL &&
+      var->IsStackAllocated() &&
+      (var->is_this() || !av_.Contains(BitIndex(var)))) {
+    expr->AsVariableProxy()->set_is_trivial(true);
+  }
+}
+
+
+void AssignedVariablesAnalyzer::ProcessExpression(Expression* expr) {
+  BitVector saved_av(av_);
+  av_.Clear();
+  Visit(expr);
+  av_.Union(saved_av);
+}
+
+void AssignedVariablesAnalyzer::VisitBlock(Block* stmt) {
+  VisitStatements(stmt->statements());
+}
+
+
+void AssignedVariablesAnalyzer::VisitExpressionStatement(
+    ExpressionStatement* stmt) {
+  ProcessExpression(stmt->expression());
+}
+
+
+void AssignedVariablesAnalyzer::VisitEmptyStatement(EmptyStatement* stmt) {
+  // Do nothing.
+}
+
+
+void AssignedVariablesAnalyzer::VisitIfStatement(IfStatement* stmt) {
+  ProcessExpression(stmt->condition());
+  Visit(stmt->then_statement());
+  Visit(stmt->else_statement());
+}
+
+
+void AssignedVariablesAnalyzer::VisitContinueStatement(
+    ContinueStatement* stmt) {
+  // Nothing to do.
+}
+
+
+void AssignedVariablesAnalyzer::VisitBreakStatement(BreakStatement* stmt) {
+  // Nothing to do.
+}
+
+
+void AssignedVariablesAnalyzer::VisitReturnStatement(ReturnStatement* stmt) {
+  ProcessExpression(stmt->expression());
+}
+
+
+void AssignedVariablesAnalyzer::VisitWithEnterStatement(
+    WithEnterStatement* stmt) {
+  ProcessExpression(stmt->expression());
+}
+
+
+void AssignedVariablesAnalyzer::VisitWithExitStatement(
+    WithExitStatement* stmt) {
+  // Nothing to do.
+}
+
+
+void AssignedVariablesAnalyzer::VisitSwitchStatement(SwitchStatement* stmt) {
+  BitVector result(av_);
+  av_.Clear();
+  Visit(stmt->tag());
+  result.Union(av_);
+  for (int i = 0; i < stmt->cases()->length(); i++) {
+    CaseClause* clause = stmt->cases()->at(i);
+    if (!clause->is_default()) {
+      av_.Clear();
+      Visit(clause->label());
+      result.Union(av_);
+    }
+    VisitStatements(clause->statements());
+  }
+  av_.Union(result);
+}
+
+
+void AssignedVariablesAnalyzer::VisitDoWhileStatement(DoWhileStatement* stmt) {
+  ProcessExpression(stmt->cond());
+  Visit(stmt->body());
+}
+
+
+void AssignedVariablesAnalyzer::VisitWhileStatement(WhileStatement* stmt) {
+  ProcessExpression(stmt->cond());
+  Visit(stmt->body());
+}
+
+
+void AssignedVariablesAnalyzer::VisitForStatement(ForStatement* stmt) {
+  if (stmt->init() != NULL) Visit(stmt->init());
+
+  if (stmt->cond() != NULL) ProcessExpression(stmt->cond());
+
+  if (stmt->next() != NULL) Visit(stmt->next());
+
+  // Process loop body. After visiting the loop body av_ contains
+  // the assigned variables of the loop body.
+  BitVector saved_av(av_);
+  av_.Clear();
+  Visit(stmt->body());
+
+  Variable* var = FindSmiLoopVariable(stmt);
+  if (var != NULL && !av_.Contains(BitIndex(var))) {
+    stmt->set_loop_variable(var);
+  }
+
+  av_.Union(saved_av);
+}
+
+
+void AssignedVariablesAnalyzer::VisitForInStatement(ForInStatement* stmt) {
+  ProcessExpression(stmt->each());
+  ProcessExpression(stmt->enumerable());
+  Visit(stmt->body());
+}
+
+
+void AssignedVariablesAnalyzer::VisitTryCatchStatement(
+    TryCatchStatement* stmt) {
+  Visit(stmt->try_block());
+  Visit(stmt->catch_block());
+}
+
+
+void AssignedVariablesAnalyzer::VisitTryFinallyStatement(
+    TryFinallyStatement* stmt) {
+  Visit(stmt->try_block());
+  Visit(stmt->finally_block());
+}
+
+
+void AssignedVariablesAnalyzer::VisitDebuggerStatement(
+    DebuggerStatement* stmt) {
+  // Nothing to do.
+}
+
+
+void AssignedVariablesAnalyzer::VisitFunctionLiteral(FunctionLiteral* expr) {
+  // Nothing to do.
+  ASSERT(av_.IsEmpty());
+}
+
+
+void AssignedVariablesAnalyzer::VisitFunctionBoilerplateLiteral(
+    FunctionBoilerplateLiteral* expr) {
+  // Nothing to do.
+  ASSERT(av_.IsEmpty());
+}
+
+
+void AssignedVariablesAnalyzer::VisitConditional(Conditional* expr) {
+  ASSERT(av_.IsEmpty());
+
+  Visit(expr->condition());
+
+  BitVector result(av_);
+  av_.Clear();
+  Visit(expr->then_expression());
+  result.Union(av_);
+
+  av_.Clear();
+  Visit(expr->else_expression());
+  av_.Union(result);
+}
+
+
+void AssignedVariablesAnalyzer::VisitSlot(Slot* expr) {
+  UNREACHABLE();
+}
+
+
+void AssignedVariablesAnalyzer::VisitVariableProxy(VariableProxy* expr) {
+  // Nothing to do.
+  ASSERT(av_.IsEmpty());
+}
+
+
+void AssignedVariablesAnalyzer::VisitLiteral(Literal* expr) {
+  // Nothing to do.
+  ASSERT(av_.IsEmpty());
+}
+
+
+void AssignedVariablesAnalyzer::VisitRegExpLiteral(RegExpLiteral* expr) {
+  // Nothing to do.
+  ASSERT(av_.IsEmpty());
+}
+
+
+void AssignedVariablesAnalyzer::VisitObjectLiteral(ObjectLiteral* expr) {
+  ASSERT(av_.IsEmpty());
+  BitVector result(av_.length());
+  for (int i = 0; i < expr->properties()->length(); i++) {
+    Visit(expr->properties()->at(i)->value());
+    result.Union(av_);
+    av_.Clear();
+  }
+  av_.CopyFrom(result);
+}
+
+
+void AssignedVariablesAnalyzer::VisitArrayLiteral(ArrayLiteral* expr) {
+  ASSERT(av_.IsEmpty());
+  BitVector result(av_.length());
+  for (int i = 0; i < expr->values()->length(); i++) {
+    Visit(expr->values()->at(i));
+    result.Union(av_);
+    av_.Clear();
+  }
+  av_.CopyFrom(result);
+}
+
+
+void AssignedVariablesAnalyzer::VisitCatchExtensionObject(
+    CatchExtensionObject* expr) {
+  ASSERT(av_.IsEmpty());
+  Visit(expr->key());
+  ProcessExpression(expr->value());
+}
+
+
+void AssignedVariablesAnalyzer::VisitAssignment(Assignment* expr) {
+  ASSERT(av_.IsEmpty());
+
+  Visit(expr->target());
+
+  ProcessExpression(expr->value());
+
+  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+  if (var != NULL) RecordAssignedVar(var);
+
+  // If we have a variable as a receiver in a property store, check if
+  // we can mark it as trivial.
+  if (expr->target()->AsProperty() != NULL) {
+    MarkIfTrivial(expr->target()->AsProperty()->obj());
+  }
+}
+
+
+void AssignedVariablesAnalyzer::VisitThrow(Throw* expr) {
+  ASSERT(av_.IsEmpty());
+  Visit(expr->exception());
+}
+
+
+void AssignedVariablesAnalyzer::VisitProperty(Property* expr) {
+  ASSERT(av_.IsEmpty());
+  Visit(expr->obj());
+  ProcessExpression(expr->key());
+
+  // In case we have a variable as a receiver, check if we can mark
+  // it as trivial.
+  MarkIfTrivial(expr->obj());
+}
+
+
+void AssignedVariablesAnalyzer::VisitCall(Call* expr) {
+  ASSERT(av_.IsEmpty());
+  Visit(expr->expression());
+  BitVector result(av_);
+  for (int i = 0; i < expr->arguments()->length(); i++) {
+    av_.Clear();
+    Visit(expr->arguments()->at(i));
+    result.Union(av_);
+  }
+  av_.CopyFrom(result);
+}
+
+
+void AssignedVariablesAnalyzer::VisitCallNew(CallNew* expr) {
+  ASSERT(av_.IsEmpty());
+  Visit(expr->expression());
+  BitVector result(av_);
+  for (int i = 0; i < expr->arguments()->length(); i++) {
+    av_.Clear();
+    Visit(expr->arguments()->at(i));
+    result.Union(av_);
+  }
+  av_.CopyFrom(result);
+}
+
+
+void AssignedVariablesAnalyzer::VisitCallRuntime(CallRuntime* expr) {
+  ASSERT(av_.IsEmpty());
+  BitVector result(av_);
+  for (int i = 0; i < expr->arguments()->length(); i++) {
+    av_.Clear();
+    Visit(expr->arguments()->at(i));
+    result.Union(av_);
+  }
+  av_.CopyFrom(result);
+}
+
+
+void AssignedVariablesAnalyzer::VisitUnaryOperation(UnaryOperation* expr) {
+  ASSERT(av_.IsEmpty());
+  Visit(expr->expression());
+}
+
+
+void AssignedVariablesAnalyzer::VisitCountOperation(CountOperation* expr) {
+  ASSERT(av_.IsEmpty());
+
+  Visit(expr->expression());
+
+  Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
+  if (var != NULL) RecordAssignedVar(var);
+}
+
+
+void AssignedVariablesAnalyzer::VisitBinaryOperation(BinaryOperation* expr) {
+  ASSERT(av_.IsEmpty());
+  Visit(expr->left());
+
+  ProcessExpression(expr->right());
+
+  // In case we have a variable on the left side, check if we can mark
+  // it as trivial.
+  MarkIfTrivial(expr->left());
+}
+
+
+void AssignedVariablesAnalyzer::VisitCompareOperation(CompareOperation* expr) {
+  ASSERT(av_.IsEmpty());
+  Visit(expr->left());
+
+  ProcessExpression(expr->right());
+
+  // In case we have a variable on the left side, check if we can mark
+  // it as trivial.
+  MarkIfTrivial(expr->left());
+}
+
+
+void AssignedVariablesAnalyzer::VisitThisFunction(ThisFunction* expr) {
+  // Nothing to do.
+  ASSERT(av_.IsEmpty());
+}
+
+
+void AssignedVariablesAnalyzer::VisitDeclaration(Declaration* decl) {
   UNREACHABLE();
 }
 

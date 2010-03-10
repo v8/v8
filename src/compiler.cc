@@ -79,6 +79,15 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
     return Handle<Code>::null();
   }
 
+  if (function->scope()->num_parameters() > 0 ||
+      function->scope()->num_stack_slots()) {
+    AssignedVariablesAnalyzer ava(function);
+    ava.Analyze();
+    if (ava.HasStackOverflow()) {
+      return Handle<Code>::null();
+    }
+  }
+
   if (FLAG_use_flow_graph) {
     FlowGraphBuilder builder;
     builder.Build(function);
@@ -461,6 +470,15 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
     // the AST optimizer/analyzer.
     if (!Rewriter::Optimize(literal)) {
       return Handle<JSFunction>::null();
+    }
+
+    if (literal->scope()->num_parameters() > 0 ||
+        literal->scope()->num_stack_slots()) {
+      AssignedVariablesAnalyzer ava(literal);
+      ava.Analyze();
+      if (ava.HasStackOverflow()) {
+        return Handle<JSFunction>::null();
+      }
     }
 
     if (FLAG_use_flow_graph) {
