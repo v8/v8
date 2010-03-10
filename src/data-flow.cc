@@ -34,86 +34,75 @@ namespace internal {
 
 
 void FlowGraph::AppendInstruction(AstNode* instruction) {
+  // Add a (non-null) AstNode to the end of the graph fragment.
   ASSERT(instruction != NULL);
-  if (is_empty() || !exit()->IsBlockNode()) {
-    AppendNode(new BlockNode());
-  }
+  if (exit()->IsExitNode()) return;
+  if (!exit()->IsBlockNode()) AppendNode(new BlockNode());
   BlockNode::cast(exit())->AddInstruction(instruction);
 }
 
 
 void FlowGraph::AppendNode(Node* node) {
+  // Add a node to the end of the graph.  An empty block is added to
+  // maintain edge-split form (that no join nodes or exit nodes as
+  // successors to branch nodes).
   ASSERT(node != NULL);
-  if (is_empty()) {
-    entry_ = exit_ = node;
-  } else {
-    exit()->AddSuccessor(node);
-    node->AddPredecessor(exit());
-    exit_ = node;
+  if (exit()->IsExitNode()) return;
+  if (exit()->IsBranchNode() && (node->IsJoinNode() || node->IsExitNode())) {
+    AppendNode(new BlockNode());
   }
+  exit()->AddSuccessor(node);
+  node->AddPredecessor(exit());
+  exit_ = node;
 }
 
 
 void FlowGraph::AppendGraph(FlowGraph* graph) {
-  ASSERT(!graph->is_empty());
-  if (is_empty()) {
-    entry_ = graph->entry();
-    exit_ = graph->exit();
-  } else {
-    exit()->AddSuccessor(graph->entry());
-    graph->entry()->AddPredecessor(exit());
-    exit_ = graph->exit();
+  // Add a flow graph fragment to the end of this one.  An empty block is
+  // added to maintain edge-split form (that no join nodes or exit nodes as
+  // successors to branch nodes).
+  ASSERT(graph != NULL);
+  if (exit()->IsExitNode()) return;
+  Node* node = graph->entry();
+  if (exit()->IsBranchNode() && (node->IsJoinNode() || node->IsExitNode())) {
+    AppendNode(new BlockNode());
   }
+  exit()->AddSuccessor(node);
+  node->AddPredecessor(exit());
+  exit_ = graph->exit();
 }
 
 
 void FlowGraph::Split(BranchNode* branch,
                       FlowGraph* left,
                       FlowGraph* right,
-                      JoinNode* merge) {
-  // Graphs are in edge split form.  Add empty blocks if necessary.
-  if (left->is_empty()) left->AppendNode(new BlockNode());
-  if (right->is_empty()) right->AppendNode(new BlockNode());
-
-  // Add the branch, left flowgraph and merge.
+                      JoinNode* join) {
+  // Add the branch node, left flowgraph, join node.
   AppendNode(branch);
   AppendGraph(left);
-  AppendNode(merge);
+  AppendNode(join);
 
   // Splice in the right flowgraph.
-  right->AppendNode(merge);
+  right->AppendNode(join);
   branch->AddSuccessor(right->entry());
   right->entry()->AddPredecessor(branch);
 }
 
 
-void FlowGraph::Loop(JoinNode* merge,
+void FlowGraph::Loop(JoinNode* join,
                      FlowGraph* condition,
                      BranchNode* branch,
                      FlowGraph* body) {
-  // Add the merge, condition and branch.  Add merge's predecessors in
+  // Add the join, condition and branch.  Add join's predecessors in
   // left-to-right order.
-  AppendNode(merge);
-  body->AppendNode(merge);
+  AppendNode(join);
+  body->AppendNode(join);
   AppendGraph(condition);
   AppendNode(branch);
 
   // Splice in the body flowgraph.
   branch->AddSuccessor(body->entry());
   body->entry()->AddPredecessor(branch);
-}
-
-
-void EntryNode::Traverse(bool mark,
-                         ZoneList<Node*>* preorder,
-                         ZoneList<Node*>* postorder) {
-  ASSERT(successor_ != NULL);
-  preorder->Add(this);
-  if (!successor_->IsMarkedWith(mark)) {
-    successor_->MarkWith(mark);
-    successor_->Traverse(mark, preorder, postorder);
-  }
-  postorder->Add(this);
 }
 
 
@@ -169,16 +158,15 @@ void JoinNode::Traverse(bool mark,
 
 
 void FlowGraphBuilder::Build(FunctionLiteral* lit) {
-  graph_ = FlowGraph::Empty();
-  graph_.AppendNode(new EntryNode());
   global_exit_ = new ExitNode();
   VisitStatements(lit->body());
 
-  if (HasStackOverflow()) {
-    graph_ = FlowGraph::Empty();
-    return;
-  }
+  if (HasStackOverflow()) return;
 
+  // The graph can end with a branch node (if the function ended with a
+  // loop).  Maintain edge-split form (no join nodes or exit nodes as
+  // successors to branch nodes).
+  if (graph_.exit()->IsBranchNode()) graph_.AppendNode(new BlockNode());
   graph_.AppendNode(global_exit_);
 
   // Build preorder and postorder traversal orders.  All the nodes in
@@ -222,6 +210,7 @@ void FlowGraphBuilder::VisitIfStatement(IfStatement* stmt) {
   graph_ = FlowGraph::Empty();
   Visit(stmt->else_statement());
 
+  if (HasStackOverflow()) return;
   JoinNode* join = new JoinNode();
   original.Split(branch, &left, &graph_, join);
   graph_ = original;
@@ -283,6 +272,7 @@ void FlowGraphBuilder::VisitForStatement(ForStatement* stmt) {
 
   if (stmt->next() != NULL) Visit(stmt->next());
 
+  if (HasStackOverflow()) return;
   original.Loop(join, &condition, branch, &graph_);
   graph_ = original;
 }
@@ -374,6 +364,8 @@ void FlowGraphBuilder::VisitAssignment(Assignment* expr) {
     if (!prop->key()->IsPropertyName()) Visit(prop->key());
     Visit(expr->value());
   }
+
+  if (HasStackOverflow()) return;
   graph_.AppendInstruction(expr);
 }
 
@@ -386,6 +378,8 @@ void FlowGraphBuilder::VisitThrow(Throw* expr) {
 void FlowGraphBuilder::VisitProperty(Property* expr) {
   Visit(expr->obj());
   if (!expr->key()->IsPropertyName()) Visit(expr->key());
+
+  if (HasStackOverflow()) return;
   graph_.AppendInstruction(expr);
 }
 
@@ -396,6 +390,8 @@ void FlowGraphBuilder::VisitCall(Call* expr) {
   for (int i = 0, len = arguments->length(); i < len; i++) {
     Visit(arguments->at(i));
   }
+
+  if (HasStackOverflow()) return;
   graph_.AppendInstruction(expr);
 }
 
@@ -423,6 +419,7 @@ void FlowGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::ADD:
     case Token::SUB:
       Visit(expr->expression());
+      if (HasStackOverflow()) return;
       graph_.AppendInstruction(expr);
       break;
 
@@ -438,6 +435,8 @@ void FlowGraphBuilder::VisitCountOperation(CountOperation* expr) {
   if (var != NULL && var->IsStackAllocated()) {
     definitions_.Add(expr);
   }
+
+  if (HasStackOverflow()) return;
   graph_.AppendInstruction(expr);
 }
 
@@ -463,6 +462,7 @@ void FlowGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::SAR:
       Visit(expr->left());
       Visit(expr->right());
+      if (HasStackOverflow()) return;
       graph_.AppendInstruction(expr);
       break;
 
@@ -489,6 +489,7 @@ void FlowGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     case Token::GTE:
       Visit(expr->left());
       Visit(expr->right());
+      if (HasStackOverflow()) return;
       graph_.AppendInstruction(expr);
       break;
 
@@ -1340,11 +1341,6 @@ void BlockNode::AssignNumbers() {
   }
 }
 
-
-void EntryNode::PrintText() {
-  PrintF("L%d: Entry\n", number());
-  PrintF("goto L%d\n\n", successor_->number());
-}
 
 void ExitNode::PrintText() {
   PrintF("L%d: Exit\n\n", number());

@@ -122,59 +122,6 @@ class BitVector: public ZoneObject {
 };
 
 
-// Forward declarations of Node types.
-class Node;
-class BranchNode;
-class JoinNode;
-
-// Flow graphs have a single entry and single exit.  The empty flowgraph is
-// represented by both entry and exit being NULL.
-class FlowGraph BASE_EMBEDDED {
- public:
-  FlowGraph() : entry_(NULL), exit_(NULL) {}
-
-  static FlowGraph Empty() { return FlowGraph(); }
-
-  bool is_empty() const { return entry_ == NULL; }
-  Node* entry() const { return entry_; }
-  Node* exit() const { return exit_; }
-
-  // Add a single instruction to the end of this flowgraph.
-  void AppendInstruction(AstNode* instruction);
-
-  // Add a single node to the end of this flow graph.
-  void AppendNode(Node* node);
-
-  // Add a flow graph fragment to the end of this one.
-  void AppendGraph(FlowGraph* graph);
-
-  // Concatenate an if-then-else flow-graph to this one.  Control is split
-  // and merged, so the graph remains single-entry, single-exit.
-  void Split(BranchNode* branch,
-             FlowGraph* left,
-             FlowGraph* right,
-             JoinNode* merge);
-
-  // Concatenate a forward loop (e.g., while or for loop) flow-graph to this
-  // one.  Control is split by the condition and merged back from the back
-  // edge at end of the body to the beginning of the condition.  The single
-  // (free) exit of the result graph is the right (false) arm of the branch
-  // node.
-  void Loop(JoinNode* merge,
-            FlowGraph* condition,
-            BranchNode* branch,
-            FlowGraph* body);
-
-#ifdef DEBUG
-  void PrintText(ZoneList<Node*>* postorder);
-#endif
-
- private:
-  Node* entry_;
-  Node* exit_;
-};
-
-
 // Flow-graph nodes.
 class Node: public ZoneObject {
  public:
@@ -182,7 +129,9 @@ class Node: public ZoneObject {
 
   virtual ~Node() {}
 
+  virtual bool IsExitNode() { return false; }
   virtual bool IsBlockNode() { return false; }
+  virtual bool IsBranchNode() { return false; }
   virtual bool IsJoinNode() { return false; }
 
   virtual void AddPredecessor(Node* predecessor) = 0;
@@ -213,44 +162,19 @@ class Node: public ZoneObject {
 };
 
 
-// An entry node has no predecessors and a single successor.
-class EntryNode: public Node {
- public:
-  EntryNode() : successor_(NULL) {}
-
-  void AddPredecessor(Node* predecessor) { UNREACHABLE(); }
-
-  void AddSuccessor(Node* successor) {
-    ASSERT(successor_ == NULL && successor != NULL);
-    successor_ = successor;
-  }
-
-  void Traverse(bool mark,
-                ZoneList<Node*>* preorder,
-                ZoneList<Node*>* postorder);
-
-#ifdef DEBUG
-  void PrintText();
-#endif
-
- private:
-  Node* successor_;
-
-  DISALLOW_COPY_AND_ASSIGN(EntryNode);
-};
-
-
 // An exit node has a arbitrarily many predecessors and no successors.
 class ExitNode: public Node {
  public:
   ExitNode() : predecessors_(4) {}
+
+  bool IsExitNode() { return true; }
 
   void AddPredecessor(Node* predecessor) {
     ASSERT(predecessor != NULL);
     predecessors_.Add(predecessor);
   }
 
-  void AddSuccessor(Node* successor) { /* Do nothing. */ }
+  void AddSuccessor(Node* successor) { UNREACHABLE(); }
 
   void Traverse(bool mark,
                 ZoneList<Node*>* preorder,
@@ -279,6 +203,8 @@ class BlockNode: public Node {
   }
 
   bool IsBlockNode() { return true; }
+
+  bool is_empty() { return instructions_.is_empty(); }
 
   void AddPredecessor(Node* predecessor) {
     ASSERT(predecessor_ == NULL && predecessor != NULL);
@@ -316,6 +242,8 @@ class BlockNode: public Node {
 class BranchNode: public Node {
  public:
   BranchNode() : predecessor_(NULL), successor0_(NULL), successor1_(NULL) {}
+
+  bool IsBranchNode() { return true; }
 
   void AddPredecessor(Node* predecessor) {
     ASSERT(predecessor_ == NULL && predecessor != NULL);
@@ -386,12 +314,68 @@ class JoinNode: public Node {
 };
 
 
+// Flow graphs have a single entry and single exit.  The empty flowgraph is
+// represented by both entry and exit being NULL.
+class FlowGraph BASE_EMBEDDED {
+ public:
+  static FlowGraph Empty() {
+    FlowGraph graph;
+    graph.entry_ = new BlockNode();
+    graph.exit_ = graph.entry_;
+    return graph;
+  }
+
+  bool is_empty() const {
+    return entry_ == exit_ && BlockNode::cast(entry_)->is_empty();
+  }
+  Node* entry() const { return entry_; }
+  Node* exit() const { return exit_; }
+
+  // Add a single instruction to the end of this flowgraph.
+  void AppendInstruction(AstNode* instruction);
+
+  // Add a single node to the end of this flow graph.
+  void AppendNode(Node* node);
+
+  // Add a flow graph fragment to the end of this one.
+  void AppendGraph(FlowGraph* graph);
+
+  // Concatenate an if-then-else flow-graph to this one.  Control is split
+  // and merged, so the graph remains single-entry, single-exit.
+  void Split(BranchNode* branch,
+             FlowGraph* left,
+             FlowGraph* right,
+             JoinNode* merge);
+
+  // Concatenate a forward loop (e.g., while or for loop) flow-graph to this
+  // one.  Control is split by the condition and merged back from the back
+  // edge at end of the body to the beginning of the condition.  The single
+  // (free) exit of the result graph is the right (false) arm of the branch
+  // node.
+  void Loop(JoinNode* merge,
+            FlowGraph* condition,
+            BranchNode* branch,
+            FlowGraph* body);
+
+#ifdef DEBUG
+  void PrintText(ZoneList<Node*>* postorder);
+#endif
+
+ private:
+  FlowGraph() : entry_(NULL), exit_(NULL) {}
+
+  Node* entry_;
+  Node* exit_;
+};
+
+
 // Construct a flow graph from a function literal.  Build pre- and postorder
 // traversal orders as a byproduct.
 class FlowGraphBuilder: public AstVisitor {
  public:
   FlowGraphBuilder()
-      : global_exit_(NULL),
+      : graph_(FlowGraph::Empty()),
+        global_exit_(NULL),
         preorder_(4),
         postorder_(4),
         definitions_(4) {
