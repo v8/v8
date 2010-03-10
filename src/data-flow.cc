@@ -443,7 +443,6 @@ void FlowGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
 
 void FlowGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
-
   switch (expr->op()) {
     case Token::COMMA:
     case Token::OR:
