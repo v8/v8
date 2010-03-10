@@ -32,27 +32,31 @@
 
 #include "ast.h"
 #include "compiler.h"
+#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {
 
-class BitVector BASE_EMBEDDED {
+class BitVector: public ZoneObject {
  public:
   explicit BitVector(int length)
-      : length_(length), bits_(Vector<uint32_t>::New(1 + length / 32)) {
+      : length_(length),
+        data_length_(SizeFor(length)),
+        data_(Zone::NewArray<uint32_t>(data_length_)) {
     ASSERT(length > 0);
-    for (int i = 0; i < bits_.length(); i++) {
-      bits_[i] = 0;
-    }
+    Clear();
   }
 
   BitVector(const BitVector& other)
       : length_(other.length()),
-        bits_(Vector<uint32_t>::New(1 + other.length() / 32)) {
+        data_length_(SizeFor(length_)),
+        data_(Zone::NewArray<uint32_t>(data_length_)) {
     CopyFrom(other);
   }
 
-  ~BitVector() { bits_.Dispose(); }
+  static int SizeFor(int length) {
+    return 1 + ((length - 1) / 32);
+  }
 
   BitVector& operator=(const BitVector& rhs) {
     if (this != &rhs) CopyFrom(rhs);
@@ -61,50 +65,50 @@ class BitVector BASE_EMBEDDED {
 
   void CopyFrom(const BitVector& other) {
     ASSERT(other.length() == length());
-    for (int i = 0; i < bits_.length(); i++) {
-      bits_[i] = other.bits_[i];
+    for (int i = 0; i < data_length_; i++) {
+      data_[i] = other.data_[i];
     }
   }
 
   bool Contains(int i) {
     ASSERT(i >= 0 && i < length());
-    uint32_t block = bits_[i / 32];
+    uint32_t block = data_[i / 32];
     return (block & (1U << (i % 32))) != 0;
   }
 
   void Add(int i) {
     ASSERT(i >= 0 && i < length());
-    bits_[i / 32] |= (1U << (i % 32));
+    data_[i / 32] |= (1U << (i % 32));
   }
 
   void Remove(int i) {
     ASSERT(i >= 0 && i < length());
-    bits_[i / 32] &= ~(1U << (i % 32));
+    data_[i / 32] &= ~(1U << (i % 32));
   }
 
   void Union(const BitVector& other) {
     ASSERT(other.length() == length());
-    for (int i = 0; i < bits_.length(); i++) {
-      bits_[i] |= other.bits_[i];
+    for (int i = 0; i < data_length_; i++) {
+      data_[i] |= other.data_[i];
     }
   }
 
   void Intersect(const BitVector& other) {
     ASSERT(other.length() == length());
-    for (int i = 0; i < bits_.length(); i++) {
-      bits_[i] &= other.bits_[i];
+    for (int i = 0; i < data_length_; i++) {
+      data_[i] &= other.data_[i];
     }
   }
 
   void Clear() {
-    for (int i = 0; i < bits_.length(); i++) {
-      bits_[i] = 0;
+    for (int i = 0; i < data_length_; i++) {
+      data_[i] = 0;
     }
   }
 
-  bool IsEmpty() {
-    for (int i = 0; i < bits_.length(); i++) {
-      if (bits_[i] != 0) return false;
+  bool IsEmpty() const {
+    for (int i = 0; i < data_length_; i++) {
+      if (data_[i] != 0) return false;
     }
     return true;
   }
@@ -113,7 +117,8 @@ class BitVector BASE_EMBEDDED {
 
  private:
   int length_;
-  Vector<uint32_t> bits_;
+  int data_length_;
+  uint32_t* data_;
 };
 
 
