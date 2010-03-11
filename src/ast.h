@@ -204,6 +204,8 @@ class Expression: public AstNode {
 
   virtual bool IsValidLeftHandSide() { return false; }
 
+  virtual Variable* AssignedVar() { return NULL; }
+
   // Symbols that cannot be parsed as array indices are considered property
   // names.  We do not treat symbols that can be array indexes as property
   // names because [] for string objects is handled only by keyed ICs.
@@ -1278,6 +1280,10 @@ class CountOperation: public Expression {
 
   virtual CountOperation* AsCountOperation() { return this; }
 
+  virtual Variable* AssignedVar() {
+    return expression()->AsVariableProxy()->AsVariable();
+  }
+
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
   Token::Value op() const { return op_; }
@@ -1357,6 +1363,10 @@ class Assignment: public Expression {
   virtual Assignment* AsAssignment() { return this; }
 
   Assignment* AsSimpleAssignment() { return !is_compound() ? this : NULL; }
+
+  virtual Variable* AssignedVar() {
+    return target()->AsVariableProxy()->AsVariable();
+  }
 
   Token::Value binary_op() const;
 

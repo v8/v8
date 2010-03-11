@@ -92,6 +92,15 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
     FlowGraphBuilder builder;
     builder.Build(function);
 
+    if (!builder.HasStackOverflow()) {
+      int variable_count =
+          function->num_parameters() + function->scope()->num_stack_slots();
+      ReachingDefinitions rd(builder.postorder(),
+                             builder.definitions(),
+                             variable_count);
+      rd.Compute();
+    }
+
 #ifdef DEBUG
     if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
       builder.graph()->PrintText(builder.postorder());
@@ -484,6 +493,15 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
     if (FLAG_use_flow_graph) {
       FlowGraphBuilder builder;
       builder.Build(literal);
+
+    if (!builder.HasStackOverflow()) {
+      int variable_count =
+          literal->num_parameters() + literal->scope()->num_stack_slots();
+      ReachingDefinitions rd(builder.postorder(),
+                             builder.definitions(),
+                             variable_count);
+      rd.Compute();
+    }
 
 #ifdef DEBUG
       if (FLAG_print_graph_text && !builder.HasStackOverflow()) {

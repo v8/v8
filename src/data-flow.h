@@ -100,6 +100,13 @@ class BitVector: public ZoneObject {
     }
   }
 
+  void Subtract(const BitVector& other) {
+    ASSERT(other.length() == length());
+    for (int i = 0; i < data_length_; i++) {
+      data_[i] &= ~other.data_[i];
+    }
+  }
+
   void Clear() {
     for (int i = 0; i < data_length_; i++) {
       data_[i] = 0;
@@ -119,6 +126,27 @@ class BitVector: public ZoneObject {
   int length_;
   int data_length_;
   uint32_t* data_;
+};
+
+
+class ReachingDefinitionsData BASE_EMBEDDED {
+ public:
+  ReachingDefinitionsData() : rd_in_(NULL), kill_(NULL), gen_(NULL) {}
+
+  void Initialize(int definition_count) {
+    rd_in_ = new BitVector(definition_count);
+    kill_ = new BitVector(definition_count);
+    gen_ = new BitVector(definition_count);
+  }
+
+  BitVector* rd_in() { return rd_in_; }
+  BitVector* kill() { return kill_; }
+  BitVector* gen() { return gen_; }
+
+ private:
+  BitVector* rd_in_;
+  BitVector* kill_;
+  BitVector* gen_;
 };
 
 
@@ -149,10 +177,18 @@ class Node: public ZoneObject {
   int number() { return number_; }
   void set_number(int number) { number_ = number; }
 
+  // Functions used by data-flow analyses.
+  virtual void InitializeReachingDefinitions(int definition_count,
+                                             List<BitVector*>* variables);
+
 #ifdef DEBUG
-  virtual void AssignNumbers();
+  void AssignNodeNumber();
+  void PrintReachingDefinitions();
   virtual void PrintText() = 0;
 #endif
+
+ protected:
+  ReachingDefinitionsData rd_;
 
  private:
   int number_;
@@ -224,8 +260,10 @@ class BlockNode: public Node {
                 ZoneList<Node*>* preorder,
                 ZoneList<Node*>* postorder);
 
+  void InitializeReachingDefinitions(int definition_count,
+                                     List<BitVector*>* variables);
+
 #ifdef DEBUG
-  void AssignNumbers();
   void PrintText();
 #endif
 
@@ -384,8 +422,8 @@ class FlowGraphBuilder: public AstVisitor {
   void Build(FunctionLiteral* lit);
 
   FlowGraph* graph() { return &graph_; }
-
   ZoneList<Node*>* postorder() { return &postorder_; }
+  ZoneList<Expression*>* definitions() { return &definitions_; }
 
  private:
   ExitNode* global_exit() { return global_exit_; }
@@ -402,8 +440,9 @@ class FlowGraphBuilder: public AstVisitor {
 
   // The flow graph builder collects a list of definitions (assignments and
   // count operations) to stack-allocated variables to use for reaching
-  // definitions analysis.
-  ZoneList<AstNode*> definitions_;
+  // definitions analysis.  AST node numbers in the AST are used to refer
+  // into this list.
+  ZoneList<Expression*> definitions_;
 
   DISALLOW_COPY_AND_ASSIGN(FlowGraphBuilder);
 };
@@ -520,6 +559,39 @@ class AssignedVariablesAnalyzer : public AstVisitor {
 
   DISALLOW_COPY_AND_ASSIGN(AssignedVariablesAnalyzer);
 };
+
+
+class ReachingDefinitions BASE_EMBEDDED {
+ public:
+  ReachingDefinitions(ZoneList<Node*>* postorder,
+                      ZoneList<Expression*>* definitions,
+                      int variable_count)
+      : postorder_(postorder),
+        definitions_(definitions),
+        variables_(variable_count) {
+    int definition_count = definitions->length();
+    for (int i = 0; i < variable_count; i++) {
+      variables_.Add(new BitVector(definition_count));
+    }
+  }
+
+  static int IndexFor(Variable* var, int variable_count);
+
+  void Compute();
+
+ private:
+  // A (postorder) list of flow-graph nodes in the body.
+  ZoneList<Node*>* postorder_;
+
+  // A list of all the definitions in the body.
+  ZoneList<Expression*>* definitions_;
+
+  // For each variable, the set of all its definitions.
+  List<BitVector*> variables_;
+
+  DISALLOW_COPY_AND_ASSIGN(ReachingDefinitions);
+};
+
 
 } }  // namespace v8::internal
 

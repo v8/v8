@@ -133,13 +133,13 @@ void BranchNode::Traverse(bool mark,
                           ZoneList<Node*>* postorder) {
   ASSERT(successor0_ != NULL && successor1_ != NULL);
   preorder->Add(this);
-  if (!successor0_->IsMarkedWith(mark)) {
-    successor0_->MarkWith(mark);
-    successor0_->Traverse(mark, preorder, postorder);
-  }
   if (!successor1_->IsMarkedWith(mark)) {
     successor1_->MarkWith(mark);
     successor1_->Traverse(mark, preorder, postorder);
+  }
+  if (!successor0_->IsMarkedWith(mark)) {
+    successor0_->MarkWith(mark);
+    successor0_->Traverse(mark, preorder, postorder);
   }
   postorder->Add(this);
 }
@@ -358,7 +358,10 @@ void FlowGraphBuilder::VisitAssignment(Assignment* expr) {
   ASSERT(var == NULL || prop == NULL);
   if (var != NULL) {
     Visit(expr->value());
-    if (var->IsStackAllocated()) definitions_.Add(expr);
+    if (var->IsStackAllocated()) {
+      expr->set_num(definitions_.length());
+      definitions_.Add(expr);
+    }
 
   } else if (prop != NULL) {
     Visit(prop->obj());
@@ -434,6 +437,7 @@ void FlowGraphBuilder::VisitCountOperation(CountOperation* expr) {
   Visit(expr->expression());
   Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
   if (var != NULL && var->IsStackAllocated()) {
+    expr->set_num(definitions_.length());
     definitions_.Add(expr);
   }
 
@@ -1483,13 +1487,18 @@ void AssignedVariablesAnalyzer::VisitDeclaration(Declaration* decl) {
 // only used for printing in debug mode.
 class TextInstructionPrinter: public AstVisitor {
  public:
-  TextInstructionPrinter() {}
+  TextInstructionPrinter() : number_(0) {}
+
+  int NextNumber() { return number_; }
+  void AssignNumber(AstNode* node) { node->set_num(number_++); }
 
  private:
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
+
+  int number_;
 
   DISALLOW_COPY_AND_ASSIGN(TextInstructionPrinter);
 };
@@ -1611,8 +1620,7 @@ void TextInstructionPrinter::VisitSlot(Slot* expr) {
 void TextInstructionPrinter::VisitVariableProxy(VariableProxy* expr) {
   Variable* var = expr->AsVariable();
   if (var != NULL) {
-    SmartPointer<char> name = var->name()->ToCString();
-    PrintF("%s", *name);
+    PrintF("%s", *var->name()->ToCString());
   } else {
     ASSERT(expr->AsProperty() != NULL);
     VisitProperty(expr->AsProperty());
@@ -1651,9 +1659,8 @@ void TextInstructionPrinter::VisitAssignment(Assignment* expr) {
   Property* prop = expr->target()->AsProperty();
 
   if (var != NULL) {
-    SmartPointer<char> name = var->name()->ToCString();
     PrintF("%s %s @%d",
-           *name,
+           *var->name()->ToCString(),
            Token::String(expr->op()),
            expr->value()->num());
   } else if (prop != NULL) {
@@ -1674,6 +1681,10 @@ void TextInstructionPrinter::VisitAssignment(Assignment* expr) {
   } else {
     // Throw reference error.
     Visit(expr->target());
+  }
+
+  if (expr->num() != AstNode::kNoNumber) {
+    PrintF(" ;; D%d", expr->num());
   }
 }
 
@@ -1717,8 +1728,7 @@ void TextInstructionPrinter::VisitCallNew(CallNew* expr) {
 
 
 void TextInstructionPrinter::VisitCallRuntime(CallRuntime* expr) {
-  SmartPointer<char> name = expr->name()->ToCString();
-  PrintF("%s(", *name);
+  PrintF("%s(", *expr->name()->ToCString());
   ZoneList<Expression*>* arguments = expr->arguments();
   for (int i = 0, len = arguments->length(); i < len; i++) {
     if (i != 0) PrintF(", ");
@@ -1738,6 +1748,10 @@ void TextInstructionPrinter::VisitCountOperation(CountOperation* expr) {
     PrintF("%s@%d", Token::String(expr->op()), expr->expression()->num());
   } else {
     PrintF("@%d%s", expr->expression()->num(), Token::String(expr->op()));
+  }
+
+  if (expr->num() != AstNode::kNoNumber) {
+    PrintF(" ;; D%d", expr->num());
   }
 }
 
@@ -1770,31 +1784,66 @@ static int node_count = 0;
 static int instruction_count = 0;
 
 
-void Node::AssignNumbers() {
+void Node::AssignNodeNumber() {
   set_number(node_count++);
 }
 
 
-void BlockNode::AssignNumbers() {
-  set_number(node_count++);
-  for (int i = 0, len = instructions_.length(); i < len; i++) {
-    instructions_[i]->set_num(instruction_count++);
+void Node::PrintReachingDefinitions() {
+  if (rd_.rd_in() != NULL) {
+    ASSERT(rd_.kill() != NULL && rd_.gen() != NULL);
+
+    PrintF("RD_in = {");
+    bool first = true;
+    for (int i = 0; i < rd_.rd_in()->length(); i++) {
+      if (rd_.rd_in()->Contains(i)) {
+        if (!first) PrintF(",");
+        PrintF("%d");
+        first = false;
+      }
+    }
+    PrintF("}\n");
+
+    PrintF("RD_kill = {");
+    first = true;
+    for (int i = 0; i < rd_.kill()->length(); i++) {
+      if (rd_.kill()->Contains(i)) {
+        if (!first) PrintF(",");
+        PrintF("%d");
+        first = false;
+      }
+    }
+    PrintF("}\n");
+
+    PrintF("RD_gen = {");
+    first = true;
+    for (int i = 0; i < rd_.gen()->length(); i++) {
+      if (rd_.gen()->Contains(i)) {
+        if (!first) PrintF(",");
+        PrintF("%d");
+        first = false;
+      }
+    }
+    PrintF("}\n");
   }
 }
 
 
 void ExitNode::PrintText() {
+  PrintReachingDefinitions();
   PrintF("L%d: Exit\n\n", number());
 }
 
 
 void BlockNode::PrintText() {
+  PrintReachingDefinitions();
   // Print the instructions in the block.
   PrintF("L%d: Block\n", number());
   TextInstructionPrinter printer;
   for (int i = 0, len = instructions_.length(); i < len; i++) {
-    PrintF("%d ", instructions_[i]->num());
+    PrintF("%d ", printer.NextNumber());
     printer.Visit(instructions_[i]);
+    printer.AssignNumber(instructions_[i]);
     PrintF("\n");
   }
   PrintF("goto L%d\n\n", successor_->number());
@@ -1802,12 +1851,14 @@ void BlockNode::PrintText() {
 
 
 void BranchNode::PrintText() {
+  PrintReachingDefinitions();
   PrintF("L%d: Branch\n", number());
   PrintF("goto (L%d, L%d)\n\n", successor0_->number(), successor1_->number());
 }
 
 
 void JoinNode::PrintText() {
+  PrintReachingDefinitions();
   PrintF("L%d: Join(", number());
   for (int i = 0, len = predecessors_.length(); i < len; i++) {
     if (i != 0) PrintF(", ");
@@ -1824,7 +1875,7 @@ void FlowGraph::PrintText(ZoneList<Node*>* postorder) {
   node_count = 0;
   instruction_count = 0;
   for (int i = postorder->length() - 1; i >= 0; i--) {
-    postorder->at(i)->AssignNumbers();
+    postorder->at(i)->AssignNodeNumber();
   }
 
   // Print basic blocks in reverse postorder.
@@ -1835,6 +1886,97 @@ void FlowGraph::PrintText(ZoneList<Node*>* postorder) {
 
 
 #endif  // defined(DEBUG)
+
+
+int ReachingDefinitions::IndexFor(Variable* var, int variable_count) {
+  // Parameters are numbered left-to-right from the beginning of the bit
+  // set.  Stack-allocated locals are allocated right-to-left from the end.
+  ASSERT(var != NULL && var->IsStackAllocated());
+  Slot* slot = var->slot();
+  if (slot->type() == Slot::PARAMETER) {
+    return slot->index();
+  } else {
+    return (variable_count - 1) - slot->index();
+  }
+}
+
+
+void Node::InitializeReachingDefinitions(int definition_count,
+                                         List<BitVector*>* variables) {
+  rd_.Initialize(definition_count);
+}
+
+
+void BlockNode::InitializeReachingDefinitions(int definition_count,
+                                              List<BitVector*>* variables) {
+  int instruction_count = instructions_.length();
+  int variable_count = variables->length();
+
+  rd_.Initialize(definition_count);
+
+  for (int i = 0; i < instruction_count; i++) {
+    Expression* expr = instructions_[i]->AsExpression();
+    if (expr == NULL) continue;
+    Variable* var = expr->AssignedVar();
+    if (var == NULL) continue;
+
+    // All definitions of this variable are killed.
+    BitVector* def_set =
+        variables->at(ReachingDefinitions::IndexFor(var, variable_count));
+    rd_.kill()->Union(*def_set);
+
+    // All previously generated definitions are not generated.
+    rd_.gen()->Subtract(*def_set);
+
+    // This one is generated.
+    rd_.gen()->Add(expr->num());
+  }
+}
+
+
+void ReachingDefinitions::Compute() {
+  if (definitions_->is_empty()) return;
+
+  int variable_count = variables_.length();
+  int definition_count = definitions_->length();
+  int block_count = postorder_->length();
+
+  // Step 1: For each variable, identify the set of all its definitions in
+  // the body.
+  for (int i = 0; i < definition_count; i++) {
+    Variable* var = definitions_->at(i)->AssignedVar();
+    variables_[IndexFor(var, variable_count)]->Add(i);
+  }
+
+  if (FLAG_print_graph_text) {
+    for (int i = 0; i < variable_count; i++) {
+      BitVector* def_set = variables_[i];
+      if (!def_set->IsEmpty()) {
+        // At least one definition.
+        bool first = true;
+        for (int j = 0; j < definition_count; j++) {
+          if (def_set->Contains(j)) {
+            if (first) {
+              Variable* var = definitions_->at(j)->AssignedVar();
+              ASSERT(var != NULL);
+              PrintF("Def[%s] = {%d", *var->name()->ToCString(), j);
+              first = false;
+            } else {
+              PrintF(", %d", j);
+            }
+          }
+        }
+        PrintF("}\n");
+      }
+    }
+  }
+
+  // Step 2: Compute KILL and GEN for each block node, initialize RD.
+  for (int i = block_count - 1; i >= 0; i--) {
+    postorder_->at(i)->InitializeReachingDefinitions(definition_count,
+                                                     &variables_);
+  }
+}
 
 
 } }  // namespace v8::internal
