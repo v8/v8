@@ -1238,6 +1238,60 @@ static Object* Runtime_FinishArrayPrototypeSetup(Arguments args) {
 }
 
 
+static void SetCustomCallGenerator(Handle<JSFunction> function,
+                                   CustomCallGenerator generator) {
+  if (function->shared()->function_data()->IsUndefined()) {
+    function->shared()->set_function_data(*FromCData(generator));
+  }
+}
+
+
+static Handle<JSFunction> InstallBuiltin(Handle<JSObject> holder,
+                                         const char* name,
+                                         Builtins::Name builtin_name,
+                                         CustomCallGenerator generator = NULL) {
+  Handle<String> key = Factory::LookupAsciiSymbol(name);
+  Handle<Code> code(Builtins::builtin(builtin_name));
+  Handle<JSFunction> optimized = Factory::NewFunction(key,
+                                                      JS_OBJECT_TYPE,
+                                                      JSObject::kHeaderSize,
+                                                      code,
+                                                      false);
+  optimized->shared()->DontAdaptArguments();
+  if (generator != NULL) {
+    SetCustomCallGenerator(optimized, generator);
+  }
+  SetProperty(holder, key, optimized, NONE);
+  return optimized;
+}
+
+
+static Object* CompileArrayPushCall(CallStubCompiler* compiler,
+                                    Object* object,
+                                    JSObject* holder,
+                                    JSFunction* function,
+                                    String* name,
+                                    StubCompiler::CheckType check) {
+  return compiler->CompileArrayPushCall(object, holder, function, name, check);
+}
+
+
+static Object* Runtime_SpecialArrayFunctions(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, holder, 0);
+
+  InstallBuiltin(holder, "pop", Builtins::ArrayPop);
+  InstallBuiltin(holder, "push", Builtins::ArrayPush, CompileArrayPushCall);
+  InstallBuiltin(holder, "shift", Builtins::ArrayShift);
+  InstallBuiltin(holder, "unshift", Builtins::ArrayUnshift);
+  InstallBuiltin(holder, "slice", Builtins::ArraySlice);
+  InstallBuiltin(holder, "splice", Builtins::ArraySplice);
+
+  return *holder;
+}
+
+
 static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 4);
@@ -1372,10 +1426,8 @@ static Object* Runtime_FunctionIsAPIFunction(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_CHECKED(JSFunction, f, args[0]);
-  // The function_data field of the shared function info is used exclusively by
-  // the API.
-  return !f->shared()->function_data()->IsUndefined() ? Heap::true_value()
-                                                      : Heap::false_value();
+  return f->shared()->IsApiFunction() ? Heap::true_value()
+                                      : Heap::false_value();
 }
 
 static Object* Runtime_FunctionIsBuiltin(Arguments args) {

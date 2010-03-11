@@ -790,20 +790,19 @@ static Object* HandleApiCallHelper(
 
   HandleScope scope;
   Handle<JSFunction> function = args.called_function();
+  ASSERT(function->shared()->IsApiFunction());
 
+  FunctionTemplateInfo* fun_data = function->shared()->get_api_func_data();
   if (is_construct) {
-    Handle<FunctionTemplateInfo> desc =
-        Handle<FunctionTemplateInfo>(
-            FunctionTemplateInfo::cast(function->shared()->function_data()));
+    Handle<FunctionTemplateInfo> desc(fun_data);
     bool pending_exception = false;
     Factory::ConfigureInstance(desc, Handle<JSObject>::cast(args.receiver()),
                                &pending_exception);
     ASSERT(Top::has_pending_exception() == pending_exception);
     if (pending_exception) return Failure::Exception();
+    fun_data = *desc;
   }
 
-  FunctionTemplateInfo* fun_data =
-      FunctionTemplateInfo::cast(function->shared()->function_data());
   Object* raw_holder = TypeCheck(args.length(), &args[0], fun_data);
 
   if (raw_holder->IsNull()) {
@@ -874,8 +873,8 @@ BUILTIN(HandleApiCallConstruct) {
 
 static void VerifyTypeCheck(Handle<JSObject> object,
                             Handle<JSFunction> function) {
-  FunctionTemplateInfo* info =
-      FunctionTemplateInfo::cast(function->shared()->function_data());
+  ASSERT(function->shared()->IsApiFunction());
+  FunctionTemplateInfo* info = function->shared()->get_api_func_data();
   if (info->signature()->IsUndefined()) return;
   SignatureInfo* signature = SignatureInfo::cast(info->signature());
   Object* receiver_type = signature->receiver();
@@ -959,9 +958,9 @@ static Object* HandleApiCallAsFunctionOrConstructor(
   // used to create the called object.
   ASSERT(obj->map()->has_instance_call_handler());
   JSFunction* constructor = JSFunction::cast(obj->map()->constructor());
-  Object* template_info = constructor->shared()->function_data();
+  ASSERT(constructor->shared()->IsApiFunction());
   Object* handler =
-      FunctionTemplateInfo::cast(template_info)->instance_call_handler();
+      constructor->shared()->get_api_func_data()->instance_call_handler();
   ASSERT(!handler->IsUndefined());
   CallHandlerInfo* call_data = CallHandlerInfo::cast(handler);
   Object* callback_obj = call_data->callback();

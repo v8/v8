@@ -245,15 +245,6 @@ class Genesis BASE_EMBEDDED {
       bool make_prototype_enumerable = false);
   void MakeFunctionInstancePrototypeWritable();
 
-  Handle<JSFunction> MakeFunctionForBuiltin(Handle<String> name,
-                                            Handle<Code> code);
-
-  void OverrideWithSpecialFunction(Handle<JSObject> prototype,
-                                   const char* name,
-                                   Handle<Code> code);
-
-  void InstallSpecialFunctions();
-
   static bool CompileBuiltin(int index);
   static bool CompileNative(Vector<const char> name, Handle<String> source);
   static bool CompileScriptCached(Vector<const char> name,
@@ -1458,73 +1449,6 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 }
 
 
-Handle<JSFunction> Genesis::MakeFunctionForBuiltin(Handle<String> name,
-                                                   Handle<Code> code) {
-  Handle<JSFunction> optimized = Factory::NewFunction(name,
-                                                      JS_OBJECT_TYPE,
-                                                      JSObject::kHeaderSize,
-                                                      code,
-                                                      false);
-  optimized->shared()->DontAdaptArguments();
-  return optimized;
-}
-
-
-void Genesis::OverrideWithSpecialFunction(Handle<JSObject> prototype,
-                                          const char* name,
-                                          Handle<Code> code) {
-  Handle<String> key = Factory::LookupAsciiSymbol(name);
-  Handle<Object> old_value = GetProperty(prototype, key);
-  // Check if the function is present in the first place.
-  // For example, FLAG_natives_file could affect if Array functions
-  // are installed at all.
-  if (!old_value->IsJSFunction()) return;
-  int old_length = Handle<JSFunction>::cast(old_value)->shared()->length();
-  Handle<JSFunction> optimized = MakeFunctionForBuiltin(key, code);
-  optimized->shared()->set_length(old_length);
-  SetProperty(prototype, key, optimized, NONE);
-}
-
-
-void Genesis::InstallSpecialFunctions() {
-  HandleScope scope;
-  Handle<JSObject> global = Handle<JSObject>(global_context()->global());
-  // Add special versions for some Array.prototype functions.
-  Handle<JSFunction> function =
-      Handle<JSFunction>(
-          JSFunction::cast(global->GetProperty(Heap::Array_symbol())));
-  Handle<JSObject> visible_prototype =
-      Handle<JSObject>(JSObject::cast(function->prototype()));
-  // Remember to put those specializations on the hidden prototype if present.
-  Handle<JSObject> special_prototype;
-  Handle<Object> superproto(visible_prototype->GetPrototype());
-  if (superproto->IsJSObject() &&
-      JSObject::cast(*superproto)->map()->is_hidden_prototype()) {
-    special_prototype = Handle<JSObject>::cast(superproto);
-  } else {
-    special_prototype = visible_prototype;
-  }
-  OverrideWithSpecialFunction(
-      special_prototype, "pop",
-      Handle<Code>(Builtins::builtin(Builtins::ArrayPop)));
-  OverrideWithSpecialFunction(
-      special_prototype, "push",
-      Handle<Code>(Builtins::builtin(Builtins::ArrayPush)));
-  OverrideWithSpecialFunction(
-      special_prototype, "shift",
-      Handle<Code>(Builtins::builtin(Builtins::ArrayShift)));
-  OverrideWithSpecialFunction(
-      special_prototype, "unshift",
-      Handle<Code>(Builtins::builtin(Builtins::ArrayUnshift)));
-  OverrideWithSpecialFunction(
-      special_prototype, "slice",
-      Handle<Code>(Builtins::builtin(Builtins::ArraySlice)));
-  OverrideWithSpecialFunction(
-      special_prototype, "splice",
-      Handle<Code>(Builtins::builtin(Builtins::ArraySplice)));
-}
-
-
 Genesis::Genesis(Handle<Object> global_object,
                  v8::Handle<v8::ObjectTemplate> global_template,
                  v8::ExtensionConfiguration* extensions) {
@@ -1548,7 +1472,6 @@ Genesis::Genesis(Handle<Object> global_object,
   if (!InstallNatives()) return;
 
   MakeFunctionInstancePrototypeWritable();
-  InstallSpecialFunctions();
 
   if (!ConfigureGlobalObjects(global_template)) return;
 

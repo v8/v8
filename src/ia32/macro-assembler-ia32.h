@@ -48,6 +48,18 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
+
+  void RecordWriteHelper(Register object,
+                         Register addr,
+                         Register scratch);
+
+  // Check if object is in new space.
+  // scratch can be object itself, but it will be clobbered.
+  void InNewSpace(Register object,
+                  Register scratch,
+                  Condition cc,  // equal for new space, not_equal otherwise.
+                  Label* branch);
+
   // Set the remembered set bit for [object+offset].
   // object is the object being stored into, value is the object being stored.
   // If offset is zero, then the scratch register contains the array index into

@@ -10217,6 +10217,12 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 }
 
 
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  masm->RecordWriteHelper(object_, addr_, scratch_);
+  masm->ret(0);
+}
+
+
 void CompareStub::Generate(MacroAssembler* masm) {
   Label call_builtin, done;
 

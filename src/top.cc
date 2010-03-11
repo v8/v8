@@ -439,10 +439,9 @@ void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
 
   // Get the data object from access check info.
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
-  Object* info = constructor->shared()->function_data();
-  if (info == Heap::undefined_value()) return;
-
-  Object* data_obj = FunctionTemplateInfo::cast(info)->access_check_info();
+  if (!constructor->shared()->IsApiFunction()) return;
+  Object* data_obj =
+      constructor->shared()->get_api_func_data()->access_check_info();
   if (data_obj == Heap::undefined_value()) return;
 
   HandleScope scope;
@@ -502,10 +501,10 @@ bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
 
   // Get named access check callback
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
-  Object* info = constructor->shared()->function_data();
-  if (info == Heap::undefined_value()) return false;
+  if (!constructor->shared()->IsApiFunction()) return false;
 
-  Object* data_obj = FunctionTemplateInfo::cast(info)->access_check_info();
+  Object* data_obj =
+     constructor->shared()->get_api_func_data()->access_check_info();
   if (data_obj == Heap::undefined_value()) return false;
 
   Object* fun_obj = AccessCheckInfo::cast(data_obj)->named_callback();
@@ -547,10 +546,10 @@ bool Top::MayIndexedAccess(JSObject* receiver,
 
   // Get indexed access check callback
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
-  Object* info = constructor->shared()->function_data();
-  if (info == Heap::undefined_value()) return false;
+  if (!constructor->shared()->IsApiFunction()) return false;
 
-  Object* data_obj = FunctionTemplateInfo::cast(info)->access_check_info();
+  Object* data_obj =
+      constructor->shared()->get_api_func_data()->access_check_info();
   if (data_obj == Heap::undefined_value()) return false;
 
   Object* fun_obj = AccessCheckInfo::cast(data_obj)->indexed_callback();

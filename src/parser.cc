@@ -1964,9 +1964,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
       Factory::NewFunctionBoilerplate(name, literals, code);
   boilerplate->shared()->set_construct_stub(*construct_stub);
 
-  // Copy the function data to the boilerplate. Used by
-  // builtins.cc:HandleApiCall to perform argument type checks and to
-  // find the right native code to call.
+  // Copy the function data to the boilerplate.
   boilerplate->shared()->set_function_data(fun->shared()->function_data());
   int parameters = fun->shared()->formal_parameter_count();
   boilerplate->shared()->set_formal_parameter_count(parameters);

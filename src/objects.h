@@ -3186,11 +3186,17 @@ class SharedFunctionInfo: public HeapObject {
   // [instance class name]: class name for instances.
   DECL_ACCESSORS(instance_class_name, Object)
 
-  // [function data]: This field has been added for make benefit the API.
+  // [function data]: This field holds some additional data for function.
+  // Currently it either has FunctionTemplateInfo to make benefit the API
+  // or Proxy wrapping CustomCallGenerator.
   // In the long run we don't want all functions to have this field but
   // we can fix that when we have a better model for storing hidden data
   // on objects.
   DECL_ACCESSORS(function_data, Object)
+
+  inline bool IsApiFunction();
+  inline FunctionTemplateInfo* get_api_func_data();
+  inline bool HasCustomCallGenerator();
 
   // [script info]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
@@ -3299,9 +3305,9 @@ class SharedFunctionInfo: public HeapObject {
   static const int kConstructStubOffset = kCodeOffset + kPointerSize;
   static const int kInstanceClassNameOffset =
       kConstructStubOffset + kPointerSize;
-  static const int kExternalReferenceDataOffset =
+  static const int kFunctionDataOffset =
       kInstanceClassNameOffset + kPointerSize;
-  static const int kScriptOffset = kExternalReferenceDataOffset + kPointerSize;
+  static const int kScriptOffset = kFunctionDataOffset + kPointerSize;
   static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
   static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
   static const int kThisPropertyAssignmentsOffset =
