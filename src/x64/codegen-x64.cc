@@ -3600,7 +3600,7 @@ void CodeGenerator::VisitThisFunction(ThisFunction* node) {
 }
 
 
-void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
   // ArgumentsAccessStub expects the key in rdx and the formal

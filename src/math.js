@@ -1,4 +1,3 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -85,7 +84,7 @@ function MathCeil(x) {
 // ECMA 262 - 15.8.2.7
 function MathCos(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %_Math_cos(x);
+  return %_MathCos(x);
 }
 
 // ECMA 262 - 15.8.2.8
@@ -160,7 +159,7 @@ function MathMin(arg1, arg2) {  // length == 2
 function MathPow(x, y) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
   if (!IS_NUMBER(y)) y = ToNumber(y);
-  return %_Math_pow(x, y);
+  return %_MathPow(x, y);
 }
 
 // ECMA 262 - 15.8.2.14
@@ -177,13 +176,13 @@ function MathRound(x) {
 // ECMA 262 - 15.8.2.16
 function MathSin(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %_Math_sin(x);
+  return %_MathSin(x);
 }
 
 // ECMA 262 - 15.8.2.17
 function MathSqrt(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %_Math_sqrt(x);
+  return %_MathSqrt(x);
 }
 
 // ECMA 262 - 15.8.2.18

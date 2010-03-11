@@ -30,6 +30,7 @@
 #include "api.h"
 #include "ast.h"
 #include "bootstrapper.h"
+#include "codegen.h"
 #include "compiler.h"
 #include "messages.h"
 #include "platform.h"
@@ -3832,7 +3833,27 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
     }
   }
 
-  // Otherwise we have a runtime call.
+  // Check that the expected number arguments are passed to runtime functions.
+  if (!is_pre_parsing_) {
+    if (function != NULL
+        && function->nargs != -1
+        && function->nargs != args->length()) {
+      ReportMessage("illegal_access", Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    } else if (function == NULL && !name.is_null()) {
+      // If this is not a runtime function implemented in C++ it might be an
+      // inlined runtime function.
+      int argc = CodeGenerator::InlineRuntimeCallArgumentsCount(name);
+      if (argc != -1 && argc != args->length()) {
+        ReportMessage("illegal_access", Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      }
+    }
+  }
+
+  // Otherwise we have a valid runtime call.
   return NEW(CallRuntime(name, function, args));
 }
 

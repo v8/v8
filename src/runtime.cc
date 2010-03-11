@@ -32,6 +32,7 @@
 #include "accessors.h"
 #include "api.h"
 #include "arguments.h"
+#include "codegen.h"
 #include "compiler.h"
 #include "cpu.h"
 #include "dateparser-inl.h"
@@ -8665,18 +8666,28 @@ static Object* Runtime_ListNatives(Arguments args) {
   HandleScope scope;
   Handle<JSArray> result = Factory::NewJSArray(0);
   int index = 0;
+  bool inline_runtime_functions = false;
 #define ADD_ENTRY(Name, argc, ressize)                                       \
   {                                                                          \
     HandleScope inner;                                                       \
-    Handle<String> name =                                                    \
-      Factory::NewStringFromAscii(                                           \
-          Vector<const char>(#Name, StrLength(#Name)));       \
+    Handle<String> name;                                                     \
+    /* Inline runtime functions have an underscore in front of the name. */  \
+    if (inline_runtime_functions) {                                          \
+      name = Factory::NewStringFromAscii(                                    \
+          Vector<const char>("_" #Name, StrLength("_" #Name)));              \
+    } else {                                                                 \
+      name = Factory::NewStringFromAscii(                                    \
+          Vector<const char>(#Name, StrLength(#Name)));                      \
+    }                                                                        \
     Handle<JSArray> pair = Factory::NewJSArray(0);                           \
     SetElement(pair, 0, name);                                               \
     SetElement(pair, 1, Handle<Smi>(Smi::FromInt(argc)));                    \
     SetElement(result, index++, pair);                                       \
   }
+  inline_runtime_functions = false;
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
+  inline_runtime_functions = true;
+  INLINE_RUNTIME_FUNCTION_LIST(ADD_ENTRY)
 #undef ADD_ENTRY
   return *result;
 }
