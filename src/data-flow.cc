@@ -1058,7 +1058,7 @@ Variable* AssignedVariablesAnalyzer::FindSmiLoopVariable(ForStatement* stmt) {
 
   // We only deal with local variables.
   Variable* loop_var = init->target()->AsVariableProxy()->AsVariable();
-  if (!loop_var->IsStackAllocated()) return NULL;
+  if (loop_var == NULL || !loop_var->IsStackAllocated()) return NULL;
 
   // The initial value has to be a smi.
   Literal* init_lit = init->value()->AsLiteral();
