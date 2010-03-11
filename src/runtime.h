@@ -132,7 +132,6 @@ namespace internal {
   F(StringCompare, 2, 1) \
   \
   /* Math */ \
-  F(Math_abs, 1, 1) \
   F(Math_acos, 1, 1) \
   F(Math_asin, 1, 1) \
   F(Math_atan, 1, 1) \

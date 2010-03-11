@@ -4847,16 +4847,6 @@ static Object* Runtime_StringCompare(Arguments args) {
 }
 
 
-static Object* Runtime_Math_abs(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-  Counters::math_abs.Increment();
-
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(fabs(x));
-}
-
-
 static Object* Runtime_Math_acos(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);

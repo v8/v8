@@ -45,7 +45,8 @@ $Math.__proto__ = global.Object.prototype;
 function MathAbs(x) {
   if (%_IsSmi(x)) return x >= 0 ? x : -x;
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %Math_abs(x);
+  if (x === 0) return 0;  // To handle -0.
+  return x > 0 ? x : -x;
 }
 
 // ECMA 262 - 15.8.2.2
