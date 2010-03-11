@@ -248,7 +248,8 @@ static Handle<Object> CreateLiteralBoilerplate(
 
 static Handle<Object> CreateObjectLiteralBoilerplate(
     Handle<FixedArray> literals,
-    Handle<FixedArray> constant_properties) {
+    Handle<FixedArray> constant_properties,
+    bool should_have_fast_elements) {
   // Get the global context from the literals array.  This is the
   // context in which the function was created and we use the object
   // function from this context to create the object literal.  We do
@@ -264,6 +265,10 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
                                             &is_result_from_cache);
 
   Handle<JSObject> boilerplate = Factory::NewJSObjectFromMap(map);
+
+  // Normalize the elements of the boilerplate to save space if needed.
+  if (!should_have_fast_elements) NormalizeElements(boilerplate);
+
   {  // Add the constant properties to the boilerplate.
     int length = constant_properties->length();
     OptimizedObjectForAddingMultipleProperties opt(boilerplate,
@@ -345,34 +350,16 @@ static Handle<Object> CreateLiteralBoilerplate(
     Handle<FixedArray> array) {
   Handle<FixedArray> elements = CompileTimeValue::GetElements(array);
   switch (CompileTimeValue::GetType(array)) {
-    case CompileTimeValue::OBJECT_LITERAL:
-      return CreateObjectLiteralBoilerplate(literals, elements);
+    case CompileTimeValue::OBJECT_LITERAL_FAST_ELEMENTS:
+      return CreateObjectLiteralBoilerplate(literals, elements, true);
+    case CompileTimeValue::OBJECT_LITERAL_SLOW_ELEMENTS:
+      return CreateObjectLiteralBoilerplate(literals, elements, false);
     case CompileTimeValue::ARRAY_LITERAL:
       return CreateArrayLiteralBoilerplate(literals, elements);
     default:
       UNREACHABLE();
       return Handle<Object>::null();
   }
-}
-
-
-static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 3);
-  // Copy the arguments.
-  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_CHECKED(literals_index, args[1]);
-  CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
-
-  Handle<Object> result =
-    CreateObjectLiteralBoilerplate(literals, constant_properties);
-
-  if (result.is_null()) return Failure::Exception();
-
-  // Update the functions literal and return the boilerplate.
-  literals->set(literals_index, *result);
-
-  return *result;
 }
 
 
@@ -399,15 +386,19 @@ static Object* Runtime_CreateArrayLiteralBoilerplate(Arguments args) {
 
 static Object* Runtime_CreateObjectLiteral(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
   CONVERT_SMI_CHECKED(literals_index, args[1]);
   CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
+  CONVERT_SMI_CHECKED(fast_elements, args[3]);
+  bool should_have_fast_elements = fast_elements == 1;
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(literals->get(literals_index));
   if (*boilerplate == Heap::undefined_value()) {
-    boilerplate = CreateObjectLiteralBoilerplate(literals, constant_properties);
+    boilerplate = CreateObjectLiteralBoilerplate(literals,
+                                                 constant_properties,
+                                                 should_have_fast_elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
@@ -418,15 +409,19 @@ static Object* Runtime_CreateObjectLiteral(Arguments args) {
 
 static Object* Runtime_CreateObjectLiteralShallow(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
   CONVERT_SMI_CHECKED(literals_index, args[1]);
   CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
+  CONVERT_SMI_CHECKED(fast_elements, args[3]);
+  bool should_have_fast_elements = fast_elements == 1;
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(literals->get(literals_index));
   if (*boilerplate == Heap::undefined_value()) {
-    boilerplate = CreateObjectLiteralBoilerplate(literals, constant_properties);
+    boilerplate = CreateObjectLiteralBoilerplate(literals,
+                                                 constant_properties,
+                                                 should_have_fast_elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);

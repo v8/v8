@@ -233,11 +233,10 @@ namespace internal {
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4, 1)\
   F(CreateArrayLiteralBoilerplate, 3, 1) \
-  F(CreateObjectLiteralBoilerplate, 3, 1) \
   F(CloneLiteralBoilerplate, 1, 1) \
   F(CloneShallowLiteralBoilerplate, 1, 1) \
-  F(CreateObjectLiteral, 3, 1) \
-  F(CreateObjectLiteralShallow, 3, 1) \
+  F(CreateObjectLiteral, 4, 1) \
+  F(CreateObjectLiteralShallow, 4, 1) \
   F(CreateArrayLiteral, 3, 1) \
   F(CreateArrayLiteralShallow, 3, 1) \
   \

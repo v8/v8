@@ -871,10 +871,12 @@ class ObjectLiteral: public MaterializedLiteral {
                 ZoneList<Property*>* properties,
                 int literal_index,
                 bool is_simple,
+                bool fast_elements,
                 int depth)
       : MaterializedLiteral(literal_index, is_simple, depth),
         constant_properties_(constant_properties),
-        properties_(properties) {}
+        properties_(properties),
+        fast_elements_(fast_elements) {}
 
   virtual ObjectLiteral* AsObjectLiteral() { return this; }
   virtual void Accept(AstVisitor* v);
@@ -886,9 +888,12 @@ class ObjectLiteral: public MaterializedLiteral {
   }
   ZoneList<Property*>* properties() const { return properties_; }
 
+  bool fast_elements() const { return fast_elements_; }
+
  private:
   Handle<FixedArray> constant_properties_;
   ZoneList<Property*>* properties_;
+  bool fast_elements_;
 };
 
 

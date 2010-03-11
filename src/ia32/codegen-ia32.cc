@@ -4780,11 +4780,13 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   frame_->Push(Smi::FromInt(node->literal_index()));
   // Constant properties.
   frame_->Push(node->constant_properties());
+  // Should the object literal have fast elements?
+  frame_->Push(Smi::FromInt(node->fast_elements() ? 1 : 0));
   Result clone;
   if (node->depth() > 1) {
-    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteral, 3);
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
-    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
   }
   frame_->Push(&clone);
 

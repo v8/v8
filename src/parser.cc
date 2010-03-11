@@ -212,6 +212,7 @@ class Parser {
       ZoneList<ObjectLiteral::Property*>* properties,
       Handle<FixedArray> constants,
       bool* is_simple,
+      bool* fast_elements,
       int* depth);
 
   // Populate the literals fixed array for a materialized array literal.
@@ -3446,7 +3447,11 @@ Handle<FixedArray> CompileTimeValue::GetValue(Expression* expression) {
   ObjectLiteral* object_literal = expression->AsObjectLiteral();
   if (object_literal != NULL) {
     ASSERT(object_literal->is_simple());
-    result->set(kTypeSlot, Smi::FromInt(OBJECT_LITERAL));
+    if (object_literal->fast_elements()) {
+      result->set(kTypeSlot, Smi::FromInt(OBJECT_LITERAL_FAST_ELEMENTS));
+    } else {
+      result->set(kTypeSlot, Smi::FromInt(OBJECT_LITERAL_SLOW_ELEMENTS));
+    }
     result->set(kElementsSlot, *object_literal->constant_properties());
   } else {
     ArrayLiteral* array_literal = expression->AsArrayLiteral();
@@ -3484,11 +3489,14 @@ void Parser::BuildObjectLiteralConstantProperties(
     ZoneList<ObjectLiteral::Property*>* properties,
     Handle<FixedArray> constant_properties,
     bool* is_simple,
+    bool* fast_elements,
     int* depth) {
   int position = 0;
   // Accumulate the value in local variables and store it at the end.
   bool is_simple_acc = true;
   int depth_acc = 1;
+  uint32_t max_element_index = 0;
+  uint32_t elements = 0;
   for (int i = 0; i < properties->length(); i++) {
     ObjectLiteral::Property* property = properties->at(i);
     if (!IsBoilerplateProperty(property)) {
@@ -3507,11 +3515,31 @@ void Parser::BuildObjectLiteralConstantProperties(
     Handle<Object> value = GetBoilerplateValue(property->value());
     is_simple_acc = is_simple_acc && !value->IsUndefined();
 
+    // Keep track of the number of elements in the object literal and
+    // the largest element index.  If the largest element index is
+    // much larger than the number of elements, creating an object
+    // literal with fast elements will be a waste of space.
+    uint32_t element_index = 0;
+    if (key->IsString()
+        && Handle<String>::cast(key)->AsArrayIndex(&element_index)
+        && element_index > max_element_index) {
+      max_element_index = element_index;
+      elements++;
+    } else if (key->IsSmi()) {
+      int key_value = Smi::cast(*key)->value();
+      if (key_value > 0
+          && static_cast<uint32_t>(key_value) > max_element_index) {
+        max_element_index = key_value;
+      }
+      elements++;
+    }
+
     // Add name, value pair to the fixed array.
     constant_properties->set(position++, *key);
     constant_properties->set(position++, *value);
   }
-
+  *fast_elements =
+      (max_element_index <= 32) || ((2 * elements) >= max_element_index);
   *is_simple = is_simple_acc;
   *depth = depth_acc;
 }
@@ -3609,15 +3637,18 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       Factory::NewFixedArray(number_of_boilerplate_properties * 2, TENURED);
 
   bool is_simple = true;
+  bool fast_elements = true;
   int depth = 1;
   BuildObjectLiteralConstantProperties(properties.elements(),
                                        constant_properties,
                                        &is_simple,
+                                       &fast_elements,
                                        &depth);
   return new ObjectLiteral(constant_properties,
                            properties.elements(),
                            literal_index,
                            is_simple,
+                           fast_elements,
                            depth);
 }
 
@@ -4144,15 +4175,18 @@ Expression* Parser::ParseJsonObject(bool* ok) {
   Handle<FixedArray> constant_properties =
         Factory::NewFixedArray(boilerplate_properties * 2, TENURED);
   bool is_simple = true;
+  bool fast_elements = true;
   int depth = 1;
   BuildObjectLiteralConstantProperties(properties.elements(),
                                        constant_properties,
                                        &is_simple,
+                                       &fast_elements,
                                        &depth);
   return new ObjectLiteral(constant_properties,
                            properties.elements(),
                            literal_index,
                            is_simple,
+                           fast_elements,
                            depth);
 }
 
