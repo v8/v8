@@ -2941,7 +2941,7 @@ class Map: public HeapObject {
 
   // Returns the non-negative index of the code object if it is in the
   // cache and -1 otherwise.
-  int IndexInCodeCache(String* name, Code* code);
+  int IndexInCodeCache(Object* name, Code* code);
 
   // Removes a code object from the code cache at the given index.
   void RemoveFromCodeCache(String* name, Code* code, int index);
@@ -3712,10 +3712,10 @@ class CodeCache: public Struct {
   // code object is not in that cache. This index can be used to later call
   // RemoveByIndex. The cache cannot be modified between a call to GetIndex and
   // RemoveByIndex.
-  int GetIndex(String* name, Code* code);
+  int GetIndex(Object* name, Code* code);
 
   // Remove an object from the cache with the provided internal index.
-  void RemoveByIndex(String* name, Code* code, int index);
+  void RemoveByIndex(Object* name, Code* code, int index);
 
   static inline CodeCache* cast(Object* obj);
 

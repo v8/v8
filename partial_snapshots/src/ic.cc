@@ -150,7 +150,7 @@ IC::State IC::StateFrom(Code* target, Object* receiver, Object* name) {
   // the receiver map's code cache.  Therefore, if the current target
   // is in the receiver map's code cache, the inline cache failed due
   // to prototype check failure.
-  int index = map->IndexInCodeCache(String::cast(name), target);
+  int index = map->IndexInCodeCache(name, target);
   if (index >= 0) {
     // For keyed load/store, the most likely cause of cache failure is
     // that the key has changed.  We do not distinguish between
