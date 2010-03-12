@@ -1247,7 +1247,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
     // Check that the elements are in fast mode (not dictionary).
     __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
-            Immediate(Factory::fixed_array_map()));
+           Immediate(Factory::fixed_array_map()));
     __ j(not_equal, &miss);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
@@ -1277,7 +1277,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ mov(ecx, Operand(esp, argc * kPointerSize));
       __ mov(Operand(edx, 0), ecx);
 
-      // Check if wrote not a smi.
+      // Check if value is a smi.
       __ test(ecx, Immediate(kSmiTagMask));
       __ j(not_zero, &with_rset_update);
 

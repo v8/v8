@@ -1107,7 +1107,7 @@ function SetupArray() {
     if (specialFunctions.hasOwnProperty(name)) {
       f = specialFunctions[name];
     }
-    if (arguments.length == 3) {
+    if (!IS_UNDEFINED(len)) {
       %FunctionSetLength(f, len);
     }
     return f;
