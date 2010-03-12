@@ -96,6 +96,7 @@ enum BuiltinExtraArguments {
   V(KeyedLoadIC_IndexedInterceptor,         KEYED_LOAD_IC, MEGAMORPHIC)   \
                                                                           \
   V(StoreIC_Initialize,         STORE_IC, UNINITIALIZED)                  \
+  V(StoreIC_ArrayLength,        STORE_IC, MONOMORPHIC)                    \
   V(StoreIC_Megamorphic,        STORE_IC, MEGAMORPHIC)                    \
                                                                           \
   V(KeyedStoreIC_Initialize,    KEYED_STORE_IC, UNINITIALIZED)            \

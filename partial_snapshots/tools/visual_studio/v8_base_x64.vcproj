@@ -882,14 +882,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\usage-analyzer.cc"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\usage-analyzer.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\utils.cc"
 				>
 			</File>
@@ -935,6 +927,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\version.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame-inl.h"
 				>
 			</File>
 			<File

@@ -48,6 +48,9 @@ static const int kRegExpGenerations = 2;
 // Initial size of each compilation cache table allocated.
 static const int kInitialCacheSize = 64;
 
+// Index for the first generation in the cache.
+static const int kFirstGeneration = 0;
+
 // The compilation cache consists of several generational sub-caches which uses
 // this class as a base class. A sub-cache contains a compilation cache tables
 // for each generation of the sub-cache. Since the same source code string has
@@ -63,6 +66,15 @@ class CompilationSubCache {
 
   // Get the compilation cache tables for a specific generation.
   Handle<CompilationCacheTable> GetTable(int generation);
+
+  // Accessors for first generation.
+  Handle<CompilationCacheTable> GetFirstTable() {
+    return GetTable(kFirstGeneration);
+  }
+  void SetFirstTable(Handle<CompilationCacheTable> value) {
+    ASSERT(kFirstGeneration < generations_);
+    tables_[kFirstGeneration] = *value;
+  }
 
   // Age the sub-cache by evicting the oldest generation and creating a new
   // young generation.
@@ -98,6 +110,10 @@ class CompilationCacheScript : public CompilationSubCache {
   void Put(Handle<String> source, Handle<JSFunction> boilerplate);
 
  private:
+  // Note: Returns a new hash table if operation results in expansion.
+  Handle<CompilationCacheTable> TablePut(Handle<String> source,
+                                         Handle<JSFunction> boilerplate);
+
   bool HasOrigin(Handle<JSFunction> boilerplate,
                  Handle<Object> name,
                  int line_offset,
@@ -119,6 +135,12 @@ class CompilationCacheEval: public CompilationSubCache {
            Handle<Context> context,
            Handle<JSFunction> boilerplate);
 
+ private:
+  // Note: Returns a new hash table if operation results in expansion.
+  Handle<CompilationCacheTable> TablePut(Handle<String> source,
+                                         Handle<Context> context,
+                                         Handle<JSFunction> boilerplate);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEval);
 };
 
@@ -134,6 +156,11 @@ class CompilationCacheRegExp: public CompilationSubCache {
   void Put(Handle<String> source,
            JSRegExp::Flags flags,
            Handle<FixedArray> data);
+ private:
+  // Note: Returns a new hash table if operation results in expansion.
+  Handle<CompilationCacheTable> TablePut(Handle<String> source,
+                                         JSRegExp::Flags flags,
+                                         Handle<FixedArray> data);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheRegExp);
 };
@@ -281,12 +308,19 @@ Handle<JSFunction> CompilationCacheScript::Lookup(Handle<String> source,
 }
 
 
+Handle<CompilationCacheTable> CompilationCacheScript::TablePut(
+    Handle<String> source,
+    Handle<JSFunction> boilerplate) {
+  CALL_HEAP_FUNCTION(GetFirstTable()->Put(*source, *boilerplate),
+                     CompilationCacheTable);
+}
+
+
 void CompilationCacheScript::Put(Handle<String> source,
                                  Handle<JSFunction> boilerplate) {
   HandleScope scope;
   ASSERT(boilerplate->IsBoilerplate());
-  Handle<CompilationCacheTable> table = GetTable(0);
-  CALL_HEAP_FUNCTION_VOID(table->Put(*source, *boilerplate));
+  SetFirstTable(TablePut(source, boilerplate));
 }
 
 
@@ -320,13 +354,21 @@ Handle<JSFunction> CompilationCacheEval::Lookup(Handle<String> source,
 }
 
 
+Handle<CompilationCacheTable> CompilationCacheEval::TablePut(
+    Handle<String> source,
+    Handle<Context> context,
+    Handle<JSFunction> boilerplate) {
+  CALL_HEAP_FUNCTION(GetFirstTable()->PutEval(*source, *context, *boilerplate),
+                     CompilationCacheTable);
+}
+
+
 void CompilationCacheEval::Put(Handle<String> source,
                                Handle<Context> context,
                                Handle<JSFunction> boilerplate) {
   HandleScope scope;
   ASSERT(boilerplate->IsBoilerplate());
-  Handle<CompilationCacheTable> table = GetTable(0);
-  CALL_HEAP_FUNCTION_VOID(table->PutEval(*source, *context, *boilerplate));
+  SetFirstTable(TablePut(source, context, boilerplate));
 }
 
 
@@ -360,12 +402,20 @@ Handle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
 }
 
 
+Handle<CompilationCacheTable> CompilationCacheRegExp::TablePut(
+    Handle<String> source,
+    JSRegExp::Flags flags,
+    Handle<FixedArray> data) {
+  CALL_HEAP_FUNCTION(GetFirstTable()->PutRegExp(*source, flags, *data),
+                     CompilationCacheTable);
+}
+
+
 void CompilationCacheRegExp::Put(Handle<String> source,
                                  JSRegExp::Flags flags,
                                  Handle<FixedArray> data) {
   HandleScope scope;
-  Handle<CompilationCacheTable> table = GetTable(0);
-  CALL_HEAP_FUNCTION_VOID(table->PutRegExp(*source, flags, *data));
+  SetFirstTable(TablePut(source, flags, data));
 }
 
 

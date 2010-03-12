@@ -37,7 +37,6 @@
 
 #include "runtime.h"
 #include "top.h"
-#include "zone-inl.h"
 #include "token.h"
 
 namespace v8 {

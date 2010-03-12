@@ -32,6 +32,7 @@
 #include "debug.h"
 #include "full-codegen.h"
 #include "parser.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -55,6 +56,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info, Mode mode) {
   ASSERT(info_ == NULL);
   info_ = info;
   SetFunctionPosition(function());
+  Comment cmnt(masm_, "[ function compiled by full code generator");
 
   if (mode == PRIMARY) {
     __ push(rbp);  // Caller's frame pointer.

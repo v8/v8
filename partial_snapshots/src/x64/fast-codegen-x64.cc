@@ -29,6 +29,7 @@
 
 #include "codegen-inl.h"
 #include "fast-codegen.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -188,6 +189,7 @@ void FastCodeGenerator::EmitBitOr() {
 void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   ASSERT(info_ == NULL);
   info_ = compilation_info;
+  Comment cmnt(masm_, "[ function compiled by fast code generator");
 
   // Save the caller's frame pointer and set up our own.
   Comment prologue_cmnt(masm(), ";; Prologue");

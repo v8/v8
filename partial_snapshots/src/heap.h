@@ -30,11 +30,14 @@
 
 #include <math.h>
 
-#include "zone-inl.h"
-
+#include "splay-tree-inl.h"
+#include "v8-counters.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class ZoneScopeInfo;
 
 // Defines all the roots in Heap.
 #define UNCONDITIONAL_STRONG_ROOT_LIST(V)                                      \
@@ -346,6 +349,9 @@ class Heap : public AllStatic {
   // Allocate a map for the specified function
   static Object* AllocateInitialMap(JSFunction* fun);
 
+  // Allocates an empty code cache.
+  static Object* AllocateCodeCache();
+
   // Allocates and fully initializes a String.  There are two String
   // encodings: ASCII and two byte. One should choose between the three string
   // allocation functions based on the encoding of the string buffer used to
@@ -450,8 +456,15 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   static Object* AllocateFixedArray(int length, PretenureFlag pretenure);
-  // Allocate uninitialized, non-tenured fixed array with length elements.
+  // Allocates a fixed array initialized with undefined values
   static Object* AllocateFixedArray(int length);
+
+  // Allocates an uninitialized fixed array. It must be filled by the caller.
+  //
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  static Object* AllocateUninitializedFixedArray(int length);
 
   // Make a copy of src and return it. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
@@ -465,7 +478,8 @@ class Heap : public AllStatic {
 
   // AllocateHashTable is identical to AllocateFixedArray except
   // that the resulting object has hash_table_map as map.
-  static Object* AllocateHashTable(int length);
+  static Object* AllocateHashTable(int length,
+                                   PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a global (but otherwise uninitialized) context.
   static Object* AllocateGlobalContext();
@@ -557,7 +571,8 @@ class Heap : public AllStatic {
   // Please note this does not perform a garbage collection.
   static Object* AllocateSubString(String* buffer,
                                    int start,
-                                   int end);
+                                   int end,
+                                   PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a new external string object, which is backed by a string
   // resource that resides outside the V8 heap.
@@ -633,12 +648,8 @@ class Heap : public AllStatic {
   // parameter is true.
   static void CollectAllGarbage(bool force_compaction);
 
-  // Performs a full garbage collection if a context has been disposed
-  // since the last time the check was performed.
-  static void CollectAllGarbageIfContextDisposed();
-
   // Notify the heap that a context has been disposed.
-  static void NotifyContextDisposed();
+  static int NotifyContextDisposed() { return ++contexts_disposed_; }
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
@@ -773,6 +784,9 @@ class Heap : public AllStatic {
 
   // Write barrier support for address[offset] = o.
   static inline void RecordWrite(Address address, int offset);
+
+  // Write barrier support for address[start : start + len[ = o.
+  static inline void RecordWrites(Address address, int start, int len);
 
   // Given an address occupied by a live code object, return that object.
   static Object* FindCodeObject(Address a);
@@ -913,7 +927,9 @@ class Heap : public AllStatic {
 
   static int always_allocate_scope_depth_;
   static int linear_allocation_scope_depth_;
-  static bool context_disposed_pending_;
+
+  // For keeping track of context disposals.
+  static int contexts_disposed_;
 
 #if defined(V8_TARGET_ARCH_X64)
   static const int kMaxObjectSizeInNewSpace = 512*KB;
@@ -1525,8 +1541,23 @@ class DisableAssertNoAllocation {
 
 class GCTracer BASE_EMBEDDED {
  public:
-  GCTracer();
+  // Time spent while in the external scope counts towards the
+  // external time in the tracer and will be reported separately.
+  class ExternalScope BASE_EMBEDDED {
+   public:
+    explicit ExternalScope(GCTracer* tracer) : tracer_(tracer) {
+      start_time_ = OS::TimeCurrentMillis();
+    }
+    ~ExternalScope() {
+      tracer_->external_time_ += OS::TimeCurrentMillis() - start_time_;
+    }
 
+   private:
+    GCTracer* tracer_;
+    double start_time_;
+  };
+
+  GCTracer();
   ~GCTracer();
 
   // Sets the collector.
@@ -1559,6 +1590,9 @@ class GCTracer BASE_EMBEDDED {
   double start_time_;  // Timestamp set in the constructor.
   double start_size_;  // Size of objects in heap set in constructor.
   GarbageCollector collector_;  // Type of collector.
+
+  // Keep track of the amount of time spent in external callbacks.
+  double external_time_;
 
   // A count (including this one, eg, the first collection is 1) of the
   // number of garbage collections.

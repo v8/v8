@@ -97,7 +97,6 @@ SOURCES = {
     token.cc
     top.cc
     unicode.cc
-    usage-analyzer.cc
     utils.cc
     v8-counters.cc
     v8.cc
@@ -251,6 +250,7 @@ apinatives.js
 date.js
 regexp.js
 json.js
+liveedit-debugger.js
 mirror-debugger.js
 debug-debugger.js
 '''.split()

@@ -583,8 +583,8 @@ TEST(LinearAllocation) {
          i += kSmallFixedArraySize) {
       Object* obj = Heap::AllocateFixedArray(kSmallFixedArrayLength);
       if (new_last != NULL) {
-        CHECK_EQ(reinterpret_cast<char*>(obj),
-                 reinterpret_cast<char*>(new_last) + kSmallFixedArraySize);
+        CHECK(reinterpret_cast<char*>(obj) ==
+              reinterpret_cast<char*>(new_last) + kSmallFixedArraySize);
       }
       new_last = obj;
     }
@@ -602,8 +602,8 @@ TEST(LinearAllocation) {
         pointer_last = NULL;
       }
       if (pointer_last != NULL) {
-        CHECK_EQ(reinterpret_cast<char*>(obj),
-                 reinterpret_cast<char*>(pointer_last) + kSmallFixedArraySize);
+        CHECK(reinterpret_cast<char*>(obj) ==
+              reinterpret_cast<char*>(pointer_last) + kSmallFixedArraySize);
       }
       pointer_last = obj;
     }
@@ -619,8 +619,8 @@ TEST(LinearAllocation) {
         data_last = NULL;
       }
       if (data_last != NULL) {
-        CHECK_EQ(reinterpret_cast<char*>(obj),
-                 reinterpret_cast<char*>(data_last) + kSmallStringSize);
+        CHECK(reinterpret_cast<char*>(obj) ==
+              reinterpret_cast<char*>(data_last) + kSmallStringSize);
       }
       data_last = obj;
     }
@@ -636,8 +636,8 @@ TEST(LinearAllocation) {
         map_last = NULL;
       }
       if (map_last != NULL) {
-        CHECK_EQ(reinterpret_cast<char*>(obj),
-                 reinterpret_cast<char*>(map_last) + kMapSize);
+        CHECK(reinterpret_cast<char*>(obj) ==
+              reinterpret_cast<char*>(map_last) + kMapSize);
       }
       map_last = obj;
     }

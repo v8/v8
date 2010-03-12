@@ -468,7 +468,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   __ stm(db_w, sp, r2.bit() | r3.bit());
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(ExternalReference(IC_Utility(kLoadIC_Miss)), 2, 1);
+  ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss));
+  __ TailCallExternalReference(ref, 2, 1);
 }
 
 
@@ -505,7 +506,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   __ ldm(ia, sp, r2.bit() | r3.bit());
   __ stm(db_w, sp, r2.bit() | r3.bit());
 
-  __ TailCallRuntime(ExternalReference(IC_Utility(kKeyedLoadIC_Miss)), 2, 1);
+  ExternalReference ref = ExternalReference(IC_Utility(kKeyedLoadIC_Miss));
+  __ TailCallExternalReference(ref, 2, 1);
 }
 
 
@@ -519,7 +521,7 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   __ ldm(ia, sp, r2.bit() | r3.bit());
   __ stm(db_w, sp, r2.bit() | r3.bit());
 
-  __ TailCallRuntime(ExternalReference(Runtime::kGetProperty), 2, 1);
+  __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
 }
 
 
@@ -636,7 +638,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   __ push(r0);  // key
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(ExternalReference(
+  __ TailCallExternalReference(ExternalReference(
         IC_Utility(kKeyedLoadPropertyWithInterceptor)), 2, 1);
 
   __ bind(&slow);
@@ -655,7 +657,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   __ ldm(ia, sp, r2.bit() | r3.bit());
   __ stm(db_w, sp, r0.bit() | r2.bit() | r3.bit());
 
-  __ TailCallRuntime(ExternalReference(IC_Utility(kKeyedStoreIC_Miss)), 3, 1);
+  ExternalReference ref = ExternalReference(IC_Utility(kKeyedStoreIC_Miss));
+  __ TailCallExternalReference(ref, 3, 1);
 }
 
 
@@ -669,7 +672,7 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
   __ ldm(ia, sp, r1.bit() | r3.bit());  // r0 == value, r1 == key, r3 == object
   __ stm(db_w, sp, r0.bit() | r1.bit() | r3.bit());
 
-  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
 }
 
 
@@ -828,7 +831,56 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
   __ stm(db_w, sp, r2.bit() | r0.bit());
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_Miss)), 3, 1);
+  ExternalReference ref = ExternalReference(IC_Utility(kStoreIC_Miss));
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
+void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : receiver
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  //
+  // This accepts as a receiver anything JSObject::SetElementsLength accepts
+  // (currently anything except for external and pixel arrays which means
+  // anything with elements of FixedArray type.), but currently is restricted
+  // to JSArray.
+  // Value must be a number, but only smis are accepted as the most common case.
+
+  Label miss;
+
+  Register receiver = r1;
+  Register value = r0;
+  Register scratch = r3;
+
+  // Check that the receiver isn't a smi.
+  __ BranchOnSmi(receiver, &miss);
+
+  // Check that the object is a JS array.
+  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE);
+  __ b(ne, &miss);
+
+  // Check that elements are FixedArray.
+  __ ldr(scratch, FieldMemOperand(receiver, JSArray::kElementsOffset));
+  __ CompareObjectType(scratch, scratch, scratch, FIXED_ARRAY_TYPE);
+  __ b(ne, &miss);
+
+  // Check that value is a smi.
+  __ BranchOnNotSmi(value, &miss);
+
+  // Prepare tail call to StoreIC_ArrayLength.
+  __ push(receiver);
+  __ push(value);
+
+  ExternalReference ref = ExternalReference(IC_Utility(kStoreIC_ArrayLength));
+  __ TailCallExternalReference(ref, 2, 1);
+
+  __ bind(&miss);
+
+  GenerateMiss(masm);
 }
 
 

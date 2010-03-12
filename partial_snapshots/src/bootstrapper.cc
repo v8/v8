@@ -1108,6 +1108,19 @@ bool Genesis::InstallNatives() {
     script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
     Heap::public_set_empty_script(*script);
   }
+  {
+    // Builtin function for OpaqueReference -- a JSValue-based object,
+    // that keeps its field isolated from JavaScript code. It may store
+    // objects, that JavaScript code may not access.
+    Handle<JSFunction> opaque_reference_fun =
+        InstallFunction(builtins, "OpaqueReference", JS_VALUE_TYPE,
+                        JSValue::kSize, Top::initial_object_prototype(),
+                        Builtins::Illegal, false);
+    Handle<JSObject> prototype =
+        Factory::NewJSObject(Top::object_function(), TENURED);
+    SetPrototype(opaque_reference_fun, prototype);
+    global_context()->set_opaque_reference_function(*opaque_reference_fun);
+  }
 
   // Install natives.
   for (int i = Natives::GetDebuggerCount();

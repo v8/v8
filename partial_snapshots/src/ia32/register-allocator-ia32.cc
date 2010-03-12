@@ -29,6 +29,7 @@
 
 #include "codegen-inl.h"
 #include "register-allocator-inl.h"
+#include "virtual-frame-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -48,6 +49,7 @@ void Result::ToRegister() {
                                                  Immediate(handle()));
     }
     // This result becomes a copy of the fresh one.
+    fresh.set_number_info(number_info());
     *this = fresh;
   }
   ASSERT(is_register());

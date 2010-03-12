@@ -45,6 +45,7 @@ enum DictionaryCheck { CHECK_DICTIONARY, DICTIONARY_CHECK_DONE };
   ICU(KeyedLoadIC_Miss)                               \
   ICU(CallIC_Miss)                                    \
   ICU(StoreIC_Miss)                                   \
+  ICU(StoreIC_ArrayLength)                            \
   ICU(SharedStoreIC_ExtendStorage)                    \
   ICU(KeyedStoreIC_Miss)                              \
   /* Utilities for IC stubs. */                       \
@@ -54,7 +55,8 @@ enum DictionaryCheck { CHECK_DICTIONARY, DICTIONARY_CHECK_DONE };
   ICU(LoadPropertyWithInterceptorForLoad)             \
   ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(KeyedLoadPropertyWithInterceptor)               \
-  ICU(StoreInterceptorProperty)
+  ICU(StoreInterceptorProperty)                       \
+  ICU(BinaryOp_Patch)
 
 //
 // IC is the base class for LoadIC, StoreIC, CallIC, KeyedLoadIC,
@@ -92,8 +94,8 @@ class IC {
   Code* target() { return GetTargetAtAddress(address()); }
   inline Address address();
 
-  // Compute the current IC state based on the target stub and the receiver.
-  static State StateFrom(Code* target, Object* receiver);
+  // Compute the current IC state based on the target stub, receiver and name.
+  static State StateFrom(Code* target, Object* receiver, Object* name);
 
   // Clear the inline cache to initial state.
   static void Clear(Address address);
@@ -358,6 +360,7 @@ class StoreIC: public IC {
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
+  static void GenerateArrayLength(MacroAssembler* masm);
 
  private:
   // Update the inline cache and the global stub cache based on the
@@ -441,6 +444,30 @@ class KeyedStoreIC: public IC {
   friend class IC;
 };
 
+
+class BinaryOpIC: public IC {
+ public:
+
+  enum TypeInfo {
+    DEFAULT,  // Initial state. When first executed, patches to one
+              // of the following states depending on the operands types.
+    HEAP_NUMBERS,  // Both arguments are HeapNumbers.
+    STRINGS,  // At least one of the arguments is String.
+    GENERIC   // Non-specialized case (processes any type combination).
+  };
+
+  BinaryOpIC() : IC(NO_EXTRA_FRAME) { }
+
+  void patch(Code* code);
+
+  static void Clear(Address address, Code* target);
+
+  static const char* GetName(TypeInfo type_info);
+
+  static State ToState(TypeInfo type_info);
+
+  static TypeInfo GetTypeInfo(Object* left, Object* right);
+};
 
 } }  // namespace v8::internal
 

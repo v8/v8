@@ -29,6 +29,7 @@
 
 #include "codegen-inl.h"
 #include "register-allocator-inl.h"
+#include "virtual-frame-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -37,11 +38,11 @@ namespace internal {
 // Result implementation.
 
 
-Result::Result(Register reg, NumberInfo::Type info) {
+Result::Result(Register reg, NumberInfo info) {
   ASSERT(reg.is_valid() && !RegisterAllocator::IsReserved(reg));
   CodeGeneratorScope::Current()->allocator()->Use(reg);
   value_ = TypeField::encode(REGISTER)
-      | NumberInfoField::encode(info)
+      | NumberInfoField::encode(info.ToInt())
       | DataField::encode(reg.code_);
 }
 
@@ -49,23 +50,6 @@ Result::Result(Register reg, NumberInfo::Type info) {
 Result::ZoneObjectList* Result::ConstantList() {
   static ZoneObjectList list(10);
   return &list;
-}
-
-
-NumberInfo::Type Result::number_info() {
-  ASSERT(is_valid());
-  if (!is_constant()) return NumberInfoField::decode(value_);
-  Handle<Object> value = handle();
-  if (value->IsSmi()) return NumberInfo::kSmi;
-  if (value->IsHeapNumber()) return NumberInfo::kHeapNumber;
-  return NumberInfo::kUnknown;
-}
-
-
-void Result::set_number_info(NumberInfo::Type info) {
-  ASSERT(is_valid());
-  value_ = value_ & ~NumberInfoField::mask();
-  value_ = value_ | NumberInfoField::encode(info);
 }
 
 

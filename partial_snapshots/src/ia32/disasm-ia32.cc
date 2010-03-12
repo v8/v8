@@ -89,6 +89,7 @@ static ByteMnemonic zero_operands_instr[] = {
   {0x9E, "sahf", UNSET_OP_ORDER},
   {0x99, "cdq", UNSET_OP_ORDER},
   {0x9B, "fwait", UNSET_OP_ORDER},
+  {0xFC, "cld", UNSET_OP_ORDER},
   {-1, "", UNSET_OP_ORDER}
 };
 
@@ -1055,7 +1056,20 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           AppendToBuffer(",%s", NameOfCPURegister(regop));
         } else if (*data == 0x0F) {
           data++;
-          if (*data == 0x2F) {
+          if (*data == 0x38) {
+            data++;
+            if (*data == 0x17) {
+              data++;
+              int mod, regop, rm;
+              get_modrm(*data, &mod, &regop, &rm);
+              AppendToBuffer("ptest %s,%s",
+                             NameOfXMMRegister(regop),
+                             NameOfXMMRegister(rm));
+              data++;
+            } else {
+              UnimplementedInstruction();
+            }
+          } else if (*data == 0x2F) {
             data++;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
@@ -1071,6 +1085,12 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;
+          } else if (*data == 0x6E) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("movd %s,", NameOfXMMRegister(regop));
+            data += PrintRightOperand(data);
           } else if (*data == 0x6F) {
             data++;
             int mod, regop, rm;
@@ -1084,6 +1104,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             get_modrm(*data, &mod, &regop, &rm);
             data += PrintRightOperand(data);
             AppendToBuffer(",%s", NameOfXMMRegister(regop));
+          } else if (*data == 0xEF) {
+             data++;
+             int mod, regop, rm;
+             get_modrm(*data, &mod, &regop, &rm);
+             AppendToBuffer("pxor %s,%s",
+                            NameOfXMMRegister(regop),
+                            NameOfXMMRegister(rm));
+             data++;
           } else {
             UnimplementedInstruction();
           }
@@ -1170,6 +1198,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             const char* mnem = "?";
             switch (b2) {
               case 0x2A: mnem = "cvtsi2sd"; break;
+              case 0x51: mnem = "sqrtsd"; break;
               case 0x58: mnem = "addsd"; break;
               case 0x59: mnem = "mulsd"; break;
               case 0x5C: mnem = "subsd"; break;
@@ -1199,6 +1228,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           if (*(data+2) == 0x2C) {
             data += 3;
             data += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, data);
+          } else  if (*(data+2) == 0x5A) {
+            data += 3;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("cvtss2sd %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
           } else  if (*(data+2) == 0x6F) {
             data += 3;
             int mod, regop, rm;
@@ -1218,6 +1255,9 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         } else if (*(data+1) == 0xA5) {
           data += 2;
           AppendToBuffer("rep_movs");
+        } else if (*(data+1) == 0xAB) {
+          data += 2;
+          AppendToBuffer("rep_stos");
         } else {
           UnimplementedInstruction();
         }

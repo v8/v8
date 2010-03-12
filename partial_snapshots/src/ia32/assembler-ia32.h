@@ -93,7 +93,7 @@ const Register no_reg = { -1 };
 
 
 struct XMMRegister {
-  bool is_valid() const  { return 0 <= code_ && code_ < 2; }  // currently
+  bool is_valid() const  { return 0 <= code_ && code_ < 8; }
   int code() const  {
     ASSERT(is_valid());
     return code_;
@@ -542,8 +542,12 @@ class Assembler : public Malloced {
   void cmov(Condition cc, Register dst, Handle<Object> handle);
   void cmov(Condition cc, Register dst, const Operand& src);
 
+  // Flag management.
+  void cld();
+
   // Repetitive string instructions.
   void rep_movs();
+  void rep_stos();
 
   // Exchange two registers
   void xchg(Register dst, Register src);
@@ -754,14 +758,17 @@ class Assembler : public Malloced {
   void cvttsd2si(Register dst, const Operand& src);
 
   void cvtsi2sd(XMMRegister dst, const Operand& src);
+  void cvtss2sd(XMMRegister dst, XMMRegister src);
 
   void addsd(XMMRegister dst, XMMRegister src);
   void subsd(XMMRegister dst, XMMRegister src);
   void mulsd(XMMRegister dst, XMMRegister src);
   void divsd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
+  void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void comisd(XMMRegister dst, XMMRegister src);
+  void ucomisd(XMMRegister dst, XMMRegister src);
 
   void movdqa(XMMRegister dst, const Operand& src);
   void movdqa(const Operand& dst, XMMRegister src);
@@ -771,6 +778,12 @@ class Assembler : public Malloced {
   // Use either movsd or movlpd.
   void movdbl(XMMRegister dst, const Operand& src);
   void movdbl(const Operand& dst, XMMRegister src);
+
+  void movd(XMMRegister dst, const Operand& src);
+  void movsd(XMMRegister dst, XMMRegister src);
+
+  void pxor(XMMRegister dst, XMMRegister src);
+  void ptest(XMMRegister dst, XMMRegister src);
 
   // Debugging
   void Print();
