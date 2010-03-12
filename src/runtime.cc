@@ -1276,12 +1276,22 @@ static Object* CompileArrayPushCall(CallStubCompiler* compiler,
 }
 
 
+static Object* CompileArrayPopCall(CallStubCompiler* compiler,
+                                   Object* object,
+                                   JSObject* holder,
+                                   JSFunction* function,
+                                   String* name,
+                                   StubCompiler::CheckType check) {
+  return compiler->CompileArrayPopCall(object, holder, function, name, check);
+}
+
+
 static Object* Runtime_SpecialArrayFunctions(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, holder, 0);
 
-  InstallBuiltin(holder, "pop", Builtins::ArrayPop);
+  InstallBuiltin(holder, "pop", Builtins::ArrayPop, CompileArrayPopCall);
   InstallBuiltin(holder, "push", Builtins::ArrayPush, CompileArrayPushCall);
   InstallBuiltin(holder, "shift", Builtins::ArrayShift);
   InstallBuiltin(holder, "unshift", Builtins::ArrayUnshift);

@@ -575,6 +575,12 @@ class CallStubCompiler: public StubCompiler {
                                String* name,
                                CheckType check);
 
+  Object* CompileArrayPopCall(Object* object,
+                              JSObject* holder,
+                              JSFunction* function,
+                              String* name,
+                              CheckType check);
+
  private:
   const ParameterCount arguments_;
   const InLoopFlag in_loop_;

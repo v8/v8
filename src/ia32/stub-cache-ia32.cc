@@ -1221,6 +1221,8 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   //  -- ...
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
+  ASSERT(check == RECEIVER_MAP_CHECK);
+
   Label miss;
 
   // Get the receiver from the stack.
@@ -1229,7 +1231,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, &miss);
 
   CheckPrototypes(JSObject::cast(object), edx,
                   holder, ebx,
@@ -1246,13 +1248,15 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
     // Check that the elements are in fast mode (not dictionary).
     __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
             Immediate(Factory::fixed_array_map()));
-    __ j(not_equal, &miss, not_taken);
+    __ j(not_equal, &miss);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
       Label call_builtin, exit, with_rset_update;
 
       // Get the array's length into eax and calculate new length.
       __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
+      STATIC_ASSERT(kSmiTagSize == 1);
+      STATIC_ASSERT(kSmiTag == 0);
       __ add(Operand(eax), Immediate(argc << 1));
 
       // Get the element's length into ecx.
@@ -1295,6 +1299,90 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
                                  argc + 1,
                                  1);
   }
+
+  __ bind(&miss);
+
+  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
+  __ jmp(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  String* function_name = NULL;
+  if (function->shared()->name()->IsString()) {
+    function_name = String::cast(function->shared()->name());
+  }
+  return GetCode(CONSTANT_FUNCTION, function_name);
+}
+
+
+Object* CallStubCompiler::CompileArrayPopCall(Object* object,
+                                              JSObject* holder,
+                                              JSFunction* function,
+                                              String* name,
+                                              CheckType check) {
+  // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+  ASSERT(check == RECEIVER_MAP_CHECK);
+
+  Label miss, empty_array, call_builtin;
+
+  // Get the receiver from the stack.
+  const int argc = arguments().immediate();
+  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+
+  CheckPrototypes(JSObject::cast(object), edx,
+                  holder, ebx,
+                  eax, name, &miss);
+
+  // Get the elements array of the object.
+  __ mov(ebx, FieldOperand(edx, JSArray::kElementsOffset));
+
+  // Check that the elements are in fast mode (not dictionary).
+  __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
+         Immediate(Factory::fixed_array_map()));
+  __ j(not_equal, &miss);
+
+  // Get the array's length into ecx and calculate new length.
+  __ mov(ecx, FieldOperand(edx, JSArray::kLengthOffset));
+  __ sub(Operand(ecx), Immediate(Smi::FromInt(1)));
+  __ j(negative, &empty_array);
+
+  // Get the last element.
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ mov(eax, FieldOperand(ebx,
+                           ecx, times_half_pointer_size,
+                           FixedArray::kHeaderSize));
+  __ cmp(Operand(eax), Immediate(Factory::the_hole_value()));
+  __ j(equal, &call_builtin);
+
+  // Set the array's length.
+  __ mov(FieldOperand(edx, JSArray::kLengthOffset), ecx);
+
+  // Fill with the hole.
+  __ mov(FieldOperand(ebx,
+                      ecx, times_half_pointer_size,
+                      FixedArray::kHeaderSize),
+         Immediate(Factory::the_hole_value()));
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&empty_array);
+  __ mov(eax, Immediate(Factory::undefined_value()));
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&call_builtin);
+
+  __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPop),
+                               argc + 1,
+                               1);
 
   __ bind(&miss);
 
