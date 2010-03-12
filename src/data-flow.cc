@@ -1931,7 +1931,7 @@ void BlockNode::InitializeReachingDefinitions(int definition_count,
     Expression* expr = instructions_[i]->AsExpression();
     if (expr == NULL) continue;
     Variable* var = expr->AssignedVar();
-    if (var == NULL) continue;
+    if (var == NULL || !var->IsStackAllocated()) continue;
 
     // All definitions of this variable are killed.
     BitVector* def_set =
