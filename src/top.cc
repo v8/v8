@@ -92,15 +92,15 @@ void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   v->VisitPointer(&(thread->pending_exception_));
   v->VisitPointer(&(thread->pending_message_obj_));
   v->VisitPointer(
-      bit_cast<Object**, Script**>(&(thread->pending_message_script_)));
-  v->VisitPointer(bit_cast<Object**, Context**>(&(thread->context_)));
+      BitCast<Object**, Script**>(&(thread->pending_message_script_)));
+  v->VisitPointer(BitCast<Object**, Context**>(&(thread->context_)));
   v->VisitPointer(&(thread->scheduled_exception_));
 
   for (v8::TryCatch* block = thread->TryCatchHandler();
        block != NULL;
        block = TRY_CATCH_FROM_ADDRESS(block->next_)) {
-    v->VisitPointer(bit_cast<Object**, void**>(&(block->exception_)));
-    v->VisitPointer(bit_cast<Object**, void**>(&(block->message_)));
+    v->VisitPointer(BitCast<Object**, void**>(&(block->exception_)));
+    v->VisitPointer(BitCast<Object**, void**>(&(block->message_)));
   }
 
   // Iterate over pointers on native execution stack.

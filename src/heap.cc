@@ -3399,7 +3399,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize("strong_root_list");
 
-  v->VisitPointer(bit_cast<Object**, String**>(&hidden_symbol_));
+  v->VisitPointer(BitCast<Object**, String**>(&hidden_symbol_));
   v->Synchronize("symbol");
 
   Bootstrapper::Iterate(v);

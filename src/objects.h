@@ -2154,24 +2154,24 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Returns the value at entry.
   Object* ValueAt(int entry) {
-    return get(HashTable<Shape, Key>::EntryToIndex(entry)+1);
+    return this->get(HashTable<Shape, Key>::EntryToIndex(entry)+1);
   }
 
   // Set the value for entry.
   void ValueAtPut(int entry, Object* value) {
-    set(HashTable<Shape, Key>::EntryToIndex(entry)+1, value);
+    this->set(HashTable<Shape, Key>::EntryToIndex(entry)+1, value);
   }
 
   // Returns the property details for the property at entry.
   PropertyDetails DetailsAt(int entry) {
     ASSERT(entry >= 0);  // Not found is -1, which is not caught by get().
     return PropertyDetails(
-        Smi::cast(get(HashTable<Shape, Key>::EntryToIndex(entry) + 2)));
+        Smi::cast(this->get(HashTable<Shape, Key>::EntryToIndex(entry) + 2)));
   }
 
   // Set the details for entry.
   void DetailsAtPut(int entry, PropertyDetails value) {
-    set(HashTable<Shape, Key>::EntryToIndex(entry) + 2, value.AsSmi());
+    this->set(HashTable<Shape, Key>::EntryToIndex(entry) + 2, value.AsSmi());
   }
 
   // Sorting support
@@ -2194,7 +2194,7 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
-    fast_set(this, kNextEnumerationIndexIndex, Smi::FromInt(index));
+    this->fast_set(this, kNextEnumerationIndexIndex, Smi::FromInt(index));
   }
 
   int NextEnumerationIndex() {
