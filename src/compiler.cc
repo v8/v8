@@ -95,10 +95,12 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
     if (!builder.HasStackOverflow()) {
       int variable_count =
           function->num_parameters() + function->scope()->num_stack_slots();
-      ReachingDefinitions rd(builder.postorder(),
-                             builder.definitions(),
-                             variable_count);
-      rd.Compute();
+      if (variable_count > 0 && builder.definitions()->length() > 0) {
+        ReachingDefinitions rd(builder.postorder(),
+                               builder.definitions(),
+                               variable_count);
+        rd.Compute();
+      }
     }
 
 #ifdef DEBUG
@@ -497,10 +499,12 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
     if (!builder.HasStackOverflow()) {
       int variable_count =
           literal->num_parameters() + literal->scope()->num_stack_slots();
-      ReachingDefinitions rd(builder.postorder(),
-                             builder.definitions(),
-                             variable_count);
-      rd.Compute();
+      if (variable_count > 0 && builder.definitions()->length() > 0) {
+        ReachingDefinitions rd(builder.postorder(),
+                               builder.definitions(),
+                               variable_count);
+        rd.Compute();
+      }
     }
 
 #ifdef DEBUG

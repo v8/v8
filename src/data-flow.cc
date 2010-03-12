@@ -2061,7 +2061,7 @@ void JoinNode::UpdateRDIn(WorkList<Node>* worklist, bool mark) {
 
 
 void ReachingDefinitions::Compute() {
-  if (definitions_->is_empty()) return;
+  ASSERT(!definitions_->is_empty());
 
   int variable_count = variables_.length();
   int definition_count = definitions_->length();
