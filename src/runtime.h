@@ -204,6 +204,7 @@ namespace internal {
   F(DateLocalTimeOffset, 0, 1) \
   F(DateDaylightSavingsOffset, 1, 1) \
   F(DateMakeDay, 3, 1) \
+  F(DateYMDFromTime, 2, 1) \
   \
   /* Numbers */ \
   F(NumberIsFinite, 1, 1) \
