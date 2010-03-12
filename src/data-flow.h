@@ -143,7 +143,7 @@ class WorkList BASE_EMBEDDED {
  public:
   // The worklist cannot grow bigger than size.  We keep one item empty to
   // distinguish between empty and full.
-  WorkList(int size)
+  explicit WorkList(int size)
       : capacity_(size + 1), head_(0), tail_(0), queue_(capacity_) {
     for (int i = 0; i < capacity_; i++) queue_.Add(NULL);
   }
