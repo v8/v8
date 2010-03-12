@@ -120,6 +120,13 @@ class BitVector: public ZoneObject {
     return true;
   }
 
+  bool Equals(const BitVector& other) {
+    for (int i = 0; i < data_length_; i++) {
+      if (data_[i] != other.data_[i]) return false;
+    }
+    return true;
+  }
+
   int length() const { return length_; }
 
  private:
@@ -129,7 +136,51 @@ class BitVector: public ZoneObject {
 };
 
 
-class ReachingDefinitionsData BASE_EMBEDDED {
+// Simple fixed-capacity list-based worklist (managed as a queue) of
+// pointers to T.
+template<typename T>
+class WorkList BASE_EMBEDDED {
+ public:
+  // The worklist cannot grow bigger than size.  We keep one item empty to
+  // distinguish between empty and full.
+  WorkList(int size)
+      : capacity_(size + 1), head_(0), tail_(0), queue_(capacity_) {
+    for (int i = 0; i < capacity_; i++) queue_.Add(NULL);
+  }
+
+  bool is_empty() { return head_ == tail_; }
+
+  bool is_full() {
+    // The worklist is full if head is at 0 and tail is at capacity - 1:
+    //   head == 0 && tail == capacity-1 ==> tail - head == capacity - 1
+    // or if tail is immediately to the left of head:
+    //   tail+1 == head  ==> tail - head == -1
+    int diff = tail_ - head_;
+    return (diff == -1 || diff == capacity_ - 1);
+  }
+
+  void Insert(T* item) {
+    ASSERT(!is_full());
+    queue_[tail_++] = item;
+    if (tail_ == capacity_) tail_ = 0;
+  }
+
+  T* Remove() {
+    ASSERT(!is_empty());
+    T* item = queue_[head_++];
+    if (head_ == capacity_) head_ = 0;
+    return item;
+  }
+
+ private:
+  int capacity_;  // Including one empty slot.
+  int head_;      // Where the first item is.
+  int tail_;      // Where the next inserted item will go.
+  List<T*> queue_;
+};
+
+
+struct ReachingDefinitionsData BASE_EMBEDDED {
  public:
   ReachingDefinitionsData() : rd_in_(NULL), kill_(NULL), gen_(NULL) {}
 
@@ -179,7 +230,11 @@ class Node: public ZoneObject {
 
   // Functions used by data-flow analyses.
   virtual void InitializeReachingDefinitions(int definition_count,
-                                             List<BitVector*>* variables);
+                                             List<BitVector*>* variables,
+                                             WorkList<Node>* worklist,
+                                             bool mark);
+  virtual void ComputeRDOut(BitVector* result) = 0;
+  virtual void UpdateRDIn(WorkList<Node>* worklist, bool mark) = 0;
 
 #ifdef DEBUG
   void AssignNodeNumber();
@@ -215,6 +270,9 @@ class ExitNode: public Node {
   void Traverse(bool mark,
                 ZoneList<Node*>* preorder,
                 ZoneList<Node*>* postorder);
+
+  void ComputeRDOut(BitVector* result);
+  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
 
 #ifdef DEBUG
   void PrintText();
@@ -261,7 +319,11 @@ class BlockNode: public Node {
                 ZoneList<Node*>* postorder);
 
   void InitializeReachingDefinitions(int definition_count,
-                                     List<BitVector*>* variables);
+                                     List<BitVector*>* variables,
+                                     WorkList<Node>* worklist,
+                                     bool mark);
+  void ComputeRDOut(BitVector* result);
+  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
 
 #ifdef DEBUG
   void PrintText();
@@ -301,6 +363,9 @@ class BranchNode: public Node {
                 ZoneList<Node*>* preorder,
                 ZoneList<Node*>* postorder);
 
+  void ComputeRDOut(BitVector* result);
+  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
+
 #ifdef DEBUG
   void PrintText();
 #endif
@@ -339,6 +404,9 @@ class JoinNode: public Node {
   void Traverse(bool mark,
                 ZoneList<Node*>* preorder,
                 ZoneList<Node*>* postorder);
+
+  void ComputeRDOut(BitVector* result);
+  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
 
 #ifdef DEBUG
   void PrintText();
