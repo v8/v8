@@ -486,10 +486,6 @@ BUILTIN(ArrayUnshift) {
 
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
-  // Note that we cannot quit early if to_add == 0 as
-  // values should be lifted from prototype into
-  // the array.
-
   int new_length = len + to_add;
   // Currently fixed arrays cannot grow too big, so
   // we should never hit this case.
