@@ -1360,17 +1360,21 @@ void AssignedVariablesAnalyzer::VisitCatchExtensionObject(
 void AssignedVariablesAnalyzer::VisitAssignment(Assignment* expr) {
   ASSERT(av_.IsEmpty());
 
-  Visit(expr->target());
-
-  ProcessExpression(expr->value());
-
-  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
-  if (var != NULL) RecordAssignedVar(var);
-
-  // If we have a variable as a receiver in a property store, check if
-  // we can mark it as trivial.
   if (expr->target()->AsProperty() != NULL) {
+    // Visit receiver and key of property store and rhs.
+    Visit(expr->target()->AsProperty()->obj());
+    ProcessExpression(expr->target()->AsProperty()->key());
+    ProcessExpression(expr->value());
+
+    // If we have a variable as a receiver in a property store, check if
+    // we can mark it as trivial.
     MarkIfTrivial(expr->target()->AsProperty()->obj());
+  } else {
+    Visit(expr->target());
+    ProcessExpression(expr->value());
+
+    Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+    if (var != NULL) RecordAssignedVar(var);
   }
 }
 
