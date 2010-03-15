@@ -1102,7 +1102,8 @@ static NumberInfo CalculateNumberInfo(NumberInfo operands_type,
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
                                            StaticType* type,
-                                           OverwriteMode overwrite_mode) {
+                                           OverwriteMode overwrite_mode,
+                                           bool no_negative_zero) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
 
@@ -1170,10 +1171,12 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     answer = stub.GenerateCall(masm_, frame_, &left, &right);
   } else if (right_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(op, &left, right.handle(),
-                                        type, false, overwrite_mode);
+                                        type, false, overwrite_mode,
+                                        no_negative_zero);
   } else if (left_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(op, &right, left.handle(),
-                                        type, true, overwrite_mode);
+                                        type, true, overwrite_mode,
+                                        no_negative_zero);
   } else {
     // Set the flags based on the operation, type and loop nesting level.
     // Bit operations always assume they likely operate on Smis. Still only
@@ -1184,7 +1187,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         (Token::IsBitOp(op) ||
          operands_type.IsInteger32() ||
          type->IsLikelySmi())) {
-      answer = LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
+      answer = LikelySmiBinaryOperation(op, &left, &right,
+                                        overwrite_mode, no_negative_zero);
     } else {
       GenericBinaryOpStub stub(op,
                                overwrite_mode,
@@ -1291,7 +1295,8 @@ static void CheckTwoForSminess(MacroAssembler* masm,
 Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                                Result* left,
                                                Result* right,
-                                               OverwriteMode overwrite_mode) {
+                                               OverwriteMode overwrite_mode,
+                                               bool no_negative_zero) {
   Result answer;
   // Special handling of div and mod because they use fixed registers.
   if (op == Token::DIV || op == Token::MOD) {
@@ -1395,13 +1400,16 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       // Check for negative zero result.  If result is zero, and divisor
       // is negative, return a floating point negative zero.  The
       // virtual frame is unchanged in this block, so local control flow
-      // can use a Label rather than a JumpTarget.
-      Label non_zero_result;
-      __ test(left->reg(), Operand(left->reg()));
-      __ j(not_zero, &non_zero_result);
-      __ test(right->reg(), Operand(right->reg()));
-      deferred->Branch(negative);
-      __ bind(&non_zero_result);
+      // can use a Label rather than a JumpTarget.  If the context of this
+      // expression will treat -0 like 0, do not do this test.
+      if (!no_negative_zero) {
+        Label non_zero_result;
+        __ test(left->reg(), Operand(left->reg()));
+        __ j(not_zero, &non_zero_result);
+        __ test(right->reg(), Operand(right->reg()));
+        deferred->Branch(negative);
+        __ bind(&non_zero_result);
+      }
       // Check for the corner case of dividing the most negative smi by
       // -1. We cannot use the overflow flag, since it is not set by
       // idiv instruction.
@@ -1423,12 +1431,14 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       // the dividend is negative, return a floating point negative
       // zero.  The frame is unchanged in this block, so local control
       // flow can use a Label rather than a JumpTarget.
-      Label non_zero_result;
-      __ test(edx, Operand(edx));
-      __ j(not_zero, &non_zero_result, taken);
-      __ test(left->reg(), Operand(left->reg()));
-      deferred->Branch(negative);
-      __ bind(&non_zero_result);
+      if (!no_negative_zero) {
+        Label non_zero_result;
+        __ test(edx, Operand(edx));
+        __ j(not_zero, &non_zero_result, taken);
+        __ test(left->reg(), Operand(left->reg()));
+        deferred->Branch(negative);
+        __ bind(&non_zero_result);
+      }
       deferred->BindExit();
       left->Unuse();
       right->Unuse();
@@ -1571,14 +1581,16 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       // argument is negative, go to slow case.  The frame is unchanged
       // in this block, so local control flow can use a Label rather
       // than a JumpTarget.
-      Label non_zero_result;
-      __ test(answer.reg(), Operand(answer.reg()));
-      __ j(not_zero, &non_zero_result, taken);
-      __ mov(answer.reg(), left->reg());
-      __ or_(answer.reg(), Operand(right->reg()));
-      deferred->Branch(negative);
-      __ xor_(answer.reg(), Operand(answer.reg()));  // Positive 0 is correct.
-      __ bind(&non_zero_result);
+      if (!no_negative_zero) {
+        Label non_zero_result;
+        __ test(answer.reg(), Operand(answer.reg()));
+        __ j(not_zero, &non_zero_result, taken);
+        __ mov(answer.reg(), left->reg());
+        __ or_(answer.reg(), Operand(right->reg()));
+        deferred->Branch(negative);
+        __ xor_(answer.reg(), Operand(answer.reg()));  // Positive 0 is correct.
+        __ bind(&non_zero_result);
+      }
       break;
     }
 
@@ -1817,7 +1829,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                                  Handle<Object> value,
                                                  StaticType* type,
                                                  bool reversed,
-                                                 OverwriteMode overwrite_mode) {
+                                                 OverwriteMode overwrite_mode,
+                                                 bool no_negative_zero) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
   // some possible smi operations (like + and -) when (at least) one
   // of the operands is a constant smi.
@@ -1828,10 +1841,10 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     Result unsafe_operand(value);
     if (reversed) {
       return LikelySmiBinaryOperation(op, &unsafe_operand, operand,
-                                      overwrite_mode);
+                                      overwrite_mode, no_negative_zero);
     } else {
       return LikelySmiBinaryOperation(op, operand, &unsafe_operand,
-                                      overwrite_mode);
+                                      overwrite_mode, no_negative_zero);
     }
   }
 
@@ -1911,7 +1924,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       if (reversed) {
         Result constant_operand(value);
         answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                          overwrite_mode);
+                                          overwrite_mode, no_negative_zero);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -1947,7 +1960,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       if (reversed) {
         Result constant_operand(value);
         answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                          overwrite_mode);
+                                          overwrite_mode, no_negative_zero);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -2140,10 +2153,10 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         Result constant_operand(value);
         if (reversed) {
           answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                            overwrite_mode);
+                                            overwrite_mode, no_negative_zero);
         } else {
           answer = LikelySmiBinaryOperation(op, operand, &constant_operand,
-                                            overwrite_mode);
+                                            overwrite_mode, no_negative_zero);
         }
       }
       break;
@@ -2180,10 +2193,10 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       Result constant_operand(value);
       if (reversed) {
         answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                          overwrite_mode);
+                                          overwrite_mode, no_negative_zero);
       } else {
         answer = LikelySmiBinaryOperation(op, operand, &constant_operand,
-                                          overwrite_mode);
+                                          overwrite_mode, no_negative_zero);
       }
       break;
     }
@@ -4950,7 +4963,8 @@ void CodeGenerator::EmitSlotAssignment(Assignment* node) {
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
     GenericBinaryOperation(node->binary_op(),
                            node->type(),
-                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE,
+                           node->no_negative_zero());
   } else {
     Load(node->value());
   }
@@ -5027,7 +5041,8 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
     GenericBinaryOperation(node->binary_op(),
                            node->type(),
-                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE,
+                           node->no_negative_zero());
   } else {
     Load(node->value());
   }
@@ -5106,7 +5121,8 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
     GenericBinaryOperation(node->binary_op(),
                            node->type(),
-                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE,
+                           node->no_negative_zero());
   } else {
     Load(node->value());
   }
@@ -6868,7 +6884,8 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       Load(node->left());
       Load(node->right());
     }
-    GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
+    GenericBinaryOperation(node->op(), node->type(),
+                           overwrite_mode, node->no_negative_zero());
   }
 }
 

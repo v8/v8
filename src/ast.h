@@ -251,6 +251,14 @@ class Expression: public AstNode {
     bitfields_ |= SideEffectFreeField::encode(is_side_effect_free);
   }
 
+  // Will the use of this expression treat -0 the same as 0 in all cases?
+  // If so, we can return 0 instead of -0 if we want to, to optimize code.
+  bool no_negative_zero() { return NoNegativeZeroField::decode(bitfields_); }
+  void set_no_negative_zero(bool no_negative_zero) {
+    bitfields_ &= ~NoNegativeZeroField::mask();
+    bitfields_ |= NoNegativeZeroField::encode(no_negative_zero);
+  }
+
   // Will ToInt32 (ECMA 262-3 9.5) or ToUint32 (ECMA 262-3 9.6)
   // be applied to the value of this expression?
   // If so, we may be able to optimize the calculation of the value.
@@ -270,7 +278,8 @@ class Expression: public AstNode {
 
   // Using template BitField<type, start, size>.
   class SideEffectFreeField : public BitField<bool, 0, 1> {};
-  class ToInt32Field : public BitField<bool, 1, 1> {};
+  class NoNegativeZeroField : public BitField<bool, 1, 1> {};
+  class ToInt32Field : public BitField<bool, 2, 1> {};
 };
 
 
