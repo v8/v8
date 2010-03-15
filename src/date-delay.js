@@ -260,39 +260,6 @@ function TimeInYear(year) {
 }
 
 
-var four_year_cycle_table = CalculateDateTable();
-
-
-function CalculateDateTable() {
-  var month_lengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  var four_year_cycle_table = new $Array(1461);
-
-  var cumulative = 0;
-  var position = 0;
-  var leap_position = 0;
-  for (var month = 0; month < 12; month++) {
-    var month_bits = month << kMonthShift;
-    var length = month_lengths[month];
-    for (var day = 1; day <= length; day++) {
-      four_year_cycle_table[leap_position] =
-        month_bits + day;
-      four_year_cycle_table[366 + position] =
-        (1 << kYearShift) + month_bits + day;
-      four_year_cycle_table[731 + position] =
-        (2 << kYearShift) + month_bits + day;
-      four_year_cycle_table[1096 + position] =
-        (3 << kYearShift) + month_bits + day;
-      leap_position++;
-      position++;
-    }
-    if (month == 1) {
-      four_year_cycle_table[leap_position++] = month_bits + 29;
-    }
-  }
-  return four_year_cycle_table;
-}
-
-
 var ymd_from_time_cache = [$NaN, $NaN, $NaN];
 var ymd_from_time_cached_time = $NaN;
 
