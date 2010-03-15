@@ -93,6 +93,7 @@ namespace internal {
   F(StringParseFloat, 1, 1) \
   F(StringToLowerCase, 1, 1) \
   F(StringToUpperCase, 1, 1) \
+  F(StringSplit, 3, 1) \
   F(CharFromCode, 1, 1) \
   F(URIEscape, 1, 1) \
   F(URIUnescape, 1, 1) \

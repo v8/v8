@@ -557,7 +557,7 @@ function StringSplit(separator, limit) {
 
   // ECMA-262 says that if separator is undefined, the result should
   // be an array of size 1 containing the entire string.  SpiderMonkey
-  // and KJS have this behaviour only when no separator is given.  If
+  // and KJS have this behavior only when no separator is given.  If
   // undefined is explicitly given, they convert it to a string and
   // use that.  We do as SpiderMonkey and KJS.
   if (%_ArgumentsLength() === 0) {
@@ -572,18 +572,7 @@ function StringSplit(separator, limit) {
     // If the separator string is empty then return the elements in the subject.
     if (separator_length === 0) return %StringToArray(subject);
 
-    var result = [];
-    var start_index = 0;
-    var index;
-    while (true) {
-      if (start_index + separator_length > length ||
-          (index = %StringIndexOf(subject, separator, start_index)) === -1) {
-        result.push(SubString(subject, start_index, length));
-        break;
-      }
-      if (result.push(SubString(subject, start_index, index)) === limit) break;
-      start_index = index + separator_length;
-    }
+    var result = %StringSplit(subject, separator, limit);
 
     return result;
   }
