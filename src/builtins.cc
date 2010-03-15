@@ -727,6 +727,63 @@ BUILTIN(ArraySplice) {
 }
 
 
+BUILTIN(ArrayConcat) {
+  Counters::array_concat_builtin_total.Increment();
+  if (args.length() != 2) {
+    // Fast case only for concating two arrays.
+    return CallJsBuiltin("ArrayConcat", args);
+  }
+  Counters::array_concat_builtin_two_args.Increment();
+
+  Object* receiver_obj = *args.receiver();
+  FixedArray* receiver_elms = NULL;
+  Object* arg_obj = args[1];
+  FixedArray* arg_elms = NULL;
+  if (!IsJSArrayWithFastElements(receiver_obj, &receiver_elms)
+      || !IsJSArrayWithFastElements(arg_obj, &arg_elms)
+      || !ArrayPrototypeHasNoElements()) {
+    return CallJsBuiltin("ArrayConcat", args);
+  }
+
+  JSArray* receiver_array = JSArray::cast(receiver_obj);
+  ASSERT(receiver_array->HasFastElements());
+  JSArray* arg_array = JSArray::cast(arg_obj);
+  ASSERT(arg_array->HasFastElements());
+
+  int receiver_len = Smi::cast(receiver_array->length())->value();
+  int arg_len = Smi::cast(arg_array->length())->value();
+  ASSERT(receiver_len <= (Smi::kMaxValue - arg_len));
+
+  int result_len = receiver_len + arg_len;
+  if (result_len > FixedArray::kMaxSize) {
+    return CallJsBuiltin("ArrayConcat", args);
+  }
+  if (result_len == 0) {
+    return AllocateEmptyJSArray();
+  }
+
+  // Allocate result.
+  Object* result = AllocateJSArray();
+  if (result->IsFailure()) return result;
+  JSArray* result_array = JSArray::cast(result);
+
+  result = Heap::AllocateUninitializedFixedArray(result_len);
+  if (result->IsFailure()) return result;
+  FixedArray* result_elms = FixedArray::cast(result);
+
+  // Copy data.
+  AssertNoAllocation no_gc;
+  CopyElements(&no_gc, result_elms, 0, receiver_elms, 0, receiver_len);
+  CopyElements(&no_gc, result_elms, receiver_len, arg_elms, 0, arg_len);
+
+  // Set the length and elements.
+  result_array->set_length(Smi::FromInt(result_len));
+  result_array->set_elements(result_elms);
+
+  return result_array;
+}
+
+
 // -----------------------------------------------------------------------------
 //
 

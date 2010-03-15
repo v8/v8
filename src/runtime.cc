@@ -1297,6 +1297,7 @@ static Object* Runtime_SpecialArrayFunctions(Arguments args) {
   InstallBuiltin(holder, "unshift", Builtins::ArrayUnshift);
   InstallBuiltin(holder, "slice", Builtins::ArraySlice);
   InstallBuiltin(holder, "splice", Builtins::ArraySplice);
+  InstallBuiltin(holder, "concat", Builtins::ArrayConcat);
 
   return *holder;
 }
