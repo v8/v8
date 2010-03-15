@@ -1478,12 +1478,41 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                           left->number_info(),
                                           right->number_info(),
                                           overwrite_mode);
-    CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
-                       left->number_info(), right->number_info(), deferred);
 
-    // Untag both operands.
-    __ mov(answer.reg(), left->reg());
-    __ SmiUntag(answer.reg());
+    Label do_op, left_nonsmi;
+    // if right is a smi we make a fast case if left is either a smi
+    // or a heapnumber.
+    if (CpuFeatures::IsSupported(SSE2) && right->number_info().IsSmi()) {
+      __ mov(answer.reg(), left->reg());
+      // Fast case - both are actually smis.
+      if (!left->number_info().IsSmi()) {
+        __ test(answer.reg(), Immediate(kSmiTagMask));
+        __ j(not_zero, &left_nonsmi);
+      }
+      __ SmiUntag(answer.reg());
+      __ jmp(&do_op);
+
+      __ bind(&left_nonsmi);
+      // Branch if not a heapnumber.
+      __ cmp(FieldOperand(answer.reg(), HeapObject::kMapOffset),
+             Factory::heap_number_map());
+      deferred->Branch(not_equal);
+
+      // Load integer value into answer register using truncation.
+      __ cvttsd2si(answer.reg(),
+                   FieldOperand(answer.reg(), HeapNumber::kValueOffset));
+      // Branch if we do not fit in a smi.
+      __ cmp(answer.reg(), 0xc0000000);
+      deferred->Branch(negative);
+    } else {
+      CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
+                         left->number_info(), right->number_info(), deferred);
+
+      // Untag both operands.
+      __ mov(answer.reg(), left->reg());
+      __ SmiUntag(answer.reg());
+    }
+
     __ SmiUntag(ecx);
     // Perform the operation.
     switch (op) {
