@@ -612,6 +612,11 @@ class Heap : public AllStatic {
                             Handle<Object> self_reference);
 
   static Object* CopyCode(Code* code);
+
+  // Copy the code and scope info part of the code object, but insert
+  // the provided data as the relocation information.
+  static Object* CopyCode(Code* code, Vector<byte> reloc_info);
+
   // Finds the symbol for string in the symbol table.
   // If not found, a new symbol is added to the table and returned.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if allocation

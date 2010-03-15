@@ -2257,6 +2257,55 @@ Object* Heap::CopyCode(Code* code) {
 }
 
 
+Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
+  int new_body_size = RoundUp(code->instruction_size() + reloc_info.length(),
+                              kObjectAlignment);
+
+  int sinfo_size = code->sinfo_size();
+
+  int new_obj_size = Code::SizeFor(new_body_size, sinfo_size);
+
+  Address old_addr = code->address();
+
+  int relocation_offset = code->relocation_start() - old_addr;
+
+  Object* result;
+  if (new_obj_size > MaxObjectSizeInPagedSpace()) {
+    result = lo_space_->AllocateRawCode(new_obj_size);
+  } else {
+    result = code_space_->AllocateRaw(new_obj_size);
+  }
+
+  if (result->IsFailure()) return result;
+
+  // Copy code object.
+  Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
+
+  // Copy header and instructions.
+  memcpy(new_addr, old_addr, relocation_offset);
+
+  // Copy patched rinfo.
+  memcpy(new_addr + relocation_offset,
+         reloc_info.start(),
+             reloc_info.length());
+
+  Code* new_code = Code::cast(result);
+  new_code->set_relocation_size(reloc_info.length());
+
+  // Copy sinfo.
+  memcpy(new_code->sinfo_start(), code->sinfo_start(), code->sinfo_size());
+
+  // Relocate the copy.
+  ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
+  new_code->Relocate(new_addr - old_addr);
+
+#ifdef DEBUG
+  code->Verify();
+#endif
+  return new_code;
+}
+
+
 Object* Heap::Allocate(Map* map, AllocationSpace space) {
   ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(map->instance_type() != MAP_TYPE);

@@ -9063,6 +9063,36 @@ static Object* Runtime_LiveEditCheckStackActivations(Arguments args) {
 }
 
 
+// A testing entry. Returns statement position which is the closest to
+// source_position.
+static Object* Runtime_GetFunctionCodePositionFromSource(Arguments args) {
+  ASSERT(args.length() == 2);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
+
+  Handle<Code> code(function->code());
+
+  RelocIterator it(*code, 1 << RelocInfo::STATEMENT_POSITION);
+  int closest_pc = 0;
+  int distance = kMaxInt;
+  while (!it.done()) {
+    int statement_position = static_cast<int>(it.rinfo()->data());
+    // Check if this break point is closer that what was previously found.
+    if (source_position <= statement_position &&
+        statement_position - source_position < distance) {
+      closest_pc = it.rinfo()->pc() - code->instruction_start();
+      distance = statement_position - source_position;
+      // Check whether we can't get any closer.
+      if (distance == 0) break;
+    }
+    it.next();
+  }
+
+  return Smi::FromInt(closest_pc);
+}
+
+
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 #ifdef ENABLE_LOGGING_AND_PROFILING

@@ -333,7 +333,8 @@ namespace internal {
   F(LiveEditReplaceFunctionCode, 2, 1) \
   F(LiveEditRelinkFunctionToScript, 2, 1) \
   F(LiveEditPatchFunctionPositions, 2, 1) \
-  F(LiveEditCheckStackActivations, 1, 1)
+  F(LiveEditCheckStackActivations, 1, 1) \
+  F(GetFunctionCodePositionFromSource, 2, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 #endif
