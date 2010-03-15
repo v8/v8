@@ -58,6 +58,7 @@ SOURCES = {
     'test-log-utils.cc',
     'test-mark-compact.cc',
     'test-parsing.cc',
+    'test-profile-generator.cc',
     'test-regexp.cc',
     'test-serialize.cc',
     'test-sockets.cc',
