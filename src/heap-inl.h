@@ -133,8 +133,8 @@ Object* Heap::AllocateRawMap() {
 #ifdef DEBUG
   if (!result->IsFailure()) {
     // Maps have their own alignment.
-    CHECK_EQ(static_cast<intptr_t>(kHeapObjectTag),
-             reinterpret_cast<intptr_t>(result) & kMapAlignmentMask);
+    CHECK((reinterpret_cast<intptr_t>(result) & kMapAlignmentMask) ==
+          static_cast<intptr_t>(kHeapObjectTag));
   }
 #endif
   return result;
