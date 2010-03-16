@@ -265,7 +265,7 @@ var ymd_from_time_cached_time = $NaN;
 
 function YearFromTime(t) {
   if (t !== ymd_from_time_cached_time) {
-    // Limits according to ECMA 262 15.9.1.1
+    // Limits according to ECMA 262 15.9.1.1
     if (!$isFinite(t) || t < -8640000000000000 || t > 8640000000000000) {
       return $NaN;
     }
@@ -279,7 +279,7 @@ function YearFromTime(t) {
 
 function MonthFromTime(t) {
   if (t !== ymd_from_time_cached_time) {
-    // Limits according to ECMA 262 15.9.1.1
+    // Limits according to ECMA 262 15.9.1.1
     if (!$isFinite(t) || t < -8640000000000000 || t > 8640000000000000) {
       return $NaN;
     }
@@ -292,7 +292,7 @@ function MonthFromTime(t) {
 
 function DateFromTime(t) {
   if (t !== ymd_from_time_cached_time) {
-    // Limits according to ECMA 262 15.9.1.1
+    // Limits according to ECMA 262 15.9.1.1
     if (!$isFinite(t) || t < -8640000000000000 || t > 8640000000000000) {
       return $NaN;
     }
