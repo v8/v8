@@ -634,6 +634,15 @@ class Heap : public AllStatic {
   // NULL is returned if string is in new space or not flattened.
   static Map* SymbolMapForString(String* str);
 
+  // Tries to flatten a string before compare operation.
+  //
+  // Returns a failure in case it was decided that flattening was
+  // necessary and failed.  Note, if flattening is not necessary the
+  // string might stay non-flat even when not a failure is returned.
+  //
+  // Please note this function does not perform a garbage collection.
+  static inline Object* PrepareForCompare(String* str);
+
   // Converts the given boolean condition to JavaScript boolean value.
   static Object* ToBoolean(bool condition) {
     return condition ? true_value() : false_value();
@@ -954,6 +963,9 @@ class Heap : public AllStatic {
 
   static int mc_count_;  // how many mark-compact collections happened
   static int gc_count_;  // how many gc happened
+
+  // Total length of the strings we failed to flatten since the last GC.
+  static int unflattended_strings_length_;
 
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
   static inline void set_##name(type* value) {                                 \

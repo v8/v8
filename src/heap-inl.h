@@ -274,6 +274,25 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
+Object* Heap::PrepareForCompare(String* str) {
+  // Always flatten small strings and force flattening of long strings
+  // after we have accumulated a certain amount we failed to flatten.
+  static const int kMaxAlwaysFlattenLength = 32;
+  static const int kFlattenLongThreshold = 16*KB;
+
+  const int length = str->length();
+  Object* obj = str->TryFlatten();
+  if (length <= kMaxAlwaysFlattenLength ||
+      unflattended_strings_length_ >= kFlattenLongThreshold) {
+    return obj;
+  }
+  if (obj->IsFailure()) {
+    unflattended_strings_length_ += length;
+  }
+  return str;
+}
+
+
 int Heap::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
   ASSERT(HasBeenSetup());
   int amount = amount_of_external_allocated_memory_ + change_in_bytes;

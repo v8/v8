@@ -5073,7 +5073,7 @@ static Object* FlatStringCompare(String* x, String* y) {
     Vector<const char> x_chars = x->ToAsciiVector();
     if (y->IsAsciiRepresentation()) {
       Vector<const char> y_chars = y->ToAsciiVector();
-      r = memcmp(x_chars.start(), y_chars.start(), prefix_length);
+      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
     } else {
       Vector<const uc16> y_chars = y->ToUC16Vector();
       r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
@@ -5121,8 +5121,10 @@ static Object* Runtime_StringCompare(Arguments args) {
   if (d < 0) return Smi::FromInt(LESS);
   else if (d > 0) return Smi::FromInt(GREATER);
 
-  x->TryFlatten();
-  y->TryFlatten();
+  Object* obj = Heap::PrepareForCompare(x);
+  if (obj->IsFailure()) return obj;
+  obj = Heap::PrepareForCompare(y);
+  if (obj->IsFailure()) return obj;
 
   return (x->IsFlat() && y->IsFlat()) ? FlatStringCompare(x, y)
                                       : StringInputBufferCompare(x, y);

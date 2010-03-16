@@ -114,6 +114,8 @@ Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 int Heap::mc_count_ = 0;
 int Heap::gc_count_ = 0;
 
+int Heap::unflattended_strings_length_ = 0;
+
 int Heap::always_allocate_scope_depth_ = 0;
 int Heap::linear_allocation_scope_depth_ = 0;
 int Heap::contexts_disposed_ = 0;
@@ -302,6 +304,7 @@ void Heap::ReportStatisticsAfterGC() {
 void Heap::GarbageCollectionPrologue() {
   TranscendentalCache::Clear();
   gc_count_++;
+  unflattended_strings_length_ = 0;
 #ifdef DEBUG
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   allow_allocation(false);
