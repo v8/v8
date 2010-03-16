@@ -103,6 +103,7 @@ namespace internal {
 class TargetCollector;
 class MaterializedLiteral;
 class DefinitionInfo;
+class BitVector;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
 AST_NODE_LIST(DEF_FORWARD_DECLARATION)
@@ -1041,6 +1042,9 @@ class VariableProxy: public Expression {
   bool is_trivial() { return is_trivial_; }
   void set_is_trivial(bool b) { is_trivial_ = b; }
 
+  BitVector* reaching_definitions() { return reaching_definitions_; }
+  void set_reaching_definitions(BitVector* rd) { reaching_definitions_ = rd; }
+
   // Bind this proxy to the variable var.
   void BindTo(Variable* var);
 
@@ -1050,6 +1054,7 @@ class VariableProxy: public Expression {
   bool is_this_;
   bool inside_with_;
   bool is_trivial_;
+  BitVector* reaching_definitions_;
 
   VariableProxy(Handle<String> name, bool is_this, bool inside_with);
   explicit VariableProxy(bool is_this);
