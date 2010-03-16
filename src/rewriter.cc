@@ -266,7 +266,14 @@ void AstOptimizer::VisitLiteral(Literal* node) {
       func_name_inferrer_.PushName(lit_str);
     }
   } else if (literal->IsHeapNumber()) {
-    node->set_side_effect_free(true);
+    if (node->to_int32()) {
+      // Any HeapNumber has an int32 value if it is the input to a bit op.
+      node->set_side_effect_free(true);
+    } else {
+      double double_value = HeapNumber::cast(*literal)->value();
+      int32_t int32_value = DoubleToInt32(double_value);
+      node->set_side_effect_free(double_value == int32_value);
+    }
   }
 }
 
@@ -320,6 +327,7 @@ void AstOptimizer::VisitAssignment(Assignment* node) {
       node->type()->SetAsLikelySmiIfUnknown();
       node->target()->type()->SetAsLikelySmiIfUnknown();
       node->value()->type()->SetAsLikelySmiIfUnknown();
+      node->value()->set_to_int32(true);
       node->value()->set_no_negative_zero(true);
       break;
     case Token::ASSIGN_ADD:
@@ -438,9 +446,9 @@ void AstOptimizer::VisitUnaryOperation(UnaryOperation* node) {
         // Fall through.
       case Token::ADD:
       case Token::SUB:
-      case Token::NOT:
         node->set_side_effect_free(node->expression()->side_effect_free());
         break;
+      case Token::NOT:
       case Token::DELETE:
       case Token::TYPEOF:
       case Token::VOID:
@@ -553,6 +561,9 @@ void AstOptimizer::VisitBinaryOperation(BinaryOperation* node) {
       case Token::SHL:
       case Token::SAR:
       case Token::SHR:
+        // Add one to the number of bit operations in this expression.
+        node->set_num_bit_ops(1);
+        // Fall through.
       case Token::ADD:
       case Token::SUB:
       case Token::MUL:
@@ -560,6 +571,12 @@ void AstOptimizer::VisitBinaryOperation(BinaryOperation* node) {
       case Token::MOD:
         node->set_side_effect_free(node->left()->side_effect_free() &&
                                    node->right()->side_effect_free());
+        node->set_num_bit_ops(node->num_bit_ops() +
+                                  node->left()->num_bit_ops() +
+                                  node->right()->num_bit_ops());
+        if (!node->no_negative_zero() && node->op() == Token::MUL) {
+          node->set_side_effect_free(false);
+        }
         break;
       default:
         UNREACHABLE();

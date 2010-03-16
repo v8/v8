@@ -269,8 +269,18 @@ class Expression: public AstNode {
     bitfields_ |= ToInt32Field::encode(to_int32);
   }
 
+  // How many bitwise logical or shift operators are used in this expression?
+  int num_bit_ops() { return NumBitOpsField::decode(bitfields_); }
+  void set_num_bit_ops(int num_bit_ops) {
+    bitfields_ &= ~NumBitOpsField::mask();
+    num_bit_ops = Min(num_bit_ops, kMaxNumBitOps);
+    bitfields_ |= NumBitOpsField::encode(num_bit_ops);
+  }
+
 
  private:
+  static const int kMaxNumBitOps = (1 << 5) - 1;
+
   uint32_t bitfields_;
   StaticType type_;
 
@@ -281,6 +291,7 @@ class Expression: public AstNode {
   class SideEffectFreeField : public BitField<bool, 0, 1> {};
   class NoNegativeZeroField : public BitField<bool, 1, 1> {};
   class ToInt32Field : public BitField<bool, 2, 1> {};
+  class NumBitOpsField : public BitField<int, 3, 5> {};
 };
 
 
