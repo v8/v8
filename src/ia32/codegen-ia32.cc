@@ -6684,19 +6684,25 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     // Ensure the new value is writable.
     frame_->Spill(new_value.reg());
 
-    // In order to combine the overflow and the smi tag check, we need
-    // to be able to allocate a byte register.  We attempt to do so
-    // without spilling.  If we fail, we will generate separate overflow
-    // and smi tag checks.
-    //
-    // We allocate and clear the temporary byte register before
-    // performing the count operation since clearing the register using
-    // xor will clear the overflow flag.
-    Result tmp = allocator_->AllocateByteRegisterWithoutSpilling();
-    if (tmp.is_valid()) {
-      __ Set(tmp.reg(), Immediate(0));
+    Result tmp;
+    if (new_value.is_smi()) {
+      if (FLAG_debug_code) {
+        __ AbortIfNotSmi(new_value.reg(), "Operand not a smi");
+      }
+    } else {
+      // We don't know statically if the input is a smi.
+      // In order to combine the overflow and the smi tag check, we need
+      // to be able to allocate a byte register.  We attempt to do so
+      // without spilling.  If we fail, we will generate separate overflow
+      // and smi tag checks.
+      // We allocate and clear a temporary byte register before performing
+      // the count operation since clearing the register using xor will clear
+      // the overflow flag.
+      tmp = allocator_->AllocateByteRegisterWithoutSpilling();
+      if (tmp.is_valid()) {
+        __ Set(tmp.reg(), Immediate(0));
+      }
     }
-
 
     if (is_increment) {
       __ add(Operand(new_value.reg()), Immediate(Smi::FromInt(1)));
@@ -6704,28 +6710,26 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       __ sub(Operand(new_value.reg()), Immediate(Smi::FromInt(1)));
     }
 
-    if (new_value.is_smi()) {
-      if (FLAG_debug_code) {
-        __ AbortIfNotSmi(new_value.reg(), "Argument not a smi");
-      }
-      if (tmp.is_valid()) tmp.Unuse();
+    DeferredCode* deferred = NULL;
+    if (is_postfix) {
+      deferred = new DeferredPostfixCountOperation(new_value.reg(),
+                                                   old_value.reg(),
+                                                   is_increment);
     } else {
-      DeferredCode* deferred = NULL;
-      if (is_postfix) {
-        deferred = new DeferredPostfixCountOperation(new_value.reg(),
-                                                     old_value.reg(),
-                                                     is_increment);
-      } else {
-        deferred = new DeferredPrefixCountOperation(new_value.reg(),
-                                                    is_increment);
-      }
+      deferred = new DeferredPrefixCountOperation(new_value.reg(),
+                                                  is_increment);
+    }
 
+    if (new_value.is_smi()) {
+      // In case we have a smi as input just check for overflow.
+      deferred->Branch(overflow);
+    } else {
       // If the count operation didn't overflow and the result is a valid
       // smi, we're done. Otherwise, we jump to the deferred slow-case
       // code.
+      // We combine the overflow and the smi tag check if we could
+      // successfully allocate a temporary byte register.
       if (tmp.is_valid()) {
-        // We combine the overflow and the smi tag check if we could
-        // successfully allocate a temporary byte register.
         __ setcc(overflow, tmp.reg());
         __ or_(Operand(tmp.reg()), new_value.reg());
         __ test(tmp.reg(), Immediate(kSmiTagMask));
@@ -6737,8 +6741,9 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
         __ test(new_value.reg(), Immediate(kSmiTagMask));
         deferred->Branch(not_zero);
       }
-      deferred->BindExit();
     }
+    deferred->BindExit();
+
 
     // Postfix: store the old value in the allocated slot under the
     // reference.

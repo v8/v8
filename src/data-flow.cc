@@ -1117,6 +1117,12 @@ Variable* AssignedVariablesAnalyzer::FindSmiLoopVariable(ForStatement* stmt) {
   if (init_value < term_value && update->op() != Token::INC) return NULL;
   if (init_value > term_value && update->op() != Token::DEC) return NULL;
 
+  // Check that the update operation cannot overflow the smi range. This can
+  // occur in the two cases where the loop bound is equal to the largest or
+  // smallest smi.
+  if (update->op() == Token::INC && term_value == Smi::kMaxValue) return NULL;
+  if (update->op() == Token::DEC && term_value == Smi::kMinValue) return NULL;
+
   // Found a smi loop variable.
   return loop_var;
 }
