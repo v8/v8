@@ -4377,7 +4377,7 @@ void FindStringIndices(Vector<const schar> subject,
 }
 
 template <typename schar>
-void inline FindCharIndices(Vector<const schar> subject,
+inline void FindCharIndices(Vector<const schar> subject,
                             const schar pattern_char,
                             ZoneList<int>* indices,
                             unsigned int limit) {
