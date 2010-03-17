@@ -560,7 +560,6 @@ void CodeGenerator::Load(Expression* expr) {
   int original_height = frame_->height();
 #endif
   ASSERT(!in_spilled_code());
-  JumpTarget done;
 
   // If the expression should be a side-effect-free 32-bit int computation,
   // compile that SafeInt32 path, and a bailout path.
@@ -570,6 +569,7 @@ void CodeGenerator::Load(Expression* expr) {
       expr->num_bit_ops() > 2 &&
       CpuFeatures::IsSupported(SSE2)) {
     BreakTarget unsafe_bailout;
+    JumpTarget done;
     unsafe_bailout.set_expected_height(frame_->height());
     LoadInSafeInt32Mode(expr, &unsafe_bailout);
     done.Jump();
@@ -578,6 +578,7 @@ void CodeGenerator::Load(Expression* expr) {
       unsafe_bailout.Bind();
       LoadWithSafeInt32ModeDisabled(expr);
     }
+    done.Bind();
   } else {
     JumpTarget true_target;
     JumpTarget false_target;
@@ -633,7 +634,6 @@ void CodeGenerator::Load(Expression* expr) {
       }
     }
   }
-  done.Bind();
   ASSERT(has_valid_frame());
   ASSERT(frame_->height() == original_height + 1);
 }
