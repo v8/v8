@@ -266,6 +266,7 @@
         '../../src/disassembler.cc',
         '../../src/disassembler.h',
         '../../src/dtoa-config.c',
+        '../../src/diy_fp.cc',
         '../../src/diy_fp.h',
         '../../src/double.h',
         '../../src/execution.cc',

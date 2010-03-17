@@ -56,6 +56,7 @@ SOURCES = {
     debug-agent.cc
     debug.cc
     disassembler.cc
+    diy_fp.cc
     execution.cc
     factory.cc
     flags.cc
