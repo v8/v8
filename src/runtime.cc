@@ -5325,21 +5325,12 @@ static Object* Runtime_Math_round(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   Counters::math_round.Increment();
+
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-
-  if (x > 0 && x < Smi::kMaxValue) {
-    return Smi::FromInt(static_cast<int>(x + 0.5));
-  }
-
   if (signbit(x) && x >= -0.5) return Heap::minus_zero_value();
-
-  // if the magnitude is big enough, there's no place for fraction part. If we
-  // try to add 0.5 to this number, 1.0 will be added instead.
-  if (x >= 9007199254740991.0 || x <= -9007199254740991.0) {
-    return args[0];
-  }
-
-  return Heap::NumberFromDouble(floor(x + 0.5));
+  double integer = ceil(x);
+  if (integer - x > 0.5) { integer -= 1.0; }
+  return Heap::NumberFromDouble(integer);
 }
 
 
