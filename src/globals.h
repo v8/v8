@@ -317,6 +317,10 @@ enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 enum VisitMode { VISIT_ALL, VISIT_ALL_IN_SCAVENGE, VISIT_ONLY_STRONG };
 
 
+// Flag indicating whether code is built into the VM (one of the natives files).
+enum NativesFlag { NOT_NATIVES_CODE, NATIVES_CODE };
+
+
 // A CodeDesc describes a buffer holding instructions and relocation
 // information. The instructions start at the beginning of the buffer
 // and grow forward, the relocation information starts at the end of
