@@ -342,7 +342,6 @@ class Vector {
   // vector is empty.
   void Dispose() {
     DeleteArray(start_);
-    if (is_empty()) return;
     start_ = NULL;
     length_ = 0;
   }
