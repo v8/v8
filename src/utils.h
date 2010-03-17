@@ -341,8 +341,8 @@ class Vector {
   // Releases the array underlying this vector. Once disposed the
   // vector is empty.
   void Dispose() {
-    if (is_empty()) return;
     DeleteArray(start_);
+    if (is_empty()) return;
     start_ = NULL;
     length_ = 0;
   }
