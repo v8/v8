@@ -728,34 +728,36 @@ BUILTIN(ArraySplice) {
 
 
 BUILTIN(ArrayConcat) {
-  if (!ArrayPrototypeHasNoElements()) {
+  Counters::array_concat_builtin_total.Increment();
+  if (args.length() != 2) {
+    // Fast case only for concating two arrays.
+    return CallJsBuiltin("ArrayConcat", args);
+  }
+  Counters::array_concat_builtin_two_args.Increment();
+
+  Object* receiver_obj = *args.receiver();
+  FixedArray* receiver_elms = NULL;
+  Object* arg_obj = args[1];
+  FixedArray* arg_elms = NULL;
+  if (!IsJSArrayWithFastElements(receiver_obj, &receiver_elms)
+      || !IsJSArrayWithFastElements(arg_obj, &arg_elms)
+      || !ArrayPrototypeHasNoElements()) {
     return CallJsBuiltin("ArrayConcat", args);
   }
 
-  // Iterate through all the arguments performing checks
-  // and calculating total length.
-  int n_arguments = args.length();
-  int result_len = 0;
-  for (int i = 0; i < n_arguments; i++) {
-    Object* arg = args[i];
-    if (!arg->IsJSArray() || JSArray::cast(arg)->HasFastElements()) {
-      return CallJsBuiltin("ArrayConcat", args);
-    }
+  JSArray* receiver_array = JSArray::cast(receiver_obj);
+  ASSERT(receiver_array->HasFastElements());
+  JSArray* arg_array = JSArray::cast(arg_obj);
+  ASSERT(arg_array->HasFastElements());
 
-    int len = Smi::cast(JSArray::cast(arg)->length())->value();
+  int receiver_len = Smi::cast(receiver_array->length())->value();
+  int arg_len = Smi::cast(arg_array->length())->value();
+  ASSERT(receiver_len <= (Smi::kMaxValue - arg_len));
 
-    // We shouldn't overflow when adding another len.
-    const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
-    STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
-    USE(kHalfOfMaxInt);
-    result_len += len;
-    ASSERT(result_len >= 0);
-
-    if (result_len > FixedArray::kMaxLength) {
-      return CallJsBuiltin("ArrayConcat", args);
-    }
+  int result_len = receiver_len + arg_len;
+  if (result_len > FixedArray::kMaxSize) {
+    return CallJsBuiltin("ArrayConcat", args);
   }
-
   if (result_len == 0) {
     return AllocateEmptyJSArray();
   }
@@ -771,15 +773,8 @@ BUILTIN(ArrayConcat) {
 
   // Copy data.
   AssertNoAllocation no_gc;
-  int start_pos = 0;
-  for (int i = 0; i < n_arguments; i++) {
-    JSArray* array = JSArray::cast(args[i]);
-    FixedArray* elms = FixedArray::cast(array->elements());
-    int len = Smi::cast(array->length())->value();
-    CopyElements(&no_gc, result_elms, start_pos, elms, 0, len);
-    start_pos += len;
-  }
-  ASSERT(start_pos == result_len);
+  CopyElements(&no_gc, result_elms, 0, receiver_elms, 0, receiver_len);
+  CopyElements(&no_gc, result_elms, receiver_len, arg_elms, 0, arg_len);
 
   // Set the length and elements.
   result_array->set_length(Smi::FromInt(result_len));
