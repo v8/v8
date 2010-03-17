@@ -156,6 +156,10 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\test\cctest\test-circular-queue.cc"
+			>
+		</File>
+		<File
 			RelativePath="..\..\test\cctest\test-compiler.cc"
 			>
 		</File>
@@ -213,6 +217,10 @@
 		</File>
 		<File
 			RelativePath="..\..\test\cctest\test-platform-win32.cc"
+			>
+		</File>
+		<File
+			RelativePath="..\..\test\cctest\test-profile-generator.cc"
 			>
 		</File>
 		<File

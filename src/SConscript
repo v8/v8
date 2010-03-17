@@ -43,6 +43,7 @@ SOURCES = {
     bootstrapper.cc
     builtins.cc
     checks.cc
+    circular-queue.cc
     code-stubs.cc
     codegen.cc
     compilation-cache.cc
