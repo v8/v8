@@ -5635,7 +5635,7 @@ static const char kMonthInYear[] = {
 
 // This function works for dates from 1970 to 2099.
 static inline void DateYMDFromTimeAfter1970(int date,
-                                            int &year, int &month, int &day) {
+                                            int& year, int& month, int& day) {
 #ifdef DEBUG
   int save_date = date;  // Need this for ASSERT in the end.
 #endif
@@ -5651,7 +5651,7 @@ static inline void DateYMDFromTimeAfter1970(int date,
 
 
 static inline void DateYMDFromTimeSlow(int date,
-                                       int &year, int &month, int &day) {
+                                       int& year, int& month, int& day) {
 #ifdef DEBUG
   int save_date = date;  // Need this for ASSERT in the end.
 #endif
@@ -5699,7 +5699,7 @@ static inline void DateYMDFromTimeSlow(int date,
 
 
 static inline void DateYMDFromTime(int date,
-                                   int &year, int &month, int &day) {
+                                   int& year, int& month, int& day) {
   if (date >= 0 && date < 32 * kDaysIn4Years) {
     DateYMDFromTimeAfter1970(date, year, month, day);
   } else {

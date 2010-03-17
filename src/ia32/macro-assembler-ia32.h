@@ -476,7 +476,7 @@ class MacroAssembler: public Assembler {
   // for both instance type and scratch.
   void JumpIfInstanceTypeIsNotSequentialAscii(Register instance_type,
                                               Register scratch,
-                                              Label *on_not_flat_ascii_string);
+                                              Label* on_not_flat_ascii_string);
 
   // Checks if both objects are sequential ASCII strings, and jumps to label
   // if either is not.
@@ -484,7 +484,7 @@ class MacroAssembler: public Assembler {
                                            Register object2,
                                            Register scratch1,
                                            Register scratch2,
-                                           Label *on_not_flat_ascii_strings);
+                                           Label* on_not_flat_ascii_strings);
 
  private:
   bool generating_stub_;
