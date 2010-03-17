@@ -9226,9 +9226,9 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   __ bind(&get_result);
 }
 
+
 Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
   GenericBinaryOpStub stub(key, type_info);
-  HandleScope scope;
   return stub.GetCode();
 }
 
