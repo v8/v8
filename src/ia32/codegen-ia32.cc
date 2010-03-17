@@ -1578,6 +1578,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
     // if right is a smi we make a fast case if left is either a smi
     // or a heapnumber.
     if (CpuFeatures::IsSupported(SSE2) && right->number_info().IsSmi()) {
+      CpuFeatures::Scope use_sse2(SSE2);
       __ mov(answer.reg(), left->reg());
       // Fast case - both are actually smis.
       if (!left->number_info().IsSmi()) {
@@ -1608,6 +1609,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       __ SmiUntag(answer.reg());
     }
 
+    __ bind(&do_op);
     __ SmiUntag(ecx);
     // Perform the operation.
     switch (op) {
@@ -6652,7 +6654,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
           break;
       }
       frame_->Push(&value);
-
     } else {
       Load(node->expression());
       bool overwrite =
@@ -6663,38 +6664,58 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
           GenericUnaryOpStub stub(Token::SUB, overwrite);
           Result operand = frame_->Pop();
           Result answer = frame_->CallStub(&stub, &operand);
+          answer.set_number_info(NumberInfo::Number());
           frame_->Push(&answer);
           break;
         }
-
         case Token::BIT_NOT: {
           // Smi check.
           JumpTarget smi_label;
           JumpTarget continue_label;
           Result operand = frame_->Pop();
+          NumberInfo operand_info = operand.number_info();
           operand.ToRegister();
-          __ test(operand.reg(), Immediate(kSmiTagMask));
-          smi_label.Branch(zero, &operand, taken);
+          if (operand_info.IsSmi()) {
+            if (FLAG_debug_code) {
+              __ AbortIfNotSmi(operand.reg(), "Operand not a smi.");
+            }
+            frame_->Spill(operand.reg());
+            // Set smi tag bit. It will be reset by the not operation.
+            __ lea(operand.reg(), Operand(operand.reg(), kSmiTagMask));
+            __ not_(operand.reg());
+            Result answer = operand;
+            answer.set_number_info(NumberInfo::Smi());
+            frame_->Push(&answer);
+          } else {
+            __ test(operand.reg(), Immediate(kSmiTagMask));
+            smi_label.Branch(zero, &operand, taken);
 
-          GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
-          Result answer = frame_->CallStub(&stub, &operand);
-          continue_label.Jump(&answer);
+            GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
+            Result answer = frame_->CallStub(&stub, &operand);
+            continue_label.Jump(&answer);
 
-          smi_label.Bind(&answer);
-          answer.ToRegister();
-          frame_->Spill(answer.reg());
-          __ not_(answer.reg());
-          __ and_(answer.reg(), ~kSmiTagMask);  // Remove inverted smi-tag.
+            smi_label.Bind(&answer);
+            answer.ToRegister();
+            frame_->Spill(answer.reg());
+            // Set smi tag bit. It will be reset by the not operation.
+            __ lea(answer.reg(), Operand(answer.reg(), kSmiTagMask));
+            __ not_(answer.reg());
 
-          continue_label.Bind(&answer);
-          frame_->Push(&answer);
+            continue_label.Bind(&answer);
+            if (operand_info.IsInteger32()) {
+              answer.set_number_info(NumberInfo::Integer32());
+            } else {
+              answer.set_number_info(NumberInfo::Number());
+            }
+            frame_->Push(&answer);
+          }
           break;
         }
-
         case Token::ADD: {
           // Smi check.
           JumpTarget continue_label;
           Result operand = frame_->Pop();
+          NumberInfo operand_info = operand.number_info();
           operand.ToRegister();
           __ test(operand.reg(), Immediate(kSmiTagMask));
           continue_label.Branch(zero, &operand, taken);
@@ -6704,10 +6725,16 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
                                               CALL_FUNCTION, 1);
 
           continue_label.Bind(&answer);
+          if (operand_info.IsSmi()) {
+            answer.set_number_info(NumberInfo::Smi());
+          } else if (operand_info.IsInteger32()) {
+            answer.set_number_info(NumberInfo::Integer32());
+          } else {
+            answer.set_number_info(NumberInfo::Number());
+          }
           frame_->Push(&answer);
           break;
         }
-
         default:
           // NOT, DELETE, TYPEOF, and VOID are handled outside the
           // switch.
