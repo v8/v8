@@ -168,9 +168,32 @@ function StringMatch(regexp) {
   var subject = TO_STRING_INLINE(this);
 
   if (!regexp.global) return regexp.exec(subject);
+
+  var cache = regExpCache;
+
+  if (%_ObjectEquals(cache.type, 'match') &&
+      %_ObjectEquals(cache.regExp, regexp) &&
+      %_ObjectEquals(cache.subject, subject)) {
+    var last = cache.answer;
+    if (last == null) {
+      return last;
+    } else {
+      return CloneRegexpAnswer(last);
+    }
+  }
+
   %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
   // lastMatchInfo is defined in regexp-delay.js.
-  return %StringMatch(subject, regexp, lastMatchInfo);
+  var result = %StringMatch(subject, regexp, lastMatchInfo);
+  cache.type = 'match';
+  cache.regExp = regexp;
+  cache.subject = subject;
+  cache.answer = result;
+  if (result == null) {
+    return result;
+  } else {
+    return CloneRegexpAnswer(result);
+  }
 }
 
 
@@ -206,6 +229,7 @@ function StringReplace(search, replace) {
   if (IS_REGEXP(search)) {
     %_Log('regexp', 'regexp-replace,%0r,%1S', [search, subject]);
     if (IS_FUNCTION(replace)) {
+      regExpCache.type = 'none';
       return StringReplaceRegExpWithFunction(subject, search, replace);
     } else {
       return StringReplaceRegExp(subject, search, replace);
@@ -239,27 +263,25 @@ function StringReplace(search, replace) {
 }
 
 
-var cachedReplaceSubject;
-var cachedReplaceRegexp;
-var cachedReplaceReplacement;
-var cachedReplaceAnswer;
-
 // Helper function for regular expressions in String.prototype.replace.
 function StringReplaceRegExp(subject, regexp, replace) {
-  if (%_ObjectEquals(replace, cachedReplaceReplacement) &&
-      %_ObjectEquals(subject, cachedReplaceSubject) &&
-      %_ObjectEquals(regexp, cachedReplaceRegexp)) {
-    return cachedReplaceAnswer;
+  var cache = regExpCache;
+  if (%_ObjectEquals(cache.regExp, regexp) &&
+      %_ObjectEquals(cache.type, 'replace') &&
+      %_ObjectEquals(cache.replaceString, replace) &&
+      %_ObjectEquals(cache.subject, subject)) {
+    return cache.answer;
   }
   replace = TO_STRING_INLINE(replace);
   var answer = %StringReplaceRegExpWithString(subject,
                                               regexp,
                                               replace,
                                               lastMatchInfo);
-  cachedReplaceSubject = subject;
-  cachedReplaceRegexp = regexp;
-  cachedReplaceReplacement = replace;
-  cachedReplaceAnswer = answer;
+  cache.subject = subject;
+  cache.regExp = regexp;
+  cache.replaceString = replace;
+  cache.answer = answer;
+  cache.type = 'replace';
   return answer;
 }
 
@@ -577,10 +599,26 @@ function StringSplit(separator, limit) {
     return result;
   }
 
+  var cache = regExpCache;
+
+  if (%_ObjectEquals(cache.type, 'split') &&
+      %_ObjectEquals(cache.regExp, separator) &&
+      %_ObjectEquals(cache.subject, subject)) {
+    return CloneRegexpAnswer(cache.answer);
+  }
+
+  cache.type = 'split';
+  cache.regExp = separator;
+  cache.subject = subject;
+
   %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
 
   if (length === 0) {
-    if (splitMatch(separator, subject, 0, 0) != null) return [];
+    if (splitMatch(separator, subject, 0, 0) != null) {
+      cache.answer = [];
+      return [];
+    }
+    cache.answer = [subject];
     return [subject];
   }
 
@@ -592,14 +630,16 @@ function StringSplit(separator, limit) {
 
     if (startIndex === length) {
       result[result.length] = subject.slice(currentIndex, length);
-      return result;
+      cache.answer = result;
+      return CloneRegexpAnswer(result);
     }
 
     var matchInfo = splitMatch(separator, subject, currentIndex, startIndex);
 
     if (IS_NULL(matchInfo)) {
       result[result.length] = subject.slice(currentIndex, length);
-      return result;
+      cache.answer = result;
+      return CloneRegexpAnswer(result);
     }
 
     var endIndex = matchInfo[CAPTURE1];
@@ -611,7 +651,10 @@ function StringSplit(separator, limit) {
     }
 
     result[result.length] = SubString(subject, currentIndex, matchInfo[CAPTURE0]);
-    if (result.length === limit) return result;
+    if (result.length === limit) {
+      cache.answer = result;
+      return CloneRegexpAnswer(result);
+    }
 
     var num_captures = NUMBER_OF_CAPTURES(matchInfo);
     for (var i = 2; i < num_captures; i += 2) {
@@ -622,7 +665,10 @@ function StringSplit(separator, limit) {
       } else {
         result[result.length] = void 0;
       }
-      if (result.length === limit) return result;
+      if (result.length === limit) {
+        cache.answer = result;
+        return CloneRegexpAnswer(result);
+      }
     }
 
     startIndex = currentIndex = endIndex;
