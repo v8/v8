@@ -114,10 +114,6 @@ int random();
 namespace v8 {
 namespace internal {
 
-// Use AtomicWord for a machine-sized pointer. It is assumed that
-// reads and writes of naturally aligned values of this type are atomic.
-typedef intptr_t AtomicWord;
-
 class Semaphore;
 
 double ceiling(double x);

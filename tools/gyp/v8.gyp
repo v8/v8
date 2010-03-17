@@ -234,7 +234,6 @@
         '../../src/char-predicates.h',
         '../../src/checks.cc',
         '../../src/checks.h',
-        '../../src/circular-queue.cc',
         '../../src/code-stubs.cc',
         '../../src/code-stubs.h',
         '../../src/code.h',
