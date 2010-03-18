@@ -2354,7 +2354,7 @@ static inline int SingleCharIndexOf(Vector<const schar> string,
                                     schar pattern_char,
                                     int start_index) {
   if (sizeof(schar) == 1) {
-    schar* pos = reinterpret_cast<schar*>(
+    const schar* pos = reinterpret_cast<const schar*>(
         memchr(string.start() + start_index,
                pattern_char,
                string.length() - start_index));
@@ -2409,9 +2409,10 @@ static int SimpleIndexOf(Vector<const schar> subject,
       return i;
     }
     if (sizeof(schar) == 1 && sizeof(pchar) == 1) {
-      schar* pos = reinterpret_cast<schar*>(memchr(subject.start() + i,
-                                                   pattern_first_char,
-                                                   n - i + 1));
+      const schar* pos = reinterpret_cast<const schar*>(
+          memchr(subject.start() + i,
+                 pattern_first_char,
+                 n - i + 1));
       if (pos == NULL) {
         *complete = true;
         return -1;
