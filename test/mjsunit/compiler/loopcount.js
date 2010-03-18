@@ -75,3 +75,12 @@ function f8() {
   return i;
 }
 assertEquals(0x40000002, f8());
+
+
+function f9() {
+  var i;
+  for (i = 0; i < 42; i++) {
+    return 42;
+  }
+}
+assertEquals(42, f9());

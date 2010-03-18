@@ -3766,7 +3766,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
 
   // Set the type of the loop variable to smi before compiling the test
   // expression if we are in a fast smi loop condition.
-  if (node->is_fast_smi_loop()) {
+  if (node->is_fast_smi_loop() && has_valid_frame()) {
     // Set number type of the loop variable to smi.
     Slot* slot = node->loop_variable()->slot();
     ASSERT(slot->type() == Slot::LOCAL);
