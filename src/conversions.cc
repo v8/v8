@@ -31,7 +31,7 @@
 
 #include "conversions-inl.h"
 #include "factory.h"
-#include "grisu3.h"
+#include "fast-dtoa.h"
 #include "scanner.h"
 
 namespace v8 {
@@ -384,14 +384,14 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
       int sign;
 
       char* decimal_rep;
-      bool used_dtoa = false;
-      char grisu_buffer[kGrisu3MaximalLength + 1];
+      bool used_gay_dtoa = false;
+      char fast_dtoa_buffer[kFastDtoaMaximalLength + 1];
       int length;
-      if (grisu3(v, grisu_buffer, &sign, &length, &decimal_point)) {
-        decimal_rep = grisu_buffer;
+      if (FastDtoa(v, fast_dtoa_buffer, &sign, &length, &decimal_point)) {
+        decimal_rep = fast_dtoa_buffer;
       } else {
         decimal_rep = dtoa(v, 0, 0, &decimal_point, &sign, NULL);
-        used_dtoa = true;
+        used_gay_dtoa = true;
         length = StrLength(decimal_rep);
       }
 
@@ -428,7 +428,7 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
         builder.AddFormatted("%d", exponent);
       }
 
-      if (used_dtoa) freedtoa(decimal_rep);
+      if (used_gay_dtoa) freedtoa(decimal_rep);
     }
   }
   return builder.Finalize();

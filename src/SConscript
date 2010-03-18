@@ -65,7 +65,7 @@ SOURCES = {
     full-codegen.cc
     func-name-inferrer.cc
     global-handles.cc
-    grisu3.cc
+    fast-dtoa.cc
     handles.cc
     hashmap.cc
     heap-profiler.cc

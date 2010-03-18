@@ -25,22 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_GRISU3_H_
-#define V8_GRISU3_H_
+#ifndef V8_FAST_DTOA_H_
+#define V8_FAST_DTOA_H_
 
 namespace v8 {
 namespace internal {
 
-// Grisu3 will produce at most kGrisu3MaximalLength digits. This does not
+// FastDtoa will produce at most kFastDtoaMaximalLength digits. This does not
 // include the terminating '\0' character.
-static const int kGrisu3MaximalLength = 17;
+static const int kFastDtoaMaximalLength = 17;
 
 // Provides a decimal representation of v.
-//   v must satisfy v != 0 and it must not be Infinity or NaN.
+// v must not be (positive or negative) zero and it must not be Infinity or NaN.
 // Returns true if it succeeds, otherwise the result can not be trusted.
 // There will be *length digits inside the buffer followed by a null terminator.
 // If the function returns true then
-//   v == (double) (buffer * 10^(decimal-point - length)).
+//   v == (double) (buffer * 10^(point - length)).
 // The digits in the buffer are the shortest representation possible: no
 // 0.099999999999 instead of 0.1.
 // The last digit will be closest to the actual v. That is, even if several
@@ -48,8 +48,8 @@ static const int kGrisu3MaximalLength = 17;
 // one closest to v.
 // The variable 'sign' will be '0' if the given number is positive, and '1'
 //   otherwise.
-bool grisu3(double d, char* buffer, int* sign, int* length, int* decimal_point);
+bool FastDtoa(double d, char* buffer, int* sign, int* length, int* point);
 
 } }  // namespace v8::internal
 
-#endif  // V8_GRISU3_H_
+#endif  // V8_FAST_DTOA_H_
