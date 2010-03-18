@@ -53,3 +53,6 @@ function f5() {
   return i;
 }
 assertEquals(-0x40000001, f5());
+
+function f6() { var x = 0x3fffffff; x++; return x+1; }
+assertEquals(0x40000001, f6());
