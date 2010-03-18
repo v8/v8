@@ -6884,8 +6884,8 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       ASSERT(old_value.is_valid());
       __ mov(old_value.reg(), new_value.reg());
 
-      // The old value that is return for postfix operations has the
-      // same type as the input value we got from the frame.
+      // The return value for postfix operations is the
+      // same as the input, and has the same number info.
       old_value.set_number_info(new_value.number_info());
     }
 
@@ -6952,8 +6952,13 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     }
     deferred->BindExit();
 
-    // The result of ++ or -- is always a number.
-    new_value.set_number_info(NumberInfo::Number());
+    // The result of ++ or -- is an Integer32 if the
+    // input is a smi. Otherwise it is a number.
+    if (new_value.is_smi()) {
+      new_value.set_number_info(NumberInfo::Integer32());
+    } else {
+      new_value.set_number_info(NumberInfo::Number());
+    }
 
     // Postfix: store the old value in the allocated slot under the
     // reference.
