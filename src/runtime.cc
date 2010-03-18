@@ -5350,16 +5350,38 @@ static Object* Runtime_Math_pow_cfunction(Arguments args) {
 }
 
 
-static Object* Runtime_Math_round(Arguments args) {
+static Object* Runtime_RoundNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   Counters::math_round.Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  if (signbit(x) && x >= -0.5) return Heap::minus_zero_value();
-  double integer = ceil(x);
-  if (integer - x > 0.5) { integer -= 1.0; }
-  return Heap::NumberFromDouble(integer);
+  if (!args[0]->IsHeapNumber()) {
+    // Must be smi. Return the argument unchanged for all the other types
+    // to make fuzz-natives test happy.
+    return args[0];
+  }
+
+  HeapNumber* number = reinterpret_cast<HeapNumber*>(args[0]);
+
+  double value = number->value();
+  int exponent = number->get_exponent();
+  int sign = number->get_sign();
+
+  // We compare with kSmiValueSize - 3 because (2^30 - 0.1) has exponent 29 and
+  // should be rounded to 2^30, which is not smi.
+  if (!sign && exponent <= kSmiValueSize - 3) {
+    return Smi::FromInt(static_cast<int>(value + 0.5));
+  }
+
+  // If the magnitude is big enough, there's no place for fraction part. If we
+  // try to add 0.5 to this number, 1.0 will be added instead.
+  if (exponent >= 52) {
+    return number;
+  }
+
+  if (sign && value >= -0.5) return Heap::minus_zero_value();
+
+  return Heap::NumberFromDouble(floor(value + 0.5));
 }
 
 
