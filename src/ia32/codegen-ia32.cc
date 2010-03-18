@@ -3765,7 +3765,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
 
   // The update expression resets the type of the loop variable. So we
   // set it to smi before compiling the test expression.
-  if (node->is_fast_smi_loop()) {
+  if (node->is_fast_smi_loop() && has_valid_frame()) {
     // Set number type of the loop variable to smi.
     Slot* slot = node->loop_variable()->slot();
     ASSERT(slot->type() == Slot::LOCAL);
