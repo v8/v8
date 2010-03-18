@@ -2446,9 +2446,10 @@ static int SimpleIndexOf(Vector<const schar> subject,
   pchar pattern_first_char = pattern[0];
   for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
     if (sizeof(schar) == 1 && sizeof(pchar) == 1) {
-      schar* pos = reinterpret_cast<schar*>(memchr(subject.start() + i,
-                                                   pattern_first_char,
-                                                   n - i + 1));
+      const schar* pos = reinterpret_cast<const schar*>(
+          memchr(subject.start() + i,
+                 pattern_first_char,
+                 n - i + 1));
       if (pos == NULL) return -1;
       i = pos - subject.start();
     } else {
