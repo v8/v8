@@ -2353,6 +2353,14 @@ template <typename schar>
 static inline int SingleCharIndexOf(Vector<const schar> string,
                                     schar pattern_char,
                                     int start_index) {
+  if (sizeof(schar) == 1) {
+    schar* pos = reinterpret_cast<schar*>(
+        memchr(string.start() + start_index,
+               pattern_char,
+               string.length() - start_index));
+    if (pos == NULL) return -1;
+    return pos - string.start();
+  }
   for (int i = start_index, n = string.length(); i < n; i++) {
     if (pattern_char == string[i]) {
       return i;
@@ -2400,7 +2408,18 @@ static int SimpleIndexOf(Vector<const schar> subject,
       *complete = false;
       return i;
     }
-    if (subject[i] != pattern_first_char) continue;
+    if (sizeof(schar) == 1 && sizeof(pchar) == 1) {
+      schar* pos = reinterpret_cast<schar*>(memchr(subject.start() + i,
+                                                   pattern_first_char,
+                                                   n - i + 1));
+      if (pos == NULL) {
+        *complete = true;
+        return -1;
+      }
+      i = pos - subject.start();
+    } else {
+      if (subject[i] != pattern_first_char) continue;
+    }
     int j = 1;
     do {
       if (pattern[j] != subject[i+j]) {
@@ -2425,7 +2444,15 @@ static int SimpleIndexOf(Vector<const schar> subject,
                          int idx) {
   pchar pattern_first_char = pattern[0];
   for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
-    if (subject[i] != pattern_first_char) continue;
+    if (sizeof(schar) == 1 && sizeof(pchar) == 1) {
+      schar* pos = reinterpret_cast<schar*>(memchr(subject.start() + i,
+                                                   pattern_first_char,
+                                                   n - i + 1));
+      if (pos == NULL) return -1;
+      i = pos - subject.start();
+    } else {
+      if (subject[i] != pattern_first_char) continue;
+    }
     int j = 1;
     do {
       if (pattern[j] != subject[i+j]) {
