@@ -3727,10 +3727,11 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
 
   CheckStack();  // TODO(1222600): ignore if body contains calls.
 
-  // If we have (a) a loop with a compile-time constant trip count
-  // and (b) the loop induction variable is not assignend inside the
-  // loop we update the number type of the induction variable to be smi.
-
+  // We know that the loop index is a smi if it is not modified in the
+  // loop body and it is checked against a constant limit in the loop
+  // condition.  In this case, we reset the static type information of the
+  // loop index to smi before compiling the body, the update expression, and
+  // the bottom check of the loop condition.
   if (node->is_fast_smi_loop()) {
     // Set number type of the loop variable to smi.
     Slot* slot = node->loop_variable()->slot();
@@ -3763,8 +3764,8 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
     }
   }
 
-  // The update expression resets the type of the loop variable. So we
-  // set it to smi before compiling the test expression.
+  // Set the type of the loop variable to smi before compiling the test
+  // expression if we are in a fast smi loop condition.
   if (node->is_fast_smi_loop()) {
     // Set number type of the loop variable to smi.
     Slot* slot = node->loop_variable()->slot();
