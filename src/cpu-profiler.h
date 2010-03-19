@@ -110,6 +110,10 @@ class TickSampleEventRecord {
   TickSample sample;
   unsigned order;
 
+#if defined(__GNUC__) && (__GNUC__ < 4)
+  // Added to avoid 'all member functions in class are private' error.
+  INLINE(unsigned get_order() const) { return order; }
+#endif
  private:
   // Disable instantiation.
   TickSampleEventRecord();
