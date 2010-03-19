@@ -743,8 +743,8 @@ class Assembler : public Malloced {
   void imul(Register dst, const Operand& src);           // dst = dst * src.
   void imul(Register dst, Register src, Immediate imm);  // dst = src * imm.
   // Signed 32-bit multiply instructions.
-  void imull(Register dst, Register src);                // dst = dst * src.
-  void imull(Register dst, Register src, Immediate imm); // dst = src * imm.
+  void imull(Register dst, Register src);                 // dst = dst * src.
+  void imull(Register dst, Register src, Immediate imm);  // dst = src * imm.
 
   void incq(Register dst);
   void incq(const Operand& dst);
