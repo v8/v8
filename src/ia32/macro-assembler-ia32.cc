@@ -351,20 +351,20 @@ void MacroAssembler::FCmp() {
 }
 
 
-void MacroAssembler::AbortIfNotNumber(Register object, const char* msg) {
+void MacroAssembler::AbortIfNotNumber(Register object) {
   Label ok;
   test(object, Immediate(kSmiTagMask));
   j(zero, &ok);
   cmp(FieldOperand(object, HeapObject::kMapOffset),
       Factory::heap_number_map());
-  Assert(equal, msg);
+  Assert(equal, "Operand not a number");
   bind(&ok);
 }
 
 
-void MacroAssembler::AbortIfNotSmi(Register object, const char* msg) {
+void MacroAssembler::AbortIfNotSmi(Register object) {
   test(object, Immediate(kSmiTagMask));
-  Assert(equal, msg);
+  Assert(equal, "Operand not a smi");
 }
 
 

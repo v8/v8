@@ -832,7 +832,7 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
     Comment cmnt(masm_, "ONLY_INTEGER_32");
     if (FLAG_debug_code) {
       Label ok;
-      __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
+      __ AbortIfNotNumber(value.reg());
       __ test(value.reg(), Immediate(kSmiTagMask));
       __ j(zero, &ok);
       __ fldz();
@@ -852,7 +852,7 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
     Comment cmnt(masm_, "ONLY_NUMBER");
     // Fast case if NumberInfo indicates only numbers.
     if (FLAG_debug_code) {
-      __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
+      __ AbortIfNotNumber(value.reg());
     }
     // Smi => false iff zero.
     ASSERT(kSmiTag == 0);
@@ -1038,6 +1038,8 @@ void DeferredInlineBinaryOperation::Generate() {
       __ jmp(&load_right);
 
       __ bind(&left_smi);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(left_);
     }
     __ SmiUntag(left_);
     __ cvtsi2sd(xmm0, Operand(left_));
@@ -1070,6 +1072,8 @@ void DeferredInlineBinaryOperation::Generate() {
       __ jmp(&do_op);
 
       __ bind(&right_smi);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(right_);
     }
     __ SmiUntag(right_);
     __ cvtsi2sd(xmm1, Operand(right_));
@@ -1575,7 +1579,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                           overwrite_mode);
 
     Label do_op, left_nonsmi;
-    // if right is a smi we make a fast case if left is either a smi
+    // If right is a smi we make a fast case if left is either a smi
     // or a heapnumber.
     if (CpuFeatures::IsSupported(SSE2) && right->number_info().IsSmi()) {
       CpuFeatures::Scope use_sse2(SSE2);
@@ -1584,7 +1588,10 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       if (!left->number_info().IsSmi()) {
         __ test(answer.reg(), Immediate(kSmiTagMask));
         __ j(not_zero, &left_nonsmi);
+      } else {
+        if (FLAG_debug_code) __ AbortIfNotSmi(left->reg());
       }
+      if (FLAG_debug_code) __ AbortIfNotSmi(right->reg());
       __ SmiUntag(answer.reg());
       __ jmp(&do_op);
 
@@ -2003,6 +2010,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       if (!operand->number_info().IsSmi()) {
         __ test(operand->reg(), Immediate(kSmiTagMask));
         deferred->Branch(not_zero);
+      } else {
+        if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
       }
       deferred->BindExit();
       answer = *operand;
@@ -2040,6 +2049,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       if (!operand->number_info().IsSmi()) {
         __ test(answer.reg(), Immediate(kSmiTagMask));
         deferred->Branch(not_zero);
+      } else {
+        if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
       }
       deferred->BindExit();
       operand->Unuse();
@@ -2073,6 +2084,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           }
           deferred->BindExit();
         } else {
+          if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
           if (shift_value > 0) {
             __ sar(operand->reg(), shift_value);
             __ and_(operand->reg(), ~kSmiTagMask);
@@ -2104,6 +2116,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         if (!operand->number_info().IsSmi()) {
           __ test(operand->reg(), Immediate(kSmiTagMask));
           deferred->Branch(not_zero);
+        } else {
+          if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
         }
         __ mov(answer.reg(), operand->reg());
         __ SmiUntag(answer.reg());
@@ -2152,6 +2166,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         __ sar(ecx, kSmiTagSize);
         if (!right.number_info().IsSmi()) {
           deferred->Branch(carry);
+        } else {
+          if (FLAG_debug_code) __ AbortIfNotSmi(right.reg());
         }
         __ shl_cl(answer.reg());
         __ cmp(answer.reg(), 0xc0000000);
@@ -2192,6 +2208,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           if (!operand->number_info().IsSmi()) {
             __ test(operand->reg(), Immediate(kSmiTagMask));
             deferred->Branch(not_zero);
+          } else {
+            if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
           }
           __ mov(answer.reg(), operand->reg());
           ASSERT(kSmiTag == 0);  // adjust code if not the case
@@ -2234,6 +2252,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       if (!operand->number_info().IsSmi()) {
         __ test(operand->reg(), Immediate(kSmiTagMask));
         deferred->Branch(not_zero);
+      } else {
+        if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
       }
       if (op == Token::BIT_AND) {
         __ and_(Operand(operand->reg()), Immediate(value));
@@ -2427,9 +2447,7 @@ void CodeGenerator::Comparison(AstNode* node,
       // by reconstituting them on the non-fall-through path.
 
       if (left_side.is_smi()) {
-        if (FLAG_debug_code) {
-          __ AbortIfNotSmi(left_side.reg(), "Argument not a smi");
-        }
+        if (FLAG_debug_code) __ AbortIfNotSmi(left_side.reg());
       } else {
         JumpTarget is_smi;
         __ test(left_side.reg(), Immediate(kSmiTagMask));
@@ -3741,7 +3759,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
       frame_->PushLocalAt(slot->index());
       Result var = frame_->Pop();
       var.ToRegister();
-      __ AbortIfNotSmi(var.reg(), "Loop variable not a smi.");
+      __ AbortIfNotSmi(var.reg());
     }
   }
 
@@ -3775,7 +3793,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
       frame_->PushLocalAt(slot->index());
       Result var = frame_->Pop();
       var.ToRegister();
-      __ AbortIfNotSmi(var.reg(), "Loop variable not a smi.");
+      __ AbortIfNotSmi(var.reg());
     }
   }
 
@@ -6692,9 +6710,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
           NumberInfo operand_info = operand.number_info();
           operand.ToRegister();
           if (operand_info.IsSmi()) {
-            if (FLAG_debug_code) {
-              __ AbortIfNotSmi(operand.reg(), "Operand not a smi.");
-            }
+            if (FLAG_debug_code) __ AbortIfNotSmi(operand.reg());
             frame_->Spill(operand.reg());
             // Set smi tag bit. It will be reset by the not operation.
             __ lea(operand.reg(), Operand(operand.reg(), kSmiTagMask));
@@ -6894,9 +6910,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
     Result tmp;
     if (new_value.is_smi()) {
-      if (FLAG_debug_code) {
-        __ AbortIfNotSmi(new_value.reg(), "Operand not a smi");
-      }
+      if (FLAG_debug_code) __ AbortIfNotSmi(new_value.reg());
     } else {
       // We don't know statically if the input is a smi.
       // In order to combine the overflow and the smi tag check, we need
@@ -7860,6 +7874,8 @@ Result CodeGenerator::EmitKeyedLoad() {
     if (!key.is_smi()) {
       __ test(key.reg(), Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(key.reg());
     }
 
     // Get the elements array from the receiver and check that it
@@ -8013,6 +8029,8 @@ static void CheckTwoForSminess(MacroAssembler* masm,
     if (!left_info.IsSmi()) {
       __ test(left, Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(left);
     }
   } else if (!left_info.IsSmi()) {
     if (!right_info.IsSmi()) {
@@ -8023,11 +8041,15 @@ static void CheckTwoForSminess(MacroAssembler* masm,
     } else {
       __ test(left, Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
+      if (FLAG_debug_code) __ AbortIfNotSmi(right);
     }
   } else {
+    if (FLAG_debug_code) __ AbortIfNotSmi(left);
     if (!right_info.IsSmi()) {
       __ test(right, Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(right);
     }
   }
 }
@@ -8534,6 +8556,10 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   }
 
   if (static_operands_type_.IsSmi()) {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(left);
+      __ AbortIfNotSmi(right);
+    }
     if (op_ == Token::BIT_OR) {
       __ or_(right, Operand(left));
       GenerateReturn(masm);
@@ -8888,12 +8914,14 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           if (static_operands_type_.IsNumber()) {
             if (FLAG_debug_code) {
               // Assert at runtime that inputs are only numbers.
-              __ AbortIfNotNumber(edx,
-                                  "GenericBinaryOpStub operand not a number.");
-              __ AbortIfNotNumber(eax,
-                                  "GenericBinaryOpStub operand not a number.");
+              __ AbortIfNotNumber(edx);
+              __ AbortIfNotNumber(eax);
             }
             if (static_operands_type_.IsSmi()) {
+              if (FLAG_debug_code) {
+                __ AbortIfNotSmi(edx);
+                __ AbortIfNotSmi(eax);
+              }
               FloatingPointHelper::LoadSSE2Smis(masm, ecx);
             } else {
               FloatingPointHelper::LoadSSE2Operands(masm);
@@ -8916,10 +8944,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           if (static_operands_type_.IsNumber()) {
             if (FLAG_debug_code) {
               // Assert at runtime that inputs are only numbers.
-              __ AbortIfNotNumber(edx,
-                                  "GenericBinaryOpStub operand not a number.");
-              __ AbortIfNotNumber(eax,
-                                  "GenericBinaryOpStub operand not a number.");
+              __ AbortIfNotNumber(edx);
+              __ AbortIfNotNumber(eax);
             }
           } else {
             FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
@@ -9649,6 +9675,8 @@ void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm,
     if (!number_info.IsSmi()) {
       __ test(edx, Immediate(kSmiTagMask));
       __ j(not_zero, &arg1_is_object);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(edx);
     }
     __ SmiUntag(edx);
     __ jmp(&load_arg2);
@@ -9667,6 +9695,8 @@ void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm,
     if (!number_info.IsSmi()) {
       __ test(eax, Immediate(kSmiTagMask));
       __ j(not_zero, &arg2_is_object);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(eax);
     }
     __ SmiUntag(eax);
     __ mov(ecx, eax);
