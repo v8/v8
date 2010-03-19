@@ -6,10 +6,10 @@
 
 #include "platform.h"
 #include "cctest.h"
-#include "diy_fp.h"
+#include "diy-fp.h"
 #include "double.h"
 #include "fast-dtoa.h"
-#include "gay_shortest.h"
+#include "gay-shortest.h"
 
 using namespace v8::internal;
 

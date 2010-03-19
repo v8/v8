@@ -29,8 +29,8 @@
 
 #include "fast-dtoa.h"
 
-#include "cached_powers.h"
-#include "diy_fp.h"
+#include "cached-powers.h"
+#include "diy-fp.h"
 #include "double.h"
 
 namespace v8 {

@@ -6,7 +6,7 @@
 
 #include "platform.h"
 #include "cctest.h"
-#include "diy_fp.h"
+#include "diy-fp.h"
 #include "double.h"
 
 

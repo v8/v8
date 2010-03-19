@@ -28,7 +28,7 @@
 #ifndef V8_DOUBLE_H_
 #define V8_DOUBLE_H_
 
-#include "diy_fp.h"
+#include "diy-fp.h"
 
 namespace v8 {
 namespace internal {
