@@ -349,6 +349,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\cpu-profiler.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\cpu-profiler.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\cpu-profiler-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\data-flow.cc"
 				>
 			</File>

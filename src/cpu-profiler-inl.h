@@ -25,57 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PROFILE_GENERATOR_INL_H_
-#define V8_PROFILE_GENERATOR_INL_H_
+#ifndef V8_CPU_PROFILER_INL_H_
+#define V8_CPU_PROFILER_INL_H_
 
-#include "profile-generator.h"
+#include "circular-queue-inl.h"
+#include "profile-generator-inl.h"
+
+#include "cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
 
 
-CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
-                     const char* name,
-                     const char* resource_name,
-                     int line_number)
-    : tag_(tag),
-      name_(name),
-      resource_name_(resource_name),
-      line_number_(line_number) {
-}
-
-
-bool CodeEntry::is_js_function() {
-  return tag_ == Logger::FUNCTION_TAG
-      || tag_ == Logger::LAZY_COMPILE_TAG
-      || tag_ == Logger::SCRIPT_TAG;
-}
-
-
-ProfileNode::ProfileNode(CodeEntry* entry)
-    : entry_(entry),
-      total_ticks_(0),
-      self_ticks_(0),
-      children_(CodeEntriesMatch) {
-}
-
-
-void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
-  CodeTree::Locator locator;
-  tree_.Insert(addr, &locator);
-  locator.set_value(CodeEntryInfo(entry, size));
-}
-
-
-void CodeMap::MoveCode(Address from, Address to) {
-  tree_.Move(from, to);
-}
-
-void CodeMap::DeleteCode(Address addr) {
-  tree_.Remove(addr);
+TickSample* ProfilerEventsProcessor::TickSampleEvent() {
+  TickSampleEventRecord* evt =
+      reinterpret_cast<TickSampleEventRecord*>(ticks_buffer_.Enqueue());
+  evt->order = enqueue_order_;  // No increment!
+  return &evt->sample;
 }
 
 
 } }  // namespace v8::internal
 
-#endif  // V8_PROFILE_GENERATOR_INL_H_
+#endif  // V8_CPU_PROFILER_INL_H_

@@ -529,7 +529,7 @@ class TickSample {
   Address function;  // The last called JS function.
   StateTag state;  // The state of the VM.
   static const int kMaxFramesCount = 100;
-  EmbeddedVector<Address, kMaxFramesCount> stack;  // Call stack.
+  Address stack[kMaxFramesCount];  // Call stack.
   int frames_count;  // Number of captured frames.
 };
 

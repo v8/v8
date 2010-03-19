@@ -51,6 +51,7 @@ SOURCES = {
     contexts.cc
     conversions.cc
     counters.cc
+    cpu-profiler.cc
     data-flow.cc
     dateparser.cc
     debug-agent.cc

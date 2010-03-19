@@ -212,6 +212,8 @@
 		9F11D9A1105AF0A300EBE5B2 /* heap-profiler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F11D99E105AF0A300EBE5B2 /* heap-profiler.cc */; };
 		9F2B3711114FF62D007CDAF4 /* circular-queue.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F2B370F114FF62D007CDAF4 /* circular-queue.cc */; };
 		9F2B3712114FF62D007CDAF4 /* circular-queue.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F2B370F114FF62D007CDAF4 /* circular-queue.cc */; };
+		9F2B37261152CEA0007CDAF4 /* cpu-profiler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F2B37241152CEA0007CDAF4 /* cpu-profiler.cc */; };
+		9F2B37271152CEA0007CDAF4 /* cpu-profiler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F2B37241152CEA0007CDAF4 /* cpu-profiler.cc */; };
 		9F4B7B890FCC877A00DC4117 /* log-utils.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F4B7B870FCC877A00DC4117 /* log-utils.cc */; };
 		9F4B7B8A0FCC877A00DC4117 /* log-utils.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F4B7B870FCC877A00DC4117 /* log-utils.cc */; };
 		9F73E3B1114E61A100F84A5A /* profile-generator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F73E3AF114E61A100F84A5A /* profile-generator.cc */; };
@@ -557,6 +559,9 @@
 		9F2B370E114FF62D007CDAF4 /* circular-queue-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "circular-queue-inl.h"; sourceTree = "<group>"; };
 		9F2B370F114FF62D007CDAF4 /* circular-queue.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "circular-queue.cc"; sourceTree = "<group>"; };
 		9F2B3710114FF62D007CDAF4 /* circular-queue.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "circular-queue.h"; sourceTree = "<group>"; };
+		9F2B37231152CEA0007CDAF4 /* cpu-profiler-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "cpu-profiler-inl.h"; sourceTree = "<group>"; };
+		9F2B37241152CEA0007CDAF4 /* cpu-profiler.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "cpu-profiler.cc"; sourceTree = "<group>"; };
+		9F2B37251152CEA0007CDAF4 /* cpu-profiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "cpu-profiler.h"; sourceTree = "<group>"; };
 		9F4B7B870FCC877A00DC4117 /* log-utils.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "log-utils.cc"; sourceTree = "<group>"; };
 		9F4B7B880FCC877A00DC4117 /* log-utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "log-utils.h"; sourceTree = "<group>"; };
 		9F73E3AE114E61A100F84A5A /* profile-generator-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "profile-generator-inl.h"; sourceTree = "<group>"; };
@@ -717,6 +722,9 @@
 				897FF1230E719B8F00D62E90 /* cpu-arm.cc */,
 				897FF1240E719B8F00D62E90 /* cpu-ia32.cc */,
 				897FF1250E719B8F00D62E90 /* cpu.h */,
+				9F2B37231152CEA0007CDAF4 /* cpu-profiler-inl.h */,
+				9F2B37241152CEA0007CDAF4 /* cpu-profiler.cc */,
+				9F2B37251152CEA0007CDAF4 /* cpu-profiler.h */,
 				893A722A0F7B4A3200303DD2 /* dateparser-inl.h */,
 				897FF1260E719B8F00D62E90 /* dateparser.cc */,
 				897FF1270E719B8F00D62E90 /* dateparser.h */,
@@ -1257,6 +1265,7 @@
 				9FBE03E210BD40EA00F8BFBA /* fast-codegen-ia32.cc in Sources */,
 				9F73E3B2114E61A100F84A5A /* profile-generator.cc in Sources */,
 				9F2B3712114FF62D007CDAF4 /* circular-queue.cc in Sources */,
+				9F2B37271152CEA0007CDAF4 /* cpu-profiler.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1368,6 +1377,7 @@
 				9FBE03E510BD412600F8BFBA /* fast-codegen-arm.cc in Sources */,
 				9F73E3B1114E61A100F84A5A /* profile-generator.cc in Sources */,
 				9F2B3711114FF62D007CDAF4 /* circular-queue.cc in Sources */,
+				9F2B37261152CEA0007CDAF4 /* cpu-profiler.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
