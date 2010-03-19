@@ -53,6 +53,15 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
 }
 
 
+void ProfileNode::GetChildren(List<ProfileNode*>* children) {
+  for (HashMap::Entry* p = children_.Start();
+       p != NULL;
+       p = children_.Next(p)) {
+    children->Add(reinterpret_cast<ProfileNode*>(p->value));
+  }
+}
+
+
 void ProfileNode::Print(int indent) {
   OS::Print("%4u %4u %*c %s\n",
             total_ticks_, self_ticks_,

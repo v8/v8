@@ -42,6 +42,7 @@ SOURCES = {
     'test-circular-queue.cc',
     'test-compiler.cc',
     'test-conversions.cc',
+    'test-cpu-profiler.cc',
     'test-dataflow.cc',
     'test-debug.cc',
     'test-decls.cc',

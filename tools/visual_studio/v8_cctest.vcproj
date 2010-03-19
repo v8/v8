@@ -168,6 +168,10 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\test\cctest\test-cpu-profiler.cc"
+			>
+		</File>
+		<File
 			RelativePath="..\..\test\cctest\test-debug.cc"
 			>
 		</File>

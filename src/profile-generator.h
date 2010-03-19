@@ -64,9 +64,10 @@ class ProfileNode {
   INLINE(void IncrementSelfTicks()) { ++self_ticks_; }
   INLINE(void IncreaseTotalTicks(unsigned amount)) { total_ticks_ += amount; }
 
-  INLINE(CodeEntry* entry()) { return entry_; }
-  INLINE(unsigned total_ticks()) { return total_ticks_; }
-  INLINE(unsigned self_ticks()) { return self_ticks_; }
+  INLINE(CodeEntry* entry() const) { return entry_; }
+  INLINE(unsigned total_ticks() const) { return total_ticks_; }
+  INLINE(unsigned self_ticks() const) { return self_ticks_; }
+  void GetChildren(List<ProfileNode*>* children);
 
   void Print(int indent);
 

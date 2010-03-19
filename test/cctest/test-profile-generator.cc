@@ -412,9 +412,9 @@ TEST(RecordTickSample) {
   ProfileNode* node2 = top_down_test_helper.Walk(entry1, entry1);
   CHECK_NE(NULL, node2);
   CHECK_EQ(entry1, node2->entry());
-  // ProfileNode* node3 = top_down_test_helper.Walk(entry1, entry2, entry3);
-  // CHECK_NE(NULL, node3);
-  // CHECK_EQ(entry2, node3->entry());
+  ProfileNode* node3 = top_down_test_helper.Walk(entry1, entry2, entry3);
+  CHECK_NE(NULL, node3);
+  CHECK_EQ(entry3, node3->entry());
   ProfileNode* node4 = top_down_test_helper.Walk(entry1, entry3, entry1);
   CHECK_NE(NULL, node4);
   CHECK_EQ(entry1, node4->entry());

@@ -135,6 +135,7 @@ class ProfilerEventsProcessor : public Thread {
   // Thread control.
   virtual void Run();
   inline void Stop() { running_ = false; }
+  INLINE(bool running()) { return running_; }
 
   // Events adding methods. Called by VM threads.
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
