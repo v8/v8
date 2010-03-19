@@ -182,7 +182,8 @@ class MacroAssembler: public Assembler {
   // Smi tagging support.
   void SmiTag(Register reg) {
     ASSERT(kSmiTag == 0);
-    shl(reg, kSmiTagSize);
+    ASSERT(kSmiTagSize == 1);
+    add(reg, Operand(reg));
   }
   void SmiUntag(Register reg) {
     sar(reg, kSmiTagSize);

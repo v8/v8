@@ -10584,15 +10584,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(negative, &done);
   // Read the value from the static offsets vector buffer.
   __ mov(edi, Operand(ecx, edx, times_int_size, 0));
-  // Perform explicit shift
-  ASSERT_EQ(0, kSmiTag);
-  __ shl(edi, kSmiTagSize);
-  // Add previous index (from its stack slot) if value is not negative.
-  Label capture_negative;
-  // Carry flag set by shift above.
-  __ j(negative, &capture_negative, not_taken);
-  __ add(edi, Operand(eax));  // Add previous index (adding smi to smi).
-  __ bind(&capture_negative);
+  __ SmiTag(edi);
   // Store the smi value in the last match info.
   __ mov(FieldOperand(ebx,
                       edx,

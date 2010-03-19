@@ -7182,12 +7182,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Read the value from the static offsets vector buffer and make it a smi.
   __ movl(rdi, Operand(rcx, rdx, times_int_size, 0));
   __ Integer32ToSmi(rdi, rdi, &runtime);
-  // Add previous index (from its stack slot) if value is not negative.
-  Label capture_negative;
-  // Negative flag set by smi convertion above.
-  __ j(negative, &capture_negative);
-  __ SmiAdd(rdi, rdi, rax, &runtime);  // Add previous index.
-  __ bind(&capture_negative);
   // Store the smi value in the last match info.
   __ movq(FieldOperand(rbx,
                        rdx,
