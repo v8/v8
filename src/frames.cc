@@ -329,9 +329,6 @@ bool StackFrame::HasHandler() const {
 
 
 void StackFrame::CookFramesForThread(ThreadLocalTop* thread) {
-  // Only cooking frames when the collector is compacting and thus moving code
-  // around.
-  ASSERT(MarkCompactCollector::IsCompacting());
   ASSERT(!thread->stack_is_cooked());
   for (StackFrameIterator it(thread); !it.done(); it.Advance()) {
     it.frame()->Cook();
@@ -341,9 +338,6 @@ void StackFrame::CookFramesForThread(ThreadLocalTop* thread) {
 
 
 void StackFrame::UncookFramesForThread(ThreadLocalTop* thread) {
-  // Only uncooking frames when the collector is compacting and thus moving code
-  // around.
-  ASSERT(MarkCompactCollector::HasCompacted());
   ASSERT(thread->stack_is_cooked());
   for (StackFrameIterator it(thread); !it.done(); it.Advance()) {
     it.frame()->Uncook();
