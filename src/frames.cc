@@ -306,14 +306,12 @@ void SafeStackTraceFrameIterator::Advance() {
 
 
 void StackHandler::Cook(Code* code) {
-  ASSERT(MarkCompactCollector::IsCompacting());
   ASSERT(code->contains(pc()));
   set_pc(AddressFrom<Address>(pc() - code->instruction_start()));
 }
 
 
 void StackHandler::Uncook(Code* code) {
-  ASSERT(MarkCompactCollector::HasCompacted());
   set_pc(code->instruction_start() + OffsetFrom(pc()));
   ASSERT(code->contains(pc()));
 }
