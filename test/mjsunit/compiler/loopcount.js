@@ -84,3 +84,9 @@ function f9() {
   }
 }
 assertEquals(42, f9());
+
+
+function f10(x) {
+  for (x = 0; x < 4; x++) {}
+}
+f10(42);
