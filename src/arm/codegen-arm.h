@@ -28,6 +28,8 @@
 #ifndef V8_ARM_CODEGEN_ARM_H_
 #define V8_ARM_CODEGEN_ARM_H_
 
+#include "ic-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -472,6 +474,15 @@ class GenericBinaryOpStub : public CodeStub {
         mode_(mode),
         constant_rhs_(constant_rhs),
         specialized_on_rhs_(RhsIsOneWeWantToOptimizeFor(op, constant_rhs)),
+        runtime_operands_type_(BinaryOpIC::DEFAULT),
+        name_(NULL) { }
+
+  GenericBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info)
+      : op_(OpBits::decode(key)),
+        mode_(ModeBits::decode(key)),
+        constant_rhs_(KnownBitsForMinorKey(KnownIntBits::decode(key))),
+        specialized_on_rhs_(RhsIsOneWeWantToOptimizeFor(op_, constant_rhs_)),
+        runtime_operands_type_(type_info),
         name_(NULL) { }
 
  private:
@@ -479,25 +490,32 @@ class GenericBinaryOpStub : public CodeStub {
   OverwriteMode mode_;
   int constant_rhs_;
   bool specialized_on_rhs_;
+  BinaryOpIC::TypeInfo runtime_operands_type_;
   char* name_;
 
   static const int kMaxKnownRhs = 0x40000000;
 
-  // Minor key encoding in 16 bits.
+  // Minor key encoding in 18 bits.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
   class OpBits: public BitField<Token::Value, 2, 6> {};
   class KnownIntBits: public BitField<int, 8, 8> {};
+  class TypeInfoBits: public BitField<int, 16, 2> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
-    // Encode the parameters in a unique 16 bit value.
+    // Encode the parameters in a unique 18 bit value.
     return OpBits::encode(op_)
            | ModeBits::encode(mode_)
-           | KnownIntBits::encode(MinorKeyForKnownInt());
+           | KnownIntBits::encode(MinorKeyForKnownInt())
+           | TypeInfoBits::encode(runtime_operands_type_);
   }
 
   void Generate(MacroAssembler* masm);
   void HandleNonSmiBitwiseOp(MacroAssembler* masm);
+  void HandleBinaryOpSlowCases(MacroAssembler* masm,
+                               Label* not_smi,
+                               const Builtins::JavaScript& builtin);
+  void GenerateTypeTransition(MacroAssembler* masm);
 
   static bool RhsIsOneWeWantToOptimizeFor(Token::Value op, int constant_rhs) {
     if (constant_rhs == CodeGenerator::kUnknownIntValue) return false;
@@ -522,6 +540,33 @@ class GenericBinaryOpStub : public CodeStub {
       d >>= 1;
     }
     return key;
+  }
+
+  int KnownBitsForMinorKey(int key) {
+    if (!key) return 0;
+    if (key <= 11) return key - 1;
+    int d = 1;
+    while (key != 12) {
+      key--;
+      d <<= 1;
+    }
+    return d;
+  }
+
+  bool ShouldGenerateSmiCode() {
+    return ((op_ != Token::DIV && op_ != Token::MOD) || specialized_on_rhs_) &&
+        runtime_operands_type_ != BinaryOpIC::HEAP_NUMBERS &&
+        runtime_operands_type_ != BinaryOpIC::STRINGS;
+  }
+
+  bool ShouldGenerateFPCode() {
+    return runtime_operands_type_ != BinaryOpIC::STRINGS;
+  }
+
+  virtual int GetCodeKind() { return Code::BINARY_OP_IC; }
+
+  virtual InlineCacheState GetICState() {
+    return BinaryOpIC::ToState(runtime_operands_type_);
   }
 
   const char* GetName();
