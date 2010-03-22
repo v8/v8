@@ -361,6 +361,11 @@ class CompareStub: public CodeStub {
   // stubs.
   bool never_nan_nan_;
 
+  // Encoding of the minor key CCCCCCCCCCCCCCNS.
+  class StrictField: public BitField<bool, 0, 1> {};
+  class NeverNanNanField: public BitField<bool, 1, 1> {};
+  class ConditionField: public BitField<int, 2, 14> {};
+
   Major MajorKey() { return Compare; }
 
   int MinorKey();
