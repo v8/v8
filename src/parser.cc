@@ -148,6 +148,7 @@ class Parser {
   ParserLog* log_;
   bool is_pre_parsing_;
   ScriptDataImpl* pre_data_;
+  bool seen_loop_stmt_;  // Used for inner loop detection.
 
   bool inside_with() const  { return with_nesting_level_ > 0; }
   ParserFactory* factory() const  { return factory_; }
@@ -1205,7 +1206,8 @@ Parser::Parser(Handle<Script> script,
       factory_(factory),
       log_(log),
       is_pre_parsing_(is_pre_parsing == PREPARSE),
-      pre_data_(pre_data) {
+      pre_data_(pre_data),
+      seen_loop_stmt_(false) {
 }
 
 
@@ -2653,6 +2655,9 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   if (peek() == Token::SEMICOLON) Consume(Token::SEMICOLON);
 
   if (loop != NULL) loop->Initialize(cond, body);
+
+  seen_loop_stmt_ = true;
+
   return loop;
 }
 
@@ -2671,6 +2676,9 @@ WhileStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   Statement* body = ParseStatement(NULL, CHECK_OK);
 
   if (loop != NULL) loop->Initialize(cond, body);
+
+  seen_loop_stmt_ = true;
+
   return loop;
 }
 
@@ -2704,6 +2712,9 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
           Block* result = NEW(Block(NULL, 2, false));
           result->AddStatement(variable_statement);
           result->AddStatement(loop);
+
+          seen_loop_stmt_ = true;
+
           // Parsed for-in loop w/ variable/const declaration.
           return result;
         }
@@ -2732,6 +2743,8 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
         Statement* body = ParseStatement(NULL, CHECK_OK);
         if (loop) loop->Initialize(expression, enumerable, body);
+
+        seen_loop_stmt_ = true;
 
         // Parsed for-in loop.
         return loop;
@@ -2765,9 +2778,17 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   }
   Expect(Token::RPAREN, CHECK_OK);
 
+  seen_loop_stmt_ = false;
+
   Statement* body = ParseStatement(NULL, CHECK_OK);
 
+  // Mark this loop if it is an inner loop.
+  if (loop && !seen_loop_stmt_) loop->set_peel_this_loop(true);
+
   if (loop) loop->Initialize(init, cond, next, body);
+
+  seen_loop_stmt_ = true;
+
   return loop;
 }
 
@@ -3712,6 +3733,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
+  // Reset flag used for inner loop detection.
+  seen_loop_stmt_ = false;
+
   bool is_named = !var_name.is_null();
 
   // The name associated with this function. If it's a function expression,
@@ -3822,6 +3846,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     if (!is_pre_parsing_) {
       function_literal->set_function_token_position(function_token_position);
     }
+
+    // Set flag for inner loop detection. We treat loops that contain a function
+    // literal not as inner loops because we avoid duplicating function literals
+    // when peeling or unrolling such a loop.
+    seen_loop_stmt_ = true;
+
     return function_literal;
   }
 }

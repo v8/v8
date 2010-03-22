@@ -160,6 +160,9 @@ DEFINE_bool(use_flow_graph, false, "perform flow-graph based optimizations")
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
 
+// data-flow.cc
+DEFINE_bool(loop_peeling, false, "Peel off the first iteration of loops.")
+
 // debug.cc
 DEFINE_bool(remote_debugging, false, "enable remote debugging")
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")

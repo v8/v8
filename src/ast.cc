@@ -592,4 +592,388 @@ bool BinaryOperation::IsPrimitive() {
 bool CompareOperation::IsPrimitive() { return true; }
 
 
+// Implementation of a copy visitor. The visitor create a deep copy
+// of ast nodes. Nodes that do not require a deep copy are copied
+// with the default copy constructor.
+
+AstNode::AstNode(AstNode* other) : num_(kNoNumber) {
+  // AST node number should be unique. Assert that we only copy AstNodes
+  // before node numbers are assigned.
+  ASSERT(other->num_ == kNoNumber);
+}
+
+
+Statement::Statement(Statement* other)
+    : AstNode(other), statement_pos_(other->statement_pos_) {}
+
+
+Expression::Expression(Expression* other)
+    : AstNode(other),
+      bitfields_(other->bitfields_),
+      type_(other->type_) {}
+
+
+BreakableStatement::BreakableStatement(BreakableStatement* other)
+    : Statement(other), labels_(other->labels_), type_(other->type_) {}
+
+
+Block::Block(Block* other, ZoneList<Statement*>* statements)
+    : BreakableStatement(other),
+      statements_(statements->length()),
+      is_initializer_block_(other->is_initializer_block_) {
+  statements_.AddAll(*statements);
+}
+
+
+ExpressionStatement::ExpressionStatement(ExpressionStatement* other,
+                                         Expression* expression)
+    : Statement(other), expression_(expression) {}
+
+
+IfStatement::IfStatement(IfStatement* other,
+                         Expression* condition,
+                         Statement* then_statement,
+                         Statement* else_statement)
+    : Statement(other),
+      condition_(condition),
+      then_statement_(then_statement),
+      else_statement_(else_statement) {}
+
+
+EmptyStatement::EmptyStatement(EmptyStatement* other) : Statement(other) {}
+
+
+IterationStatement::IterationStatement(IterationStatement* other,
+                                       Statement* body)
+    : BreakableStatement(other), body_(body) {}
+
+
+ForStatement::ForStatement(ForStatement* other,
+                           Statement* init,
+                           Expression* cond,
+                           Statement* next,
+                           Statement* body)
+    : IterationStatement(other, body),
+      init_(init),
+      cond_(cond),
+      next_(next),
+      may_have_function_literal_(other->may_have_function_literal_),
+      loop_variable_(other->loop_variable_),
+      peel_this_loop_(other->peel_this_loop_) {}
+
+
+Assignment::Assignment(Assignment* other,
+                       Expression* target,
+                       Expression* value)
+    : Expression(other),
+      op_(other->op_),
+      target_(target),
+      value_(value),
+      pos_(other->pos_),
+      block_start_(other->block_start_),
+      block_end_(other->block_end_) {}
+
+
+Property::Property(Property* other, Expression* obj, Expression* key)
+    : Expression(other),
+      obj_(obj),
+      key_(key),
+      pos_(other->pos_),
+      type_(other->type_) {}
+
+
+Call::Call(Call* other,
+           Expression* expression,
+           ZoneList<Expression*>* arguments)
+    : Expression(other),
+      expression_(expression),
+      arguments_(arguments),
+      pos_(other->pos_) {}
+
+
+UnaryOperation::UnaryOperation(UnaryOperation* other, Expression* expression)
+    : Expression(other), op_(other->op_), expression_(expression) {}
+
+
+BinaryOperation::BinaryOperation(BinaryOperation* other,
+                                 Expression* left,
+                                 Expression* right)
+    : Expression(other),
+      op_(other->op_),
+      left_(left),
+      right_(right) {}
+
+
+CountOperation::CountOperation(CountOperation* other, Expression* expression)
+    : Expression(other),
+      is_prefix_(other->is_prefix_),
+      op_(other->op_),
+      expression_(expression) {}
+
+
+CompareOperation::CompareOperation(CompareOperation* other,
+                                   Expression* left,
+                                   Expression* right)
+    : Expression(other),
+      op_(other->op_),
+      left_(left),
+      right_(right),
+      is_for_loop_condition_(other->is_for_loop_condition_) {}
+
+
+Expression* CopyAstVisitor::DeepCopyExpr(Expression* expr) {
+  expr_ = NULL;
+  if (expr != NULL) Visit(expr);
+  return expr_;
+}
+
+
+Statement* CopyAstVisitor::DeepCopyStmt(Statement* stmt) {
+  stmt_ = NULL;
+  if (stmt != NULL) Visit(stmt);
+  return stmt_;
+}
+
+
+ZoneList<Expression*>* CopyAstVisitor::DeepCopyExprList(
+    ZoneList<Expression*>* expressions) {
+  ZoneList<Expression*>* copy =
+      new ZoneList<Expression*>(expressions->length());
+  for (int i = 0; i < expressions->length(); i++) {
+    copy->Add(DeepCopyExpr(expressions->at(i)));
+  }
+  return copy;
+}
+
+
+ZoneList<Statement*>* CopyAstVisitor::DeepCopyStmtList(
+    ZoneList<Statement*>* statements) {
+  ZoneList<Statement*>* copy = new ZoneList<Statement*>(statements->length());
+  for (int i = 0; i < statements->length(); i++) {
+    copy->Add(DeepCopyStmt(statements->at(i)));
+  }
+  return copy;
+}
+
+
+void CopyAstVisitor::VisitBlock(Block* stmt) {
+  stmt_ = new Block(stmt,
+                    DeepCopyStmtList(stmt->statements()));
+}
+
+
+void CopyAstVisitor::VisitExpressionStatement(
+    ExpressionStatement* stmt) {
+  stmt_ = new ExpressionStatement(stmt, DeepCopyExpr(stmt->expression()));
+}
+
+
+void CopyAstVisitor::VisitEmptyStatement(EmptyStatement* stmt) {
+  stmt_ = new EmptyStatement(stmt);
+}
+
+
+void CopyAstVisitor::VisitIfStatement(IfStatement* stmt) {
+  stmt_ = new IfStatement(stmt,
+                          DeepCopyExpr(stmt->condition()),
+                          DeepCopyStmt(stmt->then_statement()),
+                          DeepCopyStmt(stmt->else_statement()));
+}
+
+
+void CopyAstVisitor::VisitContinueStatement(ContinueStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitBreakStatement(BreakStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitReturnStatement(ReturnStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitWithEnterStatement(
+    WithEnterStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitWithExitStatement(WithExitStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitSwitchStatement(SwitchStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitDoWhileStatement(DoWhileStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitWhileStatement(WhileStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitForStatement(ForStatement* stmt) {
+  stmt_ = new ForStatement(stmt,
+                           DeepCopyStmt(stmt->init()),
+                           DeepCopyExpr(stmt->cond()),
+                           DeepCopyStmt(stmt->next()),
+                           DeepCopyStmt(stmt->body()));
+}
+
+
+void CopyAstVisitor::VisitForInStatement(ForInStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitTryCatchStatement(TryCatchStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitTryFinallyStatement(
+    TryFinallyStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitDebuggerStatement(
+    DebuggerStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitFunctionLiteral(FunctionLiteral* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitFunctionBoilerplateLiteral(
+    FunctionBoilerplateLiteral* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitConditional(Conditional* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitSlot(Slot* expr) {
+  UNREACHABLE();
+}
+
+
+void CopyAstVisitor::VisitVariableProxy(VariableProxy* expr) {
+  expr_ = new VariableProxy(*expr);
+}
+
+
+void CopyAstVisitor::VisitLiteral(Literal* expr) {
+  expr_ = new Literal(*expr);
+}
+
+
+void CopyAstVisitor::VisitRegExpLiteral(RegExpLiteral* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitObjectLiteral(ObjectLiteral* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitArrayLiteral(ArrayLiteral* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitCatchExtensionObject(
+    CatchExtensionObject* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitAssignment(Assignment* expr) {
+  expr_ = new Assignment(expr,
+                         DeepCopyExpr(expr->target()),
+                         DeepCopyExpr(expr->value()));
+}
+
+
+void CopyAstVisitor::VisitThrow(Throw* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitProperty(Property* expr) {
+  expr_ = new Property(expr,
+                       DeepCopyExpr(expr->obj()),
+                       DeepCopyExpr(expr->key()));
+}
+
+
+void CopyAstVisitor::VisitCall(Call* expr) {
+  expr_ = new Call(expr,
+                   DeepCopyExpr(expr->expression()),
+                   DeepCopyExprList(expr->arguments()));
+}
+
+
+void CopyAstVisitor::VisitCallNew(CallNew* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitCallRuntime(CallRuntime* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitUnaryOperation(UnaryOperation* expr) {
+  expr_ = new UnaryOperation(expr, DeepCopyExpr(expr->expression()));
+}
+
+
+void CopyAstVisitor::VisitCountOperation(CountOperation* expr) {
+  expr_ = new CountOperation(expr,
+                             DeepCopyExpr(expr->expression()));
+}
+
+
+void CopyAstVisitor::VisitBinaryOperation(BinaryOperation* expr) {
+  expr_ = new BinaryOperation(expr,
+                              DeepCopyExpr(expr->left()),
+                              DeepCopyExpr(expr->right()));
+}
+
+
+void CopyAstVisitor::VisitCompareOperation(CompareOperation* expr) {
+  expr_ = new CompareOperation(expr,
+                               DeepCopyExpr(expr->left()),
+                               DeepCopyExpr(expr->right()));
+}
+
+
+void CopyAstVisitor::VisitThisFunction(ThisFunction* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitDeclaration(Declaration* decl) {
+  UNREACHABLE();
+}
+
+
 } }  // namespace v8::internal

@@ -470,7 +470,7 @@ class FlowGraph BASE_EMBEDDED {
             FlowGraph* body);
 
 #ifdef DEBUG
-  void PrintText(ZoneList<Node*>* postorder);
+  void PrintText(FunctionLiteral* fun, ZoneList<Node*>* postorder);
 #endif
 
  private:
@@ -490,8 +490,7 @@ class FlowGraphBuilder: public AstVisitor {
         global_exit_(NULL),
         preorder_(4),
         postorder_(4),
-        definitions_(4) {
-  }
+        definitions_(4) {}
 
   void Build(FunctionLiteral* lit);
 
@@ -501,6 +500,10 @@ class FlowGraphBuilder: public AstVisitor {
 
  private:
   ExitNode* global_exit() { return global_exit_; }
+
+  // Helpers to allow tranforming the ast during flow graph construction.
+  void VisitStatements(ZoneList<Statement*>* stmts);
+  Statement* ProcessStatement(Statement* stmt);
 
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);

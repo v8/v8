@@ -105,7 +105,7 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
 
 #ifdef DEBUG
     if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
-      builder.graph()->PrintText(builder.postorder());
+      builder.graph()->PrintText(function, builder.postorder());
     }
 #endif
   }
@@ -513,7 +513,7 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
 
 #ifdef DEBUG
       if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
-        builder.graph()->PrintText(builder.postorder());
+        builder.graph()->PrintText(literal, builder.postorder());
       }
 #endif
     }
