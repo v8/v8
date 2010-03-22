@@ -89,15 +89,15 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
   }
 
   if (FLAG_use_flow_graph) {
-    FlowGraphBuilder builder;
+    int variable_count =
+        function->num_parameters() + function->scope()->num_stack_slots();
+    FlowGraphBuilder builder(variable_count);
     builder.Build(function);
 
     if (!builder.HasStackOverflow()) {
-      int variable_count =
-          function->num_parameters() + function->scope()->num_stack_slots();
-      if (variable_count > 0 && builder.definitions()->length() > 0) {
+      if (variable_count > 0) {
         ReachingDefinitions rd(builder.postorder(),
-                               builder.definitions(),
+                               builder.body_definitions(),
                                variable_count);
         rd.Compute();
       }
@@ -497,15 +497,15 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
     }
 
     if (FLAG_use_flow_graph) {
-      FlowGraphBuilder builder;
+      int variable_count =
+          literal->num_parameters() + literal->scope()->num_stack_slots();
+      FlowGraphBuilder builder(variable_count);
       builder.Build(literal);
 
     if (!builder.HasStackOverflow()) {
-      int variable_count =
-          literal->num_parameters() + literal->scope()->num_stack_slots();
-      if (variable_count > 0 && builder.definitions()->length() > 0) {
+      if (variable_count > 0) {
         ReachingDefinitions rd(builder.postorder(),
-                               builder.definitions(),
+                               builder.body_definitions(),
                                variable_count);
         rd.Compute();
       }
