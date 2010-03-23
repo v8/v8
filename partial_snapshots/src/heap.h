@@ -613,6 +613,11 @@ class Heap : public AllStatic {
                             Handle<Object> self_reference);
 
   static Object* CopyCode(Code* code);
+
+  // Copy the code and scope info part of the code object, but insert
+  // the provided data as the relocation information.
+  static Object* CopyCode(Code* code, Vector<byte> reloc_info);
+
   // Finds the symbol for string in the symbol table.
   // If not found, a new symbol is added to the table and returned.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if allocation
@@ -629,6 +634,15 @@ class Heap : public AllStatic {
   // Compute the matching symbol map for a string if possible.
   // NULL is returned if string is in new space or not flattened.
   static Map* SymbolMapForString(String* str);
+
+  // Tries to flatten a string before compare operation.
+  //
+  // Returns a failure in case it was decided that flattening was
+  // necessary and failed.  Note, if flattening is not necessary the
+  // string might stay non-flat even when not a failure is returned.
+  //
+  // Please note this function does not perform a garbage collection.
+  static inline Object* PrepareForCompare(String* str);
 
   // Converts the given boolean condition to JavaScript boolean value.
   static Object* ToBoolean(bool condition) {
@@ -955,6 +969,9 @@ class Heap : public AllStatic {
   static int mc_count_;  // how many mark-compact collections happened
   static int gc_count_;  // how many gc happened
 
+  // Total length of the strings we failed to flatten since the last GC.
+  static int unflattended_strings_length_;
+
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
   static inline void set_##name(type* value) {                                 \
     roots_[k##camel_name##RootIndex] = value;                                  \
@@ -1153,26 +1170,26 @@ class Heap : public AllStatic {
 
 class HeapStats {
  public:
-  int *start_marker;
-  int *new_space_size;
-  int *new_space_capacity;
-  int *old_pointer_space_size;
-  int *old_pointer_space_capacity;
-  int *old_data_space_size;
-  int *old_data_space_capacity;
-  int *code_space_size;
-  int *code_space_capacity;
-  int *map_space_size;
-  int *map_space_capacity;
-  int *cell_space_size;
-  int *cell_space_capacity;
-  int *lo_space_size;
-  int *global_handle_count;
-  int *weak_global_handle_count;
-  int *pending_global_handle_count;
-  int *near_death_global_handle_count;
-  int *destroyed_global_handle_count;
-  int *end_marker;
+  int* start_marker;
+  int* new_space_size;
+  int* new_space_capacity;
+  int* old_pointer_space_size;
+  int* old_pointer_space_capacity;
+  int* old_data_space_size;
+  int* old_data_space_capacity;
+  int* code_space_size;
+  int* code_space_capacity;
+  int* map_space_size;
+  int* map_space_capacity;
+  int* cell_space_size;
+  int* cell_space_capacity;
+  int* lo_space_size;
+  int* global_handle_count;
+  int* weak_global_handle_count;
+  int* pending_global_handle_count;
+  int* near_death_global_handle_count;
+  int* destroyed_global_handle_count;
+  int* end_marker;
 };
 
 

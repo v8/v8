@@ -2709,18 +2709,20 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
   // Load the function of this activation.
-  __ ldr(r2, frame_->Function());
+  __ ldr(r3, frame_->Function());
   // Literal array.
-  __ ldr(r2, FieldMemOperand(r2, JSFunction::kLiteralsOffset));
+  __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
   // Literal index.
-  __ mov(r1, Operand(Smi::FromInt(node->literal_index())));
+  __ mov(r2, Operand(Smi::FromInt(node->literal_index())));
   // Constant properties.
-  __ mov(r0, Operand(node->constant_properties()));
-  frame_->EmitPushMultiple(3, r2.bit() | r1.bit() | r0.bit());
+  __ mov(r1, Operand(node->constant_properties()));
+  // Should the object literal have fast elements?
+  __ mov(r0, Operand(Smi::FromInt(node->fast_elements() ? 1 : 0)));
+  frame_->EmitPushMultiple(4, r3.bit() | r2.bit() | r1.bit() | r0.bit());
   if (node->depth() > 1) {
-    frame_->CallRuntime(Runtime::kCreateObjectLiteral, 3);
+    frame_->CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
-    frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
+    frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
   }
   frame_->EmitPush(r0);  // save the result
   for (int i = 0; i < node->properties()->length(); i++) {
@@ -3597,7 +3599,7 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 1);
 
@@ -3679,7 +3681,8 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   // Load the argument on the stack and jump to the runtime.
   Load(args->at(0));
 
-  frame_->CallRuntime(Runtime::kNumberToString, 1);
+  NumberToStringStub stub;
+  frame_->CallStub(&stub, 1);
   frame_->EmitPush(r0);
 }
 
@@ -5278,6 +5281,79 @@ static void EmitCheckForSymbols(MacroAssembler* masm, Label* slow) {
 }
 
 
+void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
+                                                         Register object,
+                                                         Register result,
+                                                         Register scratch1,
+                                                         Register scratch2,
+                                                         bool object_is_smi,
+                                                         Label* not_found) {
+  // Currently only lookup for smis. Check for smi if object is not known to be
+  // a smi.
+  if (!object_is_smi) {
+    ASSERT(kSmiTag == 0);
+    __ tst(object, Operand(kSmiTagMask));
+    __ b(ne, not_found);
+  }
+
+  // Use of registers. Register result is used as a temporary.
+  Register number_string_cache = result;
+  Register mask = scratch1;
+  Register scratch = scratch2;
+
+  // Load the number string cache.
+  __ LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  __ ldr(mask, FieldMemOperand(number_string_cache, FixedArray::kLengthOffset));
+  // Divide length by two (length is not a smi).
+  __ mov(mask, Operand(mask, ASR, 1));
+  __ sub(mask, mask, Operand(1));  // Make mask.
+
+  // Calculate the entry in the number string cache. The hash value in the
+  // number string cache for smis is just the smi value.
+  __ and_(scratch, mask, Operand(object, ASR, 1));
+
+  // Calculate address of entry in string cache: each entry consists
+  // of two pointer sized fields.
+  __ add(scratch,
+         number_string_cache,
+         Operand(scratch, LSL, kPointerSizeLog2 + 1));
+
+  // Check if the entry is the smi we are looking for.
+  Register object1 = scratch1;
+  __ ldr(object1, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  __ cmp(object, object1);
+  __ b(ne, not_found);
+
+  // Get the result from the cache.
+  __ ldr(result,
+         FieldMemOperand(scratch, FixedArray::kHeaderSize + kPointerSize));
+
+  __ IncrementCounter(&Counters::number_to_string_native,
+                      1,
+                      scratch1,
+                      scratch2);
+}
+
+
+void NumberToStringStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  __ ldr(r1, MemOperand(sp, 0));
+
+  // Generate code to lookup number in the number string cache.
+  GenerateLookupNumberStringCache(masm, r1, r0, r2, r3, false, &runtime);
+  __ add(sp, sp, Operand(1 * kPointerSize));
+  __ Ret();
+
+  __ bind(&runtime);
+  // Handle number to string in the runtime system if not found in the cache.
+  __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
+}
+
+
 // On entry r0 (rhs) and r1 (lhs) are the values to be compared.
 // On exit r0 is 0, positive or negative to indicate the result of
 // the comparison.
@@ -5501,7 +5577,7 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     // sp[0] : second argument
     // sp[4] : first argument
 
-    Label not_strings, not_string1, string1;
+    Label not_strings, not_string1, string1, string1_smi2;
     __ tst(r1, Operand(kSmiTagMask));
     __ b(eq, &not_string1);
     __ CompareObjectType(r1, r2, r2, FIRST_NONSTRING_TYPE);
@@ -5509,13 +5585,24 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
 
     // First argument is a a string, test second.
     __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, &string1);
+    __ b(eq, &string1_smi2);
     __ CompareObjectType(r0, r2, r2, FIRST_NONSTRING_TYPE);
     __ b(ge, &string1);
 
     // First and second argument are strings.
-    StringAddStub stub(NO_STRING_CHECK_IN_STUB);
-    __ TailCallStub(&stub);
+    StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
+    __ TailCallStub(&string_add_stub);
+
+    __ bind(&string1_smi2);
+    // First argument is a string, second is a smi. Try to lookup the number
+    // string for the smi in the number string cache.
+    NumberToStringStub::GenerateLookupNumberStringCache(
+        masm, r0, r2, r4, r5, true, &string1);
+
+    // Replace second argument on stack and tailcall string add stub to make
+    // the result.
+    __ str(r2, MemOperand(sp, 0));
+    __ TailCallStub(&string_add_stub);
 
     // Only first argument is a string.
     __ bind(&string1);

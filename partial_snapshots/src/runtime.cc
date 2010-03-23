@@ -32,6 +32,7 @@
 #include "accessors.h"
 #include "api.h"
 #include "arguments.h"
+#include "codegen.h"
 #include "compiler.h"
 #include "cpu.h"
 #include "dateparser-inl.h"
@@ -247,7 +248,8 @@ static Handle<Object> CreateLiteralBoilerplate(
 
 static Handle<Object> CreateObjectLiteralBoilerplate(
     Handle<FixedArray> literals,
-    Handle<FixedArray> constant_properties) {
+    Handle<FixedArray> constant_properties,
+    bool should_have_fast_elements) {
   // Get the global context from the literals array.  This is the
   // context in which the function was created and we use the object
   // function from this context to create the object literal.  We do
@@ -263,6 +265,10 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
                                             &is_result_from_cache);
 
   Handle<JSObject> boilerplate = Factory::NewJSObjectFromMap(map);
+
+  // Normalize the elements of the boilerplate to save space if needed.
+  if (!should_have_fast_elements) NormalizeElements(boilerplate);
+
   {  // Add the constant properties to the boilerplate.
     int length = constant_properties->length();
     OptimizedObjectForAddingMultipleProperties opt(boilerplate,
@@ -344,34 +350,16 @@ static Handle<Object> CreateLiteralBoilerplate(
     Handle<FixedArray> array) {
   Handle<FixedArray> elements = CompileTimeValue::GetElements(array);
   switch (CompileTimeValue::GetType(array)) {
-    case CompileTimeValue::OBJECT_LITERAL:
-      return CreateObjectLiteralBoilerplate(literals, elements);
+    case CompileTimeValue::OBJECT_LITERAL_FAST_ELEMENTS:
+      return CreateObjectLiteralBoilerplate(literals, elements, true);
+    case CompileTimeValue::OBJECT_LITERAL_SLOW_ELEMENTS:
+      return CreateObjectLiteralBoilerplate(literals, elements, false);
     case CompileTimeValue::ARRAY_LITERAL:
       return CreateArrayLiteralBoilerplate(literals, elements);
     default:
       UNREACHABLE();
       return Handle<Object>::null();
   }
-}
-
-
-static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 3);
-  // Copy the arguments.
-  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_CHECKED(literals_index, args[1]);
-  CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
-
-  Handle<Object> result =
-    CreateObjectLiteralBoilerplate(literals, constant_properties);
-
-  if (result.is_null()) return Failure::Exception();
-
-  // Update the functions literal and return the boilerplate.
-  literals->set(literals_index, *result);
-
-  return *result;
 }
 
 
@@ -398,15 +386,19 @@ static Object* Runtime_CreateArrayLiteralBoilerplate(Arguments args) {
 
 static Object* Runtime_CreateObjectLiteral(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
   CONVERT_SMI_CHECKED(literals_index, args[1]);
   CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
+  CONVERT_SMI_CHECKED(fast_elements, args[3]);
+  bool should_have_fast_elements = fast_elements == 1;
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(literals->get(literals_index));
   if (*boilerplate == Heap::undefined_value()) {
-    boilerplate = CreateObjectLiteralBoilerplate(literals, constant_properties);
+    boilerplate = CreateObjectLiteralBoilerplate(literals,
+                                                 constant_properties,
+                                                 should_have_fast_elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
@@ -417,15 +409,19 @@ static Object* Runtime_CreateObjectLiteral(Arguments args) {
 
 static Object* Runtime_CreateObjectLiteralShallow(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
   CONVERT_SMI_CHECKED(literals_index, args[1]);
   CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
+  CONVERT_SMI_CHECKED(fast_elements, args[3]);
+  bool should_have_fast_elements = fast_elements == 1;
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(literals->get(literals_index));
   if (*boilerplate == Heap::undefined_value()) {
-    boilerplate = CreateObjectLiteralBoilerplate(literals, constant_properties);
+    boilerplate = CreateObjectLiteralBoilerplate(literals,
+                                                 constant_properties,
+                                                 should_have_fast_elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
@@ -1242,6 +1238,71 @@ static Object* Runtime_FinishArrayPrototypeSetup(Arguments args) {
 }
 
 
+static void SetCustomCallGenerator(Handle<JSFunction> function,
+                                   CustomCallGenerator generator) {
+  if (function->shared()->function_data()->IsUndefined()) {
+    function->shared()->set_function_data(*FromCData(generator));
+  }
+}
+
+
+static Handle<JSFunction> InstallBuiltin(Handle<JSObject> holder,
+                                         const char* name,
+                                         Builtins::Name builtin_name,
+                                         CustomCallGenerator generator = NULL) {
+  Handle<String> key = Factory::LookupAsciiSymbol(name);
+  Handle<Code> code(Builtins::builtin(builtin_name));
+  Handle<JSFunction> optimized = Factory::NewFunction(key,
+                                                      JS_OBJECT_TYPE,
+                                                      JSObject::kHeaderSize,
+                                                      code,
+                                                      false);
+  optimized->shared()->DontAdaptArguments();
+  if (generator != NULL) {
+    SetCustomCallGenerator(optimized, generator);
+  }
+  SetProperty(holder, key, optimized, NONE);
+  return optimized;
+}
+
+
+static Object* CompileArrayPushCall(CallStubCompiler* compiler,
+                                    Object* object,
+                                    JSObject* holder,
+                                    JSFunction* function,
+                                    String* name,
+                                    StubCompiler::CheckType check) {
+  return compiler->CompileArrayPushCall(object, holder, function, name, check);
+}
+
+
+static Object* CompileArrayPopCall(CallStubCompiler* compiler,
+                                   Object* object,
+                                   JSObject* holder,
+                                   JSFunction* function,
+                                   String* name,
+                                   StubCompiler::CheckType check) {
+  return compiler->CompileArrayPopCall(object, holder, function, name, check);
+}
+
+
+static Object* Runtime_SpecialArrayFunctions(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, holder, 0);
+
+  InstallBuiltin(holder, "pop", Builtins::ArrayPop, CompileArrayPopCall);
+  InstallBuiltin(holder, "push", Builtins::ArrayPush, CompileArrayPushCall);
+  InstallBuiltin(holder, "shift", Builtins::ArrayShift);
+  InstallBuiltin(holder, "unshift", Builtins::ArrayUnshift);
+  InstallBuiltin(holder, "slice", Builtins::ArraySlice);
+  InstallBuiltin(holder, "splice", Builtins::ArraySplice);
+  InstallBuiltin(holder, "concat", Builtins::ArrayConcat);
+
+  return *holder;
+}
+
+
 static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 4);
@@ -1376,10 +1437,8 @@ static Object* Runtime_FunctionIsAPIFunction(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_CHECKED(JSFunction, f, args[0]);
-  // The function_data field of the shared function info is used exclusively by
-  // the API.
-  return !f->shared()->function_data()->IsUndefined() ? Heap::true_value()
-                                                      : Heap::false_value();
+  return f->shared()->IsApiFunction() ? Heap::true_value()
+                                      : Heap::false_value();
 }
 
 static Object* Runtime_FunctionIsBuiltin(Arguments args) {
@@ -2088,10 +2147,23 @@ class BMGoodSuffixBuffers {
 static int bad_char_occurrence[kBMAlphabetSize];
 static BMGoodSuffixBuffers bmgs_buffers;
 
+// State of the string match tables.
+// SIMPLE: No usable content in the buffers.
+// BOYER_MOORE_HORSPOOL: The bad_char_occurences table has been populated.
+// BOYER_MOORE: The bmgs_buffers tables have also been populated.
+// Whenever starting with a new needle, one should call InitializeStringSearch
+// to determine which search strategy to use, and in the case of a long-needle
+// strategy, the call also initializes the algorithm to SIMPLE.
+enum StringSearchAlgorithm { SIMPLE_SEARCH, BOYER_MOORE_HORSPOOL, BOYER_MOORE };
+static StringSearchAlgorithm algorithm;
+
+
 // Compute the bad-char table for Boyer-Moore in the static buffer.
 template <typename pchar>
-static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
-                                          int start) {
+static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern) {
+  // Only preprocess at most kBMMaxShift last characters of pattern.
+  int start = pattern.length() < kBMMaxShift ? 0
+                                             : pattern.length() - kBMMaxShift;
   // Run forwards to populate bad_char_table, so that *last* instance
   // of character equivalence class is the one registered.
   // Notice: Doesn't include the last character.
@@ -2111,10 +2183,11 @@ static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
   }
 }
 
+
 template <typename pchar>
-static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern,
-                                              int start) {
+static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern) {
   int m = pattern.length();
+  int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
   int len = m - start;
   // Compute Good Suffix tables.
   bmgs_buffers.init(m);
@@ -2161,6 +2234,7 @@ static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern,
   }
 }
 
+
 template <typename schar, typename pchar>
 static inline int CharOccurrence(int char_code) {
   if (sizeof(schar) == 1) {
@@ -2175,6 +2249,7 @@ static inline int CharOccurrence(int char_code) {
   return bad_char_occurrence[char_code % kBMAlphabetSize];
 }
 
+
 // Restricted simplified Boyer-Moore string matching.
 // Uses only the bad-shift table of Boyer-Moore and only uses it
 // for the character compared to the last character of the needle.
@@ -2183,14 +2258,13 @@ static int BoyerMooreHorspool(Vector<const schar> subject,
                               Vector<const pchar> pattern,
                               int start_index,
                               bool* complete) {
+  ASSERT(algorithm <= BOYER_MOORE_HORSPOOL);
   int n = subject.length();
   int m = pattern.length();
-  // Only preprocess at most kBMMaxShift last characters of pattern.
-  int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
 
-  BoyerMoorePopulateBadCharTable(pattern, start);
+  int badness = -m;
 
-  int badness = -m;  // How bad we are doing without a good-suffix table.
+  // How bad we are doing without a good-suffix table.
   int idx;  // No matches found prior to this index.
   pchar last_char = pattern[m - 1];
   int last_char_shift = m - 1 - CharOccurrence<schar, pchar>(last_char);
@@ -2235,13 +2309,12 @@ template <typename schar, typename pchar>
 static int BoyerMooreIndexOf(Vector<const schar> subject,
                              Vector<const pchar> pattern,
                              int idx) {
+  ASSERT(algorithm <= BOYER_MOORE);
   int n = subject.length();
   int m = pattern.length();
   // Only preprocess at most kBMMaxShift last characters of pattern.
   int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
 
-  // Build the Good Suffix table and continue searching.
-  BoyerMoorePopulateGoodSuffixTable(pattern, start);
   pchar last_char = pattern[m - 1];
   // Continue search from i.
   while (idx <= n - m) {
@@ -2277,9 +2350,17 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
 
 
 template <typename schar>
-static int SingleCharIndexOf(Vector<const schar> string,
-                             schar pattern_char,
-                             int start_index) {
+static inline int SingleCharIndexOf(Vector<const schar> string,
+                                    schar pattern_char,
+                                    int start_index) {
+  if (sizeof(schar) == 1) {
+    const schar* pos = reinterpret_cast<const schar*>(
+        memchr(string.start() + start_index,
+               pattern_char,
+               string.length() - start_index));
+    if (pos == NULL) return -1;
+    return pos - string.start();
+  }
   for (int i = start_index, n = string.length(); i < n; i++) {
     if (pattern_char == string[i]) {
       return i;
@@ -2317,17 +2398,29 @@ static int SimpleIndexOf(Vector<const schar> subject,
   // done enough work we decide it's probably worth switching to a better
   // algorithm.
   int badness = -10 - (pattern.length() << 2);
+
   // We know our pattern is at least 2 characters, we cache the first so
   // the common case of the first character not matching is faster.
   pchar pattern_first_char = pattern[0];
-
   for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
     badness++;
     if (badness > 0) {
       *complete = false;
       return i;
     }
-    if (subject[i] != pattern_first_char) continue;
+    if (sizeof(schar) == 1 && sizeof(pchar) == 1) {
+      const schar* pos = reinterpret_cast<const schar*>(
+          memchr(subject.start() + i,
+                 pattern_first_char,
+                 n - i + 1));
+      if (pos == NULL) {
+        *complete = true;
+        return -1;
+      }
+      i = pos - subject.start();
+    } else {
+      if (subject[i] != pattern_first_char) continue;
+    }
     int j = 1;
     do {
       if (pattern[j] != subject[i+j]) {
@@ -2352,7 +2445,16 @@ static int SimpleIndexOf(Vector<const schar> subject,
                          int idx) {
   pchar pattern_first_char = pattern[0];
   for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
-    if (subject[i] != pattern_first_char) continue;
+    if (sizeof(schar) == 1 && sizeof(pchar) == 1) {
+      const schar* pos = reinterpret_cast<const schar*>(
+          memchr(subject.start() + i,
+                 pattern_first_char,
+                 n - i + 1));
+      if (pos == NULL) return -1;
+      i = pos - subject.start();
+    } else {
+      if (subject[i] != pattern_first_char) continue;
+    }
     int j = 1;
     do {
       if (pattern[j] != subject[i+j]) {
@@ -2368,38 +2470,83 @@ static int SimpleIndexOf(Vector<const schar> subject,
 }
 
 
-// Dispatch to different algorithms.
-template <typename schar, typename pchar>
-static int StringMatchStrategy(Vector<const schar> sub,
-                               Vector<const pchar> pat,
-                               int start_index) {
-  ASSERT(pat.length() > 1);
+// Strategy for searching for a string in another string.
+enum StringSearchStrategy { SEARCH_FAIL, SEARCH_SHORT, SEARCH_LONG };
 
+
+template <typename pchar>
+static inline StringSearchStrategy InitializeStringSearch(
+    Vector<const pchar> pat, bool ascii_subject) {
+  ASSERT(pat.length() > 1);
   // We have an ASCII haystack and a non-ASCII needle. Check if there
   // really is a non-ASCII character in the needle and bail out if there
   // is.
-  if (sizeof(schar) == 1 && sizeof(pchar) > 1) {
+  if (ascii_subject && sizeof(pchar) > 1) {
     for (int i = 0; i < pat.length(); i++) {
       uc16 c = pat[i];
       if (c > String::kMaxAsciiCharCode) {
-        return -1;
+        return SEARCH_FAIL;
       }
     }
   }
   if (pat.length() < kBMMinPatternLength) {
-    // We don't believe fancy searching can ever be more efficient.
-    // The max shift of Boyer-Moore on a pattern of this length does
-    // not compensate for the overhead.
-    return SimpleIndexOf(sub, pat, start_index);
+    return SEARCH_SHORT;
   }
+  algorithm = SIMPLE_SEARCH;
+  return SEARCH_LONG;
+}
+
+
+// Dispatch long needle searches to different algorithms.
+template <typename schar, typename pchar>
+static int ComplexIndexOf(Vector<const schar> sub,
+                          Vector<const pchar> pat,
+                          int start_index) {
+  ASSERT(pat.length() >= kBMMinPatternLength);
   // Try algorithms in order of increasing setup cost and expected performance.
   bool complete;
-  int idx = SimpleIndexOf(sub, pat, start_index, &complete);
-  if (complete) return idx;
-  idx = BoyerMooreHorspool(sub, pat, idx, &complete);
-  if (complete) return idx;
-  return BoyerMooreIndexOf(sub, pat, idx);
+  int idx = start_index;
+  switch (algorithm) {
+    case SIMPLE_SEARCH:
+      idx = SimpleIndexOf(sub, pat, idx, &complete);
+      if (complete) return idx;
+      BoyerMoorePopulateBadCharTable(pat);
+      algorithm = BOYER_MOORE_HORSPOOL;
+      // FALLTHROUGH.
+    case BOYER_MOORE_HORSPOOL:
+      idx = BoyerMooreHorspool(sub, pat, idx, &complete);
+      if (complete) return idx;
+      // Build the Good Suffix table and continue searching.
+      BoyerMoorePopulateGoodSuffixTable(pat);
+      algorithm = BOYER_MOORE;
+      // FALLTHROUGH.
+    case BOYER_MOORE:
+      return BoyerMooreIndexOf(sub, pat, idx);
+  }
+  UNREACHABLE();
+  return -1;
 }
+
+
+// Dispatch to different search strategies for a single search.
+// If searching multiple times on the same needle, the search
+// strategy should only be computed once and then dispatch to different
+// loops.
+template <typename schar, typename pchar>
+static int StringSearch(Vector<const schar> sub,
+                        Vector<const pchar> pat,
+                        int start_index) {
+  bool ascii_subject = (sizeof(schar) == 1);
+  StringSearchStrategy strategy = InitializeStringSearch(pat, ascii_subject);
+  switch (strategy) {
+    case SEARCH_FAIL: return -1;
+    case SEARCH_SHORT: return SimpleIndexOf(sub, pat, start_index);
+    case SEARCH_LONG: return ComplexIndexOf(sub, pat, start_index);
+  }
+  UNREACHABLE();
+  return -1;
+}
+
 
 // Perform string match of pattern on subject, starting at start index.
 // Caller must ensure that 0 <= start_index <= sub->length(),
@@ -2419,6 +2566,7 @@ int Runtime::StringMatch(Handle<String> sub,
   if (!sub->IsFlat()) {
     FlattenString(sub);
   }
+
   // Searching for one specific character is common.  For one
   // character patterns linear search is necessary, so any smart
   // algorithm is unnecessary overhead.
@@ -2452,15 +2600,15 @@ int Runtime::StringMatch(Handle<String> sub,
   if (pat->IsAsciiRepresentation()) {
     Vector<const char> pat_vector = pat->ToAsciiVector();
     if (sub->IsAsciiRepresentation()) {
-      return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
+      return StringSearch(sub->ToAsciiVector(), pat_vector, start_index);
     }
-    return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
+    return StringSearch(sub->ToUC16Vector(), pat_vector, start_index);
   }
   Vector<const uc16> pat_vector = pat->ToUC16Vector();
   if (sub->IsAsciiRepresentation()) {
-    return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
+    return StringSearch(sub->ToAsciiVector(), pat_vector, start_index);
   }
-  return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
+  return StringSearch(sub->ToUC16Vector(), pat_vector, start_index);
 }
 
 
@@ -4215,6 +4363,169 @@ static Object* Runtime_StringTrim(Arguments args) {
 }
 
 
+template <typename schar, typename pchar>
+void FindStringIndices(Vector<const schar> subject,
+                       Vector<const pchar> pattern,
+                       ZoneList<int>* indices,
+                       unsigned int limit) {
+  ASSERT(limit > 0);
+  // Collect indices of pattern in subject, and the end-of-string index.
+  // Stop after finding at most limit values.
+  StringSearchStrategy strategy =
+      InitializeStringSearch(pattern, sizeof(schar) == 1);
+  switch (strategy) {
+    case SEARCH_FAIL: return;
+    case SEARCH_SHORT: {
+      int pattern_length = pattern.length();
+      int index = 0;
+      while (limit > 0) {
+        index = SimpleIndexOf(subject, pattern, index);
+        if (index < 0) return;
+        indices->Add(index);
+        index += pattern_length;
+        limit--;
+      }
+      return;
+    }
+    case SEARCH_LONG: {
+      int pattern_length = pattern.length();
+      int index = 0;
+      while (limit > 0) {
+        index = ComplexIndexOf(subject, pattern, index);
+        if (index < 0) return;
+        indices->Add(index);
+        index += pattern_length;
+        limit--;
+      }
+      return;
+    }
+    default:
+      UNREACHABLE();
+      return;
+  }
+}
+
+template <typename schar>
+inline void FindCharIndices(Vector<const schar> subject,
+                            const schar pattern_char,
+                            ZoneList<int>* indices,
+                            unsigned int limit) {
+  // Collect indices of pattern_char in subject, and the end-of-string index.
+  // Stop after finding at most limit values.
+  int index = 0;
+  while (limit > 0) {
+    index = SingleCharIndexOf(subject, pattern_char, index);
+    if (index < 0) return;
+    indices->Add(index);
+    index++;
+    limit--;
+  }
+}
+
+
+static Object* Runtime_StringSplit(Arguments args) {
+  ASSERT(args.length() == 3);
+  HandleScope handle_scope;
+  CONVERT_ARG_CHECKED(String, subject, 0);
+  CONVERT_ARG_CHECKED(String, pattern, 1);
+  CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[2]);
+
+  int subject_length = subject->length();
+  int pattern_length = pattern->length();
+  RUNTIME_ASSERT(pattern_length > 0);
+
+  // The limit can be very large (0xffffffffu), but since the pattern
+  // isn't empty, we can never create more parts than ~half the length
+  // of the subject.
+
+  if (!subject->IsFlat()) FlattenString(subject);
+
+  static const int kMaxInitialListCapacity = 16;
+
+  ZoneScope scope(DELETE_ON_EXIT);
+
+  // Find (up to limit) indices of separator and end-of-string in subject
+  int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);
+  ZoneList<int> indices(initial_capacity);
+  if (pattern_length == 1) {
+    // Special case, go directly to fast single-character split.
+    AssertNoAllocation nogc;
+    uc16 pattern_char = pattern->Get(0);
+    if (subject->IsTwoByteRepresentation()) {
+      FindCharIndices(subject->ToUC16Vector(), pattern_char,
+                      &indices,
+                      limit);
+    } else if (pattern_char <= String::kMaxAsciiCharCode) {
+      FindCharIndices(subject->ToAsciiVector(),
+                      static_cast<char>(pattern_char),
+                      &indices,
+                      limit);
+    }
+  } else {
+    if (!pattern->IsFlat()) FlattenString(pattern);
+    AssertNoAllocation nogc;
+    if (subject->IsAsciiRepresentation()) {
+      Vector<const char> subject_vector = subject->ToAsciiVector();
+      if (pattern->IsAsciiRepresentation()) {
+        FindStringIndices(subject_vector,
+                          pattern->ToAsciiVector(),
+                          &indices,
+                          limit);
+      } else {
+        FindStringIndices(subject_vector,
+                          pattern->ToUC16Vector(),
+                          &indices,
+                          limit);
+      }
+    } else {
+      Vector<const uc16> subject_vector = subject->ToUC16Vector();
+      if (pattern->IsAsciiRepresentation()) {
+        FindStringIndices(subject_vector,
+                          pattern->ToAsciiVector(),
+                          &indices,
+                          limit);
+      } else {
+        FindStringIndices(subject_vector,
+                          pattern->ToUC16Vector(),
+                          &indices,
+                          limit);
+      }
+    }
+  }
+  if (static_cast<uint32_t>(indices.length()) < limit) {
+    indices.Add(subject_length);
+  }
+  // The list indices now contains the end of each part to create.
+
+
+  // Create JSArray of substrings separated by separator.
+  int part_count = indices.length();
+
+  Handle<JSArray> result = Factory::NewJSArray(part_count);
+  result->set_length(Smi::FromInt(part_count));
+
+  ASSERT(result->HasFastElements());
+
+  if (part_count == 1 && indices.at(0) == subject_length) {
+    FixedArray::cast(result->elements())->set(0, *subject);
+    return *result;
+  }
+
+  Handle<FixedArray> elements(FixedArray::cast(result->elements()));
+  int part_start = 0;
+  for (int i = 0; i < part_count; i++) {
+    HandleScope local_loop_handle;
+    int part_end = indices.at(i);
+    Handle<String> substring =
+        Factory::NewSubString(subject, part_start, part_end);
+    elements->set(i, *substring);
+    part_start = part_end + pattern_length;
+  }
+
+  return *result;
+}
+
+
 // Copies ascii characters to the given fixed array looking up
 // one-char strings in the cache. Gives up on the first char that is
 // not in the cache and fills the remainder with smi zeros. Returns
@@ -4791,7 +5102,7 @@ static Object* FlatStringCompare(String* x, String* y) {
     Vector<const char> x_chars = x->ToAsciiVector();
     if (y->IsAsciiRepresentation()) {
       Vector<const char> y_chars = y->ToAsciiVector();
-      r = memcmp(x_chars.start(), y_chars.start(), prefix_length);
+      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
     } else {
       Vector<const uc16> y_chars = y->ToUC16Vector();
       r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
@@ -4839,21 +5150,13 @@ static Object* Runtime_StringCompare(Arguments args) {
   if (d < 0) return Smi::FromInt(LESS);
   else if (d > 0) return Smi::FromInt(GREATER);
 
-  x->TryFlatten();
-  y->TryFlatten();
+  Object* obj = Heap::PrepareForCompare(x);
+  if (obj->IsFailure()) return obj;
+  obj = Heap::PrepareForCompare(y);
+  if (obj->IsFailure()) return obj;
 
   return (x->IsFlat() && y->IsFlat()) ? FlatStringCompare(x, y)
                                       : StringInputBufferCompare(x, y);
-}
-
-
-static Object* Runtime_Math_abs(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-  Counters::math_abs.Increment();
-
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(fabs(x));
 }
 
 
@@ -5047,16 +5350,38 @@ static Object* Runtime_Math_pow_cfunction(Arguments args) {
 }
 
 
-static Object* Runtime_Math_round(Arguments args) {
+static Object* Runtime_RoundNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   Counters::math_round.Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  if (signbit(x) && x >= -0.5) return Heap::minus_zero_value();
-  double integer = ceil(x);
-  if (integer - x > 0.5) { integer -= 1.0; }
-  return Heap::NumberFromDouble(integer);
+  if (!args[0]->IsHeapNumber()) {
+    // Must be smi. Return the argument unchanged for all the other types
+    // to make fuzz-natives test happy.
+    return args[0];
+  }
+
+  HeapNumber* number = reinterpret_cast<HeapNumber*>(args[0]);
+
+  double value = number->value();
+  int exponent = number->get_exponent();
+  int sign = number->get_sign();
+
+  // We compare with kSmiValueSize - 3 because (2^30 - 0.1) has exponent 29 and
+  // should be rounded to 2^30, which is not smi.
+  if (!sign && exponent <= kSmiValueSize - 3) {
+    return Smi::FromInt(static_cast<int>(value + 0.5));
+  }
+
+  // If the magnitude is big enough, there's no place for fraction part. If we
+  // try to add 0.5 to this number, 1.0 will be added instead.
+  if (exponent >= 52) {
+    return number;
+  }
+
+  if (sign && value >= -0.5) return Heap::minus_zero_value();
+
+  return Heap::NumberFromDouble(floor(value + 0.5));
 }
 
 
@@ -5090,14 +5415,7 @@ static Object* Runtime_Math_tan(Arguments args) {
 }
 
 
-static Object* Runtime_DateMakeDay(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 3);
-
-  CONVERT_SMI_CHECKED(year, args[0]);
-  CONVERT_SMI_CHECKED(month, args[1]);
-  CONVERT_SMI_CHECKED(date, args[2]);
-
+static int MakeDay(int year, int month, int day) {
   static const int day_from_month[] = {0, 31, 59, 90, 120, 151,
                                        181, 212, 243, 273, 304, 334};
   static const int day_from_month_leap[] = {0, 31, 60, 91, 121, 152,
@@ -5119,7 +5437,7 @@ static Object* Runtime_DateMakeDay(Arguments args) {
   //    ECMA 262 - 15.9.1.1, i.e. upto 100,000,000 days on either side of
   //    Jan 1 1970. This is required so that we don't run into integer
   //    division of negative numbers.
-  // c) there shouldn't be overflow for 32-bit integers in the following
+  // c) there shouldn't be an overflow for 32-bit integers in the following
   //    operations.
   static const int year_delta = 399999;
   static const int base_day = 365 * (1970 + year_delta) +
@@ -5135,10 +5453,327 @@ static Object* Runtime_DateMakeDay(Arguments args) {
                       base_day;
 
   if (year % 4 || (year % 100 == 0 && year % 400 != 0)) {
-    return Smi::FromInt(day_from_year + day_from_month[month] + date - 1);
+    return day_from_year + day_from_month[month] + day - 1;
   }
 
-  return Smi::FromInt(day_from_year + day_from_month_leap[month] + date - 1);
+  return day_from_year + day_from_month_leap[month] + day - 1;
+}
+
+
+static Object* Runtime_DateMakeDay(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+
+  CONVERT_SMI_CHECKED(year, args[0]);
+  CONVERT_SMI_CHECKED(month, args[1]);
+  CONVERT_SMI_CHECKED(date, args[2]);
+
+  return Smi::FromInt(MakeDay(year, month, date));
+}
+
+
+static const int kDays4Years[] = {0, 365, 2 * 365, 3 * 365 + 1};
+static const int kDaysIn4Years = 4 * 365 + 1;
+static const int kDaysIn100Years = 25 * kDaysIn4Years - 1;
+static const int kDaysIn400Years = 4 * kDaysIn100Years + 1;
+static const int kDays1970to2000 = 30 * 365 + 7;
+static const int kDaysOffset = 1000 * kDaysIn400Years + 5 * kDaysIn400Years -
+                               kDays1970to2000;
+static const int kYearsOffset = 400000;
+
+static const char kDayInYear[] = {
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+
+static const char kMonthInYear[] = {
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2,
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 3, 3, 3, 3,
+      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 4, 4,
+      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+      5, 5, 5, 5, 5,
+      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+      6, 6, 6, 6, 6, 6,
+      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+      7, 7, 7, 7, 7, 7,
+      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+      8, 8, 8, 8, 8,
+      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+      9, 9, 9, 9, 9, 9,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2,
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 3, 3, 3, 3,
+      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 4, 4,
+      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+      5, 5, 5, 5, 5,
+      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+      6, 6, 6, 6, 6, 6,
+      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+      7, 7, 7, 7, 7, 7,
+      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+      8, 8, 8, 8, 8,
+      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+      9, 9, 9, 9, 9, 9,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2,
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 3, 3, 3, 3,
+      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 4, 4,
+      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+      5, 5, 5, 5, 5,
+      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+      6, 6, 6, 6, 6, 6,
+      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+      7, 7, 7, 7, 7, 7,
+      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+      8, 8, 8, 8, 8,
+      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+      9, 9, 9, 9, 9, 9,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2,
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 3, 3, 3, 3,
+      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 4, 4,
+      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+      5, 5, 5, 5, 5,
+      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+      6, 6, 6, 6, 6, 6,
+      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+      7, 7, 7, 7, 7, 7,
+      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+      8, 8, 8, 8, 8,
+      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+      9, 9, 9, 9, 9, 9,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11};
+
+
+// This function works for dates from 1970 to 2099.
+static inline void DateYMDFromTimeAfter1970(int date,
+                                            int& year, int& month, int& day) {
+#ifdef DEBUG
+  int save_date = date;  // Need this for ASSERT in the end.
+#endif
+
+  year = 1970 + (4 * date + 2) / kDaysIn4Years;
+  date %= kDaysIn4Years;
+
+  month = kMonthInYear[date];
+  day = kDayInYear[date];
+
+  ASSERT(MakeDay(year, month, day) == save_date);
+}
+
+
+static inline void DateYMDFromTimeSlow(int date,
+                                       int& year, int& month, int& day) {
+#ifdef DEBUG
+  int save_date = date;  // Need this for ASSERT in the end.
+#endif
+
+  date += kDaysOffset;
+  year = 400 * (date / kDaysIn400Years) - kYearsOffset;
+  date %= kDaysIn400Years;
+
+  ASSERT(MakeDay(year, 0, 1) + date == save_date);
+
+  date--;
+  int yd1 = date / kDaysIn100Years;
+  date %= kDaysIn100Years;
+  year += 100 * yd1;
+
+  date++;
+  int yd2 = date / kDaysIn4Years;
+  date %= kDaysIn4Years;
+  year += 4 * yd2;
+
+  date--;
+  int yd3 = date / 365;
+  date %= 365;
+  year += yd3;
+
+  bool is_leap = (!yd1 || yd2) && !yd3;
+
+  ASSERT(date >= -1);
+  ASSERT(is_leap || (date >= 0));
+  ASSERT((date < 365) || (is_leap && (date < 366)));
+  ASSERT(is_leap == ((year % 4 == 0) && (year % 100 || (year % 400 == 0))));
+  ASSERT(is_leap || ((MakeDay(year, 0, 1) + date) == save_date));
+  ASSERT(!is_leap || ((MakeDay(year, 0, 1) + date + 1) == save_date));
+
+  if (is_leap) {
+    day = kDayInYear[2*365 + 1 + date];
+    month = kMonthInYear[2*365 + 1 + date];
+  } else {
+    day = kDayInYear[date];
+    month = kMonthInYear[date];
+  }
+
+  ASSERT(MakeDay(year, month, day) == save_date);
+}
+
+
+static inline void DateYMDFromTime(int date,
+                                   int& year, int& month, int& day) {
+  if (date >= 0 && date < 32 * kDaysIn4Years) {
+    DateYMDFromTimeAfter1970(date, year, month, day);
+  } else {
+    DateYMDFromTimeSlow(date, year, month, day);
+  }
+}
+
+
+static Object* Runtime_DateYMDFromTime(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+
+  CONVERT_DOUBLE_CHECKED(t, args[0]);
+  CONVERT_CHECKED(JSArray, res_array, args[1]);
+
+  int year, month, day;
+  DateYMDFromTime(static_cast<int>(floor(t / 86400000)), year, month, day);
+
+  res_array->SetElement(0, Smi::FromInt(year));
+  res_array->SetElement(1, Smi::FromInt(month));
+  res_array->SetElement(2, Smi::FromInt(day));
+
+  return Heap::undefined_value();
 }
 
 
@@ -8481,6 +9116,36 @@ static Object* Runtime_LiveEditCheckStackActivations(Arguments args) {
 }
 
 
+// A testing entry. Returns statement position which is the closest to
+// source_position.
+static Object* Runtime_GetFunctionCodePositionFromSource(Arguments args) {
+  ASSERT(args.length() == 2);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
+
+  Handle<Code> code(function->code());
+
+  RelocIterator it(*code, 1 << RelocInfo::STATEMENT_POSITION);
+  int closest_pc = 0;
+  int distance = kMaxInt;
+  while (!it.done()) {
+    int statement_position = static_cast<int>(it.rinfo()->data());
+    // Check if this break point is closer that what was previously found.
+    if (source_position <= statement_position &&
+        statement_position - source_position < distance) {
+      closest_pc = it.rinfo()->pc() - code->instruction_start();
+      distance = statement_position - source_position;
+      // Check whether we can't get any closer.
+      if (distance == 0) break;
+    }
+    it.next();
+  }
+
+  return Smi::FromInt(closest_pc);
+}
+
+
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -8675,18 +9340,28 @@ static Object* Runtime_ListNatives(Arguments args) {
   HandleScope scope;
   Handle<JSArray> result = Factory::NewJSArray(0);
   int index = 0;
+  bool inline_runtime_functions = false;
 #define ADD_ENTRY(Name, argc, ressize)                                       \
   {                                                                          \
     HandleScope inner;                                                       \
-    Handle<String> name =                                                    \
-      Factory::NewStringFromAscii(                                           \
-          Vector<const char>(#Name, StrLength(#Name)));       \
+    Handle<String> name;                                                     \
+    /* Inline runtime functions have an underscore in front of the name. */  \
+    if (inline_runtime_functions) {                                          \
+      name = Factory::NewStringFromAscii(                                    \
+          Vector<const char>("_" #Name, StrLength("_" #Name)));              \
+    } else {                                                                 \
+      name = Factory::NewStringFromAscii(                                    \
+          Vector<const char>(#Name, StrLength(#Name)));                      \
+    }                                                                        \
     Handle<JSArray> pair = Factory::NewJSArray(0);                           \
     SetElement(pair, 0, name);                                               \
     SetElement(pair, 1, Handle<Smi>(Smi::FromInt(argc)));                    \
     SetElement(result, index++, pair);                                       \
   }
+  inline_runtime_functions = false;
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
+  inline_runtime_functions = true;
+  INLINE_RUNTIME_FUNCTION_LIST(ADD_ENTRY)
 #undef ADD_ENTRY
   return *result;
 }

@@ -168,9 +168,32 @@ function StringMatch(regexp) {
   var subject = TO_STRING_INLINE(this);
 
   if (!regexp.global) return regexp.exec(subject);
+
+  var cache = regExpCache;
+
+  if (%_ObjectEquals(cache.type, 'match') &&
+      %_ObjectEquals(cache.regExp, regexp) &&
+      %_ObjectEquals(cache.subject, subject)) {
+    var last = cache.answer;
+    if (last == null) {
+      return last;
+    } else {
+      return CloneRegexpAnswer(last);
+    }
+  }
+
   %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
   // lastMatchInfo is defined in regexp.js.
-  return %StringMatch(subject, regexp, lastMatchInfo);
+  var result = %StringMatch(subject, regexp, lastMatchInfo);
+  cache.type = 'match';
+  cache.regExp = regexp;
+  cache.subject = subject;
+  cache.answer = result;
+  if (result == null) {
+    return result;
+  } else {
+    return CloneRegexpAnswer(result);
+  }
 }
 
 
@@ -206,6 +229,7 @@ function StringReplace(search, replace) {
   if (IS_REGEXP(search)) {
     %_Log('regexp', 'regexp-replace,%0r,%1S', [search, subject]);
     if (IS_FUNCTION(replace)) {
+      regExpCache.type = 'none';
       return StringReplaceRegExpWithFunction(subject, search, replace);
     } else {
       return StringReplaceRegExp(subject, search, replace);
@@ -241,12 +265,25 @@ function StringReplace(search, replace) {
 
 // Helper function for regular expressions in String.prototype.replace.
 function StringReplaceRegExp(subject, regexp, replace) {
+  var cache = regExpCache;
+  if (%_ObjectEquals(cache.regExp, regexp) &&
+      %_ObjectEquals(cache.type, 'replace') &&
+      %_ObjectEquals(cache.replaceString, replace) &&
+      %_ObjectEquals(cache.subject, subject)) {
+    return cache.answer;
+  }
   replace = TO_STRING_INLINE(replace);
-  return %StringReplaceRegExpWithString(subject,
-                                        regexp,
-                                        replace,
-                                        lastMatchInfo);
-};
+  var answer = %StringReplaceRegExpWithString(subject,
+                                              regexp,
+                                              replace,
+                                              lastMatchInfo);
+  cache.subject = subject;
+  cache.regExp = regexp;
+  cache.replaceString = replace;
+  cache.answer = answer;
+  cache.type = 'replace';
+  return answer;
+}
 
 
 // Expand the $-expressions in the string and return a new string with
@@ -387,43 +424,68 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
   // Unfortunately, that means this code is nearly duplicated, here and in
   // jsregexp.cc.
   if (regexp.global) {
-    var numberOfCaptures = NUMBER_OF_CAPTURES(matchInfo) >> 1;
     var previous = 0;
-    do {
-      var startOfMatch = matchInfo[CAPTURE0];
-      result.addSpecialSlice(previous, startOfMatch);
-      previous = matchInfo[CAPTURE1];
-      if (numberOfCaptures == 1) {
+    var startOfMatch;
+    if (NUMBER_OF_CAPTURES(matchInfo) == 2) {
+      // Both branches contain essentially the same loop except for the call
+      // to the replace function. The branch is put outside of the loop for
+      // speed
+      do {
+        startOfMatch = matchInfo[CAPTURE0];
+        result.addSpecialSlice(previous, startOfMatch);
+        previous = matchInfo[CAPTURE1];
         var match = SubString(subject, startOfMatch, previous);
         // Don't call directly to avoid exposing the built-in global object.
         result.add(replace.call(null, match, startOfMatch, subject));
-      } else {
-        result.add(ApplyReplacementFunction(replace, matchInfo, subject));
-      }
-      // Can't use matchInfo any more from here, since the function could
-      // overwrite it.
-      // Continue with the next match.
-      // Increment previous if we matched an empty string, as per ECMA-262
-      // 15.5.4.10.
-      if (previous == startOfMatch) {
-        // Add the skipped character to the output, if any.
-        if (previous < subject.length) {
-          result.addSpecialSlice(previous, previous + 1);
+        // Can't use matchInfo any more from here, since the function could
+        // overwrite it.
+        // Continue with the next match.
+        // Increment previous if we matched an empty string, as per ECMA-262
+        // 15.5.4.10.
+        if (previous == startOfMatch) {
+          // Add the skipped character to the output, if any.
+          if (previous < subject.length) {
+            result.addSpecialSlice(previous, previous + 1);
+          }
+          previous++;
+          // Per ECMA-262 15.10.6.2, if the previous index is greater than the
+          // string length, there is no match
+          if (previous > subject.length) {
+            return result.generate();
+          }
         }
-        previous++;
-      }
-
-      // Per ECMA-262 15.10.6.2, if the previous index is greater than the
-      // string length, there is no match
-      matchInfo = (previous > subject.length)
-          ? null
-          : DoRegExpExec(regexp, subject, previous);
-    } while (!IS_NULL(matchInfo));
-
-    // Tack on the final right substring after the last match, if necessary.
-    if (previous < subject.length) {
-      result.addSpecialSlice(previous, subject.length);
+        matchInfo = DoRegExpExec(regexp, subject, previous);
+      } while (!IS_NULL(matchInfo));
+    } else {
+      do {
+        startOfMatch = matchInfo[CAPTURE0];
+        result.addSpecialSlice(previous, startOfMatch);
+        previous = matchInfo[CAPTURE1];
+        result.add(ApplyReplacementFunction(replace, matchInfo, subject));
+        // Can't use matchInfo any more from here, since the function could
+        // overwrite it.
+        // Continue with the next match.
+        // Increment previous if we matched an empty string, as per ECMA-262
+        // 15.5.4.10.
+        if (previous == startOfMatch) {
+          // Add the skipped character to the output, if any.
+          if (previous < subject.length) {
+            result.addSpecialSlice(previous, previous + 1);
+          }
+          previous++;
+          // Per ECMA-262 15.10.6.2, if the previous index is greater than the
+          // string length, there is no match
+          if (previous > subject.length) {
+            return result.generate();
+          }
+        }
+        matchInfo = DoRegExpExec(regexp, subject, previous);
+      } while (!IS_NULL(matchInfo));
     }
+
+    // Tack on the final right substring after the last match.
+    result.addSpecialSlice(previous, subject.length);
+
   } else { // Not a global regexp, no need to loop.
     result.addSpecialSlice(0, matchInfo[CAPTURE0]);
     var endOfMatch = matchInfo[CAPTURE1];
@@ -517,7 +579,7 @@ function StringSplit(separator, limit) {
 
   // ECMA-262 says that if separator is undefined, the result should
   // be an array of size 1 containing the entire string.  SpiderMonkey
-  // and KJS have this behaviour only when no separator is given.  If
+  // and KJS have this behavior only when no separator is given.  If
   // undefined is explicitly given, they convert it to a string and
   // use that.  We do as SpiderMonkey and KJS.
   if (%_ArgumentsLength() === 0) {
@@ -532,26 +594,31 @@ function StringSplit(separator, limit) {
     // If the separator string is empty then return the elements in the subject.
     if (separator_length === 0) return %StringToArray(subject);
 
-    var result = [];
-    var start_index = 0;
-    var index;
-    while (true) {
-      if (start_index + separator_length > length ||
-          (index = %StringIndexOf(subject, separator, start_index)) === -1) {
-        result.push(SubString(subject, start_index, length));
-        break;
-      }
-      if (result.push(SubString(subject, start_index, index)) === limit) break;
-      start_index = index + separator_length;
-    }
+    var result = %StringSplit(subject, separator, limit);
 
     return result;
   }
 
+  var cache = regExpCache;
+
+  if (%_ObjectEquals(cache.type, 'split') &&
+      %_ObjectEquals(cache.regExp, separator) &&
+      %_ObjectEquals(cache.subject, subject)) {
+    return CloneRegexpAnswer(cache.answer);
+  }
+
+  cache.type = 'split';
+  cache.regExp = separator;
+  cache.subject = subject;
+
   %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
 
   if (length === 0) {
-    if (splitMatch(separator, subject, 0, 0) != null) return [];
+    if (splitMatch(separator, subject, 0, 0) != null) {
+      cache.answer = [];
+      return [];
+    }
+    cache.answer = [subject];
     return [subject];
   }
 
@@ -563,14 +630,16 @@ function StringSplit(separator, limit) {
 
     if (startIndex === length) {
       result[result.length] = subject.slice(currentIndex, length);
-      return result;
+      cache.answer = result;
+      return CloneRegexpAnswer(result);
     }
 
     var matchInfo = splitMatch(separator, subject, currentIndex, startIndex);
 
     if (IS_NULL(matchInfo)) {
       result[result.length] = subject.slice(currentIndex, length);
-      return result;
+      cache.answer = result;
+      return CloneRegexpAnswer(result);
     }
 
     var endIndex = matchInfo[CAPTURE1];
@@ -582,7 +651,10 @@ function StringSplit(separator, limit) {
     }
 
     result[result.length] = SubString(subject, currentIndex, matchInfo[CAPTURE0]);
-    if (result.length === limit) return result;
+    if (result.length === limit) {
+      cache.answer = result;
+      return CloneRegexpAnswer(result);
+    }
 
     var num_captures = NUMBER_OF_CAPTURES(matchInfo);
     for (var i = 2; i < num_captures; i += 2) {
@@ -593,7 +665,10 @@ function StringSplit(separator, limit) {
       } else {
         result[result.length] = void 0;
       }
-      if (result.length === limit) return result;
+      if (result.length === limit) {
+        cache.answer = result;
+        return CloneRegexpAnswer(result);
+      }
     }
 
     startIndex = currentIndex = endIndex;
@@ -719,16 +794,26 @@ function StringTrimRight() {
   return %StringTrim(TO_STRING_INLINE(this), false, true);
 }
 
+var static_charcode_array = new $Array(4);
+
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
-  if (n == 1) return %_CharFromCode(ToNumber(code) & 0xffff)
+  if (n == 1) {
+    if (!%_IsSmi(code)) code = ToNumber(code);
+    return %_CharFromCode(code & 0xffff);
+  }
 
   // NOTE: This is not super-efficient, but it is necessary because we
   // want to avoid converting to numbers from within the virtual
   // machine. Maybe we can find another way of doing this?
-  var codes = new $Array(n);
-  for (var i = 0; i < n; i++) codes[i] = ToNumber(%_Arguments(i));
+  var codes = static_charcode_array;
+  for (var i = 0; i < n; i++) {
+    var code = %_Arguments(i);
+    if (!%_IsSmi(code)) code = ToNumber(code);
+    codes[i] = code;
+  }
+  codes.length = n;
   return %StringFromCharCodeArray(codes);
 }
 

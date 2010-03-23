@@ -431,7 +431,7 @@ bool JSObject::IsDirty() {
   if (!cons_obj->IsJSFunction())
     return true;
   JSFunction* fun = JSFunction::cast(cons_obj);
-  if (!fun->shared()->function_data()->IsFunctionTemplateInfo())
+  if (!fun->shared()->IsApiFunction())
     return true;
   // If the object is fully fast case and has the same map it was
   // created with then no changes can have been made to it.
@@ -6366,9 +6366,9 @@ void Dictionary<Shape, Key>::CopyValuesTo(FixedArray* elements) {
 InterceptorInfo* JSObject::GetNamedInterceptor() {
   ASSERT(map()->has_named_interceptor());
   JSFunction* constructor = JSFunction::cast(map()->constructor());
-  Object* template_info = constructor->shared()->function_data();
+  ASSERT(constructor->shared()->IsApiFunction());
   Object* result =
-      FunctionTemplateInfo::cast(template_info)->named_property_handler();
+      constructor->shared()->get_api_func_data()->named_property_handler();
   return InterceptorInfo::cast(result);
 }
 
@@ -6376,9 +6376,9 @@ InterceptorInfo* JSObject::GetNamedInterceptor() {
 InterceptorInfo* JSObject::GetIndexedInterceptor() {
   ASSERT(map()->has_indexed_interceptor());
   JSFunction* constructor = JSFunction::cast(map()->constructor());
-  Object* template_info = constructor->shared()->function_data();
+  ASSERT(constructor->shared()->IsApiFunction());
   Object* result =
-      FunctionTemplateInfo::cast(template_info)->indexed_property_handler();
+      constructor->shared()->get_api_func_data()->indexed_property_handler();
   return InterceptorInfo::cast(result);
 }
 

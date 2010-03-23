@@ -2424,11 +2424,13 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   frame_->Push(Smi::FromInt(node->literal_index()));
   // Constant properties.
   frame_->Push(node->constant_properties());
+  // Should the object literal have fast elements?
+  frame_->Push(Smi::FromInt(node->fast_elements() ? 1 : 0));
   Result clone;
   if (node->depth() > 1) {
-    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteral, 3);
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
-    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
   }
   frame_->Push(&clone);
 
@@ -3600,7 +3602,7 @@ void CodeGenerator::VisitThisFunction(ThisFunction* node) {
 }
 
 
-void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
   // ArgumentsAccessStub expects the key in rdx and the formal
@@ -4051,8 +4053,9 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   // Load the argument on the stack and jump to the runtime.
   Load(args->at(0));
 
-  Result answer = frame_->CallRuntime(Runtime::kNumberToString, 1);
-  frame_->Push(&answer);
+  NumberToStringStub stub;
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
 }
 
 
@@ -7179,12 +7182,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Read the value from the static offsets vector buffer and make it a smi.
   __ movl(rdi, Operand(rcx, rdx, times_int_size, 0));
   __ Integer32ToSmi(rdi, rdi, &runtime);
-  // Add previous index (from its stack slot) if value is not negative.
-  Label capture_negative;
-  // Negative flag set by smi convertion above.
-  __ j(negative, &capture_negative);
-  __ SmiAdd(rdi, rdi, rax, &runtime);  // Add previous index.
-  __ bind(&capture_negative);
   // Store the smi value in the last match info.
   __ movq(FieldOperand(rbx,
                        rdx,
@@ -7202,6 +7199,77 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #endif  // V8_NATIVE_REGEXP
+}
+
+
+void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
+                                                         Register object,
+                                                         Register result,
+                                                         Register scratch1,
+                                                         Register scratch2,
+                                                         bool object_is_smi,
+                                                         Label* not_found) {
+  // Currently only lookup for smis. Check for smi if object is not known to be
+  // a smi.
+  if (!object_is_smi) {
+    __ JumpIfNotSmi(object, not_found);
+  }
+
+  // Use of registers. Register result is used as a temporary.
+  Register number_string_cache = result;
+  Register mask = scratch1;
+  Register scratch = scratch2;
+
+  // Load the number string cache.
+  __ LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  __ movl(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
+  __ shrl(mask, Immediate(1));  // Divide length by two (length is not a smi).
+  __ subl(mask, Immediate(1));  // Make mask.
+
+  // Calculate the entry in the number string cache. The hash value in the
+  // number string cache for smis is just the smi value.
+  __ movq(scratch, object);
+  __ SmiToInteger32(scratch, scratch);
+  __ andl(scratch, mask);
+
+  // Each entry in string cache consists of two pointer sized fields,
+  // but times_twice_pointer_size (multiplication by 16) scale factor
+  // is not supported by addrmode on x64 platform.
+  // So we have to premultiply entry index before lookup
+  __ shl(scratch, Immediate(kPointerSizeLog2 + 1));
+  // Check if the entry is the smi we are looking for.
+  __ cmpq(object,
+          FieldOperand(number_string_cache,
+                       scratch,
+                       times_1,
+                       FixedArray::kHeaderSize));
+  __ j(not_equal, not_found);
+
+  // Get the result from the cache.
+  __ movq(result,
+          FieldOperand(number_string_cache,
+                       scratch,
+                       times_1,
+                       FixedArray::kHeaderSize + kPointerSize));
+  __ IncrementCounter(&Counters::number_to_string_native, 1);
+}
+
+
+void NumberToStringStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  __ movq(rbx, Operand(rsp, kPointerSize));
+
+  // Generate code to lookup number in the number string cache.
+  GenerateLookupNumberStringCache(masm, rbx, rax, r8, r9, false, &runtime);
+  __ ret(1 * kPointerSize);
+
+  __ bind(&runtime);
+  // Handle number to string in the runtime system if not found in the cache.
+  __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
 }
 
 
@@ -8334,14 +8402,15 @@ const char* GenericBinaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, len),
-               "GenericBinaryOpStub_%s_%s%s_%s%s_%s%s",
+               "GenericBinaryOpStub_%s_%s%s_%s%s_%s%s_%s",
                op_name,
                overwrite_name,
                (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
                args_in_registers_ ? "RegArgs" : "StackArgs",
                args_reversed_ ? "_R" : "",
                use_sse3_ ? "SSE3" : "SSE2",
-               operands_type_.ToString());
+               static_operands_type_.ToString(),
+               BinaryOpIC::GetName(runtime_operands_type_));
   return name_;
 }
 
@@ -8491,8 +8560,8 @@ Result GenericBinaryOpStub::GenerateCall(MacroAssembler* masm,
 
 
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
-  // 1. Move arguments into edx, eax except for DIV and MOD, which need the
-  // dividend in eax and edx free for the division.  Use eax, ebx for those.
+  // 1. Move arguments into rdx, rax except for DIV and MOD, which need the
+  // dividend in rax and rdx free for the division.  Use rax, rbx for those.
   Comment load_comment(masm, "-- Load arguments");
   Register left = rdx;
   Register right = rax;
@@ -8591,7 +8660,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       break;
   }
 
-  // 4. Emit return of result in eax.
+  // 4. Emit return of result in rax.
   GenerateReturn(masm);
 
   // 5. For some operations emit inline code to perform floating point
@@ -8652,20 +8721,35 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
 
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   Label call_runtime;
-  if (HasSmiCodeInStub()) {
+
+  if (ShouldGenerateSmiCode()) {
     GenerateSmiCode(masm, &call_runtime);
   } else if (op_ != Token::MOD) {
-    GenerateLoadArguments(masm);
+    if (!HasArgsInRegisters()) {
+      GenerateLoadArguments(masm);
+    }
   }
   // Floating point case.
-  switch (op_) {
-    case Token::ADD:
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV: {
-      // rax: y
-      // rdx: x
-      if (operands_type_.IsNumber()) {
+  if (ShouldGenerateFPCode()) {
+    switch (op_) {
+      case Token::ADD:
+      case Token::SUB:
+      case Token::MUL:
+      case Token::DIV: {
+        if (runtime_operands_type_ == BinaryOpIC::DEFAULT &&
+            HasSmiCodeInStub()) {
+          // Execution reaches this point when the first non-smi argument occurs
+          // (and only if smi code is generated). This is the right moment to
+          // patch to HEAP_NUMBERS state. The transition is attempted only for
+          // the four basic operations. The stub stays in the DEFAULT state
+          // forever for all other operations (also if smi code is skipped).
+          GenerateTypeTransition(masm);
+        }
+
+        Label not_floats;
+        // rax: y
+        // rdx: x
+      if (static_operands_type_.IsNumber()) {
         if (FLAG_debug_code) {
           // Assert at runtime that inputs are only numbers.
           __ AbortIfNotNumber(rdx, "GenericBinaryOpStub operand not a number.");
@@ -8674,177 +8758,205 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       } else {
         FloatingPointHelper::CheckNumberOperands(masm, &call_runtime);
       }
-      // Fast-case: Both operands are numbers.
-      // xmm4 and xmm5 are volatile XMM registers.
-      FloatingPointHelper::LoadFloatOperands(masm, xmm4, xmm5);
+        // Fast-case: Both operands are numbers.
+        // xmm4 and xmm5 are volatile XMM registers.
+        FloatingPointHelper::LoadFloatOperands(masm, xmm4, xmm5);
 
-      switch (op_) {
-        case Token::ADD: __ addsd(xmm4, xmm5); break;
-        case Token::SUB: __ subsd(xmm4, xmm5); break;
-        case Token::MUL: __ mulsd(xmm4, xmm5); break;
-        case Token::DIV: __ divsd(xmm4, xmm5); break;
-        default: UNREACHABLE();
-      }
-      // Allocate a heap number, if needed.
-      Label skip_allocation;
-      OverwriteMode mode = mode_;
-      if (HasArgsReversed()) {
-        if (mode == OVERWRITE_RIGHT) {
-          mode = OVERWRITE_LEFT;
-        } else if (mode == OVERWRITE_LEFT) {
-          mode = OVERWRITE_RIGHT;
+        switch (op_) {
+          case Token::ADD: __ addsd(xmm4, xmm5); break;
+          case Token::SUB: __ subsd(xmm4, xmm5); break;
+          case Token::MUL: __ mulsd(xmm4, xmm5); break;
+          case Token::DIV: __ divsd(xmm4, xmm5); break;
+          default: UNREACHABLE();
         }
-      }
-      switch (mode) {
-        case OVERWRITE_LEFT:
-          __ JumpIfNotSmi(rdx, &skip_allocation);
-          __ AllocateHeapNumber(rbx, rcx, &call_runtime);
-          __ movq(rdx, rbx);
-          __ bind(&skip_allocation);
-          __ movq(rax, rdx);
-          break;
-        case OVERWRITE_RIGHT:
-          // If the argument in rax is already an object, we skip the
-          // allocation of a heap number.
-          __ JumpIfNotSmi(rax, &skip_allocation);
-          // Fall through!
-        case NO_OVERWRITE:
-          // Allocate a heap number for the result. Keep rax and rdx intact
-          // for the possible runtime call.
-          __ AllocateHeapNumber(rbx, rcx, &call_runtime);
-          __ movq(rax, rbx);
-          __ bind(&skip_allocation);
-          break;
-        default: UNREACHABLE();
-      }
-      __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm4);
-      GenerateReturn(masm);
-    }
-    case Token::MOD: {
-      // For MOD we go directly to runtime in the non-smi case.
-      break;
-    }
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR:
-    case Token::SAR:
-    case Token::SHL:
-    case Token::SHR: {
-      Label skip_allocation, non_smi_result;
-      FloatingPointHelper::LoadAsIntegers(masm, use_sse3_, &call_runtime);
-      switch (op_) {
-        case Token::BIT_OR:  __ orl(rax, rcx); break;
-        case Token::BIT_AND: __ andl(rax, rcx); break;
-        case Token::BIT_XOR: __ xorl(rax, rcx); break;
-        case Token::SAR: __ sarl_cl(rax); break;
-        case Token::SHL: __ shll_cl(rax); break;
-        case Token::SHR: __ shrl_cl(rax); break;
-        default: UNREACHABLE();
-      }
-      if (op_ == Token::SHR) {
-        // Check if result is non-negative. This can only happen for a shift
-        // by zero, which also doesn't update the sign flag.
-        __ testl(rax, rax);
-        __ j(negative, &non_smi_result);
-      }
-      __ JumpIfNotValidSmiValue(rax, &non_smi_result);
-      // Tag smi result, if possible, and return.
-      __ Integer32ToSmi(rax, rax);
-      GenerateReturn(masm);
-
-      // All ops except SHR return a signed int32 that we load in a HeapNumber.
-      if (op_ != Token::SHR && non_smi_result.is_linked()) {
-        __ bind(&non_smi_result);
-        // Allocate a heap number if needed.
-        __ movsxlq(rbx, rax);  // rbx: sign extended 32-bit result
-        switch (mode_) {
+        // Allocate a heap number, if needed.
+        Label skip_allocation;
+        OverwriteMode mode = mode_;
+        if (HasArgsReversed()) {
+          if (mode == OVERWRITE_RIGHT) {
+            mode = OVERWRITE_LEFT;
+          } else if (mode == OVERWRITE_LEFT) {
+            mode = OVERWRITE_RIGHT;
+          }
+        }
+        switch (mode) {
           case OVERWRITE_LEFT:
+            __ JumpIfNotSmi(rdx, &skip_allocation);
+            __ AllocateHeapNumber(rbx, rcx, &call_runtime);
+            __ movq(rdx, rbx);
+            __ bind(&skip_allocation);
+            __ movq(rax, rdx);
+            break;
           case OVERWRITE_RIGHT:
-            // If the operand was an object, we skip the
+            // If the argument in rax is already an object, we skip the
             // allocation of a heap number.
-            __ movq(rax, Operand(rsp, mode_ == OVERWRITE_RIGHT ?
-                                 1 * kPointerSize : 2 * kPointerSize));
             __ JumpIfNotSmi(rax, &skip_allocation);
             // Fall through!
           case NO_OVERWRITE:
-            __ AllocateHeapNumber(rax, rcx, &call_runtime);
+            // Allocate a heap number for the result. Keep rax and rdx intact
+            // for the possible runtime call.
+            __ AllocateHeapNumber(rbx, rcx, &call_runtime);
+            __ movq(rax, rbx);
             __ bind(&skip_allocation);
             break;
           default: UNREACHABLE();
         }
-        // Store the result in the HeapNumber and return.
-        __ movq(Operand(rsp, 1 * kPointerSize), rbx);
-        __ fild_s(Operand(rsp, 1 * kPointerSize));
-        __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
+        __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm4);
         GenerateReturn(masm);
+        __ bind(&not_floats);
+        if (runtime_operands_type_ == BinaryOpIC::DEFAULT &&
+            !HasSmiCodeInStub()) {
+            // Execution reaches this point when the first non-number argument
+            // occurs (and only if smi code is skipped from the stub, otherwise
+            // the patching has already been done earlier in this case branch).
+            // A perfect moment to try patching to STRINGS for ADD operation.
+            if (op_ == Token::ADD) {
+              GenerateTypeTransition(masm);
+            }
+        }
+        break;
       }
+      case Token::MOD: {
+        // For MOD we go directly to runtime in the non-smi case.
+        break;
+      }
+      case Token::BIT_OR:
+      case Token::BIT_AND:
+      case Token::BIT_XOR:
+      case Token::SAR:
+      case Token::SHL:
+      case Token::SHR: {
+        Label skip_allocation, non_smi_result;
+        FloatingPointHelper::LoadAsIntegers(masm, use_sse3_, &call_runtime);
+        switch (op_) {
+          case Token::BIT_OR:  __ orl(rax, rcx); break;
+          case Token::BIT_AND: __ andl(rax, rcx); break;
+          case Token::BIT_XOR: __ xorl(rax, rcx); break;
+          case Token::SAR: __ sarl_cl(rax); break;
+          case Token::SHL: __ shll_cl(rax); break;
+          case Token::SHR: __ shrl_cl(rax); break;
+          default: UNREACHABLE();
+        }
+        if (op_ == Token::SHR) {
+          // Check if result is non-negative. This can only happen for a shift
+          // by zero, which also doesn't update the sign flag.
+          __ testl(rax, rax);
+          __ j(negative, &non_smi_result);
+        }
+        __ JumpIfNotValidSmiValue(rax, &non_smi_result);
+        // Tag smi result, if possible, and return.
+        __ Integer32ToSmi(rax, rax);
+        GenerateReturn(masm);
 
-      // SHR should return uint32 - go to runtime for non-smi/negative result.
-      if (op_ == Token::SHR) {
-        __ bind(&non_smi_result);
+        // All ops except SHR return a signed int32 that we load in
+        // a HeapNumber.
+        if (op_ != Token::SHR && non_smi_result.is_linked()) {
+          __ bind(&non_smi_result);
+          // Allocate a heap number if needed.
+          __ movsxlq(rbx, rax);  // rbx: sign extended 32-bit result
+          switch (mode_) {
+            case OVERWRITE_LEFT:
+            case OVERWRITE_RIGHT:
+              // If the operand was an object, we skip the
+              // allocation of a heap number.
+              __ movq(rax, Operand(rsp, mode_ == OVERWRITE_RIGHT ?
+                                   1 * kPointerSize : 2 * kPointerSize));
+              __ JumpIfNotSmi(rax, &skip_allocation);
+              // Fall through!
+            case NO_OVERWRITE:
+              __ AllocateHeapNumber(rax, rcx, &call_runtime);
+              __ bind(&skip_allocation);
+              break;
+            default: UNREACHABLE();
+          }
+          // Store the result in the HeapNumber and return.
+          __ movq(Operand(rsp, 1 * kPointerSize), rbx);
+          __ fild_s(Operand(rsp, 1 * kPointerSize));
+          __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
+          GenerateReturn(masm);
+        }
+
+        // SHR should return uint32 - go to runtime for non-smi/negative result.
+        if (op_ == Token::SHR) {
+          __ bind(&non_smi_result);
+        }
+        break;
       }
-      break;
+      default: UNREACHABLE(); break;
     }
-    default: UNREACHABLE(); break;
   }
 
   // If all else fails, use the runtime system to get the correct
   // result. If arguments was passed in registers now place them on the
   // stack in the correct order below the return address.
   __ bind(&call_runtime);
+
   if (HasArgsInRegisters()) {
-    __ pop(rcx);
-    if (HasArgsReversed()) {
-      __ push(rax);
-      __ push(rdx);
-    } else {
-      __ push(rdx);
-      __ push(rax);
-    }
-    __ push(rcx);
+    GenerateRegisterArgsPush(masm);
   }
+
   switch (op_) {
     case Token::ADD: {
+      // Registers containing left and right operands respectively.
+      Register lhs, rhs;
+
+      if (HasArgsReversed()) {
+        lhs = rax;
+        rhs = rdx;
+      } else {
+        lhs = rdx;
+        rhs = rax;
+      }
+
       // Test for string arguments before calling runtime.
-      Label not_strings, both_strings, not_string1, string1;
+      Label not_strings, both_strings, not_string1, string1, string1_smi2;
+
+      // If this stub has already generated FP-specific code then the arguments
+      // are already in rdx, rax
+      if (!ShouldGenerateFPCode() && !HasArgsInRegisters()) {
+        GenerateLoadArguments(masm);
+      }
+
       Condition is_smi;
-      Result answer;
-      is_smi = masm->CheckSmi(rdx);
+      is_smi = masm->CheckSmi(lhs);
       __ j(is_smi, &not_string1);
-      __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rdx);
+      __ CmpObjectType(lhs, FIRST_NONSTRING_TYPE, r8);
       __ j(above_equal, &not_string1);
 
       // First argument is a a string, test second.
-      is_smi = masm->CheckSmi(rax);
-      __ j(is_smi, &string1);
-      __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rax);
+      is_smi = masm->CheckSmi(rhs);
+      __ j(is_smi, &string1_smi2);
+      __ CmpObjectType(rhs, FIRST_NONSTRING_TYPE, r9);
       __ j(above_equal, &string1);
 
       // First and second argument are strings.
-      StringAddStub stub(NO_STRING_CHECK_IN_STUB);
-      __ TailCallStub(&stub);
+      StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
+      __ TailCallStub(&string_add_stub);
+
+      __ bind(&string1_smi2);
+      // First argument is a string, second is a smi. Try to lookup the number
+      // string for the smi in the number string cache.
+      NumberToStringStub::GenerateLookupNumberStringCache(
+          masm, rhs, rbx, rcx, r8, true, &string1);
+
+      // Replace second argument on stack and tailcall string add stub to make
+      // the result.
+      __ movq(Operand(rsp, 1 * kPointerSize), rbx);
+      __ TailCallStub(&string_add_stub);
 
       // Only first argument is a string.
       __ bind(&string1);
-      __ InvokeBuiltin(
-          HasArgsReversed() ?
-              Builtins::STRING_ADD_RIGHT :
-              Builtins::STRING_ADD_LEFT,
-          JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_FUNCTION);
 
       // First argument was not a string, test second.
       __ bind(&not_string1);
-      is_smi = masm->CheckSmi(rax);
+      is_smi = masm->CheckSmi(rhs);
       __ j(is_smi, &not_strings);
-      __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rax);
+      __ CmpObjectType(rhs, FIRST_NONSTRING_TYPE, rhs);
       __ j(above_equal, &not_strings);
 
       // Only second argument is a string.
-      __ InvokeBuiltin(
-          HasArgsReversed() ?
-              Builtins::STRING_ADD_LEFT :
-              Builtins::STRING_ADD_RIGHT,
-          JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_FUNCTION);
 
       __ bind(&not_strings);
       // Neither argument is a string.
@@ -8884,15 +8996,22 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
+
+  // TODO(kaznacheev) Remove this (along with clearing) if it does not harm
+  // performance.
+  // Generate an unreachable reference to the DEFAULT stub so that it can be
+  // found at the end of this stub when clearing ICs at GC.
+  if (runtime_operands_type_ != BinaryOpIC::DEFAULT) {
+    GenericBinaryOpStub uninit(MinorKey(), BinaryOpIC::DEFAULT);
+    __ TailCallStub(&uninit);
+  }
 }
 
 
 void GenericBinaryOpStub::GenerateLoadArguments(MacroAssembler* masm) {
-  // If arguments are not passed in registers read them from the stack.
-  if (!HasArgsInRegisters()) {
-    __ movq(rax, Operand(rsp, 1 * kPointerSize));
-    __ movq(rdx, Operand(rsp, 2 * kPointerSize));
-  }
+  ASSERT(!HasArgsInRegisters());
+  __ movq(rax, Operand(rsp, 1 * kPointerSize));
+  __ movq(rdx, Operand(rsp, 2 * kPointerSize));
 }
 
 
@@ -8907,8 +9026,81 @@ void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
 }
 
 
+void GenericBinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
+  ASSERT(HasArgsInRegisters());
+  __ pop(rcx);
+  if (HasArgsReversed()) {
+    __ push(rax);
+    __ push(rdx);
+  } else {
+    __ push(rdx);
+    __ push(rax);
+  }
+  __ push(rcx);
+}
+
+
+void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
+  Label get_result;
+
+  // Keep a copy of operands on the stack and make sure they are also in
+  // rdx, rax.
+  if (HasArgsInRegisters()) {
+    GenerateRegisterArgsPush(masm);
+  } else {
+    GenerateLoadArguments(masm);
+  }
+
+  // Internal frame is necessary to handle exceptions properly.
+  __ EnterInternalFrame();
+
+  // Push arguments on stack if the stub expects them there.
+  if (!HasArgsInRegisters()) {
+    __ push(rdx);
+    __ push(rax);
+  }
+  // Call the stub proper to get the result in rax.
+  __ call(&get_result);
+  __ LeaveInternalFrame();
+
+  // Left and right arguments are already on stack.
+  __ pop(rcx);
+  // Push the operation result. The tail call to BinaryOp_Patch will
+  // return it to the original caller..
+  __ push(rax);
+
+  // Push this stub's key.
+  __ movq(rax, Immediate(MinorKey()));
+  __ Integer32ToSmi(rax, rax);
+  __ push(rax);
+
+  // Although the operation and the type info are encoded into the key,
+  // the encoding is opaque, so push them too.
+  __ movq(rax, Immediate(op_));
+  __ Integer32ToSmi(rax, rax);
+  __ push(rax);
+
+  __ movq(rax, Immediate(runtime_operands_type_));
+  __ Integer32ToSmi(rax, rax);
+  __ push(rax);
+
+  __ push(rcx);
+
+  // Perform patching to an appropriate fast case and return the result.
+  __ TailCallExternalReference(
+      ExternalReference(IC_Utility(IC::kBinaryOp_Patch)),
+      6,
+      1);
+
+  // The entry point for the result calculation is assumed to be immediately
+  // after this sequence.
+  __ bind(&get_result);
+}
+
+
 Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
-  return Handle<Code>::null();
+  GenericBinaryOpStub stub(key, type_info);
+  return stub.GetCode();
 }
 
 

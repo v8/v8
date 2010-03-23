@@ -61,6 +61,7 @@ namespace internal {
   F(ToFastProperties, 1, 1) \
   F(ToSlowProperties, 1, 1) \
   F(FinishArrayPrototypeSetup, 1, 1) \
+  F(SpecialArrayFunctions, 1, 1) \
   \
   F(IsInPrototypeChain, 2, 1) \
   F(SetHiddenPrototype, 2, 1) \
@@ -92,6 +93,7 @@ namespace internal {
   F(StringParseFloat, 1, 1) \
   F(StringToLowerCase, 1, 1) \
   F(StringToUpperCase, 1, 1) \
+  F(StringSplit, 3, 1) \
   F(CharFromCode, 1, 1) \
   F(URIEscape, 1, 1) \
   F(URIUnescape, 1, 1) \
@@ -132,7 +134,6 @@ namespace internal {
   F(StringCompare, 2, 1) \
   \
   /* Math */ \
-  F(Math_abs, 1, 1) \
   F(Math_acos, 1, 1) \
   F(Math_asin, 1, 1) \
   F(Math_atan, 1, 1) \
@@ -144,7 +145,7 @@ namespace internal {
   F(Math_log, 1, 1) \
   F(Math_pow, 2, 1) \
   F(Math_pow_cfunction, 2, 1) \
-  F(Math_round, 1, 1) \
+  F(RoundNumber, 1, 1) \
   F(Math_sin, 1, 1) \
   F(Math_sqrt, 1, 1) \
   F(Math_tan, 1, 1) \
@@ -204,6 +205,7 @@ namespace internal {
   F(DateLocalTimeOffset, 0, 1) \
   F(DateDaylightSavingsOffset, 1, 1) \
   F(DateMakeDay, 3, 1) \
+  F(DateYMDFromTime, 2, 1) \
   \
   /* Numbers */ \
   F(NumberIsFinite, 1, 1) \
@@ -234,11 +236,10 @@ namespace internal {
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4, 1)\
   F(CreateArrayLiteralBoilerplate, 3, 1) \
-  F(CreateObjectLiteralBoilerplate, 3, 1) \
   F(CloneLiteralBoilerplate, 1, 1) \
   F(CloneShallowLiteralBoilerplate, 1, 1) \
-  F(CreateObjectLiteral, 3, 1) \
-  F(CreateObjectLiteralShallow, 3, 1) \
+  F(CreateObjectLiteral, 4, 1) \
+  F(CreateObjectLiteralShallow, 4, 1) \
   F(CreateArrayLiteral, 3, 1) \
   F(CreateArrayLiteralShallow, 3, 1) \
   \
@@ -332,7 +333,8 @@ namespace internal {
   F(LiveEditReplaceFunctionCode, 2, 1) \
   F(LiveEditRelinkFunctionToScript, 2, 1) \
   F(LiveEditPatchFunctionPositions, 2, 1) \
-  F(LiveEditCheckStackActivations, 1, 1)
+  F(LiveEditCheckStackActivations, 1, 1) \
+  F(GetFunctionCodePositionFromSource, 2, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 #endif

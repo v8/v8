@@ -197,6 +197,10 @@ class CodeGenerator: public AstVisitor {
 
   static const int kUnknownIntValue = -1;
 
+  // If the name is an inline runtime function call return the number of
+  // expected arguments. Otherwise return -1.
+  static int InlineRuntimeCallArgumentsCount(Handle<String> name);
+
  private:
   // Construction/Destruction
   explicit CodeGenerator(MacroAssembler* masm);
@@ -326,6 +330,7 @@ class CodeGenerator: public AstVisitor {
   struct InlineRuntimeLUT {
     void (CodeGenerator::*method)(ZoneList<Expression*>*);
     const char* name;
+    int nargs;
   };
 
   static InlineRuntimeLUT* FindInlineRuntimeLUT(Handle<String> name);
@@ -360,7 +365,7 @@ class CodeGenerator: public AstVisitor {
 
   // Support for arguments.length and arguments[?].
   void GenerateArgumentsLength(ZoneList<Expression*>* args);
-  void GenerateArgumentsAccess(ZoneList<Expression*>* args);
+  void GenerateArguments(ZoneList<Expression*>* args);
 
   // Support for accessing the class and value fields of an object.
   void GenerateClassOf(ZoneList<Expression*>* args);
@@ -396,14 +401,10 @@ class CodeGenerator: public AstVisitor {
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
-  // Fast support for Math.pow().
+  // Fast call to math functions.
   void GenerateMathPow(ZoneList<Expression*>* args);
-
-  // Fast call to sine function.
   void GenerateMathSin(ZoneList<Expression*>* args);
   void GenerateMathCos(ZoneList<Expression*>* args);
-
-  // Fast support for Math.pow().
   void GenerateMathSqrt(ZoneList<Expression*>* args);
 
   // Simple condition analysis.
@@ -656,6 +657,39 @@ class StringCompareStub: public CodeStub {
   int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
+};
+
+
+class NumberToStringStub: public CodeStub {
+ public:
+  NumberToStringStub() { }
+
+  // Generate code to do a lookup in the number string cache. If the number in
+  // the register object is found in the cache the generated code falls through
+  // with the result in the result register. The object and the result register
+  // can be the same. If the number is not found in the cache the code jumps to
+  // the label not_found with only the content of register object unchanged.
+  static void GenerateLookupNumberStringCache(MacroAssembler* masm,
+                                              Register object,
+                                              Register result,
+                                              Register scratch1,
+                                              Register scratch2,
+                                              bool object_is_smi,
+                                              Label* not_found);
+
+ private:
+  Major MajorKey() { return NumberToString; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "NumberToStringStub"; }
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("NumberToStringStub\n");
+  }
+#endif
 };
 
 

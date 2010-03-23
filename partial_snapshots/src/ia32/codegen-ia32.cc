@@ -112,6 +112,8 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm)
       allocator_(NULL),
       state_(NULL),
       loop_nesting_(0),
+      in_safe_int32_mode_(false),
+      safe_int32_mode_enabled_(true),
       function_return_is_shadowed_(false),
       in_spilled_code_(false) {
 }
@@ -437,14 +439,14 @@ Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
 // frame. If the expression is boolean-valued it may be compiled (or
 // partially compiled) into control flow to the control destination.
 // If force_control is true, control flow is forced.
-void CodeGenerator::LoadCondition(Expression* x,
+void CodeGenerator::LoadCondition(Expression* expr,
                                   ControlDestination* dest,
                                   bool force_control) {
   ASSERT(!in_spilled_code());
   int original_height = frame_->height();
 
   { CodeGenState new_state(this, dest);
-    Visit(x);
+    Visit(expr);
 
     // If we hit a stack overflow, we may not have actually visited
     // the expression.  In that case, we ensure that we have a
@@ -481,64 +483,157 @@ void CodeGenerator::LoadAndSpill(Expression* expression) {
 }
 
 
+void CodeGenerator::LoadInSafeInt32Mode(Expression* expr,
+                                         BreakTarget* unsafe_bailout) {
+  set_unsafe_bailout(unsafe_bailout);
+  set_in_safe_int32_mode(true);
+  Load(expr);
+  Result value = frame_->Pop();
+  ASSERT(frame_->HasNoUntaggedInt32Elements());
+  ConvertInt32ResultToNumber(&value);
+  set_in_safe_int32_mode(false);
+  set_unsafe_bailout(NULL);
+  frame_->Push(&value);
+}
+
+
+void CodeGenerator::LoadWithSafeInt32ModeDisabled(Expression* expr) {
+  set_safe_int32_mode_enabled(false);
+  Load(expr);
+  set_safe_int32_mode_enabled(true);
+}
+
+
+void CodeGenerator::ConvertInt32ResultToNumber(Result* value) {
+  ASSERT(value->is_untagged_int32());
+  if (value->is_register()) {
+    Register val = value->reg();
+    JumpTarget done;
+    __ add(val, Operand(val));
+    done.Branch(no_overflow, value);
+    __ sar(val, 1);
+    // If there was an overflow, bits 30 and 31 of the original number disagree.
+    __ xor_(val, 0x80000000u);
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatures::Scope fscope(SSE2);
+      __ cvtsi2sd(xmm0, Operand(val));
+    } else {
+      // Move val to ST[0] in the FPU
+      // Push and pop are safe with respect to the virtual frame because
+      // all synced elements are below the actual stack pointer.
+      __ push(val);
+      __ fild_s(Operand(esp, 0));
+      __ pop(val);
+    }
+    Result scratch = allocator_->Allocate();
+    ASSERT(scratch.is_register());
+    Label allocation_failed;
+    __ AllocateHeapNumber(val, scratch.reg(),
+                          no_reg, &allocation_failed);
+    VirtualFrame* clone = new VirtualFrame(frame_);
+    scratch.Unuse();
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatures::Scope fscope(SSE2);
+      __ movdbl(FieldOperand(val, HeapNumber::kValueOffset), xmm0);
+    } else {
+      __ fstp_d(FieldOperand(val, HeapNumber::kValueOffset));
+    }
+    done.Jump(value);
+
+    // Establish the virtual frame, cloned from where AllocateHeapNumber
+    // jumped to allocation_failed.
+    RegisterFile empty_regs;
+    SetFrame(clone, &empty_regs);
+    __ bind(&allocation_failed);
+    unsafe_bailout_->Jump();
+
+    done.Bind(value);
+  } else {
+    ASSERT(value->is_constant());
+  }
+  value->set_untagged_int32(false);
+}
+
+
 void CodeGenerator::Load(Expression* expr) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
   ASSERT(!in_spilled_code());
-  JumpTarget true_target;
-  JumpTarget false_target;
-  ControlDestination dest(&true_target, &false_target, true);
-  LoadCondition(expr, &dest, false);
 
-  if (dest.false_was_fall_through()) {
-    // The false target was just bound.
-    JumpTarget loaded;
-    frame_->Push(Factory::false_value());
-    // There may be dangling jumps to the true target.
-    if (true_target.is_linked()) {
-      loaded.Jump();
-      true_target.Bind();
-      frame_->Push(Factory::true_value());
-      loaded.Bind();
+  // If the expression should be a side-effect-free 32-bit int computation,
+  // compile that SafeInt32 path, and a bailout path.
+  if (!in_safe_int32_mode() &&
+      safe_int32_mode_enabled() &&
+      expr->side_effect_free() &&
+      expr->num_bit_ops() > 2 &&
+      CpuFeatures::IsSupported(SSE2)) {
+    BreakTarget unsafe_bailout;
+    JumpTarget done;
+    unsafe_bailout.set_expected_height(frame_->height());
+    LoadInSafeInt32Mode(expr, &unsafe_bailout);
+    done.Jump();
+
+    if (unsafe_bailout.is_linked()) {
+      unsafe_bailout.Bind();
+      LoadWithSafeInt32ModeDisabled(expr);
     }
-
-  } else if (dest.is_used()) {
-    // There is true, and possibly false, control flow (with true as
-    // the fall through).
-    JumpTarget loaded;
-    frame_->Push(Factory::true_value());
-    if (false_target.is_linked()) {
-      loaded.Jump();
-      false_target.Bind();
-      frame_->Push(Factory::false_value());
-      loaded.Bind();
-    }
-
+    done.Bind();
   } else {
-    // We have a valid value on top of the frame, but we still may
-    // have dangling jumps to the true and false targets from nested
-    // subexpressions (eg, the left subexpressions of the
-    // short-circuited boolean operators).
-    ASSERT(has_valid_frame());
-    if (true_target.is_linked() || false_target.is_linked()) {
+    JumpTarget true_target;
+    JumpTarget false_target;
+
+    ControlDestination dest(&true_target, &false_target, true);
+    LoadCondition(expr, &dest, false);
+
+    if (dest.false_was_fall_through()) {
+      // The false target was just bound.
       JumpTarget loaded;
-      loaded.Jump();  // Don't lose the current TOS.
+      frame_->Push(Factory::false_value());
+      // There may be dangling jumps to the true target.
       if (true_target.is_linked()) {
+        loaded.Jump();
         true_target.Bind();
         frame_->Push(Factory::true_value());
-        if (false_target.is_linked()) {
-          loaded.Jump();
-        }
+        loaded.Bind();
       }
+
+    } else if (dest.is_used()) {
+      // There is true, and possibly false, control flow (with true as
+      // the fall through).
+      JumpTarget loaded;
+      frame_->Push(Factory::true_value());
       if (false_target.is_linked()) {
+        loaded.Jump();
         false_target.Bind();
         frame_->Push(Factory::false_value());
+        loaded.Bind();
       }
-      loaded.Bind();
+
+    } else {
+      // We have a valid value on top of the frame, but we still may
+      // have dangling jumps to the true and false targets from nested
+      // subexpressions (eg, the left subexpressions of the
+      // short-circuited boolean operators).
+      ASSERT(has_valid_frame());
+      if (true_target.is_linked() || false_target.is_linked()) {
+        JumpTarget loaded;
+        loaded.Jump();  // Don't lose the current TOS.
+        if (true_target.is_linked()) {
+          true_target.Bind();
+          frame_->Push(Factory::true_value());
+          if (false_target.is_linked()) {
+            loaded.Jump();
+          }
+        }
+        if (false_target.is_linked()) {
+          false_target.Bind();
+          frame_->Push(Factory::false_value());
+        }
+        loaded.Bind();
+      }
     }
   }
-
   ASSERT(has_valid_frame());
   ASSERT(frame_->height() == original_height + 1);
 }
@@ -737,7 +832,7 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
     Comment cmnt(masm_, "ONLY_INTEGER_32");
     if (FLAG_debug_code) {
       Label ok;
-      __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
+      __ AbortIfNotNumber(value.reg());
       __ test(value.reg(), Immediate(kSmiTagMask));
       __ j(zero, &ok);
       __ fldz();
@@ -757,7 +852,7 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
     Comment cmnt(masm_, "ONLY_NUMBER");
     // Fast case if NumberInfo indicates only numbers.
     if (FLAG_debug_code) {
-      __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
+      __ AbortIfNotNumber(value.reg());
     }
     // Smi => false iff zero.
     ASSERT(kSmiTag == 0);
@@ -943,6 +1038,8 @@ void DeferredInlineBinaryOperation::Generate() {
       __ jmp(&load_right);
 
       __ bind(&left_smi);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(left_);
     }
     __ SmiUntag(left_);
     __ cvtsi2sd(xmm0, Operand(left_));
@@ -975,6 +1072,8 @@ void DeferredInlineBinaryOperation::Generate() {
       __ jmp(&do_op);
 
       __ bind(&right_smi);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(right_);
     }
     __ SmiUntag(right_);
     __ cvtsi2sd(xmm1, Operand(right_));
@@ -1102,7 +1201,8 @@ static NumberInfo CalculateNumberInfo(NumberInfo operands_type,
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
                                            StaticType* type,
-                                           OverwriteMode overwrite_mode) {
+                                           OverwriteMode overwrite_mode,
+                                           bool no_negative_zero) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
 
@@ -1170,10 +1270,12 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     answer = stub.GenerateCall(masm_, frame_, &left, &right);
   } else if (right_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(op, &left, right.handle(),
-                                        type, false, overwrite_mode);
+                                        type, false, overwrite_mode,
+                                        no_negative_zero);
   } else if (left_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(op, &right, left.handle(),
-                                        type, true, overwrite_mode);
+                                        type, true, overwrite_mode,
+                                        no_negative_zero);
   } else {
     // Set the flags based on the operation, type and loop nesting level.
     // Bit operations always assume they likely operate on Smis. Still only
@@ -1184,7 +1286,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         (Token::IsBitOp(op) ||
          operands_type.IsInteger32() ||
          type->IsLikelySmi())) {
-      answer = LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
+      answer = LikelySmiBinaryOperation(op, &left, &right,
+                                        overwrite_mode, no_negative_zero);
     } else {
       GenericBinaryOpStub stub(op,
                                overwrite_mode,
@@ -1291,7 +1394,8 @@ static void CheckTwoForSminess(MacroAssembler* masm,
 Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                                Result* left,
                                                Result* right,
-                                               OverwriteMode overwrite_mode) {
+                                               OverwriteMode overwrite_mode,
+                                               bool no_negative_zero) {
   Result answer;
   // Special handling of div and mod because they use fixed registers.
   if (op == Token::DIV || op == Token::MOD) {
@@ -1395,13 +1499,16 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       // Check for negative zero result.  If result is zero, and divisor
       // is negative, return a floating point negative zero.  The
       // virtual frame is unchanged in this block, so local control flow
-      // can use a Label rather than a JumpTarget.
-      Label non_zero_result;
-      __ test(left->reg(), Operand(left->reg()));
-      __ j(not_zero, &non_zero_result);
-      __ test(right->reg(), Operand(right->reg()));
-      deferred->Branch(negative);
-      __ bind(&non_zero_result);
+      // can use a Label rather than a JumpTarget.  If the context of this
+      // expression will treat -0 like 0, do not do this test.
+      if (!no_negative_zero) {
+        Label non_zero_result;
+        __ test(left->reg(), Operand(left->reg()));
+        __ j(not_zero, &non_zero_result);
+        __ test(right->reg(), Operand(right->reg()));
+        deferred->Branch(negative);
+        __ bind(&non_zero_result);
+      }
       // Check for the corner case of dividing the most negative smi by
       // -1. We cannot use the overflow flag, since it is not set by
       // idiv instruction.
@@ -1423,12 +1530,14 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       // the dividend is negative, return a floating point negative
       // zero.  The frame is unchanged in this block, so local control
       // flow can use a Label rather than a JumpTarget.
-      Label non_zero_result;
-      __ test(edx, Operand(edx));
-      __ j(not_zero, &non_zero_result, taken);
-      __ test(left->reg(), Operand(left->reg()));
-      deferred->Branch(negative);
-      __ bind(&non_zero_result);
+      if (!no_negative_zero) {
+        Label non_zero_result;
+        __ test(edx, Operand(edx));
+        __ j(not_zero, &non_zero_result, taken);
+        __ test(left->reg(), Operand(left->reg()));
+        deferred->Branch(negative);
+        __ bind(&non_zero_result);
+      }
       deferred->BindExit();
       left->Unuse();
       right->Unuse();
@@ -1468,12 +1577,46 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                           left->number_info(),
                                           right->number_info(),
                                           overwrite_mode);
-    CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
-                       left->number_info(), right->number_info(), deferred);
 
-    // Untag both operands.
-    __ mov(answer.reg(), left->reg());
-    __ SmiUntag(answer.reg());
+    Label do_op, left_nonsmi;
+    // If right is a smi we make a fast case if left is either a smi
+    // or a heapnumber.
+    if (CpuFeatures::IsSupported(SSE2) && right->number_info().IsSmi()) {
+      CpuFeatures::Scope use_sse2(SSE2);
+      __ mov(answer.reg(), left->reg());
+      // Fast case - both are actually smis.
+      if (!left->number_info().IsSmi()) {
+        __ test(answer.reg(), Immediate(kSmiTagMask));
+        __ j(not_zero, &left_nonsmi);
+      } else {
+        if (FLAG_debug_code) __ AbortIfNotSmi(left->reg());
+      }
+      if (FLAG_debug_code) __ AbortIfNotSmi(right->reg());
+      __ SmiUntag(answer.reg());
+      __ jmp(&do_op);
+
+      __ bind(&left_nonsmi);
+      // Branch if not a heapnumber.
+      __ cmp(FieldOperand(answer.reg(), HeapObject::kMapOffset),
+             Factory::heap_number_map());
+      deferred->Branch(not_equal);
+
+      // Load integer value into answer register using truncation.
+      __ cvttsd2si(answer.reg(),
+                   FieldOperand(answer.reg(), HeapNumber::kValueOffset));
+      // Branch if we do not fit in a smi.
+      __ cmp(answer.reg(), 0xc0000000);
+      deferred->Branch(negative);
+    } else {
+      CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
+                         left->number_info(), right->number_info(), deferred);
+
+      // Untag both operands.
+      __ mov(answer.reg(), left->reg());
+      __ SmiUntag(answer.reg());
+    }
+
+    __ bind(&do_op);
     __ SmiUntag(ecx);
     // Perform the operation.
     switch (op) {
@@ -1571,14 +1714,16 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       // argument is negative, go to slow case.  The frame is unchanged
       // in this block, so local control flow can use a Label rather
       // than a JumpTarget.
-      Label non_zero_result;
-      __ test(answer.reg(), Operand(answer.reg()));
-      __ j(not_zero, &non_zero_result, taken);
-      __ mov(answer.reg(), left->reg());
-      __ or_(answer.reg(), Operand(right->reg()));
-      deferred->Branch(negative);
-      __ xor_(answer.reg(), Operand(answer.reg()));  // Positive 0 is correct.
-      __ bind(&non_zero_result);
+      if (!no_negative_zero) {
+        Label non_zero_result;
+        __ test(answer.reg(), Operand(answer.reg()));
+        __ j(not_zero, &non_zero_result, taken);
+        __ mov(answer.reg(), left->reg());
+        __ or_(answer.reg(), Operand(right->reg()));
+        deferred->Branch(negative);
+        __ xor_(answer.reg(), Operand(answer.reg()));  // Positive 0 is correct.
+        __ bind(&non_zero_result);
+      }
       break;
     }
 
@@ -1817,7 +1962,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                                  Handle<Object> value,
                                                  StaticType* type,
                                                  bool reversed,
-                                                 OverwriteMode overwrite_mode) {
+                                                 OverwriteMode overwrite_mode,
+                                                 bool no_negative_zero) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
   // some possible smi operations (like + and -) when (at least) one
   // of the operands is a constant smi.
@@ -1828,10 +1974,10 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     Result unsafe_operand(value);
     if (reversed) {
       return LikelySmiBinaryOperation(op, &unsafe_operand, operand,
-                                      overwrite_mode);
+                                      overwrite_mode, no_negative_zero);
     } else {
       return LikelySmiBinaryOperation(op, operand, &unsafe_operand,
-                                      overwrite_mode);
+                                      overwrite_mode, no_negative_zero);
     }
   }
 
@@ -1864,6 +2010,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       if (!operand->number_info().IsSmi()) {
         __ test(operand->reg(), Immediate(kSmiTagMask));
         deferred->Branch(not_zero);
+      } else {
+        if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
       }
       deferred->BindExit();
       answer = *operand;
@@ -1901,6 +2049,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       if (!operand->number_info().IsSmi()) {
         __ test(answer.reg(), Immediate(kSmiTagMask));
         deferred->Branch(not_zero);
+      } else {
+        if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
       }
       deferred->BindExit();
       operand->Unuse();
@@ -1911,7 +2061,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       if (reversed) {
         Result constant_operand(value);
         answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                          overwrite_mode);
+                                          overwrite_mode, no_negative_zero);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -1934,6 +2084,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           }
           deferred->BindExit();
         } else {
+          if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
           if (shift_value > 0) {
             __ sar(operand->reg(), shift_value);
             __ and_(operand->reg(), ~kSmiTagMask);
@@ -1947,7 +2098,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       if (reversed) {
         Result constant_operand(value);
         answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                          overwrite_mode);
+                                          overwrite_mode, no_negative_zero);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -1965,6 +2116,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         if (!operand->number_info().IsSmi()) {
           __ test(operand->reg(), Immediate(kSmiTagMask));
           deferred->Branch(not_zero);
+        } else {
+          if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
         }
         __ mov(answer.reg(), operand->reg());
         __ SmiUntag(answer.reg());
@@ -2013,6 +2166,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         __ sar(ecx, kSmiTagSize);
         if (!right.number_info().IsSmi()) {
           deferred->Branch(carry);
+        } else {
+          if (FLAG_debug_code) __ AbortIfNotSmi(right.reg());
         }
         __ shl_cl(answer.reg());
         __ cmp(answer.reg(), 0xc0000000);
@@ -2053,6 +2208,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           if (!operand->number_info().IsSmi()) {
             __ test(operand->reg(), Immediate(kSmiTagMask));
             deferred->Branch(not_zero);
+          } else {
+            if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
           }
           __ mov(answer.reg(), operand->reg());
           ASSERT(kSmiTag == 0);  // adjust code if not the case
@@ -2095,6 +2252,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       if (!operand->number_info().IsSmi()) {
         __ test(operand->reg(), Immediate(kSmiTagMask));
         deferred->Branch(not_zero);
+      } else {
+        if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
       }
       if (op == Token::BIT_AND) {
         __ and_(Operand(operand->reg()), Immediate(value));
@@ -2140,10 +2299,10 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         Result constant_operand(value);
         if (reversed) {
           answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                            overwrite_mode);
+                                            overwrite_mode, no_negative_zero);
         } else {
           answer = LikelySmiBinaryOperation(op, operand, &constant_operand,
-                                            overwrite_mode);
+                                            overwrite_mode, no_negative_zero);
         }
       }
       break;
@@ -2180,10 +2339,10 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       Result constant_operand(value);
       if (reversed) {
         answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                          overwrite_mode);
+                                          overwrite_mode, no_negative_zero);
       } else {
         answer = LikelySmiBinaryOperation(op, operand, &constant_operand,
-                                          overwrite_mode);
+                                          overwrite_mode, no_negative_zero);
       }
       break;
     }
@@ -2286,61 +2445,67 @@ void CodeGenerator::Comparison(AstNode* node,
       // a jump target and branching to duplicate the virtual frame at
       // the first split.  We manually handle the off-frame references
       // by reconstituting them on the non-fall-through path.
-      JumpTarget is_smi;
-      __ test(left_side.reg(), Immediate(kSmiTagMask));
-      is_smi.Branch(zero, taken);
 
-      bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
-          && node->AsCompareOperation()->is_for_loop_condition();
-      if (!is_for_loop_compare
-          && CpuFeatures::IsSupported(SSE2)
-          && right_val->IsSmi()) {
-        // Right side is a constant smi and left side has been checked
-        // not to be a smi.
-        CpuFeatures::Scope use_sse2(SSE2);
-        JumpTarget not_number;
-        __ cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
-               Immediate(Factory::heap_number_map()));
-        not_number.Branch(not_equal, &left_side);
-        __ movdbl(xmm1,
-                  FieldOperand(left_reg, HeapNumber::kValueOffset));
-        int value = Smi::cast(*right_val)->value();
-        if (value == 0) {
-          __ xorpd(xmm0, xmm0);
-        } else {
-          Result temp = allocator()->Allocate();
-          __ mov(temp.reg(), Immediate(value));
-          __ cvtsi2sd(xmm0, Operand(temp.reg()));
-          temp.Unuse();
+      if (left_side.is_smi()) {
+        if (FLAG_debug_code) __ AbortIfNotSmi(left_side.reg());
+      } else {
+        JumpTarget is_smi;
+        __ test(left_side.reg(), Immediate(kSmiTagMask));
+        is_smi.Branch(zero, taken);
+
+        bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
+            && node->AsCompareOperation()->is_for_loop_condition();
+        if (!is_for_loop_compare
+            && CpuFeatures::IsSupported(SSE2)
+            && right_val->IsSmi()) {
+          // Right side is a constant smi and left side has been checked
+          // not to be a smi.
+          CpuFeatures::Scope use_sse2(SSE2);
+          JumpTarget not_number;
+          __ cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
+                 Immediate(Factory::heap_number_map()));
+          not_number.Branch(not_equal, &left_side);
+          __ movdbl(xmm1,
+                    FieldOperand(left_reg, HeapNumber::kValueOffset));
+          int value = Smi::cast(*right_val)->value();
+          if (value == 0) {
+            __ xorpd(xmm0, xmm0);
+          } else {
+            Result temp = allocator()->Allocate();
+            __ mov(temp.reg(), Immediate(value));
+            __ cvtsi2sd(xmm0, Operand(temp.reg()));
+            temp.Unuse();
+          }
+          __ comisd(xmm1, xmm0);
+          // Jump to builtin for NaN.
+          not_number.Branch(parity_even, &left_side);
+          left_side.Unuse();
+          Condition double_cc = cc;
+          switch (cc) {
+            case less:          double_cc = below;       break;
+            case equal:         double_cc = equal;       break;
+            case less_equal:    double_cc = below_equal; break;
+            case greater:       double_cc = above;       break;
+            case greater_equal: double_cc = above_equal; break;
+            default: UNREACHABLE();
+          }
+          dest->true_target()->Branch(double_cc);
+          dest->false_target()->Jump();
+          not_number.Bind(&left_side);
         }
-        __ comisd(xmm1, xmm0);
-        // Jump to builtin for NaN.
-        not_number.Branch(parity_even, &left_side);
-        left_side.Unuse();
-        Condition double_cc = cc;
-        switch (cc) {
-          case less:          double_cc = below;       break;
-          case equal:         double_cc = equal;       break;
-          case less_equal:    double_cc = below_equal; break;
-          case greater:       double_cc = above;       break;
-          case greater_equal: double_cc = above_equal; break;
-          default: UNREACHABLE();
-        }
-        dest->true_target()->Branch(double_cc);
+
+        // Setup and call the compare stub.
+        CompareStub stub(cc, strict, kCantBothBeNaN);
+        Result result = frame_->CallStub(&stub, &left_side, &right_side);
+        result.ToRegister();
+        __ cmp(result.reg(), 0);
+        result.Unuse();
+        dest->true_target()->Branch(cc);
         dest->false_target()->Jump();
-        not_number.Bind(&left_side);
+
+        is_smi.Bind();
       }
 
-      // Setup and call the compare stub.
-      CompareStub stub(cc, strict, kCantBothBeNaN);
-      Result result = frame_->CallStub(&stub, &left_side, &right_side);
-      result.ToRegister();
-      __ cmp(result.reg(), 0);
-      result.Unuse();
-      dest->true_target()->Branch(cc);
-      dest->false_target()->Jump();
-
-      is_smi.Bind();
       left_side = Result(left_reg);
       right_side = Result(right_val);
       // Test smi equality and comparison by signed int comparison.
@@ -3487,6 +3652,26 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
 }
 
 
+void CodeGenerator::SetTypeForStackSlot(Slot* slot, NumberInfo info) {
+  ASSERT(slot->type() == Slot::LOCAL || slot->type() == Slot::PARAMETER);
+  if (slot->type() == Slot::LOCAL) {
+    frame_->SetTypeForLocalAt(slot->index(), info);
+  } else {
+    frame_->SetTypeForParamAt(slot->index(), info);
+  }
+  if (FLAG_debug_code && info.IsSmi()) {
+    if (slot->type() == Slot::LOCAL) {
+      frame_->PushLocalAt(slot->index());
+    } else {
+      frame_->PushParameterAt(slot->index());
+    }
+    Result var = frame_->Pop();
+    var.ToRegister();
+    __ AbortIfNotSmi(var.reg());
+  }
+}
+
+
 void CodeGenerator::VisitForStatement(ForStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ ForStatement");
@@ -3579,6 +3764,17 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   }
 
   CheckStack();  // TODO(1222600): ignore if body contains calls.
+
+  // We know that the loop index is a smi if it is not modified in the
+  // loop body and it is checked against a constant limit in the loop
+  // condition.  In this case, we reset the static type information of the
+  // loop index to smi before compiling the body, the update expression, and
+  // the bottom check of the loop condition.
+  if (node->is_fast_smi_loop()) {
+    // Set number type of the loop variable to smi.
+    SetTypeForStackSlot(node->loop_variable()->slot(), NumberInfo::Smi());
+  }
+
   Visit(node->body());
 
   // If there is an update expression, compile it if necessary.
@@ -3596,6 +3792,13 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
       CodeForStatementPosition(node);
       Visit(node->next());
     }
+  }
+
+  // Set the type of the loop variable to smi before compiling the test
+  // expression if we are in a fast smi loop condition.
+  if (node->is_fast_smi_loop() && has_valid_frame()) {
+    // Set number type of the loop variable to smi.
+    SetTypeForStackSlot(node->loop_variable()->slot(), NumberInfo::Smi());
   }
 
   // Based on the condition analysis, compile the backward jump as
@@ -4244,7 +4447,7 @@ Result CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 
 void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   Comment cmnt(masm_, "[ FunctionLiteral");
-
+  ASSERT(!in_safe_int32_mode());
   // Build the function boilerplate and instantiate it.
   Handle<JSFunction> boilerplate =
       Compiler::BuildBoilerplate(node, script(), this);
@@ -4257,6 +4460,7 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
 
 void CodeGenerator::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* node) {
+  ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
   Result result = InstantiateBoilerplate(node->boilerplate());
   frame()->Push(&result);
@@ -4265,6 +4469,7 @@ void CodeGenerator::VisitFunctionBoilerplateLiteral(
 
 void CodeGenerator::VisitConditional(Conditional* node) {
   Comment cmnt(masm_, "[ Conditional");
+  ASSERT(!in_safe_int32_mode());
   JumpTarget then;
   JumpTarget else_;
   JumpTarget exit;
@@ -4435,6 +4640,7 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     Slot* slot,
     TypeofState typeof_state,
     JumpTarget* slow) {
+  ASSERT(!in_safe_int32_mode());
   // Check that no extension objects have been created by calls to
   // eval from the current scope to the global scope.
   Register context = esi;
@@ -4603,10 +4809,20 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
 }
 
 
-void CodeGenerator::VisitSlot(Slot* node) {
+void CodeGenerator::VisitSlot(Slot* slot) {
   Comment cmnt(masm_, "[ Slot");
-  Result result = LoadFromSlotCheckForArguments(node, NOT_INSIDE_TYPEOF);
-  frame()->Push(&result);
+  if (in_safe_int32_mode()) {
+    if ((slot->type() == Slot::LOCAL  && !slot->is_arguments())) {
+      frame()->UntaggedPushLocalAt(slot->index());
+    } else if (slot->type() == Slot::PARAMETER) {
+      frame()->UntaggedPushParameterAt(slot->index());
+    } else {
+      UNREACHABLE();
+    }
+  } else {
+    Result result = LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
+    frame()->Push(&result);
+  }
 }
 
 
@@ -4618,6 +4834,7 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
     Visit(expr);
   } else {
     ASSERT(var->is_global());
+    ASSERT(!in_safe_int32_mode());
     Reference ref(this, node);
     ref.GetValue();
   }
@@ -4626,7 +4843,11 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 
 void CodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
-  frame_->Push(node->handle());
+  if (in_safe_int32_mode()) {
+    frame_->PushUntaggedElement(node->handle());
+  } else {
+    frame_->Push(node->handle());
+  }
 }
 
 
@@ -4700,6 +4921,7 @@ void DeferredRegExpLiteral::Generate() {
 
 
 void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
+  ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ RegExp Literal");
 
   // Retrieve the literals array and check the allocated entry.  Begin
@@ -4736,6 +4958,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 
 
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
+  ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ ObjectLiteral");
 
   // Load a writable copy of the function of this activation in a
@@ -4754,11 +4977,13 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   frame_->Push(Smi::FromInt(node->literal_index()));
   // Constant properties.
   frame_->Push(node->constant_properties());
+  // Should the object literal have fast elements?
+  frame_->Push(Smi::FromInt(node->fast_elements() ? 1 : 0));
   Result clone;
   if (node->depth() > 1) {
-    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteral, 3);
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
-    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
   }
   frame_->Push(&clone);
 
@@ -4818,6 +5043,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 
 
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
+  ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ ArrayLiteral");
 
   // Load a writable copy of the function of this activation in a
@@ -4889,6 +5115,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
 
 void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
+  ASSERT(!in_safe_int32_mode());
   ASSERT(!in_spilled_code());
   // Call runtime routine to allocate the catch extension object and
   // assign the exception value to the catch variable.
@@ -4922,7 +5149,8 @@ void CodeGenerator::EmitSlotAssignment(Assignment* node) {
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
     GenericBinaryOperation(node->binary_op(),
                            node->type(),
-                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE,
+                           node->no_negative_zero());
   } else {
     Load(node->value());
   }
@@ -4999,7 +5227,8 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
     GenericBinaryOperation(node->binary_op(),
                            node->type(),
-                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE,
+                           node->no_negative_zero());
   } else {
     Load(node->value());
   }
@@ -5078,7 +5307,8 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
     GenericBinaryOperation(node->binary_op(),
                            node->type(),
-                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE,
+                           node->no_negative_zero());
   } else {
     Load(node->value());
   }
@@ -5105,6 +5335,7 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
 
 
 void CodeGenerator::VisitAssignment(Assignment* node) {
+  ASSERT(!in_safe_int32_mode());
 #ifdef DEBUG
   int original_height = frame()->height();
 #endif
@@ -5140,6 +5371,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
 
 
 void CodeGenerator::VisitThrow(Throw* node) {
+  ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ Throw");
   Load(node->exception());
   Result result = frame_->CallRuntime(Runtime::kThrow, 1);
@@ -5148,6 +5380,7 @@ void CodeGenerator::VisitThrow(Throw* node) {
 
 
 void CodeGenerator::VisitProperty(Property* node) {
+  ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ Property");
   Reference property(this, node);
   property.GetValue();
@@ -5155,6 +5388,7 @@ void CodeGenerator::VisitProperty(Property* node) {
 
 
 void CodeGenerator::VisitCall(Call* node) {
+  ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ Call");
 
   Expression* function = node->expression();
@@ -5370,6 +5604,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
 
 void CodeGenerator::VisitCallNew(CallNew* node) {
+  ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ CallNew");
 
   // According to ECMA-262, section 11.2.2, page 44, the function
@@ -5912,7 +6147,7 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
   // ArgumentsAccessStub expects the key in edx and the formal
@@ -6297,6 +6532,7 @@ void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
+  ASSERT(!in_safe_int32_mode());
   if (CheckForInlineRuntimeCall(node)) {
     return;
   }
@@ -6423,64 +6659,123 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     }
 
   } else {
-    Load(node->expression());
-    bool overwrite =
-        (node->expression()->AsBinaryOperation() != NULL &&
-         node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
-    switch (op) {
-      case Token::SUB: {
-        GenericUnaryOpStub stub(Token::SUB, overwrite);
-        Result operand = frame_->Pop();
-        Result answer = frame_->CallStub(&stub, &operand);
-        frame_->Push(&answer);
-        break;
+    if (in_safe_int32_mode()) {
+      Visit(node->expression());
+      Result value = frame_->Pop();
+      ASSERT(value.is_untagged_int32());
+      // Registers containing an int32 value are not multiply used.
+      ASSERT(!value.is_register() || !frame_->is_used(value.reg()));
+      value.ToRegister();
+      switch (op) {
+        case Token::SUB: {
+          __ neg(value.reg());
+          if (node->no_negative_zero()) {
+            // -MIN_INT is MIN_INT with the overflow flag set.
+            unsafe_bailout_->Branch(overflow);
+          } else {
+            // MIN_INT and 0 both have bad negations.  They both have 31 zeros.
+            __ test(value.reg(), Immediate(0x7FFFFFFF));
+            unsafe_bailout_->Branch(zero);
+          }
+          break;
+        }
+        case Token::BIT_NOT: {
+          __ not_(value.reg());
+          break;
+        }
+        case Token::ADD: {
+          // Unary plus has no effect on int32 values.
+          break;
+        }
+        default:
+          UNREACHABLE();
+          break;
       }
+      frame_->Push(&value);
+    } else {
+      Load(node->expression());
+      bool overwrite =
+          (node->expression()->AsBinaryOperation() != NULL &&
+           node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      switch (op) {
+        case Token::SUB: {
+          GenericUnaryOpStub stub(Token::SUB, overwrite);
+          Result operand = frame_->Pop();
+          Result answer = frame_->CallStub(&stub, &operand);
+          answer.set_number_info(NumberInfo::Number());
+          frame_->Push(&answer);
+          break;
+        }
+        case Token::BIT_NOT: {
+          // Smi check.
+          JumpTarget smi_label;
+          JumpTarget continue_label;
+          Result operand = frame_->Pop();
+          NumberInfo operand_info = operand.number_info();
+          operand.ToRegister();
+          if (operand_info.IsSmi()) {
+            if (FLAG_debug_code) __ AbortIfNotSmi(operand.reg());
+            frame_->Spill(operand.reg());
+            // Set smi tag bit. It will be reset by the not operation.
+            __ lea(operand.reg(), Operand(operand.reg(), kSmiTagMask));
+            __ not_(operand.reg());
+            Result answer = operand;
+            answer.set_number_info(NumberInfo::Smi());
+            frame_->Push(&answer);
+          } else {
+            __ test(operand.reg(), Immediate(kSmiTagMask));
+            smi_label.Branch(zero, &operand, taken);
 
-      case Token::BIT_NOT: {
-        // Smi check.
-        JumpTarget smi_label;
-        JumpTarget continue_label;
-        Result operand = frame_->Pop();
-        operand.ToRegister();
-        __ test(operand.reg(), Immediate(kSmiTagMask));
-        smi_label.Branch(zero, &operand, taken);
+            GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
+            Result answer = frame_->CallStub(&stub, &operand);
+            continue_label.Jump(&answer);
 
-        GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
-        Result answer = frame_->CallStub(&stub, &operand);
-        continue_label.Jump(&answer);
+            smi_label.Bind(&answer);
+            answer.ToRegister();
+            frame_->Spill(answer.reg());
+            // Set smi tag bit. It will be reset by the not operation.
+            __ lea(answer.reg(), Operand(answer.reg(), kSmiTagMask));
+            __ not_(answer.reg());
 
-        smi_label.Bind(&answer);
-        answer.ToRegister();
-        frame_->Spill(answer.reg());
-        __ not_(answer.reg());
-        __ and_(answer.reg(), ~kSmiTagMask);  // Remove inverted smi-tag.
+            continue_label.Bind(&answer);
+            if (operand_info.IsInteger32()) {
+              answer.set_number_info(NumberInfo::Integer32());
+            } else {
+              answer.set_number_info(NumberInfo::Number());
+            }
+            frame_->Push(&answer);
+          }
+          break;
+        }
+        case Token::ADD: {
+          // Smi check.
+          JumpTarget continue_label;
+          Result operand = frame_->Pop();
+          NumberInfo operand_info = operand.number_info();
+          operand.ToRegister();
+          __ test(operand.reg(), Immediate(kSmiTagMask));
+          continue_label.Branch(zero, &operand, taken);
 
-        continue_label.Bind(&answer);
-        frame_->Push(&answer);
-        break;
-      }
-
-      case Token::ADD: {
-        // Smi check.
-        JumpTarget continue_label;
-        Result operand = frame_->Pop();
-        operand.ToRegister();
-        __ test(operand.reg(), Immediate(kSmiTagMask));
-        continue_label.Branch(zero, &operand, taken);
-
-        frame_->Push(&operand);
-        Result answer = frame_->InvokeBuiltin(Builtins::TO_NUMBER,
+          frame_->Push(&operand);
+          Result answer = frame_->InvokeBuiltin(Builtins::TO_NUMBER,
                                               CALL_FUNCTION, 1);
 
-        continue_label.Bind(&answer);
-        frame_->Push(&answer);
-        break;
+          continue_label.Bind(&answer);
+          if (operand_info.IsSmi()) {
+            answer.set_number_info(NumberInfo::Smi());
+          } else if (operand_info.IsInteger32()) {
+            answer.set_number_info(NumberInfo::Integer32());
+          } else {
+            answer.set_number_info(NumberInfo::Number());
+          }
+          frame_->Push(&answer);
+          break;
+        }
+        default:
+          // NOT, DELETE, TYPEOF, and VOID are handled outside the
+          // switch.
+          UNREACHABLE();
       }
-
-      default:
-        // NOT, DELETE, TYPEOF, and VOID are handled outside the
-        // switch.
-        UNREACHABLE();
     }
   }
 }
@@ -6573,6 +6868,7 @@ void DeferredPostfixCountOperation::Generate() {
 
 
 void CodeGenerator::VisitCountOperation(CountOperation* node) {
+  ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ CountOperation");
 
   bool is_postfix = node->is_postfix();
@@ -6607,21 +6903,37 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       old_value = allocator_->Allocate();
       ASSERT(old_value.is_valid());
       __ mov(old_value.reg(), new_value.reg());
+
+      // The return value for postfix operations is the
+      // same as the input, and has the same number info.
+      old_value.set_number_info(new_value.number_info());
     }
+
     // Ensure the new value is writable.
     frame_->Spill(new_value.reg());
 
-    // In order to combine the overflow and the smi tag check, we need
-    // to be able to allocate a byte register.  We attempt to do so
-    // without spilling.  If we fail, we will generate separate overflow
-    // and smi tag checks.
-    //
-    // We allocate and clear the temporary byte register before
-    // performing the count operation since clearing the register using
-    // xor will clear the overflow flag.
-    Result tmp = allocator_->AllocateByteRegisterWithoutSpilling();
-    if (tmp.is_valid()) {
-      __ Set(tmp.reg(), Immediate(0));
+    Result tmp;
+    if (new_value.is_smi()) {
+      if (FLAG_debug_code) __ AbortIfNotSmi(new_value.reg());
+    } else {
+      // We don't know statically if the input is a smi.
+      // In order to combine the overflow and the smi tag check, we need
+      // to be able to allocate a byte register.  We attempt to do so
+      // without spilling.  If we fail, we will generate separate overflow
+      // and smi tag checks.
+      // We allocate and clear a temporary byte register before performing
+      // the count operation since clearing the register using xor will clear
+      // the overflow flag.
+      tmp = allocator_->AllocateByteRegisterWithoutSpilling();
+      if (tmp.is_valid()) {
+        __ Set(tmp.reg(), Immediate(0));
+      }
+    }
+
+    if (is_increment) {
+      __ add(Operand(new_value.reg()), Immediate(Smi::FromInt(1)));
+    } else {
+      __ sub(Operand(new_value.reg()), Immediate(Smi::FromInt(1)));
     }
 
     DeferredCode* deferred = NULL;
@@ -6634,30 +6946,37 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
                                                   is_increment);
     }
 
-    if (is_increment) {
-      __ add(Operand(new_value.reg()), Immediate(Smi::FromInt(1)));
+    if (new_value.is_smi()) {
+      // In case we have a smi as input just check for overflow.
+      deferred->Branch(overflow);
     } else {
-      __ sub(Operand(new_value.reg()), Immediate(Smi::FromInt(1)));
-    }
-
-    // If the count operation didn't overflow and the result is a valid
-    // smi, we're done. Otherwise, we jump to the deferred slow-case
-    // code.
-    if (tmp.is_valid()) {
+      // If the count operation didn't overflow and the result is a valid
+      // smi, we're done. Otherwise, we jump to the deferred slow-case
+      // code.
       // We combine the overflow and the smi tag check if we could
       // successfully allocate a temporary byte register.
-      __ setcc(overflow, tmp.reg());
-      __ or_(Operand(tmp.reg()), new_value.reg());
-      __ test(tmp.reg(), Immediate(kSmiTagMask));
-      tmp.Unuse();
-      deferred->Branch(not_zero);
-    } else {
-      // Otherwise we test separately for overflow and smi tag.
-      deferred->Branch(overflow);
-      __ test(new_value.reg(), Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      if (tmp.is_valid()) {
+        __ setcc(overflow, tmp.reg());
+        __ or_(Operand(tmp.reg()), new_value.reg());
+        __ test(tmp.reg(), Immediate(kSmiTagMask));
+        tmp.Unuse();
+        deferred->Branch(not_zero);
+      } else {
+        // Otherwise we test separately for overflow and smi tag.
+        deferred->Branch(overflow);
+        __ test(new_value.reg(), Immediate(kSmiTagMask));
+        deferred->Branch(not_zero);
+      }
     }
     deferred->BindExit();
+
+    // The result of ++ or -- is an Integer32 if the
+    // input is a smi. Otherwise it is a number.
+    if (new_value.is_smi()) {
+      new_value.set_number_info(NumberInfo::Integer32());
+    } else {
+      new_value.set_number_info(NumberInfo::Number());
+    }
 
     // Postfix: store the old value in the allocated slot under the
     // reference.
@@ -6673,6 +6992,166 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 }
 
 
+void CodeGenerator::Int32BinaryOperation(BinaryOperation* node) {
+  Token::Value op = node->op();
+  Comment cmnt(masm_, "[ Int32BinaryOperation");
+  ASSERT(in_safe_int32_mode());
+  ASSERT(safe_int32_mode_enabled());
+  ASSERT(FLAG_safe_int32_compiler);
+
+  if (op == Token::COMMA) {
+    // Discard left value.
+    frame_->Nip(1);
+    return;
+  }
+
+  Result right = frame_->Pop();
+  Result left = frame_->Pop();
+
+  ASSERT(right.is_untagged_int32());
+  ASSERT(left.is_untagged_int32());
+  // Registers containing an int32 value are not multiply used.
+  ASSERT(!left.is_register() || !frame_->is_used(left.reg()));
+  ASSERT(!right.is_register() || !frame_->is_used(right.reg()));
+
+  switch (op) {
+    case Token::COMMA:
+    case Token::OR:
+    case Token::AND:
+      UNREACHABLE();
+      break;
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+      left.ToRegister();
+      right.ToRegister();
+      if (op == Token::BIT_OR) {
+        __ or_(left.reg(), Operand(right.reg()));
+      } else if (op == Token::BIT_XOR) {
+        __ xor_(left.reg(), Operand(right.reg()));
+      } else {
+        ASSERT(op == Token::BIT_AND);
+        __ and_(left.reg(), Operand(right.reg()));
+      }
+      frame_->Push(&left);
+      right.Unuse();
+      break;
+    case Token::SAR:
+    case Token::SHL:
+    case Token::SHR: {
+      bool test_shr_overflow = false;
+      left.ToRegister();
+      if (right.is_constant()) {
+        ASSERT(right.handle()->IsSmi() || right.handle()->IsHeapNumber());
+        int shift_amount = NumberToInt32(*right.handle()) & 0x1F;
+        if (op == Token::SAR) {
+          __ sar(left.reg(), shift_amount);
+        } else if (op == Token::SHL) {
+          __ shl(left.reg(), shift_amount);
+        } else {
+          ASSERT(op == Token::SHR);
+          __ shr(left.reg(), shift_amount);
+          if (shift_amount == 0) test_shr_overflow = true;
+        }
+      } else {
+        // Move right to ecx
+        if (left.is_register() && left.reg().is(ecx)) {
+          right.ToRegister();
+          __ xchg(left.reg(), right.reg());
+          left = right;  // Left is unused here, copy of right unused by Push.
+        } else {
+          right.ToRegister(ecx);
+          left.ToRegister();
+        }
+        if (op == Token::SAR) {
+          __ sar_cl(left.reg());
+        } else if (op == Token::SHL) {
+          __ shl_cl(left.reg());
+        } else {
+          ASSERT(op == Token::SHR);
+          __ shr_cl(left.reg());
+          test_shr_overflow = true;
+        }
+      }
+      {
+        Register left_reg = left.reg();
+        frame_->Push(&left);
+        right.Unuse();
+        if (test_shr_overflow && !node->to_int32()) {
+          // Uint32 results with top bit set are not Int32 values.
+          // If they will be forced to Int32, skip the test.
+          // Test is needed because shr with shift amount 0 does not set flags.
+          __ test(left_reg, Operand(left_reg));
+          unsafe_bailout_->Branch(sign);
+        }
+      }
+      break;
+    }
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+      left.ToRegister();
+      right.ToRegister();
+      if (op == Token::ADD) {
+        __ add(left.reg(), Operand(right.reg()));
+      } else if (op == Token::SUB) {
+        __ sub(left.reg(), Operand(right.reg()));
+      } else {
+        ASSERT(op == Token::MUL);
+        // We have statically verified that a negative zero can be ignored.
+        __ imul(left.reg(), Operand(right.reg()));
+      }
+      right.Unuse();
+      frame_->Push(&left);
+      if (!node->to_int32()) {
+        // If ToInt32 is called on the result of ADD, SUB, or MUL, we don't
+        // care about overflows.
+        unsafe_bailout_->Branch(overflow);
+      }
+      break;
+    case Token::DIV:
+    case Token::MOD: {
+      if (right.is_register() && (right.reg().is(eax) || right.reg().is(edx))) {
+        if (left.is_register() && left.reg().is(edi)) {
+          right.ToRegister(ebx);
+        } else {
+          right.ToRegister(edi);
+        }
+      }
+      left.ToRegister(eax);
+      Result edx_reg = allocator_->Allocate(edx);
+      right.ToRegister();
+      // The results are unused here because BreakTarget::Branch cannot handle
+      // live results.
+      Register right_reg = right.reg();
+      left.Unuse();
+      right.Unuse();
+      edx_reg.Unuse();
+      __ cmp(right_reg, 0);
+      // Ensure divisor is positive: no chance of non-int32 or -0 result.
+      unsafe_bailout_->Branch(less_equal);
+      __ cdq();  // Sign-extend eax into edx:eax
+      __ idiv(right_reg);
+      if (op == Token::MOD) {
+        Result edx_result(edx, NumberInfo::Integer32());
+        edx_result.set_untagged_int32(true);
+        frame_->Push(&edx_result);
+      } else {
+        ASSERT(op == Token::DIV);
+        __ test(edx, Operand(edx));
+        unsafe_bailout_->Branch(not_equal);
+        Result eax_result(eax, NumberInfo::Integer32());
+        eax_result.set_untagged_int32(true);
+        frame_->Push(&eax_result);
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
+  }
+}
+
 void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Token::Value op = node->op();
@@ -6687,6 +7166,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   // is necessary because we assume that if we get control flow on the
   // last path out of an expression we got it on all paths.
   if (op == Token::AND) {
+    ASSERT(!in_safe_int32_mode());
     JumpTarget is_true;
     ControlDestination dest(&is_true, destination()->false_target(), true);
     LoadCondition(node->left(), &dest, false);
@@ -6750,6 +7230,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     }
 
   } else if (op == Token::OR) {
+    ASSERT(!in_safe_int32_mode());
     JumpTarget is_false;
     ControlDestination dest(destination()->true_target(), &is_false, false);
     LoadCondition(node->left(), &dest, false);
@@ -6811,6 +7292,10 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       exit.Bind();
     }
 
+  } else if (in_safe_int32_mode()) {
+    Visit(node->left());
+    Visit(node->right());
+    Int32BinaryOperation(node);
   } else {
     // NOTE: The code below assumes that the slow cases (calls to runtime)
     // never return a constant/immutable object.
@@ -6823,19 +7308,29 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       overwrite_mode = OVERWRITE_RIGHT;
     }
 
-    Load(node->left());
-    Load(node->right());
-    GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
+    if (node->left()->IsTrivial()) {
+      Load(node->right());
+      Result right = frame_->Pop();
+      frame_->Push(node->left());
+      frame_->Push(&right);
+    } else {
+      Load(node->left());
+      Load(node->right());
+    }
+    GenericBinaryOperation(node->op(), node->type(),
+                           overwrite_mode, node->no_negative_zero());
   }
 }
 
 
 void CodeGenerator::VisitThisFunction(ThisFunction* node) {
+  ASSERT(!in_safe_int32_mode());
   frame_->PushFunction();
 }
 
 
 void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
+  ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ CompareOperation");
 
   bool left_already_loaded = false;
@@ -7024,8 +7519,20 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     default:
       UNREACHABLE();
   }
-  if (!left_already_loaded) Load(left);
-  Load(right);
+
+  if (left->IsTrivial()) {
+    if (!left_already_loaded) {
+      Load(right);
+      Result right_result = frame_->Pop();
+      frame_->Push(left);
+      frame_->Push(&right_result);
+    } else {
+      Load(right);
+    }
+  } else {
+    if (!left_already_loaded) Load(left);
+    Load(right);
+  }
   Comparison(node, cc, strict, destination());
 }
 
@@ -7371,6 +7878,8 @@ Result CodeGenerator::EmitKeyedLoad() {
     if (!key.is_smi()) {
       __ test(key.reg(), Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(key.reg());
     }
 
     // Get the elements array from the receiver and check that it
@@ -7524,6 +8033,8 @@ static void CheckTwoForSminess(MacroAssembler* masm,
     if (!left_info.IsSmi()) {
       __ test(left, Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(left);
     }
   } else if (!left_info.IsSmi()) {
     if (!right_info.IsSmi()) {
@@ -7534,11 +8045,15 @@ static void CheckTwoForSminess(MacroAssembler* masm,
     } else {
       __ test(left, Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
+      if (FLAG_debug_code) __ AbortIfNotSmi(right);
     }
   } else {
+    if (FLAG_debug_code) __ AbortIfNotSmi(left);
     if (!right_info.IsSmi()) {
       __ test(right, Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(right);
     }
   }
 }
@@ -8045,6 +8560,10 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   }
 
   if (static_operands_type_.IsSmi()) {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(left);
+      __ AbortIfNotSmi(right);
+    }
     if (op_ == Token::BIT_OR) {
       __ or_(right, Operand(left));
       GenerateReturn(masm);
@@ -8399,12 +8918,14 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           if (static_operands_type_.IsNumber()) {
             if (FLAG_debug_code) {
               // Assert at runtime that inputs are only numbers.
-              __ AbortIfNotNumber(edx,
-                                  "GenericBinaryOpStub operand not a number.");
-              __ AbortIfNotNumber(eax,
-                                  "GenericBinaryOpStub operand not a number.");
+              __ AbortIfNotNumber(edx);
+              __ AbortIfNotNumber(eax);
             }
             if (static_operands_type_.IsSmi()) {
+              if (FLAG_debug_code) {
+                __ AbortIfNotSmi(edx);
+                __ AbortIfNotSmi(eax);
+              }
               FloatingPointHelper::LoadSSE2Smis(masm, ecx);
             } else {
               FloatingPointHelper::LoadSSE2Operands(masm);
@@ -8427,10 +8948,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           if (static_operands_type_.IsNumber()) {
             if (FLAG_debug_code) {
               // Assert at runtime that inputs are only numbers.
-              __ AbortIfNotNumber(edx,
-                                  "GenericBinaryOpStub operand not a number.");
-              __ AbortIfNotNumber(eax,
-                                  "GenericBinaryOpStub operand not a number.");
+              __ AbortIfNotNumber(edx);
+              __ AbortIfNotNumber(eax);
             }
           } else {
             FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
@@ -8792,9 +9311,9 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   __ bind(&get_result);
 }
 
+
 Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
   GenericBinaryOpStub stub(key, type_info);
-  HandleScope scope;
   return stub.GetCode();
 }
 
@@ -9160,6 +9679,8 @@ void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm,
     if (!number_info.IsSmi()) {
       __ test(edx, Immediate(kSmiTagMask));
       __ j(not_zero, &arg1_is_object);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(edx);
     }
     __ SmiUntag(edx);
     __ jmp(&load_arg2);
@@ -9178,6 +9699,8 @@ void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm,
     if (!number_info.IsSmi()) {
       __ test(eax, Immediate(kSmiTagMask));
       __ j(not_zero, &arg2_is_object);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(eax);
     }
     __ SmiUntag(eax);
     __ mov(ecx, eax);
@@ -10065,15 +10588,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(negative, &done);
   // Read the value from the static offsets vector buffer.
   __ mov(edi, Operand(ecx, edx, times_int_size, 0));
-  // Perform explicit shift
-  ASSERT_EQ(0, kSmiTag);
-  __ shl(edi, kSmiTagSize);
-  // Add previous index (from its stack slot) if value is not negative.
-  Label capture_negative;
-  // Carry flag set by shift above.
-  __ j(negative, &capture_negative, not_taken);
-  __ add(edi, Operand(eax));  // Add previous index (adding smi to smi).
-  __ bind(&capture_negative);
+  __ SmiTag(edi);
   // Store the smi value in the last match info.
   __ mov(FieldOperand(ebx,
                       edx,
@@ -10159,6 +10674,12 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
   __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
+}
+
+
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  masm->RecordWriteHelper(object_, addr_, scratch_);
+  masm->ret(0);
 }
 
 

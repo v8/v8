@@ -114,6 +114,8 @@ Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 int Heap::mc_count_ = 0;
 int Heap::gc_count_ = 0;
 
+int Heap::unflattended_strings_length_ = 0;
+
 int Heap::always_allocate_scope_depth_ = 0;
 int Heap::linear_allocation_scope_depth_ = 0;
 int Heap::contexts_disposed_ = 0;
@@ -302,6 +304,7 @@ void Heap::ReportStatisticsAfterGC() {
 void Heap::GarbageCollectionPrologue() {
   TranscendentalCache::Clear();
   gc_count_++;
+  unflattended_strings_length_ = 0;
 #ifdef DEBUG
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   allow_allocation(false);
@@ -2257,6 +2260,55 @@ Object* Heap::CopyCode(Code* code) {
 }
 
 
+Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
+  int new_body_size = RoundUp(code->instruction_size() + reloc_info.length(),
+                              kObjectAlignment);
+
+  int sinfo_size = code->sinfo_size();
+
+  int new_obj_size = Code::SizeFor(new_body_size, sinfo_size);
+
+  Address old_addr = code->address();
+
+  int relocation_offset = code->relocation_start() - old_addr;
+
+  Object* result;
+  if (new_obj_size > MaxObjectSizeInPagedSpace()) {
+    result = lo_space_->AllocateRawCode(new_obj_size);
+  } else {
+    result = code_space_->AllocateRaw(new_obj_size);
+  }
+
+  if (result->IsFailure()) return result;
+
+  // Copy code object.
+  Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
+
+  // Copy header and instructions.
+  memcpy(new_addr, old_addr, relocation_offset);
+
+  // Copy patched rinfo.
+  memcpy(new_addr + relocation_offset,
+         reloc_info.start(),
+             reloc_info.length());
+
+  Code* new_code = Code::cast(result);
+  new_code->set_relocation_size(reloc_info.length());
+
+  // Copy sinfo.
+  memcpy(new_code->sinfo_start(), code->sinfo_start(), code->sinfo_size());
+
+  // Relocate the copy.
+  ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
+  new_code->Relocate(new_addr - old_addr);
+
+#ifdef DEBUG
+  code->Verify();
+#endif
+  return new_code;
+}
+
+
 Object* Heap::Allocate(Map* map, AllocationSpace space) {
   ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(map->instance_type() != MAP_TYPE);
@@ -2571,11 +2623,9 @@ Object* Heap::CopyJSObject(JSObject* source) {
               reinterpret_cast<Object**>(source->address()),
               object_size);
     // Update write barrier for all fields that lie beyond the header.
-    for (int offset = JSObject::kHeaderSize;
-         offset < object_size;
-         offset += kPointerSize) {
-      RecordWrite(clone_address, offset);
-    }
+    RecordWrites(clone_address,
+                 JSObject::kHeaderSize,
+                 object_size - JSObject::kHeaderSize);
   } else {
     clone = new_space_.AllocateRaw(object_size);
     if (clone->IsFailure()) return clone;
@@ -2906,12 +2956,9 @@ Object* Heap::AllocateFixedArray(int length) {
     reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
     FixedArray* array = FixedArray::cast(result);
     array->set_length(length);
-    Object* value = undefined_value();
     // Initialize body.
-    for (int index = 0; index < length; index++) {
-      ASSERT(!Heap::InNewSpace(value));  // value = undefined
-      array->set(index, value, SKIP_WRITE_BARRIER);
-    }
+    ASSERT(!Heap::InNewSpace(undefined_value()));
+    MemsetPointer(array->data_start(), undefined_value(), length);
   }
   return result;
 }
@@ -2963,11 +3010,8 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
   FixedArray* array = FixedArray::cast(result);
   array->set_length(length);
-  Object* value = undefined_value();
-  for (int index = 0; index < length; index++) {
-    ASSERT(!Heap::InNewSpace(value));  // value = undefined
-    array->set(index, value, SKIP_WRITE_BARRIER);
-  }
+  ASSERT(!Heap::InNewSpace(undefined_value()));
+  MemsetPointer(array->data_start(), undefined_value(), length);
   return array;
 }
 
@@ -2994,9 +3038,7 @@ Object* Heap::AllocateFixedArrayWithHoles(int length) {
     array->set_length(length);
     // Initialize body.
     ASSERT(!Heap::InNewSpace(the_hole_value()));
-    MemsetPointer(HeapObject::RawField(array, FixedArray::kHeaderSize),
-                  the_hole_value(),
-                  length);
+    MemsetPointer(array->data_start(), the_hole_value(), length);
   }
   return result;
 }
@@ -3409,7 +3451,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize("strong_root_list");
 
-  v->VisitPointer(bit_cast<Object**, String**>(&hidden_symbol_));
+  v->VisitPointer(BitCast<Object**, String**>(&hidden_symbol_));
   v->Synchronize("symbol");
 
   Bootstrapper::Iterate(v);

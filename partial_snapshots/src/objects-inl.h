@@ -1121,6 +1121,17 @@ void HeapNumber::set_value(double value) {
 }
 
 
+int HeapNumber::get_exponent() {
+  return ((READ_INT_FIELD(this, kExponentOffset) & kExponentMask) >>
+          kExponentShift) - kExponentBias;
+}
+
+
+int HeapNumber::get_sign() {
+  return READ_INT_FIELD(this, kExponentOffset) & kSignMask;
+}
+
+
 ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
 
 
@@ -2361,8 +2372,7 @@ ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
-ACCESSORS(SharedFunctionInfo, function_data, Object,
-          kExternalReferenceDataOffset)
+ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
 ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
 ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
@@ -2450,6 +2460,22 @@ void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
 bool SharedFunctionInfo::is_compiled() {
   // TODO(1242782): Create a code kind for uncompiled code.
   return code()->kind() != Code::STUB;
+}
+
+
+bool SharedFunctionInfo::IsApiFunction() {
+  return function_data()->IsFunctionTemplateInfo();
+}
+
+
+FunctionTemplateInfo* SharedFunctionInfo::get_api_func_data() {
+  ASSERT(IsApiFunction());
+  return FunctionTemplateInfo::cast(function_data());
+}
+
+
+bool SharedFunctionInfo::HasCustomCallGenerator() {
+  return function_data()->IsProxy();
 }
 
 

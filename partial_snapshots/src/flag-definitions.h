@@ -152,12 +152,15 @@ DEFINE_bool(always_fast_compiler, false,
             "try to use the speculative optimizing backend for all code")
 DEFINE_bool(trace_bailout, false,
             "print reasons for falling back to using the classic V8 backend")
-DEFINE_bool(safe_int32_compiler, false,
+DEFINE_bool(safe_int32_compiler, true,
             "enable optimized side-effect-free int32 expressions.")
 DEFINE_bool(use_flow_graph, false, "perform flow-graph based optimizations")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
+
+// data-flow.cc
+DEFINE_bool(loop_peeling, false, "Peel off the first iteration of loops.")
 
 // debug.cc
 DEFINE_bool(remote_debugging, false, "enable remote debugging")

@@ -241,6 +241,9 @@ class Operand BASE_EMBEDDED {
   // reg
   INLINE(explicit Operand(Register reg));
 
+  // XMM reg
+  INLINE(explicit Operand(XMMRegister xmm_reg));
+
   // [disp/r]
   INLINE(explicit Operand(int32_t disp, RelocInfo::Mode rmode));
   // disp only must always be relocated
@@ -709,6 +712,7 @@ class Assembler : public Malloced {
   void fistp_s(const Operand& adr);
   void fistp_d(const Operand& adr);
 
+  // The fisttp instructions require SSE3.
   void fisttp_s(const Operand& adr);
   void fisttp_d(const Operand& adr);
 
@@ -769,6 +773,7 @@ class Assembler : public Malloced {
 
   void comisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, XMMRegister src);
+  void movmskpd(Register dst, XMMRegister src);
 
   void movdqa(XMMRegister dst, const Operand& src);
   void movdqa(const Operand& dst, XMMRegister src);
@@ -828,7 +833,7 @@ class Assembler : public Malloced {
 
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
-
+  void emit_sse_operand(Register dst, XMMRegister src);
 
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }

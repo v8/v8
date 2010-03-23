@@ -40,6 +40,7 @@ namespace internal {
 // Top has static variables used for JavaScript execution.
 
 class SaveContext;  // Forward declaration.
+class ThreadVisitor;  // Defined in v8threads.h
 
 class ThreadLocalTop BASE_EMBEDDED {
  public:
@@ -319,6 +320,8 @@ class Top {
   static void Iterate(ObjectVisitor* v);
   static void Iterate(ObjectVisitor* v, ThreadLocalTop* t);
   static char* Iterate(ObjectVisitor* v, char* t);
+  static void IterateThread(ThreadVisitor* v);
+  static void IterateThread(ThreadVisitor* v, char* t);
 
   // Returns the global object of the current context. It could be
   // a builtin object, or a js global object.
@@ -341,11 +344,6 @@ class Top {
   static Handle<JSBuiltinsObject> builtins() {
     return Handle<JSBuiltinsObject>(thread_local_.context_->builtins());
   }
-
-  static bool CanHaveSpecialFunctions(JSObject* object);
-  static Object* LookupSpecialFunction(JSObject* receiver,
-                                       JSObject* prototype,
-                                       JSFunction* value);
 
   static void RegisterTryCatchHandler(v8::TryCatch* that);
   static void UnregisterTryCatchHandler(v8::TryCatch* that);
