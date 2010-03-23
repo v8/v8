@@ -668,7 +668,8 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
                                               Variable* var,
                                               Handle<Object> value,
                                               StaticType* type,
-                                              int num) {
+                                              int num,
+                                              bool is_primitive) {
   if (var == NULL) {
     PrintLiteralIndented(info, value, true);
   } else {
@@ -682,6 +683,8 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
     if (num != AstNode::kNoNumber) {
       pos += OS::SNPrintF(buf + pos, ", num = %d", num);
     }
+    pos += OS::SNPrintF(buf + pos,
+                        is_primitive ? ", primitive" : ", non-primitive");
     OS::SNPrintF(buf + pos, ")");
     PrintLiteralIndented(buf.start(), value, true);
   }
@@ -740,7 +743,8 @@ void AstPrinter::PrintParameters(Scope* scope) {
       PrintLiteralWithModeIndented("VAR", scope->parameter(i),
                                    scope->parameter(i)->name(),
                                    scope->parameter(i)->type(),
-                                   AstNode::kNoNumber);
+                                   AstNode::kNoNumber,
+                                   false);
     }
   }
 }
@@ -786,7 +790,8 @@ void AstPrinter::VisitDeclaration(Declaration* node) {
                                  node->proxy()->AsVariable(),
                                  node->proxy()->name(),
                                  node->proxy()->AsVariable()->type(),
-                                 AstNode::kNoNumber);
+                                 AstNode::kNoNumber,
+                                 node->proxy()->IsPrimitive());
   } else {
     // function declarations
     PrintIndented("FUNCTION ");
@@ -1022,7 +1027,7 @@ void AstPrinter::VisitSlot(Slot* node) {
 
 void AstPrinter::VisitVariableProxy(VariableProxy* node) {
   PrintLiteralWithModeIndented("VAR PROXY", node->AsVariable(), node->name(),
-                               node->type(), node->num());
+                               node->type(), node->num(), node->IsPrimitive());
   Variable* var = node->var();
   if (var != NULL && var->rewrite() != NULL) {
     IndentedScope indent;

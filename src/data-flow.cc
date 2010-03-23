@@ -1994,4 +1994,56 @@ void ReachingDefinitions::Compute() {
 }
 
 
+bool TypeAnalyzer::IsPrimitiveDef(int def_num) {
+  if (def_num < param_count_) return false;
+  if (def_num < variable_count_) return true;
+  return body_definitions_->at(def_num - variable_count_)->IsPrimitive();
+}
+
+
+void TypeAnalyzer::Compute() {
+  bool changed;
+  int count = 0;
+
+  do {
+    changed = false;
+
+    if (FLAG_print_graph_text) {
+      PrintF("TypeAnalyzer::Compute - iteration %d\n", count++);
+    }
+
+    for (int i = postorder_->length() - 1; i >= 0; --i) {
+      Node* node = postorder_->at(i);
+      if (node->IsBlockNode()) {
+        BlockNode* block = BlockNode::cast(node);
+        for (int j = 0; j < block->instructions()->length(); j++) {
+          Expression* expr = block->instructions()->at(j)->AsExpression();
+          if (expr != NULL) {
+            // For variable uses: Compute new type from reaching definitions.
+            VariableProxy* proxy = expr->AsVariableProxy();
+            if (proxy != NULL && proxy->reaching_definitions() != NULL) {
+              BitVector* rd = proxy->reaching_definitions();
+              bool prim_type = true;
+              // TODO(fsc): A sparse set representation of reaching
+              // definitions would speed up iterating here.
+              for (int k = 0; k < rd->length(); k++) {
+                if (rd->Contains(k) && !IsPrimitiveDef(k)) {
+                  prim_type = false;
+                  break;
+                }
+              }
+              // Reset changed flag if new type information was computed.
+              if (prim_type != proxy->IsPrimitive()) {
+                changed = true;
+                proxy->SetIsPrimitive(prim_type);
+              }
+            }
+          }
+        }
+      }
+    }
+  } while (changed);
+}
+
+
 } }  // namespace v8::internal

@@ -305,6 +305,8 @@ class BlockNode: public Node {
 
   bool is_empty() { return instructions_.is_empty(); }
 
+  ZoneList<AstNode*>* instructions() { return &instructions_; }
+
   void AddPredecessor(Node* predecessor) {
     ASSERT(predecessor_ == NULL && predecessor != NULL);
     predecessor_ = predecessor;
@@ -619,6 +621,31 @@ class ReachingDefinitions BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(ReachingDefinitions);
 };
 
+
+
+class TypeAnalyzer BASE_EMBEDDED {
+ public:
+  TypeAnalyzer(ZoneList<Node*>* postorder,
+              ZoneList<Expression*>* body_definitions,
+               int variable_count,
+               int param_count)
+      : postorder_(postorder),
+        body_definitions_(body_definitions),
+        variable_count_(variable_count),
+        param_count_(param_count) {}
+
+  void Compute();
+
+ private:
+  // Get the primitity of definition number i. Definitions are numbered
+  // by the flow graph builder.
+  bool IsPrimitiveDef(int def_num);
+
+  ZoneList<Node*>* postorder_;
+  ZoneList<Expression*>* body_definitions_;
+  int variable_count_;
+  int param_count_;
+};
 
 } }  // namespace v8::internal
 

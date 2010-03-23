@@ -1078,6 +1078,8 @@ class VariableProxy: public Expression {
 
   virtual bool IsPrimitive();
 
+  void SetIsPrimitive(bool value) { is_primitive_ = value; }
+
   bool IsVariable(Handle<String> n) {
     return !is_this() && name().is_identical_to(n);
   }
@@ -1107,6 +1109,7 @@ class VariableProxy: public Expression {
   bool inside_with_;
   bool is_trivial_;
   BitVector* reaching_definitions_;
+  bool is_primitive_;
 
   VariableProxy(Handle<String> name, bool is_this, bool inside_with);
   explicit VariableProxy(bool is_this);

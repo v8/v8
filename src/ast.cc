@@ -79,7 +79,8 @@ VariableProxy::VariableProxy(Handle<String> name,
     is_this_(is_this),
     inside_with_(inside_with),
     is_trivial_(false),
-    reaching_definitions_(NULL) {
+    reaching_definitions_(NULL),
+    is_primitive_(false) {
   // names must be canonicalized for fast equality checks
   ASSERT(name->IsSymbol());
 }
@@ -87,7 +88,8 @@ VariableProxy::VariableProxy(Handle<String> name,
 
 VariableProxy::VariableProxy(bool is_this)
   : is_this_(is_this),
-    reaching_definitions_(NULL) {
+    reaching_definitions_(NULL),
+    is_primitive_(false) {
 }
 
 
@@ -518,11 +520,17 @@ bool ThisFunction::IsPrimitive() { return false; }
 
 // The following expression types are not always primitive because we do not
 // have enough information to conclude that they are.
-bool VariableProxy::IsPrimitive() { return false; }
 bool Property::IsPrimitive() { return false; }
 bool Call::IsPrimitive() { return false; }
 bool CallRuntime::IsPrimitive() { return false; }
 
+
+// A variable use is not primitive unless the primitive-type analysis
+// determines otherwise.
+bool VariableProxy::IsPrimitive() {
+  ASSERT(!is_primitive_ || (var() != NULL && var()->IsStackAllocated()));
+  return is_primitive_;
+}
 
 // The value of a conditional is the value of one of the alternatives.  It's
 // always primitive if both alternatives are always primitive.

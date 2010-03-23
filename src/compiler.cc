@@ -100,6 +100,12 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
                                builder.body_definitions(),
                                variable_count);
         rd.Compute();
+
+        TypeAnalyzer ta(builder.postorder(),
+                        builder.body_definitions(),
+                        variable_count,
+                        function->num_parameters());
+        ta.Compute();
       }
     }
 
@@ -503,14 +509,20 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
       FlowGraphBuilder builder(variable_count);
       builder.Build(literal);
 
-    if (!builder.HasStackOverflow()) {
-      if (variable_count > 0) {
-        ReachingDefinitions rd(builder.postorder(),
-                               builder.body_definitions(),
-                               variable_count);
-        rd.Compute();
+      if (!builder.HasStackOverflow()) {
+        if (variable_count > 0) {
+          ReachingDefinitions rd(builder.postorder(),
+                                 builder.body_definitions(),
+                                 variable_count);
+          rd.Compute();
+
+          TypeAnalyzer ta(builder.postorder(),
+                          builder.body_definitions(),
+                          variable_count,
+                          literal->num_parameters());
+          ta.Compute();
+        }
       }
-    }
 
 #ifdef DEBUG
       if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
