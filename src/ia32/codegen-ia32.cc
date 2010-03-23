@@ -11742,49 +11742,6 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 }
 
 
-// Unfortunately you have to run without snapshots to see most of these
-// names in the profile since most compare stubs end up in the snapshot.
-const char* CompareStub::GetName() {
-  switch (cc_) {
-    case less: return "CompareStub_LT";
-    case greater: return "CompareStub_GT";
-    case less_equal: return "CompareStub_LE";
-    case greater_equal: return "CompareStub_GE";
-    case not_equal: {
-      if (strict_) {
-        if (never_nan_nan_) {
-          return "CompareStub_NE_STRICT_NO_NAN";
-        } else {
-          return "CompareStub_NE_STRICT";
-        }
-      } else {
-        if (never_nan_nan_) {
-          return "CompareStub_NE_NO_NAN";
-        } else {
-          return "CompareStub_NE";
-        }
-      }
-    }
-    case equal: {
-      if (strict_) {
-        if (never_nan_nan_) {
-          return "CompareStub_EQ_STRICT_NO_NAN";
-        } else {
-          return "CompareStub_EQ_STRICT";
-        }
-      } else {
-        if (never_nan_nan_) {
-          return "CompareStub_EQ_NO_NAN";
-        } else {
-          return "CompareStub_EQ";
-        }
-      }
-    }
-    default: return "CompareStub";
-  }
-}
-
-
 int CompareStub::MinorKey() {
   // Encode the three parameters in a unique 16 bit value. To avoid duplicate
   // stubs the never NaN NaN condition is only taken into account if the
@@ -11794,6 +11751,50 @@ int CompareStub::MinorKey() {
          | StrictField::encode(strict_)
          | NeverNanNanField::encode(cc_ == equal ? never_nan_nan_ : false)
          | IncludeNumberCompareField::encode(include_number_compare_);
+}
+
+
+// Unfortunately you have to run without snapshots to see most of these
+// names in the profile since most compare stubs end up in the snapshot.
+const char* CompareStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+
+  const char* cc_name;
+  switch (cc_) {
+    case less: cc_name = "LT"; break;
+    case greater: cc_name = "GT"; break;
+    case less_equal: cc_name = "LE"; break;
+    case greater_equal: cc_name = "GE"; break;
+    case equal: cc_name = "EQ"; break;
+    case not_equal: cc_name = "NE"; break;
+    default: cc_name = "UnknownCondition"; break;
+  }
+
+  const char* strict_name = "";
+  if (strict_ && (cc_ == equal || cc_ == not_equal)) {
+    strict_name = "_STRICT";
+  }
+
+  const char* never_nan_nan_name = "";
+  if (never_nan_nan_ && (cc_ == equal || cc_ == not_equal)) {
+    never_nan_nan_name = "_NO_NAN";
+  }
+
+  const char* include_number_compare_name = "";
+  if (!include_number_compare_) {
+    include_number_compare_name = "_NO_NUMBER";
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "CompareStub_%s%s%s%s",
+               cc_name,
+               strict_name,
+               never_nan_nan_name,
+               include_number_compare_name);
+  return name_;
 }
 
 

@@ -351,7 +351,8 @@ class CompareStub: public CodeStub {
       cc_(cc),
       strict_(strict),
       never_nan_nan_(nan_info == kCantBothBeNaN),
-      include_number_compare_(include_number_compare) { }
+      include_number_compare_(include_number_compare),
+      name_(NULL) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -387,12 +388,16 @@ class CompareStub: public CodeStub {
 
   // Unfortunately you have to run without snapshots to see most of these
   // names in the profile since most compare stubs end up in the snapshot.
+  char* name_;
   const char* GetName();
 #ifdef DEBUG
   void Print() {
-    PrintF("CompareStub (cc %d), (strict %s)\n",
+    PrintF("CompareStub (cc %d), (strict %s), "
+           "(never_nan_nan %s), (number_compare %s)\n",
            static_cast<int>(cc_),
-           strict_ ? "true" : "false");
+           strict_ ? "true" : "false",
+           never_nan_nan_ ? "true" : "false",
+           include_number_compare_ ? "included" : "not included");
   }
 #endif
 };
