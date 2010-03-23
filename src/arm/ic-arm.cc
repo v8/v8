@@ -145,25 +145,6 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 }
 
 
-// Helper function used to check that a value is either not an object
-// or is loaded if it is an object.
-static void GenerateCheckNonObjectOrLoaded(MacroAssembler* masm,
-                                           Label* miss,
-                                           Register value,
-                                           Register scratch) {
-  Label done;
-  // Check if the value is a Smi.
-  __ tst(value, Operand(kSmiTagMask));
-  __ b(eq, &done);
-  // Check if the object has been loaded.
-  __ ldr(scratch, FieldMemOperand(value, JSObject::kMapOffset));
-  __ ldrb(scratch, FieldMemOperand(scratch, Map::kBitField2Offset));
-  __ tst(scratch, Operand(1 << Map::kNeedsLoading));
-  __ b(ne, miss);
-  __ bind(&done);
-}
-
-
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
@@ -290,12 +271,6 @@ static void GenerateNormalHelper(MacroAssembler* masm,
 
   // Check that the value is a JSFunction.
   __ CompareObjectType(r1, r0, r0, JS_FUNCTION_TYPE);
-  __ b(ne, miss);
-
-  // Check that the function has been loaded.
-  __ ldr(r0, FieldMemOperand(r1, JSObject::kMapOffset));
-  __ ldrb(r0, FieldMemOperand(r0, Map::kBitField2Offset));
-  __ tst(r0, Operand(1 << Map::kNeedsLoading));
   __ b(ne, miss);
 
   // Patch the receiver with the global proxy if necessary.
@@ -469,7 +444,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   __ bind(&probe);
   GenerateDictionaryLoad(masm, &miss, r1, r0);
-  GenerateCheckNonObjectOrLoaded(masm, &miss, r0, r1);
   __ Ret();
 
   // Global object access: Check access rights.

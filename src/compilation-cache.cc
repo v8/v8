@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "compilation-cache.h"
+#include "serialize.h"
 
 namespace v8 {
 namespace internal {

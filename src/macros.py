@@ -120,10 +120,6 @@ macro TO_STRING_INLINE(arg) = (IS_STRING(%IS_VAR(arg)) ? arg : NonStringToString
 # Macros implemented in Python.
 python macro CHAR_CODE(str) = ord(str[1]);
 
-# Accessors for original global properties that ensure they have been loaded.
-const ORIGINAL_REGEXP = (global.RegExp, $RegExp);
-const ORIGINAL_DATE   = (global.Date, $Date);
-
 # Constants used on an array to implement the properties of the RegExp object.
 const REGEXP_NUMBER_OF_CAPTURES = 0;
 const REGEXP_FIRST_CAPTURE = 3;

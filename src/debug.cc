@@ -720,7 +720,6 @@ bool Debug::CompileDebuggerScript(int index) {
 
   // Mark this script as native and return successfully.
   Handle<Script> script(Script::cast(function->shared()->script()));
-  script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
   return true;
 }
 
@@ -1682,7 +1681,7 @@ void Debug::CreateScriptCache() {
 
   // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
   // rid of all the cached script wrappers and the second gets rid of the
-  // scripts which is no longer referenced.
+  // scripts which are no longer referenced.
   Heap::CollectAllGarbage(false);
   Heap::CollectAllGarbage(false);
 
@@ -1996,7 +1995,7 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   // If debugging there might be script break points registered for this
   // script. Make sure that these break points are set.
 
-  // Get the function UpdateScriptBreakPoints (defined in debug-delay.js).
+  // Get the function UpdateScriptBreakPoints (defined in debug-debugger.js).
   Handle<Object> update_script_break_points =
       Handle<Object>(Debug::debug_context()->global()->GetProperty(
           *Factory::LookupAsciiSymbol("UpdateScriptBreakPoints")));

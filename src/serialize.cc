@@ -547,7 +547,7 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
     HeapObject* new_object = HeapObject::cast(new_allocation);
     // Record all large objects in the same space.
     address = new_object->address();
-    high_water_[LO_SPACE] = address + size;
+    pages_[LO_SPACE].Add(address);
   }
   last_object_address_ = address;
   return address;
@@ -900,11 +900,16 @@ void Serializer::Synchronize(const char* tag) {
 Serializer::Serializer(SnapshotByteSink* sink)
     : sink_(sink),
       current_root_index_(0),
-      external_reference_encoder_(NULL),
+      external_reference_encoder_(new ExternalReferenceEncoder),
       large_object_total_(0) {
   for (int i = 0; i <= LAST_SPACE; i++) {
     fullness_[i] = 0;
   }
+}
+
+
+Serializer::~Serializer() {
+  delete external_reference_encoder_;
 }
 
 
@@ -914,22 +919,17 @@ void StartupSerializer::SerializeStrongReferences() {
   // No active or weak handles.
   CHECK(HandleScopeImplementer::instance()->blocks()->is_empty());
   CHECK_EQ(0, GlobalHandles::NumberOfWeakHandles());
-  CHECK_EQ(NULL, external_reference_encoder_);
   // We don't support serializing installed extensions.
   for (RegisteredExtension* ext = RegisteredExtension::first_extension();
        ext != NULL;
        ext = ext->next()) {
     CHECK_NE(v8::INSTALLED, ext->state());
   }
-  external_reference_encoder_ = new ExternalReferenceEncoder();
   Heap::IterateStrongRoots(this, VISIT_ONLY_STRONG);
-  delete external_reference_encoder_;
-  external_reference_encoder_ = NULL;
 }
 
 
 void PartialSerializer::Serialize(Object** object) {
-  external_reference_encoder_ = new ExternalReferenceEncoder();
   this->VisitPointer(object);
 
   // After we have done the partial serialization the partial snapshot cache
@@ -943,9 +943,6 @@ void PartialSerializer::Serialize(Object** object) {
     startup_serializer_->VisitPointer(&partial_snapshot_cache_[index]);
   }
   partial_snapshot_cache_length_ = kPartialSnapshotCacheCapacity;
-
-  delete external_reference_encoder_;
-  external_reference_encoder_ = NULL;
 }
 
 
@@ -997,6 +994,7 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
     Object* entry = partial_snapshot_cache_[i];
     if (entry == heap_object) return i;
   }
+
   // We didn't find the object in the cache.  So we add it to the cache and
   // then visit the pointer so that it becomes part of the startup snapshot
   // and we can refer to it from the partial snapshot.

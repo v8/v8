@@ -38,7 +38,7 @@
 #include "utils.h"
 #include "cctest.h"
 
-static const bool kLogThreading = false;
+static const bool kLogThreading = true;
 
 static bool IsNaN(double x) {
 #ifdef WIN32
@@ -4605,6 +4605,7 @@ THREADED_TEST(AccessControl) {
   value = v8_compile("other.accessible_prop = 3")->Run();
   CHECK(value->IsNumber());
   CHECK_EQ(3, value->Int32Value());
+  CHECK_EQ(3, g_echo_value);
 
   value = v8_compile("other.accessible_prop")->Run();
   CHECK(value->IsNumber());

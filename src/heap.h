@@ -108,6 +108,7 @@ class ZoneScopeInfo;
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
   V(Object, last_script_id, LastScriptId)                                      \
+  V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
 
 #if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
@@ -756,6 +757,10 @@ class Heap : public AllStatic {
   // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
   static void public_set_non_monomorphic_cache(NumberDictionary* value) {
     roots_[kNonMonomorphicCacheRootIndex] = value;
+  }
+
+  static void public_set_empty_script(Script* script) {
+    roots_[kEmptyScriptRootIndex] = script;
   }
 
   // Update the next script id.

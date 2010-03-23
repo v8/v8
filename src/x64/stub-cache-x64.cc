@@ -783,7 +783,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   // -----------------------------------
 
   SharedFunctionInfo* function_info = function->shared();
-  if (function_info->HasCustomCallGenerator()) {
+  if (false && function_info->HasCustomCallGenerator()) {
     CustomCallGenerator generator =
         ToCData<CustomCallGenerator>(function_info->function_data());
     return generator(this, object, holder, function, name, check);

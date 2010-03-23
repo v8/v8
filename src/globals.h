@@ -325,7 +325,6 @@ enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
 enum VisitMode { VISIT_ALL, VISIT_ALL_IN_SCAVENGE, VISIT_ONLY_STRONG };
 
-
 // Flag indicating whether code is built into the VM (one of the natives files).
 enum NativesFlag { NOT_NATIVES_CODE, NATIVES_CODE };
 
@@ -408,7 +407,7 @@ enum CallFunctionFlags {
 // Type of properties.
 // Order of properties is significant.
 // Must fit in the BitField PropertyDetails::TypeField.
-// A copy of this is in mirror-delay.js.
+// A copy of this is in mirror-debugger.js.
 enum PropertyType {
   NORMAL              = 0,  // only in slow mode
   FIELD               = 1,  // only in fast mode
