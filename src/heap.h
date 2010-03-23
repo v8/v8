@@ -980,7 +980,7 @@ class Heap : public AllStatic {
   static int gc_count_;  // how many gc happened
 
   // Total length of the strings we failed to flatten since the last GC.
-  static int unflattended_strings_length_;
+  static int unflattened_strings_length_;
 
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
   static inline void set_##name(type* value) {                                 \

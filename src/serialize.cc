@@ -409,36 +409,44 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       19,
       "compare_doubles");
+  Add(ExternalReference::compile_array_pop_call().address(),
+      UNCLASSIFIED,
+      20,
+      "compile_array_pop");
+  Add(ExternalReference::compile_array_push_call().address(),
+      UNCLASSIFIED,
+      21,
+      "compile_array_push");
 #ifdef V8_NATIVE_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16().address(),
       UNCLASSIFIED,
-      20,
+      22,
       "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()");
   Add(ExternalReference::re_check_stack_guard_state().address(),
       UNCLASSIFIED,
-      21,
+      23,
       "RegExpMacroAssembler*::CheckStackGuardState()");
   Add(ExternalReference::re_grow_stack().address(),
       UNCLASSIFIED,
-      22,
+      24,
       "NativeRegExpMacroAssembler::GrowStack()");
   Add(ExternalReference::re_word_character_map().address(),
       UNCLASSIFIED,
-      23,
+      25,
       "NativeRegExpMacroAssembler::word_character_map");
 #endif
   // Keyed lookup cache.
   Add(ExternalReference::keyed_lookup_cache_keys().address(),
       UNCLASSIFIED,
-      24,
+      26,
       "KeyedLookupCache::keys()");
   Add(ExternalReference::keyed_lookup_cache_field_offsets().address(),
       UNCLASSIFIED,
-      25,
+      27,
       "KeyedLookupCache::field_offsets()");
   Add(ExternalReference::transcendental_cache_array_address().address(),
       UNCLASSIFIED,
-      26,
+      28,
       "TranscendentalCache::caches()");
 }
 
