@@ -507,7 +507,7 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
 // The following expression types are never primitive because they express
 // Object values.
 bool FunctionLiteral::IsPrimitive() { return false; }
-bool FunctionBoilerplateLiteral::IsPrimitive() { return false; }
+bool SharedFunctionInfoLiteral::IsPrimitive() { return false; }
 bool RegExpLiteral::IsPrimitive() { return false; }
 bool ObjectLiteral::IsPrimitive() { return false; }
 bool ArrayLiteral::IsPrimitive() { return false; }
@@ -858,8 +858,8 @@ void CopyAstVisitor::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void CopyAstVisitor::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
+void CopyAstVisitor::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
   SetStackOverflow();
 }
 

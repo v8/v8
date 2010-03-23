@@ -58,7 +58,7 @@
 //   ProcessDeferred
 //   Generate
 //   ComputeLazyCompile
-//   BuildBoilerplate
+//   BuildFunctionInfo
 //   ComputeCallInitialize
 //   ComputeCallInitializeInLoop
 //   ProcessDeclarations

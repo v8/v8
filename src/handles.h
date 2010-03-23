@@ -307,8 +307,6 @@ void SetPrototypeProperty(Handle<JSFunction> func, Handle<JSObject> value);
 // Sets the expected number of properties based on estimate from compiler.
 void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
                                           int estimate);
-void SetExpectedNofPropertiesFromEstimate(Handle<JSFunction> func,
-                                          int estimate);
 
 
 Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(

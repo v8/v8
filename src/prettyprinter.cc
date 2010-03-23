@@ -227,10 +227,10 @@ void PrettyPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void PrettyPrinter::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
+void PrettyPrinter::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
   Print("(");
-  PrintLiteral(node->boilerplate(), true);
+  PrintLiteral(node->shared_function_info(), true);
   Print(")");
 }
 
@@ -918,10 +918,10 @@ void AstPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void AstPrinter::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
+void AstPrinter::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
   IndentedScope indent("FUNC LITERAL");
-  PrintLiteralIndented("BOILERPLATE", node->boilerplate(), true);
+  PrintLiteralIndented("SHARED INFO", node->shared_function_info(), true);
 }
 
 
@@ -1326,9 +1326,9 @@ void JsonAstBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void JsonAstBuilder::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
-  TagScope tag(this, "FunctionBoilerplateLiteral");
+void JsonAstBuilder::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
+  TagScope tag(this, "SharedFunctionInfoLiteral");
 }
 
 

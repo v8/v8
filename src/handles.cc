@@ -174,13 +174,6 @@ void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
 }
 
 
-void SetExpectedNofPropertiesFromEstimate(Handle<JSFunction> func,
-                                          int estimate) {
-  SetExpectedNofProperties(
-      func, ExpectedNofPropertiesFromEstimate(estimate));
-}
-
-
 void NormalizeProperties(Handle<JSObject> object,
                          PropertyNormalizationMode mode,
                          int expected_additional_properties) {
@@ -796,29 +789,32 @@ void LoadLazy(Handle<JSObject> obj, bool* pending_exception) {
 
   Vector<const char> name = Natives::GetScriptName(index);
 
-  Handle<JSFunction> boilerplate;
+  Handle<SharedFunctionInfo> function_info;
 
-  if (!Bootstrapper::NativesCacheLookup(name, &boilerplate)) {
+  if (!Bootstrapper::NativesCacheLookup(name, &function_info)) {
     Handle<String> source_code = Bootstrapper::NativesSourceLookup(index);
     Handle<String> script_name = Factory::NewStringFromAscii(name);
     bool allow_natives_syntax = FLAG_allow_natives_syntax;
     FLAG_allow_natives_syntax = true;
-    boilerplate = Compiler::Compile(source_code, script_name, 0, 0, NULL, NULL,
-                                    Handle<String>::null(), NATIVES_CODE);
+    function_info = Compiler::Compile(source_code,
+                                      script_name,
+                                      0, 0, NULL, NULL,
+                                      Handle<String>::null(),
+                                      NATIVES_CODE);
     FLAG_allow_natives_syntax = allow_natives_syntax;
     // If the compilation failed (possibly due to stack overflows), we
     // should never enter the result in the natives cache. Instead we
     // return from the function without marking the function as having
     // been lazily loaded.
-    if (boilerplate.is_null()) {
+    if (function_info.is_null()) {
       *pending_exception = true;
       return;
     }
-    Bootstrapper::NativesCacheAdd(name, boilerplate);
+    Bootstrapper::NativesCacheAdd(name, function_info);
   }
 
   // We shouldn't get here if compiling the script failed.
-  ASSERT(!boilerplate.is_null());
+  ASSERT(!function_info.is_null());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // When the debugger running in its own context touches lazy loaded
@@ -838,7 +834,8 @@ void LoadLazy(Handle<JSObject> obj, bool* pending_exception) {
 
   // Run the script.
   Handle<JSFunction> script_fun(
-      Factory::NewFunctionFromBoilerplate(boilerplate, function_context));
+      Factory::NewFunctionFromSharedFunctionInfo(function_info,
+                                                 function_context));
   Execution::Call(script_fun, receiver, 0, NULL, pending_exception);
 
   // If lazy loading failed, restore the unloaded state of obj.

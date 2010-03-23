@@ -395,8 +395,8 @@ void FlowGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void FlowGraphBuilder::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
+void FlowGraphBuilder::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
   SetStackOverflow();
 }
 
@@ -717,8 +717,8 @@ void AstLabeler::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void AstLabeler::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
+void AstLabeler::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
   UNREACHABLE();
 }
 
@@ -1094,8 +1094,8 @@ void AssignedVariablesAnalyzer::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void AssignedVariablesAnalyzer::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
+void AssignedVariablesAnalyzer::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
   // Nothing to do.
   ASSERT(av_.IsEmpty());
 }
@@ -1421,9 +1421,9 @@ void TextInstructionPrinter::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void TextInstructionPrinter::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
-  PrintF("FunctionBoilerplateLiteral");
+void TextInstructionPrinter::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
+  PrintF("SharedFunctionInfoLiteral");
 }
 
 

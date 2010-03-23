@@ -73,7 +73,7 @@ namespace internal {
 
 #define EXPRESSION_NODE_LIST(V)                 \
   V(FunctionLiteral)                            \
-  V(FunctionBoilerplateLiteral)                 \
+  V(SharedFunctionInfoLiteral)                  \
   V(Conditional)                                \
   V(Slot)                                       \
   V(VariableProxy)                              \
@@ -1646,14 +1646,15 @@ class FunctionLiteral: public Expression {
 };
 
 
-class FunctionBoilerplateLiteral: public Expression {
+class SharedFunctionInfoLiteral: public Expression {
  public:
-  explicit FunctionBoilerplateLiteral(Handle<JSFunction> boilerplate)
-      : boilerplate_(boilerplate) {
-    ASSERT(boilerplate->IsBoilerplate());
-  }
+  explicit SharedFunctionInfoLiteral(
+      Handle<SharedFunctionInfo> shared_function_info)
+      : shared_function_info_(shared_function_info) { }
 
-  Handle<JSFunction> boilerplate() const { return boilerplate_; }
+  Handle<SharedFunctionInfo> shared_function_info() const {
+    return shared_function_info_;
+  }
 
   virtual bool IsLeaf() { return true; }
 
@@ -1662,7 +1663,7 @@ class FunctionBoilerplateLiteral: public Expression {
   virtual bool IsPrimitive();
 
  private:
-  Handle<JSFunction> boilerplate_;
+  Handle<SharedFunctionInfo> shared_function_info_;
 };
 
 

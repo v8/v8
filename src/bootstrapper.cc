@@ -59,11 +59,12 @@ class SourceCodeCache BASE_EMBEDDED {
   }
 
 
-  bool Lookup(Vector<const char> name, Handle<JSFunction>* handle) {
+  bool Lookup(Vector<const char> name, Handle<SharedFunctionInfo>* handle) {
     for (int i = 0; i < cache_->length(); i+=2) {
       SeqAsciiString* str = SeqAsciiString::cast(cache_->get(i));
       if (str->IsEqualTo(name)) {
-        *handle = Handle<JSFunction>(JSFunction::cast(cache_->get(i + 1)));
+        *handle = Handle<SharedFunctionInfo>(
+            SharedFunctionInfo::cast(cache_->get(i + 1)));
         return true;
       }
     }
@@ -71,8 +72,7 @@ class SourceCodeCache BASE_EMBEDDED {
   }
 
 
-  void Add(Vector<const char> name, Handle<JSFunction> fun) {
-    ASSERT(fun->IsBoilerplate());
+  void Add(Vector<const char> name, Handle<SharedFunctionInfo> shared) {
     HandleScope scope;
     int length = cache_->length();
     Handle<FixedArray> new_array =
@@ -81,8 +81,8 @@ class SourceCodeCache BASE_EMBEDDED {
     cache_ = *new_array;
     Handle<String> str = Factory::NewStringFromAscii(name, TENURED);
     cache_->set(length, *str);
-    cache_->set(length + 1, *fun);
-    Script::cast(fun->shared()->script())->set_type(Smi::FromInt(type_));
+    cache_->set(length + 1, *shared);
+    Script::cast(shared->script())->set_type(Smi::FromInt(type_));
   }
 
  private:
@@ -135,13 +135,13 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
 
 
 bool Bootstrapper::NativesCacheLookup(Vector<const char> name,
-                                      Handle<JSFunction>* handle) {
+                                      Handle<SharedFunctionInfo>* handle) {
   return natives_cache.Lookup(name, handle);
 }
 
 
 void Bootstrapper::NativesCacheAdd(Vector<const char> name,
-                                   Handle<JSFunction> fun) {
+                                   Handle<SharedFunctionInfo> fun) {
   natives_cache.Add(name, fun);
 }
 
@@ -808,25 +808,24 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
                                   v8::Extension* extension,
                                   bool use_runtime_context) {
   HandleScope scope;
-  Handle<JSFunction> boilerplate;
+  Handle<SharedFunctionInfo> function_info;
 
   // If we can't find the function in the cache, we compile a new
   // function and insert it into the cache.
-  if (!cache->Lookup(name, &boilerplate)) {
+  if (!cache->Lookup(name, &function_info)) {
     ASSERT(source->IsAsciiRepresentation());
     Handle<String> script_name = Factory::NewStringFromUtf8(name);
-    boilerplate =
-        Compiler::Compile(
-            source,
-            script_name,
-            0,
-            0,
-            extension,
-            NULL,
-            Handle<String>::null(),
-            use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE);
-    if (boilerplate.is_null()) return false;
-    cache->Add(name, boilerplate);
+    function_info = Compiler::Compile(
+        source,
+        script_name,
+        0,
+        0,
+        extension,
+        NULL,
+        Handle<String>::null(),
+        use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE);
+    if (function_info.is_null()) return false;
+    cache->Add(name, function_info);
   }
 
   // Setup the function context. Conceptually, we should clone the
@@ -838,7 +837,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
                       ? Top::context()->runtime_context()
                       : Top::context());
   Handle<JSFunction> fun =
-      Factory::NewFunctionFromBoilerplate(boilerplate, context);
+      Factory::NewFunctionFromSharedFunctionInfo(function_info, context);
 
   // Call function using either the runtime object or the global
   // object as the receiver. Provide no parameters.

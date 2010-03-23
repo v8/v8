@@ -56,8 +56,9 @@ class Bootstrapper : public AllStatic {
   // Accessors for the native scripts cache. Used in lazy loading.
   static Handle<String> NativesSourceLookup(int index);
   static bool NativesCacheLookup(Vector<const char> name,
-                                 Handle<JSFunction>* handle);
-  static void NativesCacheAdd(Vector<const char> name, Handle<JSFunction> fun);
+                                 Handle<SharedFunctionInfo>* handle);
+  static void NativesCacheAdd(Vector<const char> name,
+                              Handle<SharedFunctionInfo> fun);
 
   // Tells whether bootstrapping is active.
   static bool IsActive();

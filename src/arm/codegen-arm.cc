@@ -2305,14 +2305,14 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 }
 
 
-void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
+void CodeGenerator::InstantiateFunction(
+    Handle<SharedFunctionInfo> function_info) {
   VirtualFrame::SpilledScope spilled_scope;
-  ASSERT(boilerplate->IsBoilerplate());
-
-  __ mov(r0, Operand(boilerplate));
+  __ mov(r0, Operand(function_info));
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
+  if (false &&
+      scope()->is_function_scope() && function_info->num_literals() == 0) {
     FastNewClosureStub stub;
     frame_->EmitPush(r0);
     frame_->CallStub(&stub, 1);
@@ -2334,27 +2334,27 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ FunctionLiteral");
 
-  // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(node, script(), this);
+  // Build the function info and instantiate it.
+  Handle<SharedFunctionInfo> function_info =
+      Compiler::BuildFunctionInfo(node, script(), this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) {
     ASSERT(frame_->height() == original_height);
     return;
   }
-  InstantiateBoilerplate(boilerplate);
+  InstantiateFunction(function_info);
   ASSERT(frame_->height() == original_height + 1);
 }
 
 
-void CodeGenerator::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
+void CodeGenerator::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
   VirtualFrame::SpilledScope spilled_scope;
-  Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
-  InstantiateBoilerplate(node->boilerplate());
+  Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
+  InstantiateFunction(node->shared_function_info());
   ASSERT(frame_->height() == original_height + 1);
 }
 

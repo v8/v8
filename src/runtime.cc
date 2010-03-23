@@ -788,9 +788,10 @@ static Object* Runtime_DeclareGlobals(Arguments args) {
       }
     } else {
       // Copy the function and update its context. Use it as value.
-      Handle<JSFunction> boilerplate = Handle<JSFunction>::cast(value);
+      Handle<SharedFunctionInfo> shared =
+          Handle<SharedFunctionInfo>::cast(value);
       Handle<JSFunction> function =
-          Factory::NewFunctionFromBoilerplate(boilerplate, context, TENURED);
+          Factory::NewFunctionFromSharedFunctionInfo(shared, context, TENURED);
       value = function;
     }
 
@@ -5812,13 +5813,13 @@ static Object* Runtime_NewClosure(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(Context, context, 0);
-  CONVERT_ARG_CHECKED(JSFunction, boilerplate, 1);
+  CONVERT_ARG_CHECKED(SharedFunctionInfo, shared, 1);
 
   PretenureFlag pretenure = (context->global_context() == *context)
       ? TENURED       // Allocate global closures in old space.
       : NOT_TENURED;  // Allocate local closures in new space.
   Handle<JSFunction> result =
-      Factory::NewFunctionFromBoilerplate(boilerplate, context, pretenure);
+      Factory::NewFunctionFromSharedFunctionInfo(shared, context, pretenure);
   return *result;
 }
 
@@ -6503,13 +6504,13 @@ static Object* Runtime_CompileString(Arguments args) {
   Handle<Context> context(Top::context()->global_context());
   Compiler::ValidationState validate = (is_json->IsTrue())
     ? Compiler::VALIDATE_JSON : Compiler::DONT_VALIDATE_JSON;
-  Handle<JSFunction> boilerplate = Compiler::CompileEval(source,
-                                                         context,
-                                                         true,
-                                                         validate);
-  if (boilerplate.is_null()) return Failure::Exception();
+  Handle<SharedFunctionInfo> shared = Compiler::CompileEval(source,
+                                                            context,
+                                                            true,
+                                                            validate);
+  if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
-      Factory::NewFunctionFromBoilerplate(boilerplate, context, NOT_TENURED);
+      Factory::NewFunctionFromSharedFunctionInfo(shared, context, NOT_TENURED);
   return *fun;
 }
 
@@ -6582,14 +6583,14 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
   // Deal with a normal eval call with a string argument. Compile it
   // and return the compiled function bound in the local context.
   Handle<String> source = args.at<String>(1);
-  Handle<JSFunction> boilerplate = Compiler::CompileEval(
+  Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source,
       Handle<Context>(Top::context()),
       Top::context()->IsGlobalContext(),
       Compiler::DONT_VALIDATE_JSON);
-  if (boilerplate.is_null()) return MakePair(Failure::Exception(), NULL);
-  callee = Factory::NewFunctionFromBoilerplate(
-      boilerplate,
+  if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
+  callee = Factory::NewFunctionFromSharedFunctionInfo(
+      shared,
       Handle<Context>(Top::context()),
       NOT_TENURED);
   return MakePair(*callee, args[2]);
@@ -8571,14 +8572,14 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   Handle<String> function_source =
       Factory::NewStringFromAscii(Vector<const char>(source_str,
                                                      source_str_length));
-  Handle<JSFunction> boilerplate =
+  Handle<SharedFunctionInfo> shared =
       Compiler::CompileEval(function_source,
                             context,
                             context->IsGlobalContext(),
                             Compiler::DONT_VALIDATE_JSON);
-  if (boilerplate.is_null()) return Failure::Exception();
+  if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
-      Factory::NewFunctionFromBoilerplate(boilerplate, context);
+      Factory::NewFunctionFromSharedFunctionInfo(shared, context);
 
   // Invoke the result of the compilation to get the evaluation function.
   bool has_pending_exception;
@@ -8639,15 +8640,15 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
   Handle<Context> context = Top::global_context();
 
   // Compile the source to be evaluated.
-  Handle<JSFunction> boilerplate =
-      Handle<JSFunction>(Compiler::CompileEval(source,
-                                               context,
-                                               true,
-                                               Compiler::DONT_VALIDATE_JSON));
-  if (boilerplate.is_null()) return Failure::Exception();
+  Handle<SharedFunctionInfo> shared =
+      Compiler::CompileEval(source,
+                            context,
+                            true,
+                            Compiler::DONT_VALIDATE_JSON);
+  if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
-      Handle<JSFunction>(Factory::NewFunctionFromBoilerplate(boilerplate,
-                                                             context));
+      Handle<JSFunction>(Factory::NewFunctionFromSharedFunctionInfo(shared,
+                                                                    context));
 
   // Invoke the result of the compilation to get the evaluation function.
   bool has_pending_exception;

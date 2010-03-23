@@ -2229,9 +2229,8 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 }
 
 
-void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
-  ASSERT(boilerplate->IsBoilerplate());
-
+void CodeGenerator::InstantiateFunction(
+    Handle<SharedFunctionInfo> function_info) {
   // The inevitable call will sync frame elements to memory anyway, so
   // we do it eagerly to allow us to push the arguments directly into
   // place.
@@ -2239,16 +2238,17 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
+  if (false && scope()->is_function_scope() &&
+      function_info->num_literals() == 0) {
     FastNewClosureStub stub;
-    frame_->Push(boilerplate);
+    frame_->Push(function_info);
     Result answer = frame_->CallStub(&stub, 1);
     frame_->Push(&answer);
   } else {
     // Call the runtime to instantiate the function boilerplate
     // object.
     frame_->EmitPush(rsi);
-    frame_->EmitPush(boilerplate);
+    frame_->EmitPush(function_info);
     Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
     frame_->Push(&result);
   }
@@ -2258,19 +2258,19 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
-  // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(node, script(), this);
+  // Build the function info and instantiate it.
+  Handle<SharedFunctionInfo> function_info =
+      Compiler::BuildFunctionInfo(node, script(), this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) return;
-  InstantiateBoilerplate(boilerplate);
+  InstantiateFunction(function_info);
 }
 
 
-void CodeGenerator::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
-  Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
-  InstantiateBoilerplate(node->boilerplate());
+void CodeGenerator::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
+  Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
+  InstantiateFunction(node->shared_function_info());
 }
 
 

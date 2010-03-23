@@ -221,7 +221,7 @@ class Utils {
       OpenHandle(const v8::Array* data);
   static inline v8::internal::Handle<v8::internal::String>
       OpenHandle(const String* data);
-  static inline v8::internal::Handle<v8::internal::JSFunction>
+  static inline v8::internal::Handle<v8::internal::Object>
       OpenHandle(const Script* data);
   static inline v8::internal::Handle<v8::internal::JSFunction>
       OpenHandle(const Function* data);
@@ -296,7 +296,7 @@ MAKE_OPEN_HANDLE(Data, Object)
 MAKE_OPEN_HANDLE(Object, JSObject)
 MAKE_OPEN_HANDLE(Array, JSArray)
 MAKE_OPEN_HANDLE(String, String)
-MAKE_OPEN_HANDLE(Script, JSFunction)
+MAKE_OPEN_HANDLE(Script, Object)
 MAKE_OPEN_HANDLE(Function, JSFunction)
 MAKE_OPEN_HANDLE(Message, JSObject)
 MAKE_OPEN_HANDLE(Context, Context)
