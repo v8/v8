@@ -1114,6 +1114,11 @@ bool Genesis::InstallNatives() {
     global_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 
+  if (FLAG_disable_native_files) {
+    PrintF("Warning: Running without installed natives!\n");
+    return true;
+  }
+
   // Install natives.
   for (int i = Natives::GetDebuggerCount();
        i < Natives::GetBuiltinsCount();
