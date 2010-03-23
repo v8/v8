@@ -7380,6 +7380,15 @@ void CodeGenerator::Int32BinaryOperation(BinaryOperation* node) {
       __ cdq();  // Sign-extend eax into edx:eax
       __ idiv(right_reg);
       if (op == Token::MOD) {
+        // Negative zero can arise as a negative divident with a zero result.
+        if (!node->no_negative_zero()) {
+          Label not_negative_zero;
+          __ test(edx, Operand(edx));
+          __ j(not_zero, &not_negative_zero);
+          __ test(eax, Operand(eax));
+          unsafe_bailout_->Branch(negative);
+          __ bind(&not_negative_zero);
+        }
         Result edx_result(edx, NumberInfo::Integer32());
         edx_result.set_untagged_int32(true);
         frame_->Push(&edx_result);
