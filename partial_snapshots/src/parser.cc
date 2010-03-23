@@ -1964,20 +1964,19 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
-  Handle<JSFunction> boilerplate =
-      Factory::NewFunctionBoilerplate(name, literals, code);
-  boilerplate->shared()->set_construct_stub(*construct_stub);
+  Handle<SharedFunctionInfo> shared =
+      Factory::NewSharedFunctionInfo(name, literals, code);
+  shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the boilerplate.
-  boilerplate->shared()->set_function_data(fun->shared()->function_data());
+  shared->set_function_data(fun->shared()->function_data());
   int parameters = fun->shared()->formal_parameter_count();
-  boilerplate->shared()->set_formal_parameter_count(parameters);
+  shared->set_formal_parameter_count(parameters);
 
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
   // other functions are setup when entering the surrounding scope.
-  FunctionBoilerplateLiteral* lit =
-      NEW(FunctionBoilerplateLiteral(boilerplate));
+  SharedFunctionInfoLiteral* lit = NEW(SharedFunctionInfoLiteral(shared));
   VariableProxy* var = Declare(name, Variable::VAR, NULL, true, CHECK_OK);
   return NEW(ExpressionStatement(
       new Assignment(Token::INIT_VAR, var, lit, RelocInfo::kNoPosition)));

@@ -336,8 +336,8 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
           array->set_undefined(j++);
         }
       } else {
-        Handle<JSFunction> function =
-            Compiler::BuildBoilerplate(node->fun(), script(), this);
+        Handle<SharedFunctionInfo> function =
+            Compiler::BuildFunctionInfo(node->fun(), script(), this);
         // Check for stack-overflow exception.
         if (HasStackOverflow()) return;
         array->set(j++, *function);

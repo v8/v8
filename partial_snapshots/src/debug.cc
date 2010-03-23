@@ -685,29 +685,26 @@ bool Debug::CompileDebuggerScript(int index) {
   // Compile the script.
   bool allow_natives_syntax = FLAG_allow_natives_syntax;
   FLAG_allow_natives_syntax = true;
-  Handle<JSFunction> boilerplate;
-  boilerplate = Compiler::Compile(source_code,
-                                  script_name,
-                                  0,
-                                  0,
-                                  NULL,
-                                  NULL,
-                                  Handle<String>::null(),
-                                  NATIVES_CODE);
+  Handle<SharedFunctionInfo> function_info;
+  function_info = Compiler::Compile(source_code,
+                                    script_name,
+                                    0, 0, NULL, NULL,
+                                    Handle<String>::null(),
+                                    NATIVES_CODE);
   FLAG_allow_natives_syntax = allow_natives_syntax;
 
   // Silently ignore stack overflows during compilation.
-  if (boilerplate.is_null()) {
+  if (function_info.is_null()) {
     ASSERT(Top::has_pending_exception());
     Top::clear_pending_exception();
     return false;
   }
 
-  // Execute the boilerplate function in the debugger context.
+  // Execute the shared function in the debugger context.
   Handle<Context> context = Top::global_context();
   bool caught_exception = false;
   Handle<JSFunction> function =
-      Factory::NewFunctionFromBoilerplate(boilerplate, context);
+      Factory::NewFunctionFromSharedFunctionInfo(function_info, context);
   Handle<Object> result =
       Execution::TryCall(function, Handle<Object>(context->global()),
                          0, NULL, &caught_exception);
@@ -2038,31 +2035,6 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   ProcessDebugEvent(v8::AfterCompile,
                     Handle<JSObject>::cast(event_data),
                     true);
-}
-
-
-void Debugger::OnNewFunction(Handle<JSFunction> function) {
-  return;
-  HandleScope scope;
-
-  // Bail out based on state or if there is no listener for this event
-  if (Debug::InDebugger()) return;
-  if (compiling_natives()) return;
-  if (!Debugger::EventActive(v8::NewFunction)) return;
-
-  // Enter the debugger.
-  EnterDebugger debugger;
-  if (debugger.FailedToEnter()) return;
-
-  // Create the event object.
-  bool caught_exception = false;
-  Handle<Object> event_data = MakeNewFunctionEvent(function, &caught_exception);
-  // Bail out and don't call debugger if exception.
-  if (caught_exception) {
-    return;
-  }
-  // Process debug event.
-  ProcessDebugEvent(v8::NewFunction, Handle<JSObject>::cast(event_data), true);
 }
 
 

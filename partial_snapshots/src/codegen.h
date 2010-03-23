@@ -58,7 +58,7 @@
 //   ProcessDeferred
 //   Generate
 //   ComputeLazyCompile
-//   BuildBoilerplate
+//   BuildFunctionInfo
 //   ComputeCallInitialize
 //   ComputeCallInitializeInLoop
 //   ProcessDeclarations
@@ -360,6 +360,11 @@ class CompareStub: public CodeStub {
   // generating the minor key for other comparisons to avoid creating more
   // stubs.
   bool never_nan_nan_;
+
+  // Encoding of the minor key CCCCCCCCCCCCCCNS.
+  class StrictField: public BitField<bool, 0, 1> {};
+  class NeverNanNanField: public BitField<bool, 1, 1> {};
+  class ConditionField: public BitField<int, 2, 14> {};
 
   Major MajorKey() { return Compare; }
 

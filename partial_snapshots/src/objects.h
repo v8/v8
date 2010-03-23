@@ -3173,6 +3173,10 @@ class SharedFunctionInfo: public HeapObject {
   // [script info]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
 
+  // [num_literals]: Number of literals used by this function.
+  inline int num_literals();
+  inline void set_num_literals(int value);
+
   // [start_position_and_type]: Field used to store both the source code
   // position, whether or not the function is a function expression,
   // and whether or not the function is a toplevel function. The two
@@ -3290,8 +3294,9 @@ class SharedFunctionInfo: public HeapObject {
   static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kIntSize;
+  static const int kNumLiteralsOffset = kExpectedNofPropertiesOffset + kIntSize;
   static const int kStartPositionAndTypeOffset =
-      kExpectedNofPropertiesOffset + kIntSize;
+      kNumLiteralsOffset + kIntSize;
   static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
   static const int kFunctionTokenPositionOffset = kEndPositionOffset + kIntSize;
   static const int kCompilerHintsOffset =
@@ -3300,6 +3305,7 @@ class SharedFunctionInfo: public HeapObject {
       kCompilerHintsOffset + kIntSize;
   // Total size.
   static const int kSize = kThisPropertyAssignmentsCountOffset + kIntSize;
+  static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
  private:
   // Bit positions in start_position_and_type.

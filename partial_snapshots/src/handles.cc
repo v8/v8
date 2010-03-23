@@ -174,13 +174,6 @@ void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
 }
 
 
-void SetExpectedNofPropertiesFromEstimate(Handle<JSFunction> func,
-                                          int estimate) {
-  SetExpectedNofProperties(
-      func, ExpectedNofPropertiesFromEstimate(estimate));
-}
-
-
 void NormalizeProperties(Handle<JSObject> object,
                          PropertyNormalizationMode mode,
                          int expected_additional_properties) {

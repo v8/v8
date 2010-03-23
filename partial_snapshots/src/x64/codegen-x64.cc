@@ -2229,9 +2229,8 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 }
 
 
-void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
-  ASSERT(boilerplate->IsBoilerplate());
-
+void CodeGenerator::InstantiateFunction(
+    Handle<SharedFunctionInfo> function_info) {
   // The inevitable call will sync frame elements to memory anyway, so
   // we do it eagerly to allow us to push the arguments directly into
   // place.
@@ -2239,16 +2238,16 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
+  if (scope()->is_function_scope() && function_info->num_literals() == 0) {
     FastNewClosureStub stub;
-    frame_->Push(boilerplate);
+    frame_->Push(function_info);
     Result answer = frame_->CallStub(&stub, 1);
     frame_->Push(&answer);
   } else {
     // Call the runtime to instantiate the function boilerplate
     // object.
     frame_->EmitPush(rsi);
-    frame_->EmitPush(boilerplate);
+    frame_->EmitPush(function_info);
     Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
     frame_->Push(&result);
   }
@@ -2258,19 +2257,19 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
-  // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(node, script(), this);
+  // Build the function info and instantiate it.
+  Handle<SharedFunctionInfo> function_info =
+      Compiler::BuildFunctionInfo(node, script(), this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) return;
-  InstantiateBoilerplate(boilerplate);
+  InstantiateFunction(function_info);
 }
 
 
-void CodeGenerator::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
-  Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
-  InstantiateBoilerplate(node->boilerplate());
+void CodeGenerator::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
+  Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
+  InstantiateFunction(node->shared_function_info());
 }
 
 
@@ -6361,12 +6360,12 @@ void Reference::SetValue(InitState init_state) {
 
 
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
-  // Clone the boilerplate in new space. Set the context to the
-  // current context in rsi.
+  // Create a new closure from the given function info in new
+  // space. Set the context to the current context in rsi.
   Label gc;
   __ AllocateInNewSpace(JSFunction::kSize, rax, rbx, rcx, &gc, TAG_OBJECT);
 
-  // Get the boilerplate function from the stack.
+  // Get the function info from the stack.
   __ movq(rdx, Operand(rsp, 1 * kPointerSize));
 
   // Compute the function map in the current global context and set that
@@ -6376,18 +6375,16 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ movq(rcx, Operand(rcx, Context::SlotOffset(Context::FUNCTION_MAP_INDEX)));
   __ movq(FieldOperand(rax, JSObject::kMapOffset), rcx);
 
-  // Clone the rest of the boilerplate fields. We don't have to update
-  // the write barrier because the allocated object is in new space.
-  for (int offset = kPointerSize;
-       offset < JSFunction::kSize;
-       offset += kPointerSize) {
-    if (offset == JSFunction::kContextOffset) {
-      __ movq(FieldOperand(rax, offset), rsi);
-    } else {
-      __ movq(rbx, FieldOperand(rdx, offset));
-      __ movq(FieldOperand(rax, offset), rbx);
-    }
-  }
+  // Initialize the rest of the function. We don't have to update the
+  // write barrier because the allocated object is in new space.
+  __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
+  __ LoadRoot(rcx, Heap::kTheHoleValueRootIndex);
+  __ movq(FieldOperand(rax, JSObject::kPropertiesOffset), rbx);
+  __ movq(FieldOperand(rax, JSObject::kElementsOffset), rbx);
+  __ movq(FieldOperand(rax, JSFunction::kPrototypeOrInitialMapOffset), rcx);
+  __ movq(FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset), rdx);
+  __ movq(FieldOperand(rax, JSFunction::kContextOffset), rsi);
+  __ movq(FieldOperand(rax, JSFunction::kLiteralsOffset), rbx);
 
   // Return and remove the on-stack parameter.
   __ ret(1 * kPointerSize);
@@ -9105,11 +9102,13 @@ Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
 
 
 int CompareStub::MinorKey() {
-  // Encode the three parameters in a unique 16 bit value.
+  // Encode the three parameters in a unique 16 bit value. To avoid duplicate
+  // stubs the never NaN NaN condition is only taken into account if the
+  // condition is equals.
   ASSERT(static_cast<unsigned>(cc_) < (1 << 14));
-  int nnn_value = (never_nan_nan_ ? 2 : 0);
-  if (cc_ != equal) nnn_value = 0;  // Avoid duplicate stubs.
-  return (static_cast<unsigned>(cc_) << 2) | nnn_value | (strict_ ? 1 : 0);
+  return ConditionField::encode(static_cast<unsigned>(cc_))
+         | StrictField::encode(strict_)
+         | NeverNanNanField::encode(cc_ == equal ? never_nan_nan_ : false);
 }
 
 

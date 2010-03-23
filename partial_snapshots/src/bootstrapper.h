@@ -71,7 +71,7 @@ class Bootstrapper : public AllStatic {
   // Traverses the pointers for memory management.
   static void Iterate(ObjectVisitor* v);
 
-  // Accessors for the native scripts cache. Used in lazy loading.
+  // Accessor for the native scripts source code.
   static Handle<String> NativesSourceLookup(int index);
 
   // Tells whether bootstrapping is active.

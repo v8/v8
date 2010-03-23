@@ -2305,14 +2305,13 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 }
 
 
-void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
+void CodeGenerator::InstantiateFunction(
+    Handle<SharedFunctionInfo> function_info) {
   VirtualFrame::SpilledScope spilled_scope;
-  ASSERT(boilerplate->IsBoilerplate());
-
-  __ mov(r0, Operand(boilerplate));
+  __ mov(r0, Operand(function_info));
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
+  if (scope()->is_function_scope() && function_info->num_literals() == 0) {
     FastNewClosureStub stub;
     frame_->EmitPush(r0);
     frame_->CallStub(&stub, 1);
@@ -2334,27 +2333,27 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ FunctionLiteral");
 
-  // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(node, script(), this);
+  // Build the function info and instantiate it.
+  Handle<SharedFunctionInfo> function_info =
+      Compiler::BuildFunctionInfo(node, script(), this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) {
     ASSERT(frame_->height() == original_height);
     return;
   }
-  InstantiateBoilerplate(boilerplate);
+  InstantiateFunction(function_info);
   ASSERT(frame_->height() == original_height + 1);
 }
 
 
-void CodeGenerator::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
+void CodeGenerator::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
   VirtualFrame::SpilledScope spilled_scope;
-  Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
-  InstantiateBoilerplate(node->boilerplate());
+  Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
+  InstantiateFunction(node->shared_function_info());
   ASSERT(frame_->height() == original_height + 1);
 }
 
@@ -4527,11 +4526,11 @@ void Reference::SetValue(InitState init_state) {
 
 
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
-  // Clone the boilerplate in new space. Set the context to the
-  // current context in cp.
+  // Create a new closure from the given function info in new
+  // space. Set the context to the current context in cp.
   Label gc;
 
-  // Pop the boilerplate function from the stack.
+  // Pop the function info from the stack.
   __ pop(r3);
 
   // Attempt to allocate new JSFunction in new space.
@@ -4549,20 +4548,18 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ ldr(r2, MemOperand(r2, Context::SlotOffset(Context::FUNCTION_MAP_INDEX)));
   __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
 
-  // Clone the rest of the boilerplate fields. We don't have to update
-  // the write barrier because the allocated object is in new space.
-  for (int offset = kPointerSize;
-       offset < JSFunction::kSize;
-       offset += kPointerSize) {
-    if (offset == JSFunction::kContextOffset) {
-      __ str(cp, FieldMemOperand(r0, offset));
-    } else {
-      __ ldr(r1, FieldMemOperand(r3, offset));
-      __ str(r1, FieldMemOperand(r0, offset));
-    }
-  }
+  // Initialize the rest of the function. We don't have to update the
+  // write barrier because the allocated object is in new space.
+  __ LoadRoot(r1, Heap::kEmptyFixedArrayRootIndex);
+  __ LoadRoot(r2, Heap::kTheHoleValueRootIndex);
+  __ str(r1, FieldMemOperand(r0, JSObject::kPropertiesOffset));
+  __ str(r1, FieldMemOperand(r0, JSObject::kElementsOffset));
+  __ str(r2, FieldMemOperand(r0, JSFunction::kPrototypeOrInitialMapOffset));
+  __ str(r3, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
+  __ str(cp, FieldMemOperand(r0, JSFunction::kContextOffset));
+  __ str(r1, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
 
-  // Return result. The argument boilerplate has been popped already.
+  // Return result. The argument function info has been popped already.
   __ Ret();
 
   // Create a new closure through the slower runtime call.
@@ -7159,11 +7156,13 @@ const char* CompareStub::GetName() {
 
 
 int CompareStub::MinorKey() {
-  // Encode the three parameters in a unique 16 bit value.
-  ASSERT((static_cast<unsigned>(cc_) >> 26) < (1 << 16));
-  int nnn_value = (never_nan_nan_ ? 2 : 0);
-  if (cc_ != eq) nnn_value = 0;  // Avoid duplicate stubs.
-  return (static_cast<unsigned>(cc_) >> 26) | nnn_value | (strict_ ? 1 : 0);
+  // Encode the three parameters in a unique 16 bit value. To avoid duplicate
+  // stubs the never NaN NaN condition is only taken into account if the
+  // condition is equals.
+  ASSERT((static_cast<unsigned>(cc_) >> 28) < (1 << 14));
+  return ConditionField::encode(static_cast<unsigned>(cc_) >> 28)
+         | StrictField::encode(strict_)
+         | NeverNanNanField::encode(cc_ == eq ? never_nan_nan_ : false);
 }
 
 

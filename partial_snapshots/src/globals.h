@@ -195,6 +195,10 @@ const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
 // gives 8K bytes per page.
 const int kPageSizeBits = 13;
 
+// On Intel architecture, cache line size is 64 bytes.
+// On ARM it may be less (32 bytes), but as far this constant is
+// used for aligning data, it doesn't hurt to align on a greater value.
+const int kProcessorCacheLineSize = 64;
 
 // Constants relevant to double precision floating point numbers.
 

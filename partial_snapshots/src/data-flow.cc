@@ -395,8 +395,8 @@ void FlowGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void FlowGraphBuilder::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
+void FlowGraphBuilder::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
   SetStackOverflow();
 }
 
@@ -451,8 +451,10 @@ void FlowGraphBuilder::VisitAssignment(Assignment* expr) {
     if (expr->is_compound()) Visit(expr->target());
     Visit(expr->value());
     if (var->IsStackAllocated()) {
-      expr->set_num(definitions_.length());
-      definitions_.Add(expr);
+      // The first definition in the body is numbered n, where n is the
+      // number of parameters and stack-allocated locals.
+      expr->set_num(body_definitions_.length() + variable_count_);
+      body_definitions_.Add(expr);
     }
 
   } else if (prop != NULL) {
@@ -529,8 +531,10 @@ void FlowGraphBuilder::VisitCountOperation(CountOperation* expr) {
   Visit(expr->expression());
   Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
   if (var != NULL && var->IsStackAllocated()) {
-    expr->set_num(definitions_.length());
-    definitions_.Add(expr);
+    // The first definition in the body is numbered n, where n is the number
+    // of parameters and stack-allocated locals.
+    expr->set_num(body_definitions_.length() + variable_count_);
+    body_definitions_.Add(expr);
   }
 
   if (HasStackOverflow()) return;
@@ -713,8 +717,8 @@ void AstLabeler::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void AstLabeler::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
+void AstLabeler::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
   UNREACHABLE();
 }
 
@@ -1090,8 +1094,8 @@ void AssignedVariablesAnalyzer::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void AssignedVariablesAnalyzer::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
+void AssignedVariablesAnalyzer::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
   // Nothing to do.
   ASSERT(av_.IsEmpty());
 }
@@ -1417,9 +1421,9 @@ void TextInstructionPrinter::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void TextInstructionPrinter::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
-  PrintF("FunctionBoilerplateLiteral");
+void TextInstructionPrinter::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
+  PrintF("SharedFunctionInfoLiteral");
 }
 
 
@@ -1740,6 +1744,11 @@ void BlockNode::InitializeReachingDefinitions(int definition_count,
   int variable_count = variables->length();
 
   rd_.Initialize(definition_count);
+  // The RD_in set for the entry node has a definition for each parameter
+  // and local.
+  if (predecessor_ == NULL) {
+    for (int i = 0; i < variable_count; i++) rd_.rd_in()->Add(i);
+  }
 
   for (int i = 0; i < instruction_count; i++) {
     Expression* expr = instructions_[i]->AsExpression();
@@ -1935,40 +1944,25 @@ void BlockNode::PropagateReachingDefinitions(List<BitVector*>* variables) {
 
 
 void ReachingDefinitions::Compute() {
-  ASSERT(!definitions_->is_empty());
-
-  int variable_count = variables_.length();
-  int definition_count = definitions_->length();
+  // The definitions in the body plus an implicit definition for each
+  // variable at function entry.
+  int definition_count = body_definitions_->length() + variable_count_;
   int node_count = postorder_->length();
 
-  // Step 1: For each variable, identify the set of all its definitions in
-  // the body.
-  for (int i = 0; i < definition_count; i++) {
-    Variable* var = definitions_->at(i)->AssignedVar();
-    variables_[IndexFor(var, variable_count)]->Add(i);
+  // Step 1: For each stack-allocated variable, identify the set of all its
+  // definitions.
+  List<BitVector*> variables;
+  for (int i = 0; i < variable_count_; i++) {
+    // Add the initial definition for each variable.
+    BitVector* initial = new BitVector(definition_count);
+    initial->Add(i);
+    variables.Add(initial);
   }
-
-  if (FLAG_print_graph_text) {
-    for (int i = 0; i < variable_count; i++) {
-      BitVector* def_set = variables_[i];
-      if (!def_set->IsEmpty()) {
-        // At least one definition.
-        bool first = true;
-        for (int j = 0; j < definition_count; j++) {
-          if (def_set->Contains(j)) {
-            if (first) {
-              Variable* var = definitions_->at(j)->AssignedVar();
-              ASSERT(var != NULL);
-              PrintF("Def[%s] = {%d", *var->name()->ToCString(), j);
-              first = false;
-            } else {
-              PrintF(",%d", j);
-            }
-          }
-        }
-        PrintF("}\n");
-      }
-    }
+  for (int i = 0, len = body_definitions_->length(); i < len; i++) {
+    // Account for each definition in the body as a definition of the
+    // defined variable.
+    Variable* var = body_definitions_->at(i)->AssignedVar();
+    variables[IndexFor(var, variable_count_)]->Add(i + variable_count_);
   }
 
   // Step 2: Compute KILL and GEN for each block node, initialize RD_in for
@@ -1978,7 +1972,7 @@ void ReachingDefinitions::Compute() {
   WorkList<Node> worklist(node_count);
   for (int i = node_count - 1; i >= 0; i--) {
     postorder_->at(i)->InitializeReachingDefinitions(definition_count,
-                                                     &variables_,
+                                                     &variables,
                                                      &worklist,
                                                      mark);
   }
@@ -1995,7 +1989,7 @@ void ReachingDefinitions::Compute() {
   // Step 4: Based on RD_in for block nodes, propagate reaching definitions
   // to all variable uses in the block.
   for (int i = 0; i < node_count; i++) {
-    postorder_->at(i)->PropagateReachingDefinitions(&variables_);
+    postorder_->at(i)->PropagateReachingDefinitions(&variables);
   }
 }
 

@@ -1269,7 +1269,7 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_oddball_map(Map::cast(obj));
 
-  // Allocate the empty array
+  // Allocate the empty array.
   obj = AllocateEmptyFixedArray();
   if (obj->IsFailure()) return false;
   set_empty_fixed_array(FixedArray::cast(obj));
@@ -1415,7 +1415,8 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_boilerplate_function_map(Map::cast(obj));
 
-  obj = AllocateMap(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kSize);
+  obj = AllocateMap(SHARED_FUNCTION_INFO_TYPE,
+                    SharedFunctionInfo::kAlignedSize);
   if (obj->IsFailure()) return false;
   set_shared_function_info_map(Map::cast(obj));
 
