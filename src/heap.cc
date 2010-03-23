@@ -98,6 +98,9 @@ size_t Heap::code_range_size_ = 0;
 // set up by ConfigureHeap otherwise.
 int Heap::reserved_semispace_size_ = Heap::max_semispace_size_;
 
+List<Heap::GCPrologueCallbackPair> Heap::gc_prologue_callbacks_;
+List<Heap::GCEpilogueCallbackPair> Heap::gc_epilogue_callbacks_;
+
 GCCallback Heap::global_gc_prologue_callback_ = NULL;
 GCCallback Heap::global_gc_epilogue_callback_ = NULL;
 
@@ -547,6 +550,16 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     GCTracer::ExternalScope scope(tracer);
     global_gc_prologue_callback_();
   }
+
+  GCType gc_type =
+      collector == MARK_COMPACTOR ? kGCTypeMarkSweepCompact : kGCTypeScavenge;
+
+  for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
+    if (gc_type & gc_prologue_callbacks_[i].gc_type) {
+      gc_prologue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
+    }
+  }
+
   EnsureFromSpaceIsCommitted();
 
   // Perform mark-sweep with optional compaction.
@@ -583,6 +596,15 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     // Register the amount of external allocated memory.
     amount_of_external_allocated_memory_at_last_global_gc_ =
         amount_of_external_allocated_memory_;
+  }
+
+  GCCallbackFlags callback_flags = tracer->is_compacting()
+      ? kGCCallbackFlagCompacted
+      : kNoGCCallbackFlags;
+  for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
+    if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
+      gc_epilogue_callbacks_[i].callback(gc_type, callback_flags);
+    }
   }
 
   if (collector == MARK_COMPACTOR && global_gc_epilogue_callback_) {
@@ -3785,6 +3807,46 @@ void Heap::Unprotect() {
 }
 
 #endif
+
+
+void Heap::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
+  ASSERT(callback != NULL);
+  GCPrologueCallbackPair pair(callback, gc_type);
+  ASSERT(!gc_prologue_callbacks_.Contains(pair));
+  return gc_prologue_callbacks_.Add(pair);
+}
+
+
+void Heap::RemoveGCPrologueCallback(GCPrologueCallback callback) {
+  ASSERT(callback != NULL);
+  for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
+    if (gc_prologue_callbacks_[i].callback == callback) {
+      gc_prologue_callbacks_.Remove(i);
+      return;
+    }
+  }
+  UNREACHABLE();
+}
+
+
+void Heap::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
+  ASSERT(callback != NULL);
+  GCEpilogueCallbackPair pair(callback, gc_type);
+  ASSERT(!gc_epilogue_callbacks_.Contains(pair));
+  return gc_epilogue_callbacks_.Add(pair);
+}
+
+
+void Heap::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
+  ASSERT(callback != NULL);
+  for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
+    if (gc_epilogue_callbacks_[i].callback == callback) {
+      gc_epilogue_callbacks_.Remove(i);
+      return;
+    }
+  }
+  UNREACHABLE();
+}
 
 
 #ifdef DEBUG

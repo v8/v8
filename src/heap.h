@@ -674,10 +674,20 @@ class Heap : public AllStatic {
   static bool GarbageCollectionGreedyCheck();
 #endif
 
+  static void AddGCPrologueCallback(
+      GCEpilogueCallback callback, GCType gc_type_filter);
+  static void RemoveGCPrologueCallback(GCEpilogueCallback callback);
+
+  static void AddGCEpilogueCallback(
+      GCEpilogueCallback callback, GCType gc_type_filter);
+  static void RemoveGCEpilogueCallback(GCEpilogueCallback callback);
+
   static void SetGlobalGCPrologueCallback(GCCallback callback) {
+    ASSERT((callback == NULL) ^ (global_gc_prologue_callback_ == NULL));
     global_gc_prologue_callback_ = callback;
   }
   static void SetGlobalGCEpilogueCallback(GCCallback callback) {
+    ASSERT((callback == NULL) ^ (global_gc_epilogue_callback_ == NULL));
     global_gc_epilogue_callback_ = callback;
   }
 
@@ -1046,6 +1056,30 @@ class Heap : public AllStatic {
 
   // GC callback function, called before and after mark-compact GC.
   // Allocations in the callback function are disallowed.
+  struct GCPrologueCallbackPair {
+    GCPrologueCallbackPair(GCPrologueCallback callback, GCType gc_type)
+        : callback(callback), gc_type(gc_type) {
+    }
+    bool operator==(const GCPrologueCallbackPair& pair) const {
+      return pair.callback == callback;
+    }
+    GCPrologueCallback callback;
+    GCType gc_type;
+  };
+  static List<GCPrologueCallbackPair> gc_prologue_callbacks_;
+
+  struct GCEpilogueCallbackPair {
+    GCEpilogueCallbackPair(GCEpilogueCallback callback, GCType gc_type)
+        : callback(callback), gc_type(gc_type) {
+    }
+    bool operator==(const GCEpilogueCallbackPair& pair) const {
+      return pair.callback == callback;
+    }
+    GCEpilogueCallback callback;
+    GCType gc_type;
+  };
+  static List<GCEpilogueCallbackPair> gc_epilogue_callbacks_;
+
   static GCCallback global_gc_prologue_callback_;
   static GCCallback global_gc_epilogue_callback_;
 
@@ -1588,6 +1622,7 @@ class GCTracer BASE_EMBEDDED {
 
   // Sets the flag that this is a compacting full GC.
   void set_is_compacting() { is_compacting_ = true; }
+  bool is_compacting() const { return is_compacting_; }
 
   // Increment and decrement the count of marked objects.
   void increment_marked_count() { ++marked_count_; }

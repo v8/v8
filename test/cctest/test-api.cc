@@ -9956,3 +9956,57 @@ TEST(Bug618) {
     CHECK_EQ(23, c1->Get(v8_str("y"))->Int32Value());
   }
 }
+
+int prologue_call_count = 0;
+int epilogue_call_count = 0;
+int prologue_call_count_second = 0;
+int epilogue_call_count_second = 0;
+
+void PrologueCallback(v8::GCType, v8::GCCallbackFlags) {
+  ++prologue_call_count;
+}
+
+void EpilogueCallback(v8::GCType, v8::GCCallbackFlags) {
+  ++epilogue_call_count;
+}
+
+void PrologueCallbackSecond(v8::GCType, v8::GCCallbackFlags) {
+  ++prologue_call_count_second;
+}
+
+void EpilogueCallbackSecond(v8::GCType, v8::GCCallbackFlags) {
+  ++epilogue_call_count_second;
+}
+
+TEST(GCCallbacks) {
+  LocalContext context;
+
+  v8::V8::AddGCPrologueCallback(PrologueCallback);
+  v8::V8::AddGCEpilogueCallback(EpilogueCallback);
+  CHECK_EQ(0, prologue_call_count);
+  CHECK_EQ(0, epilogue_call_count);
+  i::Heap::CollectAllGarbage(false);
+  CHECK_EQ(1, prologue_call_count);
+  CHECK_EQ(1, epilogue_call_count);
+  v8::V8::AddGCPrologueCallback(PrologueCallbackSecond);
+  v8::V8::AddGCEpilogueCallback(EpilogueCallbackSecond);
+  i::Heap::CollectAllGarbage(false);
+  CHECK_EQ(2, prologue_call_count);
+  CHECK_EQ(2, epilogue_call_count);
+  CHECK_EQ(1, prologue_call_count_second);
+  CHECK_EQ(1, epilogue_call_count_second);
+  v8::V8::RemoveGCPrologueCallback(PrologueCallback);
+  v8::V8::RemoveGCEpilogueCallback(EpilogueCallback);
+  i::Heap::CollectAllGarbage(false);
+  CHECK_EQ(2, prologue_call_count);
+  CHECK_EQ(2, epilogue_call_count);
+  CHECK_EQ(2, prologue_call_count_second);
+  CHECK_EQ(2, epilogue_call_count_second);
+  v8::V8::RemoveGCPrologueCallback(PrologueCallbackSecond);
+  v8::V8::RemoveGCEpilogueCallback(EpilogueCallbackSecond);
+  i::Heap::CollectAllGarbage(false);
+  CHECK_EQ(2, prologue_call_count);
+  CHECK_EQ(2, epilogue_call_count);
+  CHECK_EQ(2, prologue_call_count_second);
+  CHECK_EQ(2, epilogue_call_count_second);
+}

@@ -3546,6 +3546,30 @@ void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
 }
 
 
+void V8::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
+  if (IsDeadCheck("v8::V8::AddGCPrologueCallback()")) return;
+  i::Heap::AddGCPrologueCallback(callback, gc_type);
+}
+
+
+void V8::RemoveGCPrologueCallback(GCPrologueCallback callback) {
+  if (IsDeadCheck("v8::V8::RemoveGCPrologueCallback()")) return;
+  i::Heap::RemoveGCPrologueCallback(callback);
+}
+
+
+void V8::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
+  if (IsDeadCheck("v8::V8::AddGCEpilogueCallback()")) return;
+  i::Heap::AddGCEpilogueCallback(callback, gc_type);
+}
+
+
+void V8::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
+  if (IsDeadCheck("v8::V8::RemoveGCEpilogueCallback()")) return;
+  i::Heap::RemoveGCEpilogueCallback(callback);
+}
+
+
 void V8::PauseProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   PauseProfilerEx(PROFILER_MODULE_CPU);
