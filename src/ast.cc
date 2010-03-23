@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -725,8 +725,7 @@ CompareOperation::CompareOperation(CompareOperation* other,
     : Expression(other),
       op_(other->op_),
       left_(left),
-      right_(right),
-      is_for_loop_condition_(other->is_for_loop_condition_) {}
+      right_(right) {}
 
 
 Expression* CopyAstVisitor::DeepCopyExpr(Expression* expr) {

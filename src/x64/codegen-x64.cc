@@ -5067,9 +5067,9 @@ void CodeGenerator::Comparison(AstNode* node,
       Condition left_is_smi = masm_->CheckSmi(left_side.reg());
       is_smi.Branch(left_is_smi);
 
-      bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
-          && node->AsCompareOperation()->is_for_loop_condition();
-      if (!is_for_loop_compare && right_val->IsSmi()) {
+      bool is_loop_condition = (node->AsExpression() != NULL) &&
+          node->AsExpression()->is_loop_condition();
+      if (!is_loop_condition && right_val->IsSmi()) {
         // Right side is a constant smi and left side has been checked
         // not to be a smi.
         JumpTarget not_number;

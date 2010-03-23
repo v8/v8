@@ -2472,11 +2472,11 @@ void CodeGenerator::Comparison(AstNode* node,
         __ test(left_side.reg(), Immediate(kSmiTagMask));
         is_smi.Branch(zero, taken);
 
-        bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
-            && node->AsCompareOperation()->is_for_loop_condition();
-        if (!is_for_loop_compare
-            && CpuFeatures::IsSupported(SSE2)
-            && right_val->IsSmi()) {
+        bool is_loop_condition = (node->AsExpression() != NULL) &&
+            node->AsExpression()->is_loop_condition();
+        if (!is_loop_condition &&
+            CpuFeatures::IsSupported(SSE2) &&
+            right_val->IsSmi()) {
           // Right side is a constant smi and left side has been checked
           // not to be a smi.
           CpuFeatures::Scope use_sse2(SSE2);
@@ -2720,11 +2720,10 @@ void CodeGenerator::Comparison(AstNode* node,
     // with smi's (not heap numbers) and the code to comparing smi's is inlined
     // separately. The same reason applies for for-loop comparison which will
     // also most likely be smi comparisons.
-    bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
-        && node->AsCompareOperation()->is_for_loop_condition();
-    bool inline_number_compare = loop_nesting() > 0
-                                 && cc != equal
-                                 && !is_for_loop_compare;
+    bool is_loop_condition = (node->AsExpression() != NULL)
+        && node->AsExpression()->is_loop_condition();
+    bool inline_number_compare =
+        loop_nesting() > 0 && cc != equal && !is_loop_condition;
 
     // Left and right needed in registers for the following code.
     left_side.ToRegister();

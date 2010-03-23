@@ -239,6 +239,15 @@ class Expression: public AstNode {
   // Static type information for this expression.
   StaticType* type() { return &type_; }
 
+  // True if the expression is a loop condition.
+  bool is_loop_condition() const {
+    return LoopConditionField::decode(bitfields_);
+  }
+  void set_is_loop_condition(bool flag) {
+    bitfields_ = (bitfields_ & ~LoopConditionField::mask()) |
+        LoopConditionField::encode(flag);
+  }
+
   // AST analysis results
 
   // True if the expression rooted at this node can be compiled by the
@@ -285,6 +294,7 @@ class Expression: public AstNode {
   class NoNegativeZeroField : public BitField<bool, 1, 1> {};
   class ToInt32Field : public BitField<bool, 2, 1> {};
   class NumBitOpsField : public BitField<int, 3, 5> {};
+  class LoopConditionField: public BitField<bool, 8, 1> {};
 };
 
 
@@ -1428,7 +1438,7 @@ class CountOperation: public Expression {
 class CompareOperation: public Expression {
  public:
   CompareOperation(Token::Value op, Expression* left, Expression* right)
-      : op_(op), left_(left), right_(right), is_for_loop_condition_(false) {
+      : op_(op), left_(left), right_(right) {
     ASSERT(Token::IsCompareOp(op));
   }
 
@@ -1444,10 +1454,6 @@ class CompareOperation: public Expression {
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
 
-  // Accessors for flag whether this compare operation is hanging of a for loop.
-  bool is_for_loop_condition() const { return is_for_loop_condition_; }
-  void set_is_for_loop_condition() { is_for_loop_condition_ = true; }
-
   // Type testing & conversion
   virtual CompareOperation* AsCompareOperation() { return this; }
 
@@ -1455,7 +1461,6 @@ class CompareOperation: public Expression {
   Token::Value op_;
   Expression* left_;
   Expression* right_;
-  bool is_for_loop_condition_;
 };
 
 
