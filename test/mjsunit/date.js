@@ -48,7 +48,7 @@ var dMax = new Date(8.64e15);
 assertEquals(8.64e15, dMax.getTime());
 assertEquals(275760, dMax.getFullYear());
 assertEquals(8, dMax.getMonth());
-assertEquals(13, dMax.getDate());
+assertEquals(13, dMax.getUTCDate());
 
 var dOverflow = new Date(8.64e15+1);
 assertTrue(isNaN(dOverflow.getTime()));
@@ -57,7 +57,7 @@ var dMin = new Date(-8.64e15);
 assertEquals(-8.64e15, dMin.getTime());
 assertEquals(-271821, dMin.getFullYear());
 assertEquals(3, dMin.getMonth());
-assertEquals(20, dMin.getDate());
+assertEquals(20, dMin.getUTCDate());
 
 var dUnderflow = new Date(-8.64e15-1);
 assertTrue(isNaN(dUnderflow.getTime()));
