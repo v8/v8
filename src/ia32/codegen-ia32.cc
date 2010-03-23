@@ -4430,9 +4430,7 @@ Result CodeGenerator::InstantiateFunction(
 
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  // TODO(656): reimplement fast new closure stub
-  if (false && scope()->is_function_scope() &&
-      function_info->num_literals() == 0) {
+  if (scope()->is_function_scope() && function_info->num_literals() == 0) {
     FastNewClosureStub stub;
     frame()->EmitPush(Immediate(function_info));
     return frame()->CallStub(&stub, 1);
@@ -8206,12 +8204,12 @@ void Reference::SetValue(InitState init_state) {
 
 
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
-  // Clone the boilerplate in new space. Set the context to the
-  // current context in esi.
+  // Create a new closure from the given function info in new
+  // space. Set the context to the current context in esi.
   Label gc;
   __ AllocateInNewSpace(JSFunction::kSize, eax, ebx, ecx, &gc, TAG_OBJECT);
 
-  // Get the boilerplate function from the stack.
+  // Get the function info from the stack.
   __ mov(edx, Operand(esp, 1 * kPointerSize));
 
   // Compute the function map in the current global context and set that
@@ -8221,18 +8219,16 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, Operand(ecx, Context::SlotOffset(Context::FUNCTION_MAP_INDEX)));
   __ mov(FieldOperand(eax, JSObject::kMapOffset), ecx);
 
-  // Clone the rest of the boilerplate fields. We don't have to update
-  // the write barrier because the allocated object is in new space.
-  for (int offset = kPointerSize;
-       offset < JSFunction::kSize;
-       offset += kPointerSize) {
-    if (offset == JSFunction::kContextOffset) {
-      __ mov(FieldOperand(eax, offset), esi);
-    } else {
-      __ mov(ebx, FieldOperand(edx, offset));
-      __ mov(FieldOperand(eax, offset), ebx);
-    }
-  }
+  // Initialize the rest of the function. We don't have to update the
+  // write barrier because the allocated object is in new space.
+  __ mov(ebx, Immediate(Factory::empty_fixed_array()));
+  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset), ebx);
+  __ mov(FieldOperand(eax, JSObject::kElementsOffset), ebx);
+  __ mov(FieldOperand(eax, JSFunction::kPrototypeOrInitialMapOffset),
+         Immediate(Factory::the_hole_value()));
+  __ mov(FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset), edx);
+  __ mov(FieldOperand(eax, JSFunction::kContextOffset), esi);
+  __ mov(FieldOperand(eax, JSFunction::kLiteralsOffset), ebx);
 
   // Return and remove the on-stack parameter.
   __ ret(1 * kPointerSize);
