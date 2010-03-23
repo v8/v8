@@ -174,6 +174,15 @@ const int kBitsPerByteLog2 = 3;
 const int kBitsPerPointer = kPointerSize * kBitsPerByte;
 const int kBitsPerInt = kIntSize * kBitsPerByte;
 
+// IEEE 754 single precision floating point number bit layout.
+const uint32_t kBinary32SignMask = 0x80000000u;
+const uint32_t kBinary32ExponentMask = 0x7f800000u;
+const uint32_t kBinary32MantissaMask = 0x007fffffu;
+const int kBinary32ExponentBias = 127;
+const int kBinary32MaxExponent  = 0xFE;
+const int kBinary32MinExponent  = 0x01;
+const int kBinary32MantissaBits = 23;
+const int kBinary32ExponentShift = 23;
 
 // Zap-value: The value used for zapping dead objects.
 // Should be a recognizable hex value tagged as a heap object pointer.
