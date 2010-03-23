@@ -346,8 +346,12 @@ class CompareStub: public CodeStub {
  public:
   CompareStub(Condition cc,
               bool strict,
-              NaNInformation nan_info = kBothCouldBeNaN) :
-      cc_(cc), strict_(strict), never_nan_nan_(nan_info == kCantBothBeNaN) { }
+              NaNInformation nan_info = kBothCouldBeNaN,
+              bool include_number_compare = true) :
+      cc_(cc),
+      strict_(strict),
+      never_nan_nan_(nan_info == kCantBothBeNaN),
+      include_number_compare_(include_number_compare) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -360,11 +364,16 @@ class CompareStub: public CodeStub {
   // generating the minor key for other comparisons to avoid creating more
   // stubs.
   bool never_nan_nan_;
+  // Do generate the number comparison code in the stub. Stubs without number
+  // comparison code is used when the number comparison has been inlined, and
+  // the stub will be called if one of the operands is not a number.
+  bool include_number_compare_;
 
   // Encoding of the minor key CCCCCCCCCCCCCCNS.
   class StrictField: public BitField<bool, 0, 1> {};
   class NeverNanNanField: public BitField<bool, 1, 1> {};
-  class ConditionField: public BitField<int, 2, 14> {};
+  class IncludeNumberCompareField: public BitField<bool, 2, 1> {};
+  class ConditionField: public BitField<int, 3, 13> {};
 
   Major MajorKey() { return Compare; }
 

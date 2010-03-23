@@ -528,6 +528,10 @@ class CodeGenerator: public AstVisitor {
                   Condition cc,
                   bool strict,
                   ControlDestination* destination);
+  void GenerateInlineNumberComparison(Result* left_side,
+                                      Result* right_side,
+                                      Condition cc,
+                                      ControlDestination* dest);
 
   // To prevent long attacker-controlled byte sequences, integer constants
   // from the JavaScript source are loaded in two parts if they are larger
