@@ -128,6 +128,9 @@ const REGEXP_FIRST_CAPTURE = 3;
 # REGEXP_NUMBER_OF_CAPTURES
 macro NUMBER_OF_CAPTURES(array) = ((array)[0]);
 
+# Limit according to ECMA 262 15.9.1.1
+const MAX_TIME_MS = 8640000000000000;
+
 # Gets the value of a Date object. If arg is not a Date object
 # a type error is thrown.
 macro DATE_VALUE(arg) = (%_ClassOf(arg) === 'Date' ? %_ValueOf(arg) : ThrowDateTypeError());
