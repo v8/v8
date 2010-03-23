@@ -7223,15 +7223,39 @@ void CodeGenerator::Int32BinaryOperation(BinaryOperation* node) {
     case Token::BIT_OR:
     case Token::BIT_XOR:
     case Token::BIT_AND:
-      left.ToRegister();
-      right.ToRegister();
-      if (op == Token::BIT_OR) {
-        __ or_(left.reg(), Operand(right.reg()));
-      } else if (op == Token::BIT_XOR) {
-        __ xor_(left.reg(), Operand(right.reg()));
+      if (left.is_constant() || right.is_constant()) {
+        int32_t value;  // Put constant in value, non-constant in left.
+        // Constants are known to be int32 values, from static analysis,
+        // or else will be converted to int32 by implicit ECMA [[ToInt32]].
+        if (left.is_constant()) {
+          ASSERT(left.handle()->IsSmi() || left.handle()->IsHeapNumber());
+          value = NumberToInt32(*left.handle());
+          left = right;
+        } else {
+          ASSERT(right.handle()->IsSmi() || right.handle()->IsHeapNumber());
+          value = NumberToInt32(*right.handle());
+        }
+
+        left.ToRegister();
+        if (op == Token::BIT_OR) {
+          __ or_(Operand(left.reg()), Immediate(value));
+        } else if (op == Token::BIT_XOR) {
+          __ xor_(Operand(left.reg()), Immediate(value));
+        } else {
+          ASSERT(op == Token::BIT_AND);
+          __ and_(Operand(left.reg()), Immediate(value));
+        }
       } else {
-        ASSERT(op == Token::BIT_AND);
-        __ and_(left.reg(), Operand(right.reg()));
+        ASSERT(left.is_register());
+        ASSERT(right.is_register());
+        if (op == Token::BIT_OR) {
+          __ or_(left.reg(), Operand(right.reg()));
+        } else if (op == Token::BIT_XOR) {
+          __ xor_(left.reg(), Operand(right.reg()));
+        } else {
+          ASSERT(op == Token::BIT_AND);
+          __ and_(left.reg(), Operand(right.reg()));
+        }
       }
       frame_->Push(&left);
       right.Unuse();
@@ -7290,16 +7314,39 @@ void CodeGenerator::Int32BinaryOperation(BinaryOperation* node) {
     case Token::ADD:
     case Token::SUB:
     case Token::MUL:
-      left.ToRegister();
-      right.ToRegister();
-      if (op == Token::ADD) {
-        __ add(left.reg(), Operand(right.reg()));
-      } else if (op == Token::SUB) {
-        __ sub(left.reg(), Operand(right.reg()));
+      if ((left.is_constant() && op != Token::SUB) || right.is_constant()) {
+        int32_t value;  // Put constant in value, non-constant in left.
+        if (right.is_constant()) {
+          ASSERT(right.handle()->IsSmi() || right.handle()->IsHeapNumber());
+          value = NumberToInt32(*right.handle());
+        } else {
+          ASSERT(left.handle()->IsSmi() || left.handle()->IsHeapNumber());
+          value = NumberToInt32(*left.handle());
+          left = right;
+        }
+
+        left.ToRegister();
+        if (op == Token::ADD) {
+          __ add(Operand(left.reg()), Immediate(value));
+        } else if (op == Token::SUB) {
+          __ sub(Operand(left.reg()), Immediate(value));
+        } else {
+          ASSERT(op == Token::MUL);
+          __ imul(left.reg(), left.reg(), value);
+        }
       } else {
-        ASSERT(op == Token::MUL);
-        // We have statically verified that a negative zero can be ignored.
-        __ imul(left.reg(), Operand(right.reg()));
+        left.ToRegister();
+        ASSERT(left.is_register());
+        ASSERT(right.is_register());
+        if (op == Token::ADD) {
+          __ add(left.reg(), Operand(right.reg()));
+        } else if (op == Token::SUB) {
+          __ sub(left.reg(), Operand(right.reg()));
+        } else {
+          ASSERT(op == Token::MUL);
+          // We have statically verified that a negative zero can be ignored.
+          __ imul(left.reg(), Operand(right.reg()));
+        }
       }
       right.Unuse();
       frame_->Push(&left);
