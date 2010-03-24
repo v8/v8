@@ -1663,9 +1663,16 @@ void BlockNode::PrintText() {
   PrintF("L%d: Block\n", number());
   TextInstructionPrinter printer;
   for (int i = 0, len = instructions_.length(); i < len; i++) {
+    AstNode* instr = instructions_[i];
+    // Print a star next to dead instructions.
+    if (instr->AsExpression() != NULL && instr->AsExpression()->is_live()) {
+      PrintF("  ");
+    } else {
+      PrintF("* ");
+    }
     PrintF("%d ", printer.NextNumber());
-    printer.Visit(instructions_[i]);
-    printer.AssignNumber(instructions_[i]);
+    printer.Visit(instr);
+    printer.AssignNumber(instr);
     PrintF("\n");
   }
   PrintF("goto L%d\n\n", successor_->number());
@@ -1753,7 +1760,7 @@ void BlockNode::InitializeReachingDefinitions(int definition_count,
   for (int i = 0; i < instruction_count; i++) {
     Expression* expr = instructions_[i]->AsExpression();
     if (expr == NULL) continue;
-    Variable* var = expr->AssignedVar();
+    Variable* var = expr->AssignedVariable();
     if (var == NULL || !var->IsStackAllocated()) continue;
 
     // All definitions of this variable are killed.
@@ -1930,7 +1937,7 @@ void BlockNode::PropagateReachingDefinitions(List<BitVector*>* variables) {
 
     // It may instead (or also) be a definition.  If so update the running
     // value of reaching definitions for the block.
-    Variable* var = expr->AssignedVar();
+    Variable* var = expr->AssignedVariable();
     if (var == NULL || !var->IsStackAllocated()) continue;
 
     // All definitions of this variable are killed.
@@ -1961,7 +1968,7 @@ void ReachingDefinitions::Compute() {
   for (int i = 0, len = body_definitions_->length(); i < len; i++) {
     // Account for each definition in the body as a definition of the
     // defined variable.
-    Variable* var = body_definitions_->at(i)->AssignedVar();
+    Variable* var = body_definitions_->at(i)->AssignedVariable();
     variables[IndexFor(var, variable_count_)]->Add(i + variable_count_);
   }
 
@@ -2043,6 +2050,52 @@ void TypeAnalyzer::Compute() {
       }
     }
   } while (changed);
+}
+
+
+void Node::MarkCriticalInstructions(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+}
+
+
+void BlockNode::MarkCriticalInstructions(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  for (int i = instructions_.length() - 1; i >= 0; i--) {
+    // Only expressions can appear in the flow graph for now.
+    Expression* expr = instructions_[i]->AsExpression();
+    if (expr != NULL && !expr->is_live() &&
+        (expr->is_loop_condition() || expr->IsCritical())) {
+      expr->mark_as_live();
+      expr->ProcessNonLiveChildren(stack, body_definitions, variable_count);
+    }
+  }
+}
+
+
+void MarkLiveCode(ZoneList<Node*>* nodes,
+                  ZoneList<Expression*>* body_definitions,
+                  int variable_count) {
+  List<AstNode*> stack(20);
+
+  // Mark the critical AST nodes as live; mark their dependencies and
+  // add them to the marking stack.
+  for (int i = nodes->length() - 1; i >= 0; i--) {
+    nodes->at(i)->MarkCriticalInstructions(&stack, body_definitions,
+                                           variable_count);
+  }
+
+  // Continue marking dependencies until no more.
+  while (!stack.is_empty()) {
+  // Only expressions can appear in the flow graph for now.
+    Expression* expr = stack.RemoveLast()->AsExpression();
+    if (expr != NULL) {
+      expr->ProcessNonLiveChildren(&stack, body_definitions, variable_count);
+    }
+  }
 }
 
 

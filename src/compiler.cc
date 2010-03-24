@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -106,6 +106,10 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
                         variable_count,
                         function->num_parameters());
         ta.Compute();
+
+        MarkLiveCode(builder.preorder(),
+                     builder.body_definitions(),
+                     variable_count);
       }
     }
 
@@ -521,6 +525,10 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                           variable_count,
                           literal->num_parameters());
           ta.Compute();
+
+          MarkLiveCode(builder.preorder(),
+                       builder.body_definitions(),
+                       variable_count);
         }
       }
 
