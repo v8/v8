@@ -115,8 +115,12 @@ class NumberInfo {
 
   // Integer32 is an integer that can be represented as either a signed
   // 32-bit integer or as an unsigned 32-bit integer. It has to be
-  // in the range [-2^31, 2^32 - 1].
+  // in the range [-2^31, 2^32 - 1]. We also have to check for negative 0
+  // as it is not an Integer32.
   static inline bool IsInt32Double(double value) {
+    const DoubleRepresentation minus_zero(-0.0);
+    DoubleRepresentation rep(value);
+    if (rep.bits == minus_zero.bits) return false;
     if (value >= kMinInt && value <= kMaxUInt32) {
       if (value <= kMaxInt && value == static_cast<int32_t>(value)) {
         return true;
