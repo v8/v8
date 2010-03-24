@@ -295,7 +295,7 @@ static double InternalHexidecimalStringToDouble(Iterator current,
          || (*current >= 'a' && *current <= 'f')
          || (*current >= 'A' && *current <= 'F')) {
     if (significant_digits <= max_significant_digits) {
-      buffer[buffer_pos++] = *current;
+      buffer[buffer_pos++] = static_cast<char>(*current);
       significant_digits++;
     } else {
       insignificant_digits++;
@@ -425,7 +425,7 @@ static double InternalStringToDouble(Iterator current,
   while (*current >= '0' && *current <= '9') {
     if (significant_digits < max_significant_digits) {
       ASSERT(buffer_pos < buffer_size);
-      buffer[buffer_pos++] = *current;
+      buffer[buffer_pos++] = static_cast<char>(*current);
       significant_digits++;
       // Will later check if it's an octal in the buffer.
     } else {
@@ -439,7 +439,6 @@ static double InternalStringToDouble(Iterator current,
 
   if (*current == '.') {
     ASSERT(buffer_pos < buffer_size);
-    buffer[buffer_pos++] = '.';
     ++current;
     if (current == end) {
       if (significant_digits == 0 && !leading_zero) {
@@ -448,6 +447,7 @@ static double InternalStringToDouble(Iterator current,
         goto parsing_done;
       }
     }
+    buffer[buffer_pos++] = '.';
 
     if (significant_digits == 0) {
       octal = false;
@@ -464,7 +464,7 @@ static double InternalStringToDouble(Iterator current,
     while (*current >= '0' && *current <= '9') {
       if (significant_digits < max_significant_digits) {
         ASSERT(buffer_pos < buffer_size);
-        buffer[buffer_pos++] = *current;
+        buffer[buffer_pos++] = static_cast<char>(*current);
         significant_digits++;
       } else {
         // Ignore insignificant digits in the fractional part.
@@ -496,7 +496,7 @@ static double InternalStringToDouble(Iterator current,
     }
     char sign = '+';
     if (*current == '+' || *current == '-') {
-      sign = *current;
+      sign = static_cast<char>(*current);
       ++current;
       if (current == end) {
         if (allow_trailing_junk) {

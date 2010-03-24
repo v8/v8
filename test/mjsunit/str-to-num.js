@@ -44,6 +44,8 @@ assertEquals('0000000000', repeat('0', 10));
 
 // assertEquals(, toNumber());
 
+assertEquals(1, 1.);
+assertEquals(1, toNumber("1."));
 
 assertEquals(123, toNumber(" 123"));
 assertEquals(123, toNumber("\n123"));
