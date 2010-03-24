@@ -2448,7 +2448,7 @@ Handle<Object> Debugger::Call(Handle<JSFunction> fun,
 
   // Enter the debugger.
   EnterDebugger debugger;
-  if (debugger.FailedToEnter() || !debugger.HasJavaScriptFrames()) {
+  if (debugger.FailedToEnter()) {
     return Factory::undefined_value();
   }
 
@@ -2461,8 +2461,12 @@ Handle<Object> Debugger::Call(Handle<JSFunction> fun,
 
   static const int kArgc = 2;
   Object** argv[kArgc] = { exec_state.location(), data.location() };
-  Handle<Object> result = Execution::Call(fun, Factory::undefined_value(),
-                                          kArgc, argv, pending_exception);
+  Handle<Object> result = Execution::Call(
+      fun,
+      Handle<Object>(Debug::debug_context_->global_proxy()),
+      kArgc,
+      argv,
+      pending_exception);
   return result;
 }
 

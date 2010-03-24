@@ -3973,6 +3973,11 @@ void Debug::ProcessDebugMessages() {
   i::Execution::ProcessDebugMesssages(true);
 }
 
+Local<Context> Debug::GetDebugContext() {
+  i::EnterDebugger debugger;
+  return Utils::ToLocal(i::Debug::debug_context());
+}
+
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 namespace internal {
