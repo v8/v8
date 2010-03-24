@@ -154,7 +154,10 @@ class AstNode: public ZoneObject {
 
   // True if the AST node is critical (its execution is needed or externally
   // visible in some way).
-  virtual bool IsCritical() { UNREACHABLE(); return true; }
+  virtual bool IsCritical() {
+    UNREACHABLE();
+    return true;
+  }
 
   int num() { return num_; }
   void set_num(int n) { num_ = n; }
