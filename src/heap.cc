@@ -2648,7 +2648,7 @@ Object* Heap::CopyJSObject(JSObject* source) {
     // Update write barrier for all fields that lie beyond the header.
     RecordWrites(clone_address,
                  JSObject::kHeaderSize,
-                 object_size - JSObject::kHeaderSize);
+                 (object_size - JSObject::kHeaderSize) / kPointerSize);
   } else {
     clone = new_space_.AllocateRaw(object_size);
     if (clone->IsFailure()) return clone;
