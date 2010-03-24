@@ -28,6 +28,8 @@
 #ifndef V8_NUMBER_INFO_H_
 #define V8_NUMBER_INFO_H_
 
+#include "globals.h"
+
 namespace v8 {
 namespace internal {
 
@@ -115,8 +117,8 @@ class NumberInfo {
   // 32-bit integer or as an unsigned 32-bit integer. It has to be
   // in the range [-2^31, 2^32 - 1].
   static inline bool IsInt32Double(double value) {
-    if (value >= -0x80000000 && value <= 0xffffffffu) {
-      if (value <= 0x7fffffff && value == static_cast<int32_t>(value)) {
+    if (value >= kMinInt && value <= kMaxUInt32) {
+      if (value <= kMaxInt && value == static_cast<int32_t>(value)) {
         return true;
       }
       if (value == static_cast<uint32_t>(value)) return true;
