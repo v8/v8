@@ -2735,6 +2735,18 @@ class V8EXPORT Context {
    */
   void DetachGlobal();
 
+  /**
+   * Reattaches a global object to a context.  This can be used to
+   * restore the connection between a global object and a context
+   * after DetachGlobal has been called.
+   *
+   * \param global_object The global object to reattach to the
+   *   context.  For this to work, the global object must be the global
+   *   object that was associated with this context before a call to
+   *   DetachGlobal.
+   */
+  void ReattachGlobal(Handle<Object> global_object);
+
   /** Creates a new context. */
   static Persistent<Context> New(
       ExtensionConfiguration* extensions = NULL,

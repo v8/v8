@@ -68,6 +68,9 @@ class Bootstrapper : public AllStatic {
   // Detach the environment from its outer global object.
   static void DetachGlobal(Handle<Context> env);
 
+  // Reattach an outer global object to an environment.
+  static void ReattachGlobal(Handle<Context> env, Handle<Object> global_object);
+
   // Traverses the pointers for memory management.
   static void Iterate(ObjectVisitor* v);
 

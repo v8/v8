@@ -3078,6 +3078,16 @@ void Context::DetachGlobal() {
 }
 
 
+void Context::ReattachGlobal(Handle<Object> global_object) {
+  if (IsDeadCheck("v8::Context::ReattachGlobal()")) return;
+  ENTER_V8;
+  i::Object** ctx = reinterpret_cast<i::Object**>(this);
+  i::Handle<i::Context> context =
+      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  i::Bootstrapper::ReattachGlobal(context, Utils::OpenHandle(*global_object));
+}
+
+
 Local<v8::Object> ObjectTemplate::NewInstance() {
   ON_BAILOUT("v8::ObjectTemplate::NewInstance()", return Local<v8::Object>());
   LOG_API("ObjectTemplate::NewInstance");

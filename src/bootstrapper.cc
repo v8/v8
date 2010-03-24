@@ -309,6 +309,17 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 }
 
 
+void Bootstrapper::ReattachGlobal(Handle<Context> env,
+                                  Handle<Object> global_object) {
+  ASSERT(global_object->IsJSGlobalProxy());
+  Handle<JSGlobalProxy> global = Handle<JSGlobalProxy>::cast(global_object);
+  env->global()->set_global_receiver(*global);
+  env->set_global_proxy(*global);
+  SetObjectPrototype(global, Handle<JSObject>(env->global()));
+  global->set_context(*env);
+}
+
+
 static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
                                           const char* name,
                                           InstanceType type,
