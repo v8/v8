@@ -205,6 +205,9 @@ DEFINE_bool(cleanup_ics_at_gc, true,
             "Flush inline caches prior to mark compact collection.")
 DEFINE_bool(cleanup_caches_in_maps_at_gc, true,
             "Flush code caches in maps during mark compact cycle.")
+DEFINE_int(random_seed, 0,
+           "Default seed for initializing random generator "
+           "(0, the default, means to use system random).")
 
 DEFINE_bool(canonicalize_object_literal_maps, true,
             "Canonicalize maps for object literals.")
