@@ -9728,7 +9728,7 @@ void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm,
   Label arg2_is_object, check_undefined_arg2;
   Label load_arg2, done;
 
-  if (!number_info.IsHeapNumber()) {
+  if (!number_info.IsDouble()) {
     if (!number_info.IsSmi()) {
       __ test(edx, Immediate(kSmiTagMask));
       __ j(not_zero, &arg1_is_object);
@@ -9747,7 +9747,7 @@ void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm,
 
   // Here edx has the untagged integer, eax has a Smi or a heap number.
   __ bind(&load_arg2);
-  if (!number_info.IsHeapNumber()) {
+  if (!number_info.IsDouble()) {
     // Test if arg2 is a Smi.
     if (!number_info.IsSmi()) {
       __ test(eax, Immediate(kSmiTagMask));

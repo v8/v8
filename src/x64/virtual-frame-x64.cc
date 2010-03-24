@@ -211,12 +211,7 @@ void VirtualFrame::EmitPush(Smi* smi_value) {
 
 void VirtualFrame::EmitPush(Handle<Object> value) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  NumberInfo info = NumberInfo::Unknown();
-  if (value->IsSmi()) {
-    info = NumberInfo::Smi();
-  } else if (value->IsHeapNumber()) {
-    info = NumberInfo::HeapNumber();
-  }
+  NumberInfo info = NumberInfo::TypeFromValue(value);
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
   __ Push(value);

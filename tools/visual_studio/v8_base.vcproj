@@ -689,6 +689,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\number-info-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\number-info.h"
 				>
 			</File>

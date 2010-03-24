@@ -106,13 +106,7 @@ void RegisterAllocator::Unuse(Register reg) {
 
 NumberInfo Result::number_info() const {
   ASSERT(is_valid());
-  if (!is_constant()) {
-    return NumberInfo::FromInt(NumberInfoField::decode(value_));
-  }
-  Handle<Object> value = handle();
-  if (value->IsSmi()) return NumberInfo::Smi();
-  if (value->IsHeapNumber()) return NumberInfo::HeapNumber();
-  return NumberInfo::Unknown();
+  return NumberInfo::FromInt(NumberInfoField::decode(value_));
 }
 
 
@@ -138,8 +132,8 @@ bool Result::is_integer32() const {
 }
 
 
-bool Result::is_heap_number() const {
-  return number_info().IsHeapNumber();
+bool Result::is_double() const {
+  return number_info().IsDouble();
 }
 
 } }  // namespace v8::internal

@@ -29,7 +29,7 @@
 #define V8_REGISTER_ALLOCATOR_H_
 
 #include "macro-assembler.h"
-#include "number-info.h"
+#include "number-info-inl.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/register-allocator-ia32.h"
@@ -69,8 +69,9 @@ class Result BASE_EMBEDDED {
 
   // Construct a Result whose value is a compile-time constant.
   explicit Result(Handle<Object> value) {
+    NumberInfo info = NumberInfo::TypeFromValue(value);
     value_ = TypeField::encode(CONSTANT)
-        | NumberInfoField::encode(NumberInfo::Uninitialized().ToInt())
+        | NumberInfoField::encode(info.ToInt())
         | IsUntaggedInt32Field::encode(false)
         | DataField::encode(ConstantList()->length());
     ConstantList()->Add(value);
@@ -107,7 +108,7 @@ class Result BASE_EMBEDDED {
   inline bool is_number() const;
   inline bool is_smi() const;
   inline bool is_integer32() const;
-  inline bool is_heap_number() const;
+  inline bool is_double() const;
 
   bool is_valid() const { return type() != INVALID; }
   bool is_register() const { return type() == REGISTER; }

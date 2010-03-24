@@ -37,7 +37,7 @@ namespace internal {
 //           |   \--------|
 //         Number      String
 //         /    |         |
-//  HeapNumber Integer32  |
+//    Double  Integer32   |
 //        |      |       /
 //        |     Smi     /
 //        |     /      /
@@ -57,7 +57,7 @@ class NumberInfo {
   // We know it's a Smi.
   static inline NumberInfo Smi();
   // We know it's a heap number.
-  static inline NumberInfo HeapNumber();
+  static inline NumberInfo Double();
   // We know it's a string.
   static inline NumberInfo String();
   // We haven't started collecting info yet.
@@ -85,7 +85,7 @@ class NumberInfo {
            t == kNumberType ||
            t == kInteger32Type ||
            t == kSmiType ||
-           t == kHeapNumberType);
+           t == kDoubleType);
     return NumberInfo(t);
   }
 
@@ -100,7 +100,7 @@ class NumberInfo {
            t == kNumberType ||
            t == kInteger32Type ||
            t == kSmiType ||
-           t == kHeapNumberType ||
+           t == kDoubleType ||
            t == kStringType);
     return NumberInfo(t);
   }
@@ -109,6 +109,22 @@ class NumberInfo {
   static NumberInfo Combine(NumberInfo a, NumberInfo b) {
     return NumberInfo(static_cast<Type>(a.type_ & b.type_));
   }
+
+
+  // Integer32 is an integer that can be represented as either a signed
+  // 32-bit integer or as an unsigned 32-bit integer. It has to be
+  // in the range [-2^31, 2^32 - 1].
+  static inline bool IsInt32Double(double value) {
+    if (value >= -0x80000000 && value <= 0xffffffffu) {
+      if (value <= 0x7fffffff && value == static_cast<int32_t>(value)) {
+        return true;
+      }
+      if (value == static_cast<uint32_t>(value)) return true;
+    }
+    return false;
+  }
+
+  static inline NumberInfo TypeFromValue(Handle<Object> value);
 
   inline bool IsUnknown() {
     return type_ == kUnknownType;
@@ -129,9 +145,9 @@ class NumberInfo {
     return ((type_ & kInteger32Type) == kInteger32Type);
   }
 
-  inline bool IsHeapNumber() {
+  inline bool IsDouble() {
     ASSERT(type_ != kUninitializedType);
-    return ((type_ & kHeapNumberType) == kHeapNumberType);
+    return ((type_ & kDoubleType) == kDoubleType);
   }
 
   inline bool IsUninitialized() {
@@ -145,7 +161,7 @@ class NumberInfo {
       case kNumberType: return "NumberType";
       case kInteger32Type: return "Integer32Type";
       case kSmiType: return "SmiType";
-      case kHeapNumberType: return "HeapNumberType";
+      case kDoubleType: return "DoubleType";
       case kStringType: return "StringType";
       case kUninitializedType:
         UNREACHABLE();
@@ -163,7 +179,7 @@ class NumberInfo {
     kNumberType = 0x11,        // 010001
     kInteger32Type = 0x13,     // 010011
     kSmiType = 0x17,           // 010111
-    kHeapNumberType = 0x19,    // 011001
+    kDoubleType = 0x19,        // 011001
     kStringType = 0x30,        // 110000
     kUninitializedType = 0x3f  // 111111
   };
@@ -198,8 +214,8 @@ NumberInfo NumberInfo::Smi() {
 }
 
 
-NumberInfo NumberInfo::HeapNumber() {
-  return NumberInfo(kHeapNumberType);
+NumberInfo NumberInfo::Double() {
+  return NumberInfo(kDoubleType);
 }
 
 

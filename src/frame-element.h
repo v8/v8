@@ -28,7 +28,7 @@
 #ifndef V8_FRAME_ELEMENT_H_
 #define V8_FRAME_ELEMENT_H_
 
-#include "number-info.h"
+#include "number-info-inl.h"
 #include "macro-assembler.h"
 #include "zone.h"
 
@@ -58,13 +58,7 @@ class FrameElement BASE_EMBEDDED {
     // Copied elements do not have number info. Instead
     // we have to inspect their backing element in the frame.
     ASSERT(!is_copy());
-    if (!is_constant()) {
-      return NumberInfo::FromInt(NumberInfoField::decode(value_));
-    }
-    Handle<Object> value = handle();
-    if (value->IsSmi()) return NumberInfo::Smi();
-    if (value->IsHeapNumber()) return NumberInfo::HeapNumber();
-    return NumberInfo::Unknown();
+    return NumberInfo::FromInt(NumberInfoField::decode(value_));
   }
 
   inline void set_number_info(NumberInfo info) {
@@ -107,7 +101,8 @@ class FrameElement BASE_EMBEDDED {
   // compile time.
   static FrameElement ConstantElement(Handle<Object> value,
                                       SyncFlag is_synced) {
-    FrameElement result(value, is_synced);
+    NumberInfo info = NumberInfo::TypeFromValue(value);
+    FrameElement result(value, is_synced, info);
     return result;
   }
 
@@ -232,11 +227,11 @@ class FrameElement BASE_EMBEDDED {
   }
 
   // Used to construct constant elements.
-  FrameElement(Handle<Object> value, SyncFlag is_synced) {
+  FrameElement(Handle<Object> value, SyncFlag is_synced, NumberInfo info) {
     value_ = TypeField::encode(CONSTANT)
         | CopiedField::encode(false)
         | SyncedField::encode(is_synced != NOT_SYNCED)
-        | NumberInfoField::encode(NumberInfo::Uninitialized().ToInt())
+        | NumberInfoField::encode(info.ToInt())
         | DataField::encode(ConstantList()->length());
     ConstantList()->Add(value);
   }
