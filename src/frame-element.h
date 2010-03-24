@@ -262,12 +262,13 @@ class FrameElement BASE_EMBEDDED {
   // Encode type, copied, synced and data in one 32 bit integer.
   uint32_t value_;
 
+  // Declare BitFields with template parameters <type, start, size>.
   class TypeField: public BitField<Type, 0, 3> {};
   class CopiedField: public BitField<bool, 3, 1> {};
   class SyncedField: public BitField<bool, 4, 1> {};
   class UntaggedInt32Field: public BitField<bool, 5, 1> {};
-  class NumberInfoField: public BitField<int, 6, 4> {};
-  class DataField: public BitField<uint32_t, 10, 32 - 10> {};
+  class NumberInfoField: public BitField<int, 6, 6> {};
+  class DataField: public BitField<uint32_t, 12, 32 - 12> {};
 
   friend class VirtualFrame;
 };

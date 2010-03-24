@@ -152,10 +152,11 @@ class Result BASE_EMBEDDED {
  private:
   uint32_t value_;
 
+  // Declare BitFields with template parameters <type, start, size>.
   class TypeField: public BitField<Type, 0, 2> {};
-  class NumberInfoField : public BitField<int, 2, 4> {};
-  class IsUntaggedInt32Field : public BitField<bool, 6, 1> {};
-  class DataField: public BitField<uint32_t, 7, 32 - 7> {};
+  class NumberInfoField : public BitField<int, 2, 6> {};
+  class IsUntaggedInt32Field : public BitField<bool, 8, 1> {};
+  class DataField: public BitField<uint32_t, 9, 32 - 9> {};
 
   inline void CopyTo(Result* destination) const;
 

@@ -33,19 +33,23 @@ namespace internal {
 
 //        Unknown
 //           |
-//         Number
-//         /    |
-//  HeapNumber Integer32
-//        |      |
-//        |     Smi
-//        |     /
-//      Uninitialized.
+//      PrimitiveType
+//           |   \--------|
+//         Number      String
+//         /    |         |
+//  HeapNumber Integer32  |
+//        |      |       /
+//        |     Smi     /
+//        |     /      /
+//        Uninitialized.
 
 class NumberInfo {
  public:
   NumberInfo() { }
 
   static inline NumberInfo Unknown();
+  // We know it's a primitive type.
+  static inline NumberInfo Primitive();
   // We know it's a number of some sort.
   static inline NumberInfo Number();
   // We know it's signed or unsigned 32 bit integer.
@@ -54,13 +58,18 @@ class NumberInfo {
   static inline NumberInfo Smi();
   // We know it's a heap number.
   static inline NumberInfo HeapNumber();
+  // We know it's a string.
+  static inline NumberInfo String();
   // We haven't started collecting info yet.
   static inline NumberInfo Uninitialized();
 
   // Return compact representation.  Very sensitive to enum values below!
+  // Compacting drops information about primtive types and strings types.
+  // We use the compact representation when we only care about number types.
   int ThreeBitRepresentation() {
     ASSERT(type_ != kUninitializedType);
-    int answer = type_ > 6 ? type_ -2 : type_;
+    int answer = type_ & 0xf;
+    answer = answer > 6 ? answer - 2 : answer;
     ASSERT(answer >= 0);
     ASSERT(answer <= 7);
     return answer;
@@ -71,6 +80,7 @@ class NumberInfo {
     Type t = static_cast<Type>(three_bit_representation >= 6 ?
                                three_bit_representation + 2 :
                                three_bit_representation);
+    t = (t == kUnknownType) ? t : static_cast<Type>(t | kPrimitiveType);
     ASSERT(t == kUnknownType ||
            t == kNumberType ||
            t == kInteger32Type ||
@@ -86,10 +96,12 @@ class NumberInfo {
   static NumberInfo FromInt(int bit_representation) {
     Type t = static_cast<Type>(bit_representation);
     ASSERT(t == kUnknownType ||
+           t == kPrimitiveType ||
            t == kNumberType ||
            t == kInteger32Type ||
            t == kSmiType ||
-           t == kHeapNumberType);
+           t == kHeapNumberType ||
+           t == kStringType);
     return NumberInfo(t);
   }
 
@@ -129,10 +141,12 @@ class NumberInfo {
   const char* ToString() {
     switch (type_) {
       case kUnknownType: return "UnknownType";
+      case kPrimitiveType: return "PrimitiveType";
       case kNumberType: return "NumberType";
+      case kInteger32Type: return "Integer32Type";
       case kSmiType: return "SmiType";
       case kHeapNumberType: return "HeapNumberType";
-      case kInteger32Type: return "Integer32Type";
+      case kStringType: return "StringType";
       case kUninitializedType:
         UNREACHABLE();
         return "UninitializedType";
@@ -142,13 +156,16 @@ class NumberInfo {
   }
 
  private:
+  // We use 6 bits to represent the types.
   enum Type {
-    kUnknownType = 0,
-    kNumberType = 1,
-    kInteger32Type = 3,
-    kSmiType = 7,
-    kHeapNumberType = 9,
-    kUninitializedType = 15
+    kUnknownType = 0,          // 000000
+    kPrimitiveType = 0x10,     // 010000
+    kNumberType = 0x11,        // 010001
+    kInteger32Type = 0x13,     // 010011
+    kSmiType = 0x17,           // 010111
+    kHeapNumberType = 0x19,    // 011001
+    kStringType = 0x30,        // 110000
+    kUninitializedType = 0x3f  // 111111
   };
   explicit inline NumberInfo(Type t) : type_(t) { }
 
@@ -158,6 +175,11 @@ class NumberInfo {
 
 NumberInfo NumberInfo::Unknown() {
   return NumberInfo(kUnknownType);
+}
+
+
+NumberInfo NumberInfo::Primitive() {
+  return NumberInfo(kPrimitiveType);
 }
 
 
@@ -178,6 +200,11 @@ NumberInfo NumberInfo::Smi() {
 
 NumberInfo NumberInfo::HeapNumber() {
   return NumberInfo(kHeapNumberType);
+}
+
+
+NumberInfo NumberInfo::String() {
+  return NumberInfo(kStringType);
 }
 
 
