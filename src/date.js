@@ -223,6 +223,10 @@ function LocalTime(time) {
 }
 
 function LocalTimeNoCheck(time) {
+  if (time < -MAX_TIME_MS || time > MAX_TIME_MS) {
+    return $NaN;
+  }
+
   // Inline the DST offset cache checks for speed.
   var cache = DST_offset_cache;
   if (cache.start <= time && time <= cache.end) {
@@ -265,8 +269,7 @@ var ymd_from_time_cached_time = $NaN;
 
 function YearFromTime(t) {
   if (t !== ymd_from_time_cached_time) {
-    // Limits according to ECMA 262 15.9.1.1
-    if (!$isFinite(t) || t < -8640000000000000 || t > 8640000000000000) {
+    if (!$isFinite(t)) {
       return $NaN;
     }
 
@@ -279,8 +282,7 @@ function YearFromTime(t) {
 
 function MonthFromTime(t) {
   if (t !== ymd_from_time_cached_time) {
-    // Limits according to ECMA 262 15.9.1.1
-    if (!$isFinite(t) || t < -8640000000000000 || t > 8640000000000000) {
+    if (!$isFinite(t)) {
       return $NaN;
     }
     %DateYMDFromTime(t, ymd_from_time_cache);
@@ -292,8 +294,7 @@ function MonthFromTime(t) {
 
 function DateFromTime(t) {
   if (t !== ymd_from_time_cached_time) {
-    // Limits according to ECMA 262 15.9.1.1
-    if (!$isFinite(t) || t < -8640000000000000 || t > 8640000000000000) {
+    if (!$isFinite(t)) {
       return $NaN;
     }
 

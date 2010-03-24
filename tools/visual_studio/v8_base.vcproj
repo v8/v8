@@ -237,6 +237,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\cached-powers.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\char-predicates-inl.h"
 				>
 			</File>
@@ -405,6 +409,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\diy-fp.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\diy-fp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\double.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\execution.cc"
 				>
 			</File>
@@ -432,6 +448,14 @@
                                 RelativePath="..\..\src\fast-codegen.h"
                                 >
                         </File>
+			<File
+				RelativePath="..\..\src\fast-dtoa.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\fast-dtoa.h"
+				>
+			</File>
 			<File
 				RelativePath="..\..\src\flags.cc"
 				>

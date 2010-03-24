@@ -191,7 +191,9 @@ static void InitializeVM() {
 
 
 static Handle<JSFunction> CompileFunction(const char* source) {
-  return v8::Utils::OpenHandle(*Script::Compile(String::New(source)));
+  Handle<JSFunction> result(JSFunction::cast(
+      *v8::Utils::OpenHandle(*Script::Compile(String::New(source)))));
+  return result;
 }
 
 
@@ -201,16 +203,16 @@ static Local<Value> GetGlobalProperty(const char* name) {
 
 
 static Handle<JSFunction> GetGlobalJSFunction(const char* name) {
-  Handle<JSFunction> js_func(JSFunction::cast(
-                                 *(v8::Utils::OpenHandle(
-                                       *GetGlobalProperty(name)))));
-  return js_func;
+  Handle<JSFunction> result(JSFunction::cast(
+      *v8::Utils::OpenHandle(*GetGlobalProperty(name))));
+  return result;
 }
 
 
 static void CheckRetAddrIsInJSFunction(const char* func_name,
-                                       Address ret_addr) {
-  CheckRetAddrIsInJSFunction(func_name, ret_addr,
+                                               Address ret_addr) {
+  CheckRetAddrIsInJSFunction(func_name,
+                             ret_addr,
                              GetGlobalJSFunction(func_name));
 }
 
@@ -278,6 +280,7 @@ static void CreateTraceCallerFunction(const char* func_name,
 #endif
 
   SetGlobalProperty(func_name, v8::ToApi<Value>(func));
+  CHECK_EQ(*func, *GetGlobalJSFunction(func_name));
 }
 
 
@@ -288,11 +291,13 @@ TEST(CFromJSStackTrace) {
   InitializeVM();
   v8::HandleScope scope;
   CreateTraceCallerFunction("JSFuncDoTrace", "trace");
-  CompileRun(
+  Local<Value> result = CompileRun(
       "function JSTrace() {"
       "         JSFuncDoTrace();"
       "};\n"
-      "JSTrace();");
+      "JSTrace();\n"
+      "true;");
+  CHECK(!result.IsEmpty());
   CHECK_GT(sample.frames_count, 1);
   // Stack sampling will start from the first JS function, i.e. "JSFuncDoTrace"
   CheckRetAddrIsInJSFunction("JSFuncDoTrace",
@@ -309,14 +314,16 @@ TEST(PureJSStackTrace) {
   InitializeVM();
   v8::HandleScope scope;
   CreateTraceCallerFunction("JSFuncDoTrace", "js_trace");
-  CompileRun(
+  Local<Value> result = CompileRun(
       "function JSTrace() {"
       "         JSFuncDoTrace();"
       "};\n"
       "function OuterJSTrace() {"
       "         JSTrace();"
       "};\n"
-      "OuterJSTrace();");
+      "OuterJSTrace();\n"
+      "true;");
+  CHECK(!result.IsEmpty());
   // The last JS function called.
   CHECK_EQ(GetGlobalJSFunction("JSFuncDoTrace")->address(),
            sample.function);

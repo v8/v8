@@ -528,6 +528,10 @@ class CodeGenerator: public AstVisitor {
                   Condition cc,
                   bool strict,
                   ControlDestination* destination);
+  void GenerateInlineNumberComparison(Result* left_side,
+                                      Result* right_side,
+                                      Condition cc,
+                                      ControlDestination* dest);
 
   // To prevent long attacker-controlled byte sequences, integer constants
   // from the JavaScript source are loaded in two parts if they are larger
@@ -574,8 +578,8 @@ class CodeGenerator: public AstVisitor {
   // name/value pairs.
   void DeclareGlobals(Handle<FixedArray> pairs);
 
-  // Instantiate the function boilerplate.
-  Result InstantiateBoilerplate(Handle<JSFunction> boilerplate);
+  // Instantiate the function based on the shared function info.
+  Result InstantiateFunction(Handle<SharedFunctionInfo> function_info);
 
   // Support for type checks.
   void GenerateIsSmi(ZoneList<Expression*>* args);

@@ -1,3 +1,10 @@
+2010-03-24: Version 2.1.8
+
+        Added fine-grained garbage collection callbacks to the API.
+
+        Performance improvements on all platforms.
+
+
 2010-03-22: Version 2.1.7
 
         Fixed issue 650.

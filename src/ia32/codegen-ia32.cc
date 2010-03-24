@@ -911,6 +911,7 @@ class FloatingPointHelper : public AllStatic {
   // operand in register number. Returns operand as floating point number
   // on FPU stack.
   static void LoadFloatOperand(MacroAssembler* masm, Register number);
+
   // Code pattern for loading floating point values. Input values must
   // be either smi or heap number objects (fp values). Requirements:
   // operand_1 on TOS+1 or in edx, operand_2 on TOS+2 or in eax.
@@ -929,6 +930,7 @@ class FloatingPointHelper : public AllStatic {
   static void CheckFloatOperands(MacroAssembler* masm,
                                  Label* non_float,
                                  Register scratch);
+
   // Takes the operands in edx and eax and loads them as integers in eax
   // and ecx.
   static void LoadAsIntegers(MacroAssembler* masm,
@@ -947,6 +949,7 @@ class FloatingPointHelper : public AllStatic {
   // into xmm0 and xmm1 if they are. Operands are in edx and eax.
   // Leaves operands unchanged.
   static void LoadSSE2Operands(MacroAssembler* masm);
+
   // Test if operands are numbers (smi or HeapNumber objects), and load
   // them into xmm0 and xmm1 if they are.  Jump to label not_numbers if
   // either operand is not a number.  Operands are in edx and eax.
@@ -2361,6 +2364,22 @@ static bool CouldBeNaN(const Result& result) {
 }
 
 
+// Convert from signed to unsigned comparison to match the way EFLAGS are set
+// by FPU and XMM compare instructions.
+static Condition DoubleCondition(Condition cc) {
+  switch (cc) {
+    case less:          return below;
+    case equal:         return equal;
+    case less_equal:    return below_equal;
+    case greater:       return above;
+    case greater_equal: return above_equal;
+    default:            UNREACHABLE();
+  }
+  UNREACHABLE();
+  return equal;
+}
+
+
 void CodeGenerator::Comparison(AstNode* node,
                                Condition cc,
                                bool strict,
@@ -2431,7 +2450,7 @@ void CodeGenerator::Comparison(AstNode* node,
         left_side = right_side;
         right_side = temp;
         cc = ReverseCondition(cc);
-        // This may reintroduce greater or less_equal as the value of cc.
+        // This may re-introduce greater or less_equal as the value of cc.
         // CompareStub and the inline code both support all values of cc.
       }
       // Implement comparison against a constant Smi, inlining the case
@@ -2453,11 +2472,11 @@ void CodeGenerator::Comparison(AstNode* node,
         __ test(left_side.reg(), Immediate(kSmiTagMask));
         is_smi.Branch(zero, taken);
 
-        bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
-            && node->AsCompareOperation()->is_for_loop_condition();
-        if (!is_for_loop_compare
-            && CpuFeatures::IsSupported(SSE2)
-            && right_val->IsSmi()) {
+        bool is_loop_condition = (node->AsExpression() != NULL) &&
+            node->AsExpression()->is_loop_condition();
+        if (!is_loop_condition &&
+            CpuFeatures::IsSupported(SSE2) &&
+            right_val->IsSmi()) {
           // Right side is a constant smi and left side has been checked
           // not to be a smi.
           CpuFeatures::Scope use_sse2(SSE2);
@@ -2480,16 +2499,7 @@ void CodeGenerator::Comparison(AstNode* node,
           // Jump to builtin for NaN.
           not_number.Branch(parity_even, &left_side);
           left_side.Unuse();
-          Condition double_cc = cc;
-          switch (cc) {
-            case less:          double_cc = below;       break;
-            case equal:         double_cc = equal;       break;
-            case less_equal:    double_cc = below_equal; break;
-            case greater:       double_cc = above;       break;
-            case greater_equal: double_cc = above_equal; break;
-            default: UNREACHABLE();
-          }
-          dest->true_target()->Branch(double_cc);
+          dest->true_target()->Branch(DoubleCondition(cc));
           dest->false_target()->Jump();
           not_number.Bind(&left_side);
         }
@@ -2688,21 +2698,53 @@ void CodeGenerator::Comparison(AstNode* node,
       dest->Split(cc);
     }
   } else {
-    // Neither side is a constant Smi or null.
-    // If either side is a non-smi constant, skip the smi check.
+    // Neither side is a constant Smi, constant 1-char string or constant null.
+    // If either side is a non-smi constant, or known to be a heap number skip
+    // the smi check.
     bool known_non_smi =
         (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
-        (right_side.is_constant() && !right_side.handle()->IsSmi());
+        (right_side.is_constant() && !right_side.handle()->IsSmi()) ||
+        left_side.number_info().IsHeapNumber() ||
+        right_side.number_info().IsHeapNumber();
     NaNInformation nan_info =
         (CouldBeNaN(left_side) && CouldBeNaN(right_side)) ?
         kBothCouldBeNaN :
         kCantBothBeNaN;
+
+    // Inline number comparison handling any combination of smi's and heap
+    // numbers if:
+    //   code is in a loop
+    //   the compare operation is different from equal
+    //   compare is not a for-loop comparison
+    // The reason for excluding equal is that it will most likely be done
+    // with smi's (not heap numbers) and the code to comparing smi's is inlined
+    // separately. The same reason applies for for-loop comparison which will
+    // also most likely be smi comparisons.
+    bool is_loop_condition = (node->AsExpression() != NULL)
+        && node->AsExpression()->is_loop_condition();
+    bool inline_number_compare =
+        loop_nesting() > 0 && cc != equal && !is_loop_condition;
+
+    // Left and right needed in registers for the following code.
     left_side.ToRegister();
     right_side.ToRegister();
 
     if (known_non_smi) {
-      // When non-smi, call out to the compare stub.
-      CompareStub stub(cc, strict, nan_info);
+      // Inline the equality check if both operands can't be a NaN. If both
+      // objects are the same they are equal.
+      if (nan_info == kCantBothBeNaN && cc == equal) {
+        __ cmp(left_side.reg(), Operand(right_side.reg()));
+        dest->true_target()->Branch(equal);
+      }
+
+      // Inline number comparison.
+      if (inline_number_compare) {
+        GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
+      }
+
+      // End of in-line compare, call out to the compare stub. Don't include
+      // number comparison in the stub if it was inlined.
+      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       if (cc == equal) {
         __ test(answer.reg(), Operand(answer.reg()));
@@ -2721,6 +2763,7 @@ void CodeGenerator::Comparison(AstNode* node,
       Register left_reg = left_side.reg();
       Register right_reg = right_side.reg();
 
+      // In-line check for comparing two smis.
       Result temp = allocator_->Allocate();
       ASSERT(temp.is_valid());
       __ mov(temp.reg(), left_side.reg());
@@ -2728,8 +2771,22 @@ void CodeGenerator::Comparison(AstNode* node,
       __ test(temp.reg(), Immediate(kSmiTagMask));
       temp.Unuse();
       is_smi.Branch(zero, taken);
-      // When non-smi, call out to the compare stub.
-      CompareStub stub(cc, strict, nan_info);
+
+      // Inline the equality check if both operands can't be a NaN. If both
+      // objects are the same they are equal.
+      if (nan_info == kCantBothBeNaN && cc == equal) {
+        __ cmp(left_side.reg(), Operand(right_side.reg()));
+        dest->true_target()->Branch(equal);
+      }
+
+      // Inline number comparison.
+      if (inline_number_compare) {
+        GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
+      }
+
+      // End of in-line compare, call out to the compare stub. Don't include
+      // number comparison in the stub if it was inlined.
+      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       if (cc == equal) {
         __ test(answer.reg(), Operand(answer.reg()));
@@ -2749,6 +2806,150 @@ void CodeGenerator::Comparison(AstNode* node,
       dest->Split(cc);
     }
   }
+}
+
+
+// Check that the comparison operand is a number. Jump to not_numbers jump
+// target passing the left and right result if the operand is not a number.
+static void CheckComparisonOperand(MacroAssembler* masm_,
+                                   Result* operand,
+                                   Result* left_side,
+                                   Result* right_side,
+                                   JumpTarget* not_numbers) {
+  // Perform check if operand is not known to be a number.
+  if (!operand->number_info().IsNumber()) {
+    Label done;
+    __ test(operand->reg(), Immediate(kSmiTagMask));
+    __ j(zero, &done);
+    __ cmp(FieldOperand(operand->reg(), HeapObject::kMapOffset),
+           Immediate(Factory::heap_number_map()));
+    not_numbers->Branch(not_equal, left_side, right_side, not_taken);
+    __ bind(&done);
+  }
+}
+
+
+// Load a comparison operand to the FPU stack. This assumes that the operand has
+// already been checked and is a number.
+static void LoadComparisonOperand(MacroAssembler* masm_,
+                                  Result* operand,
+                                  Result* left_side,
+                                  Result* right_side) {
+  Label done;
+  if (operand->number_info().IsHeapNumber()) {
+    // Operand is known to be a heap number, just load it.
+    __ fld_d(FieldOperand(operand->reg(), HeapNumber::kValueOffset));
+  } else if (operand->number_info().IsSmi()) {
+    // Operand is known to be a smi. Convert it to double and keep the original
+    // smi.
+    __ SmiUntag(operand->reg());
+    __ push(operand->reg());
+    __ fild_s(Operand(esp, 0));
+    __ pop(operand->reg());
+    __ SmiTag(operand->reg());
+  } else {
+    // Operand type not known, check for smi otherwise assume heap number.
+    Label smi;
+    __ test(operand->reg(), Immediate(kSmiTagMask));
+    __ j(zero, &smi);
+    __ fld_d(FieldOperand(operand->reg(), HeapNumber::kValueOffset));
+    __ jmp(&done);
+    __ bind(&smi);
+    __ SmiUntag(operand->reg());
+    __ push(operand->reg());
+    __ fild_s(Operand(esp, 0));
+    __ pop(operand->reg());
+    __ SmiTag(operand->reg());
+    __ jmp(&done);
+  }
+  __ bind(&done);
+}
+
+
+// Load a comparison operand into into a XMM register. Jump to not_numbers jump
+// target passing the left and right result if the operand is not a number.
+static void LoadComparisonOperandSSE2(MacroAssembler* masm_,
+                                      Result* operand,
+                                      XMMRegister reg,
+                                      Result* left_side,
+                                      Result* right_side,
+                                      JumpTarget* not_numbers) {
+  Label done;
+  if (operand->number_info().IsHeapNumber()) {
+    // Operand is known to be a heap number, just load it.
+    __ movdbl(reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
+  } else if (operand->number_info().IsSmi()) {
+    // Operand is known to be a smi. Convert it to double and keep the original
+    // smi.
+    __ SmiUntag(operand->reg());
+    __ cvtsi2sd(reg, Operand(operand->reg()));
+    __ SmiTag(left_side->reg());
+  } else {
+    // Operand type not known, check for smi or heap number.
+    Label smi;
+    __ test(operand->reg(), Immediate(kSmiTagMask));
+    __ j(zero, &smi);
+    if (!operand->number_info().IsNumber()) {
+      __ cmp(FieldOperand(operand->reg(), HeapObject::kMapOffset),
+             Immediate(Factory::heap_number_map()));
+      not_numbers->Branch(not_equal, left_side, right_side, taken);
+    }
+    __ movdbl(reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
+    __ jmp(&done);
+
+    __ bind(&smi);
+    // Comvert smi to float and keep the original smi.
+    __ SmiUntag(operand->reg());
+    __ cvtsi2sd(reg, Operand(operand->reg()));
+    __ SmiTag(operand->reg());
+    __ jmp(&done);
+  }
+  __ bind(&done);
+}
+
+
+void CodeGenerator::GenerateInlineNumberComparison(Result* left_side,
+                                                   Result* right_side,
+                                                   Condition cc,
+                                                   ControlDestination* dest) {
+  ASSERT(left_side->is_register());
+  ASSERT(right_side->is_register());
+
+  JumpTarget not_numbers;
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope use_sse2(SSE2);
+
+    // Load left and right operand into registers xmm0 and xmm1 and compare.
+    LoadComparisonOperandSSE2(masm_, left_side, xmm0, left_side, right_side,
+                              &not_numbers);
+    LoadComparisonOperandSSE2(masm_, right_side, xmm1, left_side, right_side,
+                              &not_numbers);
+    __ comisd(xmm0, xmm1);
+  } else {
+    Label check_right, compare;
+
+    // Make sure that both comparison operands are numbers.
+    CheckComparisonOperand(masm_, left_side, left_side, right_side,
+                           &not_numbers);
+    CheckComparisonOperand(masm_, right_side, left_side, right_side,
+                           &not_numbers);
+
+    // Load right and left operand to FPU stack and compare.
+    LoadComparisonOperand(masm_, right_side, left_side, right_side);
+    LoadComparisonOperand(masm_, left_side, left_side, right_side);
+    __ FCmp();
+  }
+
+  // Bail out if a NaN is involved.
+  not_numbers.Branch(parity_even, left_side, right_side, not_taken);
+
+  // Split to destination targets based on comparison.
+  left_side->Unuse();
+  right_side->Unuse();
+  dest->true_target()->Branch(DoubleCondition(cc));
+  dest->false_target()->Jump();
+
+  not_numbers.Bind(left_side, right_side);
 }
 
 
@@ -4421,9 +4622,8 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 }
 
 
-Result CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
-  ASSERT(boilerplate->IsBoilerplate());
-
+Result CodeGenerator::InstantiateFunction(
+    Handle<SharedFunctionInfo> function_info) {
   // The inevitable call will sync frame elements to memory anyway, so
   // we do it eagerly to allow us to push the arguments directly into
   // place.
@@ -4431,15 +4631,15 @@ Result CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
+  if (scope()->is_function_scope() && function_info->num_literals() == 0) {
     FastNewClosureStub stub;
-    frame()->EmitPush(Immediate(boilerplate));
+    frame()->EmitPush(Immediate(function_info));
     return frame()->CallStub(&stub, 1);
   } else {
     // Call the runtime to instantiate the function boilerplate
     // object.
     frame()->EmitPush(esi);
-    frame()->EmitPush(Immediate(boilerplate));
+    frame()->EmitPush(Immediate(function_info));
     return frame()->CallRuntime(Runtime::kNewClosure, 2);
   }
 }
@@ -4448,21 +4648,21 @@ Result CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   Comment cmnt(masm_, "[ FunctionLiteral");
   ASSERT(!in_safe_int32_mode());
-  // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(node, script(), this);
+  // Build the function info and instantiate it.
+  Handle<SharedFunctionInfo> function_info =
+      Compiler::BuildFunctionInfo(node, script(), this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) return;
-  Result result = InstantiateBoilerplate(boilerplate);
+  Result result = InstantiateFunction(function_info);
   frame()->Push(&result);
 }
 
 
-void CodeGenerator::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
+void CodeGenerator::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
   ASSERT(!in_safe_int32_mode());
-  Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
-  Result result = InstantiateBoilerplate(node->boilerplate());
+  Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
+  Result result = InstantiateFunction(node->shared_function_info());
   frame()->Push(&result);
 }
 
@@ -7023,15 +7223,39 @@ void CodeGenerator::Int32BinaryOperation(BinaryOperation* node) {
     case Token::BIT_OR:
     case Token::BIT_XOR:
     case Token::BIT_AND:
-      left.ToRegister();
-      right.ToRegister();
-      if (op == Token::BIT_OR) {
-        __ or_(left.reg(), Operand(right.reg()));
-      } else if (op == Token::BIT_XOR) {
-        __ xor_(left.reg(), Operand(right.reg()));
+      if (left.is_constant() || right.is_constant()) {
+        int32_t value;  // Put constant in value, non-constant in left.
+        // Constants are known to be int32 values, from static analysis,
+        // or else will be converted to int32 by implicit ECMA [[ToInt32]].
+        if (left.is_constant()) {
+          ASSERT(left.handle()->IsSmi() || left.handle()->IsHeapNumber());
+          value = NumberToInt32(*left.handle());
+          left = right;
+        } else {
+          ASSERT(right.handle()->IsSmi() || right.handle()->IsHeapNumber());
+          value = NumberToInt32(*right.handle());
+        }
+
+        left.ToRegister();
+        if (op == Token::BIT_OR) {
+          __ or_(Operand(left.reg()), Immediate(value));
+        } else if (op == Token::BIT_XOR) {
+          __ xor_(Operand(left.reg()), Immediate(value));
+        } else {
+          ASSERT(op == Token::BIT_AND);
+          __ and_(Operand(left.reg()), Immediate(value));
+        }
       } else {
-        ASSERT(op == Token::BIT_AND);
-        __ and_(left.reg(), Operand(right.reg()));
+        ASSERT(left.is_register());
+        ASSERT(right.is_register());
+        if (op == Token::BIT_OR) {
+          __ or_(left.reg(), Operand(right.reg()));
+        } else if (op == Token::BIT_XOR) {
+          __ xor_(left.reg(), Operand(right.reg()));
+        } else {
+          ASSERT(op == Token::BIT_AND);
+          __ and_(left.reg(), Operand(right.reg()));
+        }
       }
       frame_->Push(&left);
       right.Unuse();
@@ -7090,16 +7314,39 @@ void CodeGenerator::Int32BinaryOperation(BinaryOperation* node) {
     case Token::ADD:
     case Token::SUB:
     case Token::MUL:
-      left.ToRegister();
-      right.ToRegister();
-      if (op == Token::ADD) {
-        __ add(left.reg(), Operand(right.reg()));
-      } else if (op == Token::SUB) {
-        __ sub(left.reg(), Operand(right.reg()));
+      if ((left.is_constant() && op != Token::SUB) || right.is_constant()) {
+        int32_t value;  // Put constant in value, non-constant in left.
+        if (right.is_constant()) {
+          ASSERT(right.handle()->IsSmi() || right.handle()->IsHeapNumber());
+          value = NumberToInt32(*right.handle());
+        } else {
+          ASSERT(left.handle()->IsSmi() || left.handle()->IsHeapNumber());
+          value = NumberToInt32(*left.handle());
+          left = right;
+        }
+
+        left.ToRegister();
+        if (op == Token::ADD) {
+          __ add(Operand(left.reg()), Immediate(value));
+        } else if (op == Token::SUB) {
+          __ sub(Operand(left.reg()), Immediate(value));
+        } else {
+          ASSERT(op == Token::MUL);
+          __ imul(left.reg(), left.reg(), value);
+        }
       } else {
-        ASSERT(op == Token::MUL);
-        // We have statically verified that a negative zero can be ignored.
-        __ imul(left.reg(), Operand(right.reg()));
+        left.ToRegister();
+        ASSERT(left.is_register());
+        ASSERT(right.is_register());
+        if (op == Token::ADD) {
+          __ add(left.reg(), Operand(right.reg()));
+        } else if (op == Token::SUB) {
+          __ sub(left.reg(), Operand(right.reg()));
+        } else {
+          ASSERT(op == Token::MUL);
+          // We have statically verified that a negative zero can be ignored.
+          __ imul(left.reg(), Operand(right.reg()));
+        }
       }
       right.Unuse();
       frame_->Push(&left);
@@ -7133,6 +7380,15 @@ void CodeGenerator::Int32BinaryOperation(BinaryOperation* node) {
       __ cdq();  // Sign-extend eax into edx:eax
       __ idiv(right_reg);
       if (op == Token::MOD) {
+        // Negative zero can arise as a negative divident with a zero result.
+        if (!node->no_negative_zero()) {
+          Label not_negative_zero;
+          __ test(edx, Operand(edx));
+          __ j(not_zero, &not_negative_zero);
+          __ test(eax, Operand(eax));
+          unsafe_bailout_->Branch(negative);
+          __ bind(&not_negative_zero);
+        }
         Result edx_result(edx, NumberInfo::Integer32());
         edx_result.set_untagged_int32(true);
         frame_->Push(&edx_result);
@@ -8205,12 +8461,12 @@ void Reference::SetValue(InitState init_state) {
 
 
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
-  // Clone the boilerplate in new space. Set the context to the
-  // current context in esi.
+  // Create a new closure from the given function info in new
+  // space. Set the context to the current context in esi.
   Label gc;
   __ AllocateInNewSpace(JSFunction::kSize, eax, ebx, ecx, &gc, TAG_OBJECT);
 
-  // Get the boilerplate function from the stack.
+  // Get the function info from the stack.
   __ mov(edx, Operand(esp, 1 * kPointerSize));
 
   // Compute the function map in the current global context and set that
@@ -8220,18 +8476,16 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, Operand(ecx, Context::SlotOffset(Context::FUNCTION_MAP_INDEX)));
   __ mov(FieldOperand(eax, JSObject::kMapOffset), ecx);
 
-  // Clone the rest of the boilerplate fields. We don't have to update
-  // the write barrier because the allocated object is in new space.
-  for (int offset = kPointerSize;
-       offset < JSFunction::kSize;
-       offset += kPointerSize) {
-    if (offset == JSFunction::kContextOffset) {
-      __ mov(FieldOperand(eax, offset), esi);
-    } else {
-      __ mov(ebx, FieldOperand(edx, offset));
-      __ mov(FieldOperand(eax, offset), ebx);
-    }
-  }
+  // Initialize the rest of the function. We don't have to update the
+  // write barrier because the allocated object is in new space.
+  __ mov(ebx, Immediate(Factory::empty_fixed_array()));
+  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset), ebx);
+  __ mov(FieldOperand(eax, JSObject::kElementsOffset), ebx);
+  __ mov(FieldOperand(eax, JSFunction::kPrototypeOrInitialMapOffset),
+         Immediate(Factory::the_hole_value()));
+  __ mov(FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset), edx);
+  __ mov(FieldOperand(eax, JSFunction::kContextOffset), esi);
+  __ mov(FieldOperand(eax, JSFunction::kLiteralsOffset), ebx);
 
   // Return and remove the on-stack parameter.
   __ ret(1 * kPointerSize);
@@ -10824,63 +11078,70 @@ void CompareStub::Generate(MacroAssembler* masm) {
   __ push(edx);
   __ push(ecx);
 
-  // Inlined floating point compare.
-  // Call builtin if operands are not floating point or smi.
-  Label check_for_symbols;
-  Label unordered;
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
-    CpuFeatures::Scope use_cmov(CMOV);
+  // Generate the number comparison code.
+  if (include_number_compare_) {
+    Label non_number_comparison;
+    Label unordered;
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatures::Scope use_sse2(SSE2);
+      CpuFeatures::Scope use_cmov(CMOV);
 
-    FloatingPointHelper::LoadSSE2Operands(masm, &check_for_symbols);
-    __ comisd(xmm0, xmm1);
+      FloatingPointHelper::LoadSSE2Operands(masm, &non_number_comparison);
+      __ comisd(xmm0, xmm1);
 
-    // Jump to builtin for NaN.
-    __ j(parity_even, &unordered, not_taken);
-    __ mov(eax, 0);  // equal
-    __ mov(ecx, Immediate(Smi::FromInt(1)));
-    __ cmov(above, eax, Operand(ecx));
-    __ mov(ecx, Immediate(Smi::FromInt(-1)));
-    __ cmov(below, eax, Operand(ecx));
-    __ ret(2 * kPointerSize);
-  } else {
-    FloatingPointHelper::CheckFloatOperands(masm, &check_for_symbols, ebx);
-    FloatingPointHelper::LoadFloatOperands(masm, ecx);
-    __ FCmp();
+      // Don't base result on EFLAGS when a NaN is involved.
+      __ j(parity_even, &unordered, not_taken);
+      // Return a result of -1, 0, or 1, based on EFLAGS.
+      __ mov(eax, 0);  // equal
+      __ mov(ecx, Immediate(Smi::FromInt(1)));
+      __ cmov(above, eax, Operand(ecx));
+      __ mov(ecx, Immediate(Smi::FromInt(-1)));
+      __ cmov(below, eax, Operand(ecx));
+      __ ret(2 * kPointerSize);
+    } else {
+      FloatingPointHelper::CheckFloatOperands(
+          masm, &non_number_comparison, ebx);
+      FloatingPointHelper::LoadFloatOperands(masm, ecx);
+      __ FCmp();
 
-    // Jump to builtin for NaN.
-    __ j(parity_even, &unordered, not_taken);
+      // Don't base result on EFLAGS when a NaN is involved.
+      __ j(parity_even, &unordered, not_taken);
 
-    Label below_lbl, above_lbl;
-    // Return a result of -1, 0, or 1, to indicate result of comparison.
-    __ j(below, &below_lbl, not_taken);
-    __ j(above, &above_lbl, not_taken);
+      Label below_label, above_label;
+      // Return a result of -1, 0, or 1, based on EFLAGS. In all cases remove
+      // two arguments from the stack as they have been pushed in preparation
+      // of a possible runtime call.
+      __ j(below, &below_label, not_taken);
+      __ j(above, &above_label, not_taken);
 
-    __ xor_(eax, Operand(eax));  // equal
-    // Both arguments were pushed in case a runtime call was needed.
-    __ ret(2 * kPointerSize);
+      __ xor_(eax, Operand(eax));
+      __ ret(2 * kPointerSize);
 
-    __ bind(&below_lbl);
-    __ mov(eax, Immediate(Smi::FromInt(-1)));
-    __ ret(2 * kPointerSize);
+      __ bind(&below_label);
+      __ mov(eax, Immediate(Smi::FromInt(-1)));
+      __ ret(2 * kPointerSize);
 
-    __ bind(&above_lbl);
-    __ mov(eax, Immediate(Smi::FromInt(1)));
+      __ bind(&above_label);
+      __ mov(eax, Immediate(Smi::FromInt(1)));
+      __ ret(2 * kPointerSize);
+    }
+
+    // If one of the numbers was NaN, then the result is always false.
+    // The cc is never not-equal.
+    __ bind(&unordered);
+    ASSERT(cc_ != not_equal);
+    if (cc_ == less || cc_ == less_equal) {
+      __ mov(eax, Immediate(Smi::FromInt(1)));
+    } else {
+      __ mov(eax, Immediate(Smi::FromInt(-1)));
+    }
     __ ret(2 * kPointerSize);  // eax, edx were pushed
+
+    // The number comparison code did not provide a valid result.
+    __ bind(&non_number_comparison);
   }
-  // If one of the numbers was NaN, then the result is always false.
-  // The cc is never not-equal.
-  __ bind(&unordered);
-  ASSERT(cc_ != not_equal);
-  if (cc_ == less || cc_ == less_equal) {
-    __ mov(eax, Immediate(Smi::FromInt(1)));
-  } else {
-    __ mov(eax, Immediate(Smi::FromInt(-1)));
-  }
-  __ ret(2 * kPointerSize);  // eax, edx were pushed
 
   // Fast negative check for symbol-to-symbol equality.
-  __ bind(&check_for_symbols);
   Label check_for_strings;
   if (cc_ == equal) {
     BranchIfNonSymbol(masm, &check_for_strings, eax, ecx);
@@ -11490,55 +11751,59 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 }
 
 
-// Unfortunately you have to run without snapshots to see most of these
-// names in the profile since most compare stubs end up in the snapshot.
-const char* CompareStub::GetName() {
-  switch (cc_) {
-    case less: return "CompareStub_LT";
-    case greater: return "CompareStub_GT";
-    case less_equal: return "CompareStub_LE";
-    case greater_equal: return "CompareStub_GE";
-    case not_equal: {
-      if (strict_) {
-        if (never_nan_nan_) {
-          return "CompareStub_NE_STRICT_NO_NAN";
-        } else {
-          return "CompareStub_NE_STRICT";
-        }
-      } else {
-        if (never_nan_nan_) {
-          return "CompareStub_NE_NO_NAN";
-        } else {
-          return "CompareStub_NE";
-        }
-      }
-    }
-    case equal: {
-      if (strict_) {
-        if (never_nan_nan_) {
-          return "CompareStub_EQ_STRICT_NO_NAN";
-        } else {
-          return "CompareStub_EQ_STRICT";
-        }
-      } else {
-        if (never_nan_nan_) {
-          return "CompareStub_EQ_NO_NAN";
-        } else {
-          return "CompareStub_EQ";
-        }
-      }
-    }
-    default: return "CompareStub";
-  }
+int CompareStub::MinorKey() {
+  // Encode the three parameters in a unique 16 bit value. To avoid duplicate
+  // stubs the never NaN NaN condition is only taken into account if the
+  // condition is equals.
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 13));
+  return ConditionField::encode(static_cast<unsigned>(cc_))
+         | StrictField::encode(strict_)
+         | NeverNanNanField::encode(cc_ == equal ? never_nan_nan_ : false)
+         | IncludeNumberCompareField::encode(include_number_compare_);
 }
 
 
-int CompareStub::MinorKey() {
-  // Encode the three parameters in a unique 16 bit value.
-  ASSERT(static_cast<unsigned>(cc_) < (1 << 14));
-  int nnn_value = (never_nan_nan_ ? 2 : 0);
-  if (cc_ != equal) nnn_value = 0;  // Avoid duplicate stubs.
-  return (static_cast<unsigned>(cc_) << 2) | nnn_value | (strict_ ? 1 : 0);
+// Unfortunately you have to run without snapshots to see most of these
+// names in the profile since most compare stubs end up in the snapshot.
+const char* CompareStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+
+  const char* cc_name;
+  switch (cc_) {
+    case less: cc_name = "LT"; break;
+    case greater: cc_name = "GT"; break;
+    case less_equal: cc_name = "LE"; break;
+    case greater_equal: cc_name = "GE"; break;
+    case equal: cc_name = "EQ"; break;
+    case not_equal: cc_name = "NE"; break;
+    default: cc_name = "UnknownCondition"; break;
+  }
+
+  const char* strict_name = "";
+  if (strict_ && (cc_ == equal || cc_ == not_equal)) {
+    strict_name = "_STRICT";
+  }
+
+  const char* never_nan_nan_name = "";
+  if (never_nan_nan_ && (cc_ == equal || cc_ == not_equal)) {
+    never_nan_nan_name = "_NO_NAN";
+  }
+
+  const char* include_number_compare_name = "";
+  if (!include_number_compare_) {
+    include_number_compare_name = "_NO_NUMBER";
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "CompareStub_%s%s%s%s",
+               cc_name,
+               strict_name,
+               never_nan_nan_name,
+               include_number_compare_name);
+  return name_;
 }
 
 
@@ -12172,6 +12437,9 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   Label result_not_equal;
   Label result_greater;
   Label compare_lengths;
+
+  __ IncrementCounter(&Counters::string_compare_native, 1);
+
   // Find minimum length.
   Label left_shorter;
   __ mov(scratch1, FieldOperand(left, String::kLengthOffset));
@@ -12269,7 +12537,6 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotBothSequentialAsciiStrings(edx, eax, ecx, ebx, &runtime);
 
   // Compare flat ascii strings.
-  __ IncrementCounter(&Counters::string_compare_native, 1);
   GenerateCompareFlatAsciiStrings(masm, edx, eax, ecx, ebx, edi);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)

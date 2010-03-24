@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // LiveEdit feature implementation. The script should be executed after
-// debug-delay.js.
+// debug-debugger.js.
 
 
 // Changes script text and recompiles all relevant functions if possible.

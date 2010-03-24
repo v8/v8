@@ -25,13 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Touch the RegExp and Date functions to make sure that date-delay.js and
-// regexp-delay.js has been loaded. This is required as the mirrors use
-// functions within these files through the builtins object.
-RegExp;
-Date;
-
-
 // Handle id counters.
 var next_handle_ = 0;
 var next_transient_handle_ = -1;
