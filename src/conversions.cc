@@ -295,7 +295,6 @@ static double InternalHexidecimalStringToDouble(Iterator current,
          || (*current >= 'a' && *current <= 'f')
          || (*current >= 'A' && *current <= 'F')) {
     if (significant_digits <= max_significant_digits) {
-      ASSERT(buffer_pos < buffer_size);
       buffer[buffer_pos++] = *current;
       significant_digits++;
     } else {
