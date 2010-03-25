@@ -139,7 +139,7 @@ class VirtualFrame : public ZoneObject {
   void ForgetElements(int count);
 
   // Spill all values from the frame to memory.
-  void SpillAll();
+  inline void SpillAll();
 
   // Spill all occurrences of a specific register from the frame.
   void Spill(Register reg) {
@@ -200,7 +200,7 @@ class VirtualFrame : public ZoneObject {
   // Prepare for returning from the frame by spilling locals.  This
   // avoids generating unnecessary merge code when jumping to the
   // shared return site.  Emits code for spills.
-  void PrepareForReturn();
+  inline void PrepareForReturn();
 
   // Number of local variables after when we use a loop for allocating.
   static const int kLocalVarBound = 7;

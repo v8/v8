@@ -581,11 +581,23 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\jump-target-inl.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jump-target-light-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\jump-target.cc"
 				>
 			</File>
 			<File
 				RelativePath="..\..\src\arm\jump-target-arm.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jump-target-light.cc"
 				>
 			</File>
 			<File
@@ -985,6 +997,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\virtual-frame-light-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\virtual-frame.h"
 				>
 			</File>
@@ -998,6 +1014,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\arm\virtual-frame-arm.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame-light.cc"
 				>
 			</File>
 			<File

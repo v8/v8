@@ -601,11 +601,19 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\jump-target-heavy-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\jump-target.cc"
 				>
 			</File>
 			<File
 				RelativePath="..\..\src\ia32\jump-target-ia32.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jump-target-heavy.cc"
 				>
 			</File>
 			<File
@@ -997,6 +1005,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\virtual-frame-heavy-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\virtual-frame.h"
 				>
 			</File>
@@ -1010,6 +1022,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\ia32\virtual-frame-ia32.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame-heavy.cc"
 				>
 			</File>
 			<File
