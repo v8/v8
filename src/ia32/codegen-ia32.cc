@@ -2704,8 +2704,8 @@ void CodeGenerator::Comparison(AstNode* node,
     bool known_non_smi =
         (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
         (right_side.is_constant() && !right_side.handle()->IsSmi()) ||
-        left_side.number_info().IsDouble() ||
-        right_side.number_info().IsDouble();
+        left_side.type_info().IsDouble() ||
+        right_side.type_info().IsDouble();
     NaNInformation nan_info =
         (CouldBeNaN(left_side) && CouldBeNaN(right_side)) ?
         kBothCouldBeNaN :
@@ -2817,7 +2817,7 @@ static void CheckComparisonOperand(MacroAssembler* masm_,
                                    Result* right_side,
                                    JumpTarget* not_numbers) {
   // Perform check if operand is not known to be a number.
-  if (!operand->number_info().IsNumber()) {
+  if (!operand->type_info().IsNumber()) {
     Label done;
     __ test(operand->reg(), Immediate(kSmiTagMask));
     __ j(zero, &done);
@@ -2834,10 +2834,10 @@ static void CheckComparisonOperand(MacroAssembler* masm_,
 static void LoadComparisonOperand(MacroAssembler* masm_,
                                   Result* operand) {
   Label done;
-  if (operand->number_info().IsDouble()) {
+  if (operand->type_info().IsDouble()) {
     // Operand is known to be a heap number, just load it.
     __ fld_d(FieldOperand(operand->reg(), HeapNumber::kValueOffset));
-  } else if (operand->number_info().IsSmi()) {
+  } else if (operand->type_info().IsSmi()) {
     // Operand is known to be a smi. Convert it to double and keep the original
     // smi.
     __ SmiUntag(operand->reg());
@@ -2873,10 +2873,10 @@ static void LoadComparisonOperandSSE2(MacroAssembler* masm_,
                                       Result* right_side,
                                       JumpTarget* not_numbers) {
   Label done;
-  if (operand->number_info().IsDouble()) {
+  if (operand->type_info().IsDouble()) {
     // Operand is known to be a heap number, just load it.
     __ movdbl(reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
-  } else if (operand->number_info().IsSmi()) {
+  } else if (operand->type_info().IsSmi()) {
     // Operand is known to be a smi. Convert it to double and keep the original
     // smi.
     __ SmiUntag(operand->reg());
@@ -2887,7 +2887,7 @@ static void LoadComparisonOperandSSE2(MacroAssembler* masm_,
     Label smi;
     __ test(operand->reg(), Immediate(kSmiTagMask));
     __ j(zero, &smi);
-    if (!operand->number_info().IsNumber()) {
+    if (!operand->type_info().IsNumber()) {
       __ cmp(FieldOperand(operand->reg(), HeapObject::kMapOffset),
              Immediate(Factory::heap_number_map()));
       not_numbers->Branch(not_equal, left_side, right_side, taken);
