@@ -522,17 +522,15 @@ function ApplyReplacementFunction(replace, matchInfo, subject) {
 
 
 // ECMA-262 section 15.5.4.12
-function StringSearch(re) {
+function StringSearch(re) { 
   var regexp = new $RegExp(re);
   var s = TO_STRING_INLINE(this);
-  var last_idx = regexp.lastIndex; // keep old lastIndex
-  regexp.lastIndex = 0;            // ignore re.global property
-  var result = regexp.exec(s);
-  regexp.lastIndex = last_idx;     // restore lastIndex
-  if (result == null)
-    return -1;
-  else
-    return result.index;
+  var match = DoRegExpExec(regexp, s, 0);
+  if (match) {
+    lastMatchInfo = match;
+    return match[CAPTURE0];
+  }
+  return -1;
 }
 
 
