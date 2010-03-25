@@ -852,3 +852,19 @@ TEST(LargeObjectSpaceContains) {
   CHECK(Heap::new_space()->Contains(addr));
   CHECK(!Heap::lo_space()->Contains(addr));
 }
+
+
+TEST(EmptyHandleEscapeFrom) {
+  InitializeVM();
+
+  v8::HandleScope scope;
+  Handle<JSObject> runaway;
+
+  {
+      v8::HandleScope nested;
+      Handle<JSObject> empty;
+      runaway = empty.EscapeFrom(&nested);
+  }
+
+  CHECK(runaway.is_null());
+}

@@ -537,9 +537,16 @@ i::Object** v8::HandleScope::RawClose(i::Object** value) {
   LOG_API("CloseHandleScope");
 
   // Read the result before popping the handle block.
-  i::Object* result = *value;
+  i::Object* result = NULL;
+  if (value != NULL) {
+    result = *value;
+  }
   is_closed_ = true;
   i::HandleScope::Leave(&previous_);
+
+  if (value == NULL) {
+    return NULL;
+  }
 
   // Allocate a new handle on the previous handle block.
   i::Handle<i::Object> handle(result);
