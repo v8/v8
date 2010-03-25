@@ -1040,18 +1040,23 @@ Result VirtualFrame::CallKeyedStoreIC() {
   PrepareForCall(0, 0);
   if (!cgen()->allocator()->is_used(eax) ||
       (value.is_register() && value.reg().is(eax))) {
-    value.ToRegister(eax);  // No effect if value is in eax already.
+    if (!cgen()->allocator()->is_used(eax)) {
+      value.ToRegister(eax);
+    }
     MoveResultsToRegisters(&key, &receiver, ecx, edx);
     value.Unuse();
   } else if (!cgen()->allocator()->is_used(ecx) ||
              (key.is_register() && key.reg().is(ecx))) {
-    // Receiver and/or key are in eax.
-    key.ToRegister(ecx);
+    if (!cgen()->allocator()->is_used(ecx)) {
+      key.ToRegister(ecx);
+    }
     MoveResultsToRegisters(&value, &receiver, eax, edx);
     key.Unuse();
   } else if (!cgen()->allocator()->is_used(edx) ||
              (receiver.is_register() && receiver.reg().is(edx))) {
-    receiver.ToRegister(edx);
+    if (!cgen()->allocator()->is_used(edx)) {
+      receiver.ToRegister(edx);
+    }
     MoveResultsToRegisters(&key, &value, ecx, eax);
     receiver.Unuse();
   } else {
