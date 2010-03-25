@@ -34,6 +34,7 @@
 #include "data-flow.h"
 #include "debug.h"
 #include "fast-codegen.h"
+#include "flow-graph.h"
 #include "full-codegen.h"
 #include "liveedit.h"
 #include "oprofile-agent.h"
