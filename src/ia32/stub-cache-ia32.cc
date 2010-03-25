@@ -1251,8 +1251,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
     __ j(not_equal, &miss);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label call_builtin, exit, with_rset_update,
-            attempt_to_grow_elements, finish_push;
+      Label call_builtin, exit, with_rset_update, attempt_to_grow_elements;
 
       // Get the array's length into eax and calculate new length.
       __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
@@ -1277,8 +1276,6 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
                                FixedArray::kHeaderSize - argc * kPointerSize));
       __ mov(ecx, Operand(esp, argc * kPointerSize));
       __ mov(Operand(edx, 0), ecx);
-
-      __ bind(&finish_push);
 
       // Check if value is a smi.
       __ test(ecx, Immediate(kSmiTagMask));
@@ -1318,10 +1315,13 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       // We fit and could grow elements.
       __ mov(Operand::StaticVariable(new_space_allocation_top), ecx);
       __ mov(ecx, Operand(esp, argc * kPointerSize));
+
+      // Push the argument...
       __ mov(Operand(edx, 0), ecx);
+      // ... and fill the rest with holes.
       for (int i = 1; i < kAllocationDelta; i++) {
         __ mov(Operand(edx, i * kPointerSize),
-               Immediate(Factory::undefined_value()));
+               Immediate(Factory::the_hole_value()));
       }
 
       // Restore receiver to edx as finish sequence assumes it's here.
@@ -1332,7 +1332,8 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
              Immediate(kAllocationDelta));
       __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
 
-      __ jmp(&finish_push);
+      // Elements are in new space, so no remembered set updates are necessary.
+      __ ret((argc + 1) * kPointerSize);
 
       __ bind(&call_builtin);
     }
