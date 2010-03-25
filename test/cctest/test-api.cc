@@ -5974,6 +5974,38 @@ THREADED_TEST(InterceptorLoadICInvalidatedField) {
 }
 
 
+static int interceptor_load_not_handled_calls = 0;
+static v8::Handle<Value> InterceptorLoadNotHandled(Local<String> name,
+                                                   const AccessorInfo& info) {
+  ++interceptor_load_not_handled_calls;
+  return v8::Handle<v8::Value>();
+}
+
+
+// Test how post-interceptor lookups are done in the non-cacheable
+// case: the interceptor should not be invoked during this lookup.
+THREADED_TEST(InterceptorLoadICPostInterceptor) {
+  interceptor_load_not_handled_calls = 0;
+  CheckInterceptorLoadIC(InterceptorLoadNotHandled,
+    "receiver = new Object();"
+    "receiver.__proto__ = o;"
+    "proto = new Object();"
+    "/* Make proto a slow-case object. */"
+    "for (var i = 0; i < 1000; i++) {"
+    "  proto[\"xxxxxxxx\" + i] = [];"
+    "}"
+    "proto.x = 17;"
+    "o.__proto__ = proto;"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result += receiver.x;"
+    "}"
+    "result;",
+    17 * 1000);
+  CHECK_EQ(1000, interceptor_load_not_handled_calls);
+}
+
+
 // Test the case when we stored field into
 // a stub, but it got invalidated later on due to override on
 // global object which is between interceptor and fields' holders.

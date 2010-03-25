@@ -276,14 +276,15 @@ static void PushInterceptorArguments(MacroAssembler* masm,
                                      Register holder,
                                      Register name,
                                      JSObject* holder_obj) {
-  __ push(receiver);
-  __ push(holder);
   __ push(name);
   InterceptorInfo* interceptor = holder_obj->GetNamedInterceptor();
   ASSERT(!Heap::InNewSpace(interceptor));
-  __ mov(receiver, Immediate(Handle<Object>(interceptor)));
+  Register scratch = name;
+  __ mov(scratch, Immediate(Handle<Object>(interceptor)));
+  __ push(scratch);
   __ push(receiver);
-  __ push(FieldOperand(receiver, InterceptorInfo::kDataOffset));
+  __ push(holder);
+  __ push(FieldOperand(scratch, InterceptorInfo::kDataOffset));
 }
 
 
@@ -1045,17 +1046,16 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   __ push(receiver);  // receiver
   __ push(reg);  // holder
   __ mov(other, Immediate(callback_handle));
-  __ push(other);
   __ push(FieldOperand(other, AccessorInfo::kDataOffset));  // data
   __ push(name_reg);  // name
   // Save a pointer to where we pushed the arguments pointer.
-  // This will be passed as the const Arguments& to the C++ callback.
+  // This will be passed as the const AccessorInfo& to the C++ callback.
   __ mov(eax, esp);
-  __ add(Operand(eax), Immediate(5 * kPointerSize));
+  __ add(Operand(eax), Immediate(4 * kPointerSize));
   __ mov(ebx, esp);
 
   // Do call through the api.
-  ASSERT_EQ(6, ApiGetterEntryStub::kStackSpace);
+  ASSERT_EQ(5, ApiGetterEntryStub::kStackSpace);
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
   ApiGetterEntryStub stub(callback_handle, &fun);
