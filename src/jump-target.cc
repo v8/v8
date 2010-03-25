@@ -290,6 +290,25 @@ void JumpTarget::Branch(Condition cc, Result* arg, Hint hint) {
 }
 
 
+void JumpTarget::Branch(Condition cc, Result* arg0, Result* arg1, Hint hint) {
+  ASSERT(cgen()->has_valid_frame());
+
+  // We want to check that non-frame registers at the call site stay in
+  // the same registers on the fall-through branch.
+  DECLARE_ARGCHECK_VARS(arg0);
+  DECLARE_ARGCHECK_VARS(arg1);
+
+  cgen()->frame()->Push(arg0);
+  cgen()->frame()->Push(arg1);
+  DoBranch(cc, hint);
+  *arg1 = cgen()->frame()->Pop();
+  *arg0 = cgen()->frame()->Pop();
+
+  ASSERT_ARGCHECK(arg0);
+  ASSERT_ARGCHECK(arg1);
+}
+
+
 void BreakTarget::Branch(Condition cc, Result* arg, Hint hint) {
   ASSERT(cgen()->has_valid_frame());
 
@@ -328,6 +347,17 @@ void JumpTarget::Bind(Result* arg) {
   }
   DoBind();
   *arg = cgen()->frame()->Pop();
+}
+
+
+void JumpTarget::Bind(Result* arg0, Result* arg1) {
+  if (cgen()->has_valid_frame()) {
+    cgen()->frame()->Push(arg0);
+    cgen()->frame()->Push(arg1);
+  }
+  DoBind();
+  *arg1 = cgen()->frame()->Pop();
+  *arg0 = cgen()->frame()->Pop();
 }
 
 
