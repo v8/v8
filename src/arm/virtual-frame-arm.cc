@@ -295,7 +295,7 @@ void VirtualFrame::EmitPop(Register reg) {
 
 void VirtualFrame::EmitPush(Register reg) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
+  elements_.Add(FrameElement::MemoryElement(TypeInfo::Unknown()));
   stack_pointer_++;
   __ push(reg);
 }

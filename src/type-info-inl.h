@@ -25,26 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_NUMBER_INFO_INL_H_
-#define V8_NUMBER_INFO_INL_H_
+#ifndef V8_TYPE_INFO_INL_H_
+#define V8_TYPE_INFO_INL_H_
 
-#include "number-info.h"
+#include "type-info.h"
 #include "objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 
-NumberInfo NumberInfo::TypeFromValue(Handle<Object> value) {
-  NumberInfo info;
+TypeInfo TypeInfo::TypeFromValue(Handle<Object> value) {
+  TypeInfo info;
   if (value->IsSmi()) {
-    info = NumberInfo::Smi();
+    info = TypeInfo::Smi();
   } else if (value->IsHeapNumber()) {
-    info = NumberInfo::IsInt32Double(HeapNumber::cast(*value)->value())
-        ? NumberInfo::Integer32()
-        : NumberInfo::Double();
+    info = TypeInfo::IsInt32Double(HeapNumber::cast(*value)->value())
+        ? TypeInfo::Integer32()
+        : TypeInfo::Double();
   } else {
-    info = NumberInfo::Unknown();
+    info = TypeInfo::Unknown();
   }
   return info;
 }
@@ -52,4 +52,4 @@ NumberInfo NumberInfo::TypeFromValue(Handle<Object> value) {
 
 } }  // namespace v8::internal
 
-#endif  // V8_NUMBER_INFO_INL_H_
+#endif  // V8_TYPE_INFO_INL_H_

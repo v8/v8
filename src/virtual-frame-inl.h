@@ -40,7 +40,7 @@ VirtualFrame::VirtualFrame()
     : elements_(parameter_count() + local_count() + kPreallocatedElements),
       stack_pointer_(parameter_count() + 1) {  // 0-based index of TOS.
   for (int i = 0; i <= stack_pointer_; i++) {
-    elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
+    elements_.Add(FrameElement::MemoryElement(TypeInfo::Unknown()));
   }
   for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
     register_locations_[i] = kIllegalIndex;
@@ -65,7 +65,7 @@ void VirtualFrame::PushFrameSlotAt(int index) {
 }
 
 
-void VirtualFrame::Push(Register reg, NumberInfo info) {
+void VirtualFrame::Push(Register reg, TypeInfo info) {
   if (is_used(reg)) {
     int index = register_location(reg);
     FrameElement element = CopyElementAt(index, info);
@@ -120,13 +120,13 @@ bool VirtualFrame::Equals(VirtualFrame* other) {
 }
 
 
-void VirtualFrame::SetTypeForLocalAt(int index, NumberInfo info) {
-  elements_[local0_index() + index].set_number_info(info);
+void VirtualFrame::SetTypeForLocalAt(int index, TypeInfo info) {
+  elements_[local0_index() + index].set_type_info(info);
 }
 
 
-void VirtualFrame::SetTypeForParamAt(int index, NumberInfo info) {
-  elements_[param0_index() + index].set_number_info(info);
+void VirtualFrame::SetTypeForParamAt(int index, TypeInfo info) {
+  elements_[param0_index() + index].set_type_info(info);
 }
 
 

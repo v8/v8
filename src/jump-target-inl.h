@@ -46,7 +46,7 @@ void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
     entry_frame_->elements_[target->index()].set_copied();
   }
   if (direction_ == BIDIRECTIONAL && !target->is_copy()) {
-    element->set_number_info(NumberInfo::Unknown());
+    element->set_type_info(TypeInfo::Unknown());
   }
 }
 

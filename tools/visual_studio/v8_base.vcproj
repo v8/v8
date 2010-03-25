@@ -689,14 +689,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\number-info-inl.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\number-info.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\objects-debug.cc"
 				>
 				<FileConfiguration
@@ -934,6 +926,14 @@
 			</File>
 			<File
 				RelativePath="..\..\src\top.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\type-info-inl.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\type-info.h"
 				>
 			</File>
 			<File

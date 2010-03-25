@@ -4368,7 +4368,7 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
 
   if (value.is_number()) {
     Comment cmnt(masm_, "ONLY_NUMBER");
-    // Fast case if NumberInfo indicates only numbers.
+    // Fast case if TypeInfo indicates only numbers.
     if (FLAG_debug_code) {
       __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
     }
@@ -5291,8 +5291,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   }
 
   // Get number type of left and right sub-expressions.
-  NumberInfo operands_type =
-      NumberInfo::Combine(left.number_info(), right.number_info());
+  TypeInfo operands_type =
+      TypeInfo::Combine(left.type_info(), right.type_info());
 
   Result answer;
   if (left_is_non_smi_constant || right_is_non_smi_constant) {
@@ -5324,13 +5324,13 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     }
   }
 
-  // Set NumberInfo of result according to the operation performed.
+  // Set TypeInfo of result according to the operation performed.
   // We rely on the fact that smis have a 32 bit payload on x64.
   ASSERT(kSmiValueSize == 32);
-  NumberInfo result_type = NumberInfo::Unknown();
+  TypeInfo result_type = TypeInfo::Unknown();
   switch (op) {
     case Token::COMMA:
-      result_type = right.number_info();
+      result_type = right.type_info();
       break;
     case Token::OR:
     case Token::AND:
@@ -5341,37 +5341,37 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     case Token::BIT_XOR:
     case Token::BIT_AND:
       // Result is always a smi.
-      result_type = NumberInfo::Smi();
+      result_type = TypeInfo::Smi();
       break;
     case Token::SAR:
     case Token::SHL:
       // Result is always a smi.
-      result_type = NumberInfo::Smi();
+      result_type = TypeInfo::Smi();
       break;
     case Token::SHR:
       // Result of x >>> y is always a smi if y >= 1, otherwise a number.
       result_type = (right.is_constant() && right.handle()->IsSmi()
                      && Smi::cast(*right.handle())->value() >= 1)
-          ? NumberInfo::Smi()
-          : NumberInfo::Number();
+          ? TypeInfo::Smi()
+          : TypeInfo::Number();
       break;
     case Token::ADD:
       // Result could be a string or a number. Check types of inputs.
       result_type = operands_type.IsNumber()
-          ? NumberInfo::Number()
-          : NumberInfo::Unknown();
+          ? TypeInfo::Number()
+          : TypeInfo::Unknown();
       break;
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
     case Token::MOD:
       // Result is always a number.
-      result_type = NumberInfo::Number();
+      result_type = TypeInfo::Number();
       break;
     default:
       UNREACHABLE();
   }
-  answer.set_number_info(result_type);
+  answer.set_type_info(result_type);
   frame_->Push(&answer);
 }
 

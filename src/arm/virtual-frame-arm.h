@@ -69,7 +69,7 @@ class VirtualFrame : public ZoneObject {
 
   // Create a duplicate of an existing valid frame element.
   FrameElement CopyElementAt(int index,
-                             NumberInfo info = NumberInfo::Unknown());
+                             TypeInfo info = TypeInfo::Unknown());
 
   // The number of elements on the virtual frame.
   int element_count() { return elements_.length(); }
@@ -344,7 +344,7 @@ class VirtualFrame : public ZoneObject {
   void EmitPushMultiple(int count, int src_regs);
 
   // Push an element on the virtual frame.
-  inline void Push(Register reg, NumberInfo info = NumberInfo::Unknown());
+  inline void Push(Register reg, TypeInfo info = TypeInfo::Unknown());
   inline void Push(Handle<Object> value);
   inline void Push(Smi* value);
 
@@ -364,8 +364,8 @@ class VirtualFrame : public ZoneObject {
   // the frame.  Nip(k) is equivalent to x = Pop(), Drop(k), Push(x).
   inline void Nip(int num_dropped);
 
-  inline void SetTypeForLocalAt(int index, NumberInfo info);
-  inline void SetTypeForParamAt(int index, NumberInfo info);
+  inline void SetTypeForLocalAt(int index, TypeInfo info);
+  inline void SetTypeForParamAt(int index, TypeInfo info);
 
  private:
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;

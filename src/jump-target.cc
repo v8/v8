@@ -107,8 +107,8 @@ void JumpTarget::ComputeEntryFrame() {
           // We overwrite the number information of one of the incoming frames.
           // This is safe because we only use the frame for emitting merge code.
           // The number information of incoming frames is not used anymore.
-          element->set_number_info(NumberInfo::Combine(element->number_info(),
-                                                       other->number_info()));
+          element->set_type_info(TypeInfo::Combine(element->type_info(),
+                                                   other->type_info()));
         }
       }
       elements[i] = element;
@@ -135,7 +135,7 @@ void JumpTarget::ComputeEntryFrame() {
     FrameElement* target = elements[index];
     if (target == NULL) {
       entry_frame_->elements_.Add(
-          FrameElement::MemoryElement(NumberInfo::Uninitialized()));
+          FrameElement::MemoryElement(TypeInfo::Uninitialized()));
     } else {
       entry_frame_->elements_.Add(*target);
       InitializeEntryElement(index, target);
@@ -152,19 +152,19 @@ void JumpTarget::ComputeEntryFrame() {
       RegisterFile candidate_registers;
       int best_count = kMinInt;
       int best_reg_num = RegisterAllocator::kInvalidRegister;
-      NumberInfo info = NumberInfo::Uninitialized();
+      TypeInfo info = TypeInfo::Uninitialized();
 
       for (int j = 0; j < reaching_frames_.length(); j++) {
         FrameElement element = reaching_frames_[j]->elements_[i];
         if (direction_ == BIDIRECTIONAL) {
-          info = NumberInfo::Unknown();
+          info = TypeInfo::Unknown();
         } else if (!element.is_copy()) {
-          info = NumberInfo::Combine(info, element.number_info());
+          info = TypeInfo::Combine(info, element.type_info());
         } else {
           // New elements will not be copies, so get number information from
           // backing element in the reaching frame.
-          info = NumberInfo::Combine(info,
-            reaching_frames_[j]->elements_[element.index()].number_info());
+          info = TypeInfo::Combine(info,
+            reaching_frames_[j]->elements_[element.index()].type_info());
         }
         is_synced = is_synced && element.is_synced();
         if (element.is_register() && !entry_frame_->is_used(element.reg())) {
@@ -189,7 +189,7 @@ void JumpTarget::ComputeEntryFrame() {
       if (is_synced) {
         // Already recorded as a memory element.
         // Set combined number info.
-        entry_frame_->elements_[i].set_number_info(info);
+        entry_frame_->elements_[i].set_type_info(info);
         continue;
       }
 
@@ -211,12 +211,12 @@ void JumpTarget::ComputeEntryFrame() {
         Register reg = RegisterAllocator::ToRegister(best_reg_num);
         entry_frame_->elements_[i] =
             FrameElement::RegisterElement(reg, FrameElement::NOT_SYNCED,
-                                          NumberInfo::Uninitialized());
+                                          TypeInfo::Uninitialized());
         if (is_copied) entry_frame_->elements_[i].set_copied();
         entry_frame_->set_register_location(reg, i);
       }
       // Set combined number info.
-      entry_frame_->elements_[i].set_number_info(info);
+      entry_frame_->elements_[i].set_type_info(info);
     }
   }
 
@@ -225,7 +225,7 @@ void JumpTarget::ComputeEntryFrame() {
   if (direction_ == BIDIRECTIONAL) {
     for (int i = 0; i < length; ++i) {
       if (!entry_frame_->elements_[i].is_copy()) {
-        ASSERT(entry_frame_->elements_[i].number_info().IsUnknown());
+        ASSERT(entry_frame_->elements_[i].type_info().IsUnknown());
       }
     }
   }

@@ -104,36 +104,36 @@ void RegisterAllocator::Unuse(Register reg) {
 }
 
 
-NumberInfo Result::number_info() const {
+TypeInfo Result::type_info() const {
   ASSERT(is_valid());
-  return NumberInfo::FromInt(NumberInfoField::decode(value_));
+  return TypeInfo::FromInt(TypeInfoField::decode(value_));
 }
 
 
-void Result::set_number_info(NumberInfo info) {
+void Result::set_type_info(TypeInfo info) {
   ASSERT(is_valid());
-  value_ &= ~NumberInfoField::mask();
-  value_ |= NumberInfoField::encode(info.ToInt());
+  value_ &= ~TypeInfoField::mask();
+  value_ |= TypeInfoField::encode(info.ToInt());
 }
 
 
 bool Result::is_number() const {
-  return number_info().IsNumber();
+  return type_info().IsNumber();
 }
 
 
 bool Result::is_smi() const {
-  return number_info().IsSmi();
+  return type_info().IsSmi();
 }
 
 
 bool Result::is_integer32() const {
-  return number_info().IsInteger32();
+  return type_info().IsInteger32();
 }
 
 
 bool Result::is_double() const {
-  return number_info().IsDouble();
+  return type_info().IsDouble();
 }
 
 } }  // namespace v8::internal

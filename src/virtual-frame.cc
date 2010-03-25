@@ -43,7 +43,7 @@ namespace internal {
 // not conflict with the existing type information and must be equally or
 // more precise. The default parameter value kUninitialized means that there
 // is no additional information.
-FrameElement VirtualFrame::CopyElementAt(int index, NumberInfo info) {
+FrameElement VirtualFrame::CopyElementAt(int index, TypeInfo info) {
   ASSERT(index >= 0);
   ASSERT(index < element_count());
 
@@ -74,14 +74,14 @@ FrameElement VirtualFrame::CopyElementAt(int index, NumberInfo info) {
       result.set_index(index);
       elements_[index].set_copied();
       // Update backing element's number information.
-      NumberInfo existing = elements_[index].number_info();
+      TypeInfo existing = elements_[index].type_info();
       ASSERT(!existing.IsUninitialized());
       // Assert that the new type information (a) does not conflict with the
       // existing one and (b) is equally or more precise.
       ASSERT((info.ToInt() & existing.ToInt()) == existing.ToInt());
       ASSERT((info.ToInt() | existing.ToInt()) == info.ToInt());
 
-      elements_[index].set_number_info(!info.IsUninitialized()
+      elements_[index].set_type_info(!info.IsUninitialized()
                                        ? info
                                        : existing);
       break;
@@ -104,7 +104,7 @@ void VirtualFrame::Adjust(int count) {
   ASSERT(stack_pointer_ == element_count() - 1);
 
   for (int i = 0; i < count; i++) {
-    elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
+    elements_.Add(FrameElement::MemoryElement(TypeInfo::Unknown()));
   }
   stack_pointer_ += count;
 }
@@ -152,11 +152,11 @@ void VirtualFrame::SpillElementAt(int index) {
   SyncElementAt(index);
   // Number type information is preserved.
   // Copies get their number information from their backing element.
-  NumberInfo info;
+  TypeInfo info;
   if (!elements_[index].is_copy()) {
-    info = elements_[index].number_info();
+    info = elements_[index].type_info();
   } else {
-    info = elements_[elements_[index].index()].number_info();
+    info = elements_[elements_[index].index()].type_info();
   }
   // The element is now in memory.  Its copied flag is preserved.
   FrameElement new_element = FrameElement::MemoryElement(info);
@@ -318,7 +318,7 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
       elements_[frame_index] =
           FrameElement::RegisterElement(value->reg(),
                                         FrameElement::NOT_SYNCED,
-                                        value->number_info());
+                                        value->type_info());
     }
   } else {
     ASSERT(value->is_constant());

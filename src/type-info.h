@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_NUMBER_INFO_H_
-#define V8_NUMBER_INFO_H_
+#ifndef V8_TYPE_INFO_H_
+#define V8_TYPE_INFO_H_
 
 #include "globals.h"
 
@@ -45,25 +45,25 @@ namespace internal {
 //        |     /      /
 //        Uninitialized.
 
-class NumberInfo {
+class TypeInfo {
  public:
-  NumberInfo() { }
+  TypeInfo() { }
 
-  static inline NumberInfo Unknown();
+  static inline TypeInfo Unknown();
   // We know it's a primitive type.
-  static inline NumberInfo Primitive();
+  static inline TypeInfo Primitive();
   // We know it's a number of some sort.
-  static inline NumberInfo Number();
+  static inline TypeInfo Number();
   // We know it's signed or unsigned 32 bit integer.
-  static inline NumberInfo Integer32();
+  static inline TypeInfo Integer32();
   // We know it's a Smi.
-  static inline NumberInfo Smi();
+  static inline TypeInfo Smi();
   // We know it's a heap number.
-  static inline NumberInfo Double();
+  static inline TypeInfo Double();
   // We know it's a string.
-  static inline NumberInfo String();
+  static inline TypeInfo String();
   // We haven't started collecting info yet.
-  static inline NumberInfo Uninitialized();
+  static inline TypeInfo Uninitialized();
 
   // Return compact representation.  Very sensitive to enum values below!
   // Compacting drops information about primtive types and strings types.
@@ -78,7 +78,7 @@ class NumberInfo {
   }
 
   // Decode compact representation.  Very sensitive to enum values below!
-  static NumberInfo ExpandedRepresentation(int three_bit_representation) {
+  static TypeInfo ExpandedRepresentation(int three_bit_representation) {
     Type t = static_cast<Type>(three_bit_representation >= 6 ?
                                three_bit_representation + 2 :
                                three_bit_representation);
@@ -88,14 +88,14 @@ class NumberInfo {
            t == kInteger32Type ||
            t == kSmiType ||
            t == kDoubleType);
-    return NumberInfo(t);
+    return TypeInfo(t);
   }
 
   int ToInt() {
     return type_;
   }
 
-  static NumberInfo FromInt(int bit_representation) {
+  static TypeInfo FromInt(int bit_representation) {
     Type t = static_cast<Type>(bit_representation);
     ASSERT(t == kUnknownType ||
            t == kPrimitiveType ||
@@ -104,12 +104,12 @@ class NumberInfo {
            t == kSmiType ||
            t == kDoubleType ||
            t == kStringType);
-    return NumberInfo(t);
+    return TypeInfo(t);
   }
 
   // Return the weakest (least precise) common type.
-  static NumberInfo Combine(NumberInfo a, NumberInfo b) {
-    return NumberInfo(static_cast<Type>(a.type_ & b.type_));
+  static TypeInfo Combine(TypeInfo a, TypeInfo b) {
+    return TypeInfo(static_cast<Type>(a.type_ & b.type_));
   }
 
 
@@ -130,7 +130,7 @@ class NumberInfo {
     return false;
   }
 
-  static inline NumberInfo TypeFromValue(Handle<Object> value);
+  static inline TypeInfo TypeFromValue(Handle<Object> value);
 
   inline bool IsUnknown() {
     return type_ == kUnknownType;
@@ -189,51 +189,51 @@ class NumberInfo {
     kStringType = 0x30,        // 110000
     kUninitializedType = 0x3f  // 111111
   };
-  explicit inline NumberInfo(Type t) : type_(t) { }
+  explicit inline TypeInfo(Type t) : type_(t) { }
 
   Type type_;
 };
 
 
-NumberInfo NumberInfo::Unknown() {
-  return NumberInfo(kUnknownType);
+TypeInfo TypeInfo::Unknown() {
+  return TypeInfo(kUnknownType);
 }
 
 
-NumberInfo NumberInfo::Primitive() {
-  return NumberInfo(kPrimitiveType);
+TypeInfo TypeInfo::Primitive() {
+  return TypeInfo(kPrimitiveType);
 }
 
 
-NumberInfo NumberInfo::Number() {
-  return NumberInfo(kNumberType);
+TypeInfo TypeInfo::Number() {
+  return TypeInfo(kNumberType);
 }
 
 
-NumberInfo NumberInfo::Integer32() {
-  return NumberInfo(kInteger32Type);
+TypeInfo TypeInfo::Integer32() {
+  return TypeInfo(kInteger32Type);
 }
 
 
-NumberInfo NumberInfo::Smi() {
-  return NumberInfo(kSmiType);
+TypeInfo TypeInfo::Smi() {
+  return TypeInfo(kSmiType);
 }
 
 
-NumberInfo NumberInfo::Double() {
-  return NumberInfo(kDoubleType);
+TypeInfo TypeInfo::Double() {
+  return TypeInfo(kDoubleType);
 }
 
 
-NumberInfo NumberInfo::String() {
-  return NumberInfo(kStringType);
+TypeInfo TypeInfo::String() {
+  return TypeInfo(kStringType);
 }
 
 
-NumberInfo NumberInfo::Uninitialized() {
-  return NumberInfo(kUninitializedType);
+TypeInfo TypeInfo::Uninitialized() {
+  return TypeInfo(kUninitializedType);
 }
 
 } }  // namespace v8::internal
 
-#endif  // V8_NUMBER_INFO_H_
+#endif  // V8_TYPE_INFO_H_
