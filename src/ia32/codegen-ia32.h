@@ -373,6 +373,7 @@ class CodeGenerator: public AstVisitor {
   // Take the Result that is an untagged int32, and convert it to a tagged
   // Smi or HeapNumber.  Remove the untagged_int32 flag from the result.
   void ConvertInt32ResultToNumber(Result* value);
+  void ConvertInt32ResultToSmi(Result* value);
 
   // Track loop nesting level.
   int loop_nesting() const { return loop_nesting_; }

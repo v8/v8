@@ -490,7 +490,11 @@ void CodeGenerator::LoadInSafeInt32Mode(Expression* expr,
   Load(expr);
   Result value = frame_->Pop();
   ASSERT(frame_->HasNoUntaggedInt32Elements());
-  ConvertInt32ResultToNumber(&value);
+  if (expr->GuaranteedSmiResult()) {
+    ConvertInt32ResultToSmi(&value);
+  } else {
+    ConvertInt32ResultToNumber(&value);
+  }
   set_in_safe_int32_mode(false);
   set_unsafe_bailout(NULL);
   frame_->Push(&value);
@@ -501,6 +505,19 @@ void CodeGenerator::LoadWithSafeInt32ModeDisabled(Expression* expr) {
   set_safe_int32_mode_enabled(false);
   Load(expr);
   set_safe_int32_mode_enabled(true);
+}
+
+
+void CodeGenerator::ConvertInt32ResultToSmi(Result* value) {
+  ASSERT(value->is_untagged_int32());
+  if (value->is_register()) {
+    __ add(value->reg(), Operand(value->reg()));
+  } else {
+    ASSERT(value->is_constant());
+    ASSERT(value->handle()->IsSmi());
+  }
+  value->set_untagged_int32(false);
+  value->set_number_info(NumberInfo::Smi());
 }
 
 
@@ -552,6 +569,7 @@ void CodeGenerator::ConvertInt32ResultToNumber(Result* value) {
     ASSERT(value->is_constant());
   }
   value->set_untagged_int32(false);
+  value->set_number_info(NumberInfo::Integer32());
 }
 
 

@@ -255,6 +255,10 @@ class Expression: public AstNode {
         LoopConditionField::encode(flag);
   }
 
+  // The value of the expression is guaranteed to be a smi, because the
+  // top operation is a bit operation with a mask, or a shift.
+  bool GuaranteedSmiResult();
+
   // AST analysis results
 
   // True if the expression rooted at this node can be compiled by the
