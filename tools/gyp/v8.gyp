@@ -276,7 +276,6 @@
         '../../src/execution.h',
         '../../src/factory.cc',
         '../../src/factory.h',
-        '../../src/fast-codegen.cc',
         '../../src/fast-codegen.h',
         '../../src/fast-dtoa.cc',
         '../../src/fast-dtoa.h',
@@ -417,6 +416,7 @@
             '../../src/arm',
           ],
           'sources': [
+            '../../src/fast-codegen.cc',
             '../../src/jump-target-light-inl.h',
             '../../src/jump-target-light.cc',
             '../../src/virtual-frame-light-inl.h',
@@ -497,6 +497,7 @@
             '../../src/x64',
           ],
           'sources': [
+            '../../src/fast-codegen.cc',
             '../../src/jump-target-heavy-inl.h',
             '../../src/jump-target-heavy.cc',
             '../../src/virtual-frame-heavy-inl.h',
