@@ -778,6 +778,8 @@ ExecutionState.prototype.threadCount = function() {
 ExecutionState.prototype.frame = function(opt_index) {
   // If no index supplied return the selected frame.
   if (opt_index == null) opt_index = this.selected_frame;
+  if (opt_index < 0 || opt_index >= this.frameCount())
+    throw new Error('Illegal frame index.');
   return new FrameMirror(this.break_id, opt_index);
 };
 
