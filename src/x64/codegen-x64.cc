@@ -4368,7 +4368,7 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
 
   if (value.is_number()) {
     Comment cmnt(masm_, "ONLY_NUMBER");
-    // Fast case if NumberInfo indicates only numbers.
+    // Fast case if TypeInfo indicates only numbers.
     if (FLAG_debug_code) {
       __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
     }
@@ -5291,8 +5291,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   }
 
   // Get number type of left and right sub-expressions.
-  NumberInfo operands_type =
-      NumberInfo::Combine(left.number_info(), right.number_info());
+  TypeInfo operands_type =
+      TypeInfo::Combine(left.type_info(), right.type_info());
 
   Result answer;
   if (left_is_non_smi_constant || right_is_non_smi_constant) {
@@ -5324,13 +5324,13 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     }
   }
 
-  // Set NumberInfo of result according to the operation performed.
+  // Set TypeInfo of result according to the operation performed.
   // We rely on the fact that smis have a 32 bit payload on x64.
   ASSERT(kSmiValueSize == 32);
-  NumberInfo result_type = NumberInfo::Unknown();
+  TypeInfo result_type = TypeInfo::Unknown();
   switch (op) {
     case Token::COMMA:
-      result_type = right.number_info();
+      result_type = right.type_info();
       break;
     case Token::OR:
     case Token::AND:
@@ -5341,37 +5341,37 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     case Token::BIT_XOR:
     case Token::BIT_AND:
       // Result is always a smi.
-      result_type = NumberInfo::Smi();
+      result_type = TypeInfo::Smi();
       break;
     case Token::SAR:
     case Token::SHL:
       // Result is always a smi.
-      result_type = NumberInfo::Smi();
+      result_type = TypeInfo::Smi();
       break;
     case Token::SHR:
       // Result of x >>> y is always a smi if y >= 1, otherwise a number.
       result_type = (right.is_constant() && right.handle()->IsSmi()
                      && Smi::cast(*right.handle())->value() >= 1)
-          ? NumberInfo::Smi()
-          : NumberInfo::Number();
+          ? TypeInfo::Smi()
+          : TypeInfo::Number();
       break;
     case Token::ADD:
       // Result could be a string or a number. Check types of inputs.
       result_type = operands_type.IsNumber()
-          ? NumberInfo::Number()
-          : NumberInfo::Unknown();
+          ? TypeInfo::Number()
+          : TypeInfo::Unknown();
       break;
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
     case Token::MOD:
       // Result is always a number.
-      result_type = NumberInfo::Number();
+      result_type = TypeInfo::Number();
       break;
     default:
       UNREACHABLE();
   }
-  answer.set_number_info(result_type);
+  answer.set_type_info(result_type);
   frame_->Push(&answer);
 }
 
@@ -9105,51 +9105,55 @@ int CompareStub::MinorKey() {
   // Encode the three parameters in a unique 16 bit value. To avoid duplicate
   // stubs the never NaN NaN condition is only taken into account if the
   // condition is equals.
-  ASSERT(static_cast<unsigned>(cc_) < (1 << 14));
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 13));
   return ConditionField::encode(static_cast<unsigned>(cc_))
          | StrictField::encode(strict_)
-         | NeverNanNanField::encode(cc_ == equal ? never_nan_nan_ : false);
+         | NeverNanNanField::encode(cc_ == equal ? never_nan_nan_ : false)
+         | IncludeNumberCompareField::encode(include_number_compare_);
 }
 
 
+// Unfortunately you have to run without snapshots to see most of these
+// names in the profile since most compare stubs end up in the snapshot.
 const char* CompareStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+
+  const char* cc_name;
   switch (cc_) {
-    case less: return "CompareStub_LT";
-    case greater: return "CompareStub_GT";
-    case less_equal: return "CompareStub_LE";
-    case greater_equal: return "CompareStub_GE";
-    case not_equal: {
-      if (strict_) {
-        if (never_nan_nan_) {
-          return "CompareStub_NE_STRICT_NO_NAN";
-        } else {
-          return "CompareStub_NE_STRICT";
-        }
-      } else {
-        if (never_nan_nan_) {
-          return "CompareStub_NE_NO_NAN";
-        } else {
-          return "CompareStub_NE";
-        }
-      }
-    }
-    case equal: {
-      if (strict_) {
-        if (never_nan_nan_) {
-          return "CompareStub_EQ_STRICT_NO_NAN";
-        } else {
-          return "CompareStub_EQ_STRICT";
-        }
-      } else {
-        if (never_nan_nan_) {
-          return "CompareStub_EQ_NO_NAN";
-        } else {
-          return "CompareStub_EQ";
-        }
-      }
-    }
-    default: return "CompareStub";
+    case less: cc_name = "LT"; break;
+    case greater: cc_name = "GT"; break;
+    case less_equal: cc_name = "LE"; break;
+    case greater_equal: cc_name = "GE"; break;
+    case equal: cc_name = "EQ"; break;
+    case not_equal: cc_name = "NE"; break;
+    default: cc_name = "UnknownCondition"; break;
   }
+
+  const char* strict_name = "";
+  if (strict_ && (cc_ == equal || cc_ == not_equal)) {
+    strict_name = "_STRICT";
+  }
+
+  const char* never_nan_nan_name = "";
+  if (never_nan_nan_ && (cc_ == equal || cc_ == not_equal)) {
+    never_nan_nan_name = "_NO_NAN";
+  }
+
+  const char* include_number_compare_name = "";
+  if (!include_number_compare_) {
+    include_number_compare_name = "_NO_NUMBER";
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "CompareStub_%s%s%s%s",
+               cc_name,
+               strict_name,
+               never_nan_nan_name,
+               include_number_compare_name);
+  return name_;
 }
 
 

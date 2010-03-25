@@ -537,9 +537,16 @@ i::Object** v8::HandleScope::RawClose(i::Object** value) {
   LOG_API("CloseHandleScope");
 
   // Read the result before popping the handle block.
-  i::Object* result = *value;
+  i::Object* result = NULL;
+  if (value != NULL) {
+    result = *value;
+  }
   is_closed_ = true;
   i::HandleScope::Leave(&previous_);
+
+  if (value == NULL) {
+    return NULL;
+  }
 
   // Allocate a new handle on the previous handle block.
   i::Handle<i::Object> handle(result);
@@ -3078,6 +3085,16 @@ void Context::DetachGlobal() {
 }
 
 
+void Context::ReattachGlobal(Handle<Object> global_object) {
+  if (IsDeadCheck("v8::Context::ReattachGlobal()")) return;
+  ENTER_V8;
+  i::Object** ctx = reinterpret_cast<i::Object**>(this);
+  i::Handle<i::Context> context =
+      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  i::Bootstrapper::ReattachGlobal(context, Utils::OpenHandle(*global_object));
+}
+
+
 Local<v8::Object> ObjectTemplate::NewInstance() {
   ON_BAILOUT("v8::ObjectTemplate::NewInstance()", return Local<v8::Object>());
   LOG_API("ObjectTemplate::NewInstance");
@@ -3971,6 +3988,11 @@ bool Debug::EnableAgent(const char* name, int port, bool wait_for_connection) {
 
 void Debug::ProcessDebugMessages() {
   i::Execution::ProcessDebugMesssages(true);
+}
+
+Local<Context> Debug::GetDebugContext() {
+  i::EnterDebugger debugger;
+  return Utils::ToLocal(i::Debug::debug_context());
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT

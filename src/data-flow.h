@@ -241,6 +241,12 @@ class Node: public ZoneObject {
   virtual void UpdateRDIn(WorkList<Node>* worklist, bool mark) = 0;
   virtual void PropagateReachingDefinitions(List<BitVector*>* variables);
 
+  // Functions used by dead-code elimination.
+  virtual void MarkCriticalInstructions(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count);
+
 #ifdef DEBUG
   void AssignNodeNumber();
   void PrintReachingDefinitions();
@@ -263,24 +269,24 @@ class ExitNode: public Node {
  public:
   ExitNode() : predecessors_(4) {}
 
-  bool IsExitNode() { return true; }
+  virtual bool IsExitNode() { return true; }
 
-  void AddPredecessor(Node* predecessor) {
+  virtual void AddPredecessor(Node* predecessor) {
     ASSERT(predecessor != NULL);
     predecessors_.Add(predecessor);
   }
 
-  void AddSuccessor(Node* successor) { UNREACHABLE(); }
+  virtual void AddSuccessor(Node* successor) { UNREACHABLE(); }
 
-  void Traverse(bool mark,
-                ZoneList<Node*>* preorder,
-                ZoneList<Node*>* postorder);
+  virtual void Traverse(bool mark,
+                        ZoneList<Node*>* preorder,
+                        ZoneList<Node*>* postorder);
 
-  void ComputeRDOut(BitVector* result);
-  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
+  virtual void ComputeRDOut(BitVector* result);
+  virtual void UpdateRDIn(WorkList<Node>* worklist, bool mark);
 
 #ifdef DEBUG
-  void PrintText();
+  virtual void PrintText();
 #endif
 
  private:
@@ -301,18 +307,18 @@ class BlockNode: public Node {
     return reinterpret_cast<BlockNode*>(node);
   }
 
-  bool IsBlockNode() { return true; }
+  virtual bool IsBlockNode() { return true; }
 
   bool is_empty() { return instructions_.is_empty(); }
 
   ZoneList<AstNode*>* instructions() { return &instructions_; }
 
-  void AddPredecessor(Node* predecessor) {
+  virtual void AddPredecessor(Node* predecessor) {
     ASSERT(predecessor_ == NULL && predecessor != NULL);
     predecessor_ = predecessor;
   }
 
-  void AddSuccessor(Node* successor) {
+  virtual void AddSuccessor(Node* successor) {
     ASSERT(successor_ == NULL && successor != NULL);
     successor_ = successor;
   }
@@ -321,20 +327,25 @@ class BlockNode: public Node {
     instructions_.Add(instruction);
   }
 
-  void Traverse(bool mark,
-                ZoneList<Node*>* preorder,
-                ZoneList<Node*>* postorder);
+  virtual void Traverse(bool mark,
+                        ZoneList<Node*>* preorder,
+                        ZoneList<Node*>* postorder);
 
-  void InitializeReachingDefinitions(int definition_count,
-                                     List<BitVector*>* variables,
-                                     WorkList<Node>* worklist,
-                                     bool mark);
-  void ComputeRDOut(BitVector* result);
-  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
-  void PropagateReachingDefinitions(List<BitVector*>* variables);
+  virtual void InitializeReachingDefinitions(int definition_count,
+                                             List<BitVector*>* variables,
+                                             WorkList<Node>* worklist,
+                                             bool mark);
+  virtual void ComputeRDOut(BitVector* result);
+  virtual void UpdateRDIn(WorkList<Node>* worklist, bool mark);
+  virtual void PropagateReachingDefinitions(List<BitVector*>* variables);
+
+  virtual void MarkCriticalInstructions(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count);
 
 #ifdef DEBUG
-  void PrintText();
+  virtual void PrintText();
 #endif
 
  private:
@@ -351,14 +362,14 @@ class BranchNode: public Node {
  public:
   BranchNode() : predecessor_(NULL), successor0_(NULL), successor1_(NULL) {}
 
-  bool IsBranchNode() { return true; }
+  virtual bool IsBranchNode() { return true; }
 
-  void AddPredecessor(Node* predecessor) {
+  virtual void AddPredecessor(Node* predecessor) {
     ASSERT(predecessor_ == NULL && predecessor != NULL);
     predecessor_ = predecessor;
   }
 
-  void AddSuccessor(Node* successor) {
+  virtual void AddSuccessor(Node* successor) {
     ASSERT(successor1_ == NULL && successor != NULL);
     if (successor0_ == NULL) {
       successor0_ = successor;
@@ -367,15 +378,15 @@ class BranchNode: public Node {
     }
   }
 
-  void Traverse(bool mark,
-                ZoneList<Node*>* preorder,
-                ZoneList<Node*>* postorder);
+  virtual void Traverse(bool mark,
+                        ZoneList<Node*>* preorder,
+                        ZoneList<Node*>* postorder);
 
-  void ComputeRDOut(BitVector* result);
-  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
+  virtual void ComputeRDOut(BitVector* result);
+  virtual void UpdateRDIn(WorkList<Node>* worklist, bool mark);
 
 #ifdef DEBUG
-  void PrintText();
+  virtual void PrintText();
 #endif
 
  private:
@@ -397,27 +408,27 @@ class JoinNode: public Node {
     return reinterpret_cast<JoinNode*>(node);
   }
 
-  bool IsJoinNode() { return true; }
+  virtual bool IsJoinNode() { return true; }
 
-  void AddPredecessor(Node* predecessor) {
+  virtual void AddPredecessor(Node* predecessor) {
     ASSERT(predecessor != NULL);
     predecessors_.Add(predecessor);
   }
 
-  void AddSuccessor(Node* successor) {
+  virtual void AddSuccessor(Node* successor) {
     ASSERT(successor_ == NULL && successor != NULL);
     successor_ = successor;
   }
 
-  void Traverse(bool mark,
-                ZoneList<Node*>* preorder,
-                ZoneList<Node*>* postorder);
+  virtual void Traverse(bool mark,
+                        ZoneList<Node*>* preorder,
+                        ZoneList<Node*>* postorder);
 
-  void ComputeRDOut(BitVector* result);
-  void UpdateRDIn(WorkList<Node>* worklist, bool mark);
+  virtual void ComputeRDOut(BitVector* result);
+  virtual void UpdateRDIn(WorkList<Node>* worklist, bool mark);
 
 #ifdef DEBUG
-  void PrintText();
+  virtual void PrintText();
 #endif
 
  private:
@@ -499,6 +510,7 @@ class FlowGraphBuilder: public AstVisitor {
   void Build(FunctionLiteral* lit);
 
   FlowGraph* graph() { return &graph_; }
+  ZoneList<Node*>* preorder() { return &preorder_; }
   ZoneList<Node*>* postorder() { return &postorder_; }
   ZoneList<Expression*>* body_definitions() { return &body_definitions_; }
 
@@ -622,7 +634,6 @@ class ReachingDefinitions BASE_EMBEDDED {
 };
 
 
-
 class TypeAnalyzer BASE_EMBEDDED {
  public:
   TypeAnalyzer(ZoneList<Node*>* postorder,
@@ -645,7 +656,15 @@ class TypeAnalyzer BASE_EMBEDDED {
   ZoneList<Expression*>* body_definitions_;
   int variable_count_;
   int param_count_;
+
+  DISALLOW_COPY_AND_ASSIGN(TypeAnalyzer);
 };
+
+
+void MarkLiveCode(ZoneList<Node*>* nodes,
+                  ZoneList<Expression*>* body_definitions,
+                  int variable_count);
+
 
 } }  // namespace v8::internal
 

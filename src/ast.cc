@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "ast.h"
+#include "data-flow.h"
 #include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
@@ -170,6 +171,72 @@ void TargetCollector::AddTarget(BreakTarget* target) {
   targets_->Add(target);
 }
 
+
+bool Expression::GuaranteedSmiResult() {
+  BinaryOperation* node = AsBinaryOperation();
+  if (node == NULL) return false;
+  Token::Value op = node->op();
+  switch (op) {
+    case Token::COMMA:
+    case Token::OR:
+    case Token::AND:
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
+    case Token::BIT_XOR:
+    case Token::SHL:
+      return false;
+      break;
+    case Token::BIT_OR:
+    case Token::BIT_AND: {
+      Literal* left = node->left()->AsLiteral();
+      Literal* right = node->right()->AsLiteral();
+      if (left != NULL && left->handle()->IsSmi()) {
+        int value = Smi::cast(*left->handle())->value();
+        if (op == Token::BIT_OR && ((value & 0xc0000000) == 0xc0000000)) {
+          // Result of bitwise or is always a negative Smi.
+          return true;
+        }
+        if (op == Token::BIT_AND && ((value & 0xc0000000) == 0)) {
+          // Result of bitwise and is always a positive Smi.
+          return true;
+        }
+      }
+      if (right != NULL && right->handle()->IsSmi()) {
+        int value = Smi::cast(*right->handle())->value();
+        if (op == Token::BIT_OR && ((value & 0xc0000000) == 0xc0000000)) {
+          // Result of bitwise or is always a negative Smi.
+          return true;
+        }
+        if (op == Token::BIT_AND && ((value & 0xc0000000) == 0)) {
+          // Result of bitwise and is always a positive Smi.
+          return true;
+        }
+      }
+      return false;
+      break;
+    }
+    case Token::SAR:
+    case Token::SHR: {
+      Literal* right = node->right()->AsLiteral();
+       if (right != NULL && right->handle()->IsSmi()) {
+        int value = Smi::cast(*right->handle())->value();
+        if ((value & 0x1F) > 1 ||
+            (op == Token::SAR && (value & 0x1F) == 1)) {
+          return true;
+        }
+       }
+       return false;
+       break;
+    }
+    default:
+      UNREACHABLE();
+      break;
+  }
+  return false;
+}
 
 // ----------------------------------------------------------------------------
 // Implementation of AstVisitor
@@ -598,6 +665,199 @@ bool BinaryOperation::IsPrimitive() {
 
 // Compare operations always express Boolean values.
 bool CompareOperation::IsPrimitive() { return true; }
+
+
+// Overridden IsCritical member functions.  IsCritical is true for AST nodes
+// whose evaluation is absolutely required (they are never dead) because
+// they are externally visible.
+
+// References to global variables or lookup slots are critical because they
+// may have getters.  All others, including parameters rewritten to explicit
+// property references, are not critical.
+bool VariableProxy::IsCritical() {
+  Variable* var = AsVariable();
+  return var != NULL &&
+      (var->slot() == NULL || var->slot()->type() == Slot::LOOKUP);
+}
+
+
+// Literals are never critical.
+bool Literal::IsCritical() { return false; }
+
+
+// Property assignments and throwing of reference errors are always
+// critical.  Assignments to escaping variables are also critical.  In
+// addition the operation of compound assignments is critical if either of
+// its operands is non-primitive (the arithmetic operations all use one of
+// ToPrimitive, ToNumber, ToInt32, or ToUint32 on each of their operands).
+// In this case, we mark the entire AST node as critical because there is
+// no binary operation node to mark.
+bool Assignment::IsCritical() {
+  Variable* var = AssignedVariable();
+  return var == NULL ||
+      !var->IsStackAllocated() ||
+      (is_compound() && (!target()->IsPrimitive() || !value()->IsPrimitive()));
+}
+
+
+// Property references are always critical, because they may have getters.
+bool Property::IsCritical() { return true; }
+
+
+// Calls are always critical.
+bool Call::IsCritical() { return true; }
+
+
+// +,- use ToNumber on the value of their operand.
+bool UnaryOperation::IsCritical() {
+  ASSERT(op() == Token::ADD || op() == Token::SUB);
+  return !expression()->IsPrimitive();
+}
+
+
+// Count operations targeting properties and reference errors are always
+// critical.  Count operations on escaping variables are critical.  Count
+// operations targeting non-primitives are also critical because they use
+// ToNumber.
+bool CountOperation::IsCritical() {
+  Variable* var = AssignedVariable();
+  return var == NULL ||
+      !var->IsStackAllocated() ||
+      !expression()->IsPrimitive();
+}
+
+
+// Arithmetic operations all use one of ToPrimitive, ToNumber, ToInt32, or
+// ToUint32 on each of their operands.
+bool BinaryOperation::IsCritical() {
+  ASSERT(op() != Token::COMMA);
+  ASSERT(op() != Token::OR);
+  ASSERT(op() != Token::AND);
+  return !left()->IsPrimitive() || !right()->IsPrimitive();
+}
+
+
+// <, >, <=, and >= all use ToPrimitive on both their operands.
+bool CompareOperation::IsCritical() {
+  ASSERT(op() != Token::EQ);
+  ASSERT(op() != Token::NE);
+  ASSERT(op() != Token::EQ_STRICT);
+  ASSERT(op() != Token::NE_STRICT);
+  ASSERT(op() != Token::INSTANCEOF);
+  ASSERT(op() != Token::IN);
+  return !left()->IsPrimitive() || !right()->IsPrimitive();
+}
+
+
+static inline void MarkIfNotLive(Expression* expr, List<AstNode*>* stack) {
+  if (!expr->is_live()) {
+    expr->mark_as_live();
+    stack->Add(expr);
+  }
+}
+
+
+// Overloaded functions for marking children of live code as live.
+void VariableProxy::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  // A reference to a stack-allocated variable depends on all the
+  // definitions reaching it.
+  BitVector* defs = reaching_definitions();
+  if (defs != NULL) {
+    ASSERT(var()->IsStackAllocated());
+    // The first variable_count definitions are the initial parameter and
+    // local declarations.
+    for (int i = variable_count; i < defs->length(); i++) {
+      if (defs->Contains(i)) {
+        MarkIfNotLive(body_definitions->at(i - variable_count), stack);
+      }
+    }
+  }
+}
+
+
+void Literal::ProcessNonLiveChildren(List<AstNode*>* stack,
+                                     ZoneList<Expression*>* body_definitions,
+                                     int variable_count) {
+  // Leaf node, no children.
+}
+
+
+void Assignment::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  Property* prop = target()->AsProperty();
+  VariableProxy* proxy = target()->AsVariableProxy();
+
+  if (prop != NULL) {
+    if (!prop->key()->IsPropertyName()) MarkIfNotLive(prop->key(), stack);
+    MarkIfNotLive(prop->obj(), stack);
+  } else if (proxy == NULL) {
+    // Must be a reference error.
+    ASSERT(!target()->IsValidLeftHandSide());
+    MarkIfNotLive(target(), stack);
+  } else if (is_compound()) {
+    // A variable assignment so lhs is an operand to the operation.
+    MarkIfNotLive(target(), stack);
+  }
+  MarkIfNotLive(value(), stack);
+}
+
+
+void Property::ProcessNonLiveChildren(List<AstNode*>* stack,
+                                      ZoneList<Expression*>* body_definitions,
+                                      int variable_count) {
+  if (!key()->IsPropertyName()) MarkIfNotLive(key(), stack);
+  MarkIfNotLive(obj(), stack);
+}
+
+
+void Call::ProcessNonLiveChildren(List<AstNode*>* stack,
+                                  ZoneList<Expression*>* body_definitions,
+                                  int variable_count) {
+  ZoneList<Expression*>* args = arguments();
+  for (int i = args->length() - 1; i >= 0; i--) {
+    MarkIfNotLive(args->at(i), stack);
+  }
+  MarkIfNotLive(expression(), stack);
+}
+
+
+void UnaryOperation::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  MarkIfNotLive(expression(), stack);
+}
+
+
+void CountOperation::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  MarkIfNotLive(expression(), stack);
+}
+
+
+void BinaryOperation::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  MarkIfNotLive(right(), stack);
+  MarkIfNotLive(left(), stack);
+}
+
+
+void CompareOperation::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  MarkIfNotLive(right(), stack);
+  MarkIfNotLive(left(), stack);
+}
 
 
 // Implementation of a copy visitor. The visitor create a deep copy

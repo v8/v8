@@ -152,6 +152,13 @@ class AstNode: public ZoneObject {
   virtual ArrayLiteral* AsArrayLiteral() { return NULL; }
   virtual CompareOperation* AsCompareOperation() { return NULL; }
 
+  // True if the AST node is critical (its execution is needed or externally
+  // visible in some way).
+  virtual bool IsCritical() {
+    UNREACHABLE();
+    return true;
+  }
+
   int num() { return num_; }
   void set_num(int n) { num_ = n; }
 
@@ -211,7 +218,7 @@ class Expression: public AstNode {
 
   virtual bool IsValidLeftHandSide() { return false; }
 
-  virtual Variable* AssignedVar() { return NULL; }
+  virtual Variable* AssignedVariable() { return NULL; }
 
   // Symbols that cannot be parsed as array indices are considered property
   // names.  We do not treat symbols that can be array indexes as property
@@ -248,6 +255,10 @@ class Expression: public AstNode {
         LoopConditionField::encode(flag);
   }
 
+  // The value of the expression is guaranteed to be a smi, because the
+  // top operation is a bit operation with a mask, or a shift.
+  bool GuaranteedSmiResult();
+
   // AST analysis results
 
   // True if the expression rooted at this node can be compiled by the
@@ -283,6 +294,19 @@ class Expression: public AstNode {
     bitfields_ |= NumBitOpsField::encode(num_bit_ops);
   }
 
+  // Functions used for dead-code elimination.  Predicate is true if the
+  // expression is not dead code.
+  int is_live() const { return LiveField::decode(bitfields_); }
+  void mark_as_live() { bitfields_ |= LiveField::encode(true); }
+
+  // Mark non-live children as live and push them on a stack for further
+  // processing.
+  virtual void ProcessNonLiveChildren(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count) {
+  }
+
  private:
   static const int kMaxNumBitOps = (1 << 5) - 1;
 
@@ -295,6 +319,7 @@ class Expression: public AstNode {
   class ToInt32Field : public BitField<bool, 2, 1> {};
   class NumBitOpsField : public BitField<int, 3, 5> {};
   class LoopConditionField: public BitField<bool, 8, 1> {};
+  class LiveField: public BitField<bool, 9, 1> {};
 };
 
 
@@ -881,6 +906,11 @@ class Literal: public Expression {
   virtual bool IsLeaf() { return true; }
   virtual bool IsTrivial() { return true; }
   virtual bool IsPrimitive();
+  virtual bool IsCritical();
+  virtual void ProcessNonLiveChildren(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count);
 
   // Identity testers.
   bool IsNull() const { return handle_.is_identical_to(Factory::null_value()); }
@@ -1087,6 +1117,11 @@ class VariableProxy: public Expression {
   virtual bool IsTrivial() { return is_trivial_; }
 
   virtual bool IsPrimitive();
+  virtual bool IsCritical();
+  virtual void ProcessNonLiveChildren(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count);
 
   void SetIsPrimitive(bool value) { is_primitive_ = value; }
 
@@ -1224,6 +1259,11 @@ class Property: public Expression {
   virtual bool IsValidLeftHandSide() { return true; }
 
   virtual bool IsPrimitive();
+  virtual bool IsCritical();
+  virtual void ProcessNonLiveChildren(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count);
 
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
@@ -1258,6 +1298,11 @@ class Call: public Expression {
   virtual Call* AsCall() { return this; }
 
   virtual bool IsPrimitive();
+  virtual bool IsCritical();
+  virtual void ProcessNonLiveChildren(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count);
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
@@ -1336,6 +1381,11 @@ class UnaryOperation: public Expression {
   virtual UnaryOperation* AsUnaryOperation() { return this; }
 
   virtual bool IsPrimitive();
+  virtual bool IsCritical();
+  virtual void ProcessNonLiveChildren(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count);
 
   Token::Value op() const { return op_; }
   Expression* expression() const { return expression_; }
@@ -1361,6 +1411,11 @@ class BinaryOperation: public Expression {
   virtual BinaryOperation* AsBinaryOperation() { return this; }
 
   virtual bool IsPrimitive();
+  virtual bool IsCritical();
+  virtual void ProcessNonLiveChildren(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count);
 
   // True iff the result can be safely overwritten (to avoid allocation).
   // False for operations that can return one of their operands.
@@ -1412,11 +1467,16 @@ class CountOperation: public Expression {
 
   virtual CountOperation* AsCountOperation() { return this; }
 
-  virtual Variable* AssignedVar() {
+  virtual Variable* AssignedVariable() {
     return expression()->AsVariableProxy()->AsVariable();
   }
 
   virtual bool IsPrimitive();
+  virtual bool IsCritical();
+  virtual void ProcessNonLiveChildren(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count);
 
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
@@ -1449,6 +1509,11 @@ class CompareOperation: public Expression {
   virtual void Accept(AstVisitor* v);
 
   virtual bool IsPrimitive();
+  virtual bool IsCritical();
+  virtual void ProcessNonLiveChildren(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count);
 
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
@@ -1502,10 +1567,15 @@ class Assignment: public Expression {
   virtual Assignment* AsAssignment() { return this; }
 
   virtual bool IsPrimitive();
+  virtual bool IsCritical();
+  virtual void ProcessNonLiveChildren(
+      List<AstNode*>* stack,
+      ZoneList<Expression*>* body_definitions,
+      int variable_count);
 
   Assignment* AsSimpleAssignment() { return !is_compound() ? this : NULL; }
 
-  virtual Variable* AssignedVar() {
+  virtual Variable* AssignedVariable() {
     return target()->AsVariableProxy()->AsVariable();
   }
 

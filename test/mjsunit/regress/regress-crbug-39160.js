@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,24 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_JUMP_TARGET_INL_H_
-#define V8_JUMP_TARGET_INL_H_
+// See http://crbug.com/39160
 
-#include "virtual-frame-inl.h"
-
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-#include "jump-target-heavy-inl.h"
-#else
-#include "jump-target-light-inl.h"
-#endif
-
-namespace v8 {
-namespace internal {
-
-CodeGenerator* JumpTarget::cgen() {
-  return CodeGeneratorScope::Current();
+// To reproduce the bug we need an inlined comparison (i.e. in a loop) where
+// the left hand side is known to be a smi (max smi value is  1073741823). This
+// test crashes with the bug.
+function f(a) {
+  for (var i = 1073741820; i < 1073741822; i++) {
+    if (a < i) {
+      a += i;
+    }
+  }
 }
 
-} }  // namespace v8::internal
-
-#endif  // V8_JUMP_TARGET_INL_H_
+f(5)

@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,24 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_JUMP_TARGET_INL_H_
-#define V8_JUMP_TARGET_INL_H_
+#ifndef V8_JUMP_TARGET_HEAVY_INL_H_
+#define V8_JUMP_TARGET_HEAVY_INL_H_
 
 #include "virtual-frame-inl.h"
-
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-#include "jump-target-heavy-inl.h"
-#else
-#include "jump-target-light-inl.h"
-#endif
 
 namespace v8 {
 namespace internal {
 
-CodeGenerator* JumpTarget::cgen() {
-  return CodeGeneratorScope::Current();
+void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
+  FrameElement* element = &entry_frame_->elements_[index];
+  element->clear_copied();
+  if (target->is_register()) {
+    entry_frame_->set_register_location(target->reg(), index);
+  } else if (target->is_copy()) {
+    entry_frame_->elements_[target->index()].set_copied();
+  }
+  if (direction_ == BIDIRECTIONAL && !target->is_copy()) {
+    element->set_type_info(TypeInfo::Unknown());
+  }
 }
 
 } }  // namespace v8::internal
 
-#endif  // V8_JUMP_TARGET_INL_H_
+#endif  // V8_JUMP_TARGET_HEAVY_INL_H_

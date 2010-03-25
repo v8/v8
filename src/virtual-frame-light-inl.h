@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,24 +25,71 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_JUMP_TARGET_INL_H_
-#define V8_JUMP_TARGET_INL_H_
+#ifndef V8_VIRTUAL_FRAME_LIGHT_INL_H_
+#define V8_VIRTUAL_FRAME_LIGHT_INL_H_
 
-#include "virtual-frame-inl.h"
-
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-#include "jump-target-heavy-inl.h"
-#else
-#include "jump-target-light-inl.h"
-#endif
+#include "type-info.h"
+#include "register-allocator.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
 
-CodeGenerator* JumpTarget::cgen() {
-  return CodeGeneratorScope::Current();
+// On entry to a function, the virtual frame already contains the receiver,
+// the parameters, and a return address.  All frame elements are in memory.
+VirtualFrame::VirtualFrame()
+    : element_count_(parameter_count() + 2),
+      stack_pointer_(parameter_count() + 1) {
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+    register_locations_[i] = kIllegalIndex;
+  }
 }
+
+
+// When cloned, a frame is a deep copy of the original.
+VirtualFrame::VirtualFrame(VirtualFrame* original)
+    : element_count_(original->element_count()),
+      stack_pointer_(original->stack_pointer_) {
+  memcpy(&register_locations_,
+         original->register_locations_,
+         sizeof(register_locations_));
+}
+
+
+void VirtualFrame::Push(Handle<Object> value) {
+  UNIMPLEMENTED();
+}
+
+
+bool VirtualFrame::Equals(VirtualFrame* other) {
+#ifdef DEBUG
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+    if (register_location(i) != other->register_location(i)) {
+      return false;
+    }
+  }
+  if (element_count() != other->element_count()) return false;
+#endif
+  if (stack_pointer_ != other->stack_pointer_) return false;
+
+  return true;
+}
+
+
+void VirtualFrame::SetTypeForLocalAt(int index, TypeInfo info) {
+  UNIMPLEMENTED();
+}
+
+
+// Everything is always spilled anyway.
+void VirtualFrame::SpillAll() {
+}
+
+
+void VirtualFrame::PrepareForReturn() {
+}
+
 
 } }  // namespace v8::internal
 
-#endif  // V8_JUMP_TARGET_INL_H_
+#endif  // V8_VIRTUAL_FRAME_LIGHT_INL_H_

@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,24 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_JUMP_TARGET_INL_H_
-#define V8_JUMP_TARGET_INL_H_
+#include "v8.h"
 
+#include "codegen-inl.h"
+#include "register-allocator-inl.h"
 #include "virtual-frame-inl.h"
-
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-#include "jump-target-heavy-inl.h"
-#else
-#include "jump-target-light-inl.h"
-#endif
 
 namespace v8 {
 namespace internal {
 
-CodeGenerator* JumpTarget::cgen() {
-  return CodeGeneratorScope::Current();
+void VirtualFrame::Adjust(int count) {
+  ASSERT(count >= 0);
+  ASSERT(stack_pointer_ == element_count() - 1);
+
+  element_count_ += count;
+  stack_pointer_ += count;
 }
 
-} }  // namespace v8::internal
 
-#endif  // V8_JUMP_TARGET_INL_H_
+// Make the type of the element at a given index be MEMORY.
+void VirtualFrame::SpillElementAt(int index) {
+  UNIMPLEMENTED();
+}
+
+
+} }  // namespace v8::internal

@@ -284,12 +284,18 @@ static void CreateTraceCallerFunction(const char* func_name,
 }
 
 
+// This test verifies that stack tracing works when called during
+// execution of a native function called from JS code. In this case,
+// StackTracer uses Top::c_entry_fp as a starting point for stack
+// walking.
 TEST(CFromJSStackTrace) {
   TickSample sample;
   InitTraceEnv(&sample);
 
   InitializeVM();
   v8::HandleScope scope;
+  // Create global function JSFuncDoTrace which calls
+  // extension function trace() with the current frame pointer value.
   CreateTraceCallerFunction("JSFuncDoTrace", "trace");
   Local<Value> result = CompileRun(
       "function JSTrace() {"
@@ -298,8 +304,15 @@ TEST(CFromJSStackTrace) {
       "JSTrace();\n"
       "true;");
   CHECK(!result.IsEmpty());
+  // When stack tracer is invoked, the stack should look as follows:
+  // script [JS]
+  //   JSTrace() [JS]
+  //     JSFuncDoTrace() [JS] [captures EBP value and encodes it as Smi]
+  //       trace(EBP encoded as Smi) [native (extension)]
+  //         DoTrace(EBP) [native]
+  //           StackTracer::Trace
   CHECK_GT(sample.frames_count, 1);
-  // Stack sampling will start from the first JS function, i.e. "JSFuncDoTrace"
+  // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
   CheckRetAddrIsInJSFunction("JSFuncDoTrace",
                              sample.stack[0]);
   CheckRetAddrIsInJSFunction("JSTrace",
@@ -307,12 +320,19 @@ TEST(CFromJSStackTrace) {
 }
 
 
+// This test verifies that stack tracing works when called during
+// execution of JS code. However, as calling StackTracer requires
+// entering native code, we can only emulate pure JS by erasing
+// Top::c_entry_fp value. In this case, StackTracer uses passed frame
+// pointer value as a starting point for stack walking.
 TEST(PureJSStackTrace) {
   TickSample sample;
   InitTraceEnv(&sample);
 
   InitializeVM();
   v8::HandleScope scope;
+  // Create global function JSFuncDoTrace which calls
+  // extension function js_trace() with the current frame pointer value.
   CreateTraceCallerFunction("JSFuncDoTrace", "js_trace");
   Local<Value> result = CompileRun(
       "function JSTrace() {"
@@ -324,7 +344,17 @@ TEST(PureJSStackTrace) {
       "OuterJSTrace();\n"
       "true;");
   CHECK(!result.IsEmpty());
-  // The last JS function called.
+  // When stack tracer is invoked, the stack should look as follows:
+  // script [JS]
+  //   OuterJSTrace() [JS]
+  //     JSTrace() [JS]
+  //       JSFuncDoTrace() [JS] [captures EBP value and encodes it as Smi]
+  //         js_trace(EBP encoded as Smi) [native (extension)]
+  //           DoTraceHideCEntryFPAddress(EBP) [native]
+  //             StackTracer::Trace
+  //
+  // The last JS function called. It is only visible through
+  // sample.function, as its return address is above captured EBP value.
   CHECK_EQ(GetGlobalJSFunction("JSFuncDoTrace")->address(),
            sample.function);
   CHECK_GT(sample.frames_count, 1);
@@ -361,6 +391,9 @@ static int CFunc(int depth) {
 }
 
 
+// This test verifies that stack tracing doesn't crash when called on
+// pure native code. StackTracer only unrolls JS code, so we can't
+// get any meaningful info here.
 TEST(PureCStackTrace) {
   TickSample sample;
   InitTraceEnv(&sample);

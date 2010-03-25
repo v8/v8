@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,37 +28,72 @@
 #include "v8.h"
 
 #include "codegen-inl.h"
-#include "register-allocator-inl.h"
-#include "virtual-frame-inl.h"
+#include "jump-target-inl.h"
 
 namespace v8 {
 namespace internal {
 
-// -------------------------------------------------------------------------
-// VirtualFrame implementation.
 
-// If there are any registers referenced only by the frame, spill one.
-Register VirtualFrame::SpillAnyRegister() {
-  // Find the leftmost (ordered by register number) register whose only
-  // reference is in the frame.
-  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
-    if (is_used(i) && cgen()->allocator()->count(i) == 1) {
-      SpillElementAt(register_location(i));
-      ASSERT(!cgen()->allocator()->is_used(i));
-      return RegisterAllocator::ToRegister(i);
-    }
-  }
-  return no_reg;
+void JumpTarget::Jump(Result* arg) {
+  UNIMPLEMENTED();
 }
 
 
-// Specialization of List::ResizeAdd to non-inlined version for FrameElements.
-// The function ResizeAdd becomes a real function, whose implementation is the
-// inlined ResizeAddInternal.
-template <>
-void List<FrameElement,
-          FreeStoreAllocationPolicy>::ResizeAdd(const FrameElement& element) {
-  ResizeAddInternal(element);
+void JumpTarget::Branch(Condition cc, Result* arg, Hint hint) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::Branch(Condition cc, Result* arg0, Result* arg1, Hint hint) {
+  UNIMPLEMENTED();
+}
+
+
+void BreakTarget::Branch(Condition cc, Result* arg, Hint hint) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::Bind(Result* arg) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::Bind(Result* arg0, Result* arg1) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::ComputeEntryFrame() {
+  UNIMPLEMENTED();
+}
+
+
+DeferredCode::DeferredCode()
+    : masm_(CodeGeneratorScope::Current()->masm()),
+      statement_position_(masm_->current_statement_position()),
+      position_(masm_->current_position()) {
+  ASSERT(statement_position_ != RelocInfo::kNoPosition);
+  ASSERT(position_ != RelocInfo::kNoPosition);
+
+  CodeGeneratorScope::Current()->AddDeferred(this);
+#ifdef DEBUG
+  comment_ = "";
+#endif
+
+  // Copy the register locations from the code generator's frame.
+  // These are the registers that will be spilled on entry to the
+  // deferred code and restored on exit.
+  VirtualFrame* frame = CodeGeneratorScope::Current()->frame();
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+    int loc = frame->register_location(i);
+    if (loc == VirtualFrame::kIllegalIndex) {
+      registers_[i] = kIgnore;
+    } else {
+      // Needs to be restored on exit but not saved on entry.
+      registers_[i] = frame->fp_relative(loc) | kSyncedFlag;
+    }
+  }
 }
 
 } }  // namespace v8::internal
