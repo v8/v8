@@ -517,7 +517,7 @@ void CodeGenerator::ConvertInt32ResultToSmi(Result* value) {
     ASSERT(value->handle()->IsSmi());
   }
   value->set_untagged_int32(false);
-  value->set_number_info(NumberInfo::Smi());
+  value->set_type_info(TypeInfo::Smi());
 }
 
 
@@ -569,7 +569,7 @@ void CodeGenerator::ConvertInt32ResultToNumber(Result* value) {
     ASSERT(value->is_constant());
   }
   value->set_untagged_int32(false);
-  value->set_number_info(NumberInfo::Integer32());
+  value->set_type_info(TypeInfo::Integer32());
 }
 
 
