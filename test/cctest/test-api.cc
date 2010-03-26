@@ -2644,6 +2644,36 @@ THREADED_TEST(NamedInterceptorPropertyRead) {
 }
 
 
+THREADED_TEST(NamedInterceptorDictionaryIC) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(XPropertyGetter);
+  LocalContext context;
+  // Create an object with a named interceptor.
+  context->Global()->Set(v8_str("interceptor_obj"), templ->NewInstance());
+  Local<Script> script = Script::Compile(v8_str("interceptor_obj.x"));
+  for (int i = 0; i < 10; i++) {
+    Local<Value> result = script->Run();
+    CHECK_EQ(result, v8_str("x"));
+  }
+  // Create a slow case object and a function accessing a property in
+  // that slow case object (with dictionary probing in generated
+  // code). Then force object with a named interceptor into slow-case,
+  // pass it to the function, and check that the interceptor is called
+  // instead of accessing the local property.
+  Local<Value> result =
+      CompileRun("function get_x(o) { return o.x; };"
+                 "var obj = { x : 42, y : 0 };"
+                 "delete obj.y;"
+                 "for (var i = 0; i < 10; i++) get_x(obj);"
+                 "interceptor_obj.x = 42;"
+                 "interceptor_obj.y = 10;"
+                 "delete interceptor_obj.y;"
+                 "get_x(interceptor_obj)");
+  CHECK_EQ(result, v8_str("x"));
+}
+
+
 static v8::Handle<Value> SetXOnPrototypeGetter(Local<String> property,
                                                const AccessorInfo& info) {
   // Set x on the prototype object and do not handle the get request.
