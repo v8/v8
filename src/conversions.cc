@@ -316,7 +316,7 @@ template <int radix_log_2, class Iterator, class EndMark>
     }
 
     number = number * radix + digit;
-    int overflow = number >> 53;
+    int overflow = static_cast<int>(number >> 53);
     if (overflow != 0) {
       // Overflow occurred. Need to determine which direction to round the
       // result.
@@ -327,7 +327,7 @@ template <int radix_log_2, class Iterator, class EndMark>
       }
 
       int dropped_bits_mask = ((1 << overflow_bits_count) - 1);
-      int dropped_bits = number & dropped_bits_mask;
+      int dropped_bits = static_cast<int>(number) & dropped_bits_mask;
       number >>= overflow_bits_count;
       exponent = overflow_bits_count;
 
