@@ -1132,9 +1132,9 @@ void DeferredInlineBinaryOperation::Generate() {
 
 
 static TypeInfo CalculateTypeInfo(TypeInfo operands_type,
-                                      Token::Value op,
-                                      const Result& right,
-                                      const Result& left) {
+                                  Token::Value op,
+                                  const Result& right,
+                                  const Result& left) {
   // Set TypeInfo of result according to the operation performed.
   // Rely on the fact that smis have a 31 bit payload on ia32.
   ASSERT(kSmiValueSize == 31);
@@ -1193,11 +1193,12 @@ static TypeInfo CalculateTypeInfo(TypeInfo operands_type,
       if (operands_type.IsSmi()) {
         // The Integer32 range is big enough to take the sum of any two Smis.
         return TypeInfo::Integer32();
+      } else if (operands_type.IsNumber()) {
+        return TypeInfo::Number();
+      } else if (left.type_info().IsString() || right.type_info().IsString()) {
+        return TypeInfo::String();
       } else {
-        // Result could be a string or a number. Check types of inputs.
-        return operands_type.IsNumber()
-            ? TypeInfo::Number()
-            : TypeInfo::Unknown();
+        return TypeInfo::Unknown();
       }
     case Token::SHL:
       return TypeInfo::Integer32();
@@ -1237,8 +1238,13 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   Result left = frame_->Pop();
 
   if (op == Token::ADD) {
-    bool left_is_string = left.is_constant() && left.handle()->IsString();
-    bool right_is_string = right.is_constant() && right.handle()->IsString();
+    const bool left_is_string = left.type_info().IsString();
+    const bool right_is_string = right.type_info().IsString();
+    // Make sure constant strings have string type info.
+    ASSERT(!(left.is_constant() && left.handle()->IsString()) ||
+           left_is_string);
+    ASSERT(!(right.is_constant() && right.handle()->IsString()) ||
+           right_is_string);
     if (left_is_string || right_is_string) {
       frame_->Push(&left);
       frame_->Push(&right);
@@ -1247,7 +1253,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         if (right_is_string) {
           // TODO(lrn): if both are constant strings
           // -- do a compile time cons, if allocation during codegen is allowed.
-          answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
+          StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+          answer = frame_->CallStub(&stub, 2);
         } else {
           answer =
             frame_->InvokeBuiltin(Builtins::STRING_ADD_LEFT, CALL_FUNCTION, 2);
@@ -1256,6 +1263,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         answer =
           frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
       }
+      answer.set_type_info(TypeInfo::String());
       frame_->Push(&answer);
       return;
     }
@@ -7003,8 +7011,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 // specialized add or subtract stub.  The result is left in dst.
 class DeferredPrefixCountOperation: public DeferredCode {
  public:
-  DeferredPrefixCountOperation(Register dst, bool is_increment)
-      : dst_(dst), is_increment_(is_increment) {
+  DeferredPrefixCountOperation(Register dst,
+                               bool is_increment,
+                               TypeInfo input_type)
+      : dst_(dst), is_increment_(is_increment), input_type_(input_type) {
     set_comment("[ DeferredCountOperation");
   }
 
@@ -7013,6 +7023,7 @@ class DeferredPrefixCountOperation: public DeferredCode {
  private:
   Register dst_;
   bool is_increment_;
+  TypeInfo input_type_;
 };
 
 
@@ -7024,8 +7035,10 @@ void DeferredPrefixCountOperation::Generate() {
     __ add(Operand(dst_), Immediate(Smi::FromInt(1)));
   }
   __ push(dst_);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
-  __ push(eax);
+  if (!input_type_.IsNumber()) {
+    __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+    __ push(eax);
+  }
   __ push(Immediate(Smi::FromInt(1)));
   if (is_increment_) {
     __ CallRuntime(Runtime::kNumberAdd, 2);
@@ -7043,8 +7056,14 @@ void DeferredPrefixCountOperation::Generate() {
 // The result is left in dst.
 class DeferredPostfixCountOperation: public DeferredCode {
  public:
-  DeferredPostfixCountOperation(Register dst, Register old, bool is_increment)
-      : dst_(dst), old_(old), is_increment_(is_increment) {
+  DeferredPostfixCountOperation(Register dst,
+                                Register old,
+                                bool is_increment,
+                                TypeInfo input_type)
+      : dst_(dst),
+        old_(old),
+        is_increment_(is_increment),
+        input_type_(input_type) {
     set_comment("[ DeferredCountOperation");
   }
 
@@ -7054,6 +7073,7 @@ class DeferredPostfixCountOperation: public DeferredCode {
   Register dst_;
   Register old_;
   bool is_increment_;
+  TypeInfo input_type_;
 };
 
 
@@ -7064,14 +7084,17 @@ void DeferredPostfixCountOperation::Generate() {
   } else {
     __ add(Operand(dst_), Immediate(Smi::FromInt(1)));
   }
-  __ push(dst_);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
-
-  // Save the result of ToNumber to use as the old value.
-  __ push(eax);
+  if (input_type_.IsNumber()) {
+    __ push(dst_);  // Save the input to use as the old value.
+    __ push(dst_);
+  } else {
+    __ push(dst_);
+    __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+    __ push(eax);  // Save the result of ToNumber to use as the old value.
+    __ push(eax);
+  }
 
   // Call the runtime for the addition or subtraction.
-  __ push(eax);
   __ push(Immediate(Smi::FromInt(1)));
   if (is_increment_) {
     __ CallRuntime(Runtime::kNumberAdd, 2);
@@ -7120,9 +7143,13 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       ASSERT(old_value.is_valid());
       __ mov(old_value.reg(), new_value.reg());
 
-      // The return value for postfix operations is the
-      // same as the input, and has the same number info.
-      old_value.set_type_info(new_value.type_info());
+      // The return value for postfix operations is ToNumber(input).
+      // Keep more precise type info if the input is some kind of
+      // number already. If the input is not a number we have to wait
+      // for the deferred code to convert it.
+      if (new_value.type_info().IsNumber()) {
+        old_value.set_type_info(new_value.type_info());
+      }
     }
 
     // Ensure the new value is writable.
@@ -7156,10 +7183,12 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     if (is_postfix) {
       deferred = new DeferredPostfixCountOperation(new_value.reg(),
                                                    old_value.reg(),
-                                                   is_increment);
+                                                   is_increment,
+                                                   new_value.type_info());
     } else {
       deferred = new DeferredPrefixCountOperation(new_value.reg(),
-                                                  is_increment);
+                                                  is_increment,
+                                                  new_value.type_info());
     }
 
     if (new_value.is_smi()) {
@@ -7185,6 +7214,13 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       }
     }
     deferred->BindExit();
+
+    // Postfix count operations return their input converted to
+    // number. The case when the input is already a number is covered
+    // above in the allocation code for old_value.
+    if (is_postfix && !new_value.type_info().IsNumber()) {
+      old_value.set_type_info(TypeInfo::Number());
+    }
 
     // The result of ++ or -- is an Integer32 if the
     // input is a smi. Otherwise it is a number.
