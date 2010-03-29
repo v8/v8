@@ -274,73 +274,111 @@ static inline bool AdvanceToNonspace(Iterator* current, EndMark end) {
 }
 
 
-template <class Iterator, class EndMark>
-static double InternalHexadecimalStringToDouble(Iterator current,
-                                                EndMark end,
-                                                char* buffer,
-                                                bool allow_trailing_junk) {
+static bool isDigit(int x, int radix) {
+  return (x >= '0' && x <= '9' && x < '0' + radix)
+      || (radix > 10 && x >= 'a' && x < 'a' + radix - 10)
+      || (radix > 10 && x >= 'A' && x < 'A' + radix - 10);
+}
+
+
+// Parsing integers with radix 2, 4, 8, 16, 32. Assumes current != end.
+template <int radix_log_2, class Iterator, class EndMark>
+    static double InternalStringToIntDouble(Iterator current,
+                                            EndMark end,
+                                            bool sign,
+                                            bool allow_trailing_junk) {
   ASSERT(current != end);
-
-  const int max_hex_significant_digits = 52 / 4 + 2;
-  // We reuse the buffer of InternalStringToDouble. Since hexadecimal
-  // numbers may have much less digits than decimal the buffer won't overflow.
-  ASSERT(max_hex_significant_digits < kMaxSignificantDigits);
-
-  int significant_digits = 0;
-  int insignificant_digits = 0;
-  bool leading_zero = false;
-  // A double has a 53bit significand (once the hidden bit has been added).
-  // Halfway cases thus have at most 54bits. Therefore 54/4 + 1 digits are
-  // sufficient to represent halfway cases. By adding another digit we can keep
-  // track of dropped digits.
-  int buffer_pos = 0;
-  bool nonzero_digit_dropped = false;
 
   // Skip leading 0s.
   while (*current == '0') {
-    leading_zero = true;
     ++current;
-    if (current == end) return 0;
+    if (current == end) return sign ? -0.0 : 0.0;
   }
 
-  int begin_pos = buffer_pos;
-  while ((*current >= '0' && *current <= '9')
-         || (*current >= 'a' && *current <= 'f')
-         || (*current >= 'A' && *current <= 'F')) {
-    if (significant_digits <= max_hex_significant_digits) {
-      buffer[buffer_pos++] = static_cast<char>(*current);
-      significant_digits++;
+  int64_t number = 0;
+  int exponent = 0;
+  const int radix = (1 << radix_log_2);
+
+  do {
+    int digit;
+    if (*current >= '0' && *current <= '9' && *current < '0' + radix) {
+      digit = static_cast<char>(*current) - '0';
+    } else if (radix > 10 && *current >= 'a' && *current < 'a' + radix - 10) {
+      digit = static_cast<char>(*current) - 'a' + 10;
+    } else if (radix > 10 && *current >= 'A' && *current < 'A' + radix - 10) {
+      digit = static_cast<char>(*current) - 'A' + 10;
     } else {
-      insignificant_digits++;
-      nonzero_digit_dropped = nonzero_digit_dropped || *current != '0';
+      if (allow_trailing_junk || !AdvanceToNonspace(&current, end)) {
+        break;
+      } else {
+        return JUNK_STRING_VALUE;
+      }
+    }
+
+    number = number * radix + digit;
+    int overflow = number >> 53;
+    if (overflow != 0) {
+      // Overflow occurred. Need to determine which direction to round the
+      // result.
+      int overflow_bits_count = 1;
+      while (overflow > 1) {
+        overflow_bits_count++;
+        overflow >>= 1;
+      }
+
+      int dropped_bits_mask = ((1 << overflow_bits_count) - 1);
+      int dropped_bits = number & dropped_bits_mask;
+      number >>= overflow_bits_count;
+      exponent = overflow_bits_count;
+
+      bool zero_tail = true;
+      while (true) {
+        ++current;
+        if (current == end || !isDigit(*current, radix)) break;
+        zero_tail = zero_tail && *current == '0';
+        exponent += radix_log_2;
+      }
+
+      if (!allow_trailing_junk && AdvanceToNonspace(&current, end)) {
+        return JUNK_STRING_VALUE;
+      }
+
+      int middle_value = (1 << (overflow_bits_count - 1));
+      if (dropped_bits > middle_value) {
+        number++;  // Rounding up.
+      } else if (dropped_bits == middle_value) {
+        // Rounding to even to consistency with decimals: half-way case rounds
+        // up if significant part is odd and down otherwise.
+        if ((number & 1) != 0 || !zero_tail) {
+          number++;  // Rounding up.
+        }
+      }
+
+      // Rounding up may cause overflow.
+      if ((number & ((int64_t)1 << 53)) != 0) {
+        exponent++;
+        number >>= 1;
+      }
+      break;
     }
     ++current;
-    if (current == end) break;
+  } while (current != end);
+
+  ASSERT(number < ((int64_t)1 << 53));
+  ASSERT(static_cast<int64_t>(static_cast<double>(number)) == number);
+
+  if (exponent == 0) {
+    if (sign) {
+      if (number == 0) return -0.0;
+      number = -number;
+    }
+    return static_cast<double>(number);
   }
 
-  if (!allow_trailing_junk && AdvanceToNonspace(&current, end)) {
-    return JUNK_STRING_VALUE;
-  }
-
-  if (significant_digits == 0) {
-    return leading_zero ? 0 : JUNK_STRING_VALUE;
-  }
-
-  if (nonzero_digit_dropped) {
-    ASSERT(insignificant_digits > 0);
-    insignificant_digits--;
-    buffer[buffer_pos++] = '1';
-  }
-
-  buffer[buffer_pos] = '\0';
-
-  double result;
-  StringToInt(buffer, begin_pos, 16, &result);
-  if (insignificant_digits > 0) {
-    // Multiplying by a power of 2 doesn't cause a loss of precision.
-    result *= pow(16.0, insignificant_digits);
-  }
-  return result;
+  ASSERT(number != 0);
+  // The double could be constructed faster from number (mantissa), exponent
+  // and sign. Assuming it's a rare case more simple code is used.
+  return static_cast<double>(sign ? -number : number) * pow(2.0, exponent);
 }
 
 
@@ -413,16 +451,16 @@ static double InternalStringToDouble(Iterator current,
 
     leading_zero = true;
 
-    // It could be hexadecimal value.
+// It could be hexadecimal value.
     if ((flags & ALLOW_HEX) && (*current == 'x' || *current == 'X')) {
       ++current;
       if (current == end) return JUNK_STRING_VALUE;  // "0x".
 
-      double result = InternalHexadecimalStringToDouble(current,
-                                                        end,
-                                                        buffer + buffer_pos,
-                                                        allow_trailing_junk);
-      return (buffer_pos > 0 && buffer[0] == '-') ? -result : result;
+      bool sign = (buffer_pos > 0 && buffer[0] == '-');
+      return InternalStringToIntDouble<4>(current,
+                                          end,
+                                          sign,
+                                          allow_trailing_junk);
     }
 
     // Ignore leading zeros in the integer part.
@@ -560,22 +598,13 @@ static double InternalStringToDouble(Iterator current,
   exponent += insignificant_digits;
 
   if (octal) {
-    buffer[buffer_pos] = '\0';
-    // ALLOW_OCTALS is set and there is no '8' or '9' in insignificant
-    // digits. Check significant digits now.
-    char sign = '+';
-    const char* s = buffer;
-    if (*s == '-' || *s == '+') sign = *s++;
+    bool sign = buffer[0] == '-';
+    int start_pos = (sign ? 1 : 0);
 
-    double result;
-    s += StringToInt(s, 0, 8, &result);
-    if (!allow_trailing_junk && *s != '\0') return JUNK_STRING_VALUE;
-
-    if (sign == '-') result = -result;
-    if (insignificant_digits > 0) {
-      result *= pow(8.0, insignificant_digits);
-    }
-    return result;
+    return InternalStringToIntDouble<3>(buffer + start_pos,
+                                        buffer + buffer_pos,
+                                        sign,
+                                        allow_trailing_junk);
   }
 
   if (nonzero_digit_dropped) {
