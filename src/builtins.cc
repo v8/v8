@@ -268,9 +268,9 @@ static void CopyElements(AssertNoAllocation* no_gc,
                          int src_index,
                          int len) {
   ASSERT(dst != src);  // Use MoveElements instead.
-  memcpy(dst->data_start() + dst_index,
-         src->data_start() + src_index,
-         len * kPointerSize);
+  CopyWords(dst->data_start() + dst_index,
+            src->data_start() + src_index,
+            len);
   WriteBarrierMode mode = dst->GetWriteBarrierMode(*no_gc);
   if (mode == UPDATE_WRITE_BARRIER) {
     Heap::RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
