@@ -600,6 +600,8 @@ static inline void MemsetPointer(T** dest, T* value, int counter) {
 // Copies data from |src| to |dst|.  The data spans MUST not overlap.
 inline void CopyWords(Object** dst, Object** src, int num_words) {
   ASSERT(Min(dst, src) + num_words <= Max(dst, src));
+  ASSERT(num_words > 0);
+
   // Use block copying memcpy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
   static const int kBlockCopyLimit = 16;

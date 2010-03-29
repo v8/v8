@@ -268,6 +268,7 @@ static void CopyElements(AssertNoAllocation* no_gc,
                          int src_index,
                          int len) {
   ASSERT(dst != src);  // Use MoveElements instead.
+  ASSERT(len > 0);
   CopyWords(dst->data_start() + dst_index,
             src->data_start() + src_index,
             len);
@@ -390,7 +391,9 @@ BUILTIN(ArrayPush) {
     FixedArray* new_elms = FixedArray::cast(obj);
 
     AssertNoAllocation no_gc;
-    CopyElements(&no_gc, new_elms, 0, elms, 0, len);
+    if (len > 0) {
+      CopyElements(&no_gc, new_elms, 0, elms, 0, len);
+    }
     FillWithHoles(new_elms, new_length, capacity);
 
     elms = new_elms;
@@ -537,7 +540,9 @@ BUILTIN(ArrayUnshift) {
     FixedArray* new_elms = FixedArray::cast(obj);
 
     AssertNoAllocation no_gc;
-    CopyElements(&no_gc, new_elms, to_add, elms, 0, len);
+    if (len > 0) {
+      CopyElements(&no_gc, new_elms, to_add, elms, 0, len);
+    }
     FillWithHoles(new_elms, new_length, capacity);
 
     elms = new_elms;
@@ -734,11 +739,16 @@ BUILTIN(ArraySplice) {
 
       AssertNoAllocation no_gc;
       // Copy the part before actual_start as is.
-      CopyElements(&no_gc, new_elms, 0, elms, 0, actual_start);
-      CopyElements(&no_gc,
-                   new_elms, actual_start + item_count,
-                   elms, actual_start + actual_delete_count,
-                   (len - actual_delete_count - actual_start));
+      if (actual_start > 0) {
+        CopyElements(&no_gc, new_elms, 0, elms, 0, actual_start);
+      }
+      const int to_copy = len - actual_delete_count - actual_start;
+      if (to_copy > 0) {
+        CopyElements(&no_gc,
+                     new_elms, actual_start + item_count,
+                     elms, actual_start + actual_delete_count,
+                     to_copy);
+      }
       FillWithHoles(new_elms, new_length, capacity);
 
       elms = new_elms;
@@ -812,10 +822,12 @@ BUILTIN(ArrayConcat) {
   int start_pos = 0;
   for (int i = 0; i < n_arguments; i++) {
     JSArray* array = JSArray::cast(args[i]);
-    FixedArray* elms = FixedArray::cast(array->elements());
     int len = Smi::cast(array->length())->value();
-    CopyElements(&no_gc, result_elms, start_pos, elms, 0, len);
-    start_pos += len;
+    if (len > 0) {
+      FixedArray* elms = FixedArray::cast(array->elements());
+      CopyElements(&no_gc, result_elms, start_pos, elms, 0, len);
+      start_pos += len;
+    }
   }
   ASSERT(start_pos == result_len);
 
