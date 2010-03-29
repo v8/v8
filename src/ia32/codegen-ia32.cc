@@ -7034,17 +7034,21 @@ void DeferredPrefixCountOperation::Generate() {
   } else {
     __ add(Operand(dst_), Immediate(Smi::FromInt(1)));
   }
-  __ push(dst_);
-  if (!input_type_.IsNumber()) {
-    __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
-    __ push(eax);
-  }
-  __ push(Immediate(Smi::FromInt(1)));
-  if (is_increment_) {
-    __ CallRuntime(Runtime::kNumberAdd, 2);
+  Register left;
+  if (input_type_.IsNumber()) {
+    left = dst_;
   } else {
-    __ CallRuntime(Runtime::kNumberSub, 2);
+    __ push(dst_);
+    __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+    left = eax;
   }
+
+  GenericBinaryOpStub stub(is_increment_ ? Token::ADD : Token::SUB,
+                           NO_OVERWRITE,
+                           NO_GENERIC_BINARY_FLAGS,
+                           TypeInfo::Number());
+  stub.GenerateCall(masm_, left, Smi::FromInt(1));
+
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
@@ -7084,23 +7088,23 @@ void DeferredPostfixCountOperation::Generate() {
   } else {
     __ add(Operand(dst_), Immediate(Smi::FromInt(1)));
   }
+  Register left;
   if (input_type_.IsNumber()) {
     __ push(dst_);  // Save the input to use as the old value.
-    __ push(dst_);
+    left = dst_;
   } else {
     __ push(dst_);
     __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
     __ push(eax);  // Save the result of ToNumber to use as the old value.
-    __ push(eax);
+    left = eax;
   }
 
-  // Call the runtime for the addition or subtraction.
-  __ push(Immediate(Smi::FromInt(1)));
-  if (is_increment_) {
-    __ CallRuntime(Runtime::kNumberAdd, 2);
-  } else {
-    __ CallRuntime(Runtime::kNumberSub, 2);
-  }
+  GenericBinaryOpStub stub(is_increment_ ? Token::ADD : Token::SUB,
+                           NO_OVERWRITE,
+                           NO_GENERIC_BINARY_FLAGS,
+                           TypeInfo::Number());
+  stub.GenerateCall(masm_, left, Smi::FromInt(1));
+
   if (!dst_.is(eax)) __ mov(dst_, eax);
   __ pop(old_);
 }
