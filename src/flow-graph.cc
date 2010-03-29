@@ -631,7 +631,7 @@ void InstructionPrinter::VisitAssignment(Assignment* expr) {
 
   // Print the left-hand side.
   Visit(expr->target());
-  if (var == NULL && prop == NULL) return; // Throw reference error.
+  if (var == NULL && prop == NULL) return;  // Throw reference error.
   PrintF(" = ");
   // For compound assignments, print the left-hand side again and the
   // corresponding binary operator.
