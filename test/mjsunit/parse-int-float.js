@@ -47,6 +47,7 @@ assertEquals(12, parseInt('12aaa'));
 
 assertEquals(0.1, parseFloat('0.1'));
 assertEquals(0.1, parseFloat('0.1aaa'));
+assertEquals(0, parseFloat('0aaa'));
 assertEquals(0, parseFloat('0x12'));
 assertEquals(77, parseFloat('077'));
 

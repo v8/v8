@@ -377,6 +377,7 @@ static double InternalStringToDouble(Iterator current,
   int significant_digits = 0;
   int insignificant_digits = 0;
   bool nonzero_digit_dropped = false;
+  bool fractional_part = false;
 
   double signed_zero = 0.0;
 
@@ -454,8 +455,6 @@ static double InternalStringToDouble(Iterator current,
   }
 
   if (*current == '.') {
-    ASSERT(buffer_pos < kBufferSize);
-    buffer[buffer_pos++] = '.';
     ++current;
     if (current == end) {
       if (significant_digits == 0 && !leading_zero) {
@@ -475,6 +474,10 @@ static double InternalStringToDouble(Iterator current,
         exponent--;  // Move this 0 into the exponent.
       }
     }
+
+    ASSERT(buffer_pos < kBufferSize);
+    buffer[buffer_pos++] = '.';
+    fractional_part = true;
 
     // There is the fractional part.
     while (*current >= '0' && *current <= '9') {
@@ -580,6 +583,11 @@ static double InternalStringToDouble(Iterator current,
     buffer[buffer_pos++] = '1';
   }
 
+  // If the number has no more than kMaxDigitsInInt digits and doesn't have
+  // fractional part it could be parsed faster (without checks for
+  // spaces, overflow, etc.).
+  const int kMaxDigitsInInt = 9 * sizeof(int) / 4;  // NOLINT
+
   if (exponent != 0) {
     ASSERT(buffer_pos < kBufferSize);
     buffer[buffer_pos++] = 'e';
@@ -597,6 +605,16 @@ static double InternalStringToDouble(Iterator current,
     }
     ASSERT(exponent == 0);
     buffer_pos += exp_digits;
+  } else if (!fractional_part && significant_digits <= kMaxDigitsInInt) {
+    if (significant_digits == 0) return signed_zero;
+    ASSERT(buffer_pos > 0);
+    int num = 0;
+    int start_pos = (buffer[0] == '-' ? 1 : 0);
+    for (int i = start_pos; i < buffer_pos; i++) {
+      ASSERT(buffer[i] >= '0' && buffer[i] <= '9');
+      num = 10 * num + (buffer[i] - '0');
+    }
+    return static_cast<double>(start_pos == 0 ? num : -num);
   }
 
   ASSERT(buffer_pos < kBufferSize);
