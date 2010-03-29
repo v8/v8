@@ -180,3 +180,11 @@ longstring = longstring + longstring;
 
 replaceTest(longstring + longstring, 
             "<" + longstring + ">", /<(.*)>/g, "$1$1");
+            
+replaceTest("string 42", "string x", /x/g, function() { return 42; });
+replaceTest("string 42", "string x", /x/, function() { return 42; });            
+replaceTest("string 42", "string x", /[xy]/g, function() { return 42; });
+replaceTest("string 42", "string x", /[xy]/, function() { return 42; });
+replaceTest("string true", "string x", /x/g, function() { return true; });
+replaceTest("string null", "string x", /x/g, function() { return null; });
+replaceTest("string undefined", "string x", /x/g, function() { return undefined; });            

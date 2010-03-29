@@ -450,9 +450,11 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
             }
           } else {
             var func_result = replace.call(null, elem, match_start, subject);
-            if (!IS_STRING(func_result)) func_result = TO_STRING(func_result);
+            if (!IS_STRING(func_result)) {
+              func_result = NonStringToString(func_result);
+            }
             res[i] = func_result;
-            match_start += elem.length; 
+            match_start += elem.length;
           }
           i++;
         }      
@@ -464,7 +466,9 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
             // Use the apply argument as backing for global RegExp properties.
             lastMatchInfoOverride = elem;
             var func_result = replace.apply(null, elem);
-            if (!IS_STRING(func_result)) func_result = TO_STRING(func_result);
+            if (!IS_STRING(func_result)) {
+              func_result = NonStringToString(func_result);
+            }
             res[i] = func_result;
           }
           i++;
