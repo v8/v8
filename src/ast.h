@@ -294,19 +294,6 @@ class Expression: public AstNode {
     bitfields_ |= NumBitOpsField::encode(num_bit_ops);
   }
 
-  // Functions used for dead-code elimination.  Predicate is true if the
-  // expression is not dead code.
-  int is_live() const { return LiveField::decode(bitfields_); }
-  void mark_as_live() { bitfields_ |= LiveField::encode(true); }
-
-  // Mark non-live children as live and push them on a stack for further
-  // processing.
-  virtual void ProcessNonLiveChildren(
-      List<AstNode*>* stack,
-      ZoneList<Expression*>* body_definitions,
-      int variable_count) {
-  }
-
  private:
   static const int kMaxNumBitOps = (1 << 5) - 1;
 
@@ -319,7 +306,6 @@ class Expression: public AstNode {
   class ToInt32Field : public BitField<bool, 2, 1> {};
   class NumBitOpsField : public BitField<int, 3, 5> {};
   class LoopConditionField: public BitField<bool, 8, 1> {};
-  class LiveField: public BitField<bool, 9, 1> {};
 };
 
 
@@ -907,10 +893,6 @@ class Literal: public Expression {
   virtual bool IsTrivial() { return true; }
   virtual bool IsPrimitive();
   virtual bool IsCritical();
-  virtual void ProcessNonLiveChildren(
-      List<AstNode*>* stack,
-      ZoneList<Expression*>* body_definitions,
-      int variable_count);
 
   // Identity testers.
   bool IsNull() const { return handle_.is_identical_to(Factory::null_value()); }
@@ -1118,10 +1100,6 @@ class VariableProxy: public Expression {
 
   virtual bool IsPrimitive();
   virtual bool IsCritical();
-  virtual void ProcessNonLiveChildren(
-      List<AstNode*>* stack,
-      ZoneList<Expression*>* body_definitions,
-      int variable_count);
 
   void SetIsPrimitive(bool value) { is_primitive_ = value; }
 
@@ -1260,10 +1238,6 @@ class Property: public Expression {
 
   virtual bool IsPrimitive();
   virtual bool IsCritical();
-  virtual void ProcessNonLiveChildren(
-      List<AstNode*>* stack,
-      ZoneList<Expression*>* body_definitions,
-      int variable_count);
 
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
@@ -1299,10 +1273,6 @@ class Call: public Expression {
 
   virtual bool IsPrimitive();
   virtual bool IsCritical();
-  virtual void ProcessNonLiveChildren(
-      List<AstNode*>* stack,
-      ZoneList<Expression*>* body_definitions,
-      int variable_count);
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
@@ -1382,10 +1352,6 @@ class UnaryOperation: public Expression {
 
   virtual bool IsPrimitive();
   virtual bool IsCritical();
-  virtual void ProcessNonLiveChildren(
-      List<AstNode*>* stack,
-      ZoneList<Expression*>* body_definitions,
-      int variable_count);
 
   Token::Value op() const { return op_; }
   Expression* expression() const { return expression_; }
@@ -1412,10 +1378,6 @@ class BinaryOperation: public Expression {
 
   virtual bool IsPrimitive();
   virtual bool IsCritical();
-  virtual void ProcessNonLiveChildren(
-      List<AstNode*>* stack,
-      ZoneList<Expression*>* body_definitions,
-      int variable_count);
 
   // True iff the result can be safely overwritten (to avoid allocation).
   // False for operations that can return one of their operands.
@@ -1473,10 +1435,6 @@ class CountOperation: public Expression {
 
   virtual bool IsPrimitive();
   virtual bool IsCritical();
-  virtual void ProcessNonLiveChildren(
-      List<AstNode*>* stack,
-      ZoneList<Expression*>* body_definitions,
-      int variable_count);
 
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
@@ -1510,10 +1468,6 @@ class CompareOperation: public Expression {
 
   virtual bool IsPrimitive();
   virtual bool IsCritical();
-  virtual void ProcessNonLiveChildren(
-      List<AstNode*>* stack,
-      ZoneList<Expression*>* body_definitions,
-      int variable_count);
 
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
@@ -1568,10 +1522,6 @@ class Assignment: public Expression {
 
   virtual bool IsPrimitive();
   virtual bool IsCritical();
-  virtual void ProcessNonLiveChildren(
-      List<AstNode*>* stack,
-      ZoneList<Expression*>* body_definitions,
-      int variable_count);
 
   Assignment* AsSimpleAssignment() { return !is_compound() ? this : NULL; }
 

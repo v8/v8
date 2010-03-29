@@ -90,33 +90,13 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
   }
 
   if (FLAG_use_flow_graph) {
-    int variable_count =
-        function->num_parameters() + function->scope()->num_stack_slots();
-    FlowGraphBuilder builder(variable_count);
-    builder.Build(function);
-
-    if (!builder.HasStackOverflow()) {
-      if (variable_count > 0) {
-        ReachingDefinitions rd(builder.postorder(),
-                               builder.body_definitions(),
-                               variable_count);
-        rd.Compute();
-
-        TypeAnalyzer ta(builder.postorder(),
-                        builder.body_definitions(),
-                        variable_count,
-                        function->num_parameters());
-        ta.Compute();
-
-        MarkLiveCode(builder.preorder(),
-                     builder.body_definitions(),
-                     variable_count);
-      }
-    }
+    FlowGraphBuilder builder;
+    FlowGraph* graph = builder.Build(function);
+    USE(graph);
 
 #ifdef DEBUG
     if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
-      builder.graph()->PrintText(function, builder.postorder());
+      graph->PrintAsText(function->name());
     }
 #endif
   }
@@ -499,33 +479,13 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
     }
 
     if (FLAG_use_flow_graph) {
-      int variable_count =
-          literal->num_parameters() + literal->scope()->num_stack_slots();
-      FlowGraphBuilder builder(variable_count);
-      builder.Build(literal);
-
-      if (!builder.HasStackOverflow()) {
-        if (variable_count > 0) {
-          ReachingDefinitions rd(builder.postorder(),
-                                 builder.body_definitions(),
-                                 variable_count);
-          rd.Compute();
-
-          TypeAnalyzer ta(builder.postorder(),
-                          builder.body_definitions(),
-                          variable_count,
-                          literal->num_parameters());
-          ta.Compute();
-
-          MarkLiveCode(builder.preorder(),
-                       builder.body_definitions(),
-                       variable_count);
-        }
-      }
+      FlowGraphBuilder builder;
+      FlowGraph* graph = builder.Build(literal);
+      USE(graph);
 
 #ifdef DEBUG
       if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
-        builder.graph()->PrintText(literal, builder.postorder());
+        graph->PrintAsText(literal->name());
       }
 #endif
     }
