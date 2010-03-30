@@ -1369,7 +1369,13 @@ class BinaryOperation: public Expression {
     ASSERT(Token::IsBinaryOp(op));
   }
 
-  BinaryOperation(BinaryOperation* other, Expression* left, Expression* right);
+  // Construct a binary operation with a given operator and left and right
+  // subexpressions.  The rest of the expression state is copied from
+  // another expression.
+  BinaryOperation(Expression* other,
+                  Token::Value op,
+                  Expression* left,
+                  Expression* right);
 
   virtual void Accept(AstVisitor* v);
 

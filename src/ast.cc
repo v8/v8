@@ -852,13 +852,11 @@ UnaryOperation::UnaryOperation(UnaryOperation* other, Expression* expression)
     : Expression(other), op_(other->op_), expression_(expression) {}
 
 
-BinaryOperation::BinaryOperation(BinaryOperation* other,
+BinaryOperation::BinaryOperation(Expression* other,
+                                 Token::Value op,
                                  Expression* left,
                                  Expression* right)
-    : Expression(other),
-      op_(other->op_),
-      left_(left),
-      right_(right) {}
+    : Expression(other), op_(op), left_(left), right_(right) {}
 
 
 CountOperation::CountOperation(CountOperation* other, Expression* expression)
@@ -1110,6 +1108,7 @@ void CopyAstVisitor::VisitCountOperation(CountOperation* expr) {
 
 void CopyAstVisitor::VisitBinaryOperation(BinaryOperation* expr) {
   expr_ = new BinaryOperation(expr,
+                              expr->op(),
                               DeepCopyExpr(expr->left()),
                               DeepCopyExpr(expr->right()));
 }
