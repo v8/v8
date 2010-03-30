@@ -3587,13 +3587,22 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 0);
 
-  // Seed the result with the formal parameters count, which will be used
-  // in case no arguments adaptor frame is found below the current frame.
+  Label exit;
+
+  // Get the number of formal parameters.
   __ mov(r0, Operand(Smi::FromInt(scope()->num_parameters())));
 
-  // Call the shared stub to get to the arguments.length.
-  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
-  frame_->CallStub(&stub, 0);
+  // Check if the calling frame is an arguments adaptor frame.
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ b(ne, &exit);
+
+  // Arguments adaptor case: Read the arguments length from the
+  // adaptor frame.
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+
+  __ bind(&exit);
   frame_->EmitPush(r0);
 }
 
@@ -6788,26 +6797,6 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Slow-case.  Tail call builtin.
   __ bind(&slow);
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_JS);
-}
-
-
-void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor;
-  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(eq, &adaptor);
-
-  // Nothing to do: The formal number of parameters has already been
-  // passed in register r0 by calling function. Just return it.
-  __ Jump(lr);
-
-  // Arguments adaptor case: Read the arguments length from the
-  // adaptor frame and return it.
-  __ bind(&adaptor);
-  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ Jump(lr);
 }
 
 

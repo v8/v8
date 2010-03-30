@@ -1660,6 +1660,15 @@ void MacroAssembler::AbortIfNotNumber(Register object, const char* msg) {
 }
 
 
+void MacroAssembler::AbortIfNotSmi(Register object, const char* msg) {
+  Label ok;
+  Condition is_smi = CheckSmi(object);
+  j(is_smi, &ok);
+  Assert(equal, msg);
+  bind(&ok);
+}
+
+
 Condition MacroAssembler::IsObjectStringType(Register heap_object,
                                              Register map,
                                              Register instance_type) {
