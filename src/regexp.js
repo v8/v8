@@ -71,10 +71,32 @@ function DoConstructRegExp(object, pattern, flags, isConstructorCall) {
     }
   }
 
-  if (!isConstructorCall) {
+  if (isConstructorCall) {
+    // ECMA-262, section 15.10.7.1.
+    %SetProperty(object, 'source', pattern,
+                 DONT_DELETE |  READ_ONLY | DONT_ENUM);
+
+    // ECMA-262, section 15.10.7.2.
+    %SetProperty(object, 'global', global, DONT_DELETE | READ_ONLY | DONT_ENUM);
+
+    // ECMA-262, section 15.10.7.3.
+    %SetProperty(object, 'ignoreCase', ignoreCase,
+                 DONT_DELETE | READ_ONLY | DONT_ENUM);
+
+    // ECMA-262, section 15.10.7.4.
+    %SetProperty(object, 'multiline', multiline,
+                 DONT_DELETE | READ_ONLY | DONT_ENUM);
+
+    // ECMA-262, section 15.10.7.5.
+    %SetProperty(object, 'lastIndex', 0, DONT_DELETE | DONT_ENUM);
+  } else { // RegExp is being recompiled via RegExp.prototype.compile.
+    %IgnoreAttributesAndSetProperty(object, 'source', pattern);
+    %IgnoreAttributesAndSetProperty(object, 'global', global);
+    %IgnoreAttributesAndSetProperty(object, 'ignoreCase', ignoreCase);
+    %IgnoreAttributesAndSetProperty(object, 'multiline', multiline);
+    %IgnoreAttributesAndSetProperty(object, 'lastIndex', 0);
     regExpCache.type = 'none';
   }
-  %RegExpInitializeObject(object, pattern, global, ignoreCase, multiline);
 
   // Call internal function to compile the pattern.
   %RegExpCompile(object, pattern, flags);
@@ -322,7 +344,6 @@ function RegExpToString() {
 // on the captures array of the last successful match and the subject string
 // of the last successful match.
 function RegExpGetLastMatch() {
-  if (lastMatchInfoOverride) { return lastMatchInfoOverride[0]; }
   var regExpSubject = LAST_SUBJECT(lastMatchInfo);
   return SubString(regExpSubject,
                    lastMatchInfo[CAPTURE0],
@@ -331,11 +352,6 @@ function RegExpGetLastMatch() {
 
 
 function RegExpGetLastParen() {
-  if (lastMatchInfoOverride) {
-    var override = lastMatchInfoOverride;
-    if (override.length <= 3) return ''; 
-    return override[override.length - 3];
-  }
   var length = NUMBER_OF_CAPTURES(lastMatchInfo);
   if (length <= 2) return '';  // There were no captures.
   // We match the SpiderMonkey behavior: return the substring defined by the
@@ -352,32 +368,17 @@ function RegExpGetLastParen() {
 
 
 function RegExpGetLeftContext() {
-  var start_index;
-  var subject;
-  if (!lastMatchInfoOverride) {
-    start_index = lastMatchInfo[CAPTURE0];
-    subject = LAST_SUBJECT(lastMatchInfo);
-  } else {
-    var override = lastMatchInfoOverride;
-    start_index = override[override.length - 2];
-    subject = override[override.length - 1];
-  }
-  return SubString(subject, 0, start_index);
+  return SubString(LAST_SUBJECT(lastMatchInfo),
+                   0,
+                   lastMatchInfo[CAPTURE0]);
 }
 
 
 function RegExpGetRightContext() {
-  var start_index;
-  var subject;
-  if (!lastMatchInfoOverride) {
-    start_index = lastMatchInfo[CAPTURE1];
-    subject = LAST_SUBJECT(lastMatchInfo);
-  } else {
-    var override = lastMatchInfoOverride;
-    subject = override[override.length - 1];
-    start_index = override[override.length - 2] + subject.length;
-  }
-  return SubString(subject, start_index, subject.length);
+  var subject = LAST_SUBJECT(lastMatchInfo);
+  return SubString(subject,
+                   lastMatchInfo[CAPTURE1],
+                   subject.length);
 }
 
 
@@ -386,10 +387,6 @@ function RegExpGetRightContext() {
 // called with indices from 1 to 9.
 function RegExpMakeCaptureGetter(n) {
   return function() {
-    if (lastMatchInfoOverride) {
-      if (n < lastMatchInfoOverride.length - 2) return lastMatchInfoOverride[n];
-      return '';
-    }
     var index = n * 2;
     if (index >= NUMBER_OF_CAPTURES(lastMatchInfo)) return '';
     var matchStart = lastMatchInfo[CAPTURE(index)];
@@ -413,12 +410,6 @@ var lastMatchInfo = [
     0,                 // REGEXP_FIRST_CAPTURE + 0
     0,                 // REGEXP_FIRST_CAPTURE + 1
 ];
-
-// Override last match info with an array of actual substrings.
-// Used internally by replace regexp with function.
-// The array has the format of an "apply" argument for a replacement 
-// function. 
-var lastMatchInfoOverride = null;
 
 // -------------------------------------------------------------------
 
