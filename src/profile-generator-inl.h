@@ -28,11 +28,12 @@
 #ifndef V8_PROFILE_GENERATOR_INL_H_
 #define V8_PROFILE_GENERATOR_INL_H_
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
 #include "profile-generator.h"
 
 namespace v8 {
 namespace internal {
-
 
 CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
                      const char* name,
@@ -76,6 +77,14 @@ void CodeMap::DeleteCode(Address addr) {
 }
 
 
+bool CpuProfilesCollection::is_last_profile() {
+  // Called from VM thread, and only it can mutate the list,
+  // so no locking is needed here.
+  return current_profiles_.length() == 1;
+}
+
 } }  // namespace v8::internal
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 
 #endif  // V8_PROFILE_GENERATOR_INL_H_

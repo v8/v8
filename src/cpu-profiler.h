@@ -28,12 +28,13 @@
 #ifndef V8_CPU_PROFILER_H_
 #define V8_CPU_PROFILER_H_
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
 #include "circular-queue.h"
 #include "profile-generator.h"
 
 namespace v8 {
 namespace internal {
-
 
 #define CODE_EVENTS_TYPE_LIST(V)                \
   V(CODE_CREATION, CodeCreateEventRecord)       \
@@ -101,7 +102,7 @@ class CodeAliasEventRecord : public CodeEventRecord {
 };
 
 
-class TickSampleEventRecord {
+class TickSampleEventRecord BASE_EMBEDDED {
  public:
   // In memory, the first machine word of a TickSampleEventRecord will be the
   // first entry of TickSample, that is -- a program counter field.
@@ -110,18 +111,12 @@ class TickSampleEventRecord {
   TickSample sample;
   unsigned order;
 
-#if defined(__GNUC__) && (__GNUC__ < 4)
-  // Added to avoid 'all member functions in class are private' warning.
-  INLINE(unsigned get_order() const) { return order; }
-  // Added to avoid 'class only defines private constructors and
-  // has no friends' warning.
-  friend class TickSampleEventRecordFriend;
-#endif
- private:
-  // Disable instantiation.
-  TickSampleEventRecord();
+  static TickSampleEventRecord* cast(void* value) {
+    return reinterpret_cast<TickSampleEventRecord*>(value);
+  }
 
-  DISALLOW_COPY_AND_ASSIGN(TickSampleEventRecord);
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(TickSampleEventRecord);
 };
 
 
@@ -179,7 +174,8 @@ class ProfilerEventsProcessor : public Thread {
   unsigned enqueue_order_;
 };
 
-
 } }  // namespace v8::internal
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 
 #endif  // V8_CPU_PROFILER_H_

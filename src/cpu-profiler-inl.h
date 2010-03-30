@@ -28,6 +28,8 @@
 #ifndef V8_CPU_PROFILER_INL_H_
 #define V8_CPU_PROFILER_INL_H_
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
 #include "circular-queue-inl.h"
 #include "profile-generator-inl.h"
 
@@ -36,15 +38,15 @@
 namespace v8 {
 namespace internal {
 
-
 TickSample* ProfilerEventsProcessor::TickSampleEvent() {
   TickSampleEventRecord* evt =
-      reinterpret_cast<TickSampleEventRecord*>(ticks_buffer_.Enqueue());
+      TickSampleEventRecord::cast(ticks_buffer_.Enqueue());
   evt->order = enqueue_order_;  // No increment!
   return &evt->sample;
 }
 
-
 } }  // namespace v8::internal
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 
 #endif  // V8_CPU_PROFILER_INL_H_

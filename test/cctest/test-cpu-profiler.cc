@@ -2,6 +2,8 @@
 //
 // Tests of profiles generator and utilities.
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
 #include "v8.h"
 #include "cpu-profiler-inl.h"
 #include "cctest.h"
@@ -9,6 +11,7 @@
 namespace i = v8::internal;
 
 using i::CodeEntry;
+using i::CpuProfile;
 using i::CpuProfilesCollection;
 using i::ProfileGenerator;
 using i::ProfileNode;
@@ -60,7 +63,7 @@ static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
 TEST(CodeEvents) {
   InitializeVM();
   CpuProfilesCollection profiles;
-  profiles.AddProfile(0);
+  profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(&generator);
   processor.Start();
@@ -126,7 +129,7 @@ static int CompareProfileNodes(const T* p1, const T* p2) {
 
 TEST(TickEvents) {
   CpuProfilesCollection profiles;
-  profiles.AddProfile(0);
+  profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(&generator);
   processor.Start();
@@ -152,45 +155,50 @@ TEST(TickEvents) {
 
   processor.Stop();
   processor.Join();
+  CpuProfile* profile = profiles.StopProfiling("");
+  CHECK_NE(NULL, profile);
 
   // Check call trees.
-  i::List<ProfileNode*> top_down_root_children;
-  profiles.profile()->top_down()->root()->GetChildren(&top_down_root_children);
-  CHECK_EQ(1, top_down_root_children.length());
-  CHECK_EQ("bbb", top_down_root_children.last()->entry()->name());
-  i::List<ProfileNode*> top_down_bbb_children;
-  top_down_root_children.last()->GetChildren(&top_down_bbb_children);
-  CHECK_EQ(1, top_down_bbb_children.length());
-  CHECK_EQ("args_count: 5", top_down_bbb_children.last()->entry()->name());
-  i::List<ProfileNode*> top_down_stub_children;
-  top_down_bbb_children.last()->GetChildren(&top_down_stub_children);
-  CHECK_EQ(1, top_down_stub_children.length());
-  CHECK_EQ("ddd", top_down_stub_children.last()->entry()->name());
-  i::List<ProfileNode*> top_down_ddd_children;
-  top_down_stub_children.last()->GetChildren(&top_down_ddd_children);
-  CHECK_EQ(0, top_down_ddd_children.length());
+  const i::List<ProfileNode*>* top_down_root_children =
+      profile->top_down()->root()->children();
+  CHECK_EQ(1, top_down_root_children->length());
+  CHECK_EQ("bbb", top_down_root_children->last()->entry()->name());
+  const i::List<ProfileNode*>* top_down_bbb_children =
+      top_down_root_children->last()->children();
+  CHECK_EQ(1, top_down_bbb_children->length());
+  CHECK_EQ("args_count: 5", top_down_bbb_children->last()->entry()->name());
+  const i::List<ProfileNode*>* top_down_stub_children =
+      top_down_bbb_children->last()->children();
+  CHECK_EQ(1, top_down_stub_children->length());
+  CHECK_EQ("ddd", top_down_stub_children->last()->entry()->name());
+  const i::List<ProfileNode*>* top_down_ddd_children =
+      top_down_stub_children->last()->children();
+  CHECK_EQ(0, top_down_ddd_children->length());
 
-  i::List<ProfileNode*> bottom_up_root_children;
-  profiles.profile()->bottom_up()->root()->GetChildren(
-      &bottom_up_root_children);
-  CHECK_EQ(3, bottom_up_root_children.length());
+  const i::List<ProfileNode*>* bottom_up_root_children_unsorted =
+      profile->bottom_up()->root()->children();
+  CHECK_EQ(3, bottom_up_root_children_unsorted->length());
+  i::List<ProfileNode*> bottom_up_root_children(3);
+  bottom_up_root_children.AddAll(*bottom_up_root_children_unsorted);
   bottom_up_root_children.Sort(&CompareProfileNodes);
   CHECK_EQ("args_count: 5", bottom_up_root_children[0]->entry()->name());
   CHECK_EQ("bbb", bottom_up_root_children[1]->entry()->name());
   CHECK_EQ("ddd", bottom_up_root_children[2]->entry()->name());
-  i::List<ProfileNode*> bottom_up_stub_children;
-  bottom_up_root_children[0]->GetChildren(&bottom_up_stub_children);
-  CHECK_EQ(1, bottom_up_stub_children.length());
-  CHECK_EQ("bbb", bottom_up_stub_children.last()->entry()->name());
-  i::List<ProfileNode*> bottom_up_bbb_children;
-  bottom_up_root_children[1]->GetChildren(&bottom_up_bbb_children);
-  CHECK_EQ(0, bottom_up_bbb_children.length());
-  i::List<ProfileNode*> bottom_up_ddd_children;
-  bottom_up_root_children[2]->GetChildren(&bottom_up_ddd_children);
-  CHECK_EQ(1, bottom_up_ddd_children.length());
-  CHECK_EQ("args_count: 5", bottom_up_ddd_children.last()->entry()->name());
-  i::List<ProfileNode*> bottom_up_ddd_stub_children;
-  bottom_up_ddd_children.last()->GetChildren(&bottom_up_ddd_stub_children);
-  CHECK_EQ(1, bottom_up_ddd_stub_children.length());
-  CHECK_EQ("bbb", bottom_up_ddd_stub_children.last()->entry()->name());
+  const i::List<ProfileNode*>* bottom_up_stub_children =
+      bottom_up_root_children[0]->children();
+  CHECK_EQ(1, bottom_up_stub_children->length());
+  CHECK_EQ("bbb", bottom_up_stub_children->last()->entry()->name());
+  const i::List<ProfileNode*>* bottom_up_bbb_children =
+      bottom_up_root_children[1]->children();
+  CHECK_EQ(0, bottom_up_bbb_children->length());
+  const i::List<ProfileNode*>* bottom_up_ddd_children =
+      bottom_up_root_children[2]->children();
+  CHECK_EQ(1, bottom_up_ddd_children->length());
+  CHECK_EQ("args_count: 5", bottom_up_ddd_children->last()->entry()->name());
+  const i::List<ProfileNode*>* bottom_up_ddd_stub_children =
+      bottom_up_ddd_children->last()->children();
+  CHECK_EQ(1, bottom_up_ddd_stub_children->length());
+  CHECK_EQ("bbb", bottom_up_ddd_stub_children->last()->entry()->name());
 }
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR

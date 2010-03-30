@@ -25,13 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
 #include "v8.h"
 
 #include "cpu-profiler-inl.h"
 
 namespace v8 {
 namespace internal {
-
 
 static const int kEventsBufferSize = 256*KB;
 static const int kTickSamplesBufferChunkSize = 64*KB;
@@ -163,7 +164,7 @@ bool ProfilerEventsProcessor::ProcessCodeEvent(unsigned* dequeue_order) {
 bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
   while (true) {
     const TickSampleEventRecord* rec =
-        reinterpret_cast<TickSampleEventRecord*>(ticks_buffer_.StartDequeue());
+        TickSampleEventRecord::cast(ticks_buffer_.StartDequeue());
     if (rec == NULL) return false;
     if (rec->order == dequeue_order) {
       generator_->RecordTickSample(rec->sample);
@@ -195,5 +196,6 @@ void ProfilerEventsProcessor::Run() {
   while (ProcessTicks(dequeue_order) && ProcessCodeEvent(&dequeue_order)) { }
 }
 
-
 } }  // namespace v8::internal
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR

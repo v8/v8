@@ -2,6 +2,8 @@
 //
 // Tests of profiles generator and utilities.
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
 #include "v8.h"
 #include "profile-generator-inl.h"
 #include "cctest.h"
@@ -10,6 +12,7 @@ namespace i = v8::internal;
 
 using i::CodeEntry;
 using i::CodeMap;
+using i::CpuProfile;
 using i::CpuProfilesCollection;
 using i::ProfileNode;
 using i::ProfileTree;
@@ -45,7 +48,7 @@ namespace {
 
 class ProfileTreeTestHelper {
  public:
-  explicit ProfileTreeTestHelper(ProfileTree* tree)
+  explicit ProfileTreeTestHelper(const ProfileTree* tree)
       : tree_(tree) { }
 
   ProfileNode* Walk(CodeEntry* entry1,
@@ -65,7 +68,7 @@ class ProfileTreeTestHelper {
   }
 
  private:
-  ProfileTree* tree_;
+  const ProfileTree* tree_;
 };
 
 }  // namespace
@@ -366,7 +369,7 @@ TEST(CodeMapMoveAndDeleteCode) {
 
 TEST(RecordTickSample) {
   CpuProfilesCollection profiles;
-  profiles.AddProfile(0);
+  profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = generator.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = generator.NewCodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -374,11 +377,6 @@ TEST(RecordTickSample) {
   generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
   generator.code_map()->AddCode(ToAddress(0x1700), entry2, 0x100);
   generator.code_map()->AddCode(ToAddress(0x1900), entry3, 0x50);
-
-  ProfileTreeTestHelper top_down_test_helper(profiles.profile()->top_down());
-  CHECK_EQ(NULL, top_down_test_helper.Walk(entry1));
-  CHECK_EQ(NULL, top_down_test_helper.Walk(entry2));
-  CHECK_EQ(NULL, top_down_test_helper.Walk(entry3));
 
   // We are building the following calls tree:
   //      -> aaa         - sample1
@@ -406,6 +404,11 @@ TEST(RecordTickSample) {
   sample3.frames_count = 2;
   generator.RecordTickSample(sample3);
 
+  CpuProfile* profile = profiles.StopProfiling("");
+  CHECK_NE(NULL, profile);
+  ProfileTreeTestHelper top_down_test_helper(profile->top_down());
+  CHECK_EQ(NULL, top_down_test_helper.Walk(entry2));
+  CHECK_EQ(NULL, top_down_test_helper.Walk(entry3));
   ProfileNode* node1 = top_down_test_helper.Walk(entry1);
   CHECK_NE(NULL, node1);
   CHECK_EQ(entry1, node1->entry());
@@ -419,3 +422,5 @@ TEST(RecordTickSample) {
   CHECK_NE(NULL, node4);
   CHECK_EQ(entry1, node4->entry());
 }
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
