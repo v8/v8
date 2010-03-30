@@ -433,9 +433,7 @@ void FlowGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 #ifdef DEBUG
 
-// Print a textual representation of an instruction in a flow graph.  Using
-// the AstVisitor is overkill because there is no recursion here.  It is
-// however only used for printing in debug mode.
+// Print a textual representation of an instruction in a flow graph.
 class InstructionPrinter: public AstVisitor {
  public:
   InstructionPrinter() {}
@@ -594,7 +592,7 @@ void InstructionPrinter::VisitVariableProxy(VariableProxy* expr) {
     PrintF("%s", *var->name()->ToCString());
   } else {
     ASSERT(expr->AsProperty() != NULL);
-    VisitProperty(expr->AsProperty());
+    Visit(expr->AsProperty());
   }
 }
 
@@ -726,7 +724,7 @@ int BasicBlock::PrintAsText(int instruction_number) {
   for (int i = 0; i < instructions_.length(); ++i) {
     PrintF("\n%d ", instruction_number);
     instructions_[i]->set_num(instruction_number++);
-    printer.Visit(instructions_[i]);
+    instructions_[i]->Accept(&printer);
   }
 
   // If this is the exit, print "exit".  If there is a single successor,

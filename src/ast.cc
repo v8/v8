@@ -47,11 +47,8 @@ Call Call::sentinel_(NULL, NULL, 0);
 // ----------------------------------------------------------------------------
 // All the Accept member functions for each syntax tree node type.
 
-#define DECL_ACCEPT(type)                \
-  void type::Accept(AstVisitor* v) {        \
-    if (v->CheckStackOverflow()) return; \
-    v->Visit##type(this);                \
-  }
+#define DECL_ACCEPT(type)                                       \
+  void type::Accept(AstVisitor* v) { v->Visit##type(this); }
 AST_NODE_LIST(DECL_ACCEPT)
 #undef DECL_ACCEPT
 
@@ -240,6 +237,13 @@ bool Expression::GuaranteedSmiResult() {
 
 // ----------------------------------------------------------------------------
 // Implementation of AstVisitor
+
+bool AstVisitor::CheckStackOverflow() {
+  if (stack_overflow_) return true;
+  StackLimitCheck check;
+  if (!check.HasOverflowed()) return false;
+  return (stack_overflow_ = true);
+}
 
 
 void AstVisitor::VisitDeclarations(ZoneList<Declaration*>* declarations) {

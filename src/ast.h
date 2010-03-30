@@ -2066,28 +2066,22 @@ class AstVisitor BASE_EMBEDDED {
   AstVisitor() : stack_overflow_(false) { }
   virtual ~AstVisitor() { }
 
-  // Dispatch
-  void Visit(AstNode* node) { node->Accept(this); }
+  // Stack overflow check and dynamic dispatch.
+  void Visit(AstNode* node) { if (!CheckStackOverflow()) node->Accept(this); }
 
-  // Iteration
+  // Iteration left-to-right.
   virtual void VisitDeclarations(ZoneList<Declaration*>* declarations);
   virtual void VisitStatements(ZoneList<Statement*>* statements);
   virtual void VisitExpressions(ZoneList<Expression*>* expressions);
 
   // Stack overflow tracking support.
   bool HasStackOverflow() const { return stack_overflow_; }
-  bool CheckStackOverflow() {
-    if (stack_overflow_) return true;
-    StackLimitCheck check;
-    if (!check.HasOverflowed()) return false;
-    return (stack_overflow_ = true);
-  }
+  bool CheckStackOverflow();
 
   // If a stack-overflow exception is encountered when visiting a
   // node, calling SetStackOverflow will make sure that the visitor
   // bails out without visiting more nodes.
   void SetStackOverflow() { stack_overflow_ = true; }
-
 
   // Individual nodes
 #define DEF_VISIT(type)                         \
