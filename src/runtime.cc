@@ -3361,7 +3361,9 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
           if (start >= 0) {
             int end = register_vector[i * 2 + 1];
             ASSERT(start <= end);
-            Handle<String> substring = Factory::NewSubString(subject, start, end);
+            Handle<String> substring = Factory::NewSubString(subject,
+                                                             start,
+                                                             end);
             elements->set(i, *substring);
           } else {
             ASSERT(register_vector[i * 2 + 1] < 0);
