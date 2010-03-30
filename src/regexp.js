@@ -333,7 +333,7 @@ function RegExpGetLastMatch() {
 function RegExpGetLastParen() {
   if (lastMatchInfoOverride) {
     var override = lastMatchInfoOverride;
-    if (override.length <= 3) return ''; 
+    if (override.length <= 3) return '';
     return override[override.length - 3];
   }
   var length = NUMBER_OF_CAPTURES(lastMatchInfo);
@@ -416,8 +416,8 @@ var lastMatchInfo = [
 
 // Override last match info with an array of actual substrings.
 // Used internally by replace regexp with function.
-// The array has the format of an "apply" argument for a replacement 
-// function. 
+// The array has the format of an "apply" argument for a replacement
+// function.
 var lastMatchInfoOverride = null;
 
 // -------------------------------------------------------------------
@@ -439,7 +439,7 @@ function SetupRegExp() {
   %FunctionSetLength($RegExp.prototype.compile, 1);
 
   // The properties input, $input, and $_ are aliases for each other.  When this
-  // value is set the value it is set to is coerced to a string. 
+  // value is set the value it is set to is coerced to a string.
   // Getter and setter for the input.
   function RegExpGetInput() {
     var regExpInput = LAST_INPUT(lastMatchInfo);

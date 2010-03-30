@@ -1150,7 +1150,7 @@ function SetupArray() {
     "reduce", getFunction("reduce", ArrayReduce, 1),
     "reduceRight", getFunction("reduceRight", ArrayReduceRight, 1)
   ));
-    
+
   %FinishArrayPrototypeSetup($Array.prototype);
 }
 

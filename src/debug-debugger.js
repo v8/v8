@@ -1274,7 +1274,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         // Response controls running state.
         this.running_ = response.running;
       }
-      response.running = this.running_; 
+      response.running = this.running_;
       return response.toJSONProtocol();
     } catch (e) {
       // Failed to generate response - return generic error.
@@ -1870,12 +1870,12 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
         return response.failed('Invalid types "' + request.arguments.types + '"');
       }
     }
-    
+
     if (!IS_UNDEFINED(request.arguments.includeSource)) {
       includeSource = %ToBoolean(request.arguments.includeSource);
       response.setOption('includeSource', includeSource);
     }
-    
+
     if (IS_ARRAY(request.arguments.ids)) {
       idsToInclude = {};
       var ids = request.arguments.ids;
@@ -1973,7 +1973,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
     response.failed('Argument "new_string" is not a string value');
     return;
   }
-  
+
   var scripts = %DebugGetLoadedScripts();
 
   var the_script = null;
@@ -1986,7 +1986,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
     response.failed('Script not found');
     return;
   }
-  
+
   var change_log = new Array();
   try {
     Debug.LiveEditChangeScript(the_script, change_pos, change_len, new_string,
@@ -1995,7 +1995,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
     if (e instanceof Debug.LiveEditChangeScript.Failure) {
       // Let's treat it as a "success" so that body with change_log will be
       // sent back. "change_log" will have "failure" field set.
-      change_log.push( { failure: true } ); 
+      change_log.push( { failure: true } );
     } else {
       throw e;
     }
@@ -2076,7 +2076,7 @@ function ObjectToProtocolObject_(object, mirror_serializer) {
       }
     }
   }
-  
+
   return content;
 }
 
@@ -2099,7 +2099,7 @@ function ArrayToProtocolArray_(array, mirror_serializer) {
 
 
 /**
- * Convert a value to its debugger protocol representation. 
+ * Convert a value to its debugger protocol representation.
  * @param {*} value The value to format as protocol value.
  * @param {MirrorSerializer} mirror_serializer The serializer to use if any
  *     mirror objects are encountered.

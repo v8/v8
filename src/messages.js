@@ -743,7 +743,7 @@ function FormatEvalOrigin(script) {
   } else {
     eval_origin +=  "<anonymous>";
   }
-  
+
   var eval_from_script = script.eval_from_script;
   if (eval_from_script) {
     if (eval_from_script.compilation_type == COMPILATION_TYPE_EVAL) {
@@ -764,7 +764,7 @@ function FormatEvalOrigin(script) {
       }
     }
   }
-  
+
   return eval_origin;
 };
 

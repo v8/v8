@@ -577,11 +577,11 @@ function SameValue(x, y) {
   if (IS_NUMBER(x)) {
     if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) return true;
     // x is +0 and y is -0 or vice versa
-    if (x === 0 && y === 0 && !%_IsSmi(x) && !%_IsSmi(y) && 
+    if (x === 0 && y === 0 && !%_IsSmi(x) && !%_IsSmi(y) &&
         ((1 / x < 0 && 1 / y > 0) || (1 / x > 0 && 1 / y < 0))) {
       return false;
     }
-    return x == y;    
+    return x == y;
   }
   if (IS_STRING(x)) return %StringEquals(x, y);
   if (IS_BOOLEAN(x))return %NumberEquals(%ToNumber(x),%ToNumber(y));
