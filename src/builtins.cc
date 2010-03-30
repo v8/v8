@@ -300,6 +300,73 @@ static void FillWithHoles(FixedArray* dst, int from, int to) {
 }
 
 
+static FixedArray* LeftTrimFixedArray(FixedArray* elms) {
+  // For now this trick is only applied to fixed arrays in new space.
+  // In large object space the object's start must coincide with chunk
+  // and thus the trick is just not applicable.
+  // In old space we do not use this trick to avoid dealing with
+  // remembered sets.
+  ASSERT(Heap::new_space()->Contains(elms));
+
+  STATIC_ASSERT(FixedArray::kMapOffset == 0);
+  STATIC_ASSERT(FixedArray::kLengthOffset == kPointerSize);
+  STATIC_ASSERT(FixedArray::kHeaderSize == 2 * kPointerSize);
+
+  Object** former_start = HeapObject::RawField(elms, 0);
+
+  const int len = elms->length();
+
+  // Technically in new space this write might be omitted (except for
+  // debug mode which iterates through the heap), but to play safer
+  // we still do it.
+  former_start[0] = Heap::raw_unchecked_one_pointer_filler_map();
+
+  former_start[1] = Heap::fixed_array_map();
+  former_start[2] = reinterpret_cast<Object*>(len - 1);
+
+  ASSERT_EQ(elms->address() + kPointerSize, (elms + kPointerSize)->address());
+  return elms + kPointerSize;
+}
+
+
+static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
+  // For now this trick is only applied to fixed arrays in new space.
+  // In large object space the object's start must coincide with chunk
+  // and thus the trick is just not applicable.
+  // In old space we do not use this trick to avoid dealing with
+  // remembered sets.
+  ASSERT(Heap::new_space()->Contains(elms));
+
+  STATIC_ASSERT(FixedArray::kMapOffset == 0);
+  STATIC_ASSERT(FixedArray::kLengthOffset == kPointerSize);
+  STATIC_ASSERT(FixedArray::kHeaderSize == 2 * kPointerSize);
+
+  Object** former_start = HeapObject::RawField(elms, 0);
+
+  const int len = elms->length();
+
+  // Technically in new space this write might be omitted (except for
+  // debug mode which iterates through the heap), but to play safer
+  // we still do it.
+  if (to_trim == 1) {
+    former_start[0] = Heap::raw_unchecked_one_pointer_filler_map();
+  } else if (to_trim == 2) {
+    former_start[0] = Heap::raw_unchecked_two_pointer_filler_map();
+  } else {
+    former_start[0] = Heap::raw_unchecked_byte_array_map();
+    ByteArray* as_byte_array = reinterpret_cast<ByteArray*>(elms);
+    as_byte_array->set_length(ByteArray::LengthFor(to_trim * kPointerSize));
+  }
+
+  former_start[to_trim] = Heap::fixed_array_map();
+  former_start[to_trim + 1] = reinterpret_cast<Object*>(len - to_trim);
+
+  ASSERT_EQ(elms->address() + to_trim * kPointerSize,
+            (elms + to_trim * kPointerSize)->address());
+  return elms + to_trim * kPointerSize;
+}
+
+
 static bool ArrayPrototypeHasNoElements() {
   // This method depends on non writability of Object and Array prototype
   // fields.
@@ -443,38 +510,6 @@ BUILTIN(ArrayPop) {
   top = prototype->GetElement(len - 1);
 
   return top;
-}
-
-
-static FixedArray* LeftTrimFixedArray(FixedArray* elms) {
-  // For now this trick is only applied to fixed arrays in new space.
-  // In large object space the object's start must coincide with chunk
-  // and thus the trick is just not applicable.
-  // In old space we do not use this trick to avoid dealing with
-  // remembered sets.
-  ASSERT(Heap::new_space()->Contains(elms));
-
-  Object** former_map =
-      HeapObject::RawField(elms, FixedArray::kMapOffset);
-  Object** former_length =
-      HeapObject::RawField(elms, FixedArray::kLengthOffset);
-  Object** former_first =
-      HeapObject::RawField(elms, FixedArray::kHeaderSize);
-  // Check that we don't forget to copy all the bits.
-  STATIC_ASSERT(FixedArray::kMapOffset + 2 * kPointerSize
-      == FixedArray::kHeaderSize);
-
-  int len = elms->length();
-
-  *former_first = reinterpret_cast<Object*>(len - 1);
-  *former_length = Heap::fixed_array_map();
-  // Technically in new space this write might be omitted (except for
-  // debug mode which iterates through the heap), but to play safer
-  // we still do it.
-  *former_map = Heap::raw_unchecked_one_pointer_filler_map();
-
-  ASSERT(elms->address() + kPointerSize == (elms + kPointerSize)->address());
-  return elms + kPointerSize;
 }
 
 
@@ -718,12 +753,27 @@ BUILTIN(ArraySplice) {
 
   if (item_count < actual_delete_count) {
     // Shrink the array.
-    AssertNoAllocation no_gc;
-    MoveElements(&no_gc,
-                 elms, actual_start + item_count,
-                 elms, actual_start + actual_delete_count,
-                 (len - actual_delete_count - actual_start));
-    FillWithHoles(elms, new_length, len);
+    const bool trim_array = Heap::new_space()->Contains(elms) &&
+      ((actual_start + item_count) <
+          (len - actual_delete_count - actual_start));
+    if (trim_array) {
+      const int delta = actual_delete_count - item_count;
+
+      if (actual_start > 0) {
+        Object** start = elms->data_start();
+        memmove(start + delta, start, actual_start * kPointerSize);
+      }
+
+      elms = LeftTrimFixedArray(elms, delta);
+      array->set_elements(elms, SKIP_WRITE_BARRIER);
+    } else {
+      AssertNoAllocation no_gc;
+      MoveElements(&no_gc,
+                   elms, actual_start + item_count,
+                   elms, actual_start + actual_delete_count,
+                   (len - actual_delete_count - actual_start));
+      FillWithHoles(elms, new_length, len);
+    }
   } else if (item_count > actual_delete_count) {
     // Currently fixed arrays cannot grow too big, so
     // we should never hit this case.
