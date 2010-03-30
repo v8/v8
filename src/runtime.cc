@@ -3357,11 +3357,16 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
                                                 match_start,
                                                 match_end));
         for (int i = 1; i <= capture_count; i++) {
-          Handle<String> substring =
-              Factory::NewSubString(subject,
-                                    register_vector[i * 2],
-                                    register_vector[i * 2 + 1]);
-          elements->set(i, *substring);
+          int start = register_vector[i * 2];
+          if (start >= 0) {
+            int end = register_vector[i * 2 + 1];
+            ASSERT(start <= end);
+            Handle<String> substring = Factory::NewSubString(subject, start, end);
+            elements->set(i, *substring);
+          } else {
+            ASSERT(register_vector[i * 2 + 1] < 0);
+            elements->set(i, Heap::undefined_value());
+          }
         }
         elements->set(capture_count + 1, Smi::FromInt(match_start));
         elements->set(capture_count + 2, *subject);
