@@ -100,7 +100,8 @@ double StringToDouble(const char* str, int flags, double empty_string_val = 0);
 double StringToDouble(String* str, int flags, double empty_string_val = 0);
 
 // Converts a string into an integer.
-double StringToInt(String* str, int radix);
+int StringToInt(String* str, int index, int radix, double* value);
+int StringToInt(const char* str, int index, int radix, double* value);
 
 // Converts a double to a string value according to ECMA-262 9.8.1.
 // The buffer should be large enough for any floating point number.
