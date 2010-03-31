@@ -4686,49 +4686,9 @@ static Object* Runtime_StringParseInt(Arguments args) {
 
   s->TryFlatten();
 
-  int len = s->length();
-  int i;
-
-  // Skip leading white space.
-  for (i = 0; i < len && Scanner::kIsWhiteSpace.get(s->Get(i)); i++) ;
-  if (i == len) return Heap::nan_value();
-
-  // Compute the sign (default to +).
-  int sign = 1;
-  if (s->Get(i) == '-') {
-    sign = -1;
-    i++;
-  } else if (s->Get(i) == '+') {
-    i++;
-  }
-
-  // Compute the radix if 0.
-  if (radix == 0) {
-    radix = 10;
-    if (i < len && s->Get(i) == '0') {
-      radix = 8;
-      if (i + 1 < len) {
-        int c = s->Get(i + 1);
-        if (c == 'x' || c == 'X') {
-          radix = 16;
-          i += 2;
-        }
-      }
-    }
-  } else if (radix == 16) {
-    // Allow 0x or 0X prefix if radix is 16.
-    if (i + 1 < len && s->Get(i) == '0') {
-      int c = s->Get(i + 1);
-      if (c == 'x' || c == 'X') i += 2;
-    }
-  }
-
-  RUNTIME_ASSERT(2 <= radix && radix <= 36);
-  double value;
-  int end_index = StringToInt(s, i, radix, &value);
-  if (end_index != i) {
-    return Heap::NumberFromDouble(sign * value);
-  }
+  RUNTIME_ASSERT(radix == 0 || (2 <= radix && radix <= 36));
+  double value = StringToInt(s, radix);
+  return Heap::NumberFromDouble(value);
   return Heap::nan_value();
 }
 

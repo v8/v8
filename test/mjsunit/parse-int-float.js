@@ -42,7 +42,10 @@ assertEquals(0x12, parseInt('0x12'));
 assertEquals(0x12, parseInt('0x12', 16));
 assertEquals(0x12, parseInt('0x12', 16.1));
 assertEquals(0x12, parseInt('0x12', NaN));
-
+assertTrue(isNaN(parseInt('0x  ')));
+assertTrue(isNaN(parseInt('0x')));
+assertTrue(isNaN(parseInt('0x  ', 16)));
+assertTrue(isNaN(parseInt('0x', 16)));
 assertEquals(12, parseInt('12aaa'));
 
 assertEquals(0.1, parseFloat('0.1'));
