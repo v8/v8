@@ -4445,11 +4445,64 @@ static Object* Runtime_Typeof(Arguments args) {
 }
 
 
+static bool AreDigits(const char*s, int from, int to) {
+  for (int i = from; i < to; i++) {
+    if (s[i] < '0' || s[i] > '9') return false;
+  }
+
+  return true;
+}
+
+
+static int ParseDecimalInteger(const char*s, int from, int to) {
+  ASSERT(to - from < 10);  // Overflow is not possible.
+  ASSERT(from < to);
+  int d = s[from] - '0';
+
+  for (int i = from + 1; i < to; i++) {
+    d = 10 * d + (s[i] - '0');
+  }
+
+  return d;
+}
+
+
 static Object* Runtime_StringToNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, subject, args[0]);
   subject->TryFlatten();
+
+  // Fast case: short integer or some sorts of junk values.
+  int len = subject->length();
+  if (subject->IsSeqAsciiString()) {
+    if (len == 0) return Smi::FromInt(0);
+
+    char const* data = SeqAsciiString::cast(subject)->GetChars();
+    bool minus = (data[0] == '-');
+    int start_pos = (minus ? 1 : 0);
+
+    if (start_pos == len || data[start_pos] > '9') {
+      // Fast check for a junk value. A valid string may start from a
+      // whitespace, a sign ('+' or '-'), the decimal point, a decimal digit or
+      // the 'I' character ('Infinity'). All of that have codes not greater than
+      // '9' except 'I'.
+      if (data[start_pos] != 'I') {
+        return Heap::nan_value();
+      }
+    } else if (len - start_pos < 10 && AreDigits(data, start_pos, len)) {
+      // The maximal/minimal smi has 10 digits. If the string has less digits we
+      // know it will fit into the smi-data type.
+      int d = ParseDecimalInteger(data, start_pos, len);
+      if (minus) {
+        if (d == 0) return Heap::minus_zero_value();
+        d = -d;
+      }
+      return Smi::FromInt(d);
+    }
+  }
+
+  // Slower case.
   return Heap::NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
 }
 
