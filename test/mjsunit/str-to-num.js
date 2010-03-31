@@ -62,6 +62,10 @@ assertEquals(123, toNumber("\r123\r"));
 assertEquals(123, toNumber("\t123\t"));
 assertEquals(123, toNumber("\f123\f"));
 
+assertEquals(16, toNumber(" 0x10 "));
+assertEquals(NaN, toNumber("0x"));
+assertEquals(NaN, toNumber("0x "));
+
 assertTrue(isNaN(toNumber(" NaN ")));
 assertEquals(Infinity,  toNumber(" Infinity ") ," Infinity");
 assertEquals(-Infinity, toNumber(" -Infinity "));
