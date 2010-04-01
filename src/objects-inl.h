@@ -742,7 +742,8 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
   } else { \
     ASSERT(mode == SKIP_WRITE_BARRIER); \
     ASSERT(Heap::InNewSpace(object) || \
-           !Heap::InNewSpace(READ_FIELD(object, offset))); \
+           !Heap::InNewSpace(READ_FIELD(object, offset)) || \
+           Page::IsRSetSet(object->address(), offset)); \
   }
 
 #define READ_DOUBLE_FIELD(p, offset) \
