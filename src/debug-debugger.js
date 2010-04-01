@@ -327,7 +327,7 @@ ScriptBreakPoint.prototype.matchesScript = function(script) {
   if (this.type_ == Debug.ScriptBreakPointType.ScriptId) {
     return this.script_id_ == script.id;
   } else {  // this.type_ == Debug.ScriptBreakPointType.ScriptName
-    return this.script_name_ == script.name &&
+    return this.script_name_ == script.nameOrSourceURL() &&
            script.line_offset <= this.line_  &&
            this.line_ < script.line_offset + script.lineCount();
   }
