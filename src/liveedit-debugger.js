@@ -429,3 +429,86 @@ Debug.LiveEditChangeScript.Failure.prototype.toString = function() {
 Debug.LiveEditChangeScript.GetPcFromSourcePos = function(func, source_pos) {
   return %GetFunctionCodePositionFromSource(func, source_pos);
 }
+
+// A LiveEdit namespace is declared inside a single function constructor.
+Debug.LiveEdit = new function() {
+  var LiveEdit = this;
+
+  
+  // LiveEdit main entry point: changes a script text to a new string.
+  LiveEdit.SetScriptSource = function(script, new_source, change_log) {
+    var old_source = script.source;
+    var diff = FindSimpleDiff(old_source, new_source);
+    if (!diff) {
+      return;
+    }
+    Debug.LiveEditChangeScript(script, diff.change_pos, diff.old_len,
+        new_source.substring(diff.change_pos, diff.change_pos + diff.new_len),
+        change_log);
+  }
+
+  
+  // Finds a difference between 2 strings in form of a single chunk.
+  // This is a temporary solution. We should calculate a read diff instead.
+  function FindSimpleDiff(old_source, new_source) {
+    var change_pos;
+    var old_len;
+    var new_len;
+    
+    // A find range block. Whenever control leaves it, it should set 3 local
+    // variables declared above.
+    find_range:
+    {
+      // First look from the beginning of strings.
+      var pos1;
+      {
+        var next_pos;
+        for (pos1 = 0; true; pos1 = next_pos) {
+          if (pos1 >= old_source.length) {
+            change_pos = pos1;
+            old_len = 0;
+            new_len = new_source.length - pos1;
+            break find_range;
+          }
+          if (pos1 >= new_source.length) {
+            change_pos = pos1;
+            old_len = old_source.length - pos1;
+            new_len = 0;
+            break find_range;
+          }
+          if (old_source[pos1] != new_source[pos1]) {
+            break;
+          }
+          next_pos = pos1 + 1;
+        }
+      }
+      // Now compare strings from the ends.
+      change_pos = pos1;
+      var pos_old;
+      var pos_new;
+      {
+        for (pos_old = old_source.length - 1, pos_new = new_source.length - 1;
+            true;
+            pos_old--, pos_new--) {
+          if (pos_old - change_pos + 1 < 0 || pos_new - change_pos + 1 < 0) {
+            old_len = pos_old - change_pos + 2;
+            new_len = pos_new - change_pos + 2;
+            break find_range;
+          }
+          if (old_source[pos_old] != new_source[pos_new]) {
+            old_len = pos_old - change_pos + 1;
+            new_len = pos_new - change_pos + 1;
+            break find_range;
+          }
+        }
+      }
+    }
+
+    if (old_len == 0 && new_len == 0) {
+      // no change
+      return;
+    }
+    
+    return { "change_pos": change_pos, "old_len": old_len, "new_len": new_len };
+  }
+}
