@@ -357,9 +357,10 @@ static double InternalStringToInt(Iterator current, EndMark end, int radix) {
     return sign ? -gay_strtod(buffer, NULL) : gay_strtod(buffer, NULL);
   }
 
-  // TODO(serya): The following legacy code causes accumulating rounding
-  // error for number greater than ~2^56. It should be rewritten using long
-  // arithmetic.
+  // The following code causes accumulating rounding error for numbers greater
+  // than ~2^56. It's explicitly allowed in the spec: "if R is not 2, 4, 8, 10,
+  // 16, or 32, then mathInt may be an implementation-dependent approximation to
+  // the mathematical integer value" (15.1.2.2).
 
   int lim_0 = '0' + (radix < 10 ? radix : 10);
   int lim_a = 'a' + (radix - 10);
