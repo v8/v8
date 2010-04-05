@@ -4482,7 +4482,9 @@ static Object* Runtime_StringToNumber(Arguments args) {
     bool minus = (data[0] == '-');
     int start_pos = (minus ? 1 : 0);
 
-    if (start_pos == len || data[start_pos] > '9') {
+    if (start_pos == len) {
+      return Heap::nan_value();
+    } else if (data[start_pos] > '9') {
       // Fast check for a junk value. A valid string may start from a
       // whitespace, a sign ('+' or '-'), the decimal point, a decimal digit or
       // the 'I' character ('Infinity'). All of that have codes not greater than
