@@ -25,13 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
 #include "v8.h"
 
 #include "profile-generator-inl.h"
 
-
 namespace v8 {
 namespace internal {
+
+
+const char* CodeEntry::kEmptyNamePrefix = "";
+const int CodeEntry::kNoLineNumberInfo = -1;
 
 
 ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
@@ -47,25 +52,19 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
       children_.Lookup(entry, CodeEntryHash(entry), true);
   if (map_entry->value == NULL) {
     // New node added.
-    map_entry->value = new ProfileNode(entry);
+    ProfileNode* new_node = new ProfileNode(entry);
+    map_entry->value = new_node;
+    children_list_.Add(new_node);
   }
   return reinterpret_cast<ProfileNode*>(map_entry->value);
 }
 
 
-void ProfileNode::GetChildren(List<ProfileNode*>* children) {
-  for (HashMap::Entry* p = children_.Start();
-       p != NULL;
-       p = children_.Next(p)) {
-    children->Add(reinterpret_cast<ProfileNode*>(p->value));
-  }
-}
-
-
 void ProfileNode::Print(int indent) {
-  OS::Print("%4u %4u %*c %s\n",
+  OS::Print("%5u %5u %*c %s%s\n",
             total_ticks_, self_ticks_,
             indent, ' ',
+            entry_ != NULL ? entry_->name_prefix() : "",
             entry_ != NULL ? entry_->name() : "");
   for (HashMap::Entry* p = children_.Start();
        p != NULL;
@@ -123,39 +122,46 @@ void ProfileTree::AddPathFromStart(const Vector<CodeEntry*>& path) {
 
 namespace {
 
-struct Position {
-  Position(ProfileNode* a_node, HashMap::Entry* a_p)
-      : node(a_node), p(a_p) { }
+class Position {
+ public:
+  explicit Position(ProfileNode* node)
+      : node(node), child_idx_(0) { }
   INLINE(ProfileNode* current_child()) {
-    return reinterpret_cast<ProfileNode*>(p->value);
+    return node->children()->at(child_idx_);
   }
+  INLINE(bool has_current_child()) {
+    return child_idx_ < node->children()->length();
+  }
+  INLINE(void next_child()) { ++child_idx_; }
+
   ProfileNode* node;
-  HashMap::Entry* p;
+ private:
+  int child_idx_;
 };
 
 }  // namespace
 
 
+// Non-recursive implementation of breadth-first post-order tree traversal.
 template <typename Callback>
 void ProfileTree::TraverseBreadthFirstPostOrder(Callback* callback) {
   List<Position> stack(10);
-  stack.Add(Position(root_, root_->children_.Start()));
+  stack.Add(Position(root_));
   do {
     Position& current = stack.last();
-    if (current.p != NULL) {
-      stack.Add(Position(current.current_child(),
-                         current.current_child()->children_.Start()));
+    if (current.has_current_child()) {
+      stack.Add(Position(current.current_child()));
     } else {
       callback->AfterAllChildrenTraversed(current.node);
       if (stack.length() > 1) {
         Position& parent = stack[stack.length() - 2];
         callback->AfterChildTraversed(parent.node, current.node);
-        parent.p = parent.node->children_.Next(parent.p);
+        parent.next_child();
         // Remove child from the stack.
         stack.RemoveLast();
       }
     }
-  } while (stack.length() > 1 || stack.last().p != NULL);
+  } while (stack.length() > 1 || stack.last().has_current_child());
 }
 
 
@@ -175,7 +181,6 @@ class CalculateTotalTicksCallback {
 }  // namespace
 
 
-// Non-recursive implementation of breadth-first tree traversal.
 void ProfileTree::CalculateTotalTicks() {
   CalculateTotalTicksCallback cb;
   TraverseBreadthFirstPostOrder(&cb);
@@ -242,8 +247,22 @@ CodeEntry* CodeMap::FindEntry(Address addr) {
 }
 
 
+void CodeMap::CodeTreePrinter::Call(
+    const Address& key, const CodeMap::CodeEntryInfo& value) {
+  OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
+}
+
+
+void CodeMap::Print() {
+  CodeTreePrinter printer;
+  tree_.ForEach(&printer);
+}
+
+
 CpuProfilesCollection::CpuProfilesCollection()
-    : function_and_resource_names_(StringsMatch) {
+    : function_and_resource_names_(StringsMatch),
+      profiles_uids_(CpuProfilesMatch),
+      current_profiles_semaphore_(OS::CreateSemaphore(1)) {
 }
 
 
@@ -262,6 +281,8 @@ static void DeleteCpuProfile(CpuProfile** profile_ptr) {
 
 
 CpuProfilesCollection::~CpuProfilesCollection() {
+  delete current_profiles_semaphore_;
+  current_profiles_.Iterate(DeleteCpuProfile);
   profiles_.Iterate(DeleteCpuProfile);
   code_entries_.Iterate(DeleteCodeEntry);
   args_count_names_.Iterate(DeleteArgsCountName);
@@ -273,8 +294,63 @@ CpuProfilesCollection::~CpuProfilesCollection() {
 }
 
 
-void CpuProfilesCollection::AddProfile(unsigned uid) {
-  profiles_.Add(new CpuProfile());
+bool CpuProfilesCollection::StartProfiling(const char* title, unsigned uid) {
+  ASSERT(uid > 0);
+  current_profiles_semaphore_->Wait();
+  for (int i = 0; i < current_profiles_.length(); ++i) {
+    if (strcmp(current_profiles_[i]->title(), title) == 0) {
+      // Ignore attempts to start profile with the same title.
+      current_profiles_semaphore_->Signal();
+      return false;
+    }
+  }
+  current_profiles_.Add(new CpuProfile(title, uid));
+  current_profiles_semaphore_->Signal();
+  return true;
+}
+
+
+bool CpuProfilesCollection::StartProfiling(String* title, unsigned uid) {
+  return StartProfiling(GetName(title), uid);
+}
+
+
+CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
+  const int title_len = strlen(title);
+  CpuProfile* profile = NULL;
+  current_profiles_semaphore_->Wait();
+  for (int i = current_profiles_.length() - 1; i >= 0; --i) {
+    if (title_len == 0 || strcmp(current_profiles_[i]->title(), title) == 0) {
+      profile = current_profiles_.Remove(i);
+      break;
+    }
+  }
+  current_profiles_semaphore_->Signal();
+
+  if (profile != NULL) {
+    profile->CalculateTotalTicks();
+    profiles_.Add(profile);
+    HashMap::Entry* entry =
+        profiles_uids_.Lookup(reinterpret_cast<void*>(profile->uid()),
+                              static_cast<uint32_t>(profile->uid()),
+                              true);
+    ASSERT(entry->value == NULL);
+    entry->value = profile;
+  }
+  return profile;
+}
+
+
+CpuProfile* CpuProfilesCollection::StopProfiling(String* title) {
+  return StopProfiling(GetName(title));
+}
+
+
+CpuProfile* CpuProfilesCollection::GetProfile(unsigned uid) {
+  HashMap::Entry* entry = profiles_uids_.Lookup(reinterpret_cast<void*>(uid),
+                                                static_cast<uint32_t>(uid),
+                                                false);
+  return entry != NULL ? reinterpret_cast<CpuProfile*>(entry->value) : NULL;
 }
 
 
@@ -283,6 +359,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                                String* resource_name,
                                                int line_number) {
   CodeEntry* entry = new CodeEntry(tag,
+                                   CodeEntry::kEmptyNamePrefix,
                                    GetName(name),
                                    GetName(resource_name),
                                    line_number);
@@ -293,7 +370,24 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
 
 CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                                const char* name) {
-  CodeEntry* entry = new CodeEntry(tag, name, "", 0);
+  CodeEntry* entry = new CodeEntry(tag,
+                                   CodeEntry::kEmptyNamePrefix,
+                                   name,
+                                   "",
+                                   CodeEntry::kNoLineNumberInfo);
+  code_entries_.Add(entry);
+  return entry;
+}
+
+
+CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
+                                               const char* name_prefix,
+                                               String* name) {
+  CodeEntry* entry = new CodeEntry(tag,
+                                   name_prefix,
+                                   GetName(name),
+                                   "",
+                                   CodeEntry::kNoLineNumberInfo);
   code_entries_.Add(entry);
   return entry;
 }
@@ -301,7 +395,11 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
 
 CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                                int args_count) {
-  CodeEntry* entry = new CodeEntry(tag, GetName(args_count), "", 0);
+  CodeEntry* entry = new CodeEntry(tag,
+                                   "args_count: ",
+                                   GetName(args_count),
+                                   "",
+                                   CodeEntry::kNoLineNumberInfo);
   code_entries_.Add(entry);
   return entry;
 }
@@ -337,11 +435,23 @@ const char* CpuProfilesCollection::GetName(int args_count) {
   if (args_count_names_[args_count] == NULL) {
     const int kMaximumNameLength = 32;
     char* name = NewArray<char>(kMaximumNameLength);
-    OS::SNPrintF(Vector<char>(name, kMaximumNameLength),
-                 "args_count: %d", args_count);
+    OS::SNPrintF(Vector<char>(name, kMaximumNameLength), "%d", args_count);
     args_count_names_[args_count] = name;
   }
   return args_count_names_[args_count];
+}
+
+
+void CpuProfilesCollection::AddPathToCurrentProfiles(
+    const Vector<CodeEntry*>& path) {
+  // As starting / stopping profiles is rare relatively to this
+  // method, we don't bother minimizing the duration of lock holding,
+  // e.g. copying contents of the list to a local vector.
+  current_profiles_semaphore_->Wait();
+  for (int i = 0; i < current_profiles_.length(); ++i) {
+    current_profiles_[i]->AddPath(path);
+  }
+  current_profiles_semaphore_->Signal();
 }
 
 
@@ -377,8 +487,9 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
     *entry++ = code_map_.FindEntry(*stack_pos);
   }
 
-  profile()->AddPath(entries);
+  profiles_->AddPathToCurrentProfiles(entries);
 }
 
-
 } }  // namespace v8::internal
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR

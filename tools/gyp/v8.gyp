@@ -74,10 +74,15 @@
             'LinkIncremental': '2',
           },
         },
+        'conditions': [
+         ['OS=="freebsd" or OS=="openbsd"', {
+           'cflags': [ '-I/usr/local/include' ],
+         }],
+       ],
       },
       'Release': {
         'conditions': [
-          ['OS=="linux"', {
+          ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
             'cflags!': [
               '-O2',
               '-Os',
@@ -97,6 +102,9 @@
               }],
             ],
           }],
+         ['OS=="freebsd" or OS=="openbsd"', {
+           'cflags': [ '-I/usr/local/include' ],
+         }],
           ['OS=="mac"', {
             'xcode_settings': {
               'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
@@ -537,6 +545,17 @@
             ]},
             'sources': [
               '../../src/platform-linux.cc',
+              '../../src/platform-posix.cc'
+            ],
+          }
+        ],
+        ['OS=="freebsd"', {
+            'link_settings': {
+              'libraries': [
+                '-L/usr/local/lib -lexecinfo',
+            ]},
+            'sources': [
+              '../../src/platform-freebsd.cc',
               '../../src/platform-posix.cc'
             ],
           }

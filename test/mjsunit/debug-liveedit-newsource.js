@@ -25,68 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PROFILE_GENERATOR_INL_H_
-#define V8_PROFILE_GENERATOR_INL_H_
+// Flags: --expose-debug-as debug
+// Get the Debug object exposed from the debug context global object.
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+Debug = debug.Debug
 
-#include "profile-generator.h"
+eval("var something1 = 25; "
+     + " function ChooseAnimal() { return          'Cat';          } "
+     + " ChooseAnimal.Helper = function() { return 'Help!'; }");
 
-namespace v8 {
-namespace internal {
+assertEquals("Cat", ChooseAnimal());
 
-CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
-                     const char* name_prefix,
-                     const char* name,
-                     const char* resource_name,
-                     int line_number)
-    : tag_(tag),
-      name_prefix_(name_prefix),
-      name_(name),
-      resource_name_(resource_name),
-      line_number_(line_number) {
-}
+var script = Debug.findScript(ChooseAnimal);
 
+var new_source = script.source.replace("Cat", "Cap' + 'yb' + 'ara");
+print("new source: " + new_source);
 
-bool CodeEntry::is_js_function() const {
-  return tag_ == Logger::FUNCTION_TAG
-      || tag_ == Logger::LAZY_COMPILE_TAG
-      || tag_ == Logger::SCRIPT_TAG;
-}
+var change_log = new Array();
+Debug.LiveEdit.SetScriptSource(script, new_source, change_log);
 
-
-ProfileNode::ProfileNode(CodeEntry* entry)
-    : entry_(entry),
-      total_ticks_(0),
-      self_ticks_(0),
-      children_(CodeEntriesMatch) {
-}
-
-
-void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
-  CodeTree::Locator locator;
-  tree_.Insert(addr, &locator);
-  locator.set_value(CodeEntryInfo(entry, size));
-}
-
-
-void CodeMap::MoveCode(Address from, Address to) {
-  tree_.Move(from, to);
-}
-
-void CodeMap::DeleteCode(Address addr) {
-  tree_.Remove(addr);
-}
-
-
-bool CpuProfilesCollection::is_last_profile() {
-  // Called from VM thread, and only it can mutate the list,
-  // so no locking is needed here.
-  return current_profiles_.length() == 1;
-}
-
-} }  // namespace v8::internal
-
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
-
-#endif  // V8_PROFILE_GENERATOR_INL_H_
+assertEquals("Capybara", ChooseAnimal());

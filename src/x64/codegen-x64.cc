@@ -3129,14 +3129,16 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
-// The value in dst was optimistically incremented or decremented.  The
-// result overflowed or was not smi tagged.  Undo the operation, call
-// into the runtime to convert the argument to a number, and call the
-// specialized add or subtract stub.  The result is left in dst.
+// The value in dst was optimistically incremented or decremented.
+// The result overflowed or was not smi tagged.  Call into the runtime
+// to convert the argument to a number, and call the specialized add
+// or subtract stub.  The result is left in dst.
 class DeferredPrefixCountOperation: public DeferredCode {
  public:
-  DeferredPrefixCountOperation(Register dst, bool is_increment)
-      : dst_(dst), is_increment_(is_increment) {
+  DeferredPrefixCountOperation(Register dst,
+                               bool is_increment,
+                               TypeInfo input_type)
+      : dst_(dst), is_increment_(is_increment), input_type_(input_type) {
     set_comment("[ DeferredCountOperation");
   }
 
@@ -3145,32 +3147,45 @@ class DeferredPrefixCountOperation: public DeferredCode {
  private:
   Register dst_;
   bool is_increment_;
+  TypeInfo input_type_;
 };
 
 
 void DeferredPrefixCountOperation::Generate() {
-  __ push(dst_);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
-  __ push(rax);
-  __ Push(Smi::FromInt(1));
-  if (is_increment_) {
-    __ CallRuntime(Runtime::kNumberAdd, 2);
+  Register left;
+  if (input_type_.IsNumber()) {
+    left = dst_;
   } else {
-    __ CallRuntime(Runtime::kNumberSub, 2);
+    __ push(dst_);
+    __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+    left = rax;
   }
+
+  GenericBinaryOpStub stub(is_increment_ ? Token::ADD : Token::SUB,
+                           NO_OVERWRITE,
+                           NO_GENERIC_BINARY_FLAGS,
+                           TypeInfo::Number());
+  stub.GenerateCall(masm_, left, Smi::FromInt(1));
+
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
 
-// The value in dst was optimistically incremented or decremented.  The
-// result overflowed or was not smi tagged.  Undo the operation and call
-// into the runtime to convert the argument to a number.  Update the
-// original value in old.  Call the specialized add or subtract stub.
-// The result is left in dst.
+// The value in dst was optimistically incremented or decremented.
+// The result overflowed or was not smi tagged.  Call into the runtime
+// to convert the argument to a number.  Update the original value in
+// old.  Call the specialized add or subtract stub.  The result is
+// left in dst.
 class DeferredPostfixCountOperation: public DeferredCode {
  public:
-  DeferredPostfixCountOperation(Register dst, Register old, bool is_increment)
-      : dst_(dst), old_(old), is_increment_(is_increment) {
+  DeferredPostfixCountOperation(Register dst,
+                                Register old,
+                                bool is_increment,
+                                TypeInfo input_type)
+      : dst_(dst),
+        old_(old),
+        is_increment_(is_increment),
+        input_type_(input_type) {
     set_comment("[ DeferredCountOperation");
   }
 
@@ -3180,24 +3195,28 @@ class DeferredPostfixCountOperation: public DeferredCode {
   Register dst_;
   Register old_;
   bool is_increment_;
+  TypeInfo input_type_;
 };
 
 
 void DeferredPostfixCountOperation::Generate() {
-  __ push(dst_);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
-
-  // Save the result of ToNumber to use as the old value.
-  __ push(rax);
-
-  // Call the runtime for the addition or subtraction.
-  __ push(rax);
-  __ Push(Smi::FromInt(1));
-  if (is_increment_) {
-    __ CallRuntime(Runtime::kNumberAdd, 2);
+  Register left;
+  if (input_type_.IsNumber()) {
+    __ push(dst_);  // Save the input to use as the old value.
+    left = dst_;
   } else {
-    __ CallRuntime(Runtime::kNumberSub, 2);
+    __ push(dst_);
+    __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+    __ push(rax);  // Save the result of ToNumber to use as the old value.
+    left = rax;
   }
+
+  GenericBinaryOpStub stub(is_increment_ ? Token::ADD : Token::SUB,
+                           NO_OVERWRITE,
+                           NO_GENERIC_BINARY_FLAGS,
+                           TypeInfo::Number());
+  stub.GenerateCall(masm_, left, Smi::FromInt(1));
+
   if (!dst_.is(rax)) __ movq(dst_, rax);
   __ pop(old_);
 }
@@ -3238,6 +3257,14 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       old_value = allocator_->Allocate();
       ASSERT(old_value.is_valid());
       __ movq(old_value.reg(), new_value.reg());
+
+      // The return value for postfix operations is ToNumber(input).
+      // Keep more precise type info if the input is some kind of
+      // number already. If the input is not a number we have to wait
+      // for the deferred code to convert it.
+      if (new_value.type_info().IsNumber()) {
+        old_value.set_type_info(new_value.type_info());
+      }
     }
     // Ensure the new value is writable.
     frame_->Spill(new_value.reg());
@@ -3246,10 +3273,12 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     if (is_postfix) {
       deferred = new DeferredPostfixCountOperation(new_value.reg(),
                                                    old_value.reg(),
-                                                   is_increment);
+                                                   is_increment,
+                                                   new_value.type_info());
     } else {
       deferred = new DeferredPrefixCountOperation(new_value.reg(),
-                                                  is_increment);
+                                                  is_increment,
+                                                  new_value.type_info());
     }
 
     __ JumpIfNotSmi(new_value.reg(), deferred->entry_label());
@@ -3266,6 +3295,15 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     }
     __ movq(new_value.reg(), kScratchRegister);
     deferred->BindExit();
+
+    // Postfix count operations return their input converted to
+    // number. The case when the input is already a number is covered
+    // above in the allocation code for old_value.
+    if (is_postfix && !new_value.type_info().IsNumber()) {
+      old_value.set_type_info(TypeInfo::Number());
+    }
+
+    new_value.set_type_info(TypeInfo::Number());
 
     // Postfix: store the old value in the allocated slot under the
     // reference.
@@ -3734,12 +3772,32 @@ void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
-  // ArgumentsAccessStub takes the parameter count as an input argument
-  // in register eax.  Create a constant result for it.
-  Result count(Handle<Smi>(Smi::FromInt(scope()->num_parameters())));
-  // Call the shared stub to get to the arguments.length.
-  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
-  Result result = frame_->CallStub(&stub, &count);
+
+  Result fp = allocator_->Allocate();
+  Result result = allocator_->Allocate();
+  ASSERT(fp.is_valid() && result.is_valid());
+
+  Label exit;
+
+  // Get the number of formal parameters.
+  __ Move(result.reg(), Smi::FromInt(scope()->num_parameters()));
+
+  // Check if the calling frame is an arguments adaptor frame.
+  __ movq(fp.reg(), Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ SmiCompare(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
+                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(not_equal, &exit);
+
+  // Arguments adaptor case: Read the arguments length from the
+  // adaptor frame.
+  __ movq(result.reg(),
+          Operand(fp.reg(), ArgumentsAdaptorFrameConstants::kLengthOffset));
+
+  __ bind(&exit);
+  result.set_type_info(TypeInfo::Smi());
+  if (FLAG_debug_code) {
+    __ AbortIfNotSmi(result.reg(), "Computed arguments.length is not a smi.");
+  }
   frame_->Push(&result);
 }
 
@@ -5254,8 +5312,13 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   Result left = frame_->Pop();
 
   if (op == Token::ADD) {
-    bool left_is_string = left.is_constant() && left.handle()->IsString();
-    bool right_is_string = right.is_constant() && right.handle()->IsString();
+    const bool left_is_string = left.type_info().IsString();
+    const bool right_is_string = right.type_info().IsString();
+    // Make sure constant strings have string type info.
+    ASSERT(!(left.is_constant() && left.handle()->IsString()) ||
+           left_is_string);
+    ASSERT(!(right.is_constant() && right.handle()->IsString()) ||
+           right_is_string);
     if (left_is_string || right_is_string) {
       frame_->Push(&left);
       frame_->Push(&right);
@@ -5264,7 +5327,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         if (right_is_string) {
           // TODO(lrn): if both are constant strings
           // -- do a compile time cons, if allocation during codegen is allowed.
-          answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
+          StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+          answer = frame_->CallStub(&stub, 2);
         } else {
           answer =
             frame_->InvokeBuiltin(Builtins::STRING_ADD_LEFT, CALL_FUNCTION, 2);
@@ -5273,6 +5337,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         answer =
           frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
       }
+      answer.set_type_info(TypeInfo::String());
       frame_->Push(&answer);
       return;
     }
@@ -5358,10 +5423,13 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
           : TypeInfo::Number();
       break;
     case Token::ADD:
-      // Result could be a string or a number. Check types of inputs.
-      result_type = operands_type.IsNumber()
-          ? TypeInfo::Number()
-          : TypeInfo::Unknown();
+      if (operands_type.IsNumber()) {
+        result_type = TypeInfo::Number();
+      } else if (operands_type.IsString()) {
+        result_type = TypeInfo::String();
+      } else {
+        result_type = TypeInfo::Unknown();
+      }
       break;
     case Token::SUB:
     case Token::MUL:
@@ -7736,23 +7804,6 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ push(rdx);
   __ push(rbx);
   __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
-}
-
-
-void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor;
-  __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ SmiCompare(Operand(rdx, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-
-  // Arguments adaptor case: Read the arguments length from the
-  // adaptor frame and return it.
-  // Otherwise nothing to do: The number of formal parameters has already been
-  // passed in register eax by calling function. Just return it.
-  __ cmovq(equal, rax,
-           Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ ret(0);
 }
 
 

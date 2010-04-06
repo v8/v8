@@ -28,23 +28,45 @@
 #ifndef V8_CPU_PROFILER_INL_H_
 #define V8_CPU_PROFILER_INL_H_
 
+#include "cpu-profiler.h"
+
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
 #include "circular-queue-inl.h"
 #include "profile-generator-inl.h"
-
-#include "cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
 
+void CodeCreateEventRecord::UpdateCodeMap(CodeMap* code_map) {
+    code_map->AddCode(start, entry, size);
+}
+
+
+void CodeMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
+    code_map->MoveCode(from, to);
+}
+
+
+void CodeDeleteEventRecord::UpdateCodeMap(CodeMap* code_map) {
+    code_map->DeleteCode(start);
+}
+
+
+void CodeAliasEventRecord::UpdateCodeMap(CodeMap* code_map) {
+    code_map->AddAlias(alias, start);
+}
+
 
 TickSample* ProfilerEventsProcessor::TickSampleEvent() {
   TickSampleEventRecord* evt =
-      reinterpret_cast<TickSampleEventRecord*>(ticks_buffer_.Enqueue());
+      TickSampleEventRecord::cast(ticks_buffer_.Enqueue());
   evt->order = enqueue_order_;  // No increment!
   return &evt->sample;
 }
 
-
 } }  // namespace v8::internal
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 
 #endif  // V8_CPU_PROFILER_INL_H_

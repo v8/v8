@@ -112,8 +112,9 @@ typedef byte* Address;
 #define V8PRIxPTR "lx"
 #endif
 
-#if defined(__APPLE__) && defined(__MACH__)
-#define USING_MAC_ABI
+#if (defined(__APPLE__) && defined(__MACH__)) || \
+    defined(__FreeBSD__) || defined(__OpenBSD__)
+#define USING_BSD_ABI
 #endif
 
 // Code-point values in Unicode 4.0 are 21 bits wide.

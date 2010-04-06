@@ -1132,9 +1132,9 @@ void DeferredInlineBinaryOperation::Generate() {
 
 
 static TypeInfo CalculateTypeInfo(TypeInfo operands_type,
-                                      Token::Value op,
-                                      const Result& right,
-                                      const Result& left) {
+                                  Token::Value op,
+                                  const Result& right,
+                                  const Result& left) {
   // Set TypeInfo of result according to the operation performed.
   // Rely on the fact that smis have a 31 bit payload on ia32.
   ASSERT(kSmiValueSize == 31);
@@ -1193,11 +1193,12 @@ static TypeInfo CalculateTypeInfo(TypeInfo operands_type,
       if (operands_type.IsSmi()) {
         // The Integer32 range is big enough to take the sum of any two Smis.
         return TypeInfo::Integer32();
+      } else if (operands_type.IsNumber()) {
+        return TypeInfo::Number();
+      } else if (left.type_info().IsString() || right.type_info().IsString()) {
+        return TypeInfo::String();
       } else {
-        // Result could be a string or a number. Check types of inputs.
-        return operands_type.IsNumber()
-            ? TypeInfo::Number()
-            : TypeInfo::Unknown();
+        return TypeInfo::Unknown();
       }
     case Token::SHL:
       return TypeInfo::Integer32();
@@ -1220,11 +1221,10 @@ static TypeInfo CalculateTypeInfo(TypeInfo operands_type,
 }
 
 
-void CodeGenerator::GenericBinaryOperation(Token::Value op,
-                                           StaticType* type,
-                                           OverwriteMode overwrite_mode,
-                                           bool no_negative_zero) {
+void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
+                                           OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
+  Token::Value op = expr->op();
   Comment cmnt_token(masm_, Token::String(op));
 
   if (op == Token::COMMA) {
@@ -1237,8 +1237,13 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   Result left = frame_->Pop();
 
   if (op == Token::ADD) {
-    bool left_is_string = left.is_constant() && left.handle()->IsString();
-    bool right_is_string = right.is_constant() && right.handle()->IsString();
+    const bool left_is_string = left.type_info().IsString();
+    const bool right_is_string = right.type_info().IsString();
+    // Make sure constant strings have string type info.
+    ASSERT(!(left.is_constant() && left.handle()->IsString()) ||
+           left_is_string);
+    ASSERT(!(right.is_constant() && right.handle()->IsString()) ||
+           right_is_string);
     if (left_is_string || right_is_string) {
       frame_->Push(&left);
       frame_->Push(&right);
@@ -1247,7 +1252,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         if (right_is_string) {
           // TODO(lrn): if both are constant strings
           // -- do a compile time cons, if allocation during codegen is allowed.
-          answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
+          StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+          answer = frame_->CallStub(&stub, 2);
         } else {
           answer =
             frame_->InvokeBuiltin(Builtins::STRING_ADD_LEFT, CALL_FUNCTION, 2);
@@ -1256,6 +1262,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         answer =
           frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
       }
+      answer.set_type_info(TypeInfo::String());
       frame_->Push(&answer);
       return;
     }
@@ -1290,13 +1297,11 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
                              operands_type);
     answer = stub.GenerateCall(masm_, frame_, &left, &right);
   } else if (right_is_smi_constant) {
-    answer = ConstantSmiBinaryOperation(op, &left, right.handle(),
-                                        type, false, overwrite_mode,
-                                        no_negative_zero);
+    answer = ConstantSmiBinaryOperation(expr, &left, right.handle(),
+                                        false, overwrite_mode);
   } else if (left_is_smi_constant) {
-    answer = ConstantSmiBinaryOperation(op, &right, left.handle(),
-                                        type, true, overwrite_mode,
-                                        no_negative_zero);
+    answer = ConstantSmiBinaryOperation(expr, &right, left.handle(),
+                                        true, overwrite_mode);
   } else {
     // Set the flags based on the operation, type and loop nesting level.
     // Bit operations always assume they likely operate on Smis. Still only
@@ -1306,9 +1311,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     if (loop_nesting() > 0 &&
         (Token::IsBitOp(op) ||
          operands_type.IsInteger32() ||
-         type->IsLikelySmi())) {
-      answer = LikelySmiBinaryOperation(op, &left, &right,
-                                        overwrite_mode, no_negative_zero);
+         expr->type()->IsLikelySmi())) {
+      answer = LikelySmiBinaryOperation(expr, &left, &right, overwrite_mode);
     } else {
       GenericBinaryOpStub stub(op,
                                overwrite_mode,
@@ -1412,11 +1416,11 @@ static void CheckTwoForSminess(MacroAssembler* masm,
 
 // Implements a binary operation using a deferred code object and some
 // inline code to operate on smis quickly.
-Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
+Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                                Result* left,
                                                Result* right,
-                                               OverwriteMode overwrite_mode,
-                                               bool no_negative_zero) {
+                                               OverwriteMode overwrite_mode) {
+  Token::Value op = expr->op();
   Result answer;
   // Special handling of div and mod because they use fixed registers.
   if (op == Token::DIV || op == Token::MOD) {
@@ -1522,7 +1526,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       // virtual frame is unchanged in this block, so local control flow
       // can use a Label rather than a JumpTarget.  If the context of this
       // expression will treat -0 like 0, do not do this test.
-      if (!no_negative_zero) {
+      if (!expr->no_negative_zero()) {
         Label non_zero_result;
         __ test(left->reg(), Operand(left->reg()));
         __ j(not_zero, &non_zero_result);
@@ -1551,7 +1555,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       // the dividend is negative, return a floating point negative
       // zero.  The frame is unchanged in this block, so local control
       // flow can use a Label rather than a JumpTarget.
-      if (!no_negative_zero) {
+      if (!expr->no_negative_zero()) {
         Label non_zero_result;
         __ test(edx, Operand(edx));
         __ j(not_zero, &non_zero_result, taken);
@@ -1735,7 +1739,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       // argument is negative, go to slow case.  The frame is unchanged
       // in this block, so local control flow can use a Label rather
       // than a JumpTarget.
-      if (!no_negative_zero) {
+      if (!expr->no_negative_zero()) {
         Label non_zero_result;
         __ test(answer.reg(), Operand(answer.reg()));
         __ j(not_zero, &non_zero_result, taken);
@@ -1978,13 +1982,12 @@ void DeferredInlineSmiSub::Generate() {
 }
 
 
-Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
-                                                 Result* operand,
-                                                 Handle<Object> value,
-                                                 StaticType* type,
-                                                 bool reversed,
-                                                 OverwriteMode overwrite_mode,
-                                                 bool no_negative_zero) {
+Result CodeGenerator::ConstantSmiBinaryOperation(
+    BinaryOperation* expr,
+    Result* operand,
+    Handle<Object> value,
+    bool reversed,
+    OverwriteMode overwrite_mode) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
   // some possible smi operations (like + and -) when (at least) one
   // of the operands is a constant smi.
@@ -1994,11 +1997,11 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
   if (IsUnsafeSmi(value)) {
     Result unsafe_operand(value);
     if (reversed) {
-      return LikelySmiBinaryOperation(op, &unsafe_operand, operand,
-                                      overwrite_mode, no_negative_zero);
+      return LikelySmiBinaryOperation(expr, &unsafe_operand, operand,
+                                      overwrite_mode);
     } else {
-      return LikelySmiBinaryOperation(op, operand, &unsafe_operand,
-                                      overwrite_mode, no_negative_zero);
+      return LikelySmiBinaryOperation(expr, operand, &unsafe_operand,
+                                      overwrite_mode);
     }
   }
 
@@ -2006,6 +2009,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
   Smi* smi_value = Smi::cast(*value);
   int int_value = smi_value->value();
 
+  Token::Value op = expr->op();
   Result answer;
   switch (op) {
     case Token::ADD: {
@@ -2081,8 +2085,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     case Token::SAR:
       if (reversed) {
         Result constant_operand(value);
-        answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                          overwrite_mode, no_negative_zero);
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
+                                          overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -2118,8 +2122,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     case Token::SHR:
       if (reversed) {
         Result constant_operand(value);
-        answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                          overwrite_mode, no_negative_zero);
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
+                                          overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -2319,11 +2323,11 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         // default case here.
         Result constant_operand(value);
         if (reversed) {
-          answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                            overwrite_mode, no_negative_zero);
+          answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
+                                            overwrite_mode);
         } else {
-          answer = LikelySmiBinaryOperation(op, operand, &constant_operand,
-                                            overwrite_mode, no_negative_zero);
+          answer = LikelySmiBinaryOperation(expr, operand, &constant_operand,
+                                            overwrite_mode);
         }
       }
       break;
@@ -2359,11 +2363,11 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     default: {
       Result constant_operand(value);
       if (reversed) {
-        answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                          overwrite_mode, no_negative_zero);
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
+                                          overwrite_mode);
       } else {
-        answer = LikelySmiBinaryOperation(op, operand, &constant_operand,
-                                          overwrite_mode, no_negative_zero);
+        answer = LikelySmiBinaryOperation(expr, operand, &constant_operand,
+                                          overwrite_mode);
       }
       break;
     }
@@ -5363,10 +5367,11 @@ void CodeGenerator::EmitSlotAssignment(Assignment* node) {
     bool overwrite_value =
         (node->value()->AsBinaryOperation() != NULL &&
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-    GenericBinaryOperation(node->binary_op(),
-                           node->type(),
-                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE,
-                           node->no_negative_zero());
+    // Construct the implicit binary operation.
+    BinaryOperation expr(node, node->binary_op(), node->target(),
+                         node->value());
+    GenericBinaryOperation(&expr,
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {
     Load(node->value());
   }
@@ -5441,10 +5446,11 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
     bool overwrite_value =
         (node->value()->AsBinaryOperation() != NULL &&
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-    GenericBinaryOperation(node->binary_op(),
-                           node->type(),
-                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE,
-                           node->no_negative_zero());
+    // Construct the implicit binary operation.
+    BinaryOperation expr(node, node->binary_op(), node->target(),
+                         node->value());
+    GenericBinaryOperation(&expr,
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {
     Load(node->value());
   }
@@ -5521,10 +5527,10 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
     bool overwrite_value =
         (node->value()->AsBinaryOperation() != NULL &&
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-    GenericBinaryOperation(node->binary_op(),
-                           node->type(),
-                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE,
-                           node->no_negative_zero());
+    BinaryOperation expr(node, node->binary_op(), node->target(),
+                         node->value());
+    GenericBinaryOperation(&expr,
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {
     Load(node->value());
   }
@@ -6222,12 +6228,30 @@ void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
-  // ArgumentsAccessStub takes the parameter count as an input argument
-  // in register eax.  Create a constant result for it.
-  Result count(Handle<Smi>(Smi::FromInt(scope()->num_parameters())));
-  // Call the shared stub to get to the arguments.length.
-  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
-  Result result = frame_->CallStub(&stub, &count);
+
+  Result fp = allocator_->Allocate();
+  Result result = allocator_->Allocate();
+  ASSERT(fp.is_valid() && result.is_valid());
+
+  Label exit;
+
+  // Get the number of formal parameters.
+  __ Set(result.reg(), Immediate(Smi::FromInt(scope()->num_parameters())));
+
+  // Check if the calling frame is an arguments adaptor frame.
+  __ mov(fp.reg(), Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ cmp(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
+         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ j(not_equal, &exit);
+
+  // Arguments adaptor case: Read the arguments length from the
+  // adaptor frame.
+  __ mov(result.reg(),
+         Operand(fp.reg(), ArgumentsAdaptorFrameConstants::kLengthOffset));
+
+  __ bind(&exit);
+  result.set_type_info(TypeInfo::Smi());
+  if (FLAG_debug_code) __ AbortIfNotSmi(result.reg());
   frame_->Push(&result);
 }
 
@@ -7003,8 +7027,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 // specialized add or subtract stub.  The result is left in dst.
 class DeferredPrefixCountOperation: public DeferredCode {
  public:
-  DeferredPrefixCountOperation(Register dst, bool is_increment)
-      : dst_(dst), is_increment_(is_increment) {
+  DeferredPrefixCountOperation(Register dst,
+                               bool is_increment,
+                               TypeInfo input_type)
+      : dst_(dst), is_increment_(is_increment), input_type_(input_type) {
     set_comment("[ DeferredCountOperation");
   }
 
@@ -7013,6 +7039,7 @@ class DeferredPrefixCountOperation: public DeferredCode {
  private:
   Register dst_;
   bool is_increment_;
+  TypeInfo input_type_;
 };
 
 
@@ -7023,15 +7050,21 @@ void DeferredPrefixCountOperation::Generate() {
   } else {
     __ add(Operand(dst_), Immediate(Smi::FromInt(1)));
   }
-  __ push(dst_);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
-  __ push(eax);
-  __ push(Immediate(Smi::FromInt(1)));
-  if (is_increment_) {
-    __ CallRuntime(Runtime::kNumberAdd, 2);
+  Register left;
+  if (input_type_.IsNumber()) {
+    left = dst_;
   } else {
-    __ CallRuntime(Runtime::kNumberSub, 2);
+    __ push(dst_);
+    __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+    left = eax;
   }
+
+  GenericBinaryOpStub stub(is_increment_ ? Token::ADD : Token::SUB,
+                           NO_OVERWRITE,
+                           NO_GENERIC_BINARY_FLAGS,
+                           TypeInfo::Number());
+  stub.GenerateCall(masm_, left, Smi::FromInt(1));
+
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
@@ -7043,8 +7076,14 @@ void DeferredPrefixCountOperation::Generate() {
 // The result is left in dst.
 class DeferredPostfixCountOperation: public DeferredCode {
  public:
-  DeferredPostfixCountOperation(Register dst, Register old, bool is_increment)
-      : dst_(dst), old_(old), is_increment_(is_increment) {
+  DeferredPostfixCountOperation(Register dst,
+                                Register old,
+                                bool is_increment,
+                                TypeInfo input_type)
+      : dst_(dst),
+        old_(old),
+        is_increment_(is_increment),
+        input_type_(input_type) {
     set_comment("[ DeferredCountOperation");
   }
 
@@ -7054,6 +7093,7 @@ class DeferredPostfixCountOperation: public DeferredCode {
   Register dst_;
   Register old_;
   bool is_increment_;
+  TypeInfo input_type_;
 };
 
 
@@ -7064,20 +7104,23 @@ void DeferredPostfixCountOperation::Generate() {
   } else {
     __ add(Operand(dst_), Immediate(Smi::FromInt(1)));
   }
-  __ push(dst_);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
-
-  // Save the result of ToNumber to use as the old value.
-  __ push(eax);
-
-  // Call the runtime for the addition or subtraction.
-  __ push(eax);
-  __ push(Immediate(Smi::FromInt(1)));
-  if (is_increment_) {
-    __ CallRuntime(Runtime::kNumberAdd, 2);
+  Register left;
+  if (input_type_.IsNumber()) {
+    __ push(dst_);  // Save the input to use as the old value.
+    left = dst_;
   } else {
-    __ CallRuntime(Runtime::kNumberSub, 2);
+    __ push(dst_);
+    __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+    __ push(eax);  // Save the result of ToNumber to use as the old value.
+    left = eax;
   }
+
+  GenericBinaryOpStub stub(is_increment_ ? Token::ADD : Token::SUB,
+                           NO_OVERWRITE,
+                           NO_GENERIC_BINARY_FLAGS,
+                           TypeInfo::Number());
+  stub.GenerateCall(masm_, left, Smi::FromInt(1));
+
   if (!dst_.is(eax)) __ mov(dst_, eax);
   __ pop(old_);
 }
@@ -7120,9 +7163,13 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       ASSERT(old_value.is_valid());
       __ mov(old_value.reg(), new_value.reg());
 
-      // The return value for postfix operations is the
-      // same as the input, and has the same number info.
-      old_value.set_type_info(new_value.type_info());
+      // The return value for postfix operations is ToNumber(input).
+      // Keep more precise type info if the input is some kind of
+      // number already. If the input is not a number we have to wait
+      // for the deferred code to convert it.
+      if (new_value.type_info().IsNumber()) {
+        old_value.set_type_info(new_value.type_info());
+      }
     }
 
     // Ensure the new value is writable.
@@ -7156,10 +7203,12 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     if (is_postfix) {
       deferred = new DeferredPostfixCountOperation(new_value.reg(),
                                                    old_value.reg(),
-                                                   is_increment);
+                                                   is_increment,
+                                                   new_value.type_info());
     } else {
       deferred = new DeferredPrefixCountOperation(new_value.reg(),
-                                                  is_increment);
+                                                  is_increment,
+                                                  new_value.type_info());
     }
 
     if (new_value.is_smi()) {
@@ -7185,6 +7234,13 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       }
     }
     deferred->BindExit();
+
+    // Postfix count operations return their input converted to
+    // number. The case when the input is already a number is covered
+    // above in the allocation code for old_value.
+    if (is_postfix && !new_value.type_info().IsNumber()) {
+      old_value.set_type_info(TypeInfo::Number());
+    }
 
     // The result of ++ or -- is an Integer32 if the
     // input is a smi. Otherwise it is a number.
@@ -7596,8 +7652,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       Load(node->left());
       Load(node->right());
     }
-    GenericBinaryOperation(node->op(), node->type(),
-                           overwrite_mode, node->no_negative_zero());
+    GenericBinaryOperation(node, overwrite_mode);
   }
 }
 
@@ -10374,30 +10429,6 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
-  // Check if the calling frame is an arguments adaptor frame.
-  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
-  __ cmp(Operand(ecx), Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-
-  // Arguments adaptor case: Read the arguments length from the
-  // adaptor frame and return it.
-  // Otherwise nothing to do: The number of formal parameters has already been
-  // passed in register eax by calling function. Just return it.
-  if (CpuFeatures::IsSupported(CMOV)) {
-    CpuFeatures::Scope use_cmov(CMOV);
-    __ cmov(equal, eax,
-            Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  } else {
-    Label exit;
-    __ j(not_equal, &exit);
-    __ mov(eax, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ bind(&exit);
-  }
-  __ ret(0);
-}
-
-
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in edx and the parameter count is in eax.
 
@@ -11345,7 +11376,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 // If true, a Handle<T> passed by value is passed and returned by
 // using the location_ field directly.  If false, it is passed and
 // returned as a pointer to a handle.
-#ifdef USING_MAC_ABI
+#ifdef USING_BSD_ABI
 static const bool kPassHandlesDirectly = true;
 #else
 static const bool kPassHandlesDirectly = false;

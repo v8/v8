@@ -87,7 +87,6 @@ class CompressionHelper;
 #define LOG(Call) ((void) 0)
 #endif
 
-
 class VMState BASE_EMBEDDED {
 #ifdef ENABLE_LOGGING_AND_PROFILING
  public:
@@ -378,6 +377,8 @@ class Logger {
   static int logging_nesting_;
   static int cpu_profiler_nesting_;
   static int heap_profiler_nesting_;
+
+  friend class CpuProfiler;
 #else
   static bool is_logging() { return false; }
 #endif
@@ -391,6 +392,26 @@ class StackTracer : public AllStatic {
 };
 
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
+class Ticker: public Sampler {
+ public:
+  explicit Ticker(int interval):
+      Sampler(interval, FLAG_prof) {}
+
+  void SampleStack(TickSample* sample) {
+    StackTracer::Trace(sample);
+  }
+  void Tick(TickSample* sample) { }
+  void SetWindow(SlidingStateWindow* window) { }
+  void ClearWindow() { }
+  void SetProfiler(Profiler* profiler) { }
+  void ClearProfiler() { }
+};
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+
 } }  // namespace v8::internal
+
 
 #endif  // V8_LOG_H_

@@ -32,14 +32,14 @@
 // Changes script text and recompiles all relevant functions if possible.
 // The change is always a substring (change_pos, change_pos + change_len)
 // being replaced with a completely different string new_str.
-// 
+//
 // Only one function will have its Code changed in result of this function.
 // All nested functions (should they have any instances at the moment) are left
 // unchanged and re-linked to a newly created script instance representing old
 // version of the source. (Generally speaking,
 // during the change all nested functions are erased and completely different
 // set of nested functions are introduced.) All other functions just have
-// their positions updated. 
+// their positions updated.
 //
 // @param {Script} script that is being changed
 // @param {Array} change_log a list that collects engineer-readable description
@@ -56,9 +56,9 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   // Elements of array are ordered by start positions of functions (from top
   // to bottom) in the source. Fields outer_index and next_sibling_index help
   // to navigate the nesting structure of functions.
-  // 
-  // The script is used for compilation, because it produces code that 
-  // needs to be linked with some particular script (for nested functions). 
+  //
+  // The script is used for compilation, because it produces code that
+  // needs to be linked with some particular script (for nested functions).
   function DebugGatherCompileInfo(source) {
     // Get function info, elements are partially sorted (it is a tree
     // of nested functions serialized as parent followed by serialized children.
@@ -71,7 +71,7 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
         compile_info.push(new liveedit.FunctionCompileInfo(raw_compile_info[i]));
         old_index_map.push(i);
     }
-    
+
     for (var i = 0; i < compile_info.length; i++) {
       var k = i;
       for (var j = i + 1; j < compile_info.length; j++) {
@@ -112,12 +112,12 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
         compile_info[previous_sibling].next_sibling_index = -1;
       }
     }
-    
+
     ResetIndexes(-1, -1);
     Assert(current_index == compile_info.length);
-    
+
     return compile_info;
-  }  
+  }
 
   // Given a positions, finds a function that fully includes the entire change.
   function FindChangedFunction(compile_info, offset, len) {
@@ -148,7 +148,7 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
     var old_info = old_compile_info[index];
     for (var i = 0; i < shared_infos.length; i++) {
       var info = shared_infos[i];
-      if (info.start_position == old_info.start_position && 
+      if (info.start_position == old_info.start_position &&
           info.end_position == old_info.end_position) {
         return info;
       }
@@ -161,7 +161,7 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
 
     change_log.push( {function_patched: new_info.function_name} );
   }
-  
+
   var change_len_old;
   var change_len_new;
   // Translate position in old version of script into position in new
@@ -175,7 +175,7 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
     }
     return -1;
   }
-  
+
   var position_change_array;
   var position_patch_report;
   function PatchPositions(new_info, shared_info) {
@@ -187,7 +187,7 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
         position_change_array);
     position_patch_report.push( { name: new_info.function_name } );
   }
-  
+
   var link_to_old_script_report;
   var old_script;
   // Makes a function associated with another instance of a script (the
@@ -195,16 +195,16 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   // may access its own text.
   function LinkToOldScript(shared_info) {
     %LiveEditRelinkFunctionToScript(shared_info.raw_array, old_script);
-    
+
     link_to_old_script_report.push( { name: shared_info.function_name } );
   }
 
 
-  
+
   var old_source = script.source;
   var change_len_old = change_len;
   var change_len_new = new_str.length;
-  
+
   // Prepare new source string.
   var new_source = old_source.substring(0, change_pos) +
       new_str + old_source.substring(change_pos + change_len);
@@ -217,10 +217,10 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   for (var i = 0; i < shared_raw_list.length; i++) {
     shared_infos.push(new liveedit.SharedInfoWrapper(shared_raw_list[i]));
   }
-  
+
   // Gather compile information about old version of script.
   var old_compile_info = DebugGatherCompileInfo(old_source);
-  
+
   // Gather compile information about new version of script.
   var new_compile_info;
   try {
@@ -247,20 +247,20 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
       old_compile_info[function_being_patched],
       new_compile_info[function_being_patched])) {
 
-    Assert(old_compile_info[function_being_patched].outer_index == 
+    Assert(old_compile_info[function_being_patched].outer_index ==
         new_compile_info[function_being_patched].outer_index);
     function_being_patched =
         old_compile_info[function_being_patched].outer_index;
     Assert(function_being_patched != -1);
   }
-  
+
   // Check that function being patched is not currently on stack.
   liveedit.CheckStackActivations(
       [ FindFunctionInfo(function_being_patched) ], change_log );
-  
+
 
   // Committing all changes.
-  var old_script_name = liveedit.CreateNameForOldScript(script); 
+  var old_script_name = liveedit.CreateNameForOldScript(script);
 
   // Update the script text and create a new script representing an old
   // version of the script.
@@ -271,11 +271,11 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
 
   var position_patch_report = new Array();
   change_log.push( {position_patched: position_patch_report} );
-  
+
   var position_change_array = [ change_pos,
                                 change_pos + change_len_old,
                                 change_pos + change_len_new ];
-  
+
   // Update positions of all outer functions (i.e. all functions, that
   // are partially below the function being patched).
   for (var i = new_compile_info[function_being_patched].outer_index;
@@ -308,7 +308,7 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   var link_to_old_script_report = new Array();
   change_log.push( { linked_to_old_script: link_to_old_script_report } );
 
-  // We need to link to old script all former nested functions.  
+  // We need to link to old script all former nested functions.
   for (var i = function_being_patched + 1; i < old_next_sibling; i++) {
     LinkToOldScript(FindFunctionInfo(i), old_script);
   }
@@ -323,7 +323,7 @@ Debug.LiveEditChangeScript.Assert = function(condition, message) {
     }
   }
 }
-    
+
 // An object describing function compilation details. Its index fields
 // apply to indexes inside array that stores these objects.
 Debug.LiveEditChangeScript.FunctionCompileInfo = function(raw_array) {
@@ -337,7 +337,7 @@ Debug.LiveEditChangeScript.FunctionCompileInfo = function(raw_array) {
   this.next_sibling_index = null;
   this.raw_array = raw_array;
 }
-  
+
 // A structure describing SharedFunctionInfo.
 Debug.LiveEditChangeScript.SharedInfoWrapper = function(raw_array) {
   this.function_name = raw_array[0];
@@ -364,18 +364,18 @@ Debug.LiveEditChangeScript.CompareFunctionExpectations =
   }
   var scope_info1 = function_info1.scope_info;
   var scope_info2 = function_info2.scope_info;
-  
+
   if (!scope_info1) {
     return !scope_info2;
   }
-  
+
   if (scope_info1.length != scope_info2.length) {
     return false;
   }
 
   // Check that outer scope structure is not changed. Otherwise the function
   // will not properly work with existing scopes.
-  return scope_info1.toString() == scope_info2.toString(); 
+  return scope_info1.toString() == scope_info2.toString();
 }
 
 // For array of wrapped shared function infos checks that none of them
@@ -384,7 +384,7 @@ Debug.LiveEditChangeScript.CompareFunctionExpectations =
 Debug.LiveEditChangeScript.CheckStackActivations = function(shared_wrapper_list,
                                                             change_log) {
   var liveedit = Debug.LiveEditChangeScript;
-      
+
   var shared_list = new Array();
   for (var i = 0; i < shared_wrapper_list.length; i++) {
     shared_list[i] = shared_wrapper_list[i].info;
@@ -396,7 +396,7 @@ Debug.LiveEditChangeScript.CheckStackActivations = function(shared_wrapper_list,
       var shared = shared_list[i];
       var description = {
           name: shared.function_name,
-          start_pos: shared.start_position, 
+          start_pos: shared.start_position,
           end_pos: shared.end_position
       };
       problems.push(description);
@@ -422,10 +422,93 @@ Debug.LiveEditChangeScript.Failure = function(message) {
 }
 
 Debug.LiveEditChangeScript.Failure.prototype.toString = function() {
-  return "LiveEdit Failure: " + this.message;     
+  return "LiveEdit Failure: " + this.message;
 }
 
 // A testing entry.
 Debug.LiveEditChangeScript.GetPcFromSourcePos = function(func, source_pos) {
   return %GetFunctionCodePositionFromSource(func, source_pos);
+}
+
+// A LiveEdit namespace is declared inside a single function constructor.
+Debug.LiveEdit = new function() {
+  var LiveEdit = this;
+
+  
+  // LiveEdit main entry point: changes a script text to a new string.
+  LiveEdit.SetScriptSource = function(script, new_source, change_log) {
+    var old_source = script.source;
+    var diff = FindSimpleDiff(old_source, new_source);
+    if (!diff) {
+      return;
+    }
+    Debug.LiveEditChangeScript(script, diff.change_pos, diff.old_len,
+        new_source.substring(diff.change_pos, diff.change_pos + diff.new_len),
+        change_log);
+  }
+
+  
+  // Finds a difference between 2 strings in form of a single chunk.
+  // This is a temporary solution. We should calculate a read diff instead.
+  function FindSimpleDiff(old_source, new_source) {
+    var change_pos;
+    var old_len;
+    var new_len;
+    
+    // A find range block. Whenever control leaves it, it should set 3 local
+    // variables declared above.
+    find_range:
+    {
+      // First look from the beginning of strings.
+      var pos1;
+      {
+        var next_pos;
+        for (pos1 = 0; true; pos1 = next_pos) {
+          if (pos1 >= old_source.length) {
+            change_pos = pos1;
+            old_len = 0;
+            new_len = new_source.length - pos1;
+            break find_range;
+          }
+          if (pos1 >= new_source.length) {
+            change_pos = pos1;
+            old_len = old_source.length - pos1;
+            new_len = 0;
+            break find_range;
+          }
+          if (old_source[pos1] != new_source[pos1]) {
+            break;
+          }
+          next_pos = pos1 + 1;
+        }
+      }
+      // Now compare strings from the ends.
+      change_pos = pos1;
+      var pos_old;
+      var pos_new;
+      {
+        for (pos_old = old_source.length - 1, pos_new = new_source.length - 1;
+            true;
+            pos_old--, pos_new--) {
+          if (pos_old - change_pos + 1 < 0 || pos_new - change_pos + 1 < 0) {
+            old_len = pos_old - change_pos + 2;
+            new_len = pos_new - change_pos + 2;
+            break find_range;
+          }
+          if (old_source[pos_old] != new_source[pos_new]) {
+            old_len = pos_old - change_pos + 1;
+            new_len = pos_new - change_pos + 1;
+            break find_range;
+          }
+        }
+      }
+    }
+
+    if (old_len == 0 && new_len == 0) {
+      // no change
+      return;
+    }
+    
+    return { "change_pos": change_pos, "old_len": old_len, "new_len": new_len };
+  }
 }

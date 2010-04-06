@@ -527,7 +527,7 @@ class TickSample {
   Address fp;  // Frame pointer.
   Address function;  // The last called JS function.
   StateTag state;  // The state of the VM.
-  static const int kMaxFramesCount = 100;
+  static const int kMaxFramesCount = 64;
   Address stack[kMaxFramesCount];  // Call stack.
   int frames_count;  // Number of captured frames.
 };

@@ -28,25 +28,35 @@
 #ifndef V8_PROFILE_GENERATOR_H_
 #define V8_PROFILE_GENERATOR_H_
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
 #include "hashmap.h"
 
 namespace v8 {
 namespace internal {
 
-
 class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
-  INLINE(CodeEntry(Logger::LogEventsAndTags tag_,
-                   const char* name_,
-                   const char* resource_name_,
-                   int line_number_));
+  INLINE(CodeEntry(Logger::LogEventsAndTags tag,
+                   const char* name_prefix,
+                   const char* name,
+                   const char* resource_name,
+                   int line_number));
 
-  INLINE(bool is_js_function());
-  INLINE(const char* name()) { return name_; }
+  INLINE(bool is_js_function() const);
+  INLINE(const char* name_prefix() const) { return name_prefix_; }
+  INLINE(bool has_name_prefix() const) { return name_prefix_[0] != '\0'; }
+  INLINE(const char* name() const) { return name_; }
+  INLINE(const char* resource_name() const) { return resource_name_; }
+  INLINE(int line_number() const) { return line_number_; }
+
+  static const char* kEmptyNamePrefix;
+  static const int kNoLineNumberInfo;
 
  private:
   Logger::LogEventsAndTags tag_;
+  const char* name_prefix_;
   const char* name_;
   const char* resource_name_;
   int line_number_;
@@ -67,7 +77,7 @@ class ProfileNode {
   INLINE(CodeEntry* entry() const) { return entry_; }
   INLINE(unsigned total_ticks() const) { return total_ticks_; }
   INLINE(unsigned self_ticks() const) { return self_ticks_; }
-  void GetChildren(List<ProfileNode*>* children);
+  INLINE(const List<ProfileNode*>* children() const) { return &children_list_; }
 
   void Print(int indent);
 
@@ -85,14 +95,13 @@ class ProfileNode {
   unsigned self_ticks_;
   // CodeEntry* -> ProfileNode*
   HashMap children_;
-
-  friend class ProfileTree;
+  List<ProfileNode*> children_list_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileNode);
 };
 
 
-class ProfileTree BASE_EMBEDDED {
+class ProfileTree {
  public:
   ProfileTree() : root_(new ProfileNode(NULL)) { }
   ~ProfileTree();
@@ -101,7 +110,7 @@ class ProfileTree BASE_EMBEDDED {
   void AddPathFromStart(const Vector<CodeEntry*>& path);
   void CalculateTotalTicks();
 
-  ProfileNode* root() { return root_; }
+  ProfileNode* root() const { return root_; }
 
   void ShortPrint();
   void Print() {
@@ -120,18 +129,24 @@ class ProfileTree BASE_EMBEDDED {
 
 class CpuProfile {
  public:
-  CpuProfile() { }
+  CpuProfile(const char* title, unsigned uid)
+      : title_(title), uid_(uid) { }
+
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(const Vector<CodeEntry*>& path);
   void CalculateTotalTicks();
 
-  INLINE(ProfileTree* top_down()) { return &top_down_; }
-  INLINE(ProfileTree* bottom_up()) { return &bottom_up_; }
+  INLINE(const char* title() const) { return title_; }
+  INLINE(unsigned uid() const) { return uid_; }
+  INLINE(const ProfileTree* top_down() const) { return &top_down_; }
+  INLINE(const ProfileTree* bottom_up() const) { return &bottom_up_; }
 
   void ShortPrint();
   void Print();
 
  private:
+  const char* title_;
+  unsigned uid_;
   ProfileTree top_down_;
   ProfileTree bottom_up_;
 
@@ -139,7 +154,7 @@ class CpuProfile {
 };
 
 
-class CodeMap BASE_EMBEDDED {
+class CodeMap {
  public:
   CodeMap() { }
   INLINE(void AddCode(Address addr, CodeEntry* entry, unsigned size));
@@ -147,6 +162,8 @@ class CodeMap BASE_EMBEDDED {
   INLINE(void DeleteCode(Address addr));
   void AddAlias(Address alias, Address addr);
   CodeEntry* FindEntry(Address addr);
+
+  void Print();
 
  private:
   struct CodeEntryInfo {
@@ -167,6 +184,11 @@ class CodeMap BASE_EMBEDDED {
   };
   typedef SplayTree<CodeTreeConfig> CodeTree;
 
+  class CodeTreePrinter {
+   public:
+    void Call(const Address& key, const CodeEntryInfo& value);
+  };
+
   CodeTree tree_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeMap);
@@ -178,14 +200,23 @@ class CpuProfilesCollection {
   CpuProfilesCollection();
   ~CpuProfilesCollection();
 
-  void AddProfile(unsigned uid);
+  bool StartProfiling(const char* title, unsigned uid);
+  bool StartProfiling(String* title, unsigned uid);
+  CpuProfile* StopProfiling(const char* title);
+  CpuProfile* StopProfiling(String* title);
+  INLINE(List<CpuProfile*>* profiles()) { return &profiles_; }
+  CpuProfile* GetProfile(unsigned uid);
+  inline bool is_last_profile();
 
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
                           String* name, String* resource_name, int line_number);
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, const char* name);
+  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
+                          const char* name_prefix, String* name);
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, int args_count);
 
-  INLINE(CpuProfile* profile()) { return profiles_.last(); }
+  // Called from profile generator thread.
+  void AddPathToCurrentProfiles(const Vector<CodeEntry*>& path);
 
  private:
   const char* GetName(String* name);
@@ -196,12 +227,22 @@ class CpuProfilesCollection {
                   reinterpret_cast<char*>(key2)) == 0;
   }
 
+  INLINE(static bool CpuProfilesMatch(void* key1, void* key2)) {
+    return key1 == key2;
+  }
+
   // String::Hash -> const char*
   HashMap function_and_resource_names_;
   // args_count -> char*
   List<char*> args_count_names_;
   List<CodeEntry*> code_entries_;
   List<CpuProfile*> profiles_;
+  // uid -> CpuProfile*
+  HashMap profiles_uids_;
+
+  // Accessed by VM thread and profile generator thread.
+  List<CpuProfile*> current_profiles_;
+  Semaphore* current_profiles_semaphore_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfilesCollection);
 };
@@ -224,6 +265,12 @@ class ProfileGenerator {
   }
 
   INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
+                                 const char* name_prefix,
+                                 String* name)) {
+    return profiles_->NewCodeEntry(tag, name_prefix, name);
+  }
+
+  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
                                  int args_count)) {
     return profiles_->NewCodeEntry(tag, args_count);
   }
@@ -233,15 +280,14 @@ class ProfileGenerator {
   INLINE(CodeMap* code_map()) { return &code_map_; }
 
  private:
-  INLINE(CpuProfile* profile()) { return profiles_->profile(); }
-
   CpuProfilesCollection* profiles_;
   CodeMap code_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
 };
 
-
 } }  // namespace v8::internal
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 
 #endif  // V8_PROFILE_GENERATOR_H_

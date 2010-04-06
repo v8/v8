@@ -67,6 +67,7 @@
 #include "spaces-inl.h"
 #include "heap-inl.h"
 #include "log-inl.h"
+#include "cpu-profiler-inl.h"
 #include "handles-inl.h"
 
 namespace v8 {

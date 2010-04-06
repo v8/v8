@@ -153,6 +153,8 @@ namespace internal {
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
   F(RegExpExec, 4, 1) \
+  F(RegExpExecMultiple, 4, 1) \
+  F(RegExpInitializeObject, 5, 1) \
   \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \
@@ -208,7 +210,6 @@ namespace internal {
   F(DateYMDFromTime, 2, 1) \
   \
   /* Numbers */ \
-  F(NumberIsFinite, 1, 1) \
   \
   /* Globals */ \
   F(CompileString, 2, 1) \
