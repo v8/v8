@@ -82,7 +82,10 @@ function GlobalIsNaN(number) {
 
 // ECMA 262 - 15.1.5
 function GlobalIsFinite(number) {
-  return %NumberIsFinite(ToNumber(number));
+  if (!IS_NUMBER(number)) number = ToNumber(number);
+
+  // NaN - NaN == NaN, Infinity - Infinity == NaN, -Infinity - -Infinity == NaN.
+  return %_IsSmi(number) || number - number == 0;
 }
 
 

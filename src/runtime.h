@@ -210,7 +210,6 @@ namespace internal {
   F(DateYMDFromTime, 2, 1) \
   \
   /* Numbers */ \
-  F(NumberIsFinite, 1, 1) \
   \
   /* Globals */ \
   F(CompileString, 2, 1) \

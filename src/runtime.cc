@@ -7100,21 +7100,6 @@ static Object* Runtime_DateDaylightSavingsOffset(Arguments args) {
 }
 
 
-static Object* Runtime_NumberIsFinite(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-
-  CONVERT_DOUBLE_CHECKED(value, args[0]);
-  Object* result;
-  if (isnan(value) || (fpclassify(value) == FP_INFINITE)) {
-    result = Heap::false_value();
-  } else {
-    result = Heap::true_value();
-  }
-  return result;
-}
-
-
 static Object* Runtime_GlobalReceiver(Arguments args) {
   ASSERT(args.length() == 1);
   Object* global = args[0];
