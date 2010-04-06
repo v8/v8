@@ -38,18 +38,25 @@ namespace internal {
 class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
-  INLINE(CodeEntry(Logger::LogEventsAndTags tag_,
-                   const char* name_,
-                   const char* resource_name_,
-                   int line_number_));
+  INLINE(CodeEntry(Logger::LogEventsAndTags tag,
+                   const char* name_prefix,
+                   const char* name,
+                   const char* resource_name,
+                   int line_number));
 
-  INLINE(bool is_js_function());
-  INLINE(const char* name()) { return name_; }
-  INLINE(const char* resource_name()) { return name_; }
-  INLINE(int line_number()) { return line_number_; }
+  INLINE(bool is_js_function() const);
+  INLINE(const char* name_prefix() const) { return name_prefix_; }
+  INLINE(bool has_name_prefix() const) { return name_prefix_[0] != '\0'; }
+  INLINE(const char* name() const) { return name_; }
+  INLINE(const char* resource_name() const) { return resource_name_; }
+  INLINE(int line_number() const) { return line_number_; }
+
+  static const char* kEmptyNamePrefix;
+  static const int kNoLineNumberInfo;
 
  private:
   Logger::LogEventsAndTags tag_;
+  const char* name_prefix_;
   const char* name_;
   const char* resource_name_;
   int line_number_;
@@ -204,13 +211,12 @@ class CpuProfilesCollection {
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
                           String* name, String* resource_name, int line_number);
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, const char* name);
+  CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
+                          const char* name_prefix, String* name);
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, int args_count);
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(const Vector<CodeEntry*>& path);
-
-  // This will be moved to V8 API.
-  static const int kNoLineNumberInfo = -1;
 
  private:
   const char* GetName(String* name);
@@ -256,6 +262,12 @@ class ProfileGenerator {
   INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
                                  const char* name)) {
     return profiles_->NewCodeEntry(tag, name);
+  }
+
+  INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
+                                 const char* name_prefix,
+                                 String* name)) {
+    return profiles_->NewCodeEntry(tag, name_prefix, name);
   }
 
   INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,

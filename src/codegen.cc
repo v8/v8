@@ -235,7 +235,7 @@ Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
 
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   ASSERT(type != NULL);
-  if (!Logger::is_logging()) return false;
+  if (!Logger::is_logging() && !CpuProfiler::is_profiling()) return false;
   Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
   if (FLAG_log_regexp) {
     static Vector<const char> kRegexp = CStrVector("regexp");

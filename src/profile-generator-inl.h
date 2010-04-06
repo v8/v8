@@ -36,17 +36,19 @@ namespace v8 {
 namespace internal {
 
 CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
+                     const char* name_prefix,
                      const char* name,
                      const char* resource_name,
                      int line_number)
     : tag_(tag),
+      name_prefix_(name_prefix),
       name_(name),
       resource_name_(resource_name),
       line_number_(line_number) {
 }
 
 
-bool CodeEntry::is_js_function() {
+bool CodeEntry::is_js_function() const {
   return tag_ == Logger::FUNCTION_TAG
       || tag_ == Logger::LAZY_COMPILE_TAG
       || tag_ == Logger::SCRIPT_TAG;

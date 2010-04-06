@@ -119,8 +119,8 @@ void CpuFeatures::Probe()  {
   Object* code =
       Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB), NULL);
   if (!code->IsCode()) return;
-  LOG(CodeCreateEvent(Logger::BUILTIN_TAG,
-                      Code::cast(code), "CpuFeatures::Probe"));
+  PROFILE(CodeCreateEvent(Logger::BUILTIN_TAG,
+                          Code::cast(code), "CpuFeatures::Probe"));
   typedef uint64_t (*F0)();
   F0 probe = FUNCTION_CAST<F0>(Code::cast(code)->entry());
   supported_ = probe();

@@ -110,7 +110,7 @@ TEST(CodeEvents) {
   CHECK_EQ("bbb", entry2->name());
   CodeEntry* entry3 = generator.code_map()->FindEntry(ToAddress(0x1300));
   CHECK_NE(NULL, entry3);
-  CHECK_EQ("args_count: 5", entry3->name());
+  CHECK_EQ("5", entry3->name());
   CHECK_EQ(NULL, generator.code_map()->FindEntry(ToAddress(0x1400)));
   CodeEntry* entry4 = generator.code_map()->FindEntry(ToAddress(0x1500));
   CHECK_NE(NULL, entry4);
@@ -166,7 +166,7 @@ TEST(TickEvents) {
   const i::List<ProfileNode*>* top_down_bbb_children =
       top_down_root_children->last()->children();
   CHECK_EQ(1, top_down_bbb_children->length());
-  CHECK_EQ("args_count: 5", top_down_bbb_children->last()->entry()->name());
+  CHECK_EQ("5", top_down_bbb_children->last()->entry()->name());
   const i::List<ProfileNode*>* top_down_stub_children =
       top_down_bbb_children->last()->children();
   CHECK_EQ(1, top_down_stub_children->length());
@@ -181,7 +181,7 @@ TEST(TickEvents) {
   i::List<ProfileNode*> bottom_up_root_children(3);
   bottom_up_root_children.AddAll(*bottom_up_root_children_unsorted);
   bottom_up_root_children.Sort(&CompareProfileNodes);
-  CHECK_EQ("args_count: 5", bottom_up_root_children[0]->entry()->name());
+  CHECK_EQ("5", bottom_up_root_children[0]->entry()->name());
   CHECK_EQ("bbb", bottom_up_root_children[1]->entry()->name());
   CHECK_EQ("ddd", bottom_up_root_children[2]->entry()->name());
   const i::List<ProfileNode*>* bottom_up_stub_children =
@@ -194,7 +194,7 @@ TEST(TickEvents) {
   const i::List<ProfileNode*>* bottom_up_ddd_children =
       bottom_up_root_children[2]->children();
   CHECK_EQ(1, bottom_up_ddd_children->length());
-  CHECK_EQ("args_count: 5", bottom_up_ddd_children->last()->entry()->name());
+  CHECK_EQ("5", bottom_up_ddd_children->last()->entry()->name());
   const i::List<ProfileNode*>* bottom_up_ddd_stub_children =
       bottom_up_ddd_children->last()->children();
   CHECK_EQ(1, bottom_up_ddd_stub_children->length());

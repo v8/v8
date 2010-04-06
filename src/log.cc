@@ -143,15 +143,14 @@ bool Profiler::paused_ = false;
 // StackTracer implementation
 //
 void StackTracer::Trace(TickSample* sample) {
-  if (sample->state == GC) {
-    sample->frames_count = 0;
-    return;
-  }
+  sample->function = NULL;
+  sample->frames_count = 0;
+
+  if (sample->state == GC) return;
 
   const Address js_entry_sp = Top::js_entry_sp(Top::GetCurrentThread());
   if (js_entry_sp == 0) {
     // Not executing JS now.
-    sample->frames_count = 0;
     return;
   }
 
@@ -183,6 +182,8 @@ void StackTracer::Trace(TickSample* sample) {
 // Ticker used to provide ticks to the profiler and the sliding state
 // window.
 //
+#ifndef ENABLE_CPP_PROFILES_PROCESSOR
+
 class Ticker: public Sampler {
  public:
   explicit Ticker(int interval):
@@ -223,6 +224,8 @@ class Ticker: public Sampler {
   SlidingStateWindow* window_;
   Profiler* profiler_;
 };
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 
 
 //
@@ -1300,7 +1303,7 @@ void Logger::LogCodeObject(Object* object) {
         tag = Logger::CALL_IC_TAG;
         break;
     }
-    LOG(CodeCreateEvent(tag, code_object, description));
+    PROFILE(CodeCreateEvent(tag, code_object, description));
   }
 }
 
@@ -1334,16 +1337,16 @@ void Logger::LogCompiledFunctions() {
         Handle<String> script_name(String::cast(script->name()));
         int line_num = GetScriptLineNumber(script, shared->start_position());
         if (line_num > 0) {
-          LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG,
-                              shared->code(), *func_name,
-                              *script_name, line_num + 1));
+          PROFILE(CodeCreateEvent(Logger::LAZY_COMPILE_TAG,
+                                  shared->code(), *func_name,
+                                  *script_name, line_num + 1));
         } else {
           // Can't distinguish enum and script here, so always use Script.
-          LOG(CodeCreateEvent(Logger::SCRIPT_TAG,
-                              shared->code(), *script_name));
+          PROFILE(CodeCreateEvent(Logger::SCRIPT_TAG,
+                                  shared->code(), *script_name));
         }
       } else {
-        LOG(CodeCreateEvent(
+        PROFILE(CodeCreateEvent(
             Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
       }
     } else if (shared->IsApiFunction()) {
@@ -1354,10 +1357,10 @@ void Logger::LogCompiledFunctions() {
         CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
         Object* callback_obj = call_data->callback();
         Address entry_point = v8::ToCData<Address>(callback_obj);
-        LOG(CallbackEvent(*func_name, entry_point));
+        PROFILE(CallbackEvent(*func_name, entry_point));
       }
     } else {
-      LOG(CodeCreateEvent(
+      PROFILE(CodeCreateEvent(
           Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
     }
   }
@@ -1373,7 +1376,7 @@ void Logger::LogFunctionObjects() {
     if (!obj->IsJSFunction()) continue;
     JSFunction* jsf = JSFunction::cast(obj);
     if (!jsf->is_compiled()) continue;
-    LOG(FunctionCreateEvent(jsf));
+    PROFILE(FunctionCreateEvent(jsf));
   }
 }
 
@@ -1388,11 +1391,11 @@ void Logger::LogAccessorCallbacks() {
     String* name = String::cast(ai->name());
     Address getter_entry = v8::ToCData<Address>(ai->getter());
     if (getter_entry != 0) {
-      LOG(GetterCallbackEvent(name, getter_entry));
+      PROFILE(GetterCallbackEvent(name, getter_entry));
     }
     Address setter_entry = v8::ToCData<Address>(ai->setter());
     if (setter_entry != 0) {
-      LOG(SetterCallbackEvent(name, setter_entry));
+      PROFILE(SetterCallbackEvent(name, setter_entry));
     }
   }
 }
@@ -1505,6 +1508,11 @@ bool Logger::Setup() {
     }
   }
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+  // Disable old logging, as we are using the same '--prof' flag.
+  logging_nesting_ = 0;
+#endif
+
   LogMessageBuilder::set_write_failure_handler(StopLoggingAndProfiling);
 
   return true;
@@ -1557,6 +1565,5 @@ void Logger::EnableSlidingStateWindow() {
   }
 #endif
 }
-
 
 } }  // namespace v8::internal

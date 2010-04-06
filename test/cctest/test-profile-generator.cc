@@ -23,17 +23,17 @@ using i::Vector;
 
 TEST(ProfileNodeFindOrAddChild) {
   ProfileNode node(NULL);
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0);
   ProfileNode* childNode1 = node.FindOrAddChild(&entry1);
   CHECK_NE(NULL, childNode1);
   CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0);
   ProfileNode* childNode2 = node.FindOrAddChild(&entry2);
   CHECK_NE(NULL, childNode2);
   CHECK_NE(childNode1, childNode2);
   CHECK_EQ(childNode1, node.FindOrAddChild(&entry1));
   CHECK_EQ(childNode2, node.FindOrAddChild(&entry2));
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc", "", 0);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0);
   ProfileNode* childNode3 = node.FindOrAddChild(&entry3);
   CHECK_NE(NULL, childNode3);
   CHECK_NE(childNode1, childNode3);
@@ -74,9 +74,9 @@ class ProfileTreeTestHelper {
 }  // namespace
 
 TEST(ProfileTreeAddPathFromStart) {
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc", "", 0);
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0);
   ProfileTree tree;
   ProfileTreeTestHelper helper(&tree);
   CHECK_EQ(NULL, helper.Walk(&entry1));
@@ -141,9 +141,9 @@ TEST(ProfileTreeAddPathFromStart) {
 
 
 TEST(ProfileTreeAddPathFromEnd) {
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc", "", 0);
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0);
   ProfileTree tree;
   ProfileTreeTestHelper helper(&tree);
   CHECK_EQ(NULL, helper.Walk(&entry1));
@@ -221,8 +221,8 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CHECK_EQ(1, empty_tree.root()->total_ticks());
   CHECK_EQ(1, empty_tree.root()->self_ticks());
 
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0);
   CodeEntry* e1_path[] = {&entry1};
   Vector<CodeEntry*> e1_path_vec(
       e1_path, sizeof(e1_path) / sizeof(e1_path[0]));
@@ -260,7 +260,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CodeEntry* e2_path[] = {&entry2};
   Vector<CodeEntry*> e2_path_vec(
       e2_path, sizeof(e2_path) / sizeof(e2_path[0]));
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc", "", 0);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0);
   CodeEntry* e3_path[] = {&entry3};
   Vector<CodeEntry*> e3_path_vec(
       e3_path, sizeof(e3_path) / sizeof(e3_path[0]));
@@ -321,10 +321,10 @@ static inline i::Address ToAddress(int n) {
 
 TEST(CodeMapAddCode) {
   CodeMap code_map;
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc", "", 0);
-  CodeEntry entry4(i::Logger::FUNCTION_TAG, "ddd", "", 0);
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0);
+  CodeEntry entry3(i::Logger::FUNCTION_TAG, "", "ccc", "", 0);
+  CodeEntry entry4(i::Logger::FUNCTION_TAG, "", "ddd", "", 0);
   code_map.AddCode(ToAddress(0x1500), &entry1, 0x200);
   code_map.AddCode(ToAddress(0x1700), &entry2, 0x100);
   code_map.AddCode(ToAddress(0x1900), &entry3, 0x50);
@@ -351,8 +351,8 @@ TEST(CodeMapAddCode) {
 
 TEST(CodeMapMoveAndDeleteCode) {
   CodeMap code_map;
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa", "", 0);
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb", "", 0);
+  CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0);
+  CodeEntry entry2(i::Logger::FUNCTION_TAG, "", "bbb", "", 0);
   code_map.AddCode(ToAddress(0x1500), &entry1, 0x200);
   code_map.AddCode(ToAddress(0x1700), &entry2, 0x100);
   CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500)));

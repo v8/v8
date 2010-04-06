@@ -2099,7 +2099,7 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsJSFunction()) {
-    LOG(FunctionMoveEvent(old_addr, new_addr));
+    PROFILE(FunctionMoveEvent(old_addr, new_addr));
   }
 
   return obj_size;
@@ -2147,7 +2147,7 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
     // May also update inline cache target.
     Code::cast(copied_to)->Relocate(new_addr - old_addr);
     // Notify the logger that compiled code has moved.
-    LOG(CodeMoveEvent(old_addr, new_addr));
+    PROFILE(CodeMoveEvent(old_addr, new_addr));
   }
 
   return obj_size;
@@ -2187,7 +2187,7 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsJSFunction()) {
-    LOG(FunctionMoveEvent(old_addr, new_addr));
+    PROFILE(FunctionMoveEvent(old_addr, new_addr));
   }
 
   return obj_size;
@@ -2209,9 +2209,9 @@ void MarkCompactCollector::RebuildRSets() {
 void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (obj->IsCode()) {
-    LOG(CodeDeleteEvent(obj->address()));
+    PROFILE(CodeDeleteEvent(obj->address()));
   } else if (obj->IsJSFunction()) {
-    LOG(FunctionDeleteEvent(obj->address()));
+    PROFILE(FunctionDeleteEvent(obj->address()));
   }
 #endif
 }

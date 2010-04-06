@@ -1493,8 +1493,8 @@ void Builtins::Setup(bool create_heap_objects) {
         }
       }
       // Log the event and add the code to the builtins array.
-      LOG(CodeCreateEvent(Logger::BUILTIN_TAG,
-                          Code::cast(code), functions[i].s_name));
+      PROFILE(CodeCreateEvent(Logger::BUILTIN_TAG,
+                              Code::cast(code), functions[i].s_name));
       builtins_[i] = code;
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_builtin_code) {
