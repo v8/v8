@@ -474,6 +474,11 @@ Debug.disassembleConstructor = function(f) {
   return %DebugDisassembleConstructor(f);
 };
 
+Debug.ExecuteInDebugContext = function(f, without_debugger) {
+  if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
+  return %ExecuteInDebugContext(f, !!without_debugger);
+};
+
 Debug.sourcePosition = function(f) {
   if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
   return %FunctionGetScriptSourcePosition(f);
@@ -2010,7 +2015,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
     if (e instanceof Debug.LiveEditChangeScript.Failure) {
       // Let's treat it as a "success" so that body with change_log will be
       // sent back. "change_log" will have "failure" field set.
-      change_log.push( { failure: true } );
+      change_log.push( { failure: true, message: e.toString() } ); 
     } else {
       throw e;
     }
