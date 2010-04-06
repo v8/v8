@@ -668,7 +668,8 @@ function DateNow() {
 function DateToString() {
   var t = DATE_VALUE(this);
   if (NUMBER_IS_NAN(t)) return kInvalidDate;
-  return DatePrintString(LocalTimeNoCheck(t)) + LocalTimezoneString(t);
+  var time_zone_string = LocalTimezoneString(t);  // May update local offset.
+  return DatePrintString(LocalTimeNoCheck(t)) + time_zone_string;
 }
 
 
@@ -684,8 +685,8 @@ function DateToDateString() {
 function DateToTimeString() {
   var t = DATE_VALUE(this);
   if (NUMBER_IS_NAN(t)) return kInvalidDate;
-  var lt = LocalTimeNoCheck(t);
-  return TimeString(lt) + LocalTimezoneString(lt);
+  var time_zone_string = LocalTimezoneString(t);  // May update local offset.
+  return TimeString(LocalTimeNoCheck(t)) + time_zone_string;
 }
 
 
