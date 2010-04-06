@@ -11376,7 +11376,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 // If true, a Handle<T> passed by value is passed and returned by
 // using the location_ field directly.  If false, it is passed and
 // returned as a pointer to a handle.
-#ifdef USING_MAC_ABI
+#ifdef USING_BSD_ABI
 static const bool kPassHandlesDirectly = true;
 #else
 static const bool kPassHandlesDirectly = false;
