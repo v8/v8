@@ -1069,6 +1069,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\include\v8-profiler.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\include\v8.h"
 				>
 			</File>
