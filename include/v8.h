@@ -855,7 +855,7 @@ class V8EXPORT String : public Primitive {
    * \param start The starting position within the string at which
    * copying begins.
    * \param length The number of bytes to copy from the string.
-   * \param nchars The number of characters written.
+   * \param nchars_ref The number of characters written, can be NULL.
    * \return The number of bytes copied to the buffer
    * excluding the NULL terminator.
    */
