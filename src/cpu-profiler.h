@@ -150,6 +150,9 @@ class ProfilerEventsProcessor : public Thread {
   void FunctionCreateEvent(Address alias, Address start);
   void FunctionMoveEvent(Address from, Address to);
   void FunctionDeleteEvent(Address from);
+  void RegExpCodeCreateEvent(Logger::LogEventsAndTags tag,
+                             const char* prefix, String* name,
+                             Address start, unsigned size);
 
   // Tick sample events are filled directly in the buffer of the circular
   // queue (because the structure is of fixed width, but usually not all

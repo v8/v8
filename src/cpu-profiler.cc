@@ -33,6 +33,8 @@
 
 #include "log-inl.h"
 
+#include "../include/v8-profiler.h"
+
 namespace v8 {
 namespace internal {
 
@@ -153,6 +155,23 @@ void ProfilerEventsProcessor::FunctionMoveEvent(Address from, Address to) {
 
 void ProfilerEventsProcessor::FunctionDeleteEvent(Address from) {
   CodeDeleteEvent(from);
+}
+
+
+void ProfilerEventsProcessor::RegExpCodeCreateEvent(
+    Logger::LogEventsAndTags tag,
+    const char* prefix,
+    String* name,
+    Address start,
+    unsigned size) {
+  CodeEventsContainer evt_rec;
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->type = CodeEventRecord::CODE_CREATION;
+  rec->order = ++enqueue_order_;
+  rec->start = start;
+  rec->entry = generator_->NewCodeEntry(tag, prefix, name);
+  rec->size = size;
+  events_buffer_.Enqueue(evt_rec);
 }
 
 
@@ -287,7 +306,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       tag,
       name,
       Heap::empty_string(),
-      CodeEntry::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoLineNumberInfo,
       code->address(),
       code->ExecutableSize());
 }
@@ -349,11 +368,10 @@ void CpuProfiler::GetterCallbackEvent(String* name, Address entry_point) {
 
 
 void CpuProfiler::RegExpCodeCreateEvent(Code* code, String* source) {
-  singleton_->processor_->CodeCreateEvent(
+  singleton_->processor_->RegExpCodeCreateEvent(
       Logger::REG_EXP_TAG,
+      "RegExp: ",
       source,
-      Heap::empty_string(),
-      CodeEntry::kNoLineNumberInfo,
       code->address(),
       code->ExecutableSize());
 }
@@ -379,14 +397,14 @@ CpuProfiler::~CpuProfiler() {
 
 
 void CpuProfiler::StartCollectingProfile(const char* title) {
-  if (profiles_->StartProfiling(title, ++next_profile_uid_)) {
+  if (profiles_->StartProfiling(title, next_profile_uid_++)) {
     StartProcessorIfNotStarted();
   }
 }
 
 
 void CpuProfiler::StartCollectingProfile(String* title) {
-  if (profiles_->StartProfiling(title, ++next_profile_uid_)) {
+  if (profiles_->StartProfiling(title, next_profile_uid_++)) {
     StartProcessorIfNotStarted();
   }
 }

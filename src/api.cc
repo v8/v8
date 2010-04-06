@@ -36,6 +36,7 @@
 #include "global-handles.h"
 #include "messages.h"
 #include "platform.h"
+#include "profile-generator-inl.h"
 #include "serialize.h"
 #include "snapshot.h"
 #include "top.h"
@@ -43,6 +44,7 @@
 #include "v8threads.h"
 #include "version.h"
 
+#include "../include/v8-profiler.h"
 
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
 
@@ -3996,6 +3998,131 @@ Local<Context> Debug::GetDebugContext() {
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
+
+
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
+Handle<String> CpuProfileNode::GetFunctionName() const {
+  IsDeadCheck("v8::CpuProfileNode::GetFunctionName");
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  const i::CodeEntry* entry = node->entry();
+  if (!entry->has_name_prefix()) {
+    return Handle<String>(ToApi<String>(
+        i::Factory::LookupAsciiSymbol(entry->name())));
+  } else {
+    return Handle<String>(ToApi<String>(i::Factory::NewConsString(
+        i::Factory::LookupAsciiSymbol(entry->name_prefix()),
+        i::Factory::LookupAsciiSymbol(entry->name()))));
+  }
+}
+
+
+Handle<String> CpuProfileNode::GetScriptResourceName() const {
+  IsDeadCheck("v8::CpuProfileNode::GetScriptResourceName");
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+      node->entry()->resource_name())));
+}
+
+
+int CpuProfileNode::GetLineNumber() const {
+  IsDeadCheck("v8::CpuProfileNode::GetLineNumber");
+  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->line_number();
+}
+
+
+double CpuProfileNode::GetTotalSamplesCount() const {
+  IsDeadCheck("v8::CpuProfileNode::GetTotalSamplesCount");
+  return reinterpret_cast<const i::ProfileNode*>(this)->total_ticks();
+}
+
+
+double CpuProfileNode::GetSelfSamplesCount() const {
+  IsDeadCheck("v8::CpuProfileNode::GetSelfSamplesCount");
+  return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
+}
+
+
+unsigned CpuProfileNode::GetCallUid() const {
+  IsDeadCheck("v8::CpuProfileNode::GetCallUid");
+  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->call_uid();
+}
+
+
+int CpuProfileNode::GetChildrenCount() const {
+  IsDeadCheck("v8::CpuProfileNode::GetChildrenCount");
+  return reinterpret_cast<const i::ProfileNode*>(this)->children()->length();
+}
+
+
+const CpuProfileNode* CpuProfileNode::GetChild(int index) const {
+  IsDeadCheck("v8::CpuProfileNode::GetChild");
+  const i::ProfileNode* child =
+      reinterpret_cast<const i::ProfileNode*>(this)->children()->at(index);
+  return reinterpret_cast<const CpuProfileNode*>(child);
+}
+
+
+unsigned CpuProfile::GetUid() const {
+  IsDeadCheck("v8::CpuProfile::GetUid");
+  return reinterpret_cast<const i::CpuProfile*>(this)->uid();
+}
+
+
+Handle<String> CpuProfile::GetTitle() const {
+  IsDeadCheck("v8::CpuProfile::GetTitle");
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+      profile->title())));
+}
+
+
+const CpuProfileNode* CpuProfile::GetBottomUpRoot() const {
+  IsDeadCheck("v8::CpuProfile::GetBottomUpRoot");
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return reinterpret_cast<const CpuProfileNode*>(profile->bottom_up()->root());
+}
+
+
+const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
+  IsDeadCheck("v8::CpuProfile::GetTopDownRoot");
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return reinterpret_cast<const CpuProfileNode*>(profile->top_down()->root());
+}
+
+
+int CpuProfiler::GetProfilesCount() {
+  IsDeadCheck("v8::CpuProfiler::GetProfilesCount");
+  return i::CpuProfiler::GetProfilesCount();
+}
+
+
+const CpuProfile* CpuProfiler::GetProfile(int index) {
+  IsDeadCheck("v8::CpuProfiler::GetProfile");
+  return reinterpret_cast<const CpuProfile*>(i::CpuProfiler::GetProfile(index));
+}
+
+
+const CpuProfile* CpuProfiler::FindProfile(unsigned uid) {
+  IsDeadCheck("v8::CpuProfiler::FindProfile");
+  return reinterpret_cast<const CpuProfile*>(i::CpuProfiler::FindProfile(uid));
+}
+
+
+void CpuProfiler::StartProfiling(Handle<String> title) {
+  IsDeadCheck("v8::CpuProfiler::StartProfiling");
+  i::CpuProfiler::StartProfiling(*Utils::OpenHandle(*title));
+}
+
+
+const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title) {
+  IsDeadCheck("v8::CpuProfiler::StopProfiling");
+  return reinterpret_cast<const CpuProfile*>(
+      i::CpuProfiler::StopProfiling(*Utils::OpenHandle(*title)));
+}
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+
 
 namespace internal {
 

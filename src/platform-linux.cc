@@ -771,13 +771,9 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     // Implement this on MIPS.
       UNIMPLEMENTED();
 #endif
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-      active_sampler_->SampleStack(sample);
-#else
       if (IsVmThread()) {
         active_sampler_->SampleStack(sample);
       }
-#endif
     }
   }
 #ifndef ENABLE_CPP_PROFILES_PROCESSOR

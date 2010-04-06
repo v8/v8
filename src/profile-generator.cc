@@ -31,12 +31,14 @@
 
 #include "profile-generator-inl.h"
 
+#include "../include/v8-profiler.h"
+
 namespace v8 {
 namespace internal {
 
 
 const char* CodeEntry::kEmptyNamePrefix = "";
-const int CodeEntry::kNoLineNumberInfo = -1;
+unsigned CodeEntry::next_call_uid_ = 1;
 
 
 ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
@@ -61,11 +63,14 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
 
 
 void ProfileNode::Print(int indent) {
-  OS::Print("%5u %5u %*c %s%s\n",
+  OS::Print("%5u %5u %*c %s%s",
             total_ticks_, self_ticks_,
             indent, ' ',
-            entry_ != NULL ? entry_->name_prefix() : "",
-            entry_ != NULL ? entry_->name() : "");
+            entry_->name_prefix(),
+            entry_->name());
+  if (entry_->resource_name()[0] != '\0')
+    OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
+  OS::Print("\n");
   for (HashMap::Entry* p = children_.Start();
        p != NULL;
        p = children_.Next(p)) {
@@ -86,6 +91,12 @@ class DeleteNodesCallback {
 };
 
 }  // namespace
+
+
+ProfileTree::ProfileTree()
+    : root_entry_(Logger::FUNCTION_TAG, "", "(root)", "", 0),
+      root_(new ProfileNode(&root_entry_)) {
+}
 
 
 ProfileTree::~ProfileTree() {
@@ -360,7 +371,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                                int line_number) {
   CodeEntry* entry = new CodeEntry(tag,
                                    CodeEntry::kEmptyNamePrefix,
-                                   GetName(name),
+                                   GetFunctionName(name),
                                    GetName(resource_name),
                                    line_number);
   code_entries_.Add(entry);
@@ -374,7 +385,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                    CodeEntry::kEmptyNamePrefix,
                                    name,
                                    "",
-                                   CodeEntry::kNoLineNumberInfo);
+                                   v8::CpuProfileNode::kNoLineNumberInfo);
   code_entries_.Add(entry);
   return entry;
 }
@@ -387,7 +398,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                    name_prefix,
                                    GetName(name),
                                    "",
-                                   CodeEntry::kNoLineNumberInfo);
+                                   v8::CpuProfileNode::kNoLineNumberInfo);
   code_entries_.Add(entry);
   return entry;
 }
@@ -399,9 +410,16 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                    "args_count: ",
                                    GetName(args_count),
                                    "",
-                                   CodeEntry::kNoLineNumberInfo);
+                                   v8::CpuProfileNode::kNoLineNumberInfo);
   code_entries_.Add(entry);
   return entry;
+}
+
+
+const char* CpuProfilesCollection::GetFunctionName(String* name) {
+  const char* maybe_empty_name = GetName(name);
+  return strlen(maybe_empty_name) > 0 ?
+      maybe_empty_name : "(anonymous function)";
 }
 
 
@@ -455,14 +473,17 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
 }
 
 
+
 ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
-    : profiles_(profiles) {
+    : profiles_(profiles),
+      program_entry_(
+          profiles->NewCodeEntry(Logger::FUNCTION_TAG, "(program)")) {
 }
 
 
 void ProfileGenerator::RecordTickSample(const TickSample& sample) {
-  // Allocate space for stack frames + pc + function.
-  ScopedVector<CodeEntry*> entries(sample.frames_count + 2);
+  // Allocate space for stack frames + pc + function + (program).
+  ScopedVector<CodeEntry*> entries(sample.frames_count + 3);
   CodeEntry** entry = entries.start();
   *entry++ = code_map_.FindEntry(sample.pc);
 
@@ -486,6 +507,10 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
        ++stack_pos) {
     *entry++ = code_map_.FindEntry(*stack_pos);
   }
+
+  // WebKit CPU profiles visualization requires "(program)" to be the
+  // topmost entry.
+  *entry++ = FLAG_prof_browser_mode ? program_entry_ : NULL;
 
   profiles_->AddPathToCurrentProfiles(entries);
 }
