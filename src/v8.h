@@ -95,7 +95,7 @@ class V8 : public AllStatic {
 
   // Random number generation support. Not cryptographically safe.
   static uint32_t Random();
-  static Smi* RandomPositiveSmi();
+  static Object* FillHeapNumberWithRandom(Object* heap_number);
 
   // Idle notification directly from the API.
   static bool IdleNotification();

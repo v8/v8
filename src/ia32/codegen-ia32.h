@@ -614,7 +614,7 @@ class CodeGenerator: public AstVisitor {
   void GenerateGetFramePointer(ZoneList<Expression*>* args);
 
   // Fast support for Math.random().
-  void GenerateRandomPositiveSmi(ZoneList<Expression*>* args);
+  void GenerateRandomHeapNumber(ZoneList<Expression*>* args);
 
   // Fast support for StringAdd.
   void GenerateStringAdd(ZoneList<Expression*>* args);

@@ -4074,19 +4074,41 @@ void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateRandomHeapNumber(
+    ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   frame_->SpillAll();
+
+  Label slow_allocate_heapnumber;
+  Label heapnumber_allocated;
+  __ AllocateHeapNumber(rdi, rbx, &slow_allocate_heapnumber);
+  __ jmp(&heapnumber_allocated);
+
+  __ bind(&slow_allocate_heapnumber);
+  // To allocate a heap number, and ensure that it is not a smi, we
+  // call the runtime function FUnaryMinus on 0, returning the double
+  // -0.0.  A new, distinct heap number is returned each time.
+  __ Push(Smi::FromInt(0));
+  __ CallRuntime(Runtime::kNumberUnaryMinus, 1);
+  __ movq(rdi, rax);
+
+  __ bind(&heapnumber_allocated);
+
+  // Put a random number into the heap number rdi using a C++ function.
+  // Return the heap number in rax.
+#ifdef _WIN64
+  __ movq(rcx, rdi);
+#else
+  // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
   __ push(rsi);
-
-  static const int num_arguments = 0;
-  __ PrepareCallCFunction(num_arguments);
-
-  // Call V8::RandomPositiveSmi().
-  __ CallCFunction(ExternalReference::random_positive_smi_function(),
-                   num_arguments);
-
+#endif
+  __ PrepareCallCFunction(1);
+  __ CallCFunction(ExternalReference::fill_heap_number_with_random_function(),
+                   1);
+#ifndef _WIN64
+  // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
   __ pop(rsi);
+#endif
   Result result = allocator_->Allocate(rax);
   frame_->Push(&result);
 }

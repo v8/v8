@@ -574,8 +574,9 @@ ExternalReference ExternalReference::perform_gc_function() {
 }
 
 
-ExternalReference ExternalReference::random_positive_smi_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(V8::RandomPositiveSmi)));
+ExternalReference ExternalReference::fill_heap_number_with_random_function() {
+  return
+      ExternalReference(Redirect(FUNCTION_ADDR(V8::FillHeapNumberWithRandom)));
 }
 
 

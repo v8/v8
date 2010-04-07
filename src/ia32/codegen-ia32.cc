@@ -6430,16 +6430,30 @@ void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateRandomHeapNumber(
+    ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   frame_->SpillAll();
 
-  static const int num_arguments = 0;
-  __ PrepareCallCFunction(num_arguments, eax);
+  Label slow_allocate_heapnumber;
+  Label heapnumber_allocated;
 
-  // Call V8::RandomPositiveSmi().
-  __ CallCFunction(ExternalReference::random_positive_smi_function(),
-                   num_arguments);
+  __ AllocateHeapNumber(eax, ebx, ecx, &slow_allocate_heapnumber);
+  __ jmp(&heapnumber_allocated);
+
+  __ bind(&slow_allocate_heapnumber);
+  // To allocate a heap number, and ensure that it is not a smi, we
+  // call the runtime function FUnaryMinus on 0, returning the double
+  // -0.0.  A new, distinct heap number is returned each time.
+  __ push(Immediate(Smi::FromInt(0)));
+  __ CallRuntime(Runtime::kNumberUnaryMinus, 1);
+
+  __ bind(&heapnumber_allocated);
+
+  __ PrepareCallCFunction(1, ebx);
+  __ mov(Operand(esp, 0), eax);
+  __ CallCFunction(ExternalReference::fill_heap_number_with_random_function(),
+                   1);
 
   Result result = allocator_->Allocate(eax);
   frame_->Push(&result);

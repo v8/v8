@@ -208,14 +208,27 @@ bool V8::IdleNotification() {
   return Heap::IdleNotification();
 }
 
-static const uint32_t kRandomPositiveSmiMax = 0x3fffffff;
 
-Smi* V8::RandomPositiveSmi() {
-  uint32_t random = Random();
-  ASSERT(static_cast<uint32_t>(Smi::kMaxValue) >= kRandomPositiveSmiMax);
-  // kRandomPositiveSmiMax must match the value being divided
-  // by in math.js.
-  return Smi::FromInt(random & kRandomPositiveSmiMax);
+// Use a union type to avoid type-aliasing optimizations in GCC.
+typedef union {
+  double double_value;
+  uint64_t uint64_t_value;
+} double_int_union;
+
+
+Object* V8::FillHeapNumberWithRandom(Object* heap_number) {
+  uint64_t random_bits = Random();
+  // Make a double* from address (heap_number + sizeof(double)).
+  double_int_union* r = reinterpret_cast<double_int_union*>(
+      reinterpret_cast<char*>(heap_number) +
+      HeapNumber::kValueOffset - kHeapObjectTag);
+  // Create a random number between 0.0 and 1.0 by putting random bits into
+  // the mantissa of 1.0 and subtracting 1.0.
+  r->double_value = 1.0;
+  r->uint64_t_value |= (random_bits << 20);
+  r->double_value -= 1.0;  // Force into the range [0.0, 1.0).
+
+  return heap_number;
 }
 
 } }  // namespace v8::internal
