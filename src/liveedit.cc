@@ -447,6 +447,13 @@ static void ReplaceCodeObject(Code* original, Code* substitution) {
 }
 
 
+// Check whether the code is natural function code (not a lazy-compile stub
+// code).
+static bool IsJSFunctionCode(Code* code) {
+  return code->kind() == Code::FUNCTION;
+}
+
+
 void LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
                                    Handle<JSArray> shared_info_array) {
   HandleScope scope;
@@ -456,15 +463,30 @@ void LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
-  ReplaceCodeObject(shared_info->code(),
-                       *(compile_info_wrapper.GetFunctionCode()));
+
+  if (IsJSFunctionCode(shared_info->code())) {
+    ReplaceCodeObject(shared_info->code(),
+                      *(compile_info_wrapper.GetFunctionCode()));
+  }
+
+  if (shared_info->debug_info()->IsDebugInfo()) {
+    Handle<DebugInfo> debug_info(DebugInfo::cast(shared_info->debug_info()));
+    Handle<Code> new_original_code =
+        Factory::CopyCode(compile_info_wrapper.GetFunctionCode());
+    debug_info->set_original_code(*new_original_code);
+  }
 
   shared_info->set_start_position(compile_info_wrapper.GetStartPosition());
   shared_info->set_end_position(compile_info_wrapper.GetEndPosition());
-  // update breakpoints, original code, constructor stub
+
+  shared_info->set_construct_stub(
+      Builtins::builtin(Builtins::JSConstructStubGeneric));
+  // update breakpoints
 }
 
 
+// TODO(635): Eval caches its scripts (same text -- same compiled info).
+// Make sure we clear such caches.
 void LiveEdit::RelinkFunctionToScript(Handle<JSArray> shared_info_array,
                                       Handle<Script> script_handle) {
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
@@ -636,15 +658,18 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
       TranslatePosition(info->function_token_position(),
       position_change_array));
 
-  // Patch relocation info section of the code.
-  Handle<Code> patched_code = PatchPositionsInCode(Handle<Code>(info->code()),
-                                                   position_change_array);
-  if (*patched_code != info->code()) {
-    // Replace all references to the code across the heap. In particular,
-    // some stubs may refer to this code and this code may be being executed
-    // on stack (it is safe to substitute the code object on stack, because
-    // we only change the structure of rinfo and leave instructions untouched).
-    ReplaceCodeObject(info->code(), *patched_code);
+  if (IsJSFunctionCode(info->code())) {
+    // Patch relocation info section of the code.
+    Handle<Code> patched_code = PatchPositionsInCode(Handle<Code>(info->code()),
+                                                     position_change_array);
+    if (*patched_code != info->code()) {
+      // Replace all references to the code across the heap. In particular,
+      // some stubs may refer to this code and this code may be being executed
+      // on stack (it is safe to substitute the code object on stack, because
+      // we only change the structure of rinfo and leave instructions
+      // untouched).
+      ReplaceCodeObject(info->code(), *patched_code);
+    }
   }
 
   if (info->debug_info()->IsDebugInfo()) {
