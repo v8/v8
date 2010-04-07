@@ -5249,6 +5249,17 @@ static Object* Runtime_NumberToString(Arguments args) {
 }
 
 
+static Object* Runtime_NumberToStringSkipCache(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  Object* number = args[0];
+  RUNTIME_ASSERT(number->IsNumber());
+
+  return Heap::NumberToString(number, false);
+}
+
+
 static Object* Runtime_NumberToInteger(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);

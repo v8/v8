@@ -99,6 +99,7 @@ namespace internal {
   F(URIUnescape, 1, 1) \
   \
   F(NumberToString, 1, 1) \
+  F(NumberToStringSkipCache, 1, 1) \
   F(NumberToInteger, 1, 1) \
   F(NumberToJSUint32, 1, 1) \
   F(NumberToJSInt32, 1, 1) \

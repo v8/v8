@@ -10938,14 +10938,6 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register scratch2,
                                                          bool object_is_smi,
                                                          Label* not_found) {
-  // Currently only lookup for smis. Check for smi if object is not known to be
-  // a smi.
-  if (!object_is_smi) {
-    ASSERT(kSmiTag == 0);
-    __ test(object, Immediate(kSmiTagMask));
-    __ j(not_zero, not_found);
-  }
-
   // Use of registers. Register result is used as a temporary.
   Register number_string_cache = result;
   Register mask = scratch1;
@@ -10961,23 +10953,74 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   __ mov(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
   __ shr(mask, 1);  // Divide length by two (length is not a smi).
   __ sub(Operand(mask), Immediate(1));  // Make mask.
+
   // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value.
-  __ mov(scratch, object);
-  __ SmiUntag(scratch);
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label smi_hash_calculated;
+  Label load_result_from_cache;
+  if (object_is_smi) {
+    __ mov(scratch, object);
+    __ SmiUntag(scratch);
+  } else {
+    Label not_smi, hash_calculated;
+    ASSERT(kSmiTag == 0);
+    __ test(object, Immediate(kSmiTagMask));
+    __ j(not_zero, &not_smi);
+    __ mov(scratch, object);
+    __ SmiUntag(scratch);
+    __ jmp(&smi_hash_calculated);
+    __ bind(&not_smi);
+    __ cmp(FieldOperand(object, HeapObject::kMapOffset),
+           Factory::heap_number_map());
+    __ j(not_equal, not_found);
+    ASSERT_EQ(8, kDoubleSize);
+    __ mov(scratch, FieldOperand(object, HeapNumber::kValueOffset));
+    __ xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
+    // Object is heap number and hash is now in scratch. Calculate cache index.
+    __ and_(scratch, Operand(mask));
+    Register index = scratch;
+    Register probe = mask;
+    __ mov(probe,
+           FieldOperand(number_string_cache,
+                        index,
+                        times_twice_pointer_size,
+                        FixedArray::kHeaderSize));
+    __ test(probe, Immediate(kSmiTagMask));
+    __ j(zero, not_found);
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatures::Scope fscope(SSE2);
+      __ movdbl(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
+      __ movdbl(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
+      __ comisd(xmm0, xmm1);
+    } else {
+      __ fld_d(FieldOperand(object, HeapNumber::kValueOffset));
+      __ fld_d(FieldOperand(probe, HeapNumber::kValueOffset));
+      __ FCmp();
+    }
+    __ j(parity_even, not_found);  // Bail out if NaN is involved.
+    __ j(not_equal, not_found);  // The cache did not contain this value.
+    __ jmp(&load_result_from_cache);
+  }
+
+  __ bind(&smi_hash_calculated);
+  // Object is smi and hash is now in scratch. Calculate cache index.
   __ and_(scratch, Operand(mask));
+  Register index = scratch;
   // Check if the entry is the smi we are looking for.
   __ cmp(object,
          FieldOperand(number_string_cache,
-                      scratch,
+                      index,
                       times_twice_pointer_size,
                       FixedArray::kHeaderSize));
   __ j(not_equal, not_found);
 
   // Get the result from the cache.
+  __ bind(&load_result_from_cache);
   __ mov(result,
          FieldOperand(number_string_cache,
-                      scratch,
+                      index,
                       times_twice_pointer_size,
                       FixedArray::kHeaderSize + kPointerSize));
   __ IncrementCounter(&Counters::number_to_string_native, 1);
@@ -10995,7 +11038,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
-  __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
+  __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
 }
 
 

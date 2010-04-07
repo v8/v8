@@ -1808,11 +1808,13 @@ Object* Heap::SmiOrNumberFromDouble(double value,
 }
 
 
-Object* Heap::NumberToString(Object* number) {
+Object* Heap::NumberToString(Object* number, bool check_number_string_cache) {
   Counters::number_to_string_runtime.Increment();
-  Object* cached = GetNumberStringCache(number);
-  if (cached != undefined_value()) {
-    return cached;
+  if (check_number_string_cache) {
+    Object* cached = GetNumberStringCache(number);
+    if (cached != undefined_value()) {
+      return cached;
+    }
   }
 
   char arr[100];

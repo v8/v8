@@ -530,7 +530,7 @@ function ToString(x) {
 }
 
 function NonStringToString(x) {
-  if (IS_NUMBER(x)) return %NumberToString(x);
+  if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   if (IS_UNDEFINED(x)) return 'undefined';
   return (IS_NULL(x)) ? 'null' : %ToString(%DefaultString(x));
