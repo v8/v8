@@ -217,14 +217,18 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   }
 
   if (script->name()->IsString()) {
-    PROFILE(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
-                            *code, String::cast(script->name())));
+    PROFILE(CodeCreateEvent(
+        is_eval ? Logger::EVAL_TAG :
+            Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+        *code, String::cast(script->name())));
     OPROFILE(CreateNativeCodeRegion(String::cast(script->name()),
                                     code->instruction_start(),
                                     code->instruction_size()));
   } else {
-    PROFILE(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
-                            *code, ""));
+    PROFILE(CodeCreateEvent(
+        is_eval ? Logger::EVAL_TAG :
+            Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+        *code, ""));
     OPROFILE(CreateNativeCodeRegion(is_eval ? "Eval" : "Script",
                                     code->instruction_start(),
                                     code->instruction_size()));
@@ -592,7 +596,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, start_position) + 1;
       USE(line_num);
-      PROFILE(CodeCreateEvent(tag, *code, *func_name,
+      PROFILE(CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
+                              *code, *func_name,
                               String::cast(script->name()), line_num));
       OPROFILE(CreateNativeCodeRegion(*func_name,
                                       String::cast(script->name()),
@@ -600,7 +605,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                       code->instruction_start(),
                                       code->instruction_size()));
     } else {
-      PROFILE(CodeCreateEvent(tag, *code, *func_name));
+      PROFILE(CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
+                              *code, *func_name));
       OPROFILE(CreateNativeCodeRegion(*func_name,
                                       code->instruction_start(),
                                       code->instruction_size()));

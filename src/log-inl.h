@@ -29,6 +29,7 @@
 #define V8_LOG_INL_H_
 
 #include "log.h"
+#include "cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -55,10 +56,13 @@ inline const char* StateToString(StateTag state) {
   }
 }
 
-VMState::VMState(StateTag state) : disabled_(true), external_callback_(NULL) {
-  if (!Logger::is_logging()) {
+VMState::VMState(StateTag state)
+    : disabled_(true),
+      state_(OTHER),
+      external_callback_(NULL) {
+  if (!Logger::is_logging() && !CpuProfiler::is_profiling()) {
     return;
-  }
+}
 
   disabled_ = false;
 #if !defined(ENABLE_HEAP_PROTECTION)
@@ -118,6 +122,26 @@ VMState::~VMState() {
   }
 #endif
 }
+
+Logger::LogEventsAndTags Logger::ToNativeByScript(Logger::LogEventsAndTags tag,
+                                                  Script* script) {
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+  if ((tag == FUNCTION_TAG || tag == LAZY_COMPILE_TAG || tag == SCRIPT_TAG)
+      && script->type()->value() == Script::TYPE_NATIVE) {
+    switch (tag) {
+      case FUNCTION_TAG: return NATIVE_FUNCTION_TAG;
+      case LAZY_COMPILE_TAG: return NATIVE_LAZY_COMPILE_TAG;
+      case SCRIPT_TAG: return NATIVE_SCRIPT_TAG;
+      default: return tag;
+    }
+  } else {
+    return tag;
+  }
+#else
+  return tag;
+#endif
+}
+
 #endif
 
 

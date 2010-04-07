@@ -57,6 +57,7 @@ void ProfilerEventsProcessor::CallbackCreateEvent(Logger::LogEventsAndTags tag,
                                                   const char* prefix,
                                                   String* name,
                                                   Address start) {
+  if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->type = CodeEventRecord::CODE_CREATION;
@@ -74,6 +75,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                               int line_number,
                                               Address start,
                                               unsigned size) {
+  if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->type = CodeEventRecord::CODE_CREATION;
@@ -89,6 +91,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                               const char* name,
                                               Address start,
                                               unsigned size) {
+  if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->type = CodeEventRecord::CODE_CREATION;
@@ -104,6 +107,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                               int args_count,
                                               Address start,
                                               unsigned size) {
+  if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->type = CodeEventRecord::CODE_CREATION;
@@ -164,6 +168,7 @@ void ProfilerEventsProcessor::RegExpCodeCreateEvent(
     String* name,
     Address start,
     unsigned size) {
+  if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->type = CodeEventRecord::CODE_CREATION;

@@ -148,6 +148,11 @@ class Logger {
   enum LogEventsAndTags {
     LOG_EVENTS_AND_TAGS_LIST(DECLARE_ENUM)
     NUMBER_OF_LOG_EVENTS
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+    , NATIVE_FUNCTION_TAG
+    , NATIVE_LAZY_COMPILE_TAG
+    , NATIVE_SCRIPT_TAG
+#endif
   };
 #undef DECLARE_ENUM
 
@@ -286,6 +291,9 @@ class Logger {
   static void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
   static void LogCodeObjects();
+
+  // Converts tag to a corresponding NATIVE_... if the script is native.
+  INLINE(static LogEventsAndTags ToNativeByScript(LogEventsAndTags, Script*));
 
  private:
 

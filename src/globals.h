@@ -471,6 +471,11 @@ struct AccessorDescriptor {
   V(EXTERNAL)
 
 enum StateTag {
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+  // This is to ensure that VM state field value of TickSample
+  // never gets equal to SamplingCircularQueue::kClear.
+  NULL_STATE = 0,
+#endif
 #define DEF_STATE_TAG(name) name,
   STATE_TAG_LIST(DEF_STATE_TAG)
 #undef DEF_STATE_TAG

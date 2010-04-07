@@ -383,7 +383,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                                const char* name) {
   CodeEntry* entry = new CodeEntry(tag,
                                    CodeEntry::kEmptyNamePrefix,
-                                   name,
+                                   GetFunctionName(name),
                                    "",
                                    v8::CpuProfileNode::kNoLineNumberInfo);
   code_entries_.Add(entry);
@@ -413,13 +413,6 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                    v8::CpuProfileNode::kNoLineNumberInfo);
   code_entries_.Add(entry);
   return entry;
-}
-
-
-const char* CpuProfilesCollection::GetFunctionName(String* name) {
-  const char* maybe_empty_name = GetName(name);
-  return strlen(maybe_empty_name) > 0 ?
-      maybe_empty_name : "(anonymous function)";
 }
 
 
@@ -473,44 +466,56 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
 }
 
 
+const char* ProfileGenerator::kAnonymousFunctionName = "(anonymous function)";
+const char* ProfileGenerator::kProgramEntryName = "(program)";
+const char* ProfileGenerator::kGarbageCollectorEntryName =
+  "(garbage collector)";
+
 
 ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
     : profiles_(profiles),
       program_entry_(
-          profiles->NewCodeEntry(Logger::FUNCTION_TAG, "(program)")) {
+          profiles->NewCodeEntry(Logger::FUNCTION_TAG, kProgramEntryName)),
+      gc_entry_(
+          profiles->NewCodeEntry(Logger::BUILTIN_TAG,
+                                 kGarbageCollectorEntryName)) {
 }
 
 
 void ProfileGenerator::RecordTickSample(const TickSample& sample) {
-  // Allocate space for stack frames + pc + function + (program).
+  // Allocate space for stack frames + pc + function + vm-state.
   ScopedVector<CodeEntry*> entries(sample.frames_count + 3);
+  // As actual number of decoded code entries may vary, initialize
+  // entries vector with NULL values.
   CodeEntry** entry = entries.start();
-  *entry++ = code_map_.FindEntry(sample.pc);
+  memset(entry, 0, entries.length() * sizeof(*entry));
+  if (sample.pc != NULL) {
+    *entry++ = code_map_.FindEntry(sample.pc);
 
-  if (sample.function != NULL) {
-    *entry = code_map_.FindEntry(sample.function);
-    if (*entry != NULL && !(*entry)->is_js_function()) {
-      *entry = NULL;
-    } else {
-      CodeEntry* pc_entry = *entries.start();
-      if (pc_entry == NULL || pc_entry->is_js_function())
+    if (sample.function != NULL) {
+      *entry = code_map_.FindEntry(sample.function);
+      if (*entry != NULL && !(*entry)->is_js_function()) {
         *entry = NULL;
+      } else {
+        CodeEntry* pc_entry = *entries.start();
+        if (pc_entry == NULL || pc_entry->is_js_function())
+          *entry = NULL;
+      }
+      entry++;
     }
-    entry++;
-  } else {
-    *entry++ = NULL;
+
+    for (const Address *stack_pos = sample.stack,
+           *stack_end = stack_pos + sample.frames_count;
+         stack_pos != stack_end;
+         ++stack_pos) {
+      *entry++ = code_map_.FindEntry(*stack_pos);
+    }
   }
 
-  for (const Address *stack_pos = sample.stack,
-         *stack_end = stack_pos + sample.frames_count;
-       stack_pos != stack_end;
-       ++stack_pos) {
-    *entry++ = code_map_.FindEntry(*stack_pos);
+  if (FLAG_prof_browser_mode) {
+    // Put VM state as the topmost entry.
+    *entry++ = EntryForVMState(sample.state);
   }
-
-  // WebKit CPU profiles visualization requires "(program)" to be the
-  // topmost entry.
-  *entry++ = FLAG_prof_browser_mode ? program_entry_ : NULL;
 
   profiles_->AddPathToCurrentProfiles(entries);
 }

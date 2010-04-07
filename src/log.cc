@@ -1337,17 +1337,20 @@ void Logger::LogCompiledFunctions() {
         Handle<String> script_name(String::cast(script->name()));
         int line_num = GetScriptLineNumber(script, shared->start_position());
         if (line_num > 0) {
-          PROFILE(CodeCreateEvent(Logger::LAZY_COMPILE_TAG,
-                                  shared->code(), *func_name,
-                                  *script_name, line_num + 1));
+          PROFILE(CodeCreateEvent(
+              Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
+              shared->code(), *func_name,
+              *script_name, line_num + 1));
         } else {
-          // Can't distinguish enum and script here, so always use Script.
-          PROFILE(CodeCreateEvent(Logger::SCRIPT_TAG,
-                                  shared->code(), *script_name));
+          // Can't distinguish eval and script here, so always use Script.
+          PROFILE(CodeCreateEvent(
+              Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+              shared->code(), *script_name));
         }
       } else {
         PROFILE(CodeCreateEvent(
-            Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
+            Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
+            shared->code(), *func_name));
       }
     } else if (shared->IsApiFunction()) {
       // API function.

@@ -547,17 +547,17 @@ class Sampler::PlatformData : public Malloced {
     // Loop until the sampler is disengaged, keeping the specified samling freq.
     for ( ; sampler_->IsActive(); OS::Sleep(sampler_->interval_)) {
 #ifdef ENABLE_CPP_PROFILES_PROCESSOR
-      if (Logger::state() == GC) continue;
-
-      TickSample* sample = NULL;
+      TickSample* sample = CpuProfiler::TickSampleEvent();
+      if (sample == NULL) continue;
+      sample->pc = NULL;  // Impossible value if sampling succeeds.
+      sample->frames_count = 0;
 #else
       TickSample sample_obj;
       TickSample* sample = &sample_obj;
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 
       // We always sample the VM state.
       sample->state = Logger::state();
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
-
       // If profiling, we record the pc and sp of the profiled thread.
       if (sampler_->IsProfiling()
           && KERN_SUCCESS == thread_suspend(profiled_thread_)) {
@@ -587,15 +587,10 @@ class Sampler::PlatformData : public Malloced {
                              flavor,
                              reinterpret_cast<natural_t*>(&state),
                              &count) == KERN_SUCCESS) {
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-          sample = CpuProfiler::TickSampleEvent();
-#endif
-          if (sample != NULL) {
-            sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
-            sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
-            sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
-            sampler_->SampleStack(sample);
-          }
+          sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
+          sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
+          sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
+          sampler_->SampleStack(sample);
         }
         thread_resume(profiled_thread_);
       }

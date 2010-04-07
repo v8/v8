@@ -65,6 +65,20 @@ TickSample* ProfilerEventsProcessor::TickSampleEvent() {
   return &evt->sample;
 }
 
+
+bool ProfilerEventsProcessor::FilterOutCodeCreateEvent(
+    Logger::LogEventsAndTags tag) {
+  // In browser mode, leave only callbacks and non-native JS entries.
+  // We filter out regular expressions as currently we can't tell
+  // whether they origin from native scripts, so let's not confise people by
+  // showing them weird regexes they didn't wrote.
+  return FLAG_prof_browser_mode
+      && (tag != Logger::CALLBACK_TAG
+          && tag != Logger::FUNCTION_TAG
+          && tag != Logger::LAZY_COMPILE_TAG
+          && tag != Logger::SCRIPT_TAG);
+}
+
 } }  // namespace v8::internal
 
 #endif  // ENABLE_CPP_PROFILES_PROCESSOR

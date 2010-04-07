@@ -104,9 +104,10 @@ class CodeAliasEventRecord : public CodeEventRecord {
 class TickSampleEventRecord BASE_EMBEDDED {
  public:
   // In memory, the first machine word of a TickSampleEventRecord will be the
-  // first entry of TickSample, that is -- a program counter field.
+  // first entry of TickSample, that is -- the VM state field.
   // TickSample is put first, because 'order' can become equal to
-  // SamplingCircularQueue::kClear, while program counter can't.
+  // SamplingCircularQueue::kClear, while VM state can't, see
+  // the definition of 'enum StateTag'.
   TickSample sample;
   unsigned order;
 
@@ -172,6 +173,8 @@ class ProfilerEventsProcessor : public Thread {
   bool ProcessCodeEvent(unsigned* dequeue_order);
   bool ProcessTicks(unsigned dequeue_order);
 
+  INLINE(static bool FilterOutCodeCreateEvent(Logger::LogEventsAndTags tag));
+
   ProfileGenerator* generator_;
   bool running_;
   CircularQueue<CodeEventsContainer> events_buffer_;
@@ -236,8 +239,7 @@ class CpuProfiler {
   static void SetterCallbackEvent(String* name, Address entry_point);
 
   static INLINE(bool is_profiling()) {
-    ASSERT(singleton_ != NULL);
-    return singleton_->processor_ != NULL;
+    return singleton_ != NULL && singleton_->processor_ != NULL;
   }
 
  private:

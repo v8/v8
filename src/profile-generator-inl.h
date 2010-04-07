@@ -49,10 +49,13 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
 }
 
 
-bool CodeEntry::is_js_function() const {
-  return tag_ == Logger::FUNCTION_TAG
-      || tag_ == Logger::LAZY_COMPILE_TAG
-      || tag_ == Logger::SCRIPT_TAG;
+bool CodeEntry::is_js_function_tag(Logger::LogEventsAndTags tag) {
+  return tag == Logger::FUNCTION_TAG
+      || tag == Logger::LAZY_COMPILE_TAG
+      || tag == Logger::SCRIPT_TAG
+      || tag == Logger::NATIVE_FUNCTION_TAG
+      || tag == Logger::NATIVE_LAZY_COMPILE_TAG
+      || tag == Logger::NATIVE_SCRIPT_TAG;
 }
 
 
@@ -84,6 +87,33 @@ bool CpuProfilesCollection::is_last_profile() {
   // Called from VM thread, and only it can mutate the list,
   // so no locking is needed here.
   return current_profiles_.length() == 1;
+}
+
+
+const char* CpuProfilesCollection::GetFunctionName(String* name) {
+  return GetFunctionName(GetName(name));
+}
+
+
+const char* CpuProfilesCollection::GetFunctionName(const char* name) {
+  return strlen(name) > 0 ? name : ProfileGenerator::kAnonymousFunctionName;
+}
+
+
+CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
+  switch (tag) {
+    case GC:
+      return gc_entry_;
+    case JS:
+    case COMPILER:
+    // DOM events handlers are reported as OTHER / EXTERNAL entries.
+    // To avoid confusing people, let's put all these entries into
+    // one bucket.
+    case OTHER:
+    case EXTERNAL:
+      return program_entry_;
+    default: return NULL;
+  }
 }
 
 } }  // namespace v8::internal

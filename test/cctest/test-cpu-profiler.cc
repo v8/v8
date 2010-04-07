@@ -47,6 +47,7 @@ static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
                                    i::Address frame2 = NULL,
                                    i::Address frame3 = NULL) {
   i::TickSample* sample = proc->TickSampleEvent();
+  sample->state = i::OTHER;
   sample->pc = frame1;
   sample->function = frame1;
   sample->frames_count = 0;

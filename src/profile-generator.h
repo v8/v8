@@ -44,13 +44,15 @@ class CodeEntry {
                    const char* resource_name,
                    int line_number));
 
-  INLINE(bool is_js_function() const);
+  INLINE(bool is_js_function() const) { return is_js_function_tag(tag_); }
   INLINE(const char* name_prefix() const) { return name_prefix_; }
   INLINE(bool has_name_prefix() const) { return name_prefix_[0] != '\0'; }
   INLINE(const char* name() const) { return name_; }
   INLINE(const char* resource_name() const) { return resource_name_; }
   INLINE(int line_number() const) { return line_number_; }
   INLINE(unsigned call_uid() const) { return call_uid_; }
+
+  INLINE(static bool is_js_function_tag(Logger::LogEventsAndTags tag));
 
   static const char* kEmptyNamePrefix;
 
@@ -223,7 +225,8 @@ class CpuProfilesCollection {
   void AddPathToCurrentProfiles(const Vector<CodeEntry*>& path);
 
  private:
-  const char* GetFunctionName(String* name);
+  INLINE(const char* GetFunctionName(String* name));
+  INLINE(const char* GetFunctionName(const char* name));
   const char* GetName(String* name);
   const char* GetName(int args_count);
 
@@ -284,10 +287,17 @@ class ProfileGenerator {
 
   INLINE(CodeMap* code_map()) { return &code_map_; }
 
+  static const char* kAnonymousFunctionName;
+  static const char* kProgramEntryName;
+  static const char* kGarbageCollectorEntryName;
+
  private:
+  INLINE(CodeEntry* EntryForVMState(StateTag tag));
+
   CpuProfilesCollection* profiles_;
   CodeMap code_map_;
   CodeEntry* program_entry_;
+  CodeEntry* gc_entry_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
 };
