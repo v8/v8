@@ -224,7 +224,8 @@ void IC::Clear(Address address) {
     case Code::STORE_IC: return StoreIC::Clear(address, target);
     case Code::KEYED_STORE_IC: return KeyedStoreIC::Clear(address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
-    case Code::BINARY_OP_IC: return BinaryOpIC::Clear(address, target);
+    case Code::BINARY_OP_IC: return;  // Clearing these is tricky and does not
+                                      // make any performance difference.
     default: UNREACHABLE();
   }
 }
@@ -1401,25 +1402,6 @@ Object* KeyedStoreIC_Miss(Arguments args) {
 
 void BinaryOpIC::patch(Code* code) {
   set_target(code);
-}
-
-
-void BinaryOpIC::Clear(Address address, Code* target) {
-  if (target->ic_state() == UNINITIALIZED) return;
-
-  // At the end of a fast case stub there should be a reference to
-  // a corresponding UNINITIALIZED stub, so look for the last reloc info item.
-  RelocInfo* rinfo = NULL;
-  for (RelocIterator it(target, RelocInfo::kCodeTargetMask);
-       !it.done(); it.next()) {
-    rinfo = it.rinfo();
-  }
-
-  ASSERT(rinfo != NULL);
-  Code* uninit_stub = Code::GetCodeFromTargetAddress(rinfo->target_address());
-  ASSERT(uninit_stub->ic_state() == UNINITIALIZED &&
-         uninit_stub->kind() == Code::BINARY_OP_IC);
-  SetTargetAtAddress(address, uninit_stub);
 }
 
 

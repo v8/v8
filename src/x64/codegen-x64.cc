@@ -9068,15 +9068,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
-
-  // TODO(kaznacheev) Remove this (along with clearing) if it does not harm
-  // performance.
-  // Generate an unreachable reference to the DEFAULT stub so that it can be
-  // found at the end of this stub when clearing ICs at GC.
-  if (runtime_operands_type_ != BinaryOpIC::DEFAULT) {
-    GenericBinaryOpStub uninit(MinorKey(), BinaryOpIC::DEFAULT);
-    __ TailCallStub(&uninit);
-  }
 }
 
 
