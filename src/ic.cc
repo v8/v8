@@ -1433,8 +1433,9 @@ BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
 
 BinaryOpIC::TypeInfo BinaryOpIC::GetTypeInfo(Object* left,
                                              Object* right) {
-  // Patching is never requested for the two smis.
-  ASSERT(!left->IsSmi() || !right->IsSmi());
+  if (left->IsSmi() && right->IsSmi()) {
+    return GENERIC;
+  }
 
   if (left->IsNumber() && right->IsNumber()) {
     return HEAP_NUMBERS;
