@@ -1478,7 +1478,7 @@ bool Logger::Setup() {
     }
   }
 
-  ASSERT(VMState::current_state_ == NULL);  // NULL implies outermost external.
+  ASSERT(VMState::is_outermost_external());
 
   ticker_ = new Ticker(kSamplingIntervalMs);
 

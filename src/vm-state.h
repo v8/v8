@@ -42,6 +42,11 @@ class VMState BASE_EMBEDDED {
     external_callback_ = external_callback;
   }
 
+  // Used for debug asserts.
+  static bool is_outermost_external() {
+    return current_state_ == NULL;
+  }
+
   static StateTag current_state() {
     return current_state_ ? current_state_->state() : EXTERNAL;
   }
