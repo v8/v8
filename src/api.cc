@@ -2733,6 +2733,13 @@ int String::Write(uint16_t* buffer, int start, int length) const {
 }
 
 
+void v8::String::Flatten() {
+  if (IsDeadCheck("v8::String::Flatten()")) return;
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  i::FlattenString(str);
+}
+
+
 bool v8::String::IsExternal() const {
   EnsureInitialized("v8::String::IsExternal()");
   i::Handle<i::String> str = Utils::OpenHandle(this);

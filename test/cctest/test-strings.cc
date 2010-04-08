@@ -347,6 +347,38 @@ TEST(Utf8Conversion) {
 }
 
 
+TEST(StringConcatFlatten) {
+  InitializeVM();
+  v8::HandleScope handle_scope;
+
+  const char* stringA = "0123456789";
+  const char* stringB = "ABCDEFGHIJ";
+
+  v8::Local<v8::String> a = v8::String::New(stringA);
+  v8::Local<v8::String> b = v8::String::New(stringB);
+
+  v8::Local<v8::String> cons = v8::String::Concat(a, b);
+
+  i::Handle<i::String> str = v8::Utils::OpenHandle(*cons);
+  CHECK(!str->IsFlat());
+
+  cons->Flatten();
+
+  CHECK(str->IsFlat());
+
+  char buffer[21];
+  cons->WriteUtf8(buffer);
+
+  for (int i = 0; i < 10; i++) {
+    CHECK_EQ(stringA[i], buffer[i]);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    CHECK_EQ(stringB[i], buffer[i + 10]);
+  }
+}
+
+
 TEST(ExternalShortStringAdd) {
   ZoneScope zone(DELETE_ON_EXIT);
 
