@@ -124,6 +124,12 @@ BreakPoint.prototype.source_position = function() {
 };
 
 
+BreakPoint.prototype.updateSourcePosition = function(new_position, script) {
+  this.source_position_ = new_position;
+  // TODO(635): also update line and column.
+};
+
+
 BreakPoint.prototype.hit_count = function() {
   return this.hit_count_;
 };

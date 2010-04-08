@@ -180,11 +180,18 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   var position_patch_report;
   function PatchPositions(new_info, shared_info) {
     if (!shared_info) {
-      // TODO: explain what is happening.
+      // TODO(LiveEdit): explain what is happening.
       return;
     }
-    %LiveEditPatchFunctionPositions(shared_info.raw_array,
-        position_change_array);
+    var breakpoint_position_update = %LiveEditPatchFunctionPositions(
+        shared_info.raw_array, position_change_array);
+    for (var i = 0; i < breakpoint_position_update.length; i += 2) {
+      var new_pos = breakpoint_position_update[i];
+      var break_point_object = breakpoint_position_update[i + 1];
+      change_log.push( { breakpoint_position_update:
+          { from: break_point_object.source_position(), to: new_pos } } );
+      break_point_object.updateSourcePosition(new_pos, script);
+    }
     position_patch_report.push( { name: new_info.function_name } );
   }
 

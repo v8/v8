@@ -88,8 +88,10 @@ class LiveEdit : AllStatic {
   static void RelinkFunctionToScript(Handle<JSArray> shared_info_array,
                                      Handle<Script> script_handle);
 
-  static void PatchFunctionPositions(Handle<JSArray> shared_info_array,
-                                     Handle<JSArray> position_change_array);
+  // Returns an array of pairs (new source position, breakpoint_object/array)
+  // so that JS side could update positions in breakpoint objects.
+  static Handle<JSArray> PatchFunctionPositions(
+      Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array);
 
   // Checks listed functions on stack and return array with corresponding
   // FunctionPatchabilityStatus statuses; extra array element may

@@ -9656,6 +9656,8 @@ static Object* Runtime_LiveEditReplaceScript(Arguments args) {
   old_script->set_eval_from_instructions_offset(
       original_script->eval_from_instructions_offset());
 
+  // Drop line ends so that they will be recalculated.
+  original_script->set_line_ends(Heap::undefined_value());
 
   Debugger::OnAfterCompile(old_script, Debugger::SEND_WHEN_DEBUGGING);
 
@@ -9692,15 +9694,18 @@ static Object* Runtime_LiveEditRelinkFunctionToScript(Arguments args) {
 // array of groups of 3 numbers:
 // (change_begin, change_end, change_end_new_position).
 // Each group describes a change in text; groups are sorted by change_begin.
+// Returns an array of pairs (new source position, breakpoint_object/array)
+// so that JS side could update positions in breakpoint objects.
 static Object* Runtime_LiveEditPatchFunctionPositions(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;
   CONVERT_ARG_CHECKED(JSArray, shared_array, 0);
   CONVERT_ARG_CHECKED(JSArray, position_change_array, 1);
 
-  LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
+  Handle<Object> result =
+      LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
 
-  return Heap::undefined_value();
+  return *result;
 }
 
 

@@ -644,13 +644,28 @@ static Handle<Code> PatchPositionsInCode(Handle<Code> code,
 }
 
 
-void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
-                                      Handle<JSArray> position_change_array) {
+static Handle<Object> GetBreakPointObjectsForJS(
+    Handle<BreakPointInfo> break_point_info) {
+  if (break_point_info->break_point_objects()->IsFixedArray()) {
+    Handle<FixedArray> fixed_array(
+        FixedArray::cast(break_point_info->break_point_objects()));
+    Handle<Object> array = Factory::NewJSArrayWithElements(fixed_array);
+    return array;
+  } else {
+    return Handle<Object>(break_point_info->break_point_objects());
+  }
+}
+
+
+Handle<JSArray> LiveEdit::PatchFunctionPositions(
+    Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array) {
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
   Handle<SharedFunctionInfo> info = shared_info_wrapper.GetInfo();
 
-  info->set_start_position(TranslatePosition(info->start_position(),
-                                             position_change_array));
+  int old_function_start = info->start_position();
+  int new_function_start = TranslatePosition(old_function_start,
+                                             position_change_array);
+  info->set_start_position(new_function_start);
   info->set_end_position(TranslatePosition(info->end_position(),
                                            position_change_array));
 
@@ -672,6 +687,10 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
     }
   }
 
+
+  Handle<JSArray> result = Factory::NewJSArray(0);
+  int result_len = 0;
+
   if (info->debug_info()->IsDebugInfo()) {
     Handle<DebugInfo> debug_info(DebugInfo::cast(info->debug_info()));
     Handle<Code> patched_orig_code =
@@ -690,12 +709,22 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
       }
       Handle<BreakPointInfo> info(
           BreakPointInfo::cast(break_point_infos->get(i)));
-      int new_position = TranslatePosition(info->source_position()->value(),
+      int old_in_script_position = info->source_position()->value() +
+          old_function_start;
+      int new_in_script_position = TranslatePosition(old_in_script_position,
           position_change_array);
-      info->set_source_position(Smi::FromInt(new_position));
+      info->set_source_position(
+          Smi::FromInt(new_in_script_position - new_function_start));
+      if (old_in_script_position != new_in_script_position) {
+        SetElement(result, result_len,
+                   Handle<Smi>(Smi::FromInt(new_in_script_position)));
+        SetElement(result, result_len + 1,
+                   GetBreakPointObjectsForJS(info));
+        result_len += 2;
+      }
     }
   }
-  // TODO(635): Also patch breakpoint objects in JS.
+  return result;
 }
 
 
