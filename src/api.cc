@@ -2861,6 +2861,7 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
 
 
 void v8::Object::SetPointerInInternalField(int index, void* value) {
+  ENTER_V8;
   i::Object* as_object = reinterpret_cast<i::Object*>(value);
   if (as_object->IsSmi()) {
     Utils::OpenHandle(this)->SetInternalField(index, as_object);
@@ -3425,6 +3426,7 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
   }
   i::Handle<i::JSObject> paragon_handle(i::JSObject::cast(paragon));
   EXCEPTION_PREAMBLE();
+  ENTER_V8;
   i::Handle<i::JSObject> result = i::Copy(paragon_handle);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(Local<Object>());

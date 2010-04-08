@@ -87,30 +87,6 @@ class CompressionHelper;
 #define LOG(Call) ((void) 0)
 #endif
 
-class VMState BASE_EMBEDDED {
-#ifdef ENABLE_LOGGING_AND_PROFILING
- public:
-  inline VMState(StateTag state);
-  inline ~VMState();
-
-  StateTag state() { return state_; }
-  Address external_callback() { return external_callback_; }
-  void set_external_callback(Address external_callback) {
-    external_callback_ = external_callback;
-  }
-
- private:
-  bool disabled_;
-  StateTag state_;
-  VMState* previous_;
-  Address external_callback_;
-#else
- public:
-  explicit VMState(StateTag state) {}
-#endif
-};
-
-
 #define LOG_EVENTS_AND_TAGS_LIST(V) \
   V(CODE_CREATION_EVENT,            "code-creation",          "cc")       \
   V(CODE_MOVE_EVENT,                "code-move",              "cm")       \
@@ -264,10 +240,6 @@ class Logger {
   static void LogRuntime(Vector<const char> format, JSArray* args);
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  static StateTag state() {
-    return current_state_ ? current_state_->state() : OTHER;
-  }
-
   static bool is_logging() {
     return logging_nesting_ > 0;
   }
@@ -353,12 +325,6 @@ class Logger {
   // points to a Profiler, that handles collection
   // of samples.
   static Profiler* profiler_;
-
-  // A stack of VM states.
-  static VMState* current_state_;
-
-  // Singleton bottom or default vm state.
-  static VMState bottom_state_;
 
   // SlidingStateWindow instance keeping a sliding window of the most
   // recent VM states.

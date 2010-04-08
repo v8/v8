@@ -1029,6 +1029,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\vm-state.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\vm-state-inl.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\vm-state.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\zone-inl.h"
 				>
 			</File>

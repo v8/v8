@@ -162,8 +162,7 @@ void StackTracer::Trace(TickSample* sample) {
   }
 
   int i = 0;
-  const Address callback = Logger::current_state_ != NULL ?
-      Logger::current_state_->external_callback() : NULL;
+  const Address callback = VMState::external_callback();
   if (callback != NULL) {
     sample->stack[i++] = callback;
   }
@@ -327,8 +326,6 @@ void Profiler::Run() {
 //
 Ticker* Logger::ticker_ = NULL;
 Profiler* Logger::profiler_ = NULL;
-VMState* Logger::current_state_ = NULL;
-VMState Logger::bottom_state_(EXTERNAL);
 SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 const char** Logger::log_events_ = NULL;
 CompressionHelper* Logger::compression_helper_ = NULL;
@@ -1481,7 +1478,7 @@ bool Logger::Setup() {
     }
   }
 
-  current_state_ = &bottom_state_;
+  ASSERT(VMState::current_state_ == NULL);  // NULL implies outermost external.
 
   ticker_ = new Ticker(kSamplingIntervalMs);
 

@@ -1816,7 +1816,7 @@ class Sampler::PlatformData : public Malloced {
 #endif  // ENABLE_CPP_PROFILES_PROCESSOR
 
       // We always sample the VM state.
-      sample->state = Logger::state();
+      sample->state = VMState::current_state();
       // If profiling, we record the pc and sp of the profiled thread.
       if (sampler_->IsProfiling()
           && SuspendThread(profiled_thread_) != (DWORD)-1) {
