@@ -126,6 +126,9 @@ function RegExpCache() {
   this.replaceString = 0;
   this.lastIndex = 0;
   this.answer = 0;
+  // answerSaved marks whether the contents of answer is valid for a cache
+  // hit in RegExpExec, StringMatch and StringSplit.
+  this.answerSaved = false;
 }
 
 
@@ -133,6 +136,7 @@ var regExpCache = new RegExpCache();
 
 
 function CloneRegexpAnswer(array) {
+  if (array == null) return null; 
   var len = array.length;
   var answer = new $Array(len);
   for (var i = 0; i < len; i++) {
@@ -151,17 +155,19 @@ function RegExpExec(string) {
   }
 
   var cache = regExpCache;
+  var saveAnswer = false;
 
   if (%_ObjectEquals(cache.type, 'exec') &&
       %_ObjectEquals(cache.lastIndex, this.lastIndex) &&
       %_ObjectEquals(cache.regExp, this) &&
       %_ObjectEquals(cache.subject, string)) {
-    var last = cache.answer;
-    if (last == null) {
-      return last;
+    if (cache.answerSaved) {
+      return CloneRegexpAnswer(cache.answer);
     } else {
-      return CloneRegexpAnswer(last);
+      saveAnswer = true;
     }
+  } else {
+    cache.answerSaved = false;
   }
 
   if (%_ArgumentsLength() == 0) {
@@ -196,6 +202,7 @@ function RegExpExec(string) {
     cache.regExp = this;
     cache.subject = s;
     cache.answer = matchIndices;  // Null.
+    cache.answerSaved = true;     // Safe since no cloning is needed.
     cache.type = 'exec';
     return matchIndices;        // No match.
   }
@@ -225,15 +232,18 @@ function RegExpExec(string) {
   result.input = s;
   if (this.global) {
     this.lastIndex = lastMatchInfo[CAPTURE1];
-    return result;
   } else {
     cache.regExp = this;
     cache.subject = s;
     cache.lastIndex = lastIndex;
-    cache.answer = result;
+    if (saveAnswer) {
+      cache.answer = CloneRegexpAnswer(result);
+      cache.answerSaved = true;
+    }
     cache.type = 'exec';
-    return CloneRegexpAnswer(result);
   }
+  return result;
+
 }
 
 
