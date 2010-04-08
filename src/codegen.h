@@ -229,7 +229,12 @@ class DeferredCode: public ZoneObject {
   Label entry_label_;
   Label exit_label_;
 
-  int registers_[RegisterAllocator::kNumRegisters];
+  // C++ doesn't allow zero length arrays, so we make the array length 1 even
+  // if we don't need it.
+  static const int kRegistersArrayLength =
+      (RegisterAllocator::kNumRegisters == 0) ?
+          1 : RegisterAllocator::kNumRegisters;
+  int registers_[kRegistersArrayLength];
 
 #ifdef DEBUG
   const char* comment_;

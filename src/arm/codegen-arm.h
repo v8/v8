@@ -92,10 +92,6 @@ class Reference BASE_EMBEDDED {
   // If the reference is not consumed, it is left in place under its value.
   void GetValue();
 
-  // Generate code to pop a reference, push the value of the reference,
-  // and then spill the stack frame.
-  inline void GetValueAndSpill();
-
   // Generate code to store the value on top of the expression stack in the
   // reference.  The reference is expected to be immediately below the value
   // on the expression stack.  The  value is stored in the location specified
@@ -314,6 +310,9 @@ class CodeGenerator: public AstVisitor {
   void GenericBinaryOperation(Token::Value op,
                               OverwriteMode overwrite_mode,
                               int known_rhs = kUnknownIntValue);
+  void VirtualFrameBinaryOperation(Token::Value op,
+                                   OverwriteMode overwrite_mode,
+                                   int known_rhs = kUnknownIntValue);
   void Comparison(Condition cc,
                   Expression* left,
                   Expression* right,
@@ -323,6 +322,11 @@ class CodeGenerator: public AstVisitor {
                     Handle<Object> value,
                     bool reversed,
                     OverwriteMode mode);
+
+  void VirtualFrameSmiOperation(Token::Value op,
+                                Handle<Object> value,
+                                bool reversed,
+                                OverwriteMode mode);
 
   void CallWithArguments(ZoneList<Expression*>* arguments,
                          CallFunctionFlags flags,

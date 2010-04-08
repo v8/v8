@@ -70,8 +70,15 @@ class MacroAssembler: public Assembler {
   // from the stack, clobbering only the sp register.
   void Drop(int count, Condition cond = al);
 
+
+  // Swap two registers.  If the scratch register is omitted then a slightly
+  // less efficient form using xor instead of mov is emitted.
+  void Swap(Register reg1, Register reg2, Register scratch = no_reg);
+
   void Call(Label* target);
   void Move(Register dst, Handle<Object> value);
+  // May do nothing if the registers are identical.
+  void Move(Register dst, Register src);
   // Jumps to the label at the index given by the Smi in "index".
   void SmiJumpTable(Register index, Vector<Label*> targets);
   // Load an object from the root table.

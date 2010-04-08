@@ -180,6 +180,19 @@ void MacroAssembler::Drop(int count, Condition cond) {
 }
 
 
+void MacroAssembler::Swap(Register reg1, Register reg2, Register scratch) {
+  if (scratch.is(no_reg)) {
+    eor(reg1, reg1, Operand(reg2));
+    eor(reg2, reg2, Operand(reg1));
+    eor(reg1, reg1, Operand(reg2));
+  } else {
+    mov(scratch, reg1);
+    mov(reg1, reg2);
+    mov(reg2, scratch);
+  }
+}
+
+
 void MacroAssembler::Call(Label* target) {
   bl(target);
 }
@@ -187,6 +200,13 @@ void MacroAssembler::Call(Label* target) {
 
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
   mov(dst, Operand(value));
+}
+
+
+void MacroAssembler::Move(Register dst, Register src) {
+  if (!dst.is(src)) {
+    mov(dst, src);
+  }
 }
 
 
