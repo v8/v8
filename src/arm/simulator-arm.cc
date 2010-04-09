@@ -1812,6 +1812,7 @@ void Simulator::DecodeType3(Instr* instr) {
       break;
     }
     case 3: {
+      // UBFX.
       if (instr->HasW() && (instr->Bits(6, 4) == 0x5)) {
         uint32_t widthminus1 = static_cast<uint32_t>(instr->Bits(20, 16));
         uint32_t lsbit = static_cast<uint32_t>(instr->ShiftAmountField());
