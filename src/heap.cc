@@ -562,18 +562,23 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
   EnsureFromSpaceIsCommitted();
 
+  // Perform mark-sweep with optional compaction.
   if (collector == MARK_COMPACTOR) {
-    // Perform mark-sweep with optional compaction.
     MarkCompact(tracer);
+  }
 
+  // Always perform a scavenge to make room in new space.
+  Scavenge();
+
+  // Update the old space promotion limits after the scavenge due to
+  // promotions during scavenge.
+  if (collector == MARK_COMPACTOR) {
     int old_gen_size = PromotedSpaceSize();
     old_gen_promotion_limit_ =
         old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
     old_gen_allocation_limit_ =
         old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
     old_gen_exhausted_ = false;
-  } else {
-    Scavenge();
   }
 
   Counters::objs_since_last_young.Set(0);
@@ -759,17 +764,6 @@ static void VerifyNonPointerSpacePointers() {
 #endif
 
 
-void Heap::CheckNewSpaceExpansionCriteria() {
-  if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
-      survived_since_last_expansion_ > new_space_.Capacity()) {
-    // Grow the size of new space if there is room to grow and enough
-    // data has survived scavenge since the last expansion.
-    new_space_.Grow();
-    survived_since_last_expansion_ = 0;
-  }
-}
-
-
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
@@ -786,7 +780,13 @@ void Heap::Scavenge() {
   // Used for updating survived_since_last_expansion_ at function end.
   int survived_watermark = PromotedSpaceSize();
 
-  CheckNewSpaceExpansionCriteria();
+  if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
+      survived_since_last_expansion_ > new_space_.Capacity()) {
+    // Grow the size of new space if there is room to grow and enough
+    // data has survived scavenge since the last expansion.
+    new_space_.Grow();
+    survived_since_last_expansion_ = 0;
+  }
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
@@ -837,17 +837,15 @@ void Heap::Scavenge() {
 
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
-  UpdateNewSpaceReferencesInExternalStringTable(
-      &UpdateNewSpaceReferenceInExternalStringTableEntry);
-
+  ScavengeExternalStringTable();
   ASSERT(new_space_front == new_space_.top());
 
   // Set age mark.
   new_space_.set_age_mark(new_space_.top());
 
   // Update how much has survived scavenge.
-  IncrementYoungSurvivorsCounter(
-      (PromotedSpaceSize() - survived_watermark) + new_space_.Size());
+  survived_since_last_expansion_ +=
+      (PromotedSpaceSize() - survived_watermark) + new_space_.Size();
 
   LOG(ResourceEvent("scavenge", "end"));
 
@@ -855,22 +853,7 @@ void Heap::Scavenge() {
 }
 
 
-String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Object** p) {
-  MapWord first_word = HeapObject::cast(*p)->map_word();
-
-  if (!first_word.IsForwardingAddress()) {
-    // Unreachable external string can be finalized.
-    FinalizeExternalString(String::cast(*p));
-    return NULL;
-  }
-
-  // String is still reachable.
-  return String::cast(first_word.ToForwardingAddress());
-}
-
-
-void Heap::UpdateNewSpaceReferencesInExternalStringTable(
-    ExternalStringTableUpdaterCallback updater_func) {
+void Heap::ScavengeExternalStringTable() {
   ExternalStringTable::Verify();
 
   if (ExternalStringTable::new_space_strings_.is_empty()) return;
@@ -881,10 +864,16 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 
   for (Object** p = start; p < end; ++p) {
     ASSERT(Heap::InFromSpace(*p));
-    String* target = updater_func(p);
+    MapWord first_word = HeapObject::cast(*p)->map_word();
 
-    if (target == NULL) continue;
+    if (!first_word.IsForwardingAddress()) {
+      // Unreachable external string can be finalized.
+      FinalizeExternalString(String::cast(*p));
+      continue;
+    }
 
+    // String is still reachable.
+    String* target = String::cast(first_word.ToForwardingAddress());
     ASSERT(target->IsExternalString());
 
     if (Heap::InNewSpace(target)) {
