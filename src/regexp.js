@@ -166,8 +166,6 @@ function RegExpExec(string) {
     } else {
       saveAnswer = true;
     }
-  } else {
-    cache.answerSaved = false;
   }
 
   if (%_ArgumentsLength() == 0) {
@@ -236,10 +234,8 @@ function RegExpExec(string) {
     cache.regExp = this;
     cache.subject = s;
     cache.lastIndex = lastIndex;
-    if (saveAnswer) {
-      cache.answer = CloneRegexpAnswer(result);
-      cache.answerSaved = true;
-    }
+    if (saveAnswer) cache.answer = CloneRegexpAnswer(result);
+    cache.answerSaved = saveAnswer;
     cache.type = 'exec';
   }
   return result;
