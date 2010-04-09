@@ -1557,6 +1557,45 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
 }
 
 
+void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
+  int frameAlignment = OS::ActivationFrameAlignment();
+  // Up to four simple arguments are passed in registers r0..r3.
+  int stack_passed_arguments = (num_arguments <= 4) ? 0 : num_arguments - 4;
+  if (frameAlignment > kPointerSize) {
+    // Make stack end at alignment and make room for num_arguments - 4 words
+    // and the original value of sp.
+    mov(scratch, sp);
+    sub(sp, sp, Operand((stack_passed_arguments + 1) * kPointerSize));
+    ASSERT(IsPowerOf2(frameAlignment));
+    and_(sp, sp, Operand(-frameAlignment));
+    str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
+  } else {
+    sub(sp, sp, Operand(stack_passed_arguments * kPointerSize));
+  }
+}
+
+
+void MacroAssembler::CallCFunction(ExternalReference function,
+                                   int num_arguments) {
+  mov(ip, Operand(function));
+  CallCFunction(ip, num_arguments);
+}
+
+
+void MacroAssembler::CallCFunction(Register function, int num_arguments) {
+  // Just call directly. The function called cannot cause a GC, or
+  // allow preemption, so the return address in the link register
+  // stays correct.
+  Call(function);
+  int stack_passed_arguments = (num_arguments <= 4) ? 0 : num_arguments - 4;
+  if (OS::ActivationFrameAlignment() > kPointerSize) {
+    ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
+  } else {
+    add(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));
+  }
+}
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 CodePatcher::CodePatcher(byte* address, int instructions)
     : address_(address),

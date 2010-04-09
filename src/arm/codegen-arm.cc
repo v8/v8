@@ -3956,8 +3956,9 @@ void CodeGenerator::GenerateRandomHeapNumber(
   __ CallRuntime(Runtime::kNumberUnaryMinus, 1);
 
   __ bind(&heapnumber_allocated);
-  __ Call(ExternalReference::fill_heap_number_with_random_function().address(),
-          RelocInfo::RUNTIME_ENTRY);
+  __ PrepareCallCFunction(1, r1);
+  __ CallCFunction(
+      ExternalReference::fill_heap_number_with_random_function(), 1);
   frame_->EmitPush(r0);
 }
 
@@ -5958,28 +5959,23 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(MacroAssembler* masm,
       // r5: Address of heap number for result.
 
       __ push(lr);   // For later.
-      __ push(r5);   // Address of heap number that is answer.
-      __ AlignStack(0);
-      // Call C routine that may not cause GC or other trouble.
-      __ mov(r5, Operand(ExternalReference::double_fp_operation(op_)));
-      __ Call(r5);
-      __ pop(r4);  // Address of heap number.
-      __ cmp(r4, Operand(Smi::FromInt(0)));
-      __ pop(r4, eq);  // Conditional pop instruction
-                       // to get rid of alignment push.
+      __ PrepareCallCFunction(4, r4);  // Two doubles count as 4 arguments.
+      // Call C routine that may not cause GC or other trouble. r5 is callee
+      // save.
+      __ CallCFunction(ExternalReference::double_fp_operation(op_), 4);
       // Store answer in the overwritable heap number.
   #if !defined(USE_ARM_EABI)
       // Double returned in fp coprocessor register 0 and 1, encoded as register
       // cr8.  Offsets must be divisible by 4 for coprocessor so we need to
-      // substract the tag from r4.
-      __ sub(r5, r4, Operand(kHeapObjectTag));
-      __ stc(p1, cr8, MemOperand(r5, HeapNumber::kValueOffset));
+      // substract the tag from r5.
+      __ sub(r4, r5, Operand(kHeapObjectTag));
+      __ stc(p1, cr8, MemOperand(r4, HeapNumber::kValueOffset));
   #else
       // Double returned in registers 0 and 1.
-      __ str(r0, FieldMemOperand(r4, HeapNumber::kValueOffset));
-      __ str(r1, FieldMemOperand(r4, HeapNumber::kValueOffset + 4));
+      __ str(r0, FieldMemOperand(r5, HeapNumber::kValueOffset));
+      __ str(r1, FieldMemOperand(r5, HeapNumber::kValueOffset + 4));
   #endif
-      __ mov(r0, Operand(r4));
+      __ mov(r0, Operand(r5));
       // And we are done.
       __ pop(pc);
     }
