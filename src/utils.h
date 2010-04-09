@@ -657,7 +657,7 @@ inline Dest BitCast(const Source& source) {
   return dest;
 }
 
-} }  // namespace v8::internal
 
+} }  // namespace v8::internal
 
 #endif  // V8_UTILS_H_

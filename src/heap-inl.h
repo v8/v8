@@ -240,27 +240,6 @@ void Heap::CopyBlock(Object** dst, Object** src, int byte_size) {
 }
 
 
-void Heap::MoveBlock(Object** dst, Object** src, size_t byte_size) {
-  ASSERT(IsAligned<size_t>(byte_size, kPointerSize));
-
-  int size_in_words = byte_size / kPointerSize;
-
-  if ((dst < src) || (dst >= (src + size_in_words))) {
-    ASSERT((dst >= (src + size_in_words)) ||
-           ((OffsetFrom(reinterpret_cast<Address>(src)) -
-             OffsetFrom(reinterpret_cast<Address>(dst))) >= kPointerSize));
-
-    Object** end = src + size_in_words;
-
-    while (src != end) {
-      *dst++ = *src++;
-    }
-  } else {
-    memmove(dst, src, byte_size);
-  }
-}
-
-
 void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
   ASSERT(InFromSpace(object));
 
