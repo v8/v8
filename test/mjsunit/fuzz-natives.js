@@ -160,6 +160,9 @@ var knownProblems = {
   // That can only be invoked on Array.prototype.
   "FinishArrayPrototypeSetup": true,
 
+  // Performance critical function which cannot afford type checks.
+  "_CallFunction": true,
+
   // LiveEdit feature is under development currently and has fragile input.
   "LiveEditFindSharedFunctionInfosForScript": true,
   "LiveEditGatherCompileInfo": true,

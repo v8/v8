@@ -289,6 +289,10 @@ class VirtualFrame : public ZoneObject {
     masm()->CallStub(stub);
   }
 
+  // Call JS function from top of the stack with arguments
+  // taken from the stack.
+  void CallJSFunction(int arg_count);
+
   // Call runtime given the number of arguments expected on (and
   // removed from) the stack.
   void CallRuntime(Runtime::Function* f, int arg_count);

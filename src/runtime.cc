@@ -1363,6 +1363,13 @@ static Object* Runtime_SpecialArrayFunctions(Arguments args) {
 }
 
 
+static Object* Runtime_GetGlobalReceiver(Arguments args) {
+  // Returns a real global receiver, not one of builtins object.
+  Context* global_context = Top::context()->global()->global_context();
+  return global_context->global()->global_receiver();
+}
+
+
 static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 4);

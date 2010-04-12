@@ -644,6 +644,8 @@ function ArraySort(comparefn) {
   // In-place QuickSort algorithm.
   // For short (length <= 22) arrays, insertion sort is used for efficiency.
 
+  var global_receiver;
+
   function InsertionSortWithFunc(a, from, to) {
     for (var i = from + 1; i < to; i++) {
       var element = a[i];
@@ -654,8 +656,7 @@ function ArraySort(comparefn) {
       // The search interval is a[min..max[
       while (min < max) {
         var mid = min + ((max - min) >> 1);
-        var order = (a[mid] === element) ?
-            0 : comparefn.call(null, a[mid], element);
+        var order = %_CallFunction(global_receiver, a[mid], element, comparefn);
         if (order == 0) {
           min = max = mid;
           break;
@@ -692,8 +693,7 @@ function ArraySort(comparefn) {
     // From i to high_start are elements that haven't been compared yet.
     for (var i = from + 1; i < high_start; ) {
       var element = a[i];
-      var order = (element === pivot) ?
-          0 : comparefn.call(null, element, pivot);
+      var order = %_CallFunction(global_receiver, element, pivot, comparefn);
       if (order < 0) {
         a[i] = a[low_end];
         a[low_end] = element;
@@ -938,6 +938,7 @@ function ArraySort(comparefn) {
   }
 
   if(IS_FUNCTION(comparefn)) {
+    global_receiver = %GetGlobalReceiver();
     QuickSortWithFunc(this, 0, num_non_undefined);
   } else {
     QuickSort(this, 0, num_non_undefined);
