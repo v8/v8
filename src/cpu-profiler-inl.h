@@ -39,30 +39,56 @@ namespace v8 {
 namespace internal {
 
 void CodeCreateEventRecord::UpdateCodeMap(CodeMap* code_map) {
-    code_map->AddCode(start, entry, size);
+  code_map->AddCode(start, entry, size);
 }
 
 
 void CodeMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
-    code_map->MoveCode(from, to);
+  code_map->MoveCode(from, to);
 }
 
 
 void CodeDeleteEventRecord::UpdateCodeMap(CodeMap* code_map) {
-    code_map->DeleteCode(start);
+  code_map->DeleteCode(start);
 }
 
 
 void CodeAliasEventRecord::UpdateCodeMap(CodeMap* code_map) {
-    code_map->AddAlias(alias, start);
+  code_map->AddAlias(alias, start);
+}
+
+
+TickSampleEventRecord* TickSampleEventRecord::init(void* value) {
+  TickSampleEventRecord* result =
+      reinterpret_cast<TickSampleEventRecord*>(value);
+  result->filler = 1;
+  ASSERT(result->filler != SamplingCircularQueue::kClear);
+  // Init the required fields only.
+  result->sample.pc = NULL;
+  result->sample.frames_count = 0;
+  return result;
 }
 
 
 TickSample* ProfilerEventsProcessor::TickSampleEvent() {
   TickSampleEventRecord* evt =
-      TickSampleEventRecord::cast(ticks_buffer_.Enqueue());
+      TickSampleEventRecord::init(ticks_buffer_.Enqueue());
   evt->order = enqueue_order_;  // No increment!
   return &evt->sample;
+}
+
+
+bool ProfilerEventsProcessor::FilterOutCodeCreateEvent(
+    Logger::LogEventsAndTags tag) {
+  // In browser mode, leave only callbacks and non-native JS entries.
+  // We filter out regular expressions as currently we can't tell
+  // whether they origin from native scripts, so let's not confise people by
+  // showing them weird regexes they didn't wrote.
+  return FLAG_prof_browser_mode
+      && (tag != Logger::CALLBACK_TAG
+          && tag != Logger::FUNCTION_TAG
+          && tag != Logger::LAZY_COMPILE_TAG
+          && tag != Logger::SCRIPT_TAG);
 }
 
 } }  // namespace v8::internal

@@ -1465,6 +1465,50 @@ void Simulator::DecodeType01(Instr* instr) {
       }
       return;
     }
+  } else if ((type == 0) && instr->IsMiscType0()) {
+    if (instr->Bits(22, 21) == 1) {
+      int rm = instr->RmField();
+      switch (instr->Bits(7, 4)) {
+        case BX:
+          set_pc(get_register(rm));
+          break;
+        case BLX: {
+          uint32_t old_pc = get_pc();
+          set_pc(get_register(rm));
+          set_register(lr, old_pc + Instr::kInstrSize);
+          break;
+        }
+        case BKPT:
+          v8::internal::OS::DebugBreak();
+          break;
+        default:
+          UNIMPLEMENTED();
+      }
+    } else if (instr->Bits(22, 21) == 3) {
+      int rm = instr->RmField();
+      int rd = instr->RdField();
+      switch (instr->Bits(7, 4)) {
+        case CLZ: {
+          uint32_t bits = get_register(rm);
+          int leading_zeros = 0;
+          if (bits == 0) {
+            leading_zeros = 32;
+          } else {
+            while ((bits & 0x80000000u) == 0) {
+              bits <<= 1;
+              leading_zeros++;
+            }
+          }
+          set_register(rd, leading_zeros);
+          break;
+        }
+        default:
+          UNIMPLEMENTED();
+      }
+    } else {
+      PrintF("%08x\n", instr->InstructionBits());
+      UNIMPLEMENTED();
+    }
   } else {
     int rd = instr->RdField();
     int rn = instr->RnField();
@@ -1582,21 +1626,9 @@ void Simulator::DecodeType01(Instr* instr) {
           SetNZFlags(alu_out);
           SetCFlag(shifter_carry_out);
         } else {
-          ASSERT(type == 0);
-          int rm = instr->RmField();
-          switch (instr->Bits(7, 4)) {
-            case BX:
-              set_pc(get_register(rm));
-              break;
-            case BLX: {
-              uint32_t old_pc = get_pc();
-              set_pc(get_register(rm));
-              set_register(lr, old_pc + Instr::kInstrSize);
-              break;
-            }
-            default:
-              UNIMPLEMENTED();
-          }
+          // Other instructions matching this pattern are handled in the
+          // miscellaneous instructions part above.
+          UNREACHABLE();
         }
         break;
       }
@@ -1624,27 +1656,9 @@ void Simulator::DecodeType01(Instr* instr) {
           SetCFlag(!CarryFrom(rn_val, shifter_operand));
           SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, true));
         } else {
-          ASSERT(type == 0);
-          int rm = instr->RmField();
-          int rd = instr->RdField();
-          switch (instr->Bits(7, 4)) {
-            case CLZ: {
-              uint32_t bits = get_register(rm);
-              int leading_zeros = 0;
-              if (bits == 0) {
-                leading_zeros = 32;
-              } else {
-                while ((bits & 0x80000000u) == 0) {
-                  bits <<= 1;
-                  leading_zeros++;
-                }
-              }
-              set_register(rd, leading_zeros);
-              break;
-            }
-            default:
-              UNIMPLEMENTED();
-          }
+          // Other instructions matching this pattern are handled in the
+          // miscellaneous instructions part above.
+          UNREACHABLE();
         }
         break;
       }
@@ -1798,6 +1812,7 @@ void Simulator::DecodeType3(Instr* instr) {
       break;
     }
     case 3: {
+      // UBFX.
       if (instr->HasW() && (instr->Bits(6, 4) == 0x5)) {
         uint32_t widthminus1 = static_cast<uint32_t>(instr->Bits(20, 16));
         uint32_t lsbit = static_cast<uint32_t>(instr->ShiftAmountField());

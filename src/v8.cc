@@ -62,12 +62,6 @@ bool V8::Initialize(Deserializer* des) {
 
   CpuProfiler::Setup();
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-  if (FLAG_prof && FLAG_prof_auto) {
-    CpuProfiler::StartProfiling("internal.auto");
-  }
-#endif
-
   // Setup the platform OS support.
   OS::Setup();
 
@@ -143,12 +137,6 @@ void V8::SetFatalError() {
 void V8::TearDown() {
   if (!has_been_setup_ || has_been_disposed_) return;
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-  if (FLAG_prof && FLAG_prof_auto) {
-    CpuProfiler::StopProfiling("internal.auto");
-  }
-#endif
-
   OProfileAgent::TearDown();
 
   if (FLAG_preemption) {
@@ -208,14 +196,29 @@ bool V8::IdleNotification() {
   return Heap::IdleNotification();
 }
 
-static const uint32_t kRandomPositiveSmiMax = 0x3fffffff;
 
-Smi* V8::RandomPositiveSmi() {
-  uint32_t random = Random();
-  ASSERT(static_cast<uint32_t>(Smi::kMaxValue) >= kRandomPositiveSmiMax);
-  // kRandomPositiveSmiMax must match the value being divided
-  // by in math.js.
-  return Smi::FromInt(random & kRandomPositiveSmiMax);
+// Use a union type to avoid type-aliasing optimizations in GCC.
+typedef union {
+  double double_value;
+  uint64_t uint64_t_value;
+} double_int_union;
+
+
+Object* V8::FillHeapNumberWithRandom(Object* heap_number) {
+  uint64_t random_bits = Random();
+  // Make a double* from address (heap_number + sizeof(double)).
+  double_int_union* r = reinterpret_cast<double_int_union*>(
+      reinterpret_cast<char*>(heap_number) +
+      HeapNumber::kValueOffset - kHeapObjectTag);
+  // Convert 32 random bits to 0.(32 random bits) in a double
+  // by computing:
+  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+  const double binary_million = 1048576.0;
+  r->double_value = binary_million;
+  r->uint64_t_value |=  random_bits;
+  r->double_value -= binary_million;
+
+  return heap_number;
 }
 
 } }  // namespace v8::internal

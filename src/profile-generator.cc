@@ -31,12 +31,14 @@
 
 #include "profile-generator-inl.h"
 
+#include "../include/v8-profiler.h"
+
 namespace v8 {
 namespace internal {
 
 
 const char* CodeEntry::kEmptyNamePrefix = "";
-const int CodeEntry::kNoLineNumberInfo = -1;
+unsigned CodeEntry::next_call_uid_ = 1;
 
 
 ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
@@ -61,11 +63,14 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
 
 
 void ProfileNode::Print(int indent) {
-  OS::Print("%5u %5u %*c %s%s\n",
+  OS::Print("%5u %5u %*c %s%s",
             total_ticks_, self_ticks_,
             indent, ' ',
-            entry_ != NULL ? entry_->name_prefix() : "",
-            entry_ != NULL ? entry_->name() : "");
+            entry_->name_prefix(),
+            entry_->name());
+  if (entry_->resource_name()[0] != '\0')
+    OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
+  OS::Print("\n");
   for (HashMap::Entry* p = children_.Start();
        p != NULL;
        p = children_.Next(p)) {
@@ -86,6 +91,12 @@ class DeleteNodesCallback {
 };
 
 }  // namespace
+
+
+ProfileTree::ProfileTree()
+    : root_entry_(Logger::FUNCTION_TAG, "", "(root)", "", 0),
+      root_(new ProfileNode(&root_entry_)) {
+}
 
 
 ProfileTree::~ProfileTree() {
@@ -360,7 +371,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                                int line_number) {
   CodeEntry* entry = new CodeEntry(tag,
                                    CodeEntry::kEmptyNamePrefix,
-                                   GetName(name),
+                                   GetFunctionName(name),
                                    GetName(resource_name),
                                    line_number);
   code_entries_.Add(entry);
@@ -372,9 +383,9 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                                const char* name) {
   CodeEntry* entry = new CodeEntry(tag,
                                    CodeEntry::kEmptyNamePrefix,
-                                   name,
+                                   GetFunctionName(name),
                                    "",
-                                   CodeEntry::kNoLineNumberInfo);
+                                   v8::CpuProfileNode::kNoLineNumberInfo);
   code_entries_.Add(entry);
   return entry;
 }
@@ -387,7 +398,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                    name_prefix,
                                    GetName(name),
                                    "",
-                                   CodeEntry::kNoLineNumberInfo);
+                                   v8::CpuProfileNode::kNoLineNumberInfo);
   code_entries_.Add(entry);
   return entry;
 }
@@ -399,7 +410,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                    "args_count: ",
                                    GetName(args_count),
                                    "",
-                                   CodeEntry::kNoLineNumberInfo);
+                                   v8::CpuProfileNode::kNoLineNumberInfo);
   code_entries_.Add(entry);
   return entry;
 }
@@ -455,36 +466,55 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
 }
 
 
+const char* ProfileGenerator::kAnonymousFunctionName = "(anonymous function)";
+const char* ProfileGenerator::kProgramEntryName = "(program)";
+const char* ProfileGenerator::kGarbageCollectorEntryName =
+  "(garbage collector)";
+
+
 ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
-    : profiles_(profiles) {
+    : profiles_(profiles),
+      program_entry_(
+          profiles->NewCodeEntry(Logger::FUNCTION_TAG, kProgramEntryName)),
+      gc_entry_(
+          profiles->NewCodeEntry(Logger::BUILTIN_TAG,
+                                 kGarbageCollectorEntryName)) {
 }
 
 
 void ProfileGenerator::RecordTickSample(const TickSample& sample) {
-  // Allocate space for stack frames + pc + function.
-  ScopedVector<CodeEntry*> entries(sample.frames_count + 2);
+  // Allocate space for stack frames + pc + function + vm-state.
+  ScopedVector<CodeEntry*> entries(sample.frames_count + 3);
+  // As actual number of decoded code entries may vary, initialize
+  // entries vector with NULL values.
   CodeEntry** entry = entries.start();
-  *entry++ = code_map_.FindEntry(sample.pc);
+  memset(entry, 0, entries.length() * sizeof(*entry));
+  if (sample.pc != NULL) {
+    *entry++ = code_map_.FindEntry(sample.pc);
 
-  if (sample.function != NULL) {
-    *entry = code_map_.FindEntry(sample.function);
-    if (*entry != NULL && !(*entry)->is_js_function()) {
-      *entry = NULL;
-    } else {
-      CodeEntry* pc_entry = *entries.start();
-      if (pc_entry == NULL || pc_entry->is_js_function())
+    if (sample.function != NULL) {
+      *entry = code_map_.FindEntry(sample.function);
+      if (*entry != NULL && !(*entry)->is_js_function()) {
         *entry = NULL;
+      } else {
+        CodeEntry* pc_entry = *entries.start();
+        if (pc_entry == NULL || pc_entry->is_js_function())
+          *entry = NULL;
+      }
+      entry++;
     }
-    entry++;
-  } else {
-    *entry++ = NULL;
+
+    for (const Address *stack_pos = sample.stack,
+           *stack_end = stack_pos + sample.frames_count;
+         stack_pos != stack_end;
+         ++stack_pos) {
+      *entry++ = code_map_.FindEntry(*stack_pos);
+    }
   }
 
-  for (const Address *stack_pos = sample.stack,
-         *stack_end = stack_pos + sample.frames_count;
-       stack_pos != stack_end;
-       ++stack_pos) {
-    *entry++ = code_map_.FindEntry(*stack_pos);
+  if (FLAG_prof_browser_mode) {
+    // Put VM state as the topmost entry.
+    *entry++ = EntryForVMState(sample.state);
   }
 
   profiles_->AddPathToCurrentProfiles(entries);

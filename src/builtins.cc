@@ -1392,6 +1392,14 @@ static void Generate_Return_DebugBreak(MacroAssembler* masm) {
 static void Generate_StubNoRegisters_DebugBreak(MacroAssembler* masm) {
   Debug::GenerateStubNoRegistersDebugBreak(masm);
 }
+
+static void Generate_PlainReturn_LiveEdit(MacroAssembler* masm) {
+  Debug::GeneratePlainReturnLiveEdit(masm);
+}
+
+static void Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
+  Debug::GenerateFrameDropperLiveEdit(masm);
+}
 #endif
 
 Object* Builtins::builtins_[builtin_count] = { NULL, };

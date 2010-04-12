@@ -4074,19 +4074,43 @@ void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateRandomHeapNumber(
+    ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   frame_->SpillAll();
-  __ push(rsi);
 
-  static const int num_arguments = 0;
-  __ PrepareCallCFunction(num_arguments);
+  Label slow_allocate_heapnumber;
+  Label heapnumber_allocated;
+  __ AllocateHeapNumber(rbx, rcx, &slow_allocate_heapnumber);
+  __ jmp(&heapnumber_allocated);
 
-  // Call V8::RandomPositiveSmi().
-  __ CallCFunction(ExternalReference::random_positive_smi_function(),
-                   num_arguments);
+  __ bind(&slow_allocate_heapnumber);
+  // To allocate a heap number, and ensure that it is not a smi, we
+  // call the runtime function FUnaryMinus on 0, returning the double
+  // -0.0.  A new, distinct heap number is returned each time.
+  __ Push(Smi::FromInt(0));
+  __ CallRuntime(Runtime::kNumberUnaryMinus, 1);
+  __ movq(rbx, rax);
 
-  __ pop(rsi);
+  __ bind(&heapnumber_allocated);
+
+  // Return a random uint32 number in rax.
+  // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
+  __ PrepareCallCFunction(0);
+  __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+
+  // Convert 32 random bits in eax to 0.(32 random bits) in a double
+  // by computing:
+  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+  __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
+  __ movd(xmm1, rcx);
+  __ movd(xmm0, rax);
+  __ cvtss2sd(xmm1, xmm1);
+  __ xorpd(xmm0, xmm1);
+  __ subsd(xmm0, xmm1);
+  __ movsd(FieldOperand(rbx, HeapNumber::kValueOffset), xmm0);
+
+  __ movq(rax, rbx);
   Result result = allocator_->Allocate(rax);
   frame_->Push(&result);
 }
@@ -4114,6 +4138,22 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
 
   NumberToStringStub stub;
   Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
+  Comment cmnt(masm_, "[ GenerateCallFunction");
+
+  ASSERT(args->length() >= 2);
+
+  int n_args = args->length() - 2;  // for receiver and function.
+  Load(args->at(0));  // receiver
+  for (int i = 0; i < n_args; i++) {
+    Load(args->at(i + 1));
+  }
+  Load(args->at(n_args + 1));  // function
+  Result result = frame_->CallJSFunction(n_args);
   frame_->Push(&result);
 }
 
@@ -9045,15 +9085,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       break;
     default:
       UNREACHABLE();
-  }
-
-  // TODO(kaznacheev) Remove this (along with clearing) if it does not harm
-  // performance.
-  // Generate an unreachable reference to the DEFAULT stub so that it can be
-  // found at the end of this stub when clearing ICs at GC.
-  if (runtime_operands_type_ != BinaryOpIC::DEFAULT) {
-    GenericBinaryOpStub uninit(MinorKey(), BinaryOpIC::DEFAULT);
-    __ TailCallStub(&uninit);
   }
 }
 

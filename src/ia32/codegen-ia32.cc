@@ -6430,16 +6430,55 @@ void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateRandomHeapNumber(
+    ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   frame_->SpillAll();
 
-  static const int num_arguments = 0;
-  __ PrepareCallCFunction(num_arguments, eax);
+  Label slow_allocate_heapnumber;
+  Label heapnumber_allocated;
 
-  // Call V8::RandomPositiveSmi().
-  __ CallCFunction(ExternalReference::random_positive_smi_function(),
-                   num_arguments);
+  __ AllocateHeapNumber(edi, ebx, ecx, &slow_allocate_heapnumber);
+  __ jmp(&heapnumber_allocated);
+
+  __ bind(&slow_allocate_heapnumber);
+  // To allocate a heap number, and ensure that it is not a smi, we
+  // call the runtime function FUnaryMinus on 0, returning the double
+  // -0.0.  A new, distinct heap number is returned each time.
+  __ push(Immediate(Smi::FromInt(0)));
+  __ CallRuntime(Runtime::kNumberUnaryMinus, 1);
+  __ mov(edi, eax);
+
+  __ bind(&heapnumber_allocated);
+
+  __ PrepareCallCFunction(0, ebx);
+  __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+
+  // Convert 32 random bits in eax to 0.(32 random bits) in a double
+  // by computing:
+  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+  // This is implemented on both SSE2 and FPU.
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope fscope(SSE2);
+    __ mov(ebx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
+    __ movd(xmm1, Operand(ebx));
+    __ movd(xmm0, Operand(eax));
+    __ cvtss2sd(xmm1, xmm1);
+    __ pxor(xmm0, xmm1);
+    __ subsd(xmm0, xmm1);
+    __ movdbl(FieldOperand(edi, HeapNumber::kValueOffset), xmm0);
+  } else {
+    // 0x4130000000000000 is 1.0 x 2^20 as a double.
+    __ mov(FieldOperand(edi, HeapNumber::kExponentOffset),
+           Immediate(0x41300000));
+    __ mov(FieldOperand(edi, HeapNumber::kMantissaOffset), eax);
+    __ fld_d(FieldOperand(edi, HeapNumber::kValueOffset));
+    __ mov(FieldOperand(edi, HeapNumber::kMantissaOffset), Immediate(0));
+    __ fld_d(FieldOperand(edi, HeapNumber::kValueOffset));
+    __ fsubp(1);
+    __ fstp_d(FieldOperand(edi, HeapNumber::kValueOffset));
+  }
+  __ mov(eax, edi);
 
   Result result = allocator_->Allocate(eax);
   frame_->Push(&result);
@@ -6504,6 +6543,22 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   Load(args->at(0));
   NumberToStringStub stub;
   Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
+  Comment cmnt(masm_, "[ GenerateCallFunction");
+
+  ASSERT(args->length() >= 2);
+
+  int n_args = args->length() - 2;  // for receiver and function.
+  Load(args->at(0));  // receiver
+  for (int i = 0; i < n_args; i++) {
+    Load(args->at(i + 1));
+  }
+  Load(args->at(n_args + 1));  // function
+  Result result = frame_->CallJSFunction(n_args);
   frame_->Push(&result);
 }
 
@@ -9504,13 +9559,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
-
-  // Generate an unreachable reference to the DEFAULT stub so that it can be
-  // found at the end of this stub when clearing ICs at GC.
-  if (runtime_operands_type_ != BinaryOpIC::DEFAULT) {
-    GenericBinaryOpStub uninit(MinorKey(), BinaryOpIC::DEFAULT);
-    __ TailCallStub(&uninit);
-  }
 }
 
 
@@ -10924,14 +10972,6 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register scratch2,
                                                          bool object_is_smi,
                                                          Label* not_found) {
-  // Currently only lookup for smis. Check for smi if object is not known to be
-  // a smi.
-  if (!object_is_smi) {
-    ASSERT(kSmiTag == 0);
-    __ test(object, Immediate(kSmiTagMask));
-    __ j(not_zero, not_found);
-  }
-
   // Use of registers. Register result is used as a temporary.
   Register number_string_cache = result;
   Register mask = scratch1;
@@ -10947,23 +10987,74 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   __ mov(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
   __ shr(mask, 1);  // Divide length by two (length is not a smi).
   __ sub(Operand(mask), Immediate(1));  // Make mask.
+
   // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value.
-  __ mov(scratch, object);
-  __ SmiUntag(scratch);
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label smi_hash_calculated;
+  Label load_result_from_cache;
+  if (object_is_smi) {
+    __ mov(scratch, object);
+    __ SmiUntag(scratch);
+  } else {
+    Label not_smi, hash_calculated;
+    ASSERT(kSmiTag == 0);
+    __ test(object, Immediate(kSmiTagMask));
+    __ j(not_zero, &not_smi);
+    __ mov(scratch, object);
+    __ SmiUntag(scratch);
+    __ jmp(&smi_hash_calculated);
+    __ bind(&not_smi);
+    __ cmp(FieldOperand(object, HeapObject::kMapOffset),
+           Factory::heap_number_map());
+    __ j(not_equal, not_found);
+    ASSERT_EQ(8, kDoubleSize);
+    __ mov(scratch, FieldOperand(object, HeapNumber::kValueOffset));
+    __ xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
+    // Object is heap number and hash is now in scratch. Calculate cache index.
+    __ and_(scratch, Operand(mask));
+    Register index = scratch;
+    Register probe = mask;
+    __ mov(probe,
+           FieldOperand(number_string_cache,
+                        index,
+                        times_twice_pointer_size,
+                        FixedArray::kHeaderSize));
+    __ test(probe, Immediate(kSmiTagMask));
+    __ j(zero, not_found);
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatures::Scope fscope(SSE2);
+      __ movdbl(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
+      __ movdbl(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
+      __ comisd(xmm0, xmm1);
+    } else {
+      __ fld_d(FieldOperand(object, HeapNumber::kValueOffset));
+      __ fld_d(FieldOperand(probe, HeapNumber::kValueOffset));
+      __ FCmp();
+    }
+    __ j(parity_even, not_found);  // Bail out if NaN is involved.
+    __ j(not_equal, not_found);  // The cache did not contain this value.
+    __ jmp(&load_result_from_cache);
+  }
+
+  __ bind(&smi_hash_calculated);
+  // Object is smi and hash is now in scratch. Calculate cache index.
   __ and_(scratch, Operand(mask));
+  Register index = scratch;
   // Check if the entry is the smi we are looking for.
   __ cmp(object,
          FieldOperand(number_string_cache,
-                      scratch,
+                      index,
                       times_twice_pointer_size,
                       FixedArray::kHeaderSize));
   __ j(not_equal, not_found);
 
   // Get the result from the cache.
+  __ bind(&load_result_from_cache);
   __ mov(result,
          FieldOperand(number_string_cache,
-                      scratch,
+                      index,
                       times_twice_pointer_size,
                       FixedArray::kHeaderSize + kPointerSize));
   __ IncrementCounter(&Counters::number_to_string_native, 1);
@@ -10981,7 +11072,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
-  __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
+  __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
 }
 
 

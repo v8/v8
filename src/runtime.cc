@@ -1363,6 +1363,13 @@ static Object* Runtime_SpecialArrayFunctions(Arguments args) {
 }
 
 
+static Object* Runtime_GetGlobalReceiver(Arguments args) {
+  // Returns a real global receiver, not one of builtins object.
+  Context* global_context = Top::context()->global()->global_context();
+  return global_context->global()->global_receiver();
+}
+
+
 static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 4);
@@ -5246,6 +5253,17 @@ static Object* Runtime_NumberToString(Arguments args) {
   RUNTIME_ASSERT(number->IsNumber());
 
   return Heap::NumberToString(number);
+}
+
+
+static Object* Runtime_NumberToStringSkipCache(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  Object* number = args[0];
+  RUNTIME_ASSERT(number->IsNumber());
+
+  return Heap::NumberToString(number, false);
 }
 
 
@@ -9645,6 +9663,8 @@ static Object* Runtime_LiveEditReplaceScript(Arguments args) {
   old_script->set_eval_from_instructions_offset(
       original_script->eval_from_instructions_offset());
 
+  // Drop line ends so that they will be recalculated.
+  original_script->set_line_ends(Heap::undefined_value());
 
   Debugger::OnAfterCompile(old_script, Debugger::SEND_WHEN_DEBUGGING);
 
@@ -9681,53 +9701,33 @@ static Object* Runtime_LiveEditRelinkFunctionToScript(Arguments args) {
 // array of groups of 3 numbers:
 // (change_begin, change_end, change_end_new_position).
 // Each group describes a change in text; groups are sorted by change_begin.
+// Returns an array of pairs (new source position, breakpoint_object/array)
+// so that JS side could update positions in breakpoint objects.
 static Object* Runtime_LiveEditPatchFunctionPositions(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;
   CONVERT_ARG_CHECKED(JSArray, shared_array, 0);
   CONVERT_ARG_CHECKED(JSArray, position_change_array, 1);
 
-  LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
+  Handle<Object> result =
+      LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
 
-  return Heap::undefined_value();
+  return *result;
 }
 
-
-static LiveEdit::FunctionPatchabilityStatus FindFunctionCodeOnStacks(
-    Handle<SharedFunctionInfo> shared) {
-  // TODO(635): check all threads, not only the current one.
-  for (StackFrameIterator it; !it.done(); it.Advance()) {
-    StackFrame* frame = it.frame();
-    if (frame->code() == shared->code()) {
-      return LiveEdit::FUNCTION_BLOCKED_ON_STACK;
-    }
-  }
-  return LiveEdit::FUNCTION_AVAILABLE_FOR_PATCH;
-}
 
 // For array of SharedFunctionInfo's (each wrapped in JSValue)
 // checks that none of them have activations on stacks (of any thread).
 // Returns array of the same length with corresponding results of
 // LiveEdit::FunctionPatchabilityStatus type.
-static Object* Runtime_LiveEditCheckStackActivations(Arguments args) {
-  ASSERT(args.length() == 1);
+static Object* Runtime_LiveEditCheckAndDropActivations(Arguments args) {
+  ASSERT(args.length() == 2);
   HandleScope scope;
   CONVERT_ARG_CHECKED(JSArray, shared_array, 0);
+  CONVERT_BOOLEAN_CHECKED(do_drop, args[1]);
 
 
-  int len = Smi::cast(shared_array->length())->value();
-  Handle<JSArray> result = Factory::NewJSArray(len);
-
-  for (int i = 0; i < len; i++) {
-    JSValue* wrapper = JSValue::cast(shared_array->GetElement(i));
-    Handle<SharedFunctionInfo> shared(
-        SharedFunctionInfo::cast(wrapper->value()));
-    LiveEdit::FunctionPatchabilityStatus check_res =
-        FindFunctionCodeOnStacks(shared);
-    SetElement(result, i, Handle<Smi>(Smi::FromInt(check_res)));
-  }
-
-  return *result;
+  return *LiveEdit::CheckAndDropActivations(shared_array, do_drop);
 }
 
 
@@ -9758,6 +9758,35 @@ static Object* Runtime_GetFunctionCodePositionFromSource(Arguments args) {
   }
 
   return Smi::FromInt(closest_pc);
+}
+
+
+// Calls specified function with or without entering the debugger.
+// This is used in unit tests to run code as if debugger is entered or simply
+// to have a stack with C++ frame in the middle.
+static Object* Runtime_ExecuteInDebugContext(Arguments args) {
+  ASSERT(args.length() == 2);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_BOOLEAN_CHECKED(without_debugger, args[1]);
+
+  Handle<Object> result;
+  bool pending_exception;
+  {
+    if (without_debugger) {
+      result = Execution::Call(function, Top::global(), 0, NULL,
+                               &pending_exception);
+    } else {
+      EnterDebugger enter_debugger;
+      result = Execution::Call(function, Top::global(), 0, NULL,
+                               &pending_exception);
+    }
+  }
+  if (!pending_exception) {
+    return *result;
+  } else {
+    return Failure::Exception();
+  }
 }
 
 

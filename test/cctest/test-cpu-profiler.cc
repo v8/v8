@@ -60,8 +60,28 @@ static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
   }
 }
 
+namespace {
+
+class TestSetup {
+ public:
+  TestSetup()
+      : old_flag_prof_browser_mode_(i::FLAG_prof_browser_mode) {
+    i::FLAG_prof_browser_mode = false;
+  }
+
+  ~TestSetup() {
+    i::FLAG_prof_browser_mode = old_flag_prof_browser_mode_;
+  }
+
+ private:
+  bool old_flag_prof_browser_mode_;
+};
+
+}  // namespace
+
 TEST(CodeEvents) {
   InitializeVM();
+  TestSetup test_setup;
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
@@ -128,6 +148,7 @@ static int CompareProfileNodes(const T* p1, const T* p2) {
 }
 
 TEST(TickEvents) {
+  TestSetup test_setup;
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);

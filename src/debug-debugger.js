@@ -124,6 +124,12 @@ BreakPoint.prototype.source_position = function() {
 };
 
 
+BreakPoint.prototype.updateSourcePosition = function(new_position, script) {
+  this.source_position_ = new_position;
+  // TODO(635): also update line and column.
+};
+
+
 BreakPoint.prototype.hit_count = function() {
   return this.hit_count_;
 };
@@ -472,6 +478,11 @@ Debug.disassemble = function(f) {
 Debug.disassembleConstructor = function(f) {
   if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
   return %DebugDisassembleConstructor(f);
+};
+
+Debug.ExecuteInDebugContext = function(f, without_debugger) {
+  if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
+  return %ExecuteInDebugContext(f, !!without_debugger);
 };
 
 Debug.sourcePosition = function(f) {
@@ -2010,7 +2021,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
     if (e instanceof Debug.LiveEditChangeScript.Failure) {
       // Let's treat it as a "success" so that body with change_log will be
       // sent back. "change_log" will have "failure" field set.
-      change_log.push( { failure: true } );
+      change_log.push( { failure: true, message: e.toString() } ); 
     } else {
       throw e;
     }

@@ -935,7 +935,8 @@ class Heap : public AllStatic {
     kRootListLength
   };
 
-  static Object* NumberToString(Object* number);
+  static Object* NumberToString(Object* number,
+                                bool check_number_string_cache = true);
 
   static Map* MapForExternalArrayType(ExternalArrayType array_type);
   static RootListIndex RootIndexForExternalArrayType(

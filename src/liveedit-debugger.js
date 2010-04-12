@@ -180,11 +180,18 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   var position_patch_report;
   function PatchPositions(new_info, shared_info) {
     if (!shared_info) {
-      // TODO: explain what is happening.
+      // TODO(LiveEdit): explain what is happening.
       return;
     }
-    %LiveEditPatchFunctionPositions(shared_info.raw_array,
-        position_change_array);
+    var breakpoint_position_update = %LiveEditPatchFunctionPositions(
+        shared_info.raw_array, position_change_array);
+    for (var i = 0; i < breakpoint_position_update.length; i += 2) {
+      var new_pos = breakpoint_position_update[i];
+      var break_point_object = breakpoint_position_update[i + 1];
+      change_log.push( { breakpoint_position_update:
+          { from: break_point_object.source_position(), to: new_pos } } );
+      break_point_object.updateSourcePosition(new_pos, script);
+    }
     position_patch_report.push( { name: new_info.function_name } );
   }
 
@@ -389,18 +396,31 @@ Debug.LiveEditChangeScript.CheckStackActivations = function(shared_wrapper_list,
   for (var i = 0; i < shared_wrapper_list.length; i++) {
     shared_list[i] = shared_wrapper_list[i].info;
   }
-  var result = %LiveEditCheckStackActivations(shared_list);
+  var result = %LiveEditCheckAndDropActivations(shared_list, true);
+  if (result[shared_list.length]) {
+    // Extra array element may contain error message.
+    throw new liveedit.Failure(result[shared_list.length]);
+  }
+  
   var problems = new Array();
+  var dropped = new Array();
   for (var i = 0; i < shared_list.length; i++) {
-    if (result[i] == liveedit.FunctionPatchabilityStatus.FUNCTION_BLOCKED_ON_STACK) {
-      var shared = shared_list[i];
+    var shared = shared_wrapper_list[i];
+    if (result[i] == liveedit.FunctionPatchabilityStatus.REPLACED_ON_ACTIVE_STACK) {
+      dropped.push({ name: shared.function_name } );
+    } else if (result[i] != liveedit.FunctionPatchabilityStatus.AVAILABLE_FOR_PATCH) {
       var description = {
           name: shared.function_name,
-          start_pos: shared.start_position,
-          end_pos: shared.end_position
+          start_pos: shared.start_position, 
+          end_pos: shared.end_position,
+          replace_problem:
+              liveedit.FunctionPatchabilityStatus.SymbolName(result[i])
       };
       problems.push(description);
     }
+  }
+  if (dropped.length > 0) {
+    change_log.push({ dropped_from_stack: dropped });
   }
   if (problems.length > 0) {
     change_log.push( { functions_on_stack: problems } );
@@ -410,8 +430,21 @@ Debug.LiveEditChangeScript.CheckStackActivations = function(shared_wrapper_list,
 
 // A copy of the FunctionPatchabilityStatus enum from liveedit.h
 Debug.LiveEditChangeScript.FunctionPatchabilityStatus = {
-    FUNCTION_AVAILABLE_FOR_PATCH: 0,
-    FUNCTION_BLOCKED_ON_STACK: 1
+    AVAILABLE_FOR_PATCH: 1,
+    BLOCKED_ON_ACTIVE_STACK: 2,
+    BLOCKED_ON_OTHER_STACK: 3,
+    BLOCKED_UNDER_NATIVE_CODE: 4,
+    REPLACED_ON_ACTIVE_STACK: 5
+}
+
+Debug.LiveEditChangeScript.FunctionPatchabilityStatus.SymbolName =
+    function(code) {
+  var enum = Debug.LiveEditChangeScript.FunctionPatchabilityStatus;
+  for (name in enum) {
+    if (enum[name] == code) {
+      return name;
+    }
+  }      
 }
 
 

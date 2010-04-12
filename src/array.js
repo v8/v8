@@ -644,16 +644,77 @@ function ArraySort(comparefn) {
   // In-place QuickSort algorithm.
   // For short (length <= 22) arrays, insertion sort is used for efficiency.
 
-  var custom_compare = IS_FUNCTION(comparefn);
+  var global_receiver;
+
+  function InsertionSortWithFunc(a, from, to) {
+    for (var i = from + 1; i < to; i++) {
+      var element = a[i];
+      // place element in a[from..i[
+      // binary search
+      var min = from;
+      var max = i;
+      // The search interval is a[min..max[
+      while (min < max) {
+        var mid = min + ((max - min) >> 1);
+        var order = %_CallFunction(global_receiver, a[mid], element, comparefn);
+        if (order == 0) {
+          min = max = mid;
+          break;
+        }
+        if (order < 0) {
+          min = mid + 1;
+        } else {
+          max = mid;
+        }
+      }
+      // place element at position min==max.
+      for (var j = i; j > min; j--) {
+        a[j] = a[j - 1];
+      }
+      a[min] = element;
+    }
+  }
+
+  function QuickSortWithFunc(a, from, to) {
+    // Insertion sort is faster for short arrays.
+    if (to - from <= 22) {
+      InsertionSortWithFunc(a, from, to);
+      return;
+    }
+    var pivot_index = $floor($random() * (to - from)) + from;
+    var pivot = a[pivot_index];
+    // Issue 95: Keep the pivot element out of the comparisons to avoid
+    // infinite recursion if comparefn(pivot, pivot) != 0.
+    a[pivot_index] = a[from];
+    a[from] = pivot;
+    var low_end = from;   // Upper bound of the elements lower than pivot.
+    var high_start = to;  // Lower bound of the elements greater than pivot.
+    // From low_end to i are elements equal to pivot.
+    // From i to high_start are elements that haven't been compared yet.
+    for (var i = from + 1; i < high_start; ) {
+      var element = a[i];
+      var order = %_CallFunction(global_receiver, element, pivot, comparefn);
+      if (order < 0) {
+        a[i] = a[low_end];
+        a[low_end] = element;
+        i++;
+        low_end++;
+      } else if (order > 0) {
+        high_start--;
+        a[i] = a[high_start];
+        a[high_start] = element;
+      } else {  // order == 0
+        i++;
+      }
+    }
+    QuickSortWithFunc(a, from, low_end);
+    QuickSortWithFunc(a, high_start, to);
+  }
 
   function Compare(x,y) {
     // Assume the comparefn, if any, is a consistent comparison function.
     // If it isn't, we are allowed arbitrary behavior by ECMA 15.4.4.11.
     if (x === y) return 0;
-    if (custom_compare) {
-      // Don't call directly to avoid exposing the builtin's global object.
-      return comparefn.call(null, x, y);
-    }
     if (%_IsSmi(x) && %_IsSmi(y)) {
       return %SmiLexicographicCompare(x, y);
     }
@@ -668,8 +729,7 @@ function ArraySort(comparefn) {
       var element = a[i];
       // Pre-convert the element to a string for comparison if we know
       // it will happen on each compare anyway.
-      var key =
-          (custom_compare || %_IsSmi(element)) ? element : ToString(element);
+      var key = %_IsSmi(element) ? element : ToString(element);
       // place element in a[from..i[
       // binary search
       var min = from;
@@ -706,8 +766,7 @@ function ArraySort(comparefn) {
     var pivot = a[pivot_index];
     // Pre-convert the element to a string for comparison if we know
     // it will happen on each compare anyway.
-    var pivot_key =
-      (custom_compare || %_IsSmi(pivot)) ? pivot : ToString(pivot);
+    var pivot_key = %_IsSmi(pivot) ? pivot : ToString(pivot);
     // Issue 95: Keep the pivot element out of the comparisons to avoid
     // infinite recursion if comparefn(pivot, pivot) != 0.
     a[pivot_index] = a[from];
@@ -735,8 +794,6 @@ function ArraySort(comparefn) {
     QuickSort(a, from, low_end);
     QuickSort(a, high_start, to);
   }
-
-  var length;
 
   // Copies elements in the range 0..length from obj's prototype chain
   // to obj itself, if obj has holes. Returns one more than the maximal index
@@ -855,7 +912,7 @@ function ArraySort(comparefn) {
     return first_undefined;
   }
 
-  length = TO_UINT32(this.length);
+  var length = TO_UINT32(this.length);
   if (length < 2) return this;
 
   var is_array = IS_ARRAY(this);
@@ -880,7 +937,12 @@ function ArraySort(comparefn) {
     num_non_undefined = SafeRemoveArrayHoles(this);
   }
 
-  QuickSort(this, 0, num_non_undefined);
+  if(IS_FUNCTION(comparefn)) {
+    global_receiver = %GetGlobalReceiver();
+    QuickSortWithFunc(this, 0, num_non_undefined);
+  } else {
+    QuickSort(this, 0, num_non_undefined);
+  }
 
   if (!is_array && (num_non_undefined + 1 < max_prototype_element)) {
     // For compatibility with JSC, we shadow any elements in the prototype

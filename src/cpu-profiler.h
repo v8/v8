@@ -103,16 +103,20 @@ class CodeAliasEventRecord : public CodeEventRecord {
 
 class TickSampleEventRecord BASE_EMBEDDED {
  public:
-  // In memory, the first machine word of a TickSampleEventRecord will be the
-  // first entry of TickSample, that is -- a program counter field.
-  // TickSample is put first, because 'order' can become equal to
-  // SamplingCircularQueue::kClear, while program counter can't.
-  TickSample sample;
+  // The first machine word of a TickSampleEventRecord must not ever
+  // become equal to SamplingCircularQueue::kClear.  As both order and
+  // TickSample's first field are not reliable in this sense (order
+  // can overflow, TickSample can have all fields reset), we are
+  // forced to use an artificial filler field.
+  int filler;
   unsigned order;
+  TickSample sample;
 
   static TickSampleEventRecord* cast(void* value) {
     return reinterpret_cast<TickSampleEventRecord*>(value);
   }
+
+  INLINE(static TickSampleEventRecord* init(void* value));
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TickSampleEventRecord);
@@ -150,6 +154,9 @@ class ProfilerEventsProcessor : public Thread {
   void FunctionCreateEvent(Address alias, Address start);
   void FunctionMoveEvent(Address from, Address to);
   void FunctionDeleteEvent(Address from);
+  void RegExpCodeCreateEvent(Logger::LogEventsAndTags tag,
+                             const char* prefix, String* name,
+                             Address start, unsigned size);
 
   // Tick sample events are filled directly in the buffer of the circular
   // queue (because the structure is of fixed width, but usually not all
@@ -168,6 +175,8 @@ class ProfilerEventsProcessor : public Thread {
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent(unsigned* dequeue_order);
   bool ProcessTicks(unsigned dequeue_order);
+
+  INLINE(static bool FilterOutCodeCreateEvent(Logger::LogEventsAndTags tag));
 
   ProfileGenerator* generator_;
   bool running_;
@@ -233,8 +242,7 @@ class CpuProfiler {
   static void SetterCallbackEvent(String* name, Address entry_point);
 
   static INLINE(bool is_profiling()) {
-    ASSERT(singleton_ != NULL);
-    return singleton_->processor_ != NULL;
+    return singleton_ != NULL && singleton_->processor_ != NULL;
   }
 
  private:
@@ -251,6 +259,7 @@ class CpuProfiler {
   unsigned next_profile_uid_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
+  int saved_logging_nesting_;
 
   static CpuProfiler* singleton_;
 

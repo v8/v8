@@ -162,8 +162,7 @@ void StackTracer::Trace(TickSample* sample) {
   }
 
   int i = 0;
-  const Address callback = Logger::current_state_ != NULL ?
-      Logger::current_state_->external_callback() : NULL;
+  const Address callback = VMState::external_callback();
   if (callback != NULL) {
     sample->stack[i++] = callback;
   }
@@ -182,8 +181,6 @@ void StackTracer::Trace(TickSample* sample) {
 // Ticker used to provide ticks to the profiler and the sliding state
 // window.
 //
-#ifndef ENABLE_CPP_PROFILES_PROCESSOR
-
 class Ticker: public Sampler {
  public:
   explicit Ticker(int interval):
@@ -224,8 +221,6 @@ class Ticker: public Sampler {
   SlidingStateWindow* window_;
   Profiler* profiler_;
 };
-
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 
 
 //
@@ -327,8 +322,6 @@ void Profiler::Run() {
 //
 Ticker* Logger::ticker_ = NULL;
 Profiler* Logger::profiler_ = NULL;
-VMState* Logger::current_state_ = NULL;
-VMState Logger::bottom_state_(EXTERNAL);
 SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 const char** Logger::log_events_ = NULL;
 CompressionHelper* Logger::compression_helper_ = NULL;
@@ -1337,17 +1330,20 @@ void Logger::LogCompiledFunctions() {
         Handle<String> script_name(String::cast(script->name()));
         int line_num = GetScriptLineNumber(script, shared->start_position());
         if (line_num > 0) {
-          PROFILE(CodeCreateEvent(Logger::LAZY_COMPILE_TAG,
-                                  shared->code(), *func_name,
-                                  *script_name, line_num + 1));
+          PROFILE(CodeCreateEvent(
+              Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
+              shared->code(), *func_name,
+              *script_name, line_num + 1));
         } else {
-          // Can't distinguish enum and script here, so always use Script.
-          PROFILE(CodeCreateEvent(Logger::SCRIPT_TAG,
-                                  shared->code(), *script_name));
+          // Can't distinguish eval and script here, so always use Script.
+          PROFILE(CodeCreateEvent(
+              Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+              shared->code(), *script_name));
         }
       } else {
         PROFILE(CodeCreateEvent(
-            Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
+            Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
+            shared->code(), *func_name));
       }
     } else if (shared->IsApiFunction()) {
       // API function.
@@ -1478,7 +1474,7 @@ bool Logger::Setup() {
     }
   }
 
-  current_state_ = &bottom_state_;
+  ASSERT(VMState::is_outermost_external());
 
   ticker_ = new Ticker(kSamplingIntervalMs);
 
@@ -1507,11 +1503,6 @@ bool Logger::Setup() {
       profiler_->Engage();
     }
   }
-
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-  // Disable old logging, as we are using the same '--prof' flag.
-  logging_nesting_ = 0;
-#endif
 
   LogMessageBuilder::set_write_failure_handler(StopLoggingAndProfiling);
 

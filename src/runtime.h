@@ -62,6 +62,7 @@ namespace internal {
   F(ToSlowProperties, 1, 1) \
   F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 1, 1) \
+  F(GetGlobalReceiver, 0, 1) \
   \
   F(IsInPrototypeChain, 2, 1) \
   F(SetHiddenPrototype, 2, 1) \
@@ -99,6 +100,7 @@ namespace internal {
   F(URIUnescape, 1, 1) \
   \
   F(NumberToString, 1, 1) \
+  F(NumberToStringSkipCache, 1, 1) \
   F(NumberToInteger, 1, 1) \
   F(NumberToJSUint32, 1, 1) \
   F(NumberToJSInt32, 1, 1) \
@@ -334,8 +336,9 @@ namespace internal {
   F(LiveEditReplaceFunctionCode, 2, 1) \
   F(LiveEditRelinkFunctionToScript, 2, 1) \
   F(LiveEditPatchFunctionPositions, 2, 1) \
-  F(LiveEditCheckStackActivations, 1, 1) \
-  F(GetFunctionCodePositionFromSource, 2, 1)
+  F(LiveEditCheckAndDropActivations, 2, 1) \
+  F(GetFunctionCodePositionFromSource, 2, 1) \
+  F(ExecuteInDebugContext, 2, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 #endif

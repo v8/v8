@@ -102,8 +102,14 @@ LIBRARY_FLAGS = {
     'mode:debug': {
       'CPPDEFINES': ['V8_ENABLE_CHECKS']
     },
+    'vmstate:on': {
+      'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING'],
+    },
+    'protectheap:on': {
+      'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING', 'ENABLE_HEAP_PROTECTION'],
+    },
     'profilingsupport:on': {
-      'CPPDEFINES':   ['ENABLE_LOGGING_AND_PROFILING'],
+      'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING', 'ENABLE_LOGGING_AND_PROFILING'],
     },
     'cppprofilesprocessor:on': {
       'CPPDEFINES':   ['ENABLE_CPP_PROFILES_PROCESSOR'],
@@ -672,6 +678,16 @@ SIMPLE_OPTIONS = {
     'default': 'static',
     'help': 'the type of library to produce'
   },
+  'vmstate': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable VM state tracking'
+  },
+  'protectheap': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable heap protection'
+  },
   'profilingsupport': {
     'values': ['on', 'off'],
     'default': 'on',
@@ -679,7 +695,7 @@ SIMPLE_OPTIONS = {
   },
   'cppprofilesprocessor': {
     'values': ['on', 'off'],
-    'default': 'off',
+    'default': 'on',
     'help': 'enable C++ profiles processor'
   },
   'debuggersupport': {

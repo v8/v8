@@ -1805,46 +1805,36 @@ class Sampler::PlatformData : public Malloced {
     memset(&context, 0, sizeof(context));
     // Loop until the sampler is disengaged, keeping the specified samling freq.
     for ( ; sampler_->IsActive(); Sleep(sampler_->interval_)) {
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-      if (Logger::state() == GC) continue;
-
-      TickSample* sample = NULL;
-#else
       TickSample sample_obj;
-      TickSample* sample = &sample_obj;
+      TickSample* sample = NULL;
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+      sample = CpuProfiler::TickSampleEvent();
+#endif
+      if (sample == NULL) sample = &sample_obj;
 
       // We always sample the VM state.
-      sample->state = Logger::state();
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
-
+      sample->state = VMState::current_state();
       // If profiling, we record the pc and sp of the profiled thread.
       if (sampler_->IsProfiling()
           && SuspendThread(profiled_thread_) != (DWORD)-1) {
         context.ContextFlags = CONTEXT_FULL;
         if (GetThreadContext(profiled_thread_, &context) != 0) {
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-          sample = CpuProfiler::TickSampleEvent();
-#endif
-          if (sample != NULL) {
 #if V8_HOST_ARCH_X64
-            sample->pc = reinterpret_cast<Address>(context.Rip);
-            sample->sp = reinterpret_cast<Address>(context.Rsp);
-            sample->fp = reinterpret_cast<Address>(context.Rbp);
+          sample->pc = reinterpret_cast<Address>(context.Rip);
+          sample->sp = reinterpret_cast<Address>(context.Rsp);
+          sample->fp = reinterpret_cast<Address>(context.Rbp);
 #else
-            sample->pc = reinterpret_cast<Address>(context.Eip);
-            sample->sp = reinterpret_cast<Address>(context.Esp);
-            sample->fp = reinterpret_cast<Address>(context.Ebp);
+          sample->pc = reinterpret_cast<Address>(context.Eip);
+          sample->sp = reinterpret_cast<Address>(context.Esp);
+          sample->fp = reinterpret_cast<Address>(context.Ebp);
 #endif
-            sampler_->SampleStack(sample);
-          }
+          sampler_->SampleStack(sample);
         }
         ResumeThread(profiled_thread_);
       }
 
-#ifndef ENABLE_CPP_PROFILES_PROCESSOR
       // Invoke tick handler with program counter and stack pointer.
       sampler_->Tick(sample);
-#endif
     }
   }
 };

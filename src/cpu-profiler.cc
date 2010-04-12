@@ -33,6 +33,8 @@
 
 #include "log-inl.h"
 
+#include "../include/v8-profiler.h"
+
 namespace v8 {
 namespace internal {
 
@@ -55,6 +57,7 @@ void ProfilerEventsProcessor::CallbackCreateEvent(Logger::LogEventsAndTags tag,
                                                   const char* prefix,
                                                   String* name,
                                                   Address start) {
+  if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->type = CodeEventRecord::CODE_CREATION;
@@ -72,6 +75,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                               int line_number,
                                               Address start,
                                               unsigned size) {
+  if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->type = CodeEventRecord::CODE_CREATION;
@@ -87,6 +91,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                               const char* name,
                                               Address start,
                                               unsigned size) {
+  if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->type = CodeEventRecord::CODE_CREATION;
@@ -102,6 +107,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                               int args_count,
                                               Address start,
                                               unsigned size) {
+  if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->type = CodeEventRecord::CODE_CREATION;
@@ -153,6 +159,24 @@ void ProfilerEventsProcessor::FunctionMoveEvent(Address from, Address to) {
 
 void ProfilerEventsProcessor::FunctionDeleteEvent(Address from) {
   CodeDeleteEvent(from);
+}
+
+
+void ProfilerEventsProcessor::RegExpCodeCreateEvent(
+    Logger::LogEventsAndTags tag,
+    const char* prefix,
+    String* name,
+    Address start,
+    unsigned size) {
+  if (FilterOutCodeCreateEvent(tag)) return;
+  CodeEventsContainer evt_rec;
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->type = CodeEventRecord::CODE_CREATION;
+  rec->order = ++enqueue_order_;
+  rec->start = start;
+  rec->entry = generator_->NewCodeEntry(tag, prefix, name);
+  rec->size = size;
+  events_buffer_.Enqueue(evt_rec);
 }
 
 
@@ -259,8 +283,7 @@ CpuProfile* CpuProfiler::FindProfile(unsigned uid) {
 
 
 TickSample* CpuProfiler::TickSampleEvent() {
-  ASSERT(singleton_ != NULL);
-  if (singleton_->is_profiling()) {
+  if (CpuProfiler::is_profiling()) {
     return singleton_->processor_->TickSampleEvent();
   } else {
     return NULL;
@@ -287,7 +310,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       tag,
       name,
       Heap::empty_string(),
-      CodeEntry::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoLineNumberInfo,
       code->address(),
       code->ExecutableSize());
 }
@@ -349,11 +372,10 @@ void CpuProfiler::GetterCallbackEvent(String* name, Address entry_point) {
 
 
 void CpuProfiler::RegExpCodeCreateEvent(Code* code, String* source) {
-  singleton_->processor_->CodeCreateEvent(
+  singleton_->processor_->RegExpCodeCreateEvent(
       Logger::REG_EXP_TAG,
+      "RegExp: ",
       source,
-      Heap::empty_string(),
-      CodeEntry::kNoLineNumberInfo,
       code->address(),
       code->ExecutableSize());
 }
@@ -379,14 +401,14 @@ CpuProfiler::~CpuProfiler() {
 
 
 void CpuProfiler::StartCollectingProfile(const char* title) {
-  if (profiles_->StartProfiling(title, ++next_profile_uid_)) {
+  if (profiles_->StartProfiling(title, next_profile_uid_++)) {
     StartProcessorIfNotStarted();
   }
 }
 
 
 void CpuProfiler::StartCollectingProfile(String* title) {
-  if (profiles_->StartProfiling(title, ++next_profile_uid_)) {
+  if (profiles_->StartProfiling(title, next_profile_uid_++)) {
     StartProcessorIfNotStarted();
   }
 }
@@ -394,6 +416,9 @@ void CpuProfiler::StartCollectingProfile(String* title) {
 
 void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_ == NULL) {
+    // Disable logging when using the new implementation.
+    saved_logging_nesting_ = Logger::logging_nesting_;
+    Logger::logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
     processor_ = new ProfilerEventsProcessor(generator_);
     processor_->Start();
@@ -405,7 +430,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
       Logger::LogAccessorCallbacks();
     }
     // Enable stack sampling.
-    Logger::ticker_->Start();
+    reinterpret_cast<Sampler*>(Logger::ticker_)->Start();
   }
 }
 
@@ -428,13 +453,14 @@ CpuProfile* CpuProfiler::StopCollectingProfile(String* title) {
 
 void CpuProfiler::StopProcessorIfLastProfile() {
   if (profiles_->is_last_profile()) {
-    Logger::ticker_->Stop();
+    reinterpret_cast<Sampler*>(Logger::ticker_)->Stop();
     processor_->Stop();
     processor_->Join();
     delete processor_;
     delete generator_;
     processor_ = NULL;
     generator_ = NULL;
+    Logger::logging_nesting_ = saved_logging_nesting_;
   }
 }
 
