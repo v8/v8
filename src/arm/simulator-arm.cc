@@ -319,7 +319,6 @@ void Debugger::Debug() {
           PrintF("printobject <value>\n");
         }
       } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0) {
-
         int32_t* cur = NULL;
         int32_t* end = NULL;
         int next_arg = 1;
