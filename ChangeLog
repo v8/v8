@@ -1,3 +1,10 @@
+2010-04-12: Version 2.2.2
+
+        Introduced new profiler API.
+
+        Fixed random number generator to produce full 32 random bits.
+
+
 2010-04-06: Version 2.2.1
 
         Debugger improvements.
