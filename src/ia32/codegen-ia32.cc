@@ -11082,61 +11082,93 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
 }
 
 
+static int NegativeComparisonResult(Condition cc) {
+  ASSERT(cc != equal);
+  ASSERT((cc == less) || (cc == less_equal)
+      || (cc == greater) || (cc == greater_equal));
+  return (cc == greater || cc == greater_equal) ? LESS : GREATER;
+}
+
+
 void CompareStub::Generate(MacroAssembler* masm) {
   Label call_builtin, done;
 
   // NOTICE! This code is only reached after a smi-fast-case check, so
   // it is certain that at least one operand isn't a smi.
 
-  if (cc_ == equal) {  // Both strict and non-strict.
-    Label slow;  // Fallthrough label.
-    // Equality is almost reflexive (everything but NaN), so start by testing
-    // for "identity and not NaN".
-    {
-      Label not_identical;
-      __ cmp(eax, Operand(edx));
-      __ j(not_equal, &not_identical);
-      // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
-      // so we do the second best thing - test it ourselves.
+  // Identical objects can be compared fast, but there are some tricky cases
+  // for NaN and undefined.
+  {
+    Label not_identical;
+    __ cmp(eax, Operand(edx));
+    __ j(not_equal, &not_identical);
 
-      if (never_nan_nan_) {
-        __ Set(eax, Immediate(0));
-        __ ret(0);
-      } else {
-        Label return_equal;
-        Label heap_number;
-        // If it's not a heap number, then return equal.
-        __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
-               Immediate(Factory::heap_number_map()));
-        __ j(equal, &heap_number);
-        __ bind(&return_equal);
-        __ Set(eax, Immediate(0));
-        __ ret(0);
+    if (cc_ != equal) {
+      // Check for undefined.  undefined OP undefined is false even though
+      // undefined == undefined.
+      Label check_for_nan;
+      __ cmp(edx, Factory::undefined_value());
+      __ j(not_equal, &check_for_nan);
+      __ Set(eax, Immediate(Smi::FromInt(NegativeComparisonResult(cc_))));
+      __ ret(0);
+      __ bind(&check_for_nan);
+    }
 
-        __ bind(&heap_number);
-        // It is a heap number, so return non-equal if it's NaN and equal if
-        // it's not NaN.
-        // The representation of NaN values has all exponent bits (52..62) set,
-        // and not all mantissa bits (0..51) clear.
-        // We only accept QNaNs, which have bit 51 set.
-        // Read top bits of double representation (second word of value).
+    // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
+    // so we do the second best thing - test it ourselves.
+    // Note: if cc_ != equal, never_nan_nan_ is not used.
+    if (never_nan_nan_ && (cc_ == equal)) {
+      __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
+      __ ret(0);
+    } else {
+      Label return_equal;
+      Label heap_number;
+      // If it's not a heap number, then return equal.
+      __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+             Immediate(Factory::heap_number_map()));
+      __ j(equal, &heap_number);
+      __ bind(&return_equal);
+      __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
+      __ ret(0);
 
-        // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
-        // all bits in the mask are set. We only need to check the word
-        // that contains the exponent and high bit of the mantissa.
-        ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
-        __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
-        __ xor_(eax, Operand(eax));
-        // Shift value and mask so kQuietNaNHighBitsMask applies to topmost
-        // bits.
-        __ add(edx, Operand(edx));
-        __ cmp(edx, kQuietNaNHighBitsMask << 1);
+      __ bind(&heap_number);
+      // It is a heap number, so return non-equal if it's NaN and equal if
+      // it's not NaN.
+      // The representation of NaN values has all exponent bits (52..62) set,
+      // and not all mantissa bits (0..51) clear.
+      // We only accept QNaNs, which have bit 51 set.
+      // Read top bits of double representation (second word of value).
+
+      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
+      // all bits in the mask are set. We only need to check the word
+      // that contains the exponent and high bit of the mantissa.
+      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
+      __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
+      __ xor_(eax, Operand(eax));
+      // Shift value and mask so kQuietNaNHighBitsMask applies to topmost
+      // bits.
+      __ add(edx, Operand(edx));
+      __ cmp(edx, kQuietNaNHighBitsMask << 1);
+      if (cc_ == equal) {
+        ASSERT_NE(1, EQUAL);
         __ setcc(above_equal, eax);
         __ ret(0);
+      } else {
+        Label nan;
+        __ j(above_equal, &nan);
+        __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
+        __ ret(0);
+        __ bind(&nan);
+        __ Set(eax, Immediate(Smi::FromInt(NegativeComparisonResult(cc_))));
+        __ ret(0);
       }
-
-      __ bind(&not_identical);
     }
+
+    __ bind(&not_identical);
+  }
+
+  if (cc_ == equal) {  // Both strict and non-strict.
+    Label slow;  // Fallthrough label.
 
     // If we're doing a strict equality comparison, we don't have to do
     // type conversion, so we generate code to do fast comparison for objects
@@ -11327,14 +11359,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     builtin = strict_ ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
   } else {
     builtin = Builtins::COMPARE;
-    int ncr;  // NaN compare result
-    if (cc_ == less || cc_ == less_equal) {
-      ncr = GREATER;
-    } else {
-      ASSERT(cc_ == greater || cc_ == greater_equal);  // remaining cases
-      ncr = LESS;
-    }
-    __ push(Immediate(Smi::FromInt(ncr)));
+    __ push(Immediate(Smi::FromInt(NegativeComparisonResult(cc_))));
   }
 
   // Restore return address on the stack.
