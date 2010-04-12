@@ -1131,9 +1131,7 @@ class Heap : public AllStatic {
 
   static void CreateFixedStubs();
 
-  static Object* CreateOddball(Map* map,
-                               const char* to_string,
-                               Object* to_number);
+  static Object* CreateOddball(const char* to_string, Object* to_number);
 
   // Allocate empty fixed array.
   static Object* AllocateEmptyFixedArray();

@@ -1487,10 +1487,9 @@ Object* Heap::AllocateJSGlobalPropertyCell(Object* value) {
 }
 
 
-Object* Heap::CreateOddball(Map* map,
-                            const char* to_string,
+Object* Heap::CreateOddball(const char* to_string,
                             Object* to_number) {
-  Object* result = Allocate(map, OLD_DATA_SPACE);
+  Object* result = Allocate(oddball_map(), OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
   return Oddball::cast(result)->Initialize(to_string, to_number);
 }
@@ -1594,34 +1593,27 @@ bool Heap::CreateInitialObjects() {
   Oddball::cast(undefined_value())->set_to_string(String::cast(symbol));
   Oddball::cast(undefined_value())->set_to_number(nan_value());
 
-  // Assign the print strings for oddballs after creating symboltable.
-  symbol = LookupAsciiSymbol("null");
-  if (symbol->IsFailure()) return false;
-  Oddball::cast(null_value())->set_to_string(String::cast(symbol));
-  Oddball::cast(null_value())->set_to_number(Smi::FromInt(0));
-
   // Allocate the null_value
   obj = Oddball::cast(null_value())->Initialize("null", Smi::FromInt(0));
   if (obj->IsFailure()) return false;
 
-  obj = CreateOddball(oddball_map(), "true", Smi::FromInt(1));
+  obj = CreateOddball("true", Smi::FromInt(1));
   if (obj->IsFailure()) return false;
   set_true_value(obj);
 
-  obj = CreateOddball(oddball_map(), "false", Smi::FromInt(0));
+  obj = CreateOddball("false", Smi::FromInt(0));
   if (obj->IsFailure()) return false;
   set_false_value(obj);
 
-  obj = CreateOddball(oddball_map(), "hole", Smi::FromInt(-1));
+  obj = CreateOddball("hole", Smi::FromInt(-1));
   if (obj->IsFailure()) return false;
   set_the_hole_value(obj);
 
-  obj = CreateOddball(
-      oddball_map(), "no_interceptor_result_sentinel", Smi::FromInt(-2));
+  obj = CreateOddball("no_interceptor_result_sentinel", Smi::FromInt(-2));
   if (obj->IsFailure()) return false;
   set_no_interceptor_result_sentinel(obj);
 
-  obj = CreateOddball(oddball_map(), "termination_exception", Smi::FromInt(-3));
+  obj = CreateOddball("termination_exception", Smi::FromInt(-3));
   if (obj->IsFailure()) return false;
   set_termination_exception(obj);
 
