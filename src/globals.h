@@ -458,7 +458,7 @@ struct AccessorDescriptor {
 
 // Logging and profiling.
 // A StateTag represents a possible state of the VM.  When compiled with
-// ENABLE_LOGGING_AND_PROFILING, the logger maintains a stack of these.
+// ENABLE_VMSTATE_TRACKING, the logger maintains a stack of these.
 // Creating a VMState object enters a state by pushing on the stack, and
 // destroying a VMState object leaves a state by popping the current state
 // from the stack.
@@ -471,11 +471,6 @@ struct AccessorDescriptor {
   V(EXTERNAL)
 
 enum StateTag {
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-  // This is to ensure that VM state field value of TickSample
-  // never gets equal to SamplingCircularQueue::kClear.
-  NULL_STATE = 0,
-#endif
 #define DEF_STATE_TAG(name) name,
   STATE_TAG_LIST(DEF_STATE_TAG)
 #undef DEF_STATE_TAG

@@ -283,8 +283,7 @@ CpuProfile* CpuProfiler::FindProfile(unsigned uid) {
 
 
 TickSample* CpuProfiler::TickSampleEvent() {
-  ASSERT(singleton_ != NULL);
-  if (singleton_->is_profiling()) {
+  if (CpuProfiler::is_profiling()) {
     return singleton_->processor_->TickSampleEvent();
   } else {
     return NULL;
@@ -417,6 +416,9 @@ void CpuProfiler::StartCollectingProfile(String* title) {
 
 void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_ == NULL) {
+    // Disable logging when using the new implementation.
+    saved_logging_nesting_ = Logger::logging_nesting_;
+    Logger::logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
     processor_ = new ProfilerEventsProcessor(generator_);
     processor_->Start();
@@ -428,7 +430,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
       Logger::LogAccessorCallbacks();
     }
     // Enable stack sampling.
-    Logger::ticker_->Start();
+    reinterpret_cast<Sampler*>(Logger::ticker_)->Start();
   }
 }
 
@@ -451,13 +453,14 @@ CpuProfile* CpuProfiler::StopCollectingProfile(String* title) {
 
 void CpuProfiler::StopProcessorIfLastProfile() {
   if (profiles_->is_last_profile()) {
-    Logger::ticker_->Stop();
+    reinterpret_cast<Sampler*>(Logger::ticker_)->Stop();
     processor_->Stop();
     processor_->Join();
     delete processor_;
     delete generator_;
     processor_ = NULL;
     generator_ = NULL;
+    Logger::logging_nesting_ = saved_logging_nesting_;
   }
 }
 

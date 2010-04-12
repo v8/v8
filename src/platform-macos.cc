@@ -546,15 +546,12 @@ class Sampler::PlatformData : public Malloced {
   void Runner() {
     // Loop until the sampler is disengaged, keeping the specified samling freq.
     for ( ; sampler_->IsActive(); OS::Sleep(sampler_->interval_)) {
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-      TickSample* sample = CpuProfiler::TickSampleEvent();
-      if (sample == NULL) continue;
-      sample->pc = NULL;  // Impossible value if sampling succeeds.
-      sample->frames_count = 0;
-#else
       TickSample sample_obj;
-      TickSample* sample = &sample_obj;
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+      TickSample* sample = NULL;
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+      sample = CpuProfiler::TickSampleEvent();
+#endif
+      if (sample == NULL) sample = &sample_obj;
 
       // We always sample the VM state.
       sample->state = VMState::current_state();
@@ -595,10 +592,8 @@ class Sampler::PlatformData : public Malloced {
         thread_resume(profiled_thread_);
       }
 
-#ifndef ENABLE_CPP_PROFILES_PROCESSOR
       // Invoke tick handler with program counter and stack pointer.
       sampler_->Tick(sample);
-#endif
     }
   }
 };

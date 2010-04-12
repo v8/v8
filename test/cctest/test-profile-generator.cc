@@ -367,7 +367,27 @@ TEST(CodeMapMoveAndDeleteCode) {
 }
 
 
+namespace {
+
+class TestSetup {
+ public:
+  TestSetup()
+      : old_flag_prof_browser_mode_(i::FLAG_prof_browser_mode) {
+    i::FLAG_prof_browser_mode = false;
+  }
+
+  ~TestSetup() {
+    i::FLAG_prof_browser_mode = old_flag_prof_browser_mode_;
+  }
+
+ private:
+  bool old_flag_prof_browser_mode_;
+};
+
+}  // namespace
+
 TEST(RecordTickSample) {
+  TestSetup test_setup;
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);

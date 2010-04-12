@@ -87,7 +87,7 @@ class CompressionHelper;
 #define LOG(Call) ((void) 0)
 #endif
 
-#define LOG_EVENTS_AND_TAGS_LIST(V) \
+#define LOG_EVENTS_AND_TAGS_LIST_NO_NATIVES(V) \
   V(CODE_CREATION_EVENT,            "code-creation",          "cc")       \
   V(CODE_MOVE_EVENT,                "code-move",              "cm")       \
   V(CODE_DELETE_EVENT,              "code-delete",            "cd")       \
@@ -118,17 +118,24 @@ class CompressionHelper;
   V(STORE_IC_TAG,                   "StoreIC",                "sic")      \
   V(STUB_TAG,                       "Stub",                   "s")
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+// Add 'NATIVE_' cases for functions and scripts, but map them to
+// original tags when writing to the log.
+#define LOG_EVENTS_AND_TAGS_LIST(V) \
+  LOG_EVENTS_AND_TAGS_LIST_NO_NATIVES(V)                                  \
+  V(NATIVE_FUNCTION_TAG,            "Function",               "f")        \
+  V(NATIVE_LAZY_COMPILE_TAG,        "LazyCompile",            "lc")       \
+  V(NATIVE_SCRIPT_TAG,              "Script",                 "sc")
+#else
+#define LOG_EVENTS_AND_TAGS_LIST(V) LOG_EVENTS_AND_TAGS_LIST_NO_NATIVES(V)
+#endif
+
 class Logger {
  public:
 #define DECLARE_ENUM(enum_item, ignore1, ignore2) enum_item,
   enum LogEventsAndTags {
     LOG_EVENTS_AND_TAGS_LIST(DECLARE_ENUM)
     NUMBER_OF_LOG_EVENTS
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-    , NATIVE_FUNCTION_TAG
-    , NATIVE_LAZY_COMPILE_TAG
-    , NATIVE_SCRIPT_TAG
-#endif
   };
 #undef DECLARE_ENUM
 
@@ -364,26 +371,6 @@ class StackTracer : public AllStatic {
  public:
   static void Trace(TickSample* sample);
 };
-
-
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-
-class Ticker: public Sampler {
- public:
-  explicit Ticker(int interval):
-      Sampler(interval, FLAG_prof) {}
-
-  void SampleStack(TickSample* sample) {
-    StackTracer::Trace(sample);
-  }
-  void Tick(TickSample* sample) { }
-  void SetWindow(SlidingStateWindow* window) { }
-  void ClearWindow() { }
-  void SetProfiler(Profiler* profiler) { }
-  void ClearProfiler() { }
-};
-
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 
 } }  // namespace v8::internal
 

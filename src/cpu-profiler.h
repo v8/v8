@@ -103,17 +103,20 @@ class CodeAliasEventRecord : public CodeEventRecord {
 
 class TickSampleEventRecord BASE_EMBEDDED {
  public:
-  // In memory, the first machine word of a TickSampleEventRecord will be the
-  // first entry of TickSample, that is -- the VM state field.
-  // TickSample is put first, because 'order' can become equal to
-  // SamplingCircularQueue::kClear, while VM state can't, see
-  // the definition of 'enum StateTag'.
-  TickSample sample;
+  // The first machine word of a TickSampleEventRecord must not ever
+  // become equal to SamplingCircularQueue::kClear.  As both order and
+  // TickSample's first field are not reliable in this sense (order
+  // can overflow, TickSample can have all fields reset), we are
+  // forced to use an artificial filler field.
+  int filler;
   unsigned order;
+  TickSample sample;
 
   static TickSampleEventRecord* cast(void* value) {
     return reinterpret_cast<TickSampleEventRecord*>(value);
   }
+
+  INLINE(static TickSampleEventRecord* init(void* value));
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TickSampleEventRecord);
@@ -256,6 +259,7 @@ class CpuProfiler {
   unsigned next_profile_uid_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
+  int saved_logging_nesting_;
 
   static CpuProfiler* singleton_;
 

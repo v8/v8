@@ -727,15 +727,12 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   if (signal != SIGPROF) return;
   if (active_sampler_ == NULL) return;
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-  TickSample* sample = CpuProfiler::TickSampleEvent();
-  if (sample == NULL) return;
-  sample->pc = NULL;  // Impossible value if sampling succeeds.
-  sample->frames_count = 0;
-#else
   TickSample sample_obj;
-  TickSample* sample = &sample_obj;
+  TickSample* sample = NULL;
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+  sample = CpuProfiler::TickSampleEvent();
 #endif
+  if (sample == NULL) sample = &sample_obj;
 
   // We always sample the VM state.
   sample->state = VMState::current_state();
@@ -771,9 +768,8 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
       active_sampler_->SampleStack(sample);
     }
   }
-#ifndef ENABLE_CPP_PROFILES_PROCESSOR
+
   active_sampler_->Tick(sample);
-#endif
 #endif
 }
 

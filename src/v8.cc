@@ -62,12 +62,6 @@ bool V8::Initialize(Deserializer* des) {
 
   CpuProfiler::Setup();
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-  if (FLAG_prof && FLAG_prof_auto) {
-    CpuProfiler::StartProfiling("internal.auto");
-  }
-#endif
-
   // Setup the platform OS support.
   OS::Setup();
 
@@ -142,12 +136,6 @@ void V8::SetFatalError() {
 
 void V8::TearDown() {
   if (!has_been_setup_ || has_been_disposed_) return;
-
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-  if (FLAG_prof && FLAG_prof_auto) {
-    CpuProfiler::StopProfiling("internal.auto");
-  }
-#endif
 
   OProfileAgent::TearDown();
 

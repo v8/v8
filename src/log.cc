@@ -181,8 +181,6 @@ void StackTracer::Trace(TickSample* sample) {
 // Ticker used to provide ticks to the profiler and the sliding state
 // window.
 //
-#ifndef ENABLE_CPP_PROFILES_PROCESSOR
-
 class Ticker: public Sampler {
  public:
   explicit Ticker(int interval):
@@ -223,8 +221,6 @@ class Ticker: public Sampler {
   SlidingStateWindow* window_;
   Profiler* profiler_;
 };
-
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 
 
 //
@@ -1507,11 +1503,6 @@ bool Logger::Setup() {
       profiler_->Engage();
     }
   }
-
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-  // Disable old logging, as we are using the same '--prof' flag.
-  logging_nesting_ = 0;
-#endif
 
   LogMessageBuilder::set_write_failure_handler(StopLoggingAndProfiling);
 
