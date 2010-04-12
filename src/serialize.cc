@@ -334,6 +334,11 @@ void ExternalReferenceTable::PopulateTable() {
       2,
       "V8::FillHeapNumberWithRandom");
 
+  Add(ExternalReference::random_uint32_function().address(),
+      RUNTIME_ENTRY,
+      3,
+      "V8::Random");
+
   // Miscellaneous
   Add(ExternalReference::the_hole_value_location().address(),
       UNCLASSIFIED,

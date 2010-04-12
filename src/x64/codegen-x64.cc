@@ -4081,7 +4081,7 @@ void CodeGenerator::GenerateRandomHeapNumber(
 
   Label slow_allocate_heapnumber;
   Label heapnumber_allocated;
-  __ AllocateHeapNumber(rdi, rbx, &slow_allocate_heapnumber);
+  __ AllocateHeapNumber(rbx, rcx, &slow_allocate_heapnumber);
   __ jmp(&heapnumber_allocated);
 
   __ bind(&slow_allocate_heapnumber);
@@ -4090,25 +4090,27 @@ void CodeGenerator::GenerateRandomHeapNumber(
   // -0.0.  A new, distinct heap number is returned each time.
   __ Push(Smi::FromInt(0));
   __ CallRuntime(Runtime::kNumberUnaryMinus, 1);
-  __ movq(rdi, rax);
+  __ movq(rbx, rax);
 
   __ bind(&heapnumber_allocated);
 
-  // Put a random number into the heap number rdi using a C++ function.
-  // Return the heap number in rax.
-#ifdef _WIN64
-  __ movq(rcx, rdi);
-#else
-  // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
-  __ push(rsi);
-#endif
-  __ PrepareCallCFunction(1);
-  __ CallCFunction(ExternalReference::fill_heap_number_with_random_function(),
-                   1);
-#ifndef _WIN64
-  // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
-  __ pop(rsi);
-#endif
+  // Return a random uint32 number in rax.
+  // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
+  __ PrepareCallCFunction(0);
+  __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+
+  // Convert 32 random bits in eax to 0.(32 random bits) in a double
+  // by computing:
+  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+  __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
+  __ movd(xmm1, rcx);
+  __ movd(xmm0, rax);
+  __ cvtss2sd(xmm1, xmm1);
+  __ xorpd(xmm0, xmm1);
+  __ subsd(xmm0, xmm1);
+  __ movsd(FieldOperand(rbx, HeapNumber::kValueOffset), xmm0);
+
+  __ movq(rax, rbx);
   Result result = allocator_->Allocate(rax);
   frame_->Push(&result);
 }

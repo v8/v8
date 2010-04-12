@@ -210,11 +210,13 @@ Object* V8::FillHeapNumberWithRandom(Object* heap_number) {
   double_int_union* r = reinterpret_cast<double_int_union*>(
       reinterpret_cast<char*>(heap_number) +
       HeapNumber::kValueOffset - kHeapObjectTag);
-  // Create a random number between 0.0 and 1.0 by putting random bits into
-  // the mantissa of 1.0 and subtracting 1.0.
-  r->double_value = 1.0;
-  r->uint64_t_value |= (random_bits << 20);
-  r->double_value -= 1.0;  // Force into the range [0.0, 1.0).
+  // Convert 32 random bits to 0.(32 random bits) in a double
+  // by computing:
+  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+  const double binary_million = 1048576.0;
+  r->double_value = binary_million;
+  r->uint64_t_value |=  random_bits;
+  r->double_value -= binary_million;
 
   return heap_number;
 }

@@ -580,6 +580,11 @@ ExternalReference ExternalReference::fill_heap_number_with_random_function() {
 }
 
 
+ExternalReference ExternalReference::random_uint32_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(V8::Random)));
+}
+
+
 ExternalReference ExternalReference::transcendental_cache_array_address() {
   return ExternalReference(TranscendentalCache::cache_array_address());
 }
