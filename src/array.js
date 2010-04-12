@@ -649,29 +649,16 @@ function ArraySort(comparefn) {
   function InsertionSortWithFunc(a, from, to) {
     for (var i = from + 1; i < to; i++) {
       var element = a[i];
-      // place element in a[from..i[
-      // binary search
-      var min = from;
-      var max = i;
-      // The search interval is a[min..max[
-      while (min < max) {
-        var mid = min + ((max - min) >> 1);
-        var order = %_CallFunction(global_receiver, a[mid], element, comparefn);
-        if (order == 0) {
-          min = max = mid;
+      for (var j = i - 1; j >= from; j--) {
+        var tmp = a[j];
+        var order = %_CallFunction(global_receiver, tmp, element, comparefn);
+        if (order > 0) {
+          a[j + 1] = tmp;
+        } else {
           break;
         }
-        if (order < 0) {
-          min = mid + 1;
-        } else {
-          max = mid;
-        }
       }
-      // place element at position min==max.
-      for (var j = i; j > min; j--) {
-        a[j] = a[j - 1];
-      }
-      a[min] = element;
+      a[j + 1] = element;
     }
   }
 
@@ -712,8 +699,6 @@ function ArraySort(comparefn) {
   }
 
   function Compare(x,y) {
-    // Assume the comparefn, if any, is a consistent comparison function.
-    // If it isn't, we are allowed arbitrary behavior by ECMA 15.4.4.11.
     if (x === y) return 0;
     if (%_IsSmi(x) && %_IsSmi(y)) {
       return %SmiLexicographicCompare(x, y);
@@ -727,32 +712,17 @@ function ArraySort(comparefn) {
   function InsertionSort(a, from, to) {
     for (var i = from + 1; i < to; i++) {
       var element = a[i];
-      // Pre-convert the element to a string for comparison if we know
-      // it will happen on each compare anyway.
       var key = %_IsSmi(element) ? element : ToString(element);
-      // place element in a[from..i[
-      // binary search
-      var min = from;
-      var max = i;
-      // The search interval is a[min..max[
-      while (min < max) {
-        var mid = min + ((max - min) >> 1);
-        var order = Compare(a[mid], key);
-        if (order == 0) {
-          min = max = mid;
+      for (var j = i - 1; j >= from; j--) {
+        var tmp = a[j];
+        var order = Compare(tmp, key);
+        if (order > 0) {
+          a[j + 1] = tmp;
+        } else {
           break;
         }
-        if (order < 0) {
-          min = mid + 1;
-        } else {
-          max = mid;
-        }
       }
-      // place element at position min==max.
-      for (var j = i; j > min; j--) {
-        a[j] = a[j - 1];
-      }
-      a[min] = element;
+      a[j + 1] = element;
     }
   }
 
