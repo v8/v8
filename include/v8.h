@@ -859,18 +859,23 @@ class V8EXPORT String : public Primitive {
    * \return The number of bytes copied to the buffer
    * excluding the NULL terminator.
    */
-  int Write(uint16_t* buffer, int start = 0, int length = -1) const;  // UTF-16
-  int WriteAscii(char* buffer, int start = 0, int length = -1) const;  // ASCII
+  enum WriteHints {
+    NO_HINTS = 0,
+    HINT_MANY_WRITES_EXPECTED = 1
+  };
+
+  int Write(uint16_t* buffer,
+            int start = 0,
+            int length = -1,
+            WriteHints hints = NO_HINTS) const;  // UTF-16
+  int WriteAscii(char* buffer,
+                 int start = 0,
+                 int length = -1,
+                 WriteHints hints = NO_HINTS) const;  // ASCII
   int WriteUtf8(char* buffer,
                 int length = -1,
-                int* nchars_ref = NULL) const; // UTF-8
-
-  /**
-   * Flatten internal memory. Operations on the string tend to run faster
-   * after flattening especially if the string is a concatenation of many
-   * others.
-   */
-  void Flatten();
+                int* nchars_ref = NULL,
+                WriteHints hints = NO_HINTS) const; // UTF-8
 
   /**
    * A zero length string.
