@@ -1228,6 +1228,36 @@ static Object* Runtime_RegExpExec(Arguments args) {
 }
 
 
+static Object* Runtime_RegExpConstructResult(Arguments args) {
+  ASSERT(args.length() == 3);
+  CONVERT_SMI_CHECKED(elements_count, args[0]);
+  if (elements_count > JSArray::kMaxFastElementsLength) {
+    return Top::ThrowIllegalOperation();
+  }
+  Object* new_object = Heap::AllocateFixedArrayWithHoles(elements_count);
+  if (new_object->IsFailure()) return new_object;
+  FixedArray* elements = FixedArray::cast(new_object);
+  new_object = Heap::AllocateRaw(JSRegExpResult::kSize,
+                                 NEW_SPACE,
+                                 OLD_POINTER_SPACE);
+  if (new_object->IsFailure()) return new_object;
+  {
+    AssertNoAllocation no_gc;
+    HandleScope scope;
+    reinterpret_cast<HeapObject*>(new_object)->
+        set_map(Top::global_context()->regexp_result_map());
+  }
+  JSArray* array = JSArray::cast(new_object);
+  array->set_properties(Heap::empty_fixed_array());
+  array->set_elements(elements);
+  array->set_length(Smi::FromInt(elements_count));
+  // Write in-object properties after the length of the array.
+  array->InObjectPropertyAtPut(JSRegExpResult::kIndexIndex, args[1]);
+  array->InObjectPropertyAtPut(JSRegExpResult::kInputIndex, args[2]);
+  return array;
+}
+
+
 static Object* Runtime_RegExpInitializeObject(Arguments args) {
   AssertNoAllocation no_alloc;
   ASSERT(args.length() == 5);

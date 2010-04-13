@@ -4130,6 +4130,97 @@ void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
+  // No stub. This code only occurs a few times in regexp.js.
+  const int kMaxInlineLength = 100;
+  ASSERT_EQ(3, args->length());
+  Load(args->at(0));  // Size of array, smi.
+  Load(args->at(1));  // "index" property value.
+  Load(args->at(2));  // "input" property value.
+  {
+    VirtualFrame::SpilledScope spilled_scope;
+
+    Label slowcase;
+    Label done;
+    __ movq(r8, Operand(rsp, kPointerSize * 2));
+    __ JumpIfNotSmi(r8, &slowcase);
+    __ SmiToInteger32(rbx, r8);
+    __ cmpl(rbx, Immediate(kMaxInlineLength));
+    __ j(above, &slowcase);
+    // Smi-tagging is equivalent to multiplying by 2.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize == 1);
+    // Allocate RegExpResult followed by FixedArray with size in ebx.
+    // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
+    // Elements:  [Map][Length][..elements..]
+    __ AllocateInNewSpace(JSRegExpResult::kSize + FixedArray::kHeaderSize,
+                          times_pointer_size,
+                          rbx,  // In: Number of elements.
+                          rax,  // Out: Start of allocation (tagged).
+                          rcx,  // Out: End of allocation.
+                          rdx,  // Scratch register
+                          &slowcase,
+                          TAG_OBJECT);
+    // rax: Start of allocated area, object-tagged.
+    // rbx: Number of array elements as int32.
+    // r8: Number of array elements as smi.
+
+    // Set JSArray map to global.regexp_result_map().
+    __ movq(rdx, ContextOperand(rsi, Context::GLOBAL_INDEX));
+    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalContextOffset));
+    __ movq(rdx, ContextOperand(rdx, Context::REGEXP_RESULT_MAP_INDEX));
+    __ movq(FieldOperand(rax, HeapObject::kMapOffset), rdx);
+
+    // Set empty properties FixedArray.
+    __ Move(FieldOperand(rax, JSObject::kPropertiesOffset),
+            Factory::empty_fixed_array());
+
+    // Set elements to point to FixedArray allocated right after the JSArray.
+    __ lea(rcx, Operand(rax, JSRegExpResult::kSize));
+    __ movq(FieldOperand(rax, JSObject::kElementsOffset), rcx);
+
+    // Set input, index and length fields from arguments.
+    __ pop(FieldOperand(rax, JSRegExpResult::kInputOffset));
+    __ pop(FieldOperand(rax, JSRegExpResult::kIndexOffset));
+    __ lea(rsp, Operand(rsp, kPointerSize));
+    __ movq(FieldOperand(rax, JSArray::kLengthOffset), r8);
+
+    // Fill out the elements FixedArray.
+    // rax: JSArray.
+    // rcx: FixedArray.
+    // rbx: Number of elements in array as int32.
+
+    // Set map.
+    __ Move(FieldOperand(rcx, HeapObject::kMapOffset),
+            Factory::fixed_array_map());
+    // Set length.
+    __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rbx);
+    // Fill contents of fixed-array with the-hole.
+    __ Move(rdx, Factory::the_hole_value());
+    __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
+    // Fill fixed array elements with hole.
+    // rax: JSArray.
+    // rbx: Number of elements in array that remains to be filled, as int32.
+    // rcx: Start of elements in FixedArray.
+    // rdx: the hole.
+    Label loop;
+    __ testl(rbx, rbx);
+    __ bind(&loop);
+    __ j(less_equal, &done);  // Jump if ecx is negative or zero.
+    __ subl(rbx, Immediate(1));
+    __ movq(Operand(rcx, rbx, times_pointer_size, 0), rdx);
+    __ jmp(&loop);
+
+    __ bind(&slowcase);
+    __ CallRuntime(Runtime::kRegExpConstructResult, 3);
+
+    __ bind(&done);
+  }
+  frame_->Forget(3);
+  frame_->Push(rax);
+}
+
+
 void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
 

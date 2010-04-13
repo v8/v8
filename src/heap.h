@@ -153,6 +153,8 @@ class ZoneScopeInfo;
   V(global_symbol, "global")                                             \
   V(ignore_case_symbol, "ignoreCase")                                    \
   V(multiline_symbol, "multiline")                                       \
+  V(input_symbol, "input")                                               \
+  V(index_symbol, "index")                                               \
   V(last_index_symbol, "lastIndex")                                      \
   V(object_symbol, "object")                                             \
   V(prototype_symbol, "prototype")                                       \

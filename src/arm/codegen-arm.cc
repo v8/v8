@@ -4021,6 +4021,100 @@ void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
+  // No stub. This code only occurs a few times in regexp.js.
+  const int kMaxInlineLength = 100;
+  ASSERT_EQ(3, args->length());
+  Load(args->at(0));  // Size of array, smi.
+  Load(args->at(1));  // "index" property value.
+  Load(args->at(2));  // "input" property value.
+  {
+    VirtualFrame::SpilledScope spilled_scope(frame_);
+    Label slowcase;
+    Label done;
+    __ ldr(r1, MemOperand(sp, kPointerSize * 2));
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize == 1);
+    __ tst(r1, Operand(kSmiTagMask));
+    __ b(ne, &slowcase);
+    __ cmp(r1, Operand(Smi::FromInt(kMaxInlineLength)));
+    __ b(hi, &slowcase);
+    // Smi-tagging is equivalent to multiplying by 2.
+    // Allocate RegExpResult followed by FixedArray with size in ebx.
+    // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
+    // Elements:  [Map][Length][..elements..]
+    // Size of JSArray with two in-object properties and the header of a
+    // FixedArray.
+    int objects_size =
+        (JSRegExpResult::kSize + FixedArray::kHeaderSize) / kPointerSize;
+    __ mov(r5, Operand(r1, LSR, kSmiTagSize + kSmiShiftSize));
+    __ add(r2, r5, Operand(objects_size));
+    __ AllocateInNewSpace(r2,  // In: Size, in words.
+                          r0,  // Out: Start of allocation (tagged).
+                          r3,  // Scratch register.
+                          r4,  // Scratch register.
+                          &slowcase,
+                          TAG_OBJECT);
+    // r0: Start of allocated area, object-tagged.
+    // r1: Number of elements in array, as smi.
+    // r5: Number of elements, untagged.
+
+    // Set JSArray map to global.regexp_result_map().
+    // Set empty properties FixedArray.
+    // Set elements to point to FixedArray allocated right after the JSArray.
+    // Interleave operations for better latency.
+    __ ldr(r2, ContextOperand(cp, Context::GLOBAL_INDEX));
+    __ add(r3, r0, Operand(JSRegExpResult::kSize));
+    __ mov(r4, Operand(Factory::empty_fixed_array()));
+    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalContextOffset));
+    __ str(r3, FieldMemOperand(r0, JSObject::kElementsOffset));
+    __ ldr(r2, ContextOperand(r2, Context::REGEXP_RESULT_MAP_INDEX));
+    __ str(r4, FieldMemOperand(r0, JSObject::kPropertiesOffset));
+    __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+
+    // Set input, index and length fields from arguments.
+    __ ldm(ia_w, sp, static_cast<RegList>(r2.bit() | r4.bit()));
+    __ str(r1, FieldMemOperand(r0, JSArray::kLengthOffset));
+    __ add(sp, sp, Operand(kPointerSize));
+    __ str(r4, FieldMemOperand(r0, JSRegExpResult::kIndexOffset));
+    __ str(r2, FieldMemOperand(r0, JSRegExpResult::kInputOffset));
+
+    // Fill out the elements FixedArray.
+    // r0: JSArray, tagged.
+    // r3: FixedArray, tagged.
+    // r5: Number of elements in array, untagged.
+
+    // Set map.
+    __ mov(r2, Operand(Factory::fixed_array_map()));
+    __ str(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
+    // Set FixedArray length.
+    __ str(r5, FieldMemOperand(r3, FixedArray::kLengthOffset));
+    // Fill contents of fixed-array with the-hole.
+    __ mov(r2, Operand(Factory::the_hole_value()));
+    __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    // Fill fixed array elements with hole.
+    // r0: JSArray, tagged.
+    // r2: the hole.
+    // r3: Start of elements in FixedArray.
+    // r5: Number of elements to fill.
+    Label loop;
+    __ tst(r5, Operand(r5));
+    __ bind(&loop);
+    __ b(le, &done);  // Jump if r1 is negative or zero.
+    __ sub(r5, r5, Operand(1), SetCC);
+    __ str(r2, MemOperand(r3, r5, LSL, kPointerSizeLog2));
+    __ jmp(&loop);
+
+    __ bind(&slowcase);
+    __ CallRuntime(Runtime::kRegExpConstructResult, 3);
+
+    __ bind(&done);
+  }
+  frame_->Forget(3);
+  frame_->EmitPush(r0);
+}
+
+
 void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
 
