@@ -2432,7 +2432,8 @@ void CodeGenerator::Comparison(AstNode* node,
     left_side_constant_null = left_side.handle()->IsNull();
     left_side_constant_1_char_string =
         (left_side.handle()->IsString() &&
-         (String::cast(*left_side.handle())->length() == 1));
+         String::cast(*left_side.handle())->length() == 1 &&
+         String::cast(*left_side.handle())->IsAsciiRepresentation());
   }
   bool right_side_constant_smi = false;
   bool right_side_constant_null = false;
@@ -2442,7 +2443,8 @@ void CodeGenerator::Comparison(AstNode* node,
     right_side_constant_null = right_side.handle()->IsNull();
     right_side_constant_1_char_string =
         (right_side.handle()->IsString() &&
-         (String::cast(*right_side.handle())->length() == 1));
+         String::cast(*right_side.handle())->length() == 1 &&
+         String::cast(*right_side.handle())->IsAsciiRepresentation());
   }
 
   if (left_side_constant_smi || right_side_constant_smi) {
@@ -2631,6 +2633,7 @@ void CodeGenerator::Comparison(AstNode* node,
       JumpTarget is_not_string, is_string;
       Register left_reg = left_side.reg();
       Handle<Object> right_val = right_side.handle();
+      ASSERT(StringShape(String::cast(*right_val)).IsSymbol());
       __ test(left_side.reg(), Immediate(kSmiTagMask));
       is_not_string.Branch(zero, &left_side);
       Result temp = allocator_->Allocate();
@@ -2655,7 +2658,7 @@ void CodeGenerator::Comparison(AstNode* node,
         dest->false_target()->Branch(not_equal);
         __ bind(&not_a_symbol);
       }
-      // If the receiver is not a string of the type we handle call the stub.
+      // Call the compare stub if the left side is not a flat ascii string.
       __ and_(temp.reg(),
           kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask);
       __ cmp(temp.reg(), kStringTag | kSeqStringTag | kAsciiStringTag);
@@ -2673,7 +2676,7 @@ void CodeGenerator::Comparison(AstNode* node,
       dest->false_target()->Jump();
 
       is_string.Bind(&left_side);
-      // Here we know we have a sequential ASCII string.
+      // left_side is a sequential ASCII string.
       left_side = Result(left_reg);
       right_side = Result(right_val);
       Result temp2 = allocator_->Allocate();
@@ -2685,7 +2688,7 @@ void CodeGenerator::Comparison(AstNode* node,
                Immediate(1));
         __ j(not_equal, &comparison_done);
         uint8_t char_value =
-            static_cast<uint8_t>(String::cast(*right_side.handle())->Get(0));
+            static_cast<uint8_t>(String::cast(*right_val)->Get(0));
         __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
                 char_value);
         __ bind(&comparison_done);
@@ -2694,17 +2697,17 @@ void CodeGenerator::Comparison(AstNode* node,
                FieldOperand(left_side.reg(), String::kLengthOffset));
         __ sub(Operand(temp2.reg()), Immediate(1));
         Label comparison;
-        // If the length is 0 then our subtraction gave -1 which compares less
+        // If the length is 0 then the subtraction gave -1 which compares less
         // than any character.
         __ j(negative, &comparison);
         // Otherwise load the first character.
         __ movzx_b(temp2.reg(),
                    FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize));
         __ bind(&comparison);
-        // Compare the first character of the string with out constant
-        // 1-character string.
+        // Compare the first character of the string with the
+        // constant 1-character string.
         uint8_t char_value =
-            static_cast<uint8_t>(String::cast(*right_side.handle())->Get(0));
+            static_cast<uint8_t>(String::cast(*right_val)->Get(0));
         __ cmp(Operand(temp2.reg()), Immediate(char_value));
         Label characters_were_different;
         __ j(not_equal, &characters_were_different);

@@ -5241,14 +5241,28 @@ void CodeGenerator::Comparison(AstNode* node,
   ASSERT(cc == less || cc == equal || cc == greater_equal);
 
   // If either side is a constant smi, optimize the comparison.
-  bool left_side_constant_smi =
-      left_side.is_constant() && left_side.handle()->IsSmi();
-  bool right_side_constant_smi =
-      right_side.is_constant() && right_side.handle()->IsSmi();
-  bool left_side_constant_null =
-      left_side.is_constant() && left_side.handle()->IsNull();
-  bool right_side_constant_null =
-      right_side.is_constant() && right_side.handle()->IsNull();
+  bool left_side_constant_smi = false;
+  bool left_side_constant_null = false;
+  bool left_side_constant_1_char_string = false;
+  if (left_side.is_constant()) {
+    left_side_constant_smi = left_side.handle()->IsSmi();
+    left_side_constant_null = left_side.handle()->IsNull();
+    left_side_constant_1_char_string =
+        (left_side.handle()->IsString() &&
+         String::cast(*left_side.handle())->length() == 1 &&
+         String::cast(*left_side.handle())->IsAsciiRepresentation());
+  }
+  bool right_side_constant_smi = false;
+  bool right_side_constant_null = false;
+  bool right_side_constant_1_char_string = false;
+  if (right_side.is_constant()) {
+    right_side_constant_smi = right_side.handle()->IsSmi();
+    right_side_constant_null = right_side.handle()->IsNull();
+    right_side_constant_1_char_string =
+        (right_side.handle()->IsString() &&
+         String::cast(*right_side.handle())->length() == 1 &&
+         String::cast(*right_side.handle())->IsAsciiRepresentation());
+  }
 
   if (left_side_constant_smi || right_side_constant_smi) {
     if (left_side_constant_smi && right_side_constant_smi) {
@@ -5387,6 +5401,141 @@ void CodeGenerator::Comparison(AstNode* node,
       temp.Unuse();
       operand.Unuse();
       dest->Split(not_zero);
+    }
+  } else if (left_side_constant_1_char_string ||
+             right_side_constant_1_char_string) {
+    if (left_side_constant_1_char_string && right_side_constant_1_char_string) {
+      // Trivial case, comparing two constants.
+      int left_value = String::cast(*left_side.handle())->Get(0);
+      int right_value = String::cast(*right_side.handle())->Get(0);
+      switch (cc) {
+        case less:
+          dest->Goto(left_value < right_value);
+          break;
+        case equal:
+          dest->Goto(left_value == right_value);
+          break;
+        case greater_equal:
+          dest->Goto(left_value >= right_value);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      // Only one side is a constant 1 character string.
+      // If left side is a constant 1-character string, reverse the operands.
+      // Since one side is a constant string, conversion order does not matter.
+      if (left_side_constant_1_char_string) {
+        Result temp = left_side;
+        left_side = right_side;
+        right_side = temp;
+        cc = ReverseCondition(cc);
+        // This may reintroduce greater or less_equal as the value of cc.
+        // CompareStub and the inline code both support all values of cc.
+      }
+      // Implement comparison against a constant string, inlining the case
+      // where both sides are strings.
+      left_side.ToRegister();
+
+      // Here we split control flow to the stub call and inlined cases
+      // before finally splitting it to the control destination.  We use
+      // a jump target and branching to duplicate the virtual frame at
+      // the first split.  We manually handle the off-frame references
+      // by reconstituting them on the non-fall-through path.
+      JumpTarget is_not_string, is_string;
+      Register left_reg = left_side.reg();
+      Handle<Object> right_val = right_side.handle();
+      ASSERT(StringShape(String::cast(*right_val)).IsSymbol());
+      Condition is_smi = masm()->CheckSmi(left_reg);
+      is_not_string.Branch(is_smi, &left_side);
+      Result temp = allocator_->Allocate();
+      ASSERT(temp.is_valid());
+      __ movq(temp.reg(),
+              FieldOperand(left_reg, HeapObject::kMapOffset));
+      __ movzxbl(temp.reg(),
+                 FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
+      // If we are testing for equality then make use of the symbol shortcut.
+      // Check if the left hand side has the same type as the right hand
+      // side (which is always a symbol).
+      if (cc == equal) {
+        Label not_a_symbol;
+        ASSERT(kSymbolTag != 0);
+        // Ensure that no non-strings have the symbol bit set.
+        ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+        __ testb(temp.reg(), Immediate(kIsSymbolMask));  // Test the symbol bit.
+        __ j(zero, &not_a_symbol);
+        // They are symbols, so do identity compare.
+        __ Cmp(left_reg, right_side.handle());
+        dest->true_target()->Branch(equal);
+        dest->false_target()->Branch(not_equal);
+        __ bind(&not_a_symbol);
+      }
+      // Call the compare stub if the left side is not a flat ascii string.
+      __ andb(temp.reg(),
+              Immediate(kIsNotStringMask |
+                        kStringRepresentationMask |
+                        kStringEncodingMask));
+      __ cmpb(temp.reg(),
+              Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
+      temp.Unuse();
+      is_string.Branch(equal, &left_side);
+
+      // Setup and call the compare stub.
+      is_not_string.Bind(&left_side);
+      CompareStub stub(cc, strict, kCantBothBeNaN);
+      Result result = frame_->CallStub(&stub, &left_side, &right_side);
+      result.ToRegister();
+      __ SmiCompare(result.reg(), Smi::FromInt(0));
+      result.Unuse();
+      dest->true_target()->Branch(cc);
+      dest->false_target()->Jump();
+
+      is_string.Bind(&left_side);
+      // left_side is a sequential ASCII string.
+      ASSERT(left_side.reg().is(left_reg));
+      right_side = Result(right_val);
+      Result temp2 = allocator_->Allocate();
+      ASSERT(temp2.is_valid());
+      // Test string equality and comparison.
+      if (cc == equal) {
+        Label comparison_done;
+        __ cmpl(FieldOperand(left_side.reg(), String::kLengthOffset),
+                Immediate(1));
+        __ j(not_equal, &comparison_done);
+        uint8_t char_value =
+            static_cast<uint8_t>(String::cast(*right_val)->Get(0));
+        __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
+                Immediate(char_value));
+        __ bind(&comparison_done);
+      } else {
+        __ movl(temp2.reg(),
+                FieldOperand(left_side.reg(), String::kLengthOffset));
+        __ subl(temp2.reg(), Immediate(1));
+        Label comparison;
+        // If the length is 0 then the subtraction gave -1 which compares less
+        // than any character.
+        __ j(negative, &comparison);
+        // Otherwise load the first character.
+        __ movzxbl(temp2.reg(),
+                   FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize));
+        __ bind(&comparison);
+        // Compare the first character of the string with the
+        // constant 1-character string.
+        uint8_t char_value =
+            static_cast<uint8_t>(String::cast(*right_side.handle())->Get(0));
+        __ cmpb(temp2.reg(), Immediate(char_value));
+        Label characters_were_different;
+        __ j(not_equal, &characters_were_different);
+        // If the first character is the same then the long string sorts after
+        // the short one.
+        __ cmpl(FieldOperand(left_side.reg(), String::kLengthOffset),
+               Immediate(1));
+        __ bind(&characters_were_different);
+      }
+      temp2.Unuse();
+      left_side.Unuse();
+      right_side.Unuse();
+      dest->Split(cc);
     }
   } else {  // Neither side is a constant Smi or null.
     // If either side is a non-smi constant, skip the smi check.
