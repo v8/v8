@@ -613,6 +613,8 @@ class CodeGenerator: public AstVisitor {
   void CodeForDoWhileConditionPosition(DoWhileStatement* stmt);
   void CodeForSourcePosition(int pos);
 
+  void SetTypeForStackSlot(Slot* slot, TypeInfo info);
+
 #ifdef DEBUG
   // True if the registers are valid for entry to a block.  There should
   // be no frame-external references to (non-reserved) registers.

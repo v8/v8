@@ -1494,6 +1494,26 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
 }
 
 
+void CodeGenerator::SetTypeForStackSlot(Slot* slot, TypeInfo info) {
+  ASSERT(slot->type() == Slot::LOCAL || slot->type() == Slot::PARAMETER);
+  if (slot->type() == Slot::LOCAL) {
+    frame_->SetTypeForLocalAt(slot->index(), info);
+  } else {
+    frame_->SetTypeForParamAt(slot->index(), info);
+  }
+  if (FLAG_debug_code && info.IsSmi()) {
+    if (slot->type() == Slot::LOCAL) {
+      frame_->PushLocalAt(slot->index());
+    } else {
+      frame_->PushParameterAt(slot->index());
+    }
+    Result var = frame_->Pop();
+    var.ToRegister();
+    __ AbortIfNotSmi(var.reg(), "Non-smi value in smi-typed stack slot.");
+  }
+}
+
+
 void CodeGenerator::VisitForStatement(ForStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ ForStatement");
@@ -1587,6 +1607,17 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   }
 
   CheckStack();  // TODO(1222600): ignore if body contains calls.
+
+  // We know that the loop index is a smi if it is not modified in the
+  // loop body and it is checked against a constant limit in the loop
+  // condition.  In this case, we reset the static type information of the
+  // loop index to smi before compiling the body, the update expression, and
+  // the bottom check of the loop condition.
+  if (node->is_fast_smi_loop()) {
+    // Set number type of the loop variable to smi.
+    SetTypeForStackSlot(node->loop_variable()->slot(), TypeInfo::Smi());
+  }
+
   Visit(node->body());
 
   // If there is an update expression, compile it if necessary.
@@ -1604,6 +1635,13 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
       CodeForStatementPosition(node);
       Visit(node->next());
     }
+  }
+
+  // Set the type of the loop variable to smi before compiling the test
+  // expression if we are in a fast smi loop condition.
+  if (node->is_fast_smi_loop() && has_valid_frame()) {
+    // Set number type of the loop variable to smi.
+    SetTypeForStackSlot(node->loop_variable()->slot(), TypeInfo::Smi());
   }
 
   // Based on the condition analysis, compile the backward jump as
