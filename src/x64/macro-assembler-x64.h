@@ -37,6 +37,7 @@ namespace internal {
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
 static const Register kScratchRegister = { 10 };  // r10.
+static const Register kRootRegister = { 13 };     // r13
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;

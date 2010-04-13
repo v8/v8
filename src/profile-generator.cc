@@ -327,7 +327,7 @@ bool CpuProfilesCollection::StartProfiling(String* title, unsigned uid) {
 
 
 CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
-  const int title_len = strlen(title);
+  const int title_len = StrLength(title);
   CpuProfile* profile = NULL;
   current_profiles_semaphore_->Wait();
   for (int i = current_profiles_.length() - 1; i >= 0; --i) {

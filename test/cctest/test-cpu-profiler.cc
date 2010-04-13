@@ -95,7 +95,7 @@ TEST(CodeEvents) {
   i::HandleScope scope;
   const char* aaa_str = "aaa";
   i::Handle<i::String> aaa_name = i::Factory::NewStringFromAscii(
-      i::Vector<const char>(aaa_str, strlen(aaa_str)));
+      i::Vector<const char>(aaa_str, i::StrLength(aaa_str)));
   processor.CodeCreateEvent(i::Logger::FUNCTION_TAG,
                             *aaa_name,
                             i::Heap::empty_string(),

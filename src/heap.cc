@@ -2307,7 +2307,8 @@ Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 
   Address old_addr = code->address();
 
-  int relocation_offset = code->relocation_start() - old_addr;
+  size_t relocation_offset =
+      static_cast<size_t>(code->relocation_start() - old_addr);
 
   Object* result;
   if (new_obj_size > MaxObjectSizeInPagedSpace()) {

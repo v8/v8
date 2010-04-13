@@ -46,17 +46,17 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 
 
 void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
-  movq(destination, Operand(r13, index << kPointerSizeLog2));
+  movq(destination, Operand(kRootRegister, index << kPointerSizeLog2));
 }
 
 
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
-  push(Operand(r13, index << kPointerSizeLog2));
+  push(Operand(kRootRegister, index << kPointerSizeLog2));
 }
 
 
 void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
-  cmpq(with, Operand(r13, index << kPointerSizeLog2));
+  cmpq(with, Operand(kRootRegister, index << kPointerSizeLog2));
 }
 
 
