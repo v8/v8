@@ -29,7 +29,7 @@
 
 #include "cpu-profiler-inl.h"
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "log-inl.h"
 
@@ -466,13 +466,13 @@ void CpuProfiler::StopProcessorIfLastProfile() {
 
 } }  // namespace v8::internal
 
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 namespace v8 {
 namespace internal {
 
 void CpuProfiler::Setup() {
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
   if (singleton_ == NULL) {
     singleton_ = new CpuProfiler();
   }
@@ -481,7 +481,7 @@ void CpuProfiler::Setup() {
 
 
 void CpuProfiler::TearDown() {
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
   if (singleton_ != NULL) {
     delete singleton_;
   }

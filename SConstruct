@@ -114,9 +114,6 @@ LIBRARY_FLAGS = {
     'profilingsupport:on': {
       'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING', 'ENABLE_LOGGING_AND_PROFILING'],
     },
-    'cppprofilesprocessor:on': {
-      'CPPDEFINES':   ['ENABLE_CPP_PROFILES_PROCESSOR'],
-    },
     'debuggersupport:on': {
       'CPPDEFINES':   ['ENABLE_DEBUGGER_SUPPORT'],
     }
@@ -695,11 +692,6 @@ SIMPLE_OPTIONS = {
     'values': ['on', 'off'],
     'default': 'on',
     'help': 'enable profiling of JavaScript code'
-  },
-  'cppprofilesprocessor': {
-    'values': ['on', 'off'],
-    'default': 'on',
-    'help': 'enable C++ profiles processor'
   },
   'debuggersupport': {
     'values': ['on', 'off'],

@@ -38,7 +38,6 @@ namespace internal {
 
 Logger::LogEventsAndTags Logger::ToNativeByScript(Logger::LogEventsAndTags tag,
                                                   Script* script) {
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
   if ((tag == FUNCTION_TAG || tag == LAZY_COMPILE_TAG || tag == SCRIPT_TAG)
       && script->type()->value() == Script::TYPE_NATIVE) {
     switch (tag) {
@@ -50,9 +49,6 @@ Logger::LogEventsAndTags Logger::ToNativeByScript(Logger::LogEventsAndTags tag,
   } else {
     return tag;
   }
-#else
-  return tag;
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

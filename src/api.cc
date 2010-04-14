@@ -4027,7 +4027,7 @@ Local<Context> Debug::GetDebugContext() {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 Handle<String> CpuProfileNode::GetFunctionName() const {
   IsDeadCheck("v8::CpuProfileNode::GetFunctionName");
@@ -4148,7 +4148,7 @@ const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title) {
       i::CpuProfiler::StopProfiling(*Utils::OpenHandle(*title)));
 }
 
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 namespace internal {

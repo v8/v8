@@ -2,7 +2,7 @@
 //
 // Tests of profiles generator and utilities.
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "v8.h"
 #include "profile-generator-inl.h"
@@ -443,4 +443,4 @@ TEST(RecordTickSample) {
   CHECK_EQ(entry1, node4->entry());
 }
 
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+#endif  // ENABLE_LOGGING_AND_PROFILING

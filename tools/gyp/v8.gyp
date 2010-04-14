@@ -38,7 +38,6 @@
       'ENABLE_LOGGING_AND_PROFILING',
       'ENABLE_DEBUGGER_SUPPORT',
       'ENABLE_VMSTATE_TRACKING',
-      'ENABLE_CPP_PROFILES_PROCESSOR',
     ],
     'conditions': [
       ['target_arch=="arm"', {
