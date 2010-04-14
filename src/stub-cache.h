@@ -56,8 +56,6 @@ class StubCache : public AllStatic {
 
   // Computes the right stub matching. Inserts the result in the
   // cache before returning.  This might compile a stub if needed.
-  static Object* ComputeLoadNonexistent(String* name, JSObject* receiver);
-
   static Object* ComputeLoadField(String* name,
                                   JSObject* receiver,
                                   JSObject* holder,
@@ -463,23 +461,18 @@ class StubCompiler BASE_EMBEDDED {
 
 class LoadStubCompiler: public StubCompiler {
  public:
-  Object* CompileLoadNonexistent(JSObject* object);
-
   Object* CompileLoadField(JSObject* object,
                            JSObject* holder,
                            int index,
                            String* name);
-
   Object* CompileLoadCallback(String* name,
                               JSObject* object,
                               JSObject* holder,
                               AccessorInfo* callback);
-
   Object* CompileLoadConstant(JSObject* object,
                               JSObject* holder,
                               Object* value,
                               String* name);
-
   Object* CompileLoadInterceptor(JSObject* object,
                                  JSObject* holder,
                                  String* name);
@@ -501,21 +494,17 @@ class KeyedLoadStubCompiler: public StubCompiler {
                            JSObject* object,
                            JSObject* holder,
                            int index);
-
   Object* CompileLoadCallback(String* name,
                               JSObject* object,
                               JSObject* holder,
                               AccessorInfo* callback);
-
   Object* CompileLoadConstant(String* name,
                               JSObject* object,
                               JSObject* holder,
                               Object* value);
-
   Object* CompileLoadInterceptor(JSObject* object,
                                  JSObject* holder,
                                  String* name);
-
   Object* CompileLoadArrayLength(String* name);
   Object* CompileLoadStringLength(String* name);
   Object* CompileLoadFunctionPrototype(String* name);
