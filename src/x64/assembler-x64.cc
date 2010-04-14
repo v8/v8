@@ -1138,9 +1138,9 @@ void Assembler::j(Condition cc,
 void Assembler::jmp(Label* L) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  const int short_size = sizeof(int8_t);
+  const int long_size = sizeof(int32_t);
   if (L->is_bound()) {
-    const int short_size = sizeof(int8_t);
-    const int long_size = sizeof(int32_t);
     int offs = L->pos() - pc_offset() - 1;
     ASSERT(offs <= 0);
     if (is_int8(offs - short_size)) {
