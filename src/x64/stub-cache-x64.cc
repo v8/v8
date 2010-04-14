@@ -1144,36 +1144,6 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
 }
 
 
-Object* LoadStubCompiler::CompileLoadNonexistent(JSObject* object) {
-  // ----------- S t a t e -------------
-  //  -- rcx    : name
-  //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
-  // -----------------------------------
-  Label miss;
-
-  // Load receiver.
-  __ movq(rax, Operand(rsp, kPointerSize));
-
-  // Check the maps of the full prototype chain.
-  JSObject* last = object;
-  while (last->GetPrototype() != Heap::null_value()) {
-    last = JSObject::cast(last->GetPrototype());
-  }
-  CheckPrototypes(object, rax, last, rbx, rdx, Heap::empty_string(), &miss);
-
-  // Return undefined if maps of the full prototype chain is still the same.
-  __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
-  __ ret(0);
-
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(NONEXISTENT, Heap::empty_string());
-}
-
-
 Object* LoadStubCompiler::CompileLoadField(JSObject* object,
                                            JSObject* holder,
                                            int index,
