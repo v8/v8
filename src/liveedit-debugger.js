@@ -28,6 +28,10 @@
 // LiveEdit feature implementation. The script should be executed after
 // debug-debugger.js.
 
+// A LiveEdit namespace is declared inside a single function constructor.
+Debug.LiveEdit = new function() {
+
+// TODO(LiveEdit): restore indentation below
 
 // Changes script text and recompiles all relevant functions if possible.
 // The change is always a substring (change_pos, change_pos + change_len)
@@ -44,12 +48,8 @@
 // @param {Script} script that is being changed
 // @param {Array} change_log a list that collects engineer-readable description
 //     of what happened.
-Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
+function ApplyPatch(script, change_pos, change_len, new_str,
     change_log) {
-
-  // So far the function works as namespace.
-  var liveedit = Debug.LiveEditChangeScript;
-  var Assert = liveedit.Assert;
 
   // Fully compiles source string as a script. Returns Array of
   // FunctionCompileInfo -- a descriptions of all functions of the script.
@@ -68,7 +68,7 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
     var compile_info = new Array();
     var old_index_map = new Array();
     for (var i = 0; i < raw_compile_info.length; i++) {
-        compile_info.push(new liveedit.FunctionCompileInfo(raw_compile_info[i]));
+        compile_info.push(new FunctionCompileInfo(raw_compile_info[i]));
         old_index_map.push(i);
     }
 
@@ -222,7 +222,7 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   var shared_infos = new Array();
 
   for (var i = 0; i < shared_raw_list.length; i++) {
-    shared_infos.push(new liveedit.SharedInfoWrapper(shared_raw_list[i]));
+    shared_infos.push(new SharedInfoWrapper(shared_raw_list[i]));
   }
 
   // Gather compile information about old version of script.
@@ -233,7 +233,7 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   try {
     new_compile_info = DebugGatherCompileInfo(new_source);
   } catch (e) {
-    throw new liveedit.Failure("Failed to compile new version of script: " + e);
+    throw new Failure("Failed to compile new version of script: " + e);
   }
 
   // An index of a single function, that is going to have its code replaced.
@@ -250,7 +250,7 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   // Check that function being patched has the same expectations in a new
   // version. Otherwise we cannot safely patch its behavior and should
   // choose the outer function instead.
-  while (!liveedit.CompareFunctionExpectations(
+  while (!CompareFunctionExpectations(
       old_compile_info[function_being_patched],
       new_compile_info[function_being_patched])) {
 
@@ -262,12 +262,12 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
   }
 
   // Check that function being patched is not currently on stack.
-  liveedit.CheckStackActivations(
+  CheckStackActivations(
       [ FindFunctionInfo(function_being_patched) ], change_log );
 
 
   // Committing all changes.
-  var old_script_name = liveedit.CreateNameForOldScript(script);
+  var old_script_name = CreateNameForOldScript(script);
 
   // Update the script text and create a new script representing an old
   // version of the script.
@@ -320,8 +320,10 @@ Debug.LiveEditChangeScript = function(script, change_pos, change_len, new_str,
     LinkToOldScript(FindFunctionInfo(i), old_script);
   }
 }
+// Function is public.
+this.ApplyPatch = ApplyPatch;
 
-Debug.LiveEditChangeScript.Assert = function(condition, message) {
+function Assert(condition, message) {
   if (!condition) {
     if (message) {
       throw "Assert " + message;
@@ -333,7 +335,7 @@ Debug.LiveEditChangeScript.Assert = function(condition, message) {
 
 // An object describing function compilation details. Its index fields
 // apply to indexes inside array that stores these objects.
-Debug.LiveEditChangeScript.FunctionCompileInfo = function(raw_array) {
+function FunctionCompileInfo(raw_array) {
   this.function_name = raw_array[0];
   this.start_position = raw_array[1];
   this.end_position = raw_array[2];
@@ -345,8 +347,7 @@ Debug.LiveEditChangeScript.FunctionCompileInfo = function(raw_array) {
   this.raw_array = raw_array;
 }
 
-// A structure describing SharedFunctionInfo.
-Debug.LiveEditChangeScript.SharedInfoWrapper = function(raw_array) {
+function SharedInfoWrapper(raw_array) {
   this.function_name = raw_array[0];
   this.start_position = raw_array[1];
   this.end_position = raw_array[2];
@@ -355,15 +356,14 @@ Debug.LiveEditChangeScript.SharedInfoWrapper = function(raw_array) {
 }
 
 // Adds a suffix to script name to mark that it is old version.
-Debug.LiveEditChangeScript.CreateNameForOldScript = function(script) {
+function CreateNameForOldScript(script) {
   // TODO(635): try better than this; support several changes.
   return script.name + " (old)";
 }
 
 // Compares a function interface old and new version, whether it
 // changed or not.
-Debug.LiveEditChangeScript.CompareFunctionExpectations =
-    function(function_info1, function_info2) {
+function CompareFunctionExpectations(function_info1, function_info2) {
   // Check that function has the same number of parameters (there may exist
   // an adapter, that won't survive function parameter number change).
   if (function_info1.param_num != function_info2.param_num) {
@@ -385,13 +385,13 @@ Debug.LiveEditChangeScript.CompareFunctionExpectations =
   return scope_info1.toString() == scope_info2.toString();
 }
 
+// Minifier forward declaration.
+var FunctionPatchabilityStatus;
+
 // For array of wrapped shared function infos checks that none of them
 // have activations on stack (of any thread). Throws a Failure exception
 // if this proves to be false.
-Debug.LiveEditChangeScript.CheckStackActivations = function(shared_wrapper_list,
-                                                            change_log) {
-  var liveedit = Debug.LiveEditChangeScript;
-
+function CheckStackActivations(shared_wrapper_list, change_log) {
   var shared_list = new Array();
   for (var i = 0; i < shared_wrapper_list.length; i++) {
     shared_list[i] = shared_wrapper_list[i].info;
@@ -399,22 +399,22 @@ Debug.LiveEditChangeScript.CheckStackActivations = function(shared_wrapper_list,
   var result = %LiveEditCheckAndDropActivations(shared_list, true);
   if (result[shared_list.length]) {
     // Extra array element may contain error message.
-    throw new liveedit.Failure(result[shared_list.length]);
+    throw new Failure(result[shared_list.length]);
   }
-  
+
   var problems = new Array();
   var dropped = new Array();
   for (var i = 0; i < shared_list.length; i++) {
     var shared = shared_wrapper_list[i];
-    if (result[i] == liveedit.FunctionPatchabilityStatus.REPLACED_ON_ACTIVE_STACK) {
+    if (result[i] == FunctionPatchabilityStatus.REPLACED_ON_ACTIVE_STACK) {
       dropped.push({ name: shared.function_name } );
-    } else if (result[i] != liveedit.FunctionPatchabilityStatus.AVAILABLE_FOR_PATCH) {
+    } else if (result[i] != FunctionPatchabilityStatus.AVAILABLE_FOR_PATCH) {
       var description = {
           name: shared.function_name,
           start_pos: shared.start_position, 
           end_pos: shared.end_position,
           replace_problem:
-              liveedit.FunctionPatchabilityStatus.SymbolName(result[i])
+              FunctionPatchabilityStatus.SymbolName(result[i])
       };
       problems.push(description);
     }
@@ -424,12 +424,12 @@ Debug.LiveEditChangeScript.CheckStackActivations = function(shared_wrapper_list,
   }
   if (problems.length > 0) {
     change_log.push( { functions_on_stack: problems } );
-    throw new liveedit.Failure("Blocked by functions on stack");
+    throw new Failure("Blocked by functions on stack");
   }
 }
 
 // A copy of the FunctionPatchabilityStatus enum from liveedit.h
-Debug.LiveEditChangeScript.FunctionPatchabilityStatus = {
+var FunctionPatchabilityStatus = {
     AVAILABLE_FOR_PATCH: 1,
     BLOCKED_ON_ACTIVE_STACK: 2,
     BLOCKED_ON_OTHER_STACK: 3,
@@ -437,9 +437,8 @@ Debug.LiveEditChangeScript.FunctionPatchabilityStatus = {
     REPLACED_ON_ACTIVE_STACK: 5
 }
 
-Debug.LiveEditChangeScript.FunctionPatchabilityStatus.SymbolName =
-    function(code) {
-  var enum = Debug.LiveEditChangeScript.FunctionPatchabilityStatus;
+FunctionPatchabilityStatus.SymbolName = function(code) {
+  var enum = FunctionPatchabilityStatus;
   for (name in enum) {
     if (enum[name] == code) {
       return name;
@@ -450,35 +449,38 @@ Debug.LiveEditChangeScript.FunctionPatchabilityStatus.SymbolName =
 
 // A logical failure in liveedit process. This means that change_log
 // is valid and consistent description of what happened.
-Debug.LiveEditChangeScript.Failure = function(message) {
+function Failure(message) {
   this.message = message;
 }
+// Function (constructor) is public.
+this.Failure = Failure;
 
-Debug.LiveEditChangeScript.Failure.prototype.toString = function() {
+Failure.prototype.toString = function() {
   return "LiveEdit Failure: " + this.message;
 }
 
 // A testing entry.
-Debug.LiveEditChangeScript.GetPcFromSourcePos = function(func, source_pos) {
+function GetPcFromSourcePos(func, source_pos) {
   return %GetFunctionCodePositionFromSource(func, source_pos);
 }
+// Function is public.
+this.GetPcFromSourcePos = GetPcFromSourcePos;
 
-// A LiveEdit namespace is declared inside a single function constructor.
-Debug.LiveEdit = new function() {
-  var LiveEdit = this;
-
+// TODO(LiveEdit): restore indentation above
   
   // LiveEdit main entry point: changes a script text to a new string.
-  LiveEdit.SetScriptSource = function(script, new_source, change_log) {
+  function SetScriptSource(script, new_source, change_log) {
     var old_source = script.source;
     var diff = FindSimpleDiff(old_source, new_source);
     if (!diff) {
       return;
     }
-    Debug.LiveEditChangeScript(script, diff.change_pos, diff.old_len,
+    ApplyPatch(script, diff.change_pos, diff.old_len,
         new_source.substring(diff.change_pos, diff.change_pos + diff.new_len),
         change_log);
   }
+  // Function is public.
+  this.SetScriptSource = SetScriptSource;
 
   
   // Finds a difference between 2 strings in form of a single chunk.
