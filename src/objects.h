@@ -3543,6 +3543,10 @@ class JSBuiltinsObject: public GlobalObject {
   inline Object* javascript_builtin(Builtins::JavaScript id);
   inline void set_javascript_builtin(Builtins::JavaScript id, Object* value);
 
+  // Accessors for code of the runtime routines written in JavaScript.
+  inline Code* javascript_builtin_code(Builtins::JavaScript id);
+  inline void set_javascript_builtin_code(Builtins::JavaScript id, Code* value);
+
   // Casting.
   static inline JSBuiltinsObject* cast(Object* obj);
 
@@ -3553,11 +3557,23 @@ class JSBuiltinsObject: public GlobalObject {
 #endif
 
   // Layout description.  The size of the builtins object includes
-  // room for one pointer per runtime routine written in javascript.
+  // room for two pointers per runtime routine written in javascript
+  // (function and code object).
   static const int kJSBuiltinsCount = Builtins::id_count;
   static const int kJSBuiltinsOffset = GlobalObject::kHeaderSize;
+  static const int kJSBuiltinsCodeOffset =
+      GlobalObject::kHeaderSize + (kJSBuiltinsCount * kPointerSize);
   static const int kSize =
-      kJSBuiltinsOffset + (kJSBuiltinsCount * kPointerSize);
+      kJSBuiltinsCodeOffset + (kJSBuiltinsCount * kPointerSize);
+
+  static int OffsetOfFunctionWithId(Builtins::JavaScript id) {
+    return kJSBuiltinsOffset + id * kPointerSize;
+  }
+
+  static int OffsetOfCodeWithId(Builtins::JavaScript id) {
+    return kJSBuiltinsCodeOffset + id * kPointerSize;
+  }
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSBuiltinsObject);
 };
