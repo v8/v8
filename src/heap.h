@@ -153,6 +153,8 @@ class ZoneScopeInfo;
   V(global_symbol, "global")                                             \
   V(ignore_case_symbol, "ignoreCase")                                    \
   V(multiline_symbol, "multiline")                                       \
+  V(input_symbol, "input")                                               \
+  V(index_symbol, "index")                                               \
   V(last_index_symbol, "lastIndex")                                      \
   V(object_symbol, "object")                                             \
   V(prototype_symbol, "prototype")                                       \
@@ -198,6 +200,9 @@ class ZoneScopeInfo;
 // Forward declaration of the GCTracer class.
 class GCTracer;
 class HeapStats;
+
+
+typedef String* (*ExternalStringTableUpdaterCallback)(Object** pointer);
 
 
 // The all static Heap captures the interface to the global object heap.
@@ -944,6 +949,30 @@ class Heap : public AllStatic {
 
   static void RecordStats(HeapStats* stats);
 
+  // Copy block of memory from src to dst. Size of block should be aligned
+  // by pointer size.
+  static inline void CopyBlock(Object** dst, Object** src, int byte_size);
+
+  // Optimized version of memmove for blocks with pointer size aligned sizes and
+  // pointer size aligned addresses.
+  static inline void MoveBlock(Object** dst, Object** src, size_t byte_size);
+
+  // Check new space expansion criteria and expand semispaces if it was hit.
+  static void CheckNewSpaceExpansionCriteria();
+
+  static inline void IncrementYoungSurvivorsCounter(int survived) {
+    survived_since_last_expansion_ += survived;
+  }
+
+  static void UpdateNewSpaceReferencesInExternalStringTable(
+      ExternalStringTableUpdaterCallback updater_func);
+
+  // Helper function that governs the promotion policy from new space to
+  // old.  If the object's old address lies below the new space's age
+  // mark or if we've already filled the bottom 1/16th of the to space,
+  // we try to promote this object.
+  static inline bool ShouldBePromoted(Address old_address, int object_size);
+
   static int MaxObjectSizeInNewSpace() { return kMaxObjectSizeInNewSpace; }
 
  private:
@@ -1131,16 +1160,17 @@ class Heap : public AllStatic {
 
   static void CreateFixedStubs();
 
-  static Object* CreateOddball(Map* map,
-                               const char* to_string,
-                               Object* to_number);
+  static Object* CreateOddball(const char* to_string, Object* to_number);
 
   // Allocate empty fixed array.
   static Object* AllocateEmptyFixedArray();
 
   // Performs a minor collection in new generation.
   static void Scavenge();
-  static void ScavengeExternalStringTable();
+
+  static String* UpdateNewSpaceReferenceInExternalStringTableEntry(
+      Object** pointer);
+
   static Address DoScavenge(ObjectVisitor* scavenge_visitor,
                             Address new_space_front);
 
@@ -1158,11 +1188,6 @@ class Heap : public AllStatic {
                                           HeapObject* target,
                                           int size);
 
-  // Helper function that governs the promotion policy from new space to
-  // old.  If the object's old address lies below the new space's age
-  // mark or if we've already filled the bottom 1/16th of the to space,
-  // we try to promote this object.
-  static inline bool ShouldBePromoted(Address old_address, int object_size);
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   // Record the copy of an object in the NewSpace's statistics.
   static void RecordCopiedObject(HeapObject* obj);
@@ -1180,9 +1205,6 @@ class Heap : public AllStatic {
 
   // Slow part of scavenge object.
   static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
-
-  // Copy memory from src to dst.
-  static inline void CopyBlock(Object** dst, Object** src, int byte_size);
 
   // Initializes a function with a shared part and prototype.
   // Returns the function.

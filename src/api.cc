@@ -2641,12 +2641,20 @@ int String::Utf8Length() const {
 }
 
 
-int String::WriteUtf8(char* buffer, int capacity, int* nchars_ref) const {
+int String::WriteUtf8(char* buffer,
+                      int capacity,
+                      int* nchars_ref,
+                      WriteHints hints) const {
   if (IsDeadCheck("v8::String::WriteUtf8()")) return 0;
   LOG_API("String::WriteUtf8");
   ENTER_V8;
   i::Handle<i::String> str = Utils::OpenHandle(this);
   StringTracker::RecordWrite(str);
+  if (hints & HINT_MANY_WRITES_EXPECTED) {
+    // Flatten the string for efficiency.  This applies whether we are
+    // using StringInputBuffer or Get(i) to access the characters.
+    str->TryFlatten();
+  }
   write_input_buffer.Reset(0, *str);
   int len = str->length();
   // Encode the first K - 3 bytes directly into the buffer since we
@@ -2688,16 +2696,21 @@ int String::WriteUtf8(char* buffer, int capacity, int* nchars_ref) const {
 }
 
 
-int String::WriteAscii(char* buffer, int start, int length) const {
+int String::WriteAscii(char* buffer,
+                       int start,
+                       int length,
+                       WriteHints hints) const {
   if (IsDeadCheck("v8::String::WriteAscii()")) return 0;
   LOG_API("String::WriteAscii");
   ENTER_V8;
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   StringTracker::RecordWrite(str);
-  // Flatten the string for efficiency.  This applies whether we are
-  // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlatten();
+  if (hints & HINT_MANY_WRITES_EXPECTED) {
+    // Flatten the string for efficiency.  This applies whether we are
+    // using StringInputBuffer or Get(i) to access the characters.
+    str->TryFlatten();
+  }
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2715,13 +2728,21 @@ int String::WriteAscii(char* buffer, int start, int length) const {
 }
 
 
-int String::Write(uint16_t* buffer, int start, int length) const {
+int String::Write(uint16_t* buffer,
+                  int start,
+                  int length,
+                  WriteHints hints) const {
   if (IsDeadCheck("v8::String::Write()")) return 0;
   LOG_API("String::Write");
   ENTER_V8;
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   StringTracker::RecordWrite(str);
+  if (hints & HINT_MANY_WRITES_EXPECTED) {
+    // Flatten the string for efficiency.  This applies whether we are
+    // using StringInputBuffer or Get(i) to access the characters.
+    str->TryFlatten();
+  }
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2730,13 +2751,6 @@ int String::Write(uint16_t* buffer, int start, int length) const {
   if (length == -1 || end < length)
     buffer[end] = '\0';
   return end;
-}
-
-
-void v8::String::Flatten() {
-  if (IsDeadCheck("v8::String::Flatten()")) return;
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  i::FlattenString(str);
 }
 
 

@@ -558,8 +558,9 @@ class RelocInfoBuffer {
 
   Vector<byte> GetResult() {
     // Return the bytes from pos up to end of buffer.
-    return Vector<byte>(reloc_info_writer_.pos(),
-                        buffer_ + buffer_size_ - reloc_info_writer_.pos());
+    int result_size =
+        static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer_.pos());
+    return Vector<byte>(reloc_info_writer_.pos(), result_size);
   }
 
  private:
@@ -581,7 +582,8 @@ class RelocInfoBuffer {
     byte* new_buffer = NewArray<byte>(new_buffer_size);
 
     // Copy the data.
-    int curently_used_size = buffer_ + buffer_size_ - reloc_info_writer_.pos();
+    int curently_used_size =
+        static_cast<int>(buffer_ + buffer_size_ - reloc_info_writer_.pos());
     memmove(new_buffer + new_buffer_size - curently_used_size,
             reloc_info_writer_.pos(), curently_used_size);
 
@@ -986,7 +988,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
       DropActivationsInActiveThread(shared_info_array, result, do_drop);
   if (error_message != NULL) {
     // Add error message as an array extra element.
-    Vector<const char> vector_message(error_message, strlen(error_message));
+    Vector<const char> vector_message(error_message, StrLength(error_message));
     Handle<String> str = Factory::NewStringFromAscii(vector_message);
     SetElement(result, len, str);
   }

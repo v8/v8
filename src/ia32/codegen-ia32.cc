@@ -2432,7 +2432,8 @@ void CodeGenerator::Comparison(AstNode* node,
     left_side_constant_null = left_side.handle()->IsNull();
     left_side_constant_1_char_string =
         (left_side.handle()->IsString() &&
-         (String::cast(*left_side.handle())->length() == 1));
+         String::cast(*left_side.handle())->length() == 1 &&
+         String::cast(*left_side.handle())->IsAsciiRepresentation());
   }
   bool right_side_constant_smi = false;
   bool right_side_constant_null = false;
@@ -2442,7 +2443,8 @@ void CodeGenerator::Comparison(AstNode* node,
     right_side_constant_null = right_side.handle()->IsNull();
     right_side_constant_1_char_string =
         (right_side.handle()->IsString() &&
-         (String::cast(*right_side.handle())->length() == 1));
+         String::cast(*right_side.handle())->length() == 1 &&
+         String::cast(*right_side.handle())->IsAsciiRepresentation());
   }
 
   if (left_side_constant_smi || right_side_constant_smi) {
@@ -2631,6 +2633,7 @@ void CodeGenerator::Comparison(AstNode* node,
       JumpTarget is_not_string, is_string;
       Register left_reg = left_side.reg();
       Handle<Object> right_val = right_side.handle();
+      ASSERT(StringShape(String::cast(*right_val)).IsSymbol());
       __ test(left_side.reg(), Immediate(kSmiTagMask));
       is_not_string.Branch(zero, &left_side);
       Result temp = allocator_->Allocate();
@@ -2655,7 +2658,7 @@ void CodeGenerator::Comparison(AstNode* node,
         dest->false_target()->Branch(not_equal);
         __ bind(&not_a_symbol);
       }
-      // If the receiver is not a string of the type we handle call the stub.
+      // Call the compare stub if the left side is not a flat ascii string.
       __ and_(temp.reg(),
           kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask);
       __ cmp(temp.reg(), kStringTag | kSeqStringTag | kAsciiStringTag);
@@ -2673,7 +2676,7 @@ void CodeGenerator::Comparison(AstNode* node,
       dest->false_target()->Jump();
 
       is_string.Bind(&left_side);
-      // Here we know we have a sequential ASCII string.
+      // left_side is a sequential ASCII string.
       left_side = Result(left_reg);
       right_side = Result(right_val);
       Result temp2 = allocator_->Allocate();
@@ -2685,7 +2688,7 @@ void CodeGenerator::Comparison(AstNode* node,
                Immediate(1));
         __ j(not_equal, &comparison_done);
         uint8_t char_value =
-            static_cast<uint8_t>(String::cast(*right_side.handle())->Get(0));
+            static_cast<uint8_t>(String::cast(*right_val)->Get(0));
         __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
                 char_value);
         __ bind(&comparison_done);
@@ -2694,17 +2697,17 @@ void CodeGenerator::Comparison(AstNode* node,
                FieldOperand(left_side.reg(), String::kLengthOffset));
         __ sub(Operand(temp2.reg()), Immediate(1));
         Label comparison;
-        // If the length is 0 then our subtraction gave -1 which compares less
+        // If the length is 0 then the subtraction gave -1 which compares less
         // than any character.
         __ j(negative, &comparison);
         // Otherwise load the first character.
         __ movzx_b(temp2.reg(),
                    FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize));
         __ bind(&comparison);
-        // Compare the first character of the string with out constant
-        // 1-character string.
+        // Compare the first character of the string with the
+        // constant 1-character string.
         uint8_t char_value =
-            static_cast<uint8_t>(String::cast(*right_side.handle())->Get(0));
+            static_cast<uint8_t>(String::cast(*right_val)->Get(0));
         __ cmp(Operand(temp2.reg()), Immediate(char_value));
         Label characters_were_different;
         __ j(not_equal, &characters_were_different);
@@ -6523,7 +6526,7 @@ void CodeGenerator::GenerateStringCompare(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
-  ASSERT_EQ(args->length(), 4);
+  ASSERT_EQ(4, args->length());
 
   // Load the arguments on the stack and call the stub.
   Load(args->at(0));
@@ -6533,6 +6536,95 @@ void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
   RegExpExecStub stub;
   Result result = frame_->CallStub(&stub, 4);
   frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
+  // No stub. This code only occurs a few times in regexp.js.
+  const int kMaxInlineLength = 100;
+  ASSERT_EQ(3, args->length());
+  Load(args->at(0));  // Size of array, smi.
+  Load(args->at(1));  // "index" property value.
+  Load(args->at(2));  // "input" property value.
+  {
+    VirtualFrame::SpilledScope spilled_scope;
+
+    Label slowcase;
+    Label done;
+    __ mov(ebx, Operand(esp, kPointerSize * 2));
+    __ test(ebx, Immediate(kSmiTagMask));
+    __ j(not_zero, &slowcase);
+    __ cmp(Operand(ebx), Immediate(Smi::FromInt(kMaxInlineLength)));
+    __ j(above, &slowcase);
+    // Smi-tagging is equivalent to multiplying by 2.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize == 1);
+    // Allocate RegExpResult followed by FixedArray with size in ebx.
+    // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
+    // Elements:  [Map][Length][..elements..]
+    __ AllocateInNewSpace(JSRegExpResult::kSize + FixedArray::kHeaderSize,
+                          times_half_pointer_size,
+                          ebx,  // In: Number of elements (times 2, being a smi)
+                          eax,  // Out: Start of allocation (tagged).
+                          ecx,  // Out: End of allocation.
+                          edx,  // Scratch register
+                          &slowcase,
+                          TAG_OBJECT);
+    // eax: Start of allocated area, object-tagged.
+
+    // Set JSArray map to global.regexp_result_map().
+    // Set empty properties FixedArray.
+    // Set elements to point to FixedArray allocated right after the JSArray.
+    // Interleave operations for better latency.
+    __ mov(edx, ContextOperand(esi, Context::GLOBAL_INDEX));
+    __ mov(ecx, Immediate(Factory::empty_fixed_array()));
+    __ lea(ebx, Operand(eax, JSRegExpResult::kSize));
+    __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalContextOffset));
+    __ mov(FieldOperand(eax, JSObject::kElementsOffset), ebx);
+    __ mov(FieldOperand(eax, JSObject::kPropertiesOffset), ecx);
+    __ mov(edx, ContextOperand(edx, Context::REGEXP_RESULT_MAP_INDEX));
+    __ mov(FieldOperand(eax, HeapObject::kMapOffset), edx);
+
+    // Set input, index and length fields from arguments.
+    __ pop(FieldOperand(eax, JSRegExpResult::kInputOffset));
+    __ pop(FieldOperand(eax, JSRegExpResult::kIndexOffset));
+    __ pop(ecx);
+    __ mov(FieldOperand(eax, JSArray::kLengthOffset), ecx);
+
+    // Fill out the elements FixedArray.
+    // eax: JSArray.
+    // ebx: FixedArray.
+    // ecx: Number of elements in array, as smi.
+
+    // Set map.
+    __ mov(FieldOperand(ebx, HeapObject::kMapOffset),
+           Immediate(Factory::fixed_array_map()));
+    // Set length.
+    __ SmiUntag(ecx);
+    __ mov(FieldOperand(ebx, FixedArray::kLengthOffset), ecx);
+    // Fill contents of fixed-array with the-hole.
+    __ mov(edx, Immediate(Factory::the_hole_value()));
+    __ lea(ebx, FieldOperand(ebx, FixedArray::kHeaderSize));
+    // Fill fixed array elements with hole.
+    // eax: JSArray.
+    // ecx: Number of elements to fill.
+    // ebx: Start of elements in FixedArray.
+    // edx: the hole.
+    Label loop;
+    __ test(ecx, Operand(ecx));
+    __ bind(&loop);
+    __ j(less_equal, &done);  // Jump if ecx is negative or zero.
+    __ sub(Operand(ecx), Immediate(1));
+    __ mov(Operand(ebx, ecx, times_pointer_size, 0), edx);
+    __ jmp(&loop);
+
+    __ bind(&slowcase);
+    __ CallRuntime(Runtime::kRegExpConstructResult, 3);
+
+    __ bind(&done);
+  }
+  frame_->Forget(3);
+  frame_->Push(eax);
 }
 
 
@@ -11082,61 +11174,93 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
 }
 
 
+static int NegativeComparisonResult(Condition cc) {
+  ASSERT(cc != equal);
+  ASSERT((cc == less) || (cc == less_equal)
+      || (cc == greater) || (cc == greater_equal));
+  return (cc == greater || cc == greater_equal) ? LESS : GREATER;
+}
+
+
 void CompareStub::Generate(MacroAssembler* masm) {
   Label call_builtin, done;
 
   // NOTICE! This code is only reached after a smi-fast-case check, so
   // it is certain that at least one operand isn't a smi.
 
-  if (cc_ == equal) {  // Both strict and non-strict.
-    Label slow;  // Fallthrough label.
-    // Equality is almost reflexive (everything but NaN), so start by testing
-    // for "identity and not NaN".
-    {
-      Label not_identical;
-      __ cmp(eax, Operand(edx));
-      __ j(not_equal, &not_identical);
-      // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
-      // so we do the second best thing - test it ourselves.
+  // Identical objects can be compared fast, but there are some tricky cases
+  // for NaN and undefined.
+  {
+    Label not_identical;
+    __ cmp(eax, Operand(edx));
+    __ j(not_equal, &not_identical);
 
-      if (never_nan_nan_) {
-        __ Set(eax, Immediate(0));
-        __ ret(0);
-      } else {
-        Label return_equal;
-        Label heap_number;
-        // If it's not a heap number, then return equal.
-        __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
-               Immediate(Factory::heap_number_map()));
-        __ j(equal, &heap_number);
-        __ bind(&return_equal);
-        __ Set(eax, Immediate(0));
-        __ ret(0);
+    if (cc_ != equal) {
+      // Check for undefined.  undefined OP undefined is false even though
+      // undefined == undefined.
+      Label check_for_nan;
+      __ cmp(edx, Factory::undefined_value());
+      __ j(not_equal, &check_for_nan);
+      __ Set(eax, Immediate(Smi::FromInt(NegativeComparisonResult(cc_))));
+      __ ret(0);
+      __ bind(&check_for_nan);
+    }
 
-        __ bind(&heap_number);
-        // It is a heap number, so return non-equal if it's NaN and equal if
-        // it's not NaN.
-        // The representation of NaN values has all exponent bits (52..62) set,
-        // and not all mantissa bits (0..51) clear.
-        // We only accept QNaNs, which have bit 51 set.
-        // Read top bits of double representation (second word of value).
+    // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
+    // so we do the second best thing - test it ourselves.
+    // Note: if cc_ != equal, never_nan_nan_ is not used.
+    if (never_nan_nan_ && (cc_ == equal)) {
+      __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
+      __ ret(0);
+    } else {
+      Label return_equal;
+      Label heap_number;
+      // If it's not a heap number, then return equal.
+      __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+             Immediate(Factory::heap_number_map()));
+      __ j(equal, &heap_number);
+      __ bind(&return_equal);
+      __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
+      __ ret(0);
 
-        // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
-        // all bits in the mask are set. We only need to check the word
-        // that contains the exponent and high bit of the mantissa.
-        ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
-        __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
-        __ xor_(eax, Operand(eax));
-        // Shift value and mask so kQuietNaNHighBitsMask applies to topmost
-        // bits.
-        __ add(edx, Operand(edx));
-        __ cmp(edx, kQuietNaNHighBitsMask << 1);
+      __ bind(&heap_number);
+      // It is a heap number, so return non-equal if it's NaN and equal if
+      // it's not NaN.
+      // The representation of NaN values has all exponent bits (52..62) set,
+      // and not all mantissa bits (0..51) clear.
+      // We only accept QNaNs, which have bit 51 set.
+      // Read top bits of double representation (second word of value).
+
+      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
+      // all bits in the mask are set. We only need to check the word
+      // that contains the exponent and high bit of the mantissa.
+      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
+      __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
+      __ xor_(eax, Operand(eax));
+      // Shift value and mask so kQuietNaNHighBitsMask applies to topmost
+      // bits.
+      __ add(edx, Operand(edx));
+      __ cmp(edx, kQuietNaNHighBitsMask << 1);
+      if (cc_ == equal) {
+        ASSERT_NE(1, EQUAL);
         __ setcc(above_equal, eax);
         __ ret(0);
+      } else {
+        Label nan;
+        __ j(above_equal, &nan);
+        __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
+        __ ret(0);
+        __ bind(&nan);
+        __ Set(eax, Immediate(Smi::FromInt(NegativeComparisonResult(cc_))));
+        __ ret(0);
       }
-
-      __ bind(&not_identical);
     }
+
+    __ bind(&not_identical);
+  }
+
+  if (cc_ == equal) {  // Both strict and non-strict.
+    Label slow;  // Fallthrough label.
 
     // If we're doing a strict equality comparison, we don't have to do
     // type conversion, so we generate code to do fast comparison for objects
@@ -11327,14 +11451,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     builtin = strict_ ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
   } else {
     builtin = Builtins::COMPARE;
-    int ncr;  // NaN compare result
-    if (cc_ == less || cc_ == less_equal) {
-      ncr = GREATER;
-    } else {
-      ASSERT(cc_ == greater || cc_ == greater_equal);  // remaining cases
-      ncr = LESS;
-    }
-    __ push(Immediate(Smi::FromInt(ncr)));
+    __ push(Immediate(Smi::FromInt(NegativeComparisonResult(cc_))));
   }
 
   // Restore return address on the stack.

@@ -150,7 +150,11 @@ bool Debugger::GetValue(const char* desc, int32_t* value) {
     *value = GetRegisterValue(regnum);
     return true;
   } else {
-    return SScanF(desc, "%i", value) == 1;
+    if (strncmp(desc, "0x", 2) == 0) {
+      return SScanF(desc + 2, "%x", reinterpret_cast<uint32_t*>(value)) == 1;
+    } else {
+      return SScanF(desc, "%u", reinterpret_cast<uint32_t*>(value)) == 1;
+    }
   }
   return false;
 }
@@ -231,6 +235,7 @@ void Debugger::Debug() {
   char cmd[COMMAND_SIZE + 1];
   char arg1[ARG_SIZE + 1];
   char arg2[ARG_SIZE + 1];
+  char* argv[3] = { cmd, arg1, arg2 };
 
   // make sure to have a proper terminating character if reaching the limit
   cmd[COMMAND_SIZE] = 0;
@@ -258,7 +263,7 @@ void Debugger::Debug() {
     } else {
       // Use sscanf to parse the individual parts of the command line. At the
       // moment no command expects more than two parameters.
-      int args = SScanF(line,
+      int argc = SScanF(line,
                         "%" XSTR(COMMAND_SIZE) "s "
                         "%" XSTR(ARG_SIZE) "s "
                         "%" XSTR(ARG_SIZE) "s",
@@ -271,7 +276,7 @@ void Debugger::Debug() {
         // Leave the debugger shell.
         done = true;
       } else if ((strcmp(cmd, "p") == 0) || (strcmp(cmd, "print") == 0)) {
-        if (args == 2) {
+        if (argc == 2) {
           int32_t value;
           float svalue;
           double dvalue;
@@ -296,7 +301,7 @@ void Debugger::Debug() {
         }
       } else if ((strcmp(cmd, "po") == 0)
                  || (strcmp(cmd, "printobject") == 0)) {
-        if (args == 2) {
+        if (argc == 2) {
           int32_t value;
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
@@ -313,6 +318,37 @@ void Debugger::Debug() {
         } else {
           PrintF("printobject <value>\n");
         }
+      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0) {
+        int32_t* cur = NULL;
+        int32_t* end = NULL;
+        int next_arg = 1;
+
+        if (strcmp(cmd, "stack") == 0) {
+          cur = reinterpret_cast<int32_t*>(sim_->get_register(Simulator::sp));
+        } else {  // "mem"
+          int32_t value;
+          if (!GetValue(arg1, &value)) {
+            PrintF("%s unrecognized\n", arg1);
+            continue;
+          }
+          cur = reinterpret_cast<int32_t*>(value);
+          next_arg++;
+        }
+
+        int32_t words;
+        if (argc == next_arg) {
+          words = 10;
+        } else if (argc == next_arg + 1) {
+          if (!GetValue(argv[next_arg], &words)) {
+            words = 10;
+          }
+        }
+        end = cur + words;
+
+        while (cur < end) {
+          PrintF("  0x%08x:  0x%08x %10d\n", cur, *cur, *cur);
+          cur++;
+        }
       } else if (strcmp(cmd, "disasm") == 0) {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
@@ -322,10 +358,10 @@ void Debugger::Debug() {
         byte* cur = NULL;
         byte* end = NULL;
 
-        if (args == 1) {
+        if (argc == 1) {
           cur = reinterpret_cast<byte*>(sim_->get_pc());
           end = cur + (10 * Instr::kInstrSize);
-        } else if (args == 2) {
+        } else if (argc == 2) {
           int32_t value;
           if (GetValue(arg1, &value)) {
             cur = reinterpret_cast<byte*>(value);
@@ -351,7 +387,7 @@ void Debugger::Debug() {
         v8::internal::OS::DebugBreak();
         PrintF("regaining control from gdb\n");
       } else if (strcmp(cmd, "break") == 0) {
-        if (args == 2) {
+        if (argc == 2) {
           int32_t value;
           if (GetValue(arg1, &value)) {
             if (!SetBreakpoint(reinterpret_cast<Instr*>(value))) {
@@ -401,6 +437,10 @@ void Debugger::Debug() {
         PrintF("  print an object from a register (alias 'po')\n");
         PrintF("flags\n");
         PrintF("  print flags\n");
+        PrintF("stack [<words>]\n");
+        PrintF("  dump stack content, default dump 10 words)\n");
+        PrintF("mem <address> [<words>]\n");
+        PrintF("  dump memory content, default dump 10 words)\n");
         PrintF("disasm [<instructions>]\n");
         PrintF("disasm [[<address>] <instructions>]\n");
         PrintF("  disassemble code, default is 10 instructions from pc\n");
@@ -414,7 +454,7 @@ void Debugger::Debug() {
         PrintF("  ignore the stop instruction at the current location");
         PrintF("  from now on\n");
         PrintF("trace (alias 't')\n");
-        PrintF("  toogle the tracing of all executed statements");
+        PrintF("  toogle the tracing of all executed statements\n");
       } else {
         PrintF("Unknown command: %s\n", cmd);
       }

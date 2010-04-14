@@ -4632,6 +4632,26 @@ class JSArray: public JSObject {
 };
 
 
+// JSRegExpResult is just a JSArray with a specific initial map.
+// This initial map adds in-object properties for "index" and "input"
+// properties, as assigned by RegExp.prototype.exec, which allows
+// faster creation of RegExp exec results.
+// This class just holds constants used when creating the result.
+// After creation the result must be treated as a JSArray in all regards.
+class JSRegExpResult: public JSArray {
+ public:
+  // Offsets of object fields.
+  static const int kIndexOffset = JSArray::kSize;
+  static const int kInputOffset = kIndexOffset + kPointerSize;
+  static const int kSize = kInputOffset + kPointerSize;
+  // Indices of in-object properties.
+  static const int kIndexIndex = 0;
+  static const int kInputIndex = 1;
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSRegExpResult);
+};
+
+
 // An accessor must have a getter, but can have no setter.
 //
 // When setting a property, V8 searches accessors in prototypes.

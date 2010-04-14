@@ -1494,6 +1494,26 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
 }
 
 
+void CodeGenerator::SetTypeForStackSlot(Slot* slot, TypeInfo info) {
+  ASSERT(slot->type() == Slot::LOCAL || slot->type() == Slot::PARAMETER);
+  if (slot->type() == Slot::LOCAL) {
+    frame_->SetTypeForLocalAt(slot->index(), info);
+  } else {
+    frame_->SetTypeForParamAt(slot->index(), info);
+  }
+  if (FLAG_debug_code && info.IsSmi()) {
+    if (slot->type() == Slot::LOCAL) {
+      frame_->PushLocalAt(slot->index());
+    } else {
+      frame_->PushParameterAt(slot->index());
+    }
+    Result var = frame_->Pop();
+    var.ToRegister();
+    __ AbortIfNotSmi(var.reg(), "Non-smi value in smi-typed stack slot.");
+  }
+}
+
+
 void CodeGenerator::VisitForStatement(ForStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ ForStatement");
@@ -1587,6 +1607,17 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   }
 
   CheckStack();  // TODO(1222600): ignore if body contains calls.
+
+  // We know that the loop index is a smi if it is not modified in the
+  // loop body and it is checked against a constant limit in the loop
+  // condition.  In this case, we reset the static type information of the
+  // loop index to smi before compiling the body, the update expression, and
+  // the bottom check of the loop condition.
+  if (node->is_fast_smi_loop()) {
+    // Set number type of the loop variable to smi.
+    SetTypeForStackSlot(node->loop_variable()->slot(), TypeInfo::Smi());
+  }
+
   Visit(node->body());
 
   // If there is an update expression, compile it if necessary.
@@ -1604,6 +1635,13 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
       CodeForStatementPosition(node);
       Visit(node->next());
     }
+  }
+
+  // Set the type of the loop variable to smi before compiling the test
+  // expression if we are in a fast smi loop condition.
+  if (node->is_fast_smi_loop() && has_valid_frame()) {
+    // Set number type of the loop variable to smi.
+    SetTypeForStackSlot(node->loop_variable()->slot(), TypeInfo::Smi());
   }
 
   // Based on the condition analysis, compile the backward jump as
@@ -4130,6 +4168,97 @@ void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
+  // No stub. This code only occurs a few times in regexp.js.
+  const int kMaxInlineLength = 100;
+  ASSERT_EQ(3, args->length());
+  Load(args->at(0));  // Size of array, smi.
+  Load(args->at(1));  // "index" property value.
+  Load(args->at(2));  // "input" property value.
+  {
+    VirtualFrame::SpilledScope spilled_scope;
+
+    Label slowcase;
+    Label done;
+    __ movq(r8, Operand(rsp, kPointerSize * 2));
+    __ JumpIfNotSmi(r8, &slowcase);
+    __ SmiToInteger32(rbx, r8);
+    __ cmpl(rbx, Immediate(kMaxInlineLength));
+    __ j(above, &slowcase);
+    // Smi-tagging is equivalent to multiplying by 2.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize == 1);
+    // Allocate RegExpResult followed by FixedArray with size in ebx.
+    // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
+    // Elements:  [Map][Length][..elements..]
+    __ AllocateInNewSpace(JSRegExpResult::kSize + FixedArray::kHeaderSize,
+                          times_pointer_size,
+                          rbx,  // In: Number of elements.
+                          rax,  // Out: Start of allocation (tagged).
+                          rcx,  // Out: End of allocation.
+                          rdx,  // Scratch register
+                          &slowcase,
+                          TAG_OBJECT);
+    // rax: Start of allocated area, object-tagged.
+    // rbx: Number of array elements as int32.
+    // r8: Number of array elements as smi.
+
+    // Set JSArray map to global.regexp_result_map().
+    __ movq(rdx, ContextOperand(rsi, Context::GLOBAL_INDEX));
+    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalContextOffset));
+    __ movq(rdx, ContextOperand(rdx, Context::REGEXP_RESULT_MAP_INDEX));
+    __ movq(FieldOperand(rax, HeapObject::kMapOffset), rdx);
+
+    // Set empty properties FixedArray.
+    __ Move(FieldOperand(rax, JSObject::kPropertiesOffset),
+            Factory::empty_fixed_array());
+
+    // Set elements to point to FixedArray allocated right after the JSArray.
+    __ lea(rcx, Operand(rax, JSRegExpResult::kSize));
+    __ movq(FieldOperand(rax, JSObject::kElementsOffset), rcx);
+
+    // Set input, index and length fields from arguments.
+    __ pop(FieldOperand(rax, JSRegExpResult::kInputOffset));
+    __ pop(FieldOperand(rax, JSRegExpResult::kIndexOffset));
+    __ lea(rsp, Operand(rsp, kPointerSize));
+    __ movq(FieldOperand(rax, JSArray::kLengthOffset), r8);
+
+    // Fill out the elements FixedArray.
+    // rax: JSArray.
+    // rcx: FixedArray.
+    // rbx: Number of elements in array as int32.
+
+    // Set map.
+    __ Move(FieldOperand(rcx, HeapObject::kMapOffset),
+            Factory::fixed_array_map());
+    // Set length.
+    __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rbx);
+    // Fill contents of fixed-array with the-hole.
+    __ Move(rdx, Factory::the_hole_value());
+    __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
+    // Fill fixed array elements with hole.
+    // rax: JSArray.
+    // rbx: Number of elements in array that remains to be filled, as int32.
+    // rcx: Start of elements in FixedArray.
+    // rdx: the hole.
+    Label loop;
+    __ testl(rbx, rbx);
+    __ bind(&loop);
+    __ j(less_equal, &done);  // Jump if ecx is negative or zero.
+    __ subl(rbx, Immediate(1));
+    __ movq(Operand(rcx, rbx, times_pointer_size, 0), rdx);
+    __ jmp(&loop);
+
+    __ bind(&slowcase);
+    __ CallRuntime(Runtime::kRegExpConstructResult, 3);
+
+    __ bind(&done);
+  }
+  frame_->Forget(3);
+  frame_->Push(rax);
+}
+
+
 void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
 
@@ -5112,14 +5241,28 @@ void CodeGenerator::Comparison(AstNode* node,
   ASSERT(cc == less || cc == equal || cc == greater_equal);
 
   // If either side is a constant smi, optimize the comparison.
-  bool left_side_constant_smi =
-      left_side.is_constant() && left_side.handle()->IsSmi();
-  bool right_side_constant_smi =
-      right_side.is_constant() && right_side.handle()->IsSmi();
-  bool left_side_constant_null =
-      left_side.is_constant() && left_side.handle()->IsNull();
-  bool right_side_constant_null =
-      right_side.is_constant() && right_side.handle()->IsNull();
+  bool left_side_constant_smi = false;
+  bool left_side_constant_null = false;
+  bool left_side_constant_1_char_string = false;
+  if (left_side.is_constant()) {
+    left_side_constant_smi = left_side.handle()->IsSmi();
+    left_side_constant_null = left_side.handle()->IsNull();
+    left_side_constant_1_char_string =
+        (left_side.handle()->IsString() &&
+         String::cast(*left_side.handle())->length() == 1 &&
+         String::cast(*left_side.handle())->IsAsciiRepresentation());
+  }
+  bool right_side_constant_smi = false;
+  bool right_side_constant_null = false;
+  bool right_side_constant_1_char_string = false;
+  if (right_side.is_constant()) {
+    right_side_constant_smi = right_side.handle()->IsSmi();
+    right_side_constant_null = right_side.handle()->IsNull();
+    right_side_constant_1_char_string =
+        (right_side.handle()->IsString() &&
+         String::cast(*right_side.handle())->length() == 1 &&
+         String::cast(*right_side.handle())->IsAsciiRepresentation());
+  }
 
   if (left_side_constant_smi || right_side_constant_smi) {
     if (left_side_constant_smi && right_side_constant_smi) {
@@ -5258,6 +5401,141 @@ void CodeGenerator::Comparison(AstNode* node,
       temp.Unuse();
       operand.Unuse();
       dest->Split(not_zero);
+    }
+  } else if (left_side_constant_1_char_string ||
+             right_side_constant_1_char_string) {
+    if (left_side_constant_1_char_string && right_side_constant_1_char_string) {
+      // Trivial case, comparing two constants.
+      int left_value = String::cast(*left_side.handle())->Get(0);
+      int right_value = String::cast(*right_side.handle())->Get(0);
+      switch (cc) {
+        case less:
+          dest->Goto(left_value < right_value);
+          break;
+        case equal:
+          dest->Goto(left_value == right_value);
+          break;
+        case greater_equal:
+          dest->Goto(left_value >= right_value);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      // Only one side is a constant 1 character string.
+      // If left side is a constant 1-character string, reverse the operands.
+      // Since one side is a constant string, conversion order does not matter.
+      if (left_side_constant_1_char_string) {
+        Result temp = left_side;
+        left_side = right_side;
+        right_side = temp;
+        cc = ReverseCondition(cc);
+        // This may reintroduce greater or less_equal as the value of cc.
+        // CompareStub and the inline code both support all values of cc.
+      }
+      // Implement comparison against a constant string, inlining the case
+      // where both sides are strings.
+      left_side.ToRegister();
+
+      // Here we split control flow to the stub call and inlined cases
+      // before finally splitting it to the control destination.  We use
+      // a jump target and branching to duplicate the virtual frame at
+      // the first split.  We manually handle the off-frame references
+      // by reconstituting them on the non-fall-through path.
+      JumpTarget is_not_string, is_string;
+      Register left_reg = left_side.reg();
+      Handle<Object> right_val = right_side.handle();
+      ASSERT(StringShape(String::cast(*right_val)).IsSymbol());
+      Condition is_smi = masm()->CheckSmi(left_reg);
+      is_not_string.Branch(is_smi, &left_side);
+      Result temp = allocator_->Allocate();
+      ASSERT(temp.is_valid());
+      __ movq(temp.reg(),
+              FieldOperand(left_reg, HeapObject::kMapOffset));
+      __ movzxbl(temp.reg(),
+                 FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
+      // If we are testing for equality then make use of the symbol shortcut.
+      // Check if the left hand side has the same type as the right hand
+      // side (which is always a symbol).
+      if (cc == equal) {
+        Label not_a_symbol;
+        ASSERT(kSymbolTag != 0);
+        // Ensure that no non-strings have the symbol bit set.
+        ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+        __ testb(temp.reg(), Immediate(kIsSymbolMask));  // Test the symbol bit.
+        __ j(zero, &not_a_symbol);
+        // They are symbols, so do identity compare.
+        __ Cmp(left_reg, right_side.handle());
+        dest->true_target()->Branch(equal);
+        dest->false_target()->Branch(not_equal);
+        __ bind(&not_a_symbol);
+      }
+      // Call the compare stub if the left side is not a flat ascii string.
+      __ andb(temp.reg(),
+              Immediate(kIsNotStringMask |
+                        kStringRepresentationMask |
+                        kStringEncodingMask));
+      __ cmpb(temp.reg(),
+              Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
+      temp.Unuse();
+      is_string.Branch(equal, &left_side);
+
+      // Setup and call the compare stub.
+      is_not_string.Bind(&left_side);
+      CompareStub stub(cc, strict, kCantBothBeNaN);
+      Result result = frame_->CallStub(&stub, &left_side, &right_side);
+      result.ToRegister();
+      __ SmiCompare(result.reg(), Smi::FromInt(0));
+      result.Unuse();
+      dest->true_target()->Branch(cc);
+      dest->false_target()->Jump();
+
+      is_string.Bind(&left_side);
+      // left_side is a sequential ASCII string.
+      ASSERT(left_side.reg().is(left_reg));
+      right_side = Result(right_val);
+      Result temp2 = allocator_->Allocate();
+      ASSERT(temp2.is_valid());
+      // Test string equality and comparison.
+      if (cc == equal) {
+        Label comparison_done;
+        __ cmpl(FieldOperand(left_side.reg(), String::kLengthOffset),
+                Immediate(1));
+        __ j(not_equal, &comparison_done);
+        uint8_t char_value =
+            static_cast<uint8_t>(String::cast(*right_val)->Get(0));
+        __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
+                Immediate(char_value));
+        __ bind(&comparison_done);
+      } else {
+        __ movl(temp2.reg(),
+                FieldOperand(left_side.reg(), String::kLengthOffset));
+        __ subl(temp2.reg(), Immediate(1));
+        Label comparison;
+        // If the length is 0 then the subtraction gave -1 which compares less
+        // than any character.
+        __ j(negative, &comparison);
+        // Otherwise load the first character.
+        __ movzxbl(temp2.reg(),
+                   FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize));
+        __ bind(&comparison);
+        // Compare the first character of the string with the
+        // constant 1-character string.
+        uint8_t char_value =
+            static_cast<uint8_t>(String::cast(*right_side.handle())->Get(0));
+        __ cmpb(temp2.reg(), Immediate(char_value));
+        Label characters_were_different;
+        __ j(not_equal, &characters_were_different);
+        // If the first character is the same then the long string sorts after
+        // the short one.
+        __ cmpl(FieldOperand(left_side.reg(), String::kLengthOffset),
+               Immediate(1));
+        __ bind(&characters_were_different);
+      }
+      temp2.Unuse();
+      left_side.Unuse();
+      right_side.Unuse();
+      dest->Split(cc);
     }
   } else {  // Neither side is a constant Smi or null.
     // If either side is a non-smi constant, skip the smi check.

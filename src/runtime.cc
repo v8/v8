@@ -1228,6 +1228,36 @@ static Object* Runtime_RegExpExec(Arguments args) {
 }
 
 
+static Object* Runtime_RegExpConstructResult(Arguments args) {
+  ASSERT(args.length() == 3);
+  CONVERT_SMI_CHECKED(elements_count, args[0]);
+  if (elements_count > JSArray::kMaxFastElementsLength) {
+    return Top::ThrowIllegalOperation();
+  }
+  Object* new_object = Heap::AllocateFixedArrayWithHoles(elements_count);
+  if (new_object->IsFailure()) return new_object;
+  FixedArray* elements = FixedArray::cast(new_object);
+  new_object = Heap::AllocateRaw(JSRegExpResult::kSize,
+                                 NEW_SPACE,
+                                 OLD_POINTER_SPACE);
+  if (new_object->IsFailure()) return new_object;
+  {
+    AssertNoAllocation no_gc;
+    HandleScope scope;
+    reinterpret_cast<HeapObject*>(new_object)->
+        set_map(Top::global_context()->regexp_result_map());
+  }
+  JSArray* array = JSArray::cast(new_object);
+  array->set_properties(Heap::empty_fixed_array());
+  array->set_elements(elements);
+  array->set_length(Smi::FromInt(elements_count));
+  // Write in-object properties after the length of the array.
+  array->InObjectPropertyAtPut(JSRegExpResult::kIndexIndex, args[1]);
+  array->InObjectPropertyAtPut(JSRegExpResult::kInputIndex, args[2]);
+  return array;
+}
+
+
 static Object* Runtime_RegExpInitializeObject(Arguments args) {
   AssertNoAllocation no_alloc;
   ASSERT(args.length() == 5);
@@ -2512,7 +2542,7 @@ static inline int SingleCharIndexOf(Vector<const schar> string,
                pattern_char,
                string.length() - start_index));
     if (pos == NULL) return -1;
-    return pos - string.start();
+    return static_cast<int>(pos - string.start());
   }
   for (int i = start_index, n = string.length(); i < n; i++) {
     if (pattern_char == string[i]) {
@@ -2570,7 +2600,7 @@ static int SimpleIndexOf(Vector<const schar> subject,
         *complete = true;
         return -1;
       }
-      i = pos - subject.start();
+      i = static_cast<int>(pos - subject.start());
     } else {
       if (subject[i] != pattern_first_char) continue;
     }
@@ -2604,7 +2634,7 @@ static int SimpleIndexOf(Vector<const schar> subject,
                  pattern_first_char,
                  n - i + 1));
       if (pos == NULL) return -1;
-      i = pos - subject.start();
+      i = static_cast<int>(pos - subject.start());
     } else {
       if (subject[i] != pattern_first_char) continue;
     }
@@ -6336,7 +6366,7 @@ static const char kMonthInYear[] = {
 static inline void DateYMDFromTimeAfter1970(int date,
                                             int& year, int& month, int& day) {
 #ifdef DEBUG
-  int save_date = date;  // Need this for ASSERT in the end.
+  int save_date = date;  // Need this for ASSERT in the end.
 #endif
 
   year = 1970 + (4 * date + 2) / kDaysIn4Years;
@@ -6352,7 +6382,7 @@ static inline void DateYMDFromTimeAfter1970(int date,
 static inline void DateYMDFromTimeSlow(int date,
                                        int& year, int& month, int& day) {
 #ifdef DEBUG
-  int save_date = date;  // Need this for ASSERT in the end.
+  int save_date = date;  // Need this for ASSERT in the end.
 #endif
 
   date += kDaysOffset;
@@ -9749,7 +9779,8 @@ static Object* Runtime_GetFunctionCodePositionFromSource(Arguments args) {
     // Check if this break point is closer that what was previously found.
     if (source_position <= statement_position &&
         statement_position - source_position < distance) {
-      closest_pc = it.rinfo()->pc() - code->instruction_start();
+      closest_pc =
+          static_cast<int>(it.rinfo()->pc() - code->instruction_start());
       distance = statement_position - source_position;
       // Check whether we can't get any closer.
       if (distance == 0) break;

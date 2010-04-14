@@ -93,6 +93,28 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
 }
 
 
+Object* StubCache::ComputeLoadNonexistent(String* name, JSObject* receiver) {
+  // The code stub for loading nonexistent properties can be reused
+  // for all names, so we use the empty_string as the name in the map
+  // code cache.
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::LOAD_IC, NONEXISTENT);
+  Object* code = receiver->map()->FindInCodeCache(Heap::empty_string(), flags);
+  if (code->IsUndefined()) {
+    LoadStubCompiler compiler;
+    code = compiler.CompileLoadNonexistent(receiver);
+    if (code->IsFailure()) return code;
+    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG,
+                            Code::cast(code),
+                            Heap::empty_string()));
+    Object* result = receiver->map()->UpdateCodeCache(Heap::empty_string(),
+                                                      Code::cast(code));
+    if (result->IsFailure()) return result;
+  }
+  return Set(name, receiver->map(), Code::cast(code));
+}
+
+
 Object* StubCache::ComputeLoadField(String* name,
                                     JSObject* receiver,
                                     JSObject* holder,

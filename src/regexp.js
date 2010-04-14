@@ -135,16 +135,49 @@ function RegExpCache() {
 var regExpCache = new RegExpCache();
 
 
-function CloneRegexpAnswer(array) {
+function CloneRegExpResult(array) {
   if (array == null) return null; 
-  var len = array.length;
-  var answer = new $Array(len);
-  for (var i = 0; i < len; i++) {
+  var length = array.length;
+  var answer = %_RegExpConstructResult(length, array.index, array.input);
+  for (var i = 0; i < length; i++) {
     answer[i] = array[i];
   }
-  answer.index = array.index;
-  answer.input = array.input;
   return answer;
+}
+
+
+function BuildResultFromMatchInfo(lastMatchInfo, s) {
+  var numResults = NUMBER_OF_CAPTURES(lastMatchInfo) >> 1;
+  var result = %_RegExpConstructResult(numResults, lastMatchInfo[CAPTURE0], s);
+  if (numResults === 1) {
+    var matchStart = lastMatchInfo[CAPTURE(0)];
+    var matchEnd = lastMatchInfo[CAPTURE(1)];
+    result[0] = SubString(s, matchStart, matchEnd);
+  } else {
+    for (var i = 0; i < numResults; i++) {
+      var matchStart = lastMatchInfo[CAPTURE(i << 1)];
+      var matchEnd = lastMatchInfo[CAPTURE((i << 1) + 1)];
+      if (matchStart != -1 && matchEnd != -1) {
+        result[i] = SubString(s, matchStart, matchEnd);
+      } else {
+        // Make sure the element is present. Avoid reading the undefined
+        // property from the global object since this may change.
+        result[i] = void 0;
+      }
+    }
+  }
+  return result;
+}
+
+
+function RegExpExecNoTests(regexp, string, start) {
+  // Must be called with RegExp, string and positive integer as arguments.
+  var matchInfo = DoRegExpExec(regexp, string, start);
+  var result = null;
+  if (matchInfo !== null) {
+    result = BuildResultFromMatchInfo(matchInfo, string);
+  }
+  return result;
 }
 
 
@@ -162,7 +195,7 @@ function RegExpExec(string) {
       %_ObjectEquals(cache.regExp, this) &&
       %_ObjectEquals(cache.subject, string)) {
     if (cache.answerSaved) {
-      return CloneRegexpAnswer(cache.answer);
+      return CloneRegExpResult(cache.answer);
     } else {
       saveAnswer = true;
     }
@@ -205,36 +238,15 @@ function RegExpExec(string) {
     return matchIndices;        // No match.
   }
 
-  var numResults = NUMBER_OF_CAPTURES(lastMatchInfo) >> 1;
-  var result;
-  if (numResults === 1) {
-    var matchStart = lastMatchInfo[CAPTURE(0)];
-    var matchEnd = lastMatchInfo[CAPTURE(1)];
-    result = [SubString(s, matchStart, matchEnd)];
-  } else {
-    result = new $Array(numResults);
-    for (var i = 0; i < numResults; i++) {
-      var matchStart = lastMatchInfo[CAPTURE(i << 1)];
-      var matchEnd = lastMatchInfo[CAPTURE((i << 1) + 1)];
-      if (matchStart != -1 && matchEnd != -1) {
-        result[i] = SubString(s, matchStart, matchEnd);
-      } else {
-        // Make sure the element is present. Avoid reading the undefined
-        // property from the global object since this may change.
-        result[i] = void 0;
-      }
-    }
-  }
+  var result = BuildResultFromMatchInfo(matchIndices, s);
 
-  result.index = lastMatchInfo[CAPTURE0];
-  result.input = s;
   if (this.global) {
     this.lastIndex = lastMatchInfo[CAPTURE1];
   } else {
     cache.regExp = this;
     cache.subject = s;
     cache.lastIndex = lastIndex;
-    if (saveAnswer) cache.answer = CloneRegexpAnswer(result);
+    if (saveAnswer) cache.answer = CloneRegExpResult(result);
     cache.answerSaved = saveAnswer;
     cache.type = 'exec';
   }

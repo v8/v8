@@ -1948,6 +1948,32 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
 }
 
 
+Object* LoadStubCompiler::CompileLoadNonexistent(JSObject* object) {
+  // ----------- S t a t e -------------
+  //  -- eax    : receiver
+  //  -- ecx    : name
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check the maps of the full prototype chain.
+  JSObject* last = object;
+  while (last->GetPrototype() != Heap::null_value()) {
+    last = JSObject::cast(last->GetPrototype());
+  }
+  CheckPrototypes(object, eax, last, ebx, edx, Heap::empty_string(), &miss);
+
+  // Return undefined if maps of the full prototype chain is still the same.
+  __ mov(eax, Factory::undefined_value());
+  __ ret(0);
+
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NONEXISTENT, Heap::empty_string());
+}
+
 
 Object* LoadStubCompiler::CompileLoadField(JSObject* object,
                                            JSObject* holder,

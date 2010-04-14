@@ -149,6 +149,16 @@ function StringLastIndexOf(searchString /* position */) {  // length == 1
 }
 
 
+function CloneDenseArray(array) {
+  if (array === null) return null;
+  var clone = new $Array(array.length);
+  for (var i = 0; i < array.length; i++) {
+    clone[i] = array[i];
+  }
+  return clone;
+}
+
+
 // ECMA-262 section 15.5.4.9
 //
 // This function is implementation specific.  For now, we do not
@@ -164,33 +174,37 @@ function StringLocaleCompare(other) {
 
 // ECMA-262 section 15.5.4.10
 function StringMatch(regexp) {
-  if (!IS_REGEXP(regexp)) regexp = new $RegExp(regexp);
   var subject = TO_STRING_INLINE(this);
+  if (IS_REGEXP(regexp)) { 
+    if (!regexp.global) return regexp.exec(subject); 
+    
+    var cache = regExpCache;
+    var saveAnswer = false;
 
-  if (!regexp.global) return regexp.exec(subject);
-
-  var cache = regExpCache;
-  var saveAnswer = false;
-
-  if (%_ObjectEquals(cache.type, 'match') &&
-      %_ObjectEquals(cache.regExp, regexp) &&
-      %_ObjectEquals(cache.subject, subject)) {
-    if (cache.answerSaved) {
-      return CloneRegexpAnswer(cache.answer);
-    } else {
-      saveAnswer = true;
+    if (%_ObjectEquals(cache.type, 'match') &&
+        %_ObjectEquals(cache.regExp, regexp) &&
+        %_ObjectEquals(cache.subject, subject)) {
+      if (cache.answerSaved) {
+        return CloneDenseArray(cache.answer);
+      } else {
+        saveAnswer = true;
+      }
     }
+    %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
+    // lastMatchInfo is defined in regexp.js.
+    var result = %StringMatch(subject, regexp, lastMatchInfo);
+    cache.type = 'match';
+    cache.regExp = regexp;
+    cache.subject = subject;
+    if (saveAnswer) cache.answer = CloneDenseArray(result);
+    cache.answerSaved = saveAnswer;
+    return result;
   }
-
-  %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
-  // lastMatchInfo is defined in regexp.js.
-  var result = %StringMatch(subject, regexp, lastMatchInfo);
-  cache.type = 'match';
-  cache.regExp = regexp;
-  cache.subject = subject;
-  if (saveAnswer) cache.answer = CloneRegexpAnswer(result);
-  cache.answerSaved = saveAnswer;
-  return result;
+  // Non-regexp argument.
+  regexp = new $RegExp(regexp);
+  // Don't check regexp exec cache, since the regexp is new.
+  // TODO(lrn): Change this if we start caching regexps here.
+  return RegExpExecNoTests(regexp, subject, 0);
 }
 
 
@@ -599,7 +613,7 @@ function StringSplit(separator, limit) {
       %_ObjectEquals(cache.regExp, separator) &&
       %_ObjectEquals(cache.subject, subject)) {
     if (cache.answerSaved) {
-      return CloneRegexpAnswer(cache.answer);
+      return CloneDenseArray(cache.answer);
     } else {
       saveAnswer = true;
     }
@@ -665,10 +679,9 @@ function StringSplit(separator, limit) {
 
     startIndex = currentIndex = endIndex;
   }
-  if (saveAnswer) cache.answer = CloneRegexpAnswer(result);
+  if (saveAnswer) cache.answer = CloneDenseArray(result);
   cache.answerSaved = saveAnswer;
   return result;
-  
 }
 
 
