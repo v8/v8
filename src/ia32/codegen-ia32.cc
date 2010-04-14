@@ -10811,9 +10811,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // ebx: Length of subject string
   // ecx: RegExp data (FixedArray)
   // edx: Number of capture registers
-  // Check that the third argument is a positive smi.
   // Check that the third argument is a positive smi less than the subject
-  // string length. A negative value will be greater (usigned comparison).
+  // string length. A negative value will be greater (unsigned comparison).
   __ mov(eax, Operand(esp, kPreviousIndexOffset));
   __ SmiUntag(eax);
   __ cmp(eax, Operand(ebx));
@@ -10860,9 +10859,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  __ mov(edx, ebx);
-  __ and_(edx, kStringRepresentationMask);
-  __ cmp(edx, kConsStringTag);
+  __ and_(ebx, kStringRepresentationMask);
+  __ cmp(ebx, kConsStringTag);
   __ j(not_equal, &runtime);
   __ mov(edx, FieldOperand(eax, ConsString::kSecondOffset));
   __ cmp(Operand(edx), Factory::empty_string());
@@ -10881,7 +10879,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // ecx: RegExp data (FixedArray)
   // Check that the irregexp code has been generated for an ascii string. If
   // it has, the field contains a code object otherwise it contains the hole.
-  __ cmp(ebx, kStringTag | kSeqStringTag | kTwoByteStringTag);
+  const int kSeqTwoByteString = kStringTag | kSeqStringTag | kTwoByteStringTag;
+  __ cmp(ebx, kSeqTwoByteString);
   __ j(equal, &seq_two_byte_string);
   if (FLAG_debug_code) {
     __ cmp(ebx, kStringTag | kSeqStringTag | kAsciiStringTag);
@@ -10977,7 +10976,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Result must now be exception. If there is no pending exception already a
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
-  // TODO(592) Rerunning the RegExp to get the stack overflow exception.
+  // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception(Top::k_pending_exception_address);
   __ mov(eax,
          Operand::StaticVariable(ExternalReference::the_hole_value_location()));
@@ -11028,7 +11027,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // ecx: offsets vector
   // edx: number of capture registers
   Label next_capture, done;
-  __ mov(eax, Operand(esp, kPreviousIndexOffset));
   // Capture register counter starts from number of capture registers and
   // counts down until wraping after zero.
   __ bind(&next_capture);
