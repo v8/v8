@@ -955,7 +955,7 @@ class Heap : public AllStatic {
 
   // Optimized version of memmove for blocks with pointer size aligned sizes and
   // pointer size aligned addresses.
-  static inline void MoveBlock(Object** dst, Object** src, size_t byte_size);
+  static inline void MoveBlock(Object** dst, Object** src, int byte_size);
 
   // Check new space expansion criteria and expand semispaces if it was hit.
   static void CheckNewSpaceExpansionCriteria();
