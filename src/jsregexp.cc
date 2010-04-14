@@ -122,7 +122,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   }
   FlattenString(pattern);
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
-  PostponeInterruptScope postpone;
+  PostponeInterruptsScope postpone;
   RegExpCompileData parse_result;
   FlatStringReader reader(pattern);
   if (!ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
@@ -248,7 +248,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii) {
 bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   // Compile the RegExp.
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
-  PostponeInterruptScope postpone;
+  PostponeInterruptsScope postpone;
   Object* entry = re->DataAt(JSRegExp::code_index(is_ascii));
   if (entry->IsJSObject()) {
     // If it's a JSObject, a previous compilation failed and threw this object.
