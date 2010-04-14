@@ -4259,6 +4259,82 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
 }
 
 
+class DeferredSearchCache: public DeferredCode {
+ public:
+  DeferredSearchCache(Register dst, Register cache, Register key)
+      : dst_(dst), cache_(cache), key_(key) {
+    set_comment("[ DeferredSearchCache");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_, cache_, key_;
+};
+
+
+void DeferredSearchCache::Generate() {
+  __ push(cache_);
+  __ push(key_);
+  __ CallRuntime(Runtime::kGetFromCache, 2);
+  if (!dst_.is(rax)) {
+    __ movq(dst_, rax);
+  }
+}
+
+
+void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  ASSERT_NE(NULL, args->at(0)->AsLiteral());
+  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
+
+  Handle<FixedArray> jsfunction_result_caches(
+      Top::global_context()->jsfunction_result_caches());
+  if (jsfunction_result_caches->length() <= cache_id) {
+    __ Abort("Attempt to use undefined cache.");
+    frame_->Push(Factory::undefined_value());
+    return;
+  }
+  Handle<FixedArray> cache_obj(
+      FixedArray::cast(jsfunction_result_caches->get(cache_id)));
+
+  Load(args->at(1));
+  Result key = frame_->Pop();
+  key.ToRegister();
+
+  Result cache = allocator()->Allocate();
+  __ movq(cache.reg(), cache_obj, RelocInfo::EMBEDDED_OBJECT);
+
+  Result tmp = allocator()->Allocate();
+
+  DeferredSearchCache* deferred = new DeferredSearchCache(tmp.reg(),
+                                                          cache.reg(),
+                                                          key.reg());
+
+  const int kFingerOffset =
+      FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
+  // tmp.reg() now holds finger offset as a smi.
+  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  __ movq(tmp.reg(), FieldOperand(cache.reg(), kFingerOffset));
+  SmiIndex index =
+      masm()->SmiToIndex(kScratchRegister, tmp.reg(), kPointerSizeLog2);
+  __ cmpq(key.reg(), FieldOperand(cache.reg(),
+                                  index.reg,
+                                  index.scale,
+                                  FixedArray::kHeaderSize));
+  deferred->Branch(not_equal);
+
+  __ movq(tmp.reg(), FieldOperand(cache.reg(),
+                                  index.reg,
+                                  index.scale,
+                                  kPointerSize + FixedArray::kHeaderSize));
+
+  deferred->BindExit();
+  frame_->Push(&tmp);
+}
+
+
 void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
 

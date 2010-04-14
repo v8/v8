@@ -529,10 +529,16 @@ function ApplyReplacementFunction(replace, matchInfo, subject) {
   return replace.apply(null, parameters);
 }
 
-
 // ECMA-262 section 15.5.4.12
 function StringSearch(re) {
-  var regexp = new $RegExp(re);
+  var regexp;
+  if (IS_STRING(re)) {
+    regexp = %_GetFromCache(STRING_TO_REGEXP_CACHE_ID, re);
+  } else if (IS_REGEXP(re)) {
+    regexp = re;
+  } else {
+    regexp = new $RegExp(re);
+  }
   var s = TO_STRING_INLINE(this);
   var match = DoRegExpExec(regexp, s, 0);
   if (match) {

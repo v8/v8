@@ -630,6 +630,9 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateRegExpConstructResult(ZoneList<Expression*>* args);
 
+  // Support for fast native caches.
+  void GenerateGetFromCache(ZoneList<Expression*>* args);
+
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 

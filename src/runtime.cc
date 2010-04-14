@@ -10007,6 +10007,89 @@ static Object* Runtime_DeleteHandleScopeExtensions(Arguments args) {
 }
 
 
+static Object* CacheMiss(FixedArray* cache_obj, int index, Object* key_obj) {
+  ASSERT(index % 2 == 0);  // index of the key
+  ASSERT(index >= JSFunctionResultCache::kEntriesIndex);
+  ASSERT(index < cache_obj->length());
+
+  HandleScope scope;
+
+  Handle<FixedArray> cache(cache_obj);
+  Handle<Object> key(key_obj);
+  Handle<JSFunction> factory(JSFunction::cast(
+        cache->get(JSFunctionResultCache::kFactoryIndex)));
+  // TODO(antonm): consider passing a receiver when constructing a cache.
+  Handle<Object> receiver(Top::global_context()->global());
+
+  Handle<Object> value;
+  {
+    // This handle is nor shared, nor used later, so it's safe.
+    Object** argv[] = { key.location() };
+    bool pending_exception = false;
+    value = Execution::Call(factory,
+                            receiver,
+                            1,
+                            argv,
+                            &pending_exception);
+    if (pending_exception) return Failure::Exception();
+  }
+
+  cache->set(index, *key);
+  cache->set(index + 1, *value);
+  cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(index));
+
+  return *value;
+}
+
+
+static Object* Runtime_GetFromCache(Arguments args) {
+  // This is only called from codegen, so checks might be more lax.
+  CONVERT_CHECKED(FixedArray, cache, args[0]);
+  Object* key = args[1];
+
+  const int finger_index =
+      Smi::cast(cache->get(JSFunctionResultCache::kFingerIndex))->value();
+
+  Object* o = cache->get(finger_index);
+  if (o == key) {
+    // The fastest case: hit the same place again.
+    return cache->get(finger_index + 1);
+  }
+
+  for (int i = finger_index - 2;
+       i >= JSFunctionResultCache::kEntriesIndex;
+       i -= 2) {
+    o = cache->get(i);
+    if (o == key) {
+      cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(i));
+      return cache->get(i + 1);
+    }
+  }
+
+  const int size =
+      Smi::cast(cache->get(JSFunctionResultCache::kCacheSizeIndex))->value();
+  ASSERT(size <= cache->length());
+
+  for (int i = size - 2; i > finger_index; i -= 2) {
+    o = cache->get(i);
+    if (o == key) {
+      cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(i));
+      return cache->get(i + 1);
+    }
+  }
+
+  // Cache miss.  If we have spare room, put new data into it, otherwise
+  // evict post finger entry which must be least recently used.
+  if (size < cache->length()) {
+    cache->set(JSFunctionResultCache::kCacheSizeIndex, Smi::FromInt(size + 2));
+    return CacheMiss(cache, size, key);
+  } else {
+    int target_index = (finger_index < cache->length()) ?
+        finger_index + 2 : JSFunctionResultCache::kEntriesIndex;
+    return CacheMiss(cache, target_index, key);
+  }
+}
+
 #ifdef DEBUG
 // ListNatives is ONLY used by the fuzz-natives.js in debug mode
 // Exclude the code in release mode.

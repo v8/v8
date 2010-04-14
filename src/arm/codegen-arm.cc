@@ -4118,6 +4118,72 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
 }
 
 
+class DeferredSearchCache: public DeferredCode {
+ public:
+  DeferredSearchCache(Register dst, Register cache, Register key)
+      : dst_(dst), cache_(cache), key_(key) {
+    set_comment("[ DeferredSearchCache");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_, cache_, key_;
+};
+
+
+void DeferredSearchCache::Generate() {
+  __ push(cache_);
+  __ push(key_);
+  __ CallRuntime(Runtime::kGetFromCache, 2);
+  if (!dst_.is(r0)) {
+    __ mov(dst_, r0);
+  }
+}
+
+
+void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  ASSERT_NE(NULL, args->at(0)->AsLiteral());
+  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
+
+  Handle<FixedArray> jsfunction_result_caches(
+      Top::global_context()->jsfunction_result_caches());
+  if (jsfunction_result_caches->length() <= cache_id) {
+    __ Abort("Attempt to use undefined cache.");
+    __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+    frame_->EmitPush(r0);
+    return;
+  }
+  Handle<FixedArray> cache_obj(
+      FixedArray::cast(jsfunction_result_caches->get(cache_id)));
+
+  Load(args->at(1));
+  frame_->EmitPop(r2);
+
+  DeferredSearchCache* deferred = new DeferredSearchCache(r0, r1, r2);
+
+  const int kFingerOffset =
+      FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
+  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  __ mov(r1, Operand(cache_obj));
+  __ ldr(r0, FieldMemOperand(r1, kFingerOffset));
+  // r0 now holds finger offset as a smi.
+  __ add(r3, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  // r3 now points to the start of fixed array elements.
+  __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2 - kSmiTagSize, PreIndex));
+  // Note side effect of PreIndex: r3 now points to the key of the pair.
+  __ cmp(r2, r0);
+  deferred->Branch(ne);
+
+  __ ldr(r0, MemOperand(r3, kPointerSize));
+
+  deferred->BindExit();
+  frame_->EmitPush(r0);
+}
+
+
 void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
 

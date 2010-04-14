@@ -288,6 +288,8 @@ namespace internal {
   F(LocalKeys, 1, 1) \
   /* Handle scopes */ \
   F(DeleteHandleScopeExtensions, 0, 1) \
+  /* Cache suport */ \
+  F(GetFromCache, 2, 1) \
   \
   /* Pseudo functions - handled as macros by parser */ \
   F(IS_VAR, 1, 1)

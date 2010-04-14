@@ -76,6 +76,7 @@
 //             - MapCache
 //           - Context
 //           - GlobalContext
+//           - JSFunctionResultCache
 //       - String
 //         - SeqString
 //           - SeqAsciiString
@@ -2304,6 +2305,23 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
   static const int kRequiresSlowElementsMask = 1;
   static const int kRequiresSlowElementsTagSize = 1;
   static const uint32_t kRequiresSlowElementsLimit = (1 << 29) - 1;
+};
+
+
+// JSFunctionResultCache caches results of some JSFunction invocation.
+// It is a fixed array with fixed structure:
+//   [0]: factory function
+//   [1]: finger index
+//   [2]: current cache size
+//   [3]: dummy field.
+// The rest of array are key/value pairs.
+class JSFunctionResultCache: public FixedArray {
+ public:
+  static const int kFactoryIndex = 0;
+  static const int kFingerIndex = kFactoryIndex + 1;
+  static const int kCacheSizeIndex = kFingerIndex + 1;
+  static const int kDummyIndex = kCacheSizeIndex + 1;
+  static const int kEntriesIndex = kDummyIndex + 1;
 };
 
 

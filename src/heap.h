@@ -484,7 +484,9 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateFixedArrayWithHoles(int length);
+  static Object* AllocateFixedArrayWithHoles(
+      int length,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // AllocateHashTable is identical to AllocateFixedArray except
   // that the resulting object has hash_table_map as map.
@@ -896,8 +898,10 @@ class Heap : public AllStatic {
   // Returns the adjusted value.
   static inline int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
 
-  // Allocate unitialized fixed array (pretenure == NON_TENURE).
+  // Allocate uninitialized fixed array.
   static Object* AllocateRawFixedArray(int length);
+  static Object* AllocateRawFixedArray(int length,
+                                       PretenureFlag pretenure);
 
   // True if we have reached the allocation limit in the old generation that
   // should force the next GC (caused normally) to be a full one.

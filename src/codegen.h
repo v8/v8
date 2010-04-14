@@ -124,6 +124,7 @@ namespace internal {
   F(StringCompare, 2, 1)                                                     \
   F(RegExpExec, 4, 1)                                                        \
   F(RegExpConstructResult, 3, 1)                                             \
+  F(GetFromCache, 2, 1)                                                      \
   F(NumberToString, 1, 1)                                                    \
   F(MathPow, 2, 1)                                                           \
   F(MathSin, 1, 1)                                                           \
