@@ -268,10 +268,10 @@ class Logger {
   // Converts tag to a corresponding NATIVE_... if the script is native.
   INLINE(static LogEventsAndTags ToNativeByScript(LogEventsAndTags, Script*));
 
- private:
-
   // Profiler's sampling interval (in milliseconds).
   static const int kSamplingIntervalMs = 1;
+
+ private:
 
   // Size of window used for log records compression.
   static const int kCompressionWindowSize = 4;

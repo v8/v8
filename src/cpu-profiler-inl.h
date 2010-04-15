@@ -71,6 +71,7 @@ TickSampleEventRecord* TickSampleEventRecord::init(void* value) {
 
 
 TickSample* ProfilerEventsProcessor::TickSampleEvent() {
+  generator_->Tick();
   TickSampleEventRecord* evt =
       TickSampleEventRecord::init(ticks_buffer_.Enqueue());
   evt->order = enqueue_order_;  // No increment!

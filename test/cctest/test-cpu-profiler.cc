@@ -176,7 +176,7 @@ TEST(TickEvents) {
 
   processor.Stop();
   processor.Join();
-  CpuProfile* profile = profiles.StopProfiling("");
+  CpuProfile* profile = profiles.StopProfiling("", 1);
   CHECK_NE(NULL, profile);
 
   // Check call trees.

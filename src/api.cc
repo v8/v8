@@ -4058,6 +4058,18 @@ int CpuProfileNode::GetLineNumber() const {
 }
 
 
+double CpuProfileNode::GetTotalTime() const {
+  IsDeadCheck("v8::CpuProfileNode::GetTotalTime");
+  return reinterpret_cast<const i::ProfileNode*>(this)->GetTotalMillis();
+}
+
+
+double CpuProfileNode::GetSelfTime() const {
+  IsDeadCheck("v8::CpuProfileNode::GetSelfTime");
+  return reinterpret_cast<const i::ProfileNode*>(this)->GetSelfMillis();
+}
+
+
 double CpuProfileNode::GetTotalSamplesCount() const {
   IsDeadCheck("v8::CpuProfileNode::GetTotalSamplesCount");
   return reinterpret_cast<const i::ProfileNode*>(this)->total_ticks();

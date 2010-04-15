@@ -436,8 +436,9 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 
 
 CpuProfile* CpuProfiler::StopCollectingProfile(const char* title) {
+  const double actual_sampling_rate = generator_->actual_sampling_rate();
   StopProcessorIfLastProfile();
-  CpuProfile* result = profiles_->StopProfiling(title);
+  CpuProfile* result = profiles_->StopProfiling(title, actual_sampling_rate);
   if (result != NULL) {
     result->Print();
   }
@@ -446,8 +447,9 @@ CpuProfile* CpuProfiler::StopCollectingProfile(const char* title) {
 
 
 CpuProfile* CpuProfiler::StopCollectingProfile(String* title) {
+  const double actual_sampling_rate = generator_->actual_sampling_rate();
   StopProcessorIfLastProfile();
-  return profiles_->StopProfiling(title);
+  return profiles_->StopProfiling(title, actual_sampling_rate);
 }
 
 
