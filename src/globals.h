@@ -428,7 +428,11 @@ enum PropertyType {
   CONSTANT_TRANSITION = 6,  // only in fast mode
   NULL_DESCRIPTOR     = 7,  // only in fast mode
   // All properties before MAP_TRANSITION are real.
-  FIRST_PHANTOM_PROPERTY_TYPE = MAP_TRANSITION
+  FIRST_PHANTOM_PROPERTY_TYPE = MAP_TRANSITION,
+  // There are no IC stubs for NULL_DESCRIPTORS. Therefore,
+  // NULL_DESCRIPTOR can be used as the type flag for IC stubs for
+  // nonexistent properties.
+  NONEXISTENT = NULL_DESCRIPTOR
 };
 
 
