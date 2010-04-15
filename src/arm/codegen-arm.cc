@@ -5655,8 +5655,10 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
   } else {
     // Call a native function to do a comparison between two non-NaNs.
     // Call C routine that may not cause GC or other trouble.
-    __ mov(r5, Operand(ExternalReference::compare_doubles()));
-    __ Jump(r5);  // Tail call.
+    __ push(lr);
+    __ PrepareCallCFunction(4, r5);  // Two doubles count as 4 arguments.
+    __ CallCFunction(ExternalReference::compare_doubles(), 4);
+    __ pop(pc);  // Return.
   }
 }
 
@@ -7083,7 +7085,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
                               bool do_gc,
-                              bool always_allocate) {
+                              bool always_allocate,
+                              int frame_alignment_skew) {
   // r0: result parameter for PerformGC, if any
   // r4: number of arguments including receiver  (C callee-saved)
   // r5: pointer to builtin function  (C callee-saved)
@@ -7091,8 +7094,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   if (do_gc) {
     // Passing r0.
-    ExternalReference gc_reference = ExternalReference::perform_gc_function();
-    __ Call(gc_reference.address(), RelocInfo::RUNTIME_ENTRY);
+    __ PrepareCallCFunction(1, r1);
+    __ CallCFunction(ExternalReference::perform_gc_function(), 1);
   }
 
   ExternalReference scope_depth =
@@ -7109,6 +7112,37 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ mov(r0, Operand(r4));
   __ mov(r1, Operand(r6));
 
+  int frame_alignment = MacroAssembler::ActivationFrameAlignment();
+  int frame_alignment_mask = frame_alignment - 1;
+#if defined(V8_HOST_ARCH_ARM)
+  if (FLAG_debug_code) {
+    if (frame_alignment > kPointerSize) {
+      Label alignment_as_expected;
+      ASSERT(IsPowerOf2(frame_alignment));
+      __ sub(r2, sp, Operand(frame_alignment_skew));
+      __ tst(r2, Operand(frame_alignment_mask));
+      __ b(eq, &alignment_as_expected);
+      // Don't use Check here, as it will call Runtime_Abort re-entering here.
+      __ stop("Unexpected alignment");
+      __ bind(&alignment_as_expected);
+    }
+  }
+#endif
+
+  // Just before the call (jump) below lr is pushed, so the actual alignment is
+  // adding one to the current skew.
+  int alignment_before_call =
+      (frame_alignment_skew + kPointerSize) & frame_alignment_mask;
+  if (alignment_before_call > 0) {
+    // Push until the alignment before the call is met.
+    __ mov(r2, Operand(0));
+    for (int i = alignment_before_call;
+        (i & frame_alignment_mask) != 0;
+        i += kPointerSize) {
+      __ push(r2);
+    }
+  }
+
   // TODO(1242173): To let the GC traverse the return address of the exit
   // frames, we need to know where the return address is. Right now,
   // we push it on the stack to be able to find it again, but we never
@@ -7116,9 +7150,14 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // support moving the C entry code stub. This should be fixed, but currently
   // this is OK because the CEntryStub gets generated so early in the V8 boot
   // sequence that it is not moving ever.
-  masm->add(lr, pc, Operand(4));  // compute return address: (pc + 8) + 4
+  masm->add(lr, pc, Operand(4));  // Compute return address: (pc + 8) + 4
   masm->push(lr);
   masm->Jump(r5);
+
+  // Restore sp back to before aligning the stack.
+  if (alignment_before_call > 0) {
+    __ add(sp, sp, Operand(alignment_before_call));
+  }
 
   if (always_allocate) {
     // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1
@@ -7206,7 +7245,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                &throw_termination_exception,
                &throw_out_of_memory_exception,
                false,
-               false);
+               false,
+               -kPointerSize);
 
   // Do space-specific GC and retry runtime call.
   GenerateCore(masm,
@@ -7214,7 +7254,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                &throw_termination_exception,
                &throw_out_of_memory_exception,
                true,
-               false);
+               false,
+               0);
 
   // Do full GC and retry runtime call one final time.
   Failure* failure = Failure::InternalError();
@@ -7224,7 +7265,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                &throw_termination_exception,
                &throw_out_of_memory_exception,
                true,
-               true);
+               true,
+               kPointerSize);
 
   __ bind(&throw_out_of_memory_exception);
   GenerateThrowUncatchable(masm, OUT_OF_MEMORY);

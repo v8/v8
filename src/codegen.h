@@ -425,7 +425,8 @@ class CEntryStub : public CodeStub {
                     Label* throw_termination_exception,
                     Label* throw_out_of_memory_exception,
                     bool do_gc,
-                    bool always_allocate_scope);
+                    bool always_allocate_scope,
+                    int alignment_skew = 0);
   void GenerateThrowTOS(MacroAssembler* masm);
   void GenerateThrowUncatchable(MacroAssembler* masm,
                                 UncatchableExceptionType type);
