@@ -226,7 +226,17 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
   cmpq(scratch, kScratchRegister);
   j(equal, &done);
 
-  if ((offset > 0) && (offset < Page::kMaxHeapObjectSize)) {
+  // The offset is relative to a tagged or untagged HeapObject pointer,
+  // so either offset or offset + kHeapObjectTag must be a
+  // multiple of kPointerSize.
+  ASSERT(IsAligned(offset, kPointerSize) ||
+         IsAligned(offset + kHeapObjectTag, kPointerSize));
+
+  // We use optimized write barrier code if the word being written to is not in
+  // a large object page, or is in the first "page" of a large object page.
+  // We make sure that an offset is inside the right limits whether it is
+  // tagged or untagged.
+  if ((offset > 0) && (offset < Page::kMaxHeapObjectSize - kHeapObjectTag)) {
     // Compute the bit offset in the remembered set, leave it in 'value'.
     lea(scratch, Operand(object, offset));
     ASSERT(is_int32(Page::kPageAlignmentMask));
