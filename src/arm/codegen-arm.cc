@@ -5978,7 +5978,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
   Label r0_is_smi, r1_is_smi, finished_loading_r0, finished_loading_r1;
   bool use_fp_registers = CpuFeatures::IsSupported(VFP3) && Token::MOD != op_;
 
-  ASSERT((lhs.is(r0) && rhs.is(r1)) || lhs.is(r1) && rhs.is(r0));
+  ASSERT((lhs.is(r0) && rhs.is(r1)) || (lhs.is(r1) && rhs.is(r0)));
 
   if (ShouldGenerateSmiCode()) {
     // Smi-smi case (overflow).
