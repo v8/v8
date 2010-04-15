@@ -133,6 +133,7 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm)
       allocator_(NULL),
       cc_reg_(al),
       state_(NULL),
+      loop_nesting_(0),
       function_return_is_shadowed_(false) {
 }
 
@@ -156,6 +157,11 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   ASSERT(frame_ == NULL);
   frame_ = new VirtualFrame();
   cc_reg_ = al;
+
+  // Adjust for function-level loop nesting.
+  ASSERT_EQ(0, loop_nesting_);
+  loop_nesting_ = info->loop_nesting();
+
   {
     CodeGenState state(this);
 
@@ -379,6 +385,10 @@ void CodeGenerator::Generate(CompilationInfo* info) {
     ASSERT_EQ(return_sequence_length,
               masm_->InstructionsGeneratedSince(&check_exit_codesize));
   }
+
+  // Adjust for function-level loop nesting.
+  ASSERT(loop_nesting_ == info->loop_nesting());
+  loop_nesting_ = 0;
 
   // Code generation state must be reset.
   ASSERT(!has_cc());
@@ -1885,6 +1895,7 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
   CodeForStatementPosition(node);
   node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
   JumpTarget body(JumpTarget::BIDIRECTIONAL);
+  IncrementLoopNesting();
 
   // Label the top of the loop for the backward CFG edge.  If the test
   // is always true we can use the continue target, and if the test is
@@ -1945,6 +1956,7 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
+  DecrementLoopNesting();
   ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
@@ -1963,6 +1975,7 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
   if (info == ALWAYS_FALSE) return;
 
   node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  IncrementLoopNesting();
 
   // Label the top of the loop with the continue target for the backward
   // CFG edge.
@@ -1994,6 +2007,7 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
+  DecrementLoopNesting();
   ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
@@ -2015,6 +2029,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   if (info == ALWAYS_FALSE) return;
 
   node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  IncrementLoopNesting();
 
   // If there is no update statement, label the top of the loop with the
   // continue target, otherwise with the loop target.
@@ -2069,6 +2084,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
+  DecrementLoopNesting();
   ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 

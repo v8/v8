@@ -140,7 +140,8 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   set_in_spilled_code(false);
 
   // Adjust for function-level loop nesting.
-  loop_nesting_ += info->loop_nesting();
+  ASSERT_EQ(0, loop_nesting_);
+  loop_nesting_ = info->loop_nesting();
 
   JumpTarget::set_compiling_deferred_code(false);
 
@@ -333,7 +334,8 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   }
 
   // Adjust for function-level loop nesting.
-  loop_nesting_ -= info->loop_nesting();
+  ASSERT_EQ(info->loop_nesting(), loop_nesting_);
+  loop_nesting_ = 0;
 
   // Code generation state must be reset.
   ASSERT(state_ == NULL);
