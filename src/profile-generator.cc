@@ -562,8 +562,17 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   }
 
   if (FLAG_prof_browser_mode) {
-    // Put VM state as the topmost entry.
-    *entry++ = EntryForVMState(sample.state);
+    bool no_symbolized_entries = true;
+    for (CodeEntry** e = entries.start(); e != entry; ++e) {
+      if (*e != NULL) {
+        no_symbolized_entries = false;
+        break;
+      }
+    }
+    // If no frames were symbolized, put the VM state entry in.
+    if (no_symbolized_entries) {
+      *entry++ = EntryForVMState(sample.state);
+    }
   }
 
   profiles_->AddPathToCurrentProfiles(entries);
