@@ -8249,8 +8249,16 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Complex results must be written to address passed as first argument.
   // AMD64 calling convention: a struct of two pointers in rax+rdx
 
+  // Check stack alignment.
+  if (FLAG_debug_code) {
+    __ CheckStackAlignment();
+  }
+
   if (do_gc) {
-    // Pass failure code returned from last attempt as first argument to GC.
+    // Pass failure code returned from last attempt as first argument to
+    // PerformGC. No need to use PrepareCallCFunction/CallCFunction here as the
+    // stack is known to be aligned. This function takes one argument which is
+    // passed in register.
 #ifdef _WIN64
     __ movq(rcx, rax);
 #else  // ! defined(_WIN64)

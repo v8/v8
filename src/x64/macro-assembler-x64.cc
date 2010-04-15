@@ -291,6 +291,21 @@ void MacroAssembler::Check(Condition cc, const char* msg) {
 }
 
 
+void MacroAssembler::CheckStackAlignment() {
+  int frame_alignment = OS::ActivationFrameAlignment();
+  int frame_alignment_mask = frame_alignment - 1;
+  if (frame_alignment > kPointerSize) {
+    ASSERT(IsPowerOf2(frame_alignment));
+    Label alignment_as_expected;
+    testq(rsp, Immediate(frame_alignment_mask));
+    j(zero, &alignment_as_expected);
+    // Abort if stack is not aligned.
+    int3();
+    bind(&alignment_as_expected);
+  }
+}
+
+
 void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {
@@ -2628,6 +2643,11 @@ void MacroAssembler::CallCFunction(ExternalReference function,
 
 
 void MacroAssembler::CallCFunction(Register function, int num_arguments) {
+  // Check stack alignment.
+  if (FLAG_debug_code) {
+    CheckStackAlignment();
+  }
+
   call(function);
   ASSERT(OS::ActivationFrameAlignment() != 0);
   ASSERT(num_arguments >= 0);
