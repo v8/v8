@@ -52,7 +52,7 @@ if ARM_TARGET_LIB:
                     '-Wl,--dynamic-linker=' + ARM_TARGET_LIB +
                     '/lib/ld-linux.so.3']
 else:
-  ARM_LINK_FLAGS = ""
+  ARM_LINK_FLAGS = []
 
 # TODO: Sort these issues out properly but as a temporary solution for gcc 4.4
 # on linux we need these compiler flags to avoid crashes in the v8 test suite
