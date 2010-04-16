@@ -42,6 +42,18 @@ ANDROID_TOP = os.environ.get('TOP')
 if ANDROID_TOP is None:
   ANDROID_TOP=""
 
+# ARM_TARGET_LIB is the path to the dynamic library to use on the target
+# machine if cross-compiling to an arm machine. You will also need to set 
+# the additional cross-compiling environment variables to the cross compiler.
+ARM_TARGET_LIB = os.environ.get('ARM_TARGET_LIB')
+if ARM_TARGET_LIB:
+  ARM_LINK_FLAGS = ['-Wl,-rpath=' + ARM_TARGET_LIB + '/lib:' +
+                     ARM_TARGET_LIB + '/usr/lib',
+                    '-Wl,--dynamic-linker=' + ARM_TARGET_LIB +
+                    '/lib/ld-linux.so.3']
+else:
+  ARM_LINK_FLAGS = ""
+
 # TODO: Sort these issues out properly but as a temporary solution for gcc 4.4
 # on linux we need these compiler flags to avoid crashes in the v8 test suite
 # and avoid dtoa.c strict aliasing issues
@@ -417,6 +429,9 @@ CCTEST_EXTRA_FLAGS = {
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
     },
+    'arch:arm': {
+      'LINKFLAGS':   ARM_LINK_FLAGS
+    },
   },
   'msvc': {
     'all': {
@@ -480,6 +495,9 @@ SAMPLE_FLAGS = {
       'mode:release': {
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
+    },
+    'arch:arm': {
+      'LINKFLAGS':   ARM_LINK_FLAGS
     },
     'arch:ia32': {
       'CCFLAGS':      ['-m32'],
