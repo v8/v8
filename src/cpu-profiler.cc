@@ -253,14 +253,12 @@ void CpuProfiler::StartProfiling(String* title) {
 
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->StopCollectingProfile(title);
+  return singleton_ != NULL ? singleton_->StopCollectingProfile(title) : NULL;
 }
 
 
 CpuProfile* CpuProfiler::StopProfiling(String* title) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->StopCollectingProfile(title);
+  return singleton_ != NULL ? singleton_->StopCollectingProfile(title) : NULL;
 }
 
 
