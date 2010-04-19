@@ -39,7 +39,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_NATIVE_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
 /*
  * This assembler uses the following register assignment convention
  * - r5 : Pointer to current code object (Code*) including heap object tag.
@@ -1235,6 +1235,6 @@ void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
 
 #undef __
 
-#endif  // V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 
 }}  // namespace v8::internal

@@ -111,8 +111,8 @@ ANDROID_LINKFLAGS = ['-nostdlib',
 LIBRARY_FLAGS = {
   'all': {
     'CPPPATH': [join(root_dir, 'src')],
-    'regexp:native': {
-        'CPPDEFINES': ['V8_NATIVE_REGEXP']
+    'regexp:interpreted': {
+      'CPPDEFINES': ['V8_INTERPRETED_REGEXP']
     },
     'mode:debug': {
       'CPPDEFINES': ['V8_ENABLE_CHECKS']

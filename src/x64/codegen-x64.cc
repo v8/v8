@@ -7317,9 +7317,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
   // at compilation.
-#ifndef V8_NATIVE_REGEXP
+#ifdef V8_INTERPRETED_REGEXP
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-#else  // V8_NATIVE_REGEXP
+#else  // V8_INTERPRETED_REGEXP
   if (!FLAG_regexp_entry_native) {
     __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
     return;
@@ -7659,7 +7659,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-#endif  // V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 }
 
 
@@ -8262,7 +8262,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // passed in register.
 #ifdef _WIN64
     __ movq(rcx, rax);
-#else  // ! defined(_WIN64)
+#else  // _WIN64
     __ movq(rdi, rax);
 #endif
     __ movq(kScratchRegister,
@@ -8296,7 +8296,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     __ lea(rdx, Operand(rsp, 4 * kPointerSize));
   }
 
-#else  // ! defined(_WIN64)
+#else  // _WIN64
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
   __ movq(rdi, r14);  // argc.
   __ movq(rsi, r15);  // argv.

@@ -2539,4 +2539,4 @@ uintptr_t Simulator::PopAddress() {
 
 } }  // namespace assembler::arm
 
-#endif  // !defined(__arm__)
+#endif  // __arm__
