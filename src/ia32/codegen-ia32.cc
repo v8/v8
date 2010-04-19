@@ -4661,8 +4661,8 @@ Result CodeGenerator::InstantiateFunction(
     frame()->EmitPush(Immediate(function_info));
     return frame()->CallStub(&stub, 1);
   } else {
-    // Call the runtime to instantiate the function boilerplate
-    // object.
+    // Call the runtime to instantiate the function based on the
+    // shared function info.
     frame()->EmitPush(esi);
     frame()->EmitPush(Immediate(function_info));
     return frame()->CallRuntime(Runtime::kNewClosure, 2);

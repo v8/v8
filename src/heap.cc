@@ -1444,10 +1444,6 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_global_context_map(Map::cast(obj));
 
-  obj = AllocateMap(JS_FUNCTION_TYPE, JSFunction::kSize);
-  if (obj->IsFailure()) return false;
-  set_boilerplate_function_map(Map::cast(obj));
-
   obj = AllocateMap(SHARED_FUNCTION_INFO_TYPE,
                     SharedFunctionInfo::kAlignedSize);
   if (obj->IsFailure()) return false;

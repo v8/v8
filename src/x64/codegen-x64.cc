@@ -2283,8 +2283,8 @@ void CodeGenerator::InstantiateFunction(
     Result answer = frame_->CallStub(&stub, 1);
     frame_->Push(&answer);
   } else {
-    // Call the runtime to instantiate the function boilerplate
-    // object.
+    // Call the runtime to instantiate the function based on the
+    // shared function info.
     frame_->EmitPush(rsi);
     frame_->EmitPush(function_info);
     Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);

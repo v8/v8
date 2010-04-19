@@ -314,7 +314,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
                   context->global_context());
   }
   result->set_literals(*literals);
-  ASSERT(!result->IsBoilerplate());
   return result;
 }
 

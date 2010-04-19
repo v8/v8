@@ -3364,10 +3364,6 @@ class JSFunction: public JSObject {
   inline Code* code();
   inline void set_code(Code* value);
 
-  // Tells whether this function is a context-independent boilerplate
-  // function.
-  inline bool IsBoilerplate();
-
   // Tells whether this function is builtin.
   inline bool IsBuiltin();
 
