@@ -36,19 +36,19 @@ Debug.LiveEdit = new function() {
   // being replaced with a completely different string new_str.
   //
   // Only one function will have its Code changed in result of this function.
-  // All nested functions (should they have any instances at the moment) are left
-  // unchanged and re-linked to a newly created script instance representing old
-  // version of the source. (Generally speaking,
+  // All nested functions (should they have any instances at the moment) are
+  // left unchanged and re-linked to a newly created script instance
+  // representing old version of the source. (Generally speaking,
   // during the change all nested functions are erased and completely different
   // set of nested functions are introduced.) All other functions just have
   // their positions updated.
   //
   // @param {Script} script that is being changed
-  // @param {Array} change_log a list that collects engineer-readable description
-  //     of what happened.
+  // @param {Array} change_log a list that collects engineer-readable
+  //     description of what happened.
   function ApplyPatch(script, change_pos, change_len, new_str,
       change_log) {
-  
+
     // Fully compiles source string as a script. Returns Array of
     // FunctionCompileInfo -- a descriptions of all functions of the script.
     // Elements of array are ordered by start positions of functions (from top
@@ -58,8 +58,8 @@ Debug.LiveEdit = new function() {
     // The script is used for compilation, because it produces code that
     // needs to be linked with some particular script (for nested functions).
     function DebugGatherCompileInfo(source) {
-      // Get function info, elements are partially sorted (it is a tree
-      // of nested functions serialized as parent followed by serialized children.
+      // Get function info, elements are partially sorted (it is a tree of
+      // nested functions serialized as parent followed by serialized children.
       var raw_compile_info = %LiveEditGatherCompileInfo(script, source);
   
       // Sort function infos by start position field.
@@ -117,7 +117,8 @@ Debug.LiveEdit = new function() {
       return compile_info;
     }
   
-    // Given a positions, finds a function that fully includes the entire change.
+    // Given a positions, finds a function that fully includes the entire
+    // change.
     function FindChangedFunction(compile_info, offset, len) {
       // First condition: function should start before the change region.
       // Function #0 (whole-script function) always does, but we want
@@ -269,7 +270,8 @@ Debug.LiveEdit = new function() {
   
     // Update the script text and create a new script representing an old
     // version of the script.
-    var old_script = %LiveEditReplaceScript(script, new_source, old_script_name);
+    var old_script = %LiveEditReplaceScript(script, new_source,
+        old_script_name);
   
     PatchCode(new_compile_info[function_being_patched],
         FindFunctionInfo(function_being_patched));
@@ -477,6 +479,12 @@ Debug.LiveEdit = new function() {
   }
   // Function is public.
   this.SetScriptSource = SetScriptSource;
+  
+  function CompareStringsLinewise(s1, s2) {
+    return %LiveEditCompareStringsLinewise(s1, s2);
+  }
+  // Function is public (for tests).
+  this.CompareStringsLinewise = CompareStringsLinewise;
 
   
   // Finds a difference between 2 strings in form of a single chunk.

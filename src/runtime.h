@@ -340,6 +340,7 @@ namespace internal {
   F(LiveEditRelinkFunctionToScript, 2, 1) \
   F(LiveEditPatchFunctionPositions, 2, 1) \
   F(LiveEditCheckAndDropActivations, 2, 1) \
+  F(LiveEditCompareStringsLinewise, 2, 1) \
   F(GetFunctionCodePositionFromSource, 2, 1) \
   F(ExecuteInDebugContext, 2, 1)
 #else

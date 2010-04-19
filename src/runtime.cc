@@ -9756,9 +9756,20 @@ static Object* Runtime_LiveEditCheckAndDropActivations(Arguments args) {
   CONVERT_ARG_CHECKED(JSArray, shared_array, 0);
   CONVERT_BOOLEAN_CHECKED(do_drop, args[1]);
 
-
   return *LiveEdit::CheckAndDropActivations(shared_array, do_drop);
 }
+
+// Compares 2 strings line-by-line and returns diff in form of JSArray of
+// triplets (pos1, len1, len2) describing list of diff chunks.
+static Object* Runtime_LiveEditCompareStringsLinewise(Arguments args) {
+  ASSERT(args.length() == 2);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(String, s1, 0);
+  CONVERT_ARG_CHECKED(String, s2, 1);
+
+  return *LiveEdit::CompareStringsLinewise(s1, s2);
+}
+
 
 
 // A testing entry. Returns statement position which is the closest to
