@@ -147,6 +147,9 @@ const int kPointerSizeLog2 = 2;
 const intptr_t kIntptrSignBit = 0x80000000;
 #endif
 
+// Mask for the sign bit in a smi.
+const intptr_t kSmiSignMask = kIntptrSignBit;
+
 const int kObjectAlignmentBits = kPointerSizeLog2;
 const intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
 const intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
