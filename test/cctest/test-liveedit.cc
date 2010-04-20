@@ -43,10 +43,10 @@ class StringCompareInput : public Compare::Input {
   StringCompareInput(const char* s1, const char* s2) : s1_(s1), s2_(s2) {
   }
   int getLength1() {
-    return strlen(s1_);
+    return StrLength(s1_);
   }
   int getLength2() {
-    return strlen(s2_);
+    return StrLength(s2_);
   }
   bool equals(int index1, int index2) {
     return s1_[index1] == s2_[index2];
@@ -100,8 +100,8 @@ void CompareStringsOneWay(const char* s1, const char* s2,
 
   Compare::CalculateDifference(&input, &writer);
 
-  int len1 = strlen(s1);
-  int len2 = strlen(s2);
+  int len1 = StrLength(s1);
+  int len2 = StrLength(s2);
 
   int pos1 = 0;
   int pos2 = 0;
