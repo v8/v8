@@ -1798,8 +1798,6 @@ class ReplacementStringBuilder {
 
   void AddSubjectSlice(int from, int to) {
     AddSubjectSlice(&array_builder_, from, to);
-    // Can we encode the slice in 11 bits for length and 19 bits for
-    // start position - as used by StringBuilderConcatHelper?
     IncrementCharacterCount(to - from);
   }
 
@@ -5427,7 +5425,7 @@ static Object* Runtime_StringAdd(Arguments args) {
 }
 
 
-template<typename sinkchar>
+template <typename sinkchar>
 static inline void StringBuilderConcatHelper(String* special,
                                              sinkchar* sink,
                                              FixedArray* fixed_array,
@@ -5498,33 +5496,41 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
 
   bool ascii = special->IsAsciiRepresentation();
   int position = 0;
-  int increment = 0;
   for (int i = 0; i < array_length; i++) {
+    int increment = 0;
     Object* elt = fixed_array->get(i);
     if (elt->IsSmi()) {
       // Smi encoding of position and length.
-      int len = Smi::cast(elt)->value();
-      if (len > 0) {
+      int smi_value = Smi::cast(elt)->value();
+      int pos;
+      int len;
+      if (smi_value > 0) {
         // Position and length encoded in one smi.
-        int pos = len >> 11;
-        len &= 0x7ff;
-        if (pos + len > special_length) {
-          return Top::Throw(Heap::illegal_argument_symbol());
-        }
-        increment = len;
+        pos = StringBuilderSubstringPosition::decode(smi_value);
+        len = StringBuilderSubstringLength::decode(smi_value);
       } else {
         // Position and length encoded in two smis.
-        increment = (-len);
-        // Get the position and check that it is also a smi.
+        len = -smi_value;
+        // Get the position and check that it is a positive smi.
         i++;
         if (i >= array_length) {
           return Top::Throw(Heap::illegal_argument_symbol());
         }
-        Object* pos = fixed_array->get(i);
-        if (!pos->IsSmi()) {
+        Object* next_smi = fixed_array->get(i);
+        if (!next_smi->IsSmi()) {
+          return Top::Throw(Heap::illegal_argument_symbol());
+        }
+        pos = Smi::cast(next_smi)->value();
+        if (pos < 0) {
           return Top::Throw(Heap::illegal_argument_symbol());
         }
       }
+      ASSERT(pos >= 0);
+      ASSERT(len >= 0);
+      if (pos > special_length || len > special_length - pos) {
+        return Top::Throw(Heap::illegal_argument_symbol());
+      }
+      increment = len;
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
       int element_length = element->length();
