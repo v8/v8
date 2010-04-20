@@ -1177,6 +1177,9 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
   // Load receiver.
   __ movq(rax, Operand(rsp, kPointerSize));
 
+  // Chech that receiver is not a smi.
+  __ JumpIfSmi(rax, &miss);
+
   // Check the maps of the full prototype chain. Also check that
   // global property cells up to (but not including) the last object
   // in the prototype chain are empty.

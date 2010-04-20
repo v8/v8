@@ -1976,6 +1976,10 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
   // -----------------------------------
   Label miss;
 
+  // Check that the receiver isn't a smi.
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &miss, not_taken);
+
   // Check the maps of the full prototype chain. Also check that
   // global property cells up to (but not including) the last object
   // in the prototype chain are empty.

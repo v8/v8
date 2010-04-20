@@ -1420,6 +1420,10 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
   // Load receiver.
   __ ldr(r0, MemOperand(sp, 0));
 
+  // Check that receiver is not a smi.
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(eq, &miss);
+
   // Check the maps of the full prototype chain.
   CheckPrototypes(object, r0, last, r3, r1, name, &miss);
 
