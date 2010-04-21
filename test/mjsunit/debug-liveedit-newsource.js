@@ -30,18 +30,39 @@
 
 Debug = debug.Debug
 
-eval("var something1 = 25; "
-     + " function ChooseAnimal() { return          'Cat';          } "
-     + " ChooseAnimal.Helper = function() { return 'Help!'; }");
+eval("var something1 = 25; \n"
+     + "var something2 = 2010; \n"
+     + "function ChooseAnimal() {\n"
+     + "  return 'Cat';\n"
+     + "} \n"
+     + "function ChooseFurniture() {\n"
+     + "  return 'Table';\n"
+     + "} \n"
+     + "function ChooseNumber() { return 17; } \n"
+     + "ChooseAnimal.Factory = function Factory() {\n"
+     + "  return function FactoryImpl(name) {\n"
+     + "    return 'Help ' + name;\n"
+     + "  }\n"
+     + "}\n");
 
 assertEquals("Cat", ChooseAnimal());
+assertEquals(25, something1);
 
 var script = Debug.findScript(ChooseAnimal);
 
 var new_source = script.source.replace("Cat", "Cap' + 'yb' + 'ara");
+var new_source = new_source.replace("25", "26");
+var new_source = new_source.replace("Help", "Hello");
+var new_source = new_source.replace("17", "18");
 print("new source: " + new_source);
 
 var change_log = new Array();
 Debug.LiveEdit.SetScriptSource(script, new_source, change_log);
+print("Change log: " + JSON.stringify(change_log) + "\n");
 
 assertEquals("Capybara", ChooseAnimal());
+// Global variable do not get changed (without restarting script).
+assertEquals(25, something1);
+// Function is oneliner, so currently it is treated as damaged and not patched.
+assertEquals(17, ChooseNumber());
+assertEquals("Hello Peter", ChooseAnimal.Factory()("Peter"));
