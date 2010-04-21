@@ -2322,6 +2322,8 @@ class JSFunctionResultCache: public FixedArray {
   static const int kCacheSizeIndex = kFingerIndex + 1;
   static const int kDummyIndex = kCacheSizeIndex + 1;
   static const int kEntriesIndex = kDummyIndex + 1;
+
+  static const int kEntrySize = 2;  // key + value
 };
 
 

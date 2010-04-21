@@ -10101,8 +10101,10 @@ static Object* Runtime_GetFromCache(Arguments args) {
     cache->set(JSFunctionResultCache::kCacheSizeIndex, Smi::FromInt(size + 2));
     return CacheMiss(cache, size, key);
   } else {
-    int target_index = (finger_index < cache->length()) ?
-        finger_index + 2 : JSFunctionResultCache::kEntriesIndex;
+    int target_index = finger_index + JSFunctionResultCache::kEntrySize;
+    if (target_index == cache->length()) {
+      target_index = JSFunctionResultCache::kEntriesIndex;
+    }
     return CacheMiss(cache, target_index, key);
   }
 }
