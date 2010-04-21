@@ -912,10 +912,10 @@ ReplaceResultBuilder.prototype.add = function(str) {
 
 ReplaceResultBuilder.prototype.addSpecialSlice = function(start, end) {
   var len = end - start;
-  if (len == 0) return;
+  if (start < 0 || len <= 0) return;
   var elements = this.elements;
   if (start < 0x80000 && len < 0x800) {
-    elements[elements.length] = (start << 11) + len;
+    elements[elements.length] = (start << 11) | len;
   } else {
     // 0 < len <= String::kMaxLength and Smi::kMaxValue >= String::kMaxLength,
     // so -len is a smi.
