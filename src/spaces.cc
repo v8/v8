@@ -1363,7 +1363,7 @@ static void ClearCodeKindStatistics() {
 
 
 static void ReportCodeKindStatistics() {
-  const char* table[Code::NUMBER_OF_KINDS];
+  const char* table[Code::NUMBER_OF_KINDS] = { NULL };
 
 #define CASE(name)                            \
   case Code::name: table[Code::name] = #name; \
