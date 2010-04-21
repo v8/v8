@@ -306,6 +306,7 @@ Assembler::Assembler(void* buffer, int buffer_size) {
   reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
   num_prinfo_ = 0;
   next_buffer_check_ = 0;
+  const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   last_const_pool_end_ = 0;
   last_bound_pos_ = 0;
@@ -1726,11 +1727,6 @@ bool Assembler::ImmediateFitsAddrMode1Instruction(int32_t imm32) {
 }
 
 
-void Assembler::BlockConstPoolFor(int instructions) {
-  BlockConstPoolBefore(pc_offset() + instructions * kInstrSize);
-}
-
-
 // Debugging.
 void Assembler::RecordJSReturn() {
   WriteRecordedPositions();
@@ -1894,12 +1890,17 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   // However, some small sequences of instructions must not be broken up by the
   // insertion of a constant pool; such sequences are protected by setting
-  // no_const_pool_before_, which is checked here. Also, recursive calls to
-  // CheckConstPool are blocked by no_const_pool_before_.
-  if (pc_offset() < no_const_pool_before_) {
+  // either const_pool_blocked_nesting_ or no_const_pool_before_, which are
+  // both checked here. Also, recursive calls to CheckConstPool are blocked by
+  // no_const_pool_before_.
+  if (const_pool_blocked_nesting_ > 0 || pc_offset() < no_const_pool_before_) {
     // Emission is currently blocked; make sure we try again as soon as
     // possible.
-    next_buffer_check_ = no_const_pool_before_;
+    if (const_pool_blocked_nesting_ > 0) {
+      next_buffer_check_ = pc_offset() + kInstrSize;
+    } else {
+      next_buffer_check_ = no_const_pool_before_;
+    }
 
     // Something is wrong if emission is forced and blocked at the same time.
     ASSERT(!force_emit);

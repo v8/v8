@@ -925,9 +925,21 @@ class Assembler : public Malloced {
   // Check whether an immediate fits an addressing mode 1 instruction.
   bool ImmediateFitsAddrMode1Instruction(int32_t imm32);
 
-  // Postpone the generation of the constant pool for the specified number of
-  // instructions.
-  void BlockConstPoolFor(int instructions);
+  // Class for scoping postponing the constant pool generation.
+  class BlockConstPoolScope {
+   public:
+    explicit BlockConstPoolScope(Assembler* assem) : assem_(assem) {
+      assem_->const_pool_blocked_nesting_++;
+    }
+    ~BlockConstPoolScope() {
+      assem_->const_pool_blocked_nesting_--;
+    }
+
+   private:
+    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
+
+    Assembler* assem_;
+  };
 
   // Debugging
 
@@ -1022,8 +1034,9 @@ class Assembler : public Malloced {
   // distance between pools.
   static const int kMaxDistBetweenPools = 4*KB - 2*kBufferCheckInterval;
 
-  // Emission of the constant pool may be blocked in some code sequences
-  int no_const_pool_before_;  // block emission before this pc offset
+  // Emission of the constant pool may be blocked in some code sequences.
+  int const_pool_blocked_nesting_;  // Block emission if this is not zero.
+  int no_const_pool_before_;  // Block emission before this pc offset.
 
   // Keep track of the last emitted pool to guarantee a maximal distance
   int last_const_pool_end_;  // pc offset following the last constant pool
@@ -1075,6 +1088,7 @@ class Assembler : public Malloced {
   friend class RegExpMacroAssemblerARM;
   friend class RelocInfo;
   friend class CodePatcher;
+  friend class BlockConstPoolScope;
 };
 
 } }  // namespace v8::internal
