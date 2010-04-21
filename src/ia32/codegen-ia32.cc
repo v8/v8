@@ -2773,11 +2773,7 @@ void CodeGenerator::Comparison(AstNode* node,
       // number comparison in the stub if it was inlined.
       CompareStub stub(cc, strict, nan_info, !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      if (cc == equal) {
-        __ test(answer.reg(), Operand(answer.reg()));
-      } else {
-        __ cmp(answer.reg(), 0);
-      }
+      __ test(answer.reg(), Operand(answer.reg()));
       answer.Unuse();
       dest->Split(cc);
     } else {

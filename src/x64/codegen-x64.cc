@@ -5297,6 +5297,15 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
 }
 
 
+static bool CouldBeNaN(const Result& result) {
+  if (result.type_info().IsSmi()) return false;
+  if (result.type_info().IsInteger32()) return false;
+  if (!result.is_constant()) return true;
+  if (!result.handle()->IsHeapNumber()) return false;
+  return isnan(HeapNumber::cast(*result.handle())->value());
+}
+
+
 void CodeGenerator::Comparison(AstNode* node,
                                Condition cc,
                                bool strict,
@@ -5614,15 +5623,29 @@ void CodeGenerator::Comparison(AstNode* node,
       right_side.Unuse();
       dest->Split(cc);
     }
-  } else {  // Neither side is a constant Smi or null.
+  } else {
+    // Neither side is a constant Smi, constant 1-char string, or constant null.
     // If either side is a non-smi constant, skip the smi check.
     bool known_non_smi =
         (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
         (right_side.is_constant() && !right_side.handle()->IsSmi());
+
+    NaNInformation nan_info =
+        (CouldBeNaN(left_side) && CouldBeNaN(right_side)) ?
+        kBothCouldBeNaN :
+        kCantBothBeNaN;
+
     left_side.ToRegister();
     right_side.ToRegister();
 
     if (known_non_smi) {
+      // If at least one of the objects is not NaN, then if the objects
+      // are identical, they are equal.
+      if (nan_info == kCantBothBeNaN && cc == equal) {
+        __ cmpq(left_side.reg(), right_side.reg());
+        dest->true_target()->Branch(equal);
+      }
+
       // When non-smi, call out to the compare stub.
       CompareStub stub(cc, strict);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
@@ -5642,7 +5665,14 @@ void CodeGenerator::Comparison(AstNode* node,
 
       Condition both_smi = masm_->CheckBothSmi(left_reg, right_reg);
       is_smi.Branch(both_smi);
-      // When non-smi, call out to the compare stub.
+      // When non-smi, call out to the compare stub, after inlined checks.
+      // If at least one of the objects is not NaN, then if the objects
+      // are identical, they are equal.
+      if (nan_info == kCantBothBeNaN && cc == equal) {
+        __ cmpq(left_side.reg(), right_side.reg());
+        dest->true_target()->Branch(equal);
+      }
+
       CompareStub stub(cc, strict);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       __ SmiTest(answer.reg());  // Sets both zero and sign flags.
