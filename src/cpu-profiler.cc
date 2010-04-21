@@ -420,6 +420,10 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     generator_ = new ProfileGenerator(profiles_);
     processor_ = new ProfilerEventsProcessor(generator_);
     processor_->Start();
+    // Enable stack sampling.
+    // It is important to have it started prior to logging, see issue 683:
+    // http://code.google.com/p/v8/issues/detail?id=683
+    reinterpret_cast<Sampler*>(Logger::ticker_)->Start();
     // Enumerate stuff we already have in the heap.
     if (Heap::HasBeenSetup()) {
       Logger::LogCodeObjects();
@@ -427,8 +431,6 @@ void CpuProfiler::StartProcessorIfNotStarted() {
       Logger::LogFunctionObjects();
       Logger::LogAccessorCallbacks();
     }
-    // Enable stack sampling.
-    reinterpret_cast<Sampler*>(Logger::ticker_)->Start();
   }
 }
 
