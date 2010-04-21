@@ -301,6 +301,21 @@ void MacroAssembler::Check(Condition cc, const char* msg) {
 }
 
 
+void MacroAssembler::CheckStackAlignment() {
+  int frame_alignment = OS::ActivationFrameAlignment();
+  int frame_alignment_mask = frame_alignment - 1;
+  if (frame_alignment > kPointerSize) {
+    ASSERT(IsPowerOf2(frame_alignment));
+    Label alignment_as_expected;
+    testq(rsp, Immediate(frame_alignment_mask));
+    j(zero, &alignment_as_expected);
+    // Abort if stack is not aligned.
+    int3();
+    bind(&alignment_as_expected);
+  }
+}
+
+
 void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {
@@ -455,16 +470,28 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
 
 
 void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+  ASSERT(!target.is(rdi));
+
+  // Load the builtins object into target register.
+  movq(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  movq(target, FieldOperand(target, GlobalObject::kBuiltinsOffset));
+
   // Load the JavaScript builtin function from the builtins object.
-  movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  movq(rdi, FieldOperand(rdi, GlobalObject::kBuiltinsOffset));
-  int builtins_offset =
-      JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
-  movq(rdi, FieldOperand(rdi, builtins_offset));
-  // Load the code entry point from the function into the target register.
-  movq(target, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  movq(target, FieldOperand(target, SharedFunctionInfo::kCodeOffset));
-  addq(target, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  movq(rdi, FieldOperand(target, JSBuiltinsObject::OffsetOfFunctionWithId(id)));
+
+  // Load the code entry point from the builtins object.
+  movq(target, FieldOperand(target, JSBuiltinsObject::OffsetOfCodeWithId(id)));
+  if (FLAG_debug_code) {
+    // Make sure the code objects in the builtins object and in the
+    // builtin function are the same.
+    push(target);
+    movq(target, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    movq(target, FieldOperand(target, SharedFunctionInfo::kCodeOffset));
+    cmpq(target, Operand(rsp, 0));
+    Assert(equal, "Builtin code object changed");
+    pop(target);
+  }
+  lea(target, FieldOperand(target, Code::kHeaderSize));
 }
 
 
@@ -2626,6 +2653,11 @@ void MacroAssembler::CallCFunction(ExternalReference function,
 
 
 void MacroAssembler::CallCFunction(Register function, int num_arguments) {
+  // Check stack alignment.
+  if (FLAG_debug_code) {
+    CheckStackAlignment();
+  }
+
   call(function);
   ASSERT(OS::ActivationFrameAlignment() != 0);
   ASSERT(num_arguments >= 0);

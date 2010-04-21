@@ -29,7 +29,7 @@
 
 #include "cpu-profiler-inl.h"
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "log-inl.h"
 
@@ -253,14 +253,12 @@ void CpuProfiler::StartProfiling(String* title) {
 
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->StopCollectingProfile(title);
+  return is_profiling() ? singleton_->StopCollectingProfile(title) : NULL;
 }
 
 
 CpuProfile* CpuProfiler::StopProfiling(String* title) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->StopCollectingProfile(title);
+  return is_profiling() ? singleton_->StopCollectingProfile(title) : NULL;
 }
 
 
@@ -436,8 +434,9 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 
 
 CpuProfile* CpuProfiler::StopCollectingProfile(const char* title) {
+  const double actual_sampling_rate = generator_->actual_sampling_rate();
   StopProcessorIfLastProfile();
-  CpuProfile* result = profiles_->StopProfiling(title);
+  CpuProfile* result = profiles_->StopProfiling(title, actual_sampling_rate);
   if (result != NULL) {
     result->Print();
   }
@@ -446,8 +445,9 @@ CpuProfile* CpuProfiler::StopCollectingProfile(const char* title) {
 
 
 CpuProfile* CpuProfiler::StopCollectingProfile(String* title) {
+  const double actual_sampling_rate = generator_->actual_sampling_rate();
   StopProcessorIfLastProfile();
-  return profiles_->StopProfiling(title);
+  return profiles_->StopProfiling(title, actual_sampling_rate);
 }
 
 
@@ -466,13 +466,13 @@ void CpuProfiler::StopProcessorIfLastProfile() {
 
 } }  // namespace v8::internal
 
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 namespace v8 {
 namespace internal {
 
 void CpuProfiler::Setup() {
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
   if (singleton_ == NULL) {
     singleton_ = new CpuProfiler();
   }
@@ -481,7 +481,7 @@ void CpuProfiler::Setup() {
 
 
 void CpuProfiler::TearDown() {
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
   if (singleton_ != NULL) {
     delete singleton_;
   }
