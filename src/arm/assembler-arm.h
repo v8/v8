@@ -936,9 +936,9 @@ class Assembler : public Malloced {
     }
 
    private:
-    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
-
     Assembler* assem_;
+
+    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
   // Debugging

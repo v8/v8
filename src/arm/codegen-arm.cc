@@ -359,7 +359,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
     masm_->bind(&check_exit_codesize);
 #endif
 
-    {
+    { // NOLINT
       // Make sure that the constant pool is not emitted inside of the return
       // sequence.
       Assembler::BlockConstPoolScope block_const_pool(masm_);

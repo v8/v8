@@ -117,7 +117,7 @@ void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
   //  ldr ip, [pc, #...]
   //  blx ip
 
-  {
+  { // NOLINT
     // The two instructions (ldr and blx) could be separated by a constant
     // pool and the code would still work. The issue comes from the
     // patching code which expect the ldr to be just above the blx.
