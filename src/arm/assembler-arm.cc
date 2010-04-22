@@ -368,7 +368,7 @@ bool Assembler::IsLdrRegisterImmediate(Instr instr) {
 
 
 int Assembler::GetLdrRegisterImmediateOffset(Instr instr) {
-  ASSERT(IsLDRRegisterImmediate(instr));
+  ASSERT(IsLdrRegisterImmediate(instr));
   bool positive = (instr & B23) == B23;
   int offset = instr & Off12Mask;  // Zero extended offset.
   return positive ? offset : -offset;
@@ -376,7 +376,7 @@ int Assembler::GetLdrRegisterImmediateOffset(Instr instr) {
 
 
 Instr Assembler::SetLdrRegisterImmediateOffset(Instr instr, int offset) {
-  ASSERT(IsLDRRegisterImmediate(instr));
+  ASSERT(IsLdrRegisterImmediate(instr));
   bool positive = offset >= 0;
   if (!positive) offset = -offset;
   ASSERT(is_uint12(offset));
