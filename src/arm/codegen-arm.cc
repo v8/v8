@@ -247,29 +247,10 @@ void CodeGenerator::Generate(CompilationInfo* info) {
       }
 
       // Store the arguments object.  This must happen after context
-      // initialization because the arguments object may be stored in the
-      // context.
-      if (scope()->arguments() != NULL) {
-        Comment cmnt(masm_, "[ allocate arguments object");
-        ASSERT(scope()->arguments_shadow() != NULL);
-        Variable* arguments = scope()->arguments()->var();
-        Variable* shadow = scope()->arguments_shadow()->var();
-        ASSERT(arguments != NULL && arguments->slot() != NULL);
-        ASSERT(shadow != NULL && shadow->slot() != NULL);
-        ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
-        __ ldr(r2, frame_->Function());
-        // The receiver is below the arguments, the return address, and the
-        // frame pointer on the stack.
-        const int kReceiverDisplacement = 2 + scope()->num_parameters();
-        __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
-        __ mov(r0, Operand(Smi::FromInt(scope()->num_parameters())));
-        frame_->Adjust(3);
-        __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
-        frame_->CallStub(&stub, 3);
-        frame_->EmitPush(r0);
-        StoreToSlot(arguments->slot(), NOT_CONST_INIT);
-        StoreToSlot(shadow->slot(), NOT_CONST_INIT);
-        frame_->Drop();  // Value is no longer needed.
+      // initialization because the arguments object may be stored in
+      // the context.
+      if (ArgumentsMode() != NO_ARGUMENTS_ALLOCATION) {
+        StoreArgumentsObject(true);
       }
 
       // Initialize ThisFunction reference if present.
@@ -604,6 +585,66 @@ void CodeGenerator::LoadGlobalReceiver(Register scratch) {
 }
 
 
+ArgumentsAllocationMode CodeGenerator::ArgumentsMode() {
+  if (scope()->arguments() == NULL) return NO_ARGUMENTS_ALLOCATION;
+  ASSERT(scope()->arguments_shadow() != NULL);
+  // We don't want to do lazy arguments allocation for functions that
+  // have heap-allocated contexts, because it interfers with the
+  // uninitialized const tracking in the context objects.
+  return (scope()->num_heap_slots() > 0)
+      ? EAGER_ARGUMENTS_ALLOCATION
+      : LAZY_ARGUMENTS_ALLOCATION;
+}
+
+
+void CodeGenerator::StoreArgumentsObject(bool initial) {
+  VirtualFrame::SpilledScope spilled_scope(frame_);
+
+  ArgumentsAllocationMode mode = ArgumentsMode();
+  ASSERT(mode != NO_ARGUMENTS_ALLOCATION);
+
+  Comment cmnt(masm_, "[ store arguments object");
+  if (mode == LAZY_ARGUMENTS_ALLOCATION && initial) {
+    // When using lazy arguments allocation, we store the hole value
+    // as a sentinel indicating that the arguments object hasn't been
+    // allocated yet.
+    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+    frame_->EmitPush(ip);
+  } else {
+    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    __ ldr(r2, frame_->Function());
+    // The receiver is below the arguments, the return address, and the
+    // frame pointer on the stack.
+    const int kReceiverDisplacement = 2 + scope()->num_parameters();
+    __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
+    __ mov(r0, Operand(Smi::FromInt(scope()->num_parameters())));
+    frame_->Adjust(3);
+    __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
+    frame_->CallStub(&stub, 3);
+    frame_->EmitPush(r0);
+  }
+
+  Variable* arguments = scope()->arguments()->var();
+  Variable* shadow = scope()->arguments_shadow()->var();
+  ASSERT(arguments != NULL && arguments->slot() != NULL);
+  ASSERT(shadow != NULL && shadow->slot() != NULL);
+  JumpTarget done;
+  if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
+    // We have to skip storing into the arguments slot if it has
+    // already been written to. This can happen if the a function
+    // has a local variable named 'arguments'.
+    LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+    frame_->EmitPop(r0);
+    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+    __ cmp(r0, ip);
+    done.Branch(ne);
+  }
+  StoreToSlot(arguments->slot(), NOT_CONST_INIT);
+  if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
+  StoreToSlot(shadow->slot(), NOT_CONST_INIT);
+}
+
+
 void CodeGenerator::LoadTypeofExpression(Expression* expr) {
   // Special handling of identifiers as subexpressions of typeof.
   VirtualFrame::SpilledScope spilled_scope(frame_);
@@ -620,7 +661,7 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
   } else if (variable != NULL && variable->slot() != NULL) {
     // For a variable that rewrites to a slot, we signal it is the immediate
     // subexpression of a typeof.
-    LoadFromSlot(variable->slot(), INSIDE_TYPEOF);
+    LoadFromSlotCheckForArguments(variable->slot(), INSIDE_TYPEOF);
     frame_->SpillAll();
   } else {
     // Anything else can be handled normally.
@@ -1461,6 +1502,188 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   // Restore context and pop function from the stack.
   __ ldr(cp, frame_->Context());
   frame_->Drop();  // discard the TOS
+}
+
+
+void CodeGenerator::CallApplyLazy(Expression* applicand,
+                                  Expression* receiver,
+                                  VariableProxy* arguments,
+                                  int position) {
+  // An optimized implementation of expressions of the form
+  // x.apply(y, arguments).
+  // If the arguments object of the scope has not been allocated,
+  // and x.apply is Function.prototype.apply, this optimization
+  // just copies y and the arguments of the current function on the
+  // stack, as receiver and arguments, and calls x.
+  // In the implementation comments, we call x the applicand
+  // and y the receiver.
+  VirtualFrame::SpilledScope spilled_scope(frame_);
+
+  ASSERT(ArgumentsMode() == LAZY_ARGUMENTS_ALLOCATION);
+  ASSERT(arguments->IsArguments());
+
+  // Load applicand.apply onto the stack. This will usually
+  // give us a megamorphic load site. Not super, but it works.
+  LoadAndSpill(applicand);
+  Handle<String> name = Factory::LookupAsciiSymbol("apply");
+  __ mov(r2, Operand(name));
+  frame_->CallLoadIC(RelocInfo::CODE_TARGET);
+  frame_->EmitPush(r0);
+
+  // Load the receiver and the existing arguments object onto the
+  // expression stack. Avoid allocating the arguments object here.
+  LoadAndSpill(receiver);
+  LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+
+  // Emit the source position information after having loaded the
+  // receiver and the arguments.
+  CodeForSourcePosition(position);
+  // Contents of the stack at this point:
+  //   sp[0]: arguments object of the current function or the hole.
+  //   sp[1]: receiver
+  //   sp[2]: applicand.apply
+  //   sp[3]: applicand.
+
+  // Check if the arguments object has been lazily allocated
+  // already. If so, just use that instead of copying the arguments
+  // from the stack. This also deals with cases where a local variable
+  // named 'arguments' has been introduced.
+  __ ldr(r0, MemOperand(sp, 0));
+
+  Label slow, done;
+  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ cmp(ip, r0);
+  __ b(ne, &slow);
+
+  Label build_args;
+  // Get rid of the arguments object probe.
+  frame_->Drop();
+  // Stack now has 3 elements on it.
+  // Contents of stack at this point:
+  //   sp[0]: receiver
+  //   sp[1]: applicand.apply
+  //   sp[2]: applicand.
+
+  // Check that the receiver really is a JavaScript object.
+  __ ldr(r0, MemOperand(sp, 0));
+  __ BranchOnSmi(r0, &build_args);
+  // We allow all JSObjects including JSFunctions.  As long as
+  // JS_FUNCTION_TYPE is the last instance type and it is right
+  // after LAST_JS_OBJECT_TYPE, we do not have to check the upper
+  // bound.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+  __ CompareObjectType(r0, r1, r2, FIRST_JS_OBJECT_TYPE);
+  __ b(lt, &build_args);
+
+  // Check that applicand.apply is Function.prototype.apply.
+  __ ldr(r0, MemOperand(sp, kPointerSize));
+  __ BranchOnSmi(r0, &build_args);
+  __ CompareObjectType(r0, r1, r2, JS_FUNCTION_TYPE);
+  __ b(ne, &build_args);
+  __ ldr(r0, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
+  Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
+  __ ldr(r1, FieldMemOperand(r0, SharedFunctionInfo::kCodeOffset));
+  __ cmp(r1, Operand(apply_code));
+  __ b(ne, &build_args);
+
+  // Check that applicand is a function.
+  __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
+  __ BranchOnSmi(r1, &build_args);
+  __ CompareObjectType(r1, r2, r3, JS_FUNCTION_TYPE);
+  __ b(ne, &build_args);
+
+  // Copy the arguments to this function possibly from the
+  // adaptor frame below it.
+  Label invoke, adapted;
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ b(eq, &adapted);
+
+  // No arguments adaptor frame. Copy fixed number of arguments.
+  __ mov(r0, Operand(scope()->num_parameters()));
+  for (int i = 0; i < scope()->num_parameters(); i++) {
+    __ ldr(r2, frame_->ParameterAt(i));
+    __ push(r2);
+  }
+  __ jmp(&invoke);
+
+  // Arguments adaptor frame present. Copy arguments from there, but
+  // avoid copying too many arguments to avoid stack overflows.
+  __ bind(&adapted);
+  static const uint32_t kArgumentsLimit = 1 * KB;
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ mov(r0, Operand(r0, LSR, kSmiTagSize));
+  __ mov(r3, r0);
+  __ cmp(r0, Operand(kArgumentsLimit));
+  __ b(gt, &build_args);
+
+  // Loop through the arguments pushing them onto the execution
+  // stack. We don't inform the virtual frame of the push, so we don't
+  // have to worry about getting rid of the elements from the virtual
+  // frame.
+  Label loop;
+  // r3 is a small non-negative integer, due to the test above.
+  __ cmp(r3, Operand(0));
+  __ b(eq, &invoke);
+  // Compute the address of the first argument.
+  __ add(r2, r2, Operand(r3, LSL, kPointerSizeLog2));
+  __ add(r2, r2, Operand(kPointerSize));
+  __ bind(&loop);
+  // Post-decrement argument address by kPointerSize on each iteration.
+  __ ldr(r4, MemOperand(r2, kPointerSize, NegPostIndex));
+  __ push(r4);
+  __ sub(r3, r3, Operand(1), SetCC);
+  __ b(gt, &loop);
+
+  // Invoke the function.
+  __ bind(&invoke);
+  ParameterCount actual(r0);
+  __ InvokeFunction(r1, actual, CALL_FUNCTION);
+  // Drop applicand.apply and applicand from the stack, and push
+  // the result of the function call, but leave the spilled frame
+  // unchanged, with 3 elements, so it is correct when we compile the
+  // slow-case code.
+  __ add(sp, sp, Operand(2 * kPointerSize));
+  __ push(r0);
+  // Stack now has 1 element:
+  //   sp[0]: result
+  __ jmp(&done);
+
+  // Slow-case: Allocate the arguments object since we know it isn't
+  // there, and fall-through to the slow-case where we call
+  // applicand.apply.
+  __ bind(&build_args);
+  // Stack now has 3 elements, because we have jumped from where:
+  //   sp[0]: receiver
+  //   sp[1]: applicand.apply
+  //   sp[2]: applicand.
+  StoreArgumentsObject(false);
+
+  // Stack and frame now have 4 elements.
+  __ bind(&slow);
+
+  // Generic computation of x.apply(y, args) with no special optimization.
+  // Flip applicand.apply and applicand on the stack, so
+  // applicand looks like the receiver of the applicand.apply call.
+  // Then process it as a normal function call.
+  __ ldr(r0, MemOperand(sp, 3 * kPointerSize));
+  __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
+  __ str(r0, MemOperand(sp, 2 * kPointerSize));
+  __ str(r1, MemOperand(sp, 3 * kPointerSize));
+
+  CallFunctionStub call_function(2, NOT_IN_LOOP, NO_CALL_FUNCTION_FLAGS);
+  frame_->CallStub(&call_function, 3);
+  // The function and its two arguments have been dropped.
+  frame_->Drop();  // Drop the receiver as well.
+  frame_->EmitPush(r0);
+  // Stack now has 1 element:
+  //   sp[0]: result
+  __ bind(&done);
+
+  // Restore the context register after a call.
+  __ ldr(cp, frame_->Context());
 }
 
 
@@ -2800,6 +3023,34 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 }
 
 
+void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
+                                                  TypeofState state) {
+  LoadFromSlot(slot, state);
+
+  // Bail out quickly if we're not using lazy arguments allocation.
+  if (ArgumentsMode() != LAZY_ARGUMENTS_ALLOCATION) return;
+
+  // ... or if the slot isn't a non-parameter arguments slot.
+  if (slot->type() == Slot::PARAMETER || !slot->is_arguments()) return;
+
+  VirtualFrame::SpilledScope spilled_scope(frame_);
+
+  // Load the loaded value from the stack into r0 but leave it on the
+  // stack.
+  __ ldr(r0, MemOperand(sp, 0));
+
+  // If the loaded value is the sentinel that indicates that we
+  // haven't loaded the arguments object yet, we need to do it now.
+  JumpTarget exit;
+  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ cmp(r0, ip);
+  exit.Branch(ne);
+  frame_->Drop();
+  StoreArgumentsObject(false);
+  exit.Bind();
+}
+
+
 void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
   ASSERT(slot != NULL);
   if (slot->type() == Slot::LOOKUP) {
@@ -2955,7 +3206,7 @@ void CodeGenerator::VisitSlot(Slot* node) {
   int original_height = frame_->height();
 #endif
   Comment cmnt(masm_, "[ Slot");
-  LoadFromSlot(node, NOT_INSIDE_TYPEOF);
+  LoadFromSlotCheckForArguments(node, NOT_INSIDE_TYPEOF);
   ASSERT(frame_->height() == original_height + 1);
 }
 
@@ -3413,21 +3664,37 @@ void CodeGenerator::VisitCall(Call* node) {
       // JavaScript example: 'object.foo(1, 2, 3)' or 'map["key"](1, 2, 3)'
       // ------------------------------------------------------------------
 
-      LoadAndSpill(property->obj());  // Receiver.
-      // Load the arguments.
-      int arg_count = args->length();
-      for (int i = 0; i < arg_count; i++) {
-        LoadAndSpill(args->at(i));
-      }
+      Handle<String> name = Handle<String>::cast(literal->handle());
 
-      // Set the name register and call the IC initialization code.
-      __ mov(r2, Operand(literal->handle()));
-      InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-      Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
-      CodeForSourcePosition(node->position());
-      frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
-      __ ldr(cp, frame_->Context());
-      frame_->EmitPush(r0);
+      if (ArgumentsMode() == LAZY_ARGUMENTS_ALLOCATION &&
+          name->IsEqualTo(CStrVector("apply")) &&
+          args->length() == 2 &&
+          args->at(1)->AsVariableProxy() != NULL &&
+          args->at(1)->AsVariableProxy()->IsArguments()) {
+        // Use the optimized Function.prototype.apply that avoids
+        // allocating lazily allocated arguments objects.
+        CallApplyLazy(property->obj(),
+                      args->at(0),
+                      args->at(1)->AsVariableProxy(),
+                      node->position());
+
+      } else {
+        LoadAndSpill(property->obj());  // Receiver.
+        // Load the arguments.
+        int arg_count = args->length();
+        for (int i = 0; i < arg_count; i++) {
+          LoadAndSpill(args->at(i));
+        }
+
+        // Set the name register and call the IC initialization code.
+        __ mov(r2, Operand(name));
+        InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+        Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
+        CodeForSourcePosition(node->position());
+        frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
+        __ ldr(cp, frame_->Context());
+        frame_->EmitPush(r0);
+      }
 
     } else {
       // -------------------------------------------
@@ -5056,7 +5323,7 @@ void Reference::GetValue() {
       Comment cmnt(masm, "[ Load from Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
-      cgen_->LoadFromSlot(slot, NOT_INSIDE_TYPEOF);
+      cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
       break;
     }
 
