@@ -4232,19 +4232,49 @@ void CodeGenerator::GenerateRandomHeapNumber(
   Label slow_allocate_heapnumber;
   Label heapnumber_allocated;
 
-  __ AllocateHeapNumber(r0, r1, r2, &slow_allocate_heapnumber);
+  __ AllocateHeapNumber(r4, r1, r2, &slow_allocate_heapnumber);
   __ jmp(&heapnumber_allocated);
 
   __ bind(&slow_allocate_heapnumber);
+  // To allocate a heap number, and ensure that it is not a smi, we
+  // call the runtime function FUnaryMinus on 0, returning the double
+  // -0.0. A new, distinct heap number is returned each time.
   __ mov(r0, Operand(Smi::FromInt(0)));
   __ push(r0);
   __ CallRuntime(Runtime::kNumberUnaryMinus, 1);
+  __ mov(r4, Operand(r0));
 
   __ bind(&heapnumber_allocated);
-  __ PrepareCallCFunction(1, r1);
-  __ CallCFunction(
-      ExternalReference::fill_heap_number_with_random_function(), 1);
-  frame_->EmitPush(r0);
+
+  // Convert 32 random bits in r0 to 0.(32 random bits) in a double
+  // by computing:
+  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+  if (CpuFeatures::IsSupported(VFP3)) {
+    __ PrepareCallCFunction(0, r1);
+    __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+
+    CpuFeatures::Scope scope(VFP3);
+    // 0x41300000 is the top half of 1.0 x 2^20 as a double.
+    // Create this constant using mov/orr to avoid PC relative load.
+    __ mov(r1, Operand(0x41000000));
+    __ orr(r1, r1, Operand(0x300000));
+    // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
+    __ vmov(d7, r0, r1);
+    // Move 0x4130000000000000 to VFP.
+    __ mov(r0, Operand(0));
+    __ vmov(d8, r0, r1);
+    // Subtract and store the result in the heap number.
+    __ vsub(d7, d7, d8);
+    __ sub(r0, r4, Operand(kHeapObjectTag));
+    __ vstr(d7, r0, HeapNumber::kValueOffset);
+    frame_->EmitPush(r4);
+  } else {
+    __ mov(r0, Operand(r4));
+    __ PrepareCallCFunction(1, r1);
+    __ CallCFunction(
+        ExternalReference::fill_heap_number_with_random_function(), 1);
+    frame_->EmitPush(r0);
+  }
 }
 
 
