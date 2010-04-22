@@ -349,6 +349,44 @@ void Assembler::Align(int m) {
 }
 
 
+bool Assembler::IsB(Instr instr) {
+  return (instr & (B27 | B25)) == (B27 | B25);
+}
+
+
+int Assembler::GetBOffset(Instr instr) {
+  ASSERT(IsB(instr));
+  // Take the jump offset in the lower 24 bits, sign extend it and multiply it
+  // with 4 to get the offset in bytes.
+  return ((instr & Imm24Mask) << 8) >> 6;
+}
+
+
+bool Assembler::IsLdrRegisterImmediate(Instr instr) {
+  return (instr & (B27 | B26 | B25 | B22 | B20)) == (B26 | B20);
+}
+
+
+int Assembler::GetLdrRegisterImmediateOffset(Instr instr) {
+  ASSERT(IsLDRRegisterImmediate(instr));
+  bool positive = (instr & B23) == B23;
+  int offset = instr & Off12Mask;  // Zero extended offset.
+  return positive ? offset : -offset;
+}
+
+
+Instr Assembler::SetLdrRegisterImmediateOffset(Instr instr, int offset) {
+  ASSERT(IsLDRRegisterImmediate(instr));
+  bool positive = offset >= 0;
+  if (!positive) offset = -offset;
+  ASSERT(is_uint12(offset));
+  // Set bit indicating whether the offset should be added.
+  instr = (instr & ~B23) | (positive ? B23 : 0);
+  // Set the actual offset.
+  return (instr & ~Off12Mask) | offset;
+}
+
+
 // Labels refer to positions in the (to be) generated code.
 // There are bound, linked, and unused labels.
 //
@@ -372,10 +410,10 @@ int Assembler::target_at(int pos)  {
   }
   ASSERT((instr & 7*B25) == 5*B25);  // b, bl, or blx imm24
   int imm26 = ((instr & Imm24Mask) << 8) >> 6;
-  if ((instr & CondMask) == nv && (instr & B24) != 0)
+  if ((instr & CondMask) == nv && (instr & B24) != 0) {
     // blx uses bit 24 to encode bit 2 of imm26
     imm26 += 2;
-
+  }
   return pos + kPcLoadDelta + imm26;
 }
 

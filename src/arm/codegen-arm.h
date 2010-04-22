@@ -287,6 +287,10 @@ class CodeGenerator: public AstVisitor {
   // Store the value on top of the stack to a slot.
   void StoreToSlot(Slot* slot, InitState init_state);
 
+  // Load a named property, leaving it in r0. The receiver is passed on the
+  // stack, and remain there.
+  void EmitNamedLoad(Handle<String> name, bool is_contextual);
+
   // Load a keyed property, leaving it in r0.  The receiver and key are
   // passed on the stack, and remain there.
   void EmitKeyedLoad(bool is_global);

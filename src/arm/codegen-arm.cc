@@ -358,12 +358,9 @@ void CodeGenerator::Generate(CompilationInfo* info) {
     Label check_exit_codesize;
     masm_->bind(&check_exit_codesize);
 #endif
-
-    { // NOLINT
-      // Make sure that the constant pool is not emitted inside of the return
-      // sequence.
-      Assembler::BlockConstPoolScope block_const_pool(masm_);
-
+    // Make sure that the constant pool is not emitted inside of the return
+    // sequence.
+    { Assembler::BlockConstPoolScope block_const_pool(masm_);
       // Tear down the frame which will restore the caller's frame pointer and
       // the link register.
       frame_->Exit();
@@ -393,6 +390,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   // Code generation state must be reset.
   ASSERT(!has_cc());
   ASSERT(state_ == NULL);
+  ASSERT(loop_nesting() == 0);
   ASSERT(!function_return_is_shadowed_);
   function_return_.Unuse();
   DeleteFrame();
@@ -2940,20 +2938,13 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
     __ bind(&fast);
   }
 
-  // All extension objects were empty and it is safe to use a global
-  // load IC call.
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   // Load the global object.
   LoadGlobal();
-  // Setup the name register.
+  // Setup the name register and call load IC.
   __ mov(r2, Operand(slot->var()->name()));
-  // Call IC stub.
-  if (typeof_state == INSIDE_TYPEOF) {
-    frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-  } else {
-    frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET_CONTEXT, 0);
-  }
-
+  frame_->CallLoadIC(typeof_state == INSIDE_TYPEOF
+                     ? RelocInfo::CODE_TARGET
+                     : RelocInfo::CODE_TARGET_CONTEXT);
   // Drop the global object. The result is in r0.
   frame_->Drop();
 }
@@ -4935,6 +4926,85 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 }
 
 
+class DeferredReferenceGetNamedValue: public DeferredCode {
+ public:
+  explicit DeferredReferenceGetNamedValue(Handle<String> name) : name_(name) {
+    set_comment("[ DeferredReferenceGetNamedValue");
+  }
+
+  virtual void Generate();
+
+ private:
+  Handle<String> name_;
+};
+
+
+void DeferredReferenceGetNamedValue::Generate() {
+  __ IncrementCounter(&Counters::named_load_inline_miss, 1, r1, r2);
+  // Setup the name register and call load IC.
+  __ mov(r2, Operand(name_));
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  // The call must be followed by a b instruction to indicate that the inobject
+  // property case was inlined. Jumping back from the deferred code ensures
+  // that.
+}
+
+
+void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
+  if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
+    Comment cmnt(masm(), "[ Load from named Property");
+    // Setup the name register and call load IC.
+    __ mov(r2, Operand(name));
+    frame_->CallLoadIC(is_contextual
+                       ? RelocInfo::CODE_TARGET_CONTEXT
+                       : RelocInfo::CODE_TARGET);
+  } else {
+    // Inline the inobject property case.
+    Comment cmnt(masm(), "[ Inlined named property load");
+
+    DeferredReferenceGetNamedValue* deferred =
+        new DeferredReferenceGetNamedValue(name);
+
+    // The following instructions are the inlined load of an in-object property.
+    // Parts of this code is patched, so the exact instructions generated needs
+    // to be fixed. Therefore the instruction pool is blocked when generating
+    // this code
+#ifdef DEBUG
+    int kInlinedNamedLoadInstructions = 8;
+    Label check_inlined_codesize;
+    masm_->bind(&check_inlined_codesize);
+#endif
+    { Assembler::BlockConstPoolScope block_const_pool(masm_);
+      // Load the receiver from the stack.
+      __ ldr(r1, MemOperand(sp, 0));
+
+      // Check that the receiver is a heap object.
+      __ tst(r1, Operand(kSmiTagMask));
+      deferred->Branch(eq);
+
+      // Check the map. The null map used below is patched by the inline cache
+      // code.
+      __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+      __ mov(r3, Operand(Factory::null_value()));
+      __ cmp(r2, r3);
+      deferred->Branch(ne);
+
+      // Use initially use an invalid index. The index will be patched by the
+      // inline cache code.
+      __ ldr(r0, MemOperand(r1, 0));
+    }
+
+    // Make sure that the expected number of instructions are generated.
+    ASSERT_EQ(kInlinedNamedLoadInstructions,
+              masm_->InstructionsGeneratedSince(&check_inlined_codesize));
+
+    __ IncrementCounter(&Counters::named_load_inline, 1, r1, r2);
+    deferred->BindExit();
+  }
+}
+
+
 void CodeGenerator::EmitKeyedLoad(bool is_global) {
   Comment cmnt(masm_, "[ Load from keyed Property");
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
@@ -4991,19 +5061,11 @@ void Reference::GetValue() {
     }
 
     case NAMED: {
-      VirtualFrame* frame = cgen_->frame();
-      Comment cmnt(masm, "[ Load from named Property");
-      Handle<String> name(GetName());
       Variable* var = expression_->AsVariableProxy()->AsVariable();
-      Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-      // Setup the name register.
-      __ mov(r2, Operand(name));
-      ASSERT(var == NULL || var->is_global());
-      RelocInfo::Mode rmode = (var == NULL)
-                            ? RelocInfo::CODE_TARGET
-                            : RelocInfo::CODE_TARGET_CONTEXT;
-      frame->CallCodeObject(ic, rmode, 0);
-      frame->EmitPush(r0);
+      bool is_global = var != NULL;
+      ASSERT(!is_global || var->is_global());
+      cgen_->EmitNamedLoad(GetName(), is_global);
+      cgen_->frame()->EmitPush(r0);
       break;
     }
 
