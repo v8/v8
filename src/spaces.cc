@@ -1039,7 +1039,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
         // The next page will be above the allocation top.
         above_allocation_top = true;
       } else {
-        ASSERT(top == current_page->ObjectAreaEnd() - page_extra_);
+        ASSERT(top == PageAllocationLimit(current_page));
       }
 
       // It should be packed with objects from the bottom to the top.
@@ -1977,12 +1977,12 @@ void PagedSpace::PrepareForMarkCompact(bool will_compact) {
   if (will_compact) {
     // MarkCompact collector relies on WAS_IN_USE_BEFORE_MC page flag
     // to skip unused pages. Update flag value for all pages in space.
-    PageIterator it(this, PageIterator::ALL_PAGES);
+    PageIterator all_pages_iterator(this, PageIterator::ALL_PAGES);
     Page* last_in_use = AllocationTopPage();
     bool in_use = true;
 
-    while (it.has_next()) {
-      Page* p = it.next();
+    while (all_pages_iterator.has_next()) {
+      Page* p = all_pages_iterator.next();
       p->SetWasInUseBeforeMC(in_use);
       if (p == last_in_use) {
         // We passed a page containing allocation top. All consequent
@@ -2005,7 +2005,7 @@ void PagedSpace::PrepareForMarkCompact(bool will_compact) {
         // used page so various object iterators will continue to work properly.
 
         int size_in_bytes =
-            last_in_use->ObjectAreaEnd() - last_in_use->AllocationTop();
+            PageAllocationLimit(last_in_use) - last_in_use->AllocationTop();
 
         if (size_in_bytes > 0) {
           // There is still some space left on this page. Create a fake
@@ -2015,16 +2015,28 @@ void PagedSpace::PrepareForMarkCompact(bool will_compact) {
 
           FreeListNode* node =
               FreeListNode::FromAddress(last_in_use->AllocationTop());
-          node->set_size(last_in_use->ObjectAreaEnd() -
-                         last_in_use->AllocationTop());
+          node->set_size(size_in_bytes);
         }
 
         // New last in use page was in the middle of the list before
         // sorting so it full.
-        SetTop(new_last_in_use->AllocationTop(),
-               new_last_in_use->AllocationTop());
+        SetTop(new_last_in_use->AllocationTop());
 
         ASSERT(AllocationTopPage() == new_last_in_use);
+        ASSERT(AllocationTopPage()->WasInUseBeforeMC());
+      }
+
+      PageIterator pages_in_use_iterator(this, PageIterator::PAGES_IN_USE);
+      while (pages_in_use_iterator.has_next()) {
+        Page* p = pages_in_use_iterator.next();
+        if (!p->WasInUseBeforeMC()) {
+          // Empty page is in the middle of a sequence of used pages.
+          // Create a fake object which will occupy all free space on this page.
+          // Otherwise iterators would not be able to scan this page correctly.
+          FreeListNode* node =
+              FreeListNode::FromAddress(p->ObjectAreaStart());
+          node->set_size(PageAllocationLimit(p) - p->ObjectAreaStart());
+        }
       }
 
       page_list_is_chunk_ordered_ = true;
@@ -2544,7 +2556,7 @@ HeapObject* FixedSpace::SlowAllocateRaw(int size_in_bytes) {
 HeapObject* FixedSpace::AllocateInNextPage(Page* current_page,
                                            int size_in_bytes) {
   ASSERT(current_page->next_page()->is_valid());
-  ASSERT(current_page->ObjectAreaEnd() - allocation_info_.top == page_extra_);
+  ASSERT(allocation_info_.top == PageAllocationLimit(current_page));
   ASSERT_EQ(object_size_in_bytes_, size_in_bytes);
   accounting_stats_.WasteBytes(page_extra_);
   SetAllocationInfo(&allocation_info_, current_page->next_page());

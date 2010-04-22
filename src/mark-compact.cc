@@ -1056,21 +1056,15 @@ void MarkCompactCollector::EncodeForwardingAddressesInPagedSpace(
   while (it.has_next()) {
     Page* p = it.next();
 
-    if (p->WasInUseBeforeMC()) {
-      // The offset of each live object in the page from the first live object
-      // in the page.
-      int offset = 0;
-      EncodeForwardingAddressesInRange<Alloc,
-                                       EncodeForwardingAddressInPagedSpace,
-                                       ProcessNonLive>(
-          p->ObjectAreaStart(),
-          p->AllocationTop(),
-          &offset);
-    } else {
-      // Mark whole unused page as a free region.
-      EncodeFreeRegion(p->ObjectAreaStart(),
-                       p->AllocationTop() - p->ObjectAreaStart());
-    }
+    // The offset of each live object in the page from the first live object
+    // in the page.
+    int offset = 0;
+    EncodeForwardingAddressesInRange<Alloc,
+                                     EncodeForwardingAddressInPagedSpace,
+                                     ProcessNonLive>(
+        p->ObjectAreaStart(),
+        p->AllocationTop(),
+        &offset);
   }
 }
 
@@ -1397,17 +1391,17 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
   }
 
   if (new_allocation_top != NULL) {
+#ifdef DEBUG
     Page* new_allocation_top_page = Page::FromAllocationTop(new_allocation_top);
-
     ASSERT(((first_empty_page == NULL) &&
             (new_allocation_top_page == space->AllocationTopPage())) ||
            ((first_empty_page != NULL) && (last_free_size > 0) &&
             (new_allocation_top_page == prec_first_empty_page)) ||
            ((first_empty_page != NULL) && (last_free_size == 0) &&
             (new_allocation_top_page == first_empty_page)));
+#endif
 
-    space->SetTop(new_allocation_top,
-                  new_allocation_top_page->ObjectAreaEnd());
+    space->SetTop(new_allocation_top);
   }
 }
 

@@ -830,7 +830,7 @@ TEST(LargeObjectSpaceContains) {
   }
   CHECK(bytes_to_page > FixedArray::kHeaderSize);
 
-  intptr_t* flags_ptr = &Page::FromAddress(next_page)->flags;
+  int* flags_ptr = &Page::FromAddress(next_page)->flags;
   Address flags_addr = reinterpret_cast<Address>(flags_ptr);
 
   int bytes_to_allocate =

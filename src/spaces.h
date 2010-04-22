@@ -927,7 +927,14 @@ class PagedSpace : public Space {
   // Prepares for a mark-compact GC.
   virtual void PrepareForMarkCompact(bool will_compact);
 
-  virtual Address PageAllocationTop(Page* page) = 0;
+  // The top of allocation in a page in this space. Undefined if page is unused.
+  Address PageAllocationTop(Page* page) {
+    return page == TopPageOf(allocation_info_) ? top()
+        : PageAllocationLimit(page);
+  }
+
+  // The limit of allocation for a page in this space.
+  virtual Address PageAllocationLimit(Page* page) = 0;
 
   // Current capacity without growing (Size() + Available() + Waste()).
   int Capacity() { return accounting_stats_.Capacity(); }
@@ -970,9 +977,9 @@ class PagedSpace : public Space {
   void FreePages(Page* prev, Page* last);
 
   // Set space allocation info.
-  void SetTop(Address top, Address limit) {
+  void SetTop(Address top) {
     allocation_info_.top = top;
-    allocation_info_.limit = limit;
+    allocation_info_.limit = PageAllocationLimit(Page::FromAllocationTop(top));
   }
 
   // ---------------------------------------------------------------------------
@@ -1724,9 +1731,9 @@ class OldSpace : public PagedSpace {
   // pointer).
   int AvailableFree() { return free_list_.available(); }
 
-  // The top of allocation in a page in this space. Undefined if page is unused.
-  virtual Address PageAllocationTop(Page* page) {
-    return page == TopPageOf(allocation_info_) ? top() : page->ObjectAreaEnd();
+  // The limit of allocation for a page in this space.
+  virtual Address PageAllocationLimit(Page* page) {
+    return page->ObjectAreaEnd();
   }
 
   // Give a block of memory to the space's free list.  It might be added to
@@ -1792,10 +1799,9 @@ class FixedSpace : public PagedSpace {
     page_extra_ = Page::kObjectAreaSize % object_size_in_bytes;
   }
 
-  // The top of allocation in a page in this space. Undefined if page is unused.
-  virtual Address PageAllocationTop(Page* page) {
-    return page == TopPageOf(allocation_info_) ? top()
-        : page->ObjectAreaEnd() - page_extra_;
+  // The limit of allocation for a page in this space.
+  virtual Address PageAllocationLimit(Page* page) {
+    return page->ObjectAreaEnd() - page_extra_;
   }
 
   int object_size_in_bytes() { return object_size_in_bytes_; }
