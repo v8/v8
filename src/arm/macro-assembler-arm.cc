@@ -117,11 +117,10 @@ void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
   //  ldr ip, [pc, #...]
   //  blx ip
 
-  { // NOLINT
-    // The two instructions (ldr and blx) could be separated by a constant
-    // pool and the code would still work. The issue comes from the
-    // patching code which expect the ldr to be just above the blx.
-    BlockConstPoolScope block_const_pool(this);
+  // The two instructions (ldr and blx) could be separated by a constant
+  // pool and the code would still work. The issue comes from the
+  // patching code which expect the ldr to be just above the blx.
+  { BlockConstPoolScope block_const_pool(this);
     // Statement positions are expected to be recorded when the target
     // address is loaded. The mov method will automatically record
     // positions when pc is the target, since this is not the case here

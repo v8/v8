@@ -154,8 +154,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 #endif
 
   // New scope to get automatic timing calculation.
-  {  // NOLINT
-    HistogramTimerScope codegen_timer(&Counters::code_generation);
+  { HistogramTimerScope codegen_timer(&Counters::code_generation);
     CodeGenState state(this);
 
     // Entry:
@@ -9810,8 +9809,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ j(zero, &runtime_call_clear_stack);
 #ifdef DEBUG
   // Check that the layout of cache elements match expectations.
-  {  // NOLINT - doesn't like a single brace on a line.
-    TranscendentalCache::Element test_elem[2];
+  { TranscendentalCache::Element test_elem[2];
     char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
     char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
     char* elem_in0  = reinterpret_cast<char*>(&(test_elem[0].in[0]));

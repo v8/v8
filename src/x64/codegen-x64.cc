@@ -304,8 +304,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 #endif
 
   // New scope to get automatic timing calculation.
-  {  // NOLINT
-    HistogramTimerScope codegen_timer(&Counters::code_generation);
+  { HistogramTimerScope codegen_timer(&Counters::code_generation);
     CodeGenState state(this);
 
     // Entry:
