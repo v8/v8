@@ -5351,9 +5351,9 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
       result_type = TypeInfo::Smi();
       break;
     case Token::SHR:
-      // Result of x >>> y is always a smi if y >= 1, otherwise a number.
+      // Result of x >>> y is always a smi if masked y >= 1, otherwise a number.
       result_type = (right.is_constant() && right.handle()->IsSmi()
-                     && Smi::cast(*right.handle())->value() >= 1)
+                     && (Smi::cast(*right.handle())->value() & 0x1F) >= 1)
           ? TypeInfo::Smi()
           : TypeInfo::Number();
       break;
