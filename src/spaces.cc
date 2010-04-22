@@ -524,7 +524,7 @@ Page* MemoryAllocator::InitializePagesInChunk(int chunk_id, int pages_in_chunk,
   for (int i = 0; i < pages_in_chunk; i++) {
     Page* p = Page::FromAddress(page_addr);
     p->opaque_header = OffsetFrom(page_addr + Page::kPageSize) | chunk_id;
-    p->is_normal_page = 1;
+    p->SetIsLargeObjectPage(false);
     page_addr += Page::kPageSize;
   }
 
@@ -565,6 +565,15 @@ Page* MemoryAllocator::FreePages(Page* p) {
   }
 
   return page_to_return;
+}
+
+
+void MemoryAllocator::FreeAllPages(PagedSpace* space) {
+  for (int i = 0, length = chunks_.length(); i < length; i++) {
+    if (chunks_[i].owner() == space) {
+      DeleteChunk(i);
+    }
+  }
 }
 
 
@@ -622,6 +631,74 @@ void MemoryAllocator::ReportStatistics() {
 #endif
 
 
+void MemoryAllocator::RelinkPageListInChunkOrder(PagedSpace* space,
+                                                 Page** first_page,
+                                                 Page** last_page,
+                                                 Page** last_page_in_use) {
+  Page* first = NULL;
+  Page* last = NULL;
+
+  for (int i = 0, length = chunks_.length(); i < length; i++) {
+    ChunkInfo& chunk = chunks_[i];
+
+    if (chunk.owner() == space) {
+      if (first == NULL) {
+        Address low = RoundUp(chunk.address(), Page::kPageSize);
+        first = Page::FromAddress(low);
+      }
+      last = RelinkPagesInChunk(i,
+                                chunk.address(),
+                                chunk.size(),
+                                last,
+                                last_page_in_use);
+    }
+  }
+
+  if (first_page != NULL) {
+    *first_page = first;
+  }
+
+  if (last_page != NULL) {
+    *last_page = last;
+  }
+}
+
+
+Page* MemoryAllocator::RelinkPagesInChunk(int chunk_id,
+                                          Address chunk_start,
+                                          int chunk_size,
+                                          Page* prev,
+                                          Page** last_page_in_use) {
+  Address page_addr = RoundUp(chunk_start, Page::kPageSize);
+  int pages_in_chunk = PagesInChunk(chunk_start, chunk_size);
+
+  if (prev->is_valid()) {
+    SetNextPage(prev, Page::FromAddress(page_addr));
+  }
+
+  for (int i = 0; i < pages_in_chunk; i++) {
+    Page* p = Page::FromAddress(page_addr);
+    p->opaque_header = OffsetFrom(page_addr + Page::kPageSize) | chunk_id;
+    page_addr += Page::kPageSize;
+
+    if (p->WasInUseBeforeMC()) {
+      *last_page_in_use = p;
+    }
+  }
+
+  // Set the next page of the last page to 0.
+  Page* last_page = Page::FromAddress(page_addr - Page::kPageSize);
+  last_page->opaque_header = OffsetFrom(0) | chunk_id;
+
+  if (last_page->WasInUseBeforeMC()) {
+    *last_page_in_use = last_page;
+  }
+
+  return last_page;
+}
+
+
+
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
@@ -677,6 +754,8 @@ bool PagedSpace::Setup(Address start, size_t size) {
   // Use first_page_ for allocation.
   SetAllocationInfo(&allocation_info_, first_page_);
 
+  page_list_is_chunk_ordered_ = true;
+
   return true;
 }
 
@@ -687,9 +766,8 @@ bool PagedSpace::HasBeenSetup() {
 
 
 void PagedSpace::TearDown() {
-  first_page_ = MemoryAllocator::FreePages(first_page_);
-  ASSERT(!first_page_->is_valid());
-
+  MemoryAllocator::FreeAllPages(this);
+  first_page_ = NULL;
   accounting_stats_.Clear();
 }
 
@@ -874,6 +952,12 @@ int PagedSpace::CountTotalPages() {
 
 
 void PagedSpace::Shrink() {
+  if (!page_list_is_chunk_ordered_) {
+    // We can't shrink space if pages is not chunk-ordered
+    // (see comment for class MemoryAllocator for definition).
+    return;
+  }
+
   // Release half of free pages.
   Page* top_page = AllocationTopPage();
   ASSERT(top_page->is_valid());
@@ -1782,6 +1866,9 @@ Object* FixedSizeFreeList::Allocate() {
 // OldSpace implementation
 
 void OldSpace::PrepareForMarkCompact(bool will_compact) {
+  // Call prepare of the super class.
+  PagedSpace::PrepareForMarkCompact(will_compact);
+
   if (will_compact) {
     // Reset relocation info.  During a compacting collection, everything in
     // the space is considered 'available' and we will rediscover live data
@@ -1849,6 +1936,100 @@ bool NewSpace::ReserveSpace(int bytes) {
   Address limit = allocation_info_.limit;
   Address top = allocation_info_.top;
   return limit - top >= bytes;
+}
+
+
+void PagedSpace::FreePages(Page* prev, Page* last) {
+  if (last == AllocationTopPage()) {
+    // Pages are already at the end of used pages.
+    return;
+  }
+
+  Page* first = NULL;
+
+  // Remove pages from the list.
+  if (prev == NULL) {
+    first = first_page_;
+    first_page_ = last->next_page();
+  } else {
+    first = prev->next_page();
+    MemoryAllocator::SetNextPage(prev, last->next_page());
+  }
+
+  // Attach it after the last page.
+  MemoryAllocator::SetNextPage(last_page_, first);
+  last_page_ = last;
+  MemoryAllocator::SetNextPage(last, NULL);
+
+  // Clean them up.
+  do {
+    first->ClearRSet();
+    first = first->next_page();
+  } while (first != NULL);
+
+  // Order of pages in this space might no longer be consistent with
+  // order of pages in chunks.
+  page_list_is_chunk_ordered_ = false;
+}
+
+
+void PagedSpace::PrepareForMarkCompact(bool will_compact) {
+  if (will_compact) {
+    // MarkCompact collector relies on WAS_IN_USE_BEFORE_MC page flag
+    // to skip unused pages. Update flag value for all pages in space.
+    PageIterator it(this, PageIterator::ALL_PAGES);
+    Page* last_in_use = AllocationTopPage();
+    bool in_use = true;
+
+    while (it.has_next()) {
+      Page* p = it.next();
+      p->SetWasInUseBeforeMC(in_use);
+      if (p == last_in_use) {
+        // We passed a page containing allocation top. All consequent
+        // pages are not used.
+        in_use = false;
+      }
+    }
+
+    if (!page_list_is_chunk_ordered_) {
+      Page* new_last_in_use = NULL;
+      MemoryAllocator::RelinkPageListInChunkOrder(this,
+                                                  &first_page_,
+                                                  &last_page_,
+                                                  &new_last_in_use);
+      ASSERT(new_last_in_use != NULL);
+
+      if (new_last_in_use != last_in_use) {
+        // Current allocation top points to a page which is now in the middle
+        // of page list. We should move allocation top forward to the new last
+        // used page so various object iterators will continue to work properly.
+
+        int size_in_bytes =
+            last_in_use->ObjectAreaEnd() - last_in_use->AllocationTop();
+
+        if (size_in_bytes > 0) {
+          // There is still some space left on this page. Create a fake
+          // object which will occupy all free space on this page.
+          // Otherwise iterators would not be able to scan this page
+          // correctly.
+
+          FreeListNode* node =
+              FreeListNode::FromAddress(last_in_use->AllocationTop());
+          node->set_size(last_in_use->ObjectAreaEnd() -
+                         last_in_use->AllocationTop());
+        }
+
+        // New last in use page was in the middle of the list before
+        // sorting so it full.
+        SetTop(new_last_in_use->AllocationTop(),
+               new_last_in_use->AllocationTop());
+
+        ASSERT(AllocationTopPage() == new_last_in_use);
+      }
+
+      page_list_is_chunk_ordered_ = true;
+    }
+  }
 }
 
 
@@ -2263,6 +2444,9 @@ void OldSpace::PrintRSet() { DoPrintRSet("old"); }
 // FixedSpace implementation
 
 void FixedSpace::PrepareForMarkCompact(bool will_compact) {
+  // Call prepare of the super class.
+  PagedSpace::PrepareForMarkCompact(will_compact);
+
   if (will_compact) {
     // Reset relocation info.
     MCResetRelocationInfo();
@@ -2605,7 +2789,7 @@ Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
   // large object page.  If the chunk_size happened to be written there, its
   // low order bit should already be clear.
   ASSERT((chunk_size & 0x1) == 0);
-  page->is_normal_page &= ~0x1;
+  page->SetIsLargeObjectPage(true);
   page->ClearRSet();
   int extra_bytes = requested_size - object_size;
   if (extra_bytes > 0) {
