@@ -641,7 +641,7 @@ class MemoryAllocator : public AllStatic {
 
   static Page* RelinkPagesInChunk(int chunk_id,
                                   Address chunk_start,
-                                  int chunk_size,
+                                  size_t chunk_size,
                                   Page* prev,
                                   Page** last_page_in_use);
 };

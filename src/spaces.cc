@@ -666,7 +666,7 @@ void MemoryAllocator::RelinkPageListInChunkOrder(PagedSpace* space,
 
 Page* MemoryAllocator::RelinkPagesInChunk(int chunk_id,
                                           Address chunk_start,
-                                          int chunk_size,
+                                          size_t chunk_size,
                                           Page* prev,
                                           Page** last_page_in_use) {
   Address page_addr = RoundUp(chunk_start, Page::kPageSize);
@@ -1992,20 +1992,20 @@ void PagedSpace::PrepareForMarkCompact(bool will_compact) {
     }
 
     if (!page_list_is_chunk_ordered_) {
-      Page* new_last_in_use = NULL;
+      Page* new_last_in_use = Page::FromAddress(NULL);
       MemoryAllocator::RelinkPageListInChunkOrder(this,
                                                   &first_page_,
                                                   &last_page_,
                                                   &new_last_in_use);
-      ASSERT(new_last_in_use != NULL);
+      ASSERT(new_last_in_use->is_valid());
 
       if (new_last_in_use != last_in_use) {
         // Current allocation top points to a page which is now in the middle
         // of page list. We should move allocation top forward to the new last
         // used page so various object iterators will continue to work properly.
 
-        int size_in_bytes =
-            PageAllocationLimit(last_in_use) - last_in_use->AllocationTop();
+        int size_in_bytes = static_cast<int>(PageAllocationLimit(last_in_use) -
+                                             last_in_use->AllocationTop());
 
         if (size_in_bytes > 0) {
           // There is still some space left on this page. Create a fake
@@ -2013,9 +2013,8 @@ void PagedSpace::PrepareForMarkCompact(bool will_compact) {
           // Otherwise iterators would not be able to scan this page
           // correctly.
 
-          FreeListNode* node =
-              FreeListNode::FromAddress(last_in_use->AllocationTop());
-          node->set_size(size_in_bytes);
+          Heap::CreateFillerObjectAt(last_in_use->AllocationTop(),
+                                     size_in_bytes);
         }
 
         // New last in use page was in the middle of the list before
@@ -2033,9 +2032,10 @@ void PagedSpace::PrepareForMarkCompact(bool will_compact) {
           // Empty page is in the middle of a sequence of used pages.
           // Create a fake object which will occupy all free space on this page.
           // Otherwise iterators would not be able to scan this page correctly.
-          FreeListNode* node =
-              FreeListNode::FromAddress(p->ObjectAreaStart());
-          node->set_size(PageAllocationLimit(p) - p->ObjectAreaStart());
+          int size_in_bytes = static_cast<int>(PageAllocationLimit(p) -
+                                               p->ObjectAreaStart());
+
+          Heap::CreateFillerObjectAt(p->ObjectAreaStart(), size_in_bytes);
         }
       }
 

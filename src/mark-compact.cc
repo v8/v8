@@ -1282,9 +1282,15 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
   // During sweeping of paged space we are trying to find longest sequences
   // of pages without live objects and free them (instead of putting them on
   // the free list).
-  Page* prev = NULL;  // Page preceding current.
-  Page* first_empty_page = NULL;  // First empty page in a sequence.
-  Page* prec_first_empty_page = NULL;  // Page preceding first empty page.
+
+  // Page preceding current.
+  Page* prev = Page::FromAddress(NULL);
+
+  // First empty page in a sequence.
+  Page* first_empty_page = Page::FromAddress(NULL);
+
+  // Page preceding first empty page.
+  Page* prec_first_empty_page = Page::FromAddress(NULL);
 
   // If last used page of space ends with a sequence of dead objects
   // we can adjust allocation top instead of puting this free area into
@@ -1331,7 +1337,7 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
     if (page_is_empty) {
       // This page is empty. Check whether we are in the middle of
       // sequence of empty pages and start one if not.
-      if (first_empty_page == NULL) {
+      if (!first_empty_page->is_valid()) {
         first_empty_page = p;
         prec_first_empty_page = prev;
       }
@@ -1347,9 +1353,9 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
     } else {
       // This page is not empty. Sequence of empty pages ended on the previous
       // one.
-      if (first_empty_page != NULL) {
+      if (first_empty_page->is_valid()) {
         space->FreePages(prec_first_empty_page, prev);
-        prec_first_empty_page = first_empty_page = NULL;
+        prec_first_empty_page = first_empty_page = Page::FromAddress(NULL);
       }
 
       // If there is a free ending area on one of the previous pages we have
@@ -1374,7 +1380,7 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
   // We reached end of space. See if we need to adjust allocation top.
   Address new_allocation_top = NULL;
 
-  if (first_empty_page != NULL) {
+  if (first_empty_page->is_valid()) {
     // Last used pages in space are empty. We can move allocation top backwards
     // to the beginning of first empty page.
     ASSERT(prev == space->AllocationTopPage());
@@ -1393,12 +1399,13 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
   if (new_allocation_top != NULL) {
 #ifdef DEBUG
     Page* new_allocation_top_page = Page::FromAllocationTop(new_allocation_top);
-    ASSERT(((first_empty_page == NULL) &&
-            (new_allocation_top_page == space->AllocationTopPage())) ||
-           ((first_empty_page != NULL) && (last_free_size > 0) &&
-            (new_allocation_top_page == prec_first_empty_page)) ||
-           ((first_empty_page != NULL) && (last_free_size == 0) &&
-            (new_allocation_top_page == first_empty_page)));
+    if (!first_empty_page->is_valid()) {
+      ASSERT(new_allocation_top_page == space->AllocationTopPage());
+    } else if (last_free_size > 0) {
+      ASSERT(new_allocation_top_page == prec_first_empty_page);
+    } else {
+      ASSERT(new_allocation_top_page == first_empty_page);
+    }
 #endif
 
     space->SetTop(new_allocation_top);
