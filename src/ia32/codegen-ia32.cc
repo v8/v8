@@ -7333,7 +7333,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
         __ setcc(overflow, tmp.reg());
         __ or_(Operand(tmp.reg()), new_value.reg());
         __ test(tmp.reg(), Immediate(kSmiTagMask));
-        tmp.Unusec();
+        tmp.Unuse();
         deferred->Branch(not_zero);
       } else {
         // Otherwise we test separately for overflow and smi tag.
