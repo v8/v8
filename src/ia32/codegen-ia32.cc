@@ -7047,6 +7047,12 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
           (node->expression()->AsBinaryOperation() != NULL &&
            node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
       switch (op) {
+        case Token::NOT:
+        case Token::DELETE:
+        case Token::TYPEOF:
+          UNREACHABLE();  // handled above
+          break;
+
         case Token::SUB: {
           GenericUnaryOpStub stub(Token::SUB, overwrite);
           Result operand = frame_->Pop();
@@ -7087,11 +7093,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
             __ not_(answer.reg());
 
             continue_label.Bind(&answer);
-            if (operand_info.IsInteger32()) {
-              answer.set_type_info(TypeInfo::Integer32());
-            } else {
-              answer.set_type_info(TypeInfo::Number());
-            }
+            answer.set_type_info(TypeInfo::Integer32());
             frame_->Push(&answer);
           }
           break;
@@ -7121,8 +7123,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
           break;
         }
         default:
-          // NOT, DELETE, TYPEOF, and VOID are handled outside the
-          // switch.
           UNREACHABLE();
       }
     }
@@ -7333,7 +7333,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
         __ setcc(overflow, tmp.reg());
         __ or_(Operand(tmp.reg()), new_value.reg());
         __ test(tmp.reg(), Immediate(kSmiTagMask));
-        tmp.Unuse();
+        tmp.Unusec();
         deferred->Branch(not_zero);
       } else {
         // Otherwise we test separately for overflow and smi tag.
