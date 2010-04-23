@@ -710,7 +710,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Check that the key (index) is within bounds.
   __ ldr(r3, FieldMemOperand(r1, Array::kLengthOffset));
   __ cmp(r0, Operand(r3));
-  __ b(ge, &slow);
+  __ b(hs, &slow);
   // Fast case: Do the load.
   __ add(r3, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2));
