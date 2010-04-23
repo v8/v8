@@ -5229,11 +5229,18 @@ class DeferredReferenceGetNamedValue: public DeferredCode {
     set_comment("[ DeferredReferenceGetNamedValue");
   }
 
+  virtual void BeforeGenerate();
   virtual void Generate();
+  virtual void AfterGenerate();
 
  private:
   Handle<String> name_;
 };
+
+
+void DeferredReferenceGetNamedValue::BeforeGenerate() {
+  __ StartBlockConstPool();
+}
 
 
 void DeferredReferenceGetNamedValue::Generate() {
@@ -5242,9 +5249,14 @@ void DeferredReferenceGetNamedValue::Generate() {
   __ mov(r2, Operand(name_));
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
-  // The call must be followed by a b instruction to indicate that the inobject
-  // property case was inlined. Jumping back from the deferred code ensures
-  // that.
+  // The call must be followed by a nop(1) instruction to indicate that the
+  // inobject has been inlined.
+  __ nop(NAMED_PROPERTY_LOAD_INLINED);
+}
+
+
+void DeferredReferenceGetNamedValue::AfterGenerate() {
+  __ EndBlockConstPool();
 }
 
 

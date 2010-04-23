@@ -309,9 +309,8 @@ class VirtualFrame : public ZoneObject {
                      int arg_count);
 
   // Call load IC. Receiver on stack and property name in r2. Result returned in
-  // r0. If load_inlined is false the code generated will make sure that the IC
-  // handling will not see this load as having an inlined counterpart.
-  void CallLoadIC(RelocInfo::Mode mode, bool load_inlined = false);
+  // r0.
+  void CallLoadIC(RelocInfo::Mode mode);
 
   // Call into an IC stub given the number of arguments it removes
   // from the stack.  Register arguments to the IC stub are implicit,

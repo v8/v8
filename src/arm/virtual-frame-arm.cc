@@ -299,17 +299,9 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 }
 
 
-void VirtualFrame::CallLoadIC(RelocInfo::Mode mode, bool load_inlined) {
-  // If a nop is generated later make sure the it follows the call directly.
-  Assembler::BlockConstPoolScope block_const_pool(masm());
-
+void VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   CallCodeObject(ic, mode, 0);
-  if (!load_inlined) {
-    // A B instruction following the call signals that the load was inlined.
-    // Ensure that there is not a B instruction here.
-    __ nop();
-  }
 }
 
 

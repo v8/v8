@@ -896,7 +896,7 @@ class Assembler : public Malloced {
             const Condition cond = al);
 
   // Pseudo instructions
-  void nop()  { mov(r0, Operand(r0)); }
+  void nop(int type = 0);
 
   void push(Register src, Condition cond = al) {
     str(src, MemOperand(sp, 4, NegPreIndex), cond);
@@ -929,10 +929,10 @@ class Assembler : public Malloced {
   class BlockConstPoolScope {
    public:
     explicit BlockConstPoolScope(Assembler* assem) : assem_(assem) {
-      assem_->const_pool_blocked_nesting_++;
+      assem_->StartBlockConstPool();
     }
     ~BlockConstPoolScope() {
-      assem_->const_pool_blocked_nesting_--;
+      assem_->EndBlockConstPool();
     }
 
    private:
@@ -958,16 +958,25 @@ class Assembler : public Malloced {
   int current_position() const { return current_position_; }
   int current_statement_position() const { return current_statement_position_; }
 
+  void StartBlockConstPool() {
+    const_pool_blocked_nesting_++;
+  }
+  void EndBlockConstPool() {
+    const_pool_blocked_nesting_--;
+  }
+
   // Read/patch instructions
   static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
   static void instr_at_put(byte* pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
-  static bool IsB(Instr instr);
-  static int GetBOffset(Instr instr);
+  static bool IsNop(Instr instr, int type = 0);
+  static bool IsBranch(Instr instr);
+  static int GetBranchOffset(Instr instr);
   static bool IsLdrRegisterImmediate(Instr instr);
   static int GetLdrRegisterImmediateOffset(Instr instr);
   static Instr SetLdrRegisterImmediateOffset(Instr instr, int offset);
+
 
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }

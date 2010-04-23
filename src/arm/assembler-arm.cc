@@ -318,6 +318,7 @@ Assembler::Assembler(void* buffer, int buffer_size) {
 
 
 Assembler::~Assembler() {
+  ASSERT(const_pool_blocked_nesting_ == 0);
   if (own_buffer_) {
     if (spare_buffer_ == NULL && buffer_size_ == kMinimalBufferSize) {
       spare_buffer_ = buffer_;
@@ -349,13 +350,20 @@ void Assembler::Align(int m) {
 }
 
 
-bool Assembler::IsB(Instr instr) {
+bool Assembler::IsNop(Instr instr, int type) {
+  // Check for mov rx, rx.
+  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
+  return instr == (al | 13*B21 | type*B12 | type);
+}
+
+
+bool Assembler::IsBranch(Instr instr) {
   return (instr & (B27 | B25)) == (B27 | B25);
 }
 
 
-int Assembler::GetBOffset(Instr instr) {
-  ASSERT(IsB(instr));
+int Assembler::GetBranchOffset(Instr instr) {
+  ASSERT(IsBranch(instr));
   // Take the jump offset in the lower 24 bits, sign extend it and multiply it
   // with 4 to get the offset in bytes.
   return ((instr & Imm24Mask) << 8) >> 6;
@@ -941,6 +949,10 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   if (dst.is(pc)) {
     WriteRecordedPositions();
   }
+  // Don't allow nop instructions in the form mov rn, rn to be generated using
+  // the mov instruction. They must be generated using nop(int)
+  // pseudo instructions.
+  ASSERT(!(src.is_reg() && src.rm().is(dst) && s == LeaveCC && cond == al));
   addrmod1(cond | 13*B21 | s, r0, dst, src);
 }
 
@@ -1730,6 +1742,13 @@ void Assembler::vmrs(Register dst, Condition cond) {
 
 
 // Pseudo instructions.
+void Assembler::nop(int type) {
+  // This is mov rx, rx.
+  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
+  emit(al | 13*B21 | type*B12 | type);
+}
+
+
 void Assembler::lea(Register dst,
                     const MemOperand& x,
                     SBit s,

@@ -700,12 +700,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     __ push(ip);
     __ mov(r2, Operand(var->name()));
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-    { Assembler::BlockConstPoolScope block_const_pool(masm_);
-      __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-      // A B instruction following the call signals that the load was inlined.
-      // Ensure that there is not a B instruction here.
-      __ nop();
-    }
+    __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
     DropAndApply(1, context, r0);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
@@ -1003,12 +998,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   Literal* key = prop->key()->AsLiteral();
   __ mov(r2, Operand(key->handle()));
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  { Assembler::BlockConstPoolScope block_const_pool(masm_);
-    __ Call(ic, RelocInfo::CODE_TARGET);
-    // A B instruction following the call signals that the load was inlined.
-    // Ensure that there is not a B instruction here.
-    __ nop();
-  }
+  __ Call(ic, RelocInfo::CODE_TARGET);
 }
 
 
@@ -1445,12 +1435,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
         // Use a regular load, not a contextual load, to avoid a reference
         // error.
-        { Assembler::BlockConstPoolScope block_const_pool(masm_);
-          __ Call(ic, RelocInfo::CODE_TARGET);
-          // A B instruction following the call signals that the load was
-          // inlined. Ensure that there is not a B instruction here.
-          __ nop();
-        }
+        __ Call(ic, RelocInfo::CODE_TARGET);
         __ str(r0, MemOperand(sp));
       } else if (proxy != NULL &&
                  proxy->var()->slot() != NULL &&

@@ -153,6 +153,14 @@ enum ArgumentsAllocationMode {
 };
 
 
+// Different nop operations are used by the code generator to detect certain
+// states of the generated code.
+enum NopMarkerTypes {
+  NON_MARKING_NOP = 0,
+  NAMED_PROPERTY_LOAD_INLINED
+};
+
+
 // -------------------------------------------------------------------------
 // CodeGenerator
 
@@ -305,7 +313,7 @@ class CodeGenerator: public AstVisitor {
   void StoreToSlot(Slot* slot, InitState init_state);
 
   // Load a named property, leaving it in r0. The receiver is passed on the
-  // stack, and remain there.
+  // stack, and remains there.
   void EmitNamedLoad(Handle<String> name, bool is_contextual);
 
   // Load a keyed property, leaving it in r0.  The receiver and key are

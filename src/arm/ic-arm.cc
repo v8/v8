@@ -572,22 +572,30 @@ void LoadIC::ClearInlinedVersion(Address address) {
 
 
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
-  // If the instruction after the call site is not a B instruction then this is
-  // not related to an inlined in-object property load. The B instructions is
-  // located just after the call to the IC in the deferred code handling the
-  // miss in the inlined code. All other calls to a load IC should ensure there
-  // in no B instruction directly following the call.
+  // If the instruction after the call site is not the pseudo instruction nop1
+  // then this is not related to an inlined in-object property load. The nop1
+  // instruction is located just after the call to the IC in the deferred code
+  // handling the miss in the inlined code. After the nop1 instruction there is
+  // a B instruction for jumping back from the deferred code.
   Address address_after_call = address + Assembler::kCallTargetAddressOffset;
   Instr instr_after_call = Assembler::instr_at(address_after_call);
-  if (!Assembler::IsB(instr_after_call)) return false;
+  if (!Assembler::IsNop(instr_after_call, NAMED_PROPERTY_LOAD_INLINED)) {
+    return false;
+  }
+  ASSERT_EQ(0, RegisterAllocator::kNumRegisters);
+  Address address_after_nop1 = address_after_call + Assembler::kInstrSize;
+  Instr instr_after_nop1 = Assembler::instr_at(address_after_nop1);
+  ASSERT(Assembler::IsBranch(instr_after_nop1));
 
   // Find the end of the inlined code for handling the load.
   int b_offset =
-      Assembler::GetBOffset(instr_after_call) + Assembler::kPcLoadDelta;
+      Assembler::GetBranchOffset(instr_after_nop1) + Assembler::kPcLoadDelta;
   ASSERT(b_offset < 0);  // Jumping back from deferred code.
-  Address inline_end_address = address_after_call + b_offset;
+  Address inline_end_address = address_after_nop1 + b_offset;
 
   // Patch the offset of the property load instruction (ldr r0, [r1, #+XXX]).
+  // The immediate must be represenatble in 12 bits.
+  ASSERT((JSObject::kMaxInstanceSize - JSObject::kHeaderSize) < (1 << 12));
   Address ldr_property_instr_address = inline_end_address - 4;
   ASSERT(Assembler::IsLdrRegisterImmediate(
       Assembler::instr_at(ldr_property_instr_address)));
