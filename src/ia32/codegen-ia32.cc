@@ -6553,17 +6553,23 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
     frame_->Push(Factory::undefined_value());
     return;
   }
-  Handle<FixedArray> cache_obj(
-      FixedArray::cast(jsfunction_result_caches->get(cache_id)));
 
   Load(args->at(1));
   Result key = frame_->Pop();
   key.ToRegister();
 
   Result cache = allocator()->Allocate();
-  __ mov(cache.reg(), cache_obj);
+  ASSERT(cache.is_valid());
+  __ mov(cache.reg(), ContextOperand(esi, Context::GLOBAL_INDEX));
+  __ mov(cache.reg(),
+         FieldOperand(cache.reg(), GlobalObject::kGlobalContextOffset));
+  __ mov(cache.reg(),
+         ContextOperand(cache.reg(), Context::JSFUNCTION_RESULT_CACHES_INDEX));
+  __ mov(cache.reg(),
+         FieldOperand(cache.reg(), FixedArray::OffsetOfElementAt(cache_id)));
 
   Result tmp = allocator()->Allocate();
+  ASSERT(tmp.is_valid());
 
   DeferredSearchCache* deferred = new DeferredSearchCache(tmp.reg(),
                                                           cache.reg(),
