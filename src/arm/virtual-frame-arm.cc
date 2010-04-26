@@ -121,8 +121,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
       __ pop(r0);
       break;
     case CASE_NUMBER(R0_R1_TOS, NO_TOS_REGISTERS):
-      __ push(r1);
-      __ push(r0);
+      __ Push(r1, r0);
       break;
     case CASE_NUMBER(R0_R1_TOS, R0_TOS):
       __ push(r1);
@@ -137,8 +136,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
       __ Swap(r0, r1, ip);
       break;
     case CASE_NUMBER(R1_R0_TOS, NO_TOS_REGISTERS):
-      __ push(r0);
-      __ push(r1);
+      __ Push(r0, r1);
       break;
     case CASE_NUMBER(R1_R0_TOS, R0_TOS):
       __ push(r0);

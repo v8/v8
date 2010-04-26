@@ -296,7 +296,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // We jump to a runtime call that extends the properties array.
     __ push(receiver_reg);
     __ mov(r2, Operand(Handle<Map>(transition)));
-    __ stm(db_w, sp, r2.bit() | r0.bit());
+    __ Push(r2, r0);
     __ TailCallExternalReference(
            ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage)),
            3, 1);
@@ -464,8 +464,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
     __ EnterInternalFrame();
 
     __ push(receiver);
-    __ push(holder);
-    __ push(name_);
+    __ Push(holder, name_);
 
     CompileCallLoadPropertyWithInterceptor(masm,
                                            receiver,
@@ -510,8 +509,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 
       Label cleanup;
       __ pop(scratch2);
-      __ push(receiver);
-      __ push(scratch2);
+      __ Push(receiver, scratch2);
 
       holder = stub_compiler->CheckPrototypes(holder_obj, holder,
                                               lookup->holder(), scratch1,
@@ -523,8 +521,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
       __ Move(holder, Handle<AccessorInfo>(callback));
       __ push(holder);
       __ ldr(scratch1, FieldMemOperand(holder, AccessorInfo::kDataOffset));
-      __ push(scratch1);
-      __ push(name_);
+      __ Push(scratch1, name_);
 
       ExternalReference ref =
           ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
@@ -725,13 +722,11 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
       CheckPrototypes(object, receiver, holder, scratch1, scratch2, name, miss);
 
   // Push the arguments on the JS stack of the caller.
-  __ push(receiver);  // receiver
-  __ push(reg);  // holder
+  __ push(receiver);  // Receiver.
+  __ push(reg);  // Holder.
   __ mov(ip, Operand(Handle<AccessorInfo>(callback)));  // callback data
-  __ push(ip);
   __ ldr(reg, FieldMemOperand(ip, AccessorInfo::kDataOffset));
-  __ push(reg);
-  __ push(name_reg);  // name
+  __ Push(ip, reg, name_reg);
 
   // Do tail-call to the runtime system.
   ExternalReference load_callback_property =
@@ -1105,8 +1100,7 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
     // Call the interceptor.
     __ EnterInternalFrame();
-    __ push(holder_reg);
-    __ push(name_reg);
+    __ Push(holder_reg, name_reg);
     CompileCallLoadPropertyWithInterceptor(masm(),
                                            receiver,
                                            holder_reg,
@@ -1309,7 +1303,7 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
 
   __ push(r1);  // receiver
   __ mov(ip, Operand(Handle<AccessorInfo>(callback)));  // callback info
-  __ stm(db_w, sp, ip.bit() | r2.bit() | r0.bit());
+  __ Push(ip, r2, r0);
 
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
@@ -1354,9 +1348,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   // checks.
   ASSERT(receiver->IsJSGlobalProxy() || !receiver->IsAccessCheckNeeded());
 
-  __ push(r1);  // receiver.
-  __ push(r2);  // name.
-  __ push(r0);  // value.
+  __ Push(r1, r2, r0);  // Receiver, name, value.
 
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =

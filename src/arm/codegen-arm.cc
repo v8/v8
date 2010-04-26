@@ -619,7 +619,7 @@ void CodeGenerator::StoreArgumentsObject(bool initial) {
     __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
     __ mov(r0, Operand(Smi::FromInt(scope()->num_parameters())));
     frame_->Adjust(3);
-    __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
+    __ Push(r2, r1, r0);
     frame_->CallStub(&stub, 3);
     frame_->EmitPush(r0);
   }
@@ -4437,8 +4437,7 @@ class DeferredSearchCache: public DeferredCode {
 
 
 void DeferredSearchCache::Generate() {
-  __ push(cache_);
-  __ push(key_);
+  __ Push(cache_, key_);
   __ CallRuntime(Runtime::kGetFromCache, 2);
   if (!dst_.is(r0)) {
     __ mov(dst_, r0);
@@ -5497,8 +5496,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   // Create a new closure through the slower runtime call.
   __ bind(&gc);
-  __ push(cp);
-  __ push(r3);
+  __ Push(cp, r3);
   __ TailCallRuntime(Runtime::kNewClosure, 2, 1);
 }
 
@@ -6328,8 +6326,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   __ bind(&slow);
 
-  __ push(r1);
-  __ push(r0);
+  __ Push(r1, r0);
   // Figure out which native to call and setup the arguments.
   Builtins::JavaScript native;
   if (cc_ == eq) {
@@ -6594,8 +6591,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
   __ bind(&slow);
 
   // Push arguments to the stack
-  __ push(r1);
-  __ push(r0);
+  __ Push(r1, r0);
 
   if (Token::ADD == op_) {
     // Test for string arguments before calling runtime.
@@ -6849,8 +6845,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
 
   // If all else failed then we go to the runtime system.
   __ bind(&slow);
-  __ push(lhs);  // restore stack
-  __ push(rhs);
+  __ Push(lhs, rhs);  // Restore stack.
   switch (op_) {
     case Token::BIT_OR:
       __ InvokeBuiltin(Builtins::BIT_OR, JUMP_JS);
@@ -7248,8 +7243,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   Label get_result;
 
-  __ push(r1);
-  __ push(r0);
+  __ Push(r1, r0);
 
   // Internal frame is necessary to handle exceptions properly.
   __ EnterInternalFrame();
@@ -7723,7 +7717,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ mov(r6, Operand(Smi::FromInt(marker)));
   __ mov(r5, Operand(ExternalReference(Top::k_c_entry_fp_address)));
   __ ldr(r5, MemOperand(r5));
-  __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | r8.bit());
+  __ Push(r8, r7, r6, r5);
 
   // Setup frame pointer for the frame to be pushed.
   __ add(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
