@@ -6365,8 +6365,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     Register lhs,
     Register rhs,
     const Builtins::JavaScript& builtin) {
-  Label slow, slow_pop_2_first, do_the_call;
-  Label r0_is_smi, r1_is_smi, finished_loading_r0, finished_loading_r1;
+  Label slow, slow_reverse, do_the_call;
   bool use_fp_registers = CpuFeatures::IsSupported(VFP3) && Token::MOD != op_;
 
   ASSERT((lhs.is(r0) && rhs.is(r1)) || (lhs.is(r1) && rhs.is(r0)));
@@ -6375,7 +6374,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     // Smi-smi case (overflow).
     // Since both are Smis there is no heap number to overwrite, so allocate.
     // The new heap number is in r5.  r6 and r7 are scratch.
-    __ AllocateHeapNumber(r5, r6, r7, &slow);
+    __ AllocateHeapNumber(r5, r6, r7, lhs.is(r0) ? &slow_reverse : &slow);
 
     // If we have floating point hardware, inline ADD, SUB, MUL, and DIV,
     // using registers d7 and d6 for the double values.
@@ -6405,11 +6404,15 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
   // We branch here if at least one of r0 and r1 is not a Smi.
   __ bind(not_smi);
 
+  // After this point we have the left hand side in r1 and the right hand side
+  // in r0.
   if (lhs.is(r0)) {
     __ Swap(r0, r1, ip);
   }
 
   if (ShouldGenerateFPCode()) {
+    Label r0_is_smi, r1_is_smi, finished_loading_r0, finished_loading_r1;
+
     if (runtime_operands_type_ == BinaryOpIC::DEFAULT) {
       switch (op_) {
         case Token::ADD:
@@ -6427,7 +6430,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     if (mode_ == NO_OVERWRITE) {
       // In the case where there is no chance of an overwritable float we may as
       // well do the allocation immediately while r0 and r1 are untouched.
-    __ AllocateHeapNumber(r5, r6, r7, &slow);
+      __ AllocateHeapNumber(r5, r6, r7, &slow);
     }
 
     // Move r0 to a double in r2-r3.
@@ -6578,6 +6581,14 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       __ pop(pc);
     }
   }
+
+
+  if (lhs.is(r0)) {
+    __ b(&slow);
+    __ bind(&slow_reverse);
+    __ Swap(r0, r1, ip);
+  }
+
   // We jump to here if something goes wrong (one param is not a number of any
   // sort or new-space allocation fails).
   __ bind(&slow);
