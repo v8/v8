@@ -576,7 +576,7 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
   // then this is not related to an inlined in-object property load. The nop1
   // instruction is located just after the call to the IC in the deferred code
   // handling the miss in the inlined code. After the nop1 instruction there is
-  // a B instruction for jumping back from the deferred code.
+  // a branch instruction for jumping back from the deferred code.
   Address address_after_call = address + Assembler::kCallTargetAddressOffset;
   Instr instr_after_call = Assembler::instr_at(address_after_call);
   if (!Assembler::IsNop(instr_after_call, NAMED_PROPERTY_LOAD_INLINED)) {
@@ -709,7 +709,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ b(ne, &check_pixel_array);
   // Check that the key (index) is within bounds.
   __ ldr(r3, FieldMemOperand(r1, Array::kLengthOffset));
-  __ cmp(r0, Operand(r3));
+  __ cmp(r0, r3);
   __ b(hs, &slow);
   // Fast case: Do the load.
   __ add(r3, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));

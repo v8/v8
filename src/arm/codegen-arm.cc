@@ -206,7 +206,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 
 #ifdef DEBUG
         JumpTarget verified_true;
-        __ cmp(r0, Operand(cp));
+        __ cmp(r0, cp);
         verified_true.Branch(eq);
         __ stop("NewContext: r0 is expected to be the same as cp");
         verified_true.Bind();
@@ -1992,7 +1992,7 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   }
 #ifdef DEBUG
   JumpTarget verified_true;
-  __ cmp(r0, Operand(cp));
+  __ cmp(r0, cp);
   verified_true.Branch(eq);
   __ stop("PushContext: r0 is expected to be the same as cp");
   verified_true.Bind();
@@ -2469,7 +2469,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   __ ldr(r0, frame_->ElementAt(0));  // load the current count
   __ ldr(r1, frame_->ElementAt(1));  // load the length
-  __ cmp(r0, Operand(r1));  // compare to the array length
+  __ cmp(r0, r1);  // compare to the array length
   node->break_target()->Branch(hs);
 
   __ ldr(r0, frame_->ElementAt(0));
@@ -4545,7 +4545,7 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   LoadAndSpill(args->at(1));
   frame_->EmitPop(r0);
   frame_->EmitPop(r1);
-  __ cmp(r0, Operand(r1));
+  __ cmp(r0, r1);
   cc_reg_ = eq;
 }
 
@@ -5773,7 +5773,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   Label not_identical;
   Label heap_number, return_equal;
   Register exp_mask_reg = r5;
-  __ cmp(r0, Operand(r1));
+  __ cmp(r0, r1);
   __ b(ne, &not_identical);
 
   // The two objects are identical.  If we know that one of them isn't NaN then
@@ -5802,7 +5802,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
           __ cmp(r4, Operand(ODDBALL_TYPE));
           __ b(ne, &return_equal);
           __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
-          __ cmp(r0, Operand(r2));
+          __ cmp(r0, r2);
           __ b(ne, &return_equal);
           if (cc == le) {
             // undefined <= undefined should fail.
@@ -8138,7 +8138,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ldr(last_match_info_elements,
          FieldMemOperand(r0, JSArray::kElementsOffset));
   __ ldr(r0, FieldMemOperand(last_match_info_elements, HeapObject::kMapOffset));
-  __ cmp(r0, Operand(Factory::fixed_array_map()));
+  __ LoadRoot(ip, kFixedArrayMapRootIndex);
+  __ cmp(r0, ip);
   __ b(ne, &runtime);
   // Check that the last match info has space for the capture registers and the
   // additional information.
