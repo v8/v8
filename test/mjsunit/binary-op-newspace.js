@@ -30,14 +30,14 @@
  * in heap number allocation still works.
  */
 
-// Flags: --max-new-space-size=131072
+// Flags: --max-new-space-size=262144
 
 function f(x) {
   return x % 3;
 }
 
 function test() {
-  for (var i = 0; i < 20000; i++) {
+  for (var i = 0; i < 40000; i++) {
     assertEquals(-1 / 0, 1 / f(-3));
   }
 }
