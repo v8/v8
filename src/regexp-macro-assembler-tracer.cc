@@ -38,7 +38,7 @@ RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
   assembler_(assembler) {
   unsigned int type = assembler->Implementation();
   ASSERT(type < 4);
-  const char* impl_names[3] = {"IA32", "ARM", "X64", "Bytecode"};
+  const char* impl_names[4] = {"IA32", "ARM", "X64", "Bytecode"};
   PrintF("RegExpMacroAssembler%s();\n", impl_names[type]);
 }
 
