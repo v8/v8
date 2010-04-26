@@ -1592,10 +1592,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Inline smi case if we are in a loop.
   Label stub_call, done;
+  int count_value = expr->op() == Token::INC ? 1 : -1;
   if (loop_depth() > 0) {
-    __ add(r0, r0, Operand(expr->op() == Token::INC
-                           ? Smi::FromInt(1)
-                           : Smi::FromInt(-1)));
+    __ add(r0, r0, Operand(Smi::FromInt(count_value)), SetCC);
     __ b(vs, &stub_call);
     // We could eliminate this smi check if we split the code at
     // the first smi check before calling ToNumber.
@@ -1603,11 +1602,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     __ b(eq, &done);
     __ bind(&stub_call);
     // Call stub. Undo operation first.
-    __ sub(r0, r0, Operand(r1));
+    __ sub(r0, r0, Operand(Smi::FromInt(count_value)));
   }
-  __ mov(r1, Operand(expr->op() == Token::INC
-                     ? Smi::FromInt(1)
-                     : Smi::FromInt(-1)));
+  __ mov(r1, Operand(Smi::FromInt(count_value)));
   GenericBinaryOpStub stub(Token::ADD, NO_OVERWRITE, r1, r0);
   __ CallStub(&stub);
   __ bind(&done);
