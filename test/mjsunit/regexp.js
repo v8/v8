@@ -388,3 +388,99 @@ try {
   assertTrue(String(e).indexOf("Stack overflow") >= 0, "overflow");
 }
 
+
+// Test that compile works on modified objects
+var re = /re+/;
+assertEquals("re+", re.source);
+assertFalse(re.global);
+assertFalse(re.ignoreCase);
+assertFalse(re.multiline);
+assertEquals(0, re.lastIndex);
+
+re.compile("ro+", "gim");
+assertEquals("ro+", re.source);
+assertTrue(re.global);
+assertTrue(re.ignoreCase);
+assertTrue(re.multiline);
+assertEquals(0, re.lastIndex);
+
+re.lastIndex = 42;
+re.someOtherProperty = 42;
+re.someDeletableProperty = 42;
+re[37] = 37;  
+re[42] = 42;  
+
+re.compile("ra+", "i");
+assertEquals("ra+", re.source);
+assertFalse(re.global);
+assertTrue(re.ignoreCase);
+assertFalse(re.multiline);
+assertEquals(0, re.lastIndex);
+
+assertEquals(42, re.someOtherProperty);
+assertEquals(42, re.someDeletableProperty);
+assertEquals(37, re[37]);
+assertEquals(42, re[42]);
+
+re.lastIndex = -1;
+re.someOtherProperty = 37;
+re[42] = 37;
+assertTrue(delete re[37]);
+assertTrue(delete re.someDeletableProperty);
+re.compile("ri+", "gm");
+
+assertEquals("ri+", re.source);
+assertTrue(re.global);
+assertFalse(re.ignoreCase);
+assertTrue(re.multiline);
+assertEquals(0, re.lastIndex);
+assertEquals(37, re.someOtherProperty);
+assertEquals(37, re[42]);
+
+// Test boundary-checks.
+function assertRegExpTest(re, input, test) { 
+  assertEquals(test, re.test(input), "test:" + re + ":" + input);
+}
+
+assertRegExpTest(/b\b/, "b", true);
+assertRegExpTest(/b\b$/, "b", true);
+assertRegExpTest(/\bb/, "b", true);
+assertRegExpTest(/^\bb/, "b", true);
+assertRegExpTest(/,\b/, ",", false);
+assertRegExpTest(/,\b$/, ",", false);
+assertRegExpTest(/\b,/, ",", false);
+assertRegExpTest(/^\b,/, ",", false);
+
+assertRegExpTest(/b\B/, "b", false);
+assertRegExpTest(/b\B$/, "b", false);
+assertRegExpTest(/\Bb/, "b", false);
+assertRegExpTest(/^\Bb/, "b", false);
+assertRegExpTest(/,\B/, ",", true);
+assertRegExpTest(/,\B$/, ",", true);
+assertRegExpTest(/\B,/, ",", true);
+assertRegExpTest(/^\B,/, ",", true);
+
+assertRegExpTest(/b\b/, "b,", true);
+assertRegExpTest(/b\b/, "ba", false);
+assertRegExpTest(/b\B/, "b,", false);
+assertRegExpTest(/b\B/, "ba", true);
+
+assertRegExpTest(/b\Bb/, "bb", true);
+assertRegExpTest(/b\bb/, "bb", false);
+
+assertRegExpTest(/b\b[,b]/, "bb", false);
+assertRegExpTest(/b\B[,b]/, "bb", true);
+assertRegExpTest(/b\b[,b]/, "b,", true);
+assertRegExpTest(/b\B[,b]/, "b,", false);
+
+assertRegExpTest(/[,b]\bb/, "bb", false);
+assertRegExpTest(/[,b]\Bb/, "bb", true);
+assertRegExpTest(/[,b]\bb/, ",b", true);
+assertRegExpTest(/[,b]\Bb/, ",b", false);
+
+assertRegExpTest(/[,b]\b[,b]/, "bb", false);
+assertRegExpTest(/[,b]\B[,b]/, "bb", true);
+assertRegExpTest(/[,b]\b[,b]/, ",b", true);
+assertRegExpTest(/[,b]\B[,b]/, ",b", false);
+assertRegExpTest(/[,b]\b[,b]/, "b,", true);
+assertRegExpTest(/[,b]\B[,b]/, "b,", false);
