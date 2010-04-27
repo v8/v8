@@ -800,9 +800,10 @@ void Assembler::b(int branch_offset, Condition cond) {
   ASSERT(is_int24(imm24));
   emit(cond | B27 | B25 | (imm24 & Imm24Mask));
 
-  if (cond == al)
+  if (cond == al) {
     // Dead code is a good location to emit the constant pool.
     CheckConstPool(false, false);
+  }
 }
 
 

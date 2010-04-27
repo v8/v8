@@ -3703,7 +3703,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
       LoadAndSpill(property->obj());
       LoadAndSpill(property->key());
-      EmitKeyedLoad(false);
+      EmitKeyedLoad();
       frame_->Drop();  // key
       // Put the function below the receiver.
       if (property->is_synthetic()) {
@@ -5250,7 +5250,38 @@ void DeferredReferenceGetNamedValue::Generate() {
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop(1) instruction to indicate that the
     // in-object has been inlined.
-    __ nop(NAMED_PROPERTY_LOAD_INLINED);
+    __ nop(PROPERTY_LOAD_INLINED);
+
+    // Block the constant pool for one more instruction after leaving this
+    // constant pool block scope to include the branch instruction ending the
+    // deferred code.
+    __ BlockConstPoolFor(1);
+  }
+}
+
+
+class DeferredReferenceGetKeyedValue: public DeferredCode {
+ public:
+  DeferredReferenceGetKeyedValue() {
+    set_comment("[ DeferredReferenceGetKeyedValue");
+  }
+
+  virtual void Generate();
+};
+
+
+void DeferredReferenceGetKeyedValue::Generate() {
+  __ DecrementCounter(&Counters::keyed_load_inline, 1, r1, r2);
+  __ IncrementCounter(&Counters::keyed_load_inline_miss, 1, r1, r2);
+
+  // The rest of the instructions in the deferred code must be together.
+  { Assembler::BlockConstPoolScope block_const_pool(masm_);
+    // Call keyed load IC. It has all arguments on the stack.
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // The call must be followed by a nop instruction to indicate that the
+    // keyed load has been inlined.
+    __ nop(PROPERTY_LOAD_INLINED);
 
     // Block the constant pool for one more instruction after leaving this
     // constant pool block scope to include the branch instruction ending the
@@ -5269,7 +5300,7 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
                        ? RelocInfo::CODE_TARGET_CONTEXT
                        : RelocInfo::CODE_TARGET);
   } else {
-    // Inline the inobject property case.
+    // Inline the in-object property case.
     Comment cmnt(masm(), "[ Inlined named property load");
 
     DeferredReferenceGetNamedValue* deferred =
@@ -5304,7 +5335,7 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
       __ cmp(r2, r3);
       deferred->Branch(ne);
 
-      // Use initially use an invalid index. The index will be patched by the
+      // Initially use an invalid index. The index will be patched by the
       // inline cache code.
       __ ldr(r0, MemOperand(r1, 0));
 
@@ -5318,13 +5349,81 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 }
 
 
-void CodeGenerator::EmitKeyedLoad(bool is_global) {
-  Comment cmnt(masm_, "[ Load from keyed Property");
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  RelocInfo::Mode rmode = is_global
-                          ? RelocInfo::CODE_TARGET_CONTEXT
-                          : RelocInfo::CODE_TARGET;
-  frame_->CallCodeObject(ic, rmode, 0);
+void CodeGenerator::EmitKeyedLoad() {
+  if (loop_nesting() == 0) {
+    Comment cmnt(masm_, "[ Load from keyed property");
+    frame_->CallKeyedLoadIC();
+  } else {
+    // Inline the keyed load.
+    Comment cmnt(masm_, "[ Inlined load from keyed property");
+
+    DeferredReferenceGetKeyedValue* deferred =
+        new DeferredReferenceGetKeyedValue();
+
+    // Counter will be decremented in the deferred code. Placed here to avoid
+    // having it in the instruction stream below where patching will occur.
+    __ IncrementCounter(&Counters::keyed_load_inline, 1,
+                        frame_->scratch0(), frame_->scratch1());
+
+    // Load the receiver from the stack.
+    __ ldr(r0, MemOperand(sp, kPointerSize));
+
+    // Check that the receiver is a heap object.
+    __ tst(r0, Operand(kSmiTagMask));
+    deferred->Branch(eq);
+
+    // The following instructions are the inlined load keyed property. Parts
+    // of this code are patched, so the exact number of instructions generated
+    // need to be fixed. Therefore the constant pool is blocked while generating
+    // this code.
+#ifdef DEBUG
+    int kInlinedKeyedLoadInstructions = 20;
+    Label check_inlined_codesize;
+    masm_->bind(&check_inlined_codesize);
+#endif
+    { Assembler::BlockConstPoolScope block_const_pool(masm_);
+      // Check the map. The null map used below is patched by the inline cache
+      // code.
+      __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+      __ mov(r2, Operand(Factory::null_value()));
+      __ cmp(r1, r2);
+      deferred->Branch(ne);
+
+      // Load the key from the stack.
+      __ ldr(r1, MemOperand(sp, 0));
+
+      // Check that the key is a smi.
+      __ tst(r1, Operand(kSmiTagMask));
+      deferred->Branch(ne);
+
+      // Get the elements array from the receiver and check that it
+      // is not a dictionary.
+      __ ldr(r2, FieldMemOperand(r0, JSObject::kElementsOffset));
+      __ ldr(r3, FieldMemOperand(r2, JSObject::kMapOffset));
+      __ LoadRoot(r4, Heap::kFixedArrayMapRootIndex);
+      __ cmp(r3, r4);
+      deferred->Branch(ne);
+
+      // Check that key is within bounds.
+      __ ldr(r3, FieldMemOperand(r2, FixedArray::kLengthOffset));
+      __ cmp(r3, Operand(r1, ASR, kSmiTagSize));
+      deferred->Branch(ls);  // Unsigned less equal.
+
+      // Load and check that the result is not the hole (r1 is a smi).
+      __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
+      __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ ldr(r0, MemOperand(r2, r1, LSL,
+                            kPointerSizeLog2 - (kSmiTagSize + kSmiShiftSize)));
+      __ cmp(r0, r3);
+      deferred->Branch(eq);
+
+      // Make sure that the expected number of instructions are generated.
+      ASSERT_EQ(kInlinedKeyedLoadInstructions,
+                masm_->InstructionsGeneratedSince(&check_inlined_codesize));
+    }
+
+    deferred->BindExit();
+  }
 }
 
 
@@ -5383,12 +5482,8 @@ void Reference::GetValue() {
     }
 
     case KEYED: {
-      // TODO(181): Implement inlined version of array indexing once
-      // loop nesting is properly tracked on ARM.
       ASSERT(property != NULL);
-      Variable* var = expression_->AsVariableProxy()->AsVariable();
-      ASSERT(var == NULL || var->is_global());
-      cgen_->EmitKeyedLoad(var != NULL);
+      cgen_->EmitKeyedLoad();
       cgen_->frame()->EmitPush(r0);
       break;
     }
