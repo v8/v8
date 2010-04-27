@@ -8100,7 +8100,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     builtin = strict_ ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
   } else {
     builtin = Builtins::COMPARE;
-    __ push(Immediate(NegativeComparisonResult(cc_)));
+    __ Push(Smi::FromInt(NegativeComparisonResult(cc_)));
   }
 
   // Restore return address on the stack.
