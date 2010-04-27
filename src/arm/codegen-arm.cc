@@ -351,17 +351,17 @@ void CodeGenerator::Generate(CompilationInfo* info) {
       int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
       masm_->add(sp, sp, Operand(sp_delta));
       masm_->Jump(lr);
-    }
 
 #ifdef DEBUG
-    // Check that the size of the code used for returning matches what is
-    // expected by the debugger. If the sp_delts above cannot be encoded in the
-    // add instruction the add will generate two instructions.
-    int return_sequence_length =
-        masm_->InstructionsGeneratedSince(&check_exit_codesize);
-    CHECK(return_sequence_length == Assembler::kJSReturnSequenceLength ||
-          return_sequence_length == Assembler::kJSReturnSequenceLength + 1);
+      // Check that the size of the code used for returning matches what is
+      // expected by the debugger. If the sp_delts above cannot be encoded in the
+      // add instruction the add will generate two instructions.
+      int return_sequence_length =
+          masm_->InstructionsGeneratedSince(&check_exit_codesize);
+      CHECK(return_sequence_length == Assembler::kJSReturnSequenceLength ||
+            return_sequence_length == Assembler::kJSReturnSequenceLength + 1);
 #endif
+    }
   }
 
   // Adjust for function-level loop nesting.
@@ -5230,34 +5230,34 @@ class DeferredReferenceGetNamedValue: public DeferredCode {
     set_comment("[ DeferredReferenceGetNamedValue");
   }
 
-  virtual void BeforeGenerate();
   virtual void Generate();
-  virtual void AfterGenerate();
 
  private:
   Handle<String> name_;
 };
 
 
-void DeferredReferenceGetNamedValue::BeforeGenerate() {
-  __ StartBlockConstPool();
-}
-
-
 void DeferredReferenceGetNamedValue::Generate() {
+  __ DecrementCounter(&Counters::named_load_inline, 1, r1, r2);
   __ IncrementCounter(&Counters::named_load_inline_miss, 1, r1, r2);
+
   // Setup the name register and call load IC.
   __ mov(r2, Operand(name_));
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  __ Call(ic, RelocInfo::CODE_TARGET);
-  // The call must be followed by a nop(1) instruction to indicate that the
-  // inobject has been inlined.
-  __ nop(NAMED_PROPERTY_LOAD_INLINED);
-}
 
+  // The rest of the instructions in the deferred code must be together.
+  { Assembler::BlockConstPoolScope block_const_pool(masm_);
 
-void DeferredReferenceGetNamedValue::AfterGenerate() {
-  __ EndBlockConstPool();
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // The call must be followed by a nop(1) instruction to indicate that the
+    // in-object has been inlined.
+    __ nop(NAMED_PROPERTY_LOAD_INLINED);
+
+    // Block the constant pool for one more instruction after leaving this
+    // constant pool block scope to include the branch instruction ending the
+    // deferred code.
+    __ BlockConstPoolFor(1);
+  }
 }
 
 
@@ -5275,6 +5275,11 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 
     DeferredReferenceGetNamedValue* deferred =
         new DeferredReferenceGetNamedValue(name);
+
+    // Counter will be decremented in the deferred code. Placed here to avoid
+    // having it in the instruction stream below where patching will occur.
+    __ IncrementCounter(&Counters::named_load_inline, 1,
+                        frame_->scratch0(), frame_->scratch1());
 
     // The following instructions are the inlined load of an in-object property.
     // Parts of this code is patched, so the exact instructions generated needs
@@ -5303,13 +5308,12 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
       // Use initially use an invalid index. The index will be patched by the
       // inline cache code.
       __ ldr(r0, MemOperand(r1, 0));
+
+      // Make sure that the expected number of instructions are generated.
+      ASSERT_EQ(kInlinedNamedLoadInstructions,
+                masm_->InstructionsGeneratedSince(&check_inlined_codesize));
     }
 
-    // Make sure that the expected number of instructions are generated.
-    ASSERT_EQ(kInlinedNamedLoadInstructions,
-              masm_->InstructionsGeneratedSince(&check_inlined_codesize));
-
-    __ IncrementCounter(&Counters::named_load_inline, 1, r1, r2);
     deferred->BindExit();
   }
 }
