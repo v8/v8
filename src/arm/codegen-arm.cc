@@ -570,9 +570,9 @@ void CodeGenerator::Load(Expression* expr) {
 
 
 void CodeGenerator::LoadGlobal() {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
-  __ ldr(r0, GlobalObject());
-  frame_->EmitPush(r0);
+  Register reg = frame_->GetTOSRegister();
+  __ ldr(reg, GlobalObject());
+  frame_->EmitPush(reg);
 }
 
 
@@ -687,7 +687,6 @@ Reference::~Reference() {
 
 
 void CodeGenerator::LoadReference(Reference* ref) {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ LoadReference");
   Expression* e = ref->expression();
   Property* property = e->AsProperty();
@@ -696,11 +695,11 @@ void CodeGenerator::LoadReference(Reference* ref) {
   if (property != NULL) {
     // The expression is either a property or a variable proxy that rewrites
     // to a property.
-    LoadAndSpill(property->obj());
+    Load(property->obj());
     if (property->key()->IsPropertyName()) {
       ref->set_type(Reference::NAMED);
     } else {
-      LoadAndSpill(property->key());
+      Load(property->key());
       ref->set_type(Reference::KEYED);
     }
   } else if (var != NULL) {
@@ -715,6 +714,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
     }
   } else {
     // Anything else is a runtime error.
+    VirtualFrame::SpilledScope spilled_scope(frame_);
     LoadAndSpill(e);
     frame_->CallRuntime(Runtime::kThrowReferenceError, 1);
   }
@@ -1527,6 +1527,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   LoadAndSpill(applicand);
   Handle<String> name = Factory::LookupAsciiSymbol("apply");
   __ mov(r2, Operand(name));
+  __ ldr(r0, MemOperand(sp, 0));
   frame_->CallLoadIC(RelocInfo::CODE_TARGET);
   frame_->EmitPush(r0);
 
@@ -2948,9 +2949,10 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 
 void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
   if (slot->type() == Slot::LOOKUP) {
-    VirtualFrame::SpilledScope spilled_scope(frame_);
     ASSERT(slot->var()->is_dynamic());
 
+    // JumpTargets do not yet support merging frames so the frame must be
+    // spilled when jumping to these targets.
     JumpTarget slow;
     JumpTarget done;
 
@@ -2960,16 +2962,18 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     // perform a runtime call for all variables in the scope
     // containing the eval.
     if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
-      LoadFromGlobalSlotCheckExtensions(slot, typeof_state, r1, r2, &slow);
+      LoadFromGlobalSlotCheckExtensions(slot, typeof_state, &slow);
       // If there was no control flow to slow, we can exit early.
       if (!slow.is_linked()) {
         frame_->EmitPush(r0);
         return;
       }
+      frame_->SpillAll();
 
       done.Jump();
 
     } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+      frame_->SpillAll();
       Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
       // Only generate the fast case for locals that rewrite to slots.
       // This rules out argument loads.
@@ -2992,6 +2996,7 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     }
 
     slow.Bind();
+    VirtualFrame::SpilledScope spilled_scope(frame_);
     frame_->EmitPush(cp);
     __ mov(r0, Operand(slot->var()->name()));
     frame_->EmitPush(r0);
@@ -3143,16 +3148,17 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
 
 void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                                       TypeofState typeof_state,
-                                                      Register tmp,
-                                                      Register tmp2,
                                                       JumpTarget* slow) {
   // Check that no extension objects have been created by calls to
   // eval from the current scope to the global scope.
+  Register tmp = frame_->scratch0();
+  Register tmp2 = frame_->scratch1();
   Register context = cp;
   Scope* s = scope();
   while (s != NULL) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_eval()) {
+        frame_->SpillAll();
         // Check that extension is NULL.
         __ ldr(tmp2, ContextOperand(context, Context::EXTENSION_INDEX));
         __ tst(tmp2, tmp2);
@@ -3170,6 +3176,7 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
   }
 
   if (s->is_eval_scope()) {
+    frame_->SpillAll();
     Label next, fast;
     __ Move(tmp, context);
     __ bind(&next);
@@ -3192,6 +3199,7 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
   // Load the global object.
   LoadGlobal();
   // Setup the name register and call load IC.
+  frame_->SpillAllButCopyTOSToR0();
   __ mov(r2, Operand(slot->var()->name()));
   frame_->CallLoadIC(typeof_state == INSIDE_TYPEOF
                      ? RelocInfo::CODE_TARGET
@@ -3524,7 +3532,6 @@ void CodeGenerator::VisitProperty(Property* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ Property");
 
   { Reference property(this, node);
@@ -5241,7 +5248,9 @@ void DeferredReferenceGetNamedValue::Generate() {
   __ DecrementCounter(&Counters::named_load_inline, 1, r1, r2);
   __ IncrementCounter(&Counters::named_load_inline_miss, 1, r1, r2);
 
-  // Setup the name register and call load IC.
+  // Setup the registers and call load IC.
+  // On entry to this deferred code, r0 is assumed to already contain the
+  // receiver from the top of the stack.
   __ mov(r2, Operand(name_));
 
   // The rest of the instructions in the deferred code must be together.
@@ -5295,6 +5304,7 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
   if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
     Comment cmnt(masm(), "[ Load from named Property");
     // Setup the name register and call load IC.
+    frame_->SpillAllButCopyTOSToR0();
     __ mov(r2, Operand(name));
     frame_->CallLoadIC(is_contextual
                        ? RelocInfo::CODE_TARGET_CONTEXT
@@ -5302,9 +5312,6 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
   } else {
     // Inline the in-object property case.
     Comment cmnt(masm(), "[ Inlined named property load");
-
-    DeferredReferenceGetNamedValue* deferred =
-        new DeferredReferenceGetNamedValue(name);
 
     // Counter will be decremented in the deferred code. Placed here to avoid
     // having it in the instruction stream below where patching will occur.
@@ -5315,29 +5322,34 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     // Parts of this code is patched, so the exact instructions generated needs
     // to be fixed. Therefore the instruction pool is blocked when generating
     // this code
+
+    // Load the receiver from the stack.
+    frame_->SpillAllButCopyTOSToR0();
+
+    DeferredReferenceGetNamedValue* deferred =
+        new DeferredReferenceGetNamedValue(name);
+
 #ifdef DEBUG
-    int kInlinedNamedLoadInstructions = 8;
+    int kInlinedNamedLoadInstructions = 7;
     Label check_inlined_codesize;
     masm_->bind(&check_inlined_codesize);
 #endif
-    { Assembler::BlockConstPoolScope block_const_pool(masm_);
-      // Load the receiver from the stack.
-      __ ldr(r1, MemOperand(sp, 0));
 
+    { Assembler::BlockConstPoolScope block_const_pool(masm_);
       // Check that the receiver is a heap object.
-      __ tst(r1, Operand(kSmiTagMask));
+      __ tst(r0, Operand(kSmiTagMask));
       deferred->Branch(eq);
 
       // Check the map. The null map used below is patched by the inline cache
       // code.
-      __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+      __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
       __ mov(r3, Operand(Factory::null_value()));
       __ cmp(r2, r3);
       deferred->Branch(ne);
 
       // Initially use an invalid index. The index will be patched by the
       // inline cache code.
-      __ ldr(r0, MemOperand(r1, 0));
+      __ ldr(r0, MemOperand(r0, 0));
 
       // Make sure that the expected number of instructions are generated.
       ASSERT_EQ(kInlinedNamedLoadInstructions,
@@ -5351,14 +5363,12 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 
 void CodeGenerator::EmitKeyedLoad() {
   if (loop_nesting() == 0) {
+    VirtualFrame::SpilledScope spilled(frame_);
     Comment cmnt(masm_, "[ Load from keyed property");
     frame_->CallKeyedLoadIC();
   } else {
     // Inline the keyed load.
     Comment cmnt(masm_, "[ Inlined load from keyed property");
-
-    DeferredReferenceGetKeyedValue* deferred =
-        new DeferredReferenceGetKeyedValue();
 
     // Counter will be decremented in the deferred code. Placed here to avoid
     // having it in the instruction stream below where patching will occur.
@@ -5366,7 +5376,11 @@ void CodeGenerator::EmitKeyedLoad() {
                         frame_->scratch0(), frame_->scratch1());
 
     // Load the receiver from the stack.
-    __ ldr(r0, MemOperand(sp, kPointerSize));
+    frame_->SpillAllButCopyTOSToR0();
+    VirtualFrame::SpilledScope spilled(frame_);
+
+    DeferredReferenceGetKeyedValue* deferred =
+        new DeferredReferenceGetKeyedValue();
 
     // Check that the receiver is a heap object.
     __ tst(r0, Operand(kSmiTagMask));

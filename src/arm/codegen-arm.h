@@ -322,8 +322,6 @@ class CodeGenerator: public AstVisitor {
 
   void LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                          TypeofState typeof_state,
-                                         Register tmp,
-                                         Register tmp2,
                                          JumpTarget* slow);
 
   // Special code for typeof expressions: Unfortunately, we must

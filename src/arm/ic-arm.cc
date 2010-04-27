@@ -61,6 +61,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   //      dictionary.
   //
   // r2 - holds the name of the property and is unchanged.
+  // r4 - used as temporary.
 
   Label done;
 
@@ -108,25 +109,25 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   static const int kProbes = 4;
   for (int i = 0; i < kProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
-    __ ldr(t1, FieldMemOperand(r2, String::kHashFieldOffset));
+    __ ldr(r4, FieldMemOperand(r2, String::kHashFieldOffset));
     if (i > 0) {
       // Add the probe offset (i + i * i) left shifted to avoid right shifting
       // the hash in a separate instruction. The value hash + i + i * i is right
       // shifted in the following and instruction.
       ASSERT(StringDictionary::GetProbeOffset(i) <
              1 << (32 - String::kHashFieldOffset));
-      __ add(t1, t1, Operand(
+      __ add(r4, r4, Operand(
           StringDictionary::GetProbeOffset(i) << String::kHashShift));
     }
-    __ and_(t1, r3, Operand(t1, LSR, String::kHashShift));
+    __ and_(r4, r3, Operand(r4, LSR, String::kHashShift));
 
     // Scale the index by multiplying by the element size.
     ASSERT(StringDictionary::kEntrySize == 3);
-    __ add(t1, t1, Operand(t1, LSL, 1));  // t1 = t1 * 3
+    __ add(r4, r4, Operand(r4, LSL, 1));  // r4 = r4 * 3
 
     // Check if the key is identical to the name.
-    __ add(t1, t0, Operand(t1, LSL, 2));
-    __ ldr(ip, FieldMemOperand(t1, kElementsStartOffset));
+    __ add(r4, t0, Operand(r4, LSL, 2));
+    __ ldr(ip, FieldMemOperand(r4, kElementsStartOffset));
     __ cmp(r2, Operand(ip));
     if (i != kProbes - 1) {
       __ b(eq, &done);
@@ -136,13 +137,13 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   }
 
   // Check that the value is a normal property.
-  __ bind(&done);  // t1 == t0 + 4*index
-  __ ldr(r3, FieldMemOperand(t1, kElementsStartOffset + 2 * kPointerSize));
+  __ bind(&done);  // r4 == t0 + 4*index
+  __ ldr(r3, FieldMemOperand(r4, kElementsStartOffset + 2 * kPointerSize));
   __ tst(r3, Operand(PropertyDetails::TypeField::mask() << kSmiTagSize));
   __ b(ne, miss);
 
   // Get the value at the masked, scaled index and return.
-  __ ldr(t1, FieldMemOperand(t1, kElementsStartOffset + 1 * kPointerSize));
+  __ ldr(t1, FieldMemOperand(r4, kElementsStartOffset + 1 * kPointerSize));
 }
 
 
@@ -239,11 +240,10 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
+  //  -- r0    : receiver
+  //  -- sp[0] : receiver
   // -----------------------------------
   Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
 
   StubCompiler::GenerateLoadArrayLength(masm, r0, r3, &miss);
   __ bind(&miss);
@@ -255,11 +255,10 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
+  //  -- r0    : receiver
+  //  -- sp[0] : receiver
   // -----------------------------------
   Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
 
   StubCompiler::GenerateLoadStringLength(masm, r0, r1, r3, &miss);
   // Cache miss: Jump to runtime.
@@ -272,12 +271,10 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
+  //  -- r0    : receiver
+  //  -- sp[0] : receiver
   // -----------------------------------
   Label miss;
-
-  // Load receiver.
-  __ ldr(r0, MemOperand(sp, 0));
 
   StubCompiler::GenerateLoadFunctionPrototype(masm, r0, r1, r3, &miss);
   __ bind(&miss);
@@ -351,7 +348,8 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 static void GenerateNormalHelper(MacroAssembler* masm,
                                  int argc,
                                  bool is_global_object,
-                                 Label* miss) {
+                                 Label* miss,
+                                 Register scratch) {
   // Search dictionary - put result in register r1.
   GenerateDictionaryLoad(masm, miss, r0, r1);
 
@@ -360,7 +358,7 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   __ b(eq, miss);
 
   // Check that the value is a JSFunction.
-  __ CompareObjectType(r1, r0, r0, JS_FUNCTION_TYPE);
+  __ CompareObjectType(r1, scratch, scratch, JS_FUNCTION_TYPE);
   __ b(ne, miss);
 
   // Patch the receiver with the global proxy if necessary.
@@ -409,7 +407,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ ldrb(r3, FieldMemOperand(r3, Map::kBitFieldOffset));
   __ tst(r3, Operand(1 << Map::kIsAccessCheckNeeded));
   __ b(ne, &miss);
-  GenerateNormalHelper(masm, argc, true, &miss);
+  GenerateNormalHelper(masm, argc, true, &miss, r4);
 
   // Accessing non-global object: Check for access to global proxy.
   Label global_proxy, invoke;
@@ -422,7 +420,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ tst(r3, Operand(1 << Map::kIsAccessCheckNeeded));
   __ b(ne, &miss);
   __ bind(&invoke);
-  GenerateNormalHelper(masm, argc, false, &miss);
+  GenerateNormalHelper(masm, argc, false, &miss, r4);
 
   // Global object access: Check access rights.
   __ bind(&global_proxy);
@@ -489,10 +487,10 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
+  //  -- r0    : receiver
+  //  -- sp[0] : receiver
   // -----------------------------------
 
-  __ ldr(r0, MemOperand(sp, 0));
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
                                          NOT_IN_LOOP,
@@ -508,11 +506,11 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
+  //  -- r0    : receiver
+  //  -- sp[0] : receiver
   // -----------------------------------
   Label miss, probe, global;
 
-  __ ldr(r0, MemOperand(sp, 0));
   // Check that the receiver isn't a smi.
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &miss);
@@ -551,11 +549,12 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
+  //  -- r0    : receiver
+  //  -- sp[0] : receiver
   // -----------------------------------
 
-  __ ldr(r3, MemOperand(sp, 0));
-  __ stm(db_w, sp, r2.bit() | r3.bit());
+  __ mov(r3, r0);
+  __ Push(r3, r2);
 
   // Perform tail call to the entry.
   ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss));

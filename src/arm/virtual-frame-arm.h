@@ -344,6 +344,10 @@ class VirtualFrame : public ZoneObject {
   // must be copied to a scratch register before modification.
   Register Peek();
 
+  // A little specialized, this one.  It flushes all registers, but it puts a
+  // copy of the top-of-stack in R0.
+  void SpillAllButCopyTOSToR0();
+
   // Pop and save an element from the top of the expression stack and
   // emit a corresponding pop instruction.
   void EmitPop(Register reg);
