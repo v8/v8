@@ -354,8 +354,8 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 
 #ifdef DEBUG
       // Check that the size of the code used for returning matches what is
-      // expected by the debugger. If the sp_delts above cannot be encoded in the
-      // add instruction the add will generate two instructions.
+      // expected by the debugger. If the sp_delts above cannot be encoded in
+      // the add instruction the add will generate two instructions.
       int return_sequence_length =
           masm_->InstructionsGeneratedSince(&check_exit_codesize);
       CHECK(return_sequence_length == Assembler::kJSReturnSequenceLength ||
@@ -5246,7 +5246,6 @@ void DeferredReferenceGetNamedValue::Generate() {
 
   // The rest of the instructions in the deferred code must be together.
   { Assembler::BlockConstPoolScope block_const_pool(masm_);
-
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop(1) instruction to indicate that the
