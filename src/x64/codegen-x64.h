@@ -943,6 +943,10 @@ class NumberToStringStub: public CodeStub {
                                               Label* not_found);
 
  private:
+  static void GenerateConvertHashCodeToIndex(MacroAssembler* masm,
+                                             Register hash,
+                                             Register mask);
+
   Major MajorKey() { return NumberToString; }
   int MinorKey() { return 0; }
 

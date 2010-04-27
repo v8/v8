@@ -7770,6 +7770,18 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 }
 
 
+void NumberToStringStub::GenerateConvertHashCodeToIndex(MacroAssembler* masm,
+                                                        Register hash,
+                                                        Register mask) {
+  __ and_(hash, mask);
+  // Each entry in string cache consists of two pointer sized fields,
+  // but times_twice_pointer_size (multiplication by 16) scale factor
+  // is not supported by addrmode on x64 platform.
+  // So we have to premultiply entry index before lookup.
+  __ shl(hash, Immediate(kPointerSizeLog2 + 1));
+}
+
+
 void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register object,
                                                          Register result,
@@ -7777,12 +7789,6 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register scratch2,
                                                          bool object_is_smi,
                                                          Label* not_found) {
-  // Currently only lookup for smis. Check for smi if object is not known to be
-  // a smi.
-  if (!object_is_smi) {
-    __ JumpIfNotSmi(object, not_found);
-  }
-
   // Use of registers. Register result is used as a temporary.
   Register number_string_cache = result;
   Register mask = scratch1;
@@ -7798,28 +7804,57 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   __ subl(mask, Immediate(1));  // Make mask.
 
   // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value.
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label is_smi;
+  Label load_result_from_cache;
+  if (!object_is_smi) {
+    __ JumpIfSmi(object, &is_smi);
+    __ CheckMap(object, Factory::heap_number_map(), not_found, true);
+
+    ASSERT_EQ(8, kDoubleSize);
+    __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
+    __ xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset));
+    GenerateConvertHashCodeToIndex(masm, scratch, mask);
+
+    Register index = scratch;
+    Register probe = mask;
+    __ movq(probe,
+            FieldOperand(number_string_cache,
+                         index,
+                         times_1,
+                         FixedArray::kHeaderSize));
+    __ JumpIfSmi(probe, not_found);
+    ASSERT(CpuFeatures::IsSupported(SSE2));
+    CpuFeatures::Scope fscope(SSE2);
+    __ movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
+    __ movsd(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
+    __ comisd(xmm0, xmm1);
+    __ j(parity_even, not_found);  // Bail out if NaN is involved.
+    __ j(not_equal, not_found);  // The cache did not contain this value.
+    __ jmp(&load_result_from_cache);
+  }
+
+  __ bind(&is_smi);
   __ movq(scratch, object);
   __ SmiToInteger32(scratch, scratch);
-  __ andl(scratch, mask);
+  GenerateConvertHashCodeToIndex(masm, scratch, mask);
 
-  // Each entry in string cache consists of two pointer sized fields,
-  // but times_twice_pointer_size (multiplication by 16) scale factor
-  // is not supported by addrmode on x64 platform.
-  // So we have to premultiply entry index before lookup
-  __ shl(scratch, Immediate(kPointerSizeLog2 + 1));
+  Register index = scratch;
   // Check if the entry is the smi we are looking for.
   __ cmpq(object,
           FieldOperand(number_string_cache,
-                       scratch,
+                       index,
                        times_1,
                        FixedArray::kHeaderSize));
   __ j(not_equal, not_found);
 
   // Get the result from the cache.
+  __ bind(&load_result_from_cache);
   __ movq(result,
           FieldOperand(number_string_cache,
-                       scratch,
+                       index,
                        times_1,
                        FixedArray::kHeaderSize + kPointerSize));
   __ IncrementCounter(&Counters::number_to_string_native, 1);
@@ -7837,7 +7872,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
-  __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
+  __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
 }
 
 
