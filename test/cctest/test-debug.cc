@@ -6139,3 +6139,12 @@ TEST(CallingContextIsNotDebugContext) {
   debugger_context = v8::Handle<v8::Context>();
   CheckDebuggerUnloaded();
 }
+
+
+TEST(DebugContextIsPreservedBetweenAccesses) {
+  v8::HandleScope scope;
+  v8::Local<v8::Context> context1 = v8::Debug::GetDebugContext();
+  v8::Local<v8::Context> context2 = v8::Debug::GetDebugContext();
+  CHECK_EQ(*context1, *context2);
+}
+
