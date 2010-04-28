@@ -9674,38 +9674,30 @@ static Object* Runtime_LiveEditGatherCompileInfo(Arguments args) {
   return result;
 }
 
-// Changes the source of the script to a new_source and creates a new
-// script representing the old version of the script source.
+// Changes the source of the script to a new_source.
+// If old_script_name is provided (i.e. is a String), also creates a copy of
+// the script with its original source and sends notification to debugger.
 static Object* Runtime_LiveEditReplaceScript(Arguments args) {
   ASSERT(args.length() == 3);
   HandleScope scope;
   CONVERT_CHECKED(JSValue, original_script_value, args[0]);
   CONVERT_ARG_CHECKED(String, new_source, 1);
-  CONVERT_ARG_CHECKED(String, old_script_name, 2);
-  Handle<Script> original_script =
-      Handle<Script>(Script::cast(original_script_value->value()));
+  Handle<Object> old_script_name(args[2]);
 
-  Handle<String> original_source(String::cast(original_script->source()));
+  CONVERT_CHECKED(Script, original_script_pointer,
+                  original_script_value->value());
+  Handle<Script> original_script(original_script_pointer);
 
-  original_script->set_source(*new_source);
-  Handle<Script> old_script = Factory::NewScript(original_source);
-  old_script->set_name(*old_script_name);
-  old_script->set_line_offset(original_script->line_offset());
-  old_script->set_column_offset(original_script->column_offset());
-  old_script->set_data(original_script->data());
-  old_script->set_type(original_script->type());
-  old_script->set_context_data(original_script->context_data());
-  old_script->set_compilation_type(original_script->compilation_type());
-  old_script->set_eval_from_shared(original_script->eval_from_shared());
-  old_script->set_eval_from_instructions_offset(
-      original_script->eval_from_instructions_offset());
+  Object* old_script = LiveEdit::ChangeScriptSource(original_script,
+                                                    new_source,
+                                                    old_script_name);
 
-  // Drop line ends so that they will be recalculated.
-  original_script->set_line_ends(Heap::undefined_value());
-
-  Debugger::OnAfterCompile(old_script, Debugger::SEND_WHEN_DEBUGGING);
-
-  return *(GetScriptWrapper(old_script));
+  if (old_script->IsScript()) {
+    Handle<Script> script_handle(Script::cast(old_script));
+    return *(GetScriptWrapper(script_handle));
+  } else {
+    return Heap::null_value();
+  }
 }
 
 // Replaces code of SharedFunctionInfo with a new one.
@@ -9721,35 +9713,60 @@ static Object* Runtime_LiveEditReplaceFunctionCode(Arguments args) {
 }
 
 // Connects SharedFunctionInfo to another script.
-static Object* Runtime_LiveEditRelinkFunctionToScript(Arguments args) {
+static Object* Runtime_LiveEditFunctionSetScript(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;
-  CONVERT_ARG_CHECKED(JSArray, shared_info_array, 0);
-  CONVERT_ARG_CHECKED(JSValue, script_value, 1);
-  Handle<Script> script = Handle<Script>(Script::cast(script_value->value()));
+  Handle<Object> function_object(args[0]);
+  Handle<Object> script_object(args[1]);
 
-  LiveEdit::RelinkFunctionToScript(shared_info_array, script);
+  if (function_object->IsJSValue()) {
+    Handle<JSValue> function_wrapper = Handle<JSValue>::cast(function_object);
+    if (script_object->IsJSValue()) {
+      CONVERT_CHECKED(Script, script, JSValue::cast(*script_object)->value());
+      script_object = Handle<Object>(script);
+    }
+
+    LiveEdit::SetFunctionScript(function_wrapper, script_object);
+  } else {
+    // Just ignore this. We may not have a SharedFunctionInfo for some functions
+    // and we check it in this function.
+  }
 
   return Heap::undefined_value();
 }
+
+
+// In a code of a parent function replaces original function as embedded object
+// with a substitution one.
+static Object* Runtime_LiveEditReplaceRefToNestedFunction(Arguments args) {
+  ASSERT(args.length() == 3);
+  HandleScope scope;
+
+  CONVERT_ARG_CHECKED(JSValue, parent_wrapper, 0);
+  CONVERT_ARG_CHECKED(JSValue, orig_wrapper, 1);
+  CONVERT_ARG_CHECKED(JSValue, subst_wrapper, 2);
+
+  LiveEdit::ReplaceRefToNestedFunction(parent_wrapper, orig_wrapper,
+                                       subst_wrapper);
+
+  return Heap::undefined_value();
+}
+
 
 // Updates positions of a shared function info (first parameter) according
 // to script source change. Text change is described in second parameter as
 // array of groups of 3 numbers:
 // (change_begin, change_end, change_end_new_position).
 // Each group describes a change in text; groups are sorted by change_begin.
-// Returns an array of pairs (new source position, breakpoint_object/array)
-// so that JS side could update positions in breakpoint objects.
 static Object* Runtime_LiveEditPatchFunctionPositions(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;
   CONVERT_ARG_CHECKED(JSArray, shared_array, 0);
   CONVERT_ARG_CHECKED(JSArray, position_change_array, 1);
 
-  Handle<Object> result =
-      LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
+  LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
 
-  return *result;
+  return Heap::undefined_value();
 }
 
 

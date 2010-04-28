@@ -124,12 +124,6 @@ BreakPoint.prototype.source_position = function() {
 };
 
 
-BreakPoint.prototype.updateSourcePosition = function(new_position, script) {
-  this.source_position_ = new_position;
-  // TODO(635): also update line and column.
-};
-
-
 BreakPoint.prototype.hit_count = function() {
   return this.hit_count_;
 };
@@ -245,6 +239,21 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
 }
 
 
+//Creates a clone of script breakpoint that is linked to another script.
+ScriptBreakPoint.prototype.cloneForOtherScript = function (other_script) {
+  var copy = new ScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
+      other_script.id, this.line_, this.column_, this.groupId_);
+  copy.number_ = next_break_point_number++;
+  script_break_points.push(copy);
+  
+  copy.hit_count_ = this.hit_count_;
+  copy.active_ = this.active_;
+  copy.condition_ = this.condition_;
+  copy.ignoreCount_ = this.ignoreCount_;
+  return copy;
+}
+
+
 ScriptBreakPoint.prototype.number = function() {
   return this.number_;
 };
@@ -278,6 +287,13 @@ ScriptBreakPoint.prototype.line = function() {
 ScriptBreakPoint.prototype.column = function() {
   return this.column_;
 };
+
+
+ScriptBreakPoint.prototype.update_positions = function(line, column) {
+  this.line_ = line;
+  this.column_ = column;
+}
+
 
 
 ScriptBreakPoint.prototype.hit_count = function() {
@@ -403,6 +419,17 @@ function UpdateScriptBreakPoints(script) {
       script_break_points[i].set(script);
     }
   }
+}
+
+
+function GetScriptBreakPoints(script) {
+  var result = [];
+  for (var i = 0; i < script_break_points.length; i++) {
+    if (script_break_points[i].matchesScript(script)) {
+      result.push(script_break_points[i]);
+    }
+  }
+  return result;
 }
 
 

@@ -83,7 +83,7 @@ Debug.LiveEdit = new function() {
     //
     // The script is used for compilation, because it produces code that
     // needs to be linked with some particular script (for nested functions).
-    function DebugGatherCompileInfo(source) {
+    function GatherCompileInfo(source) {
       // Get function info, elements are partially sorted (it is a tree of
       // nested functions serialized as parent followed by serialized children.
       var raw_compile_info = %LiveEditGatherCompileInfo(script, source);
@@ -92,8 +92,14 @@ Debug.LiveEdit = new function() {
       var compile_info = new Array();
       var old_index_map = new Array();
       for (var i = 0; i < raw_compile_info.length; i++) {
-          compile_info.push(new FunctionCompileInfo(raw_compile_info[i]));
-          old_index_map.push(i);
+        var info = new FunctionCompileInfo(raw_compile_info[i]);
+        // Remove all links to the actual script. Breakpoints system and
+        // LiveEdit itself believe that any function in heap that points to a
+        // particular script is a regular function.
+        // For some functions we will restore this link later.
+        %LiveEditFunctionSetScript(info.shared_function_info, void 0);
+        compile_info.push(info);
+        old_index_map.push(i);
       }
   
       for (var i = 0; i < compile_info.length; i++) {
@@ -148,6 +154,8 @@ Debug.LiveEdit = new function() {
     var shared_infos;
     // Finds SharedFunctionInfo that corresponds compile info with index
     // in old version of the script.
+    // TODO(LiveEdit): Redesign this part. Find live SharedFunctionInfo
+    //     about the time that FindCorrespondingFunctions is being run.
     function FindFunctionInfo(index) {
       var old_info = old_compile_info[index];
       for (var i = 0; i < shared_infos.length; i++) {
@@ -160,15 +168,36 @@ Debug.LiveEdit = new function() {
     }
   
     // Replaces function's Code.
-    function PatchCode(new_info, shared_info) {
+    function PatchCode(old_node) {
+      var new_info = old_node.corresponding_node.info;
+      var shared_info = FindFunctionInfo(old_node.array_index);
       if (shared_info) {
         %LiveEditReplaceFunctionCode(new_info.raw_array, shared_info.raw_array);
+
+        // The function got a new code. However, this new code brings all new
+        // instances of SharedFunctionInfo for nested functions. However,
+        // we want the original instances to be used wherever possible.
+        // (This is because old instances and new instances will be both
+        // linked to a script and breakpoints subsystem does not really
+        // expects this; neither does LiveEdit subsystem on next call).
+        for (var i = 0; i < old_node.children.length; i++) {
+          if (old_node.children[i].corresponding_node) {
+            var corresponding_child = old_node.children[i].corresponding_node;
+            var child_shared_info =
+                FindFunctionInfo(old_node.children[i].array_index);
+            if (child_shared_info) {
+              %LiveEditReplaceRefToNestedFunction(shared_info.info,
+                  corresponding_child.info.shared_function_info,
+                  child_shared_info.info);
+            }
+          }
+        }
+        
         change_log.push( {function_patched: new_info.function_name} );
       } else {
         change_log.push( {function_patched: new_info.function_name,
             function_info_not_found: true} );
       }
-  
     }
   
     
@@ -180,15 +209,8 @@ Debug.LiveEdit = new function() {
             { name: old_info.function_name, info_not_found: true } );
         return;
       }
-      var breakpoint_position_update = %LiveEditPatchFunctionPositions(
+      %LiveEditPatchFunctionPositions(
           shared_info.raw_array, diff_array);
-      for (var i = 0; i < breakpoint_position_update.length; i += 2) {
-        var new_pos = breakpoint_position_update[i];
-        var break_point_object = breakpoint_position_update[i + 1];
-        change_log.push( { breakpoint_position_update:
-            { from: break_point_object.source_position(), to: new_pos } } );
-        break_point_object.updateSourcePosition(new_pos, script);
-      }
       position_patch_report.push( { name: old_info.function_name } );
     }
   
@@ -199,7 +221,7 @@ Debug.LiveEdit = new function() {
     // may access its own text.
     function LinkToOldScript(shared_info, old_info_node) {
       if (shared_info) {
-        %LiveEditRelinkFunctionToScript(shared_info.raw_array, old_script);
+        %LiveEditFunctionSetScript(shared_info.info, old_script);
         link_to_old_script_report.push( { name: shared_info.function_name } );
       } else {
         link_to_old_script_report.push(
@@ -220,12 +242,12 @@ Debug.LiveEdit = new function() {
     }
   
     // Gather compile information about old version of script.
-    var old_compile_info = DebugGatherCompileInfo(old_source);
+    var old_compile_info = GatherCompileInfo(old_source);
   
     // Gather compile information about new version of script.
     var new_compile_info;
     try {
-      new_compile_info = DebugGatherCompileInfo(new_source);
+      new_compile_info = GatherCompileInfo(new_source);
     } catch (e) {
       throw new Failure("Failed to compile new version of script: " + e);
     }
@@ -243,6 +265,7 @@ Debug.LiveEdit = new function() {
     // Prepare to-do lists.
     var replace_code_list = new Array();
     var link_to_old_script_list = new Array();
+    var link_to_original_script_list = new Array();
     var update_positions_list = new Array();
 
     function HarvestTodo(old_node) {
@@ -250,6 +273,15 @@ Debug.LiveEdit = new function() {
         link_to_old_script_list.push(node);
         for (var i = 0; i < node.children.length; i++) {
           CollectDamaged(node.children[i]);
+        }
+      }
+
+      // Recursively collects all newly compiled functions that are going into
+      // business and should be have link to the actual script updated.
+      function CollectNew(node_list) {
+        for (var i = 0; i < node_list.length; i++) {
+          link_to_original_script_list.push(node_list[i]);
+          CollectNew(node_list[i].children);
         }
       }
       
@@ -263,6 +295,7 @@ Debug.LiveEdit = new function() {
         update_positions_list.push(old_node);
       } else if (old_node.status == FunctionStatus.CHANGED) {
         replace_code_list.push(old_node);
+        CollectNew(old_node.unmatched_new_nodes);
       }
       for (var i = 0; i < old_node.children.length; i++) {
         HarvestTodo(old_node.children[i]);
@@ -286,14 +319,24 @@ Debug.LiveEdit = new function() {
   
     // We haven't changed anything before this line yet.
     // Committing all changes.
+    
+    // Start with breakpoints. Convert their line/column positions and 
+    // temporary remove.
+    var break_points_restorer = TemporaryRemoveBreakPoints(script, change_log);
 
-    // Create old script if there are function linked to old version.
-    if (link_to_old_script_list.length > 0) {
+    var old_script;
+
+    // Create an old script only if there are function that should be linked
+    // to old version.
+    if (link_to_old_script_list.length == 0) {
+      %LiveEditReplaceScript(script, new_source, null);
+      old_script = void 0;
+    } else {
       var old_script_name = CreateNameForOldScript(script);
       
       // Update the script text and create a new script representing an old
       // version of the script.
-      var old_script = %LiveEditReplaceScript(script, new_source,
+      old_script = %LiveEditReplaceScript(script, new_source,
           old_script_name);
       
       var link_to_old_script_report = new Array();
@@ -307,10 +350,14 @@ Debug.LiveEdit = new function() {
       }
     }
     
+    // Link to an actual script all the functions that we are going to use.
+    for (var i = 0; i < link_to_original_script_list.length; i++) {
+      %LiveEditFunctionSetScript(
+          link_to_original_script_list[i].info.shared_function_info, script);
+    }
 
     for (var i = 0; i < replace_code_list.length; i++) {
-      PatchCode(replace_code_list[i].corresponding_node.info,
-          FindFunctionInfo(replace_code_list[i].array_index));
+      PatchCode(replace_code_list[i]);
     }
   
     var position_patch_report = new Array();
@@ -322,9 +369,83 @@ Debug.LiveEdit = new function() {
       PatchPositions(update_positions_list[i].info,
           FindFunctionInfo(update_positions_list[i].array_index));
     }
+    
+    break_points_restorer(pos_translator, old_script);
   }
   // Function is public.
   this.ApplyPatchMultiChunk = ApplyPatchMultiChunk;
+
+
+  // Returns function that restores breakpoints.
+  function TemporaryRemoveBreakPoints(original_script, change_log) {
+    var script_break_points = GetScriptBreakPoints(original_script);
+    
+    var break_points_update_report = [];
+    change_log.push( { break_points_update: break_points_update_report } );
+
+    var break_point_old_positions = [];
+    for (var i = 0; i < script_break_points.length; i++) {
+      var break_point = script_break_points[i];
+
+      break_point.clear();
+      
+      // TODO(LiveEdit): be careful with resource offset here. 
+      var break_point_position = Debug.findScriptSourcePosition(original_script,
+          break_point.line(), break_point.column());
+      
+      var old_position_description = {
+          position: break_point_position,
+          line: break_point.line(),
+          column: break_point.column()
+      }
+      break_point_old_positions.push(old_position_description);
+    }
+    
+    
+    // Restores breakpoints and creates their copies in the "old" copy of
+    // the script.
+    return function (pos_translator, old_script_copy_opt) {
+      // Update breakpoints (change positions and restore them in old version
+      // of script.
+      for (var i = 0; i < script_break_points.length; i++) {
+        var break_point = script_break_points[i];
+        if (old_script_copy_opt) {
+          var clone = break_point.cloneForOtherScript(old_script_copy_opt);
+          clone.set(old_script_copy_opt);
+          
+          break_points_update_report.push( {
+            type: "copied_to_old",
+            id: break_point.number(),
+            new_id: clone.number(), 
+            positions: break_point_old_positions[i]
+            } );
+        }
+        
+        var updated_position = pos_translator.Translate(
+            break_point_old_positions[i].position,
+            PosTranslator.ShiftWithTopInsideChunkHandler);
+        
+        var new_location =
+            original_script.locationFromPosition(updated_position, false);
+
+        break_point.update_positions(new_location.line, new_location.column);
+
+        var new_position_description = {
+            position: updated_position,
+            line: new_location.line,
+            column: new_location.column
+        }
+        
+        break_point.set(original_script);
+        
+        break_points_update_report.push( { type: "position_changed",
+          id: break_point.number(),
+          old_positions: break_point_old_positions[i],
+          new_positions: new_position_description
+          } );
+      }
+    }
+  }
 
   
   function Assert(condition, message) {
@@ -346,15 +467,15 @@ Debug.LiveEdit = new function() {
   
   function PosTranslator(diff_array) {
     var chunks = new Array();
-    var pos1 = 0;
-    var pos2 = 0;
+    var current_diff = 0;
     for (var i = 0; i < diff_array.length; i += 3) {
-      pos2 += diff_array[i] - pos1 + pos2;
-      pos1 = diff_array[i];
-      chunks.push(new DiffChunk(pos1, pos2, diff_array[i + 1] - pos1,
-          diff_array[i + 2] - pos2));
-      pos1 = diff_array[i + 1];
-      pos2 = diff_array[i + 2];
+      var pos1_begin = diff_array[i];
+      var pos2_begin = pos1_begin + current_diff;
+      var pos1_end = diff_array[i + 1];
+      var pos2_end = diff_array[i + 2];
+      chunks.push(new DiffChunk(pos1_begin, pos2_begin, pos1_end - pos1_begin,
+          pos2_end - pos2_begin));
+      current_diff = pos2_end - pos1_end; 
     }
     this.chunks = chunks;
   }
@@ -364,14 +485,14 @@ Debug.LiveEdit = new function() {
   
   PosTranslator.prototype.Translate = function(pos, inside_chunk_handler) {
     var array = this.chunks; 
-    if (array.length == 0 || pos < array[0]) {
+    if (array.length == 0 || pos < array[0].pos1) {
       return pos;
     }
     var chunk_index1 = 0;
     var chunk_index2 = array.length - 1;
 
     while (chunk_index1 < chunk_index2) {
-      var middle_index = (chunk_index1 + chunk_index2) / 2;
+      var middle_index = Math.floor((chunk_index1 + chunk_index2) / 2);
       if (pos < array[middle_index + 1].pos1) {
         chunk_index2 = middle_index;
       } else {
@@ -380,17 +501,24 @@ Debug.LiveEdit = new function() {
     }
     var chunk = array[chunk_index1];
     if (pos >= chunk.pos1 + chunk.len1) {
-      return pos += chunk.pos2 + chunk.len2 - chunk.pos1 - chunk.len1; 
+      return pos + chunk.pos2 + chunk.len2 - chunk.pos1 - chunk.len1; 
     }
     
     if (!inside_chunk_handler) {
-      inside_chunk_handler = PosTranslator.default_inside_chunk_handler;
+      inside_chunk_handler = PosTranslator.DefaultInsideChunkHandler;
     }
-    inside_chunk_handler(pos, chunk);
+    return inside_chunk_handler(pos, chunk);
   }
 
-  PosTranslator.default_inside_chunk_handler = function() {
-    Assert(false, "Cannot translate position in chaged area");
+  PosTranslator.DefaultInsideChunkHandler = function(pos, diff_chunk) {
+    Assert(false, "Cannot translate position in changed area");
+  }
+  
+  PosTranslator.ShiftWithTopInsideChunkHandler =
+      function(pos, diff_chunk) {
+    // We carelessly do not check whether we stay inside the chunk after
+    // translation.
+    return pos - diff_chunk.pos1 + diff_chunk.pos2; 
   }
   
   var FunctionStatus = {
@@ -412,15 +540,16 @@ Debug.LiveEdit = new function() {
     this.children = children;
     // an index in array of compile_info
     this.array_index = array_index; 
-    this.parent = void(0);
+    this.parent = void 0;
     
     this.status = FunctionStatus.UNCHANGED;
     // Status explanation is used for debugging purposes and will be shown
     // in user UI if some explanations are needed.
-    this.status_explanation = void(0);
-    this.new_start_pos = void(0);
-    this.new_end_pos = void(0);
-    this.corresponding_node = void(0);
+    this.status_explanation = void 0;
+    this.new_start_pos = void 0;
+    this.new_end_pos = void 0;
+    this.corresponding_node = void 0;
+    this.unmatched_new_nodes = void 0;
   }
   
   // From array of function infos that is implicitly a tree creates
@@ -564,6 +693,8 @@ Debug.LiveEdit = new function() {
     function ProcessChildren(old_node, new_node) {
       var old_children = old_node.children;
       var new_children = new_node.children;
+      
+      var unmatched_new_nodes_list = [];
 
       var old_index = 0;
       var new_index = 0;
@@ -573,6 +704,7 @@ Debug.LiveEdit = new function() {
         } else if (new_index < new_children.length) {
           if (new_children[new_index].info.start_position <
               old_children[old_index].new_start_pos) {
+            unmatched_new_nodes_list.push(new_children[new_index]);
             new_index++;
           } else if (new_children[new_index].info.start_position ==
               old_children[old_index].new_start_pos) {
@@ -584,6 +716,9 @@ Debug.LiveEdit = new function() {
                 ProcessChildren(old_children[old_index],
                     new_children[new_index]);
                 if (old_children[old_index].status == FunctionStatus.DAMAGED) {
+                  unmatched_new_nodes_list.push(
+                      old_children[old_index].corresponding_node);
+                  old_children[old_index].corresponding_node = void 0;
                   old_node.status = FunctionStatus.CHANGED;
                 }
               }
@@ -592,6 +727,7 @@ Debug.LiveEdit = new function() {
               old_children[old_index].status_explanation =
                   "No corresponding function in new script found";
               old_node.status = FunctionStatus.CHANGED;
+              unmatched_new_nodes_list.push(new_children[new_index]);
             }
             new_index++;
             old_index++;
@@ -611,12 +747,18 @@ Debug.LiveEdit = new function() {
         }
       }
       
+      while (new_index < new_children.length) {
+        unmatched_new_nodes_list.push(new_children[new_index]);
+        new_index++;
+      }
+      
       if (old_node.status == FunctionStatus.CHANGED) {
         if (!CompareFunctionExpectations(old_node.info, new_node.info)) {
           old_node.status = FunctionStatus.DAMAGED;
           old_node.status_explanation = "Changed code expectations";
         }
       }
+      old_node.unmatched_new_nodes = unmatched_new_nodes_list;
     }
 
     ProcessChildren(old_code_tree, new_code_tree);
@@ -637,6 +779,7 @@ Debug.LiveEdit = new function() {
     this.code = raw_array[4];
     this.scope_info = raw_array[5];
     this.outer_index = raw_array[6];
+    this.shared_function_info = raw_array[7];
     this.next_sibling_index = null;
     this.raw_array = raw_array;
   }
@@ -776,71 +919,10 @@ Debug.LiveEdit = new function() {
   function CompareStringsLinewise(s1, s2) {
     return %LiveEditCompareStringsLinewise(s1, s2);
   }
-  // Function is public (for tests).
-  this.CompareStringsLinewise = CompareStringsLinewise;
-
   
-  // Finds a difference between 2 strings in form of a single chunk.
-  // This is a temporary solution. We should calculate a read diff instead.
-  function FindSimpleDiff(old_source, new_source) {
-    var change_pos;
-    var old_len;
-    var new_len;
-    
-    // A find range block. Whenever control leaves it, it should set 3 local
-    // variables declared above.
-    find_range:
-    {
-      // First look from the beginning of strings.
-      var pos1;
-      {
-        var next_pos;
-        for (pos1 = 0; true; pos1 = next_pos) {
-          if (pos1 >= old_source.length) {
-            change_pos = pos1;
-            old_len = 0;
-            new_len = new_source.length - pos1;
-            break find_range;
-          }
-          if (pos1 >= new_source.length) {
-            change_pos = pos1;
-            old_len = old_source.length - pos1;
-            new_len = 0;
-            break find_range;
-          }
-          if (old_source[pos1] != new_source[pos1]) {
-            break;
-          }
-          next_pos = pos1 + 1;
-        }
-      }
-      // Now compare strings from the ends.
-      change_pos = pos1;
-      var pos_old;
-      var pos_new;
-      {
-        for (pos_old = old_source.length - 1, pos_new = new_source.length - 1;
-            true;
-            pos_old--, pos_new--) {
-          if (pos_old - change_pos + 1 < 0 || pos_new - change_pos + 1 < 0) {
-            old_len = pos_old - change_pos + 2;
-            new_len = pos_new - change_pos + 2;
-            break find_range;
-          }
-          if (old_source[pos_old] != new_source[pos_new]) {
-            old_len = pos_old - change_pos + 1;
-            new_len = pos_new - change_pos + 1;
-            break find_range;
-          }
-        }
-      }
-    }
-
-    if (old_len == 0 && new_len == 0) {
-      // no change
-      return;
-    }
-    
-    return { "change_pos": change_pos, "old_len": old_len, "new_len": new_len };
+  // Functions are public for tests.
+  this.TestApi = {
+    PosTranslator: PosTranslator,
+    CompareStringsLinewise: CompareStringsLinewise
   }
 }

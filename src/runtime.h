@@ -337,7 +337,8 @@ namespace internal {
   F(LiveEditGatherCompileInfo, 2, 1) \
   F(LiveEditReplaceScript, 3, 1) \
   F(LiveEditReplaceFunctionCode, 2, 1) \
-  F(LiveEditRelinkFunctionToScript, 2, 1) \
+  F(LiveEditFunctionSetScript, 2, 1) \
+  F(LiveEditReplaceRefToNestedFunction, 3, 1) \
   F(LiveEditPatchFunctionPositions, 2, 1) \
   F(LiveEditCheckAndDropActivations, 2, 1) \
   F(LiveEditCompareStringsLinewise, 2, 1) \
