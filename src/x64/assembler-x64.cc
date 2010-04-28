@@ -2546,8 +2546,19 @@ void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
   last_pc_ = pc_;
   emit(0x66);
   emit_optional_rex_32(dst, src);
-  emit(0x0f);
+  emit(0x0F);
   emit(0x57);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x51);
   emit_sse_operand(dst, src);
 }
 

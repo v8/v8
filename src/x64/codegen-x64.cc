@@ -4050,22 +4050,231 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 }
 
 
-// Generates the Math.pow method - currently just calls runtime.
+// Generates the Math.pow method. Only handles special cases and
+// branches to the runtime system for everything else. Please note
+// that this function assumes that the callsite has executed ToNumber
+// on both arguments.
 void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   Load(args->at(0));
   Load(args->at(1));
-  Result res = frame_->CallRuntime(Runtime::kMath_pow, 2);
-  frame_->Push(&res);
+
+  Label allocate_return;
+  // Load the two operands while leaving the values on the frame.
+  frame()->Dup();
+  Result exponent = frame()->Pop();
+  exponent.ToRegister();
+  frame()->Spill(exponent.reg());
+  frame()->PushElementAt(1);
+  Result base = frame()->Pop();
+  base.ToRegister();
+  frame()->Spill(base.reg());
+
+  Result answer = allocator()->Allocate();
+  ASSERT(answer.is_valid());
+  ASSERT(!exponent.reg().is(base.reg()));
+  JumpTarget call_runtime;
+
+  // Save 1 in xmm3 - we need this several times later on.
+  __ movl(answer.reg(), Immediate(1));
+  __ cvtlsi2sd(xmm3, answer.reg());
+
+  Label exponent_nonsmi;
+  Label base_nonsmi;
+  // If the exponent is a heap number go to that specific case.
+  __ JumpIfNotSmi(exponent.reg(), &exponent_nonsmi);
+  __ JumpIfNotSmi(base.reg(), &base_nonsmi);
+
+  // Optimized version when y is an integer.
+  Label powi;
+  __ SmiToInteger32(base.reg(), base.reg());
+  __ cvtlsi2sd(xmm0, base.reg());
+  __ jmp(&powi);
+  // exponent is smi and base is a heapnumber.
+  __ bind(&base_nonsmi);
+  __ CompareRoot(FieldOperand(base.reg(), HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  call_runtime.Branch(not_equal);
+
+  __ movsd(xmm0, FieldOperand(base.reg(), HeapNumber::kValueOffset));
+
+  // Optimized version of pow if y is an integer.
+  __ bind(&powi);
+  __ SmiToInteger32(exponent.reg(), exponent.reg());
+
+  // Save exponent in base as we need to check if exponent is negative later.
+  // We know that base and exponent are in different registers.
+  __ movl(base.reg(), exponent.reg());
+
+  // Get absolute value of exponent.
+  Label no_neg;
+  __ cmpl(exponent.reg(), Immediate(0));
+  __ j(greater_equal, &no_neg);
+  __ negl(exponent.reg());
+  __ bind(&no_neg);
+
+  // Load xmm1 with 1.
+  __ movsd(xmm1, xmm3);
+  Label while_true;
+  Label no_multiply;
+
+  __ bind(&while_true);
+  __ shrl(exponent.reg(), Immediate(1));
+  __ j(not_carry, &no_multiply);
+  __ mulsd(xmm1, xmm0);
+  __ bind(&no_multiply);
+  __ testl(exponent.reg(), exponent.reg());
+  __ mulsd(xmm0, xmm0);
+  __ j(not_zero, &while_true);
+
+  // x has the original value of y - if y is negative return 1/result.
+  __ testl(base.reg(), base.reg());
+  __ j(positive, &allocate_return);
+  // Special case if xmm1 has reached infinity.
+  __ movl(answer.reg(), Immediate(0x7FB00000));
+  __ movd(xmm0, answer.reg());
+  __ cvtss2sd(xmm0, xmm0);
+  __ ucomisd(xmm0, xmm1);
+  call_runtime.Branch(equal);
+  __ divsd(xmm3, xmm1);
+  __ movsd(xmm1, xmm3);
+  __ jmp(&allocate_return);
+
+  // exponent (or both) is a heapnumber - no matter what we should now work
+  // on doubles.
+  __ bind(&exponent_nonsmi);
+  __ CompareRoot(FieldOperand(exponent.reg(), HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  call_runtime.Branch(not_equal);
+  __ movsd(xmm1, FieldOperand(exponent.reg(), HeapNumber::kValueOffset));
+  // Test if exponent is nan.
+  __ ucomisd(xmm1, xmm1);
+  call_runtime.Branch(parity_even);
+
+  Label base_not_smi;
+  Label handle_special_cases;
+  __ testl(base.reg(), Immediate(kSmiTagMask));
+  __ j(not_zero, &base_not_smi);
+  __ SmiToInteger32(base.reg(), base.reg());
+  __ cvtlsi2sd(xmm0, base.reg());
+  __ jmp(&handle_special_cases);
+  __ bind(&base_not_smi);
+  __ CompareRoot(FieldOperand(base.reg(), HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  call_runtime.Branch(not_equal);
+  __ movl(answer.reg(), FieldOperand(base.reg(), HeapNumber::kExponentOffset));
+  __ andl(answer.reg(), Immediate(HeapNumber::kExponentMask));
+  __ cmpl(answer.reg(), Immediate(HeapNumber::kExponentMask));
+  // base is NaN or +/-Infinity
+  call_runtime.Branch(greater_equal);
+  __ movsd(xmm0, FieldOperand(base.reg(), HeapNumber::kValueOffset));
+
+  // base is in xmm0 and exponent is in xmm1.
+  __ bind(&handle_special_cases);
+  Label not_minus_half;
+  // Test for -0.5.
+  // Load xmm2 with -0.5.
+  __ movl(answer.reg(), Immediate(0xBF000000));
+  __ movd(xmm2, answer.reg());
+  __ cvtss2sd(xmm2, xmm2);
+  // xmm2 now has -0.5.
+  __ ucomisd(xmm2, xmm1);
+  __ j(not_equal, &not_minus_half);
+
+  // Calculates reciprocal of square root.
+  // Note that 1/sqrt(x) = sqrt(1/x))
+  __ divsd(xmm3, xmm0);
+  __ movsd(xmm1, xmm3);
+  __ sqrtsd(xmm1, xmm1);
+  __ jmp(&allocate_return);
+
+  // Test for 0.5.
+  __ bind(&not_minus_half);
+  // Load xmm2 with 0.5.
+  // Since xmm3 is 1 and xmm2 is -0.5 this is simply xmm2 + xmm3.
+  __ addsd(xmm2, xmm3);
+  // xmm2 now has 0.5.
+  __ comisd(xmm2, xmm1);
+  call_runtime.Branch(not_equal);
+
+  // Calculates square root.
+  __ movsd(xmm1, xmm0);
+  __ sqrtsd(xmm1, xmm1);
+
+  JumpTarget done;
+  Label failure, success;
+  __ bind(&allocate_return);
+  // Make a copy of the frame to enable us to handle allocation
+  // failure after the JumpTarget jump.
+  VirtualFrame* clone = new VirtualFrame(frame());
+  __ AllocateHeapNumber(answer.reg(), exponent.reg(), &failure);
+  __ movsd(FieldOperand(answer.reg(), HeapNumber::kValueOffset), xmm1);
+  // Remove the two original values from the frame - we only need those
+  // in the case where we branch to runtime.
+  frame()->Drop(2);
+  exponent.Unuse();
+  base.Unuse();
+  done.Jump(&answer);
+  // Use the copy of the original frame as our current frame.
+  RegisterFile empty_regs;
+  SetFrame(clone, &empty_regs);
+  // If we experience an allocation failure we branch to runtime.
+  __ bind(&failure);
+  call_runtime.Bind();
+  answer = frame()->CallRuntime(Runtime::kMath_pow_cfunction, 2);
+
+  done.Bind(&answer);
+  frame()->Push(&answer);
 }
 
 
-// Generates the Math.sqrt method - currently just calls runtime.
+// Generates the Math.sqrt method. Please note - this function assumes that
+// the callsite has executed ToNumber on the argument.
 void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
-  Result res = frame_->CallRuntime(Runtime::kMath_sqrt, 1);
-  frame_->Push(&res);
+
+  // Leave original value on the frame if we need to call runtime.
+  frame()->Dup();
+  Result result = frame()->Pop();
+  result.ToRegister();
+  frame()->Spill(result.reg());
+  Label runtime;
+  Label non_smi;
+  Label load_done;
+  JumpTarget end;
+
+  __ JumpIfNotSmi(result.reg(), &non_smi);
+  __ SmiToInteger32(result.reg(), result.reg());
+  __ cvtlsi2sd(xmm0, result.reg());
+  __ jmp(&load_done);
+  __ bind(&non_smi);
+  __ CompareRoot(FieldOperand(result.reg(), HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &runtime);
+  __ movsd(xmm0, FieldOperand(result.reg(), HeapNumber::kValueOffset));
+
+  __ bind(&load_done);
+  __ sqrtsd(xmm0, xmm0);
+  // A copy of the virtual frame to allow us to go to runtime after the
+  // JumpTarget jump.
+  Result scratch = allocator()->Allocate();
+  VirtualFrame* clone = new VirtualFrame(frame());
+  __ AllocateHeapNumber(result.reg(), scratch.reg(), &runtime);
+
+  __ movsd(FieldOperand(result.reg(), HeapNumber::kValueOffset), xmm0);
+  frame()->Drop(1);
+  scratch.Unuse();
+  end.Jump(&result);
+  // We only branch to runtime if we have an allocation error.
+  // Use the copy of the original frame as our current frame.
+  RegisterFile empty_regs;
+  SetFrame(clone, &empty_regs);
+  __ bind(&runtime);
+  result = frame()->CallRuntime(Runtime::kMath_sqrt, 1);
+
+  end.Bind(&result);
+  frame()->Push(&result);
 }
 
 

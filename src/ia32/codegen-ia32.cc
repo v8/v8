@@ -6623,10 +6623,10 @@ void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
 }
 
 
-// Generates the Math.pow method - only handles special cases and branches to
-// the runtime system if not.Please note - this function assumes that
-// the callsite has executed ToNumber on both arguments and that the
-// arguments are not the same identifier.
+// Generates the Math.pow method. Only handles special cases and
+// branches to the runtime system for everything else. Please note
+// that this function assumes that the callsite has executed ToNumber
+// on both arguments.
 void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   Load(args->at(0));
@@ -6649,8 +6649,6 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
 
     Result answer = allocator()->Allocate();
     ASSERT(answer.is_valid());
-    // We can safely assume that the base and exponent is not in the same
-    // register since we only call this from one callsite (math.js).
     ASSERT(!exponent.reg().is(base.reg()));
     JumpTarget call_runtime;
 
@@ -6699,7 +6697,6 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     Label while_true;
     Label no_multiply;
 
-    //  Label allocate_and_return;
     __ bind(&while_true);
     __ shr(exponent.reg(), 1);
     __ j(not_carry, &no_multiply);
