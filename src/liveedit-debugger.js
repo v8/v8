@@ -44,222 +44,41 @@
 // LiveEdit namespace is declared inside a single function constructor.
 Debug.LiveEdit = new function() {
 
-  // Applies the change to the script.
-  // The change is always a substring (change_pos, change_pos + change_len)
-  // being replaced with a completely different string new_str.
-  // This API is a legacy and is obsolete.
-  //
-  // @param {Script} script that is being changed
-  // @param {Array} change_log a list that collects engineer-readable
-  //     description of what happened.
-  function ApplyPatch(script, change_pos, change_len, new_str,
-      change_log) {
-    var old_source = script.source;
-  
-    // Prepare new source string.
-    var new_source = old_source.substring(0, change_pos) +
-        new_str + old_source.substring(change_pos + change_len);
-    
-    return ApplyPatchMultiChunk(script,
-        [ change_pos, change_pos + change_len, change_pos + new_str.length],
-        new_source, change_log);
-  }
-  // Function is public.
-  this.ApplyPatch = ApplyPatch;
-
   // Forward declaration for minifier.
   var FunctionStatus;
+  
   
   // Applies the change to the script.
   // The change is in form of list of chunks encoded in a single array as
   // a series of triplets (pos1_start, pos1_end, pos2_end)
   function ApplyPatchMultiChunk(script, diff_array, new_source, change_log) {
 
-    // Fully compiles source string as a script. Returns Array of
-    // FunctionCompileInfo -- a descriptions of all functions of the script.
-    // Elements of array are ordered by start positions of functions (from top
-    // to bottom) in the source. Fields outer_index and next_sibling_index help
-    // to navigate the nesting structure of functions.
-    //
-    // The script is used for compilation, because it produces code that
-    // needs to be linked with some particular script (for nested functions).
-    function GatherCompileInfo(source) {
-      // Get function info, elements are partially sorted (it is a tree of
-      // nested functions serialized as parent followed by serialized children.
-      var raw_compile_info = %LiveEditGatherCompileInfo(script, source);
-  
-      // Sort function infos by start position field.
-      var compile_info = new Array();
-      var old_index_map = new Array();
-      for (var i = 0; i < raw_compile_info.length; i++) {
-        var info = new FunctionCompileInfo(raw_compile_info[i]);
-        // Remove all links to the actual script. Breakpoints system and
-        // LiveEdit itself believe that any function in heap that points to a
-        // particular script is a regular function.
-        // For some functions we will restore this link later.
-        %LiveEditFunctionSetScript(info.shared_function_info, void 0);
-        compile_info.push(info);
-        old_index_map.push(i);
-      }
-  
-      for (var i = 0; i < compile_info.length; i++) {
-        var k = i;
-        for (var j = i + 1; j < compile_info.length; j++) {
-          if (compile_info[k].start_position > compile_info[j].start_position) {
-            k = j;
-          }
-        }
-        if (k != i) {
-          var temp_info = compile_info[k];
-          var temp_index = old_index_map[k];
-          compile_info[k] = compile_info[i];
-          old_index_map[k] = old_index_map[i];
-          compile_info[i] = temp_info;
-          old_index_map[i] = temp_index;
-        }
-      }
-  
-      // After sorting update outer_inder field using old_index_map. Also
-      // set next_sibling_index field.
-      var current_index = 0;
-  
-      // The recursive function, that goes over all children of a particular
-      // node (i.e. function info).
-      function ResetIndexes(new_parent_index, old_parent_index) {
-        var previous_sibling = -1;
-        while (current_index < compile_info.length &&
-            compile_info[current_index].outer_index == old_parent_index) {
-          var saved_index = current_index;
-          compile_info[saved_index].outer_index = new_parent_index;
-          if (previous_sibling != -1) {
-            compile_info[previous_sibling].next_sibling_index = saved_index;
-          }
-          previous_sibling = saved_index;
-          current_index++;
-          ResetIndexes(saved_index, old_index_map[saved_index]);
-        }
-        if (previous_sibling != -1) {
-          compile_info[previous_sibling].next_sibling_index = -1;
-        }
-      }
-  
-      ResetIndexes(-1, -1);
-      Assert(current_index == compile_info.length);
-  
-      return compile_info;
-    }
-  
-    // Variable forward declarations. Preprocessor "Minifier" needs them.
-    var old_compile_info;
-    var shared_infos;
-    // Finds SharedFunctionInfo that corresponds compile info with index
-    // in old version of the script.
-    // TODO(LiveEdit): Redesign this part. Find live SharedFunctionInfo
-    //     about the time that FindCorrespondingFunctions is being run.
-    function FindFunctionInfo(index) {
-      var old_info = old_compile_info[index];
-      for (var i = 0; i < shared_infos.length; i++) {
-        var info = shared_infos[i];
-        if (info.start_position == old_info.start_position &&
-            info.end_position == old_info.end_position) {
-          return info;
-        }
-      }
-    }
-  
-    // Replaces function's Code.
-    function PatchCode(old_node) {
-      var new_info = old_node.corresponding_node.info;
-      var shared_info = FindFunctionInfo(old_node.array_index);
-      if (shared_info) {
-        %LiveEditReplaceFunctionCode(new_info.raw_array, shared_info.raw_array);
-
-        // The function got a new code. However, this new code brings all new
-        // instances of SharedFunctionInfo for nested functions. However,
-        // we want the original instances to be used wherever possible.
-        // (This is because old instances and new instances will be both
-        // linked to a script and breakpoints subsystem does not really
-        // expects this; neither does LiveEdit subsystem on next call).
-        for (var i = 0; i < old_node.children.length; i++) {
-          if (old_node.children[i].corresponding_node) {
-            var corresponding_child = old_node.children[i].corresponding_node;
-            var child_shared_info =
-                FindFunctionInfo(old_node.children[i].array_index);
-            if (child_shared_info) {
-              %LiveEditReplaceRefToNestedFunction(shared_info.info,
-                  corresponding_child.info.shared_function_info,
-                  child_shared_info.info);
-            }
-          }
-        }
-        
-        change_log.push( {function_patched: new_info.function_name} );
-      } else {
-        change_log.push( {function_patched: new_info.function_name,
-            function_info_not_found: true} );
-      }
-    }
-  
-    
-    var position_patch_report;
-    function PatchPositions(old_info, shared_info) {
-      if (!shared_info) {
-        // TODO(LiveEdit): function is not compiled yet or is already collected.
-        position_patch_report.push( 
-            { name: old_info.function_name, info_not_found: true } );
-        return;
-      }
-      %LiveEditPatchFunctionPositions(
-          shared_info.raw_array, diff_array);
-      position_patch_report.push( { name: old_info.function_name } );
-    }
-  
-    var link_to_old_script_report;
-    var old_script;
-    // Makes a function associated with another instance of a script (the
-    // one representing its old version). This way the function still
-    // may access its own text.
-    function LinkToOldScript(shared_info, old_info_node) {
-      if (shared_info) {
-        %LiveEditFunctionSetScript(shared_info.info, old_script);
-        link_to_old_script_report.push( { name: shared_info.function_name } );
-      } else {
-        link_to_old_script_report.push(
-            { name: old_info_node.info.function_name, not_found: true } );
-      }
-    }
-    
-  
     var old_source = script.source;
-   
-    // Find all SharedFunctionInfo's that are compiled from this script.
-    var shared_raw_list = %LiveEditFindSharedFunctionInfosForScript(script);
-  
-    var shared_infos = new Array();
-  
-    for (var i = 0; i < shared_raw_list.length; i++) {
-      shared_infos.push(new SharedInfoWrapper(shared_raw_list[i]));
-    }
-  
-    // Gather compile information about old version of script.
-    var old_compile_info = GatherCompileInfo(old_source);
-  
-    // Gather compile information about new version of script.
-    var new_compile_info;
-    try {
-      new_compile_info = GatherCompileInfo(new_source);
-    } catch (e) {
-      throw new Failure("Failed to compile new version of script: " + e);
-    }
-    
-    var pos_translator = new PosTranslator(diff_array);
 
+    // Gather compile information about old version of script.
+    var old_compile_info = GatherCompileInfo(old_source, script);
+  
     // Build tree structures for old and new versions of the script.
     var root_old_node = BuildCodeInfoTree(old_compile_info);
-    var root_new_node = BuildCodeInfoTree(new_compile_info);
+
+    var pos_translator = new PosTranslator(diff_array);
 
     // Analyze changes.
     MarkChangedFunctions(root_old_node, pos_translator.GetChunks());
+
+    // Find all SharedFunctionInfo's that were compiled from this script.
+    FindLiveSharedInfos(root_old_node, script);
+    
+    // Gather compile information about new version of script.
+    var new_compile_info;
+    try {
+      new_compile_info = GatherCompileInfo(new_source, script);
+    } catch (e) {
+      throw new Failure("Failed to compile new version of script: " + e);
+    }
+    var root_new_node = BuildCodeInfoTree(new_compile_info);
+
+    // Link recompiled script data with other data.
     FindCorrespondingFunctions(root_old_node, root_new_node);
     
     // Prepare to-do lists.
@@ -307,9 +126,9 @@ Debug.LiveEdit = new function() {
     // Collect shared infos for functions whose code need to be patched.
     var replaced_function_infos = new Array();
     for (var i = 0; i < replace_code_list.length; i++) {
-      var info = FindFunctionInfo(replace_code_list[i].array_index);
-      if (info) {
-        replaced_function_infos.push(info);
+      var info_wrapper = replace_code_list[i].live_shared_info_wrapper; 
+      if (info_wrapper) {
+        replaced_function_infos.push(info_wrapper);
       }
     }
 
@@ -344,9 +163,8 @@ Debug.LiveEdit = new function() {
     
       // We need to link to old script all former nested functions.
       for (var i = 0; i < link_to_old_script_list.length; i++) {
-        LinkToOldScript(
-            FindFunctionInfo(link_to_old_script_list[i].array_index),
-            link_to_old_script_list[i]);
+        LinkToOldScript(link_to_old_script_list[i], old_script,
+            link_to_old_script_report);
       }
     }
     
@@ -357,7 +175,7 @@ Debug.LiveEdit = new function() {
     }
 
     for (var i = 0; i < replace_code_list.length; i++) {
-      PatchCode(replace_code_list[i]);
+      PatchFunctionCode(replace_code_list[i], change_log);
     }
   
     var position_patch_report = new Array();
@@ -366,8 +184,8 @@ Debug.LiveEdit = new function() {
     for (var i = 0; i < update_positions_list.length; i++) {
       // TODO(LiveEdit): take into account wether it's source_changed or
       // unchanged and whether positions changed at all.
-      PatchPositions(update_positions_list[i].info,
-          FindFunctionInfo(update_positions_list[i].array_index));
+      PatchPositions(update_positions_list[i], diff_array,
+          position_patch_report);
     }
     
     break_points_restorer(pos_translator, old_script);
@@ -375,6 +193,132 @@ Debug.LiveEdit = new function() {
   // Function is public.
   this.ApplyPatchMultiChunk = ApplyPatchMultiChunk;
 
+  
+  // Fully compiles source string as a script. Returns Array of
+  // FunctionCompileInfo -- a descriptions of all functions of the script.
+  // Elements of array are ordered by start positions of functions (from top
+  // to bottom) in the source. Fields outer_index and next_sibling_index help
+  // to navigate the nesting structure of functions.
+  //
+  // All functions get compiled linked to script provided as parameter script.
+  // TODO(LiveEdit): consider not using actual scripts as script, because
+  //     we have to manually erase all links right after compile. 
+  function GatherCompileInfo(source, script) {
+    // Get function info, elements are partially sorted (it is a tree of
+    // nested functions serialized as parent followed by serialized children.
+    var raw_compile_info = %LiveEditGatherCompileInfo(script, source);
+
+    // Sort function infos by start position field.
+    var compile_info = new Array();
+    var old_index_map = new Array();
+    for (var i = 0; i < raw_compile_info.length; i++) {
+      var info = new FunctionCompileInfo(raw_compile_info[i]);
+      // Remove all links to the actual script. Breakpoints system and
+      // LiveEdit itself believe that any function in heap that points to a
+      // particular script is a regular function.
+      // For some functions we will restore this link later.
+      %LiveEditFunctionSetScript(info.shared_function_info, void 0);
+      compile_info.push(info);
+      old_index_map.push(i);
+    }
+
+    for (var i = 0; i < compile_info.length; i++) {
+      var k = i;
+      for (var j = i + 1; j < compile_info.length; j++) {
+        if (compile_info[k].start_position > compile_info[j].start_position) {
+          k = j;
+        }
+      }
+      if (k != i) {
+        var temp_info = compile_info[k];
+        var temp_index = old_index_map[k];
+        compile_info[k] = compile_info[i];
+        old_index_map[k] = old_index_map[i];
+        compile_info[i] = temp_info;
+        old_index_map[i] = temp_index;
+      }
+    }
+
+    // After sorting update outer_inder field using old_index_map. Also
+    // set next_sibling_index field.
+    var current_index = 0;
+
+    // The recursive function, that goes over all children of a particular
+    // node (i.e. function info).
+    function ResetIndexes(new_parent_index, old_parent_index) {
+      var previous_sibling = -1;
+      while (current_index < compile_info.length &&
+          compile_info[current_index].outer_index == old_parent_index) {
+        var saved_index = current_index;
+        compile_info[saved_index].outer_index = new_parent_index;
+        if (previous_sibling != -1) {
+          compile_info[previous_sibling].next_sibling_index = saved_index;
+        }
+        previous_sibling = saved_index;
+        current_index++;
+        ResetIndexes(saved_index, old_index_map[saved_index]);
+      }
+      if (previous_sibling != -1) {
+        compile_info[previous_sibling].next_sibling_index = -1;
+      }
+    }
+
+    ResetIndexes(-1, -1);
+    Assert(current_index == compile_info.length);
+
+    return compile_info;
+  }
+
+  
+  // Replaces function's Code.
+  function PatchFunctionCode(old_node, change_log) {
+    var new_info = old_node.corresponding_node.info;
+    var shared_info_wrapper = old_node.live_shared_info_wrapper;
+    if (shared_info_wrapper) {
+      %LiveEditReplaceFunctionCode(new_info.raw_array,
+          shared_info_wrapper.raw_array);
+
+      // The function got a new code. However, this new code brings all new
+      // instances of SharedFunctionInfo for nested functions. However,
+      // we want the original instances to be used wherever possible.
+      // (This is because old instances and new instances will be both
+      // linked to a script and breakpoints subsystem does not really
+      // expects this; neither does LiveEdit subsystem on next call).
+      for (var i = 0; i < old_node.children.length; i++) {
+        if (old_node.children[i].corresponding_node) {
+          var corresponding_child = old_node.children[i].corresponding_node;
+          var child_shared_info_wrapper =
+              old_node.children[i].live_shared_info_wrapper;
+          if (child_shared_info_wrapper) {
+            %LiveEditReplaceRefToNestedFunction(shared_info_wrapper.info,
+                corresponding_child.info.shared_function_info,
+                child_shared_info_wrapper.info);
+          }
+        }
+      }
+      
+      change_log.push( {function_patched: new_info.function_name} );
+    } else {
+      change_log.push( {function_patched: new_info.function_name,
+          function_info_not_found: true} );
+    }
+  }
+
+  
+  // Makes a function associated with another instance of a script (the
+  // one representing its old version). This way the function still
+  // may access its own text.
+  function LinkToOldScript(old_info_node, old_script, report_array) {
+    var shared_info = old_info_node.live_shared_info_wrapper;
+    if (shared_info) {
+      %LiveEditFunctionSetScript(shared_info.info, old_script);
+      report_array.push( { name: shared_info.function_name } );
+    } else {
+      report_array.push(
+          { name: old_info_node.info.function_name, not_found: true } );
+    }
+  }
+  
 
   // Returns function that restores breakpoints.
   function TemporaryRemoveBreakPoints(original_script, change_log) {
@@ -550,6 +494,7 @@ Debug.LiveEdit = new function() {
     this.new_end_pos = void 0;
     this.corresponding_node = void 0;
     this.unmatched_new_nodes = void 0;
+    this.live_shared_info_wrapper = void 0;
   }
   
   // From array of function infos that is implicitly a tree creates
@@ -767,6 +712,40 @@ Debug.LiveEdit = new function() {
     Assert(old_code_tree.status != FunctionStatus.DAMAGED,
         "Script became damaged");
   }
+  
+  function FindLiveSharedInfos(old_code_tree, script) {
+    var shared_raw_list = %LiveEditFindSharedFunctionInfosForScript(script);
+    
+    var shared_infos = new Array();
+  
+    for (var i = 0; i < shared_raw_list.length; i++) {
+      shared_infos.push(new SharedInfoWrapper(shared_raw_list[i]));
+    }
+    
+    // Finds SharedFunctionInfo that corresponds compile info with index
+    // in old version of the script.
+    function FindFunctionInfo(compile_info) {
+      for (var i = 0; i < shared_infos.length; i++) {
+        var wrapper = shared_infos[i];
+        if (wrapper.start_position == compile_info.start_position &&
+            wrapper.end_position == compile_info.end_position) {
+          return wrapper;
+        }
+      }
+    }
+    
+    function TraverseTree(node) {
+      var info_wrapper = FindFunctionInfo(node.info);
+      if (info_wrapper) {
+        node.live_shared_info_wrapper = info_wrapper;
+      }
+      for (var i = 0; i < node.children.length; i++) {
+        TraverseTree(node.children[i]);
+      }
+    }
+
+    TraverseTree(old_code_tree);
+  }
 
   
   // An object describing function compilation details. Its index fields
@@ -791,7 +770,21 @@ Debug.LiveEdit = new function() {
     this.info = raw_array[3];
     this.raw_array = raw_array;
   }
-  
+
+  // Changes positions (including all statments) in function.
+  function PatchPositions(old_info_node, diff_array, report_array) {
+    var shared_info_wrapper = old_info_node.live_shared_info_wrapper;
+    if (!shared_info_wrapper) {
+      // TODO(LiveEdit): function is not compiled yet or is already collected.
+      report_array.push( 
+          { name: old_info_node.info.function_name, info_not_found: true } );
+      return;
+    }
+    %LiveEditPatchFunctionPositions(shared_info_wrapper.raw_array,
+        diff_array);
+    report_array.push( { name: old_info_node.info.function_name } );
+  }
+
   // Adds a suffix to script name to mark that it is old version.
   function CreateNameForOldScript(script) {
     // TODO(635): try better than this; support several changes.
@@ -919,10 +912,33 @@ Debug.LiveEdit = new function() {
   function CompareStringsLinewise(s1, s2) {
     return %LiveEditCompareStringsLinewise(s1, s2);
   }
+
+  // Applies the change to the script.
+  // The change is always a substring (change_pos, change_pos + change_len)
+  // being replaced with a completely different string new_str.
+  // This API is a legacy and is obsolete.
+  //
+  // @param {Script} script that is being changed
+  // @param {Array} change_log a list that collects engineer-readable
+  //     description of what happened.
+  function ApplySingleChunkPatch(script, change_pos, change_len, new_str,
+      change_log) {
+    var old_source = script.source;
+  
+    // Prepare new source string.
+    var new_source = old_source.substring(0, change_pos) +
+        new_str + old_source.substring(change_pos + change_len);
+    
+    return ApplyPatchMultiChunk(script,
+        [ change_pos, change_pos + change_len, change_pos + new_str.length],
+        new_source, change_log);
+  }
+
   
   // Functions are public for tests.
   this.TestApi = {
     PosTranslator: PosTranslator,
-    CompareStringsLinewise: CompareStringsLinewise
+    CompareStringsLinewise: CompareStringsLinewise,
+    ApplySingleChunkPatch: ApplySingleChunkPatch
   }
 }

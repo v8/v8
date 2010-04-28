@@ -2018,32 +2018,16 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
     return;
   }
 
-  // A function that calls a proper signature of LiveEdit API.  
-  var invocation;
-  
   var change_log = new Array();
   
-  if (IS_STRING(request.arguments.new_source)) {
-    var new_source = request.arguments.new_source;
-    invocation = function() {
-      return Debug.LiveEdit.SetScriptSource(the_script, new_source, change_log);
-    }
-  } else {
-    var change_pos = parseInt(request.arguments.change_pos);
-    var change_len = parseInt(request.arguments.change_len);
-    var new_string = request.arguments.new_string;
-    if (!IS_STRING(new_string)) {
-      response.failed('Argument "new_string" is not a string value');
-      return;
-    }
-    invocation = function() {
-      return Debug.LiveEdit.ApplyPatch(the_script, change_pos, change_len,
-          new_string, change_log);
-    }
+  if (!IS_STRING(request.arguments.new_source)) {
+    throw "new_source argument expected";
   }
 
+  var new_source = request.arguments.new_source;
+  
   try {
-    invocation();
+    Debug.LiveEdit.SetScriptSource(the_script, new_source, change_log);
   } catch (e) {
     if (e instanceof Debug.LiveEdit.Failure) {
       // Let's treat it as a "success" so that body with change_log will be
