@@ -5950,6 +5950,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
                                        result.reg(),
                                        &slow_case,
                                        &slow_case,
+                                       &slow_case,
                                        &slow_case);
   __ jmp(&exit);
 
@@ -12048,7 +12049,8 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
                                           Register scratch,
                                           Register result,
                                           Label* receiver_not_string,
-                                          Label* index_not_positive_smi,
+                                          Label* index_not_smi,
+                                          Label* index_out_of_range,
                                           Label* slow_case) {
   Label not_a_flat_string;
   Label try_again_with_new_string;
@@ -12067,11 +12069,10 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
   __ test(result, Immediate(kIsNotStringMask));
   __ j(not_zero, receiver_not_string);
 
-  // If the index is negative or non-smi trigger the non-positive-smi
-  // case.
+  // If the index is non-smi trigger the non-smi case.
   ASSERT(kSmiTag == 0);
-  __ test(index, Immediate(kSmiTagMask | kSmiSignMask));
-  __ j(not_zero, index_not_positive_smi);
+  __ test(index, Immediate(kSmiTagMask));
+  __ j(not_zero, index_not_smi);
 
   // Put untagged index into scratch register.
   __ mov(scratch, index);
@@ -12079,13 +12080,13 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
 
   // Check for index out of range.
   __ cmp(scratch, FieldOperand(object, String::kLengthOffset));
-  __ j(greater_equal, slow_case);
+  __ j(above_equal, index_out_of_range);
 
   __ bind(&try_again_with_new_string);
   // ----------- S t a t e -------------
   //  -- object  : string to access
   //  -- result  : instance type of the string
-  //  -- scratch : positive smi index < length
+  //  -- scratch : non-negative index < length
   // -----------------------------------
 
   // We need special handling for non-flat strings.
@@ -12099,7 +12100,7 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
   __ j(not_zero, &ascii_string);
 
   // 2-byte string.
-  // Load the 2-byte character code into the temp register.
+  // Load the 2-byte character code into the result register.
   __ movzx_w(result, FieldOperand(object,
                                   scratch, times_2,
                                   SeqTwoByteString::kHeaderSize));
@@ -12127,7 +12128,7 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
 
   // ASCII string.
   __ bind(&ascii_string);
-  // Load the byte into the temp register.
+  // Load the byte into the result register.
   __ movzx_b(result, FieldOperand(object,
                                   scratch, times_1,
                                   SeqAsciiString::kHeaderSize));
