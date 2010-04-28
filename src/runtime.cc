@@ -1450,6 +1450,18 @@ static Object* Runtime_FunctionSetName(Arguments args) {
 }
 
 
+static Object* Runtime_FunctionRemovePrototype(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  CONVERT_CHECKED(JSFunction, f, args[0]);
+  Object* obj = f->RemovePrototype();
+  if (obj->IsFailure()) return obj;
+
+  return Heap::undefined_value();
+}
+
+
 static Object* Runtime_FunctionGetScript(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
@@ -1523,6 +1535,7 @@ static Object* Runtime_FunctionSetPrototype(Arguments args) {
   ASSERT(args.length() == 2);
 
   CONVERT_CHECKED(JSFunction, fun, args[0]);
+  ASSERT(fun->should_have_prototype());
   Object* obj = Accessors::FunctionSetPrototype(fun, args[1], NULL);
   if (obj->IsFailure()) return obj;
   return args[0];  // return TOS
@@ -6541,6 +6554,16 @@ static Object* Runtime_NewObject(Arguments args) {
   }
 
   Handle<JSFunction> function = Handle<JSFunction>::cast(constructor);
+
+  // If function should not have prototype, construction is not allowed. In this
+  // case generated code bailouts here, since function has no initial_map.
+  if (!function->should_have_prototype()) {
+    Vector< Handle<Object> > arguments = HandleVector(&constructor, 1);
+    Handle<Object> type_error =
+        Factory::NewTypeError("not_constructor", arguments);
+    return Top::Throw(*type_error);
+  }
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Handle stepping into constructors if step into is active.
   if (Debug::StepInActive()) {

@@ -184,6 +184,7 @@ namespace internal {
   F(FunctionSetPrototype, 2, 1) \
   F(FunctionGetName, 1, 1) \
   F(FunctionSetName, 2, 1) \
+  F(FunctionRemovePrototype, 1, 1) \
   F(FunctionGetSourceCode, 1, 1) \
   F(FunctionGetScript, 1, 1) \
   F(FunctionGetScriptSourcePosition, 1, 1) \

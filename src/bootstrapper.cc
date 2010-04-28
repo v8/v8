@@ -248,9 +248,13 @@ class Genesis BASE_EMBEDDED {
   void TransferNamedProperties(Handle<JSObject> from, Handle<JSObject> to);
   void TransferIndexedProperties(Handle<JSObject> from, Handle<JSObject> to);
 
+  enum PrototypePropertyMode {
+    DONT_ADD_PROTOTYPE,
+    ADD_READONLY_PROTOTYPE,
+    ADD_WRITEABLE_PROTOTYPE
+  };
   Handle<DescriptorArray> ComputeFunctionInstanceDescriptor(
-      bool make_prototype_read_only,
-      bool make_prototype_enumerable = false);
+      PrototypePropertyMode prototypeMode);
   void MakeFunctionInstancePrototypeWritable();
 
   static bool CompileBuiltin(int index);
@@ -330,7 +334,8 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
                                           bool is_ecma_native) {
   Handle<String> symbol = Factory::LookupAsciiSymbol(name);
   Handle<Code> call_code = Handle<Code>(Builtins::builtin(call));
-  Handle<JSFunction> function =
+  Handle<JSFunction> function = prototype.is_null() ?
+    Factory::NewFunctionWithoutPrototype(symbol, call_code) :
     Factory::NewFunctionWithPrototype(symbol,
                                       type,
                                       instance_size,
@@ -346,23 +351,23 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
 
 
 Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
-    bool make_prototype_read_only,
-    bool make_prototype_enumerable) {
+    PrototypePropertyMode prototypeMode) {
   Handle<DescriptorArray> result = Factory::empty_descriptor_array();
 
-  // Add prototype.
-  PropertyAttributes attributes = static_cast<PropertyAttributes>(
-      (make_prototype_enumerable ? 0 : DONT_ENUM)
-      | DONT_DELETE
-      | (make_prototype_read_only ? READ_ONLY : 0));
-  result =
-      Factory::CopyAppendProxyDescriptor(
-          result,
-          Factory::prototype_symbol(),
-          Factory::NewProxy(&Accessors::FunctionPrototype),
-          attributes);
+  if (prototypeMode != DONT_ADD_PROTOTYPE) {
+    PropertyAttributes attributes = static_cast<PropertyAttributes>(
+        DONT_ENUM |
+        DONT_DELETE |
+        (prototypeMode == ADD_READONLY_PROTOTYPE ? READ_ONLY : 0));
+    result =
+        Factory::CopyAppendProxyDescriptor(
+            result,
+            Factory::prototype_symbol(),
+            Factory::NewProxy(&Accessors::FunctionPrototype),
+            attributes);
+  }
 
-  attributes =
+  PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
   // Add length.
   result =
@@ -407,14 +412,26 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   // Please note that the prototype property for function instances must be
   // writable.
   Handle<DescriptorArray> function_map_descriptors =
-      ComputeFunctionInstanceDescriptor(false, false);
+      ComputeFunctionInstanceDescriptor(ADD_WRITEABLE_PROTOTYPE);
   fm->set_instance_descriptors(*function_map_descriptors);
+  fm->set_function_with_prototype(true);
+
+  // Functions with this map will not have a 'prototype' property, and
+  // can not be used as constructors.
+  fm = Factory::NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
+  global_context()->set_function_without_prototype_map(*fm);
+  function_map_descriptors =
+      ComputeFunctionInstanceDescriptor(DONT_ADD_PROTOTYPE);
+  fm->set_instance_descriptors(*function_map_descriptors);
+  fm->set_function_with_prototype(false);
 
   // Allocate the function map first and then patch the prototype later
   fm = Factory::NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   global_context()->set_function_map(*fm);
-  function_map_descriptors = ComputeFunctionInstanceDescriptor(true);
+  function_map_descriptors =
+      ComputeFunctionInstanceDescriptor(ADD_READONLY_PROTOTYPE);
   fm->set_instance_descriptors(*function_map_descriptors);
+  fm->set_function_with_prototype(true);
 
   Handle<String> object_name = Handle<String>(Heap::Object_symbol());
 
@@ -457,6 +474,11 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   empty_function->shared()->DontAdaptArguments();
   global_context()->function_map()->set_prototype(*empty_function);
   global_context()->function_instance_map()->set_prototype(*empty_function);
+
+  // Allocate a distinct prototype for the function map for functions without
+  // prototype, so it will not add 'prototype' property in the proto chain.
+  global_context()->function_without_prototype_map()->set_prototype(
+      *Factory::NewJSObject(Top::object_function(), TENURED));
 
   // Allocate the function map first and then patch the prototype later
   Handle<Map> empty_fm = Factory::CopyMapDropDescriptors(fm);
@@ -1215,12 +1237,12 @@ bool Genesis::InstallNatives() {
     // Install the call and the apply functions.
     Handle<JSFunction> call =
         InstallFunction(proto, "call", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-                        Factory::NewJSObject(Top::object_function(), TENURED),
+                        Handle<JSObject>::null(),
                         Builtins::FunctionCall,
                         false);
     Handle<JSFunction> apply =
         InstallFunction(proto, "apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-                        Factory::NewJSObject(Top::object_function(), TENURED),
+                        Handle<JSObject>::null(),
                         Builtins::FunctionApply,
                         false);
 
@@ -1236,6 +1258,23 @@ bool Genesis::InstallNatives() {
     // Set the lengths for the functions to satisfy ECMA-262.
     call->shared()->set_length(1);
     apply->shared()->set_length(2);
+
+    // Install the call, apply, toString and constructor properties
+    // for the functions without prototype.
+    Handle<JSObject> wp_proto = Handle<JSObject>(
+        JSObject::cast(Top::function_without_prototype_map()->prototype()));
+
+    Handle<String> call_symbol = Factory::LookupAsciiSymbol("call");
+    SetProperty(wp_proto, call_symbol, call, DONT_ENUM);
+
+    Handle<String> apply_symbol = Factory::LookupAsciiSymbol("apply");
+    SetProperty(wp_proto, apply_symbol, apply, DONT_ENUM);
+
+    Handle<Object> to_string = GetProperty(proto, "toString");
+    Handle<String> to_string_symbol = Factory::LookupAsciiSymbol("toString");
+    SetProperty(wp_proto, to_string_symbol, to_string, DONT_ENUM);
+
+    SetProperty(wp_proto, Factory::constructor_symbol(), function, DONT_ENUM);
   }
 
   // Create a constructor for RegExp results (a variant of Array that
@@ -1655,9 +1694,10 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
   HandleScope scope;
 
   Handle<DescriptorArray> function_map_descriptors =
-      ComputeFunctionInstanceDescriptor(false);
+      ComputeFunctionInstanceDescriptor(ADD_WRITEABLE_PROTOTYPE);
   Handle<Map> fm = Factory::CopyMapDropDescriptors(Top::function_map());
   fm->set_instance_descriptors(*function_map_descriptors);
+  fm->set_function_with_prototype(true);
   Top::context()->global_context()->set_function_map(*fm);
 }
 
