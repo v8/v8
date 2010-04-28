@@ -529,9 +529,14 @@ class MacroAssembler: public Assembler {
   // clobbered if it the same as the holder register. The function
   // returns a register containing the holder - either object_reg or
   // holder_reg.
+  // The function can optionally (when save_at_depth !=
+  // kInvalidProtoDepth) save the object at the given depth by moving
+  // it to [rsp + kPointerSize].
   Register CheckMaps(JSObject* object, Register object_reg,
                      JSObject* holder, Register holder_reg,
-                     Register scratch, Label* miss);
+                     Register scratch,
+                     int save_at_depth,
+                     Label* miss);
 
   // Generate code for checking access rights - used for security checks
   // on access to global objects across environments. The holder register
