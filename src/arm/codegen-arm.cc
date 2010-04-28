@@ -5245,8 +5245,10 @@ class DeferredReferenceGetNamedValue: public DeferredCode {
 
 
 void DeferredReferenceGetNamedValue::Generate() {
-  __ DecrementCounter(&Counters::named_load_inline, 1, r1, r2);
-  __ IncrementCounter(&Counters::named_load_inline_miss, 1, r1, r2);
+  Register scratch1 = VirtualFrame::scratch0();
+  Register scratch2 = VirtualFrame::scratch1();
+  __ DecrementCounter(&Counters::named_load_inline, 1, scratch1, scratch2);
+  __ IncrementCounter(&Counters::named_load_inline_miss, 1, scratch1, scratch2);
 
   // Setup the registers and call load IC.
   // On entry to this deferred code, r0 is assumed to already contain the
@@ -5259,7 +5261,7 @@ void DeferredReferenceGetNamedValue::Generate() {
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop(1) instruction to indicate that the
     // in-object has been inlined.
-    __ nop(PROPERTY_LOAD_INLINED);
+    __ nop(PROPERTY_ACCESS_INLINED);
 
     // Block the constant pool for one more instruction after leaving this
     // constant pool block scope to include the branch instruction ending the
@@ -5292,7 +5294,42 @@ void DeferredReferenceGetKeyedValue::Generate() {
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop instruction to indicate that the
     // keyed load has been inlined.
-    __ nop(PROPERTY_LOAD_INLINED);
+    __ nop(PROPERTY_ACCESS_INLINED);
+
+    // Block the constant pool for one more instruction after leaving this
+    // constant pool block scope to include the branch instruction ending the
+    // deferred code.
+    __ BlockConstPoolFor(1);
+  }
+}
+
+
+class DeferredReferenceSetKeyedValue: public DeferredCode {
+ public:
+  DeferredReferenceSetKeyedValue() {
+    set_comment("[ DeferredReferenceSetKeyedValue");
+  }
+
+  virtual void Generate();
+};
+
+
+void DeferredReferenceSetKeyedValue::Generate() {
+  Register scratch1 = VirtualFrame::scratch0();
+  Register scratch2 = VirtualFrame::scratch1();
+  __ DecrementCounter(&Counters::keyed_store_inline, 1, scratch1, scratch2);
+  __ IncrementCounter(
+      &Counters::keyed_store_inline_miss, 1, scratch1, scratch2);
+
+  // The rest of the instructions in the deferred code must be together.
+  { Assembler::BlockConstPoolScope block_const_pool(masm_);
+    // Call keyed load IC. It has receiver amd key on the stack and the value to
+    // store in r0.
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // The call must be followed by a nop instruction to indicate that the
+    // keyed store has been inlined.
+    __ nop(PROPERTY_ACCESS_INLINED);
 
     // Block the constant pool for one more instruction after leaving this
     // constant pool block scope to include the branch instruction ending the
@@ -5390,10 +5427,10 @@ void CodeGenerator::EmitKeyedLoad() {
     __ tst(receiver, Operand(kSmiTagMask));
     deferred->Branch(eq);
 
-    // The following instructions are the inlined load keyed property. Parts
-    // of this code are patched, so the exact number of instructions generated
-    // need to be fixed. Therefore the constant pool is blocked while generating
-    // this code.
+    // The following instructions are the part of the inlined load keyed
+    // property code which can be patched. Therefore the exact number of
+    // instructions generated need to be fixed, so the constant pool is blocked
+    // while generating this code.
 #ifdef DEBUG
     int kInlinedKeyedLoadInstructions = 19;
     Label check_inlined_codesize;
@@ -5421,7 +5458,8 @@ void CodeGenerator::EmitKeyedLoad() {
       __ cmp(scratch2, ip);
       deferred->Branch(ne);
 
-      // Check that key is within bounds.
+      // Check that key is within bounds. Use unsigned comparison to handle
+      // negative keys.
       __ ldr(scratch2, FieldMemOperand(scratch1, FixedArray::kLengthOffset));
       __ cmp(scratch2, Operand(key, ASR, kSmiTagSize));
       deferred->Branch(ls);  // Unsigned less equal.
@@ -5446,6 +5484,89 @@ void CodeGenerator::EmitKeyedLoad() {
     }
 
     deferred->BindExit();
+  }
+}
+
+
+void CodeGenerator::EmitKeyedStore(StaticType* key_type) {
+  frame_->AssertIsSpilled();
+  // Generate inlined version of the keyed store if the code is in a loop
+  // and the key is likely to be a smi.
+  if (loop_nesting() > 0 && key_type->IsLikelySmi()) {
+    // Inline the keyed store.
+    Comment cmnt(masm_, "[ Inlined store to keyed property");
+
+    DeferredReferenceSetKeyedValue* deferred =
+        new DeferredReferenceSetKeyedValue();
+
+    // Counter will be decremented in the deferred code. Placed here to avoid
+    // having it in the instruction stream below where patching will occur.
+    __ IncrementCounter(&Counters::keyed_store_inline, 1,
+                        frame_->scratch0(), frame_->scratch1());
+
+    // Check that the value is a smi. As this inlined code does not set the
+    // write barrier it is only possible to store smi values.
+    __ tst(r0, Operand(kSmiTagMask));
+    deferred->Branch(ne);
+
+    // Load the key and receiver from the stack.
+    __ ldr(r1, MemOperand(sp, 0));
+    __ ldr(r2, MemOperand(sp, kPointerSize));
+
+    // Check that the key is a smi.
+    __ tst(r1, Operand(kSmiTagMask));
+    deferred->Branch(ne);
+
+    // Check that the receiver is a heap object.
+    __ tst(r2, Operand(kSmiTagMask));
+    deferred->Branch(eq);
+
+    // Check that the receiver is a JSArray.
+    __ CompareObjectType(r2, r3, r3, JS_ARRAY_TYPE);
+    deferred->Branch(ne);
+
+    // Check that the key is within bounds. Both the key and the length of
+    // the JSArray are smis. Use unsigned comparison to handle negative keys.
+    __ ldr(r3, FieldMemOperand(r2, JSArray::kLengthOffset));
+    __ cmp(r3, r1);
+    deferred->Branch(ls);  // Unsigned less equal.
+
+    // The following instructions are the part of the inlined store keyed
+    // property code which can be patched. Therefore the exact number of
+    // instructions generated need to be fixed, so the constant pool is blocked
+    // while generating this code.
+#ifdef DEBUG
+    int kInlinedKeyedStoreInstructions = 7;
+    Label check_inlined_codesize;
+    masm_->bind(&check_inlined_codesize);
+#endif
+    { Assembler::BlockConstPoolScope block_const_pool(masm_);
+      // Get the elements array from the receiver and check that it
+      // is not a dictionary.
+      __ ldr(r3, FieldMemOperand(r2, JSObject::kElementsOffset));
+      __ ldr(r4, FieldMemOperand(r3, JSObject::kMapOffset));
+      // Read the fixed array map from the constant pool (not from the root
+      // array) so that the value can be patched.  When debugging, we patch this
+      // comparison to always fail so that we will hit the IC call in the
+      // deferred code which will allow the debugger to break for fast case
+      // stores.
+      __ mov(r5, Operand(Factory::fixed_array_map()));
+      __ cmp(r4, r5);
+      deferred->Branch(ne);
+
+      // Store the value.
+      __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ str(r0, MemOperand(r3, r1, LSL,
+                            kPointerSizeLog2 - (kSmiTagSize + kSmiShiftSize)));
+
+      // Make sure that the expected number of instructions are generated.
+      ASSERT_EQ(kInlinedKeyedStoreInstructions,
+                masm_->InstructionsGeneratedSince(&check_inlined_codesize));
+    }
+
+    deferred->BindExit();
+  } else {
+    frame()->CallKeyedStoreIC();
   }
 }
 
@@ -5563,10 +5684,8 @@ void Reference::SetValue(InitState init_state) {
       ASSERT(property != NULL);
       cgen_->CodeForSourcePosition(property->position());
 
-      // Call IC code.
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      frame->EmitPop(r0);  // value
-      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
+      frame->EmitPop(r0);  // Value.
+      cgen_->EmitKeyedStore(property->key()->type());
       frame->EmitPush(r0);
       cgen_->UnloadReference(this);
       break;

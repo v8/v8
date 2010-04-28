@@ -571,7 +571,7 @@ static inline bool IsInlinedICSite(Address address,
   // a branch instruction for jumping back from the deferred code.
   Address address_after_call = address + Assembler::kCallTargetAddressOffset;
   Instr instr_after_call = Assembler::instr_at(address_after_call);
-  if (!Assembler::IsNop(instr_after_call, PROPERTY_LOAD_INLINED)) {
+  if (!Assembler::IsNop(instr_after_call, PROPERTY_ACCESS_INLINED)) {
     return false;
   }
   Address address_after_nop = address_after_call + Assembler::kInstrSize;
@@ -646,14 +646,33 @@ bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
 }
 
 
-void KeyedStoreIC::ClearInlinedVersion(Address address) {}
+void KeyedStoreIC::ClearInlinedVersion(Address address) {
+  // Insert null as the elements map to check for.  This will make
+  // sure that the elements fast-case map check fails so that control
+  // flows to the IC instead of the inlined version.
+  PatchInlinedStore(address, Heap::null_value());
+}
 
 
-void KeyedStoreIC::RestoreInlinedVersion(Address address) {}
+void KeyedStoreIC::RestoreInlinedVersion(Address address) {
+  // Restore the fast-case elements map check so that the inlined
+  // version can be used again.
+  PatchInlinedStore(address, Heap::fixed_array_map());
+}
 
 
 bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
-  return false;
+  // Find the end of the inlined code for handling the store if this is an
+  // inlined IC call site.
+  Address inline_end_address;
+  if (!IsInlinedICSite(address, &inline_end_address)) return false;
+
+  // Patch the map check.
+  Address ldr_map_instr_address =
+      inline_end_address - 5 * Assembler::kInstrSize;
+  Assembler::set_target_address_at(ldr_map_instr_address,
+                                   reinterpret_cast<Address>(map));
+  return true;
 }
 
 

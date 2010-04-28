@@ -310,6 +310,12 @@ void VirtualFrame::CallKeyedLoadIC() {
 }
 
 
+void VirtualFrame::CallKeyedStoreIC() {
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
+}
+
+
 void VirtualFrame::CallCodeObject(Handle<Code> code,
                                   RelocInfo::Mode rmode,
                                   int dropped_args) {
