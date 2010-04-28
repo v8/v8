@@ -436,6 +436,12 @@ void CheckDebuggerUnloaded(bool check_functions) {
 }
 
 
+void ForceUnloadDebugger() {
+  Debugger::never_unload_debugger_ = false;
+  Debugger::UnloadDebugger();
+}
+
+
 } }  // namespace v8::internal
 
 
@@ -6146,5 +6152,8 @@ TEST(DebugContextIsPreservedBetweenAccesses) {
   v8::Local<v8::Context> context1 = v8::Debug::GetDebugContext();
   v8::Local<v8::Context> context2 = v8::Debug::GetDebugContext();
   CHECK_EQ(*context1, *context2);
+  // Make sure debugger is unloaded before running other tests.
+  v8::internal::ForceUnloadDebugger();
+  CheckDebuggerUnloaded();
 }
 
