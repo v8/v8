@@ -5280,8 +5280,10 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
 
 
 void DeferredReferenceGetKeyedValue::Generate() {
-  __ DecrementCounter(&Counters::keyed_load_inline, 1, r1, r2);
-  __ IncrementCounter(&Counters::keyed_load_inline_miss, 1, r1, r2);
+  Register scratch1 = VirtualFrame::scratch0();
+  Register scratch2 = VirtualFrame::scratch1();
+  __ DecrementCounter(&Counters::keyed_load_inline, 1, scratch1, scratch2);
+  __ IncrementCounter(&Counters::keyed_load_inline_miss, 1, scratch1, scratch2);
 
   // The rest of the instructions in the deferred code must be together.
   { Assembler::BlockConstPoolScope block_const_pool(masm_);
@@ -5375,15 +5377,17 @@ void CodeGenerator::EmitKeyedLoad() {
     __ IncrementCounter(&Counters::keyed_load_inline, 1,
                         frame_->scratch0(), frame_->scratch1());
 
-    // Load the receiver from the stack.
-    frame_->SpillAllButCopyTOSToR0();
+    // Load the receiver and key  from the stack.
+    frame_->SpillAllButCopyTOSToR1R0();
+    Register receiver = r0;
+    Register key = r1;
     VirtualFrame::SpilledScope spilled(frame_);
 
     DeferredReferenceGetKeyedValue* deferred =
         new DeferredReferenceGetKeyedValue();
 
     // Check that the receiver is a heap object.
-    __ tst(r0, Operand(kSmiTagMask));
+    __ tst(receiver, Operand(kSmiTagMask));
     deferred->Branch(eq);
 
     // The following instructions are the inlined load keyed property. Parts
@@ -5391,44 +5395,49 @@ void CodeGenerator::EmitKeyedLoad() {
     // need to be fixed. Therefore the constant pool is blocked while generating
     // this code.
 #ifdef DEBUG
-    int kInlinedKeyedLoadInstructions = 20;
+    int kInlinedKeyedLoadInstructions = 19;
     Label check_inlined_codesize;
     masm_->bind(&check_inlined_codesize);
 #endif
     { Assembler::BlockConstPoolScope block_const_pool(masm_);
+      Register scratch1 = VirtualFrame::scratch0();
+      Register scratch2 = VirtualFrame::scratch1();
       // Check the map. The null map used below is patched by the inline cache
       // code.
-      __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-      __ mov(r2, Operand(Factory::null_value()));
-      __ cmp(r1, r2);
+      __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
+      __ mov(scratch2, Operand(Factory::null_value()));
+      __ cmp(scratch1, scratch2);
       deferred->Branch(ne);
 
-      // Load the key from the stack.
-      __ ldr(r1, MemOperand(sp, 0));
-
       // Check that the key is a smi.
-      __ tst(r1, Operand(kSmiTagMask));
+      __ tst(key, Operand(kSmiTagMask));
       deferred->Branch(ne);
 
       // Get the elements array from the receiver and check that it
       // is not a dictionary.
-      __ ldr(r2, FieldMemOperand(r0, JSObject::kElementsOffset));
-      __ ldr(r3, FieldMemOperand(r2, JSObject::kMapOffset));
-      __ LoadRoot(r4, Heap::kFixedArrayMapRootIndex);
-      __ cmp(r3, r4);
+      __ ldr(scratch1, FieldMemOperand(receiver, JSObject::kElementsOffset));
+      __ ldr(scratch2, FieldMemOperand(scratch1, JSObject::kMapOffset));
+      __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+      __ cmp(scratch2, ip);
       deferred->Branch(ne);
 
       // Check that key is within bounds.
-      __ ldr(r3, FieldMemOperand(r2, FixedArray::kLengthOffset));
-      __ cmp(r3, Operand(r1, ASR, kSmiTagSize));
+      __ ldr(scratch2, FieldMemOperand(scratch1, FixedArray::kLengthOffset));
+      __ cmp(scratch2, Operand(key, ASR, kSmiTagSize));
       deferred->Branch(ls);  // Unsigned less equal.
 
-      // Load and check that the result is not the hole (r1 is a smi).
-      __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
-      __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-      __ ldr(r0, MemOperand(r2, r1, LSL,
-                            kPointerSizeLog2 - (kSmiTagSize + kSmiShiftSize)));
-      __ cmp(r0, r3);
+      // Load and check that the result is not the hole (key is a smi).
+      __ LoadRoot(scratch2, Heap::kTheHoleValueRootIndex);
+      __ add(scratch1,
+             scratch1,
+             Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ ldr(r0,
+             MemOperand(scratch1, key, LSL,
+                        kPointerSizeLog2 - (kSmiTagSize + kSmiShiftSize)));
+      __ cmp(r0, scratch2);
+      // This is the only branch to deferred where r0 and r1 do not contain the
+      // receiver and key.  We can't just load undefined here because we have to
+      // check the prototype.
       deferred->Branch(eq);
 
       // Make sure that the expected number of instructions are generated.
