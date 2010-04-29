@@ -5708,7 +5708,7 @@ void CodeGenerator::Comparison(AstNode* node,
       CompareStub stub(cc, strict, kCantBothBeNaN);
       Result result = frame_->CallStub(&stub, &left_side, &right_side);
       result.ToRegister();
-      __ SmiCompare(result.reg(), Smi::FromInt(0));
+      __ testq(result.reg(), result.reg());
       result.Unuse();
       dest->true_target()->Branch(cc);
       dest->false_target()->Jump();
@@ -5805,13 +5805,9 @@ void CodeGenerator::Comparison(AstNode* node,
         GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
       }
 
-      // Call the compare stub.
-      // TODO(whesse@chromium.org): Enable the inlining flag once
-      // GenerateInlineNumberComparison is implemented.
-      CompareStub stub(cc, strict, nan_info, true || !inline_number_compare);
+      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      // The result is a Smi, which is negative, zero, or positive.
-      __ SmiTest(answer.reg());  // Sets both zero and sign flag.
+      __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flag.
       answer.Unuse();
       dest->Split(cc);
     } else {
@@ -5839,12 +5835,9 @@ void CodeGenerator::Comparison(AstNode* node,
         GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
       }
 
-      // Call the compare stub.
-      // TODO(whesse@chromium.org): Enable the inlining flag once
-      // GenerateInlineNumberComparison is implemented.
-      CompareStub stub(cc, strict, nan_info, true || !inline_number_compare);
+      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      __ SmiTest(answer.reg());  // Sets both zero and sign flags.
+      __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flags.
       answer.Unuse();
       dest->true_target()->Branch(cc);
       dest->false_target()->Jump();
@@ -5861,14 +5854,70 @@ void CodeGenerator::Comparison(AstNode* node,
 }
 
 
+// Load a comparison operand into into a XMM register. Jump to not_numbers jump
+// target passing the left and right result if the operand is not a number.
+static void LoadComparisonOperand(MacroAssembler* masm_,
+                                  Result* operand,
+                                  XMMRegister xmm_reg,
+                                  Result* left_side,
+                                  Result* right_side,
+                                  JumpTarget* not_numbers) {
+  Label done;
+  if (operand->type_info().IsDouble()) {
+    // Operand is known to be a heap number, just load it.
+    __ movsd(xmm_reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
+  } else if (operand->type_info().IsSmi()) {
+    // Operand is known to be a smi. Convert it to double and keep the original
+    // smi.
+    __ SmiToInteger32(kScratchRegister, operand->reg());
+    __ cvtlsi2sd(xmm_reg, kScratchRegister);
+  } else {
+    // Operand type not known, check for smi or heap number.
+    Label smi;
+    __ JumpIfSmi(operand->reg(), &smi);
+    if (!operand->type_info().IsNumber()) {
+      __ LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
+      __ cmpq(FieldOperand(operand->reg(), HeapObject::kMapOffset),
+              kScratchRegister);
+      not_numbers->Branch(not_equal, left_side, right_side, taken);
+    }
+    __ movsd(xmm_reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
+    __ jmp(&done);
+
+    __ bind(&smi);
+    // Comvert smi to float and keep the original smi.
+    __ SmiToInteger32(kScratchRegister, operand->reg());
+    __ cvtlsi2sd(xmm_reg, kScratchRegister);
+    __ jmp(&done);
+  }
+  __ bind(&done);
+}
+
+
 void CodeGenerator::GenerateInlineNumberComparison(Result* left_side,
                                                    Result* right_side,
                                                    Condition cc,
                                                    ControlDestination* dest) {
   ASSERT(left_side->is_register());
   ASSERT(right_side->is_register());
-  // TODO(whesse@chromium.org): Implement this function, and enable the
-  // corresponding flags in the CompareStub.
+
+  JumpTarget not_numbers;
+  // Load left and right operand into registers xmm0 and xmm1 and compare.
+  LoadComparisonOperand(masm_, left_side, xmm0, left_side, right_side,
+                        &not_numbers);
+  LoadComparisonOperand(masm_, right_side, xmm1, left_side, right_side,
+                        &not_numbers);
+  __ comisd(xmm0, xmm1);
+  // Bail out if a NaN is involved.
+  not_numbers.Branch(parity_even, left_side, right_side);
+
+  // Split to destination targets based on comparison.
+  left_side->Unuse();
+  right_side->Unuse();
+  dest->true_target()->Branch(DoubleCondition(cc));
+  dest->false_target()->Jump();
+
+  not_numbers.Bind(left_side, right_side);
 }
 
 
@@ -7991,12 +8040,12 @@ static int NegativeComparisonResult(Condition cc) {
 
 void CompareStub::Generate(MacroAssembler* masm) {
   Label call_builtin, done;
-
+  // The compare stub returns a positive, negative, or zero 64-bit integer
+  // value in rax, corresponding to result of comparing the two inputs.
   // NOTICE! This code is only reached after a smi-fast-case check, so
   // it is certain that at least one operand isn't a smi.
 
-  // Identical objects can be compared fast, but there are some tricky cases
-  // for NaN and undefined.
+  // Two identical objects are equal unless they are both NaN or undefined.
   {
     Label not_identical;
     __ cmpq(rax, rdx);
