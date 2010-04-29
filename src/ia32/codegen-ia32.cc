@@ -8388,6 +8388,8 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
 
     Result tmp = allocator_->Allocate();
     ASSERT(tmp.is_valid());
+    Result tmp2 = allocator_->Allocate();
+    ASSERT(tmp2.is_valid());
 
     // Determine whether the value is a constant before putting it in a
     // register.
@@ -8404,12 +8406,9 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
                                            receiver.reg(),
                                            tmp.reg());
 
-    // Check that the value is a smi if it is not a constant.  We can skip
-    // the write barrier for smis and constants.
-    if (!value_is_constant) {
-      __ test(result.reg(), Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
-    }
+    // Check that the receiver is not a smi.
+    __ test(receiver.reg(), Immediate(kSmiTagMask));
+    deferred->Branch(zero);
 
     // Check that the key is a smi.
     if (!key.is_smi()) {
@@ -8418,10 +8417,6 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     } else {
       if (FLAG_debug_code) __ AbortIfNotSmi(key.reg());
     }
-
-    // Check that the receiver is not a smi.
-    __ test(receiver.reg(), Immediate(kSmiTagMask));
-    deferred->Branch(zero);
 
     // Check that the receiver is a JSArray.
     __ CmpObjectType(receiver.reg(), JS_ARRAY_TYPE, tmp.reg());
@@ -8436,7 +8431,19 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     // Get the elements array from the receiver and check that it is not a
     // dictionary.
     __ mov(tmp.reg(),
-           FieldOperand(receiver.reg(), JSObject::kElementsOffset));
+           FieldOperand(receiver.reg(), JSArray::kElementsOffset));
+
+    // Check whether it is possible to omit the write barrier. If the elements
+    // array is in new space or the value written is a smi we can safely update
+    // the elements array without updating the remembered set.
+    Label in_new_space;
+    __ InNewSpace(tmp.reg(), tmp2.reg(), equal, &in_new_space);
+    if (!value_is_constant) {
+      __ test(result.reg(), Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    }
+
+    __ bind(&in_new_space);
     // Bind the deferred code patch site to be able to locate the fixed
     // array map comparison.  When debugging, we patch this comparison to
     // always fail so that we will hit the IC call in the deferred code
