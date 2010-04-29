@@ -6997,6 +6997,8 @@ void Reference::SetValue(InitState init_state) {
 
         Result tmp = cgen_->allocator_->Allocate();
         ASSERT(tmp.is_valid());
+        Result tmp2 = cgen_->allocator_->Allocate();
+        ASSERT(tmp2.is_valid());
 
         // Determine whether the value is a constant before putting it
         // in a register.
@@ -7012,32 +7014,44 @@ void Reference::SetValue(InitState init_state) {
                                                key.reg(),
                                                receiver.reg());
 
-        // Check that the value is a smi if it is not a constant.
-        // We can skip the write barrier for smis and constants.
-        if (!value_is_constant) {
-          __ JumpIfNotSmi(value.reg(), deferred->entry_label());
-        }
-
-        // Check that the key is a non-negative smi.
-        __ JumpIfNotPositiveSmi(key.reg(), deferred->entry_label());
-
         // Check that the receiver is not a smi.
         __ JumpIfSmi(receiver.reg(), deferred->entry_label());
+
+        // Check that the key is a smi.
+        if (!key.is_smi()) {
+          __ JumpIfNotSmi(key.reg(), deferred->entry_label());
+        } else {
+          if (FLAG_debug_code) {
+            __ AbortIfNotSmi(key.reg(), "Non-smi value in smi-typed value.");
+          }
+        }
 
         // Check that the receiver is a JSArray.
         __ CmpObjectType(receiver.reg(), JS_ARRAY_TYPE, kScratchRegister);
         deferred->Branch(not_equal);
 
         // Check that the key is within bounds.  Both the key and the
-        // length of the JSArray are smis.
+        // length of the JSArray are smis. Use unsigned comparison to handle
+        // negative keys.
         __ SmiCompare(FieldOperand(receiver.reg(), JSArray::kLengthOffset),
                       key.reg());
-        deferred->Branch(less_equal);
+        deferred->Branch(below_equal);
 
         // Get the elements array from the receiver and check that it
         // is a flat array (not a dictionary).
         __ movq(tmp.reg(),
                 FieldOperand(receiver.reg(), JSObject::kElementsOffset));
+
+        // Check whether it is possible to omit the write barrier. If the
+        // elements array is in new space or the value written is a smi we can
+        // safely update the elements array without updating the remembered set.
+        Label in_new_space;
+        __ InNewSpace(tmp.reg(), tmp2.reg(), equal, &in_new_space);
+        if (!value_is_constant) {
+          __ JumpIfNotSmi(value.reg(), deferred->entry_label());
+        }
+
+        __ bind(&in_new_space);
         // Bind the deferred code patch site to be able to locate the
         // fixed array map comparison.  When debugging, we patch this
         // comparison to always fail so that we will hit the IC call

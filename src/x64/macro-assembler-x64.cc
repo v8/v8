@@ -167,6 +167,22 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
 }
 
 
+void MacroAssembler::InNewSpace(Register object,
+                                Register scratch,
+                                Condition cc,
+                                Label* branch) {
+  ASSERT(cc == equal || cc == not_equal);
+  if (!scratch.is(object)) {
+    movq(scratch, object);
+  }
+  ASSERT(is_int32(static_cast<int64_t>(Heap::NewSpaceMask())));
+  and_(scratch, Immediate(static_cast<int32_t>(Heap::NewSpaceMask())));
+  movq(kScratchRegister, ExternalReference::new_space_start());
+  cmpq(scratch, kScratchRegister);
+  j(cc, branch);
+}
+
+
 // Set the remembered set bit for [object+offset].
 // object is the object being stored into, value is the object being stored.
 // If offset is zero, then the smi_index register contains the array index into
@@ -219,12 +235,7 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
 
   // Test that the object address is not in the new space.  We cannot
   // set remembered set bits in the new space.
-  movq(scratch, object);
-  ASSERT(is_int32(static_cast<int64_t>(Heap::NewSpaceMask())));
-  and_(scratch, Immediate(static_cast<int32_t>(Heap::NewSpaceMask())));
-  movq(kScratchRegister, ExternalReference::new_space_start());
-  cmpq(scratch, kScratchRegister);
-  j(equal, &done);
+  InNewSpace(object, scratch, equal, &done);
 
   // The offset is relative to a tagged or untagged HeapObject pointer,
   // so either offset or offset + kHeapObjectTag must be a
