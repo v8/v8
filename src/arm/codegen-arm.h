@@ -357,11 +357,6 @@ class CodeGenerator: public AstVisitor {
                     bool reversed,
                     OverwriteMode mode);
 
-  void VirtualFrameSmiOperation(Token::Value op,
-                                Handle<Object> value,
-                                bool reversed,
-                                OverwriteMode mode);
-
   void CallWithArguments(ZoneList<Expression*>* arguments,
                          CallFunctionFlags flags,
                          int position);

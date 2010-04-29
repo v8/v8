@@ -1008,10 +1008,10 @@ static int BitPosition(unsigned x) {
 }
 
 
-void CodeGenerator::VirtualFrameSmiOperation(Token::Value op,
-                                             Handle<Object> value,
-                                             bool reversed,
-                                             OverwriteMode mode) {
+void CodeGenerator::SmiOperation(Token::Value op,
+                                 Handle<Object> value,
+                                 bool reversed,
+                                 OverwriteMode mode) {
   int int_value = Smi::cast(*value)->value();
 
   bool something_to_inline;
@@ -1229,189 +1229,6 @@ void CodeGenerator::VirtualFrameSmiOperation(Token::Value op,
       UNREACHABLE();
       break;
   }
-}
-
-
-void CodeGenerator::SmiOperation(Token::Value op,
-                                 Handle<Object> value,
-                                 bool reversed,
-                                 OverwriteMode mode) {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
-  // NOTE: This is an attempt to inline (a bit) more of the code for
-  // some possible smi operations (like + and -) when (at least) one
-  // of the operands is a literal smi. With this optimization, the
-  // performance of the system is increased by ~15%, and the generated
-  // code size is increased by ~1% (measured on a combination of
-  // different benchmarks).
-
-  // sp[0] : operand
-
-  int int_value = Smi::cast(*value)->value();
-
-  JumpTarget exit;
-  frame_->EmitPop(r0);
-
-  bool something_to_inline = true;
-  switch (op) {
-    case Token::ADD: {
-      DeferredCode* deferred =
-          new DeferredInlineSmiOperation(op, int_value, reversed, mode, r0);
-
-      __ add(r0, r0, Operand(value), SetCC);
-      deferred->Branch(vs);
-      __ tst(r0, Operand(kSmiTagMask));
-      deferred->Branch(ne);
-      deferred->BindExit();
-      break;
-    }
-
-    case Token::SUB: {
-      DeferredCode* deferred =
-          new DeferredInlineSmiOperation(op, int_value, reversed, mode, r0);
-
-      if (reversed) {
-        __ rsb(r0, r0, Operand(value), SetCC);
-      } else {
-        __ sub(r0, r0, Operand(value), SetCC);
-      }
-      deferred->Branch(vs);
-      __ tst(r0, Operand(kSmiTagMask));
-      deferred->Branch(ne);
-      deferred->BindExit();
-      break;
-    }
-
-
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND: {
-      DeferredCode* deferred =
-        new DeferredInlineSmiOperation(op, int_value, reversed, mode, r0);
-      __ tst(r0, Operand(kSmiTagMask));
-      deferred->Branch(ne);
-      switch (op) {
-        case Token::BIT_OR:  __ orr(r0, r0, Operand(value)); break;
-        case Token::BIT_XOR: __ eor(r0, r0, Operand(value)); break;
-        case Token::BIT_AND: __ and_(r0, r0, Operand(value)); break;
-        default: UNREACHABLE();
-      }
-      deferred->BindExit();
-      break;
-    }
-
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR: {
-      if (reversed) {
-        something_to_inline = false;
-        break;
-      }
-      int shift_value = int_value & 0x1f;  // least significant 5 bits
-      DeferredCode* deferred =
-        new DeferredInlineSmiOperation(op, shift_value, false, mode, r0);
-      __ tst(r0, Operand(kSmiTagMask));
-      deferred->Branch(ne);
-      __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // remove tags
-      switch (op) {
-        case Token::SHL: {
-          if (shift_value != 0) {
-            __ mov(r2, Operand(r2, LSL, shift_value));
-          }
-          // check that the *unsigned* result fits in a smi
-          __ add(r3, r2, Operand(0x40000000), SetCC);
-          deferred->Branch(mi);
-          break;
-        }
-        case Token::SHR: {
-          // LSR by immediate 0 means shifting 32 bits.
-          if (shift_value != 0) {
-            __ mov(r2, Operand(r2, LSR, shift_value));
-          }
-          // check that the *unsigned* result fits in a smi
-          // neither of the two high-order bits can be set:
-          // - 0x80000000: high bit would be lost when smi tagging
-          // - 0x40000000: this number would convert to negative when
-          // smi tagging these two cases can only happen with shifts
-          // by 0 or 1 when handed a valid smi
-          __ and_(r3, r2, Operand(0xc0000000), SetCC);
-          deferred->Branch(ne);
-          break;
-        }
-        case Token::SAR: {
-          if (shift_value != 0) {
-            // ASR by immediate 0 means shifting 32 bits.
-            __ mov(r2, Operand(r2, ASR, shift_value));
-          }
-          break;
-        }
-        default: UNREACHABLE();
-      }
-      __ mov(r0, Operand(r2, LSL, kSmiTagSize));
-      deferred->BindExit();
-      break;
-    }
-
-    case Token::MOD: {
-      if (reversed || int_value < 2 || !IsPowerOf2(int_value)) {
-        something_to_inline = false;
-        break;
-      }
-      DeferredCode* deferred =
-        new DeferredInlineSmiOperation(op, int_value, reversed, mode, r0);
-      unsigned mask = (0x80000000u | kSmiTagMask);
-      __ tst(r0, Operand(mask));
-      deferred->Branch(ne);  // Go to deferred code on non-Smis and negative.
-      mask = (int_value << kSmiTagSize) - 1;
-      __ and_(r0, r0, Operand(mask));
-      deferred->BindExit();
-      break;
-    }
-
-    case Token::MUL: {
-      if (!IsEasyToMultiplyBy(int_value)) {
-        something_to_inline = false;
-        break;
-      }
-      DeferredCode* deferred =
-        new DeferredInlineSmiOperation(op, int_value, reversed, mode, r0);
-      unsigned max_smi_that_wont_overflow = Smi::kMaxValue / int_value;
-      max_smi_that_wont_overflow <<= kSmiTagSize;
-      unsigned mask = 0x80000000u;
-      while ((mask & max_smi_that_wont_overflow) == 0) {
-        mask |= mask >> 1;
-      }
-      mask |= kSmiTagMask;
-      // This does a single mask that checks for a too high value in a
-      // conservative way and for a non-Smi.  It also filters out negative
-      // numbers, unfortunately, but since this code is inline we prefer
-      // brevity to comprehensiveness.
-      __ tst(r0, Operand(mask));
-      deferred->Branch(ne);
-      MultiplyByKnownInt(masm_, r0, r0, int_value);
-      deferred->BindExit();
-      break;
-    }
-
-    default:
-      something_to_inline = false;
-      break;
-  }
-
-  if (!something_to_inline) {
-    if (!reversed) {
-      frame_->EmitPush(r0);
-      __ mov(r0, Operand(value));
-      frame_->EmitPush(r0);
-      GenericBinaryOperation(op, mode, int_value);
-    } else {
-      __ mov(ip, Operand(value));
-      frame_->EmitPush(ip);
-      frame_->EmitPush(r0);
-      GenericBinaryOperation(op, mode, kUnknownIntValue);
-    }
-  }
-
-  exit.Bind();
 }
 
 
@@ -3481,10 +3298,10 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
           (node->value()->AsBinaryOperation() != NULL &&
            node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
       if (literal != NULL && literal->handle()->IsSmi()) {
-        VirtualFrameSmiOperation(node->binary_op(),
-                                 literal->handle(),
-                                 false,
-                                 overwrite ? OVERWRITE_RIGHT : NO_OVERWRITE);
+        SmiOperation(node->binary_op(),
+                     literal->handle(),
+                     false,
+                     overwrite ? OVERWRITE_RIGHT : NO_OVERWRITE);
       } else {
         Load(node->value());
         VirtualFrameBinaryOperation(node->binary_op(),
@@ -4968,18 +4785,17 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     if (rliteral != NULL && rliteral->handle()->IsSmi()) {
       VirtualFrame::RegisterAllocationScope scope(this);
       Load(node->left());
-      VirtualFrameSmiOperation(
-          node->op(),
-          rliteral->handle(),
-          false,
-          overwrite_right ? OVERWRITE_RIGHT : NO_OVERWRITE);
+      SmiOperation(node->op(),
+                   rliteral->handle(),
+                   false,
+                   overwrite_right ? OVERWRITE_RIGHT : NO_OVERWRITE);
     } else if (lliteral != NULL && lliteral->handle()->IsSmi()) {
       VirtualFrame::RegisterAllocationScope scope(this);
       Load(node->right());
-      VirtualFrameSmiOperation(node->op(),
-                               lliteral->handle(),
-                               true,
-                               overwrite_left ? OVERWRITE_LEFT : NO_OVERWRITE);
+      SmiOperation(node->op(),
+                   lliteral->handle(),
+                   true,
+                   overwrite_left ? OVERWRITE_LEFT : NO_OVERWRITE);
     } else {
       VirtualFrame::RegisterAllocationScope scope(this);
       OverwriteMode overwrite_mode = NO_OVERWRITE;
