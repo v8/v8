@@ -5412,7 +5412,7 @@ static Object* Runtime_NumberDiv(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::NewNumberFromDouble(x / y);
+  return Heap::NumberFromDouble(x / y);
 }
 
 
@@ -5424,8 +5424,8 @@ static Object* Runtime_NumberMod(Arguments args) {
   CONVERT_DOUBLE_CHECKED(y, args[1]);
 
   x = modulo(x, y);
-  // NewNumberFromDouble may return a Smi instead of a Number object
-  return Heap::NewNumberFromDouble(x);
+  // NumberFromDouble may return a Smi instead of a Number object
+  return Heap::NumberFromDouble(x);
 }
 
 
@@ -6079,7 +6079,8 @@ static Object* Runtime_RoundNumber(Arguments args) {
 
   if (sign && value >= -0.5) return Heap::minus_zero_value();
 
-  return Heap::NumberFromDouble(floor(value + 0.5));
+  // Do not call NumberFromDouble() to avoid extra checks.
+  return Heap::AllocateHeapNumber(floor(value + 0.5));
 }
 
 
