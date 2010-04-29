@@ -418,12 +418,15 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
 
   // Functions with this map will not have a 'prototype' property, and
   // can not be used as constructors.
-  fm = Factory::NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
-  global_context()->set_function_without_prototype_map(*fm);
-  function_map_descriptors =
+  Handle<Map> function_without_prototype_map =
+      Factory::NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
+  global_context()->set_function_without_prototype_map(
+      *function_without_prototype_map);
+  Handle<DescriptorArray> function_without_prototype_map_descriptors =
       ComputeFunctionInstanceDescriptor(DONT_ADD_PROTOTYPE);
-  fm->set_instance_descriptors(*function_map_descriptors);
-  fm->set_function_with_prototype(false);
+  function_without_prototype_map->set_instance_descriptors(
+      *function_without_prototype_map_descriptors);
+  function_without_prototype_map->set_function_with_prototype(false);
 
   // Allocate the function map first and then patch the prototype later
   fm = Factory::NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
@@ -459,7 +462,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   // 262 15.3.4.
   Handle<String> symbol = Factory::LookupAsciiSymbol("Empty");
   Handle<JSFunction> empty_function =
-      Factory::NewFunction(symbol, Factory::null_value());
+      Factory::NewFunctionWithoutPrototype(symbol);
 
   // --- E m p t y ---
   Handle<Code> code =
@@ -474,15 +477,14 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   empty_function->shared()->DontAdaptArguments();
   global_context()->function_map()->set_prototype(*empty_function);
   global_context()->function_instance_map()->set_prototype(*empty_function);
-
-  // Allocate a distinct prototype for the function map for functions without
-  // prototype, so it will not add 'prototype' property in the proto chain.
-  global_context()->function_without_prototype_map()->set_prototype(
-      *Factory::NewJSObject(Top::object_function(), TENURED));
+  global_context()->function_without_prototype_map()->
+      set_prototype(*empty_function);
 
   // Allocate the function map first and then patch the prototype later
-  Handle<Map> empty_fm = Factory::CopyMapDropDescriptors(fm);
-  empty_fm->set_instance_descriptors(*function_map_descriptors);
+  Handle<Map> empty_fm = Factory::CopyMapDropDescriptors(
+      function_without_prototype_map);
+  empty_fm->set_instance_descriptors(
+      *function_without_prototype_map_descriptors);
   empty_fm->set_prototype(global_context()->object_function()->prototype());
   empty_function->set_map(*empty_fm);
   return empty_function;
@@ -1258,23 +1260,6 @@ bool Genesis::InstallNatives() {
     // Set the lengths for the functions to satisfy ECMA-262.
     call->shared()->set_length(1);
     apply->shared()->set_length(2);
-
-    // Install the call, apply, toString and constructor properties
-    // for the functions without prototype.
-    Handle<JSObject> wp_proto = Handle<JSObject>(
-        JSObject::cast(Top::function_without_prototype_map()->prototype()));
-
-    Handle<String> call_symbol = Factory::LookupAsciiSymbol("call");
-    SetProperty(wp_proto, call_symbol, call, DONT_ENUM);
-
-    Handle<String> apply_symbol = Factory::LookupAsciiSymbol("apply");
-    SetProperty(wp_proto, apply_symbol, apply, DONT_ENUM);
-
-    Handle<Object> to_string = GetProperty(proto, "toString");
-    Handle<String> to_string_symbol = Factory::LookupAsciiSymbol("toString");
-    SetProperty(wp_proto, to_string_symbol, to_string, DONT_ENUM);
-
-    SetProperty(wp_proto, Factory::constructor_symbol(), function, DONT_ENUM);
   }
 
   // Create a constructor for RegExp results (a variant of Array that
