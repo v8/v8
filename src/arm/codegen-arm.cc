@@ -4325,6 +4325,20 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
+  Comment cmnt(masm_, "[ GenerateSwapElements");
+
+  ASSERT_EQ(3, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+
+  frame_->CallRuntime(Runtime::kSwapElements, 3);
+  frame_->EmitPush(r0);
+}
+
+
 void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
   Comment cmnt(masm_, "[ GenerateCallFunction");
 

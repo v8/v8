@@ -452,6 +452,9 @@ class CodeGenerator: public AstVisitor {
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
+  // Fast swapping of elements.
+  void GenerateSwapElements(ZoneList<Expression*>* args);
+
   // Fast call for custom callbacks.
   void GenerateCallFunction(ZoneList<Expression*>* args);
 

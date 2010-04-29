@@ -6608,6 +6608,121 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
 }
 
 
+class DeferredSwapElements: public DeferredCode {
+ public:
+  DeferredSwapElements(Register object, Register index1, Register index2)
+      : object_(object), index1_(index1), index2_(index2) {
+    set_comment("[ DeferredSwapElements");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register object_, index1_, index2_;
+};
+
+
+void DeferredSwapElements::Generate() {
+  __ push(object_);
+  __ push(index1_);
+  __ push(index2_);
+  __ CallRuntime(Runtime::kSwapElements, 3);
+}
+
+
+void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
+  // Note: this code assumes that indices are passed are within
+  // elements' bounds and refer to valid (not holes) values.
+  Comment cmnt(masm_, "[ GenerateSwapElements");
+
+  ASSERT_EQ(3, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+
+  Result index2 = frame_->Pop();
+  index2.ToRegister();
+
+  Result index1 = frame_->Pop();
+  index1.ToRegister();
+
+  Result object = frame_->Pop();
+  object.ToRegister();
+
+  Result tmp1 = allocator()->Allocate();
+  tmp1.ToRegister();
+  Result tmp2 = allocator()->Allocate();
+  tmp2.ToRegister();
+
+  frame_->Spill(object.reg());
+  frame_->Spill(index1.reg());
+  frame_->Spill(index2.reg());
+
+  DeferredSwapElements* deferred = new DeferredSwapElements(object.reg(),
+                                                            index1.reg(),
+                                                            index2.reg());
+
+  // Fetch the map and check if array is in fast case.
+  // Check that object doesn't require security checks and
+  // has no indexed interceptor.
+  __ CmpObjectType(object.reg(), FIRST_JS_OBJECT_TYPE, tmp1.reg());
+  deferred->Branch(less);
+  __ movzx_b(tmp1.reg(), FieldOperand(tmp1.reg(), Map::kBitFieldOffset));
+  __ test(tmp1.reg(), Immediate(KeyedLoadIC::kSlowCaseBitFieldMask));
+  deferred->Branch(not_zero);
+
+  // Check the object's elements are in fast case.
+  __ mov(tmp1.reg(), FieldOperand(object.reg(), JSObject::kElementsOffset));
+  __ cmp(FieldOperand(tmp1.reg(), HeapObject::kMapOffset),
+         Immediate(Factory::fixed_array_map()));
+  deferred->Branch(not_equal);
+
+  // Smi-tagging is equivalent to multiplying by 2.
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
+  // Check that both indices are smis.
+  __ mov(tmp2.reg(), index1.reg());
+  __ or_(tmp2.reg(), Operand(index2.reg()));
+  __ test(tmp2.reg(), Immediate(kSmiTagMask));
+  deferred->Branch(not_zero);
+
+  // Bring addresses into index1 and index2.
+  __ lea(index1.reg(), FieldOperand(tmp1.reg(),
+                                    index1.reg(),
+                                    times_half_pointer_size,  // index1 is Smi
+                                    FixedArray::kHeaderSize));
+  __ lea(index2.reg(), FieldOperand(tmp1.reg(),
+                                    index2.reg(),
+                                    times_half_pointer_size,  // index2 is Smi
+                                    FixedArray::kHeaderSize));
+
+  // Swap elements.
+  __ mov(object.reg(), Operand(index1.reg(), 0));
+  __ mov(tmp2.reg(),   Operand(index2.reg(), 0));
+  __ mov(Operand(index2.reg(), 0), object.reg());
+  __ mov(Operand(index1.reg(), 0), tmp2.reg());
+
+  Label done;
+  __ InNewSpace(tmp1.reg(), tmp2.reg(), equal, &done);
+  // Possible optimization: do a check that both values are Smis
+  // (or them and test against Smi mask.)
+
+  __ mov(tmp2.reg(), tmp1.reg());
+  RecordWriteStub recordWrite1(tmp2.reg(), index1.reg(), object.reg());
+  __ CallStub(&recordWrite1);
+
+  RecordWriteStub recordWrite2(tmp1.reg(), index2.reg(), object.reg());
+  __ CallStub(&recordWrite2);
+
+  __ bind(&done);
+
+  deferred->BindExit();
+  frame_->Push(Factory::undefined_value());
+}
+
+
 void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
   Comment cmnt(masm_, "[ GenerateCallFunction");
 

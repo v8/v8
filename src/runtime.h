@@ -233,6 +233,7 @@ namespace internal {
   F(GetArrayKeys, 2, 1) \
   F(MoveArrayContents, 2, 1) \
   F(EstimateNumberOfElements, 1, 1) \
+  F(SwapElements, 3, 1) \
   \
   /* Getters and Setters */ \
   F(DefineAccessor, -1 /* 4 or 5 */, 1) \
