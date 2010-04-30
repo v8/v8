@@ -3531,8 +3531,15 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       overwrite_mode = OVERWRITE_RIGHT;
     }
 
-    Load(node->left());
-    Load(node->right());
+    if (node->left()->IsTrivial()) {
+      Load(node->right());
+      Result right = frame_->Pop();
+      frame_->Push(node->left());
+      frame_->Push(&right);
+    } else {
+      Load(node->left());
+      Load(node->right());
+    }
     GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
   }
 }
