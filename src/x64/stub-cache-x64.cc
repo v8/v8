@@ -327,8 +327,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   GenerateStringCheck(masm, receiver, scratch1, miss, &check_wrapper);
 
   // Load length directly from the string.
-  __ movl(rax, FieldOperand(receiver, String::kLengthOffset));
-  __ Integer32ToSmi(rax, rax);
+  __ movq(rax, FieldOperand(receiver, String::kLengthOffset));
   __ ret(0);
 
   // Check if the object is a JSValue wrapper.
@@ -340,8 +339,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   // directly if it is.
   __ movq(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
   GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
-  __ movl(rax, FieldOperand(scratch2, String::kLengthOffset));
-  __ Integer32ToSmi(rax, rax);
+  __ movq(rax, FieldOperand(scratch2, String::kLengthOffset));
   __ ret(0);
 }
 

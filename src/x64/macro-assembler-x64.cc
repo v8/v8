@@ -599,6 +599,11 @@ void MacroAssembler::SmiCompare(Register dst, Smi* src) {
 }
 
 
+void MacroAssembler::SmiCompare(Register  dst, const Operand& src) {
+  cmpq(dst, src);
+}
+
+
 void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
   cmpq(dst, src);
 }
@@ -734,7 +739,17 @@ void MacroAssembler::SmiAdd(Register dst,
                             Register src2,
                             Label* on_not_smi_result) {
   ASSERT(!dst.is(src2));
-  if (dst.is(src1)) {
+  if (on_not_smi_result == NULL) {
+    // No overflow checking. Use only when it's known that
+    // overflowing is impossible.
+    if (dst.is(src1)) {
+      addq(dst, src2);
+    } else {
+      movq(dst, src1);
+      addq(dst, src2);
+    }
+    Assert(no_overflow, "Smi addition onverflow");
+  } else if (dst.is(src1)) {
     addq(dst, src2);
     Label smi_result;
     j(no_overflow, &smi_result);
@@ -780,6 +795,36 @@ void MacroAssembler::SmiSub(Register dst,
   }
 }
 
+
+void MacroAssembler::SmiSub(Register dst,
+                            Register src1,
+                            Operand const& src2,
+                            Label* on_not_smi_result) {
+  ASSERT(!dst.is(src2));
+  if (on_not_smi_result == NULL) {
+    // No overflow checking. Use only when it's known that
+    // overflowing is impossible (e.g., subtracting two positive smis).
+    if (dst.is(src1)) {
+      subq(dst, src2);
+    } else {
+      movq(dst, src1);
+      subq(dst, src2);
+    }
+    Assert(no_overflow, "Smi substraction onverflow");
+  } else if (dst.is(src1)) {
+    subq(dst, src2);
+    Label smi_result;
+    j(no_overflow, &smi_result);
+    // Restore src1.
+    addq(src1, src2);
+    jmp(on_not_smi_result);
+    bind(&smi_result);
+  } else {
+    movq(dst, src1);
+    subq(dst, src2);
+    j(overflow, on_not_smi_result);
+  }
+}
 
 void MacroAssembler::SmiMul(Register dst,
                             Register src1,
@@ -2504,11 +2549,16 @@ void MacroAssembler::AllocateTwoByteString(Register result,
                                            Label* gc_required) {
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
-  ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
+  const int kHeaderAlignment = SeqTwoByteString::kHeaderSize &
+                               kObjectAlignmentMask;
   ASSERT(kShortSize == 2);
   // scratch1 = length * 2 + kObjectAlignmentMask.
-  lea(scratch1, Operand(length, length, times_1, kObjectAlignmentMask));
+  lea(scratch1, Operand(length, length, times_1, kObjectAlignmentMask +
+                kHeaderAlignment));
   and_(scratch1, Immediate(~kObjectAlignmentMask));
+  if (kHeaderAlignment > 0) {
+    subq(scratch1, Immediate(kHeaderAlignment));
+  }
 
   // Allocate two byte string in new space.
   AllocateInNewSpace(SeqTwoByteString::kHeaderSize,
@@ -2523,7 +2573,8 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   // Set the map, length and hash field.
   LoadRoot(kScratchRegister, Heap::kStringMapRootIndex);
   movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
-  movl(FieldOperand(result, String::kLengthOffset), length);
+  Integer32ToSmi(scratch1, length);
+  movq(FieldOperand(result, String::kLengthOffset), scratch1);
   movl(FieldOperand(result, String::kHashFieldOffset),
        Immediate(String::kEmptyHashField));
 }
@@ -2537,11 +2588,15 @@ void MacroAssembler::AllocateAsciiString(Register result,
                                          Label* gc_required) {
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
-  ASSERT((SeqAsciiString::kHeaderSize & kObjectAlignmentMask) == 0);
+  const int kHeaderAlignment = SeqAsciiString::kHeaderSize &
+                               kObjectAlignmentMask;
   movl(scratch1, length);
   ASSERT(kCharSize == 1);
-  addq(scratch1, Immediate(kObjectAlignmentMask));
+  addq(scratch1, Immediate(kObjectAlignmentMask + kHeaderAlignment));
   and_(scratch1, Immediate(~kObjectAlignmentMask));
+  if (kHeaderAlignment > 0) {
+    subq(scratch1, Immediate(kHeaderAlignment));
+  }
 
   // Allocate ascii string in new space.
   AllocateInNewSpace(SeqAsciiString::kHeaderSize,
@@ -2556,7 +2611,8 @@ void MacroAssembler::AllocateAsciiString(Register result,
   // Set the map, length and hash field.
   LoadRoot(kScratchRegister, Heap::kAsciiStringMapRootIndex);
   movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
-  movl(FieldOperand(result, String::kLengthOffset), length);
+  Integer32ToSmi(scratch1, length);
+  movq(FieldOperand(result, String::kLengthOffset), scratch1);
   movl(FieldOperand(result, String::kHashFieldOffset),
        Immediate(String::kEmptyHashField));
 }
