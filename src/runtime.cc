@@ -4225,7 +4225,7 @@ static Object* Runtime_GetLocalPropertyNames(Arguments args) {
   int length = LocalPrototypeChainLength(*obj);
 
   // Find the number of local properties for each of the objects.
-  int* local_property_count = NewArray<int>(length);
+  ScopedVector<int> local_property_count(length);
   int total_property_count = 0;
   Handle<JSObject> jsproto = obj;
   for (int i = 0; i < length; i++) {
@@ -4278,7 +4278,6 @@ static Object* Runtime_GetLocalPropertyNames(Arguments args) {
     }
   }
 
-  DeleteArray(local_property_count);
   return *Factory::NewJSArrayWithElements(names);
 }
 
