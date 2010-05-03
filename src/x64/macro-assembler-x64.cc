@@ -2356,18 +2356,17 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
     return;
   }
 
-  // Move address of new object to result. Use scratch register if available.
-  if (!scratch.is_valid()) {
-    if (result.is(rax)) {
-      load_rax(new_space_allocation_top);
-    } else {
-      movq(kScratchRegister, new_space_allocation_top);
-      movq(result, Operand(kScratchRegister, 0));
-    }
-  } else {
+  // Move address of new object to result. Use scratch register if available,
+  // and keep address in scratch until call to UpdateAllocationTopHelper.
+  if (scratch.is_valid()) {
     ASSERT(!scratch.is(result_end));
     movq(scratch, new_space_allocation_top);
     movq(result, Operand(scratch, 0));
+  } else if (result.is(rax)) {
+    load_rax(new_space_allocation_top);
+  } else {
+    movq(kScratchRegister, new_space_allocation_top);
+    movq(result, Operand(kScratchRegister, 0));
   }
 }
 
@@ -2388,11 +2387,11 @@ void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
     store_rax(new_space_allocation_top);
   } else {
     // Register required - use scratch provided if available.
-    if (!scratch.is_valid()) {
+    if (scratch.is_valid()) {
+      movq(Operand(scratch, 0), result_end);
+    } else {
       movq(kScratchRegister, new_space_allocation_top);
       movq(Operand(kScratchRegister, 0), result_end);
-    } else {
-      movq(Operand(scratch, 0), result_end);
     }
   }
 }
@@ -2415,7 +2414,11 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
 
   Register top_reg = result_end.is_valid() ? result_end : result;
 
-  lea(top_reg, Operand(result, object_size));
+  if (top_reg.is(result)) {
+    addq(top_reg, Immediate(object_size));
+  } else {
+    lea(top_reg, Operand(result, object_size));
+  }
   movq(kScratchRegister, new_space_allocation_limit);
   cmpq(top_reg, Operand(kScratchRegister, 0));
   j(above, gc_required);

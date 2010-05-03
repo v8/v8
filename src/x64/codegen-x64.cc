@@ -5969,7 +5969,7 @@ void DeferredInlineBinaryOperation::Generate() {
       || (op_ ==Token::SUB)
       || (op_ == Token::MUL)
       || (op_ == Token::DIV)) {
-    Label call_runtime, after_alloc_failure;
+    Label call_runtime;
     Label left_smi, right_smi, load_right, do_op;
     __ JumpIfSmi(left_, &left_smi);
     __ CompareRoot(FieldOperand(left_, HeapObject::kMapOffset),
@@ -5987,9 +5987,7 @@ void DeferredInlineBinaryOperation::Generate() {
     __ Integer32ToSmi(left_, left_);
     if (mode_ == OVERWRITE_LEFT) {
       Label alloc_failure;
-      __ push(left_);
-      __ AllocateHeapNumber(dst_, left_, &after_alloc_failure);
-      __ pop(left_);
+      __ AllocateHeapNumber(dst_, no_reg, &call_runtime);
     }
 
     __ bind(&load_right);
@@ -6002,9 +6000,7 @@ void DeferredInlineBinaryOperation::Generate() {
       __ movq(dst_, right_);
     } else if (mode_ == NO_OVERWRITE) {
       Label alloc_failure;
-      __ push(left_);
-      __ AllocateHeapNumber(dst_, left_, &after_alloc_failure);
-      __ pop(left_);
+      __ AllocateHeapNumber(dst_, no_reg, &call_runtime);
     }
     __ jmp(&do_op);
 
@@ -6014,9 +6010,7 @@ void DeferredInlineBinaryOperation::Generate() {
     __ Integer32ToSmi(right_, right_);
     if (mode_ == OVERWRITE_RIGHT || mode_ == NO_OVERWRITE) {
       Label alloc_failure;
-      __ push(left_);
-      __ AllocateHeapNumber(dst_, left_, &after_alloc_failure);
-      __ pop(left_);
+      __ AllocateHeapNumber(dst_, no_reg, &call_runtime);
     }
 
     __ bind(&do_op);
@@ -6030,8 +6024,6 @@ void DeferredInlineBinaryOperation::Generate() {
     __ movsd(FieldOperand(dst_, HeapNumber::kValueOffset), xmm0);
     __ jmp(&done);
 
-    __ bind(&after_alloc_failure);
-    __ pop(left_);
     __ bind(&call_runtime);
   }
   GenericBinaryOpStub stub(op_, mode_, NO_SMI_CODE_IN_STUB);
