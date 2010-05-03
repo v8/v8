@@ -372,7 +372,9 @@ class VirtualFrame : public ZoneObject {
   // Push an element on top of the expression stack and emit a
   // corresponding push instruction.
   void EmitPush(Register reg);
+  void EmitPush(Operand operand);
   void EmitPush(MemOperand operand);
+  void EmitPushRoot(Heap::RootListIndex index);
 
   // Get a register which is free and which must be immediately used to
   // push on the top of the stack.
