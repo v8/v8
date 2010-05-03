@@ -2339,6 +2339,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(
         }
       }
       break;
+
     // Generate inline code for mod of powers of 2 and negative powers of 2.
     case Token::MOD:
       if (!reversed &&
