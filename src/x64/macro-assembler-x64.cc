@@ -72,35 +72,34 @@ void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
 }
 
 
-static void RecordWriteHelper(MacroAssembler* masm,
-                              Register object,
-                              Register addr,
-                              Register scratch) {
+void MacroAssembler::RecordWriteHelper(Register object,
+                                       Register addr,
+                                       Register scratch) {
   Label fast;
 
   // Compute the page start address from the heap object pointer, and reuse
   // the 'object' register for it.
   ASSERT(is_int32(~Page::kPageAlignmentMask));
-  masm->and_(object,
-             Immediate(static_cast<int32_t>(~Page::kPageAlignmentMask)));
+  and_(object,
+       Immediate(static_cast<int32_t>(~Page::kPageAlignmentMask)));
   Register page_start = object;
 
   // Compute the bit addr in the remembered set/index of the pointer in the
   // page. Reuse 'addr' as pointer_offset.
-  masm->subq(addr, page_start);
-  masm->shr(addr, Immediate(kPointerSizeLog2));
+  subq(addr, page_start);
+  shr(addr, Immediate(kPointerSizeLog2));
   Register pointer_offset = addr;
 
   // If the bit offset lies beyond the normal remembered set range, it is in
   // the extra remembered set area of a large object.
-  masm->cmpq(pointer_offset, Immediate(Page::kPageSize / kPointerSize));
-  masm->j(less, &fast);
+  cmpq(pointer_offset, Immediate(Page::kPageSize / kPointerSize));
+  j(less, &fast);
 
   // Adjust 'page_start' so that addressing using 'pointer_offset' hits the
   // extra remembered set after the large object.
 
   // Load the array length into 'scratch'.
-  masm->movl(scratch,
+  movl(scratch,
              Operand(page_start,
                      Page::kObjectStartOffset + FixedArray::kLengthOffset));
   Register array_length = scratch;
@@ -111,7 +110,7 @@ static void RecordWriteHelper(MacroAssembler* masm,
   // Add the delta between the end of the normal RSet and the start of the
   // extra RSet to 'page_start', so that addressing the bit using
   // 'pointer_offset' hits the extra RSet words.
-  masm->lea(page_start,
+  lea(page_start,
             Operand(page_start, array_length, times_pointer_size,
                     Page::kObjectStartOffset + FixedArray::kHeaderSize
                         - Page::kRSetEndOffset));
@@ -120,50 +119,8 @@ static void RecordWriteHelper(MacroAssembler* masm,
   // to limit code size. We should probably evaluate this decision by
   // measuring the performance of an equivalent implementation using
   // "simpler" instructions
-  masm->bind(&fast);
-  masm->bts(Operand(page_start, Page::kRSetOffset), pointer_offset);
-}
-
-
-class RecordWriteStub : public CodeStub {
- public:
-  RecordWriteStub(Register object, Register addr, Register scratch)
-      : object_(object), addr_(addr), scratch_(scratch) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Register object_;
-  Register addr_;
-  Register scratch_;
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("RecordWriteStub (object reg %d), (addr reg %d), (scratch reg %d)\n",
-           object_.code(), addr_.code(), scratch_.code());
-  }
-#endif
-
-  // Minor key encoding in 12 bits of three registers (object, address and
-  // scratch) OOOOAAAASSSS.
-  class ScratchBits : public BitField<uint32_t, 0, 4> {};
-  class AddressBits : public BitField<uint32_t, 4, 4> {};
-  class ObjectBits : public BitField<uint32_t, 8, 4> {};
-
-  Major MajorKey() { return RecordWrite; }
-
-  int MinorKey() {
-    // Encode the registers.
-    return ObjectBits::encode(object_.code()) |
-           AddressBits::encode(addr_.code()) |
-           ScratchBits::encode(scratch_.code());
-  }
-};
-
-
-void RecordWriteStub::Generate(MacroAssembler* masm) {
-  RecordWriteHelper(masm, object_, addr_, scratch_);
-  masm->ret(0);
+  bind(&fast);
+  bts(Operand(page_start, Page::kRSetOffset), pointer_offset);
 }
 
 
@@ -279,7 +236,7 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
     // If we are already generating a shared stub, not inlining the
     // record write code isn't going to save us any memory.
     if (generating_stub()) {
-      RecordWriteHelper(this, object, dst, scratch);
+      RecordWriteHelper(object, dst, scratch);
     } else {
       RecordWriteStub stub(object, dst, scratch);
       CallStub(&stub);

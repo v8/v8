@@ -66,6 +66,10 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
+  void RecordWriteHelper(Register object,
+                         Register addr,
+                         Register scratch);
+
   // Check if object is in new space. The condition cc can be equal or
   // not_equal. If it is equal a jump will be done if the object is on new
   // space. The register scratch can be object itself, but it will be clobbered.

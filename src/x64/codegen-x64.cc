@@ -4487,6 +4487,28 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
 }
 
 
+class DeferredSwapElements: public DeferredCode {
+ public:
+  DeferredSwapElements(Register object, Register index1, Register index2)
+      : object_(object), index1_(index1), index2_(index2) {
+    set_comment("[ DeferredSwapElements");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register object_, index1_, index2_;
+};
+
+
+void DeferredSwapElements::Generate() {
+  __ push(object_);
+  __ push(index1_);
+  __ push(index2_);
+  __ CallRuntime(Runtime::kSwapElements, 3);
+}
+
+
 void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   Comment cmnt(masm_, "[ GenerateSwapElements");
 
@@ -4496,8 +4518,81 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   Load(args->at(1));
   Load(args->at(2));
 
-  Result result = frame_->CallRuntime(Runtime::kSwapElements, 3);
-  frame_->Push(&result);
+  Result index2 = frame_->Pop();
+  index2.ToRegister();
+
+  Result index1 = frame_->Pop();
+  index1.ToRegister();
+
+  Result object = frame_->Pop();
+  object.ToRegister();
+
+  Result tmp1 = allocator()->Allocate();
+  tmp1.ToRegister();
+  Result tmp2 = allocator()->Allocate();
+  tmp2.ToRegister();
+
+  frame_->Spill(object.reg());
+  frame_->Spill(index1.reg());
+  frame_->Spill(index2.reg());
+
+  DeferredSwapElements* deferred = new DeferredSwapElements(object.reg(),
+                                                            index1.reg(),
+                                                            index2.reg());
+
+  // Fetch the map and check if array is in fast case.
+  // Check that object doesn't require security checks and
+  // has no indexed interceptor.
+  __ CmpObjectType(object.reg(), FIRST_JS_OBJECT_TYPE, tmp1.reg());
+  deferred->Branch(below);
+  __ testb(FieldOperand(tmp1.reg(), Map::kBitFieldOffset),
+           Immediate(KeyedLoadIC::kSlowCaseBitFieldMask));
+  deferred->Branch(not_zero);
+
+  // Check the object's elements are in fast case.
+  __ movq(tmp1.reg(), FieldOperand(object.reg(), JSObject::kElementsOffset));
+  __ CompareRoot(FieldOperand(tmp1.reg(), HeapObject::kMapOffset),
+                 Heap::kFixedArrayMapRootIndex);
+  deferred->Branch(not_equal);
+
+  // Check that both indices are smis.
+  Condition both_smi = __ CheckBothSmi(index1.reg(), index2.reg());
+  deferred->Branch(NegateCondition(both_smi));
+
+  // Bring addresses into index1 and index2.
+  __ SmiToInteger32(index1.reg(), index1.reg());
+  __ lea(index1.reg(), FieldOperand(tmp1.reg(),
+                                    index1.reg(),
+                                    times_pointer_size,
+                                    FixedArray::kHeaderSize));
+  __ SmiToInteger32(index2.reg(), index2.reg());
+  __ lea(index2.reg(), FieldOperand(tmp1.reg(),
+                                    index2.reg(),
+                                    times_pointer_size,
+                                    FixedArray::kHeaderSize));
+
+  // Swap elements.
+  __ movq(object.reg(), Operand(index1.reg(), 0));
+  __ movq(tmp2.reg(), Operand(index2.reg(), 0));
+  __ movq(Operand(index2.reg(), 0), object.reg());
+  __ movq(Operand(index1.reg(), 0), tmp2.reg());
+
+  Label done;
+  __ InNewSpace(tmp1.reg(), tmp2.reg(), equal, &done);
+  // Possible optimization: do a check that both values are Smis
+  // (or them and test against Smi mask.)
+
+  __ movq(tmp2.reg(), tmp1.reg());
+  RecordWriteStub recordWrite1(tmp2.reg(), index1.reg(), object.reg());
+  __ CallStub(&recordWrite1);
+
+  RecordWriteStub recordWrite2(tmp1.reg(), index2.reg(), object.reg());
+  __ CallStub(&recordWrite2);
+
+  __ bind(&done);
+
+  deferred->BindExit();
+  frame_->Push(Factory::undefined_value());
 }
 
 
@@ -8338,6 +8433,12 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
   __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
+}
+
+
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  masm->RecordWriteHelper(object_, addr_, scratch_);
+  masm->ret(0);
 }
 
 
