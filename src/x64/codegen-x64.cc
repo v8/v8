@@ -43,6 +43,8 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+static int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
+
 // -------------------------------------------------------------------------
 // Platform-specific DeferredCode functions.
 
@@ -4516,19 +4518,19 @@ void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
-  // Load the argument on the stack and jump to the runtime.
   Load(args->at(0));
-  Result answer = frame_->CallRuntime(Runtime::kMath_sin, 1);
-  frame_->Push(&answer);
+  TranscendentalCacheStub stub(TranscendentalCache::SIN);
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
 }
 
 
 void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
-  // Load the argument on the stack and jump to the runtime.
   Load(args->at(0));
-  Result answer = frame_->CallRuntime(Runtime::kMath_cos, 1);
-  frame_->Push(&answer);
+  TranscendentalCacheStub stub(TranscendentalCache::COS);
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
 }
 
 
@@ -7458,6 +7460,216 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 
 
 // End of CodeGenerator implementation.
+
+void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
+  // Input on stack:
+  // rsp[8]: argument (should be number).
+  // rsp[0]: return address.
+  Label runtime_call;
+  Label runtime_call_clear_stack;
+  Label input_not_smi;
+  Label loaded;
+  // Test that rax is a number.
+  __ movq(rax, Operand(rsp, kPointerSize));
+  __ JumpIfNotSmi(rax, &input_not_smi);
+  // Input is a smi. Untag and load it onto the FPU stack.
+  // Then load the bits of the double into rbx.
+  __ SmiToInteger32(rax, rax);
+  __ subq(rsp, Immediate(kPointerSize));
+  __ cvtlsi2sd(xmm1, rax);
+  __ movsd(Operand(rsp, 0), xmm1);
+  __ movq(rbx, xmm1);
+  __ movq(rdx, xmm1);
+  __ fld_d(Operand(rsp, 0));
+  __ addq(rsp, Immediate(kPointerSize));
+  __ jmp(&loaded);
+
+  __ bind(&input_not_smi);
+  // Check if input is a HeapNumber.
+  __ Move(rbx, Factory::heap_number_map());
+  __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ j(not_equal, &runtime_call);
+  // Input is a HeapNumber. Push it on the FPU stack and load its
+  // bits into rbx.
+  __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
+  __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
+  __ movq(rdx, rbx);
+  __ bind(&loaded);
+  // ST[0] == double value
+  // rbx = bits of double value.
+  // rdx = also bits of double value.
+  // Compute hash (h is 32 bits, bits are 64):
+  //   h = h0 = bits ^ (bits >> 32);
+  //   h ^= h >> 16;
+  //   h ^= h >> 8;
+  //   h = h & (cacheSize - 1);
+  // or h = (h0 ^ (h0 >> 8) ^ (h0 >> 16) ^ (h0 >> 24)) & (cacheSize - 1)
+  __ sar(rdx, Immediate(32));
+  __ xorl(rdx, rbx);
+  __ movl(rcx, rdx);
+  __ movl(rax, rdx);
+  __ movl(rdi, rdx);
+  __ sarl(rdx, Immediate(8));
+  __ sarl(rcx, Immediate(16));
+  __ sarl(rax, Immediate(24));
+  __ xorl(rcx, rdx);
+  __ xorl(rax, rdi);
+  __ xorl(rcx, rax);
+  ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
+  __ andl(rcx, Immediate(TranscendentalCache::kCacheSize - 1));
+  // ST[0] == double value.
+  // rbx = bits of double value.
+  // rcx = TranscendentalCache::hash(double value).
+  __ movq(rax, ExternalReference::transcendental_cache_array_address());
+  // rax points to cache array.
+  __ movq(rax, Operand(rax, type_ * sizeof(TranscendentalCache::caches_[0])));
+  // rax points to the cache for the type type_.
+  // If NULL, the cache hasn't been initialized yet, so go through runtime.
+  __ testq(rax, rax);
+  __ j(zero, &runtime_call_clear_stack);
+#ifdef DEBUG
+  // Check that the layout of cache elements match expectations.
+  {  // NOLINT - doesn't like a single brace on a line.
+    TranscendentalCache::Element test_elem[2];
+    char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
+    char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
+    char* elem_in0  = reinterpret_cast<char*>(&(test_elem[0].in[0]));
+    char* elem_in1  = reinterpret_cast<char*>(&(test_elem[0].in[1]));
+    char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
+    // Two uint_32's and a pointer per element.
+    CHECK_EQ(16, static_cast<int>(elem2_start - elem_start));
+    CHECK_EQ(0, static_cast<int>(elem_in0 - elem_start));
+    CHECK_EQ(kIntSize, static_cast<int>(elem_in1 - elem_start));
+    CHECK_EQ(2 * kIntSize, static_cast<int>(elem_out - elem_start));
+  }
+#endif
+  // Find the address of the rcx'th entry in the cache, i.e., &rax[rcx*16].
+  __ addl(rcx, rcx);
+  __ lea(rcx, Operand(rax, rcx, times_8, 0));
+  // Check if cache matches: Double value is stored in uint32_t[2] array.
+  Label cache_miss;
+  __ cmpq(rbx, Operand(rcx, 0));
+  __ j(not_equal, &cache_miss);
+  // Cache hit!
+  __ movq(rax, Operand(rcx, 2 * kIntSize));
+  __ fstp(0);  // Clear FPU stack.
+  __ ret(kPointerSize);
+
+  __ bind(&cache_miss);
+  // Update cache with new value.
+  __ AllocateHeapNumber(rax, rdi, &runtime_call_clear_stack);
+  GenerateOperation(masm);
+  __ movq(Operand(rcx, 0), rbx);
+  __ movq(Operand(rcx, 2 * kIntSize), rax);
+  __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
+  __ ret(kPointerSize);
+
+  __ bind(&runtime_call_clear_stack);
+  __ fstp(0);
+  __ bind(&runtime_call);
+  __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
+}
+
+
+Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
+  switch (type_) {
+    // Add more cases when necessary.
+    case TranscendentalCache::SIN: return Runtime::kMath_sin;
+    case TranscendentalCache::COS: return Runtime::kMath_cos;
+    default:
+      UNIMPLEMENTED();
+      return Runtime::kAbort;
+  }
+}
+
+
+void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
+  // Only free register is rdi.
+  Label done;
+  ASSERT(type_ == TranscendentalCache::SIN ||
+         type_ == TranscendentalCache::COS);
+  // More transcendental types can be added later.
+
+  // Both fsin and fcos require arguments in the range +/-2^63 and
+  // return NaN for infinities and NaN. They can share all code except
+  // the actual fsin/fcos operation.
+  Label in_range;
+  // If argument is outside the range -2^63..2^63, fsin/cos doesn't
+  // work. We must reduce it to the appropriate range.
+  __ movq(rdi, rbx);
+  // Move exponent and sign bits to low bits.
+  __ shr(rdi, Immediate(HeapNumber::kMantissaBits));
+  // Remove sign bit.
+  __ andl(rdi, Immediate((1 << HeapNumber::KExponentBits) - 1));
+  int supported_exponent_limit = (63 + HeapNumber::kExponentBias);
+  __ cmpl(rdi, Immediate(supported_exponent_limit));
+  __ j(below, &in_range);
+  // Check for infinity and NaN. Both return NaN for sin.
+  __ cmpl(rdi, Immediate(0x7ff));
+  Label non_nan_result;
+  __ j(not_equal, &non_nan_result);
+  // Input is +/-Infinity or NaN. Result is NaN.
+  __ fstp(0);  // Clear fpu stack.
+  // NaN is represented by 0x7ff8000000000000.
+  __ movq(rdi, kNaNValue, RelocInfo::NONE);
+  __ push(rdi);
+  __ fld_d(Operand(rsp, 0));
+  __ addq(rsp, Immediate(kPointerSize));
+  __ jmp(&done);
+
+  __ bind(&non_nan_result);
+
+  // Use fpmod to restrict argument to the range +/-2*PI.
+  __ movq(rdi, rax);  // Save rax before using fnstsw_ax.
+  __ fldpi();
+  __ fadd(0);
+  __ fld(1);
+  // FPU Stack: input, 2*pi, input.
+  {
+    Label no_exceptions;
+    __ fwait();
+    __ fnstsw_ax();
+    // Clear if Illegal Operand or Zero Division exceptions are set.
+    __ testl(rax, Immediate(5));
+    __ j(zero, &no_exceptions);
+    __ fnclex();
+    __ bind(&no_exceptions);
+  }
+
+  // Compute st(0) % st(1)
+  {
+    Label partial_remainder_loop;
+    __ bind(&partial_remainder_loop);
+    __ fprem1();
+    __ fwait();
+    __ fnstsw_ax();
+    __ testl(rax, Immediate(0x400));  // Check C2 bit of FPU status word.
+    // If C2 is set, computation only has partial result. Loop to
+    // continue computation.
+    __ j(not_zero, &partial_remainder_loop);
+  }
+  // FPU Stack: input, 2*pi, input % 2*pi
+  __ fstp(2);
+  // FPU Stack: input % 2*pi, 2*pi,
+  __ fstp(0);
+  // FPU Stack: input % 2*pi
+  __ movq(rax, rdi);  // Restore rax (allocated HeapNumber pointer).
+
+  // FPU Stack: input % 2*pi
+  __ bind(&in_range);
+  switch (type_) {
+    case TranscendentalCache::SIN:
+      __ fsin();
+      break;
+    case TranscendentalCache::COS:
+      __ fcos();
+      break;
+    default:
+      UNREACHABLE();
+  }
+  __ bind(&done);
+}
+
 
 // Get the integer part of a heap number.  Surprisingly, all this bit twiddling
 // is faster than using the built-in instructions on floating point registers.
@@ -10995,7 +11207,6 @@ ModuloFunction CreateModuloFunction() {
   __ testb(rax, Immediate(5));
   __ j(zero, &valid_result);
   __ fstp(0);  // Drop result in st(0).
-  int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
   __ movq(rcx, kNaNValue, RelocInfo::NONE);
   __ movq(Operand(rsp, kPointerSize), rcx);
   __ movsd(xmm0, Operand(rsp, kPointerSize));

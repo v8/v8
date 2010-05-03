@@ -1116,6 +1116,8 @@ class HeapNumber: public HeapObject {
   static const uint32_t kSignMask = 0x80000000u;
   static const uint32_t kExponentMask = 0x7ff00000u;
   static const uint32_t kMantissaMask = 0xfffffu;
+  static const int kMantissaBits = 52;
+  static const int KExponentBits = 11;
   static const int kExponentBias = 1023;
   static const int kExponentShift = 20;
   static const int kMantissaBitsInTopWord = 20;
