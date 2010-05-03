@@ -1035,7 +1035,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightOperand(current);
-    } else if ((opcode & 0xF8) == 0x58) {
+    } else if ((opcode & 0xF8) == 0x58 || opcode == 0x51) {
       // XMM arithmetic. Mnemonic was retrieved at the start of this function.
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
@@ -1126,6 +1126,8 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "cvtsi2sd";
     case 0x31:
       return "rdtsc";
+    case 0x51:  // F2 prefix.
+      return "sqrtsd";
     case 0x58:  // F2 prefix.
       return "addsd";
     case 0x59:  // F2 prefix.

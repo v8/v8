@@ -2854,6 +2854,12 @@ class Map: public HeapObject {
   inline void set_non_instance_prototype(bool value);
   inline bool has_non_instance_prototype();
 
+  // Tells whether function has special prototype property. If not, prototype
+  // property will not be created when accessed (will return undefined),
+  // and construction from this function will not be allowed.
+  inline void set_function_with_prototype(bool value);
+  inline bool function_with_prototype();
+
   // Tells whether the instance with this map should be ignored by the
   // __proto__ accessor.
   inline void set_is_hidden_prototype() {
@@ -3030,6 +3036,7 @@ class Map: public HeapObject {
 
   // Bit positions for bit field 2
   static const int kIsExtensible = 0;
+  static const int kFunctionWithPrototype = 1;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;
@@ -3395,6 +3402,11 @@ class JSFunction: public JSObject {
   inline Object* instance_prototype();
   Object* SetInstancePrototype(Object* value);
   Object* SetPrototype(Object* value);
+
+  // After prototype is removed, it will not be created when accessed, and
+  // [[Construct]] from this function will not be allowed.
+  Object* RemovePrototype();
+  inline bool should_have_prototype();
 
   // Accessor for this function's initial map's [[class]]
   // property. This is primarily used by ECMA native functions.  This

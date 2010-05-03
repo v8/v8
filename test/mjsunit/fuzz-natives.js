@@ -160,6 +160,8 @@ var knownProblems = {
   // That can only be invoked on Array.prototype.
   "FinishArrayPrototypeSetup": true,
 
+  "_SwapElements": true,
+
   // Performance critical function which cannot afford type checks.
   "_CallFunction": true,
 

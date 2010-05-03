@@ -5950,6 +5950,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
                                        result.reg(),
                                        &slow_case,
                                        &slow_case,
+                                       &slow_case,
                                        &slow_case);
   __ jmp(&exit);
 
@@ -6607,6 +6608,121 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
 }
 
 
+class DeferredSwapElements: public DeferredCode {
+ public:
+  DeferredSwapElements(Register object, Register index1, Register index2)
+      : object_(object), index1_(index1), index2_(index2) {
+    set_comment("[ DeferredSwapElements");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register object_, index1_, index2_;
+};
+
+
+void DeferredSwapElements::Generate() {
+  __ push(object_);
+  __ push(index1_);
+  __ push(index2_);
+  __ CallRuntime(Runtime::kSwapElements, 3);
+}
+
+
+void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
+  // Note: this code assumes that indices are passed are within
+  // elements' bounds and refer to valid (not holes) values.
+  Comment cmnt(masm_, "[ GenerateSwapElements");
+
+  ASSERT_EQ(3, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+
+  Result index2 = frame_->Pop();
+  index2.ToRegister();
+
+  Result index1 = frame_->Pop();
+  index1.ToRegister();
+
+  Result object = frame_->Pop();
+  object.ToRegister();
+
+  Result tmp1 = allocator()->Allocate();
+  tmp1.ToRegister();
+  Result tmp2 = allocator()->Allocate();
+  tmp2.ToRegister();
+
+  frame_->Spill(object.reg());
+  frame_->Spill(index1.reg());
+  frame_->Spill(index2.reg());
+
+  DeferredSwapElements* deferred = new DeferredSwapElements(object.reg(),
+                                                            index1.reg(),
+                                                            index2.reg());
+
+  // Fetch the map and check if array is in fast case.
+  // Check that object doesn't require security checks and
+  // has no indexed interceptor.
+  __ CmpObjectType(object.reg(), FIRST_JS_OBJECT_TYPE, tmp1.reg());
+  deferred->Branch(less);
+  __ movzx_b(tmp1.reg(), FieldOperand(tmp1.reg(), Map::kBitFieldOffset));
+  __ test(tmp1.reg(), Immediate(KeyedLoadIC::kSlowCaseBitFieldMask));
+  deferred->Branch(not_zero);
+
+  // Check the object's elements are in fast case.
+  __ mov(tmp1.reg(), FieldOperand(object.reg(), JSObject::kElementsOffset));
+  __ cmp(FieldOperand(tmp1.reg(), HeapObject::kMapOffset),
+         Immediate(Factory::fixed_array_map()));
+  deferred->Branch(not_equal);
+
+  // Smi-tagging is equivalent to multiplying by 2.
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
+  // Check that both indices are smis.
+  __ mov(tmp2.reg(), index1.reg());
+  __ or_(tmp2.reg(), Operand(index2.reg()));
+  __ test(tmp2.reg(), Immediate(kSmiTagMask));
+  deferred->Branch(not_zero);
+
+  // Bring addresses into index1 and index2.
+  __ lea(index1.reg(), FieldOperand(tmp1.reg(),
+                                    index1.reg(),
+                                    times_half_pointer_size,  // index1 is Smi
+                                    FixedArray::kHeaderSize));
+  __ lea(index2.reg(), FieldOperand(tmp1.reg(),
+                                    index2.reg(),
+                                    times_half_pointer_size,  // index2 is Smi
+                                    FixedArray::kHeaderSize));
+
+  // Swap elements.
+  __ mov(object.reg(), Operand(index1.reg(), 0));
+  __ mov(tmp2.reg(),   Operand(index2.reg(), 0));
+  __ mov(Operand(index2.reg(), 0), object.reg());
+  __ mov(Operand(index1.reg(), 0), tmp2.reg());
+
+  Label done;
+  __ InNewSpace(tmp1.reg(), tmp2.reg(), equal, &done);
+  // Possible optimization: do a check that both values are Smis
+  // (or them and test against Smi mask.)
+
+  __ mov(tmp2.reg(), tmp1.reg());
+  RecordWriteStub recordWrite1(tmp2.reg(), index1.reg(), object.reg());
+  __ CallStub(&recordWrite1);
+
+  RecordWriteStub recordWrite2(tmp1.reg(), index2.reg(), object.reg());
+  __ CallStub(&recordWrite2);
+
+  __ bind(&done);
+
+  deferred->BindExit();
+  frame_->Push(Factory::undefined_value());
+}
+
+
 void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
   Comment cmnt(masm_, "[ GenerateCallFunction");
 
@@ -6623,10 +6739,10 @@ void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
 }
 
 
-// Generates the Math.pow method - only handles special cases and branches to
-// the runtime system if not.Please note - this function assumes that
-// the callsite has executed ToNumber on both arguments and that the
-// arguments are not the same identifier.
+// Generates the Math.pow method. Only handles special cases and
+// branches to the runtime system for everything else. Please note
+// that this function assumes that the callsite has executed ToNumber
+// on both arguments.
 void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   Load(args->at(0));
@@ -6649,8 +6765,6 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
 
     Result answer = allocator()->Allocate();
     ASSERT(answer.is_valid());
-    // We can safely assume that the base and exponent is not in the same
-    // register since we only call this from one callsite (math.js).
     ASSERT(!exponent.reg().is(base.reg()));
     JumpTarget call_runtime;
 
@@ -6699,7 +6813,6 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     Label while_true;
     Label no_multiply;
 
-    //  Label allocate_and_return;
     __ bind(&while_true);
     __ shr(exponent.reg(), 1);
     __ j(not_carry, &no_multiply);
@@ -8390,6 +8503,8 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
 
     Result tmp = allocator_->Allocate();
     ASSERT(tmp.is_valid());
+    Result tmp2 = allocator_->Allocate();
+    ASSERT(tmp2.is_valid());
 
     // Determine whether the value is a constant before putting it in a
     // register.
@@ -8406,12 +8521,9 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
                                            receiver.reg(),
                                            tmp.reg());
 
-    // Check that the value is a smi if it is not a constant.  We can skip
-    // the write barrier for smis and constants.
-    if (!value_is_constant) {
-      __ test(result.reg(), Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
-    }
+    // Check that the receiver is not a smi.
+    __ test(receiver.reg(), Immediate(kSmiTagMask));
+    deferred->Branch(zero);
 
     // Check that the key is a smi.
     if (!key.is_smi()) {
@@ -8420,10 +8532,6 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     } else {
       if (FLAG_debug_code) __ AbortIfNotSmi(key.reg());
     }
-
-    // Check that the receiver is not a smi.
-    __ test(receiver.reg(), Immediate(kSmiTagMask));
-    deferred->Branch(zero);
 
     // Check that the receiver is a JSArray.
     __ CmpObjectType(receiver.reg(), JS_ARRAY_TYPE, tmp.reg());
@@ -8438,7 +8546,19 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     // Get the elements array from the receiver and check that it is not a
     // dictionary.
     __ mov(tmp.reg(),
-           FieldOperand(receiver.reg(), JSObject::kElementsOffset));
+           FieldOperand(receiver.reg(), JSArray::kElementsOffset));
+
+    // Check whether it is possible to omit the write barrier. If the elements
+    // array is in new space or the value written is a smi we can safely update
+    // the elements array without updating the remembered set.
+    Label in_new_space;
+    __ InNewSpace(tmp.reg(), tmp2.reg(), equal, &in_new_space);
+    if (!value_is_constant) {
+      __ test(result.reg(), Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    }
+
+    __ bind(&in_new_space);
     // Bind the deferred code patch site to be able to locate the fixed
     // array map comparison.  When debugging, we patch this comparison to
     // always fail so that we will hit the IC call in the deferred code
@@ -12051,7 +12171,8 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
                                           Register scratch,
                                           Register result,
                                           Label* receiver_not_string,
-                                          Label* index_not_positive_smi,
+                                          Label* index_not_smi,
+                                          Label* index_out_of_range,
                                           Label* slow_case) {
   Label not_a_flat_string;
   Label try_again_with_new_string;
@@ -12070,11 +12191,10 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
   __ test(result, Immediate(kIsNotStringMask));
   __ j(not_zero, receiver_not_string);
 
-  // If the index is negative or non-smi trigger the non-positive-smi
-  // case.
+  // If the index is non-smi trigger the non-smi case.
   ASSERT(kSmiTag == 0);
-  __ test(index, Immediate(kSmiTagMask | kSmiSignMask));
-  __ j(not_zero, index_not_positive_smi);
+  __ test(index, Immediate(kSmiTagMask));
+  __ j(not_zero, index_not_smi);
 
   // Put untagged index into scratch register.
   __ mov(scratch, index);
@@ -12082,13 +12202,13 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
 
   // Check for index out of range.
   __ cmp(scratch, FieldOperand(object, String::kLengthOffset));
-  __ j(greater_equal, slow_case);
+  __ j(above_equal, index_out_of_range);
 
   __ bind(&try_again_with_new_string);
   // ----------- S t a t e -------------
   //  -- object  : string to access
   //  -- result  : instance type of the string
-  //  -- scratch : positive smi index < length
+  //  -- scratch : non-negative index < length
   // -----------------------------------
 
   // We need special handling for non-flat strings.
@@ -12102,7 +12222,7 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
   __ j(not_zero, &ascii_string);
 
   // 2-byte string.
-  // Load the 2-byte character code into the temp register.
+  // Load the 2-byte character code into the result register.
   __ movzx_w(result, FieldOperand(object,
                                   scratch, times_2,
                                   SeqTwoByteString::kHeaderSize));
@@ -12130,7 +12250,7 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
 
   // ASCII string.
   __ bind(&ascii_string);
-  // Load the byte into the temp register.
+  // Load the byte into the result register.
   __ movzx_b(result, FieldOperand(object,
                                   scratch, times_1,
                                   SeqAsciiString::kHeaderSize));

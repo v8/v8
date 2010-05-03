@@ -4020,6 +4020,7 @@ void Debug::ProcessDebugMessages() {
 }
 
 Local<Context> Debug::GetDebugContext() {
+  EnsureInitialized("v8::Debug::GetDebugContext()");
   ENTER_V8;
   return Utils::ToLocal(i::Debugger::GetDebugContext());
 }

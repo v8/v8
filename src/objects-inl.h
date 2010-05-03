@@ -2113,6 +2113,20 @@ bool Map::has_non_instance_prototype() {
 }
 
 
+void Map::set_function_with_prototype(bool value) {
+  if (value) {
+    set_bit_field2(bit_field2() | (1 << kFunctionWithPrototype));
+  } else {
+    set_bit_field2(bit_field2() & ~(1 << kFunctionWithPrototype));
+  }
+}
+
+
+bool Map::function_with_prototype() {
+  return ((1 << kFunctionWithPrototype) & bit_field2()) != 0;
+}
+
+
 void Map::set_is_access_check_needed(bool access_check_needed) {
   if (access_check_needed) {
     set_bit_field(bit_field() | (1 << kIsAccessCheckNeeded));
@@ -2566,6 +2580,10 @@ Object* JSFunction::prototype() {
   // value, that value is stored in the constructor field of the map.
   if (map()->has_non_instance_prototype()) return map()->constructor();
   return instance_prototype();
+}
+
+bool JSFunction::should_have_prototype() {
+  return map()->function_with_prototype();
 }
 
 

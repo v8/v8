@@ -66,6 +66,14 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
+  // Check if object is in new space. The condition cc can be equal or
+  // not_equal. If it is equal a jump will be done if the object is on new
+  // space. The register scratch can be object itself, but it will be clobbered.
+  void InNewSpace(Register object,
+                  Register scratch,
+                  Condition cc,
+                  Label* branch);
+
   // Set the remembered set bit for [object+offset].
   // object is the object being stored into, value is the object being stored.
   // If offset is zero, then the scratch register contains the array index into
@@ -529,9 +537,14 @@ class MacroAssembler: public Assembler {
   // clobbered if it the same as the holder register. The function
   // returns a register containing the holder - either object_reg or
   // holder_reg.
+  // The function can optionally (when save_at_depth !=
+  // kInvalidProtoDepth) save the object at the given depth by moving
+  // it to [rsp + kPointerSize].
   Register CheckMaps(JSObject* object, Register object_reg,
                      JSObject* holder, Register holder_reg,
-                     Register scratch, Label* miss);
+                     Register scratch,
+                     int save_at_depth,
+                     Label* miss);
 
   // Generate code for checking access rights - used for security checks
   // on access to global objects across environments. The holder register

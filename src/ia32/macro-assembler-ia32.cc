@@ -100,6 +100,7 @@ void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cc,
                                 Label* branch) {
+  ASSERT(cc == equal || cc == not_equal);
   if (Serializer::enabled()) {
     // Can't do arithmetic on external references if it might get serialized.
     mov(scratch, Operand(object));
