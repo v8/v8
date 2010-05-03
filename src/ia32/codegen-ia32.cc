@@ -1258,8 +1258,6 @@ void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
       Result answer;
       if (left_is_string) {
         if (right_is_string) {
-          // TODO(lrn): if both are constant strings
-          // -- do a compile time cons, if allocation during codegen is allowed.
           StringAddStub stub(NO_STRING_CHECK_IN_STUB);
           answer = frame_->CallStub(&stub, 2);
         } else {

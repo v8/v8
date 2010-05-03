@@ -2684,8 +2684,9 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
         target.GetValue();
       }
       Load(node->value());
-      GenericBinaryOperation(node->binary_op(),
-                             node->type(),
+      BinaryOperation expr(node, node->binary_op(), node->target(),
+                           node->value());
+      GenericBinaryOperation(&expr,
                              overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
     }
 
@@ -3542,7 +3543,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       Load(node->left());
       Load(node->right());
     }
-    GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
+    GenericBinaryOperation(node, overwrite_mode);
   }
 }
 
@@ -6086,10 +6087,10 @@ static TypeInfo CalculateTypeInfo(TypeInfo operands_type,
 }
 
 
-void CodeGenerator::GenericBinaryOperation(Token::Value op,
-                                           StaticType* type,
+void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
                                            OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
+  Token::Value op = expr->op();
   Comment cmnt_token(masm_, Token::String(op));
 
   if (op == Token::COMMA) {
@@ -6115,8 +6116,6 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
       Result answer;
       if (left_is_string) {
         if (right_is_string) {
-          // TODO(lrn): if both are constant strings
-          // -- do a compile time cons, if allocation during codegen is allowed.
           StringAddStub stub(NO_STRING_CHECK_IN_STUB);
           answer = frame_->CallStub(&stub, 2);
         } else {
@@ -6155,25 +6154,29 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 
   Result answer;
   if (left_is_non_smi_constant || right_is_non_smi_constant) {
+    // Go straight to the slow case, with no smi code.
     GenericBinaryOpStub stub(op,
                              overwrite_mode,
                              NO_SMI_CODE_IN_STUB,
                              operands_type);
     answer = stub.GenerateCall(masm_, frame_, &left, &right);
   } else if (right_is_smi_constant) {
-    answer = ConstantSmiBinaryOperation(op, &left, right.handle(),
-                                        type, false, overwrite_mode);
+    answer = ConstantSmiBinaryOperation(expr, &left, right.handle(),
+                                        false, overwrite_mode);
   } else if (left_is_smi_constant) {
-    answer = ConstantSmiBinaryOperation(op, &right, left.handle(),
-                                        type, true, overwrite_mode);
+    answer = ConstantSmiBinaryOperation(expr, &right, left.handle(),
+                                        true, overwrite_mode);
   } else {
     // Set the flags based on the operation, type and loop nesting level.
     // Bit operations always assume they likely operate on Smis. Still only
     // generate the inline Smi check code if this operation is part of a loop.
     // For all other operations only inline the Smi check code for likely smis
     // if the operation is part of a loop.
-    if (loop_nesting() > 0 && (Token::IsBitOp(op) || type->IsLikelySmi())) {
-      answer = LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
+    if (loop_nesting() > 0 &&
+        (Token::IsBitOp(op) ||
+         operands_type.IsInteger32() ||
+         expr->type()->IsLikelySmi())) {
+      answer = LikelySmiBinaryOperation(expr, &left, &right, overwrite_mode);
     } else {
       GenericBinaryOpStub stub(op,
                                overwrite_mode,
@@ -6265,26 +6268,22 @@ void DeferredInlineSmiOperation::Generate() {
 }
 
 
-Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
+Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                                  Result* operand,
                                                  Handle<Object> value,
-                                                 StaticType* type,
                                                  bool reversed,
                                                  OverwriteMode overwrite_mode) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
   // some possible smi operations (like + and -) when (at least) one
   // of the operands is a constant smi.
   // Consumes the argument "operand".
-
-  // TODO(199): Optimize some special cases of operations involving a
-  // smi literal (multiply by 2, shift by 0, etc.).
   if (IsUnsafeSmi(value)) {
     Result unsafe_operand(value);
     if (reversed) {
-      return LikelySmiBinaryOperation(op, &unsafe_operand, operand,
+      return LikelySmiBinaryOperation(expr, &unsafe_operand, operand,
                                overwrite_mode);
     } else {
-      return LikelySmiBinaryOperation(op, operand, &unsafe_operand,
+      return LikelySmiBinaryOperation(expr, operand, &unsafe_operand,
                                overwrite_mode);
     }
   }
@@ -6293,6 +6292,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
   Smi* smi_value = Smi::cast(*value);
   int int_value = smi_value->value();
 
+  Token::Value op = expr->op();
   Result answer;
   switch (op) {
     case Token::ADD: {
@@ -6321,7 +6321,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     case Token::SUB: {
       if (reversed) {
         Result constant_operand(value);
-        answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
                                           overwrite_mode);
       } else {
         operand->ToRegister();
@@ -6344,7 +6344,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     case Token::SAR:
       if (reversed) {
         Result constant_operand(value);
-        answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
                                           overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
@@ -6370,7 +6370,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     case Token::SHR:
       if (reversed) {
         Result constant_operand(value);
-        answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
                                           overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
@@ -6398,7 +6398,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     case Token::SHL:
       if (reversed) {
         Result constant_operand(value);
-        answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
                                           overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
@@ -6505,10 +6505,10 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     default: {
       Result constant_operand(value);
       if (reversed) {
-        answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
                                           overwrite_mode);
       } else {
-        answer = LikelySmiBinaryOperation(op, operand, &constant_operand,
+        answer = LikelySmiBinaryOperation(expr, operand, &constant_operand,
                                           overwrite_mode);
       }
       break;
@@ -6518,10 +6518,11 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
   return answer;
 }
 
-Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
+Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                                Result* left,
                                                Result* right,
                                                OverwriteMode overwrite_mode) {
+  Token::Value op = expr->op();
   Result answer;
   // Special handling of div and mod because they use fixed registers.
   if (op == Token::DIV || op == Token::MOD) {
