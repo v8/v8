@@ -116,8 +116,10 @@ void CpuFeatures::Probe()  {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code =
-      Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB), NULL);
+  Object* code = Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>());
   if (!code->IsCode()) return;
   PROFILE(CodeCreateEvent(Logger::BUILTIN_TAG,
                           Code::cast(code), "CpuFeatures::Probe"));
