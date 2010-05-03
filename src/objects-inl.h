@@ -1651,7 +1651,7 @@ HashTable<Shape, Key>* HashTable<Shape, Key>::cast(Object* obj) {
 INT_ACCESSORS(Array, length, kLengthOffset)
 
 
-SMI_ACCESSORS(String, length, kLengthOffset)
+INT_ACCESSORS(String, length, kLengthOffset)
 
 
 uint32_t String::hash_field() {
@@ -1773,12 +1773,14 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
 
 
 int SeqTwoByteString::SeqTwoByteStringSize(InstanceType instance_type) {
-  return SizeFor(length());
+  uint32_t length = READ_INT_FIELD(this, kLengthOffset);
+  return SizeFor(length);
 }
 
 
 int SeqAsciiString::SeqAsciiStringSize(InstanceType instance_type) {
-  return SizeFor(length());
+  uint32_t length = READ_INT_FIELD(this, kLengthOffset);
+  return SizeFor(length);
 }
 
 

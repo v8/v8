@@ -2693,7 +2693,7 @@ void CodeGenerator::Comparison(AstNode* node,
       if (cc == equal) {
         Label comparison_done;
         __ cmp(FieldOperand(left_side.reg(), String::kLengthOffset),
-               Immediate(Smi::FromInt(1)));
+               Immediate(1));
         __ j(not_equal, &comparison_done);
         uint8_t char_value =
             static_cast<uint8_t>(String::cast(*right_val)->Get(0));
@@ -2703,7 +2703,6 @@ void CodeGenerator::Comparison(AstNode* node,
       } else {
         __ mov(temp2.reg(),
                FieldOperand(left_side.reg(), String::kLengthOffset));
-        __ SmiUntag(temp2.reg());
         __ sub(Operand(temp2.reg()), Immediate(1));
         Label comparison;
         // If the length is 0 then the subtraction gave -1 which compares less
@@ -2723,7 +2722,7 @@ void CodeGenerator::Comparison(AstNode* node,
         // If the first character is the same then the long string sorts after
         // the short one.
         __ cmp(FieldOperand(left_side.reg(), String::kLengthOffset),
-               Immediate(Smi::FromInt(1)));
+               Immediate(1));
         __ bind(&characters_were_different);
       }
       temp2.Unuse();
@@ -8820,7 +8819,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ cmp(ecx, FIRST_NONSTRING_TYPE);
   __ j(above_equal, &not_string);
   __ mov(edx, FieldOperand(eax, String::kLengthOffset));
-  ASSERT(kSmiTag == 0);
   __ test(edx, Operand(edx));
   __ j(zero, &false_result);
   __ jmp(&true_result);
@@ -10777,16 +10775,15 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Get the length of the string to ebx.
   __ mov(ebx, FieldOperand(eax, String::kLengthOffset));
 
-  // ebx: Length of subject string as a smi
+  // ebx: Length of subject string
   // ecx: RegExp data (FixedArray)
   // edx: Number of capture registers
   // Check that the third argument is a positive smi less than the subject
   // string length. A negative value will be greater (unsigned comparison).
   __ mov(eax, Operand(esp, kPreviousIndexOffset));
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &runtime);
+  __ SmiUntag(eax);
   __ cmp(eax, Operand(ebx));
-  __ j(above_equal, &runtime);
+  __ j(above, &runtime);
 
   // ecx: RegExp data (FixedArray)
   // edx: Number of capture registers
@@ -10909,7 +10906,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ test(edi, Operand(edi));
   __ mov(edi, FieldOperand(eax, String::kLengthOffset));
   __ j(zero, &setup_two_byte);
-  __ SmiUntag(edi);
   __ lea(ecx, FieldOperand(eax, edi, times_1, SeqAsciiString::kHeaderSize));
   __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Argument 4.
   __ lea(ecx, FieldOperand(eax, ebx, times_1, SeqAsciiString::kHeaderSize));
@@ -10917,8 +10913,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ jmp(&setup_rest);
 
   __ bind(&setup_two_byte);
-  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);  // edi is smi (powered by 2).
-  __ lea(ecx, FieldOperand(eax, edi, times_1, SeqTwoByteString::kHeaderSize));
+  __ lea(ecx, FieldOperand(eax, edi, times_2, SeqTwoByteString::kHeaderSize));
   __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Argument 4.
   __ lea(ecx, FieldOperand(eax, ebx, times_2, SeqTwoByteString::kHeaderSize));
   __ mov(Operand(esp, 2 * kPointerSize), ecx);  // Argument 3.
@@ -12081,8 +12076,12 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
   __ test(index, Immediate(kSmiTagMask | kSmiSignMask));
   __ j(not_zero, index_not_positive_smi);
 
+  // Put untagged index into scratch register.
+  __ mov(scratch, index);
+  __ SmiUntag(scratch);
+
   // Check for index out of range.
-  __ cmp(index, FieldOperand(object, String::kLengthOffset));
+  __ cmp(scratch, FieldOperand(object, String::kLengthOffset));
   __ j(greater_equal, slow_case);
 
   __ bind(&try_again_with_new_string);
@@ -12104,9 +12103,8 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
 
   // 2-byte string.
   // Load the 2-byte character code into the temp register.
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);  // index is smi (powered by 2).
   __ movzx_w(result, FieldOperand(object,
-                                  index, times_1,
+                                  scratch, times_2,
                                   SeqTwoByteString::kHeaderSize));
   __ jmp(&got_char_code);
 
@@ -12132,10 +12130,6 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
 
   // ASCII string.
   __ bind(&ascii_string);
-  // Put untagged index into scratch register.
-  __ mov(scratch, index);
-  __ SmiUntag(scratch);
-
   // Load the byte into the temp register.
   __ movzx_b(result, FieldOperand(object,
                                   scratch, times_1,
@@ -12226,7 +12220,6 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Check if either of the strings are empty. In that case return the other.
   Label second_not_zero_length, both_not_zero_length;
   __ mov(ecx, FieldOperand(edx, String::kLengthOffset));
-  ASSERT(kSmiTag == 0);
   __ test(ecx, Operand(ecx));
   __ j(not_zero, &second_not_zero_length);
   // Second string is empty, result is first string which is already in eax.
@@ -12234,7 +12227,6 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ ret(2 * kPointerSize);
   __ bind(&second_not_zero_length);
   __ mov(ebx, FieldOperand(eax, String::kLengthOffset));
-  ASSERT(kSmiTag == 0);
   __ test(ebx, Operand(ebx));
   __ j(not_zero, &both_not_zero_length);
   // First string is empty, result is second string which is in edx.
@@ -12244,19 +12236,16 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Both strings are non-empty.
   // eax: first string
-  // ebx: length of first string as a smi
-  // ecx: length of second string as a smi
+  // ebx: length of first string
+  // ecx: length of second string
   // edx: second string
   // Look at the length of the result of adding the two strings.
   Label string_add_flat_result, longer_than_two;
   __ bind(&both_not_zero_length);
   __ add(ebx, Operand(ecx));
-  ASSERT(Smi::kMaxValue == String::kMaxLength);
-  // Handle exceptionally long strings in the runtime system.
-  __ j(overflow, &string_add_runtime);
   // Use the runtime system when adding two one character strings, as it
   // contains optimizations for this specific case using the symbol table.
-  __ cmp(Operand(ebx), Immediate(Smi::FromInt(2)));
+  __ cmp(ebx, 2);
   __ j(not_equal, &longer_than_two);
 
   // Check that both strings are non-external ascii strings.
@@ -12276,13 +12265,17 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ ret(2 * kPointerSize);
 
   __ bind(&make_two_character_string);
-  __ Set(ebx, Immediate(Smi::FromInt(2)));
+  __ Set(ebx, Immediate(2));
   __ jmp(&make_flat_ascii_string);
 
   __ bind(&longer_than_two);
   // Check if resulting string will be flat.
-  __ cmp(Operand(ebx), Immediate(Smi::FromInt(String::kMinNonFlatLength)));
+  __ cmp(ebx, String::kMinNonFlatLength);
   __ j(below, &string_add_flat_result);
+  // Handle exceptionally long strings in the runtime system.
+  ASSERT((String::kMaxLength & 0x80000000) == 0);
+  __ cmp(ebx, String::kMaxLength);
+  __ j(above, &string_add_runtime);
 
   // If result is not supposed to be flat allocate a cons string object. If both
   // strings are ascii the result is an ascii cons string.
@@ -12299,7 +12292,6 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ AllocateAsciiConsString(ecx, edi, no_reg, &string_add_runtime);
   __ bind(&allocated);
   // Fill the fields of the cons string.
-  if (FLAG_debug_code) __ AbortIfNotSmi(ebx);
   __ mov(FieldOperand(ecx, ConsString::kLengthOffset), ebx);
   __ mov(FieldOperand(ecx, ConsString::kHashFieldOffset),
          Immediate(String::kEmptyHashField));
@@ -12316,7 +12308,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Handle creating a flat result. First check that both strings are not
   // external strings.
   // eax: first string
-  // ebx: length of resulting flat string as a smi
+  // ebx: length of resulting flat string
   // edx: second string
   __ bind(&string_add_flat_result);
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
@@ -12331,7 +12323,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(equal, &string_add_runtime);
   // Now check if both strings are ascii strings.
   // eax: first string
-  // ebx: length of resulting flat string as a smi
+  // ebx: length of resulting flat string
   // edx: second string
   Label non_ascii_string_add_flat_result;
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
@@ -12346,8 +12338,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   __ bind(&make_flat_ascii_string);
   // Both strings are ascii strings. As they are short they are both flat.
-  // ebx: length of resulting flat string as a smi
-  __ SmiUntag(ebx);
+  // ebx: length of resulting flat string
   __ AllocateAsciiString(eax, ebx, ecx, edx, edi, &string_add_runtime);
   // eax: result string
   __ mov(ecx, eax);
@@ -12356,7 +12347,6 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Load first argument and locate first character.
   __ mov(edx, Operand(esp, 2 * kPointerSize));
   __ mov(edi, FieldOperand(edx, String::kLengthOffset));
-  __ SmiUntag(edi);
   __ add(Operand(edx), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // eax: result string
   // ecx: first character of result
@@ -12366,7 +12356,6 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Load second argument and locate first character.
   __ mov(edx, Operand(esp, 1 * kPointerSize));
   __ mov(edi, FieldOperand(edx, String::kLengthOffset));
-  __ SmiUntag(edi);
   __ add(Operand(edx), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // eax: result string
   // ecx: next character of result
@@ -12378,7 +12367,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Handle creating a flat two byte result.
   // eax: first string - known to be two byte
-  // ebx: length of resulting flat string as a smi
+  // ebx: length of resulting flat string
   // edx: second string
   __ bind(&non_ascii_string_add_flat_result);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
@@ -12387,7 +12376,6 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(not_zero, &string_add_runtime);
   // Both strings are two byte strings. As they are short they are both
   // flat.
-  __ SmiUntag(ebx);
   __ AllocateTwoByteString(eax, ebx, ecx, edx, edi, &string_add_runtime);
   // eax: result string
   __ mov(ecx, eax);
@@ -12397,7 +12385,6 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Load first argument and locate first character.
   __ mov(edx, Operand(esp, 2 * kPointerSize));
   __ mov(edi, FieldOperand(edx, String::kLengthOffset));
-  __ SmiUntag(edi);
   __ add(Operand(edx),
          Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // eax: result string
@@ -12408,7 +12395,6 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Load second argument and locate first character.
   __ mov(edx, Operand(esp, 1 * kPointerSize));
   __ mov(edi, FieldOperand(edx, String::kLengthOffset));
-  __ SmiUntag(edi);
   __ add(Operand(edx), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // eax: result string
   // ecx: next character of result
@@ -12593,8 +12579,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     __ j(equal, not_found);
 
     // If length is not 2 the string is not a candidate.
-    __ cmp(FieldOperand(candidate, String::kLengthOffset),
-           Immediate(Smi::FromInt(2)));
+    __ cmp(FieldOperand(candidate, String::kLengthOffset), Immediate(2));
     __ j(not_equal, &next_probe[i]);
 
     // As we are out of registers save the mask on the stack and use that
@@ -12863,7 +12848,6 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Change index to run from -min_length to -1 by adding min_length
   // to string start. This means that loop ends when index reaches zero,
   // which doesn't need an additional compare.
-  __ SmiUntag(min_length);
   __ lea(left,
          FieldOperand(left,
                       min_length, times_1,

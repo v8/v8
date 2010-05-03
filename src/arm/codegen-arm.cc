@@ -3978,8 +3978,8 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 
   // Now r2 has the string type.
   __ ldr(r3, FieldMemOperand(r1, String::kLengthOffset));
-  // Now r3 has the length of the string. Compare with the index.
-  __ cmp(r3, Operand(r0));
+  // Now r3 has the length of the string.  Compare with the index.
+  __ cmp(r3, Operand(r0, LSR, kSmiTagSize));
   __ b(le, &slow);
 
   // Here we know the index is in range.  Check that string is sequential.
@@ -8388,16 +8388,14 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ldr(r3, FieldMemOperand(subject, String::kLengthOffset));
 
   // r2: Number of capture registers
-  // r3: Length of subject string as a smi
+  // r3: Length of subject string
   // subject: Subject string
   // regexp_data: RegExp data (FixedArray)
   // Check that the third argument is a positive smi less than the subject
   // string length. A negative value will be greater (unsigned comparison).
   __ ldr(r0, MemOperand(sp, kPreviousIndexOffset));
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &runtime);
-  __ cmp(r3, Operand(r0));
-  __ b(le, &runtime);
+  __ cmp(r3, Operand(r0, ASR, kSmiTagSize + kSmiShiftSize));
+  __ b(ls, &runtime);
 
   // r2: Number of capture registers
   // subject: Subject string
@@ -8523,7 +8521,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // For arguments 4 and 3 get string length, calculate start of string data and
   // calculate the shift of the index (0 for ASCII and 1 for two byte).
   __ ldr(r0, FieldMemOperand(subject, String::kLengthOffset));
-  __ mov(r0, Operand(r0, ASR, kSmiTagSize));
   ASSERT_EQ(SeqAsciiString::kHeaderSize, SeqTwoByteString::kHeaderSize);
   __ add(r9, subject, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   __ eor(r3, r3, Operand(1));
@@ -9031,7 +9028,7 @@ void StringStubBase::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
     // If length is not 2 the string is not a candidate.
     __ ldr(scratch, FieldMemOperand(candidate, String::kLengthOffset));
-    __ cmp(scratch, Operand(Smi::FromInt(2)));
+    __ cmp(scratch, Operand(2));
     __ b(ne, &next_probe[i]);
 
     // Check that the candidate is a non-external ascii string.
@@ -9182,7 +9179,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r6: from (smi)
   // r7: to (smi)
   __ ldr(r4, FieldMemOperand(r5, String::kLengthOffset));
-  __ cmp(r4, Operand(r7));
+  __ cmp(r4, Operand(r7, ASR, 1));
   __ b(lt, &runtime);  // Fail if to > length.
 
   // r1: instance type.
@@ -9301,12 +9298,8 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   Register length_delta = scratch3;
   __ mov(scratch1, scratch2, LeaveCC, gt);
   Register min_length = scratch1;
-  ASSERT(kSmiTag == 0);
   __ tst(min_length, Operand(min_length));
   __ b(eq, &compare_lengths);
-
-  // Untag smi.
-  __ mov(min_length, Operand(min_length, ASR, kSmiTagSize));
 
   // Setup registers so that we only need to increment one register
   // in the loop.
@@ -9417,12 +9410,9 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     // Check if either of the strings are empty. In that case return the other.
     __ ldr(r2, FieldMemOperand(r0, String::kLengthOffset));
     __ ldr(r3, FieldMemOperand(r1, String::kLengthOffset));
-    ASSERT(kSmiTag == 0);
-    __ cmp(r2, Operand(Smi::FromInt(0)));  // Test if first string is empty.
+    __ cmp(r2, Operand(0));  // Test if first string is empty.
     __ mov(r0, Operand(r1), LeaveCC, eq);  // If first is empty, return second.
-    ASSERT(kSmiTag == 0);
-     // Else test if second string is empty.
-    __ cmp(r3, Operand(Smi::FromInt(0)), ne);
+    __ cmp(r3, Operand(0), ne);  // Else test if second string is empty.
     __ b(ne, &strings_not_empty);  // If either string was empty, return r0.
 
     __ IncrementCounter(&Counters::string_add_native, 1, r2, r3);
@@ -9432,8 +9422,6 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ bind(&strings_not_empty);
   }
 
-  __ mov(r2, Operand(r2, ASR, kSmiTagSize));
-  __ mov(r3, Operand(r3, ASR, kSmiTagSize));
   // Both strings are non-empty.
   // r0: first string
   // r1: second string
