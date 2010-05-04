@@ -43,8 +43,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
-static int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
-
 // -------------------------------------------------------------------------
 // Platform-specific DeferredCode functions.
 
@@ -7725,8 +7723,9 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
   __ bind(&cache_miss);
   // Update cache with new value.
+  Label nan_result;
+  GenerateOperation(masm, &nan_result);
   __ AllocateHeapNumber(rax, rdi, &runtime_call_clear_stack);
-  GenerateOperation(masm);
   __ movq(Operand(rcx, 0), rbx);
   __ movq(Operand(rcx, 2 * kIntSize), rax);
   __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
@@ -7736,6 +7735,13 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ fstp(0);
   __ bind(&runtime_call);
   __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
+
+  __ bind(&nan_result);
+  __ fstp(0);  // Remove argument from FPU stack.
+  __ LoadRoot(rax, Heap::kNanValueRootIndex);
+  __ movq(Operand(rcx, 0), rbx);
+  __ movq(Operand(rcx, 2 * kIntSize), rax);
+  __ ret(kPointerSize);
 }
 
 
@@ -7751,8 +7757,12 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 }
 
 
-void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
-  // Only free register is rdi.
+void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm,
+                                                Label* on_nan_result) {
+  // Registers:
+  // rbx: Bits of input double. Must be preserved.
+  // rcx: Pointer to cache entry. Must be preserved.
+  // st(0): Input double
   Label done;
   ASSERT(type_ == TranscendentalCache::SIN ||
          type_ == TranscendentalCache::COS);
@@ -7774,21 +7784,9 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
   __ j(below, &in_range);
   // Check for infinity and NaN. Both return NaN for sin.
   __ cmpl(rdi, Immediate(0x7ff));
-  Label non_nan_result;
-  __ j(not_equal, &non_nan_result);
-  // Input is +/-Infinity or NaN. Result is NaN.
-  __ fstp(0);  // Clear fpu stack.
-  // NaN is represented by 0x7ff8000000000000.
-  __ movq(rdi, kNaNValue, RelocInfo::NONE);
-  __ push(rdi);
-  __ fld_d(Operand(rsp, 0));
-  __ addq(rsp, Immediate(kPointerSize));
-  __ jmp(&done);
-
-  __ bind(&non_nan_result);
+  __ j(equal, on_nan_result);
 
   // Use fpmod to restrict argument to the range +/-2*PI.
-  __ movq(rdi, rax);  // Save rax before using fnstsw_ax.
   __ fldpi();
   __ fadd(0);
   __ fld(1);
@@ -7798,7 +7796,7 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
     __ fwait();
     __ fnstsw_ax();
     // Clear if Illegal Operand or Zero Division exceptions are set.
-    __ testl(rax, Immediate(5));
+    __ testl(rax, Immediate(5));  // #IO and #ZD flags of FPU status word.
     __ j(zero, &no_exceptions);
     __ fnclex();
     __ bind(&no_exceptions);
@@ -7820,9 +7818,6 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
   __ fstp(2);
   // FPU Stack: input % 2*pi, 2*pi,
   __ fstp(0);
-  // FPU Stack: input % 2*pi
-  __ movq(rax, rdi);  // Restore rax (allocated HeapNumber pointer).
-
   // FPU Stack: input % 2*pi
   __ bind(&in_range);
   switch (type_) {
@@ -11379,6 +11374,7 @@ ModuloFunction CreateModuloFunction() {
   __ testb(rax, Immediate(5));
   __ j(zero, &valid_result);
   __ fstp(0);  // Drop result in st(0).
+  int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
   __ movq(rcx, kNaNValue, RelocInfo::NONE);
   __ movq(Operand(rsp, kPointerSize), rcx);
   __ movsd(xmm0, Operand(rsp, kPointerSize));

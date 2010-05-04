@@ -686,7 +686,7 @@ class TranscendentalCacheStub: public CodeStub {
   Major MajorKey() { return TranscendentalCache; }
   int MinorKey() { return type_; }
   Runtime::FunctionId RuntimeFunction();
-  void GenerateOperation(MacroAssembler* masm);
+  void GenerateOperation(MacroAssembler* masm, Label* on_nan_result);
 };
 
 
