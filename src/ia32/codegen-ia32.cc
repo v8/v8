@@ -2041,8 +2041,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(
       if (!operand->type_info().IsSmi()) {
         __ test(operand->reg(), Immediate(kSmiTagMask));
         deferred->Branch(not_zero);
-      } else {
-        if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
+      } else if (FLAG_debug_code) {
+        __ AbortIfNotSmi(operand->reg());
       }
       deferred->BindExit();
       answer = *operand;
@@ -2080,8 +2080,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(
       if (!operand->type_info().IsSmi()) {
         __ test(answer.reg(), Immediate(kSmiTagMask));
         deferred->Branch(not_zero);
-      } else {
-        if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
+      } else if (FLAG_debug_code) {
+        __ AbortIfNotSmi(operand->reg());
       }
       deferred->BindExit();
       operand->Unuse();
@@ -2115,7 +2115,9 @@ Result CodeGenerator::ConstantSmiBinaryOperation(
           }
           deferred->BindExit();
         } else {
-          if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
+          if (FLAG_debug_code) {
+            __ AbortIfNotSmi(operand->reg());
+          }
           if (shift_value > 0) {
             __ sar(operand->reg(), shift_value);
             __ and_(operand->reg(), ~kSmiTagMask);
@@ -2147,8 +2149,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(
         if (!operand->type_info().IsSmi()) {
           __ test(operand->reg(), Immediate(kSmiTagMask));
           deferred->Branch(not_zero);
-        } else {
-          if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
+        } else if (FLAG_debug_code) {
+          __ AbortIfNotSmi(operand->reg());
         }
         __ mov(answer.reg(), operand->reg());
         __ SmiUntag(answer.reg());
@@ -2166,12 +2168,12 @@ Result CodeGenerator::ConstantSmiBinaryOperation(
 
     case Token::SHL:
       if (reversed) {
+        // Move operand into ecx and also into a second register.
+        // If operand is already in a register, take advantage of that.
+        // This lets us modify ecx, but still bail out to deferred code.
         Result right;
         Result right_copy_in_ecx;
-
-        // Make sure to get a copy of the right operand into ecx. This
-        // allows us to modify it without having to restore it in the
-        // deferred code.
+        TypeInfo right_type_info = operand->type_info();
         operand->ToRegister();
         if (operand->reg().is(ecx)) {
           right = allocator()->Allocate();
@@ -2191,14 +2193,14 @@ Result CodeGenerator::ConstantSmiBinaryOperation(
                                                    answer.reg(),
                                                    smi_value,
                                                    right.reg(),
-                                                   right.type_info(),
+                                                   right_type_info,
                                                    overwrite_mode);
         __ mov(answer.reg(), Immediate(int_value));
         __ sar(ecx, kSmiTagSize);
         if (!right.type_info().IsSmi()) {
           deferred->Branch(carry);
-        } else {
-          if (FLAG_debug_code) __ AbortIfNotSmi(right.reg());
+        } else if (FLAG_debug_code) {
+          __ AbortIfNotSmi(right.reg());
         }
         __ shl_cl(answer.reg());
         __ cmp(answer.reg(), 0xc0000000);
@@ -2239,8 +2241,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(
           if (!operand->type_info().IsSmi()) {
             __ test(operand->reg(), Immediate(kSmiTagMask));
             deferred->Branch(not_zero);
-          } else {
-            if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
+          } else if (FLAG_debug_code) {
+            __ AbortIfNotSmi(operand->reg());
           }
           __ mov(answer.reg(), operand->reg());
           ASSERT(kSmiTag == 0);  // adjust code if not the case
@@ -2283,8 +2285,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(
       if (!operand->type_info().IsSmi()) {
         __ test(operand->reg(), Immediate(kSmiTagMask));
         deferred->Branch(not_zero);
-      } else {
-        if (FLAG_debug_code) __ AbortIfNotSmi(operand->reg());
+      } else if (FLAG_debug_code) {
+        __ AbortIfNotSmi(operand->reg());
       }
       if (op == Token::BIT_AND) {
         __ and_(Operand(operand->reg()), Immediate(value));

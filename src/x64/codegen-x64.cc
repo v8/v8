@@ -193,6 +193,34 @@ class DeferredInlineSmiOperation: public DeferredCode {
 };
 
 
+// Call the appropriate binary operation stub to compute value op src
+// and leave the result in dst.
+class DeferredInlineSmiOperationReversed: public DeferredCode {
+ public:
+  DeferredInlineSmiOperationReversed(Token::Value op,
+                                     Register dst,
+                                     Smi* value,
+                                     Register src,
+                                     OverwriteMode overwrite_mode)
+      : op_(op),
+        dst_(dst),
+        value_(value),
+        src_(src),
+        overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiOperationReversed");
+  }
+
+  virtual void Generate();
+
+ private:
+  Token::Value op_;
+  Register dst_;
+  Smi* value_;
+  Register src_;
+  OverwriteMode overwrite_mode_;
+};
+
+
 class FloatingPointHelper : public AllStatic {
  public:
   // Code pattern for loading a floating point value. Input value must
@@ -6363,6 +6391,16 @@ void DeferredInlineSmiOperation::Generate() {
 }
 
 
+void DeferredInlineSmiOperationReversed::Generate() {
+  GenericBinaryOpStub stub(
+      op_,
+      overwrite_mode_,
+      NO_SMI_CODE_IN_STUB);
+  stub.GenerateCall(masm_, value_, src_);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+}
+
+
 Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                                  Result* operand,
                                                  Handle<Object> value,
@@ -6492,9 +6530,45 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
 
     case Token::SHL:
       if (reversed) {
-        Result constant_operand(value);
-        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
-                                          overwrite_mode);
+        // Move operand into rcx and also into a second register.
+        // If operand is already in a register, take advantage of that.
+        // This lets us modify rcx, but still bail out to deferred code.
+        Result right;
+        Result right_copy_in_rcx;
+        TypeInfo right_type_info = operand->type_info();
+        operand->ToRegister();
+        if (operand->reg().is(rcx)) {
+          right = allocator()->Allocate();
+          __ movq(right.reg(), rcx);
+          frame_->Spill(rcx);
+          right_copy_in_rcx = *operand;
+        } else {
+          right_copy_in_rcx = allocator()->Allocate(rcx);
+          __ movq(rcx, operand->reg());
+          right = *operand;
+        }
+        operand->Unuse();
+
+        answer = allocator()->Allocate();
+        DeferredInlineSmiOperationReversed* deferred =
+            new DeferredInlineSmiOperationReversed(op,
+                                                   answer.reg(),
+                                                   smi_value,
+                                                   right.reg(),
+                                                   overwrite_mode);
+        __ movq(answer.reg(), Immediate(int_value));
+        __ SmiToInteger32(rcx, rcx);
+        if (!right.type_info().IsSmi()) {
+          Condition is_smi = masm_->CheckSmi(right.reg());
+          deferred->Branch(NegateCondition(is_smi));
+        } else if (FLAG_debug_code) {
+          __ AbortIfNotSmi(right.reg(),
+              "Static type info claims non-smi is smi in (const SHL smi).");
+        }
+        __ shl_cl(answer.reg());
+        __ Integer32ToSmi(answer.reg(), answer.reg());
+
+        deferred->BindExit();
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -7201,10 +7275,8 @@ void Reference::SetValue(InitState init_state) {
         // Check that the key is a smi.
         if (!key.is_smi()) {
           __ JumpIfNotSmi(key.reg(), deferred->entry_label());
-        } else {
-          if (FLAG_debug_code) {
-            __ AbortIfNotSmi(key.reg(), "Non-smi value in smi-typed value.");
-          }
+        } else if (FLAG_debug_code) {
+          __ AbortIfNotSmi(key.reg(), "Non-smi value in smi-typed value.");
         }
 
         // Check that the receiver is a JSArray.
@@ -9961,12 +10033,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         Label not_floats;
         // rax: y
         // rdx: x
-      if (static_operands_type_.IsNumber()) {
-        if (FLAG_debug_code) {
-          // Assert at runtime that inputs are only numbers.
-          __ AbortIfNotNumber(rdx, "GenericBinaryOpStub operand not a number.");
-          __ AbortIfNotNumber(rax, "GenericBinaryOpStub operand not a number.");
-        }
+      if (static_operands_type_.IsNumber() && FLAG_debug_code) {
+        // Assert at runtime that inputs are only numbers.
+        __ AbortIfNotNumber(rdx, "GenericBinaryOpStub operand not a number.");
+        __ AbortIfNotNumber(rax, "GenericBinaryOpStub operand not a number.");
       } else {
         FloatingPointHelper::CheckNumberOperands(masm, &call_runtime);
       }
