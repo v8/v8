@@ -572,6 +572,12 @@ class MacroAssembler: public Assembler {
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
 
+  void InitializeNewString(Register string,
+                           Register length,
+                           Heap::RootListIndex map_index,
+                           Register scratch1,
+                           Register scratch2);
+
   bool generating_stub_;
   bool allow_stub_calls_;
   // This handle will be patched with the code object on installation.

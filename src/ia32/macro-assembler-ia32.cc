@@ -910,7 +910,9 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
       Immediate(Factory::string_map()));
-  mov(FieldOperand(result, String::kLengthOffset), length);
+  mov(scratch1, length);
+  SmiTag(scratch1);
+  mov(FieldOperand(result, String::kLengthOffset), scratch1);
   mov(FieldOperand(result, String::kHashFieldOffset),
       Immediate(String::kEmptyHashField));
 }
@@ -943,7 +945,9 @@ void MacroAssembler::AllocateAsciiString(Register result,
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
       Immediate(Factory::ascii_string_map()));
-  mov(FieldOperand(result, String::kLengthOffset), length);
+  mov(scratch1, length);
+  SmiTag(scratch1);
+  mov(FieldOperand(result, String::kLengthOffset), scratch1);
   mov(FieldOperand(result, String::kHashFieldOffset),
       Immediate(String::kEmptyHashField));
 }

@@ -211,6 +211,7 @@ class MacroAssembler: public Assembler {
   // Simple comparison of smis.
   void SmiCompare(Register dst, Register src);
   void SmiCompare(Register dst, Smi* src);
+  void SmiCompare(Register dst, const Operand& src);
   void SmiCompare(const Operand& dst, Register src);
   void SmiCompare(const Operand& dst, Smi* src);
   // Sets sign and zero flags depending on value of smi in register.
@@ -301,7 +302,8 @@ class MacroAssembler: public Assembler {
                       Label* on_not_smi_result);
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
-  // result. No testing on the result is done.
+  // result. No testing on the result is done. Sets the N and Z flags
+  // based on the value of the resulting integer.
   void SmiSubConstant(Register dst, Register src, Smi* constant);
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
@@ -331,6 +333,11 @@ class MacroAssembler: public Assembler {
   void SmiSub(Register dst,
               Register src1,
               Register src2,
+              Label* on_not_smi_result);
+
+  void SmiSub(Register dst,
+              Register src1,
+              Operand const& src2,
               Label* on_not_smi_result);
 
   // Multiplies smi values and return the result as a smi,

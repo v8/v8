@@ -5866,8 +5866,8 @@ void CodeGenerator::Comparison(AstNode* node,
       // Test string equality and comparison.
       if (cc == equal) {
         Label comparison_done;
-        __ cmpl(FieldOperand(left_side.reg(), String::kLengthOffset),
-                Immediate(1));
+        __ SmiCompare(FieldOperand(left_side.reg(), String::kLengthOffset),
+                Smi::FromInt(1));
         __ j(not_equal, &comparison_done);
         uint8_t char_value =
             static_cast<uint8_t>(String::cast(*right_val)->Get(0));
@@ -5875,9 +5875,9 @@ void CodeGenerator::Comparison(AstNode* node,
                 Immediate(char_value));
         __ bind(&comparison_done);
       } else {
-        __ movl(temp2.reg(),
+        __ movq(temp2.reg(),
                 FieldOperand(left_side.reg(), String::kLengthOffset));
-        __ subl(temp2.reg(), Immediate(1));
+        __ SmiSubConstant(temp2.reg(), temp2.reg(), Smi::FromInt(1));
         Label comparison;
         // If the length is 0 then the subtraction gave -1 which compares less
         // than any character.
@@ -5895,8 +5895,8 @@ void CodeGenerator::Comparison(AstNode* node,
         __ j(not_equal, &characters_were_different);
         // If the first character is the same then the long string sorts after
         // the short one.
-        __ cmpl(FieldOperand(left_side.reg(), String::kLengthOffset),
-               Immediate(1));
+        __ SmiCompare(FieldOperand(left_side.reg(), String::kLengthOffset),
+               Smi::FromInt(1));
         __ bind(&characters_were_different);
       }
       temp2.Unuse();
@@ -7515,8 +7515,8 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // String value => false iff empty.
   __ cmpq(rcx, Immediate(FIRST_NONSTRING_TYPE));
   __ j(above_equal, &not_string);
-  __ movl(rdx, FieldOperand(rax, String::kLengthOffset));
-  __ testl(rdx, rdx);
+  __ movq(rdx, FieldOperand(rax, String::kLengthOffset));
+  __ SmiTest(rdx);
   __ j(zero, &false_result);
   __ jmp(&true_result);
 
@@ -8123,17 +8123,17 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Condition is_string = masm->IsObjectStringType(rax, rbx, rbx);
   __ j(NegateCondition(is_string), &runtime);
   // Get the length of the string to rbx.
-  __ movl(rbx, FieldOperand(rax, String::kLengthOffset));
+  __ movq(rbx, FieldOperand(rax, String::kLengthOffset));
 
-  // rbx: Length of subject string
+  // rbx: Length of subject string as smi
   // rcx: RegExp data (FixedArray)
   // rdx: Number of capture registers
   // Check that the third argument is a positive smi less than the string
   // length. A negative value will be greater (unsigned comparison).
   __ movq(rax, Operand(rsp, kPreviousIndexOffset));
-  __ SmiToInteger32(rax, rax);
-  __ cmpl(rax, rbx);
-  __ j(above, &runtime);
+  __ JumpIfNotSmi(rax, &runtime);
+  __ SmiCompare(rax, rbx);
+  __ j(above_equal, &runtime);
 
   // rcx: RegExp data (FixedArray)
   // rdx: Number of capture registers
@@ -8286,12 +8286,14 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Argument 3: Start of string data
   Label setup_two_byte, setup_rest;
   __ testb(rdi, rdi);
-  __ movl(rdi, FieldOperand(rax, String::kLengthOffset));
+  __ movq(rdi, FieldOperand(rax, String::kLengthOffset));
   __ j(zero, &setup_two_byte);
+  __ SmiToInteger32(rdi, rdi);
   __ lea(arg4, FieldOperand(rax, rdi, times_1, SeqAsciiString::kHeaderSize));
   __ lea(arg3, FieldOperand(rax, rbx, times_1, SeqAsciiString::kHeaderSize));
   __ jmp(&setup_rest);
   __ bind(&setup_two_byte);
+  __ SmiToInteger32(rdi, rdi);
   __ lea(arg4, FieldOperand(rax, rdi, times_2, SeqTwoByteString::kHeaderSize));
   __ lea(arg3, FieldOperand(rax, rbx, times_2, SeqTwoByteString::kHeaderSize));
 
@@ -10456,11 +10458,8 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
   // If the index is non-smi trigger the non-smi case.
   __ JumpIfNotSmi(index, index_not_smi);
 
-  // Put untagged index into scratch register.
-  __ SmiToInteger32(scratch, index);
-
   // Check for index out of range.
-  __ cmpl(scratch, FieldOperand(object, String::kLengthOffset));
+  __ SmiCompare(index, FieldOperand(object, String::kLengthOffset));
   __ j(above_equal, index_out_of_range);
 
   __ bind(&try_again_with_new_string);
@@ -10474,6 +10473,9 @@ void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
   ASSERT_EQ(0, kSeqStringTag);
   __ testb(result, Immediate(kStringRepresentationMask));
   __ j(not_zero, &not_a_flat_string);
+
+  // Put untagged index into scratch register.
+  __ SmiToInteger32(scratch, index);
 
   // Check for 1-byte or 2-byte string.
   ASSERT_EQ(0, kTwoByteStringTag);
@@ -10596,15 +10598,15 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rdx: second string
   // Check if either of the strings are empty. In that case return the other.
   Label second_not_zero_length, both_not_zero_length;
-  __ movl(rcx, FieldOperand(rdx, String::kLengthOffset));
-  __ testl(rcx, rcx);
+  __ movq(rcx, FieldOperand(rdx, String::kLengthOffset));
+  __ SmiTest(rcx);
   __ j(not_zero, &second_not_zero_length);
   // Second string is empty, result is first string which is already in rax.
   __ IncrementCounter(&Counters::string_add_native, 1);
   __ ret(2 * kPointerSize);
   __ bind(&second_not_zero_length);
-  __ movl(rbx, FieldOperand(rax, String::kLengthOffset));
-  __ testl(rbx, rbx);
+  __ movq(rbx, FieldOperand(rax, String::kLengthOffset));
+  __ SmiTest(rbx);
   __ j(not_zero, &both_not_zero_length);
   // First string is empty, result is second string which is in rdx.
   __ movq(rax, rdx);
@@ -10632,10 +10634,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movzxbl(r9, FieldOperand(r9, Map::kInstanceTypeOffset));
 
   // Look at the length of the result of adding the two strings.
-  __ addl(rbx, rcx);
+  ASSERT(String::kMaxLength <= Smi::kMaxValue / 2);
+  __ SmiAdd(rbx, rbx, rcx, NULL);
   // Use the runtime system when adding two one character strings, as it
   // contains optimizations for this specific case using the symbol table.
-  __ cmpl(rbx, Immediate(2));
+  __ SmiCompare(rbx, Smi::FromInt(2));
   __ j(not_equal, &longer_than_two);
 
   // Check that both strings are non-external ascii strings.
@@ -10660,11 +10663,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   __ bind(&longer_than_two);
   // Check if resulting string will be flat.
-  __ cmpl(rbx, Immediate(String::kMinNonFlatLength));
+  __ SmiCompare(rbx, Smi::FromInt(String::kMinNonFlatLength));
   __ j(below, &string_add_flat_result);
   // Handle exceptionally long strings in the runtime system.
   ASSERT((String::kMaxLength & 0x80000000) == 0);
-  __ cmpl(rbx, Immediate(String::kMaxLength));
+  __ SmiCompare(rbx, Smi::FromInt(String::kMaxLength));
   __ j(above, &string_add_runtime);
 
   // If result is not supposed to be flat, allocate a cons string object. If
@@ -10684,7 +10687,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ AllocateAsciiConsString(rcx, rdi, no_reg, &string_add_runtime);
   __ bind(&allocated);
   // Fill the fields of the cons string.
-  __ movl(FieldOperand(rcx, ConsString::kLengthOffset), rbx);
+  __ movq(FieldOperand(rcx, ConsString::kLengthOffset), rbx);
   __ movl(FieldOperand(rcx, ConsString::kHashFieldOffset),
           Immediate(String::kEmptyHashField));
   __ movq(FieldOperand(rcx, ConsString::kFirstOffset), rax);
@@ -10700,11 +10703,12 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Handle creating a flat result. First check that both strings are not
   // external strings.
   // rax: first string
-  // ebx: length of resulting flat string
+  // ebx: length of resulting flat string as smi
   // rdx: second string
   // r8: instance type of first string
   // r9: instance type of first string
   __ bind(&string_add_flat_result);
+  __ SmiToInteger32(rbx, rbx);
   __ movl(rcx, r8);
   __ and_(rcx, Immediate(kStringRepresentationMask));
   __ cmpl(rcx, Immediate(kExternalStringTag));
@@ -10734,7 +10738,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Locate first character of result.
   __ addq(rcx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // Locate first character of first argument
-  __ movl(rdi, FieldOperand(rax, String::kLengthOffset));
+  __ movq(rdi, FieldOperand(rax, String::kLengthOffset));
+  __ SmiToInteger32(rdi, rdi);
   __ addq(rax, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // rax: first char of first argument
   // rbx: result string
@@ -10743,7 +10748,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rdi: length of first argument
   StringHelper::GenerateCopyCharacters(masm, rcx, rax, rdi, true);
   // Locate first character of second argument.
-  __ movl(rdi, FieldOperand(rdx, String::kLengthOffset));
+  __ movq(rdi, FieldOperand(rdx, String::kLengthOffset));
+  __ SmiToInteger32(rdi, rdi);
   __ addq(rdx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // rbx: result string
   // rcx: next character of result
@@ -10771,7 +10777,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Locate first character of result.
   __ addq(rcx, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // Locate first character of first argument.
-  __ movl(rdi, FieldOperand(rax, String::kLengthOffset));
+  __ movq(rdi, FieldOperand(rax, String::kLengthOffset));
+  __ SmiToInteger32(rdi, rdi);
   __ addq(rax, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // rax: first char of first argument
   // rbx: result string
@@ -10780,7 +10787,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rdi: length of first argument
   StringHelper::GenerateCopyCharacters(masm, rcx, rax, rdi, false);
   // Locate first character of second argument.
-  __ movl(rdi, FieldOperand(rdx, String::kLengthOffset));
+  __ movq(rdi, FieldOperand(rdx, String::kLengthOffset));
+  __ SmiToInteger32(rdi, rdi);
   __ addq(rdx, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // rbx: result string
   // rcx: next character of result
@@ -10962,7 +10970,8 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     __ j(equal, not_found);
 
     // If length is not 2 the string is not a candidate.
-    __ cmpl(FieldOperand(candidate, String::kLengthOffset), Immediate(2));
+    __ SmiCompare(FieldOperand(candidate, String::kLengthOffset),
+                  Smi::FromInt(2));
     __ j(not_equal, &next_probe[i]);
 
     // We use kScratchRegister as a temporary register in assumption that
@@ -11206,9 +11215,12 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   ASSERT(String::kMaxLength < 0x7fffffff);
 
   // Find minimum length and length difference.
-  __ movl(scratch1, FieldOperand(left, String::kLengthOffset));
-  __ movl(scratch4, scratch1);
-  __ subl(scratch4, FieldOperand(right, String::kLengthOffset));
+  __ movq(scratch1, FieldOperand(left, String::kLengthOffset));
+  __ movq(scratch4, scratch1);
+  __ SmiSub(scratch4,
+            scratch4,
+            FieldOperand(right, String::kLengthOffset),
+            NULL);
   // Register scratch4 now holds left.length - right.length.
   const Register length_difference = scratch4;
   Label left_shorter;
@@ -11216,15 +11228,17 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // The right string isn't longer that the left one.
   // Get the right string's length by subtracting the (non-negative) difference
   // from the left string's length.
-  __ subl(scratch1, length_difference);
+  __ SmiSub(scratch1, scratch1, length_difference, NULL);
   __ bind(&left_shorter);
   // Register scratch1 now holds Min(left.length, right.length).
   const Register min_length = scratch1;
 
   Label compare_lengths;
   // If min-length is zero, go directly to comparing lengths.
-  __ testl(min_length, min_length);
+  __ SmiTest(min_length);
   __ j(zero, &compare_lengths);
+
+  __ SmiToInteger32(min_length, min_length);
 
   // Registers scratch2 and scratch3 are free.
   Label result_not_equal;
@@ -11256,7 +11270,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Completed loop without finding different characters.
   // Compare lengths (precomputed).
   __ bind(&compare_lengths);
-  __ testl(length_difference, length_difference);
+  __ SmiTest(length_difference);
   __ j(not_zero, &result_not_equal);
 
   // Result is EQUAL.
