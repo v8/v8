@@ -232,30 +232,23 @@ void MacroAssembler::LoadRoot(Register destination,
 }
 
 
-// Will clobber 4 registers: object, offset, scratch, ip.  The
-// register 'object' contains a heap object pointer.  The heap object
-// tag is shifted away.
-void MacroAssembler::RecordWrite(Register object, Register offset,
-                                 Register scratch) {
-  // The compiled code assumes that record write doesn't change the
-  // context register, so we check that none of the clobbered
-  // registers are cp.
-  ASSERT(!object.is(cp) && !offset.is(cp) && !scratch.is(cp));
+void MacroAssembler::RecordWriteHelper(Register object,
+                                       Register offset,
+                                       Register scratch) {
+  if (FLAG_debug_code) {
+    // Check that the object is not in new space.
+    Label not_in_new_space;
+    InNewSpace(object, scratch, ne, &not_in_new_space);
+    Abort("new-space object passed to RecordWriteHelper");
+    bind(&not_in_new_space);
+  }
 
   // This is how much we shift the remembered set bit offset to get the
   // offset of the word in the remembered set.  We divide by kBitsPerInt (32,
   // shift right 5) and then multiply by kIntSize (4, shift left 2).
   const int kRSetWordShift = 3;
 
-  Label fast, done;
-
-  // First, test that the object is not in the new space.  We cannot set
-  // remembered set bits in the new space.
-  // object: heap object pointer (with tag)
-  // offset: offset to store location from the object
-  and_(scratch, object, Operand(ExternalReference::new_space_mask()));
-  cmp(scratch, Operand(ExternalReference::new_space_start()));
-  b(eq, &done);
+  Label fast;
 
   // Compute the bit offset in the remembered set.
   // object: heap object pointer (with tag)
@@ -307,6 +300,38 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
   mov(ip, Operand(1));
   orr(scratch, scratch, Operand(ip, LSL, offset));
   str(scratch, MemOperand(object));
+}
+
+
+void MacroAssembler::InNewSpace(Register object,
+                                Register scratch,
+                                Condition cc,
+                                Label* branch) {
+  ASSERT(cc == eq || cc == ne);
+  and_(scratch, object, Operand(ExternalReference::new_space_mask()));
+  cmp(scratch, Operand(ExternalReference::new_space_start()));
+  b(cc, branch);
+}
+
+
+// Will clobber 4 registers: object, offset, scratch, ip.  The
+// register 'object' contains a heap object pointer.  The heap object
+// tag is shifted away.
+void MacroAssembler::RecordWrite(Register object, Register offset,
+                                 Register scratch) {
+  // The compiled code assumes that record write doesn't change the
+  // context register, so we check that none of the clobbered
+  // registers are cp.
+  ASSERT(!object.is(cp) && !offset.is(cp) && !scratch.is(cp));
+
+  Label done;
+
+  // First, test that the object is not in the new space.  We cannot set
+  // remembered set bits in the new space.
+  InNewSpace(object, scratch, eq, &done);
+
+  // Record the actual write.
+  RecordWriteHelper(object, offset, scratch);
 
   bind(&done);
 

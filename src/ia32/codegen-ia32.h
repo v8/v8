@@ -1082,8 +1082,8 @@ class RecordWriteStub : public CodeStub {
   }
 #endif
 
-  // Minor key encoding in 12 bits of three registers (object, address and
-  // scratch) OOOOAAAASSSS.
+  // Minor key encoding in 12 bits. 4 bits for each of the three
+  // registers (object, address and scratch) OOOOAAAASSSS.
   class ScratchBits: public BitField<uint32_t, 0, 4> {};
   class AddressBits: public BitField<uint32_t, 4, 4> {};
   class ObjectBits: public BitField<uint32_t, 8, 4> {};

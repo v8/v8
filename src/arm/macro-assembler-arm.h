@@ -86,6 +86,20 @@ class MacroAssembler: public Assembler {
                 Heap::RootListIndex index,
                 Condition cond = al);
 
+
+  // Check if object is in new space.
+  // scratch can be object itself, but it will be clobbered.
+  void InNewSpace(Register object,
+                  Register scratch,
+                  Condition cc,  // eq for new space, ne otherwise
+                  Label* branch);
+
+
+  // Set the remebered set bit for an offset into an
+  // object. RecordWriteHelper only works if the object is not in new
+  // space.
+  void RecordWriteHelper(Register object, Register offset, Register scracth);
+
   // Sets the remembered set bit for [address+offset], where address is the
   // address of the heap object 'object'.  The address must be in the first 8K
   // of an allocated page. The 'scratch' register is used in the

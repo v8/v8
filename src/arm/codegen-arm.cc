@@ -4507,6 +4507,28 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
 }
 
 
+class DeferredSwapElements: public DeferredCode {
+ public:
+  DeferredSwapElements(Register object, Register index1, Register index2)
+      : object_(object), index1_(index1), index2_(index2) {
+    set_comment("[ DeferredSwapElements");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register object_, index1_, index2_;
+};
+
+
+void DeferredSwapElements::Generate() {
+  __ push(object_);
+  __ push(index1_);
+  __ push(index2_);
+  __ CallRuntime(Runtime::kSwapElements, 3);
+}
+
+
 void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   Comment cmnt(masm_, "[ GenerateSwapElements");
 
@@ -4516,8 +4538,76 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   Load(args->at(1));
   Load(args->at(2));
 
-  frame_->CallRuntime(Runtime::kSwapElements, 3);
-  frame_->EmitPush(r0);
+  Register index2 = r2;
+  Register index1 = r1;
+  Register object = r0;
+  Register tmp1 = r3;
+  Register tmp2 = r4;
+
+  frame_->EmitPop(index2);
+  frame_->EmitPop(index1);
+  frame_->EmitPop(object);
+
+  DeferredSwapElements* deferred =
+      new DeferredSwapElements(object, index1, index2);
+
+  // Fetch the map and check if array is in fast case.
+  // Check that object doesn't require security checks and
+  // has no indexed interceptor.
+  __ CompareObjectType(object, tmp1, tmp2, FIRST_JS_OBJECT_TYPE);
+  deferred->Branch(lt);
+  __ ldrb(tmp2, FieldMemOperand(tmp1, Map::kBitFieldOffset));
+  __ tst(tmp2, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
+  deferred->Branch(nz);
+
+  // Check the object's elements are in fast case.
+  __ ldr(tmp1, FieldMemOperand(object, JSObject::kElementsOffset));
+  __ ldr(tmp2, FieldMemOperand(tmp1, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+  __ cmp(tmp2, ip);
+  deferred->Branch(ne);
+
+  // Smi-tagging is equivalent to multiplying by 2.
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
+  // Check that both indices are smis.
+  __ mov(tmp2, index1);
+  __ orr(tmp2, tmp2, index2);
+  __ tst(tmp2, Operand(kSmiTagMask));
+  deferred->Branch(nz);
+
+  // Bring the offsets into the fixed array in tmp1 into index1 and
+  // index2.
+  __ mov(tmp2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(index1, tmp2, Operand(index1, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(index2, tmp2, Operand(index2, LSL, kPointerSizeLog2 - kSmiTagSize));
+
+  // Swap elements.
+  Register tmp3 = object;
+  object = no_reg;
+  __ ldr(tmp3, MemOperand(tmp1, index1));
+  __ ldr(tmp2, MemOperand(tmp1, index2));
+  __ str(tmp3, MemOperand(tmp1, index2));
+  __ str(tmp2, MemOperand(tmp1, index1));
+
+  Label done;
+  __ InNewSpace(tmp1, tmp2, eq, &done);
+  // Possible optimization: do a check that both values are Smis
+  // (or them and test against Smi mask.)
+
+  __ mov(tmp2, tmp1);
+  RecordWriteStub recordWrite1(tmp1, index1, tmp3);
+  __ CallStub(&recordWrite1);
+
+  RecordWriteStub recordWrite2(tmp2, index2, tmp3);
+  __ CallStub(&recordWrite2);
+
+  __ bind(&done);
+
+  deferred->BindExit();
+  __ LoadRoot(tmp1, Heap::kUndefinedValueRootIndex);
+  frame_->EmitPush(tmp1);
 }
 
 
@@ -6500,6 +6590,12 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
   __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
+}
+
+
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  __ RecordWriteHelper(object_, offset_, scratch_);
+  __ Ret();
 }
 
 
