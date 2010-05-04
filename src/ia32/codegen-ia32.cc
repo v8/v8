@@ -2197,7 +2197,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(
                                                    overwrite_mode);
         __ mov(answer.reg(), Immediate(int_value));
         __ sar(ecx, kSmiTagSize);
-        if (!right.type_info().IsSmi()) {
+        if (!right_type_info.IsSmi()) {
           deferred->Branch(carry);
         } else if (FLAG_debug_code) {
           __ AbortIfNotSmi(right.reg());

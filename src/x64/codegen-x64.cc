@@ -6558,7 +6558,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                                    overwrite_mode);
         __ movq(answer.reg(), Immediate(int_value));
         __ SmiToInteger32(rcx, rcx);
-        if (!right.type_info().IsSmi()) {
+        if (!right_type_info.IsSmi()) {
           Condition is_smi = masm_->CheckSmi(right.reg());
           deferred->Branch(NegateCondition(is_smi));
         } else if (FLAG_debug_code) {
