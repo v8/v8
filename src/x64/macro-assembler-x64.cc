@@ -101,15 +101,17 @@ void MacroAssembler::RecordWriteHelper(Register object,
   // If the bit offset lies beyond the normal remembered set range, it is in
   // the extra remembered set area of a large object.
   cmpq(pointer_offset, Immediate(Page::kPageSize / kPointerSize));
-  j(less, &fast);
+  j(below, &fast);
+
+  // We have a large object containing pointers. It must be a FixedArray.
 
   // Adjust 'page_start' so that addressing using 'pointer_offset' hits the
   // extra remembered set after the large object.
 
   // Load the array length into 'scratch'.
   movl(scratch,
-             Operand(page_start,
-                     Page::kObjectStartOffset + FixedArray::kLengthOffset));
+       Operand(page_start,
+               Page::kObjectStartOffset + FixedArray::kLengthOffset));
   Register array_length = scratch;
 
   // Extra remembered set starts right after the large object (a FixedArray), at
@@ -119,9 +121,9 @@ void MacroAssembler::RecordWriteHelper(Register object,
   // extra RSet to 'page_start', so that addressing the bit using
   // 'pointer_offset' hits the extra RSet words.
   lea(page_start,
-            Operand(page_start, array_length, times_pointer_size,
-                    Page::kObjectStartOffset + FixedArray::kHeaderSize
-                        - Page::kRSetEndOffset));
+      Operand(page_start, array_length, times_pointer_size,
+              Page::kObjectStartOffset + FixedArray::kHeaderSize
+                  - Page::kRSetEndOffset));
 
   // NOTE: For now, we use the bit-test-and-set (bts) x86 instruction
   // to limit code size. We should probably evaluate this decision by
@@ -129,22 +131,6 @@ void MacroAssembler::RecordWriteHelper(Register object,
   // "simpler" instructions
   bind(&fast);
   bts(Operand(page_start, Page::kRSetOffset), pointer_offset);
-}
-
-
-void MacroAssembler::InNewSpace(Register object,
-                                Register scratch,
-                                Condition cc,
-                                Label* branch) {
-  ASSERT(cc == equal || cc == not_equal);
-  if (!scratch.is(object)) {
-    movq(scratch, object);
-  }
-  ASSERT(is_int32(static_cast<int64_t>(Heap::NewSpaceMask())));
-  and_(scratch, Immediate(static_cast<int32_t>(Heap::NewSpaceMask())));
-  movq(kScratchRegister, ExternalReference::new_space_start());
-  cmpq(scratch, kScratchRegister);
-  j(cc, branch);
 }
 
 
@@ -213,11 +199,11 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
   // We make sure that an offset is inside the right limits whether it is
   // tagged or untagged.
   if ((offset > 0) && (offset < Page::kMaxHeapObjectSize - kHeapObjectTag)) {
-    // Compute the bit offset in the remembered set, leave it in 'value'.
+    // Compute the bit offset in the remembered set, leave it in 'scratch'.
     lea(scratch, Operand(object, offset));
     ASSERT(is_int32(Page::kPageAlignmentMask));
     and_(scratch, Immediate(static_cast<int32_t>(Page::kPageAlignmentMask)));
-    shr(scratch, Immediate(kObjectAlignmentBits));
+    shr(scratch, Immediate(kPointerSizeLog2));
 
     // Compute the page address from the heap object pointer, leave it in
     // 'object' (immediate value is sign extended).
@@ -236,10 +222,10 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
       // array access: calculate the destination address in the same manner as
       // KeyedStoreIC::GenerateGeneric.
       SmiIndex index = SmiToIndex(smi_index, smi_index, kPointerSizeLog2);
-      lea(dst, Operand(object,
-                       index.reg,
-                       index.scale,
-                       FixedArray::kHeaderSize - kHeapObjectTag));
+      lea(dst, FieldOperand(object,
+                            index.reg,
+                            index.scale,
+                            FixedArray::kHeaderSize));
     }
     // If we are already generating a shared stub, not inlining the
     // record write code isn't going to save us any memory.
@@ -259,6 +245,41 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
     movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(scratch, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(smi_index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+  }
+}
+
+
+void MacroAssembler::InNewSpace(Register object,
+                                Register scratch,
+                                Condition cc,
+                                Label* branch) {
+  if (Serializer::enabled()) {
+    // Can't do arithmetic on external references if it might get serialized.
+    // The mask isn't really an address.  We load it as an external reference in
+    // case the size of the new space is different between the snapshot maker
+    // and the running system.
+    if (scratch.is(object)) {
+      movq(kScratchRegister, ExternalReference::new_space_mask());
+      and_(scratch, kScratchRegister);
+    } else {
+      movq(scratch, ExternalReference::new_space_mask());
+      and_(scratch, object);
+    }
+    movq(kScratchRegister, ExternalReference::new_space_start());
+    cmpq(scratch, kScratchRegister);
+    j(cc, branch);
+  } else {
+    ASSERT(is_int32(static_cast<int64_t>(Heap::NewSpaceMask())));
+    intptr_t new_space_start =
+        reinterpret_cast<intptr_t>(Heap::NewSpaceStart());
+    movq(kScratchRegister, -new_space_start, RelocInfo::NONE);
+    if (scratch.is(object)) {
+      addq(scratch, kScratchRegister);
+    } else {
+      lea(scratch, Operand(object, kScratchRegister, times_1, 0));
+    }
+    and_(scratch, Immediate(static_cast<int32_t>(Heap::NewSpaceMask())));
+    j(cc, branch);
   }
 }
 
@@ -2161,7 +2182,7 @@ Register MacroAssembler::CheckMaps(JSObject* object,
   int depth = 0;
 
   if (save_at_depth == depth) {
-    movq(Operand(rsp, kPointerSize), reg);
+    movq(Operand(rsp, kPointerSize), object_reg);
   }
 
   // Check the maps in the prototype chain.

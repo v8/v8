@@ -8516,6 +8516,7 @@ static int NegativeComparisonResult(Condition cc) {
   return (cc == greater || cc == greater_equal) ? LESS : GREATER;
 }
 
+
 void CompareStub::Generate(MacroAssembler* masm) {
   Label call_builtin, done;
   // The compare stub returns a positive, negative, or zero 64-bit integer

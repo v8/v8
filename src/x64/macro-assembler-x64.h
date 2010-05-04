@@ -102,7 +102,6 @@ class MacroAssembler: public Assembler {
                          Register value,
                          Register scratch);
 
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
