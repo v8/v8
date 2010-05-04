@@ -1335,14 +1335,12 @@ bool Genesis::InstallNatives() {
 static FixedArray* CreateCache(int size, JSFunction* factory) {
   // Caches are supposed to live for a long time, allocate in old space.
   int array_size = JSFunctionResultCache::kEntriesIndex + 2 * size;
-  Handle<FixedArray> cache =
-      Factory::NewFixedArrayWithHoles(array_size, TENURED);
+  // Cannot use cast as object is not fully initialized yet.
+  JSFunctionResultCache* cache = reinterpret_cast<JSFunctionResultCache*>(
+      *Factory::NewFixedArrayWithHoles(array_size, TENURED));
   cache->set(JSFunctionResultCache::kFactoryIndex, factory);
-  cache->set(JSFunctionResultCache::kFingerIndex,
-      Smi::FromInt(JSFunctionResultCache::kEntriesIndex));
-  cache->set(JSFunctionResultCache::kCacheSizeIndex,
-      Smi::FromInt(JSFunctionResultCache::kEntriesIndex));
-  return *cache;
+  cache->MakeZeroSize();
+  return cache;
 }
 
 

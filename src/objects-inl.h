@@ -569,6 +569,22 @@ bool Object::IsSymbolTable() {
 }
 
 
+bool Object::IsJSFunctionResultCache() {
+  if (!IsFixedArray()) return false;
+  FixedArray* self = FixedArray::cast(this);
+  int length = self->length();
+  if (length < JSFunctionResultCache::kEntriesIndex) return false;
+  if ((length - JSFunctionResultCache::kEntriesIndex)
+      % JSFunctionResultCache::kEntrySize != 0) {
+    return false;
+  }
+#ifdef DEBUG
+  reinterpret_cast<JSFunctionResultCache*>(this)->JSFunctionResultCacheVerify();
+#endif
+  return true;
+}
+
+
 bool Object::IsCompilationCacheTable() {
   return IsHashTable();
 }
@@ -1594,6 +1610,7 @@ void NumberDictionary::set_requires_slow_elements() {
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(SymbolTable)
+CAST_ACCESSOR(JSFunctionResultCache)
 CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(CodeCacheHashTable)
 CAST_ACCESSOR(MapCache)
@@ -1833,6 +1850,20 @@ ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
 void ExternalTwoByteString::set_resource(
     ExternalTwoByteString::Resource* resource) {
   *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)) = resource;
+}
+
+
+void JSFunctionResultCache::MakeZeroSize() {
+  set(kFingerIndex, Smi::FromInt(kEntriesIndex));
+  set(kCacheSizeIndex, Smi::FromInt(kEntriesIndex));
+}
+
+
+void JSFunctionResultCache::Clear() {
+  int cache_size = Smi::cast(get(kCacheSizeIndex))->value();
+  Object** entries_start = RawField(this, OffsetOfElementAt(kEntriesIndex));
+  MemsetPointer(entries_start, Heap::the_hole_value(), cache_size);
+  MakeZeroSize();
 }
 
 

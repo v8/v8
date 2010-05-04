@@ -1178,6 +1178,8 @@ class Heap : public AllStatic {
                                           HeapObject* target,
                                           int size);
 
+  static void ClearJSFunctionResultCaches();
+
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   // Record the copy of an object in the NewSpace's statistics.
   static void RecordCopiedObject(HeapObject* obj);
