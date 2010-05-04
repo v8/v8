@@ -545,6 +545,11 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
 // wrapped into BlindReference for sanitizing reasons.
 class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
  public:
+  static bool IsInstance(Handle<JSArray> array) {
+    return array->length() == Smi::FromInt(kSize_) &&
+        array->GetElement(kSharedInfoOffset_)->IsJSValue();
+  }
+
   explicit SharedInfoWrapper(Handle<JSArray> array)
       : JSArrayBasedStruct<SharedInfoWrapper>(array) {
   }
@@ -834,9 +839,13 @@ static bool IsJSFunctionCode(Code* code) {
 }
 
 
-void LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
-                                   Handle<JSArray> shared_info_array) {
+Object* LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
+                                      Handle<JSArray> shared_info_array) {
   HandleScope scope;
+
+  if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
+    return Top::ThrowIllegalOperation();
+  }
 
   FunctionInfoWrapper compile_info_wrapper(new_compile_info_array);
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
@@ -860,7 +869,8 @@ void LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
 
   shared_info->set_construct_stub(
       Builtins::builtin(Builtins::JSConstructStubGeneric));
-  // update breakpoints
+
+  return Heap::undefined_value();
 }
 
 
@@ -1024,8 +1034,13 @@ static Handle<Code> PatchPositionsInCode(Handle<Code> code,
 }
 
 
-void LiveEdit::PatchFunctionPositions(
+Object* LiveEdit::PatchFunctionPositions(
     Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array) {
+
+  if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
+    return Top::ThrowIllegalOperation();
+  }
+
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
   Handle<SharedFunctionInfo> info = shared_info_wrapper.GetInfo();
 
@@ -1053,6 +1068,8 @@ void LiveEdit::PatchFunctionPositions(
       ReplaceCodeObject(info->code(), *patched_code);
     }
   }
+
+  return Heap::undefined_value();
 }
 
 

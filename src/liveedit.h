@@ -83,14 +83,14 @@ class LiveEdit : AllStatic {
 
   static void WrapSharedFunctionInfos(Handle<JSArray> array);
 
-  static void ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
-                                  Handle<JSArray> shared_info_array);
+  static Object* ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
+                                     Handle<JSArray> shared_info_array);
 
   // Updates script field in FunctionSharedInfo.
   static void SetFunctionScript(Handle<JSValue> function_wrapper,
                                 Handle<Object> script_handle);
 
-  static void PatchFunctionPositions(
+  static Object* PatchFunctionPositions(
       Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array);
 
   // For a script updates its source field. If old_script_name is provided

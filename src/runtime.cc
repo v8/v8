@@ -9762,9 +9762,7 @@ static Object* Runtime_LiveEditReplaceFunctionCode(Arguments args) {
   CONVERT_ARG_CHECKED(JSArray, new_compile_info, 0);
   CONVERT_ARG_CHECKED(JSArray, shared_info, 1);
 
-  LiveEdit::ReplaceFunctionCode(new_compile_info, shared_info);
-
-  return Heap::undefined_value();
+  return LiveEdit::ReplaceFunctionCode(new_compile_info, shared_info);
 }
 
 // Connects SharedFunctionInfo to another script.
@@ -9819,9 +9817,7 @@ static Object* Runtime_LiveEditPatchFunctionPositions(Arguments args) {
   CONVERT_ARG_CHECKED(JSArray, shared_array, 0);
   CONVERT_ARG_CHECKED(JSArray, position_change_array, 1);
 
-  LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
-
-  return Heap::undefined_value();
+  return LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
 }
 
 
