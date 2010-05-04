@@ -565,7 +565,7 @@ void CodeGenerator::Load(Expression* expr) {
   }
   ASSERT(has_valid_frame());
   ASSERT(!has_cc());
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -2717,7 +2717,7 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
     return;
   }
   InstantiateFunction(function_info);
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -2729,7 +2729,7 @@ void CodeGenerator::VisitSharedFunctionInfoLiteral(
   VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
   InstantiateFunction(node->shared_function_info());
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -2756,7 +2756,7 @@ void CodeGenerator::VisitConditional(Conditional* node) {
     LoadAndSpill(node->else_expression());
     if (exit.is_linked()) exit.Bind();
   }
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3028,7 +3028,7 @@ void CodeGenerator::VisitSlot(Slot* node) {
 #endif
   Comment cmnt(masm_, "[ Slot");
   LoadFromSlotCheckForArguments(node, NOT_INSIDE_TYPEOF);
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3047,7 +3047,7 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
     Reference ref(this, node);
     ref.GetValue();
   }
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3059,7 +3059,7 @@ void CodeGenerator::VisitLiteral(Literal* node) {
   Register reg = frame_->GetTOSRegister();
   __ mov(reg, Operand(node->handle()));
   frame_->EmitPush(reg);
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3103,7 +3103,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   done.Bind();
   // Push the literal.
   frame_->EmitPush(r2);
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3184,7 +3184,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
       }
     }
   }
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3243,7 +3243,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     __ mov(r3, Operand(offset));
     __ RecordWrite(r1, r3, r2);
   }
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3259,7 +3259,281 @@ void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
   LoadAndSpill(node->value());
   frame_->CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
   frame_->EmitPush(r0);
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
+}
+
+
+void CodeGenerator::EmitSlotAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  Comment cmnt(masm(), "[ Variable Assignment");
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  ASSERT(var != NULL);
+  Slot* slot = var->slot();
+  ASSERT(slot != NULL);
+
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
+    LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
+
+    // Perform the binary operation.
+    Literal* literal = node->value()->AsLiteral();
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    if (literal != NULL && literal->handle()->IsSmi()) {
+      SmiOperation(node->binary_op(),
+                   literal->handle(),
+                   false,
+                   overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+    } else {
+      Load(node->value());
+      VirtualFrameBinaryOperation(
+          node->binary_op(), overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+    }
+  } else {
+    Load(node->value());
+  }
+
+  // Perform the assignment.
+  if (var->mode() != Variable::CONST || node->op() == Token::INIT_CONST) {
+    CodeForSourcePosition(node->position());
+    StoreToSlot(slot,
+                node->op() == Token::INIT_CONST ? CONST_INIT : NOT_CONST_INIT);
+  }
+  ASSERT_EQ(original_height + 1, frame_->height());
+}
+
+
+void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  Comment cmnt(masm(), "[ Named Property Assignment");
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  Property* prop = node->target()->AsProperty();
+  ASSERT(var == NULL || (prop == NULL && var->is_global()));
+
+  // Initialize name and evaluate the receiver sub-expression if necessary. If
+  // the receiver is trivial it is not placed on the stack at this point, but
+  // loaded whenever actually needed.
+  Handle<String> name;
+  bool is_trivial_receiver = false;
+  if (var != NULL) {
+    name = var->name();
+  } else {
+    Literal* lit = prop->key()->AsLiteral();
+    ASSERT_NOT_NULL(lit);
+    name = Handle<String>::cast(lit->handle());
+    // Do not materialize the receiver on the frame if it is trivial.
+    is_trivial_receiver = prop->obj()->IsTrivial();
+    if (!is_trivial_receiver) Load(prop->obj());
+  }
+
+  // Change to slow case in the beginning of an initialization block to
+  // avoid the quadratic behavior of repeatedly adding fast properties.
+  if (node->starts_initialization_block()) {
+    // Initialization block consists of assignments on the form expr.x = ..., so
+    // this will never be an assignment to a variable, so there must be a
+    // receiver object.
+    ASSERT_EQ(NULL, var);
+    if (is_trivial_receiver) {
+      Load(prop->obj());
+    } else {
+      frame_->Dup();
+    }
+    frame_->CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
+  // Change to fast case at the end of an initialization block. To prepare for
+  // that add an extra copy of the receiver to the frame, so that it can be
+  // converted back to fast case after the assignment.
+  if (node->ends_initialization_block() && !is_trivial_receiver) {
+    frame_->Dup();
+  }
+
+  // Stack layout:
+  // [tos]   : receiver (only materialized if non-trivial)
+  // [tos+1] : receiver if at the end of an initialization block
+
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
+    if (is_trivial_receiver) {
+      Load(prop->obj());
+    } else if (var != NULL) {
+      LoadGlobal();
+    } else {
+      frame_->Dup();
+    }
+    EmitNamedLoad(name, var != NULL);
+    frame_->Drop();  // Receiver is left on the stack.
+    frame_->EmitPush(r0);
+
+    // Perform the binary operation.
+    Literal* literal = node->value()->AsLiteral();
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    if (literal != NULL && literal->handle()->IsSmi()) {
+      SmiOperation(node->binary_op(),
+                   literal->handle(),
+                   false,
+                   overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+    } else {
+      Load(node->value());
+      VirtualFrameBinaryOperation(
+          node->binary_op(), overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+    }
+  } else {
+    // For non-compound assignment just load the right-hand side.
+    Load(node->value());
+  }
+
+  // Stack layout:
+  // [tos]   : value
+  // [tos+1] : receiver (only materialized if non-trivial)
+  // [tos+2] : receiver if at the end of an initialization block
+
+  // Perform the assignment.  It is safe to ignore constants here.
+  ASSERT(var == NULL || var->mode() != Variable::CONST);
+  ASSERT_NE(Token::INIT_CONST, node->op());
+  if (is_trivial_receiver) {
+    // Load the receiver and swap with the value.
+    Load(prop->obj());
+    Register t0 = frame_->PopToRegister();
+    Register t1 = frame_->PopToRegister(t0);
+    frame_->EmitPush(t0);
+    frame_->EmitPush(t1);
+  }
+  CodeForSourcePosition(node->position());
+  bool is_contextual = (var != NULL);
+  EmitNamedStore(name, is_contextual);
+  frame_->EmitPush(r0);
+
+  // Change to fast case at the end of an initialization block.
+  if (node->ends_initialization_block()) {
+    ASSERT_EQ(NULL, var);
+    // The argument to the runtime call is the receiver.
+    if (is_trivial_receiver) {
+      Load(prop->obj());
+    } else {
+      // A copy of the receiver is below the value of the assignment. Swap
+      // the receiver and the value of the assignment expression.
+      Register t0 = frame_->PopToRegister();
+      Register t1 = frame_->PopToRegister(t0);
+      frame_->EmitPush(t0);
+      frame_->EmitPush(t1);
+    }
+    frame_->CallRuntime(Runtime::kToFastProperties, 1);
+  }
+
+  // Stack layout:
+  // [tos]   : result
+
+  ASSERT_EQ(original_height + 1, frame_->height());
+}
+
+
+void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  Comment cmnt(masm_, "[ Keyed Property Assignment");
+  Property* prop = node->target()->AsProperty();
+  ASSERT_NOT_NULL(prop);
+
+  // Evaluate the receiver subexpression.
+  Load(prop->obj());
+
+  // Change to slow case in the beginning of an initialization block to
+  // avoid the quadratic behavior of repeatedly adding fast properties.
+  if (node->starts_initialization_block()) {
+    frame_->Dup();
+    frame_->CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
+  // Change to fast case at the end of an initialization block. To prepare for
+  // that add an extra copy of the receiver to the frame, so that it can be
+  // converted back to fast case after the assignment.
+  if (node->ends_initialization_block()) {
+    frame_->Dup();
+  }
+
+  // Evaluate the key subexpression.
+  Load(prop->key());
+
+  // Stack layout:
+  // [tos]   : key
+  // [tos+1] : receiver
+  // [tos+2] : receiver if at the end of an initialization block
+
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
+    // Load of the current value leaves receiver and key on the stack.
+    EmitKeyedLoad();
+    frame_->EmitPush(r0);
+
+    // Perform the binary operation.
+    Literal* literal = node->value()->AsLiteral();
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    if (literal != NULL && literal->handle()->IsSmi()) {
+      SmiOperation(node->binary_op(),
+                   literal->handle(),
+                   false,
+                   overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+    } else {
+      Load(node->value());
+      VirtualFrameBinaryOperation(
+          node->binary_op(), overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+    }
+  } else {
+    // For non-compound assignment just load the right-hand side.
+    Load(node->value());
+  }
+
+  // Stack layout:
+  // [tos]   : value
+  // [tos+1] : key
+  // [tos+2] : receiver
+  // [tos+3] : receiver if at the end of an initialization block
+
+  // Perform the assignment.  It is safe to ignore constants here.
+  ASSERT(node->op() != Token::INIT_CONST);
+  CodeForSourcePosition(node->position());
+  frame_->PopToR0();
+  EmitKeyedStore(prop->key()->type());
+  frame_->Drop(2);  // Key and receiver are left on the stack.
+  frame_->EmitPush(r0);
+
+  // Stack layout:
+  // [tos]   : result
+  // [tos+1] : receiver if at the end of an initialization block
+
+  // Change to fast case at the end of an initialization block.
+  if (node->ends_initialization_block()) {
+    // The argument to the runtime call is the extra copy of the receiver,
+    // which is below the value of the assignment.  Swap the receiver and
+    // the value of the assignment expression.
+    Register t0 = frame_->PopToRegister();
+    Register t1 = frame_->PopToRegister(t0);
+    frame_->EmitPush(t1);
+    frame_->EmitPush(t0);
+    frame_->CallRuntime(Runtime::kToFastProperties, 1);
+  }
+
+  // Stack layout:
+  // [tos]   : result
+
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3270,59 +3544,33 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
 #endif
   Comment cmnt(masm_, "[ Assignment");
 
-  { Reference target(this, node->target(), node->is_compound());
-    if (target.is_illegal()) {
-      // Fool the virtual frame into thinking that we left the assignment's
-      // value on the frame.
-      Register tos = frame_->GetTOSRegister();
-      __ mov(tos, Operand(Smi::FromInt(0)));
-      frame_->EmitPush(tos);
-      ASSERT(frame_->height() == original_height + 1);
-      return;
-    }
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  Property* prop = node->target()->AsProperty();
 
-    if (node->op() == Token::ASSIGN ||
-        node->op() == Token::INIT_VAR ||
-        node->op() == Token::INIT_CONST) {
-      Load(node->value());
+  if (var != NULL && !var->is_global()) {
+    EmitSlotAssignment(node);
 
-    } else {  // Assignment is a compound assignment.
-      // Get the old value of the lhs.
-      target.GetValue();
-      Literal* literal = node->value()->AsLiteral();
-      bool overwrite =
-          (node->value()->AsBinaryOperation() != NULL &&
-           node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-      if (literal != NULL && literal->handle()->IsSmi()) {
-        SmiOperation(node->binary_op(),
-                     literal->handle(),
-                     false,
-                     overwrite ? OVERWRITE_RIGHT : NO_OVERWRITE);
-      } else {
-        Load(node->value());
-        VirtualFrameBinaryOperation(node->binary_op(),
-                                    overwrite ? OVERWRITE_RIGHT : NO_OVERWRITE);
-      }
-    }
-    Variable* var = node->target()->AsVariableProxy()->AsVariable();
-    if (var != NULL &&
-        (var->mode() == Variable::CONST) &&
-        node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
-      // Assignment ignored - leave the value on the stack.
-      UnloadReference(&target);
-    } else {
-      CodeForSourcePosition(node->position());
-      if (node->op() == Token::INIT_CONST) {
-        // Dynamic constant initializations must use the function context
-        // and initialize the actual constant declared. Dynamic variable
-        // initializations are simply assignments and use SetValue.
-        target.SetValue(CONST_INIT);
-      } else {
-        target.SetValue(NOT_CONST_INIT);
-      }
-    }
+  } else if ((prop != NULL && prop->key()->IsPropertyName()) ||
+             (var != NULL && var->is_global())) {
+    // Properties whose keys are property names and global variables are
+    // treated as named property references.  We do not need to consider
+    // global 'this' because it is not a valid left-hand side.
+    EmitNamedPropertyAssignment(node);
+
+  } else if (prop != NULL) {
+    // Other properties (including rewritten parameters for a function that
+    // uses arguments) are keyed property assignments.
+    EmitKeyedPropertyAssignment(node);
+
+  } else {
+    // Invalid left-hand side.
+    Load(node->target());
+    frame_->CallRuntime(Runtime::kThrowReferenceError, 1);
+    // The runtime call doesn't actually return but the code generator will
+    // still generate code and expects a certain frame height.
+    frame_->EmitPush(r0);
   }
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3337,7 +3585,7 @@ void CodeGenerator::VisitThrow(Throw* node) {
   CodeForSourcePosition(node->position());
   frame_->CallRuntime(Runtime::kThrow, 1);
   frame_->EmitPush(r0);
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3350,7 +3598,7 @@ void CodeGenerator::VisitProperty(Property* node) {
   { Reference property(this, node);
     property.GetValue();
   }
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3557,7 +3805,7 @@ void CodeGenerator::VisitCall(Call* node) {
     CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
     frame_->EmitPush(r0);
   }
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -3600,7 +3848,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 
   // Discard old TOS value and push r0 on the stack (same as Pop(), push(r0)).
   __ str(r0, frame_->Top());
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -4363,7 +4611,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     frame_->CallRuntime(function, arg_count);
     frame_->EmitPush(r0);
   }
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -4527,7 +4775,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
         __ mov(r0, Operand(Smi::FromInt(0)));
         frame_->EmitPush(r0);
       }
-      ASSERT(frame_->height() == original_height + 1);
+      ASSERT_EQ(original_height + 1, frame_->height());
       return;
     }
     target.GetValue();
@@ -4595,7 +4843,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
   // Postfix: Discard the new value and use the old.
   if (is_postfix) frame_->EmitPop(r0);
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -4770,7 +5018,7 @@ void CodeGenerator::VisitThisFunction(ThisFunction* node) {
   VirtualFrame::SpilledScope spilled_scope(frame_);
   __ ldr(r0, frame_->Function());
   frame_->EmitPush(r0);
-  ASSERT(frame_->height() == original_height + 1);
+  ASSERT_EQ(original_height + 1, frame_->height());
 }
 
 
@@ -5164,6 +5412,16 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 }
 
 
+void CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
+#ifdef DEBUG
+  int expected_height = frame_->height() - (is_contextual ? 1 : 2);
+#endif
+  frame_->CallStoreIC(name, is_contextual);
+
+  ASSERT_EQ(expected_height, frame_->height());
+}
+
+
 void CodeGenerator::EmitKeyedLoad() {
   if (loop_nesting() == 0) {
     VirtualFrame::SpilledScope spilled(frame_);
@@ -5178,7 +5436,7 @@ void CodeGenerator::EmitKeyedLoad() {
     __ IncrementCounter(&Counters::keyed_load_inline, 1,
                         frame_->scratch0(), frame_->scratch1());
 
-    // Load the receiver and key  from the stack.
+    // Load the receiver and key from the stack.
     frame_->SpillAllButCopyTOSToR1R0();
     Register receiver = r0;
     Register key = r1;
@@ -5253,7 +5511,7 @@ void CodeGenerator::EmitKeyedLoad() {
 
 
 void CodeGenerator::EmitKeyedStore(StaticType* key_type) {
-  frame_->AssertIsSpilled();
+  VirtualFrame::SpilledScope scope(frame_);
   // Generate inlined version of the keyed store if the code is in a loop
   // and the key is likely to be a smi.
   if (loop_nesting() > 0 && key_type->IsLikelySmi()) {
@@ -5421,21 +5679,13 @@ void Reference::SetValue(InitState init_state) {
       Comment cmnt(masm, "[ Store to Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       cgen_->StoreToSlot(slot, init_state);
-      cgen_->UnloadReference(this);
+      set_unloaded();
       break;
     }
 
     case NAMED: {
-      VirtualFrame::SpilledScope scope(frame);
       Comment cmnt(masm, "[ Store to named Property");
-      // Call the appropriate IC code.
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      Handle<String> name(GetName());
-
-      frame->EmitPop(r0);
-      frame->EmitPop(r1);
-      __ mov(r2, Operand(name));
-      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
+      cgen_->EmitNamedStore(GetName(), false);
       frame->EmitPush(r0);
       set_unloaded();
       break;

@@ -312,6 +312,11 @@ class VirtualFrame : public ZoneObject {
   // Result is returned in r0.
   void CallLoadIC(RelocInfo::Mode mode);
 
+  // Call store IC. If the load is contextual, value is found on top of the
+  // frame. If not, value and receiver are on the frame. Both are consumed.
+  // Result is returned in r0.
+  void CallStoreIC(Handle<String> name, bool is_contextual);
+
   // Call keyed load IC. Key and receiver are on the stack. Result is returned
   // in r0.
   void CallKeyedLoadIC();
@@ -347,6 +352,9 @@ class VirtualFrame : public ZoneObject {
   // Look at the top of the stack.  The register returned is aliased and
   // must be copied to a scratch register before modification.
   Register Peek();
+
+  // Duplicate the top of stack.
+  void Dup();
 
   // Flushes all registers, but it puts a copy of the top-of-stack in r0.
   void SpillAllButCopyTOSToR0();

@@ -304,6 +304,21 @@ void VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
 }
 
 
+void VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  PopToR0();
+  if (is_contextual) {
+    SpillAll();
+    __ ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  } else {
+    EmitPop(r1);
+    SpillAll();
+  }
+  __ mov(r2, Operand(name));
+  CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
+}
+
+
 void VirtualFrame::CallKeyedLoadIC() {
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
@@ -311,6 +326,7 @@ void VirtualFrame::CallKeyedLoadIC() {
 
 
 void VirtualFrame::CallKeyedStoreIC() {
+  ASSERT(SpilledScope::is_spilled());
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
 }
@@ -474,6 +490,38 @@ Register VirtualFrame::Peek() {
   } else {
     return kTopRegister[top_of_stack_state_];
   }
+}
+
+
+void VirtualFrame::Dup() {
+  AssertIsNotSpilled();
+  switch (top_of_stack_state_) {
+    case NO_TOS_REGISTERS:
+      __ ldr(r0, MemOperand(sp, 0));
+      top_of_stack_state_ = R0_TOS;
+      break;
+    case R0_TOS:
+      __ mov(r1, r0);
+      top_of_stack_state_ = R0_R1_TOS;
+      break;
+    case R1_TOS:
+      __ mov(r0, r1);
+      top_of_stack_state_ = R0_R1_TOS;
+      break;
+    case R0_R1_TOS:
+      __ push(r1);
+      __ mov(r1, r0);
+      // No need to change state as r0 and r1 now contains the same value.
+      break;
+    case R1_R0_TOS:
+      __ push(r0);
+      __ mov(r0, r1);
+      // No need to change state as r0 and r1 now contains the same value.
+      break;
+    default:
+      UNREACHABLE();
+  }
+  element_count_++;
 }
 
 
