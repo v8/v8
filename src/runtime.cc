@@ -7777,28 +7777,22 @@ static Object* Runtime_SwapElements(Arguments args) {
 
   ASSERT_EQ(3, args.length());
 
-  Handle<Object> object = args.at<Object>(0);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
   Handle<Object> key1 = args.at<Object>(1);
   Handle<Object> key2 = args.at<Object>(2);
 
   uint32_t index1, index2;
-  // That must be the most common case.
-  if (object->IsJSObject()
-      && Array::IndexFromObject(*key1, &index1)
-      && Array::IndexFromObject(*key2, &index2)) {
-    Handle<JSObject> jsobject = Handle<JSObject>::cast(object);
-    Handle<Object> tmp1 = GetElement(jsobject, index1);
-    Handle<Object> tmp2 = GetElement(jsobject, index2);
-
-    SetElement(jsobject, index1, tmp2);
-    SetElement(jsobject, index2, tmp1);
-  } else {
-    Handle<Object> tmp1 = GetProperty(object, key1);
-    Handle<Object> tmp2 = GetProperty(object, key2);
-
-    SetProperty(object, key1, tmp2, NONE);
-    SetProperty(object, key2, tmp1, NONE);
+  if (!Array::IndexFromObject(*key1, &index1)
+      || !Array::IndexFromObject(*key2, &index2)) {
+    return Top::ThrowIllegalOperation();
   }
+
+  Handle<JSObject> jsobject = Handle<JSObject>::cast(object);
+  Handle<Object> tmp1 = GetElement(jsobject, index1);
+  Handle<Object> tmp2 = GetElement(jsobject, index2);
+
+  SetElement(jsobject, index1, tmp2);
+  SetElement(jsobject, index2, tmp1);
 
   return Heap::undefined_value();
 }
