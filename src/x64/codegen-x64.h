@@ -873,19 +873,19 @@ class StringHelper : public AllStatic {
   // additional setup and checking in GenerateCopyCharactersREP adds too much
   // overhead. Copying of overlapping regions is not supported.
   static void GenerateCopyCharacters(MacroAssembler* masm,
-                              Register dest,
-                              Register src,
-                              Register count,
-                              bool ascii);
+                                     Register dest,
+                                     Register src,
+                                     Register count,
+                                     bool ascii);
 
   // Generate code for copying characters using the rep movs instruction.
   // Copies rcx characters from rsi to rdi. Copying of overlapping regions is
   // not supported.
   static void GenerateCopyCharactersREP(MacroAssembler* masm,
-                                 Register dest,     // Must be rdi.
-                                 Register src,      // Must be rsi.
-                                 Register count,    // Must be rcx.
-                                 bool ascii);
+                                        Register dest,     // Must be rdi.
+                                        Register src,      // Must be rsi.
+                                        Register count,    // Must be rcx.
+                                        bool ascii);
 
 
   // Probe the symbol table for a two character string. If the string is
@@ -893,26 +893,27 @@ class StringHelper : public AllStatic {
   // does not guarantee that the string is not in the symbol table. If the
   // string is found the code falls through with the string in register rax.
   static void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
-                                            Register c1,
-                                            Register c2,
-                                            Register scratch1,
-                                            Register scratch2,
-                                            Register scratch3,
-                                            Register scratch4,
-                                            Label* not_found);
+                                                   Register c1,
+                                                   Register c2,
+                                                   Register scratch1,
+                                                   Register scratch2,
+                                                   Register scratch3,
+                                                   Register scratch4,
+                                                   Label* not_found);
 
   // Generate string hash.
   static void GenerateHashInit(MacroAssembler* masm,
-                        Register hash,
-                        Register character,
-                        Register scratch);
+                               Register hash,
+                               Register character,
+                               Register scratch);
   static void GenerateHashAddCharacter(MacroAssembler* masm,
-                                Register hash,
-                                Register character,
-                                Register scratch);
+                                       Register hash,
+                                       Register character,
+                                       Register scratch);
   static void GenerateHashGetHash(MacroAssembler* masm,
-                           Register hash,
-                           Register scratch);
+                                  Register hash,
+                                  Register scratch);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
 };
