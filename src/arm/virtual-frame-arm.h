@@ -308,9 +308,8 @@ class VirtualFrame : public ZoneObject {
                      InvokeJSFlags flag,
                      int arg_count);
 
-  // Call load IC. Receiver is on the stack and the property name is in r2.
-  // Result is returned in r0.
-  void CallLoadIC(RelocInfo::Mode mode);
+  // Call load IC. Receiver is on the stack. Result is returned in r0.
+  void CallLoadIC(Handle<String> name, RelocInfo::Mode mode);
 
   // Call store IC. If the load is contextual, value is found on top of the
   // frame. If not, value and receiver are on the frame. Both are consumed.
