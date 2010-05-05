@@ -636,7 +636,9 @@ class CodeGenerator: public AstVisitor {
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
-  // Fast swapping of elements.
+  // Fast swapping of elements. Takes three expressions, the object and two
+  // indices. This should only be used if the indices are known to be
+  // non-negative and within bounds of the elements array at the call site.
   void GenerateSwapElements(ZoneList<Expression*>* args);
 
   // Fast call for custom callbacks.
@@ -1080,8 +1082,8 @@ class RecordWriteStub : public CodeStub {
   }
 #endif
 
-  // Minor key encoding in 12 bits of three registers (object, address and
-  // scratch) OOOOAAAASSSS.
+  // Minor key encoding in 12 bits. 4 bits for each of the three
+  // registers (object, address and scratch) OOOOAAAASSSS.
   class ScratchBits: public BitField<uint32_t, 0, 4> {};
   class AddressBits: public BitField<uint32_t, 4, 4> {};
   class ObjectBits: public BitField<uint32_t, 8, 4> {};

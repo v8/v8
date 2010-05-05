@@ -306,6 +306,7 @@ void Heap::ReportStatisticsAfterGC() {
 
 void Heap::GarbageCollectionPrologue() {
   TranscendentalCache::Clear();
+  ClearJSFunctionResultCaches();
   gc_count_++;
   unflattened_strings_length_ = 0;
 #ifdef DEBUG
@@ -538,6 +539,28 @@ void Heap::EnsureFromSpaceIsCommitted() {
   // Committing memory to from space failed again.
   // Memory is exhausted and we will die.
   V8::FatalProcessOutOfMemory("Committing semi space failed.");
+}
+
+
+class ClearThreadJSFunctionResultCachesVisitor: public ThreadVisitor  {
+  virtual void VisitThread(ThreadLocalTop* top) {
+    Context* context = top->context_;
+    if (context == NULL) return;
+
+    FixedArray* caches =
+      context->global()->global_context()->jsfunction_result_caches();
+    int length = caches->length();
+    for (int i = 0; i < length; i++) {
+      JSFunctionResultCache::cast(caches->get(i))->Clear();
+    }
+  }
+};
+
+
+void Heap::ClearJSFunctionResultCaches() {
+  if (Bootstrapper::IsActive()) return;
+  ClearThreadJSFunctionResultCachesVisitor visitor;
+  ThreadManager::IterateThreads(&visitor);
 }
 
 

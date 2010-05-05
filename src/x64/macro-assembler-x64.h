@@ -66,6 +66,13 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
+  // Set the remebered set bit for an address which points into an
+  // object. RecordWriteHelper only works if the object is not in new
+  // space.
+  void RecordWriteHelper(Register object,
+                         Register addr,
+                         Register scratch);
+
   // Check if object is in new space. The condition cc can be equal or
   // not_equal. If it is equal a jump will be done if the object is on new
   // space. The register scratch can be object itself, but it will be clobbered.
@@ -94,7 +101,6 @@ class MacroAssembler: public Assembler {
                          int offset,
                          Register value,
                          Register scratch);
-
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
@@ -205,6 +211,7 @@ class MacroAssembler: public Assembler {
   // Simple comparison of smis.
   void SmiCompare(Register dst, Register src);
   void SmiCompare(Register dst, Smi* src);
+  void SmiCompare(Register dst, const Operand& src);
   void SmiCompare(const Operand& dst, Register src);
   void SmiCompare(const Operand& dst, Smi* src);
   // Sets sign and zero flags depending on value of smi in register.
@@ -295,7 +302,8 @@ class MacroAssembler: public Assembler {
                       Label* on_not_smi_result);
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
-  // result. No testing on the result is done.
+  // result. No testing on the result is done. Sets the N and Z flags
+  // based on the value of the resulting integer.
   void SmiSubConstant(Register dst, Register src, Smi* constant);
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
@@ -325,6 +333,11 @@ class MacroAssembler: public Assembler {
   void SmiSub(Register dst,
               Register src1,
               Register src2,
+              Label* on_not_smi_result);
+
+  void SmiSub(Register dst,
+              Register src1,
+              Operand const& src2,
               Label* on_not_smi_result);
 
   // Multiplies smi values and return the result as a smi,
@@ -778,10 +791,17 @@ class MacroAssembler: public Assembler {
   void LeaveFrame(StackFrame::Type type);
 
   // Allocation support helpers.
+  // Loads the top of new-space into the result register.
+  // If flags contains RESULT_CONTAINS_TOP then result_end is valid and
+  // already contains the top of new-space, and scratch is invalid.
+  // Otherwise the address of the new-space top is loaded into scratch (if
+  // scratch is valid), and the new-space top is loaded into result.
   void LoadAllocationTopHelper(Register result,
                                Register result_end,
                                Register scratch,
                                AllocationFlags flags);
+  // Update allocation top with value in result_end register.
+  // If scratch is valid, it contains the address of the allocation top.
   void UpdateAllocationTopHelper(Register result_end, Register scratch);
 };
 

@@ -50,6 +50,14 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register addr,
                                        Register scratch) {
+  if (FLAG_debug_code) {
+    // Check that the object is not in new space.
+    Label not_in_new_space;
+    InNewSpace(object, scratch, not_equal, &not_in_new_space);
+    Abort("new-space object passed to RecordWriteHelper");
+    bind(&not_in_new_space);
+  }
+
   Label fast;
 
   // Compute the page start address from the heap object pointer, and reuse
@@ -134,7 +142,7 @@ void MacroAssembler::RecordWrite(Register object, int offset,
 
   // First, check if a remembered set write is even needed. The tests below
   // catch stores of Smis and stores into young gen (which does not have space
-  // for the remembered set bits.
+  // for the remembered set bits).
   Label done;
 
   // Skip barrier if writing a smi.
@@ -902,7 +910,9 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
       Immediate(Factory::string_map()));
-  mov(FieldOperand(result, String::kLengthOffset), length);
+  mov(scratch1, length);
+  SmiTag(scratch1);
+  mov(FieldOperand(result, String::kLengthOffset), scratch1);
   mov(FieldOperand(result, String::kHashFieldOffset),
       Immediate(String::kEmptyHashField));
 }
@@ -935,7 +945,9 @@ void MacroAssembler::AllocateAsciiString(Register result,
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
       Immediate(Factory::ascii_string_map()));
-  mov(FieldOperand(result, String::kLengthOffset), length);
+  mov(scratch1, length);
+  SmiTag(scratch1);
+  mov(FieldOperand(result, String::kLengthOffset), scratch1);
   mov(FieldOperand(result, String::kHashFieldOffset),
       Immediate(String::kEmptyHashField));
 }
