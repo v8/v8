@@ -3333,7 +3333,7 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
   // Change to slow case in the beginning of an initialization block to
   // avoid the quadratic behavior of repeatedly adding fast properties.
   if (node->starts_initialization_block()) {
-    // Initialization block consists of assignments on the form expr.x = ..., so
+    // Initialization block consists of assignments of the form expr.x = ..., so
     // this will never be an assignment to a variable, so there must be a
     // receiver object.
     ASSERT_EQ(NULL, var);

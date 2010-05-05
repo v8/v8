@@ -5369,10 +5369,13 @@ void CodeGenerator::EmitSlotAssignment(Assignment* node) {
 
   // Evaluate the right-hand side.
   if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
     Result result = LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
     frame()->Push(&result);
     Load(node->value());
 
+    // Perform the binary operation.
     bool overwrite_value =
         (node->value()->AsBinaryOperation() != NULL &&
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
@@ -5382,6 +5385,7 @@ void CodeGenerator::EmitSlotAssignment(Assignment* node) {
     GenericBinaryOperation(&expr,
                            overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {
+    // For non-compound assignment just load the right-hand side.
     Load(node->value());
   }
 
@@ -5404,7 +5408,9 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
   Property* prop = node->target()->AsProperty();
   ASSERT(var == NULL || (prop == NULL && var->is_global()));
 
-  // Initialize name and evaluate the receiver subexpression if necessary.
+  // Initialize name and evaluate the receiver sub-expression if necessary. If
+  // the receiver is trivial it is not placed on the stack at this point, but
+  // loaded whenever actually needed.
   Handle<String> name;
   bool is_trivial_receiver = false;
   if (var != NULL) {
@@ -5418,10 +5424,13 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
     if (!is_trivial_receiver) Load(prop->obj());
   }
 
+  // Change to slow case in the beginning of an initialization block to
+  // avoid the quadratic behavior of repeatedly adding fast properties.
   if (node->starts_initialization_block()) {
+    // Initialization block consists of assignments of the form expr.x = ..., so
+    // this will never be an assignment to a variable, so there must be a
+    // receiver object.
     ASSERT_EQ(NULL, var);
-    // Change to slow case in the beginning of an initialization block to
-    // avoid the quadratic behavior of repeatedly adding fast properties.
     if (is_trivial_receiver) {
       frame()->Push(prop->obj());
     } else {
@@ -5430,14 +5439,21 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
     Result ignored = frame()->CallRuntime(Runtime::kToSlowProperties, 1);
   }
 
+  // Change to fast case at the end of an initialization block. To prepare for
+  // that add an extra copy of the receiver to the frame, so that it can be
+  // converted back to fast case after the assignment.
   if (node->ends_initialization_block() && !is_trivial_receiver) {
-    // Add an extra copy of the receiver to the frame, so that it can be
-    // converted back to fast case after the assignment.
     frame()->Dup();
   }
 
+  // Stack layout:
+  // [tos]   : receiver (only materialized if non-trivial)
+  // [tos+1] : receiver if at the end of an initialization block
+
   // Evaluate the right-hand side.
   if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
     if (is_trivial_receiver) {
       frame()->Push(prop->obj());
     } else if (var != NULL) {
@@ -5461,8 +5477,14 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
     GenericBinaryOperation(&expr,
                            overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {
+    // For non-compound assignment just load the right-hand side.
     Load(node->value());
   }
+
+  // Stack layout:
+  // [tos]   : value
+  // [tos+1] : receiver (only materialized if non-trivial)
+  // [tos+2] : receiver if at the end of an initialization block
 
   // Perform the assignment.  It is safe to ignore constants here.
   ASSERT(var == NULL || var->mode() != Variable::CONST);
@@ -5476,6 +5498,10 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
   bool is_contextual = (var != NULL);
   Result answer = EmitNamedStore(name, is_contextual);
   frame()->Push(&answer);
+
+  // Stack layout:
+  // [tos]   : result
+  // [tos+1] : receiver if at the end of an initialization block
 
   if (node->ends_initialization_block()) {
     ASSERT_EQ(NULL, var);
@@ -5493,6 +5519,9 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
     Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
   }
 
+  // Stack layout:
+  // [tos]   : result
+
   ASSERT_EQ(frame()->height(), original_height + 1);
 }
 
@@ -5501,38 +5530,47 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
 #ifdef DEBUG
   int original_height = frame()->height();
 #endif
-  Comment cmnt(masm_, "[ Named Property Assignment");
+  Comment cmnt(masm_, "[ Keyed Property Assignment");
   Property* prop = node->target()->AsProperty();
   ASSERT_NOT_NULL(prop);
 
   // Evaluate the receiver subexpression.
   Load(prop->obj());
 
+  // Change to slow case in the beginning of an initialization block to
+  // avoid the quadratic behavior of repeatedly adding fast properties.
   if (node->starts_initialization_block()) {
-    // Change to slow case in the beginning of an initialization block to
-    // avoid the quadratic behavior of repeatedly adding fast properties.
     frame_->Dup();
     Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
   }
 
+  // Change to fast case at the end of an initialization block. To prepare for
+  // that add an extra copy of the receiver to the frame, so that it can be
+  // converted back to fast case after the assignment.
   if (node->ends_initialization_block()) {
-    // Add an extra copy of the receiver to the frame, so that it can be
-    // converted back to fast case after the assignment.
     frame_->Dup();
   }
 
   // Evaluate the key subexpression.
   Load(prop->key());
 
+  // Stack layout:
+  // [tos]   : key
+  // [tos+1] : receiver
+  // [tos+2] : receiver if at the end of an initialization block
+
   // Evaluate the right-hand side.
   if (node->is_compound()) {
-    // Duplicate receiver and key.
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
+    // Duplicate receiver and key for loading the current property value.
     frame()->PushElementAt(1);
     frame()->PushElementAt(1);
     Result value = EmitKeyedLoad();
     frame()->Push(&value);
     Load(node->value());
 
+    // Perform the binary operation.
     bool overwrite_value =
         (node->value()->AsBinaryOperation() != NULL &&
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
@@ -5541,8 +5579,15 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
     GenericBinaryOperation(&expr,
                            overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {
+    // For non-compound assignment just load the right-hand side.
     Load(node->value());
   }
+
+  // Stack layout:
+  // [tos]   : value
+  // [tos+1] : key
+  // [tos+2] : receiver
+  // [tos+3] : receiver if at the end of an initialization block
 
   // Perform the assignment.  It is safe to ignore constants here.
   ASSERT(node->op() != Token::INIT_CONST);
@@ -5550,6 +5595,11 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
   Result answer = EmitKeyedStore(prop->key()->type());
   frame()->Push(&answer);
 
+  // Stack layout:
+  // [tos]   : result
+  // [tos+1] : receiver if at the end of an initialization block
+
+  // Change to fast case at the end of an initialization block.
   if (node->ends_initialization_block()) {
     // The argument to the runtime call is the extra copy of the receiver,
     // which is below the value of the assignment.  Swap the receiver and
@@ -5560,6 +5610,9 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
     frame()->Push(&receiver);
     Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
   }
+
+  // Stack layout:
+  // [tos]   : result
 
   ASSERT(frame()->height() == original_height + 1);
 }
