@@ -5391,7 +5391,8 @@ void DeferredReferenceGetKeyedValue::Generate() {
 
   // The rest of the instructions in the deferred code must be together.
   { Assembler::BlockConstPoolScope block_const_pool(masm_);
-    // Call keyed load IC. It has all arguments on the stack.
+    // Call keyed load IC. It has all arguments on the stack and the key in r0.
+    __ ldr(r0, MemOperand(sp, 0));
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop instruction to indicate that the
@@ -5514,7 +5515,6 @@ void CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 
 void CodeGenerator::EmitKeyedLoad() {
   if (loop_nesting() == 0) {
-    VirtualFrame::SpilledScope spilled(frame_);
     Comment cmnt(masm_, "[ Load from keyed property");
     frame_->CallKeyedLoadIC();
   } else {

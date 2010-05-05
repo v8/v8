@@ -682,12 +682,13 @@ Object* KeyedLoadIC_Miss(Arguments args);
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
+  //  -- r0     : key
   //  -- sp[0]  : key
   //  -- sp[4]  : receiver
   // -----------------------------------
 
-  __ ldm(ia, sp, r2.bit() | r3.bit());
-  __ Push(r3, r2);
+  __ ldr(r1, MemOperand(sp, kPointerSize));
+  __ Push(r1, r0);
 
   ExternalReference ref = ExternalReference(IC_Utility(kKeyedLoadIC_Miss));
   __ TailCallExternalReference(ref, 2, 1);
@@ -697,12 +698,13 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
+  //  -- r0     : key
   //  -- sp[0]  : key
   //  -- sp[4]  : receiver
   // -----------------------------------
 
-  __ ldm(ia, sp, r2.bit() | r3.bit());
-  __ Push(r3, r2);
+  __ ldr(r1, MemOperand(sp, kPointerSize));
+  __ Push(r1, r0);
 
   __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
 }
@@ -711,13 +713,14 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
+  //  -- r0     : key
   //  -- sp[0]  : key
   //  -- sp[4]  : receiver
   // -----------------------------------
   Label slow, fast, check_pixel_array, check_number_dictionary;
 
-  // Get the key and receiver object from the stack.
-  __ ldm(ia, sp, r0.bit() | r1.bit());
+  // Get the object from the stack.
+  __ ldr(r1, MemOperand(sp, kPointerSize));
 
   // Check that the object isn't a smi.
   __ BranchOnSmi(r1, &slow);
@@ -790,6 +793,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Slow case: Push extra copies of the arguments (2).
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_generic_slow, 1, r0, r1);
+  __ ldr(r0, MemOperand(sp, 0));
   GenerateRuntimeGetProperty(masm);
 }
 
@@ -797,6 +801,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
+  //  -- r0     : key
   //  -- sp[0]  : key
   //  -- sp[4]  : receiver
   // -----------------------------------
@@ -806,8 +811,8 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   Label slow_char_code;
   Label got_char_code;
 
-  // Get the key and receiver object from the stack.
-  __ ldm(ia, sp, r0.bit() | r1.bit());
+  // Get the object from the stack.
+  __ ldr(r1, MemOperand(sp, kPointerSize));
 
   Register object = r1;
   Register index = r0;
@@ -907,13 +912,14 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
                                         ExternalArrayType array_type) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
+  //  -- r0     : key
   //  -- sp[0]  : key
   //  -- sp[4]  : receiver
   // -----------------------------------
   Label slow, failed_allocation;
 
-  // Get the key and receiver object from the stack.
-  __ ldm(ia, sp, r0.bit() | r1.bit());
+  // Get the object from the stack.
+  __ ldr(r1, MemOperand(sp, kPointerSize));
 
   // r0: key
   // r1: receiver object
@@ -1143,6 +1149,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_external_array_slow, 1, r0, r1);
+  __ ldr(r0, MemOperand(sp, 0));
   GenerateRuntimeGetProperty(masm);
 }
 
@@ -1150,13 +1157,14 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
 void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
+  //  -- r0     : key
   //  -- sp[0]  : key
   //  -- sp[4]  : receiver
   // -----------------------------------
   Label slow;
 
-  // Get the key and receiver object from the stack.
-  __ ldm(ia, sp, r0.bit() | r1.bit());
+  // Get the object from the stack.
+  __ ldr(r1, MemOperand(sp, kPointerSize));
 
   // Check that the receiver isn't a smi.
   __ BranchOnSmi(r1, &slow);

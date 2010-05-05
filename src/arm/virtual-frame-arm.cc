@@ -321,6 +321,7 @@ void VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
 
 void VirtualFrame::CallKeyedLoadIC() {
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  SpillAllButCopyTOSToR0();
   CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
 }
 
