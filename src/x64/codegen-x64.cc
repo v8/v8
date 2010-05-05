@@ -6404,10 +6404,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                                  Handle<Object> value,
                                                  bool reversed,
                                                  OverwriteMode overwrite_mode) {
-  // NOTE: This is an attempt to inline (a bit) more of the code for
-  // some possible smi operations (like + and -) when (at least) one
-  // of the operands is a constant smi.
-  // Consumes the argument "operand".
+  // Generate inline code for a binary operation when one of the
+  // operands is a constant smi.  Consumes the argument "operand".
   if (IsUnsafeSmi(value)) {
     Result unsafe_operand(value);
     if (reversed) {
@@ -6685,10 +6683,19 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
   return answer;
 }
 
+
+// Implements a binary operation using a deferred code object and some
+// inline code to operate on smis quickly.
 Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                                Result* left,
                                                Result* right,
                                                OverwriteMode overwrite_mode) {
+  // Copy the type info because left and right may be overwritten.
+  TypeInfo left_type_info = left->type_info();
+  TypeInfo right_type_info = right->type_info();
+  USE(left_type_info);
+  USE(right_type_info);
+  // TODO(X64): Use type information in calculations.
   Token::Value op = expr->op();
   Result answer;
   // Special handling of div and mod because they use fixed registers.
@@ -6813,9 +6820,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           left->reg(),
                                           rcx,
                                           overwrite_mode);
-    __ movq(answer.reg(), left->reg());
-    __ or_(answer.reg(), rcx);
-    __ JumpIfNotSmi(answer.reg(), deferred->entry_label());
+    __ JumpIfNotBothSmi(left->reg(), rcx, deferred->entry_label());
 
     // Perform the operation.
     switch (op) {

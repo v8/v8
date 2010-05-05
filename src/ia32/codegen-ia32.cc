@@ -1426,6 +1426,9 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                                Result* left,
                                                Result* right,
                                                OverwriteMode overwrite_mode) {
+  // Copy the type info because left and right may be overwritten.
+  TypeInfo left_type_info = left->type_info();
+  TypeInfo right_type_info = right->type_info();
   Token::Value op = expr->op();
   Result answer;
   // Special handling of div and mod because they use fixed registers.
@@ -1501,8 +1504,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           (op == Token::DIV) ? eax : edx,
                                           left->reg(),
                                           right->reg(),
-                                          left->type_info(),
-                                          right->type_info(),
+                                          left_type_info,
+                                          right_type_info,
                                           overwrite_mode);
     if (left->reg().is(right->reg())) {
       __ test(left->reg(), Immediate(kSmiTagMask));
@@ -1605,18 +1608,18 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           answer.reg(),
                                           left->reg(),
                                           ecx,
-                                          left->type_info(),
-                                          right->type_info(),
+                                          left_type_info,
+                                          right_type_info,
                                           overwrite_mode);
 
     Label do_op, left_nonsmi;
     // If right is a smi we make a fast case if left is either a smi
     // or a heapnumber.
-    if (CpuFeatures::IsSupported(SSE2) && right->type_info().IsSmi()) {
+    if (CpuFeatures::IsSupported(SSE2) && right_type_info.IsSmi()) {
       CpuFeatures::Scope use_sse2(SSE2);
       __ mov(answer.reg(), left->reg());
       // Fast case - both are actually smis.
-      if (!left->type_info().IsSmi()) {
+      if (!left_type_info.IsSmi()) {
         __ test(answer.reg(), Immediate(kSmiTagMask));
         __ j(not_zero, &left_nonsmi);
       } else {
@@ -1640,7 +1643,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
       deferred->Branch(negative);
     } else {
       CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
-                         left->type_info(), right->type_info(), deferred);
+                         left_type_info, right_type_info, deferred);
 
       // Untag both operands.
       __ mov(answer.reg(), left->reg());
@@ -1713,11 +1716,11 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                         answer.reg(),
                                         left->reg(),
                                         right->reg(),
-                                        left->type_info(),
-                                        right->type_info(),
+                                        left_type_info,
+                                        right_type_info,
                                         overwrite_mode);
   CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
-                     left->type_info(), right->type_info(), deferred);
+                     left_type_info, right_type_info, deferred);
 
   __ mov(answer.reg(), left->reg());
   switch (op) {
@@ -1988,18 +1991,13 @@ void DeferredInlineSmiSub::Generate() {
 }
 
 
-Result CodeGenerator::ConstantSmiBinaryOperation(
-    BinaryOperation* expr,
-    Result* operand,
-    Handle<Object> value,
-    bool reversed,
-    OverwriteMode overwrite_mode) {
-  // NOTE: This is an attempt to inline (a bit) more of the code for
-  // some possible smi operations (like + and -) when (at least) one
-  // of the operands is a constant smi.
-  // Consumes the argument "operand".
-  // TODO(199): Optimize some special cases of operations involving a
-  // smi literal (multiply by 2, shift by 0, etc.).
+Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
+                                                 Result* operand,
+                                                 Handle<Object> value,
+                                                 bool reversed,
+                                                 OverwriteMode overwrite_mode) {
+  // Generate inline code for a binary operation when one of the
+  // operands is a constant smi.  Consumes the argument "operand".
   if (IsUnsafeSmi(value)) {
     Result unsafe_operand(value);
     if (reversed) {
