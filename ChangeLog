@@ -1,3 +1,8 @@
+2010-05-05: Version 2.2.8
+
+        Performance improvements in the x64 and ARM backends.
+
+
 2010-05-03: Version 2.2.7
 
         Added support for ES5 date time string format to Date.parse.
