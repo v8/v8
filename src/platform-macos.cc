@@ -285,7 +285,7 @@ int OS::StackWalk(Vector<StackFrame> frames) {
   int frames_size = frames.length();
   ScopedVector<void*> addresses(frames_size);
 
-  int frames_count = backtrace(addresses.start(), frames_size.start());
+  int frames_count = backtrace(addresses.start(), frames_size);
 
   char** symbols = backtrace_symbols(addresses.start(), frames_count);
   if (symbols == NULL) {
