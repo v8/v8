@@ -682,11 +682,11 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
-    SmartPointer<uc16> smart_chars(NewArray<uc16>(this->length()));
-    String::WriteToFlat(this, *smart_chars, 0, this->length());
-    ASSERT(memcmp(*smart_chars,
+    ScopedVector<uc16> smart_chars(this->length());
+    String::WriteToFlat(this, smart_chars.start(), 0, this->length());
+    ASSERT(memcmp(smart_chars.start(),
                   resource->data(),
-                  resource->length() * sizeof(**smart_chars)) == 0);
+                  resource->length() * sizeof(smart_chars[0])) == 0);
   }
 #endif  // DEBUG
 
@@ -728,11 +728,11 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
-    SmartPointer<char> smart_chars(NewArray<char>(this->length()));
-    String::WriteToFlat(this, *smart_chars, 0, this->length());
-    ASSERT(memcmp(*smart_chars,
+    ScopedVector<char> smart_chars(this->length());
+    String::WriteToFlat(this, smart_chars.start(), 0, this->length());
+    ASSERT(memcmp(smart_chars.start(),
                   resource->data(),
-                  resource->length()*sizeof(**smart_chars)) == 0);
+                  resource->length() * sizeof(smart_chars[0])) == 0);
   }
 #endif  // DEBUG
 

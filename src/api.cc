@@ -2185,10 +2185,10 @@ Local<String> v8::Object::ObjectProtoToString() {
       int postfix_len = i::StrLength(postfix);
 
       int buf_len = prefix_len + str_len + postfix_len;
-      char* buf = i::NewArray<char>(buf_len);
+      i::ScopedVector<char> buf(buf_len);
 
       // Write prefix.
-      char* ptr = buf;
+      char* ptr = buf.start();
       memcpy(ptr, prefix, prefix_len * v8::internal::kCharSize);
       ptr += prefix_len;
 
@@ -2200,8 +2200,7 @@ Local<String> v8::Object::ObjectProtoToString() {
       memcpy(ptr, postfix, postfix_len * v8::internal::kCharSize);
 
       // Copy the buffer into a heap-allocated string and return it.
-      Local<String> result = v8::String::New(buf, buf_len);
-      i::DeleteArray(buf);
+      Local<String> result = v8::String::New(buf.start(), buf_len);
       return result;
     }
   }

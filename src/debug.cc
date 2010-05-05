@@ -52,14 +52,13 @@ namespace internal {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 static void PrintLn(v8::Local<v8::Value> value) {
   v8::Local<v8::String> s = value->ToString();
-  char* data = NewArray<char>(s->Length() + 1);
-  if (data == NULL) {
+  ScopedVector<char> data(s->Length() + 1);
+  if (data.start() == NULL) {
     V8::FatalProcessOutOfMemory("PrintLn");
     return;
   }
-  s->WriteAscii(data);
-  PrintF("%s\n", data);
-  DeleteArray(data);
+  s->WriteAscii(data.start());
+  PrintF("%s\n", data.start());
 }
 
 
