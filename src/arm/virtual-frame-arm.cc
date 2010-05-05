@@ -505,21 +505,25 @@ void VirtualFrame::Dup() {
       break;
     case R0_TOS:
       __ mov(r1, r0);
+      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
       top_of_stack_state_ = R0_R1_TOS;
       break;
     case R1_TOS:
       __ mov(r0, r1);
+      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
       top_of_stack_state_ = R0_R1_TOS;
       break;
     case R0_R1_TOS:
       __ push(r1);
       __ mov(r1, r0);
-      // No need to change state as r0 and r1 now contains the same value.
+      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
+      top_of_stack_state_ = R0_R1_TOS;
       break;
     case R1_R0_TOS:
       __ push(r0);
       __ mov(r0, r1);
-      // No need to change state as r0 and r1 now contains the same value.
+      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
+      top_of_stack_state_ = R0_R1_TOS;
       break;
     default:
       UNREACHABLE();
