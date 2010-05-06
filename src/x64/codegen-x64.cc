@@ -9884,12 +9884,27 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
     __ movq(left, Operand(rsp, 2 * kPointerSize));
   }
 
-  // 2. Smi check both operands. Skip the check for OR as it is better combined
-  // with the actual operation.
   Label not_smis;
-  if (op_ != Token::BIT_OR) {
-    Comment smi_check_comment(masm, "-- Smi check arguments");
-    __ JumpIfNotBothSmi(left, right, &not_smis);
+  // 2. Smi check both operands.
+  if (static_operands_type_.IsSmi()) {
+    // Skip smi check if we know that both arguments are smis.
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(left, "Static type check claimed non-smi is smi.");
+      __ AbortIfNotSmi(right, "Static type check claimed non-smi is smi.");
+    }
+    if (op_ == Token::BIT_OR) {
+      // Handle OR here, since we do extra smi-checking in the or code below.
+      __ SmiOr(right, right, left);
+      GenerateReturn(masm);
+      return;
+    }
+  } else {
+    if (op_ != Token::BIT_OR) {
+      // Skip the check for OR as it is better combined with the
+      // actual operation.
+      Comment smi_check_comment(masm, "-- Smi check arguments");
+      __ JumpIfNotBothSmi(left, right, &not_smis);
+    }
   }
 
   // 3. Operands are both smis (except for OR), perform the operation leaving
@@ -9977,6 +9992,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
     case Token::SUB:
     case Token::MUL:
     case Token::DIV: {
+      ASSERT(use_fp_on_smis.is_linked());
       __ bind(&use_fp_on_smis);
       if (op_ == Token::DIV) {
         __ movq(rdx, rax);
