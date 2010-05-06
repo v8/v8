@@ -360,7 +360,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
       frame_->AllocateStackSlots();
 
       // Allocate the local context if needed.
-      int heap_slots = scope()->num_heap_slots();
+      int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
       if (heap_slots > 0) {
         Comment cmnt(masm_, "[ allocate local context");
         // Allocate local context.

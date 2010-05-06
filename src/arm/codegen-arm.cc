@@ -191,7 +191,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
       frame_->AllocateStackSlots();
 
       VirtualFrame::SpilledScope spilled_scope(frame_);
-      int heap_slots = scope()->num_heap_slots();
+      int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
       if (heap_slots > 0) {
         // Allocate local context.
         // Get outer context and create a new context based on it.
