@@ -9614,7 +9614,7 @@ v8::Handle<Value> AnalyzeStackInNativeCode(const v8::Arguments& args) {
 
   ASSERT(args.Length() == 1);
 
-  int testGroup = args[0]->ToNumber()->Value();
+  int testGroup = args[0]->Int32Value();
   if (testGroup == kOverviewTest) {
     v8::Handle<v8::StackTrace> stackTrace =
         v8::StackTrace::CurrentStackTrace(10, v8::StackTrace::kOverview);
