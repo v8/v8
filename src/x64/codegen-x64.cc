@@ -6526,43 +6526,37 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
 
     case Token::SHL:
       if (reversed) {
-        // Move operand into rcx and also into a second register.
-        // If operand is already in a register, take advantage of that.
-        // This lets us modify rcx, but still bail out to deferred code.
-        Result right;
-        Result right_copy_in_rcx;
-        TypeInfo right_type_info = operand->type_info();
         operand->ToRegister();
-        if (operand->reg().is(rcx)) {
-          right = allocator()->Allocate();
-          __ movq(right.reg(), rcx);
-          frame_->Spill(rcx);
-          right_copy_in_rcx = *operand;
-        } else {
-          right_copy_in_rcx = allocator()->Allocate(rcx);
-          __ movq(rcx, operand->reg());
-          right = *operand;
-        }
-        operand->Unuse();
 
-        answer = allocator()->Allocate();
+        // We need rcx to be available to hold operand, and to be spilled.
+        // SmiShiftLeft implicitly modifies rcx.
+        if (operand->reg().is(rcx)) {
+          frame_->Spill(operand->reg());
+          answer = allocator()->Allocate();
+        } else {
+          Result rcx_reg = allocator()->Allocate(rcx);
+          // answer must not be rcx.
+          answer = allocator()->Allocate();
+          // rcx_reg goes out of scope.
+        }
+
         DeferredInlineSmiOperationReversed* deferred =
             new DeferredInlineSmiOperationReversed(op,
                                                    answer.reg(),
                                                    smi_value,
-                                                   right.reg(),
+                                                   operand->reg(),
                                                    overwrite_mode);
-        __ movq(answer.reg(), Immediate(int_value));
-        __ SmiToInteger32(rcx, rcx);
-        if (!right_type_info.IsSmi()) {
-          Condition is_smi = masm_->CheckSmi(right.reg());
+        if (!operand->type_info().IsSmi()) {
+          Condition is_smi = masm_->CheckSmi(operand->reg());
           deferred->Branch(NegateCondition(is_smi));
         } else if (FLAG_debug_code) {
-          __ AbortIfNotSmi(right.reg(),
+          __ AbortIfNotSmi(operand->reg(),
               "Static type info claims non-smi is smi in (const SHL smi).");
         }
-        __ shl_cl(answer.reg());
-        __ Integer32ToSmi(answer.reg(), answer.reg());
+
+        __ Move(answer.reg(), smi_value);
+        __ SmiShiftLeft(answer.reg(), answer.reg(), operand->reg());
+        operand->Unuse();
 
         deferred->BindExit();
       } else {
@@ -6595,8 +6589,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
           __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
           __ SmiShiftLeftConstant(answer.reg(),
                                   operand->reg(),
-                                  shift_value,
-                                  deferred->entry_label());
+                                  shift_value);
           deferred->BindExit();
           operand->Unuse();
         }
@@ -6837,8 +6830,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
       case Token::SHL: {
         __ SmiShiftLeft(answer.reg(),
                         left->reg(),
-                        rcx,
-                        deferred->entry_label());
+                        rcx);
         break;
       }
       default:
@@ -9934,7 +9926,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           __ SmiShiftLogicalRight(left, left, right, slow);
           break;
         case Token::SHL:
-          __ SmiShiftLeft(left, left, right, slow);
+          __ SmiShiftLeft(left, left, right);
           break;
         default:
           UNREACHABLE();
