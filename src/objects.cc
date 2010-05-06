@@ -4900,6 +4900,7 @@ Object* JSFunction::SetInstancePrototype(Object* value) {
     // prototype is put into the initial map where it belongs.
     set_prototype_or_initial_map(value);
   }
+  Heap::ClearInstanceofCache();
   return value;
 }
 
@@ -5600,6 +5601,8 @@ Object* JSObject::SetPrototype(Object* value,
   if (new_map->IsFailure()) return new_map;
   Map::cast(new_map)->set_prototype(value);
   real_receiver->set_map(Map::cast(new_map));
+
+  Heap::ClearInstanceofCache();
 
   return value;
 }

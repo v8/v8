@@ -50,6 +50,11 @@ void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
 }
 
 
+void MacroAssembler::StoreRoot(Register source, Heap::RootListIndex index) {
+  movq(Operand(kRootRegister, index << kPointerSizeLog2), source);
+}
+
+
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
   push(Operand(kRootRegister, index << kPointerSizeLog2));
 }

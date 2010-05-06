@@ -93,6 +93,9 @@ class ZoneScopeInfo;
   V(Map, proxy_map, ProxyMap)                                                  \
   V(Object, nan_value, NanValue)                                               \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
+  V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
+  V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
+  V(Object, instanceof_cache_answer, InstanceofCacheAnswer)                    \
   V(String, empty_string, EmptyString)                                         \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Map, neander_map, NeanderMap)                                              \
@@ -360,6 +363,11 @@ class Heap : public AllStatic {
 
   // Allocates an empty code cache.
   static Object* AllocateCodeCache();
+
+  // Clear the Instanceof cache (used when a prototype changes).
+  static void ClearInstanceofCache() {
+    set_instanceof_cache_function(the_hole_value());
+  }
 
   // Allocates and fully initializes a String.  There are two String
   // encodings: ASCII and two byte. One should choose between the three string
@@ -1170,6 +1178,13 @@ class Heap : public AllStatic {
   // Code to be run before and after mark-compact.
   static void MarkCompactPrologue(bool is_compacting);
   static void MarkCompactEpilogue(bool is_compacting);
+
+  // Completely clear the Instanceof cache (to stop it keeping objects alive
+  // around a GC).
+  static void CompletelyClearInstanceofCache() {
+    set_instanceof_cache_map(the_hole_value());
+    set_instanceof_cache_function(the_hole_value());
+  }
 
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source

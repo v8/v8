@@ -62,6 +62,7 @@ class MacroAssembler: public Assembler {
   void CompareRoot(Register with, Heap::RootListIndex index);
   void CompareRoot(Operand with, Heap::RootListIndex index);
   void PushRoot(Heap::RootListIndex index);
+  void StoreRoot(Register source, Heap::RootListIndex index);
 
   // ---------------------------------------------------------------------------
   // GC Support

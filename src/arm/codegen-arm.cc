@@ -8206,6 +8206,22 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Get the prototype of the function (r4 is result, r2 is scratch).
   __ ldr(r1, MemOperand(sp, 0));
+  // r1 is function, r3 is map.
+
+  // Look up the function and the map in the instanceof cache.
+  Label miss;
+  __ LoadRoot(ip, Heap::kInstanceofCacheFunctionRootIndex);
+  __ cmp(r1, ip);
+  __ b(ne, &miss);
+  __ LoadRoot(ip, Heap::kInstanceofCacheMapRootIndex);
+  __ cmp(r3, ip);
+  __ b(ne, &miss);
+  __ LoadRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
+  __ pop();
+  __ pop();
+  __ mov(pc, Operand(lr));
+
+  __ bind(&miss);
   __ TryGetFunctionPrototype(r1, r4, r2, &slow);
 
   // Check that the function prototype is a JS object.
@@ -8214,6 +8230,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ b(lt, &slow);
   __ cmp(r5, Operand(LAST_JS_OBJECT_TYPE));
   __ b(gt, &slow);
+
+  __ StoreRoot(r1, Heap::kInstanceofCacheFunctionRootIndex);
+  __ StoreRoot(r3, Heap::kInstanceofCacheMapRootIndex);
 
   // Register mapping: r3 is object map and r4 is function prototype.
   // Get prototype of object into r2.
@@ -8232,12 +8251,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   __ bind(&is_instance);
   __ mov(r0, Operand(Smi::FromInt(0)));
+  __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
   __ pop();
   __ pop();
   __ mov(pc, Operand(lr));  // Return.
 
   __ bind(&is_not_instance);
   __ mov(r0, Operand(Smi::FromInt(1)));
+  __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
   __ pop();
   __ pop();
   __ mov(pc, Operand(lr));  // Return.

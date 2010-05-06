@@ -232,6 +232,13 @@ void MacroAssembler::LoadRoot(Register destination,
 }
 
 
+void MacroAssembler::StoreRoot(Register source,
+                               Heap::RootListIndex index,
+                               Condition cond) {
+  str(source, MemOperand(roots, index << kPointerSizeLog2), cond);
+}
+
+
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register offset,
                                        Register scratch) {

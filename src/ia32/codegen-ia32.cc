@@ -12126,6 +12126,22 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Get the prototype of the function.
   __ mov(edx, Operand(esp, 1 * kPointerSize));  // 1 ~ return address
+  // edx is function, eax is map.
+
+  // Look up the function and the map in the instanceof cache.
+  Label miss;
+  ExternalReference roots_address = ExternalReference::roots_address();
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
+  __ cmp(edx, Operand::StaticArray(ecx, times_pointer_size, roots_address));
+  __ j(not_equal, &miss);
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheMapRootIndex));
+  __ cmp(eax, Operand::StaticArray(ecx, times_pointer_size, roots_address));
+  __ j(not_equal, &miss);
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+  __ mov(eax, Operand::StaticArray(ecx, times_pointer_size, roots_address));
+  __ ret(2 * kPointerSize);
+
+  __ bind(&miss);
   __ TryGetFunctionPrototype(edx, ebx, ecx, &slow);
 
   // Check that the function prototype is a JS object.
@@ -12138,7 +12154,15 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ cmp(ecx, LAST_JS_OBJECT_TYPE);
   __ j(greater, &slow, not_taken);
 
-  // Register mapping: eax is object map and ebx is function prototype.
+  // Register mapping:
+  //   eax is object map.
+  //   edx is function.
+  //   ebx is function prototype.
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheMapRootIndex));
+  __ mov(Operand::StaticArray(ecx, times_pointer_size, roots_address), eax);
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
+  __ mov(Operand::StaticArray(ecx, times_pointer_size, roots_address), edx);
+
   __ mov(ecx, FieldOperand(eax, Map::kPrototypeOffset));
 
   // Loop through the prototype chain looking for the function prototype.
@@ -12154,10 +12178,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   __ bind(&is_instance);
   __ Set(eax, Immediate(0));
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+  __ mov(Operand::StaticArray(ecx, times_pointer_size, roots_address), eax);
   __ ret(2 * kPointerSize);
 
   __ bind(&is_not_instance);
   __ Set(eax, Immediate(Smi::FromInt(1)));
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+  __ mov(Operand::StaticArray(ecx, times_pointer_size, roots_address), eax);
   __ ret(2 * kPointerSize);
 
   // Slow-case: Go through the JavaScript implementation.

@@ -8792,6 +8792,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   //   rsp[0] : return address
   //   rsp[1] : function pointer
   //   rsp[2] : value
+  // Returns a bitwise zero to indicate that the value
+  // is and instance of the function and anything else to
+  // indicate that the value is not an instance.
 
   // Get the object - go slow case if it's a smi.
   Label slow;
@@ -8806,6 +8809,18 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Get the prototype of the function.
   __ movq(rdx, Operand(rsp, 1 * kPointerSize));
+  // rdx is function, rax is map.
+
+  // Look up the function and the map in the instanceof cache.
+  Label miss;
+  __ CompareRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
+  __ j(not_equal, &miss);
+  __ CompareRoot(rax, Heap::kInstanceofCacheMapRootIndex);
+  __ j(not_equal, &miss);
+  __ LoadRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&miss);
   __ TryGetFunctionPrototype(rdx, rbx, &slow);
 
   // Check that the function prototype is a JS object.
@@ -8815,7 +8830,13 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
   __ j(above, &slow);
 
-  // Register mapping: rax is object map and rbx is function prototype.
+  // Register mapping:
+  //   rax is object map.
+  //   rdx is function.
+  //   rbx is function prototype.
+  __ StoreRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
+  __ StoreRoot(rax, Heap::kInstanceofCacheMapRootIndex);
+
   __ movq(rcx, FieldOperand(rax, Map::kPrototypeOffset));
 
   // Loop through the prototype chain looking for the function prototype.
@@ -8825,6 +8846,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ cmpq(rcx, rbx);
   __ j(equal, &is_instance);
   __ cmpq(rcx, kScratchRegister);
+  // The code at is_not_instance assumes that kScratchRegister contains a
+  // non-zero GCable value (the null object in this case).
   __ j(equal, &is_not_instance);
   __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
   __ movq(rcx, FieldOperand(rcx, Map::kPrototypeOffset));
@@ -8832,10 +8855,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   __ bind(&is_instance);
   __ xorl(rax, rax);
+  // Store bitwise zero in the cache.  This is a Smi in GC terms.
+  ASSERT_EQ(0, kSmiTag);
+  __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
   __ ret(2 * kPointerSize);
 
   __ bind(&is_not_instance);
-  __ movl(rax, Immediate(1));
+  // We have to store a non-zero value in the cache.
+  __ StoreRoot(kScratchRegister, Heap::kInstanceofCacheAnswerRootIndex);
   __ ret(2 * kPointerSize);
 
   // Slow-case: Go through the JavaScript implementation.
