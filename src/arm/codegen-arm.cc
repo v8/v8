@@ -8522,9 +8522,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // string length. A negative value will be greater (unsigned comparison).
   __ ldr(r0, MemOperand(sp, kPreviousIndexOffset));
   __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &runtime);
+  __ b(ne, &runtime);
   __ cmp(r3, Operand(r0));
-  __ b(le, &runtime);
+  __ b(ls, &runtime);
 
   // r2: Number of capture registers
   // subject: Subject string

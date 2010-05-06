@@ -10956,7 +10956,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // string length. A negative value will be greater (unsigned comparison).
   __ mov(eax, Operand(esp, kPreviousIndexOffset));
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &runtime);
+  __ j(not_zero, &runtime);
   __ cmp(eax, Operand(ebx));
   __ j(above_equal, &runtime);
 
