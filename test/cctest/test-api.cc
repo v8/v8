@@ -9584,6 +9584,115 @@ THREADED_TEST(StackTrace) {
 }
 
 
+// Checks that a StackFrame has certain expected values.
+void checkStackFrame(const char* expected_script_name,
+    const char* expected_func_name, int expected_line_number,
+    int expected_column, bool is_eval, bool is_constructor,
+    v8::Handle<v8::StackFrame> frame) {
+  v8::HandleScope scope;
+  v8::String::Utf8Value func_name(frame->GetFunctionName());
+  v8::String::Utf8Value script_name(frame->GetScriptName());
+  if (*script_name == NULL) {
+    // The situation where there is no associated script, like for evals.
+    CHECK(expected_script_name == NULL);
+  } else {
+    CHECK(strstr(*script_name, expected_script_name) != NULL);
+  }
+  CHECK(strstr(*func_name, expected_func_name) != NULL);
+  CHECK_EQ(expected_line_number, frame->GetLineNumber());
+  CHECK_EQ(expected_column, frame->GetColumn());
+  CHECK_EQ(is_eval, frame->IsEval());
+  CHECK_EQ(is_constructor, frame->IsConstructor());
+}
+
+
+v8::Handle<Value> AnalyzeStackInNativeCode(const v8::Arguments& args) {
+  v8::HandleScope scope;
+  const char* origin = "capture-stack-trace-test";
+  const int kOverviewTest = 1;
+  const int kDetailedTest = 2;
+
+  ASSERT(args.Length() == 1);
+
+  int testGroup = args[0]->ToNumber()->Value();
+  if (testGroup == kOverviewTest) {
+    v8::Handle<v8::StackTrace> stackTrace =
+        v8::StackTrace::CurrentStackTrace(10, v8::StackTrace::kOverview);
+    CHECK_EQ(4, stackTrace->GetFrameCount());
+    checkStackFrame(origin, "bar", 2, 10, false, false,
+                    stackTrace->GetFrame(0));
+    checkStackFrame(origin, "foo", 6, 3, false, false,
+                    stackTrace->GetFrame(1));
+    checkStackFrame(NULL, "", 1, 1, false, false,
+                    stackTrace->GetFrame(2));
+    // The last frame is an anonymous function that has the initial call.
+    checkStackFrame(origin, "", 8, 7, false, false,
+                    stackTrace->GetFrame(3));
+
+    CHECK(stackTrace->AsArray()->IsArray());
+  } else if (testGroup == kDetailedTest) {
+    v8::Handle<v8::StackTrace> stackTrace =
+        v8::StackTrace::CurrentStackTrace(10, v8::StackTrace::kDetailed);
+    CHECK_EQ(4, stackTrace->GetFrameCount());
+    checkStackFrame(origin, "bat", 2, 1, false, false,
+                    stackTrace->GetFrame(0));
+    checkStackFrame(origin, "baz", 5, 3, false, true,
+                    stackTrace->GetFrame(1));
+    checkStackFrame(NULL, "", 1, 1, true, false,
+                    stackTrace->GetFrame(2));
+    // The last frame is an anonymous function that has the initial call to foo.
+    checkStackFrame(origin, "", 7, 1, false, false,
+                    stackTrace->GetFrame(3));
+
+    CHECK(stackTrace->AsArray()->IsArray());
+  }
+  return v8::Undefined();
+}
+
+
+// Tests the C++ StackTrace API.
+THREADED_TEST(CaptureStackTrace) {
+  v8::HandleScope scope;
+  v8::Handle<v8::String> origin = v8::String::New("capture-stack-trace-test");
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("AnalyzeStackInNativeCode"),
+             v8::FunctionTemplate::New(AnalyzeStackInNativeCode));
+  LocalContext context(0, templ);
+
+  // Test getting OVERVIEW information. Should ignore information that is not
+  // script name, function name, line number, and column offset.
+  const char *overview_source =
+    "function bar() {\n"
+    "  var y; AnalyzeStackInNativeCode(1);\n"
+    "}\n"
+    "function foo() {\n"
+    "\n"
+    "  bar();\n"
+    "}\n"
+    "var x;eval('new foo();');";
+  v8::Handle<v8::String> overview_src = v8::String::New(overview_source);
+  v8::Handle<Value> overview_result =
+      v8::Script::New(overview_src, origin)->Run();
+  ASSERT(!overview_result.IsEmpty());
+  ASSERT(overview_result->IsObject());
+
+  // Test getting DETAILED information.
+  const char *detailed_source =
+    "function bat() {\n"
+    "AnalyzeStackInNativeCode(2);\n"
+    "}\n"
+    "function baz() {\n"
+    "  bat();\n"
+    "}\n"
+    "eval('new baz();');";
+  v8::Handle<v8::String> detailed_src = v8::String::New(detailed_source);
+  v8::Handle<Value> detailed_result =
+      v8::Script::New(detailed_src, origin)->Run();
+  ASSERT(!detailed_result.IsEmpty());
+  ASSERT(detailed_result->IsObject());
+}
+
+
 // Test that idle notification can be handled and eventually returns true.
 THREADED_TEST(IdleNotification) {
   bool rv = false;
