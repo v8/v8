@@ -33,11 +33,11 @@ namespace v8 {
 namespace internal {
 
 bool DateParser::DayComposer::Write(FixedArray* output) {
-    if (index_ < 1) return false;
-   // Day and month defaults to 1.
-   while (index_ < kSize) {
-       comp_[index_++] = 1;
-   }
+  if (index_ < 1) return false;
+  // Day and month defaults to 1.
+  while (index_ < kSize) {
+    comp_[index_++] = 1;
+  }
 
   int year = 0;  // Default year is 0 (=> 2000) for KJS compatibility.
   int month = kNone;
