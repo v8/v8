@@ -841,7 +841,6 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   // string and a number), and call runtime.
   __ bind(&slow_char_code);
   __ EnterInternalFrame();
-  ASSERT(object.code() > index.code());
   __ Push(object, index);
   __ CallRuntime(Runtime::kStringCharCodeAt, 2);
   ASSERT(!code.is(r0));

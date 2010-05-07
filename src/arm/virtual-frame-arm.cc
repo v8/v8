@@ -536,9 +536,9 @@ void VirtualFrame::Dup() {
 void VirtualFrame::Dup2() {
   if (SpilledScope::is_spilled()) {
     __ ldr(ip, MemOperand(sp, kPointerSize));
-    EmitPush(ip);
+    __ push(ip);
     __ ldr(ip, MemOperand(sp, kPointerSize));
-    EmitPush(ip);
+    __ push(ip);
   } else {
     switch (top_of_stack_state_) {
       case NO_TOS_REGISTERS:
@@ -557,13 +557,11 @@ void VirtualFrame::Dup2() {
         top_of_stack_state_ = R1_R0_TOS;
         break;
       case R0_R1_TOS:
-        __ push(r1);
-        __ push(r0);
+        __ Push(r1, r0);
         top_of_stack_state_ = R0_R1_TOS;
         break;
       case R1_R0_TOS:
-        __ push(r0);
-        __ push(r1);
+        __ Push(r0, r1);
         top_of_stack_state_ = R1_R0_TOS;
         break;
       default:
