@@ -3473,7 +3473,8 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
   if (node->is_compound()) {
     // For a compound assignment the right-hand side is a binary operation
     // between the current property value and the actual right-hand side.
-    // Load of the current value leaves receiver and key on the stack.
+    // Duplicate receiver and key for loading the current property value.
+    frame_->Dup2();
     EmitKeyedLoad();
     frame_->EmitPush(r0);
 
@@ -3767,19 +3768,23 @@ void CodeGenerator::VisitCall(Call* node) {
       // -------------------------------------------
 
       LoadAndSpill(property->obj());
+      if (!property->is_synthetic()) {
+        // Duplicate receiver for later use.
+        __ ldr(r0, MemOperand(sp, 0));
+        frame_->EmitPush(r0);
+      }
       LoadAndSpill(property->key());
       EmitKeyedLoad();
-      frame_->Drop();  // key
       // Put the function below the receiver.
       if (property->is_synthetic()) {
         // Use the global receiver.
-        frame_->Drop();
-        frame_->EmitPush(r0);
+        frame_->EmitPush(r0);  // Function.
         LoadGlobalReceiver(r0);
       } else {
-        frame_->EmitPop(r1);  // receiver
-        frame_->EmitPush(r0);  // function
-        frame_->EmitPush(r1);  // receiver
+        // Switch receiver and function.
+        frame_->EmitPop(r1);  // Receiver.
+        frame_->EmitPush(r0);  // Function.
+        frame_->EmitPush(r1);  // Receiver.
       }
 
       // Call the function.
@@ -5388,8 +5393,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
 
   // The rest of the instructions in the deferred code must be together.
   { Assembler::BlockConstPoolScope block_const_pool(masm_);
-    // Call keyed load IC. It has all arguments on the stack and the key in r0.
-    __ ldr(r0, MemOperand(sp, 0));
+    // Call keyed load IC. It has the arguments key and receiver in r0 and r1.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop instruction to indicate that the
@@ -5522,12 +5526,13 @@ void CodeGenerator::EmitKeyedLoad() {
     __ IncrementCounter(&Counters::keyed_load_inline, 1,
                         frame_->scratch0(), frame_->scratch1());
 
-    // Load the receiver and key from the stack.
-    frame_->SpillAllButCopyTOSToR1R0();
+    // Load the key and receiver from the stack to r0 and r1.
+    frame_->PopToR1R0();
     Register receiver = r0;
     Register key = r1;
     VirtualFrame::SpilledScope spilled(frame_);
 
+    // The deferred code expects key and receiver in r0 and r1.
     DeferredReferenceGetKeyedValue* deferred =
         new DeferredReferenceGetKeyedValue();
 
@@ -5721,6 +5726,9 @@ void Reference::GetValue() {
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
+      if (!persist_after_get_) {
+        cgen_->UnloadReference(this);
+      }
       break;
     }
 
@@ -5730,22 +5738,25 @@ void Reference::GetValue() {
       ASSERT(!is_global || var->is_global());
       cgen_->EmitNamedLoad(GetName(), is_global);
       cgen_->frame()->EmitPush(r0);
+      if (!persist_after_get_) {
+        cgen_->UnloadReference(this);
+      }
       break;
     }
 
     case KEYED: {
+      if (persist_after_get_) {
+        cgen_->frame()->Dup2();
+      }
       ASSERT(property != NULL);
       cgen_->EmitKeyedLoad();
       cgen_->frame()->EmitPush(r0);
+      if (!persist_after_get_) set_unloaded();
       break;
     }
 
     default:
       UNREACHABLE();
-  }
-
-  if (!persist_after_get_) {
-    cgen_->UnloadReference(this);
   }
 }
 

@@ -284,7 +284,9 @@ class MacroAssembler: public Assembler {
   // Allocate an object in new space. The object_size is specified in words (not
   // bytes). If the new space is exhausted control continues at the gc_required
   // label. The allocated object is returned in result. If the flag
-  // tag_allocated_object is true the result is tagged as as a heap object.
+  // tag_allocated_object is true the result is tagged as as a heap object. All
+  // registers are clobbered also when control continues at the gc_required
+  // label.
   void AllocateInNewSpace(int object_size,
                           Register result,
                           Register scratch1,
@@ -328,8 +330,9 @@ class MacroAssembler: public Assembler {
                                Register scratch2,
                                Label* gc_required);
 
-  // Allocates a heap number or jumps to the need_gc label if the young space
-  // is full and a scavenge is needed.
+  // Allocates a heap number or jumps to the gc_required label if the young
+  // space is full and a scavenge is needed. All registers are clobbered also
+  // when control continues at the gc_required label.
   void AllocateHeapNumber(Register result,
                           Register scratch1,
                           Register scratch2,

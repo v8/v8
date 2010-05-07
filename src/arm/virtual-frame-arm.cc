@@ -323,7 +323,8 @@ void VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
 
 void VirtualFrame::CallKeyedLoadIC() {
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  SpillAllButCopyTOSToR0();
+  PopToR1R0();
+  SpillAll();
   CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
 }
 
@@ -529,6 +530,47 @@ void VirtualFrame::Dup() {
       UNREACHABLE();
   }
   element_count_++;
+}
+
+
+void VirtualFrame::Dup2() {
+  if (SpilledScope::is_spilled()) {
+    __ ldr(ip, MemOperand(sp, kPointerSize));
+    EmitPush(ip);
+    __ ldr(ip, MemOperand(sp, kPointerSize));
+    EmitPush(ip);
+  } else {
+    switch (top_of_stack_state_) {
+      case NO_TOS_REGISTERS:
+        __ ldr(r0, MemOperand(sp, 0));
+        __ ldr(r1, MemOperand(sp, kPointerSize));
+        top_of_stack_state_ = R0_R1_TOS;
+        break;
+      case R0_TOS:
+        __ push(r0);
+        __ ldr(r1, MemOperand(sp, kPointerSize));
+        top_of_stack_state_ = R0_R1_TOS;
+        break;
+      case R1_TOS:
+        __ push(r1);
+        __ ldr(r0, MemOperand(sp, kPointerSize));
+        top_of_stack_state_ = R1_R0_TOS;
+        break;
+      case R0_R1_TOS:
+        __ push(r1);
+        __ push(r0);
+        top_of_stack_state_ = R0_R1_TOS;
+        break;
+      case R1_R0_TOS:
+        __ push(r0);
+        __ push(r1);
+        top_of_stack_state_ = R1_R0_TOS;
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  element_count_ += 2;
 }
 
 
