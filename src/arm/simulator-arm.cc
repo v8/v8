@@ -728,6 +728,13 @@ int32_t Simulator::get_register(int reg) const {
 }
 
 
+void Simulator::set_dw_register(int dreg, const int* dbl) {
+  ASSERT((dreg >= 0) && (dreg < num_d_registers));
+  registers_[dreg] = dbl[0];
+  registers_[dreg + 1] = dbl[1];
+}
+
+
 // Raw access to the PC register.
 void Simulator::set_pc(int32_t value) {
   pc_modified_ = true;
@@ -887,7 +894,7 @@ int Simulator::ReadW(int32_t addr, Instr* instr) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     return *ptr;
   }
-  PrintF("Unaligned read at 0x%08x\n", addr);
+  PrintF("Unaligned read at 0x%08x, pc=%p\n", addr, instr);
   UNIMPLEMENTED();
   return 0;
 #endif
@@ -998,6 +1005,41 @@ void Simulator::WriteB(int32_t addr, uint8_t value) {
 void Simulator::WriteB(int32_t addr, int8_t value) {
   int8_t* ptr = reinterpret_cast<int8_t*>(addr);
   *ptr = value;
+}
+
+
+int32_t* Simulator::ReadDW(int32_t addr) {
+#if V8_TARGET_CAN_READ_UNALIGNED
+  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
+  return ptr;
+#else
+  if ((addr & 3) == 0) {
+    int32_t* ptr = reinterpret_cast<int32_t*>(addr);
+    return ptr;
+  }
+  PrintF("Unaligned read at 0x%08x\n", addr);
+  UNIMPLEMENTED();
+  return 0;
+#endif
+}
+
+
+void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
+#if V8_TARGET_CAN_READ_UNALIGNED
+  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
+  *ptr++ = value1;
+  *ptr = value2;
+  return;
+#else
+  if ((addr & 3) == 0) {
+    int32_t* ptr = reinterpret_cast<int32_t*>(addr);
+    *ptr++ = value1;
+    *ptr = value2;
+    return;
+  }
+  PrintF("Unaligned write at 0x%08x\n", addr);
+  UNIMPLEMENTED();
+#endif
 }
 
 
@@ -1628,7 +1670,19 @@ void Simulator::DecodeType01(Instr* instr) {
           }
         }
       }
-      if (instr->HasH()) {
+      if (((instr->Bits(7, 4) & 0xd) == 0xd) && (instr->Bit(20) == 0)) {
+        ASSERT((rd % 2) == 0);
+        if (instr->HasH()) {
+          // The strd instruction.
+          int32_t value1 = get_register(rd);
+          int32_t value2 = get_register(rd+1);
+          WriteDW(addr, value1, value2);
+        } else {
+          // The ldrd instruction.
+          int* rn_data = ReadDW(addr);
+          set_dw_register(rd, rn_data);
+        }
+      } else if (instr->HasH()) {
         if (instr->HasSign()) {
           if (instr->HasL()) {
             int16_t val = ReadH(addr, instr);
