@@ -2497,7 +2497,9 @@ void CodeGenerator::Comparison(AstNode* node,
       // by reconstituting them on the non-fall-through path.
 
       if (left_side.is_smi()) {
-        if (FLAG_debug_code) __ AbortIfNotSmi(left_side.reg());
+        if (FLAG_debug_code) {
+          __ AbortIfNotSmi(left_side.reg());
+        }
       } else {
         JumpTarget is_smi;
         __ test(left_side.reg(), Immediate(kSmiTagMask));
@@ -2526,7 +2528,7 @@ void CodeGenerator::Comparison(AstNode* node,
             __ cvtsi2sd(xmm0, Operand(temp.reg()));
             temp.Unuse();
           }
-          __ comisd(xmm1, xmm0);
+          __ ucomisd(xmm1, xmm0);
           // Jump to builtin for NaN.
           not_number.Branch(parity_even, &left_side);
           left_side.Unuse();
@@ -2817,11 +2819,7 @@ void CodeGenerator::Comparison(AstNode* node,
       // number comparison in the stub if it was inlined.
       CompareStub stub(cc, strict, nan_info, !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      if (cc == equal) {
-        __ test(answer.reg(), Operand(answer.reg()));
-      } else {
-        __ cmp(answer.reg(), 0);
-      }
+      __ test(answer.reg(), Operand(answer.reg()));
       answer.Unuse();
       dest->true_target()->Branch(cc);
       dest->false_target()->Jump();
