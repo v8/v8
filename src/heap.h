@@ -979,6 +979,8 @@ class Heap : public AllStatic {
 
   static int MaxObjectSizeInNewSpace() { return kMaxObjectSizeInNewSpace; }
 
+  static void ClearJSFunctionResultCaches();
+
  private:
   static int reserved_semispace_size_;
   static int max_semispace_size_;
@@ -1192,8 +1194,6 @@ class Heap : public AllStatic {
   static inline HeapObject* MigrateObject(HeapObject* source,
                                           HeapObject* target,
                                           int size);
-
-  static void ClearJSFunctionResultCaches();
 
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   // Record the copy of an object in the NewSpace's statistics.

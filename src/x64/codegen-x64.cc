@@ -4476,22 +4476,142 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
 
 class DeferredSearchCache: public DeferredCode {
  public:
-  DeferredSearchCache(Register dst, Register cache, Register key)
-      : dst_(dst), cache_(cache), key_(key) {
+  DeferredSearchCache(Register dst,
+                      Register cache,
+                      Register key,
+                      Register scratch)
+      : dst_(dst), cache_(cache), key_(key), scratch_(scratch) {
     set_comment("[ DeferredSearchCache");
   }
 
   virtual void Generate();
 
  private:
-  Register dst_, cache_, key_;
+  Register dst_;    // on invocation index of finger (as Smi), on exit
+                    // holds value being looked up.
+  Register cache_;  // instance of JSFunctionResultCache.
+  Register key_;    // key being looked up.
+  Register scratch_;
 };
 
 
+// Return a position of the element at |index| + |additional_offset|
+// in FixedArray pointer to which is held in |array|.  |index| is int32.
+static Operand ArrayElement(Register array,
+                            Register index,
+                            int additional_offset = 0) {
+  int offset = FixedArray::kHeaderSize + additional_offset * kPointerSize;
+  return FieldOperand(array, index, times_pointer_size, offset);
+}
+
+
 void DeferredSearchCache::Generate() {
-  __ push(cache_);
+  Label first_loop, search_further, second_loop, cache_miss;
+
+  Immediate kEntriesIndexImm = Immediate(JSFunctionResultCache::kEntriesIndex);
+  Immediate kEntrySizeImm = Immediate(JSFunctionResultCache::kEntrySize);
+
+  __ SmiToInteger32(dst_, dst_);
+  // Check the cache from finger to start of the cache.
+  __ bind(&first_loop);
+  __ subq(dst_, kEntrySizeImm);
+  __ cmpq(dst_, kEntriesIndexImm);
+  __ j(less, &search_further);
+
+  __ cmpq(ArrayElement(cache_, dst_), key_);
+  __ j(not_equal, &first_loop);
+
+  __ Integer32ToSmi(scratch_, dst_);
+  __ movq(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), scratch_);
+  __ movq(dst_, ArrayElement(cache_, dst_, 1));
+  __ jmp(exit_label());
+
+  __ bind(&search_further);
+
+  // Check the cache from end of cache up to finger.
+  __ movq(dst_, FieldOperand(cache_, JSFunctionResultCache::kCacheSizeOffset));
+  __ movq(scratch_, FieldOperand(cache_, JSFunctionResultCache::kFingerOffset));
+  __ SmiToInteger32(dst_, dst_);
+  __ SmiToInteger32(scratch_, scratch_);
+
+  __ bind(&second_loop);
+  __ subq(dst_, kEntrySizeImm);
+  __ cmpq(dst_, scratch_);
+  __ j(less_equal, &cache_miss);
+
+  __ cmpq(ArrayElement(cache_, dst_), key_);
+  __ j(not_equal, &second_loop);
+
+  __ Integer32ToSmi(scratch_, dst_);
+  __ movq(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), scratch_);
+  __ movq(dst_, ArrayElement(cache_, dst_, 1));
+  __ jmp(exit_label());
+
+  __ bind(&cache_miss);
+  __ push(cache_);  // store a reference to cache
+  __ push(key_);  // store a key
+  Handle<Object> receiver(Top::global_context()->global());
+  __ Push(receiver);
   __ push(key_);
-  __ CallRuntime(Runtime::kGetFromCache, 2);
+  // On x64 function must be in rdi.
+  __ movq(rdi, FieldOperand(cache_, JSFunctionResultCache::kFactoryOffset));
+  ParameterCount expected(1);
+  __ InvokeFunction(rdi, expected, CALL_FUNCTION);
+
+  // Find a place to put new cached value into.
+  Label add_new_entry, update_cache;
+  __ movq(rcx, Operand(rsp, kPointerSize));  // restore the cache
+  // Possible optimization: cache size is constant for the given cache
+  // so technically we could use a constant here.  However, if we have
+  // cache miss this optimization would hardly matter much.
+
+  // Check if we could add new entry to cache.
+  __ movl(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
+  __ movq(r9, FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset));
+  __ SmiToInteger32(r9, r9);
+  __ cmpq(rbx, r9);
+  __ j(greater, &add_new_entry);
+
+  // Check if we could evict entry after finger.
+  __ movq(rdx, FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
+  __ SmiToInteger32(rdx, rdx);
+  __ addq(rdx, kEntrySizeImm);
+  Label forward;
+  __ cmpq(rbx, rdx);
+  __ j(greater, &forward);
+  // Need to wrap over the cache.
+  __ movq(rdx, kEntriesIndexImm);
+  __ bind(&forward);
+  __ Integer32ToSmi(r9, rdx);
+  __ jmp(&update_cache);
+
+  __ bind(&add_new_entry);
+  // r9 holds cache size as int.
+  __ movq(rdx, r9);
+  __ Integer32ToSmi(r9, r9);
+  __ SmiAddConstant(rbx, r9, Smi::FromInt(JSFunctionResultCache::kEntrySize));
+  __ movq(FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset), rbx);
+
+  // Update the cache itself.
+  // rdx holds the index as int.
+  // r9 holds the index as smi.
+  __ bind(&update_cache);
+  __ pop(rbx);  // restore the key
+  __ movq(FieldOperand(rcx, JSFunctionResultCache::kFingerOffset), r9);
+  // Store key.
+  __ movq(ArrayElement(rcx, rdx), rbx);
+  __ RecordWrite(rcx, 0, rbx, r9);
+
+  // Store value.
+  __ pop(rcx);  // restore the cache.
+  __ movq(rdx, FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
+  __ SmiAddConstant(rdx, rdx, Smi::FromInt(1));
+  __ movq(r9, rdx);
+  __ SmiToInteger32(rdx, rdx);
+  __ movq(rbx, rax);
+  __ movq(ArrayElement(rcx, rdx), rbx);
+  __ RecordWrite(rcx, 0, rbx, r9);
+
   if (!dst_.is(rax)) {
     __ movq(dst_, rax);
   }
@@ -4529,27 +4649,28 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
   Result tmp = allocator()->Allocate();
   ASSERT(tmp.is_valid());
 
+  Result scratch = allocator()->Allocate();
+  ASSERT(scratch.is_valid());
+
   DeferredSearchCache* deferred = new DeferredSearchCache(tmp.reg(),
                                                           cache.reg(),
-                                                          key.reg());
+                                                          key.reg(),
+                                                          scratch.reg());
 
   const int kFingerOffset =
       FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
   // tmp.reg() now holds finger offset as a smi.
-  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ movq(tmp.reg(), FieldOperand(cache.reg(), kFingerOffset));
   SmiIndex index =
       masm()->SmiToIndex(kScratchRegister, tmp.reg(), kPointerSizeLog2);
   __ cmpq(key.reg(), FieldOperand(cache.reg(),
-                                  index.reg,
-                                  index.scale,
+                                  index.reg, index.scale,
                                   FixedArray::kHeaderSize));
+  // Do NOT alter index.reg or tmp.reg() before cmpq below.
   deferred->Branch(not_equal);
-
   __ movq(tmp.reg(), FieldOperand(cache.reg(),
-                                  index.reg,
-                                  index.scale,
-                                  kPointerSize + FixedArray::kHeaderSize));
+                                  index.reg, index.scale,
+                                  FixedArray::kHeaderSize + kPointerSize));
 
   deferred->BindExit();
   frame_->Push(&tmp);

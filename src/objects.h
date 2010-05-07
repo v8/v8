@@ -2328,6 +2328,10 @@ class JSFunctionResultCache: public FixedArray {
 
   static const int kEntrySize = 2;  // key + value
 
+  static const int kFactoryOffset = kHeaderSize;
+  static const int kFingerOffset = kFactoryOffset + kPointerSize;
+  static const int kCacheSizeOffset = kFingerOffset + kPointerSize;
+
   inline void MakeZeroSize();
   inline void Clear();
 
