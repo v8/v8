@@ -1194,7 +1194,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
       // Increment element's and array's sizes.
-      __ addq(FieldOperand(rbx, FixedArray::kLengthOffset),
+      __ addl(FieldOperand(rbx, FixedArray::kLengthOffset),
               Immediate(kAllocationDelta));
       __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rax);
 

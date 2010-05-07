@@ -4447,7 +4447,7 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
     __ Move(FieldOperand(rcx, HeapObject::kMapOffset),
             Factory::fixed_array_map());
     // Set length.
-    __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rbx);
+    __ movl(FieldOperand(rcx, FixedArray::kLengthOffset), rbx);
     // Fill contents of fixed-array with the-hole.
     __ Move(rdx, Factory::the_hole_value());
     __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
@@ -9010,7 +9010,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ movq(FieldOperand(rax, JSObject::kElementsOffset), rdi);
   __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
   __ movq(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);
-  __ movq(FieldOperand(rdi, FixedArray::kLengthOffset), rcx);
+  __ movl(FieldOperand(rdi, FixedArray::kLengthOffset), rcx);
 
   // Copy the fixed array slots.
   Label loop;
