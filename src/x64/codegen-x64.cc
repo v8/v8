@@ -2866,9 +2866,63 @@ void CodeGenerator::VisitCall(Call* node) {
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
     // ----------------------------------
-    // JavaScript example: 'with (obj) foo(1, 2, 3)'  // foo is in obj
+    // JavaScript examples:
+    //
+    //  with (obj) foo(1, 2, 3)  // foo is in obj
+    //
+    //  function f() {};
+    //  function g() {
+    //    eval(...);
+    //    f();  // f could be in extension object
+    //  }
     // ----------------------------------
 
+    JumpTarget slow;
+    JumpTarget done;
+
+    // Generate fast-case code for variables that might be shadowed by
+    // eval-introduced variables.  Eval is used a lot without
+    // introducing variables.  In those cases, we do not want to
+    // perform a runtime call for all variables in the scope
+    // containing the eval.
+    Result function;
+    if (var->mode() == Variable::DYNAMIC_GLOBAL) {
+      function = LoadFromGlobalSlotCheckExtensions(var->slot(),
+                                                   NOT_INSIDE_TYPEOF,
+                                                   &slow);
+      frame_->Push(&function);
+      LoadGlobalReceiver();
+      done.Jump();
+
+    } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
+      Slot* potential_slot = var->local_if_not_shadowed()->slot();
+      // Only generate the fast case for locals that rewrite to slots.
+      // This rules out argument loads because eval forces arguments
+      // access to be through the arguments object.
+      if (potential_slot != NULL) {
+        // Allocate a fresh register to use as a temp in
+        // ContextSlotOperandCheckExtensions and to hold the result
+        // value.
+        function = allocator()->Allocate();
+        ASSERT(function.is_valid());
+        __ movq(function.reg(),
+                ContextSlotOperandCheckExtensions(potential_slot,
+                                                  function,
+                                                  &slow));
+        JumpTarget push_function_and_receiver;
+        if (potential_slot->var()->mode() == Variable::CONST) {
+          __ CompareRoot(function.reg(), Heap::kTheHoleValueRootIndex);
+          push_function_and_receiver.Branch(not_equal, &function);
+          __ LoadRoot(function.reg(), Heap::kUndefinedValueRootIndex);
+        }
+        push_function_and_receiver.Bind(&function);
+        frame_->Push(&function);
+        LoadGlobalReceiver();
+        done.Jump();
+      }
+    }
+
+    slow.Bind();
     // Load the function from the context.  Sync the frame so we can
     // push the arguments directly into place.
     frame_->SyncRange(0, frame_->element_count() - 1);
@@ -2887,6 +2941,7 @@ void CodeGenerator::VisitCall(Call* node) {
     ASSERT(!allocator()->is_used(rdx));
     frame_->EmitPush(rdx);
 
+    done.Bind();
     // Call the function.
     CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
 
@@ -5178,7 +5233,8 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
       Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
       // Only generate the fast case for locals that rewrite to slots.
-      // This rules out argument loads.
+      // This rules out argument loads because eval forces arguments
+      // access to be through the arguments object.
       if (potential_slot != NULL) {
         // Allocate a fresh register to use as a temp in
         // ContextSlotOperandCheckExtensions and to hold the result
