@@ -2776,22 +2776,15 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     // containing the eval.
     if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
       LoadFromGlobalSlotCheckExtensions(slot, typeof_state, &slow);
-      // If there was no control flow to slow, we can exit early.
-      if (!slow.is_linked()) {
-        frame_->EmitPush(r0);
-        return;
-      }
       frame_->SpillAll();
-
       done.Jump();
 
     } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
       frame_->SpillAll();
       Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
-      // Only generate the fast case for locals that rewrite to slots.
-      // This rules out argument loads because eval forces arguments
-      // access to be through the arguments object.
+      Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
       if (potential_slot != NULL) {
+        // Generate fast case for locals that rewrite to slots.
         __ ldr(r0,
                ContextSlotOperandCheckExtensions(potential_slot,
                                                  r1,
@@ -2802,10 +2795,32 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
           __ cmp(r0, ip);
           __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
         }
-        // There is always control flow to slow from
-        // ContextSlotOperandCheckExtensions so we have to jump around
-        // it.
         done.Jump();
+      } else if (rewrite != NULL) {
+        // Generate fast case for argument loads.
+        Property* property = rewrite->AsProperty();
+        if (property != NULL) {
+          VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+          Literal* key_literal = property->key()->AsLiteral();
+          if (obj_proxy != NULL &&
+              key_literal != NULL &&
+              obj_proxy->IsArguments() &&
+              key_literal->handle()->IsSmi()) {
+            // Load arguments object if there are no eval-introduced
+            // variables. Then load the argument from the arguments
+            // object using keyed load.
+            __ ldr(r0,
+                   ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
+                                                     r1,
+                                                     r2,
+                                                     &slow));
+            frame_->EmitPush(r0);
+            __ mov(r1, Operand(key_literal->handle()));
+            frame_->EmitPush(r1);
+            EmitKeyedLoad();
+            done.Jump();
+          }
+        }
       }
     }
 
@@ -3708,12 +3723,12 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
     // JavaScript examples:
     //
-    //  with (obj) foo(1, 2, 3)  // foo is in obj
+    //  with (obj) foo(1, 2, 3)  // foo may be in obj.
     //
     //  function f() {};
     //  function g() {
     //    eval(...);
-    //    f();  // f could be in extension object
+    //    f();  // f could be in extension object.
     //  }
     // ----------------------------------
 
@@ -3735,10 +3750,9 @@ void CodeGenerator::VisitCall(Call* node) {
 
     } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
       Slot* potential_slot = var->local_if_not_shadowed()->slot();
-      // Only generate the fast case for locals that rewrite to slots.
-      // This rules out argument loads because eval forces arguments
-      // access to be through the arguments object.
+      Expression* rewrite = var->local_if_not_shadowed()->rewrite();
       if (potential_slot != NULL) {
+        // Generate fast case for locals that rewrite to slots.
         __ ldr(r0,
                ContextSlotOperandCheckExtensions(potential_slot,
                                                  r1,
@@ -3752,6 +3766,33 @@ void CodeGenerator::VisitCall(Call* node) {
         frame_->EmitPush(r0);
         LoadGlobalReceiver(r1);
         done.Jump();
+      } else if (rewrite != NULL) {
+        // Generate fast case for calls of an argument function.
+        Property* property = rewrite->AsProperty();
+        if (property != NULL) {
+          VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+          Literal* key_literal = property->key()->AsLiteral();
+          if (obj_proxy != NULL &&
+              key_literal != NULL &&
+              obj_proxy->IsArguments() &&
+              key_literal->handle()->IsSmi()) {
+            // Load arguments object if there are no eval-introduced
+            // variables. Then load the argument from the arguments
+            // object using keyed load.
+            __ ldr(r0,
+                   ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
+                                                     r1,
+                                                     r2,
+                                                     &slow));
+            frame_->EmitPush(r0);
+            __ mov(r1, Operand(key_literal->handle()));
+            frame_->EmitPush(r1);
+            EmitKeyedLoad();
+            frame_->EmitPush(r0);
+            LoadGlobalReceiver(r1);
+            done.Jump();
+          }
+        }
       }
     }
 

@@ -4731,16 +4731,13 @@ Result CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     // containing the eval.
     if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
       result = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, &slow);
-      // If there was no control flow to slow, we can exit early.
-      if (!slow.is_linked()) return result;
       done.Jump(&result);
 
     } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
       Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
-      // Only generate the fast case for locals that rewrite to slots.
-      // This rules out argument loads because eval forces arguments
-      // access to be through the arguments object.
+      Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
       if (potential_slot != NULL) {
+        // Generate fast case for locals that rewrite to slots.
         // Allocate a fresh register to use as a temp in
         // ContextSlotOperandCheckExtensions and to hold the result
         // value.
@@ -4755,10 +4752,32 @@ Result CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
           done.Branch(not_equal, &result);
           __ mov(result.reg(), Factory::undefined_value());
         }
-        // There is always control flow to slow from
-        // ContextSlotOperandCheckExtensions so we have to jump around
-        // it.
         done.Jump(&result);
+      } else if (rewrite != NULL) {
+        // Generate fast case for argument loads.
+        Property* property = rewrite->AsProperty();
+        if (property != NULL) {
+          VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+          Literal* key_literal = property->key()->AsLiteral();
+          if (obj_proxy != NULL &&
+              key_literal != NULL &&
+              obj_proxy->IsArguments() &&
+              key_literal->handle()->IsSmi()) {
+            // Load arguments object if there are no eval-introduced
+            // variables. Then load the argument from the arguments
+            // object using keyed load.
+            Result arguments = allocator()->Allocate();
+            ASSERT(arguments.is_valid());
+            __ mov(arguments.reg(),
+                   ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
+                                                     arguments,
+                                                     &slow));
+            frame_->Push(&arguments);
+            frame_->Push(key_literal->handle());
+            result = EmitKeyedLoad();
+            done.Jump(&result);
+          }
+        }
       }
     }
 
@@ -5765,12 +5784,12 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
     // JavaScript examples:
     //
-    //  with (obj) foo(1, 2, 3)  // foo is in obj
+    //  with (obj) foo(1, 2, 3)  // foo may be in obj.
     //
     //  function f() {};
     //  function g() {
     //    eval(...);
-    //    f();  // f could be in extension object
+    //    f();  // f could be in extension object.
     //  }
     // ----------------------------------
 
@@ -5782,25 +5801,23 @@ void CodeGenerator::VisitCall(Call* node) {
     // introducing variables.  In those cases, we do not want to
     // perform a runtime call for all variables in the scope
     // containing the eval.
-    Result function;
     if (var->mode() == Variable::DYNAMIC_GLOBAL) {
-      function = LoadFromGlobalSlotCheckExtensions(var->slot(),
-                                                   NOT_INSIDE_TYPEOF,
-                                                   &slow);
+      Result function = LoadFromGlobalSlotCheckExtensions(var->slot(),
+                                                          NOT_INSIDE_TYPEOF,
+                                                          &slow);
       frame_->Push(&function);
       LoadGlobalReceiver();
       done.Jump();
 
     } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
       Slot* potential_slot = var->local_if_not_shadowed()->slot();
-      // Only generate the fast case for locals that rewrite to slots.
-      // This rules out argument loads because eval forces arguments
-      // access to be through the arguments object.
+      Expression* rewrite = var->local_if_not_shadowed()->rewrite();
       if (potential_slot != NULL) {
+        // Generate fast case for locals that rewrite to slots.
         // Allocate a fresh register to use as a temp in
         // ContextSlotOperandCheckExtensions and to hold the result
         // value.
-        function = allocator()->Allocate();
+        Result function = allocator()->Allocate();
         ASSERT(function.is_valid());
         __ mov(function.reg(),
                ContextSlotOperandCheckExtensions(potential_slot,
@@ -5816,6 +5833,33 @@ void CodeGenerator::VisitCall(Call* node) {
         frame_->Push(&function);
         LoadGlobalReceiver();
         done.Jump();
+      } else if (rewrite != NULL) {
+        // Generate fast case for calls of an argument function.
+        Property* property = rewrite->AsProperty();
+        if (property != NULL) {
+          VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+          Literal* key_literal = property->key()->AsLiteral();
+          if (obj_proxy != NULL &&
+              key_literal != NULL &&
+              obj_proxy->IsArguments() &&
+              key_literal->handle()->IsSmi()) {
+            // Load arguments object if there are no eval-introduced
+            // variables. Then load the argument from the arguments
+            // object using keyed load.
+            Result arguments = allocator()->Allocate();
+            ASSERT(arguments.is_valid());
+            __ mov(arguments.reg(),
+                   ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
+                                                     arguments,
+                                                     &slow));
+            frame_->Push(&arguments);
+            frame_->Push(key_literal->handle());
+            Result value = EmitKeyedLoad();
+            frame_->Push(&value);
+            LoadGlobalReceiver();
+            done.Jump();
+          }
+        }
       }
     }
 
