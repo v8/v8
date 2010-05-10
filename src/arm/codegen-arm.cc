@@ -5578,8 +5578,8 @@ void CodeGenerator::EmitKeyedLoad() {
 
     // Load the key and receiver from the stack to r0 and r1.
     frame_->PopToR1R0();
-    Register receiver = r0;
-    Register key = r1;
+    Register key = r0;
+    Register receiver = r1;
     VirtualFrame::SpilledScope spilled(frame_);
 
     // The deferred code expects key and receiver in r0 and r1.
@@ -5594,17 +5594,16 @@ void CodeGenerator::EmitKeyedLoad() {
     // property code which can be patched. Therefore the exact number of
     // instructions generated need to be fixed, so the constant pool is blocked
     // while generating this code.
-#ifdef DEBUG
-    int kInlinedKeyedLoadInstructions = 19;
-    Label check_inlined_codesize;
-    masm_->bind(&check_inlined_codesize);
-#endif
     { Assembler::BlockConstPoolScope block_const_pool(masm_);
       Register scratch1 = VirtualFrame::scratch0();
       Register scratch2 = VirtualFrame::scratch1();
       // Check the map. The null map used below is patched by the inline cache
       // code.
       __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
+#ifdef DEBUG
+    Label check_inlined_codesize;
+    masm_->bind(&check_inlined_codesize);
+#endif
       __ mov(scratch2, Operand(Factory::null_value()));
       __ cmp(scratch1, scratch2);
       deferred->Branch(ne);
@@ -5632,17 +5631,15 @@ void CodeGenerator::EmitKeyedLoad() {
       __ add(scratch1,
              scratch1,
              Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-      __ ldr(r0,
+      __ ldr(scratch1,
              MemOperand(scratch1, key, LSL,
                         kPointerSizeLog2 - (kSmiTagSize + kSmiShiftSize)));
-      __ cmp(r0, scratch2);
-      // This is the only branch to deferred where r0 and r1 do not contain the
-      // receiver and key.  We can't just load undefined here because we have to
-      // check the prototype.
+      __ cmp(scratch1, scratch2);
       deferred->Branch(eq);
 
+      __ mov(r0, scratch1);
       // Make sure that the expected number of instructions are generated.
-      ASSERT_EQ(kInlinedKeyedLoadInstructions,
+      ASSERT_EQ(kInlinedKeyedLoadInstructionsAfterPatchSize,
                 masm_->InstructionsGeneratedSince(&check_inlined_codesize));
     }
 
