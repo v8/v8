@@ -5471,19 +5471,33 @@ void DeferredReferenceGetNamedValue::Generate() {
 
 class DeferredReferenceGetKeyedValue: public DeferredCode {
  public:
-  DeferredReferenceGetKeyedValue() {
+  DeferredReferenceGetKeyedValue(Register key, Register receiver)
+      : key_(key), receiver_(receiver) {
     set_comment("[ DeferredReferenceGetKeyedValue");
   }
 
   virtual void Generate();
+
+ private:
+  Register key_;
+  Register receiver_;
 };
 
 
 void DeferredReferenceGetKeyedValue::Generate() {
+  ASSERT((key_.is(r0) && receiver_.is(r1)) ||
+         (key_.is(r1) && receiver_.is(r0)));
+
   Register scratch1 = VirtualFrame::scratch0();
   Register scratch2 = VirtualFrame::scratch1();
   __ DecrementCounter(&Counters::keyed_load_inline, 1, scratch1, scratch2);
   __ IncrementCounter(&Counters::keyed_load_inline_miss, 1, scratch1, scratch2);
+
+  // Ensure key in r0 and receiver in r1 to match keyed load ic calling
+  // convention.
+  if (key_.is(r1)) {
+    __ Swap(r0, r1, ip);
+  }
 
   // The rest of the instructions in the deferred code must be together.
   { Assembler::BlockConstPoolScope block_const_pool(masm_);
@@ -5620,15 +5634,14 @@ void CodeGenerator::EmitKeyedLoad() {
     __ IncrementCounter(&Counters::keyed_load_inline, 1,
                         frame_->scratch0(), frame_->scratch1());
 
-    // Load the key and receiver from the stack to r0 and r1.
-    frame_->PopToR1R0();
-    Register key = r0;
-    Register receiver = r1;
+    // Load the key and receiver from the stack.
+    Register key = frame_->PopToRegister();
+    Register receiver = frame_->PopToRegister(key);
     VirtualFrame::SpilledScope spilled(frame_);
 
-    // The deferred code expects key and receiver in r0 and r1.
+    // The deferred code expects key and receiver in registers.
     DeferredReferenceGetKeyedValue* deferred =
-        new DeferredReferenceGetKeyedValue();
+        new DeferredReferenceGetKeyedValue(key, receiver);
 
     // Check that the receiver is a heap object.
     __ tst(receiver, Operand(kSmiTagMask));

@@ -576,7 +576,6 @@ Register VirtualFrame::PopToRegister(Register but_not_to_this_one) {
   ASSERT(but_not_to_this_one.is(r0) ||
          but_not_to_this_one.is(r1) ||
          but_not_to_this_one.is(no_reg));
-  AssertIsNotSpilled();
   element_count_--;
   if (top_of_stack_state_ == NO_TOS_REGISTERS) {
     if (but_not_to_this_one.is(r0)) {
