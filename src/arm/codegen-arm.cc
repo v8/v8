@@ -8652,7 +8652,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ldr(last_match_info_elements,
          FieldMemOperand(r0, JSArray::kElementsOffset));
   __ ldr(r0, FieldMemOperand(last_match_info_elements, HeapObject::kMapOffset));
-  __ LoadRoot(ip, kFixedArrayMapRootIndex);
+  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
   __ cmp(r0, ip);
   __ b(ne, &runtime);
   // Check that the last match info has space for the capture registers and the
