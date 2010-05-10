@@ -713,7 +713,6 @@ class GenericBinaryOpStub: public CodeStub {
         static_operands_type_(operands_type),
         runtime_operands_type_(BinaryOpIC::DEFAULT),
         name_(NULL) {
-    use_sse3_ = CpuFeatures::IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 
@@ -723,7 +722,6 @@ class GenericBinaryOpStub: public CodeStub {
         flags_(FlagBits::decode(key)),
         args_in_registers_(ArgsInRegistersBits::decode(key)),
         args_reversed_(ArgsReversedBits::decode(key)),
-        use_sse3_(SSE3Bits::decode(key)),
         static_operands_type_(TypeInfo::ExpandedRepresentation(
             StaticTypeInfoBits::decode(key))),
         runtime_operands_type_(type_info),
@@ -748,7 +746,6 @@ class GenericBinaryOpStub: public CodeStub {
   GenericBinaryFlags flags_;
   bool args_in_registers_;  // Arguments passed in registers not on the stack.
   bool args_reversed_;  // Left and right argument are swapped.
-  bool use_sse3_;
 
   // Number type information of operands, determined by code generator.
   TypeInfo static_operands_type_;
@@ -774,15 +771,14 @@ class GenericBinaryOpStub: public CodeStub {
   }
 #endif
 
-  // Minor key encoding in 18 bits TTNNNFRASOOOOOOOMM.
+  // Minor key encoding in 17 bits TTNNNFRAOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
   class OpBits: public BitField<Token::Value, 2, 7> {};
-  class SSE3Bits: public BitField<bool, 9, 1> {};
-  class ArgsInRegistersBits: public BitField<bool, 10, 1> {};
-  class ArgsReversedBits: public BitField<bool, 11, 1> {};
-  class FlagBits: public BitField<GenericBinaryFlags, 12, 1> {};
-  class StaticTypeInfoBits: public BitField<int, 13, 3> {};
-  class RuntimeTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 16, 2> {};
+  class ArgsInRegistersBits: public BitField<bool, 9, 1> {};
+  class ArgsReversedBits: public BitField<bool, 10, 1> {};
+  class FlagBits: public BitField<GenericBinaryFlags, 11, 1> {};
+  class StaticTypeInfoBits: public BitField<int, 12, 3> {};
+  class RuntimeTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 15, 2> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
@@ -790,7 +786,6 @@ class GenericBinaryOpStub: public CodeStub {
     return OpBits::encode(op_)
            | ModeBits::encode(mode_)
            | FlagBits::encode(flags_)
-           | SSE3Bits::encode(use_sse3_)
            | ArgsInRegistersBits::encode(args_in_registers_)
            | ArgsReversedBits::encode(args_reversed_)
            | StaticTypeInfoBits::encode(

@@ -1092,6 +1092,7 @@ class Assembler : public Malloced {
 
   void cvttss2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, const Operand& src);
+  void cvttsd2siq(Register dst, XMMRegister src);
 
   void cvtlsi2sd(XMMRegister dst, const Operand& src);
   void cvtlsi2sd(XMMRegister dst, Register src);

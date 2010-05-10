@@ -10296,6 +10296,11 @@ void IntegerConvert(MacroAssembler* masm,
   Label done, right_exponent, normal_exponent;
   Register scratch = ebx;
   Register scratch2 = edi;
+  if (type_info.IsInteger32() && CpuFeatures::IsEnabled(SSE2)) {
+    CpuFeatures::Scope scope(SSE2);
+    __ cvttsd2si(ecx, FieldOperand(source, HeapNumber::kValueOffset));
+    return;
+  }
   if (!type_info.IsInteger32() || !use_sse3) {
     // Get exponent word.
     __ mov(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
