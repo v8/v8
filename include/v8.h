@@ -2224,7 +2224,7 @@ class V8EXPORT ResourceConstraints {
 };
 
 
-bool SetResourceConstraints(ResourceConstraints* constraints);
+bool V8EXPORT SetResourceConstraints(ResourceConstraints* constraints);
 
 
 // --- E x c e p t i o n s ---
