@@ -9634,14 +9634,14 @@ v8::Handle<Value> AnalyzeStackInNativeCode(const v8::Arguments& args) {
     v8::Handle<v8::StackTrace> stackTrace =
         v8::StackTrace::CurrentStackTrace(10, v8::StackTrace::kDetailed);
     CHECK_EQ(4, stackTrace->GetFrameCount());
-    checkStackFrame(origin, "bat", 2, 1, false, false,
+    checkStackFrame(origin, "bat", 4, 22, false, false,
                     stackTrace->GetFrame(0));
-    checkStackFrame(origin, "baz", 5, 3, false, true,
+    checkStackFrame(origin, "baz", 8, 3, false, true,
                     stackTrace->GetFrame(1));
     checkStackFrame(NULL, "", 1, 1, true, false,
                     stackTrace->GetFrame(2));
     // The last frame is an anonymous function that has the initial call to foo.
-    checkStackFrame(origin, "", 7, 1, false, false,
+    checkStackFrame(origin, "", 10, 1, false, false,
                     stackTrace->GetFrame(3));
 
     CHECK(stackTrace->AsArray()->IsArray());
@@ -9678,16 +9678,21 @@ THREADED_TEST(CaptureStackTrace) {
 
   // Test getting DETAILED information.
   const char *detailed_source =
-    "function bat() {\n"
-    "AnalyzeStackInNativeCode(2);\n"
+    "function bat() {AnalyzeStackInNativeCode(2);\n"
     "}\n"
+    "\n"
     "function baz() {\n"
     "  bat();\n"
     "}\n"
     "eval('new baz();');";
   v8::Handle<v8::String> detailed_src = v8::String::New(detailed_source);
-  v8::Handle<Value> detailed_result =
-      v8::Script::New(detailed_src, origin)->Run();
+  // Make the script using a non-zero line and column offset.
+  v8::Handle<v8::Integer> line_offset = v8::Integer::New(3);
+  v8::Handle<v8::Integer> column_offset = v8::Integer::New(5);
+  v8::ScriptOrigin detailed_origin(origin, line_offset, column_offset);
+  v8::Handle<v8::Script> detailed_script(
+      v8::Script::New(detailed_src, &detailed_origin));
+  v8::Handle<Value> detailed_result = detailed_script->Run();
   ASSERT(!detailed_result.IsEmpty());
   ASSERT(detailed_result->IsObject());
 }

@@ -394,21 +394,20 @@ Local<StackTrace> Top::CaptureCurrentStackTrace(
       int script_line_offset = script->line_offset()->value();
       int position = frame->code()->SourcePosition(frame->pc());
       int line_number = GetScriptLineNumber(Handle<Script>(script), position);
-
-      if (options & StackTrace::kColumnOffset) {
+      // line_number is already shifted by the script_line_offset.
+      int relative_line_number = line_number - script_line_offset;
+      if (options & StackTrace::kColumnOffset && relative_line_number >= 0) {
         Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
-        int start = (line_number == 0) ?
-            0 : Smi::cast(line_ends->get(line_number - 1))->value() + 1;
+        int start = (relative_line_number == 0) ? 0 :
+            Smi::cast(line_ends->get(relative_line_number - 1))->value() + 1;
         int column_offset = position - start;
-        if (line_number == script_line_offset) {
+        if (relative_line_number == 0) {
           // For the case where the code is on the same line as the script tag.
-          column_offset += script_line_offset;
+          column_offset += script->column_offset()->value();
         }
         SetProperty(stackFrame, column_key,
                     Handle<Smi>(Smi::FromInt(column_offset + 1)), NONE);
       }
-      // Adjust the line_number by the offset in the parent resource.
-      line_number += script_line_offset;
       SetProperty(stackFrame, line_key,
                   Handle<Smi>(Smi::FromInt(line_number + 1)), NONE);
     }
@@ -420,7 +419,7 @@ Local<StackTrace> Top::CaptureCurrentStackTrace(
 
     if (options & StackTrace::kFunctionName) {
       Handle<Object> fun_name(fun->shared()->name());
-      if (!fun_name->IsString()) {
+      if (fun_name->ToBoolean()->IsFalse()) {
         fun_name = Handle<Object>(fun->shared()->inferred_name());
       }
       SetProperty(stackFrame, function_key, fun_name, NONE);
