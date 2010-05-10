@@ -217,6 +217,9 @@ class CodeGenerator: public AstVisitor {
   // expected arguments. Otherwise return -1.
   static int InlineRuntimeCallArgumentsCount(Handle<String> name);
 
+  // Constants related to patching of inlined lokad/store.
+  static const int kInlinedKeyedLoadInstructionsAfterPatchSize = 19;
+
  private:
   // Construction/Destruction
   explicit CodeGenerator(MacroAssembler* masm);
