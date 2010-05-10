@@ -33,6 +33,7 @@
 #include "debug.h"
 #include "ic-inl.h"
 #include "jsregexp.h"
+#include "jump-target-light-inl.h"
 #include "parser.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-stack.h"
@@ -40,9 +41,11 @@
 #include "runtime.h"
 #include "scopes.h"
 #include "virtual-frame-inl.h"
+#include "virtual-frame-arm-inl.h"
 
 namespace v8 {
 namespace internal {
+
 
 #define __ ACCESS_MASM(masm_)
 
@@ -274,7 +277,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 
     // Initialize the function return target after the locals are set
     // up, because it needs the expected frame height from the frame.
-    function_return_.set_direction(JumpTarget::BIDIRECTIONAL);
+    function_return_.SetExpectedHeight();
     function_return_is_shadowed_ = false;
 
     // Generate code to 'execute' declarations and initialize functions
@@ -1549,7 +1552,7 @@ void CodeGenerator::VisitBlock(Block* node) {
   VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ Block");
   CodeForStatementPosition(node);
-  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  node->break_target()->SetExpectedHeight();
   VisitStatementsAndSpill(node->statements());
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
@@ -1836,7 +1839,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ SwitchStatement");
   CodeForStatementPosition(node);
-  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  node->break_target()->SetExpectedHeight();
 
   LoadAndSpill(node->tag());
 
@@ -1925,7 +1928,7 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
   VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ DoWhileStatement");
   CodeForStatementPosition(node);
-  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  node->break_target()->SetExpectedHeight();
   JumpTarget body(JumpTarget::BIDIRECTIONAL);
   IncrementLoopNesting();
 
@@ -1935,14 +1938,14 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
   ConditionAnalysis info = AnalyzeCondition(node->cond());
   switch (info) {
     case ALWAYS_TRUE:
-      node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
+      node->continue_target()->SetExpectedHeight();
       node->continue_target()->Bind();
       break;
     case ALWAYS_FALSE:
-      node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+      node->continue_target()->SetExpectedHeight();
       break;
     case DONT_KNOW:
-      node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+      node->continue_target()->SetExpectedHeight();
       body.Bind();
       break;
   }
@@ -2006,12 +2009,12 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
   ConditionAnalysis info = AnalyzeCondition(node->cond());
   if (info == ALWAYS_FALSE) return;
 
-  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  node->break_target()->SetExpectedHeight();
   IncrementLoopNesting();
 
   // Label the top of the loop with the continue target for the backward
   // CFG edge.
-  node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
+  node->continue_target()->SetExpectedHeight();
   node->continue_target()->Bind();
 
   if (info == DONT_KNOW) {
@@ -2060,17 +2063,17 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   ConditionAnalysis info = AnalyzeCondition(node->cond());
   if (info == ALWAYS_FALSE) return;
 
-  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  node->break_target()->SetExpectedHeight();
   IncrementLoopNesting();
 
   // If there is no update statement, label the top of the loop with the
   // continue target, otherwise with the loop target.
   JumpTarget loop(JumpTarget::BIDIRECTIONAL);
   if (node->next() == NULL) {
-    node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
+    node->continue_target()->SetExpectedHeight();
     node->continue_target()->Bind();
   } else {
-    node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+    node->continue_target()->SetExpectedHeight();
     loop.Bind();
   }
 
@@ -2275,8 +2278,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // sp[4] : enumerable
   // Grab the current frame's height for the break and continue
   // targets only after all the state is pushed on the frame.
-  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
-  node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  node->break_target()->SetExpectedHeight();
+  node->continue_target()->SetExpectedHeight();
 
   // Load the current count to r0, load the length to r1.
   __ ldrd(r0, frame_->ElementAt(0));

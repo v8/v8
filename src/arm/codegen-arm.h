@@ -29,6 +29,7 @@
 #define V8_ARM_CODEGEN_ARM_H_
 
 #include "ic-inl.h"
+#include "ast.h"
 
 namespace v8 {
 namespace internal {
@@ -36,6 +37,7 @@ namespace internal {
 // Forward declarations
 class CompilationInfo;
 class DeferredCode;
+class JumpTarget;
 class RegisterAllocator;
 class RegisterFile;
 

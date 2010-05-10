@@ -28,7 +28,9 @@
 #ifndef V8_X64_CODEGEN_X64_H_
 #define V8_X64_CODEGEN_X64_H_
 
+#include "ast.h"
 #include "ic-inl.h"
+#include "jump-target-heavy.h"
 
 namespace v8 {
 namespace internal {

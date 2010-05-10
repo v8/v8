@@ -28,9 +28,10 @@
 #ifndef V8_IA32_VIRTUAL_FRAME_IA32_H_
 #define V8_IA32_VIRTUAL_FRAME_IA32_H_
 
-#include "type-info.h"
+#include "codegen.h"
 #include "register-allocator.h"
 #include "scopes.h"
+#include "type-info.h"
 
 namespace v8 {
 namespace internal {
@@ -97,23 +98,16 @@ class VirtualFrame: public ZoneObject {
     return register_locations_[num];
   }
 
-  int register_location(Register reg) {
-    return register_locations_[RegisterAllocator::ToNumber(reg)];
-  }
+  inline int register_location(Register reg);
 
-  void set_register_location(Register reg, int index) {
-    register_locations_[RegisterAllocator::ToNumber(reg)] = index;
-  }
+  inline void set_register_location(Register reg, int index);
 
   bool is_used(int num) {
     ASSERT(num >= 0 && num < RegisterAllocator::kNumRegisters);
     return register_locations_[num] != kIllegalIndex;
   }
 
-  bool is_used(Register reg) {
-    return register_locations_[RegisterAllocator::ToNumber(reg)]
-        != kIllegalIndex;
-  }
+  inline bool is_used(Register reg);
 
   // Add extra in-memory elements to the top of the frame to match an actual
   // frame (eg, the frame after an exception handler is pushed).  No code is
@@ -217,10 +211,7 @@ class VirtualFrame: public ZoneObject {
   void SetElementAt(int index, Result* value);
 
   // Set a frame element to a constant.  The index is frame-top relative.
-  void SetElementAt(int index, Handle<Object> value) {
-    Result temp(value);
-    SetElementAt(index, &temp);
-  }
+  inline void SetElementAt(int index, Handle<Object> value);
 
   void PushElementAt(int index) {
     PushFrameSlotAt(element_count() - index - 1);
@@ -315,10 +306,7 @@ class VirtualFrame: public ZoneObject {
 
   // Call stub given the number of arguments it expects on (and
   // removes from) the stack.
-  Result CallStub(CodeStub* stub, int arg_count) {
-    PrepareForCall(arg_count, arg_count);
-    return RawCallStub(stub);
-  }
+  inline Result CallStub(CodeStub* stub, int arg_count);
 
   // Call stub that takes a single argument passed in eax.  The
   // argument is given as a result which does not have to be eax or
@@ -473,12 +461,9 @@ class VirtualFrame: public ZoneObject {
   int register_locations_[RegisterAllocator::kNumRegisters];
 
   // The number of frame-allocated locals and parameters respectively.
-  int parameter_count() {
-    return cgen()->scope()->num_parameters();
-  }
-  int local_count() {
-    return cgen()->scope()->num_stack_slots();
-  }
+  inline int parameter_count();
+
+  inline int local_count();
 
   // The index of the element that is at the processor's frame pointer
   // (the ebp register).  The parameters, receiver, and return address

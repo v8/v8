@@ -28,7 +28,9 @@
 #ifndef V8_IA32_CODEGEN_IA32_H_
 #define V8_IA32_CODEGEN_IA32_H_
 
+#include "ast.h"
 #include "ic-inl.h"
+#include "jump-target-heavy.h"
 
 namespace v8 {
 namespace internal {

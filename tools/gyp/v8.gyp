@@ -229,6 +229,7 @@
         '../../src/assembler.cc',
         '../../src/assembler.h',
         '../../src/ast.cc',
+        '../../src/ast-inl.h',
         '../../src/ast.h',
         '../../src/bootstrapper.cc',
         '../../src/bootstrapper.h',
@@ -434,6 +435,7 @@
           ],
           'sources': [
             '../../src/fast-codegen.cc',
+            '../../src/jump-target-light.h',
             '../../src/jump-target-light-inl.h',
             '../../src/jump-target-light.cc',
             '../../src/virtual-frame-light-inl.h',
@@ -462,6 +464,7 @@
             '../../src/arm/register-allocator-arm.cc',
             '../../src/arm/simulator-arm.cc',
             '../../src/arm/stub-cache-arm.cc',
+            '../../src/arm/virtual-frame-arm-inl.h',
             '../../src/arm/virtual-frame-arm.cc',
             '../../src/arm/virtual-frame-arm.h',
           ],
@@ -479,6 +482,7 @@
             '../../src/ia32',
           ],
           'sources': [
+            '../../src/jump-target-heavy.h',
             '../../src/jump-target-heavy-inl.h',
             '../../src/jump-target-heavy.cc',
             '../../src/virtual-frame-heavy-inl.h',
@@ -515,6 +519,7 @@
           ],
           'sources': [
             '../../src/fast-codegen.cc',
+            '../../src/jump-target-heavy.h',
             '../../src/jump-target-heavy-inl.h',
             '../../src/jump-target-heavy.cc',
             '../../src/virtual-frame-heavy-inl.h',

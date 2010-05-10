@@ -418,7 +418,7 @@ void VirtualFrame::Pop() {
 
 
 void VirtualFrame::EmitPop(Register reg) {
-  ASSERT(!is_used(reg));
+  ASSERT(!is_used(RegisterAllocator::ToNumber(reg)));
   if (top_of_stack_state_ == NO_TOS_REGISTERS) {
     __ pop(reg);
   } else {
