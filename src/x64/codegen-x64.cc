@@ -5251,6 +5251,11 @@ void CodeGenerator::LoadReference(Reference* ref) {
     // The expression is a variable proxy that does not rewrite to a
     // property.  Global variables are treated as named property references.
     if (var->is_global()) {
+      // If rax is free, the register allocator prefers it.  Thus the code
+      // generator will load the global object into rax, which is where
+      // LoadIC wants it.  Most uses of Reference call LoadIC directly
+      // after the reference is created.
+      frame_->Spill(rax);
       LoadGlobal();
       ref->set_type(Reference::NAMED);
     } else {
