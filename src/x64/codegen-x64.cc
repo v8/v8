@@ -9824,7 +9824,7 @@ const char* GenericBinaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, len),
-               "GenericBinaryOpStub_%s_%s%s_%s%s_%s%s_%s",
+               "GenericBinaryOpStub_%s_%s%s_%s%s_%s_%s",
                op_name,
                overwrite_name,
                (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
