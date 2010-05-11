@@ -4227,8 +4227,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Get the i'th entry of the array.
   __ mov(edx, frame_->ElementAt(2));
-  __ mov(ebx, Operand(edx, eax, times_2,
-                      FixedArray::kHeaderSize - kHeapObjectTag));
+  __ mov(ebx, FixedArrayElementOperand(edx, eax));
 
   // Get the expected map from the stack or a zero map in the
   // permanent slow case eax: current iteration count ebx: i'th entry
@@ -6678,16 +6677,6 @@ class DeferredSearchCache: public DeferredCode {
 };
 
 
-// Return a position of the element at |index_as_smi| + |additional_offset|
-// in FixedArray pointer to which is held in |array|.  |index_as_smi| is Smi.
-static Operand ArrayElement(Register array,
-                            Register index_as_smi,
-                            int additional_offset = 0) {
-  int offset = FixedArray::kHeaderSize + additional_offset * kPointerSize;
-  return FieldOperand(array, index_as_smi, times_half_pointer_size, offset);
-}
-
-
 void DeferredSearchCache::Generate() {
   Label first_loop, search_further, second_loop, cache_miss;
 
@@ -6704,11 +6693,11 @@ void DeferredSearchCache::Generate() {
   __ cmp(Operand(dst_), Immediate(kEntriesIndexSmi));
   __ j(less, &search_further);
 
-  __ cmp(key_, ArrayElement(cache_, dst_));
+  __ cmp(key_, CodeGenerator::FixedArrayElementOperand(cache_, dst_));
   __ j(not_equal, &first_loop);
 
   __ mov(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
-  __ mov(dst_, ArrayElement(cache_, dst_, 1));
+  __ mov(dst_, CodeGenerator::FixedArrayElementOperand(cache_, dst_, 1));
   __ jmp(exit_label());
 
   __ bind(&search_further);
@@ -6722,11 +6711,11 @@ void DeferredSearchCache::Generate() {
   __ cmp(dst_, FieldOperand(cache_, JSFunctionResultCache::kFingerOffset));
   __ j(less_equal, &cache_miss);
 
-  __ cmp(key_, ArrayElement(cache_, dst_));
+  __ cmp(key_, CodeGenerator::FixedArrayElementOperand(cache_, dst_));
   __ j(not_equal, &second_loop);
 
   __ mov(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
-  __ mov(dst_, ArrayElement(cache_, dst_, 1));
+  __ mov(dst_, CodeGenerator::FixedArrayElementOperand(cache_, dst_, 1));
   __ jmp(exit_label());
 
   __ bind(&cache_miss);
@@ -6774,7 +6763,7 @@ void DeferredSearchCache::Generate() {
   __ pop(ebx);  // restore the key
   __ mov(FieldOperand(ecx, JSFunctionResultCache::kFingerOffset), edx);
   // Store key.
-  __ mov(ArrayElement(ecx, edx), ebx);
+  __ mov(CodeGenerator::FixedArrayElementOperand(ecx, edx), ebx);
   __ RecordWrite(ecx, 0, ebx, edx);
 
   // Store value.
@@ -6782,7 +6771,7 @@ void DeferredSearchCache::Generate() {
   __ mov(edx, FieldOperand(ecx, JSFunctionResultCache::kFingerOffset));
   __ add(Operand(edx), Immediate(Smi::FromInt(1)));
   __ mov(ebx, eax);
-  __ mov(ArrayElement(ecx, edx), ebx);
+  __ mov(CodeGenerator::FixedArrayElementOperand(ecx, edx), ebx);
   __ RecordWrite(ecx, 0, ebx, edx);
 
   if (!dst_.is(eax)) {
@@ -6829,11 +6818,11 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
   // tmp.reg() now holds finger offset as a smi.
   ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ mov(tmp.reg(), FieldOperand(cache.reg(),
-                    JSFunctionResultCache::kFingerOffset));
-  __ cmp(key.reg(), ArrayElement(cache.reg(), tmp.reg()));
+                                 JSFunctionResultCache::kFingerOffset));
+  __ cmp(key.reg(), FixedArrayElementOperand(cache.reg(), tmp.reg()));
   deferred->Branch(not_equal);
 
-  __ mov(tmp.reg(), ArrayElement(cache.reg(), tmp.reg(), 1));
+  __ mov(tmp.reg(), FixedArrayElementOperand(cache.reg(), tmp.reg(), 1));
 
   deferred->BindExit();
   frame_->Push(&tmp);
@@ -6932,14 +6921,8 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   deferred->Branch(not_zero);
 
   // Bring addresses into index1 and index2.
-  __ lea(index1.reg(), FieldOperand(tmp1.reg(),
-                                    index1.reg(),
-                                    times_half_pointer_size,  // index1 is Smi
-                                    FixedArray::kHeaderSize));
-  __ lea(index2.reg(), FieldOperand(tmp1.reg(),
-                                    index2.reg(),
-                                    times_half_pointer_size,  // index2 is Smi
-                                    FixedArray::kHeaderSize));
+  __ lea(index1.reg(), FixedArrayElementOperand(tmp1.reg(), index1.reg()));
+  __ lea(index2.reg(), FixedArrayElementOperand(tmp1.reg(), index2.reg()));
 
   // Swap elements.
   __ mov(object.reg(), Operand(index1.reg(), 0));
@@ -8812,11 +8795,7 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     deferred->Branch(not_equal);
 
     // Store the value.
-    __ mov(Operand(tmp.reg(),
-                   key.reg(),
-                   times_2,
-                   FixedArray::kHeaderSize - kHeapObjectTag),
-           result.reg());
+    __ mov(FixedArrayElementOperand(tmp.reg(), key.reg()), result.reg());
     __ IncrementCounter(&Counters::keyed_store_inline, 1);
 
     deferred->BindExit();
@@ -9118,7 +9097,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, Operand(esp, 3 * kPointerSize));
   __ mov(eax, Operand(esp, 2 * kPointerSize));
   ASSERT((kPointerSize == 4) && (kSmiTagSize == 1) && (kSmiTag == 0));
-  __ mov(ecx, FieldOperand(ecx, eax, times_2, FixedArray::kHeaderSize));
+  __ mov(ecx, CodeGenerator::FixedArrayElementOperand(ecx, eax));
   __ cmp(ecx, Factory::undefined_value());
   __ j(equal, &slow_case);
 

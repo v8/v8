@@ -345,6 +345,15 @@ class CodeGenerator: public AstVisitor {
   // expected arguments. Otherwise return -1.
   static int InlineRuntimeCallArgumentsCount(Handle<String> name);
 
+  // Return a position of the element at |index_as_smi| + |additional_offset|
+  // in FixedArray pointer to which is held in |array|.  |index_as_smi| is Smi.
+  static Operand FixedArrayElementOperand(Register array,
+                                          Register index_as_smi,
+                                          int additional_offset = 0) {
+    int offset = FixedArray::kHeaderSize + additional_offset * kPointerSize;
+    return FieldOperand(array, index_as_smi, times_half_pointer_size, offset);
+  }
+
  private:
   // Construction/Destruction
   explicit CodeGenerator(MacroAssembler* masm);
