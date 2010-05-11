@@ -1146,44 +1146,66 @@ void CodeGenerator::SmiOperation(Token::Value op,
       int shift_value = int_value & 0x1f;  // least significant 5 bits
       DeferredCode* deferred =
         new DeferredInlineSmiOperation(op, shift_value, false, mode, tos);
-      __ tst(tos, Operand(kSmiTagMask));
-      deferred->Branch(ne);
-      __ mov(scratch, Operand(tos, ASR, kSmiTagSize));  // remove tags
+      uint32_t problematic_mask = kSmiTagMask;
+      // For unsigned shift by zero all negative smis are problematic.
+      if (shift_value == 0 && op == Token::SHR) problematic_mask |= 0x80000000;
+      __ tst(tos, Operand(problematic_mask));
+      deferred->Branch(ne);  // Go slow for problematic input.
       switch (op) {
         case Token::SHL: {
           if (shift_value != 0) {
-            __ mov(scratch, Operand(scratch, LSL, shift_value));
+            int adjusted_shift = shift_value - kSmiTagSize;
+            ASSERT(adjusted_shift >= 0);
+            if (adjusted_shift != 0) {
+              __ mov(scratch, Operand(tos, LSL, adjusted_shift));
+              // Check that the *signed* result fits in a smi.
+              __ add(scratch2, scratch, Operand(0x40000000), SetCC);
+              deferred->Branch(mi);
+              __ mov(tos, Operand(scratch, LSL, kSmiTagSize));
+            } else {
+              // Check that the *signed* result fits in a smi.
+              __ add(scratch2, tos, Operand(0x40000000), SetCC);
+              deferred->Branch(mi);
+              __ mov(tos, Operand(tos, LSL, kSmiTagSize));
+            }
           }
-          // check that the *signed* result fits in a smi
-          __ add(scratch2, scratch, Operand(0x40000000), SetCC);
-          deferred->Branch(mi);
           break;
         }
         case Token::SHR: {
-          // LSR by immediate 0 means shifting 32 bits.
           if (shift_value != 0) {
+            __ mov(scratch, Operand(tos, ASR, kSmiTagSize));  // Remove tag.
+            // LSR by immediate 0 means shifting 32 bits.
             __ mov(scratch, Operand(scratch, LSR, shift_value));
+            if (shift_value == 1) {
+              // check that the *unsigned* result fits in a smi
+              // neither of the two high-order bits can be set:
+              // - 0x80000000: high bit would be lost when smi tagging
+              // - 0x40000000: this number would convert to negative when
+              // smi tagging these two cases can only happen with shifts
+              // by 0 or 1 when handed a valid smi
+              __ tst(scratch, Operand(0xc0000000));
+              deferred->Branch(ne);
+            }
+            __ mov(tos, Operand(scratch, LSL, kSmiTagSize));
           }
-          // check that the *unsigned* result fits in a smi
-          // neither of the two high-order bits can be set:
-          // - 0x80000000: high bit would be lost when smi tagging
-          // - 0x40000000: this number would convert to negative when
-          // smi tagging these two cases can only happen with shifts
-          // by 0 or 1 when handed a valid smi
-          __ tst(scratch, Operand(0xc0000000));
-          deferred->Branch(ne);
           break;
         }
         case Token::SAR: {
+          // In the ARM instructions set, ASR by immediate 0 means shifting 32
+          // bits.
           if (shift_value != 0) {
-            // ASR by immediate 0 means shifting 32 bits.
-            __ mov(scratch, Operand(scratch, ASR, shift_value));
+            // Do the shift and the tag removal in one operation.  If the shift
+            // is 31 bits (the highest possible value) then we emit the
+            // instruction as a shift by 0 which means shift arithmetically by
+            // 32.
+            __ mov(tos, Operand(tos, ASR, (kSmiTagSize + shift_value) & 0x1f));
+            // Put tag back.
+            __ mov(tos, Operand(tos, LSL, kSmiTagSize));
           }
           break;
         }
         default: UNREACHABLE();
       }
-      __ mov(tos, Operand(scratch, LSL, kSmiTagSize));
       deferred->BindExit();
       frame_->EmitPush(tos);
       break;
