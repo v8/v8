@@ -8030,28 +8030,70 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm,
 
 
 // Get the integer part of a heap number.
-// Trashes rdi and rbx.  Dest is rcx.  Source cannot be rcx or one of the
-// trashed registers.
+// Overwrites the contents of rdi, rbx and rcx. Result cannot be rdi or rbx.
 void IntegerConvert(MacroAssembler* masm,
-                    Register source,
-                    Label* conversion_failure) {
-  ASSERT(!source.is(rcx) && !source.is(rdi) && !source.is(rbx));
-  Register scratch = rbx;
-  Register scratch2 = rdi;
-  // Get exponent word.
-  __ movq(scratch2, FieldOperand(source, HeapNumber::kValueOffset));
-  // Get exponent alone in scratch2.
-  __ movq(xmm0, scratch2);
-  __ shr(scratch2, Immediate(HeapNumber::kMantissaBits));
-  __ andl(scratch2, Immediate((1 << HeapNumber::KExponentBits) - 1));
+                    Register result,
+                    Register source) {
+  // Result may be rcx. If result and source are the same register, source will
+  // be overwritten.
+  ASSERT(!result.is(rdi) && !result.is(rbx));
+  // TODO(lrn): When type info reaches here, if value is a 32-bit integer, use
+  // cvttsd2si (32-bit version) directly.
+  Register double_exponent = rbx;
+  Register double_value = rdi;
+  Label done, exponent_63_plus;
+  // Get double and extract exponent.
+  __ movq(double_value, FieldOperand(source, HeapNumber::kValueOffset));
+  // Clear result preemptively, in case we need to return zero.
+  __ xorl(result, result);
+  __ movq(xmm0, double_value);  // Save copy in xmm0 in case we need it there.
+  // Double to remove sign bit, shift exponent down to least significant bits.
+  // and subtract bias to get the unshifted, unbiased exponent.
+  __ lea(double_exponent, Operand(double_value, double_value, times_1, 0));
+  __ shr(double_exponent, Immediate(64 - HeapNumber::KExponentBits));
+  __ subl(double_exponent, Immediate(HeapNumber::kExponentBias));
   // Check whether the exponent is too big for a 63 bit unsigned integer.
-  // (Notice: Doesn't handle MIN_SMI).
-  __ cmpl(scratch2, Immediate(63 + HeapNumber::kExponentBias));
-  __ j(greater_equal, conversion_failure);
-  // Handle exponent range -inf..62.
-  __ cvttsd2siq(rcx, xmm0);
-  // TODO(lrn): Do bit-fiddling for exponents in range 63..84 and return
-  // zero for everything else (also including negative exponents).
+  __ cmpl(double_exponent, Immediate(63));
+  __ j(above_equal, &exponent_63_plus);
+  // Handle exponent range 0..62.
+  __ cvttsd2siq(result, xmm0);
+  __ jmp(&done);
+
+  __ bind(&exponent_63_plus);
+  // Exponent negative or 63+.
+  __ cmpl(double_exponent, Immediate(83));
+  // If exponent negative or above 83, number contains no significant bits in
+  // the range 0..2^31, so result is zero, and rcx already holds zero.
+  __ j(above, &done);
+
+  // Exponent in rage 63..83.
+  // Mantissa * 2^exponent contains bits in the range 2^0..2^31, namely
+  // the least significant exponent-52 bits.
+
+  // Negate low bits of mantissa if value is negative.
+  __ addq(double_value, double_value);  // Move sign bit to carry.
+  __ sbbl(result, result);  // And convert carry to -1 in result register.
+  // if scratch2 is negative, do (scratch2-1)^-1, otherwise (scratch2-0)^0.
+  __ addl(double_value, result);
+  // Do xor in opposite directions depending on where we want the result
+  // (depending on whether result is rcx or not).
+
+  if (result.is(rcx)) {
+    __ xorl(double_value, result);
+    // Left shift mantissa by (exponent - mantissabits - 1) to save the
+    // bits that have positional values below 2^32 (the extra -1 comes from the
+    // doubling done above to move the sign bit into the carry flag).
+    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
+    __ shll_cl(double_value);
+    __ movl(result, double_value);
+  } else {
+    // As the then-branch, but move double-value to result before shifting.
+    __ xorl(result, double_value);
+    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
+    __ shll_cl(result);
+  }
+
+  __ bind(&done);
 }
 
 
@@ -8101,14 +8143,11 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ j(not_equal, &slow);
 
     // Convert the heap number in rax to an untagged integer in rcx.
-    IntegerConvert(masm, rax, &slow);
+    IntegerConvert(masm, rax, rax);
 
-    // Do the bitwise operation and check if the result fits in a smi.
-    Label try_float;
-    __ not_(rcx);
-    // Tag the result as a smi and we're done.
-    ASSERT(kSmiTagSize == 1);
-    __ Integer32ToSmi(rax, rcx);
+    // Do the bitwise operation and smi tag the result.
+    __ notl(rax);
+    __ Integer32ToSmi(rax, rax);
   }
 
   // Return from the stub.
@@ -9704,8 +9743,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ CompareRoot(rbx, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &check_undefined_arg1);
   // Get the untagged integer version of the edx heap number in rcx.
-  IntegerConvert(masm, rdx, conversion_failure);
-  __ movl(rdx, rcx);
+  IntegerConvert(masm, rdx, rdx);
 
   // Here rdx has the untagged integer, rax has a Smi or a heap number.
   __ bind(&load_arg2);
@@ -9727,7 +9765,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ CompareRoot(rbx, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &check_undefined_arg2);
   // Get the untagged integer version of the eax heap number in ecx.
-  IntegerConvert(masm, rax, conversion_failure);
+  IntegerConvert(masm, rcx, rax);
   __ bind(&done);
   __ movl(rax, rdx);
 }
