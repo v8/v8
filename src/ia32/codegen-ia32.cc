@@ -4723,62 +4723,14 @@ Result CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     JumpTarget slow;
     JumpTarget done;
 
-    // Generate fast-case code for variables that might be shadowed by
-    // eval-introduced variables.  Eval is used a lot without
-    // introducing variables.  In those cases, we do not want to
-    // perform a runtime call for all variables in the scope
-    // containing the eval.
-    if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
-      result = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, &slow);
-      done.Jump(&result);
-
-    } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
-      Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
-      Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
-      if (potential_slot != NULL) {
-        // Generate fast case for locals that rewrite to slots.
-        // Allocate a fresh register to use as a temp in
-        // ContextSlotOperandCheckExtensions and to hold the result
-        // value.
-        result = allocator()->Allocate();
-        ASSERT(result.is_valid());
-        __ mov(result.reg(),
-               ContextSlotOperandCheckExtensions(potential_slot,
-                                                 result,
-                                                 &slow));
-        if (potential_slot->var()->mode() == Variable::CONST) {
-          __ cmp(result.reg(), Factory::the_hole_value());
-          done.Branch(not_equal, &result);
-          __ mov(result.reg(), Factory::undefined_value());
-        }
-        done.Jump(&result);
-      } else if (rewrite != NULL) {
-        // Generate fast case for argument loads.
-        Property* property = rewrite->AsProperty();
-        if (property != NULL) {
-          VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
-          Literal* key_literal = property->key()->AsLiteral();
-          if (obj_proxy != NULL &&
-              key_literal != NULL &&
-              obj_proxy->IsArguments() &&
-              key_literal->handle()->IsSmi()) {
-            // Load arguments object if there are no eval-introduced
-            // variables. Then load the argument from the arguments
-            // object using keyed load.
-            Result arguments = allocator()->Allocate();
-            ASSERT(arguments.is_valid());
-            __ mov(arguments.reg(),
-                   ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
-                                                     arguments,
-                                                     &slow));
-            frame_->Push(&arguments);
-            frame_->Push(key_literal->handle());
-            result = EmitKeyedLoad();
-            done.Jump(&result);
-          }
-        }
-      }
-    }
+    // Generate fast case for loading from slots that correspond to
+    // local/global variables or arguments unless they are shadowed by
+    // eval-introduced bindings.
+    EmitDynamicLoadFromSlotFastCase(slot,
+                                    typeof_state,
+                                    &result,
+                                    &slow,
+                                    &done);
 
     slow.Bind();
     // A runtime call is inevitable.  We eagerly sync frame elements
@@ -4944,6 +4896,68 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
   // instruction here.
   __ nop();
   return answer;
+}
+
+
+void CodeGenerator::EmitDynamicLoadFromSlotFastCase(Slot* slot,
+                                                    TypeofState typeof_state,
+                                                    Result* result,
+                                                    JumpTarget* slow,
+                                                    JumpTarget* done) {
+  // Generate fast-case code for variables that might be shadowed by
+  // eval-introduced variables.  Eval is used a lot without
+  // introducing variables.  In those cases, we do not want to
+  // perform a runtime call for all variables in the scope
+  // containing the eval.
+  if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+    *result = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, slow);
+    done->Jump(result);
+
+  } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+    Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
+    Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
+    if (potential_slot != NULL) {
+      // Generate fast case for locals that rewrite to slots.
+      // Allocate a fresh register to use as a temp in
+      // ContextSlotOperandCheckExtensions and to hold the result
+      // value.
+      *result = allocator()->Allocate();
+      ASSERT(result->is_valid());
+      __ mov(result->reg(),
+             ContextSlotOperandCheckExtensions(potential_slot, *result, slow));
+      if (potential_slot->var()->mode() == Variable::CONST) {
+        __ cmp(result->reg(), Factory::the_hole_value());
+        done->Branch(not_equal, result);
+        __ mov(result->reg(), Factory::undefined_value());
+      }
+      done->Jump(result);
+    } else if (rewrite != NULL) {
+      // Generate fast case for calls of an argument function.
+      Property* property = rewrite->AsProperty();
+      if (property != NULL) {
+        VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+        Literal* key_literal = property->key()->AsLiteral();
+        if (obj_proxy != NULL &&
+            key_literal != NULL &&
+            obj_proxy->IsArguments() &&
+            key_literal->handle()->IsSmi()) {
+          // Load arguments object if there are no eval-introduced
+          // variables. Then load the argument from the arguments
+          // object using keyed load.
+          Result arguments = allocator()->Allocate();
+          ASSERT(arguments.is_valid());
+          __ mov(arguments.reg(),
+                 ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
+                                                   arguments,
+                                                   slow));
+          frame_->Push(&arguments);
+          frame_->Push(key_literal->handle());
+          *result = EmitKeyedLoad();
+          done->Jump(result);
+        }
+      }
+    }
+  }
 }
 
 
@@ -5792,75 +5806,17 @@ void CodeGenerator::VisitCall(Call* node) {
     //  }
     // ----------------------------------
 
-    JumpTarget slow;
-    JumpTarget done;
+    JumpTarget slow, done;
+    Result function;
 
-    // Generate fast-case code for variables that might be shadowed by
-    // eval-introduced variables.  Eval is used a lot without
-    // introducing variables.  In those cases, we do not want to
-    // perform a runtime call for all variables in the scope
-    // containing the eval.
-    if (var->mode() == Variable::DYNAMIC_GLOBAL) {
-      Result function = LoadFromGlobalSlotCheckExtensions(var->slot(),
-                                                          NOT_INSIDE_TYPEOF,
-                                                          &slow);
-      frame_->Push(&function);
-      LoadGlobalReceiver();
-      done.Jump();
-
-    } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
-      Slot* potential_slot = var->local_if_not_shadowed()->slot();
-      Expression* rewrite = var->local_if_not_shadowed()->rewrite();
-      if (potential_slot != NULL) {
-        // Generate fast case for locals that rewrite to slots.
-        // Allocate a fresh register to use as a temp in
-        // ContextSlotOperandCheckExtensions and to hold the result
-        // value.
-        Result function = allocator()->Allocate();
-        ASSERT(function.is_valid());
-        __ mov(function.reg(),
-               ContextSlotOperandCheckExtensions(potential_slot,
-                                                 function,
-                                                 &slow));
-        JumpTarget push_function_and_receiver;
-        if (potential_slot->var()->mode() == Variable::CONST) {
-          __ cmp(function.reg(), Factory::the_hole_value());
-          push_function_and_receiver.Branch(not_equal, &function);
-          __ mov(function.reg(), Factory::undefined_value());
-        }
-        push_function_and_receiver.Bind(&function);
-        frame_->Push(&function);
-        LoadGlobalReceiver();
-        done.Jump();
-      } else if (rewrite != NULL) {
-        // Generate fast case for calls of an argument function.
-        Property* property = rewrite->AsProperty();
-        if (property != NULL) {
-          VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
-          Literal* key_literal = property->key()->AsLiteral();
-          if (obj_proxy != NULL &&
-              key_literal != NULL &&
-              obj_proxy->IsArguments() &&
-              key_literal->handle()->IsSmi()) {
-            // Load arguments object if there are no eval-introduced
-            // variables. Then load the argument from the arguments
-            // object using keyed load.
-            Result arguments = allocator()->Allocate();
-            ASSERT(arguments.is_valid());
-            __ mov(arguments.reg(),
-                   ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
-                                                     arguments,
-                                                     &slow));
-            frame_->Push(&arguments);
-            frame_->Push(key_literal->handle());
-            Result value = EmitKeyedLoad();
-            frame_->Push(&value);
-            LoadGlobalReceiver();
-            done.Jump();
-          }
-        }
-      }
-    }
+    // Generate fast case for loading functions from slots that
+    // correspond to local/global variables or arguments unless they
+    // are shadowed by eval-introduced bindings.
+    EmitDynamicLoadFromSlotFastCase(var->slot(),
+                                    NOT_INSIDE_TYPEOF,
+                                    &function,
+                                    &slow,
+                                    &done);
 
     slow.Bind();
     // Enter the runtime system to load the function from the context.
@@ -5882,7 +5838,18 @@ void CodeGenerator::VisitCall(Call* node) {
     ASSERT(!allocator()->is_used(edx));
     frame_->EmitPush(edx);
 
-    done.Bind();
+    // If fast case code has been generated, emit code to push the
+    // function and receiver and have the slow path jump around this
+    // code.
+    if (done.is_linked()) {
+      JumpTarget call;
+      call.Jump();
+      done.Bind(&function);
+      frame_->Push(&function);
+      LoadGlobalReceiver();
+      call.Bind();
+    }
+
     // Call the function.
     CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
 

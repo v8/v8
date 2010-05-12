@@ -465,6 +465,16 @@ class CodeGenerator: public AstVisitor {
                                            TypeofState typeof_state,
                                            JumpTarget* slow);
 
+  // Support for loading from local/global variables and arguments
+  // whose location is known unless they are shadowed by
+  // eval-introduced bindings. Generates no code for unsupported slot
+  // types and therefore expects to fall through to the slow jump target.
+  void EmitDynamicLoadFromSlotFastCase(Slot* slot,
+                                       TypeofState typeof_state,
+                                       Result* result,
+                                       JumpTarget* slow,
+                                       JumpTarget* done);
+
   // Store the value on top of the expression stack into a slot, leaving the
   // value in place.
   void StoreToSlot(Slot* slot, InitState init_state);
