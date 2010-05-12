@@ -661,7 +661,7 @@ void VirtualFrame::SetElementAt(Register reg, int this_far_down) {
     }
   } else {
     ASSERT(this_far_down >= 2);
-    ASSERT(virtual_elements <= 2);
+    ASSERT(kVirtualElements[top_of_stack_state_] <= 2);
     __ str(reg, ElementAt(this_far_down));
   }
 }
