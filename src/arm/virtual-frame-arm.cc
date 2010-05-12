@@ -635,7 +635,6 @@ void VirtualFrame::EmitPush(Register reg) {
 
 
 void VirtualFrame::SetElementAt(Register reg, int this_far_down) {
-  int virtual_elements = kVirtualElements[top_of_stack_state_];
   if (this_far_down == 0) {
     Pop();
     Register dest = GetTOSRegister();
