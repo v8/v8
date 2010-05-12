@@ -4958,7 +4958,6 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ CountOperation");
 
   bool is_postfix = node->is_postfix();
@@ -4967,10 +4966,8 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
   Variable* var = node->expression()->AsVariableProxy()->AsVariable();
   bool is_const = (var != NULL && var->mode() == Variable::CONST);
 
-  // Postfix: Make room for the result.
   if (is_postfix) {
-     __ mov(r0, Operand(0));
-     frame_->EmitPush(r0);
+    frame_->EmitPush(Operand(Smi::FromInt(0)));
   }
 
   // A constant reference is not saved to, so a constant reference is not a
@@ -4980,35 +4977,33 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       // Spoof the virtual frame to have the expected height (one higher
       // than on entry).
       if (!is_postfix) {
-        __ mov(r0, Operand(Smi::FromInt(0)));
-        frame_->EmitPush(r0);
+        frame_->EmitPush(Operand(Smi::FromInt(0)));
       }
       ASSERT_EQ(original_height + 1, frame_->height());
       return;
     }
+    // This pushes 0, 1 or 2 words on the object to be used later when updating
+    // the target.  It also pushes the current value of the target.
     target.GetValue();
-    frame_->EmitPop(r0);
 
     JumpTarget slow;
     JumpTarget exit;
 
-    // Load the value (1) into register r1.
-    __ mov(r1, Operand(Smi::FromInt(1)));
-
     // Check for smi operand.
-    __ tst(r0, Operand(kSmiTagMask));
+    Register value = frame_->PopToRegister();
+    __ tst(value, Operand(kSmiTagMask));
     slow.Branch(ne);
 
     // Postfix: Store the old value as the result.
     if (is_postfix) {
-      __ str(r0, frame_->ElementAt(target.size()));
+      frame_->SetElementAt(value, target.size());
     }
 
     // Perform optimistic increment/decrement.
     if (is_increment) {
-      __ add(r0, r0, Operand(r1), SetCC);
+      __ add(value, value, Operand(Smi::FromInt(1)), SetCC);
     } else {
-      __ sub(r0, r0, Operand(r1), SetCC);
+      __ sub(value, value, Operand(Smi::FromInt(1)), SetCC);
     }
 
     // If the increment/decrement didn't overflow, we're done.
@@ -5016,41 +5011,50 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
     // Revert optimistic increment/decrement.
     if (is_increment) {
-      __ sub(r0, r0, Operand(r1));
+      __ sub(value, value, Operand(Smi::FromInt(1)));
     } else {
-      __ add(r0, r0, Operand(r1));
+      __ add(value, value, Operand(Smi::FromInt(1)));
     }
 
-    // Slow case: Convert to number.
+    // Slow case: Convert to number.  At this point the
+    // value to be incremented is in the value register..
     slow.Bind();
+
+    // Convert the operand to a number.
+    frame_->EmitPush(value);
+
     {
-      // Convert the operand to a number.
-      frame_->EmitPush(r0);
+      VirtualFrame::SpilledScope spilled(frame_);
       frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, 1);
-    }
-    if (is_postfix) {
-      // Postfix: store to result (on the stack).
-      __ str(r0, frame_->ElementAt(target.size()));
+
+      if (is_postfix) {
+        // Postfix: store to result (on the stack).
+        __ str(r0, frame_->ElementAt(target.size()));
+      }
+
+      // Compute the new value.
+      frame_->EmitPush(r0);
+      frame_->EmitPush(Operand(Smi::FromInt(1)));
+      if (is_increment) {
+        frame_->CallRuntime(Runtime::kNumberAdd, 2);
+      } else {
+        frame_->CallRuntime(Runtime::kNumberSub, 2);
+      }
     }
 
-    // Compute the new value.
-    __ mov(r1, Operand(Smi::FromInt(1)));
-    frame_->EmitPush(r0);
-    frame_->EmitPush(r1);
-    if (is_increment) {
-      frame_->CallRuntime(Runtime::kNumberAdd, 2);
-    } else {
-      frame_->CallRuntime(Runtime::kNumberSub, 2);
-    }
-
+    __ Move(value, r0);
     // Store the new value in the target if not const.
+    // At this point the answer is in the value register.
     exit.Bind();
-    frame_->EmitPush(r0);
+    frame_->EmitPush(value);
+    // Set the target with the result, leaving the result on
+    // top of the stack.  Removes the target from the stack if
+    // it has a non-zero size.
     if (!is_const) target.SetValue(NOT_CONST_INIT);
   }
 
   // Postfix: Discard the new value and use the old.
-  if (is_postfix) frame_->EmitPop(r0);
+  if (is_postfix) frame_->Pop();
   ASSERT_EQ(original_height + 1, frame_->height());
 }
 
