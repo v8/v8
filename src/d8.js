@@ -963,8 +963,8 @@ function DebugResponseDetails(response) {
         break;
         
       case 'listbreakpoints':
-    	result = 'breakpoints: (' + body.breakpoints.length + ')';
-    	for (var i = 0; i < body.breakpoints.length; i++) {
+        result = 'breakpoints: (' + body.breakpoints.length + ')';
+        for (var i = 0; i < body.breakpoints.length; i++) {
           var breakpoint = body.breakpoints[i];
           result += '\n id=' + breakpoint.number;
           result += ' type=' + breakpoint.type;
@@ -991,9 +991,9 @@ function DebugResponseDetails(response) {
             result += ' condition=' + breakpoint.condition;
           }
           result += ' hit_count=' + breakpoint.hit_count;
-    	}
-    	details.text = result;
-    	break;
+        }
+        details.text = result;
+        break;
 
       case 'backtrace':
         if (body.totalFrames == 0) {
