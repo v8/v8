@@ -90,6 +90,7 @@ static ByteMnemonic zero_operands_instr[] = {
   {0x99, "cdq", UNSET_OP_ORDER},
   {0x9B, "fwait", UNSET_OP_ORDER},
   {0xFC, "cld", UNSET_OP_ORDER},
+  {0xAB, "stos", UNSET_OP_ORDER},
   {-1, "", UNSET_OP_ORDER}
 };
 

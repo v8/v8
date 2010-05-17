@@ -776,6 +776,13 @@ void Assembler::rep_stos() {
 }
 
 
+void Assembler::stos() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xAB);
+}
+
+
 void Assembler::xchg(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

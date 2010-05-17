@@ -551,6 +551,7 @@ class Assembler : public Malloced {
   // Repetitive string instructions.
   void rep_movs();
   void rep_stos();
+  void stos();
 
   // Exchange two registers
   void xchg(Register dst, Register src);
