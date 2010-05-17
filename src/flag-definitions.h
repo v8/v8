@@ -104,6 +104,10 @@ DEFINE_bool(push_pop_elimination, true,
             "eliminate redundant push/pops in assembly code")
 DEFINE_bool(print_push_pop_elimination, false,
             "print elimination of redundant push/pops in assembly code")
+DEFINE_bool(peephole_optimization, true,
+            "perform peephole optimizations in assembly code")
+DEFINE_bool(print_peephole_optimization, false,
+            "print peephole optimizations in assembly code")
 DEFINE_bool(enable_sse2, true,
             "enable use of SSE2 instructions if available")
 DEFINE_bool(enable_sse3, true,
