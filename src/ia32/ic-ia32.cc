@@ -868,7 +868,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ecx: key (a smi)
   // edx: receiver
   // edi: FixedArray receiver->elements
-  __ mov(FieldOperand(edi, ecx, times_2, FixedArray::kHeaderSize), eax);
+  __ mov(CodeGenerator::FixedArrayElementOperand(edi, ecx), eax);
   // Update write barrier for the elements array address.
   __ mov(edx, Operand(eax));
   __ RecordWrite(edi, 0, edx, ecx);

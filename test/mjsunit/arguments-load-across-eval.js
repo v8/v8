@@ -25,28 +25,62 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_JUMP_TARGET_LIGHT_INL_H_
-#define V8_JUMP_TARGET_LIGHT_INL_H_
+// Tests loading of aguments across eval calls.
 
-#include "virtual-frame-inl.h"
-
-namespace v8 {
-namespace internal {
-
-// Construct a jump target.
-JumpTarget::JumpTarget(Directionality direction)
-    : entry_frame_set_(false),
-      entry_frame_(kInvalidVirtualFrameInitializer) {
+// Test loading across an eval call that does not shadow variables.
+function testNoShadowing(x, h) {
+  function f() {
+    eval('1');
+    assertEquals(1, x);
+    assertEquals(2, h());
+    function g() {
+      assertEquals(1, x);
+      assertEquals(2, h());
+    }
+    g();
+  }
+  f();
 }
 
-JumpTarget::JumpTarget()
-    : entry_frame_set_(false),
-      entry_frame_(kInvalidVirtualFrameInitializer) {
+testNoShadowing(1, function() { return 2; });
+
+// Test loading across eval calls that do not shadow variables.
+function testNoShadowing2(x, h) {
+  eval('1');
+  function f() {
+    eval('1');
+    assertEquals(1, x);
+    assertEquals(2, h());
+    function g() {
+      assertEquals(1, x);
+      assertEquals(2, h());
+    }
+    g();
+  }
+  f();
 }
 
+testNoShadowing2(1, function() { return 2; });
 
-BreakTarget::BreakTarget() { }
+// Test loading across an eval call that shadows variables.
+function testShadowing(x, h) {
+  function f() {
+    assertEquals(1, x);
+    assertEquals(2, h());
+    eval('var x = 3; var h = function() { return 4; };');
+    assertEquals(3, x);
+    assertEquals(4, h());
+    function g() {
+      assertEquals(3, x);
+      assertEquals(4, h());
+    }
+    g();
+  }
+  f();
+  assertEquals(1, x);
+  assertEquals(2, h());
+}
 
-} }  // namespace v8::internal
+testShadowing(1, function() { return 2; });
 
-#endif  // V8_JUMP_TARGET_LIGHT_INL_H_
+

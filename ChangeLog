@@ -1,3 +1,8 @@
+2010-05-17: Version 2.2.10
+
+        Performance improvements in the x64 and ARM backends.
+
+
 2010-05-10: Version 2.2.9
 
         Allow Object.create to be called with a function (issue 697).

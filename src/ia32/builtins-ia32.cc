@@ -1067,7 +1067,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : last argument
   // -----------------------------------
-  Label generic_array_code, one_or_more_arguments, two_or_more_arguments;
+  Label generic_array_code;
 
   // Get the Array function.
   GenerateLoadArrayFunction(masm, edi);

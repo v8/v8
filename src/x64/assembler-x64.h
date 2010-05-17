@@ -606,6 +606,14 @@ class Assembler : public Malloced {
     immediate_arithmetic_op(0x0, dst, src);
   }
 
+  void sbbl(Register dst, Register src) {
+    if (dst.low_bits() == 4) {  // Forces SIB byte if dst is base register.
+      arithmetic_op_32(0x19, src, dst);
+    } else {
+      arithmetic_op_32(0x1b, dst, src);
+    }
+  }
+
   void cmpb(Register dst, Immediate src) {
     immediate_arithmetic_op_8(0x7, dst, src);
   }
@@ -1092,6 +1100,7 @@ class Assembler : public Malloced {
 
   void cvttss2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, const Operand& src);
+  void cvttsd2siq(Register dst, XMMRegister src);
 
   void cvtlsi2sd(XMMRegister dst, const Operand& src);
   void cvtlsi2sd(XMMRegister dst, Register src);

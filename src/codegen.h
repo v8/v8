@@ -28,7 +28,6 @@
 #ifndef V8_CODEGEN_H_
 #define V8_CODEGEN_H_
 
-#include "ast.h"
 #include "code-stubs.h"
 #include "runtime.h"
 #include "type-info.h"

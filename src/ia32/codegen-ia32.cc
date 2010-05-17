@@ -4227,8 +4227,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Get the i'th entry of the array.
   __ mov(edx, frame_->ElementAt(2));
-  __ mov(ebx, Operand(edx, eax, times_2,
-                      FixedArray::kHeaderSize - kHeapObjectTag));
+  __ mov(ebx, FixedArrayElementOperand(edx, eax));
 
   // Get the expected map from the stack or a zero map in the
   // permanent slow case eax: current iteration count ebx: i'th entry
@@ -4724,43 +4723,14 @@ Result CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     JumpTarget slow;
     JumpTarget done;
 
-    // Generate fast-case code for variables that might be shadowed by
-    // eval-introduced variables.  Eval is used a lot without
-    // introducing variables.  In those cases, we do not want to
-    // perform a runtime call for all variables in the scope
-    // containing the eval.
-    if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
-      result = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, &slow);
-      // If there was no control flow to slow, we can exit early.
-      if (!slow.is_linked()) return result;
-      done.Jump(&result);
-
-    } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
-      Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
-      // Only generate the fast case for locals that rewrite to slots.
-      // This rules out argument loads because eval forces arguments
-      // access to be through the arguments object.
-      if (potential_slot != NULL) {
-        // Allocate a fresh register to use as a temp in
-        // ContextSlotOperandCheckExtensions and to hold the result
-        // value.
-        result = allocator()->Allocate();
-        ASSERT(result.is_valid());
-        __ mov(result.reg(),
-               ContextSlotOperandCheckExtensions(potential_slot,
-                                                 result,
-                                                 &slow));
-        if (potential_slot->var()->mode() == Variable::CONST) {
-          __ cmp(result.reg(), Factory::the_hole_value());
-          done.Branch(not_equal, &result);
-          __ mov(result.reg(), Factory::undefined_value());
-        }
-        // There is always control flow to slow from
-        // ContextSlotOperandCheckExtensions so we have to jump around
-        // it.
-        done.Jump(&result);
-      }
-    }
+    // Generate fast case for loading from slots that correspond to
+    // local/global variables or arguments unless they are shadowed by
+    // eval-introduced bindings.
+    EmitDynamicLoadFromSlotFastCase(slot,
+                                    typeof_state,
+                                    &result,
+                                    &slow,
+                                    &done);
 
     slow.Bind();
     // A runtime call is inevitable.  We eagerly sync frame elements
@@ -4926,6 +4896,68 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
   // instruction here.
   __ nop();
   return answer;
+}
+
+
+void CodeGenerator::EmitDynamicLoadFromSlotFastCase(Slot* slot,
+                                                    TypeofState typeof_state,
+                                                    Result* result,
+                                                    JumpTarget* slow,
+                                                    JumpTarget* done) {
+  // Generate fast-case code for variables that might be shadowed by
+  // eval-introduced variables.  Eval is used a lot without
+  // introducing variables.  In those cases, we do not want to
+  // perform a runtime call for all variables in the scope
+  // containing the eval.
+  if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+    *result = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, slow);
+    done->Jump(result);
+
+  } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+    Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
+    Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
+    if (potential_slot != NULL) {
+      // Generate fast case for locals that rewrite to slots.
+      // Allocate a fresh register to use as a temp in
+      // ContextSlotOperandCheckExtensions and to hold the result
+      // value.
+      *result = allocator()->Allocate();
+      ASSERT(result->is_valid());
+      __ mov(result->reg(),
+             ContextSlotOperandCheckExtensions(potential_slot, *result, slow));
+      if (potential_slot->var()->mode() == Variable::CONST) {
+        __ cmp(result->reg(), Factory::the_hole_value());
+        done->Branch(not_equal, result);
+        __ mov(result->reg(), Factory::undefined_value());
+      }
+      done->Jump(result);
+    } else if (rewrite != NULL) {
+      // Generate fast case for calls of an argument function.
+      Property* property = rewrite->AsProperty();
+      if (property != NULL) {
+        VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+        Literal* key_literal = property->key()->AsLiteral();
+        if (obj_proxy != NULL &&
+            key_literal != NULL &&
+            obj_proxy->IsArguments() &&
+            key_literal->handle()->IsSmi()) {
+          // Load arguments object if there are no eval-introduced
+          // variables. Then load the argument from the arguments
+          // object using keyed load.
+          Result arguments = allocator()->Allocate();
+          ASSERT(arguments.is_valid());
+          __ mov(arguments.reg(),
+                 ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
+                                                   arguments,
+                                                   slow));
+          frame_->Push(&arguments);
+          frame_->Push(key_literal->handle());
+          *result = EmitKeyedLoad();
+          done->Jump(result);
+        }
+      }
+    }
+  }
 }
 
 
@@ -5765,59 +5797,26 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
     // JavaScript examples:
     //
-    //  with (obj) foo(1, 2, 3)  // foo is in obj
+    //  with (obj) foo(1, 2, 3)  // foo may be in obj.
     //
     //  function f() {};
     //  function g() {
     //    eval(...);
-    //    f();  // f could be in extension object
+    //    f();  // f could be in extension object.
     //  }
     // ----------------------------------
 
-    JumpTarget slow;
-    JumpTarget done;
-
-    // Generate fast-case code for variables that might be shadowed by
-    // eval-introduced variables.  Eval is used a lot without
-    // introducing variables.  In those cases, we do not want to
-    // perform a runtime call for all variables in the scope
-    // containing the eval.
+    JumpTarget slow, done;
     Result function;
-    if (var->mode() == Variable::DYNAMIC_GLOBAL) {
-      function = LoadFromGlobalSlotCheckExtensions(var->slot(),
-                                                   NOT_INSIDE_TYPEOF,
-                                                   &slow);
-      frame_->Push(&function);
-      LoadGlobalReceiver();
-      done.Jump();
 
-    } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
-      Slot* potential_slot = var->local_if_not_shadowed()->slot();
-      // Only generate the fast case for locals that rewrite to slots.
-      // This rules out argument loads because eval forces arguments
-      // access to be through the arguments object.
-      if (potential_slot != NULL) {
-        // Allocate a fresh register to use as a temp in
-        // ContextSlotOperandCheckExtensions and to hold the result
-        // value.
-        function = allocator()->Allocate();
-        ASSERT(function.is_valid());
-        __ mov(function.reg(),
-               ContextSlotOperandCheckExtensions(potential_slot,
-                                                 function,
-                                                 &slow));
-        JumpTarget push_function_and_receiver;
-        if (potential_slot->var()->mode() == Variable::CONST) {
-          __ cmp(function.reg(), Factory::the_hole_value());
-          push_function_and_receiver.Branch(not_equal, &function);
-          __ mov(function.reg(), Factory::undefined_value());
-        }
-        push_function_and_receiver.Bind(&function);
-        frame_->Push(&function);
-        LoadGlobalReceiver();
-        done.Jump();
-      }
-    }
+    // Generate fast case for loading functions from slots that
+    // correspond to local/global variables or arguments unless they
+    // are shadowed by eval-introduced bindings.
+    EmitDynamicLoadFromSlotFastCase(var->slot(),
+                                    NOT_INSIDE_TYPEOF,
+                                    &function,
+                                    &slow,
+                                    &done);
 
     slow.Bind();
     // Enter the runtime system to load the function from the context.
@@ -5839,7 +5838,18 @@ void CodeGenerator::VisitCall(Call* node) {
     ASSERT(!allocator()->is_used(edx));
     frame_->EmitPush(edx);
 
-    done.Bind();
+    // If fast case code has been generated, emit code to push the
+    // function and receiver and have the slow path jump around this
+    // code.
+    if (done.is_linked()) {
+      JumpTarget call;
+      call.Jump();
+      done.Bind(&function);
+      frame_->Push(&function);
+      LoadGlobalReceiver();
+      call.Bind();
+    }
+
     // Call the function.
     CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
 
@@ -6634,16 +6644,6 @@ class DeferredSearchCache: public DeferredCode {
 };
 
 
-// Return a position of the element at |index_as_smi| + |additional_offset|
-// in FixedArray pointer to which is held in |array|.  |index_as_smi| is Smi.
-static Operand ArrayElement(Register array,
-                            Register index_as_smi,
-                            int additional_offset = 0) {
-  int offset = FixedArray::kHeaderSize + additional_offset * kPointerSize;
-  return FieldOperand(array, index_as_smi, times_half_pointer_size, offset);
-}
-
-
 void DeferredSearchCache::Generate() {
   Label first_loop, search_further, second_loop, cache_miss;
 
@@ -6660,11 +6660,11 @@ void DeferredSearchCache::Generate() {
   __ cmp(Operand(dst_), Immediate(kEntriesIndexSmi));
   __ j(less, &search_further);
 
-  __ cmp(key_, ArrayElement(cache_, dst_));
+  __ cmp(key_, CodeGenerator::FixedArrayElementOperand(cache_, dst_));
   __ j(not_equal, &first_loop);
 
   __ mov(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
-  __ mov(dst_, ArrayElement(cache_, dst_, 1));
+  __ mov(dst_, CodeGenerator::FixedArrayElementOperand(cache_, dst_, 1));
   __ jmp(exit_label());
 
   __ bind(&search_further);
@@ -6678,11 +6678,11 @@ void DeferredSearchCache::Generate() {
   __ cmp(dst_, FieldOperand(cache_, JSFunctionResultCache::kFingerOffset));
   __ j(less_equal, &cache_miss);
 
-  __ cmp(key_, ArrayElement(cache_, dst_));
+  __ cmp(key_, CodeGenerator::FixedArrayElementOperand(cache_, dst_));
   __ j(not_equal, &second_loop);
 
   __ mov(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
-  __ mov(dst_, ArrayElement(cache_, dst_, 1));
+  __ mov(dst_, CodeGenerator::FixedArrayElementOperand(cache_, dst_, 1));
   __ jmp(exit_label());
 
   __ bind(&cache_miss);
@@ -6730,7 +6730,7 @@ void DeferredSearchCache::Generate() {
   __ pop(ebx);  // restore the key
   __ mov(FieldOperand(ecx, JSFunctionResultCache::kFingerOffset), edx);
   // Store key.
-  __ mov(ArrayElement(ecx, edx), ebx);
+  __ mov(CodeGenerator::FixedArrayElementOperand(ecx, edx), ebx);
   __ RecordWrite(ecx, 0, ebx, edx);
 
   // Store value.
@@ -6738,7 +6738,7 @@ void DeferredSearchCache::Generate() {
   __ mov(edx, FieldOperand(ecx, JSFunctionResultCache::kFingerOffset));
   __ add(Operand(edx), Immediate(Smi::FromInt(1)));
   __ mov(ebx, eax);
-  __ mov(ArrayElement(ecx, edx), ebx);
+  __ mov(CodeGenerator::FixedArrayElementOperand(ecx, edx), ebx);
   __ RecordWrite(ecx, 0, ebx, edx);
 
   if (!dst_.is(eax)) {
@@ -6785,11 +6785,11 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
   // tmp.reg() now holds finger offset as a smi.
   ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ mov(tmp.reg(), FieldOperand(cache.reg(),
-                    JSFunctionResultCache::kFingerOffset));
-  __ cmp(key.reg(), ArrayElement(cache.reg(), tmp.reg()));
+                                 JSFunctionResultCache::kFingerOffset));
+  __ cmp(key.reg(), FixedArrayElementOperand(cache.reg(), tmp.reg()));
   deferred->Branch(not_equal);
 
-  __ mov(tmp.reg(), ArrayElement(cache.reg(), tmp.reg(), 1));
+  __ mov(tmp.reg(), FixedArrayElementOperand(cache.reg(), tmp.reg(), 1));
 
   deferred->BindExit();
   frame_->Push(&tmp);
@@ -6888,14 +6888,8 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   deferred->Branch(not_zero);
 
   // Bring addresses into index1 and index2.
-  __ lea(index1.reg(), FieldOperand(tmp1.reg(),
-                                    index1.reg(),
-                                    times_half_pointer_size,  // index1 is Smi
-                                    FixedArray::kHeaderSize));
-  __ lea(index2.reg(), FieldOperand(tmp1.reg(),
-                                    index2.reg(),
-                                    times_half_pointer_size,  // index2 is Smi
-                                    FixedArray::kHeaderSize));
+  __ lea(index1.reg(), FixedArrayElementOperand(tmp1.reg(), index1.reg()));
+  __ lea(index2.reg(), FixedArrayElementOperand(tmp1.reg(), index2.reg()));
 
   // Swap elements.
   __ mov(object.reg(), Operand(index1.reg(), 0));
@@ -8768,11 +8762,7 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     deferred->Branch(not_equal);
 
     // Store the value.
-    __ mov(Operand(tmp.reg(),
-                   key.reg(),
-                   times_2,
-                   FixedArray::kHeaderSize - kHeapObjectTag),
-           result.reg());
+    __ mov(FixedArrayElementOperand(tmp.reg(), key.reg()), result.reg());
     __ IncrementCounter(&Counters::keyed_store_inline, 1);
 
     deferred->BindExit();
@@ -9074,7 +9064,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, Operand(esp, 3 * kPointerSize));
   __ mov(eax, Operand(esp, 2 * kPointerSize));
   ASSERT((kPointerSize == 4) && (kSmiTagSize == 1) && (kSmiTag == 0));
-  __ mov(ecx, FieldOperand(ecx, eax, times_2, FixedArray::kHeaderSize));
+  __ mov(ecx, CodeGenerator::FixedArrayElementOperand(ecx, eax));
   __ cmp(ecx, Factory::undefined_value());
   __ j(equal, &slow_case);
 
@@ -10296,6 +10286,11 @@ void IntegerConvert(MacroAssembler* masm,
   Label done, right_exponent, normal_exponent;
   Register scratch = ebx;
   Register scratch2 = edi;
+  if (type_info.IsInteger32() && CpuFeatures::IsEnabled(SSE2)) {
+    CpuFeatures::Scope scope(SSE2);
+    __ cvttsd2si(ecx, FieldOperand(source, HeapNumber::kValueOffset));
+    return;
+  }
   if (!type_info.IsInteger32() || !use_sse3) {
     // Get exponent word.
     __ mov(scratch, FieldOperand(source, HeapNumber::kExponentOffset));

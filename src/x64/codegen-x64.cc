@@ -277,7 +277,6 @@ class FloatingPointHelper : public AllStatic {
   // Takes the operands in rdx and rax and loads them as integers in rax
   // and rcx.
   static void LoadAsIntegers(MacroAssembler* masm,
-                             bool use_sse3,
                              Label* operand_conversion_failure);
 };
 
@@ -2868,59 +2867,26 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
     // JavaScript examples:
     //
-    //  with (obj) foo(1, 2, 3)  // foo is in obj
+    //  with (obj) foo(1, 2, 3)  // foo may be in obj.
     //
     //  function f() {};
     //  function g() {
     //    eval(...);
-    //    f();  // f could be in extension object
+    //    f();  // f could be in extension object.
     //  }
     // ----------------------------------
 
-    JumpTarget slow;
-    JumpTarget done;
-
-    // Generate fast-case code for variables that might be shadowed by
-    // eval-introduced variables.  Eval is used a lot without
-    // introducing variables.  In those cases, we do not want to
-    // perform a runtime call for all variables in the scope
-    // containing the eval.
+    JumpTarget slow, done;
     Result function;
-    if (var->mode() == Variable::DYNAMIC_GLOBAL) {
-      function = LoadFromGlobalSlotCheckExtensions(var->slot(),
-                                                   NOT_INSIDE_TYPEOF,
-                                                   &slow);
-      frame_->Push(&function);
-      LoadGlobalReceiver();
-      done.Jump();
 
-    } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
-      Slot* potential_slot = var->local_if_not_shadowed()->slot();
-      // Only generate the fast case for locals that rewrite to slots.
-      // This rules out argument loads because eval forces arguments
-      // access to be through the arguments object.
-      if (potential_slot != NULL) {
-        // Allocate a fresh register to use as a temp in
-        // ContextSlotOperandCheckExtensions and to hold the result
-        // value.
-        function = allocator()->Allocate();
-        ASSERT(function.is_valid());
-        __ movq(function.reg(),
-                ContextSlotOperandCheckExtensions(potential_slot,
-                                                  function,
-                                                  &slow));
-        JumpTarget push_function_and_receiver;
-        if (potential_slot->var()->mode() == Variable::CONST) {
-          __ CompareRoot(function.reg(), Heap::kTheHoleValueRootIndex);
-          push_function_and_receiver.Branch(not_equal, &function);
-          __ LoadRoot(function.reg(), Heap::kUndefinedValueRootIndex);
-        }
-        push_function_and_receiver.Bind(&function);
-        frame_->Push(&function);
-        LoadGlobalReceiver();
-        done.Jump();
-      }
-    }
+    // Generate fast case for loading functions from slots that
+    // correspond to local/global variables or arguments unless they
+    // are shadowed by eval-introduced bindings.
+    EmitDynamicLoadFromSlotFastCase(var->slot(),
+                                    NOT_INSIDE_TYPEOF,
+                                    &function,
+                                    &slow,
+                                    &done);
 
     slow.Bind();
     // Load the function from the context.  Sync the frame so we can
@@ -2941,7 +2907,18 @@ void CodeGenerator::VisitCall(Call* node) {
     ASSERT(!allocator()->is_used(rdx));
     frame_->EmitPush(rdx);
 
-    done.Bind();
+    // If fast case code has been generated, emit code to push the
+    // function and receiver and have the slow path jump around this
+    // code.
+    if (done.is_linked()) {
+      JumpTarget call;
+      call.Jump();
+      done.Bind(&function);
+      frame_->Push(&function);
+      LoadGlobalReceiver();
+      call.Bind();
+    }
+
     // Call the function.
     CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
 
@@ -5225,6 +5202,11 @@ void CodeGenerator::LoadReference(Reference* ref) {
     // The expression is a variable proxy that does not rewrite to a
     // property.  Global variables are treated as named property references.
     if (var->is_global()) {
+      // If rax is free, the register allocator prefers it.  Thus the code
+      // generator will load the global object into rax, which is where
+      // LoadIC wants it.  Most uses of Reference call LoadIC directly
+      // after the reference is created.
+      frame_->Spill(rax);
       LoadGlobal();
       ref->set_type(Reference::NAMED);
     } else {
@@ -5336,47 +5318,14 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     JumpTarget done;
     Result value;
 
-    // Generate fast-case code for variables that might be shadowed by
-    // eval-introduced variables.  Eval is used a lot without
-    // introducing variables.  In those cases, we do not want to
-    // perform a runtime call for all variables in the scope
-    // containing the eval.
-    if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
-      value = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, &slow);
-      // If there was no control flow to slow, we can exit early.
-      if (!slow.is_linked()) {
-        frame_->Push(&value);
-        return;
-      }
-
-      done.Jump(&value);
-
-    } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
-      Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
-      // Only generate the fast case for locals that rewrite to slots.
-      // This rules out argument loads because eval forces arguments
-      // access to be through the arguments object.
-      if (potential_slot != NULL) {
-        // Allocate a fresh register to use as a temp in
-        // ContextSlotOperandCheckExtensions and to hold the result
-        // value.
-        value = allocator_->Allocate();
-        ASSERT(value.is_valid());
-        __ movq(value.reg(),
-               ContextSlotOperandCheckExtensions(potential_slot,
-                                                 value,
-                                                 &slow));
-        if (potential_slot->var()->mode() == Variable::CONST) {
-          __ CompareRoot(value.reg(), Heap::kTheHoleValueRootIndex);
-          done.Branch(not_equal, &value);
-          __ LoadRoot(value.reg(), Heap::kUndefinedValueRootIndex);
-        }
-        // There is always control flow to slow from
-        // ContextSlotOperandCheckExtensions so we have to jump around
-        // it.
-        done.Jump(&value);
-      }
-    }
+    // Generate fast case for loading from slots that correspond to
+    // local/global variables or arguments unless they are shadowed by
+    // eval-introduced bindings.
+    EmitDynamicLoadFromSlotFastCase(slot,
+                                    typeof_state,
+                                    &value,
+                                    &slow,
+                                    &done);
 
     slow.Bind();
     // A runtime call is inevitable.  We eagerly sync frame elements
@@ -5639,6 +5588,71 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
   // Discard the global object. The result is in answer.
   frame_->Drop();
   return answer;
+}
+
+
+void CodeGenerator::EmitDynamicLoadFromSlotFastCase(Slot* slot,
+                                                    TypeofState typeof_state,
+                                                    Result* result,
+                                                    JumpTarget* slow,
+                                                    JumpTarget* done) {
+  // Generate fast-case code for variables that might be shadowed by
+  // eval-introduced variables.  Eval is used a lot without
+  // introducing variables.  In those cases, we do not want to
+  // perform a runtime call for all variables in the scope
+  // containing the eval.
+  if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+    *result = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, slow);
+    done->Jump(result);
+
+  } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+    Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
+    Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
+    if (potential_slot != NULL) {
+      // Generate fast case for locals that rewrite to slots.
+      // Allocate a fresh register to use as a temp in
+      // ContextSlotOperandCheckExtensions and to hold the result
+      // value.
+      *result = allocator_->Allocate();
+      ASSERT(result->is_valid());
+      __ movq(result->reg(),
+              ContextSlotOperandCheckExtensions(potential_slot,
+                                                *result,
+                                                slow));
+      if (potential_slot->var()->mode() == Variable::CONST) {
+        __ CompareRoot(result->reg(), Heap::kTheHoleValueRootIndex);
+        done->Branch(not_equal, result);
+        __ LoadRoot(result->reg(), Heap::kUndefinedValueRootIndex);
+      }
+      done->Jump(result);
+    } else if (rewrite != NULL) {
+      // Generate fast case for argument loads.
+      Property* property = rewrite->AsProperty();
+      if (property != NULL) {
+        VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+        Literal* key_literal = property->key()->AsLiteral();
+        if (obj_proxy != NULL &&
+            key_literal != NULL &&
+            obj_proxy->IsArguments() &&
+            key_literal->handle()->IsSmi()) {
+          // Load arguments object if there are no eval-introduced
+          // variables. Then load the argument from the arguments
+          // object using keyed load.
+          Result arguments = allocator()->Allocate();
+          ASSERT(arguments.is_valid());
+          __ movq(arguments.reg(),
+                  ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
+                                                    arguments,
+                                                    slow));
+          frame_->Push(&arguments);
+          frame_->Push(key_literal->handle());
+          *result = EmitKeyedLoad(false);
+          frame_->Drop(2);  // Drop key and receiver.
+          done->Jump(result);
+        }
+      }
+    }
+  }
 }
 
 
@@ -8015,138 +8029,71 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm,
 }
 
 
-// Get the integer part of a heap number.  Surprisingly, all this bit twiddling
-// is faster than using the built-in instructions on floating point registers.
-// Trashes rdi and rbx.  Dest is rcx.  Source cannot be rcx or one of the
-// trashed registers.
+// Get the integer part of a heap number.
+// Overwrites the contents of rdi, rbx and rcx. Result cannot be rdi or rbx.
 void IntegerConvert(MacroAssembler* masm,
-                    Register source,
-                    bool use_sse3,
-                    Label* conversion_failure) {
-  ASSERT(!source.is(rcx) && !source.is(rdi) && !source.is(rbx));
-  Label done, right_exponent, normal_exponent;
-  Register scratch = rbx;
-  Register scratch2 = rdi;
-  // Get exponent word.
-  __ movl(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
-  // Get exponent alone in scratch2.
-  __ movl(scratch2, scratch);
-  __ and_(scratch2, Immediate(HeapNumber::kExponentMask));
-  if (use_sse3) {
-    CpuFeatures::Scope scope(SSE3);
-    // Check whether the exponent is too big for a 64 bit signed integer.
-    static const uint32_t kTooBigExponent =
-        (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
-    __ cmpl(scratch2, Immediate(kTooBigExponent));
-    __ j(greater_equal, conversion_failure);
-    // Load x87 register with heap number.
-    __ fld_d(FieldOperand(source, HeapNumber::kValueOffset));
-    // Reserve space for 64 bit answer.
-    __ subq(rsp, Immediate(sizeof(uint64_t)));  // Nolint.
-    // Do conversion, which cannot fail because we checked the exponent.
-    __ fisttp_d(Operand(rsp, 0));
-    __ movl(rcx, Operand(rsp, 0));  // Load low word of answer into rcx.
-    __ addq(rsp, Immediate(sizeof(uint64_t)));  // Nolint.
+                    Register result,
+                    Register source) {
+  // Result may be rcx. If result and source are the same register, source will
+  // be overwritten.
+  ASSERT(!result.is(rdi) && !result.is(rbx));
+  // TODO(lrn): When type info reaches here, if value is a 32-bit integer, use
+  // cvttsd2si (32-bit version) directly.
+  Register double_exponent = rbx;
+  Register double_value = rdi;
+  Label done, exponent_63_plus;
+  // Get double and extract exponent.
+  __ movq(double_value, FieldOperand(source, HeapNumber::kValueOffset));
+  // Clear result preemptively, in case we need to return zero.
+  __ xorl(result, result);
+  __ movq(xmm0, double_value);  // Save copy in xmm0 in case we need it there.
+  // Double to remove sign bit, shift exponent down to least significant bits.
+  // and subtract bias to get the unshifted, unbiased exponent.
+  __ lea(double_exponent, Operand(double_value, double_value, times_1, 0));
+  __ shr(double_exponent, Immediate(64 - HeapNumber::KExponentBits));
+  __ subl(double_exponent, Immediate(HeapNumber::kExponentBias));
+  // Check whether the exponent is too big for a 63 bit unsigned integer.
+  __ cmpl(double_exponent, Immediate(63));
+  __ j(above_equal, &exponent_63_plus);
+  // Handle exponent range 0..62.
+  __ cvttsd2siq(result, xmm0);
+  __ jmp(&done);
+
+  __ bind(&exponent_63_plus);
+  // Exponent negative or 63+.
+  __ cmpl(double_exponent, Immediate(83));
+  // If exponent negative or above 83, number contains no significant bits in
+  // the range 0..2^31, so result is zero, and rcx already holds zero.
+  __ j(above, &done);
+
+  // Exponent in rage 63..83.
+  // Mantissa * 2^exponent contains bits in the range 2^0..2^31, namely
+  // the least significant exponent-52 bits.
+
+  // Negate low bits of mantissa if value is negative.
+  __ addq(double_value, double_value);  // Move sign bit to carry.
+  __ sbbl(result, result);  // And convert carry to -1 in result register.
+  // if scratch2 is negative, do (scratch2-1)^-1, otherwise (scratch2-0)^0.
+  __ addl(double_value, result);
+  // Do xor in opposite directions depending on where we want the result
+  // (depending on whether result is rcx or not).
+
+  if (result.is(rcx)) {
+    __ xorl(double_value, result);
+    // Left shift mantissa by (exponent - mantissabits - 1) to save the
+    // bits that have positional values below 2^32 (the extra -1 comes from the
+    // doubling done above to move the sign bit into the carry flag).
+    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
+    __ shll_cl(double_value);
+    __ movl(result, double_value);
   } else {
-    // Load rcx with zero.  We use this either for the final shift or
-    // for the answer.
-    __ xor_(rcx, rcx);
-    // Check whether the exponent matches a 32 bit signed int that cannot be
-    // represented by a Smi.  A non-smi 32 bit integer is 1.xxx * 2^30 so the
-    // exponent is 30 (biased).  This is the exponent that we are fastest at and
-    // also the highest exponent we can handle here.
-    const uint32_t non_smi_exponent =
-        (HeapNumber::kExponentBias + 30) << HeapNumber::kExponentShift;
-    __ cmpl(scratch2, Immediate(non_smi_exponent));
-    // If we have a match of the int32-but-not-Smi exponent then skip some
-    // logic.
-    __ j(equal, &right_exponent);
-    // If the exponent is higher than that then go to slow case.  This catches
-    // numbers that don't fit in a signed int32, infinities and NaNs.
-    __ j(less, &normal_exponent);
-
-    {
-      // Handle a big exponent.  The only reason we have this code is that the
-      // >>> operator has a tendency to generate numbers with an exponent of 31.
-      const uint32_t big_non_smi_exponent =
-          (HeapNumber::kExponentBias + 31) << HeapNumber::kExponentShift;
-      __ cmpl(scratch2, Immediate(big_non_smi_exponent));
-      __ j(not_equal, conversion_failure);
-      // We have the big exponent, typically from >>>.  This means the number is
-      // in the range 2^31 to 2^32 - 1.  Get the top bits of the mantissa.
-      __ movl(scratch2, scratch);
-      __ and_(scratch2, Immediate(HeapNumber::kMantissaMask));
-      // Put back the implicit 1.
-      __ or_(scratch2, Immediate(1 << HeapNumber::kExponentShift));
-      // Shift up the mantissa bits to take up the space the exponent used to
-      // take. We just orred in the implicit bit so that took care of one and
-      // we want to use the full unsigned range so we subtract 1 bit from the
-      // shift distance.
-      const int big_shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 1;
-      __ shl(scratch2, Immediate(big_shift_distance));
-      // Get the second half of the double.
-      __ movl(rcx, FieldOperand(source, HeapNumber::kMantissaOffset));
-      // Shift down 21 bits to get the most significant 11 bits or the low
-      // mantissa word.
-      __ shr(rcx, Immediate(32 - big_shift_distance));
-      __ or_(rcx, scratch2);
-      // We have the answer in rcx, but we may need to negate it.
-      __ testl(scratch, scratch);
-      __ j(positive, &done);
-      __ neg(rcx);
-      __ jmp(&done);
-    }
-
-    __ bind(&normal_exponent);
-    // Exponent word in scratch, exponent part of exponent word in scratch2.
-    // Zero in rcx.
-    // We know the exponent is smaller than 30 (biased).  If it is less than
-    // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
-    // it rounds to zero.
-    const uint32_t zero_exponent =
-        (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;
-    __ subl(scratch2, Immediate(zero_exponent));
-    // rcx already has a Smi zero.
-    __ j(less, &done);
-
-    // We have a shifted exponent between 0 and 30 in scratch2.
-    __ shr(scratch2, Immediate(HeapNumber::kExponentShift));
-    __ movl(rcx, Immediate(30));
-    __ subl(rcx, scratch2);
-
-    __ bind(&right_exponent);
-    // Here rcx is the shift, scratch is the exponent word.
-    // Get the top bits of the mantissa.
-    __ and_(scratch, Immediate(HeapNumber::kMantissaMask));
-    // Put back the implicit 1.
-    __ or_(scratch, Immediate(1 << HeapNumber::kExponentShift));
-    // Shift up the mantissa bits to take up the space the exponent used to
-    // take. We have kExponentShift + 1 significant bits int he low end of the
-    // word.  Shift them to the top bits.
-    const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
-    __ shl(scratch, Immediate(shift_distance));
-    // Get the second half of the double. For some exponents we don't
-    // actually need this because the bits get shifted out again, but
-    // it's probably slower to test than just to do it.
-    __ movl(scratch2, FieldOperand(source, HeapNumber::kMantissaOffset));
-    // Shift down 22 bits to get the most significant 10 bits or the low
-    // mantissa word.
-    __ shr(scratch2, Immediate(32 - shift_distance));
-    __ or_(scratch2, scratch);
-    // Move down according to the exponent.
-    __ shr_cl(scratch2);
-    // Now the unsigned answer is in scratch2.  We need to move it to rcx and
-    // we may need to fix the sign.
-    Label negative;
-    __ xor_(rcx, rcx);
-    __ cmpl(rcx, FieldOperand(source, HeapNumber::kExponentOffset));
-    __ j(greater, &negative);
-    __ movl(rcx, scratch2);
-    __ jmp(&done);
-    __ bind(&negative);
-    __ subl(rcx, scratch2);
-    __ bind(&done);
+    // As the then-branch, but move double-value to result before shifting.
+    __ xorl(result, double_value);
+    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
+    __ shll_cl(result);
   }
+
+  __ bind(&done);
 }
 
 
@@ -8196,14 +8143,11 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ j(not_equal, &slow);
 
     // Convert the heap number in rax to an untagged integer in rcx.
-    IntegerConvert(masm, rax, CpuFeatures::IsSupported(SSE3), &slow);
+    IntegerConvert(masm, rax, rax);
 
-    // Do the bitwise operation and check if the result fits in a smi.
-    Label try_float;
-    __ not_(rcx);
-    // Tag the result as a smi and we're done.
-    ASSERT(kSmiTagSize == 1);
-    __ Integer32ToSmi(rax, rcx);
+    // Do the bitwise operation and smi tag the result.
+    __ notl(rax);
+    __ Integer32ToSmi(rax, rax);
   }
 
   // Return from the stub.
@@ -9777,7 +9721,6 @@ void FloatingPointHelper::LoadFloatOperandsFromSmis(MacroAssembler* masm,
 // Input: rdx, rax are the left and right objects of a bit op.
 // Output: rax, rcx are left and right integers for a bit op.
 void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
-                                         bool use_sse3,
                                          Label* conversion_failure) {
   // Check float operands.
   Label arg1_is_object, check_undefined_arg1;
@@ -9800,10 +9743,9 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ CompareRoot(rbx, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &check_undefined_arg1);
   // Get the untagged integer version of the edx heap number in rcx.
-  IntegerConvert(masm, rdx, use_sse3, conversion_failure);
-  __ movl(rdx, rcx);
+  IntegerConvert(masm, rdx, rdx);
 
-  // Here edx has the untagged integer, eax has a Smi or a heap number.
+  // Here rdx has the untagged integer, rax has a Smi or a heap number.
   __ bind(&load_arg2);
   // Test if arg2 is a Smi.
   __ JumpIfNotSmi(rax, &arg2_is_object);
@@ -9823,7 +9765,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ CompareRoot(rbx, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &check_undefined_arg2);
   // Get the untagged integer version of the eax heap number in ecx.
-  IntegerConvert(masm, rax, use_sse3, conversion_failure);
+  IntegerConvert(masm, rcx, rax);
   __ bind(&done);
   __ movl(rax, rdx);
 }
@@ -9892,13 +9834,12 @@ const char* GenericBinaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, len),
-               "GenericBinaryOpStub_%s_%s%s_%s%s_%s%s_%s",
+               "GenericBinaryOpStub_%s_%s%s_%s%s_%s_%s",
                op_name,
                overwrite_name,
                (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
                args_in_registers_ ? "RegArgs" : "StackArgs",
                args_reversed_ ? "_R" : "",
-               use_sse3_ ? "SSE3" : "SSE2",
                static_operands_type_.ToString(),
                BinaryOpIC::GetName(runtime_operands_type_));
   return name_;
@@ -10331,7 +10272,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       case Token::SHL:
       case Token::SHR: {
         Label skip_allocation, non_smi_result;
-        FloatingPointHelper::LoadAsIntegers(masm, use_sse3_, &call_runtime);
+        FloatingPointHelper::LoadAsIntegers(masm, &call_runtime);
         switch (op_) {
           case Token::BIT_OR:  __ orl(rax, rcx); break;
           case Token::BIT_AND: __ andl(rax, rcx); break;
@@ -10342,7 +10283,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           default: UNREACHABLE();
         }
         if (op_ == Token::SHR) {
-          // Check if result is non-negative. This can only happen for a shift
+          // Check if result is negative. This can only happen for a shift
           // by zero, which also doesn't update the sign flag.
           __ testl(rax, rax);
           __ j(negative, &non_smi_result);

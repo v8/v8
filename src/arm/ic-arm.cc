@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "assembler-arm.h"
+#include "codegen.h"
 #include "codegen-inl.h"
 #include "disasm.h"
 #include "ic-inl.h"
@@ -639,7 +640,9 @@ bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
 
   // Patch the map check.
   Address ldr_map_instr_address =
-      inline_end_address - 18 * Assembler::kInstrSize;
+      inline_end_address -
+      CodeGenerator::kInlinedKeyedLoadInstructionsAfterPatchSize *
+      Assembler::kInstrSize;
   Assembler::set_target_address_at(ldr_map_instr_address,
                                    reinterpret_cast<Address>(map));
   return true;

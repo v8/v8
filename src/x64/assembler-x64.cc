@@ -2510,6 +2510,17 @@ void Assembler::cvttsd2si(Register dst, const Operand& src) {
 }
 
 
+void Assembler::cvttsd2siq(Register dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x2C);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::cvtlsi2sd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

@@ -25,28 +25,29 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_JUMP_TARGET_LIGHT_INL_H_
-#define V8_JUMP_TARGET_LIGHT_INL_H_
+#ifndef V8_VIRTUAL_FRAME_ARM_INL_H_
+#define V8_VIRTUAL_FRAME_ARM_INL_H_
 
-#include "virtual-frame-inl.h"
+#include "assembler-arm.h"
+#include "virtual-frame-arm.h"
 
 namespace v8 {
 namespace internal {
 
-// Construct a jump target.
-JumpTarget::JumpTarget(Directionality direction)
-    : entry_frame_set_(false),
-      entry_frame_(kInvalidVirtualFrameInitializer) {
+// These VirtualFrame methods should actually be in a virtual-frame-arm-inl.h
+// file if such a thing existed.
+MemOperand VirtualFrame::ParameterAt(int index) {
+  // Index -1 corresponds to the receiver.
+  ASSERT(-1 <= index);  // -1 is the receiver.
+  ASSERT(index <= parameter_count());
+  return MemOperand(fp, (1 + parameter_count() - index) * kPointerSize);
 }
 
-JumpTarget::JumpTarget()
-    : entry_frame_set_(false),
-      entry_frame_(kInvalidVirtualFrameInitializer) {
+  // The receiver frame slot.
+MemOperand VirtualFrame::Receiver() {
+  return ParameterAt(-1);
 }
-
-
-BreakTarget::BreakTarget() { }
 
 } }  // namespace v8::internal
 
-#endif  // V8_JUMP_TARGET_LIGHT_INL_H_
+#endif  // V8_VIRTUAL_FRAME_ARM_INL_H_
