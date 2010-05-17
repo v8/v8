@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_IA32)
+
 #include "codegen-inl.h"
 #include "ic-inl.h"
 #include "runtime.h"
@@ -1643,3 +1645,5 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_IA32

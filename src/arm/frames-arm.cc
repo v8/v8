@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_ARM)
+
 #include "frames-inl.h"
 #ifdef V8_ARM_VARIANT_THUMB
 #include "arm/assembler-thumb2-inl.h"
@@ -121,3 +123,5 @@ Address InternalFrame::GetCallerStackPointer() const {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_ARM

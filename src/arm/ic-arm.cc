@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_ARM)
+
 #include "assembler-arm.h"
 #include "codegen.h"
 #include "codegen-inl.h"
@@ -1841,3 +1843,5 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_ARM

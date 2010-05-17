@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_X64)
+
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"
@@ -1991,3 +1993,5 @@ void FullCodeGenerator::ExitFinallyBlock() {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_X64

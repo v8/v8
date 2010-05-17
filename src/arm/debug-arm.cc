@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_ARM)
+
 #include "codegen-inl.h"
 #include "debug.h"
 
@@ -237,3 +239,5 @@ const int Debug::kFrameDropperFrameSize = -1;
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_ARM

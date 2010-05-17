@@ -36,6 +36,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_IA32)
+
 #include "disassembler.h"
 #include "macro-assembler.h"
 #include "serialize.h"
@@ -2535,3 +2537,5 @@ void LogGeneratedCodeCoverage(const char* file_line) {
 #endif
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_IA32

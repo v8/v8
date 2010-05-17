@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_X64)
+
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "assembler-x64.h"
@@ -2766,3 +2768,5 @@ CodePatcher::~CodePatcher() {
 }
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_X64

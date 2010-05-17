@@ -28,6 +28,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_X64)
+
 #include "codegen-inl.h"
 #include "debug.h"
 
@@ -216,3 +218,5 @@ void BreakLocationIterator::SetDebugBreakAtReturn()  {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_X64
