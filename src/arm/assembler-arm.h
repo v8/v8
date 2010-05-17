@@ -976,6 +976,12 @@ class Assembler : public Malloced {
   int current_position() const { return current_position_; }
   int current_statement_position() const { return current_statement_position_; }
 
+  bool can_peephole_optimize(int instructions) {
+    if (!FLAG_peephole_optimization) return false;
+    if (last_bound_pos_ > pc_offset() - instructions * kInstrSize) return false;
+    return reloc_info_writer.last_pc() <= pc_ - instructions * kInstrSize;
+  }
+
   // Read/patch instructions
   static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
   static void instr_at_put(byte* pc, Instr instr) {

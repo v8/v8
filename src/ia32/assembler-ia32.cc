@@ -433,7 +433,7 @@ void Assembler::push(const Operand& src) {
 
 void Assembler::pop(Register dst) {
   ASSERT(reloc_info_writer.last_pc() != NULL);
-  if (FLAG_push_pop_elimination && (reloc_info_writer.last_pc() <= last_pc_)) {
+  if (FLAG_peephole_optimization && (reloc_info_writer.last_pc() <= last_pc_)) {
     // (last_pc_ != NULL) is rolled into the above check.
     // If a last_pc_ is set, we need to make sure that there has not been any
     // relocation information generated between the last instruction and this
@@ -443,7 +443,7 @@ void Assembler::pop(Register dst) {
       int push_reg_code = instr & 0x7;
       if (push_reg_code == dst.code()) {
         pc_ = last_pc_;
-        if (FLAG_print_push_pop_elimination) {
+        if (FLAG_print_peephole_optimization) {
           PrintF("%d push/pop (same reg) eliminated\n", pc_offset());
         }
       } else {
@@ -452,7 +452,7 @@ void Assembler::pop(Register dst) {
         Register src = { push_reg_code };
         EnsureSpace ensure_space(this);
         emit_operand(dst, Operand(src));
-        if (FLAG_print_push_pop_elimination) {
+        if (FLAG_print_peephole_optimization) {
           PrintF("%d push/pop (reg->reg) eliminated\n", pc_offset());
         }
       }
@@ -466,7 +466,7 @@ void Assembler::pop(Register dst) {
         last_pc_[0] = 0x8b;
         last_pc_[1] = op1;
         last_pc_ = NULL;
-        if (FLAG_print_push_pop_elimination) {
+        if (FLAG_print_peephole_optimization) {
           PrintF("%d push/pop (op->reg) eliminated\n", pc_offset());
         }
         return;
@@ -483,7 +483,7 @@ void Assembler::pop(Register dst) {
         last_pc_[1] = 0xc4;
         last_pc_[2] = 0x04;
         last_pc_ = NULL;
-        if (FLAG_print_push_pop_elimination) {
+        if (FLAG_print_peephole_optimization) {
           PrintF("%d push/pop (mov-pop) eliminated\n", pc_offset());
         }
         return;
@@ -498,7 +498,7 @@ void Assembler::pop(Register dst) {
         // change to
         // 31c0         xor eax,eax
         last_pc_ = NULL;
-        if (FLAG_print_push_pop_elimination) {
+        if (FLAG_print_peephole_optimization) {
           PrintF("%d push/pop (imm->reg) eliminated\n", pc_offset());
         }
         return;
@@ -521,7 +521,7 @@ void Assembler::pop(Register dst) {
           // b8XX000000   mov eax,0x000000XX
         }
         last_pc_ = NULL;
-        if (FLAG_print_push_pop_elimination) {
+        if (FLAG_print_peephole_optimization) {
           PrintF("%d push/pop (imm->reg) eliminated\n", pc_offset());
         }
         return;
@@ -533,7 +533,7 @@ void Assembler::pop(Register dst) {
       last_pc_ = NULL;
       // change to
       // b8XXXXXXXX   mov eax,0xXXXXXXXX
-      if (FLAG_print_push_pop_elimination) {
+      if (FLAG_print_peephole_optimization) {
         PrintF("%d push/pop (imm->reg) eliminated\n", pc_offset());
       }
       return;
@@ -813,7 +813,7 @@ void Assembler::add(Register dst, const Operand& src) {
 
 void Assembler::add(const Operand& dst, const Immediate& x) {
   ASSERT(reloc_info_writer.last_pc() != NULL);
-  if (FLAG_push_pop_elimination && (reloc_info_writer.last_pc() <= last_pc_)) {
+  if (FLAG_peephole_optimization && (reloc_info_writer.last_pc() <= last_pc_)) {
     byte instr = last_pc_[0];
     if ((instr & 0xf8) == 0x50) {
       // Last instruction was a push. Check whether this is a pop without a
@@ -822,7 +822,7 @@ void Assembler::add(const Operand& dst, const Immediate& x) {
           (x.x_ == kPointerSize) && (x.rmode_ == RelocInfo::NONE)) {
         pc_ = last_pc_;
         last_pc_ = NULL;
-        if (FLAG_print_push_pop_elimination) {
+        if (FLAG_print_peephole_optimization) {
           PrintF("%d push/pop(noreg) eliminated\n", pc_offset());
         }
         return;

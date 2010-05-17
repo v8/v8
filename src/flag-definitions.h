@@ -100,10 +100,6 @@ private:
 DEFINE_bool(debug_code, false,
             "generate extra code (comments, assertions) for debugging")
 DEFINE_bool(emit_branch_hints, false, "emit branch hints")
-DEFINE_bool(push_pop_elimination, true,
-            "eliminate redundant push/pops in assembly code")
-DEFINE_bool(print_push_pop_elimination, false,
-            "print elimination of redundant push/pops in assembly code")
 DEFINE_bool(peephole_optimization, true,
             "perform peephole optimizations in assembly code")
 DEFINE_bool(print_peephole_optimization, false,
