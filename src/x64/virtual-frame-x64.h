@@ -145,6 +145,9 @@ class VirtualFrame : public ZoneObject {
   // (ie, they all have frame-external references).
   Register SpillAnyRegister();
 
+  // Spill the top element of the frame to memory.
+  void SpillTop() { SpillElementAt(element_count() - 1); }
+
   // Sync the range of elements in [begin, end] with memory.
   void SyncRange(int begin, int end);
 
