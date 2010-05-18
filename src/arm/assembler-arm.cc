@@ -1359,12 +1359,18 @@ void Assembler::ldrd(Register dst, const MemOperand& src, Condition cond) {
 #ifdef CAN_USE_ARMV7_INSTRUCTIONS
   addrmod3(cond | B7 | B6 | B4, dst, src);
 #else
-  ldr(dst, src, cond);
+  // Generate two ldr instructions if ldrd is not available.
   MemOperand src1(src);
   src1.set_offset(src1.offset() + 4);
   Register dst1(dst);
-  dst1.code_ = dst1.code_ + 1;
-  ldr(dst1, src1, cond);
+  dst1.set_code(dst1.code() + 1);
+  if (dst.is(src.rn())) {
+    ldr(dst1, src1, cond);
+    ldr(dst, src, cond);
+  } else {
+    ldr(dst, src, cond);
+    ldr(dst1, src1, cond);
+  }
 #endif
 }
 
@@ -1374,11 +1380,12 @@ void Assembler::strd(Register src, const MemOperand& dst, Condition cond) {
 #ifdef CAN_USE_ARMV7_INSTRUCTIONS
   addrmod3(cond | B7 | B6 | B5 | B4, src, dst);
 #else
-  str(src, dst, cond);
+  // Generate two str instructions if strd is not available.
   MemOperand dst1(dst);
   dst1.set_offset(dst1.offset() + 4);
   Register src1(src);
-  src1.code_ = src1.code_ + 1;
+  src1.set_code(src1.code() + 1);
+  str(src, dst, cond);
   str(src1, dst1, cond);
 #endif
 }

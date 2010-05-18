@@ -80,6 +80,11 @@ struct Register {
     return 1 << code_;
   }
 
+  void set_code(int code) {
+    code_ = code;
+    ASSERT(is_valid());
+  }
+
   // Unfortunately we can't make this private in a struct.
   int code_;
 };
@@ -458,7 +463,8 @@ class MemOperand BASE_EMBEDDED {
       return offset_;
   }
 
-  Register rm() const {return rm_;}
+  Register rn() const { return rn_; }
+  Register rm() const { return rm_; }
 
  private:
   Register rn_;  // base
