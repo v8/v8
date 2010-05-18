@@ -1976,32 +1976,31 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                                                   String* name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
-  //  -- r2    : name
+  //  -- r1    : key
+  //  -- r2    : receiver
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
 
-  __ IncrementCounter(&Counters::keyed_store_field, 1, r1, r3);
+  __ IncrementCounter(&Counters::keyed_store_field, 1, r3, r4);
 
   // Check that the name has not changed.
-  __ cmp(r2, Operand(Handle<String>(name)));
+  __ cmp(r1, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  // Load receiver from the stack.
-  __ ldr(r3, MemOperand(sp));
-  // r1 is used as scratch register, r3 and r2 might be clobbered.
+  // r3 is used as scratch register. r1 and r2 keep their values if a jump to
+  // the miss label is generated.
   GenerateStoreField(masm(),
                      object,
                      index,
                      transition,
-                     r3, r2, r1,
+                     r2, r1, r3,
                      &miss);
   __ bind(&miss);
 
-  __ DecrementCounter(&Counters::keyed_store_field, 1, r1, r3);
-  __ mov(r2, Operand(Handle<String>(name)));  // restore name register.
+  __ DecrementCounter(&Counters::keyed_store_field, 1, r3, r4);
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
+
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.

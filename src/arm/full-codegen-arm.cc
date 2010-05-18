@@ -642,11 +642,11 @@ void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
       }
 
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      __ pop(r1);  // Key.
+      __ pop(r2);  // Receiver.
       __ Call(ic, RelocInfo::CODE_TARGET);
 
-      // Value in r0 is ignored (declarations are statements).  Receiver
-      // and key on stack are discarded.
-      __ Drop(2);
+      // Value in r0 is ignored (declarations are statements).
     }
   }
 }
@@ -1105,6 +1105,8 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
+  // Load receiver to r1. Leave a copy in the stack if needed for turning the
+  // receiver into fast case.
   if (expr->ends_initialization_block()) {
     __ ldr(r1, MemOperand(sp));
   } else {
@@ -1117,7 +1119,8 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
     __ push(r0);  // Result of assignment, saved even if not needed.
-    __ ldr(ip, MemOperand(sp, kPointerSize));  // Receiver is under value.
+    // Receiver is under the result value.
+    __ ldr(ip, MemOperand(sp, kPointerSize));
     __ push(ip);
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(r0);
@@ -1145,21 +1148,30 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
 
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
+  __ pop(r1);  // Key.
+  // Load receiver to r2. Leave a copy in the stack if needed for turning the
+  // receiver into fast case.
+  if (expr->ends_initialization_block()) {
+    __ ldr(r2, MemOperand(sp));
+  } else {
+    __ pop(r2);
+  }
+
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
     __ push(r0);  // Result of assignment, saved even if not needed.
-    // Receiver is under the key and value.
-    __ ldr(ip, MemOperand(sp, 2 * kPointerSize));
+    // Receiver is under the result value.
+    __ ldr(ip, MemOperand(sp, kPointerSize));
     __ push(ip);
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(r0);
+    DropAndApply(1, context_, r0);
+  } else {
+    Apply(context_, r0);
   }
-
-  // Receiver and key are still on stack.
-  DropAndApply(2, context_, r0);
 }
 
 
@@ -1659,15 +1671,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     }
     case KEYED_PROPERTY: {
+      __ pop(r1);  // Key.
+      __ pop(r2);  // Receiver.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
       if (expr->is_postfix()) {
-        __ Drop(2);  // Result is on the stack under the key and the receiver.
         if (context_ != Expression::kEffect) {
           ApplyTOS(context_);
         }
       } else {
-        DropAndApply(2, context_, r0);
+        Apply(context_, r0);
       }
       break;
     }

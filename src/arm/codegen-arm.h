@@ -220,7 +220,8 @@ class CodeGenerator: public AstVisitor {
   static int InlineRuntimeCallArgumentsCount(Handle<String> name);
 
   // Constants related to patching of inlined load/store.
-  static const int kInlinedKeyedLoadInstructionsAfterPatchSize = 19;
+  static const int kInlinedKeyedLoadInstructionsAfterPatch = 19;
+  static const int kInlinedKeyedStoreInstructionsAfterPatch = 5;
 
  private:
   // Construction/Destruction

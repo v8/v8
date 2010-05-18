@@ -3563,9 +3563,7 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
   // Perform the assignment.  It is safe to ignore constants here.
   ASSERT(node->op() != Token::INIT_CONST);
   CodeForSourcePosition(node->position());
-  frame_->PopToR0();
   EmitKeyedStore(prop->key()->type());
-  frame_->Drop(2);  // Key and receiver are left on the stack.
   frame_->EmitPush(r0);
 
   // Stack layout:
@@ -5519,11 +5517,19 @@ void DeferredReferenceGetKeyedValue::Generate() {
 
 class DeferredReferenceSetKeyedValue: public DeferredCode {
  public:
-  DeferredReferenceSetKeyedValue() {
+  DeferredReferenceSetKeyedValue(Register value,
+                                 Register key,
+                                 Register receiver)
+      : value_(value), key_(key), receiver_(receiver) {
     set_comment("[ DeferredReferenceSetKeyedValue");
   }
 
   virtual void Generate();
+
+ private:
+  Register value_;
+  Register key_;
+  Register receiver_;
 };
 
 
@@ -5534,10 +5540,17 @@ void DeferredReferenceSetKeyedValue::Generate() {
   __ IncrementCounter(
       &Counters::keyed_store_inline_miss, 1, scratch1, scratch2);
 
+  // Ensure value in r0, key in r1 and receiver in r2 to match keyed store ic
+  // calling convention.
+  if (value_.is(r1)) {
+    __ Swap(r0, r1, ip);
+  }
+  ASSERT(receiver_.is(r2));
+
   // The rest of the instructions in the deferred code must be together.
   { Assembler::BlockConstPoolScope block_const_pool(masm_);
-    // Call keyed load IC. It has receiver amd key on the stack and the value to
-    // store in r0.
+    // Call keyed store IC. It has the arguments value, key and receiver in r0,
+    // r1 and r2.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop instruction to indicate that the
@@ -5697,7 +5710,7 @@ void CodeGenerator::EmitKeyedLoad() {
 
       __ mov(r0, scratch1);
       // Make sure that the expected number of instructions are generated.
-      ASSERT_EQ(kInlinedKeyedLoadInstructionsAfterPatchSize,
+      ASSERT_EQ(kInlinedKeyedLoadInstructionsAfterPatch,
                 masm_->InstructionsGeneratedSince(&check_inlined_codesize));
     }
 
@@ -5707,78 +5720,86 @@ void CodeGenerator::EmitKeyedLoad() {
 
 
 void CodeGenerator::EmitKeyedStore(StaticType* key_type) {
-  VirtualFrame::SpilledScope scope(frame_);
   // Generate inlined version of the keyed store if the code is in a loop
   // and the key is likely to be a smi.
   if (loop_nesting() > 0 && key_type->IsLikelySmi()) {
     // Inline the keyed store.
     Comment cmnt(masm_, "[ Inlined store to keyed property");
 
-    DeferredReferenceSetKeyedValue* deferred =
-        new DeferredReferenceSetKeyedValue();
+    Register scratch1 = VirtualFrame::scratch0();
+    Register scratch2 = VirtualFrame::scratch1();
+    Register scratch3 = r3;
 
     // Counter will be decremented in the deferred code. Placed here to avoid
     // having it in the instruction stream below where patching will occur.
     __ IncrementCounter(&Counters::keyed_store_inline, 1,
-                        frame_->scratch0(), frame_->scratch1());
+                        scratch1, scratch2);
+
+    // Load the value, key and receiver from the stack.
+    Register value = frame_->PopToRegister();
+    Register key = frame_->PopToRegister(value);
+    Register receiver = r2;
+    frame_->EmitPop(receiver);
+    VirtualFrame::SpilledScope spilled(frame_);
+
+    // The deferred code expects value, key and receiver in registers.
+    DeferredReferenceSetKeyedValue* deferred =
+        new DeferredReferenceSetKeyedValue(value, key, receiver);
 
     // Check that the value is a smi. As this inlined code does not set the
     // write barrier it is only possible to store smi values.
-    __ tst(r0, Operand(kSmiTagMask));
+    __ tst(value, Operand(kSmiTagMask));
     deferred->Branch(ne);
 
-    // Load the key and receiver from the stack.
-    __ ldr(r1, MemOperand(sp, 0));
-    __ ldr(r2, MemOperand(sp, kPointerSize));
-
     // Check that the key is a smi.
-    __ tst(r1, Operand(kSmiTagMask));
+    __ tst(key, Operand(kSmiTagMask));
     deferred->Branch(ne);
 
     // Check that the receiver is a heap object.
-    __ tst(r2, Operand(kSmiTagMask));
+    __ tst(receiver, Operand(kSmiTagMask));
     deferred->Branch(eq);
 
     // Check that the receiver is a JSArray.
-    __ CompareObjectType(r2, r3, r3, JS_ARRAY_TYPE);
+    __ CompareObjectType(receiver, scratch1, scratch1, JS_ARRAY_TYPE);
     deferred->Branch(ne);
 
     // Check that the key is within bounds. Both the key and the length of
     // the JSArray are smis. Use unsigned comparison to handle negative keys.
-    __ ldr(r3, FieldMemOperand(r2, JSArray::kLengthOffset));
-    __ cmp(r3, r1);
+    __ ldr(scratch1, FieldMemOperand(receiver, JSArray::kLengthOffset));
+    __ cmp(scratch1, key);
     deferred->Branch(ls);  // Unsigned less equal.
 
     // The following instructions are the part of the inlined store keyed
     // property code which can be patched. Therefore the exact number of
     // instructions generated need to be fixed, so the constant pool is blocked
     // while generating this code.
-#ifdef DEBUG
-    int kInlinedKeyedStoreInstructions = 7;
-    Label check_inlined_codesize;
-    masm_->bind(&check_inlined_codesize);
-#endif
     { Assembler::BlockConstPoolScope block_const_pool(masm_);
       // Get the elements array from the receiver and check that it
       // is not a dictionary.
-      __ ldr(r3, FieldMemOperand(r2, JSObject::kElementsOffset));
-      __ ldr(r4, FieldMemOperand(r3, JSObject::kMapOffset));
+      __ ldr(scratch1, FieldMemOperand(receiver, JSObject::kElementsOffset));
+      __ ldr(scratch2, FieldMemOperand(scratch1, JSObject::kMapOffset));
       // Read the fixed array map from the constant pool (not from the root
       // array) so that the value can be patched.  When debugging, we patch this
       // comparison to always fail so that we will hit the IC call in the
       // deferred code which will allow the debugger to break for fast case
       // stores.
-      __ mov(r5, Operand(Factory::fixed_array_map()));
-      __ cmp(r4, r5);
+#ifdef DEBUG
+    Label check_inlined_codesize;
+    masm_->bind(&check_inlined_codesize);
+#endif
+      __ mov(scratch3, Operand(Factory::fixed_array_map()));
+      __ cmp(scratch2, scratch3);
       deferred->Branch(ne);
 
       // Store the value.
-      __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-      __ str(r0, MemOperand(r3, r1, LSL,
-                            kPointerSizeLog2 - (kSmiTagSize + kSmiShiftSize)));
+      __ add(scratch1, scratch1,
+             Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ str(value,
+             MemOperand(scratch1, key, LSL,
+                        kPointerSizeLog2 - (kSmiTagSize + kSmiShiftSize)));
 
       // Make sure that the expected number of instructions are generated.
-      ASSERT_EQ(kInlinedKeyedStoreInstructions,
+      ASSERT_EQ(kInlinedKeyedStoreInstructionsAfterPatch,
                 masm_->InstructionsGeneratedSince(&check_inlined_codesize));
     }
 
@@ -5894,16 +5915,13 @@ void Reference::SetValue(InitState init_state) {
     }
 
     case KEYED: {
-      VirtualFrame::SpilledScope scope(frame);
       Comment cmnt(masm, "[ Store to keyed Property");
       Property* property = expression_->AsProperty();
       ASSERT(property != NULL);
       cgen_->CodeForSourcePosition(property->position());
-
-      frame->EmitPop(r0);  // Value.
       cgen_->EmitKeyedStore(property->key()->type());
       frame->EmitPush(r0);
-      cgen_->UnloadReference(this);
+      set_unloaded();
       break;
     }
 
