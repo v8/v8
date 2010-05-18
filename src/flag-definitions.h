@@ -182,6 +182,11 @@ DEFINE_bool(gc_global, false, "always perform global GCs")
 DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_bool(trace_gc, false,
             "print one trace line following each garbage collection")
+DEFINE_bool(trace_gc_nvp, false,
+            "print one detailed trace line in name=value format "
+            "after each garbage collection")
+DEFINE_bool(print_cumulative_gc_stat, false,
+            "print cumulative GC statistics in name=value format on exit")
 DEFINE_bool(trace_gc_verbose, false,
             "print more details following each garbage collection")
 DEFINE_bool(collect_maps, true,
