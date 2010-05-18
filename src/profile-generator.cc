@@ -545,7 +545,7 @@ CpuProfile* CpuProfilesCollection::GetProfile(int security_token_id,
                                                 false);
   int index;
   if (entry != NULL) {
-    index = reinterpret_cast<int>(entry->value);
+    index = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
   } else {
     return NULL;
   }
