@@ -4250,15 +4250,23 @@ int CpuProfiler::GetProfilesCount() {
 }
 
 
-const CpuProfile* CpuProfiler::GetProfile(int index) {
+const CpuProfile* CpuProfiler::GetProfile(int index,
+                                          Handle<Value> security_token) {
   IsDeadCheck("v8::CpuProfiler::GetProfile");
-  return reinterpret_cast<const CpuProfile*>(i::CpuProfiler::GetProfile(index));
+  return reinterpret_cast<const CpuProfile*>(
+      i::CpuProfiler::GetProfile(
+          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
+          index));
 }
 
 
-const CpuProfile* CpuProfiler::FindProfile(unsigned uid) {
+const CpuProfile* CpuProfiler::FindProfile(unsigned uid,
+                                           Handle<Value> security_token) {
   IsDeadCheck("v8::CpuProfiler::FindProfile");
-  return reinterpret_cast<const CpuProfile*>(i::CpuProfiler::FindProfile(uid));
+  return reinterpret_cast<const CpuProfile*>(
+      i::CpuProfiler::FindProfile(
+          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
+          uid));
 }
 
 
@@ -4268,10 +4276,13 @@ void CpuProfiler::StartProfiling(Handle<String> title) {
 }
 
 
-const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title) {
+const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title,
+                                             Handle<Value> security_token) {
   IsDeadCheck("v8::CpuProfiler::StopProfiling");
   return reinterpret_cast<const CpuProfile*>(
-      i::CpuProfiler::StopProfiling(*Utils::OpenHandle(*title)));
+      i::CpuProfiler::StopProfiling(
+          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
+          *Utils::OpenHandle(*title)));
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
