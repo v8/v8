@@ -1548,7 +1548,7 @@ void CodeGenerator::SetTypeForStackSlot(Slot* slot, TypeInfo info) {
     }
     Result var = frame_->Pop();
     var.ToRegister();
-    __ AbortIfNotSmi(var.reg(), "Non-smi value in smi-typed stack slot.");
+    __ AbortIfNotSmi(var.reg());
   }
 }
 
@@ -3401,7 +3401,11 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
                                                   new_value.type_info());
     }
 
-    __ JumpIfNotSmi(new_value.reg(), deferred->entry_label());
+    if (new_value.is_smi()) {
+      if (FLAG_debug_code) { __ AbortIfNotSmi(new_value.reg()); }
+    } else {
+      __ JumpIfNotSmi(new_value.reg(), deferred->entry_label());
+    }
     if (is_increment) {
       __ SmiAddConstant(kScratchRegister,
                         new_value.reg(),
@@ -3923,7 +3927,7 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   __ bind(&exit);
   result.set_type_info(TypeInfo::Smi());
   if (FLAG_debug_code) {
-    __ AbortIfNotSmi(result.reg(), "Computed arguments.length is not a smi.");
+    __ AbortIfNotSmi(result.reg());
   }
   frame_->Push(&result);
 }
@@ -5102,10 +5106,9 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
   value.ToRegister();
 
   if (value.is_number()) {
-    Comment cmnt(masm_, "ONLY_NUMBER");
     // Fast case if TypeInfo indicates only numbers.
     if (FLAG_debug_code) {
-      __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
+      __ AbortIfNotNumber(value.reg());
     }
     // Smi => false iff zero.
     __ SmiCompare(value.reg(), Smi::FromInt(0));
@@ -5878,7 +5881,7 @@ void CodeGenerator::Comparison(AstNode* node,
 
       if (left_side.is_smi()) {
         if (FLAG_debug_code) {
-          __ AbortIfNotSmi(left_side.reg(), "Non-smi value inferred as smi.");
+          __ AbortIfNotSmi(left_side.reg());
         }
       } else {
         Condition left_is_smi = masm_->CheckSmi(left_side.reg());
@@ -6750,8 +6753,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
           Condition is_smi = masm_->CheckSmi(operand->reg());
           deferred->Branch(NegateCondition(is_smi));
         } else if (FLAG_debug_code) {
-          __ AbortIfNotSmi(operand->reg(),
-              "Static type info claims non-smi is smi in (const SHL smi).");
+          __ AbortIfNotSmi(operand->reg());
         }
 
         __ Move(answer.reg(), smi_value);
@@ -7471,7 +7473,7 @@ void Reference::SetValue(InitState init_state) {
         if (!key.is_smi()) {
           __ JumpIfNotSmi(key.reg(), deferred->entry_label());
         } else if (FLAG_debug_code) {
-          __ AbortIfNotSmi(key.reg(), "Non-smi value in smi-typed value.");
+          __ AbortIfNotSmi(key.reg());
         }
 
         // Check that the receiver is a JSArray.
@@ -10016,8 +10018,8 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   if (static_operands_type_.IsSmi()) {
     // Skip smi check if we know that both arguments are smis.
     if (FLAG_debug_code) {
-      __ AbortIfNotSmi(left, "Static type check claimed non-smi is smi.");
-      __ AbortIfNotSmi(right, "Static type check claimed non-smi is smi.");
+      __ AbortIfNotSmi(left);
+      __ AbortIfNotSmi(right);
     }
     if (op_ == Token::BIT_OR) {
       // Handle OR here, since we do extra smi-checking in the or code below.
@@ -10200,8 +10202,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         // rdx: x
       if (static_operands_type_.IsNumber() && FLAG_debug_code) {
         // Assert at runtime that inputs are only numbers.
-        __ AbortIfNotNumber(rdx, "GenericBinaryOpStub operand not a number.");
-        __ AbortIfNotNumber(rax, "GenericBinaryOpStub operand not a number.");
+        __ AbortIfNotNumber(rdx);
+        __ AbortIfNotNumber(rax);
       } else {
         FloatingPointHelper::CheckNumberOperands(masm, &call_runtime);
       }

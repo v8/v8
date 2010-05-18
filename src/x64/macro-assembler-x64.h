@@ -533,10 +533,10 @@ class MacroAssembler: public Assembler {
   void FCmp();
 
   // Abort execution if argument is not a number. Used in debug code.
-  void AbortIfNotNumber(Register object, const char* msg);
+  void AbortIfNotNumber(Register object);
 
   // Abort execution if argument is not a smi. Used in debug code.
-  void AbortIfNotSmi(Register object, const char* msg);
+  void AbortIfNotSmi(Register object);
 
   // ---------------------------------------------------------------------------
   // Exception handling
