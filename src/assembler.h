@@ -121,7 +121,6 @@ class RelocInfo BASE_EMBEDDED {
     DEBUG_BREAK,
     CODE_TARGET,         // code target which is not any of the above.
     EMBEDDED_OBJECT,
-    EMBEDDED_STRING,
 
     // Everything after runtime_entry (inclusive) is not GC'ed.
     RUNTIME_ENTRY,
@@ -137,7 +136,7 @@ class RelocInfo BASE_EMBEDDED {
     NUMBER_OF_MODES,  // must be no greater than 14 - see RelocInfoWriter
     NONE,  // never recorded
     LAST_CODE_ENUM = CODE_TARGET,
-    LAST_GCED_ENUM = EMBEDDED_STRING
+    LAST_GCED_ENUM = EMBEDDED_OBJECT
   };
 
 
