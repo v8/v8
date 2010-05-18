@@ -2015,4 +2015,4 @@ void FullCodeGenerator::ExitFinallyBlock() {
 
 } }  // namespace v8::internal
 
-#endif // V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_IA32
