@@ -567,11 +567,7 @@ class Assembler : public Malloced {
 
   // Arithmetics
   void addl(Register dst, Register src) {
-    if (dst.low_bits() == 4) {  // Forces SIB byte.
-      arithmetic_op_32(0x01, src, dst);
-    } else {
-      arithmetic_op_32(0x03, dst, src);
-    }
+    arithmetic_op_32(0x03, dst, src);
   }
 
   void addl(Register dst, Immediate src) {
@@ -607,11 +603,7 @@ class Assembler : public Malloced {
   }
 
   void sbbl(Register dst, Register src) {
-    if (dst.low_bits() == 4) {  // Forces SIB byte if dst is base register.
-      arithmetic_op_32(0x19, src, dst);
-    } else {
-      arithmetic_op_32(0x1b, dst, src);
-    }
+    arithmetic_op_32(0x1b, dst, src);
   }
 
   void cmpb(Register dst, Immediate src) {

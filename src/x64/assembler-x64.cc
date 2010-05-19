@@ -460,19 +460,36 @@ void Assembler::arithmetic_op(byte opcode, Register reg, const Operand& op) {
 void Assembler::arithmetic_op(byte opcode, Register reg, Register rm_reg) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(reg, rm_reg);
-  emit(opcode);
-  emit_modrm(reg, rm_reg);
+  ASSERT((opcode & 0xC6) == 2);
+  if (rm_reg.low_bits() == 4)  {  // Forces SIB byte.
+    // Swap reg and rm_reg and change opcode operand order.
+    emit_rex_64(rm_reg, reg);
+    emit(opcode ^ 0x02);
+    emit_modrm(rm_reg, reg);
+  } else {
+    emit_rex_64(reg, rm_reg);
+    emit(opcode);
+    emit_modrm(reg, rm_reg);
+  }
 }
 
 
 void Assembler::arithmetic_op_16(byte opcode, Register reg, Register rm_reg) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit(0x66);
-  emit_optional_rex_32(reg, rm_reg);
-  emit(opcode);
-  emit_modrm(reg, rm_reg);
+  ASSERT((opcode & 0xC6) == 2);
+  if (rm_reg.low_bits() == 4) {  // Forces SIB byte.
+    // Swap reg and rm_reg and change opcode operand order.
+    emit(0x66);
+    emit_optional_rex_32(rm_reg, reg);
+    emit(opcode ^ 0x02);
+    emit_modrm(rm_reg, reg);
+  } else {
+    emit(0x66);
+    emit_optional_rex_32(reg, rm_reg);
+    emit(opcode);
+    emit_modrm(reg, rm_reg);
+  }
 }
 
 
@@ -491,9 +508,17 @@ void Assembler::arithmetic_op_16(byte opcode,
 void Assembler::arithmetic_op_32(byte opcode, Register reg, Register rm_reg) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_optional_rex_32(reg, rm_reg);
-  emit(opcode);
-  emit_modrm(reg, rm_reg);
+  ASSERT((opcode & 0xC6) == 2);
+  if (rm_reg.low_bits() == 4) {  // Forces SIB byte.
+    // Swap reg and rm_reg and change opcode operand order.
+    emit_optional_rex_32(rm_reg, reg);
+    emit(opcode ^ 0x02);  // E.g. 0x03 -> 0x01 for ADD.
+    emit_modrm(rm_reg, reg);
+  } else {
+    emit_optional_rex_32(reg, rm_reg);
+    emit(opcode);
+    emit_modrm(reg, rm_reg);
+  }
 }
 
 
@@ -1292,9 +1317,15 @@ void Assembler::movl(Register dst, const Operand& src) {
 void Assembler::movl(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_optional_rex_32(dst, src);
-  emit(0x8B);
-  emit_modrm(dst, src);
+  if (src.low_bits() == 4) {
+    emit_optional_rex_32(src, dst);
+    emit(0x89);
+    emit_modrm(src, dst);
+  } else {
+    emit_optional_rex_32(dst, src);
+    emit(0x8B);
+    emit_modrm(dst, src);
+  }
 }
 
 
@@ -1339,9 +1370,15 @@ void Assembler::movq(Register dst, const Operand& src) {
 void Assembler::movq(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(dst, src);
-  emit(0x8B);
-  emit_modrm(dst, src);
+  if (src.low_bits() == 4) {
+    emit_rex_64(src, dst);
+    emit(0x89);
+    emit_modrm(src, dst);
+  } else {
+    emit_rex_64(dst, src);
+    emit(0x8B);
+    emit_modrm(dst, src);
+  }
 }
 
 
@@ -1862,6 +1899,10 @@ void Assembler::xchg(Register dst, Register src) {
     Register other = src.is(rax) ? dst : src;
     emit_rex_64(other);
     emit(0x90 | other.low_bits());
+  } else if (dst.low_bits() == 4) {
+    emit_rex_64(dst, src);
+    emit(0x87);
+    emit_modrm(dst, src);
   } else {
     emit_rex_64(src, dst);
     emit(0x87);
@@ -1887,12 +1928,18 @@ void Assembler::store_rax(ExternalReference ref) {
 void Assembler::testb(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  if (dst.code() > 3 || src.code() > 3) {
-    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
-    emit_rex_32(dst, src);
+  if (src.low_bits() == 4) {
+    emit_rex_32(src, dst);
+    emit(0x84);
+    emit_modrm(src, dst);
+  } else {
+    if (dst.code() > 3 || src.code() > 3) {
+      // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+      emit_rex_32(dst, src);
+    }
+    emit(0x84);
+    emit_modrm(dst, src);
   }
-  emit(0x84);
-  emit_modrm(dst, src);
 }
 
 
@@ -1943,9 +1990,15 @@ void Assembler::testb(const Operand& op, Register reg) {
 void Assembler::testl(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_optional_rex_32(dst, src);
-  emit(0x85);
-  emit_modrm(dst, src);
+  if (src.low_bits() == 4) {
+    emit_optional_rex_32(src, dst);
+    emit(0x85);
+    emit_modrm(src, dst);
+  } else {
+    emit_optional_rex_32(dst, src);
+    emit(0x85);
+    emit_modrm(dst, src);
+  }
 }
 
 
@@ -1996,9 +2049,15 @@ void Assembler::testq(const Operand& op, Register reg) {
 void Assembler::testq(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(dst, src);
-  emit(0x85);
-  emit_modrm(dst, src);
+  if (src.low_bits() == 4) {
+    emit_rex_64(src, dst);
+    emit(0x85);
+    emit_modrm(src, dst);
+  } else {
+    emit_rex_64(dst, src);
+    emit(0x85);
+    emit_modrm(dst, src);
+  }
 }
 
 
