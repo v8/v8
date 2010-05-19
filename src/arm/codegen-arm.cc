@@ -1370,6 +1370,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // give us a megamorphic load site. Not super, but it works.
   LoadAndSpill(applicand);
   Handle<String> name = Factory::LookupAsciiSymbol("apply");
+  frame_->Dup();
   frame_->CallLoadIC(name, RelocInfo::CODE_TARGET);
   frame_->EmitPush(r0);
 
@@ -3009,8 +3010,6 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
                      typeof_state == INSIDE_TYPEOF
                          ? RelocInfo::CODE_TARGET
                          : RelocInfo::CODE_TARGET_CONTEXT);
-  // Drop the global object. The result is in r0.
-  frame_->Drop();
 }
 
 
@@ -3424,7 +3423,6 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
       frame_->Dup();
     }
     EmitNamedLoad(name, var != NULL);
-    frame_->Drop();  // Receiver is left on the stack.
     frame_->EmitPush(r0);
 
     // Perform the binary operation.
@@ -5430,26 +5428,30 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
 class DeferredReferenceGetNamedValue: public DeferredCode {
  public:
-  explicit DeferredReferenceGetNamedValue(Handle<String> name) : name_(name) {
+  explicit DeferredReferenceGetNamedValue(Register receiver,
+                                          Handle<String> name)
+      : receiver_(receiver), name_(name) {
     set_comment("[ DeferredReferenceGetNamedValue");
   }
 
   virtual void Generate();
 
  private:
+  Register receiver_;
   Handle<String> name_;
 };
 
 
 void DeferredReferenceGetNamedValue::Generate() {
+  ASSERT(receiver_.is(r0) || receiver_.is(r1));
+
   Register scratch1 = VirtualFrame::scratch0();
   Register scratch2 = VirtualFrame::scratch1();
   __ DecrementCounter(&Counters::named_load_inline, 1, scratch1, scratch2);
   __ IncrementCounter(&Counters::named_load_inline_miss, 1, scratch1, scratch2);
 
-  // Setup the registers and call load IC.
-  // On entry to this deferred code, r0 is assumed to already contain the
-  // receiver from the top of the stack.
+  // Ensure receiver in r0 and name in r2 to match load ic calling convention.
+  __ Move(r0, receiver_);
   __ mov(r2, Operand(name_));
 
   // The rest of the instructions in the deferred code must be together.
@@ -5588,10 +5590,11 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     // this code
 
     // Load the receiver from the stack.
-    frame_->SpillAllButCopyTOSToR0();
+    Register receiver = frame_->PopToRegister();
+    VirtualFrame::SpilledScope spilled(frame_);
 
     DeferredReferenceGetNamedValue* deferred =
-        new DeferredReferenceGetNamedValue(name);
+        new DeferredReferenceGetNamedValue(receiver, name);
 
 #ifdef DEBUG
     int kInlinedNamedLoadInstructions = 7;
@@ -5601,19 +5604,19 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 
     { Assembler::BlockConstPoolScope block_const_pool(masm_);
       // Check that the receiver is a heap object.
-      __ tst(r0, Operand(kSmiTagMask));
+      __ tst(receiver, Operand(kSmiTagMask));
       deferred->Branch(eq);
 
       // Check the map. The null map used below is patched by the inline cache
       // code.
-      __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+      __ ldr(r2, FieldMemOperand(receiver, HeapObject::kMapOffset));
       __ mov(r3, Operand(Factory::null_value()));
       __ cmp(r2, r3);
       deferred->Branch(ne);
 
       // Initially use an invalid index. The index will be patched by the
       // inline cache code.
-      __ ldr(r0, MemOperand(r0, 0));
+      __ ldr(r0, MemOperand(receiver, 0));
 
       // Make sure that the expected number of instructions are generated.
       ASSERT_EQ(kInlinedNamedLoadInstructions,
@@ -5862,19 +5865,20 @@ void Reference::GetValue() {
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
+      if (persist_after_get_) {
+        cgen_->frame()->Dup();
+      }
       cgen_->EmitNamedLoad(GetName(), is_global);
       cgen_->frame()->EmitPush(r0);
-      if (!persist_after_get_) {
-        cgen_->UnloadReference(this);
-      }
+      if (!persist_after_get_) set_unloaded();
       break;
     }
 
     case KEYED: {
+      ASSERT(property != NULL);
       if (persist_after_get_) {
         cgen_->frame()->Dup2();
       }
-      ASSERT(property != NULL);
       cgen_->EmitKeyedLoad();
       cgen_->frame()->EmitPush(r0);
       if (!persist_after_get_) set_unloaded();

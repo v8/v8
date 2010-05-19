@@ -1617,14 +1617,10 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
                                                  JSObject* object,
                                                  JSObject* last) {
   // ----------- S t a t e -------------
-  //  -- r2    : name
+  //  -- r0    : receiver
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
-
-  // Load receiver.
-  __ ldr(r0, MemOperand(sp, 0));
 
   // Check that receiver is not a smi.
   __ tst(r0, Operand(kSmiTagMask));
@@ -1662,13 +1658,11 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
                                            int index,
                                            String* name) {
   // ----------- S t a t e -------------
+  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
 
   GenerateLoadField(object, holder, r0, r3, r1, index, name, &miss);
   __ bind(&miss);
@@ -1684,13 +1678,12 @@ Object* LoadStubCompiler::CompileLoadCallback(String* name,
                                               JSObject* holder,
                                               AccessorInfo* callback) {
   // ----------- S t a t e -------------
+  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
 
-  __ ldr(r0, MemOperand(sp, 0));
   Failure* failure = Failure::InternalError();
   bool success = GenerateLoadCallback(object, holder, r0, r2, r3, r1,
                                       callback, name, &miss, &failure);
@@ -1709,13 +1702,11 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
                                               Object* value,
                                               String* name) {
   // ----------- S t a t e -------------
+  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp] : receiver
   // -----------------------------------
   Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
 
   GenerateLoadConstant(object, holder, r0, r3, r1, value, name, &miss);
   __ bind(&miss);
@@ -1730,13 +1721,11 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
                                                  JSObject* holder,
                                                  String* name) {
   // ----------- S t a t e -------------
+  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
 
   LookupResult lookup;
   LookupPostInterceptor(holder, name, &lookup);
@@ -1763,10 +1752,9 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
                                             String* name,
                                             bool is_dont_delete) {
   // ----------- S t a t e -------------
+  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- r0    : receiver
-  //  -- sp[0] : receiver
   // -----------------------------------
   Label miss;
 

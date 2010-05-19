@@ -707,13 +707,12 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
   if (var->is_global() && !var->is_this()) {
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in r2 and the global
-    // object on the stack.
+    // object (receiver) in r0.
     __ ldr(r0, CodeGenerator::GlobalObject());
-    __ push(r0);
     __ mov(r2, Operand(var->name()));
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-    DropAndApply(1, context, r0);
+    Apply(context, r0);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
     Comment cmnt(masm_, "Lookup slot");
@@ -1019,7 +1018,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ mov(r2, Operand(key->handle()));
-  __ ldr(r0, MemOperand(sp, 0));
+  // Call load IC. It has arguments receiver and property name r0 and r2.
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 }
@@ -1213,14 +1212,12 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
   Comment cmnt(masm_, "[ Property");
   Expression* key = expr->key();
 
-  // Evaluate receiver.
-  VisitForValue(expr->obj(), kStack);
-
   if (key->IsPropertyName()) {
+    VisitForValue(expr->obj(), kAccumulator);
     EmitNamedPropertyLoad(expr);
-    // Drop receiver left on the stack by IC.
-    DropAndApply(1, context_, r0);
+    Apply(context_, r0);
   } else {
+    VisitForValue(expr->obj(), kStack);
     VisitForValue(expr->key(), kAccumulator);
     __ pop(r1);
     EmitKeyedPropertyLoad(expr);
@@ -1493,13 +1490,12 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           proxy->var()->is_global()) {
         Comment cmnt(masm_, "Global variable");
         __ ldr(r0, CodeGenerator::GlobalObject());
-        __ push(r0);
         __ mov(r2, Operand(proxy->name()));
         Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
         // Use a regular load, not a contextual load, to avoid a reference
         // error.
         __ Call(ic, RelocInfo::CODE_TARGET);
-        __ str(r0, MemOperand(sp));
+        __ push(r0);
       } else if (proxy != NULL &&
                  proxy->var()->slot() != NULL &&
                  proxy->var()->slot()->type() == Slot::LOOKUP) {
@@ -1605,10 +1601,13 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ mov(ip, Operand(Smi::FromInt(0)));
       __ push(ip);
     }
-    VisitForValue(prop->obj(), kStack);
     if (assign_type == NAMED_PROPERTY) {
+      // Put the object both on the stack and in the accumulator.
+      VisitForValue(prop->obj(), kAccumulator);
+      __ push(r0);
       EmitNamedPropertyLoad(prop);
     } else {
+      VisitForValue(prop->obj(), kStack);
       VisitForValue(prop->key(), kAccumulator);
       __ ldr(r1, MemOperand(sp, 0));
       __ push(r0);
