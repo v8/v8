@@ -35,7 +35,8 @@
 #include <sys/stack.h>  // for stack alignment
 #include <unistd.h>  // getpagesize(), usleep()
 #include <sys/mman.h>  // mmap()
-#include <execinfo.h>  // backtrace(), backtrace_symbols()
+#include <ucontext.h>  // walkstack(), getcontext()
+#include <dlfcn.h>     // dladdr
 #include <pthread.h>
 #include <sched.h>  // for sched_yield
 #include <semaphore.h>
@@ -52,6 +53,24 @@
 
 #include "platform.h"
 
+
+// It seems there is a bug in some Solaris distributions (experienced in
+// SunOS 5.10 Generic_141445-09) which make it difficult or impossible to
+// access signbit() despite the availability of other C99 math functions.
+#ifndef signbit
+// Test sign - usually defined in math.h
+int signbit(double x) {
+  // We need to take care of the special case of both positive and negative
+  // versions of zero.
+  if (x == 0) {
+    return fpclass(x) & FP_NZERO;
+  } else {
+    // This won't detect negative NaN but that should be okay since we don't
+    // assume that behavior.
+    return x < 0;
+  }
+}
+#endif  // signbit
 
 namespace v8 {
 namespace internal {
@@ -231,31 +250,55 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
+struct StackWalker {
+  Vector<OS::StackFrame>& frames;
+  int index;
+};
+
+
+static int StackWalkCallback(uintptr_t pc, int signo, void* data) {
+  struct StackWalker* walker = static_cast<struct StackWalker*>(data);
+  Dl_info info;
+
+  int i = walker->index;
+
+  walker->frames[i].address = reinterpret_cast<void*>(pc);
+
+  // Make sure line termination is in place.
+  walker->frames[i].text[OS::kStackWalkMaxTextLen - 1] = '\0';
+
+  Vector<char> text = MutableCStrVector(walker->frames[i].text,
+                                        OS::kStackWalkMaxTextLen);
+
+  if (dladdr(reinterpret_cast<void*>(pc), &info) == 0) {
+    OS::SNPrintF(text, "[0x%p]", pc);
+  } else if ((info.dli_fname != NULL && info.dli_sname != NULL)) {
+    // We have symbol info.
+    OS::SNPrintF(text, "%s'%s+0x%x", info.dli_fname, info.dli_sname, pc);
+  } else {
+    // No local symbol info.
+    OS::SNPrintF(text,
+                 "%s'0x%p [0x%p]",
+                 info.dli_fname,
+                 pc - reinterpret_cast<uintptr_t>(info.dli_fbase),
+                 pc);
+  }
+  walker->index++;
+  return 0;
+}
+
+
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
-  int frames_size = frames.length();
-  ScopedVector<void*> addresses(frames_size);
+  ucontext_t ctx;
+  struct StackWalker walker = { frames, 0 };
 
-  int frames_count = backtrace(addresses.start(), frames_size);
+  if (getcontext(&ctx) < 0) return kStackWalkError;
 
-  char** symbols = backtrace_symbols(addresses.start(), frames_count);
-  if (symbols == NULL) {
+  if (!walkcontext(&ctx, StackWalkCallback, &walker)) {
     return kStackWalkError;
   }
 
-  for (int i = 0; i < frames_count; i++) {
-    frames[i].address = addresses[i];
-    // Format a text representation of the frame based on the information
-    // available.
-    SNPrintF(MutableCStrVector(frames[i].text, kStackWalkMaxTextLen),
-             "%s",
-             symbols[i]);
-    // Make sure line termination is in place.
-    frames[i].text[kStackWalkMaxTextLen - 1] = '\0';
-  }
-
-  free(symbols);
-
-  return frames_count;
+  return walker.index;
 }
 
 
