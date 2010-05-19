@@ -273,6 +273,13 @@ static void CreateTraceCallerFunction(const char* func_name,
 // StackTracer uses Top::c_entry_fp as a starting point for stack
 // walking.
 TEST(CFromJSStackTrace) {
+#ifdef V8_HOST_ARCH_IA32
+  // TODO(711) The hack of replacing the inline runtime function
+  // RandomHeapNumber with GetFrameNumber does not work with the way the full
+  // compiler generates inline runtime calls.
+  i::FLAG_force_full_compiler = false;
+#endif
+
   TickSample sample;
   InitTraceEnv(&sample);
 
@@ -308,6 +315,13 @@ TEST(CFromJSStackTrace) {
 // Top::c_entry_fp value. In this case, StackTracer uses passed frame
 // pointer value as a starting point for stack walking.
 TEST(PureJSStackTrace) {
+#ifdef V8_HOST_ARCH_IA32
+  // TODO(711) The hack of replacing the inline runtime function
+  // RandomHeapNumber with GetFrameNumber does not work with the way the full
+  // compiler generates inline runtime calls.
+  i::FLAG_force_full_compiler = false;
+#endif
+
   TickSample sample;
   InitTraceEnv(&sample);
 

@@ -693,8 +693,9 @@ class Debugger {
   static void set_loading_debugger(bool v) { is_loading_debugger_ = v; }
   static bool is_loading_debugger() { return Debugger::is_loading_debugger_; }
 
- private:
   static bool IsDebuggerActive();
+
+ private:
   static void ListenersChanged();
 
   static Mutex* debugger_access_;  // Mutex guarding debugger variables.
