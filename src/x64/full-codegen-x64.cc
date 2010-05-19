@@ -779,19 +779,28 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
-  Comment cmnt(masm_, "[ FunctionLiteral");
+void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
+  UNREACHABLE();
+}
 
-  // Build the shared function info and instantiate the function based
-  // on it.
-  Handle<SharedFunctionInfo> function_info =
-      Compiler::BuildFunctionInfo(expr, script(), this);
-  if (HasStackOverflow()) return;
 
-  // Create a new closure.
-  __ push(rsi);
-  __ Push(function_info);
-  __ CallRuntime(Runtime::kNewClosure, 2);
+void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info) {
+  // Use the fast case closure allocation code that allocates in new
+  // space for nested functions that don't need literals cloning.
+  if (scope()->is_function_scope() && info->num_literals() == 0) {
+    FastNewClosureStub stub;
+    __ Push(info);
+    __ CallStub(&stub);
+  } else {
+    __ push(rsi);
+    __ Push(info);
+    __ CallRuntime(Runtime::kNewClosure, 2);
+  }
   Apply(context_, rax);
 }
 
@@ -1021,7 +1030,13 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
 void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
-  ASSERT(expr->op() != Token::INIT_CONST);
+  // Invalid left-hand sides are rewritten to have a 'throw ReferenceError'
+  // on the left-hand side.
+  if (!expr->target()->IsValidLeftHandSide()) {
+    VisitForEffect(expr->target());
+    return;
+  }
+
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
@@ -1047,8 +1062,15 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       }
       break;
     case KEYED_PROPERTY:
-      VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kStack);
+      if (expr->is_compound()) {
+        VisitForValue(prop->obj(), kStack);
+        VisitForValue(prop->key(), kAccumulator);
+        __ movq(rdx, Operand(rsp, 0));
+        __ push(rax);
+      } else {
+        VisitForValue(prop->obj(), kStack);
+        VisitForValue(prop->key(), kStack);
+      }
       break;
   }
 
@@ -1093,6 +1115,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   switch (assign_type) {
     case VARIABLE:
       EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
+                             expr->op(),
                              context_);
       break;
     case NAMED_PROPERTY:
@@ -1135,60 +1158,78 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
 
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var,
+                                               Token::Value op,
                                                Expression::Context context) {
-  // Three main cases: non-this global variables, lookup slots, and
-  // all other types of slots.  Left-hand-side parameters that rewrite
-  // to explicit property accesses do not reach here.
+  // Left-hand sides that rewrite to explicit property accesses do not reach
+  // here.
   ASSERT(var != NULL);
   ASSERT(var->is_global() || var->slot() != NULL);
-  Slot* slot = var->slot();
+
   if (var->is_global()) {
     ASSERT(!var->is_this());
     // Assignment to a global variable.  Use inline caching for the
     // assignment.  Right-hand-side value is passed in rax, variable name in
-    // rcx, and the global object in rdx.
+    // rcx, and the global object on the stack.
     __ Move(rcx, var->name());
     __ movq(rdx, CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
-    Apply(context, rax);
+    __ nop();
 
-  } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
-    __ push(result_register());  // Value.
-    __ push(rsi);  // Context.
-    __ Push(var->name());
-    __ CallRuntime(Runtime::kStoreContextSlot, 3);
-    Apply(context, rax);
-
-  } else if (var->slot() != NULL) {
+  } else if (var->mode() != Variable::CONST || op == Token::INIT_CONST) {
+    // Perform the assignment for non-const variables and for initialization
+    // of const variables.  Const assignments are simply skipped.
+    Label done;
+    Slot* slot = var->slot();
     switch (slot->type()) {
-      case Slot::LOCAL:
       case Slot::PARAMETER:
-        __ movq(Operand(rbp, SlotOffset(slot)), result_register());
+      case Slot::LOCAL:
+        if (op == Token::INIT_CONST) {
+          // Detect const reinitialization by checking for the hole value.
+          __ movq(rdx, Operand(rbp, SlotOffset(slot)));
+          __ Cmp(rdx, Factory::the_hole_value());
+          __ j(not_equal, &done);
+        }
+        // Perform the assignment.
+        __ movq(Operand(rbp, SlotOffset(slot)), rax);
         break;
 
       case Slot::CONTEXT: {
         MemOperand target = EmitSlotSearch(slot, rcx);
-        __ movq(target, result_register());
-
-        // RecordWrite may destroy all its register arguments.
-        __ movq(rdx, result_register());
+        if (op == Token::INIT_CONST) {
+          // Detect const reinitialization by checking for the hole value.
+          __ movq(rdx, target);
+          __ Cmp(rdx, Factory::the_hole_value());
+          __ j(not_equal, &done);
+        }
+        // Perform the assignment and issue the write barrier.
+        __ movq(target, rax);
+        // The value of the assignment is in rax.  RecordWrite clobbers its
+        // register arguments.
+        __ movq(rdx, rax);
         int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
         __ RecordWrite(rcx, offset, rdx, rbx);
         break;
       }
 
       case Slot::LOOKUP:
-        UNREACHABLE();
+        // Call the runtime for the assignment.  The runtime will ignore
+        // const reinitialization.
+        __ push(rax);  // Value.
+        __ push(rsi);  // Context.
+        __ Push(var->name());
+        if (op == Token::INIT_CONST) {
+          // The runtime will ignore const redeclaration.
+          __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+        } else {
+          __ CallRuntime(Runtime::kStoreContextSlot, 3);
+        }
         break;
     }
-    Apply(context, result_register());
-
-  } else {
-    // Variables rewritten as properties are not treated as variables in
-    // assignments.
-    UNREACHABLE();
+    __ bind(&done);
   }
+
+  Apply(context, rax);
 }
 
 
@@ -1737,7 +1778,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   switch (assign_type) {
     case VARIABLE:
       if (expr->is_postfix()) {
+        // Perform the assignment as if via '='.
         EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
+                               Token::ASSIGN,
                                Expression::kEffect);
         // For all contexts except kEffect: We have the result on
         // top of the stack.
@@ -1745,7 +1788,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
           ApplyTOS(context_);
         }
       } else {
+        // Perform the assignment as if via '='.
         EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
+                               Token::ASSIGN,
                                context_);
       }
       break;

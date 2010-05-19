@@ -399,10 +399,10 @@ void FullCodeGenerator::Apply(Expression::Context context,
     case Expression::kValue: {
       Label done;
       __ bind(materialize_true);
-      __ mov(result_register(), Operand(Factory::true_value()));
+      __ LoadRoot(result_register(), Heap::kTrueValueRootIndex);
       __ jmp(&done);
       __ bind(materialize_false);
-      __ mov(result_register(), Operand(Factory::false_value()));
+      __ LoadRoot(result_register(), Heap::kFalseValueRootIndex);
       __ bind(&done);
       switch (location_) {
         case kAccumulator:
@@ -419,7 +419,7 @@ void FullCodeGenerator::Apply(Expression::Context context,
 
     case Expression::kValueTest:
       __ bind(materialize_true);
-      __ mov(result_register(), Operand(Factory::true_value()));
+      __ LoadRoot(result_register(), Heap::kTrueValueRootIndex);
       switch (location_) {
         case kAccumulator:
           break;
@@ -432,7 +432,7 @@ void FullCodeGenerator::Apply(Expression::Context context,
 
     case Expression::kTestValue:
       __ bind(materialize_false);
-      __ mov(result_register(), Operand(Factory::false_value()));
+      __ LoadRoot(result_register(), Heap::kFalseValueRootIndex);
       switch (location_) {
         case kAccumulator:
           break;
@@ -663,19 +663,29 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
-  Comment cmnt(masm_, "[ FunctionLiteral");
+void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
+  UNREACHABLE();
+}
 
-  // Build the shared function info and instantiate the function based
-  // on it.
-  Handle<SharedFunctionInfo> function_info =
-      Compiler::BuildFunctionInfo(expr, script(), this);
-  if (HasStackOverflow()) return;
 
-  // Create a new closure.
-  __ mov(r0, Operand(function_info));
-  __ stm(db_w, sp, cp.bit() | r0.bit());
-  __ CallRuntime(Runtime::kNewClosure, 2);
+void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info) {
+  // Use the fast case closure allocation code that allocates in new
+  // space for nested functions that don't need literals cloning.
+  if (scope()->is_function_scope() && info->num_literals() == 0) {
+    FastNewClosureStub stub;
+    __ mov(r0, Operand(info));
+    __ push(r0);
+    __ CallStub(&stub);
+  } else {
+    __ mov(r0, Operand(info));
+    __ stm(db_w, sp, cp.bit() | r0.bit());
+    __ CallRuntime(Runtime::kNewClosure, 2);
+  }
   Apply(context_, r0);
 }
 
@@ -906,7 +916,13 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
 void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
-  ASSERT(expr->op() != Token::INIT_CONST);
+  // Invalid left-hand sides are rewritten to have a 'throw ReferenceError'
+  // on the left-hand side.
+  if (!expr->target()->IsValidLeftHandSide()) {
+    VisitForEffect(expr->target());
+    return;
+  }
+
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
@@ -986,6 +1002,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   switch (assign_type) {
     case VARIABLE:
       EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
+                             expr->op(),
                              context_);
       break;
     case NAMED_PROPERTY:
@@ -1026,14 +1043,13 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
 
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var,
+                                               Token::Value op,
                                                Expression::Context context) {
-  // Three main cases: global variables, lookup slots, and all other
-  // types of slots.  Left-hand-side parameters that rewrite to
-  // explicit property accesses do not reach here.
+  // Left-hand sides that rewrite to explicit property accesses do not reach
+  // here.
   ASSERT(var != NULL);
   ASSERT(var->is_global() || var->slot() != NULL);
 
-  Slot* slot = var->slot();
   if (var->is_global()) {
     ASSERT(!var->is_this());
     // Assignment to a global variable.  Use inline caching for the
@@ -1044,43 +1060,61 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
 
-  } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
-    __ push(result_register());  // Value.
-    __ mov(r1, Operand(var->name()));
-    __ stm(db_w, sp, cp.bit() | r1.bit());  // Context and name.
-    __ CallRuntime(Runtime::kStoreContextSlot, 3);
-
-  } else if (var->slot() != NULL) {
+  } else if (var->mode() != Variable::CONST || op == Token::INIT_CONST) {
+    // Perform the assignment for non-const variables and for initialization
+    // of const variables.  Const assignments are simply skipped.
+    Label done;
     Slot* slot = var->slot();
     switch (slot->type()) {
-      case Slot::LOCAL:
       case Slot::PARAMETER:
+      case Slot::LOCAL:
+        if (op == Token::INIT_CONST) {
+          // Detect const reinitialization by checking for the hole value.
+          __ ldr(r1, MemOperand(fp, SlotOffset(slot)));
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ cmp(r1, ip);
+          __ b(ne, &done);
+        }
+        // Perform the assignment.
         __ str(result_register(), MemOperand(fp, SlotOffset(slot)));
         break;
 
       case Slot::CONTEXT: {
         MemOperand target = EmitSlotSearch(slot, r1);
+        if (op == Token::INIT_CONST) {
+          // Detect const reinitialization by checking for the hole value.
+          __ ldr(r1, target);
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ cmp(r1, ip);
+          __ b(ne, &done);
+        }
+        // Perform the assignment and issue the write barrier.
         __ str(result_register(), target);
-
         // RecordWrite may destroy all its register arguments.
         __ mov(r3, result_register());
         int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-
         __ mov(r2, Operand(offset));
         __ RecordWrite(r1, r2, r3);
         break;
       }
 
       case Slot::LOOKUP:
-        UNREACHABLE();
+        // Call the runtime for the assignment.  The runtime will ignore
+        // const reinitialization.
+        __ push(r0);  // Value.
+        __ mov(r0, Operand(slot->var()->name()));
+        __ Push(cp, r0);  // Context and name.
+        if (op == Token::INIT_CONST) {
+          // The runtime will ignore const redeclaration.
+          __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+        } else {
+          __ CallRuntime(Runtime::kStoreContextSlot, 3);
+        }
         break;
     }
-
-  } else {
-    // Variables rewritten as properties are not treated as variables in
-    // assignments.
-    UNREACHABLE();
+    __ bind(&done);
   }
+
   Apply(context, result_register());
 }
 
@@ -1645,6 +1679,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case VARIABLE:
       if (expr->is_postfix()) {
         EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
+                               Token::ASSIGN,
                                Expression::kEffect);
         // For all contexts except kEffect: We have the result on
         // top of the stack.
@@ -1653,6 +1688,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         }
       } else {
         EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
+                               Token::ASSIGN,
                                context_);
       }
       break;
