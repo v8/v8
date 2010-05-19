@@ -508,8 +508,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
       ASSERT(callback->getter() != NULL);
 
       Label cleanup;
-      __ pop(scratch2);
-      __ Push(receiver, scratch2);
+      __ push(receiver);
 
       holder = stub_compiler->CheckPrototypes(holder_obj, holder,
                                               lookup->holder(), scratch1,
@@ -528,9 +527,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
       __ TailCallExternalReference(ref, 5, 1);
 
       __ bind(&cleanup);
-      __ pop(scratch1);
       __ pop(scratch2);
-      __ push(scratch1);
     }
   }
 
