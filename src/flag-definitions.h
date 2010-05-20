@@ -149,7 +149,7 @@ DEFINE_bool(full_compiler, true, "enable dedicated backend for run-once code")
 DEFINE_bool(fast_compiler, false, "enable speculative optimizing backend")
 DEFINE_bool(always_full_compiler, false,
             "try to use the dedicated run-once backend for all code")
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
+#ifdef V8_TARGET_ARCH_IA32
 DEFINE_bool(force_full_compiler, false,
             "force use of the dedicated run-once backend for all code")
 #endif
@@ -337,6 +337,7 @@ DEFINE_bool(code_stats, false, "report code statistics after GC")
 DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
 DEFINE_bool(print_handles, false, "report handles after GC")
 DEFINE_bool(print_global_handles, false, "report global handles after GC")
+DEFINE_bool(print_rset, false, "print remembered sets before GC")
 
 // ic.cc
 DEFINE_bool(trace_ic, false, "trace inline cache state transitions")

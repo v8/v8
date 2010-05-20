@@ -1115,7 +1115,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
     __ j(not_equal, &miss);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label call_builtin, exit, with_write_barrier, attempt_to_grow_elements;
+      Label call_builtin, exit, with_rset_update, attempt_to_grow_elements;
 
       // Get the array's length into rax and calculate new length.
       __ movq(rax, FieldOperand(rdx, JSArray::kLengthOffset));
@@ -1123,7 +1123,8 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ SmiAddConstant(rax, rax, Smi::FromInt(argc));
 
       // Get the element's length into rcx.
-      __ movq(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
+      __ movl(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
+      __ Integer32ToSmi(rcx, rcx);
 
       // Check if we could survive without allocation.
       __ SmiCompare(rax, rcx);
@@ -1142,12 +1143,12 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ movq(Operand(rdx, 0), rcx);
 
       // Check if value is a smi.
-      __ JumpIfNotSmi(rcx, &with_write_barrier);
+      __ JumpIfNotSmi(rcx, &with_rset_update);
 
       __ bind(&exit);
       __ ret((argc + 1) * kPointerSize);
 
-      __ bind(&with_write_barrier);
+      __ bind(&with_rset_update);
 
       __ InNewSpace(rbx, rcx, equal, &exit);
 
@@ -1195,11 +1196,11 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
       // Increment element's and array's sizes.
-      __ SmiAddConstant(FieldOperand(rbx, FixedArray::kLengthOffset),
-                        Smi::FromInt(kAllocationDelta));
+      __ addl(FieldOperand(rbx, FixedArray::kLengthOffset),
+              Immediate(kAllocationDelta));
       __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rax);
 
-      // Elements are in new space, so write barrier is not required.
+      // Elements are in new space, so no remembered set updates are necessary.
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&call_builtin);
