@@ -134,10 +134,10 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC load call (from ic-x64.cc).
   // ----------- S t a t e -------------
   //  -- rax    : value
+  //  -- rcx    : key
+  //  -- rdx    : receiver
   // -----------------------------------
-  // Register rax contains an object that needs to be pushed on the
-  // expression stack of the fake JS frame.
-  Generate_DebugBreakCallHelper(masm, rax.bit(), false);
+  Generate_DebugBreakCallHelper(masm, rax.bit() | rcx.bit() | rdx.bit(), false);
 }
 
 

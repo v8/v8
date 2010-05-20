@@ -352,7 +352,7 @@ class VirtualFrame: public ZoneObject {
   Result CallStoreIC(Handle<String> name, bool is_contextual);
 
   // Call keyed store IC.  Value, key, and receiver are found on top
-  // of the frame.  Key and receiver are not dropped.
+  // of the frame.  All three are dropped.
   Result CallKeyedStoreIC();
 
   // Call call IC.  Function name, arguments, and receiver are found on top

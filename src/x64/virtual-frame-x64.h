@@ -336,13 +336,33 @@ class VirtualFrame : public ZoneObject {
   // frame.  They are not dropped.
   Result CallKeyedLoadIC(RelocInfo::Mode mode);
 
-  // Call store IC.  Name, value, and receiver are found on top of the
-  // frame.  Receiver is not dropped.
-  Result CallStoreIC();
+
+  // Calling a store IC and a keyed store IC differ only by which ic is called
+  // and by the order of the three arguments on the frame.
+  Result CallCommonStoreIC(Handle<Code> ic,
+                           Result* value,
+                           Result *key,
+                           Result* receiver);
+
+  // Call store IC.  Name, value, and receiver are found on top
+  // of the frame.  All are dropped.
+  Result CallStoreIC() {
+    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+    Result name = Pop();
+    Result value = Pop();
+    Result receiver = Pop();
+    return CallCommonStoreIC(ic, &value, &name, &receiver);
+  }
 
   // Call keyed store IC.  Value, key, and receiver are found on top
-  // of the frame.  Key and receiver are not dropped.
-  Result CallKeyedStoreIC();
+  // of the frame.  All are dropped.
+  Result CallKeyedStoreIC() {
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+    Result value = Pop();
+    Result key = Pop();
+    Result receiver = Pop();
+    return CallCommonStoreIC(ic, &value, &key, &receiver);
+  }
 
   // Call call IC.  Function name, arguments, and receiver are found on top
   // of the frame and dropped by the call.
@@ -550,6 +570,14 @@ class VirtualFrame : public ZoneObject {
   // is returned.  Otherwise, returns kIllegalIndex.
   // Register counts are correctly updated.
   int InvalidateFrameSlotAt(int index);
+
+  // This function assumes that a and b are the only results that could be in
+  // the registers a_reg or b_reg.  Other results can be live, but must not
+  //  be in the registers a_reg or b_reg.  The results a and b are invalidated.
+  void MoveResultsToRegisters(Result* a,
+                              Result* b,
+                              Register a_reg,
+                              Register b_reg);
 
   // Call a code stub that has already been prepared for calling (via
   // PrepareForCall).

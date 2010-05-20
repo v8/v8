@@ -2029,22 +2029,17 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                                                   String* name) {
   // ----------- S t a t e -------------
   //  -- rax     : value
+  //  -- rcx     : key
+  //  -- rdx     : receiver
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : key
-  //  -- rsp[16] : receiver
   // -----------------------------------
   Label miss;
 
   __ IncrementCounter(&Counters::keyed_store_field, 1);
 
-  // Get the name from the stack.
-  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
   // Check that the name has not changed.
   __ Cmp(rcx, Handle<String>(name));
   __ j(not_equal, &miss);
-
-  // Get the receiver from the stack.
-  __ movq(rdx, Operand(rsp, 2 * kPointerSize));
 
   // Generate store field code.  Preserves receiver and name on jump to miss.
   GenerateStoreField(masm(),

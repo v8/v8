@@ -851,23 +851,22 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       // We are declaring a function or constant that rewrites to a
       // property.  Use (keyed) IC to set the initial value.
       VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kStack);
-
       if (function != NULL) {
+        VisitForValue(prop->key(), kStack);
         VisitForValue(function, kAccumulator);
+        __ pop(rcx);
       } else {
+        VisitForValue(prop->key(), kAccumulator);
+        __ movq(rcx, result_register());
         __ LoadRoot(result_register(), Heap::kTheHoleValueRootIndex);
       }
+      __ pop(rdx);
 
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       __ call(ic, RelocInfo::CODE_TARGET);
       // Absence of a test rax instruction following the call
       // indicates that none of the load was inlined.
       __ nop();
-
-      // Value in rax is ignored (declarations are statements).  Receiver
-      // and key on stack are discarded.
-      __ Drop(2);
     }
   }
 }
@@ -1665,6 +1664,12 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
     __ pop(result_register());
   }
 
+  __ pop(rcx);
+  if (expr->ends_initialization_block()) {
+    __ movq(rdx, Operand(rsp, 0));  // Leave receiver on the stack for later.
+  } else {
+    __ pop(rdx);
+  }
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
@@ -1675,15 +1680,14 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
 
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
+    __ pop(rdx);
     __ push(rax);  // Result of assignment, saved even if not needed.
-    // Receiver is under the key and value.
-    __ push(Operand(rsp, 2 * kPointerSize));
+    __ push(rdx);
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(rax);
   }
 
-  // Receiver and key are still on stack.
-  DropAndApply(2, context_, rax);
+  Apply(context_, rax);
 }
 
 
@@ -2969,18 +2973,19 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     }
     case KEYED_PROPERTY: {
+      __ pop(rcx);
+      __ pop(rdx);
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       __ call(ic, RelocInfo::CODE_TARGET);
       // This nop signals to the IC that there is no inlined code at the call
       // site for it to patch.
       __ nop();
       if (expr->is_postfix()) {
-        __ Drop(2);  // Result is on the stack under the key and the receiver.
         if (context_ != Expression::kEffect) {
           ApplyTOS(context_);
         }
       } else {
-        DropAndApply(2, context_, rax);
+        Apply(context_, rax);
       }
       break;
     }
