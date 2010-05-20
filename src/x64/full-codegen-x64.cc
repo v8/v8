@@ -3022,29 +3022,28 @@ void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
 }
 
 
- void FullCodeGenerator::EmitNullCompare(bool strict,
-                                         Register obj,
-                                         Register null_const,
-                                         Label* if_true,
-                                         Label* if_false,
-                                         Register scratch) {
-   __ cmpq(obj, null_const);
-   if (strict) {
-     __ j(equal, if_true);
-   } else {
-     __ j(equal, if_true);
-     __ CompareRoot(obj, Heap::kUndefinedValueRootIndex);
-     __ j(equal, if_true);
-     __ JumpIfSmi(obj, if_false);
-     // It can be an undetectable object.
-     __ movq(scratch, FieldOperand(obj, HeapObject::kMapOffset));
-     __ testb(FieldOperand(scratch, Map::kBitFieldOffset),
-              Immediate(1 << Map::kIsUndetectable));
-     __ j(not_zero, if_true);
-   }
-   __ jmp(if_false);
- }
-
+void FullCodeGenerator::EmitNullCompare(bool strict,
+                                        Register obj,
+                                        Register null_const,
+                                        Label* if_true,
+                                        Label* if_false,
+                                        Register scratch) {
+  __ cmpq(obj, null_const);
+  if (strict) {
+    __ j(equal, if_true);
+  } else {
+    __ j(equal, if_true);
+    __ CompareRoot(obj, Heap::kUndefinedValueRootIndex);
+    __ j(equal, if_true);
+    __ JumpIfSmi(obj, if_false);
+    // It can be an undetectable object.
+    __ movq(scratch, FieldOperand(obj, HeapObject::kMapOffset));
+    __ testb(FieldOperand(scratch, Map::kBitFieldOffset),
+             Immediate(1 << Map::kIsUndetectable));
+    __ j(not_zero, if_true);
+  }
+  __ jmp(if_false);
+}
 
 
 void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
