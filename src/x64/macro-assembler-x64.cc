@@ -802,7 +802,7 @@ void MacroAssembler::SmiSub(Register dst,
 
 void MacroAssembler::SmiSub(Register dst,
                             Register src1,
-                            Operand const& src2,
+                            const Operand& src2,
                             Label* on_not_smi_result) {
   if (on_not_smi_result == NULL) {
     // No overflow checking. Use only when it's known that
@@ -916,6 +916,14 @@ void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
   } else {
     Move(dst, constant);
     addq(dst, src);
+  }
+}
+
+
+void MacroAssembler::SmiAddConstant(const Operand& dst, Smi* constant) {
+  if (constant->value() != 0) {
+    Move(kScratchRegister, constant);
+    addq(dst, kScratchRegister);
   }
 }
 
