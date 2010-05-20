@@ -162,6 +162,15 @@ const int RelocInfo::kApplyMask =
     1 << RelocInfo::JS_RETURN | 1 << RelocInfo::INTERNAL_REFERENCE;
 
 
+bool RelocInfo::IsCodedSpecially() {
+  // The deserializer needs to know whether a pointer is specially coded.  Being
+  // specially coded on IA32 means that it is a relative address, as used by
+  // branch instructions.  These are also the ones that need changing when a
+  // code object moves.
+  return (1 << rmode_) & kApplyMask;
+}
+
+
 void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   // Patch the code at the current address with the supplied instructions.
   for (int i = 0; i < instruction_count; i++) {

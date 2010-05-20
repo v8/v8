@@ -2800,6 +2800,16 @@ const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
                                   1 << RelocInfo::INTERNAL_REFERENCE |
                                   1 << RelocInfo::JS_RETURN;
 
+
+bool RelocInfo::IsCodedSpecially() {
+  // The deserializer needs to know whether a pointer is specially coded.  Being
+  // specially coded on x64 means that it is a relative 32 bit address, as used
+  // by branch instructions.
+  return (1 << rmode_) & kApplyMask;
+}
+
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_X64

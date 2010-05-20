@@ -184,6 +184,11 @@ class RelocInfo BASE_EMBEDDED {
   // Apply a relocation by delta bytes
   INLINE(void apply(intptr_t delta));
 
+  // Is the pointer this relocation info refers to coded like a plain pointer
+  // or is it strange in some way (eg relative or patched into a series of
+  // instructions).
+  bool IsCodedSpecially();
+
   // Read/modify the code target in the branch/call instruction
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY

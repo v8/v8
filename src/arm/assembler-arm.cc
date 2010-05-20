@@ -108,6 +108,15 @@ void CpuFeatures::Probe() {
 const int RelocInfo::kApplyMask = 0;
 
 
+bool RelocInfo::IsCodedSpecially() {
+  // The deserializer needs to know whether a pointer is specially coded.  Being
+  // specially coded on ARM means that it is a movw/movt instruction.  We don't
+  // generate those yet.
+  return false;
+}
+
+
+
 void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   // Patch the code at the current address with the supplied instructions.
   Instr* pc = reinterpret_cast<Instr*>(pc_);
