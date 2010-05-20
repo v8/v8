@@ -78,8 +78,8 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
-  // Set the remebered set bit for an address which points into an
-  // object. RecordWriteHelper only works if the object is not in new
+  // For page containing |object| mark region covering |addr| dirty.
+  // RecordWriteHelper only works if the object is not in new
   // space.
   void RecordWriteHelper(Register object,
                          Register addr,
@@ -93,7 +93,7 @@ class MacroAssembler: public Assembler {
                   Condition cc,
                   Label* branch);
 
-  // Set the remembered set bit for [object+offset].
+  // For page containing |object| mark region covering [object+offset] dirty.
   // object is the object being stored into, value is the object being stored.
   // If offset is zero, then the scratch register contains the array index into
   // the elements array represented as a Smi.
@@ -103,7 +103,7 @@ class MacroAssembler: public Assembler {
                    Register value,
                    Register scratch);
 
-  // Set the remembered set bit for [object+offset].
+  // For page containing |object| mark region covering [object+offset] dirty.
   // The value is known to not be a smi.
   // object is the object being stored into, value is the object being stored.
   // If offset is zero, then the scratch register contains the array index into
@@ -220,6 +220,13 @@ class MacroAssembler: public Assembler {
                                              Register src,
                                              int power);
 
+  // Divide a positive smi's integer value by a power of two.
+  // Provides result as 32-bit integer value.
+  void PositiveSmiDivPowerOfTwoToInteger32(Register dst,
+                                           Register src,
+                                           int power);
+
+
   // Simple comparison of smis.
   void SmiCompare(Register dst, Register src);
   void SmiCompare(Register dst, Smi* src);
@@ -305,6 +312,10 @@ class MacroAssembler: public Assembler {
   // Add an integer constant to a tagged smi, giving a tagged smi as result.
   // No overflow testing on the result is done.
   void SmiAddConstant(Register dst, Register src, Smi* constant);
+
+  // Add an integer constant to a tagged smi, giving a tagged smi as result.
+  // No overflow testing on the result is done.
+  void SmiAddConstant(const Operand& dst, Smi* constant);
 
   // Add an integer constant to a tagged smi, giving a tagged smi as result,
   // or jumping to a label if the result cannot be represented by a smi.

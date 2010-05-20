@@ -1011,7 +1011,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(eax);  // Map.
   __ push(edx);  // Enumeration cache.
   __ mov(eax, FieldOperand(edx, FixedArray::kLengthOffset));
-  __ SmiTag(eax);
   __ push(eax);  // Enumeration cache length (as smi).
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
   __ jmp(&loop);
@@ -1021,7 +1020,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(Immediate(Smi::FromInt(0)));  // Map (0) - force slow check.
   __ push(eax);
   __ mov(eax, FieldOperand(eax, FixedArray::kLengthOffset));
-  __ SmiTag(eax);
   __ push(eax);  // Fixed array length (as smi).
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
 
