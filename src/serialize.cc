@@ -697,7 +697,7 @@ void Deserializer::ReadChunk(Object** current,
       case where + how + within + space_number:                                \
       ASSERT((where & ~kPointedToMask) == 0);                                  \
       ASSERT((how & ~kHowToCodeMask) == 0);                                    \
-      ASSERT((within & ~kWhereToPointMask) == 0);                             \
+      ASSERT((within & ~kWhereToPointMask) == 0);                              \
       ASSERT((space_number & ~kSpaceMask) == 0);
 
 #define CASE_BODY(where, how, within, space_number_if_any, offset_from_start)  \

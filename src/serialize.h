@@ -148,12 +148,12 @@ static const int k64 = (sizeof(uintptr_t) - 4) / 4;
 
 #define COMMON_REFERENCE_PATTERNS(f)                               \
   f(kNumberOfSpaces, 2, (11 - k64))                                \
-  f(kNumberOfSpaces + 1, 2, 0)                                     \
-  f(kNumberOfSpaces + 2, 2, (142 - 16 * k64))                      \
-  f(kNumberOfSpaces + 3, 2, (74 - 15 * k64))                       \
-  f(kNumberOfSpaces + 4, 2, 5)                                     \
-  f(kNumberOfSpaces + 5, 1, 135)                                   \
-  f(kNumberOfSpaces + 6, 2, (228 - 39 * k64))
+  f((kNumberOfSpaces + 1), 2, 0)                                   \
+  f((kNumberOfSpaces + 2), 2, (142 - 16 * k64))                    \
+  f((kNumberOfSpaces + 3), 2, (74 - 15 * k64))                     \
+  f((kNumberOfSpaces + 4), 2, 5)                                   \
+  f((kNumberOfSpaces + 5), 1, 135)                                 \
+  f((kNumberOfSpaces + 6), 2, (228 - 39 * k64))
 
 #define COMMON_RAW_LENGTHS(f)        \
   f(1, 1)  \
