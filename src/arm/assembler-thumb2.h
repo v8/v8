@@ -735,10 +735,6 @@ class Assembler : public Malloced {
   void ldm(BlockAddrMode am, Register base, RegList dst, Condition cond = al);
   void stm(BlockAddrMode am, Register base, RegList src, Condition cond = al);
 
-  // Semaphore instructions
-  void swp(Register dst, Register src, Register base, Condition cond = al);
-  void swpb(Register dst, Register src, Register base, Condition cond = al);
-
   // Exception-generating instructions and debugging support
   void stop(const char* msg);
 
@@ -863,10 +859,6 @@ class Assembler : public Malloced {
   void pop() {
     add(sp, sp, Operand(kPointerSize));
   }
-
-  // Load effective address of memory operand x into register dst
-  void lea(Register dst, const MemOperand& x,
-           SBit s = LeaveCC, Condition cond = al);
 
   // Jump unconditionally to given label.
   void jmp(Label* L) { b(L, al); }

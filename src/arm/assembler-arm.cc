@@ -1429,26 +1429,6 @@ void Assembler::stm(BlockAddrMode am,
 }
 
 
-// Semaphore instructions.
-void Assembler::swp(Register dst, Register src, Register base, Condition cond) {
-  ASSERT(!dst.is(pc) && !src.is(pc) && !base.is(pc));
-  ASSERT(!dst.is(base) && !src.is(base));
-  emit(cond | P | base.code()*B16 | dst.code()*B12 |
-       B7 | B4 | src.code());
-}
-
-
-void Assembler::swpb(Register dst,
-                     Register src,
-                     Register base,
-                     Condition cond) {
-  ASSERT(!dst.is(pc) && !src.is(pc) && !base.is(pc));
-  ASSERT(!dst.is(base) && !src.is(base));
-  emit(cond | P | B | base.code()*B16 | dst.code()*B12 |
-       B7 | B4 | src.code());
-}
-
-
 // Exception-generating instructions and debugging support.
 void Assembler::stop(const char* msg) {
 #ifndef __arm__
@@ -1989,34 +1969,6 @@ void Assembler::nop(int type) {
   // This is mov rx, rx.
   ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
   emit(al | 13*B21 | type*B12 | type);
-}
-
-
-void Assembler::lea(Register dst,
-                    const MemOperand& x,
-                    SBit s,
-                    Condition cond) {
-  int am = x.am_;
-  if (!x.rm_.is_valid()) {
-    // Immediate offset.
-    if ((am & P) == 0)  // post indexing
-      mov(dst, Operand(x.rn_), s, cond);
-    else if ((am & U) == 0)  // negative indexing
-      sub(dst, x.rn_, Operand(x.offset_), s, cond);
-    else
-      add(dst, x.rn_, Operand(x.offset_), s, cond);
-  } else {
-    // Register offset (shift_imm_ and shift_op_ are 0) or scaled
-    // register offset the constructors make sure than both shift_imm_
-    // and shift_op_ are initialized.
-    ASSERT(!x.rm_.is(pc));
-    if ((am & P) == 0)  // post indexing
-      mov(dst, Operand(x.rn_), s, cond);
-    else if ((am & U) == 0)  // negative indexing
-      sub(dst, x.rn_, Operand(x.rm_, x.shift_op_, x.shift_imm_), s, cond);
-    else
-      add(dst, x.rn_, Operand(x.rm_, x.shift_op_, x.shift_imm_), s, cond);
-  }
 }
 
 

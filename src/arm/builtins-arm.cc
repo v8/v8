@@ -132,7 +132,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // of the JSArray.
   // result: JSObject
   // scratch2: start of next object
-  __ lea(scratch1, MemOperand(result, JSArray::kSize));
+  __ add(scratch1, result, Operand(JSArray::kSize));
   __ str(scratch1, FieldMemOperand(result, JSArray::kElementsOffset));
 
   // Clear the heap tag on the elements array.
