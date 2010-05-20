@@ -2080,7 +2080,7 @@ Object* Heap::AllocateSubString(String* buffer,
   }
 
   // Make an attempt to flatten the buffer to reduce access time.
-  buffer->TryFlatten();
+  buffer = buffer->TryFlattenGetString();
 
   Object* result = buffer->IsAsciiRepresentation()
       ? AllocateRawAsciiString(length, pretenure )
