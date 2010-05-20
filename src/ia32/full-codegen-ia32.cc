@@ -806,8 +806,8 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
           __ Check(equal, "Unexpected declaration in current context.");
         }
         if (mode == Variable::CONST) {
-          __ mov(eax, Immediate(Factory::the_hole_value()));
-          __ mov(CodeGenerator::ContextOperand(esi, slot->index()), eax);
+          __ mov(CodeGenerator::ContextOperand(esi, slot->index()),
+                 Immediate(Factory::the_hole_value()));
           // No write barrier since the hole value is in old space.
         } else if (function != NULL) {
           VisitForValue(function, kAccumulator);
@@ -823,10 +823,8 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         __ push(esi);
         __ push(Immediate(variable->name()));
         // Declaration nodes are always introduced in one of two modes.
-        ASSERT(mode == Variable::VAR ||
-               mode == Variable::CONST);
-        PropertyAttributes attr =
-            (mode == Variable::VAR) ? NONE : READ_ONLY;
+        ASSERT(mode == Variable::VAR || mode == Variable::CONST);
+        PropertyAttributes attr = (mode == Variable::VAR) ? NONE : READ_ONLY;
         __ push(Immediate(Smi::FromInt(attr)));
         // Push initial value, if any.
         // Note: For variables we must not push an initial value (such as
@@ -1068,8 +1066,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ StackLimitCheck(&stack_limit_hit);
   __ bind(&stack_check_done);
 
-  // Generate code for the going to the next element by incrementing
-  // the index (smi) stored on top of the stack.
+  // Generate code for going to the next element by incrementing the
+  // index (smi) stored on top of the stack.
   __ bind(loop_statement.continue_target());
   __ add(Operand(esp, 0 * kPointerSize), Immediate(Smi::FromInt(1)));
   __ jmp(&loop);
@@ -2031,9 +2029,9 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   __ j(not_zero, if_false);
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-  __ j(less, if_false);
+  __ j(below, if_false);
   __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-  __ j(less_equal, if_true);
+  __ j(below_equal, if_true);
   __ jmp(if_false);
 
   Apply(context_, if_true, if_false);
@@ -2225,7 +2223,7 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
   __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(eax, Map::kInstanceTypeOffset));
   __ cmp(ebx, FIRST_JS_OBJECT_TYPE);
-  __ j(less, &null);
+  __ j(below, &null);
 
   // As long as JS_FUNCTION_TYPE is the last instance type and it is
   // right after LAST_JS_OBJECT_TYPE, we can avoid checking for

@@ -3840,11 +3840,13 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
           Immediate(1 << Map::kIsUndetectable));
   destination()->false_target()->Branch(not_zero);
-  __ CmpInstanceType(kScratchRegister, FIRST_JS_OBJECT_TYPE);
-  destination()->false_target()->Branch(less);
-  __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
+  __ movzxbq(kScratchRegister,
+             FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
+  __ cmpq(kScratchRegister, Immediate(FIRST_JS_OBJECT_TYPE));
+  destination()->false_target()->Branch(below);
+  __ cmpq(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
   obj.Unuse();
-  destination()->Split(less_equal);
+  destination()->Split(below_equal);
 }
 
 
@@ -4336,7 +4338,7 @@ void CodeGenerator::GenerateRandomHeapNumber(
   __ PrepareCallCFunction(0);
   __ CallCFunction(ExternalReference::random_uint32_function(), 0);
 
-  // Convert 32 random bits in eax to 0.(32 random bits) in a double
+  // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.

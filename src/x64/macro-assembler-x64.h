@@ -360,7 +360,7 @@ class MacroAssembler: public Assembler {
 
   void SmiSub(Register dst,
               Register src1,
-              Operand const& src2,
+              const Operand& src2,
               Label* on_not_smi_result);
 
   // Multiplies smi values and return the result as a smi,

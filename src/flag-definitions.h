@@ -149,7 +149,7 @@ DEFINE_bool(full_compiler, true, "enable dedicated backend for run-once code")
 DEFINE_bool(fast_compiler, false, "enable speculative optimizing backend")
 DEFINE_bool(always_full_compiler, false,
             "try to use the dedicated run-once backend for all code")
-#ifdef V8_TARGET_ARCH_IA32
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
 DEFINE_bool(force_full_compiler, false,
             "force use of the dedicated run-once backend for all code")
 #endif

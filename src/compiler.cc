@@ -121,7 +121,7 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
       : (shared->is_toplevel() || shared->try_full_codegen());
 
   bool force_full_compiler = false;
-#ifdef V8_TARGET_ARCH_IA32
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
   // On ia32 the full compiler can compile all code whereas the other platforms
   // the constructs supported is checked by the associated syntax checker. When
   // --always-full-compiler is used on ia32 the syntax checker is still in
