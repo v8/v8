@@ -3992,9 +3992,39 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 // --- D e b u g   S u p p o r t ---
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
+
+static v8::Debug::EventCallback event_callback = NULL;
+
+static void EventCallbackWrapper(const v8::Debug::EventDetails& event_details) {
+  if (event_callback) {
+    event_callback(event_details.GetEvent(),
+                   event_details.GetExecutionState(),
+                   event_details.GetEventData(),
+                   event_details.GetCallbackData());
+  }
+}
+
+
 bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   EnsureInitialized("v8::Debug::SetDebugEventListener()");
   ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
+  ENTER_V8;
+
+  event_callback = that;
+
+  HandleScope scope;
+  i::Handle<i::Object> proxy = i::Factory::undefined_value();
+  if (that != NULL) {
+    proxy = i::Factory::NewProxy(FUNCTION_ADDR(EventCallbackWrapper));
+  }
+  i::Debugger::SetEventListener(proxy, Utils::OpenHandle(*data));
+  return true;
+}
+
+
+bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
+  EnsureInitialized("v8::Debug::SetDebugEventListener2()");
+  ON_BAILOUT("v8::Debug::SetDebugEventListener2()", return false);
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::Object> proxy = i::Factory::undefined_value();
