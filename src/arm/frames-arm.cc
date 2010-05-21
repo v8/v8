@@ -30,11 +30,7 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "frames-inl.h"
-#ifdef V8_ARM_VARIANT_THUMB
-#include "arm/assembler-thumb2-inl.h"
-#else
 #include "arm/assembler-arm-inl.h"
-#endif
 
 
 namespace v8 {

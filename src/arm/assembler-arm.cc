@@ -36,7 +36,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_ARM) && defined(V8_ARM_VARIANT_ARM)
+#if defined(V8_TARGET_ARCH_ARM)
 
 #include "arm/assembler-arm-inl.h"
 #include "serialize.h"
@@ -2228,4 +2228,4 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_ARM && V8_ARM_VARIANT_ARM
+#endif  // V8_TARGET_ARCH_ARM
