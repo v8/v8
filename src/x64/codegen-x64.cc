@@ -7057,7 +7057,43 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           left->reg(),
                                           rcx,
                                           overwrite_mode);
-    __ JumpIfNotBothSmi(left->reg(), rcx, deferred->entry_label());
+
+    Label do_op;
+    if (right_type_info.IsSmi()) {
+      if (FLAG_debug_code) {
+        __ AbortIfNotSmi(right->reg());
+      }
+      __ movq(answer.reg(), left->reg());
+      // If left is not known to be a smi, check if it is.
+      // If left is not known to be a number, and it isn't a smi, check if
+      // it is a HeapNumber.
+      if (!left_type_info.IsSmi()) {
+        __ JumpIfSmi(answer.reg(), &do_op);
+        if (!left_type_info.IsNumber()) {
+          // Branch if not a heapnumber.
+          __ Cmp(FieldOperand(answer.reg(), HeapObject::kMapOffset),
+                 Factory::heap_number_map());
+          deferred->Branch(not_equal);
+        }
+        // Load integer value into answer register using truncation.
+        __ cvttsd2si(answer.reg(),
+                     FieldOperand(answer.reg(), HeapNumber::kValueOffset));
+        // Branch if we might have overflowed.
+        // (False negative for Smi::kMinValue)
+        __ cmpq(answer.reg(), Immediate(0x80000000));
+        deferred->Branch(equal);
+        // TODO(lrn): Inline shifts on int32 here instead of first smi-tagging.
+        __ Integer32ToSmi(answer.reg(), answer.reg());
+      } else {
+        // Fast case - both are actually smis.
+        if (FLAG_debug_code) {
+          __ AbortIfNotSmi(left->reg());
+        }
+      }
+    } else {
+      __ JumpIfNotBothSmi(left->reg(), rcx, deferred->entry_label());
+    }
+    __ bind(&do_op);
 
     // Perform the operation.
     switch (op) {
