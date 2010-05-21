@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_X64)
+
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "compiler.h"
@@ -678,11 +680,51 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
 
 void DeferredReferenceSetKeyedValue::Generate() {
   __ IncrementCounter(&Counters::keyed_store_inline_miss, 1);
-  // Push receiver and key arguments on the stack.
-  __ push(receiver_);
-  __ push(key_);
-  // Move value argument to eax as expected by the IC stub.
-  if (!value_.is(rax)) __ movq(rax, value_);
+  // Move value, receiver, and key to registers rax, rdx, and rcx, as
+  // the IC stub expects.
+  // Move value to rax, using xchg if the receiver or key is in rax.
+  if (!value_.is(rax)) {
+    if (!receiver_.is(rax) && !key_.is(rax)) {
+      __ movq(rax, value_);
+    } else {
+      __ xchg(rax, value_);
+      // Update receiver_ and key_ if they are affected by the swap.
+      if (receiver_.is(rax)) {
+        receiver_ = value_;
+      } else if (receiver_.is(value_)) {
+        receiver_ = rax;
+      }
+      if (key_.is(rax)) {
+        key_ = value_;
+      } else if (key_.is(value_)) {
+        key_ = rax;
+      }
+    }
+  }
+  // Value is now in rax. Its original location is remembered in value_,
+  // and the value is restored to value_ before returning.
+  // The variables receiver_ and key_ are not preserved.
+  // Move receiver and key to rdx and rcx, swapping if necessary.
+  if (receiver_.is(rdx)) {
+    if (!key_.is(rcx)) {
+      __ movq(rcx, key_);
+    }  // Else everything is already in the right place.
+  } else if (receiver_.is(rcx)) {
+    if (key_.is(rdx)) {
+      __ xchg(rcx, rdx);
+    } else if (key_.is(rcx)) {
+      __ movq(rdx, receiver_);
+    } else {
+      __ movq(rdx, receiver_);
+      __ movq(rcx, key_);
+    }
+  } else if (key_.is(rcx)) {
+    __ movq(rdx, receiver_);
+  } else {
+    __ movq(rcx, key_);
+    __ movq(rdx, receiver_);
+  }
+
   // Call the IC stub.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
@@ -695,11 +737,8 @@ void DeferredReferenceSetKeyedValue::Generate() {
   // Here we use masm_-> instead of the __ macro because this is the
   // instruction that gets patched and coverage code gets in the way.
   masm_->testl(rax, Immediate(-delta_to_patch_site));
-  // Restore value (returned from store IC), key and receiver
-  // registers.
+  // Restore value (returned from store IC).
   if (!value_.is(rax)) __ movq(value_, rax);
-  __ pop(key_);
-  __ pop(receiver_);
 }
 
 
@@ -1546,7 +1585,7 @@ void CodeGenerator::SetTypeForStackSlot(Slot* slot, TypeInfo info) {
     }
     Result var = frame_->Pop();
     var.ToRegister();
-    __ AbortIfNotSmi(var.reg(), "Non-smi value in smi-typed stack slot.");
+    __ AbortIfNotSmi(var.reg());
   }
 }
 
@@ -2799,6 +2838,7 @@ void CodeGenerator::VisitCall(Call* node) {
     int arg_count = args->length();
     for (int i = 0; i < arg_count; i++) {
       Load(args->at(i));
+      frame_->SpillTop();
     }
 
     // Prepare the stack for the call to ResolvePossiblyDirectEval.
@@ -2848,6 +2888,7 @@ void CodeGenerator::VisitCall(Call* node) {
     int arg_count = args->length();
     for (int i = 0; i < arg_count; i++) {
       Load(args->at(i));
+      frame_->SpillTop();
     }
 
     // Push the name of the function on the frame.
@@ -2953,6 +2994,7 @@ void CodeGenerator::VisitCall(Call* node) {
         int arg_count = args->length();
         for (int i = 0; i < arg_count; i++) {
           Load(args->at(i));
+          frame_->SpillTop();
         }
 
         // Push the name of the function onto the frame.
@@ -3399,7 +3441,11 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
                                                   new_value.type_info());
     }
 
-    __ JumpIfNotSmi(new_value.reg(), deferred->entry_label());
+    if (new_value.is_smi()) {
+      if (FLAG_debug_code) { __ AbortIfNotSmi(new_value.reg()); }
+    } else {
+      __ JumpIfNotSmi(new_value.reg(), deferred->entry_label());
+    }
     if (is_increment) {
       __ SmiAddConstant(kScratchRegister,
                         new_value.reg(),
@@ -3833,11 +3879,13 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
           Immediate(1 << Map::kIsUndetectable));
   destination()->false_target()->Branch(not_zero);
-  __ CmpInstanceType(kScratchRegister, FIRST_JS_OBJECT_TYPE);
-  destination()->false_target()->Branch(less);
-  __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
+  __ movzxbq(kScratchRegister,
+             FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
+  __ cmpq(kScratchRegister, Immediate(FIRST_JS_OBJECT_TYPE));
+  destination()->false_target()->Branch(below);
+  __ cmpq(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
   obj.Unuse();
-  destination()->Split(less_equal);
+  destination()->Split(below_equal);
 }
 
 
@@ -3921,7 +3969,7 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   __ bind(&exit);
   result.set_type_info(TypeInfo::Smi());
   if (FLAG_debug_code) {
-    __ AbortIfNotSmi(result.reg(), "Computed arguments.length is not a smi.");
+    __ AbortIfNotSmi(result.reg());
   }
   frame_->Push(&result);
 }
@@ -4329,7 +4377,7 @@ void CodeGenerator::GenerateRandomHeapNumber(
   __ PrepareCallCFunction(0);
   __ CallCFunction(ExternalReference::random_uint32_function(), 0);
 
-  // Convert 32 random bits in eax to 0.(32 random bits) in a double
+  // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
@@ -5100,10 +5148,9 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
   value.ToRegister();
 
   if (value.is_number()) {
-    Comment cmnt(masm_, "ONLY_NUMBER");
     // Fast case if TypeInfo indicates only numbers.
     if (FLAG_debug_code) {
-      __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
+      __ AbortIfNotNumber(value.reg());
     }
     // Smi => false iff zero.
     __ SmiCompare(value.reg(), Smi::FromInt(0));
@@ -5876,7 +5923,7 @@ void CodeGenerator::Comparison(AstNode* node,
 
       if (left_side.is_smi()) {
         if (FLAG_debug_code) {
-          __ AbortIfNotSmi(left_side.reg(), "Non-smi value inferred as smi.");
+          __ AbortIfNotSmi(left_side.reg());
         }
       } else {
         Condition left_is_smi = masm_->CheckSmi(left_side.reg());
@@ -6748,8 +6795,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
           Condition is_smi = masm_->CheckSmi(operand->reg());
           deferred->Branch(NegateCondition(is_smi));
         } else if (FLAG_debug_code) {
-          __ AbortIfNotSmi(operand->reg(),
-              "Static type info claims non-smi is smi in (const SHL smi).");
+          __ AbortIfNotSmi(operand->reg());
         }
 
         __ Move(answer.reg(), smi_value);
@@ -7011,7 +7057,43 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           left->reg(),
                                           rcx,
                                           overwrite_mode);
-    __ JumpIfNotBothSmi(left->reg(), rcx, deferred->entry_label());
+
+    Label do_op;
+    if (right_type_info.IsSmi()) {
+      if (FLAG_debug_code) {
+        __ AbortIfNotSmi(right->reg());
+      }
+      __ movq(answer.reg(), left->reg());
+      // If left is not known to be a smi, check if it is.
+      // If left is not known to be a number, and it isn't a smi, check if
+      // it is a HeapNumber.
+      if (!left_type_info.IsSmi()) {
+        __ JumpIfSmi(answer.reg(), &do_op);
+        if (!left_type_info.IsNumber()) {
+          // Branch if not a heapnumber.
+          __ Cmp(FieldOperand(answer.reg(), HeapObject::kMapOffset),
+                 Factory::heap_number_map());
+          deferred->Branch(not_equal);
+        }
+        // Load integer value into answer register using truncation.
+        __ cvttsd2si(answer.reg(),
+                     FieldOperand(answer.reg(), HeapNumber::kValueOffset));
+        // Branch if we might have overflowed.
+        // (False negative for Smi::kMinValue)
+        __ cmpq(answer.reg(), Immediate(0x80000000));
+        deferred->Branch(equal);
+        // TODO(lrn): Inline shifts on int32 here instead of first smi-tagging.
+        __ Integer32ToSmi(answer.reg(), answer.reg());
+      } else {
+        // Fast case - both are actually smis.
+        if (FLAG_debug_code) {
+          __ AbortIfNotSmi(left->reg());
+        }
+      }
+    } else {
+      __ JumpIfNotBothSmi(left->reg(), rcx, deferred->entry_label());
+    }
+    __ bind(&do_op);
 
     // Perform the operation.
     switch (op) {
@@ -7469,7 +7551,7 @@ void Reference::SetValue(InitState init_state) {
         if (!key.is_smi()) {
           __ JumpIfNotSmi(key.reg(), deferred->entry_label());
         } else if (FLAG_debug_code) {
-          __ AbortIfNotSmi(key.reg(), "Non-smi value in smi-typed value.");
+          __ AbortIfNotSmi(key.reg());
         }
 
         // Check that the receiver is a JSArray.
@@ -7524,8 +7606,6 @@ void Reference::SetValue(InitState init_state) {
 
         deferred->BindExit();
 
-        cgen_->frame()->Push(&receiver);
-        cgen_->frame()->Push(&key);
         cgen_->frame()->Push(&value);
       } else {
         Result answer = cgen_->frame()->CallKeyedStoreIC();
@@ -7536,7 +7616,7 @@ void Reference::SetValue(InitState init_state) {
         masm->nop();
         cgen_->frame()->Push(&answer);
       }
-      cgen_->UnloadReference(this);
+      set_unloaded();
       break;
     }
 
@@ -8898,6 +8978,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Load(args->at(i));
+    frame_->SpillTop();
   }
 
   // Record the position for debugging purposes.
@@ -10014,8 +10095,8 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   if (static_operands_type_.IsSmi()) {
     // Skip smi check if we know that both arguments are smis.
     if (FLAG_debug_code) {
-      __ AbortIfNotSmi(left, "Static type check claimed non-smi is smi.");
-      __ AbortIfNotSmi(right, "Static type check claimed non-smi is smi.");
+      __ AbortIfNotSmi(left);
+      __ AbortIfNotSmi(right);
     }
     if (op_ == Token::BIT_OR) {
       // Handle OR here, since we do extra smi-checking in the or code below.
@@ -10198,8 +10279,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         // rdx: x
       if (static_operands_type_.IsNumber() && FLAG_debug_code) {
         // Assert at runtime that inputs are only numbers.
-        __ AbortIfNotNumber(rdx, "GenericBinaryOpStub operand not a number.");
-        __ AbortIfNotNumber(rax, "GenericBinaryOpStub operand not a number.");
+        __ AbortIfNotNumber(rdx);
+        __ AbortIfNotNumber(rax);
       } else {
         FloatingPointHelper::CheckNumberOperands(masm, &call_runtime);
       }
@@ -11589,3 +11670,5 @@ ModuloFunction CreateModuloFunction() {
 #undef __
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_X64

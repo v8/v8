@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_ARM)
+
 #include "codegen-inl.h"
 #include "register-allocator-inl.h"
 #include "scopes.h"
@@ -307,7 +309,8 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 
 void VirtualFrame::CallLoadIC(Handle<String> name, RelocInfo::Mode mode) {
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  SpillAllButCopyTOSToR0();
+  PopToR0();
+  SpillAll();
   __ mov(r2, Operand(name));
   CallCodeObject(ic, mode, 0);
 }
@@ -337,8 +340,10 @@ void VirtualFrame::CallKeyedLoadIC() {
 
 
 void VirtualFrame::CallKeyedStoreIC() {
-  ASSERT(SpilledScope::is_spilled());
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  PopToR1R0();
+  SpillAll();
+  EmitPop(r2);
   CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
 }
 
@@ -505,36 +510,40 @@ Register VirtualFrame::Peek() {
 
 
 void VirtualFrame::Dup() {
-  AssertIsNotSpilled();
-  switch (top_of_stack_state_) {
-    case NO_TOS_REGISTERS:
-      __ ldr(r0, MemOperand(sp, 0));
-      top_of_stack_state_ = R0_TOS;
-      break;
-    case R0_TOS:
-      __ mov(r1, r0);
-      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
-      top_of_stack_state_ = R0_R1_TOS;
-      break;
-    case R1_TOS:
-      __ mov(r0, r1);
-      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
-      top_of_stack_state_ = R0_R1_TOS;
-      break;
-    case R0_R1_TOS:
-      __ push(r1);
-      __ mov(r1, r0);
-      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
-      top_of_stack_state_ = R0_R1_TOS;
-      break;
-    case R1_R0_TOS:
-      __ push(r0);
-      __ mov(r0, r1);
-      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
-      top_of_stack_state_ = R0_R1_TOS;
-      break;
-    default:
-      UNREACHABLE();
+  if (SpilledScope::is_spilled()) {
+    __ ldr(ip, MemOperand(sp, 0));
+    __ push(ip);
+  } else {
+    switch (top_of_stack_state_) {
+      case NO_TOS_REGISTERS:
+        __ ldr(r0, MemOperand(sp, 0));
+        top_of_stack_state_ = R0_TOS;
+        break;
+      case R0_TOS:
+        __ mov(r1, r0);
+        // r0 and r1 contains the same value. Prefer state with r0 holding TOS.
+        top_of_stack_state_ = R0_R1_TOS;
+        break;
+      case R1_TOS:
+        __ mov(r0, r1);
+        // r0 and r1 contains the same value. Prefer state with r0 holding TOS.
+        top_of_stack_state_ = R0_R1_TOS;
+        break;
+      case R0_R1_TOS:
+        __ push(r1);
+        __ mov(r1, r0);
+        // r0 and r1 contains the same value. Prefer state with r0 holding TOS.
+        top_of_stack_state_ = R0_R1_TOS;
+        break;
+      case R1_R0_TOS:
+        __ push(r0);
+        __ mov(r0, r1);
+        // r0 and r1 contains the same value. Prefer state with r0 holding TOS.
+        top_of_stack_state_ = R0_R1_TOS;
+        break;
+      default:
+        UNREACHABLE();
+    }
   }
   element_count_++;
 }
@@ -749,3 +758,5 @@ void VirtualFrame::SpillAll() {
 #undef __
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_ARM

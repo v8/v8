@@ -278,7 +278,8 @@ class VirtualFrame : public ZoneObject {
                      InvokeJSFlags flag,
                      int arg_count);
 
-  // Call load IC. Receiver is on the stack. Result is returned in r0.
+  // Call load IC. Receiver is on the stack and is consumed. Result is returned
+  // in r0.
   void CallLoadIC(Handle<String> name, RelocInfo::Mode mode);
 
   // Call store IC. If the load is contextual, value is found on top of the
@@ -290,8 +291,8 @@ class VirtualFrame : public ZoneObject {
   // Result is returned in r0.
   void CallKeyedLoadIC();
 
-  // Call keyed store IC. Key and receiver are on the stack and the value is in
-  // r0. Result is returned in r0.
+  // Call keyed store IC. Value, key and receiver are on the stack. All three
+  // are consumed. Result is returned in r0.
   void CallKeyedStoreIC();
 
   // Call into an IC stub given the number of arguments it removes

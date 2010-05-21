@@ -144,6 +144,9 @@ class VirtualFrame: public ZoneObject {
   // (ie, they all have frame-external references).
   Register SpillAnyRegister();
 
+  // Spill the top element of the frame.
+  void SpillTop() { SpillElementAt(element_count() - 1); }
+
   // Sync the range of elements in [begin, end] with memory.
   void SyncRange(int begin, int end);
 
@@ -349,7 +352,7 @@ class VirtualFrame: public ZoneObject {
   Result CallStoreIC(Handle<String> name, bool is_contextual);
 
   // Call keyed store IC.  Value, key, and receiver are found on top
-  // of the frame.  Key and receiver are not dropped.
+  // of the frame.  All three are dropped.
   Result CallKeyedStoreIC();
 
   // Call call IC.  Function name, arguments, and receiver are found on top

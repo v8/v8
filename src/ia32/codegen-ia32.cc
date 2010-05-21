@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_IA32)
+
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "compiler.h"
@@ -2979,6 +2981,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Load(args->at(i));
+    frame_->SpillTop();
   }
 
   // Record the position for debugging purposes.
@@ -5730,6 +5733,7 @@ void CodeGenerator::VisitCall(Call* node) {
     int arg_count = args->length();
     for (int i = 0; i < arg_count; i++) {
       Load(args->at(i));
+      frame_->SpillTop();
     }
 
     // Prepare the stack for the call to ResolvePossiblyDirectEval.
@@ -5779,6 +5783,7 @@ void CodeGenerator::VisitCall(Call* node) {
     int arg_count = args->length();
     for (int i = 0; i < arg_count; i++) {
       Load(args->at(i));
+      frame_->SpillTop();
     }
 
     // Push the name of the function onto the frame.
@@ -5884,6 +5889,7 @@ void CodeGenerator::VisitCall(Call* node) {
         int arg_count = args->length();
         for (int i = 0; i < arg_count; i++) {
           Load(args->at(i));
+          frame_->SpillTop();
         }
 
         // Push the name of the function onto the frame.
@@ -6159,11 +6165,11 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   __ mov(map.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
   __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kInstanceTypeOffset));
   __ cmp(map.reg(), FIRST_JS_OBJECT_TYPE);
-  destination()->false_target()->Branch(less);
+  destination()->false_target()->Branch(below);
   __ cmp(map.reg(), LAST_JS_OBJECT_TYPE);
   obj.Unuse();
   map.Unuse();
-  destination()->Split(less_equal);
+  destination()->Split(below_equal);
 }
 
 
@@ -6276,7 +6282,7 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
     __ mov(obj.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
     __ movzx_b(tmp.reg(), FieldOperand(obj.reg(), Map::kInstanceTypeOffset));
     __ cmp(tmp.reg(), FIRST_JS_OBJECT_TYPE);
-    null.Branch(less);
+    null.Branch(below);
 
     // As long as JS_FUNCTION_TYPE is the last instance type and it is
     // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
@@ -6866,7 +6872,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   // Check that object doesn't require security checks and
   // has no indexed interceptor.
   __ CmpObjectType(object.reg(), FIRST_JS_OBJECT_TYPE, tmp1.reg());
-  deferred->Branch(less);
+  deferred->Branch(below);
   __ movzx_b(tmp1.reg(), FieldOperand(tmp1.reg(), Map::kBitFieldOffset));
   __ test(tmp1.reg(), Immediate(KeyedLoadIC::kSlowCaseBitFieldMask));
   deferred->Branch(not_zero);
@@ -8186,11 +8192,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ mov(map.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
       __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kInstanceTypeOffset));
       __ cmp(map.reg(), FIRST_JS_OBJECT_TYPE);
-      destination()->false_target()->Branch(less);
+      destination()->false_target()->Branch(below);
       __ cmp(map.reg(), LAST_JS_OBJECT_TYPE);
       answer.Unuse();
       map.Unuse();
-      destination()->Split(less_equal);
+      destination()->Split(below_equal);
     } else {
       // Uncommon case: typeof testing against a string literal that is
       // never returned from the typeof operator.
@@ -11596,7 +11602,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
       Label first_non_object;
       __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-      __ j(less, &first_non_object);
+      __ j(below, &first_non_object);
 
       // Return non-zero (eax is not zero)
       Label return_not_equal;
@@ -11613,7 +11619,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
 
       __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-      __ j(greater_equal, &return_not_equal);
+      __ j(above_equal, &return_not_equal);
 
       // Check for oddballs: true, false, null, undefined.
       __ cmp(ecx, ODDBALL_TYPE);
@@ -12261,9 +12267,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));  // eax - object map
   __ movzx_b(ecx, FieldOperand(eax, Map::kInstanceTypeOffset));  // ecx - type
   __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-  __ j(less, &slow, not_taken);
+  __ j(below, &slow, not_taken);
   __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-  __ j(greater, &slow, not_taken);
+  __ j(above, &slow, not_taken);
 
   // Get the prototype of the function.
   __ mov(edx, Operand(esp, 1 * kPointerSize));  // 1 ~ return address
@@ -12291,9 +12297,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
   __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-  __ j(less, &slow, not_taken);
+  __ j(below, &slow, not_taken);
   __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-  __ j(greater, &slow, not_taken);
+  __ j(above, &slow, not_taken);
 
   // Register mapping:
   //   eax is object map.
@@ -13291,3 +13297,5 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 #undef __
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_IA32
