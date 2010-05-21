@@ -58,11 +58,10 @@
 
 namespace v8 {
 
-
-#define ON_BAILOUT(location, code)              \
-  if (IsDeadCheck(location)) {                  \
-    code;                                       \
-    UNREACHABLE();                              \
+#define ON_BAILOUT(location, code)                                 \
+  if (IsDeadCheck(location) || v8::V8::IsExecutionTerminating()) { \
+    code;                                                          \
+    UNREACHABLE();                                                 \
   }
 
 
