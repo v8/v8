@@ -48,7 +48,7 @@
 
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
 
-#ifdef ENABLE_HEAP_PROTECTION
+#ifdef ENABLE_VMSTATE_TRACKING
 #define ENTER_V8 i::VMState __state__(i::OTHER)
 #define LEAVE_V8 i::VMState __state__(i::EXTERNAL)
 #else
