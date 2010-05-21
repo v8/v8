@@ -2276,6 +2276,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   frame_->EmitPush(r0);  // map
   frame_->EmitPush(r2);  // enum cache bridge cache
   __ ldr(r0, FieldMemOperand(r2, FixedArray::kLengthOffset));
+  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
   frame_->EmitPush(r0);
   __ mov(r0, Operand(Smi::FromInt(0)));
   frame_->EmitPush(r0);
@@ -2288,6 +2289,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Push the length of the array and the initial index onto the stack.
   __ ldr(r0, FieldMemOperand(r0, FixedArray::kLengthOffset));
+  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
   frame_->EmitPush(r0);
   __ mov(r0, Operand(Smi::FromInt(0)));  // init index
   frame_->EmitPush(r0);
@@ -4488,8 +4490,7 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
     __ mov(r2, Operand(Factory::fixed_array_map()));
     __ str(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
     // Set FixedArray length.
-    __ mov(r6, Operand(r5, LSL, kSmiTagSize));
-    __ str(r6, FieldMemOperand(r3, FixedArray::kLengthOffset));
+    __ str(r5, FieldMemOperand(r3, FixedArray::kLengthOffset));
     // Fill contents of fixed-array with the-hole.
     __ mov(r2, Operand(Factory::the_hole_value()));
     __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -5696,7 +5697,7 @@ void CodeGenerator::EmitKeyedLoad() {
       // Check that key is within bounds. Use unsigned comparison to handle
       // negative keys.
       __ ldr(scratch2, FieldMemOperand(scratch1, FixedArray::kLengthOffset));
-      __ cmp(scratch2, key);
+      __ cmp(scratch2, Operand(key, ASR, kSmiTagSize));
       deferred->Branch(ls);  // Unsigned less equal.
 
       // Load and check that the result is not the hole (key is a smi).
@@ -5997,8 +5998,8 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Setup the object header.
   __ LoadRoot(r2, Heap::kContextMapRootIndex);
   __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ mov(r2, Operand(Smi::FromInt(length)));
-  __ str(r2, FieldMemOperand(r0, FixedArray::kLengthOffset));
+  __ mov(r2, Operand(length));
+  __ str(r2, FieldMemOperand(r0, Array::kLengthOffset));
 
   // Setup the fixed slots.
   __ mov(r1, Operand(Smi::FromInt(0)));
@@ -6629,8 +6630,8 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   // Make the hash mask from the length of the number string cache. It
   // contains two elements (number and string) for each cache entry.
   __ ldr(mask, FieldMemOperand(number_string_cache, FixedArray::kLengthOffset));
-  // Divide length by two (length is a smi).
-  __ mov(mask, Operand(mask, ASR, kSmiTagSize + 1));
+  // Divide length by two (length is not a smi).
+  __ mov(mask, Operand(mask, ASR, 1));
   __ sub(mask, mask, Operand(1));  // Make mask.
 
   // Calculate the entry in the number string cache. The hash value in the
@@ -8521,8 +8522,9 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ cmp(r1, Operand(0));
   __ b(eq, &done);
 
-  // Get the parameters pointer from the stack.
+  // Get the parameters pointer from the stack and untag the length.
   __ ldr(r2, MemOperand(sp, 1 * kPointerSize));
+  __ mov(r1, Operand(r1, LSR, kSmiTagSize));
 
   // Setup the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
@@ -8531,7 +8533,6 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
   __ str(r3, FieldMemOperand(r4, FixedArray::kMapOffset));
   __ str(r1, FieldMemOperand(r4, FixedArray::kLengthOffset));
-  __ mov(r1, Operand(r1, LSR, kSmiTagSize));  // Untag the length for the loop.
 
   // Copy the fixed array slots.
   Label loop;
@@ -8682,7 +8683,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ldr(r0,
          FieldMemOperand(last_match_info_elements, FixedArray::kLengthOffset));
   __ add(r2, r2, Operand(RegExpImpl::kLastMatchOverhead));
-  __ cmp(r2, Operand(r0, ASR, kSmiTagSize));
+  __ cmp(r2, r0);
   __ b(gt, &runtime);
 
   // subject: Subject string

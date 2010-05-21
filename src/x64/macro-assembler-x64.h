@@ -78,8 +78,8 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
-  // For page containing |object| mark region covering |addr| dirty.
-  // RecordWriteHelper only works if the object is not in new
+  // Set the remebered set bit for an address which points into an
+  // object. RecordWriteHelper only works if the object is not in new
   // space.
   void RecordWriteHelper(Register object,
                          Register addr,
@@ -93,7 +93,7 @@ class MacroAssembler: public Assembler {
                   Condition cc,
                   Label* branch);
 
-  // For page containing |object| mark region covering [object+offset] dirty.
+  // Set the remembered set bit for [object+offset].
   // object is the object being stored into, value is the object being stored.
   // If offset is zero, then the scratch register contains the array index into
   // the elements array represented as a Smi.
@@ -103,7 +103,7 @@ class MacroAssembler: public Assembler {
                    Register value,
                    Register scratch);
 
-  // For page containing |object| mark region covering [object+offset] dirty.
+  // Set the remembered set bit for [object+offset].
   // The value is known to not be a smi.
   // object is the object being stored into, value is the object being stored.
   // If offset is zero, then the scratch register contains the array index into
@@ -219,13 +219,6 @@ class MacroAssembler: public Assembler {
   void PositiveSmiTimesPowerOfTwoToInteger64(Register dst,
                                              Register src,
                                              int power);
-
-  // Divide a positive smi's integer value by a power of two.
-  // Provides result as 32-bit integer value.
-  void PositiveSmiDivPowerOfTwoToInteger32(Register dst,
-                                           Register src,
-                                           int power);
-
 
   // Simple comparison of smis.
   void SmiCompare(Register dst, Register src);

@@ -163,11 +163,11 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   //
   // key      - holds the smi key on entry and is unchanged if a branch is
   //            performed to the miss label.
-  //            Holds the result on exit if the load succeeded.
   //
   // Scratch registers:
   //
   // t0 - holds the untagged key on entry and holds the hash once computed.
+  //      Holds the result on exit if the load succeeded.
   //
   // t1 - used to hold the capacity mask of the dictionary
   //
@@ -235,7 +235,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   // Get the value at the masked, scaled index and return.
   const int kValueOffset =
       NumberDictionary::kElementsStartOffset + kPointerSize;
-  __ ldr(key, FieldMemOperand(t2, kValueOffset));
+  __ ldr(t0, FieldMemOperand(t2, kValueOffset));
 }
 
 
@@ -743,6 +743,9 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   __ BranchOnNotSmi(key, &slow);
+  // Untag key into r2..
+  __ mov(r2, Operand(key, ASR, kSmiTagSize));
+
   // Get the elements array of the object.
   __ ldr(r4, FieldMemOperand(receiver, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
@@ -751,14 +754,12 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(r3, ip);
   __ b(ne, &check_pixel_array);
   // Check that the key (index) is within bounds.
-  __ ldr(r3, FieldMemOperand(r4, FixedArray::kLengthOffset));
-  __ cmp(key, Operand(r3));
+  __ ldr(r3, FieldMemOperand(r4, Array::kLengthOffset));
+  __ cmp(r2, r3);
   __ b(hs, &slow);
   // Fast case: Do the load.
   __ add(r3, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  // The key is a smi.
-  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ ldr(r2, MemOperand(r3, key, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r2, MemOperand(r3, r2, LSL, kPointerSizeLog2));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
   __ cmp(r2, ip);
   // In case the loaded value is the_hole we have to consult GetProperty
@@ -769,6 +770,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Check whether the elements is a pixel array.
   // r0: key
+  // r2: untagged index
   // r3: elements map
   // r4: elements
   __ bind(&check_pixel_array);
@@ -776,7 +778,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(r3, ip);
   __ b(ne, &check_number_dictionary);
   __ ldr(ip, FieldMemOperand(r4, PixelArray::kLengthOffset));
-  __ mov(r2, Operand(key, ASR, kSmiTagSize));
   __ cmp(r2, ip);
   __ b(hs, &slow);
   __ ldr(ip, FieldMemOperand(r4, PixelArray::kExternalPointerOffset));
@@ -787,13 +788,14 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&check_number_dictionary);
   // Check whether the elements is a number dictionary.
   // r0: key
+  // r2: untagged index
   // r3: elements map
   // r4: elements
   __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
   __ cmp(r3, ip);
   __ b(ne, &slow);
-  __ mov(r2, Operand(r0, ASR, kSmiTagSize));
   GenerateNumberDictionaryLoad(masm, &slow, r4, r0, r2, r3, r5);
+  __ mov(r0, r2);
   __ Ret();
 
   // Slow case, key and receiver still in r0 and r1.
@@ -1281,9 +1283,11 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
   __ cmp(r4, ip);
   __ b(ne, &check_pixel_array);
-  // Check array bounds. Both the key and the length of FixedArray are smis.
+  // Untag the key (for checking against untagged length in the fixed array).
+  __ mov(r4, Operand(key, ASR, kSmiTagSize));
+  // Compute address to store into and check array bounds.
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  __ cmp(key, Operand(ip));
+  __ cmp(r4, Operand(ip));
   __ b(lo, &fast);
 
   // Slow case, handle jump to runtime.
@@ -1329,9 +1333,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Condition code from comparing key and array length is still available.
   __ b(ne, &slow);  // Only support writing to writing to array[array.length].
   // Check for room in the elements backing store.
-  // Both the key and the length of FixedArray are smis.
+  __ mov(r4, Operand(key, ASR, kSmiTagSize));  // Untag key.
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  __ cmp(key, Operand(ip));
+  __ cmp(r4, Operand(ip));
   __ b(hs, &slow);
   // Calculate key + 1 as smi.
   ASSERT_EQ(0, kSmiTag);
