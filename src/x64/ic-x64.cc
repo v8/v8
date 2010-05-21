@@ -165,11 +165,11 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   //
   // key      - holds the smi key on entry and is unchanged if a branch is
   //            performed to the miss label.
+  //            Holds the result on exit if the load succeeded.
   //
   // Scratch registers:
   //
   // r0 - holds the untagged key on entry and holds the hash once computed.
-  //      Holds the result on exit if the load succeeded.
   //
   // r1 - used to hold the capacity mask of the dictionary
   //
@@ -245,7 +245,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   // Get the value at the masked, scaled index.
   const int kValueOffset =
       NumberDictionary::kElementsStartOffset + kPointerSize;
-  __ movq(r0, FieldOperand(elements, r2, times_pointer_size, kValueOffset));
+  __ movq(key, FieldOperand(elements, r2, times_pointer_size, kValueOffset));
 }
 
 
@@ -351,7 +351,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- rsp[8] : name
   //  -- rsp[16] : receiver
   // -----------------------------------
-  Label slow, check_string, index_int, index_string;
+  Label slow, check_string, index_smi, index_string;
   Label check_pixel_array, probe_dictionary;
   Label check_number_dictionary;
 
@@ -377,23 +377,23 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   __ JumpIfNotSmi(rax, &check_string);
-  // Save key in rbx in case we want it for the number dictionary
-  // case.
-  __ movq(rbx, rax);
-  __ SmiToInteger32(rax, rax);
+
   // Get the elements array of the object.
-  __ bind(&index_int);
+  __ bind(&index_smi);
   __ movq(rcx, FieldOperand(rcx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
                  Heap::kFixedArrayMapRootIndex);
   __ j(not_equal, &check_pixel_array);
   // Check that the key (index) is within bounds.
-  __ cmpl(rax, FieldOperand(rcx, FixedArray::kLengthOffset));
+  __ SmiCompare(rax, FieldOperand(rcx, FixedArray::kLengthOffset));
   __ j(above_equal, &slow);  // Unsigned comparison rejects negative indices.
   // Fast case: Do the load.
-  __ movq(rax, Operand(rcx, rax, times_pointer_size,
-                      FixedArray::kHeaderSize - kHeapObjectTag));
+  SmiIndex index = masm->SmiToIndex(rax, rax, kPointerSizeLog2);
+  __ movq(rax, FieldOperand(rcx,
+                            index.reg,
+                            index.scale,
+                            FixedArray::kHeaderSize));
   __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
   // In case the loaded value is the_hole we have to consult GetProperty
   // to ensure the prototype chain is searched.
@@ -402,12 +402,13 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ret(0);
 
   // Check whether the elements is a pixel array.
-  // rax: untagged index
+  // rax: key
   // rcx: elements array
   __ bind(&check_pixel_array);
   __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
                  Heap::kPixelArrayMapRootIndex);
   __ j(not_equal, &check_number_dictionary);
+  __ SmiToInteger32(rax, rax);
   __ cmpl(rax, FieldOperand(rcx, PixelArray::kLengthOffset));
   __ j(above_equal, &slow);
   __ movq(rcx, FieldOperand(rcx, PixelArray::kExternalPointerOffset));
@@ -417,13 +418,13 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   __ bind(&check_number_dictionary);
   // Check whether the elements is a number dictionary.
-  // rax: untagged index
-  // rbx: key
+  // rax: key
   // rcx: elements
   __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
                  Heap::kHashTableMapRootIndex);
   __ j(not_equal, &slow);
-  GenerateNumberDictionaryLoad(masm, &slow, rcx, rbx, rax, rdx, rdi);
+  __ SmiToInteger32(rbx, rax);
+  GenerateNumberDictionaryLoad(masm, &slow, rcx, rax, rbx, rdx, rdi);
   __ ret(0);
 
   // Slow case: Load name and receiver from stack and jump to runtime.
@@ -512,10 +513,11 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
   __ bind(&index_string);
-  __ movl(rax, rbx);
-  __ and_(rax, Immediate(String::kArrayIndexHashMask));
-  __ shrl(rax, Immediate(String::kHashShift));
-  __ jmp(&index_int);
+  // We want the smi-tagged index in rax.
+  __ and_(rbx, Immediate(String::kArrayIndexValueMask));
+  __ shr(rbx, Immediate(String::kHashShift));
+  __ Integer32ToSmi(rax, rbx);
+  __ jmp(&index_smi);
 }
 
 
@@ -852,9 +854,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
                  Heap::kFixedArrayMapRootIndex);
   __ j(not_equal, &check_pixel_array);
-  // Untag the key (for checking against untagged length in the fixed array).
-  __ SmiToInteger32(rdi, rcx);
-  __ cmpl(rdi, FieldOperand(rbx, Array::kLengthOffset));
+  __ SmiCompare(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
   // rax: value
   // rbx: FixedArray
   // rcx: index (as a smi)
@@ -903,11 +903,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rcx: index (as a smi)
   // flags: smicompare (rdx.length(), rbx)
   __ j(not_equal, &slow);  // do not leave holes in the array
-  __ SmiToInteger64(rdi, rcx);
-  __ cmpl(rdi, FieldOperand(rbx, FixedArray::kLengthOffset));
+  __ SmiCompare(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
   __ j(above_equal, &slow);
-  // Increment and restore smi-tag.
-  __ Integer64PlusConstantToSmi(rdi, rdi, 1);
+  // Increment index to get new length.
+  __ SmiAddConstant(rdi, rcx, Smi::FromInt(1));
   __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rdi);
   __ jmp(&fast);
 
@@ -936,16 +935,14 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   Label non_smi_value;
   __ JumpIfNotSmi(rax, &non_smi_value);
   SmiIndex index = masm->SmiToIndex(rcx, rcx, kPointerSizeLog2);
-  __ movq(Operand(rbx, index.reg, index.scale,
-                  FixedArray::kHeaderSize - kHeapObjectTag),
+  __ movq(FieldOperand(rbx, index.reg, index.scale, FixedArray::kHeaderSize),
           rax);
   __ ret(0);
   __ bind(&non_smi_value);
   // Slow case that needs to retain rcx for use by RecordWrite.
   // Update write barrier for the elements array address.
   SmiIndex index2 = masm->SmiToIndex(kScratchRegister, rcx, kPointerSizeLog2);
-  __ movq(Operand(rbx, index2.reg, index2.scale,
-                  FixedArray::kHeaderSize - kHeapObjectTag),
+  __ movq(FieldOperand(rbx, index2.reg, index2.scale, FixedArray::kHeaderSize),
           rax);
   __ movq(rdx, rax);
   __ RecordWriteNonSmi(rbx, 0, rdx, rcx);

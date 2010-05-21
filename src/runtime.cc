@@ -291,7 +291,7 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
         Handle<String> name(String::cast(*key));
         ASSERT(!name->AsArrayIndex(&element_index));
         result = SetProperty(boilerplate, name, value, NONE);
-      } else if (Array::IndexFromObject(*key, &element_index)) {
+      } else if (key->ToArrayIndex(&element_index)) {
         // Array index (uint32).
         result = SetElement(boilerplate, element_index, value);
       } else {
@@ -1583,7 +1583,7 @@ static Object* Runtime_SetCode(Arguments args) {
 
 static Object* CharCodeAt(String* subject, Object* index) {
   uint32_t i = 0;
-  if (!Array::IndexFromObject(index, &i)) return Heap::nan_value();
+  if (!index->ToArrayIndex(&i)) return Heap::nan_value();
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
@@ -1599,7 +1599,7 @@ static Object* CharCodeAt(String* subject, Object* index) {
 
 static Object* CharFromCode(Object* char_code) {
   uint32_t code;
-  if (Array::IndexFromObject(char_code, &code)) {
+  if (char_code->ToArrayIndex(&code)) {
     if (code <= 0xffff) {
       return Heap::LookupSingleCharacterStringFromCode(code);
     }
@@ -2780,7 +2780,7 @@ static Object* Runtime_StringIndexOf(Arguments args) {
 
   Object* index = args[2];
   uint32_t start_index;
-  if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
+  if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
   RUNTIME_ASSERT(start_index <= static_cast<uint32_t>(sub->length()));
   int position = Runtime::StringMatch(sub, pat, start_index);
@@ -2830,7 +2830,7 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
 
   Object* index = args[2];
   uint32_t start_index;
-  if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
+  if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
   uint32_t pat_length = pat->length();
   uint32_t sub_length = sub->length();
@@ -3657,7 +3657,7 @@ Object* Runtime::GetObjectProperty(Handle<Object> object, Handle<Object> key) {
 
   // Check if the given key is an array index.
   uint32_t index;
-  if (Array::IndexFromObject(*key, &index)) {
+  if (key->ToArrayIndex(&index)) {
     return GetElementOrCharAt(object, index);
   }
 
@@ -3843,7 +3843,7 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
 
   // Check if the given key is an array index.
   uint32_t index;
-  if (Array::IndexFromObject(*key, &index)) {
+  if (key->ToArrayIndex(&index)) {
     // In Firefox/SpiderMonkey, Safari and Opera you can access the characters
     // of a string using [] notation.  We need to support this too in
     // JavaScript.
@@ -3895,7 +3895,7 @@ Object* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
 
   // Check if the given key is an array index.
   uint32_t index;
-  if (Array::IndexFromObject(*key, &index)) {
+  if (key->ToArrayIndex(&index)) {
     // In Firefox/SpiderMonkey, Safari and Opera you can access the characters
     // of a string using [] notation.  We need to support this too in
     // JavaScript.
@@ -3942,7 +3942,7 @@ Object* Runtime::ForceDeleteObjectProperty(Handle<JSObject> js_object,
 
   // Check if the given key is an array index.
   uint32_t index;
-  if (Array::IndexFromObject(*key, &index)) {
+  if (key->ToArrayIndex(&index)) {
     // In Firefox/SpiderMonkey, Safari and Opera you can access the
     // characters of a string using [] notation.  In the case of a
     // String object we just need to redirect the deletion to the
@@ -4355,7 +4355,7 @@ static Object* Runtime_GetArgumentsProperty(Arguments args) {
   // Try to convert the key to an index. If successful and within
   // index return the the argument from the frame.
   uint32_t index;
-  if (Array::IndexFromObject(args[0], &index) && index < n) {
+  if (args[0]->ToArrayIndex(&index) && index < n) {
     return frame->GetParameter(index);
   }
 
@@ -6457,8 +6457,8 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
     if (obj->IsFailure()) return obj;
 
     AssertNoAllocation no_gc;
-    reinterpret_cast<Array*>(obj)->set_map(Heap::fixed_array_map());
-    FixedArray* array = FixedArray::cast(obj);
+    FixedArray* array = reinterpret_cast<FixedArray*>(obj);
+    array->set_map(Heap::fixed_array_map());
     array->set_length(length);
 
     WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
@@ -7747,8 +7747,8 @@ static Object* Runtime_SwapElements(Arguments args) {
   Handle<Object> key2 = args.at<Object>(2);
 
   uint32_t index1, index2;
-  if (!Array::IndexFromObject(*key1, &index1)
-      || !Array::IndexFromObject(*key2, &index2)) {
+  if (!key1->ToArrayIndex(&index1)
+      || !key2->ToArrayIndex(&index2)) {
     return Top::ThrowIllegalOperation();
   }
 
@@ -7779,17 +7779,19 @@ static Object* Runtime_GetArrayKeys(Arguments args) {
     for (int i = 0; i < keys_length; i++) {
       Object* key = keys->get(i);
       uint32_t index;
-      if (!Array::IndexFromObject(key, &index) || index >= length) {
+      if (!key->ToArrayIndex(&index) || index >= length) {
         // Zap invalid keys.
         keys->set_undefined(i);
       }
     }
     return *Factory::NewJSArrayWithElements(keys);
   } else {
+    ASSERT(array->HasFastElements());
     Handle<FixedArray> single_interval = Factory::NewFixedArray(2);
     // -1 means start of array.
     single_interval->set(0, Smi::FromInt(-1));
-    uint32_t actual_length = static_cast<uint32_t>(array->elements()->length());
+    uint32_t actual_length =
+        static_cast<uint32_t>(FixedArray::cast(array->elements())->length());
     uint32_t min_length = actual_length < length ? actual_length : length;
     Handle<Object> length_object =
         Factory::NewNumber(static_cast<double>(min_length));

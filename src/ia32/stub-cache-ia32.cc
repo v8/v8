@@ -1173,7 +1173,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
     __ j(not_equal, &miss);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label call_builtin, exit, with_rset_update, attempt_to_grow_elements;
+      Label call_builtin, exit, with_write_barrier, attempt_to_grow_elements;
 
       // Get the array's length into eax and calculate new length.
       __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
@@ -1183,7 +1183,6 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       // Get the element's length into ecx.
       __ mov(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
-      __ SmiTag(ecx);
 
       // Check if we could survive without allocation.
       __ cmp(eax, Operand(ecx));
@@ -1201,17 +1200,16 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       // Check if value is a smi.
       __ test(ecx, Immediate(kSmiTagMask));
-      __ j(not_zero, &with_rset_update);
+      __ j(not_zero, &with_write_barrier);
 
       __ bind(&exit);
       __ ret((argc + 1) * kPointerSize);
 
-      __ bind(&with_rset_update);
+      __ bind(&with_write_barrier);
 
       __ InNewSpace(ebx, ecx, equal, &exit);
 
-      RecordWriteStub stub(ebx, edx, ecx);
-      __ CallStub(&stub);
+      __ RecordWriteHelper(ebx, edx, ecx);
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&attempt_to_grow_elements);
@@ -1251,10 +1249,10 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       // Increment element's and array's sizes.
       __ add(FieldOperand(ebx, FixedArray::kLengthOffset),
-             Immediate(kAllocationDelta));
+             Immediate(Smi::FromInt(kAllocationDelta)));
       __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
 
-      // Elements are in new space, so no remembered set updates are necessary.
+      // Elements are in new space, so write barrier is not required.
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&call_builtin);
