@@ -177,7 +177,7 @@ LinuxKernelMemoryBarrierFunc pLinuxKernelMemoryBarrier __attribute__((weak)) =
 #endif
 
 void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
-#ifdef V8_TARGET_ARCH_ARM
+#if defined(V8_TARGET_ARCH_ARM) && defined(__arm__)  // don't use on a simulator
   pLinuxKernelMemoryBarrier();
 #else
   __asm__ __volatile__("" : : : "memory");
