@@ -149,9 +149,9 @@ void V8::TearDown() {
 
   Top::TearDown();
 
-  CpuProfiler::TearDown();
-
   Heap::TearDown();
+
+  CpuProfiler::TearDown();
 
   Logger::TearDown();
 
