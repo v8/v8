@@ -2309,8 +2309,6 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ cmp(r0, r1);  // compare to the array length
   node->break_target()->Branch(hs);
 
-  __ ldr(r0, frame_->ElementAt(0));
-
   // Get the i'th entry of the array.
   __ ldr(r2, frame_->ElementAt(2));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -4212,9 +4210,8 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   __ ldr(map_reg, FieldMemOperand(r1, HeapObject::kMapOffset));
   // Undetectable objects behave like undefined when tested with typeof.
   __ ldrb(r1, FieldMemOperand(map_reg, Map::kBitFieldOffset));
-  __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
-  __ cmp(r1, Operand(1 << Map::kIsUndetectable));
-  false_target()->Branch(eq);
+  __ tst(r1, Operand(1 << Map::kIsUndetectable));
+  false_target()->Branch(ne);
 
   __ ldrb(r1, FieldMemOperand(map_reg, Map::kInstanceTypeOffset));
   __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
