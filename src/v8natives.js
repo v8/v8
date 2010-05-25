@@ -557,7 +557,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
           SameValue(desc.getSet(), current.getSet()))) {
        return true;
      }
-			
+
     // Step 7
     if (desc.isConfigurable() ||  desc.isEnumerable() != current.isEnumerable())
       throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
