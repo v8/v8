@@ -304,7 +304,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label slow, check_string, index_int, index_string;
+  Label slow, check_string, index_smi, index_string;
   Label check_pixel_array, probe_dictionary;
   Label check_number_dictionary;
 
@@ -329,18 +329,17 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Check that the key is a smi.
   __ test(eax, Immediate(kSmiTagMask));
   __ j(not_zero, &check_string, not_taken);
-  __ mov(ebx, eax);
-  __ SmiUntag(ebx);
   // Get the elements array of the object.
-  __ bind(&index_int);
+  __ bind(&index_smi);
   __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ CheckMap(ecx, Factory::fixed_array_map(), &check_pixel_array, true);
   // Check that the key (index) is within bounds.
-  __ cmp(ebx, FieldOperand(ecx, FixedArray::kLengthOffset));
+  __ cmp(eax, FieldOperand(ecx, FixedArray::kLengthOffset));
   __ j(above_equal, &slow);
   // Fast case: Do the load.
-  __ mov(ecx, FieldOperand(ecx, ebx, times_4, FixedArray::kHeaderSize));
+  ASSERT((kPointerSize == 4) && (kSmiTagSize == 1) && (kSmiTag == 0));
+  __ mov(ecx, FieldOperand(ecx, eax, times_2, FixedArray::kHeaderSize));
   __ cmp(Operand(ecx), Immediate(Factory::the_hole_value()));
   // In case the loaded value is the_hole we have to consult GetProperty
   // to ensure the prototype chain is searched.
@@ -352,9 +351,10 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&check_pixel_array);
   // Check whether the elements is a pixel array.
   // edx: receiver
-  // ebx: untagged index
   // eax: key
   // ecx: elements
+  __ mov(ebx, eax);
+  __ SmiUntag(ebx);
   __ CheckMap(ecx, Factory::pixel_array_map(), &check_number_dictionary, true);
   __ cmp(ebx, FieldOperand(ecx, PixelArray::kLengthOffset));
   __ j(above_equal, &slow);
@@ -485,9 +485,13 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
   __ bind(&index_string);
-  __ and_(ebx, String::kArrayIndexHashMask);
-  __ shr(ebx, String::kHashShift);
-  __ jmp(&index_int);
+  // We want the smi-tagged index in eax.  kArrayIndexValueMask has zeros in
+  // the low kHashShift bits.
+  ASSERT(String::kHashShift >= kSmiTagSize);
+  __ and_(ebx, String::kArrayIndexValueMask);
+  __ shr(ebx, String::kHashShift - kSmiTagSize);
+  __ mov(eax, ebx);
+  __ jmp(&index_smi);
 }
 
 
@@ -792,9 +796,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ CheckMap(edi, Factory::fixed_array_map(), &check_pixel_array, true);
-  __ mov(ebx, Operand(ecx));
-  __ SmiUntag(ebx);
-  __ cmp(ebx, FieldOperand(edi, Array::kLengthOffset));
+  __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
   __ j(below, &fast, taken);
 
   // Slow case: call runtime.
@@ -804,7 +806,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Check whether the elements is a pixel array.
   __ bind(&check_pixel_array);
   // eax: value
-  // ecx: key
+  // ecx: key (a smi)
   // edx: receiver
   // edi: elements array
   __ CheckMap(edi, Factory::pixel_array_map(), &slow, true);
@@ -840,13 +842,11 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // edi: receiver->elements, a FixedArray
   // flags: compare (ecx, edx.length())
   __ j(not_equal, &slow, not_taken);  // do not leave holes in the array
-  __ mov(ebx, ecx);
-  __ SmiUntag(ebx);  // untag
-  __ cmp(ebx, FieldOperand(edi, Array::kLengthOffset));
+  __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
   __ j(above_equal, &slow, not_taken);
   // Add 1 to receiver->length, and go to fast array write.
   __ add(FieldOperand(edx, JSArray::kLengthOffset),
-         Immediate(1 << kSmiTagSize));
+         Immediate(Smi::FromInt(1)));
   __ jmp(&fast);
 
   // Array case: Get the length and the elements array from the JS
