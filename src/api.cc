@@ -1105,8 +1105,19 @@ ScriptData* ScriptData::PreCompile(const char* input, int length) {
 }
 
 
-ScriptData* ScriptData::New(unsigned* data, int length) {
-  return new i::ScriptDataImpl(i::Vector<unsigned>(data, length));
+ScriptData* ScriptData::New(const char* data, int length) {
+  // Return an empty ScriptData if the length is obviously invalid.
+  if (length % sizeof(unsigned) != 0) {
+    return new i::ScriptDataImpl(i::Vector<unsigned>());
+  }
+
+  // Copy the data to ensure it is properly aligned.
+  int deserialized_data_length = length / sizeof(unsigned);
+  unsigned* deserialized_data = i::NewArray<unsigned>(deserialized_data_length);
+  memcpy(deserialized_data, data, length);
+
+  return new i::ScriptDataImpl(
+      i::Vector<unsigned>(deserialized_data, deserialized_data_length));
 }
 
 

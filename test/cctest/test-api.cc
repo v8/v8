@@ -8003,8 +8003,8 @@ TEST(PreCompile) {
   // TODO(155): This test would break without the initialization of V8. This is
   // a workaround for now to make this test not fail.
   v8::V8::Initialize();
-  const char *script = "function foo(a) { return a+1; }";
-  v8::ScriptData *sd =
+  const char* script = "function foo(a) { return a+1; }";
+  v8::ScriptData* sd =
       v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK_NE(sd->Length(), 0);
   CHECK_NE(sd->Data(), NULL);
@@ -8015,8 +8015,8 @@ TEST(PreCompile) {
 
 TEST(PreCompileWithError) {
   v8::V8::Initialize();
-  const char *script = "function foo(a) { return 1 * * 2; }";
-  v8::ScriptData *sd =
+  const char* script = "function foo(a) { return 1 * * 2; }";
+  v8::ScriptData* sd =
       v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK(sd->HasError());
   delete sd;
@@ -8025,10 +8025,49 @@ TEST(PreCompileWithError) {
 
 TEST(Regress31661) {
   v8::V8::Initialize();
-  const char *script = " The Definintive Guide";
-  v8::ScriptData *sd =
+  const char* script = " The Definintive Guide";
+  v8::ScriptData* sd =
       v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK(sd->HasError());
+  delete sd;
+}
+
+
+// Tests that ScriptData can be serialized and deserialized.
+TEST(PreCompileSerialization) {
+  v8::V8::Initialize();
+  const char* script = "function foo(a) { return a+1; }";
+  v8::ScriptData* sd =
+      v8::ScriptData::PreCompile(script, i::StrLength(script));
+
+  // Serialize.
+  int serialized_data_length = sd->Length();
+  char* serialized_data = i::NewArray<char>(serialized_data_length);
+  memcpy(serialized_data, sd->Data(), serialized_data_length);
+
+  // Deserialize.
+  v8::ScriptData* deserialized_sd =
+      v8::ScriptData::New(serialized_data, serialized_data_length);
+
+  // Verify that the original is the same as the deserialized.
+  CHECK_EQ(sd->Length(), deserialized_sd->Length());
+  CHECK_EQ(0, memcmp(sd->Data(), deserialized_sd->Data(), sd->Length()));
+  CHECK_EQ(sd->HasError(), deserialized_sd->HasError());
+
+  delete sd;
+  delete deserialized_sd;
+}
+
+
+// Attempts to deserialize bad data.
+TEST(PreCompileDeserializationError) {
+  v8::V8::Initialize();
+  const char* data = "DONT CARE";
+  int invalid_size = 3;
+  v8::ScriptData* sd = v8::ScriptData::New(data, invalid_size);
+
+  CHECK_EQ(0, sd->Length());
+
   delete sd;
 }
 

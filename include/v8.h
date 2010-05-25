@@ -512,11 +512,37 @@ class V8EXPORT Data {
 class V8EXPORT ScriptData {  // NOLINT
  public:
   virtual ~ScriptData() { }
+  /**
+   * Pre-compiles the specified script (context-independent).
+   *
+   * \param input Pointer to UTF-8 script source code.
+   * \param length Length of UTF-8 script source code.
+   */
   static ScriptData* PreCompile(const char* input, int length);
-  static ScriptData* New(unsigned* data, int length);
 
+  /**
+   * Load previous pre-compilation data.
+   *
+   * \param data Pointer to data returned by a call to Data() of a previous
+   *   ScriptData. Ownership is not transferred.
+   * \param length Length of data.
+   */
+  static ScriptData* New(const char* data, int length);
+
+  /**
+   * Returns the length of Data().
+   */
   virtual int Length() = 0;
-  virtual unsigned* Data() = 0;
+
+  /**
+   * Returns a serialized representation of this ScriptData that can later be
+   * passed to New(). NOTE: Serialized data is platform-dependent.
+   */
+  virtual const char* Data() = 0;
+
+  /**
+   * Returns true if the source code could not be parsed.
+   */
   virtual bool HasError() = 0;
 };
 
