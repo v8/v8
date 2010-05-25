@@ -775,6 +775,28 @@ void FunctionTemplate::SetCallHandler(InvocationCallback callback,
 }
 
 
+static i::Handle<i::AccessorInfo> MakeAccessorInfo(
+      v8::Handle<String> name,
+      AccessorGetter getter,
+      AccessorSetter setter,
+      v8::Handle<Value> data,
+      v8::AccessControl settings,
+      v8::PropertyAttribute attributes) {
+  i::Handle<i::AccessorInfo> obj = i::Factory::NewAccessorInfo();
+  ASSERT(getter != NULL);
+  obj->set_getter(*FromCData(getter));
+  obj->set_setter(*FromCData(setter));
+  if (data.IsEmpty()) data = v8::Undefined();
+  obj->set_data(*Utils::OpenHandle(*data));
+  obj->set_name(*Utils::OpenHandle(*name));
+  if (settings & ALL_CAN_READ) obj->set_all_can_read(true);
+  if (settings & ALL_CAN_WRITE) obj->set_all_can_write(true);
+  if (settings & PROHIBITS_OVERWRITING) obj->set_prohibits_overwriting(true);
+  obj->set_property_attributes(static_cast<PropertyAttributes>(attributes));
+  return obj;
+}
+
+
 void FunctionTemplate::AddInstancePropertyAccessor(
       v8::Handle<String> name,
       AccessorGetter getter,
@@ -787,18 +809,10 @@ void FunctionTemplate::AddInstancePropertyAccessor(
   }
   ENTER_V8;
   HandleScope scope;
-  i::Handle<i::AccessorInfo> obj = i::Factory::NewAccessorInfo();
-  ASSERT(getter != NULL);
-  obj->set_getter(*FromCData(getter));
-  obj->set_setter(*FromCData(setter));
-  if (data.IsEmpty()) data = v8::Undefined();
-  obj->set_data(*Utils::OpenHandle(*data));
-  obj->set_name(*Utils::OpenHandle(*name));
-  if (settings & ALL_CAN_READ) obj->set_all_can_read(true);
-  if (settings & ALL_CAN_WRITE) obj->set_all_can_write(true);
-  if (settings & PROHIBITS_OVERWRITING) obj->set_prohibits_overwriting(true);
-  obj->set_property_attributes(static_cast<PropertyAttributes>(attributes));
 
+  i::Handle<i::AccessorInfo> obj = MakeAccessorInfo(name,
+                                                    getter, setter, data,
+                                                    settings, attributes);
   i::Handle<i::Object> list(Utils::OpenHandle(this)->property_accessors());
   if (list->IsUndefined()) {
     list = NeanderArray().value();
@@ -2361,6 +2375,23 @@ bool v8::Object::Has(uint32_t index) {
   ON_BAILOUT("v8::Object::HasProperty()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   return self->HasElement(index);
+}
+
+
+bool Object::SetAccessor(Handle<String> name,
+                         AccessorGetter getter,
+                         AccessorSetter setter,
+                         v8::Handle<Value> data,
+                         AccessControl settings,
+                         PropertyAttribute attributes) {
+  ON_BAILOUT("v8::Object::SetAccessor()", return false);
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::AccessorInfo> info = MakeAccessorInfo(name,
+                                                     getter, setter, data,
+                                                     settings, attributes);
+  i::Handle<i::Object> result = i::SetAccessor(Utils::OpenHandle(this), info);
+  return !result.is_null() && !result->IsUndefined();
 }
 
 

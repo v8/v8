@@ -126,6 +126,7 @@ template <class T> class Persistent;
 class FunctionTemplate;
 class ObjectTemplate;
 class Data;
+class AccessorInfo;
 class StackTrace;
 class StackFrame;
 
@@ -1332,6 +1333,41 @@ enum ExternalArrayType {
 };
 
 /**
+ * Accessor[Getter|Setter] are used as callback functions when
+ * setting|getting a particular property. See Object and ObjectTemplate's
+ * method SetAccessor.
+ */
+typedef Handle<Value> (*AccessorGetter)(Local<String> property,
+                                        const AccessorInfo& info);
+
+
+typedef void (*AccessorSetter)(Local<String> property,
+                               Local<Value> value,
+                               const AccessorInfo& info);
+
+
+/**
+ * Access control specifications.
+ *
+ * Some accessors should be accessible across contexts.  These
+ * accessors have an explicit access control parameter which specifies
+ * the kind of cross-context access that should be allowed.
+ *
+ * Additionally, for security, accessors can prohibit overwriting by
+ * accessors defined in JavaScript.  For objects that have such
+ * accessors either locally or in their prototype chain it is not
+ * possible to overwrite the accessor by using __defineGetter__ or
+ * __defineSetter__ from JavaScript code.
+ */
+enum AccessControl {
+  DEFAULT               = 0,
+  ALL_CAN_READ          = 1,
+  ALL_CAN_WRITE         = 1 << 1,
+  PROHIBITS_OVERWRITING = 1 << 2
+};
+
+
+/**
  * A JavaScript object (ECMA-262, 4.3.3)
  */
 class V8EXPORT Object : public Value {
@@ -1372,6 +1408,13 @@ class V8EXPORT Object : public Value {
   bool Has(uint32_t index);
 
   bool Delete(uint32_t index);
+
+  bool SetAccessor(Handle<String> name,
+                   AccessorGetter getter,
+                   AccessorSetter setter = 0,
+                   Handle<Value> data = Handle<Value>(),
+                   AccessControl settings = DEFAULT,
+                   PropertyAttribute attribute = None);
 
   /**
    * Returns an array containing the names of the enumerable properties
@@ -1668,19 +1711,6 @@ typedef Handle<Value> (*InvocationCallback)(const Arguments& args);
 typedef int (*LookupCallback)(Local<Object> self, Local<String> name);
 
 /**
- * Accessor[Getter|Setter] are used as callback functions when
- * setting|getting a particular property. See objectTemplate::SetAccessor.
- */
-typedef Handle<Value> (*AccessorGetter)(Local<String> property,
-                                        const AccessorInfo& info);
-
-
-typedef void (*AccessorSetter)(Local<String> property,
-                               Local<Value> value,
-                               const AccessorInfo& info);
-
-
-/**
  * NamedProperty[Getter|Setter] are used as interceptors on object.
  * See ObjectTemplate::SetNamedPropertyHandler.
  */
@@ -1757,27 +1787,6 @@ typedef Handle<Boolean> (*IndexedPropertyDeleter)(uint32_t index,
  * indexed property getter intercepts.
  */
 typedef Handle<Array> (*IndexedPropertyEnumerator)(const AccessorInfo& info);
-
-
-/**
- * Access control specifications.
- *
- * Some accessors should be accessible across contexts.  These
- * accessors have an explicit access control parameter which specifies
- * the kind of cross-context access that should be allowed.
- *
- * Additionally, for security, accessors can prohibit overwriting by
- * accessors defined in JavaScript.  For objects that have such
- * accessors either locally or in their prototype chain it is not
- * possible to overwrite the accessor by using __defineGetter__ or
- * __defineSetter__ from JavaScript code.
- */
-enum AccessControl {
-  DEFAULT               = 0,
-  ALL_CAN_READ          = 1,
-  ALL_CAN_WRITE         = 1 << 1,
-  PROHIBITS_OVERWRITING = 1 << 2
-};
 
 
 /**
