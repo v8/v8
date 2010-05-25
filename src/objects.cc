@@ -139,8 +139,7 @@ Object* Object::GetPropertyWithReceiver(Object* receiver,
 }
 
 
-Object* Object::GetPropertyWithCallk
-jback(Object* receiver,
+Object* Object::GetPropertyWithCallback(Object* receiver,
                                         Object* structure,
                                         String* name,
                                         Object* holder) {

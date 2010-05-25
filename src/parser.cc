@@ -5073,8 +5073,7 @@ ScriptDataImpl::~ScriptDataImpl() {
 
 
 int ScriptDataImpl::Length() {
-  static const int kCharToUnsignedFactor = sizeof(unsigned) / sizeof(char);
-  return store_.length() * kCharToUnsignedFactor;
+  return store_.length() * sizeof(unsigned);
 }
 
 
