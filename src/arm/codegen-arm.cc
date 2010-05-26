@@ -1514,7 +1514,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // Then process it as a normal function call.
   __ ldr(r0, MemOperand(sp, 3 * kPointerSize));
   __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
-  __ strd(r0, MemOperand(sp, 2 * kPointerSize));
+  __ strd(r0, r1, MemOperand(sp, 2 * kPointerSize));
 
   CallFunctionStub call_function(2, NOT_IN_LOOP, NO_CALL_FUNCTION_FLAGS);
   frame_->CallStub(&call_function, 3);
@@ -2307,7 +2307,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   node->continue_target()->SetExpectedHeight();
 
   // Load the current count to r0, load the length to r1.
-  __ ldrd(r0, frame_->ElementAt(0));
+  __ ldrd(r0, r1, frame_->ElementAt(0));
   __ cmp(r0, r1);  // compare to the array length
   node->break_target()->Branch(hs);
 
@@ -6379,7 +6379,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     ConvertToDoubleStub stub1(r3, r2, r7, r6);
     __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
     // Load rhs to a double in r0, r1.
-    __ ldrd(r0, FieldMemOperand(r0, HeapNumber::kValueOffset));
+    __ ldrd(r0, r1, FieldMemOperand(r0, HeapNumber::kValueOffset));
     __ pop(lr);
   }
 
@@ -6414,7 +6414,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   } else {
     __ push(lr);
     // Load lhs to a double in r2, r3.
-    __ ldrd(r2, FieldMemOperand(r1, HeapNumber::kValueOffset));
+    __ ldrd(r2, r3, FieldMemOperand(r1, HeapNumber::kValueOffset));
     // Convert rhs to a double in r0, r1.
     __ mov(r7, Operand(r0));
     ConvertToDoubleStub stub2(r1, r0, r7, r6);
@@ -6578,8 +6578,8 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
     __ sub(r7, r1, Operand(kHeapObjectTag));
     __ vldr(d7, r7, HeapNumber::kValueOffset);
   } else {
-    __ ldrd(r2, FieldMemOperand(r1, HeapNumber::kValueOffset));
-    __ ldrd(r0, FieldMemOperand(r0, HeapNumber::kValueOffset));
+    __ ldrd(r2, r3, FieldMemOperand(r1, HeapNumber::kValueOffset));
+    __ ldrd(r0, r1, FieldMemOperand(r0, HeapNumber::kValueOffset));
   }
   __ jmp(both_loaded_as_doubles);
 }
@@ -6956,7 +6956,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       __ vldr(d7, r7, HeapNumber::kValueOffset);
     } else {
       // Calling convention says that second double is in r2 and r3.
-      __ ldrd(r2, FieldMemOperand(r0, HeapNumber::kValueOffset));
+      __ ldrd(r2, r3, FieldMemOperand(r0, HeapNumber::kValueOffset));
     }
     __ jmp(&finished_loading_r0);
     __ bind(&r0_is_smi);
@@ -7008,7 +7008,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       __ vldr(d6, r7, HeapNumber::kValueOffset);
     } else {
       // Calling convention says that first double is in r0 and r1.
-      __ ldrd(r0, FieldMemOperand(r1, HeapNumber::kValueOffset));
+      __ ldrd(r0, r1, FieldMemOperand(r1, HeapNumber::kValueOffset));
     }
     __ jmp(&finished_loading_r1);
     __ bind(&r1_is_smi);
@@ -7079,7 +7079,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       __ stc(p1, cr8, MemOperand(r4, HeapNumber::kValueOffset));
   #else
       // Double returned in registers 0 and 1.
-      __ strd(r0, FieldMemOperand(r5, HeapNumber::kValueOffset));
+      __ strd(r0, r1, FieldMemOperand(r5, HeapNumber::kValueOffset));
   #endif
       __ mov(r0, Operand(r5));
       // And we are done.
