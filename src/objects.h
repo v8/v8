@@ -411,6 +411,7 @@ enum StringRepresentationTag {
   kConsStringTag = 0x1,
   kExternalStringTag = 0x3
 };
+const uint32_t kIsConsStringMask = 0x1;
 
 
 // A ConsString with an empty string as the right side is a candidate

@@ -1380,6 +1380,140 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
 }
 
 
+Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
+                                                      JSObject* holder,
+                                                      JSFunction* function,
+                                                      String* name,
+                                                      CheckType check) {
+  // ----------- S t a t e -------------
+  //  -- ecx                 : function name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
+  const int argc = arguments().immediate();
+
+  Label miss;
+  Label index_out_of_range;
+
+  // Check that the maps starting from the prototype haven't changed.
+  GenerateLoadGlobalFunctionPrototype(masm(),
+                                      Context::STRING_FUNCTION_INDEX,
+                                      eax);
+  CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
+                  ebx, edx, name, &miss);
+
+  Register receiver = ebx;
+  Register index = ecx;
+  Register scratch = edx;
+  Register result = eax;
+  __ mov(receiver, Operand(esp, (argc + 1) * kPointerSize));
+  if (argc > 0) {
+    __ mov(index, Operand(esp, (argc - 0) * kPointerSize));
+  } else {
+    __ Set(index, Immediate(Factory::undefined_value()));
+  }
+
+  StringCharCodeAtGenerator char_code_at_generator(receiver,
+                                                   index,
+                                                   scratch,
+                                                   result,
+                                                   &miss,  // When not a string.
+                                                   &miss,  // When not a number.
+                                                   &index_out_of_range,
+                                                   STRING_INDEX_IS_NUMBER);
+  char_code_at_generator.GenerateFast(masm());
+  __ ret((argc + 1) * kPointerSize);
+
+  ICRuntimeCallHelper call_helper;
+  char_code_at_generator.GenerateSlow(masm(), call_helper);
+
+  __ bind(&index_out_of_range);
+  __ Set(eax, Immediate(Factory::nan_value()));
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&miss);
+  // Restore function name in ecx.
+  __ Set(ecx, Immediate(Handle<String>(name)));
+
+  Handle<Code> ic = ComputeCallMiss(argc);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(function);
+}
+
+
+Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
+                                                  JSObject* holder,
+                                                  JSFunction* function,
+                                                  String* name,
+                                                  CheckType check) {
+  // ----------- S t a t e -------------
+  //  -- ecx                 : function name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
+  const int argc = arguments().immediate();
+
+  Label miss;
+  Label index_out_of_range;
+
+  // Check that the maps starting from the prototype haven't changed.
+  GenerateLoadGlobalFunctionPrototype(masm(),
+                                      Context::STRING_FUNCTION_INDEX,
+                                      eax);
+  CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
+                  ebx, edx, name, &miss);
+
+  Register receiver = eax;
+  Register index = ecx;
+  Register scratch1 = ebx;
+  Register scratch2 = edx;
+  Register result = eax;
+  __ mov(receiver, Operand(esp, (argc + 1) * kPointerSize));
+  if (argc > 0) {
+    __ mov(index, Operand(esp, (argc - 0) * kPointerSize));
+  } else {
+    __ Set(index, Immediate(Factory::undefined_value()));
+  }
+
+  StringCharAtGenerator char_at_generator(receiver,
+                                          index,
+                                          scratch1,
+                                          scratch2,
+                                          result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &index_out_of_range,
+                                          STRING_INDEX_IS_NUMBER);
+  char_at_generator.GenerateFast(masm());
+  __ ret((argc + 1) * kPointerSize);
+
+  ICRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm(), call_helper);
+
+  __ bind(&index_out_of_range);
+  __ Set(eax, Immediate(Factory::empty_string()));
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&miss);
+  // Restore function name in ecx.
+  __ Set(ecx, Immediate(Handle<String>(name)));
+
+  Handle<Code> ic = ComputeCallMiss(argc);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(function);
+}
+
+
 Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSObject* holder,
                                               JSFunction* function,

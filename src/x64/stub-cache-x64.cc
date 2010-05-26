@@ -1328,6 +1328,25 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
 }
 
 
+Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
+                                                  JSObject* holder,
+                                                  JSFunction* function,
+                                                  String* name,
+                                                  CheckType check) {
+  // TODO(722): implement this.
+  return Heap::undefined_value();
+}
+
+
+Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
+                                                      JSObject* holder,
+                                                      JSFunction* function,
+                                                      String* name,
+                                                      CheckType check) {
+  // TODO(722): implement this.
+  return Heap::undefined_value();
+}
+
 
 
 Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,

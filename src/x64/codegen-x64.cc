@@ -43,12 +43,12 @@
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm_)
+#define __ ACCESS_MASM(masm)
 
 // -------------------------------------------------------------------------
-// Platform-specific DeferredCode functions.
+// Platform-specific FrameRegisterState functions.
 
-void DeferredCode::SaveRegisters() {
+void FrameRegisterState::Save(MacroAssembler* masm) const {
   for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
     int action = registers_[i];
     if (action == kPush) {
@@ -60,7 +60,7 @@ void DeferredCode::SaveRegisters() {
 }
 
 
-void DeferredCode::RestoreRegisters() {
+void FrameRegisterState::Restore(MacroAssembler* masm) const {
   // Restore registers in reverse order due to the stack.
   for (int i = RegisterAllocator::kNumRegisters - 1; i >= 0; i--) {
     int action = registers_[i];
@@ -71,6 +71,45 @@ void DeferredCode::RestoreRegisters() {
       __ movq(RegisterAllocator::ToRegister(i), Operand(rbp, action));
     }
   }
+}
+
+
+#undef __
+#define __ ACCESS_MASM(masm_)
+
+// -------------------------------------------------------------------------
+// Platform-specific DeferredCode functions.
+
+void DeferredCode::SaveRegisters() {
+  frame_state_.Save(masm_);
+}
+
+
+void DeferredCode::RestoreRegisters() {
+  frame_state_.Restore(masm_);
+}
+
+
+// -------------------------------------------------------------------------
+// Platform-specific RuntimeCallHelper functions.
+
+void VirtualFrameRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
+  frame_state_->Save(masm);
+}
+
+
+void VirtualFrameRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
+  frame_state_->Restore(masm);
+}
+
+
+void ICRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
+  masm->EnterInternalFrame();
+}
+
+
+void ICRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
+  masm->LeaveInternalFrame();
 }
 
 
@@ -3970,23 +4009,67 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
-  Comment(masm_, "[ GenerateFastCharCodeAt");
+class DeferredStringCharCodeAt : public DeferredCode {
+ public:
+  DeferredStringCharCodeAt(Register object,
+                           Register index,
+                           Register scratch,
+                           Register result)
+      : result_(result),
+        char_code_at_generator_(object,
+                                index,
+                                scratch,
+                                result,
+                                &need_conversion_,
+                                &need_conversion_,
+                                &index_out_of_range_,
+                                STRING_INDEX_IS_NUMBER) {}
+
+  StringCharCodeAtGenerator* fast_case_generator() {
+    return &char_code_at_generator_;
+  }
+
+  virtual void Generate() {
+    VirtualFrameRuntimeCallHelper call_helper(frame_state());
+    char_code_at_generator_.GenerateSlow(masm(), call_helper);
+
+    __ bind(&need_conversion_);
+    // Move the undefined value into the result register, which will
+    // trigger conversion.
+    __ LoadRoot(result_, Heap::kUndefinedValueRootIndex);
+    __ jmp(exit_label());
+
+    __ bind(&index_out_of_range_);
+    // When the index is out of range, the spec requires us to return
+    // NaN.
+    __ LoadRoot(result_, Heap::kNanValueRootIndex);
+    __ jmp(exit_label());
+  }
+
+ private:
+  Register result_;
+
+  Label need_conversion_;
+  Label index_out_of_range_;
+
+  StringCharCodeAtGenerator char_code_at_generator_;
+};
+
+
+// This generates code that performs a String.prototype.charCodeAt() call
+// or returns a smi in order to trigger conversion.
+void CodeGenerator::GenerateStringCharCodeAt(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateStringCharCodeAt");
   ASSERT(args->length() == 2);
 
   Load(args->at(0));
   Load(args->at(1));
   Result index = frame_->Pop();
   Result object = frame_->Pop();
-
-  // We will mutate the index register and possibly the object register.
-  // The case where they are somehow the same register is handled
-  // because we only mutate them in the case where the receiver is a
-  // heap object and the index is not.
   object.ToRegister();
   index.ToRegister();
+  // We might mutate the object register.
   frame_->Spill(object.reg());
-  frame_->Spill(index.reg());
 
   // We need two extra registers.
   Result result = allocator()->Allocate();
@@ -3994,33 +4077,40 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   Result scratch = allocator()->Allocate();
   ASSERT(scratch.is_valid());
 
-  // There is no virtual frame effect from here up to the final result
-  // push.
-  Label slow_case;
-  Label exit;
-  StringHelper::GenerateFastCharCodeAt(masm_,
-                                       object.reg(),
-                                       index.reg(),
-                                       scratch.reg(),
-                                       result.reg(),
-                                       &slow_case,
-                                       &slow_case,
-                                       &slow_case,
-                                       &slow_case);
-  __ jmp(&exit);
-
-  __ bind(&slow_case);
-  // Move the undefined value into the result register, which will
-  // trigger the slow case.
-  __ LoadRoot(result.reg(), Heap::kUndefinedValueRootIndex);
-
-  __ bind(&exit);
+  DeferredStringCharCodeAt* deferred =
+      new DeferredStringCharCodeAt(object.reg(),
+                                   index.reg(),
+                                   scratch.reg(),
+                                   result.reg());
+  deferred->fast_case_generator()->GenerateFast(masm_);
+  deferred->BindExit();
   frame_->Push(&result);
 }
 
 
-void CodeGenerator::GenerateCharFromCode(ZoneList<Expression*>* args) {
-  Comment(masm_, "[ GenerateCharFromCode");
+class DeferredStringCharFromCode : public DeferredCode {
+ public:
+  DeferredStringCharFromCode(Register code,
+                             Register result)
+      : char_from_code_generator_(code, result) {}
+
+  StringCharFromCodeGenerator* fast_case_generator() {
+    return &char_from_code_generator_;
+  }
+
+  virtual void Generate() {
+    VirtualFrameRuntimeCallHelper call_helper(frame_state());
+    char_from_code_generator_.GenerateSlow(masm(), call_helper);
+  }
+
+ private:
+  StringCharFromCodeGenerator char_from_code_generator_;
+};
+
+
+// Generates code for creating a one-char string from a char code.
+void CodeGenerator::GenerateStringCharFromCode(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateStringCharFromCode");
   ASSERT(args->length() == 1);
 
   Load(args->at(0));
@@ -4029,19 +4119,97 @@ void CodeGenerator::GenerateCharFromCode(ZoneList<Expression*>* args) {
   code.ToRegister();
   ASSERT(code.is_valid());
 
-  // StringHelper::GenerateCharFromCode may do a runtime call.
-  frame_->SpillAll();
-
   Result result = allocator()->Allocate();
   ASSERT(result.is_valid());
-  Result scratch = allocator()->Allocate();
-  ASSERT(scratch.is_valid());
 
-  StringHelper::GenerateCharFromCode(masm_,
-                                     code.reg(),
-                                     result.reg(),
-                                     scratch.reg(),
-                                     CALL_FUNCTION);
+  DeferredStringCharFromCode* deferred = new DeferredStringCharFromCode(
+      code.reg(), result.reg());
+  deferred->fast_case_generator()->GenerateFast(masm_);
+  deferred->BindExit();
+  frame_->Push(&result);
+}
+
+
+class DeferredStringCharAt : public DeferredCode {
+ public:
+  DeferredStringCharAt(Register object,
+                       Register index,
+                       Register scratch1,
+                       Register scratch2,
+                       Register result)
+      : result_(result),
+        char_at_generator_(object,
+                           index,
+                           scratch1,
+                           scratch2,
+                           result,
+                           &need_conversion_,
+                           &need_conversion_,
+                           &index_out_of_range_,
+                           STRING_INDEX_IS_NUMBER) {}
+
+  StringCharAtGenerator* fast_case_generator() {
+    return &char_at_generator_;
+  }
+
+  virtual void Generate() {
+    VirtualFrameRuntimeCallHelper call_helper(frame_state());
+    char_at_generator_.GenerateSlow(masm(), call_helper);
+
+    __ bind(&need_conversion_);
+    // Move smi zero into the result register, which will trigger
+    // conversion.
+    __ Move(result_, Smi::FromInt(0));
+    __ jmp(exit_label());
+
+    __ bind(&index_out_of_range_);
+    // When the index is out of range, the spec requires us to return
+    // the empty string.
+    __ LoadRoot(result_, Heap::kEmptyStringRootIndex);
+    __ jmp(exit_label());
+  }
+
+ private:
+  Register result_;
+
+  Label need_conversion_;
+  Label index_out_of_range_;
+
+  StringCharAtGenerator char_at_generator_;
+};
+
+
+// This generates code that performs a String.prototype.charAt() call
+// or returns a smi in order to trigger conversion.
+void CodeGenerator::GenerateStringCharAt(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateStringCharAt");
+  ASSERT(args->length() == 2);
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Result index = frame_->Pop();
+  Result object = frame_->Pop();
+  object.ToRegister();
+  index.ToRegister();
+  // We might mutate the object register.
+  frame_->Spill(object.reg());
+
+  // We need three extra registers.
+  Result result = allocator()->Allocate();
+  ASSERT(result.is_valid());
+  Result scratch1 = allocator()->Allocate();
+  ASSERT(scratch1.is_valid());
+  Result scratch2 = allocator()->Allocate();
+  ASSERT(scratch2.is_valid());
+
+  DeferredStringCharAt* deferred =
+      new DeferredStringCharAt(object.reg(),
+                               index.reg(),
+                               scratch1.reg(),
+                               scratch2.reg(),
+                               result.reg());
+  deferred->fast_case_generator()->GenerateFast(masm_);
+  deferred->BindExit();
   frame_->Push(&result);
 }
 
@@ -10671,143 +10839,194 @@ const char* CompareStub::GetName() {
 }
 
 
-void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
-                                          Register object,
-                                          Register index,
-                                          Register scratch,
-                                          Register result,
-                                          Label* receiver_not_string,
-                                          Label* index_not_smi,
-                                          Label* index_out_of_range,
-                                          Label* slow_case) {
-  Label not_a_flat_string;
-  Label try_again_with_new_string;
+// -------------------------------------------------------------------------
+// StringCharCodeAtGenerator
+
+void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
+  Label flat_string;
   Label ascii_string;
   Label got_char_code;
 
   // If the receiver is a smi trigger the non-string case.
-  __ JumpIfSmi(object, receiver_not_string);
+  __ JumpIfSmi(object_, receiver_not_string_);
 
   // Fetch the instance type of the receiver into result register.
-  __ movq(result, FieldOperand(object, HeapObject::kMapOffset));
-  __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
+  __ movq(result_, FieldOperand(object_, HeapObject::kMapOffset));
+  __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
   // If the receiver is not a string trigger the non-string case.
-  __ testb(result, Immediate(kIsNotStringMask));
-  __ j(not_zero, receiver_not_string);
+  __ testb(result_, Immediate(kIsNotStringMask));
+  __ j(not_zero, receiver_not_string_);
 
   // If the index is non-smi trigger the non-smi case.
-  __ JumpIfNotSmi(index, index_not_smi);
+  __ JumpIfNotSmi(index_, &index_not_smi_);
+
+  // Put smi-tagged index into scratch register.
+  __ movq(scratch_, index_);
+  __ bind(&got_smi_index_);
 
   // Check for index out of range.
-  __ SmiCompare(index, FieldOperand(object, String::kLengthOffset));
-  __ j(above_equal, index_out_of_range);
-
-  __ bind(&try_again_with_new_string);
-  // ----------- S t a t e -------------
-  //  -- object  : string to access
-  //  -- result  : instance type of the string
-  //  -- scratch : non-negative index < length
-  // -----------------------------------
+  __ SmiCompare(scratch_, FieldOperand(object_, String::kLengthOffset));
+  __ j(above_equal, index_out_of_range_);
 
   // We need special handling for non-flat strings.
-  ASSERT_EQ(0, kSeqStringTag);
-  __ testb(result, Immediate(kStringRepresentationMask));
-  __ j(not_zero, &not_a_flat_string);
+  ASSERT(kSeqStringTag == 0);
+  __ testb(result_, Immediate(kStringRepresentationMask));
+  __ j(zero, &flat_string);
 
-  // Put untagged index into scratch register.
-  __ SmiToInteger32(scratch, index);
+  // Handle non-flat strings.
+  __ testb(result_, Immediate(kIsConsStringMask));
+  __ j(zero, &call_runtime_);
+
+  // ConsString.
+  // Check whether the right hand side is the empty string (i.e. if
+  // this is really a flat string in a cons string). If that is not
+  // the case we would rather go to the runtime system now to flatten
+  // the string.
+  __ CompareRoot(FieldOperand(object_, ConsString::kSecondOffset),
+                 Heap::kEmptyStringRootIndex);
+  __ j(not_equal, &call_runtime_);
+  // Get the first of the two strings and load its instance type.
+  __ movq(object_, FieldOperand(object_, ConsString::kFirstOffset));
+  __ movq(result_, FieldOperand(object_, HeapObject::kMapOffset));
+  __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
+  // If the first cons component is also non-flat, then go to runtime.
+  ASSERT(kSeqStringTag == 0);
+  __ testb(result_, Immediate(kStringRepresentationMask));
+  __ j(not_zero, &call_runtime_);
 
   // Check for 1-byte or 2-byte string.
-  ASSERT_EQ(0, kTwoByteStringTag);
-  __ testb(result, Immediate(kStringEncodingMask));
+  __ bind(&flat_string);
+  ASSERT(kAsciiStringTag != 0);
+  __ testb(result_, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string);
 
   // 2-byte string.
   // Load the 2-byte character code into the result register.
-  __ movzxwl(result, FieldOperand(object,
-                                  scratch,
-                                  times_2,
-                                  SeqTwoByteString::kHeaderSize));
+  __ SmiToInteger32(scratch_, scratch_);
+  __ movzxwl(result_, FieldOperand(object_,
+                                   scratch_, times_2,
+                                   SeqTwoByteString::kHeaderSize));
   __ jmp(&got_char_code);
 
-  // Handle non-flat strings.
-  __ bind(&not_a_flat_string);
-  __ and_(result, Immediate(kStringRepresentationMask));
-  __ cmpb(result, Immediate(kConsStringTag));
-  __ j(not_equal, slow_case);
-
-  // ConsString.
-  // Check that the right hand side is the empty string (ie if this is really a
-  // flat string in a cons string).  If that is not the case we would rather go
-  // to the runtime system now, to flatten the string.
-  __ movq(result, FieldOperand(object, ConsString::kSecondOffset));
-  __ CompareRoot(result, Heap::kEmptyStringRootIndex);
-  __ j(not_equal, slow_case);
-  // Get the first of the two strings and load its instance type.
-  __ movq(object, FieldOperand(object, ConsString::kFirstOffset));
-  __ movq(result, FieldOperand(object, HeapObject::kMapOffset));
-  __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
-  __ jmp(&try_again_with_new_string);
-
   // ASCII string.
-  __ bind(&ascii_string);
   // Load the byte into the result register.
-  __ movzxbl(result, FieldOperand(object,
-                                  scratch,
-                                  times_1,
-                                  SeqAsciiString::kHeaderSize));
+  __ bind(&ascii_string);
+  __ SmiToInteger32(scratch_, scratch_);
+  __ movzxbl(result_, FieldOperand(object_,
+                                   scratch_, times_1,
+                                   SeqAsciiString::kHeaderSize));
   __ bind(&got_char_code);
-  __ Integer32ToSmi(result, result);
+  __ Integer32ToSmi(result_, result_);
+  __ bind(&exit_);
 }
 
 
-void StringHelper::GenerateCharFromCode(MacroAssembler* masm,
-                                        Register code,
-                                        Register result,
-                                        Register scratch,
-                                        InvokeFlag flag) {
-  ASSERT(!code.is(result));
+void StringCharCodeAtGenerator::GenerateSlow(
+    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+  __ Abort("Unexpected fallthrough to CharCodeAt slow case");
 
-  Label slow_case;
-  Label exit;
-
-  // Fast case of Heap::LookupSingleCharacterStringFromCode.
-  __ JumpIfNotSmi(code, &slow_case);
-  __ SmiToInteger32(scratch, code);
-  __ cmpl(scratch, Immediate(String::kMaxAsciiCharCode));
-  __ j(above, &slow_case);
-
-  __ Move(result, Factory::single_character_string_cache());
-  __ movq(result, FieldOperand(result,
-                               scratch,
-                               times_pointer_size,
-                               FixedArray::kHeaderSize));
-
-  __ CompareRoot(result, Heap::kUndefinedValueRootIndex);
-  __ j(equal, &slow_case);
-  __ jmp(&exit);
-
-  __ bind(&slow_case);
-  if (flag == CALL_FUNCTION) {
-    __ push(code);
-    __ CallRuntime(Runtime::kCharFromCode, 1);
-    if (!result.is(rax)) {
-      __ movq(result, rax);
-    }
+  // Index is not a smi.
+  __ bind(&index_not_smi_);
+  // If index is a heap number, try converting it to an integer.
+  __ CheckMap(index_, Factory::heap_number_map(), index_not_number_, true);
+  call_helper.BeforeCall(masm);
+  __ push(object_);
+  __ push(index_);
+  __ push(result_);
+  __ push(index_);  // Consumed by runtime conversion function.
+  if (index_flags_ == STRING_INDEX_IS_NUMBER) {
+    // Strictly speaking, NumberToInteger should be called here, but
+    // our string lengths don't exceed 32 bits and using ToUint32 maps
+    // -0 to 0, which is what is required by the spec when accessing
+    // strings.
+    __ CallRuntime(Runtime::kNumberToJSUint32, 1);
   } else {
-    ASSERT(flag == JUMP_FUNCTION);
-    ASSERT(result.is(rax));
-    __ pop(rax);  // Save return address.
-    __ push(code);
-    __ push(rax);  // Restore return address.
-    __ TailCallRuntime(Runtime::kCharFromCode, 1, 1);
+    ASSERT(index_flags_ == STRING_INDEX_IS_ARRAY_INDEX);
+    // NumberToSmi discards numbers that are not exact integers.
+    __ CallRuntime(Runtime::kNumberToSmi, 1);
   }
+  if (!scratch_.is(rax)) {
+    // Save the conversion result before the pop instructions below
+    // have a chance to overwrite it.
+    __ movq(scratch_, rax);
+  }
+  __ pop(result_);
+  __ pop(index_);
+  __ pop(object_);
+  call_helper.AfterCall(masm);
+  // If index is still not a smi, it must be out of range.
+  __ JumpIfNotSmi(scratch_, index_out_of_range_);
+  // Otherwise, return to the fast path.
+  __ jmp(&got_smi_index_);
 
-  __ bind(&exit);
-  if (flag == JUMP_FUNCTION) {
-    ASSERT(result.is(rax));
-    __ ret(0);
+  // Call runtime. We get here when the receiver is a string and the
+  // index is a number, but the code of getting the actual character
+  // is too complex (e.g., when the string needs to be flattened).
+  __ bind(&call_runtime_);
+  call_helper.BeforeCall(masm);
+  __ push(object_);
+  __ push(index_);
+  __ CallRuntime(Runtime::kStringCharCodeAt, 2);
+  if (!result_.is(rax)) {
+    __ movq(result_, rax);
   }
+  call_helper.AfterCall(masm);
+  __ jmp(&exit_);
+
+  __ Abort("Unexpected fallthrough from CharCodeAt slow case");
+}
+
+
+// -------------------------------------------------------------------------
+// StringCharFromCodeGenerator
+
+void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
+  // Fast case of Heap::LookupSingleCharacterStringFromCode.
+  __ JumpIfNotSmi(code_, &slow_case_);
+  __ SmiCompare(code_, Smi::FromInt(String::kMaxAsciiCharCode));
+  __ j(above, &slow_case_);
+
+  __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
+  SmiIndex index = masm->SmiToIndex(kScratchRegister, code_, kPointerSizeLog2);
+  __ movq(result_, FieldOperand(result_, index.reg, index.scale,
+                                FixedArray::kHeaderSize));
+  __ CompareRoot(result_, Heap::kUndefinedValueRootIndex);
+  __ j(equal, &slow_case_);
+  __ bind(&exit_);
+}
+
+
+void StringCharFromCodeGenerator::GenerateSlow(
+    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+  __ Abort("Unexpected fallthrough to CharFromCode slow case");
+
+  __ bind(&slow_case_);
+  call_helper.BeforeCall(masm);
+  __ push(code_);
+  __ CallRuntime(Runtime::kCharFromCode, 1);
+  if (!result_.is(rax)) {
+    __ movq(result_, rax);
+  }
+  call_helper.AfterCall(masm);
+  __ jmp(&exit_);
+
+  __ Abort("Unexpected fallthrough from CharFromCode slow case");
+}
+
+
+// -------------------------------------------------------------------------
+// StringCharAtGenerator
+
+void StringCharAtGenerator::GenerateFast(MacroAssembler* masm) {
+  char_code_at_generator_.GenerateFast(masm);
+  char_from_code_generator_.GenerateFast(masm);
+}
+
+
+void StringCharAtGenerator::GenerateSlow(
+    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+  char_code_at_generator_.GenerateSlow(masm, call_helper);
+  char_from_code_generator_.GenerateSlow(masm, call_helper);
 }
 
 
