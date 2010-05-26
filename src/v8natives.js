@@ -604,7 +604,13 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     flag |= DONT_DELETE;
 
   if (IsDataDescriptor(desc) || IsGenericDescriptor(desc)) {
-    flag |= desc.isWritable() ? 0 : READ_ONLY;
+    if (desc.hasWritable()) {
+      flag |= desc.isWritable() ? 0 : READ_ONLY;
+    } else if (!IS_UNDEFINED(current)) {
+      flag |= current.isWritable() ? 0 : READ_ONLY;
+    } else {
+      flag |= READ_ONLY;
+    }
     %DefineOrRedefineDataProperty(obj, p, desc.getValue(), flag);
   } else {
     if (desc.hasGetter() && IS_FUNCTION(desc.getGet())) {
