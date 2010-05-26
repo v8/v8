@@ -4784,7 +4784,7 @@ static inline uint32_t HashSequentialString(const schar* chars, int length) {
 
 uint32_t String::ComputeAndSetHash() {
   // Should only be called if hash code has not yet been computed.
-  ASSERT(!HasHashCode());
+  ASSERT(!(hash_field() & kHashComputedMask));
 
   const int len = length();
 
@@ -4803,7 +4803,7 @@ uint32_t String::ComputeAndSetHash() {
   set_hash_field(field);
 
   // Check the hash code is there.
-  ASSERT(HasHashCode());
+  ASSERT(hash_field() & kHashComputedMask);
   uint32_t result = field >> kHashShift;
   ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
   return result;
@@ -4858,7 +4858,8 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
 static inline uint32_t HashField(uint32_t hash,
                                  bool is_array_index,
                                  int length = -1) {
-  uint32_t result = (hash << String::kHashShift);
+  uint32_t result =
+      (hash << String::kHashShift) | String::kHashComputedMask;
   if (is_array_index) {
     // For array indexes mix the length into the hash as an array index could
     // be zero.
@@ -5638,7 +5639,7 @@ Object* JSObject::SetElementsLength(Object* len) {
   // General slow case.
   if (len->IsNumber()) {
     uint32_t length;
-    if (len->ToArrayIndex(&length)) {
+    if (Array::IndexFromObject(len, &length)) {
       return SetSlowElements(len);
     } else {
       return ArrayLengthRangeError();
@@ -6062,7 +6063,8 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
     if (IsJSArray()) {
       // Update the length of the array if needed.
       uint32_t array_length = 0;
-      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&array_length));
+      CHECK(Array::IndexFromObject(JSArray::cast(this)->length(),
+                                   &array_length));
       if (index >= array_length) {
         JSArray::cast(this)->set_length(Smi::FromInt(index + 1));
       }
@@ -6200,7 +6202,8 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
       if (ShouldConvertToFastElements()) {
         uint32_t new_length = 0;
         if (IsJSArray()) {
-          CHECK(JSArray::cast(this)->length()->ToArrayIndex(&new_length));
+          CHECK(Array::IndexFromObject(JSArray::cast(this)->length(),
+                                       &new_length));
           JSArray::cast(this)->set_length(Smi::FromInt(new_length));
         } else {
           new_length = NumberDictionary::cast(elements())->max_number_key() + 1;
@@ -6231,7 +6234,7 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
 
 Object* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index, Object* value) {
   uint32_t old_len = 0;
-  CHECK(length()->ToArrayIndex(&old_len));
+  CHECK(Array::IndexFromObject(length(), &old_len));
   // Check to see if we need to update the length. For now, we make
   // sure that the length stays within 32-bits (unsigned).
   if (index >= old_len && index != 0xffffffff) {
@@ -6513,7 +6516,7 @@ bool JSObject::ShouldConvertToFastElements() {
   // fast elements.
   uint32_t length = 0;
   if (IsJSArray()) {
-    CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
+    CHECK(Array::IndexFromObject(JSArray::cast(this)->length(), &length));
   } else {
     length = dictionary->max_number_key();
   }

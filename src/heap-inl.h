@@ -184,7 +184,7 @@ void Heap::RecordWrite(Address address, int offset) {
   if (new_space_.Contains(address)) return;
   ASSERT(!new_space_.FromSpaceContains(address));
   SLOW_ASSERT(Contains(address + offset));
-  Page::FromAddress(address)->MarkRegionDirty(address + offset);
+  Page::SetRSet(address, offset);
 }
 
 
@@ -195,7 +195,7 @@ void Heap::RecordWrites(Address address, int start, int len) {
        offset < start + len * kPointerSize;
        offset += kPointerSize) {
     SLOW_ASSERT(Contains(address + offset));
-    Page::FromAddress(address)->MarkRegionDirty(address + offset);
+    Page::SetRSet(address, offset);
   }
 }
 
@@ -234,40 +234,13 @@ AllocationSpace Heap::TargetSpaceId(InstanceType type) {
 }
 
 
-void Heap::CopyBlock(Address dst, Address src, int byte_size) {
+void Heap::CopyBlock(Object** dst, Object** src, int byte_size) {
   ASSERT(IsAligned(byte_size, kPointerSize));
-  CopyWords(reinterpret_cast<Object**>(dst),
-            reinterpret_cast<Object**>(src),
-            byte_size / kPointerSize);
+  CopyWords(dst, src, byte_size / kPointerSize);
 }
 
 
-void Heap::CopyBlockToOldSpaceAndUpdateRegionMarks(Address dst,
-                                                   Address src,
-                                                   int byte_size) {
-  ASSERT(IsAligned(byte_size, kPointerSize));
-
-  Page* page = Page::FromAddress(dst);
-  uint32_t marks = page->GetRegionMarks();
-
-  for (int remaining = byte_size / kPointerSize;
-       remaining > 0;
-       remaining--) {
-    Memory::Object_at(dst) = Memory::Object_at(src);
-
-    if (Heap::InNewSpace(Memory::Object_at(dst))) {
-      marks |= page->GetRegionMaskForAddress(dst);
-    }
-
-    dst += kPointerSize;
-    src += kPointerSize;
-  }
-
-  page->SetRegionMarks(marks);
-}
-
-
-void Heap::MoveBlock(Address dst, Address src, int byte_size) {
+void Heap::MoveBlock(Object** dst, Object** src, int byte_size) {
   ASSERT(IsAligned(byte_size, kPointerSize));
 
   int size_in_words = byte_size / kPointerSize;
@@ -277,27 +250,14 @@ void Heap::MoveBlock(Address dst, Address src, int byte_size) {
            ((OffsetFrom(reinterpret_cast<Address>(src)) -
              OffsetFrom(reinterpret_cast<Address>(dst))) >= kPointerSize));
 
-    Object** src_slot = reinterpret_cast<Object**>(src);
-    Object** dst_slot = reinterpret_cast<Object**>(dst);
-    Object** end_slot = src_slot + size_in_words;
+    Object** end = src + size_in_words;
 
-    while (src_slot != end_slot) {
-      *dst_slot++ = *src_slot++;
+    while (src != end) {
+      *dst++ = *src++;
     }
   } else {
     memmove(dst, src, byte_size);
   }
-}
-
-
-void Heap::MoveBlockToOldSpaceAndUpdateRegionMarks(Address dst,
-                                                   Address src,
-                                                   int byte_size) {
-  ASSERT(IsAligned(byte_size, kPointerSize));
-  ASSERT((dst >= (src + byte_size)) ||
-         ((OffsetFrom(src) - OffsetFrom(dst)) >= kPointerSize));
-
-  CopyBlockToOldSpaceAndUpdateRegionMarks(dst, src, byte_size);
 }
 
 

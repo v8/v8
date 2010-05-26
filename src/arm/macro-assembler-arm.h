@@ -114,14 +114,16 @@ class MacroAssembler: public Assembler {
                   Label* branch);
 
 
-  // For the page containing |object| mark the region covering [object+offset]
-  // dirty. The object address must be in the first 8K of an allocated page.
+  // Set the remebered set bit for an offset into an
+  // object. RecordWriteHelper only works if the object is not in new
+  // space.
   void RecordWriteHelper(Register object, Register offset, Register scracth);
 
-  // For the page containing |object| mark the region covering [object+offset]
-  // dirty. The object address must be in the first 8K of an allocated page.
-  // The 'scratch' register is used in the implementation and all 3 registers
-  // are clobbered by the operation, as well as the ip register.
+  // Sets the remembered set bit for [address+offset], where address is the
+  // address of the heap object 'object'.  The address must be in the first 8K
+  // of an allocated page. The 'scratch' register is used in the
+  // implementation and all 3 registers are clobbered by the operation, as
+  // well as the ip register.
   void RecordWrite(Register object, Register offset, Register scratch);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
