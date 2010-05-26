@@ -2901,7 +2901,12 @@ class V8EXPORT Context {
    */
   void ReattachGlobal(Handle<Object> global_object);
 
-  /** Creates a new context. */
+  /** Creates a new context.
+   *
+   * Returns a persistent handle to the newly allocated context. This
+   * persistent handle has to be disposed when the context is no
+   * longer used so the context can be garbage collected.
+   */
   static Persistent<Context> New(
       ExtensionConfiguration* extensions = NULL,
       Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
