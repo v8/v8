@@ -935,7 +935,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Generate code for doing the condition check.
   __ bind(&loop);
   // Load the current count to r0, load the length to r1.
-  __ ldrd(r0, r1, MemOperand(sp, 0 * kPointerSize));
+  __ Ldrd(r0, r1, MemOperand(sp, 0 * kPointerSize));
   __ cmp(r0, r1);  // Compare to the array length.
   __ b(hs, loop_statement.break_target());
 

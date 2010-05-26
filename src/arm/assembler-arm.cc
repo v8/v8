@@ -1363,46 +1363,25 @@ void Assembler::ldrsh(Register dst, const MemOperand& src, Condition cond) {
 }
 
 
-void Assembler::ldrd(Register dst1,
-                     Register dst2,
+void Assembler::ldrd(Register dst1, Register dst2,
                      const MemOperand& src, Condition cond) {
+  ASSERT(CpuFeatures::IsEnabled(ARMv7));
   ASSERT(src.rm().is(no_reg));
   ASSERT(!dst1.is(lr));  // r14.
   ASSERT_EQ(0, dst1.code() % 2);
   ASSERT_EQ(dst1.code() + 1, dst2.code());
-#ifdef CAN_USE_ARMV7_INSTRUCTIONS
   addrmod3(cond | B7 | B6 | B4, dst1, src);
-#else
-  // Generate two ldr instructions if ldrd is not available.
-  MemOperand src2(src);
-  src2.set_offset(src2.offset() + 4);
-  if (dst1.is(src.rn())) {
-    ldr(dst2, src2, cond);
-    ldr(dst1, src, cond);
-  } else {
-    ldr(dst1, src, cond);
-    ldr(dst2, src2, cond);
-  }
-#endif
 }
 
 
-void Assembler::strd(Register src1,
-                     Register src2,
+void Assembler::strd(Register src1, Register src2,
                      const MemOperand& dst, Condition cond) {
   ASSERT(dst.rm().is(no_reg));
   ASSERT(!src1.is(lr));  // r14.
   ASSERT_EQ(0, src1.code() % 2);
   ASSERT_EQ(src1.code() + 1, src2.code());
-#ifdef CAN_USE_ARMV7_INSTRUCTIONS
+  ASSERT(CpuFeatures::IsEnabled(ARMv7));
   addrmod3(cond | B7 | B6 | B5 | B4, src1, dst);
-#else
-  // Generate two str instructions if strd is not available.
-  MemOperand dst2(dst);
-  dst2.set_offset(dst2.offset() + 4);
-  str(src1, dst, cond);
-  str(src2, dst2, cond);
-#endif
 }
 
 // Load/Store multiple instructions.
