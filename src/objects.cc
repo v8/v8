@@ -5271,22 +5271,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode rmode = it.rinfo()->rmode();
-    if (rmode == RelocInfo::EMBEDDED_OBJECT) {
-      v->VisitPointer(it.rinfo()->target_object_address());
-    } else if (RelocInfo::IsCodeTarget(rmode)) {
-      v->VisitCodeTarget(it.rinfo());
-    } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-      v->VisitExternalReference(it.rinfo()->target_reference_address());
-#ifdef ENABLE_DEBUGGER_SUPPORT
-    } else if (Debug::has_break_points() &&
-               RelocInfo::IsJSReturn(rmode) &&
-               it.rinfo()->IsPatchedReturnSequence()) {
-      v->VisitDebugTarget(it.rinfo());
-#endif
-    } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
-      v->VisitRuntimeEntry(it.rinfo());
-    }
+    it.rinfo()->Visit(v);
   }
 
   ScopeInfo<>::IterateScopeInfo(this, v);
