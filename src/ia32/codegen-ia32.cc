@@ -8598,15 +8598,15 @@ Result CodeGenerator::EmitKeyedLoad() {
   if (loop_nesting() > 0) {
     Comment cmnt(masm_, "[ Inlined load from keyed Property");
 
-    Result key = frame_->Pop();
-    Result receiver = frame_->Pop();
-    key.ToRegister();
-    receiver.ToRegister();
-
     // Use a fresh temporary to load the elements without destroying
     // the receiver which is needed for the deferred slow case.
     Result elements = allocator()->Allocate();
     ASSERT(elements.is_valid());
+
+    Result key = frame_->Pop();
+    Result receiver = frame_->Pop();
+    key.ToRegister();
+    receiver.ToRegister();
 
     // Use a fresh temporary for the index and later the loaded
     // value.
@@ -8621,6 +8621,7 @@ Result CodeGenerator::EmitKeyedLoad() {
     __ test(receiver.reg(), Immediate(kSmiTagMask));
     deferred->Branch(zero);
 
+    // Check that the receiver has the expected map.
     // Initially, use an invalid map. The map is patched in the IC
     // initialization code.
     __ bind(deferred->patch_site());
@@ -8654,7 +8655,6 @@ Result CodeGenerator::EmitKeyedLoad() {
            FieldOperand(elements.reg(), FixedArray::kLengthOffset));
     deferred->Branch(above_equal);
 
-    // Load and check that the result is not the hole.
     __ mov(result.reg(), Operand(elements.reg(),
                                  result.reg(),
                                  times_4,
