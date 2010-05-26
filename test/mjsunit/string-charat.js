@@ -41,6 +41,8 @@ function basicTest() {
   assertEquals("", s.charAt(-1));
   assertEquals("", s.charAt(4));
   assertEquals("", s.charAt(slowIndexOutOfRange));
+  assertEquals("", s.charAt(1/0));
+  assertEquals("", s.charAt(-1/0));
   assertEquals("t", s.charAt(0));
   assertEquals("t", s.charAt(-0.0));
   assertEquals("t", s.charAt(0.4));
@@ -67,6 +69,8 @@ function basicTest() {
   assertTrue(isNaN(s.charCodeAt(-1)));
   assertTrue(isNaN(s.charCodeAt(4)));
   assertTrue(isNaN(s.charCodeAt(slowIndexOutOfRange)));
+  assertTrue(isNaN(s.charCodeAt(1/0)));
+  assertTrue(isNaN(s.charCodeAt(-1/0)));
 }
 basicTest();
 

@@ -10935,11 +10935,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ push(result_);
   __ push(index_);  // Consumed by runtime conversion function.
   if (index_flags_ == STRING_INDEX_IS_NUMBER) {
-    // Strictly speaking, NumberToInteger should be called here, but
-    // our string lengths don't exceed 32 bits and using ToUint32 maps
-    // -0 to 0, which is what is required by the spec when accessing
-    // strings.
-    __ CallRuntime(Runtime::kNumberToJSUint32, 1);
+    __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero, 1);
   } else {
     ASSERT(index_flags_ == STRING_INDEX_IS_ARRAY_INDEX);
     // NumberToSmi discards numbers that are not exact integers.
