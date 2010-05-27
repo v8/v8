@@ -72,90 +72,90 @@ void VirtualFrame::PopToR0() {
 }
 
 
-void VirtualFrame::MergeTo(VirtualFrame* expected) {
+void VirtualFrame::MergeTo(const VirtualFrame* expected, Condition cond) {
   if (Equals(expected)) return;
-  MergeTOSTo(expected->top_of_stack_state_);
+  MergeTOSTo(expected->top_of_stack_state_, cond);
   ASSERT(register_allocation_map_ == expected->register_allocation_map_);
 }
 
 
 void VirtualFrame::MergeTOSTo(
-    VirtualFrame::TopOfStack expected_top_of_stack_state) {
+    VirtualFrame::TopOfStack expected_top_of_stack_state, Condition cond) {
 #define CASE_NUMBER(a, b) ((a) * TOS_STATES + (b))
   switch (CASE_NUMBER(top_of_stack_state_, expected_top_of_stack_state)) {
     case CASE_NUMBER(NO_TOS_REGISTERS, NO_TOS_REGISTERS):
       break;
     case CASE_NUMBER(NO_TOS_REGISTERS, R0_TOS):
-      __ pop(r0);
+      __ pop(r0, cond);
       break;
     case CASE_NUMBER(NO_TOS_REGISTERS, R1_TOS):
-      __ pop(r1);
+      __ pop(r1, cond);
       break;
     case CASE_NUMBER(NO_TOS_REGISTERS, R0_R1_TOS):
-      __ pop(r0);
-      __ pop(r1);
+      __ pop(r0, cond);
+      __ pop(r1, cond);
       break;
     case CASE_NUMBER(NO_TOS_REGISTERS, R1_R0_TOS):
-      __ pop(r1);
-      __ pop(r0);
+      __ pop(r1, cond);
+      __ pop(r0, cond);
       break;
     case CASE_NUMBER(R0_TOS, NO_TOS_REGISTERS):
-      __ push(r0);
+      __ push(r0, cond);
       break;
     case CASE_NUMBER(R0_TOS, R0_TOS):
       break;
     case CASE_NUMBER(R0_TOS, R1_TOS):
-      __ mov(r1, r0);
+      __ mov(r1, r0, LeaveCC, cond);
       break;
     case CASE_NUMBER(R0_TOS, R0_R1_TOS):
-      __ pop(r1);
+      __ pop(r1, cond);
       break;
     case CASE_NUMBER(R0_TOS, R1_R0_TOS):
-      __ mov(r1, r0);
-      __ pop(r0);
+      __ mov(r1, r0, LeaveCC, cond);
+      __ pop(r0, cond);
       break;
     case CASE_NUMBER(R1_TOS, NO_TOS_REGISTERS):
-      __ push(r1);
+      __ push(r1, cond);
       break;
     case CASE_NUMBER(R1_TOS, R0_TOS):
-      __ mov(r0, r1);
+      __ mov(r0, r1, LeaveCC, cond);
       break;
     case CASE_NUMBER(R1_TOS, R1_TOS):
       break;
     case CASE_NUMBER(R1_TOS, R0_R1_TOS):
-      __ mov(r0, r1);
-      __ pop(r1);
+      __ mov(r0, r1, LeaveCC, cond);
+      __ pop(r1, cond);
       break;
     case CASE_NUMBER(R1_TOS, R1_R0_TOS):
-      __ pop(r0);
+      __ pop(r0, cond);
       break;
     case CASE_NUMBER(R0_R1_TOS, NO_TOS_REGISTERS):
-      __ Push(r1, r0);
+      __ Push(r1, r0, cond);
       break;
     case CASE_NUMBER(R0_R1_TOS, R0_TOS):
-      __ push(r1);
+      __ push(r1, cond);
       break;
     case CASE_NUMBER(R0_R1_TOS, R1_TOS):
-      __ push(r1);
-      __ mov(r1, r0);
+      __ push(r1, cond);
+      __ mov(r1, r0, LeaveCC, cond);
       break;
     case CASE_NUMBER(R0_R1_TOS, R0_R1_TOS):
       break;
     case CASE_NUMBER(R0_R1_TOS, R1_R0_TOS):
-      __ Swap(r0, r1, ip);
+      __ Swap(r0, r1, ip, cond);
       break;
     case CASE_NUMBER(R1_R0_TOS, NO_TOS_REGISTERS):
-      __ Push(r0, r1);
+      __ Push(r0, r1, cond);
       break;
     case CASE_NUMBER(R1_R0_TOS, R0_TOS):
-      __ push(r0);
-      __ mov(r0, r1);
+      __ push(r0, cond);
+      __ mov(r0, r1, LeaveCC, cond);
       break;
     case CASE_NUMBER(R1_R0_TOS, R1_TOS):
-      __ push(r0);
+      __ push(r0, cond);
       break;
     case CASE_NUMBER(R1_R0_TOS, R0_R1_TOS):
-      __ Swap(r0, r1, ip);
+      __ Swap(r0, r1, ip, cond);
       break;
     case CASE_NUMBER(R1_R0_TOS, R1_R0_TOS):
       break;
@@ -163,7 +163,16 @@ void VirtualFrame::MergeTOSTo(
       UNREACHABLE();
 #undef CASE_NUMBER
   }
-  top_of_stack_state_ = expected_top_of_stack_state;
+  // A conditional merge will be followed by a conditional branch and the
+  // fall-through code will have an unchanged virtual frame state.  If the
+  // merge is unconditional ('al'ways) then it might be followed by a fall
+  // through.  We need to update the virtual frame state to match the code we
+  // are falling into.  The final case is an unconditional merge followed by an
+  // unconditional branch, in which case it doesn't matter what we do to the
+  // virtual frame state, because the virtual frame will be invalidated.
+  if (cond == al) {
+    top_of_stack_state_ = expected_top_of_stack_state;
+  }
 }
 
 

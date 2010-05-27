@@ -579,7 +579,13 @@ static inline bool IsInlinedICSite(Address address,
   }
   Address address_after_nop = address_after_call + Assembler::kInstrSize;
   Instr instr_after_nop = Assembler::instr_at(address_after_nop);
-  ASSERT(Assembler::IsBranch(instr_after_nop));
+  // There may be some reg-reg move and frame merging code to skip over before
+  // the branch back from the DeferredReferenceGetKeyedValue code to the inlined
+  // code.
+  while (!Assembler::IsBranch(instr_after_nop)) {
+    address_after_nop += Assembler::kInstrSize;
+    instr_after_nop = Assembler::instr_at(address_after_nop);
+  }
 
   // Find the end of the inlined code for handling the load.
   int b_offset =

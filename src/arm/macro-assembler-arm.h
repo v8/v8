@@ -88,7 +88,10 @@ class MacroAssembler: public Assembler {
 
   // Swap two registers.  If the scratch register is omitted then a slightly
   // less efficient form using xor instead of mov is emitted.
-  void Swap(Register reg1, Register reg2, Register scratch = no_reg);
+  void Swap(Register reg1,
+            Register reg2,
+            Register scratch = no_reg,
+            Condition cond = al);
 
   void Call(Label* target);
   void Move(Register dst, Handle<Object> value);

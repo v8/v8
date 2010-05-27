@@ -101,6 +101,11 @@ class Reference BASE_EMBEDDED {
   // is popped from beneath it (unloaded).
   void SetValue(InitState init_state);
 
+  // This is in preparation for something that uses the reference on the stack.
+  // If we need this reference afterwards get then dup it now.  Otherwise mark
+  // it as used.
+  inline void DupIfPersist();
+
  private:
   CodeGenerator* cgen_;
   Expression* expression_;
