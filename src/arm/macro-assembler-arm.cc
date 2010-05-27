@@ -1287,7 +1287,7 @@ void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {
   if (CpuFeatures::IsSupported(ARMv7)) {
-    ubfx(dst, src, Operand(kSmiTagSize), Operand(num_least_bits - 1));
+    ubfx(dst, src, kSmiTagSize, num_least_bits);
   } else {
     mov(dst, Operand(src, ASR, kSmiTagSize));
     and_(dst, dst, Operand((1 << num_least_bits) - 1));
