@@ -891,10 +891,11 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       // avoid copying too many arguments to avoid stack overflows.
       __ bind(&adapted);
       static const uint32_t kArgumentsLimit = 1 * KB;
-      __ movq(rax, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-      __ SmiToInteger32(rax, rax);
-      __ movq(rcx, rax);
-      __ cmpq(rax, Immediate(kArgumentsLimit));
+      __ SmiToInteger32(rax,
+                        Operand(rdx,
+                                ArgumentsAdaptorFrameConstants::kLengthOffset));
+      __ movl(rcx, rax);
+      __ cmpl(rax, Immediate(kArgumentsLimit));
       __ j(above, &build_args);
 
       // Loop through the arguments pushing them onto the execution
@@ -4675,7 +4676,7 @@ class DeferredSearchCache: public DeferredCode {
   virtual void Generate();
 
  private:
-  Register dst_;    // on invocation index of finger (as Smi), on exit
+  Register dst_;    // on invocation index of finger (as int32), on exit
                     // holds value being looked up.
   Register cache_;  // instance of JSFunctionResultCache.
   Register key_;    // key being looked up.
@@ -4699,11 +4700,10 @@ void DeferredSearchCache::Generate() {
   Immediate kEntriesIndexImm = Immediate(JSFunctionResultCache::kEntriesIndex);
   Immediate kEntrySizeImm = Immediate(JSFunctionResultCache::kEntrySize);
 
-  __ SmiToInteger32(dst_, dst_);
   // Check the cache from finger to start of the cache.
   __ bind(&first_loop);
-  __ subq(dst_, kEntrySizeImm);
-  __ cmpq(dst_, kEntriesIndexImm);
+  __ subl(dst_, kEntrySizeImm);
+  __ cmpl(dst_, kEntriesIndexImm);
   __ j(less, &search_further);
 
   __ cmpq(ArrayElement(cache_, dst_), key_);
@@ -4717,14 +4717,15 @@ void DeferredSearchCache::Generate() {
   __ bind(&search_further);
 
   // Check the cache from end of cache up to finger.
-  __ movq(dst_, FieldOperand(cache_, JSFunctionResultCache::kCacheSizeOffset));
-  __ movq(scratch_, FieldOperand(cache_, JSFunctionResultCache::kFingerOffset));
-  __ SmiToInteger32(dst_, dst_);
-  __ SmiToInteger32(scratch_, scratch_);
+  __ SmiToInteger32(dst_,
+                    FieldOperand(cache_,
+                                 JSFunctionResultCache::kCacheSizeOffset));
+  __ SmiToInteger32(scratch_,
+                    FieldOperand(cache_, JSFunctionResultCache::kFingerOffset));
 
   __ bind(&second_loop);
-  __ subq(dst_, kEntrySizeImm);
-  __ cmpq(dst_, scratch_);
+  __ subl(dst_, kEntrySizeImm);
+  __ cmpl(dst_, scratch_);
   __ j(less_equal, &cache_miss);
 
   __ cmpq(ArrayElement(cache_, dst_), key_);
@@ -4755,29 +4756,30 @@ void DeferredSearchCache::Generate() {
 
   // Check if we could add new entry to cache.
   __ movl(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
-  __ movq(r9, FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset));
-  __ SmiToInteger32(r9, r9);
-  __ cmpq(rbx, r9);
+  __ SmiToInteger32(r9,
+                    FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset));
+  __ cmpl(rbx, r9);
   __ j(greater, &add_new_entry);
 
   // Check if we could evict entry after finger.
-  __ movq(rdx, FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
-  __ SmiToInteger32(rdx, rdx);
+  __ SmiToInteger32(rdx,
+                    FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
   __ addq(rdx, kEntrySizeImm);
   Label forward;
   __ cmpq(rbx, rdx);
   __ j(greater, &forward);
   // Need to wrap over the cache.
-  __ movq(rdx, kEntriesIndexImm);
+  __ movl(rdx, kEntriesIndexImm);
   __ bind(&forward);
   __ Integer32ToSmi(r9, rdx);
   __ jmp(&update_cache);
 
   __ bind(&add_new_entry);
   // r9 holds cache size as int.
-  __ movq(rdx, r9);
+  __ movl(rdx, r9);
   __ Integer32ToSmi(r9, r9);
-  __ SmiAddConstant(rbx, r9, Smi::FromInt(JSFunctionResultCache::kEntrySize));
+  __ leal(rbx, Operand(rdx, JSFunctionResultCache::kEntrySize));
+  __ Integer32ToSmi(rbx, rbx);
   __ movq(FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset), rbx);
 
   // Update the cache itself.
@@ -4848,16 +4850,13 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
   const int kFingerOffset =
       FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
   // tmp.reg() now holds finger offset as a smi.
-  __ movq(tmp.reg(), FieldOperand(cache.reg(), kFingerOffset));
-  SmiIndex index =
-      masm()->SmiToIndex(kScratchRegister, tmp.reg(), kPointerSizeLog2);
+  __ SmiToInteger32(tmp.reg(), FieldOperand(cache.reg(), kFingerOffset));
   __ cmpq(key.reg(), FieldOperand(cache.reg(),
-                                  index.reg, index.scale,
+                                  tmp.reg(), times_pointer_size,
                                   FixedArray::kHeaderSize));
-  // Do NOT alter index.reg or tmp.reg() before cmpq below.
   deferred->Branch(not_equal);
   __ movq(tmp.reg(), FieldOperand(cache.reg(),
-                                  index.reg, index.scale,
+                                  tmp.reg(), times_pointer_size,
                                   FixedArray::kHeaderSize + kPointerSize));
 
   deferred->BindExit();
@@ -8653,14 +8652,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Argument 3: Start of string data
   Label setup_two_byte, setup_rest;
   __ testb(rdi, rdi);
-  __ movq(rdi, FieldOperand(rax, String::kLengthOffset));
   __ j(zero, &setup_two_byte);
-  __ SmiToInteger32(rdi, rdi);
+  __ SmiToInteger32(rdi, FieldOperand(rax, String::kLengthOffset));
   __ lea(arg4, FieldOperand(rax, rdi, times_1, SeqAsciiString::kHeaderSize));
   __ lea(arg3, FieldOperand(rax, rbx, times_1, SeqAsciiString::kHeaderSize));
   __ jmp(&setup_rest);
   __ bind(&setup_two_byte);
-  __ SmiToInteger32(rdi, rdi);
+  __ SmiToInteger32(rdi, FieldOperand(rax, String::kLengthOffset));
   __ lea(arg4, FieldOperand(rax, rdi, times_2, SeqTwoByteString::kHeaderSize));
   __ lea(arg3, FieldOperand(rax, rbx, times_2, SeqTwoByteString::kHeaderSize));
 
@@ -8680,12 +8678,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Check the result.
   Label success;
-  __ cmpq(rax, Immediate(NativeRegExpMacroAssembler::SUCCESS));
+  __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::SUCCESS));
   __ j(equal, &success);
   Label failure;
-  __ cmpq(rax, Immediate(NativeRegExpMacroAssembler::FAILURE));
+  __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::FAILURE));
   __ j(equal, &failure);
-  __ cmpq(rax, Immediate(NativeRegExpMacroAssembler::EXCEPTION));
+  __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::EXCEPTION));
   // If not exception it can only be retry. Handle that in the runtime system.
   __ j(not_equal, &runtime);
   // Result must now be exception. If there is no pending exception already a
@@ -11193,8 +11191,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Locate first character of result.
   __ addq(rcx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // Locate first character of first argument
-  __ movq(rdi, FieldOperand(rax, String::kLengthOffset));
-  __ SmiToInteger32(rdi, rdi);
+  __ SmiToInteger32(rdi, FieldOperand(rax, String::kLengthOffset));
   __ addq(rax, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // rax: first char of first argument
   // rbx: result string
@@ -11203,8 +11200,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rdi: length of first argument
   StringHelper::GenerateCopyCharacters(masm, rcx, rax, rdi, true);
   // Locate first character of second argument.
-  __ movq(rdi, FieldOperand(rdx, String::kLengthOffset));
-  __ SmiToInteger32(rdi, rdi);
+  __ SmiToInteger32(rdi, FieldOperand(rdx, String::kLengthOffset));
   __ addq(rdx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // rbx: result string
   // rcx: next character of result
@@ -11232,8 +11228,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Locate first character of result.
   __ addq(rcx, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // Locate first character of first argument.
-  __ movq(rdi, FieldOperand(rax, String::kLengthOffset));
-  __ SmiToInteger32(rdi, rdi);
+  __ SmiToInteger32(rdi, FieldOperand(rax, String::kLengthOffset));
   __ addq(rax, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // rax: first char of first argument
   // rbx: result string
@@ -11242,8 +11237,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rdi: length of first argument
   StringHelper::GenerateCopyCharacters(masm, rcx, rax, rdi, false);
   // Locate first character of second argument.
-  __ movq(rdi, FieldOperand(rdx, String::kLengthOffset));
-  __ SmiToInteger32(rdi, rdi);
+  __ SmiToInteger32(rdi, FieldOperand(rdx, String::kLengthOffset));
   __ addq(rdx, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // rbx: result string
   // rcx: next character of result
@@ -11272,15 +11266,15 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
   if (ascii) {
     __ movb(kScratchRegister, Operand(src, 0));
     __ movb(Operand(dest, 0), kScratchRegister);
-    __ addq(src, Immediate(1));
-    __ addq(dest, Immediate(1));
+    __ incq(src);
+    __ incq(dest);
   } else {
     __ movzxwl(kScratchRegister, Operand(src, 0));
     __ movw(Operand(dest, 0), kScratchRegister);
     __ addq(src, Immediate(2));
     __ addq(dest, Immediate(2));
   }
-  __ subl(count, Immediate(1));
+  __ decl(count);
   __ j(not_zero, &loop);
 }
 
@@ -11293,38 +11287,39 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
   // Copy characters using rep movs of doublewords. Align destination on 4 byte
   // boundary before starting rep movs. Copy remaining characters after running
   // rep movs.
+  // Count is positive int32, dest and src are character pointers.
   ASSERT(dest.is(rdi));  // rep movs destination
   ASSERT(src.is(rsi));  // rep movs source
   ASSERT(count.is(rcx));  // rep movs count
 
   // Nothing to do for zero characters.
   Label done;
-  __ testq(count, count);
+  __ testl(count, count);
   __ j(zero, &done);
 
   // Make count the number of bytes to copy.
   if (!ascii) {
     ASSERT_EQ(2, sizeof(uc16));  // NOLINT
-    __ addq(count, count);
+    __ addl(count, count);
   }
 
   // Don't enter the rep movs if there are less than 4 bytes to copy.
   Label last_bytes;
-  __ testq(count, Immediate(~7));
+  __ testl(count, Immediate(~7));
   __ j(zero, &last_bytes);
 
   // Copy from edi to esi using rep movs instruction.
-  __ movq(kScratchRegister, count);
-  __ sar(count, Immediate(3));  // Number of doublewords to copy.
+  __ movl(kScratchRegister, count);
+  __ shr(count, Immediate(3));  // Number of doublewords to copy.
   __ repmovsq();
 
   // Find number of bytes left.
-  __ movq(count, kScratchRegister);
+  __ movl(count, kScratchRegister);
   __ and_(count, Immediate(7));
 
   // Check if there are more bytes to copy.
   __ bind(&last_bytes);
-  __ testq(count, count);
+  __ testl(count, count);
   __ j(zero, &done);
 
   // Copy remaining characters.
@@ -11332,9 +11327,9 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
   __ bind(&loop);
   __ movb(kScratchRegister, Operand(src, 0));
   __ movb(Operand(dest, 0), kScratchRegister);
-  __ addq(src, Immediate(1));
-  __ addq(dest, Immediate(1));
-  __ subq(count, Immediate(1));
+  __ incq(src);
+  __ incq(dest);
+  __ decl(count);
   __ j(not_zero, &loop);
 
   __ bind(&done);
@@ -11354,13 +11349,11 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   // Make sure that both characters are not digits as such strings has a
   // different hash algorithm. Don't try to look for these in the symbol table.
   Label not_array_index;
-  __ movq(scratch, c1);
-  __ subq(scratch, Immediate(static_cast<int>('0')));
-  __ cmpq(scratch, Immediate(static_cast<int>('9' - '0')));
+  __ leal(scratch, Operand(c1, -'0'));
+  __ cmpl(scratch, Immediate(static_cast<int>('9' - '0')));
   __ j(above, &not_array_index);
-  __ movq(scratch, c2);
-  __ subq(scratch, Immediate(static_cast<int>('0')));
-  __ cmpq(scratch, Immediate(static_cast<int>('9' - '0')));
+  __ leal(scratch, Operand(c2, -'0'));
+  __ cmpl(scratch, Immediate(static_cast<int>('9' - '0')));
   __ j(below_equal, not_found);
 
   __ bind(&not_array_index);
@@ -11384,8 +11377,8 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
   // Calculate capacity mask from the symbol table capacity.
   Register mask = scratch2;
-  __ movq(mask, FieldOperand(symbol_table, SymbolTable::kCapacityOffset));
-  __ SmiToInteger32(mask, mask);
+  __ SmiToInteger32(mask,
+                    FieldOperand(symbol_table, SymbolTable::kCapacityOffset));
   __ decl(mask);
 
   Register undefined = scratch4;
@@ -11415,10 +11408,10 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     Register candidate = scratch;  // Scratch register contains candidate.
     ASSERT_EQ(1, SymbolTable::kEntrySize);
     __ movq(candidate,
-           FieldOperand(symbol_table,
-                        scratch,
-                        times_pointer_size,
-                        SymbolTable::kElementsStartOffset));
+            FieldOperand(symbol_table,
+                         scratch,
+                         times_pointer_size,
+                         SymbolTable::kElementsStartOffset));
 
     // If entry is undefined no string with this hash can be found.
     __ cmpq(candidate, undefined);
@@ -11495,9 +11488,7 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
                                        Register hash,
                                        Register scratch) {
   // hash += hash << 3;
-  __ movl(scratch, hash);
-  __ shll(scratch, Immediate(3));
-  __ addl(hash, scratch);
+  __ leal(hash, Operand(hash, hash, times_8, 0));
   // hash ^= hash >> 11;
   __ movl(scratch, hash);
   __ sarl(scratch, Immediate(11));
@@ -11509,7 +11500,6 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
 
   // if (hash == 0) hash = 27;
   Label hash_not_zero;
-  __ testl(hash, hash);
   __ j(not_zero, &hash_not_zero);
   __ movl(hash, Immediate(27));
   __ bind(&hash_not_zero);

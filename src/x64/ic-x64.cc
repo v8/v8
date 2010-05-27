@@ -104,8 +104,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   const int kCapacityOffset =
       StringDictionary::kHeaderSize +
       StringDictionary::kCapacityIndex * kPointerSize;
-  __ movq(r2, FieldOperand(r0, kCapacityOffset));
-  __ SmiToInteger32(r2, r2);
+  __ SmiToInteger32(r2, FieldOperand(r0, kCapacityOffset));
   __ decl(r2);
 
   // Generate an unrolled loop that performs a few probes before
@@ -202,8 +201,8 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   __ xorl(r0, r1);
 
   // Compute capacity mask.
-  __ movq(r1, FieldOperand(elements, NumberDictionary::kCapacityOffset));
-  __ SmiToInteger32(r1, r1);
+  __ SmiToInteger32(r1,
+                    FieldOperand(elements, NumberDictionary::kCapacityOffset));
   __ decl(r1);
 
   // Generate an unrolled loop that performs a few probes before giving up.

@@ -573,6 +573,11 @@ void MacroAssembler::SmiToInteger32(Register dst, Register src) {
 }
 
 
+void MacroAssembler::SmiToInteger32(Register dst, const Operand& src) {
+  movl(dst, Operand(src, kSmiShift / kBitsPerByte));
+}
+
+
 void MacroAssembler::SmiToInteger64(Register dst, Register src) {
   ASSERT_EQ(0, kSmiTag);
   if (!dst.is(src)) {
@@ -614,7 +619,7 @@ void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
 
 
 void MacroAssembler::SmiCompare(const Operand& dst, Smi* src) {
-  cmpl(Operand(dst, kIntSize), Immediate(src->value()));
+  cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
 }
 
 
@@ -916,7 +921,7 @@ void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
 
 void MacroAssembler::SmiAddConstant(const Operand& dst, Smi* constant) {
   if (constant->value() != 0) {
-    addl(Operand(dst, kIntSize), Immediate(constant->value()));
+    addl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(constant->value()));
   }
 }
 

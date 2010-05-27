@@ -210,6 +210,7 @@ class MacroAssembler: public Assembler {
   // Convert smi to 32-bit integer. I.e., not sign extended into
   // high 32 bits of destination.
   void SmiToInteger32(Register dst, Register src);
+  void SmiToInteger32(Register dst, const Operand& src);
 
   // Convert smi to 64-bit integer (sign extended if necessary).
   void SmiToInteger64(Register dst, Register src);
