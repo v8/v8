@@ -763,11 +763,12 @@ class CallInterceptorCompiler BASE_EMBEDDED {
       stub_compiler_->CheckPrototypes(interceptor_holder, receiver,
                                       lookup->holder(), scratch1,
                                       scratch2, name, depth2, miss);
+    } else {
       // CheckPrototypes has a side effect of fetching a 'holder'
       // for API (object which is instanceof for the signature).  It's
       // safe to omit it here, as if present, it should be fetched
       // by the previous CheckPrototypes.
-      ASSERT((depth2 == kInvalidProtoDepth) || (depth1 != kInvalidProtoDepth));
+      ASSERT(depth2 == kInvalidProtoDepth);
     }
 
     // Invoke function.
