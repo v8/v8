@@ -72,7 +72,7 @@ static bool IsEasyToMultiplyBy(int x);
 // Platform-specific DeferredCode functions.
 
 void DeferredCode::SaveRegisters() {
-  // On ARM you either have a completely spilled frame or you 
+  // On ARM you either have a completely spilled frame or you
   // handle it yourself, but at the moment there's no automation
   // of registers and deferred code.
 }
