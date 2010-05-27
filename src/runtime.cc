@@ -569,6 +569,18 @@ static void GetOwnPropertyImplementation(JSObject* obj,
 }
 
 
+// Enumerator used as indices into the array returned from GetOwnProperty
+enum PropertyDescriptorIndices {
+  IS_ACCESSOR_INDEX,
+  VALUE_INDEX,
+  GETTER_INDEX,
+  SETTER_INDEX,
+  WRITABLE_INDEX,
+  ENUMERABLE_INDEX,
+  CONFIGURABLE_INDEX,
+  DESCRIPTOR_SIZE
+};
+
 // Returns an array with the property description:
 //  if args[1] is not a property on args[0]
 //          returns undefined
@@ -579,18 +591,63 @@ static void GetOwnPropertyImplementation(JSObject* obj,
 static Object* Runtime_GetOwnProperty(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;
-  Handle<FixedArray> elms = Factory::NewFixedArray(5);
+  Handle<FixedArray> elms = Factory::NewFixedArray(DESCRIPTOR_SIZE);
   Handle<JSArray> desc = Factory::NewJSArrayWithElements(elms);
   LookupResult result;
   CONVERT_CHECKED(JSObject, obj, args[0]);
   CONVERT_CHECKED(String, name, args[1]);
 
+  // This could be an element.
+  uint32_t index;
+  if (name->AsArrayIndex(&index)) {
+    if (!obj->HasLocalElement(index)) {
+      return Heap::undefined_value();
+    }
+
+    // Special handling of string objects according to ECMAScript 5 15.5.5.2.
+    // Note that this might be a string object with elements other than the
+    // actual string value. This is covered by the subsequent cases.
+    if (obj->IsStringObjectWithCharacterAt(index)) {
+      JSValue* js_value = JSValue::cast(obj);
+      String* str = String::cast(js_value->value());
+      elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+      elms->set(VALUE_INDEX, str->SubString(index, index+1));
+      elms->set(WRITABLE_INDEX, Heap::false_value());
+      elms->set(ENUMERABLE_INDEX,  Heap::false_value());
+      elms->set(CONFIGURABLE_INDEX, Heap::false_value());
+      return *desc;
+    }
+
+    // This can potentially be an element in the elements dictionary or
+    // a fast element.
+    if (obj->HasDictionaryElements()) {
+      NumberDictionary* dictionary = obj->element_dictionary();
+      int entry = dictionary->FindEntry(index);
+      PropertyDetails details = dictionary->DetailsAt(entry);
+      elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+      elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
+      elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsDontDelete()));
+      elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!details.IsDontEnum()));
+      elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
+      return *desc;
+    } else {
+      // Elements that are stored as array elements always has:
+      // writable: true, configurable: true, enumerable: true.
+      elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+      elms->set(VALUE_INDEX, obj->GetElement(index));
+      elms->set(WRITABLE_INDEX, Heap::true_value());
+      elms->set(ENUMERABLE_INDEX,  Heap::true_value());
+      elms->set(CONFIGURABLE_INDEX, Heap::true_value());
+      return *desc;
+    }
+  }
+
   // Use recursive implementation to also traverse hidden prototypes
   GetOwnPropertyImplementation(obj, name, &result);
 
-  if (!result.IsProperty())
+  if (!result.IsProperty()) {
     return Heap::undefined_value();
-
+  }
   if (result.type() == CALLBACKS) {
     Object* structure = result.GetCallbackObject();
     if (structure->IsProxy() || structure->IsAccessorInfo()) {
@@ -598,25 +655,25 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
       // an API defined callback.
       Object* value = obj->GetPropertyWithCallback(
           obj, structure, name, result.holder());
-      elms->set(0, Heap::false_value());
-      elms->set(1, value);
-      elms->set(2, Heap::ToBoolean(!result.IsReadOnly()));
+      elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+      elms->set(VALUE_INDEX, value);
+      elms->set(WRITABLE_INDEX, Heap::ToBoolean(!result.IsReadOnly()));
     } else if (structure->IsFixedArray()) {
       // __defineGetter__/__defineSetter__ callback.
-      elms->set(0, Heap::true_value());
-      elms->set(1, FixedArray::cast(structure)->get(0));
-      elms->set(2, FixedArray::cast(structure)->get(1));
+      elms->set(IS_ACCESSOR_INDEX, Heap::true_value());
+      elms->set(GETTER_INDEX, FixedArray::cast(structure)->get(0));
+      elms->set(SETTER_INDEX, FixedArray::cast(structure)->get(1));
     } else {
       return Heap::undefined_value();
     }
   } else {
-    elms->set(0, Heap::false_value());
-    elms->set(1, result.GetLazyValue());
-    elms->set(2, Heap::ToBoolean(!result.IsReadOnly()));
+    elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+    elms->set(VALUE_INDEX, result.GetLazyValue());
+    elms->set(WRITABLE_INDEX, Heap::ToBoolean(!result.IsReadOnly()));
   }
 
-  elms->set(3, Heap::ToBoolean(!result.IsDontEnum()));
-  elms->set(4, Heap::ToBoolean(!result.IsDontDelete()));
+  elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!result.IsDontEnum()));
+  elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!result.IsDontDelete()));
   return *desc;
 }
 
