@@ -1245,38 +1245,17 @@ void RegExpMacroAssemblerX64::BranchOrBacktrack(Condition condition,
 
 void RegExpMacroAssemblerX64::SafeCall(Label* to) {
   __ call(to);
-//// TESTING CODE - REVERT WHEN TEST IS DONE.
-  __ nop();
-//// END TESTING CODE
 }
 
 
 void RegExpMacroAssemblerX64::SafeCallTarget(Label* label) {
   __ bind(label);
-  //// TESTING CODE - REVERT WHEN TEST IS DONE.
-    __ movq(rax, Operand(rsp, 0));
-    __ movb(rax, Operand(rax, 0));
-    __ cmpb(rax, Immediate(0x90));  // Points to nop.
-    Label ok;
-    __ j(equal, &ok);
-    __ int3();
-    __ bind(&ok);
-  //// END TESTING CODE
   __ subq(Operand(rsp, 0), code_object_pointer());
 }
 
 
 void RegExpMacroAssemblerX64::SafeReturn() {
   __ addq(Operand(rsp, 0), code_object_pointer());
-//// TESTING CODE - REVERT WHEN TEST IS DONE.
-  __ movq(rax, Operand(rsp, 0));
-  __ movb(rax, Operand(rax, 0));
-  __ cmpb(rax, Immediate(0x90));  // Points to nop.
-  Label ok;
-  __ j(equal, &ok);
-  __ int3();
-  __ bind(&ok);
-//// END TESTING CODE
   __ ret(0);
 }
 
