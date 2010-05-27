@@ -1,0 +1,1724 @@
+2010-05-26: Version 2.2.12
+
+	Allowed accessors to be defined on objects rather than just object
+	templates.
+
+	Changed the ScriptData API.
+
+
+2010-05-21: Version 2.2.11
+
+        Fix crash bug in liveedit on 64 bit.
+
+        Use 'full compiler' when debugging is active.  This should increase
+        the density of possible break points, making single step more fine
+        grained.  This will only take effect for functions compiled after
+        debugging has been started, so recompilation of all functions is
+        required to get the full effect.  IA32 and x64 only for now.
+
+        Misc. fixes to the Solaris build.
+
+        Add new flags --print-cumulative-gc-stat and --trace-gc-nvp.
+
+        Add filtering of CPU profiles by security context.
+
+        Fix crash bug on ARM when running without VFP2 or VFP3.
+
+        Incremental performance improvements in all backends.
+
+
+2010-05-17: Version 2.2.10
+
+        Performance improvements in the x64 and ARM backends.
+
+
+2010-05-10: Version 2.2.9
+
+        Allow Object.create to be called with a function (issue 697).
+
+        Fixed bug with Date.parse returning a non-NaN value when called on a
+        non date string (issue 696).
+
+        Allow unaligned memory accesses on ARM targets that support it (by
+        Subrato K De of CodeAurora <subratokde@codeaurora.org>).
+
+        C++ API for retrieving JavaScript stack trace information.
+
+
+2010-05-05: Version 2.2.8
+
+        Performance improvements in the x64 and ARM backends.
+
+
+2010-05-03: Version 2.2.7
+
+        Added support for ES5 date time string format to Date.parse.
+
+        Performance improvements in the x64 backend.
+
+
+2010-04-28: Version 2.2.6
+
+        Added "amd64" as recognized architecture in scons build script
+        (by Ryan Dahl <coldredlemur@gmail.com>).
+
+        Fixed bug in String search and replace with very simple RegExps.
+
+        Fixed bug in RegExp containing "\b^".
+
+        Performance improvements on all platforms.
+
+
+2010-04-26: Version 2.2.5
+
+        Various performance improvements (especially for ARM and x64)
+
+        Fixed bug in CPU profiling (http://crbug.com/42137)
+
+        Fixed a bug with the natives cache.
+
+        Fixed two bugs in the ARM code generator that can cause
+        wrong calculations.
+
+        Fixed a bug that may cause a wrong result for shift operations.
+
+
+2010-04-21: Version 2.2.4
+
+        Fixed warnings on arm on newer GCC versions.
+
+        Fixed a number of minor bugs.
+
+        Performance improvements on all platforms.
+
+
+2010-04-14: Version 2.2.3
+
+        Added stack command and mem command to ARM simulator debugger.
+
+        Fixed scons snapshot and ARM build, and Windows X64 build issues.
+
+        Performance improvements on all platforms.
+
+
+2010-04-12: Version 2.2.2
+
+        Introduced new profiler API.
+
+        Fixed random number generator to produce full 32 random bits.
+
+
+2010-04-06: Version 2.2.1
+
+        Debugger improvements.
+
+        Fixed minor bugs.
+
+
+2010-03-29: Version 2.2.0
+
+        Fixed a few minor bugs.
+
+        Performance improvements for string operations.
+
+
+2010-03-26: Version 2.1.10
+
+        Fixed scons build issues.
+
+        Fixed a couple of minor bugs.
+
+
+2010-03-25: Version 2.1.9
+
+        Added API support for reattaching a global object to a context.
+
+        Extended debugger API with access to the internal debugger context.
+
+        Fixed Chromium crashes (issues http://crbug.com/39128 and
+        http://crbug.com/39160)
+
+
+2010-03-24: Version 2.1.8
+
+        Added fine-grained garbage collection callbacks to the API.
+
+        Performance improvements on all platforms.
+
+
+2010-03-22: Version 2.1.7
+
+        Fixed issue 650.
+
+        Fixed a bug where __proto__ was sometimes enumerated (issue 646).
+
+        Performance improvements for arithmetic operations.
+
+        Performance improvements for string operations.
+
+        Print script name and line number information in stack trace.
+
+
+2010-03-17: Version 2.1.6
+
+        Performance improvements for arithmetic operations.
+
+        Performance improvements for string operations.
+
+
+2010-03-10: Version 2.1.4
+
+        Fixed code cache lookup for keyed IC's (issue http://crbug.com/37853).
+
+        Performance improvements on all platforms.
+
+
+2010-03-10: Version 2.1.3
+
+        Added API method for context-disposal notifications.
+
+        Added API method for accessing elements by integer index.
+
+        Added missing implementation of Uint32::Value and Value::IsUint32
+        API methods.
+
+        Added IsExecutionTerminating API method.
+
+        Disabled strict aliasing for GCC 4.4.
+
+        Fixed string-concatenation bug (issue 636).
+
+        Performance improvements on all platforms.
+
+
+2010-02-23: Version 2.1.2
+
+        Fix a crash bug caused by wrong assert.
+
+        Fix a bug with register names on 64-bit V8 (issue 615).
+
+        Performance improvements on all platforms.
+
+
+2010-02-19: Version 2.1.1
+
+        [ES5] Implemented Object.defineProperty.
+
+        Improved profiler support.
+
+        Added SetPrototype method in the public V8 API.
+
+        Added GetScriptOrigin and GetScriptLineNumber methods to Function
+        objects in the API.
+
+        Performance improvements on all platforms.
+
+
+2010-02-03: Version 2.1.0
+
+        Values are now always wrapped in objects when used as a receiver.
+        (issue 223).
+
+        [ES5] Implemented Object.getOwnPropertyNames.
+
+        [ES5] Restrict JSON.parse to only accept strings that conforms to the
+        JSON grammar.
+
+        Improvement of debugger agent (issue 549 and 554).
+
+        Fixed problem with skipped stack frame in profiles (issue 553).
+
+        Solaris support by Erich Ocean <erich.ocean@me.com> and Ryan Dahl
+        <ry@tinyclouds.org>.
+
+        Fix a bug that Math.round() returns incorrect results for huge
+        integers.
+
+        Fix enumeration order for objects created from some constructor
+        functions (isue http://crbug.com/3867).
+
+        Fix arithmetic on some integer constants (issue 580).
+
+        Numerous performance improvements including porting of previous IA-32
+        optimizations to x64 and ARM architectures.
+
+
+2010-01-14: Version 2.0.6
+
+        Added ES5 Object.getPrototypeOf, GetOwnPropertyDescriptor,
+        GetOwnProperty, FromPropertyDescriptor.
+
+        Fixed Mac x64 build errors.
+
+        Improved performance of some math and string operations.
+
+        Improved performance of some regexp operations.
+
+        Improved performance of context creation.
+
+        Improved performance of hash tables.
+
+
+2009-12-18: Version 2.0.5
+
+        Extended to upper limit of map space to allow for 7 times as many map
+        to be allocated (issue 524).
+
+        Improved performance of code using closures.
+
+        Improved performance of some binary operations involving doubles.
+
+
+2009-12-16: Version 2.0.4
+
+        Added ECMAScript 5 Object.create.
+
+        Improved performance of Math.max and Math.min.
+
+        Optimized adding of strings on 64-bit platforms.
+
+        Improved handling of external strings by using a separate table
+        instead of weak handles.  This improves garbage collection
+        performance and uses less memory.
+
+        Changed code generation for object and array literals in toplevel
+        code to be more compact by doing more work in the runtime.
+
+        Fixed a crash bug triggered when garbage collection happened during
+        generation of a callback load inline cache stub.
+
+        Fixed crash bug sometimes triggered when local variables shadowed
+        parameters in functions that used the arguments object.
+
+
+2009-12-03: Version 2.0.3
+
+        Optimized handling and adding of strings, for-in and Array.join.
+
+        Heap serialization is now non-destructive.
+
+        Improved profiler support with information on time spend in C++
+        callbacks registered through the API.
+
+        Added commands to the debugger protocol for starting/stopping
+        profiling.
+
+        Enabled the non-optimizing compiler for top-level code.
+
+        Changed the API to only allow strings to be set as data objects on
+        Contexts and scripts to avoid potentially keeping global objects
+        around for too long (issue 528).
+
+        OpenBSD support patch by Peter Valchev <pvalchev@gmail.com>.
+
+        Fixed bugs.
+
+
+2009-11-24: Version 2.0.2
+
+        Improved profiler support.
+
+        Fixed bug that broke compilation of d8 with readline support.
+
+
+2009-11-20: Version 2.0.1
+
+        Fixed crash bug in String.prototype.replace.
+
+        Reverted a change which caused Chromium interactive ui test
+        failures.
+
+
+2009-11-18: Version 2.0.0
+
+        Added support for VFP on ARM.
+
+        Added TryCatch::ReThrow method to the API.
+
+        Reduced the size of snapshots and improved the snapshot load time.
+
+        Improved heap profiler support.
+
+        64-bit version now supported on Windows.
+
+        Fixed a number of debugger issues.
+
+        Fixed bugs.
+
+
+2009-10-29: Version 1.3.18
+
+        Reverted a change which caused crashes in RegExp replace.
+
+        Reverted a change which caused Chromium ui_tests failure.
+
+
+2009-10-28: Version 1.3.17
+
+        Added API method to get simple heap statistics.
+
+        Improved heap profiler support.
+
+        Fixed the implementation of the resource constraint API so it
+        works when using snapshots.
+
+        Fixed a number of issues in the Windows 64-bit version.
+
+        Optimized calls to API getters.
+
+        Added valgrind notification on code modification to the 64-bit version.
+
+        Fixed issue where we logged shared library addresses on Windows at
+        startup and never used them.
+
+
+2009-10-16: Version 1.3.16
+
+        X64: Convert smis to holding 32 bits of payload.
+
+        Introduce v8::Integer::NewFromUnsigned method.
+
+        Add missing null check in Context::GetCurrent.
+
+        Add trim, trimLeft and trimRight methods to String
+        Patch by Jan de Mooij <jandemooij@gmail.com>
+
+        Implement ES5 Array.isArray
+        Patch by Jan de Mooij <jandemooij@gmail.com>
+
+        Skip access checks for hidden properties.
+
+        Add String::Concat(Handle<String> left, Handle<String> right) to the V8 API.
+
+        Fix GYP-based builds of V8.
+
+
+2009-10-07: Version 1.3.15
+
+        Expand the maximum size of the code space to 512MB for 64-bit mode.
+
+        Fixed a crash bug happening when starting profiling (issue
+        http://crbug.com/23768).
+
+
+2009-10-07: Version 1.3.14
+
+        Added GetRealNamedProperty to the API to lookup real properties
+        located on the object or in the prototype chain skipping any
+        interceptors.
+
+        Fix the stack limits setting API to work correctly with threads. The
+        stack limit now needs to be set to each thread thich is used with V8.
+
+        Remove the high-priority flag from IdleNotification()
+
+        Ensure V8 is initialized before locking and unlocking threads.
+
+        Implemented a new JavaScript minifier for compressing the source of
+        the built-in JavaScript. This removes non-Open Source code from Douglas
+        Crockford from the project.
+
+        Added a missing optimization in StringCharAt.
+
+        Fixed some flaky socket tests.
+
+        Change by Alexander Botero-Lowry to fix profiler sampling on FreeBSD
+        in 64-bit mode.
+
+        Fixed memory leaks in the thread management code.
+
+        Fixed the result of assignment to a pixel array. The assigned value
+        is now the result.
+
+        Error reporting for invalid left-hand sides in for-in statements, pre-
+        and postfix count expressions, and assignments now matches the JSC
+        behavior in Safari 4.
+
+        Follow the spec in disallowing function declarations without a name.
+
+        Always allocate code objects within a 2 GB range. On x64 architecture
+        this is used to use near calls (32-bit displacement) in Code objects.
+
+        Optimized array construction ported to x64 and ARM architectures.
+
+        [ES5] Changed Object.keys to return strings for element indices.
+
+
+2009-09-23: Version 1.3.13
+
+        Fixed uninitialized memory problem.
+
+        Improved heap profiler support.
+
+
+2009-09-22: Version 1.3.12
+
+        Changed behavior of |function|.toString() on built-in functions to
+        be compatible with other implementations.  Patch by Jan de Mooij.
+
+        Added Object::IsDirty in the API.
+
+        Optimized array construction; it is now handled purely in native
+        code.
+
+        [ES5] Made properties of the arguments array enumerable.
+
+        [ES5] Added test suite adapter for the es5conform test suite.
+
+        [ES5] Added Object.keys function.
+
+
+2009-09-15: Version 1.3.11
+
+        Fixed crash in error reporting during bootstrapping.
+
+        Optimized generated IA32 math code by using SSE2 instructions when
+        available.
+
+        Implemented missing pieces of debugger infrastructure on ARM.  The
+        debugger is now fully functional on ARM.
+
+        Make 'hidden' the default visibility for gcc.
+
+
+2009-09-09: Version 1.3.10
+
+        Fixed profiler on Mac in 64-bit mode.
+
+        Optimized creation of objects from simple constructor functions on
+        ARM.
+
+        Fixed a number of debugger issues.
+
+        Reduced the amount of memory consumed by V8.
+
+
+2009-09-02: Version 1.3.9
+
+        Optimized stack guard checks on ARM.
+
+        Optimized API operations by inlining more in the API.
+
+        Optimized creation of objects from simple constructor functions.
+
+        Enabled a number of missing optimizations in the 64-bit port.
+
+        Implemented native-code support for regular expressions on ARM.
+
+        Stopped using the 'sahf' instruction on 64-bit machines that do
+        not support it.
+
+        Fixed a bug in the support for forceful termination of JavaScript
+        execution.
+
+
+2009-08-26: Version 1.3.8
+
+        Changed the handling of idle notifications to allow idle
+        notifications when V8 has not yet been initialized.
+
+        Fixed ARM simulator compilation problem on Windows.
+
+
+2009-08-25: Version 1.3.7
+
+        Reduced the size of generated code on ARM platforms by reducing
+        the size of constant pools.
+
+        Changed build files to not include the 'ENV' user environment
+        variable in the build environment.
+
+        Changed the handling of idle notifications.
+
+
+2009-08-21: Version 1.3.6
+
+        Add support for forceful termination of JavaScript execution.
+
+        Add low memory notification to the API. The embedding host can signal
+        a low memory situation to V8.
+
+        Changed the handling of global handles (persistent handles in the API
+        sense) to avoid issues regarding allocation of new global handles
+        during weak handle callbacks.
+
+        Changed the growth policy of the young space.
+
+        Fixed a GC issue introduced in version 1.3.5.
+
+
+2009-08-19: Version 1.3.5
+
+        Optimize initialization of some arrays in the builtins.
+
+        Fix mac-nm script to support filenames with spaces.
+
+        Support for using the V8 profiler when V8 is embedded in a Windows DLL.
+
+        Changed typeof RegExp from 'object' to 'function' for compatibility.
+        Fixed bug where regexps were not callable across contexts.
+
+        Added context independent script compilation to the API.
+
+        Added API call to get the stack trace for an exception.
+
+        Added API for getting object mirrors.
+
+        Make sure that SSE3 instructions are used whenever possible even when
+        running off a snapshot generated without using SSE3 instructions.
+
+        Tweaked the handling of the initial size and growth policy of the heap.
+
+        Added native code generation for RegExp to 64-bit version.
+
+        Added JavaScript debugger support to 64-bit version.
+
+
+2009-08-13: Version 1.3.4
+
+        Added a readline() command to the d8 shell.
+
+        Fixed bug in json parsing.
+
+        Added idle notification to the API and reduced memory on idle
+        notifications.
+
+
+2009-08-12: Version 1.3.3
+
+        Fix issue 417: incorrect %t placeholder expansion.
+
+        Add .gitignore file similar to Chromium's one.
+
+        Fix SConstruct file to build with new logging code for Android.
+
+        API: added function to find instance of template in prototype
+        chain.  Inlined Object::IsInstanceOf.
+
+        Land change to notify valgrind when we modify code on x86.
+
+        Add api call to determine whether a string can be externalized.
+
+        Add a write() command to d8.
+
+
+2009-08-05: Version 1.3.2
+
+        Started new compiler infrastructure for two-pass compilation using a
+        control flow graph constructed from the AST.
+
+        Profiler stack sampling for X64.
+
+        Safe handling of NaN to Posix platform-dependent time functions.
+
+        Added a new profiler control API to unify controlling various aspects
+        of profiling.
+
+        Fixed issue 392.
+
+
+2009-07-30: Version 1.3.1
+
+        Speed improvements to accessors and interceptors.
+
+        Added support for capturing stack information on custom errors.
+
+        Added support for morphing an object into a pixel array where its
+        indexed properties are stored in an external byte array. Values written
+        are always clamped to the 0..255 interval.
+
+        Profiler on x64 now handles C/C++ functions from shared libraries.
+
+        Changed the debugger to avoid stepping into function.call/apply if the
+        function is a built-in.
+
+        Initial implementation of constructor heap profile for JS objects.
+
+        More fine grained control of profiling aspects through the API.
+
+        Optimized the called as constructor check for API calls.
+
+
+2009-07-27: Version 1.3.0
+
+        Allowed RegExp objects to be called as functions (issue 132).
+
+        Fixed issue where global property cells would escape after
+        detaching the global object; see http://crbug.com/16276.
+
+        Added support for stepping into setters and getters in the
+        debugger.
+
+        Changed the debugger to avoid stopping in its own JavaScript code
+        and in the code of built-in functions.
+
+        Fixed issue 345 by avoiding duplicate escaping labels.
+
+        Fixed ARM code generator crash in short-circuited boolean
+        expressions and added regression tests.
+
+        Added an external allocation limit to avoid issues where small V8
+        objects would hold on to large amounts of external memory without
+        causing garbage collections.
+
+        Finished more of the inline caching stubs for x64 targets.
+
+
+2009-07-13: Version 1.2.14
+
+        Added separate paged heap space for global property cells and
+        avoid updating the write barrier when storing into them.
+
+        Improved peep-hole optimization on ARM platforms by not emitting
+        unnecessary debug information.
+
+        Re-enabled ICs for loads and calls that skip a global object
+        during lookup through the prototype chain.
+
+        Allowed access through global proxies to use ICs.
+
+        Fixed issue 401.
+
+
+2009-07-09: Version 1.2.13
+
+        Fixed issue 397, issue 398, and issue 399.
+
+        Added support for breakpoint groups.
+
+        Fixed bugs introduced with the new global object representation.
+
+        Fixed a few bugs in the ARM code generator.
+
+
+2009-07-06: Version 1.2.12
+
+        Added stack traces collection to Error objects accessible through
+        the e.stack property.
+
+        Changed RegExp parser to use a recursive data structure instead of
+        stack-based recursion.
+
+        Optimized Date object construction and string concatenation.
+
+        Improved performance of div, mod, and mul on ARM platforms.
+
+
+2009-07-02: Version 1.2.11
+
+        Improved performance on IA-32 and ARM.
+
+        Fixed profiler sampler implementation on Mac OS X.
+
+        Changed the representation of global objects to improve
+        performance of adding a lot of new properties.
+
+
+2009-06-29: Version 1.2.10
+
+        Improved debugger support.
+
+        Fixed bug in exception message reporting (issue 390).
+
+        Improved overall performance.
+
+
+2009-06-23: Version 1.2.9
+
+        Improved math performance on ARM.
+
+        Fixed profiler name-inference bug.
+
+        Fixed handling of shared libraries in the profiler tick processor
+        scripts.
+
+        Fixed handling of tests that time out in the test scripts.
+
+        Fixed compilation on MacOS X version 10.4.
+
+        Fixed two bugs in the regular expression engine.
+
+        Fixed a bug in the string type inference.
+
+        Fixed a bug in the handling of 'constant function' properties.
+
+        Improved overall performance.
+
+
+2009-06-16: Version 1.2.8
+
+        Optimized math on ARM platforms.
+
+        Fixed two crash bugs in the handling of getters and setters.
+
+        Improved the debugger support by adding scope chain information.
+
+        Improved the profiler support by compressing log data transmitted
+        to clients.
+
+        Improved overall performance.
+
+
+2009-06-08: Version 1.2.7
+
+        Improved debugger and profiler support.
+
+        Reduced compilation time by improving the handling of deferred
+        code.
+
+        Optimized interceptor accesses where the property is on the object
+        on which the interceptors is attached.
+
+        Fixed compilation problem on GCC 4.4 by changing the stack
+        alignment to 16 bytes.
+
+        Fixed handle creation to follow stric aliasing rules.
+
+        Fixed compilation on FreeBSD.
+
+        Introduced API for forcing the deletion of a property ignoring
+        interceptors and attributes.
+
+
+2009-05-29: Version 1.2.6
+
+        Added a histogram recording hit rates at different levels of the
+        compilation cache.
+
+        Added stack overflow check for the RegExp analysis phase. Previously a
+        very long regexp graph could overflow the stack with recursive calls.
+
+        Use a dynamic buffer when collecting log events in memory.
+
+        Added start/stop events to the profiler log.
+
+        Fixed infinite loop which could happen when setting a debug break while
+        executing a RegExp compiled to native code.
+
+        Fixed handling of lastIndexOf called with negative index (issue 351).
+
+        Fixed irregular crash in profiler test (issue 358).
+
+        Fixed compilation issues with some versions of gcc.
+
+
+2009-05-26: Version 1.2.5
+
+        Fixed bug in initial boundary check for Boyer-Moore text
+        search (issue 349).
+
+        Fixed compilation issues with MinGW and gcc 4.3+ and added support
+        for armv7 and cortex-a8 architectures.  Patches by Lei Zhang and
+        Craig Schlenter.
+
+        Added a script cache to the debugger.
+
+        Optimized compilation performance by improving internal data
+        structures and avoiding expensive property load optimizations for
+        code that's infrequently executed.
+
+        Exposed the calling JavaScript context through the static API
+        function Context::GetCalling().
+
+
+2009-05-18: Version 1.2.4
+
+        Improved performance of floating point number allocation for ARM
+        platforms.
+
+        Fixed crash when using the instanceof operator on functions with
+        number values in their prototype chain (issue 341).
+
+        Optimized virtual frame operations in the code generator to speed
+        up compilation time and allocated the frames in the zone.
+
+        Made the representation of virtual frames and jump targets in the
+        code generator much more compact.
+
+        Avoided linear search for non-locals in scope code when resolving
+        variables inside with and eval scopes.
+
+        Optimized lexical scanner by dealing with whitespace as part of
+        the token scanning instead of as a separate step before it.
+
+        Changed the scavenging collector so that promoted objects do not
+        reside in the old generation while their remembered set is being
+        swept for pointers into the young generation.
+
+        Fixed numeric overflow handling when compiling count operations.
+
+
+2009-05-11: Version 1.2.3
+
+        Fixed bug in reporting of out-of-memory situations.
+
+        Introduced hidden prototypes on certain builtin prototype objects
+        such as String.prototype to emulate JSC's behavior of restoring
+        the original function when deleting functions from those prototype
+        objects.
+
+        Fixed crash bug in the register allocator.
+
+
+2009-05-04: Version 1.2.2
+
+        Fixed bug in array sorting for sparse arrays (issue 326).
+
+        Added support for adding a soname when building a shared library
+        on Linux (issue 151).
+
+        Fixed bug caused by morphing internal ASCII strings to external
+        two-byte strings.  Slices over ASCII strings have to forward ASCII
+        checks to the underlying buffer string.
+
+        Allowed API call-as-function handlers to be called as
+        constructors.
+
+        Fixed a crash bug where an external string was disposed but a
+        slice of the external string survived as a symbol.
+
+
+2009-04-27: Version 1.2.1
+
+        Added EcmaScript 5 JSON object.
+
+        Fix bug in preemption support on ARM.
+
+
+2009-04-23: Version 1.2.0
+
+        Optimized floating-point operations on ARM.
+
+        Added a number of extensions to the debugger API.
+
+        Changed the enumeration order for unsigned integer keys to always
+        be numerical order.
+
+        Added a "read" extension to the shell sample.
+
+        Added support for Array.prototype.reduce and
+        Array.prototype.reduceRight.
+
+        Added an option to the SCons build to control Microsoft Visual C++
+        link-time code generation.
+
+        Fixed a number of bugs (in particular issue 315, issue 316,
+        issue 317 and issue 318).
+
+
+2009-04-15: Version 1.1.10
+
+        Fixed crash bug that occurred when loading a const variable in the
+        presence of eval.
+
+        Allowed using with and eval in registered extensions in debug mode
+        by fixing bogus assert.
+
+        Fixed the source position for function returns to enable the
+        debugger to break there.
+
+
+2009-04-14: Version 1.1.9
+
+        Made the stack traversal code in the profiler robust by avoiding
+        to look into the heap.
+
+        Added name inferencing for anonymous functions to facilitate
+        debugging and profiling.
+
+        Re-enabled stats timers in the developer shell (d8).
+
+        Fixed issue 303 by avoiding to shortcut cons-symbols.
+
+
+2009-04-11: Version 1.1.8
+
+        Changed test-debug/ThreadedDebugging to be non-flaky (issue 96).
+
+        Fixed step-in handling for Function.prototype.apply and call in
+        the debugger (issue 269).
+
+        Fixed v8::Object::DeleteHiddenValue to not bail out when there
+        are no hidden properties.
+
+        Added workaround for crash bug, where external symbol table
+        entries with deleted resources would lead to NPEs when looking
+        up in the symbol table.
+
+
+2009-04-07: Version 1.1.7
+
+        Added support for easily importing additional environment
+        variables into the SCons build.
+
+        Optimized strict equality checks.
+
+        Fixed crash in indexed setters on objects without a corresponding
+        getter (issue 298).
+
+        Re-enabled script compilation cache.
+
+
+2009-04-01: Version 1.1.6
+
+        Reverted an unsafe code generator change.
+
+
+2009-04-01: Version 1.1.5
+
+        Fixed bug that caused function literals to not be optimized as
+        much as other functions.
+
+        Improved profiler support.
+
+        Fixed a crash bug in connection with debugger unloading.
+
+        Fixed a crash bug in the code generator caused by losing the
+        information that a frame element was copied.
+
+        Fixed an exception propagation bug that could cause non-null
+        return values when exceptions were thrown.
+
+
+2009-03-30: Version 1.1.4
+
+        Optimized String.prototype.match.
+
+        Improved the stack information in profiles.
+
+        Fixed bug in ARM port making it possible to compile the runtime
+        system for thumb mode again.
+
+        Implemented a number of optimizations in the code generator.
+
+        Fixed a number of memory leaks in tests.
+
+        Fixed crash bug in connection with script source code and external
+        strings.
+
+
+2009-03-24: Version 1.1.3
+
+        Fixed assertion failures in compilation of loop conditions.
+
+        Removed STL dependency from developer shell (d8).
+
+        Added infrastructure for protecting the V8 heap from corruption
+        caused by memory modifications from the outside.
+
+
+2009-03-24: Version 1.1.2
+
+        Improved frame merge code generated by the code generator.
+
+        Optimized String.prototype.replace.
+
+        Implemented __defineGetter__ and __defineSetter__ for properties
+        with integer keys on non-array objects.
+
+        Improved debugger and profiler support.
+
+        Fixed a number of portability issues to allow compilation for
+        smaller ARM devices.
+
+        Exposed object cloning through the API.
+
+        Implemented hidden properties.  This is used to expose an identity
+        hash for objects through the API.
+
+        Implemented restarting of regular expressions if their input
+        string changes representation during preemption.
+
+        Fixed a code generator bug that could cause assignments in loops
+        to be ignored if using continue to break out of the loop (issue
+        284).
+
+
+2009-03-12: Version 1.1.1
+
+        Fixed an assertion in the new compiler to take stack overflow
+        exceptions into account.
+
+        Removed exception propagation code that could cause crashes.
+
+        Fixed minor bug in debugger line number computations.
+
+        8-byte align the C stack on Linux and Windows to speed up floating
+        point computations.
+
+
+2009-03-12: Version 1.1.0
+
+        Improved code generation infrastructure by doing simple register
+        allocation and constant folding and propagation.
+
+        Optimized regular expression matching by avoiding to create
+        intermediate string arrays and by flattening nested array
+        representations of RegExp data.
+
+        Traverse a few stack frames when recording profiler samples to
+        include partial call graphs in the profiling output.
+
+        Added support for using OProfile to profile generated code.
+
+        Added remote debugging support to the D8 developer shell.
+
+        Optimized creation of nested literals like JSON objects.
+
+        Fixed a bug in garbage collecting unused maps and turned it on by
+        default (--collect-maps).
+
+        Added support for running tests under Valgrind.
+
+
+2009-02-27: Version 1.0.3
+
+        Optimized double-to-integer conversions in bit operations by using
+        SSE3 instructions if available.
+
+        Optimized initialization sequences that store to multiple
+        properties of the same object.
+
+        Changed the D8 debugger frontend to use JSON messages.
+
+        Force garbage collections when disposing contexts.
+
+        Align code objects at 32-byte boundaries.
+
+
+2009-02-25: Version 1.0.2
+
+        Improved profiling support by performing simple call stack
+        sampling for ticks and by fixing a bug in the logging of code
+        addresses.
+
+        Fixed a number of debugger issues.
+
+        Optimized code that uses eval.
+
+        Fixed a couple of bugs in the regular expression engine.
+
+        Reduced the size of generated code for certain regular expressions.
+
+        Removed JSCRE completely.
+
+        Fixed issue where test could not be run if there was a dot in the
+        checkout path.
+
+
+2009-02-13: Version 1.0.1
+
+        Fixed two crash-bugs in irregexp (issue 231 and 233).
+
+        Fixed a number of minor bugs (issue 87, 227 and 228).
+
+        Added support for morphing strings to external strings on demand
+        to avoid having to create copies in the embedding code.
+
+        Removed experimental support for external symbol callbacks.
+
+
+2009-02-09: Version 1.0.0
+
+        Fixed crash-bug in the code generation for case independent 16 bit
+        backreferences.
+
+        Made shells more robust in the presence of string conversion
+        failures (issue 224).
+
+        Fixed a potential infinite loop when attempting to resolve
+        eval (issue 221).
+
+        Miscellaneous fixes to the new regular expression engine.
+
+        Reduced binary by stripping unneeded text from JavaScript library and
+        minifying some JavaScript files.
+
+
+2009-01-27: Version 0.4.9
+
+        Enabled new regular expression engine.
+
+        Made a number of changes to the debugger protocol.
+
+        Fixed a number of bugs in the preemption support.
+
+        Added -p option to the developer shell to run files in parallel
+        using preemption.
+
+        Fixed a number of minor bugs (including issues 176, 187, 189, 192,
+        193, 198 and 201).
+
+        Fixed a number of bugs in the serialization/deserialization
+        support for the ARM platform.
+
+
+2009-01-19: Version 0.4.8.1
+
+        Minor patch to debugger support.
+
+
+2009-01-16: Version 0.4.8
+
+        Fixed string length bug on ARM (issue 171).
+
+        Made most methods in the API const.
+
+        Optimized object literals by improving data locality.
+
+        Fixed bug that caused incomplete functions to be cached in case of
+        stack overflow exceptions.
+
+        Fixed bugs that caused catch variables and variables introduced by
+        eval to behave incorrectly when using accessors (issues 186, 190
+        and 191).
+
+
+2009-01-06: Version 0.4.7
+
+        Minor bugfixes and optimizations.
+
+        Added command line debugger to D8 shell.
+
+        Fixed subtle bug that caused the wrong 'this' to be used when
+        calling a caught function in a catch clause.
+
+        Inline array loads within loops directly in the code instead of
+        always calling a stub.
+
+
+2008-12-11: Version 0.4.6
+
+        Fixed exception reporting bug where certain exceptions were
+        incorrectly reported as uncaught.
+
+        Improved the memory allocation strategy used during compilation to
+        make running out of memory when compiling huge scripts less
+        likely.
+
+        Optimized String.replace by avoiding the construction of certain
+        sub strings.
+
+        Fixed bug in code generation for large switch statements on ARM.
+
+        Fixed bug that caused V8 to change the global object template
+        passed in by the user.
+
+        Changed the API for creating object groups used during garbage
+        collection.  Entire object groups are now passed to V8 instead of
+        individual members of the groups.
+
+
+2008-12-03: Version 0.4.5
+
+        Added experimental API support for allocating V8 symbols as
+        external strings.
+
+        Fixed bugs in debugging support on ARM.
+
+        Changed eval implementation to correctly detect whether or not a
+        call to eval is aliased.
+
+        Fixed bug caused by a combination of the compilation cache and
+        dictionary probing in native code.  The bug caused us to sometimes
+        call functions that had not yet been compiled.
+
+        Added platform support for FreeBSD.
+
+        Added support for building V8 on Windows with either the shared or
+        static version of MSVCRT
+
+        Added the v8::jscre namespace around the jscre functions to avoid
+        link errors (duplicate symbols) when building Google Chrome.
+
+        Added support for calling a JavaScript function with the current
+        debugger execution context as its argument to the debugger
+        interface.
+
+        Changed the type of names of counters from wchar_t to char.
+
+        Changed the Windows system call used to compute daylight savings
+        time.  The system call that we used to use became four times
+        slower on WinXP SP3.
+
+        Added support in the d8 developer shell for memory-mapped counters
+        and added a stats-viewer tool.
+
+        Fixed bug in upper/lower case mappings (issue 149).
+
+
+2008-11-17: Version 0.4.4
+
+        Reduced code size by using shorter instruction encoding when
+        possible.
+
+        Added a --help option to the shell sample and to the d8 shell.
+
+        Added visual studio project files for building the ARM simulator.
+
+        Fixed a number of ARM simulator issues.
+
+        Fixed bug in out-of-memory handling on ARM.
+
+        Implemented shell support for passing arguments to a script from
+        the command line.
+
+        Fixed bug in date code that made certain date functions return -0
+        instead of 0 for dates before the epoch.
+
+        Restricted applications of eval so it can only be used in the
+        context of the associated global object.
+
+        Treat byte-order marks as whitespace characters.
+
+
+2008-11-04: Version 0.4.3
+
+        Added support for API accessors that prohibit overwriting by
+        accessors defined in JavaScript code by using __defineGetter__ and
+        __defineSetter__.
+
+        Improved handling of conditionals in test status files.
+
+        Introduced access control in propertyIsEnumerable.
+
+        Improved performance of some string operations by caching
+        information about the type of the string between operations.
+
+        Fixed bug in fast-case code for switch statements that only have
+        integer labels.
+
+
+2008-10-30: Version 0.4.2
+
+        Improved performance of Array.prototype.concat by moving the
+        implementation to C++ (issue 123).
+
+        Fixed heap growth policy to avoid growing old space to its maximum
+        capacity before doing a garbage collection and fixed issue that
+        would lead to artificial out of memory situations (issue 129).
+
+        Fixed Date.prototype.toLocaleDateString to return the date in the
+        same format as WebKit.
+
+        Added missing initialization checks to debugger API.
+
+        Added removing of unused maps during GC.
+
+
+2008-10-28: Version 0.4.1
+
+        Added caching of RegExp data in compilation cache.
+
+        Added Visual Studio project file for d8 shell.
+
+        Fixed function call performance regression introduced in version
+        0.4.0 when splitting the global object in two parts (issue 120).
+
+        Fixed issue 131 by checking for empty handles before throwing and
+        reporting exceptions.
+
+
+2008-10-23: Version 0.4.0
+
+        Split the global object into two parts: The state holding global
+        object and the global object proxy.
+
+        Fixed bug that affected the value of an assignment to an element
+        in certain cases (issue 116).
+
+        Added GetPropertyNames functionality (issue 33) and extra Date
+        functions (issue 77) to the API.
+
+        Changed WeakReferenceCallback to take a Persistent<Value> instead
+        of a Persistent<Object> (issue 101).
+
+        Fixed issues with message reporting for exceptions in try-finally
+        blocks (issues 73 and 75).
+
+        Optimized flattening of strings and string equality checking.
+
+        Improved Boyer-Moore implementation for faster indexOf operations.
+
+        Added development shell (d8) which includes counters and
+        completion support.
+
+        Fixed problem with the receiver passed to functions called from
+        eval (issue 124).
+
+
+2008-10-16: Version 0.3.5
+
+        Improved string hash-code distribution by excluding bit-field bits
+        from the hash-code.
+
+        Changed string search algorithm used in indexOf from KMP to
+        Boyer-Moore.
+
+        Improved the generated code for the instanceof operator.
+
+        Improved performance of slow-case string equality checks by
+        specializing the code based on the string representation.
+
+        Improve the handling of out-of-memory situations (issue 70).
+
+        Improved performance of strict equality checks.
+
+        Improved profiler output to make it easier to see anonymous
+        functions.
+
+        Improved performance of slow-case keyed loads.
+
+        Improved property access performance by allocating a number of
+        properties in the front object.
+
+        Changed the toString behavior on the built-in object constructors
+        to print [native code] instead of the actual source.  Some web
+        applications do not like constructors with complex toString
+        results.
+
+
+2008-10-06: Version 0.3.4
+
+        Changed Array.prototype.sort to use quick sort.
+
+        Fixed code generation issue where leaving a finally block with
+        break or continue would accumulate elements on the expression
+        stack (issue 86).
+
+        Made sure that the name accessor on functions returns the expected
+        names for builtin JavaScript functions and C++ callback functions.
+
+        Added fast case code for extending the property storage array of
+        JavaScript objects.
+
+        Ported switch statement optimizations introduced in version 0.3.3
+        to the ARM code generator.
+
+        Allowed GCC to use strict-aliasing rules when compiling.
+
+        Improved performance of arguments object allocation by taking care
+        of arguments adaptor frames in the generated code.
+
+        Updated the V8 benchmark suite to version 2.
+
+
+2008-09-25: Version 0.3.3
+
+        Improved handling of relocation information to enable more
+        peep-hole optimizations.
+
+        Optimized switch statements where all labels are constant small
+        integers.
+
+        Optimized String.prototype.indexOf for common cases.
+
+        Fixed more build issues (issue 80).
+
+        Fixed a couple of profiler issues.
+
+        Fixed bug where the body of a function created using the Function
+        constructor was not allowed to end with a single-line comment
+        (issue 85).
+
+        Improved handling of object literals by canonicalizing object
+        literal maps.  This will allow JSON objects with the same set of
+        properties to share the same map making inline caching work better
+        for JSON objects.
+
+
+2008-09-17: Version 0.3.2
+
+        Generalized the EvalCache into a CompilationCache and enabled it
+        for scripts too.  The current strategy is to retire all entries
+        whenever a mark-sweep collection is started.
+
+        Fixed bug where switch statements containing only a default case
+        would lead to an unbalanced stack (issue 69).
+
+        Fixed bug that made access to the function in a named function
+        expression impossible in certain situations (issue 24).
+
+        Fixed even more build issues.
+
+        Optimized calling conventions on ARM.  The conventions on ARM and
+        IA-32 now match.
+
+        Removed static initializers for flags and counters.
+
+        Improved inline caching behavior for uncommon cases where lazily
+        loading Date and RegExp code could force certain code paths go
+        megamorphic.
+
+        Removed arguments adaption for builtins written in C++.  This
+        makes Array.prototype.push and Array.prototype.pop slightly
+        faster.
+
+
+2008-09-11: Version 0.3.1
+
+        Fixed a number of build issues.
+
+        Fixed problem with missing I-cache flusing on ARM.
+
+        Changed space layout in memory management by splitting up
+        code space into old data space and code space.
+
+        Added utf-8 conversion support to the API (issue 57).
+
+        Optimized repeated calls to eval with the same strings.  These
+        repeated calls are common in web applications.
+
+        Added Xcode project file.
+
+        Optimized a couple of Array operation.
+
+        Fixed parser bug by checking for end-of-string when parsing break
+        and continue (issue 35).
+
+        Fixed problem where asian characters were not categorized as
+        letters.
+
+        Fixed bug that disallowed calling functions fetched from an array
+        using a string as an array index (issue 32).
+
+        Fixed bug where the internal field count on object templates were
+        sometimes ignored (issue 54).
+
+        Added -f option to the shell sample for compatibility with other
+        engines (issue 18).
+
+        Added source info to TryCatches in the API.
+
+        Fixed problem where the seed for the random number generator was
+        clipped in a double to unsigned int conversion.
+
+        Fixed bug where cons string symbols were sometimes converted to
+        non-symbol flat strings during GC.
+
+        Fixed bug in error reporting when attempting to convert null to an
+        object.
+
+
+2008-09-04: Version 0.3.0
+
+        Added support for running tests on the ARM simulator.
+
+        Fixed bug in the 'in' operator where negative indices were not
+        treated correctly.
+
+        Fixed build issues on gcc-4.3.1.
+
+        Changed Date.prototype.toLocaleTimeString to not print the
+        timezone part of the time.
+
+        Renamed debug.h to v8-debug.h to reduce the risk of name conflicts
+        with user code.
+
+
+2008-09-02: Version 0.2.5
+
+        Renamed the top level directory 'public' to 'include'.
+
+        Added 'env' option to the SCons build scripts to support
+        overriding the ENV part of the build environment.  This is mostly
+        to support Windows builds in cases where SCons cannot find the
+        correct paths to the Windows SDK, as these paths cannot be passed
+        through shell environment variables.
+
+        Enabled "Buffer Security Check" on for the Windows SCons build and
+        added the linker option /OPT:ICF as an optimization.
+
+        Added the V8 benchmark suite to the repository.
+
+
+2008-09-01: Version 0.2.4
+
+        Included mjsunit JavaScript test suite and C++ unit tests.
+
+        Changed the shell sample to not print the result of executing a
+        script provided on the command line.
+
+        Fixed issue when building samples on Windows using a shared V8
+        library.  Added visibility option on Linux build which makes the
+        generated library 18% smaller.
+
+        Changed build system to accept multiple build modes in one build
+        and generate separate objects, libraries and executables for each
+        mode.
+
+        Removed deferred negation optimization (a * -b => -(a * b)) since
+        this visibly changes operand conversion order.
+
+        Improved parsing performance by introducing stack guard in
+        preparsing.  Without a stack guard preparsing always bails out
+        with stack overflow.
+
+        Changed shell sample to take flags directly from the command-line.
+        Added API call that implements this.
+
+        Added load, quit and version functions to the shell sample so it's
+        easier to run benchmarks and tests.
+
+        Fixed issue with building samples and cctests on 64-bit machines.
+
+        Fixed bug in the runtime system where the prototype chain was not
+        always searched for a setter when setting a property that does not
+        exist locally.
+
+
+2008-08-14: Version 0.2.3
+
+        Improved performance of garbage collection by moving the
+        function that updates pointers during compacting collection
+        into the updating visitor.  This gives the compiler a better
+        chance to inline and avoid a function call per (potential)
+        pointer.
+
+        Extended the shell sample with a --runtime-flags option.
+
+        Added Visual Studio project files for the shell.cc and
+        process.cc samples.
+
+
+2008-08-13: Version 0.2.2
+
+        Improved performance of garbage collection by changing the way
+        we use the marking stack in the event of stack overflow during
+        full garbage collection and by changing the way we mark roots.
+
+        Cleaned up ARM version by removing top of stack caching and by
+        introducing push/pop elimination.
+
+        Cleaned up the way runtime functions are called to allow
+        runtime calls with no arguments.
+
+        Changed Windows build options to make sure that exceptions are
+        disabled and that optimization flags are enabled.
+
+        Added first version of Visual Studio project files.
+
+
+2008-08-06: Version 0.2.1
+
+        Improved performance of unary addition by avoiding runtime calls.
+
+        Fixed the handling of '>' and '<=' to use right-to-left conversion
+        and left-to-right evaluation as specified by ECMA-262.
+
+        Fixed a branch elimination bug on the ARM platform where incorrect
+        code was generated because of overly aggressive branch
+        elimination.
+
+        Improved performance of code that repeatedly assigns the same
+        function to the same property of different objects with the same
+        map.
+
+        Untangled DEBUG and ENABLE_DISASSEMBLER defines.  The disassembler
+        no longer expects DEBUG to be defined.
+
+        Added platform-nullos.cc to serve as the basis for new platform
+        implementations.
+
+
+2008-07-30: Version 0.2.0
+
+        Changed all text files to have native svn:eol-style.
+
+        Added a few samples and support for building them. The samples
+        include a simple shell that can be used to benchmark and test V8.
+
+        Changed V8::GetVersion to return the version as a string.
+
+        Added source for lazily loaded scripts to snapshots and made
+        serialization non-destructive.
+
+        Improved ARM support by fixing the write barrier code to use
+        aligned loads and stores and by removing premature locals
+        optimization that relied on broken support for callee-saved
+        registers (removed).
+
+        Refactored the code for marking live objects during garbage
+        collection and the code for allocating objects in paged
+        spaces. Introduced an abstraction for the map word of a heap-
+        allocated object and changed the memory allocator to allocate
+        executable memory only for spaces that may contain code objects.
+
+        Moved StringBuilder to utils.h and ScopedLock to platform.h, where
+        they can be used by debugging and logging modules. Added
+        thread-safe message queues for dealing with debugger events.
+
+        Fixed the source code reported by toString for certain builtin
+        empty functions and made sure that the prototype property of a
+        function is enumerable.
+
+        Improved performance of converting values to condition flags in
+        generated code.
+
+        Merged disassembler-{arch} files.
+
+
+2008-07-28: Version 0.1.4
+
+        Added support for storing JavaScript stack traces in a stack
+        allocated buffer to make it visible in shallow core dumps.
+        Controlled by the --preallocate-message-memory flag which is
+        disabled by default.
+
+
+2008-07-25: Version 0.1.3
+
+        Fixed bug in JSObject::GetPropertyAttributePostInterceptor where
+        map transitions would count as properties.
+
+        Allowed aliased eval invocations by treating them as evals in the
+        global context. This may change in the future.
+
+        Added support for accessing the last entered context through the
+        API and renamed Context::Current to Context::GetCurrent and
+        Context::GetSecurityContext to Context::GetCurrentSecurityContext.
+
+        Fixed bug in the debugger that would cause the debugger scripts to
+        be recursively loaded and changed all disabling of interrupts to
+        be block-structured.
+
+        Made snapshot data read-only to allow it to be more easily shared
+        across multiple users of V8 when linked as a shared library.
+
+
+2008-07-16: Version 0.1.2
+
+        Fixed building on Mac OS X by recognizing i386 and friends as
+        IA-32 platforms.
+
+        Added propagation of stack overflow exceptions that occur while
+        compiling nested functions.
+
+        Improved debugger with support for recursive break points and
+        handling of exceptions that occur in the debugger JavaScript code.
+
+        Renamed GetInternal to GetInternalField and SetInternal to
+        SetInternalField in the API and moved InternalFieldCount and
+        SetInternalFieldCount from FunctionTemplate to ObjectTemplate.
+
+
+2008-07-09: Version 0.1.1
+
+        Fixed bug in stack overflow check code for IA-32 targets where a
+        non-tagged value in register eax was pushed to the stack.
+
+        Fixed potential quadratic behavior when converting strings to
+        numbers.
+
+        Fixed bug where the return value from Object::SetProperty could
+        end up being the property holder instead of the written value.
+
+        Improved debugger support by allowing nested break points and by
+        dealing with stack-overflows when compiling functions before
+        setting break points in them.
+
+
+2008-07-03: Version 0.1.0
+
+        Initial export.
+
