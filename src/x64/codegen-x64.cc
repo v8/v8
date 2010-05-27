@@ -1930,8 +1930,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   frame_->EmitPush(rax);  // <- slot 3
   frame_->EmitPush(rdx);  // <- slot 2
-  __ movl(rax, FieldOperand(rdx, FixedArray::kLengthOffset));
-  __ Integer32ToSmi(rax, rax);
+  __ movq(rax, FieldOperand(rdx, FixedArray::kLengthOffset));
   frame_->EmitPush(rax);  // <- slot 1
   frame_->EmitPush(Smi::FromInt(0));  // <- slot 0
   entry.Jump();
@@ -1942,8 +1941,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   frame_->EmitPush(rax);  // <- slot 2
 
   // Push the length of the array and the initial index onto the stack.
-  __ movl(rax, FieldOperand(rax, FixedArray::kLengthOffset));
-  __ Integer32ToSmi(rax, rax);
+  __ movq(rax, FieldOperand(rax, FixedArray::kLengthOffset));
   frame_->EmitPush(rax);  // <- slot 1
   frame_->EmitPush(Smi::FromInt(0));  // <- slot 0
 
@@ -4636,7 +4634,8 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
     __ Move(FieldOperand(rcx, HeapObject::kMapOffset),
             Factory::fixed_array_map());
     // Set length.
-    __ movl(FieldOperand(rcx, FixedArray::kLengthOffset), rbx);
+    __ Integer32ToSmi(rdx, rbx);
+    __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rdx);
     // Fill contents of fixed-array with the-hole.
     __ Move(rdx, Factory::the_hole_value());
     __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
@@ -4755,15 +4754,15 @@ void DeferredSearchCache::Generate() {
   // cache miss this optimization would hardly matter much.
 
   // Check if we could add new entry to cache.
-  __ movl(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
-  __ SmiToInteger32(r9,
-                    FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset));
-  __ cmpl(rbx, r9);
+  __ movq(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
+  __ movq(r9, FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset));
+  __ SmiCompare(rbx, r9);
   __ j(greater, &add_new_entry);
 
   // Check if we could evict entry after finger.
-  __ SmiToInteger32(rdx,
-                    FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
+  __ movq(rdx, FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
+  __ SmiToInteger32(rdx, rdx);
+  __ SmiToInteger32(rbx, rbx);
   __ addq(rdx, kEntrySizeImm);
   Label forward;
   __ cmpq(rbx, rdx);
@@ -4775,11 +4774,9 @@ void DeferredSearchCache::Generate() {
   __ jmp(&update_cache);
 
   __ bind(&add_new_entry);
-  // r9 holds cache size as int.
-  __ movl(rdx, r9);
-  __ Integer32ToSmi(r9, r9);
-  __ leal(rbx, Operand(rdx, JSFunctionResultCache::kEntrySize));
-  __ Integer32ToSmi(rbx, rbx);
+  // r9 holds cache size as smi.
+  __ SmiToInteger32(rdx, r9);
+  __ SmiAddConstant(rbx, r9, Smi::FromInt(JSFunctionResultCache::kEntrySize));
   __ movq(FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset), rbx);
 
   // Update the cache itself.
@@ -7446,15 +7443,10 @@ Result CodeGenerator::EmitKeyedLoad() {
     Result elements = allocator()->Allocate();
     ASSERT(elements.is_valid());
 
-
     Result key = frame_->Pop();
     Result receiver = frame_->Pop();
     key.ToRegister();
     receiver.ToRegister();
-
-    // Use a fresh temporary for the index
-    Result index = allocator()->Allocate();
-    ASSERT(index.is_valid());
 
     DeferredReferenceGetKeyedValue* deferred =
         new DeferredReferenceGetKeyedValue(elements.reg(),
@@ -7488,15 +7480,11 @@ Result CodeGenerator::EmitKeyedLoad() {
            Factory::fixed_array_map());
     deferred->Branch(not_equal);
 
-    // Shift the key to get the actual index value and check that
-    // it is within bounds.
-    __ SmiToInteger32(index.reg(), key.reg());
-    __ cmpl(index.reg(),
-            FieldOperand(elements.reg(), FixedArray::kLengthOffset));
+    // Check that key is within bounds.
+    __ SmiCompare(key.reg(),
+                  FieldOperand(elements.reg(), FixedArray::kLengthOffset));
     deferred->Branch(above_equal);
-    // The index register holds the un-smi-tagged key. It has been
-    // zero-extended to 64-bits, so it can be used directly as index in the
-    // operand below.
+
     // Load and check that the result is not the hole.  We could
     // reuse the index or elements register for the value.
     //
@@ -7504,14 +7492,14 @@ Result CodeGenerator::EmitKeyedLoad() {
     // heuristic about which register to reuse.  For example, if
     // one is rax, the we can reuse that one because the value
     // coming from the deferred code will be in rax.
+    SmiIndex index =
+        masm_->SmiToIndex(kScratchRegister, key.reg(), kPointerSizeLog2);
     __ movq(elements.reg(),
-            Operand(elements.reg(),
-                    index.reg(),
-                    times_pointer_size,
-                    FixedArray::kHeaderSize - kHeapObjectTag));
+            FieldOperand(elements.reg(),
+                         index.reg,
+                         index.scale,
+                         FixedArray::kHeaderSize));
     result = elements;
-    elements.Unuse();
-    index.Unuse();
     __ CompareRoot(result.reg(), Heap::kTheHoleValueRootIndex);
     deferred->Branch(equal);
     __ IncrementCounter(&Counters::keyed_load_inline, 1);
@@ -7733,7 +7721,7 @@ void Reference::SetValue(InitState init_state) {
 
         // Check whether it is possible to omit the write barrier. If the
         // elements array is in new space or the value written is a smi we can
-        // safely update the elements array without updating the remembered set.
+        // safely update the elements array without write barrier.
         Label in_new_space;
         __ InNewSpace(tmp.reg(), tmp2.reg(), equal, &in_new_space);
         if (!value_is_constant) {
@@ -7758,10 +7746,10 @@ void Reference::SetValue(InitState init_state) {
         // Store the value.
         SmiIndex index =
             masm->SmiToIndex(kScratchRegister, key.reg(), kPointerSizeLog2);
-              __ movq(Operand(tmp.reg(),
-                        index.reg,
-                        index.scale,
-                        FixedArray::kHeaderSize - kHeapObjectTag),
+        __ movq(FieldOperand(tmp.reg(),
+                             index.reg,
+                             index.scale,
+                             FixedArray::kHeaderSize),
                 value.reg());
         __ IncrementCounter(&Counters::keyed_store_inline, 1);
 
@@ -7841,7 +7829,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Setup the object header.
   __ LoadRoot(kScratchRegister, Heap::kContextMapRootIndex);
   __ movq(FieldOperand(rax, HeapObject::kMapOffset), kScratchRegister);
-  __ movl(FieldOperand(rax, Array::kLengthOffset), Immediate(length));
+  __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(length));
 
   // Setup the fixed slots.
   __ xor_(rbx, rbx);  // Set to NULL.
@@ -8516,7 +8504,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the last match info has space for the capture registers and the
   // additional information. Ensure no overflow in add.
   ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
-  __ movl(rax, FieldOperand(rbx, FixedArray::kLengthOffset));
+  __ movq(rax, FieldOperand(rbx, FixedArray::kLengthOffset));
+  __ SmiToInteger32(rax, rax);
   __ addl(rdx, Immediate(RegExpImpl::kLastMatchOverhead));
   __ cmpl(rdx, rax);
   __ j(greater, &runtime);
@@ -8793,9 +8782,10 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
 
   // Make the hash mask from the length of the number string cache. It
   // contains two elements (number and string) for each cache entry.
-  __ movl(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
-  __ shrl(mask, Immediate(1));  // Divide length by two (length is not a smi).
-  __ subl(mask, Immediate(1));  // Make mask.
+  __ movq(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
+  // Divide smi tagged length by two.
+  __ PositiveSmiDivPowerOfTwoToInteger32(mask, mask, 1);
+  __ subq(mask, Immediate(1));  // Make mask.
 
   // Calculate the entry in the number string cache. The hash value in the
   // number string cache for smis is just the smi value, and the hash for
@@ -9315,7 +9305,6 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
   // Get the parameters pointer from the stack and untag the length.
   __ movq(rdx, Operand(rsp, 2 * kPointerSize));
-  __ SmiToInteger32(rcx, rcx);
 
   // Setup the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
@@ -9323,7 +9312,8 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ movq(FieldOperand(rax, JSObject::kElementsOffset), rdi);
   __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
   __ movq(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);
-  __ movl(FieldOperand(rdi, FixedArray::kLengthOffset), rcx);
+  __ movq(FieldOperand(rdi, FixedArray::kLengthOffset), rcx);
+  __ SmiToInteger32(rcx, rcx);  // Untag length for the loop below.
 
   // Copy the fixed array slots.
   Label loop;
@@ -11141,7 +11131,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ bind(&allocated);
   // Fill the fields of the cons string.
   __ movq(FieldOperand(rcx, ConsString::kLengthOffset), rbx);
-  __ movl(FieldOperand(rcx, ConsString::kHashFieldOffset),
+  __ movq(FieldOperand(rcx, ConsString::kHashFieldOffset),
           Immediate(String::kEmptyHashField));
   __ movq(FieldOperand(rcx, ConsString::kFirstOffset), rax);
   __ movq(FieldOperand(rcx, ConsString::kSecondOffset), rdx);
