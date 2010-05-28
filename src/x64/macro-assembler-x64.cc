@@ -2641,19 +2641,26 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   }
 }
 
+
 int MacroAssembler::ArgumentStackSlotsForCFunctionCall(int num_arguments) {
-  // On Windows stack slots are reserved by the caller for all arguments
-  // including the ones passed in registers. On Linux 6 arguments are passed in
-  // registers and the caller does not reserve stack slots for them.
+  // On Windows 64 stack slots are reserved by the caller for all arguments
+  // including the ones passed in registers, and space is always allocated for
+  // the four register arguments even if the function takes fewer than four
+  // arguments.
+  // On AMD64 ABI (Linux/Mac) the first six arguments are passed in registers
+  // and the caller does not reserve stack slots for them.
   ASSERT(num_arguments >= 0);
 #ifdef _WIN64
-  static const int kArgumentsWithoutStackSlot = 0;
+  static const int kMinimumStackSlots = 4;
+  if (num_arguments < kMinimumStackSlots) return kMinimumStackSlots;
+  return num_arguments;
 #else
-  static const int kArgumentsWithoutStackSlot = 6;
+  static const int kRegisterPassedArguments = 6;
+  if (num_arguments < kRegisterPassedArguments) return 0;
+  return num_arguments - kRegisterPassedArguments;
 #endif
-  return num_arguments > kArgumentsWithoutStackSlot ?
-      num_arguments - kArgumentsWithoutStackSlot : 0;
 }
+
 
 void MacroAssembler::PrepareCallCFunction(int num_arguments) {
   int frame_alignment = OS::ActivationFrameAlignment();
