@@ -304,11 +304,6 @@ class CodeGenerator: public AstVisitor {
   void LoadGlobal();
   void LoadGlobalReceiver(Register scratch);
 
-  // Generate code to push the value of an expression on top of the frame
-  // and then spill the frame fully to memory.  This function is used
-  // temporarily while the code generator is being transformed.
-  inline void LoadAndSpill(Expression* expression);
-
   // Call LoadCondition and then spill the virtual frame unless control flow
   // cannot reach the end of the expression (ie, by emitting only
   // unconditional jumps to the control targets).

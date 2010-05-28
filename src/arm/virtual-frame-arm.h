@@ -469,7 +469,7 @@ class VirtualFrame : public ZoneObject {
 
   // Emit instructions to get the top of stack state from where we are to where
   // we want to be.
-  void MergeTOSTo(TopOfStack expected_state, Condition cond);
+  void MergeTOSTo(TopOfStack expected_state, Condition cond = al);
 
   inline bool Equals(const VirtualFrame* other);
 

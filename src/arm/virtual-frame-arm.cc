@@ -40,10 +40,8 @@ namespace internal {
 #define __ ACCESS_MASM(masm())
 
 void VirtualFrame::PopToR1R0() {
-  VirtualFrame where_to_go = *this;
   // Shuffle things around so the top of stack is in r0 and r1.
-  where_to_go.top_of_stack_state_ = R0_R1_TOS;
-  MergeTo(&where_to_go);
+  MergeTOSTo(R0_R1_TOS);
   // Pop the two registers off the stack so they are detached from the frame.
   element_count_ -= 2;
   top_of_stack_state_ = NO_TOS_REGISTERS;
@@ -51,10 +49,8 @@ void VirtualFrame::PopToR1R0() {
 
 
 void VirtualFrame::PopToR1() {
-  VirtualFrame where_to_go = *this;
   // Shuffle things around so the top of stack is only in r1.
-  where_to_go.top_of_stack_state_ = R1_TOS;
-  MergeTo(&where_to_go);
+  MergeTOSTo(R1_TOS);
   // Pop the register off the stack so it is detached from the frame.
   element_count_ -= 1;
   top_of_stack_state_ = NO_TOS_REGISTERS;
@@ -62,10 +58,8 @@ void VirtualFrame::PopToR1() {
 
 
 void VirtualFrame::PopToR0() {
-  VirtualFrame where_to_go = *this;
   // Shuffle things around so the top of stack only in r0.
-  where_to_go.top_of_stack_state_ = R0_TOS;
-  MergeTo(&where_to_go);
+  MergeTOSTo(R0_TOS);
   // Pop the register off the stack so it is detached from the frame.
   element_count_ -= 1;
   top_of_stack_state_ = NO_TOS_REGISTERS;
@@ -273,7 +267,8 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 
 void VirtualFrame::CallJSFunction(int arg_count) {
   // InvokeFunction requires function in r1.
-  EmitPop(r1);
+  PopToR1();
+  SpillAll();
 
   // +1 for receiver.
   Forget(arg_count + 1);
@@ -286,7 +281,7 @@ void VirtualFrame::CallJSFunction(int arg_count) {
 
 
 void VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
-  ASSERT(SpilledScope::is_spilled());
+  SpillAll();
   Forget(arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(f, arg_count);
@@ -294,6 +289,7 @@ void VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
 
 
 void VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
+  SpillAll();
   Forget(arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(id, arg_count);
@@ -631,7 +627,17 @@ void VirtualFrame::EnsureOneFreeTOSRegister() {
 
 void VirtualFrame::EmitPush(Register reg) {
   element_count_++;
+  if (reg.is(cp)) {
+    // If we are pushing cp then we are about to make a call and things have to
+    // be pushed to the physical stack.  There's nothing to be gained my moving
+    // to a TOS register and then pushing that, we might as well push to the
+    // physical stack immediately.
+    MergeTOSTo(NO_TOS_REGISTERS);
+    __ push(reg);
+    return;
+  }
   if (SpilledScope::is_spilled()) {
+    ASSERT(top_of_stack_state_ == NO_TOS_REGISTERS);
     __ push(reg);
     return;
   }
