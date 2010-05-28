@@ -44,12 +44,6 @@ void CodeGenerator::LoadConditionAndSpill(Expression* expression,
 }
 
 
-void CodeGenerator::LoadAndSpill(Expression* expression) {
-  ASSERT(VirtualFrame::SpilledScope::is_spilled());
-  Load(expression);
-}
-
-
 void CodeGenerator::VisitAndSpill(Statement* statement) {
   Visit(statement);
 }
