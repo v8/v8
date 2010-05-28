@@ -7228,6 +7228,18 @@ THREADED_TEST(NullIndexedInterceptor) {
 }
 
 
+THREADED_TEST(NamedPropertyHandlerGetterAttributes) {
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
+  templ->InstanceTemplate()->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("obj"),
+                     templ->GetFunction()->NewInstance());
+  ExpectTrue("obj.x === 42");
+  ExpectTrue("!obj.propertyIsEnumerable('x')");
+}
+
+
 static v8::Handle<Value> ParentGetter(Local<String> name,
                                       const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();

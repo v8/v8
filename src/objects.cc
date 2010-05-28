@@ -2037,7 +2037,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
       VMState state(EXTERNAL);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
-    if (!result.IsEmpty()) return NONE;
+    if (!result.IsEmpty()) return DONT_ENUM;
   }
   return holder_handle->GetPropertyAttributePostInterceptor(*receiver_handle,
                                                             *name_handle,
