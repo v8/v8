@@ -321,7 +321,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
         // Ignore the return value.
       }
 #endif
-      VisitStatementsAndSpill(info->function()->body());
+      VisitStatements(info->function()->body());
     }
   }
 
@@ -1566,7 +1566,7 @@ void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
 #endif
   VirtualFrame::SpilledScope spilled_scope(frame_);
   for (int i = 0; frame_ != NULL && i < statements->length(); i++) {
-    VisitAndSpill(statements->at(i));
+    Visit(statements->at(i));
   }
   ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
@@ -1580,7 +1580,7 @@ void CodeGenerator::VisitBlock(Block* node) {
   Comment cmnt(masm_, "[ Block");
   CodeForStatementPosition(node);
   node->break_target()->SetExpectedHeight();
-  VisitStatementsAndSpill(node->statements());
+  VisitStatements(node->statements());
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
@@ -1695,7 +1695,6 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ IfStatement");
   // Generate different code depending on which parts of the if statement
   // are present or not.
@@ -1710,14 +1709,14 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     JumpTarget then;
     JumpTarget else_;
     // if (cond)
-    LoadConditionAndSpill(node->condition(), &then, &else_, true);
+    LoadCondition(node->condition(), &then, &else_, true);
     if (frame_ != NULL) {
       Branch(false, &else_);
     }
     // then
     if (frame_ != NULL || then.is_linked()) {
       then.Bind();
-      VisitAndSpill(node->then_statement());
+      Visit(node->then_statement());
     }
     if (frame_ != NULL) {
       exit.Jump();
@@ -1725,7 +1724,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     // else
     if (else_.is_linked()) {
       else_.Bind();
-      VisitAndSpill(node->else_statement());
+      Visit(node->else_statement());
     }
 
   } else if (has_then_stm) {
@@ -1733,14 +1732,14 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_else_stm);
     JumpTarget then;
     // if (cond)
-    LoadConditionAndSpill(node->condition(), &then, &exit, true);
+    LoadCondition(node->condition(), &then, &exit, true);
     if (frame_ != NULL) {
       Branch(false, &exit);
     }
     // then
     if (frame_ != NULL || then.is_linked()) {
       then.Bind();
-      VisitAndSpill(node->then_statement());
+      Visit(node->then_statement());
     }
 
   } else if (has_else_stm) {
@@ -1748,21 +1747,21 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_then_stm);
     JumpTarget else_;
     // if (!cond)
-    LoadConditionAndSpill(node->condition(), &exit, &else_, true);
+    LoadCondition(node->condition(), &exit, &else_, true);
     if (frame_ != NULL) {
       Branch(true, &exit);
     }
     // else
     if (frame_ != NULL || else_.is_linked()) {
       else_.Bind();
-      VisitAndSpill(node->else_statement());
+      Visit(node->else_statement());
     }
 
   } else {
     Comment cmnt(masm_, "[ If");
     ASSERT(!has_then_stm && !has_else_stm);
     // if (cond)
-    LoadConditionAndSpill(node->condition(), &exit, &exit, false);
+    LoadCondition(node->condition(), &exit, &exit, false);
     if (frame_ != NULL) {
       if (has_cc()) {
         cc_reg_ = al;
@@ -1905,7 +1904,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
       fall_through.Bind();
       fall_through.Unuse();
     }
-    VisitStatementsAndSpill(clause->statements());
+    VisitStatements(clause->statements());
 
     // If control flow can fall through from the body, jump to the next body
     // or the end of the statement.
@@ -1926,7 +1925,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   if (default_clause != NULL) {
     Comment cmnt(masm_, "[ Default clause");
     default_entry.Bind();
-    VisitStatementsAndSpill(default_clause->statements());
+    VisitStatements(default_clause->statements());
     // If control flow can fall out of the default and there is a case after
     // it, jup to that case's body.
     if (frame_ != NULL && default_exit.is_bound()) {
@@ -1976,7 +1975,7 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
   }
 
   CheckStack();  // TODO(1222600): ignore if body contains calls.
-  VisitAndSpill(node->body());
+  Visit(node->body());
 
   // Compile the test.
   switch (info) {
@@ -2003,7 +2002,7 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
       if (has_valid_frame()) {
         Comment cmnt(masm_, "[ DoWhileCondition");
         CodeForDoWhileConditionPosition(node);
-        LoadConditionAndSpill(node->cond(), &body, node->break_target(), true);
+        LoadCondition(node->cond(), &body, node->break_target(), true);
         if (has_valid_frame()) {
           // A invalid frame here indicates that control did not
           // fall out of the test expression.
@@ -2044,7 +2043,7 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
 
   if (info == DONT_KNOW) {
     JumpTarget body;
-    LoadConditionAndSpill(node->cond(), &body, node->break_target(), true);
+    LoadCondition(node->cond(), &body, node->break_target(), true);
     if (has_valid_frame()) {
       // A NULL frame indicates that control did not fall out of the
       // test expression.
@@ -2057,7 +2056,7 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
 
   if (has_valid_frame()) {
     CheckStack();  // TODO(1222600): ignore if body contains calls.
-    VisitAndSpill(node->body());
+    Visit(node->body());
 
     // If control flow can fall out of the body, jump back to the top.
     if (has_valid_frame()) {
@@ -2080,7 +2079,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   Comment cmnt(masm_, "[ ForStatement");
   CodeForStatementPosition(node);
   if (node->init() != NULL) {
-    VisitAndSpill(node->init());
+    Visit(node->init());
   }
 
   // If the test is never true there is no need to compile the test or
@@ -2105,7 +2104,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   // If the test is always true, there is no need to compile it.
   if (info == DONT_KNOW) {
     JumpTarget body;
-    LoadConditionAndSpill(node->cond(), &body, node->break_target(), true);
+    LoadCondition(node->cond(), &body, node->break_target(), true);
     if (has_valid_frame()) {
       Branch(false, node->break_target());
     }
@@ -2116,7 +2115,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
 
   if (has_valid_frame()) {
     CheckStack();  // TODO(1222600): ignore if body contains calls.
-    VisitAndSpill(node->body());
+    Visit(node->body());
 
     if (node->next() == NULL) {
       // If there is no update statement and control flow can fall out
@@ -2136,7 +2135,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
         // after the code for the body actually belongs to the loop
         // statement and not the body.
         CodeForStatementPosition(node);
-        VisitAndSpill(node->next());
+        Visit(node->next());
         loop.Jump();
       }
     }
@@ -2357,7 +2356,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   }
   // Body.
   CheckStack();  // TODO(1222600): ignore if body contains calls.
-  VisitAndSpill(node->body());
+  Visit(node->body());
 
   // Next.  Reestablish a spilled frame in case we are coming here via
   // a continue in the body.
@@ -2404,7 +2403,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   // Remove the exception from the stack.
   frame_->Drop();
 
-  VisitStatementsAndSpill(node->catch_block()->statements());
+  VisitStatements(node->catch_block()->statements());
   if (frame_ != NULL) {
     exit.Jump();
   }
@@ -2439,7 +2438,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   }
 
   // Generate code for the statements in the try block.
-  VisitStatementsAndSpill(node->try_block()->statements());
+  VisitStatements(node->try_block()->statements());
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original labels are unshadowed and the
@@ -2553,7 +2552,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
   }
 
   // Generate code for the statements in the try block.
-  VisitStatementsAndSpill(node->try_block()->statements());
+  VisitStatements(node->try_block()->statements());
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original labels are unshadowed and the
@@ -2643,7 +2642,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
   // and the state - while evaluating the finally block.
   //
   // Generate code for the statements in the finally block.
-  VisitStatementsAndSpill(node->finally_block()->statements());
+  VisitStatements(node->finally_block()->statements());
 
   if (has_valid_frame()) {
     // Restore state and return value or faked TOS.
@@ -2758,7 +2757,7 @@ void CodeGenerator::VisitConditional(Conditional* node) {
   Comment cmnt(masm_, "[ Conditional");
   JumpTarget then;
   JumpTarget else_;
-  LoadConditionAndSpill(node->condition(), &then, &else_, true);
+  LoadCondition(node->condition(), &then, &else_, true);
   if (has_valid_frame()) {
     Branch(false, &else_);
   }
@@ -4056,7 +4055,6 @@ void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
   if (ShouldGenerateLog(args->at(0))) {
     Load(args->at(1));
     Load(args->at(2));
-    frame_->SpillAll();
     frame_->CallRuntime(Runtime::kLog, 2);
   }
 #endif
@@ -4954,10 +4952,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
   Token::Value op = node->op();
 
   if (op == Token::NOT) {
-    LoadConditionAndSpill(node->expression(),
-                          false_target(),
-                          true_target(),
-                          true);
+    LoadCondition(node->expression(), false_target(), true_target(), true);
     // LoadCondition may (and usually does) leave a test and branch to
     // be emitted by the caller.  In that case, negate the condition.
     if (has_cc()) cc_reg_ = NegateCondition(cc_reg_);
@@ -5200,10 +5195,7 @@ void CodeGenerator::GenerateLogicalBooleanOperation(BinaryOperation* node) {
   VirtualFrame::SpilledScope spilled_scope(frame_);
   if (node->op() == Token::AND) {
     JumpTarget is_true;
-    LoadConditionAndSpill(node->left(),
-                          &is_true,
-                          false_target(),
-                          false);
+    LoadCondition(node->left(), &is_true, false_target(), false);
     if (has_valid_frame() && !has_cc()) {
       // The left-hand side result is on top of the virtual frame.
       JumpTarget pop_and_continue;
@@ -5234,10 +5226,7 @@ void CodeGenerator::GenerateLogicalBooleanOperation(BinaryOperation* node) {
         Branch(false, false_target());
       }
       is_true.Bind();
-      LoadConditionAndSpill(node->right(),
-                            true_target(),
-                            false_target(),
-                            false);
+      LoadCondition(node->right(), true_target(), false_target(), false);
     } else {
       // Nothing to do.
       ASSERT(!has_valid_frame() && !has_cc() && !is_true.is_linked());
@@ -5246,10 +5235,7 @@ void CodeGenerator::GenerateLogicalBooleanOperation(BinaryOperation* node) {
   } else {
     ASSERT(node->op() == Token::OR);
     JumpTarget is_false;
-    LoadConditionAndSpill(node->left(),
-                          true_target(),
-                          &is_false,
-                          false);
+    LoadCondition(node->left(), true_target(), &is_false, false);
     if (has_valid_frame() && !has_cc()) {
       // The left-hand side result is on top of the virtual frame.
       JumpTarget pop_and_continue;
@@ -5280,10 +5266,7 @@ void CodeGenerator::GenerateLogicalBooleanOperation(BinaryOperation* node) {
         Branch(true, true_target());
       }
       is_false.Bind();
-      LoadConditionAndSpill(node->right(),
-                            true_target(),
-                            false_target(),
-                            false);
+      LoadCondition(node->right(), true_target(), false_target(), false);
     } else {
       // Nothing to do.
       ASSERT(!has_valid_frame() && !has_cc() && !is_false.is_linked());

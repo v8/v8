@@ -257,16 +257,6 @@ class CodeGenerator: public AstVisitor {
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
-  // Visit a statement and then spill the virtual frame if control flow can
-  // reach the end of the statement (ie, it does not exit via break,
-  // continue, return, or throw).  This function is used temporarily while
-  // the code generator is being transformed.
-  inline void VisitAndSpill(Statement* statement);
-
-  // Visit a list of statements and then spill the virtual frame if control
-  // flow can reach the end of the list.
-  inline void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
-
   // Main code generation function
   void Generate(CompilationInfo* info);
 
@@ -303,14 +293,6 @@ class CodeGenerator: public AstVisitor {
   void Load(Expression* expr);
   void LoadGlobal();
   void LoadGlobalReceiver(Register scratch);
-
-  // Call LoadCondition and then spill the virtual frame unless control flow
-  // cannot reach the end of the expression (ie, by emitting only
-  // unconditional jumps to the control targets).
-  inline void LoadConditionAndSpill(Expression* expression,
-                                    JumpTarget* true_target,
-                                    JumpTarget* false_target,
-                                    bool force_control);
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
