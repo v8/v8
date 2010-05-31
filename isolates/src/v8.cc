@@ -29,6 +29,7 @@
 
 #include "bootstrapper.h"
 #include "debug.h"
+#include "isolate.h"
 #include "serialize.h"
 #include "simulator.h"
 #include "stub-cache.h"
@@ -44,7 +45,6 @@ bool V8::has_been_disposed_ = false;
 bool V8::has_fatal_error_ = false;
 
 bool V8::Initialize(Deserializer* des) {
-  bool create_heap_objects = des == NULL;
   if (has_been_disposed_ || has_fatal_error_) return false;
   if (IsRunning()) return true;
 
@@ -52,79 +52,9 @@ bool V8::Initialize(Deserializer* des) {
   has_been_setup_ = true;
   has_fatal_error_ = false;
   has_been_disposed_ = false;
-#ifdef DEBUG
-  // The initialization process does not handle memory exhaustion.
-  DisallowAllocationFailure disallow_allocation_failure;
-#endif
 
-  // Enable logging before setting up the heap
-  Logger::Setup();
-
-  CpuProfiler::Setup();
-
-  // Setup the platform OS support.
-  OS::Setup();
-
-  // Initialize other runtime facilities
-#if !V8_HOST_ARCH_ARM && V8_TARGET_ARCH_ARM
-  ::assembler::arm::Simulator::Initialize();
-#endif
-
-  { // NOLINT
-    // Ensure that the thread has a valid stack guard.  The v8::Locker object
-    // will ensure this too, but we don't have to use lockers if we are only
-    // using one thread.
-    ExecutionAccess lock;
-    StackGuard::InitThread(lock);
-  }
-
-  // Setup the object heap
-  ASSERT(!Heap::HasBeenSetup());
-  if (!Heap::Setup(create_heap_objects)) {
-    SetFatalError();
-    return false;
-  }
-
-  Bootstrapper::Initialize(create_heap_objects);
-  Builtins::Setup(create_heap_objects);
-  Top::Initialize();
-
-  if (FLAG_preemption) {
-    v8::Locker locker;
-    v8::Locker::StartPreemption(100);
-  }
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  Debug::Setup(create_heap_objects);
-#endif
-  StubCache::Initialize(create_heap_objects);
-
-  // If we are deserializing, read the state into the now-empty heap.
-  if (des != NULL) {
-    des->Deserialize();
-    StubCache::Clear();
-  }
-
-  // Deserializing may put strange things in the root array's copy of the
-  // stack guard.
-  Heap::SetStackLimits();
-
-  // Setup the CPU support. Must be done after heap setup and after
-  // any deserialization because we have to have the initial heap
-  // objects in place for creating the code object used for probing.
-  CPU::Setup();
-
-  OProfileAgent::Initialize();
-
-  // If we are deserializing, log non-function code objects and compiled
-  // functions found in the snapshot.
-  if (des != NULL && FLAG_log_code) {
-    HandleScope scope;
-    LOG(LogCodeObjects());
-    LOG(LogCompiledFunctions());
-  }
-
-  return true;
+  Isolate::InitOnce();
+  return (Isolate::Create(des) != NULL);
 }
 
 

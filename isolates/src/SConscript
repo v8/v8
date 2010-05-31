@@ -76,6 +76,7 @@ SOURCES = {
     heap.cc
     ic.cc
     interpreter-irregexp.cc
+    isolate.cc
     jsregexp.cc
     jump-target.cc
     liveedit.cc
