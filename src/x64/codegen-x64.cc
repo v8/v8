@@ -794,6 +794,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // Load applicand.apply onto the stack. This will usually
   // give us a megamorphic load site. Not super, but it works.
   Load(applicand);
+  frame()->Dup();
   Handle<String> name = Factory::LookupAsciiSymbol("apply");
   frame()->Push(name);
   Result answer = frame()->CallLoadIC(RelocInfo::CODE_TARGET);
@@ -5791,8 +5792,6 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
   // property case was inlined.  Ensure that there is not a test rax
   // instruction here.
   masm_->nop();
-  // Discard the global object. The result is in answer.
-  frame_->Drop();
   return answer;
 }
 
@@ -6740,7 +6739,9 @@ class DeferredReferenceGetNamedValue: public DeferredCode {
 
 
 void DeferredReferenceGetNamedValue::Generate() {
-  __ push(receiver_);
+  if (!receiver_.is(rax)) {
+    __ movq(rax, receiver_);
+  }
   __ Move(rcx, name_);
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
@@ -6757,7 +6758,6 @@ void DeferredReferenceGetNamedValue::Generate() {
   __ IncrementCounter(&Counters::named_load_inline_miss, 1);
 
   if (!dst_.is(rax)) __ movq(dst_, rax);
-  __ pop(receiver_);
 }
 
 
@@ -7418,9 +7418,8 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 
     __ IncrementCounter(&Counters::named_load_inline, 1);
     deferred->BindExit();
-    frame()->Push(&receiver);
   }
-  ASSERT(frame()->height() == original_height);
+  ASSERT(frame()->height() == original_height - 1);
   return result;
 }
 
@@ -7569,10 +7568,13 @@ void Reference::GetValue() {
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
+      if (persist_after_get_) {
+        cgen_->frame()->Dup();
+      }
       Result result = cgen_->EmitNamedLoad(GetName(), is_global);
       cgen_->frame()->Push(&result);
       if (!persist_after_get_) {
-        cgen_->UnloadReference(this);
+        set_unloaded();
       }
       break;
     }
