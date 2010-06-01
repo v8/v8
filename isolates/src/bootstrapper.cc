@@ -111,6 +111,10 @@ NativesExternalStringResource::NativesExternalStringResource(const char* source)
 }
 
 
+Bootstrapper::Bootstrapper() {
+}
+
+
 Handle<String> Bootstrapper::NativesSourceLookup(int index) {
   ASSERT(0 <= index && index < Natives::GetBuiltinsCount());
   if (HEAP->natives_source_cache()->get(index)->IsUndefined()) {

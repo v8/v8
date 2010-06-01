@@ -52,7 +52,7 @@ class BootstrapperActive BASE_EMBEDDED {
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
-class Bootstrapper : public AllStatic {
+class Bootstrapper {
  public:
   // Requires: Heap::Setup has been called.
   static void Initialize(bool create_heap_objects);
@@ -93,6 +93,12 @@ class Bootstrapper : public AllStatic {
   // Used for new context creation.
   static bool InstallExtensions(Handle<Context> global_context,
                                 v8::ExtensionConfiguration* extensions);
+
+ private:
+  friend class Isolate;
+  Bootstrapper();
+
+  DISALLOW_COPY_AND_ASSIGN(Bootstrapper);
 };
 
 

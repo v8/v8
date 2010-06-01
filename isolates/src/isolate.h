@@ -33,6 +33,7 @@
 namespace v8 {
 namespace internal {
 
+class Bootstrapper;
 class Deserializer;
 class StubCache;
 
@@ -54,6 +55,7 @@ class Isolate {
   ~Isolate();
   
   // Accessors.
+  Bootstrapper* bootstrapper() { return bootstrapper_; }
   Heap* heap() { return &heap_; }
   StubCache* stub_cache() { return stub_cache_; }
   
@@ -64,6 +66,7 @@ class Isolate {
   
   bool Init(Deserializer* des);
 
+  Bootstrapper* bootstrapper_;
   Heap heap_;
   StubCache* stub_cache_;
 

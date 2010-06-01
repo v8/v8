@@ -65,25 +65,31 @@ Isolate* Isolate::Create(Deserializer* des) {
 
 
 Isolate::Isolate()
-    : stub_cache_(NULL) {
+    : bootstrapper_(NULL),
+      stub_cache_(NULL) {
 }
 
 
 Isolate::~Isolate() {
   delete stub_cache_;
   stub_cache_ = NULL;
+  delete bootstrapper_;
+  bootstrapper_ = NULL;
 }
 
 
 bool Isolate::Init(Deserializer* des) {
   ASSERT(global_isolate == this);
-  
+
   bool create_heap_objects = des == NULL;
 
 #ifdef DEBUG
   // The initialization process does not handle memory exhaustion.
   DisallowAllocationFailure disallow_allocation_failure;
 #endif
+
+  // Allocate per-isolate globals early.
+  bootstrapper_ = new Bootstrapper();
 
   // Enable logging before setting up the heap
   Logger::Setup();
