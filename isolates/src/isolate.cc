@@ -64,11 +64,14 @@ Isolate* Isolate::Create(Deserializer* des) {
 }
 
 
-Isolate::Isolate() {
+Isolate::Isolate()
+    : stub_cache_(NULL) {
 }
 
 
 Isolate::~Isolate() {
+  delete stub_cache_;
+  stub_cache_ = NULL;
 }
 
 
@@ -122,6 +125,7 @@ bool Isolate::Init(Deserializer* des) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug::Setup(create_heap_objects);
 #endif
+  stub_cache_ = new StubCache();
   StubCache::Initialize(create_heap_objects);
 
   // If we are deserializing, read the state into the now-empty heap.

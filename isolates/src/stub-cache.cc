@@ -42,6 +42,10 @@ namespace internal {
 StubCache::Entry StubCache::primary_[StubCache::kPrimaryTableSize];
 StubCache::Entry StubCache::secondary_[StubCache::kSecondaryTableSize];
 
+StubCache::StubCache() {
+}
+
+
 void StubCache::Initialize(bool create_heap_objects) {
   ASSERT(IsPowerOf2(kPrimaryTableSize));
   ASSERT(IsPowerOf2(kSecondaryTableSize));

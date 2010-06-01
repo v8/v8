@@ -44,7 +44,7 @@ namespace internal {
 
 class SCTableReference;
 
-class StubCache : public AllStatic {
+class StubCache {
  public:
   struct Entry {
     String* key;
@@ -215,6 +215,9 @@ class StubCache : public AllStatic {
   };
 
  private:
+  StubCache();
+  
+  friend class Isolate;
   friend class SCTableReference;
   static const int kPrimaryTableSize = 2048;
   static const int kSecondaryTableSize = 512;

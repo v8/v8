@@ -34,6 +34,7 @@ namespace v8 {
 namespace internal {
 
 class Deserializer;
+class StubCache;
 
 class Isolate {
  public:
@@ -54,6 +55,7 @@ class Isolate {
   
   // Accessors.
   Heap* heap() { return &heap_; }
+  StubCache* stub_cache() { return stub_cache_; }
   
  private:
   Isolate();
@@ -63,6 +65,7 @@ class Isolate {
   bool Init(Deserializer* des);
 
   Heap heap_;
+  StubCache* stub_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
