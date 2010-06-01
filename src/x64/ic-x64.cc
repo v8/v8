@@ -353,8 +353,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- rsp[16] : receiver
   // -----------------------------------
   Label slow, check_string, index_smi, index_string;
-  Label check_pixel_array, probe_dictionary;
-  Label check_number_dictionary;
+  Label check_pixel_array, probe_dictionary, check_number_dictionary;
 
   // Load name and receiver.
   __ movq(rax, Operand(rsp, kPointerSize));
@@ -378,9 +377,9 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   __ JumpIfNotSmi(rax, &check_string);
-
-  // Get the elements array of the object.
   __ bind(&index_smi);
+  // Now the key is known to be a smi. This place is also jumped to from below
+  // where a numeric string is converted to a smi.
   __ movq(rcx, FieldOperand(rcx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
@@ -442,6 +441,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ testl(rbx, Immediate(String::kIsArrayIndexMask));
 
   // Is the string a symbol?
+  // rcx: key map.
   __ j(not_zero, &index_string);  // The value in rbx is used at jump target.
   ASSERT(kSymbolTag != 0);
   __ testb(FieldOperand(rdx, Map::kInstanceTypeOffset),
@@ -492,6 +492,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ movzxbq(rdx, FieldOperand(rbx, Map::kInstanceSizeOffset));
   __ addq(rax, rdx);
   __ movq(rax, FieldOperand(rcx, rax, times_pointer_size, 0));
+  __ IncrementCounter(&Counters::keyed_load_generic_lookup_cache, 1);
   __ ret(0);
 
   // Do a quick inline probe of the receiver's dictionary, if it
@@ -516,9 +517,16 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
          (1 << String::kArrayIndexValueBits));
   __ bind(&index_string);
   // We want the smi-tagged index in rax.
+  // rax: key (string).
+  // rbx: hash field.
+  // rdx: receiver.
   __ and_(rbx, Immediate(String::kArrayIndexValueMask));
   __ shr(rbx, Immediate(String::kHashShift));
+  // Here we actually clobber the key (rax) which will be used if calling into
+  // runtime later. However as the new key is the numeric value of a string key
+  // there is no difference in using either key.
   __ Integer32ToSmi(rax, rbx);
+  // Now jump to the place where smi keys are handled.
   __ jmp(&index_smi);
 }
 
