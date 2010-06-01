@@ -52,125 +52,125 @@ class StubCache {
   };
 
 
-  static void Initialize(bool create_heap_objects);
+  void Initialize(bool create_heap_objects);
 
   // Computes the right stub matching. Inserts the result in the
   // cache before returning.  This might compile a stub if needed.
-  static Object* ComputeLoadNonexistent(String* name, JSObject* receiver);
+  Object* ComputeLoadNonexistent(String* name, JSObject* receiver);
 
-  static Object* ComputeLoadField(String* name,
-                                  JSObject* receiver,
-                                  JSObject* holder,
-                                  int field_index);
+  Object* ComputeLoadField(String* name,
+                           JSObject* receiver,
+                           JSObject* holder,
+                           int field_index);
 
-  static Object* ComputeLoadCallback(String* name,
-                                     JSObject* receiver,
-                                     JSObject* holder,
-                                     AccessorInfo* callback);
+  Object* ComputeLoadCallback(String* name,
+                              JSObject* receiver,
+                              JSObject* holder,
+                              AccessorInfo* callback);
 
-  static Object* ComputeLoadConstant(String* name,
-                                     JSObject* receiver,
-                                     JSObject* holder,
-                                     Object* value);
+  Object* ComputeLoadConstant(String* name,
+                              JSObject* receiver,
+                              JSObject* holder,
+                              Object* value);
 
-  static Object* ComputeLoadInterceptor(String* name,
-                                        JSObject* receiver,
-                                        JSObject* holder);
+  Object* ComputeLoadInterceptor(String* name,
+                                JSObject* receiver,
+                                JSObject* holder);
 
-  static Object* ComputeLoadNormal(String* name, JSObject* receiver);
-
-
-  static Object* ComputeLoadGlobal(String* name,
-                                   JSObject* receiver,
-                                   GlobalObject* holder,
-                                   JSGlobalPropertyCell* cell,
-                                   bool is_dont_delete);
+  Object* ComputeLoadNormal(String* name, JSObject* receiver);
 
 
-  // ---
+  Object* ComputeLoadGlobal(String* name,
+                            JSObject* receiver,
+                            GlobalObject* holder,
+                            JSGlobalPropertyCell* cell,
+                            bool is_dont_delete);
 
-  static Object* ComputeKeyedLoadField(String* name,
-                                       JSObject* receiver,
-                                       JSObject* holder,
-                                       int field_index);
-
-  static Object* ComputeKeyedLoadCallback(String* name,
-                                          JSObject* receiver,
-                                          JSObject* holder,
-                                          AccessorInfo* callback);
-
-  static Object* ComputeKeyedLoadConstant(String* name, JSObject* receiver,
-                                          JSObject* holder, Object* value);
-
-  static Object* ComputeKeyedLoadInterceptor(String* name,
-                                             JSObject* receiver,
-                                             JSObject* holder);
-
-  static Object* ComputeKeyedLoadArrayLength(String* name, JSArray* receiver);
-
-  static Object* ComputeKeyedLoadStringLength(String* name,
-                                              String* receiver);
-
-  static Object* ComputeKeyedLoadFunctionPrototype(String* name,
-                                                   JSFunction* receiver);
 
   // ---
 
-  static Object* ComputeStoreField(String* name,
+  Object* ComputeKeyedLoadField(String* name,
+                                JSObject* receiver,
+                                JSObject* holder,
+                                int field_index);
+
+  Object* ComputeKeyedLoadCallback(String* name,
                                    JSObject* receiver,
-                                   int field_index,
-                                   Map* transition = NULL);
+                                   JSObject* holder,
+                                   AccessorInfo* callback);
 
-  static Object* ComputeStoreGlobal(String* name,
-                                    GlobalObject* receiver,
-                                    JSGlobalPropertyCell* cell);
+  Object* ComputeKeyedLoadConstant(String* name, JSObject* receiver,
+                                   JSObject* holder, Object* value);
 
-  static Object* ComputeStoreCallback(String* name,
+  Object* ComputeKeyedLoadInterceptor(String* name,
                                       JSObject* receiver,
-                                      AccessorInfo* callback);
+                                      JSObject* holder);
 
-  static Object* ComputeStoreInterceptor(String* name, JSObject* receiver);
+  Object* ComputeKeyedLoadArrayLength(String* name, JSArray* receiver);
+
+  Object* ComputeKeyedLoadStringLength(String* name,
+                                       String* receiver);
+
+  Object* ComputeKeyedLoadFunctionPrototype(String* name,
+                                            JSFunction* receiver);
 
   // ---
 
-  static Object* ComputeKeyedStoreField(String* name,
-                                        JSObject* receiver,
-                                        int field_index,
-                                        Map* transition = NULL);
+  Object* ComputeStoreField(String* name,
+                            JSObject* receiver,
+                            int field_index,
+                            Map* transition = NULL);
+
+  Object* ComputeStoreGlobal(String* name,
+                             GlobalObject* receiver,
+                             JSGlobalPropertyCell* cell);
+
+  Object* ComputeStoreCallback(String* name,
+                               JSObject* receiver,
+                               AccessorInfo* callback);
+
+  Object* ComputeStoreInterceptor(String* name, JSObject* receiver);
 
   // ---
 
-  static Object* ComputeCallField(int argc,
-                                  InLoopFlag in_loop,
-                                  String* name,
-                                  Object* object,
-                                  JSObject* holder,
-                                  int index);
+  Object* ComputeKeyedStoreField(String* name,
+                                 JSObject* receiver,
+                                 int field_index,
+                                 Map* transition = NULL);
 
-  static Object* ComputeCallConstant(int argc,
-                                     InLoopFlag in_loop,
-                                     String* name,
-                                     Object* object,
-                                     JSObject* holder,
-                                     JSFunction* function);
+  // ---
 
-  static Object* ComputeCallNormal(int argc,
-                                   InLoopFlag in_loop,
-                                   String* name,
-                                   JSObject* receiver);
+  Object* ComputeCallField(int argc,
+                           InLoopFlag in_loop,
+                           String* name,
+                           Object* object,
+                           JSObject* holder,
+                           int index);
 
-  static Object* ComputeCallInterceptor(int argc,
-                                        String* name,
-                                        Object* object,
-                                        JSObject* holder);
+  Object* ComputeCallConstant(int argc,
+                              InLoopFlag in_loop,
+                              String* name,
+                              Object* object,
+                              JSObject* holder,
+                              JSFunction* function);
 
-  static Object* ComputeCallGlobal(int argc,
-                                   InLoopFlag in_loop,
-                                   String* name,
-                                   JSObject* receiver,
-                                   GlobalObject* holder,
-                                   JSGlobalPropertyCell* cell,
-                                   JSFunction* function);
+  Object* ComputeCallNormal(int argc,
+                            InLoopFlag in_loop,
+                            String* name,
+                            JSObject* receiver);
+
+  Object* ComputeCallInterceptor(int argc,
+                                 String* name,
+                                 Object* object,
+                                 JSObject* holder);
+
+  Object* ComputeCallGlobal(int argc,
+                            InLoopFlag in_loop,
+                            String* name,
+                            JSObject* receiver,
+                            GlobalObject* holder,
+                            JSGlobalPropertyCell* cell,
+                            JSFunction* function);
 
   // ---
 
@@ -216,7 +216,7 @@ class StubCache {
 
  private:
   StubCache();
-  
+
   friend class Isolate;
   friend class SCTableReference;
   static const int kPrimaryTableSize = 2048;
@@ -270,6 +270,8 @@ class StubCache {
     return reinterpret_cast<Entry*>(
         reinterpret_cast<Address>(table) + (offset << shift_amount));
   }
+
+  DISALLOW_COPY_AND_ASSIGN(StubCache);
 };
 
 

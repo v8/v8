@@ -90,6 +90,7 @@ bool Isolate::Init(Deserializer* des) {
 
   // Allocate per-isolate globals early.
   bootstrapper_ = new Bootstrapper();
+  stub_cache_ = new StubCache();
 
   // Enable logging before setting up the heap
   Logger::Setup();
@@ -131,8 +132,7 @@ bool Isolate::Init(Deserializer* des) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug::Setup(create_heap_objects);
 #endif
-  stub_cache_ = new StubCache();
-  StubCache::Initialize(create_heap_objects);
+  stub_cache_->Initialize(create_heap_objects);
 
   // If we are deserializing, read the state into the now-empty heap.
   if (des != NULL) {

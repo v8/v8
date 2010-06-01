@@ -505,8 +505,13 @@ void CallIC::UpdateCaches(LookupResult* lookup,
     switch (lookup->type()) {
       case FIELD: {
         int index = lookup->GetFieldIndex();
-        code = StubCache::ComputeCallField(argc, in_loop, *name, *object,
-                                           lookup->holder(), index);
+        code = Isolate::Current()->stub_cache()->ComputeCallField(
+            argc,
+            in_loop,
+            *name,
+            *object,
+            lookup->holder(),
+            index);
         break;
       }
       case CONSTANT_FUNCTION: {
@@ -514,8 +519,13 @@ void CallIC::UpdateCaches(LookupResult* lookup,
         // call; used for rewriting to monomorphic state and making sure
         // that the code stub is in the stub cache.
         JSFunction* function = lookup->GetConstantFunction();
-        code = StubCache::ComputeCallConstant(argc, in_loop, *name, *object,
-                                              lookup->holder(), function);
+        code = Isolate::Current()->stub_cache()->ComputeCallConstant(
+            argc,
+            in_loop,
+            *name,
+            *object,
+            lookup->holder(),
+            function);
         break;
       }
       case NORMAL: {
@@ -528,27 +538,33 @@ void CallIC::UpdateCaches(LookupResult* lookup,
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
           if (!cell->value()->IsJSFunction()) return;
           JSFunction* function = JSFunction::cast(cell->value());
-          code = StubCache::ComputeCallGlobal(argc,
-                                              in_loop,
-                                              *name,
-                                              *receiver,
-                                              global,
-                                              cell,
-                                              function);
+          code = Isolate::Current()->stub_cache()->ComputeCallGlobal(argc,
+                                                                     in_loop,
+                                                                     *name,
+                                                                     *receiver,
+                                                                     global,
+                                                                     cell,
+                                                                     function);
         } else {
           // There is only one shared stub for calling normalized
           // properties. It does not traverse the prototype chain, so the
           // property must be found in the receiver for the stub to be
           // applicable.
           if (lookup->holder() != *receiver) return;
-          code = StubCache::ComputeCallNormal(argc, in_loop, *name, *receiver);
+          code = Isolate::Current()->stub_cache()->ComputeCallNormal(argc,
+                                                                     in_loop,
+                                                                     *name,
+                                                                     *receiver);
         }
         break;
       }
       case INTERCEPTOR: {
         ASSERT(HasInterceptorGetter(lookup->holder()));
-        code = StubCache::ComputeCallInterceptor(argc, *name, *object,
-                                                 lookup->holder());
+        code = Isolate::Current()->stub_cache()->ComputeCallInterceptor(
+            argc,
+            *name,
+            *object,
+            lookup->holder());
         break;
       }
       default:
@@ -722,20 +738,26 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     code = pre_monomorphic_stub();
   } else if (!lookup->IsProperty()) {
     // Nonexistent property. The result is undefined.
-    code = StubCache::ComputeLoadNonexistent(*name, *receiver);
+    code = Isolate::Current()->stub_cache()->ComputeLoadNonexistent(*name,
+                                                                    *receiver);
   } else {
     // Compute monomorphic stub.
     switch (lookup->type()) {
       case FIELD: {
-        code = StubCache::ComputeLoadField(*name, *receiver,
-                                           lookup->holder(),
-                                           lookup->GetFieldIndex());
+        code = Isolate::Current()->stub_cache()->ComputeLoadField(
+            *name,
+            *receiver,
+            lookup->holder(),
+            lookup->GetFieldIndex());
         break;
       }
       case CONSTANT_FUNCTION: {
         Object* constant = lookup->GetConstantFunction();
-        code = StubCache::ComputeLoadConstant(*name, *receiver,
-                                              lookup->holder(), constant);
+        code = Isolate::Current()->stub_cache()->ComputeLoadConstant(
+            *name,
+            *receiver,
+            lookup->holder(),
+            constant);
         break;
       }
       case NORMAL: {
@@ -743,18 +765,20 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
           GlobalObject* global = GlobalObject::cast(lookup->holder());
           JSGlobalPropertyCell* cell =
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-          code = StubCache::ComputeLoadGlobal(*name,
-                                              *receiver,
-                                              global,
-                                              cell,
-                                              lookup->IsDontDelete());
+          code = Isolate::Current()->stub_cache()->ComputeLoadGlobal(
+              *name,
+              *receiver,
+              global,
+              cell,
+              lookup->IsDontDelete());
         } else {
           // There is only one shared stub for loading normalized
           // properties. It does not traverse the prototype chain, so the
           // property must be found in the receiver for the stub to be
           // applicable.
           if (lookup->holder() != *receiver) return;
-          code = StubCache::ComputeLoadNormal(*name, *receiver);
+          code = Isolate::Current()->stub_cache()->ComputeLoadNormal(*name,
+                                                                     *receiver);
         }
         break;
       }
@@ -763,14 +787,19 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         AccessorInfo* callback =
             AccessorInfo::cast(lookup->GetCallbackObject());
         if (v8::ToCData<Address>(callback->getter()) == 0) return;
-        code = StubCache::ComputeLoadCallback(*name, *receiver,
-                                              lookup->holder(), callback);
+        code = Isolate::Current()->stub_cache()->ComputeLoadCallback(
+            *name,
+            *receiver,
+            lookup->holder(),
+            callback);
         break;
       }
       case INTERCEPTOR: {
         ASSERT(HasInterceptorGetter(lookup->holder()));
-        code = StubCache::ComputeLoadInterceptor(*name, *receiver,
-                                                 lookup->holder());
+        code = Isolate::Current()->stub_cache()->ComputeLoadInterceptor(
+            *name,
+            *receiver,
+            lookup->holder());
         break;
       }
       default:
@@ -813,7 +842,9 @@ Object* KeyedLoadIC::Load(State state,
       if (object->IsString() && name->Equals(HEAP->length_symbol())) {
         Handle<String> string = Handle<String>::cast(object);
         Object* code = NULL;
-        code = StubCache::ComputeKeyedLoadStringLength(*name, *string);
+        code = Isolate::Current()->stub_cache()->ComputeKeyedLoadStringLength(
+            *name,
+            *string);
         if (code->IsFailure()) return code;
         set_target(Code::cast(code));
 #ifdef DEBUG
@@ -825,7 +856,10 @@ Object* KeyedLoadIC::Load(State state,
       // Use specialized code for getting the length of arrays.
       if (object->IsJSArray() && name->Equals(HEAP->length_symbol())) {
         Handle<JSArray> array = Handle<JSArray>::cast(object);
-        Object* code = StubCache::ComputeKeyedLoadArrayLength(*name, *array);
+        Object* code =
+            Isolate::Current()->stub_cache()->ComputeKeyedLoadArrayLength(
+                *name,
+                *array);
         if (code->IsFailure()) return code;
         set_target(Code::cast(code));
 #ifdef DEBUG
@@ -839,7 +873,9 @@ Object* KeyedLoadIC::Load(State state,
         JSFunction::cast(*object)->should_have_prototype()) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(object);
         Object* code =
-            StubCache::ComputeKeyedLoadFunctionPrototype(*name, *function);
+            Isolate::Current()->stub_cache()->ComputeKeyedLoadFunctionPrototype(
+                *name,
+                *function);
         if (code->IsFailure()) return code;
         set_target(Code::cast(code));
 #ifdef DEBUG
@@ -943,15 +979,20 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
     // Compute a monomorphic stub.
     switch (lookup->type()) {
       case FIELD: {
-        code = StubCache::ComputeKeyedLoadField(*name, *receiver,
-                                                lookup->holder(),
-                                                lookup->GetFieldIndex());
+        code = Isolate::Current()->stub_cache()->ComputeKeyedLoadField(
+            *name,
+            *receiver,
+            lookup->holder(),
+            lookup->GetFieldIndex());
         break;
       }
       case CONSTANT_FUNCTION: {
         Object* constant = lookup->GetConstantFunction();
-        code = StubCache::ComputeKeyedLoadConstant(*name, *receiver,
-                                                   lookup->holder(), constant);
+        code = Isolate::Current()->stub_cache()->ComputeKeyedLoadConstant(
+            *name,
+            *receiver,
+            lookup->holder(),
+            constant);
         break;
       }
       case CALLBACKS: {
@@ -959,14 +1000,19 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
         AccessorInfo* callback =
             AccessorInfo::cast(lookup->GetCallbackObject());
         if (v8::ToCData<Address>(callback->getter()) == 0) return;
-        code = StubCache::ComputeKeyedLoadCallback(*name, *receiver,
-                                                   lookup->holder(), callback);
+        code = Isolate::Current()->stub_cache()->ComputeKeyedLoadCallback(
+            *name,
+            *receiver,
+            lookup->holder(),
+            callback);
         break;
       }
       case INTERCEPTOR: {
         ASSERT(HasInterceptorGetter(lookup->holder()));
-        code = StubCache::ComputeKeyedLoadInterceptor(*name, *receiver,
-                                                      lookup->holder());
+        code = Isolate::Current()->stub_cache()->ComputeKeyedLoadInterceptor(
+            *name,
+            *receiver,
+            lookup->holder());
         break;
       }
       default: {
@@ -1099,8 +1145,10 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   Object* code = NULL;
   switch (type) {
     case FIELD: {
-      code = StubCache::ComputeStoreField(*name, *receiver,
-                                          lookup->GetFieldIndex());
+      code = Isolate::Current()->stub_cache()->ComputeStoreField(
+          *name,
+          *receiver,
+          lookup->GetFieldIndex());
       break;
     }
     case MAP_TRANSITION: {
@@ -1109,7 +1157,10 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       ASSERT(type == MAP_TRANSITION);
       Handle<Map> transition(lookup->GetTransitionMap());
       int index = transition->PropertyIndexFor(*name);
-      code = StubCache::ComputeStoreField(*name, *receiver, index, *transition);
+      code = Isolate::Current()->stub_cache()->ComputeStoreField(*name,
+                                                                 *receiver,
+                                                                 index,
+                                                                 *transition);
       break;
     }
     case NORMAL: {
@@ -1122,19 +1173,25 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
       JSGlobalPropertyCell* cell =
           JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-      code = StubCache::ComputeStoreGlobal(*name, *global, cell);
+      code = Isolate::Current()->stub_cache()->ComputeStoreGlobal(*name,
+                                                                  *global,
+                                                                  cell);
       break;
     }
     case CALLBACKS: {
       if (!lookup->GetCallbackObject()->IsAccessorInfo()) return;
       AccessorInfo* callback = AccessorInfo::cast(lookup->GetCallbackObject());
       if (v8::ToCData<Address>(callback->setter()) == 0) return;
-      code = StubCache::ComputeStoreCallback(*name, *receiver, callback);
+      code = Isolate::Current()->stub_cache()->ComputeStoreCallback(*name,
+                                                                    *receiver,
+                                                                    callback);
       break;
     }
     case INTERCEPTOR: {
       ASSERT(!receiver->GetNamedInterceptor()->setter()->IsUndefined());
-      code = StubCache::ComputeStoreInterceptor(*name, *receiver);
+      code = Isolate::Current()->stub_cache()->ComputeStoreInterceptor(
+          *name,
+          *receiver);
       break;
     }
     default:
@@ -1246,8 +1303,10 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
 
   switch (type) {
     case FIELD: {
-      code = StubCache::ComputeKeyedStoreField(*name, *receiver,
-                                               lookup->GetFieldIndex());
+      code = Isolate::Current()->stub_cache()->ComputeKeyedStoreField(
+          *name,
+          *receiver,
+          lookup->GetFieldIndex());
       break;
     }
     case MAP_TRANSITION: {
@@ -1256,8 +1315,11 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
         ASSERT(type == MAP_TRANSITION);
         Handle<Map> transition(lookup->GetTransitionMap());
         int index = transition->PropertyIndexFor(*name);
-        code = StubCache::ComputeKeyedStoreField(*name, *receiver,
-                                                 index, *transition);
+        code = Isolate::Current()->stub_cache()->ComputeKeyedStoreField(
+            *name,
+            *receiver,
+            index,
+            *transition);
         break;
       }
       // fall through.
