@@ -34,17 +34,11 @@ namespace v8 {
 namespace internal {
 
 
-FrameRegisterState::FrameRegisterState(VirtualFrame* frame) {
-  // Nothing to do when register allocation is not supported.
-  ASSERT(RegisterAllocator::kNumRegisters == 0);
-}
-
-
 DeferredCode::DeferredCode()
     : masm_(CodeGeneratorScope::Current()->masm()),
       statement_position_(masm_->current_statement_position()),
       position_(masm_->current_position()),
-      frame_state_(CodeGeneratorScope::Current()->frame()) {
+      frame_state_(*CodeGeneratorScope::Current()->frame()) {
   ASSERT(statement_position_ != RelocInfo::kNoPosition);
   ASSERT(position_ != RelocInfo::kNoPosition);
 
@@ -52,7 +46,6 @@ DeferredCode::DeferredCode()
 
 #ifdef DEBUG
   comment_ = "";
-  CodeGeneratorScope::Current()->frame()->AssertIsSpilled();
 #endif
 }
 

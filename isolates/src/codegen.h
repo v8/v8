@@ -180,6 +180,8 @@ class CodeGeneratorScope BASE_EMBEDDED {
 };
 
 
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+
 // State of used registers in a virtual frame.
 class FrameRegisterState {
  public:
@@ -203,13 +205,27 @@ class FrameRegisterState {
   // it should fit in the low zero bits of a valid offset.
   static const int kSyncedFlag = 2;
 
-  // C++ doesn't allow zero length arrays, so we make the array length 1 even
-  // if we don't need it.
-  static const int kRegistersArrayLength =
-      (RegisterAllocator::kNumRegisters == 0) ?
-          1 : RegisterAllocator::kNumRegisters;
-  int registers_[kRegistersArrayLength];
+  int registers_[RegisterAllocator::kNumRegisters];
 };
+
+#elif V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+
+
+class FrameRegisterState {
+ public:
+  inline FrameRegisterState(VirtualFrame frame) : frame_(frame) { }
+
+  inline const VirtualFrame* frame() const { return &frame_; }
+
+ private:
+  VirtualFrame frame_;
+};
+
+#else
+
+#error Unsupported target architecture.
+
+#endif
 
 
 // Helper interface to prepare to/restore after making runtime calls.

@@ -917,7 +917,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Setup the four remaining stack slots.
   __ push(r0);  // Map.
   __ ldr(r1, FieldMemOperand(r2, FixedArray::kLengthOffset));
-  __ mov(r1, Operand(r1, LSL, kSmiTagSize));
   __ mov(r0, Operand(Smi::FromInt(0)));
   // Push enumeration cache, enumeration cache length (as smi) and zero.
   __ Push(r2, r1, r0);
@@ -928,7 +927,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ mov(r1, Operand(Smi::FromInt(0)));  // Map (0) - force slow check.
   __ Push(r1, r0);
   __ ldr(r1, FieldMemOperand(r0, FixedArray::kLengthOffset));
-  __ mov(r1, Operand(r1, LSL, kSmiTagSize));
   __ mov(r0, Operand(Smi::FromInt(0)));
   __ Push(r1, r0);  // Fixed array length (as smi) and initial index.
 

@@ -101,6 +101,11 @@ class Reference BASE_EMBEDDED {
   // is popped from beneath it (unloaded).
   void SetValue(InitState init_state);
 
+  // This is in preparation for something that uses the reference on the stack.
+  // If we need this reference afterwards get then dup it now.  Otherwise mark
+  // it as used.
+  inline void DupIfPersist();
+
  private:
   CodeGenerator* cgen_;
   Expression* expression_;
@@ -252,16 +257,6 @@ class CodeGenerator: public AstVisitor {
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
-  // Visit a statement and then spill the virtual frame if control flow can
-  // reach the end of the statement (ie, it does not exit via break,
-  // continue, return, or throw).  This function is used temporarily while
-  // the code generator is being transformed.
-  inline void VisitAndSpill(Statement* statement);
-
-  // Visit a list of statements and then spill the virtual frame if control
-  // flow can reach the end of the list.
-  inline void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
-
   // Main code generation function
   void Generate(CompilationInfo* info);
 
@@ -298,19 +293,6 @@ class CodeGenerator: public AstVisitor {
   void Load(Expression* expr);
   void LoadGlobal();
   void LoadGlobalReceiver(Register scratch);
-
-  // Generate code to push the value of an expression on top of the frame
-  // and then spill the frame fully to memory.  This function is used
-  // temporarily while the code generator is being transformed.
-  inline void LoadAndSpill(Expression* expression);
-
-  // Call LoadCondition and then spill the virtual frame unless control flow
-  // cannot reach the end of the expression (ie, by emitting only
-  // unconditional jumps to the control targets).
-  inline void LoadConditionAndSpill(Expression* expression,
-                                    JumpTarget* true_target,
-                                    JumpTarget* false_target,
-                                    bool force_control);
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);

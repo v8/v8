@@ -4237,7 +4237,6 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   frame_->EmitPush(eax);  // <- slot 3
   frame_->EmitPush(edx);  // <- slot 2
   __ mov(eax, FieldOperand(edx, FixedArray::kLengthOffset));
-  __ SmiTag(eax);
   frame_->EmitPush(eax);  // <- slot 1
   frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
   entry.Jump();
@@ -4249,7 +4248,6 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Push the length of the array and the initial index onto the stack.
   __ mov(eax, FieldOperand(eax, FixedArray::kLengthOffset));
-  __ SmiTag(eax);
   frame_->EmitPush(eax);  // <- slot 1
   frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
 
@@ -6765,9 +6763,9 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
     __ mov(FieldOperand(ebx, HeapObject::kMapOffset),
            Immediate(Factory::fixed_array_map()));
     // Set length.
-    __ SmiUntag(ecx);
     __ mov(FieldOperand(ebx, FixedArray::kLengthOffset), ecx);
     // Fill contents of fixed-array with the-hole.
+    __ SmiUntag(ecx);
     __ mov(edx, Immediate(Factory::the_hole_value()));
     __ lea(ebx, FieldOperand(ebx, FixedArray::kHeaderSize));
     // Fill fixed array elements with hole.
@@ -6871,7 +6869,6 @@ void DeferredSearchCache::Generate() {
 
   // Check if we could add new entry to cache.
   __ mov(ebx, FieldOperand(ecx, FixedArray::kLengthOffset));
-  __ SmiTag(ebx);
   __ cmp(ebx, FieldOperand(ecx, JSFunctionResultCache::kCacheSizeOffset));
   __ j(greater, &add_new_entry);
 
@@ -7069,12 +7066,8 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   // (or them and test against Smi mask.)
 
   __ mov(tmp2.reg(), tmp1.reg());
-  RecordWriteStub recordWrite1(tmp2.reg(), index1.reg(), object.reg());
-  __ CallStub(&recordWrite1);
-
-  RecordWriteStub recordWrite2(tmp1.reg(), index2.reg(), object.reg());
-  __ CallStub(&recordWrite2);
-
+  __ RecordWriteHelper(tmp2.reg(), index1.reg(), object.reg());
+  __ RecordWriteHelper(tmp1.reg(), index2.reg(), object.reg());
   __ bind(&done);
 
   deferred->BindExit();
@@ -8773,13 +8766,8 @@ Result CodeGenerator::EmitKeyedLoad() {
     key.ToRegister();
     receiver.ToRegister();
 
-    // Use a fresh temporary for the index and later the loaded
-    // value.
-    result = allocator()->Allocate();
-    ASSERT(result.is_valid());
-
     DeferredReferenceGetKeyedValue* deferred =
-        new DeferredReferenceGetKeyedValue(result.reg(),
+        new DeferredReferenceGetKeyedValue(elements.reg(),
                                            receiver.reg(),
                                            key.reg());
 
@@ -8812,19 +8800,20 @@ Result CodeGenerator::EmitKeyedLoad() {
            Immediate(Factory::fixed_array_map()));
     deferred->Branch(not_equal);
 
-    // Shift the key to get the actual index value and check that
-    // it is within bounds. Use unsigned comparison to handle negative keys.
-    __ mov(result.reg(), key.reg());
-    __ SmiUntag(result.reg());
-    __ cmp(result.reg(),
+    // Check that the key is within bounds.
+    __ cmp(key.reg(),
            FieldOperand(elements.reg(), FixedArray::kLengthOffset));
     deferred->Branch(above_equal);
 
-    __ mov(result.reg(), Operand(elements.reg(),
-                                 result.reg(),
-                                 times_4,
-                                 FixedArray::kHeaderSize - kHeapObjectTag));
-    elements.Unuse();
+    // Load and check that the result is not the hole.
+    // Key holds a smi.
+    ASSERT((kSmiTag == 0) && (kSmiTagSize == 1));
+    __ mov(elements.reg(),
+           FieldOperand(elements.reg(),
+                        key.reg(),
+                        times_2,
+                        FixedArray::kHeaderSize));
+    result = elements;
     __ cmp(Operand(result.reg()), Immediate(Factory::the_hole_value()));
     deferred->Branch(equal);
     __ IncrementCounter(&Counters::keyed_load_inline, 1);
@@ -8909,7 +8898,7 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
 
     // Check whether it is possible to omit the write barrier. If the elements
     // array is in new space or the value written is a smi we can safely update
-    // the elements array without updating the remembered set.
+    // the elements array without write barrier.
     Label in_new_space;
     __ InNewSpace(tmp.reg(), tmp2.reg(), equal, &in_new_space);
     if (!value_is_constant) {
@@ -9179,7 +9168,8 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 
   // Setup the object header.
   __ mov(FieldOperand(eax, HeapObject::kMapOffset), Factory::context_map());
-  __ mov(FieldOperand(eax, Array::kLengthOffset), Immediate(length));
+  __ mov(FieldOperand(eax, Context::kLengthOffset),
+         Immediate(Smi::FromInt(length)));
 
   // Setup the fixed slots.
   __ xor_(ebx, Operand(ebx));  // Set to NULL.
@@ -11142,9 +11132,8 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ test(ecx, Operand(ecx));
   __ j(zero, &done);
 
-  // Get the parameters pointer from the stack and untag the length.
+  // Get the parameters pointer from the stack.
   __ mov(edx, Operand(esp, 2 * kPointerSize));
-  __ SmiUntag(ecx);
 
   // Setup the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
@@ -11153,6 +11142,8 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ mov(FieldOperand(edi, FixedArray::kMapOffset),
          Immediate(Factory::fixed_array_map()));
   __ mov(FieldOperand(edi, FixedArray::kLengthOffset), ecx);
+  // Untag the length for the loop below.
+  __ SmiUntag(ecx);
 
   // Copy the fixed array slots.
   Label loop;
@@ -11281,6 +11272,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the last match info has space for the capture registers and the
   // additional information.
   __ mov(eax, FieldOperand(ebx, FixedArray::kLengthOffset));
+  __ SmiUntag(eax);
   __ add(Operand(edx), Immediate(RegExpImpl::kLastMatchOverhead));
   __ cmp(edx, Operand(eax));
   __ j(greater, &runtime);
@@ -11524,7 +11516,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   // Make the hash mask from the length of the number string cache. It
   // contains two elements (number and string) for each cache entry.
   __ mov(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
-  __ shr(mask, 1);  // Divide length by two (length is not a smi).
+  __ shr(mask, kSmiTagSize + 1);  // Untag length and divide it by two.
   __ sub(Operand(mask), Immediate(1));  // Make mask.
 
   // Calculate the entry in the number string cache. The hash value in the
@@ -11612,12 +11604,6 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
   __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
-}
-
-
-void RecordWriteStub::Generate(MacroAssembler* masm) {
-  masm->RecordWriteHelper(object_, addr_, scratch_);
-  masm->ret(0);
 }
 
 
