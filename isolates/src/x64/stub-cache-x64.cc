@@ -1318,13 +1318,12 @@ Object* LoadStubCompiler::CompileLoadCallback(String* name,
                                               JSObject* holder,
                                               AccessorInfo* callback) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
   Failure* failure = Failure::InternalError();
   bool success = GenerateLoadCallback(object, holder, rax, rcx, rbx, rdx,
                                       callback, name, &miss, &failure);
@@ -1343,13 +1342,12 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
                                               Object* value,
                                               String* name) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
   GenerateLoadConstant(object, holder, rax, rbx, rdx, value, name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
@@ -1363,14 +1361,11 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
                                                  JSObject* object,
                                                  JSObject* last) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
-
-  // Load receiver.
-  __ movq(rax, Operand(rsp, kPointerSize));
 
   // Chech that receiver is not a smi.
   __ JumpIfSmi(rax, &miss);
@@ -1409,13 +1404,12 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
                                            int index,
                                            String* name) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
   GenerateLoadField(object, holder, rax, rbx, rdx, index, name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
@@ -1429,16 +1423,15 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
                                                  JSObject* holder,
                                                  String* name) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
 
   LookupResult lookup;
   LookupPostInterceptor(holder, name, &lookup);
 
-  __ movq(rax, Operand(rsp, kPointerSize));
   // TODO(368): Compile in the whole chain: all the interceptors in
   // prototypes and ultimate answer.
   GenerateLoadInterceptor(receiver,
@@ -1465,14 +1458,11 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
                                             String* name,
                                             bool is_dont_delete) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
-
-  // Get the receiver from the stack.
-  __ movq(rax, Operand(rsp, kPointerSize));
 
   // If the object is the holder then we know that it's a global
   // object which can only happen for contextual loads. In this case,
@@ -1485,19 +1475,20 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   CheckPrototypes(object, rax, holder, rbx, rdx, name, &miss);
 
   // Get the value from the cell.
-  __ Move(rax, Handle<JSGlobalPropertyCell>(cell));
-  __ movq(rax, FieldOperand(rax, JSGlobalPropertyCell::kValueOffset));
+  __ Move(rbx, Handle<JSGlobalPropertyCell>(cell));
+  __ movq(rbx, FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset));
 
   // Check for deleted property if property can actually be deleted.
   if (!is_dont_delete) {
-    __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
+    __ CompareRoot(rbx, Heap::kTheHoleValueRootIndex);
     __ j(equal, &miss);
   } else if (FLAG_debug_code) {
-    __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
+    __ CompareRoot(rbx, Heap::kTheHoleValueRootIndex);
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 
   __ IncrementCounter(&Counters::named_load_global_inline, 1);
+  __ movq(rax, rbx);
   __ ret(0);
 
   __ bind(&miss);

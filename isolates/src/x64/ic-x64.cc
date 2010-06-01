@@ -56,18 +56,20 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
                                    Register r1,
                                    Register r2,
                                    Register name,
+                                   Register r4,
                                    DictionaryCheck check_dictionary) {
   // Register use:
   //
   // r0   - used to hold the property dictionary.
   //
-  // r1   - initially the receiver
-  //      - used for the index into the property dictionary
+  // r1   - initially the receiver.
+  //      - unchanged on any jump to miss_label.
   //      - holds the result on exit.
   //
   // r2   - used to hold the capacity of the property dictionary.
   //
   // name - holds the name of the property and is unchanged.
+  // r4   - used to hold the index into the property dictionary.
 
   Label done;
 
@@ -116,19 +118,19 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
       StringDictionary::kElementsStartIndex * kPointerSize;
   for (int i = 0; i < kProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
-    __ movl(r1, FieldOperand(name, String::kHashFieldOffset));
-    __ shrl(r1, Immediate(String::kHashShift));
+    __ movl(r4, FieldOperand(name, String::kHashFieldOffset));
+    __ shrl(r4, Immediate(String::kHashShift));
     if (i > 0) {
-      __ addl(r1, Immediate(StringDictionary::GetProbeOffset(i)));
+      __ addl(r4, Immediate(StringDictionary::GetProbeOffset(i)));
     }
-    __ and_(r1, r2);
+    __ and_(r4, r2);
 
     // Scale the index by multiplying by the entry size.
     ASSERT(StringDictionary::kEntrySize == 3);
-    __ lea(r1, Operand(r1, r1, times_2, 0));  // r1 = r1 * 3
+    __ lea(r4, Operand(r4, r4, times_2, 0));  // r4 = r4 * 3
 
     // Check if the key is identical to the name.
-    __ cmpq(name, Operand(r0, r1, times_pointer_size,
+    __ cmpq(name, Operand(r0, r4, times_pointer_size,
                           kElementsStartOffset - kHeapObjectTag));
     if (i != kProbes - 1) {
       __ j(equal, &done);
@@ -140,14 +142,14 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   // Check that the value is a normal property.
   __ bind(&done);
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
-  __ Test(Operand(r0, r1, times_pointer_size, kDetailsOffset - kHeapObjectTag),
+  __ Test(Operand(r0, r4, times_pointer_size, kDetailsOffset - kHeapObjectTag),
           Smi::FromInt(PropertyDetails::TypeField::mask()));
   __ j(not_zero, miss_label);
 
   // Get the value at the masked, scaled index.
   const int kValueOffset = kElementsStartOffset + kPointerSize;
   __ movq(r1,
-          Operand(r0, r1, times_pointer_size, kValueOffset - kHeapObjectTag));
+          Operand(r0, r4, times_pointer_size, kValueOffset - kHeapObjectTag));
 }
 
 
@@ -501,6 +503,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
                          rcx,
                          rdx,
                          rax,
+                         rdi,
                          DICTIONARY_CHECK_DONE);
   __ movq(rax, rcx);
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
@@ -1228,7 +1231,7 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   // rsp[(argc + 1) * 8]    : argument 0 = receiver
   // -----------------------------------
   // Search dictionary - put result in register rdx.
-  GenerateDictionaryLoad(masm, miss, rax, rdx, rbx, rcx, CHECK_DICTIONARY);
+  GenerateDictionaryLoad(masm, miss, rax, rdx, rbx, rcx, rdi, CHECK_DICTIONARY);
 
   // Move the result to register rdi and check that it isn't a smi.
   __ movq(rdi, rdx);
@@ -1333,13 +1336,13 @@ void LoadIC::ClearInlinedVersion(Address address) {
 
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
 
   __ pop(rbx);
-  __ push(Operand(rsp, 0));  // receiver
+  __ push(rax);  // receiver
   __ push(rcx);  // name
   __ push(rbx);  // return address
 
@@ -1351,13 +1354,11 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
-
-  __ movq(rax, Operand(rsp, kPointerSize));
 
   StubCompiler::GenerateLoadArrayLength(masm, rax, rdx, &miss);
   __ bind(&miss);
@@ -1367,13 +1368,11 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
-
-  __ movq(rax, Operand(rsp, kPointerSize));
 
   StubCompiler::GenerateLoadFunctionPrototype(masm, rax, rdx, rbx, &miss);
   __ bind(&miss);
@@ -1383,12 +1382,10 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
 
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
-
-  __ movq(rax, Operand(rsp, kPointerSize));
 
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
@@ -1403,13 +1400,11 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss, probe, global;
-
-  __ movq(rax, Operand(rsp, kPointerSize));
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(rax, &miss);
@@ -1432,7 +1427,8 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   // Search the dictionary placing the result in rax.
   __ bind(&probe);
-  GenerateDictionaryLoad(masm, &miss, rdx, rax, rbx, rcx, CHECK_DICTIONARY);
+  GenerateDictionaryLoad(masm, &miss, rdx, rax, rbx,
+                         rcx, rdi, CHECK_DICTIONARY);
   __ ret(0);
 
   // Global object access: Check access rights.
@@ -1440,22 +1436,19 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   __ CheckAccessGlobalProxy(rax, rdx, &miss);
   __ jmp(&probe);
 
-  // Cache miss: Restore receiver from stack and jump to runtime.
+  // Cache miss: Jump to runtime.
   __ bind(&miss);
-  __ movq(rax, Operand(rsp, 1 * kPointerSize));
   GenerateMiss(masm);
 }
 
 
 void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
-
-  __ movq(rax, Operand(rsp, kPointerSize));
 
   StubCompiler::GenerateLoadStringLength(masm, rax, rdx, rbx, &miss);
   __ bind(&miss);
