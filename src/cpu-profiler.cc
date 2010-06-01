@@ -415,13 +415,14 @@ CpuProfiler::~CpuProfiler() {
 void CpuProfiler::StartCollectingProfile(const char* title) {
   if (profiles_->StartProfiling(title, next_profile_uid_++)) {
     StartProcessorIfNotStarted();
-    generator_->AddCurrentStack();
   }
 }
 
 
 void CpuProfiler::StartCollectingProfile(String* title) {
-  StartCollectingProfile(profiles_->GetName(title));
+  if (profiles_->StartProfiling(title, next_profile_uid_++)) {
+    StartProcessorIfNotStarted();
+  }
 }
 
 

@@ -28,7 +28,6 @@
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "v8.h"
-#include "frames-inl.h"
 #include "global-handles.h"
 
 #include "profile-generator-inl.h"
@@ -806,22 +805,6 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   }
 
   profiles_->AddPathToCurrentProfiles(entries);
-}
-
-
-void ProfileGenerator::AddCurrentStack() {
-  TickSample sample;
-  sample.state = VMState::current_state();
-  sample.pc = reinterpret_cast<Address>(&sample);  // Not NULL.
-  sample.frames_count = 0;
-  for (StackTraceFrameIterator it;
-       !it.done() && sample.frames_count < TickSample::kMaxFramesCount;
-       it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    sample.stack[sample.frames_count++] =
-        reinterpret_cast<Address>(frame->function());
-  }
-  RecordTickSample(sample);
 }
 
 } }  // namespace v8::internal
