@@ -921,7 +921,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
   // If object is not an array, bail out to regular call.
   if (!object->IsJSArray()) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   Label miss;
@@ -1076,7 +1076,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
 
   // If object is not an array, bail out to regular call.
   if (!object->IsJSArray()) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   Label miss, return_undefined, call_builtin;
@@ -1151,7 +1151,7 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
                                                   String* name,
                                                   CheckType check) {
   // TODO(722): implement this.
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 
@@ -1161,7 +1161,7 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
                                                       String* name,
                                                       CheckType check) {
   // TODO(722): implement this.
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 
@@ -1395,7 +1395,7 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(NONEXISTENT, Heap::empty_string());
+  return GetCode(NONEXISTENT, HEAP->empty_string());
 }
 
 

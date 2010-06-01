@@ -514,13 +514,13 @@ void PrettyPrinter::PrintLiteral(Handle<Object> value, bool quote) {
       Print("%c", string->Get(i));
     }
     if (quote) Print("\"");
-  } else if (object == Heap::null_value()) {
+  } else if (object == HEAP->null_value()) {
     Print("null");
-  } else if (object == Heap::true_value()) {
+  } else if (object == HEAP->true_value()) {
     Print("true");
-  } else if (object == Heap::false_value()) {
+  } else if (object == HEAP->false_value()) {
     Print("false");
-  } else if (object == Heap::undefined_value()) {
+  } else if (object == HEAP->undefined_value()) {
     Print("undefined");
   } else if (object->IsNumber()) {
     Print("%g", object->Number());

@@ -211,7 +211,7 @@ void CompilationSubCache::Age() {
   }
 
   // Set the first generation as unborn.
-  tables_[0] = Heap::undefined_value();
+  tables_[0] = HEAP->undefined_value();
 }
 
 
@@ -221,7 +221,7 @@ void CompilationSubCache::Iterate(ObjectVisitor* v) {
 
 
 void CompilationSubCache::Clear() {
-  MemsetPointer(tables_, Heap::undefined_value(), generations_);
+  MemsetPointer(tables_, HEAP->undefined_value(), generations_);
 }
 
 

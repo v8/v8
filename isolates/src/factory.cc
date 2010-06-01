@@ -164,12 +164,12 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
 Handle<Script> Factory::NewScript(Handle<String> source) {
   // Generate id for this script.
   int id;
-  if (Heap::last_script_id()->IsUndefined()) {
+  if (HEAP->last_script_id()->IsUndefined()) {
     // Script ids start from one.
     id = 1;
   } else {
     // Increment id, wrap when positive smi is exhausted.
-    id = Smi::cast(Heap::last_script_id())->value();
+    id = Smi::cast(HEAP->last_script_id())->value();
     id++;
     if (!Smi::IsValid(id)) {
       id = 0;
@@ -181,17 +181,17 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   Handle<Proxy> wrapper = Factory::NewProxy(0, TENURED);
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
   script->set_source(*source);
-  script->set_name(Heap::undefined_value());
-  script->set_id(Heap::last_script_id());
+  script->set_name(HEAP->undefined_value());
+  script->set_id(HEAP->last_script_id());
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
-  script->set_data(Heap::undefined_value());
-  script->set_context_data(Heap::undefined_value());
+  script->set_data(HEAP->undefined_value());
+  script->set_context_data(HEAP->undefined_value());
   script->set_type(Smi::FromInt(Script::TYPE_NORMAL));
   script->set_compilation_type(Smi::FromInt(Script::COMPILATION_TYPE_HOST));
   script->set_wrapper(*wrapper);
-  script->set_line_ends(Heap::undefined_value());
-  script->set_eval_from_shared(Heap::undefined_value());
+  script->set_line_ends(HEAP->undefined_value());
+  script->set_eval_from_shared(HEAP->undefined_value());
   script->set_eval_from_instructions_offset(Smi::FromInt(0));
 
   return script;
@@ -290,7 +290,7 @@ Handle<JSFunction> Factory::BaseNewFunctionFromSharedFunctionInfo(
     PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(Heap::AllocateFunction(*function_map,
                                             *function_info,
-                                            Heap::the_hole_value(),
+                                            HEAP->the_hole_value(),
                                             pretenure),
                      JSFunction);
 }
@@ -335,7 +335,7 @@ Handle<Object> Factory::NewNumberFromUint(uint32_t value) {
 
 
 Handle<JSObject> Factory::NewNeanderObject() {
-  CALL_HEAP_FUNCTION(Heap::AllocateJSObjectFromMap(Heap::neander_map()),
+  CALL_HEAP_FUNCTION(Heap::AllocateJSObjectFromMap(HEAP->neander_map()),
                      JSObject);
 }
 
@@ -952,8 +952,8 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
   store->set(JSRegExp::kSourceIndex, *source);
   store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags.value()));
-  store->set(JSRegExp::kIrregexpASCIICodeIndex, Heap::the_hole_value());
-  store->set(JSRegExp::kIrregexpUC16CodeIndex, Heap::the_hole_value());
+  store->set(JSRegExp::kIrregexpASCIICodeIndex, HEAP->the_hole_value());
+  store->set(JSRegExp::kIrregexpUC16CodeIndex, HEAP->the_hole_value());
   store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::FromInt(0));
   store->set(JSRegExp::kIrregexpCaptureCountIndex,
              Smi::FromInt(capture_count));

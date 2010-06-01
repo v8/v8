@@ -28,6 +28,7 @@
 #ifndef V8_SPACES_INL_H_
 #define V8_SPACES_INL_H_
 
+#include "isolate.h"
 #include "memory.h"
 #include "spaces.h"
 
@@ -446,9 +447,9 @@ Object* NewSpace::AllocateRawInternal(int size_in_bytes,
 
 
 bool FreeListNode::IsFreeListNode(HeapObject* object) {
-  return object->map() == Heap::raw_unchecked_byte_array_map()
-      || object->map() == Heap::raw_unchecked_one_pointer_filler_map()
-      || object->map() == Heap::raw_unchecked_two_pointer_filler_map();
+  return object->map() == HEAP->raw_unchecked_byte_array_map()
+      || object->map() == HEAP->raw_unchecked_one_pointer_filler_map()
+      || object->map() == HEAP->raw_unchecked_two_pointer_filler_map();
 }
 
 } }  // namespace v8::internal

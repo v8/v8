@@ -3709,7 +3709,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     Result answer = frame_->Pop();
     answer.ToRegister();
 
-    if (check->Equals(Heap::number_symbol())) {
+    if (check->Equals(HEAP->number_symbol())) {
       Condition is_smi = masm_->CheckSmi(answer.reg());
       destination()->true_target()->Branch(is_smi);
       frame_->Spill(answer.reg());
@@ -3718,7 +3718,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       answer.Unuse();
       destination()->Split(equal);
 
-    } else if (check->Equals(Heap::string_symbol())) {
+    } else if (check->Equals(HEAP->string_symbol())) {
       Condition is_smi = masm_->CheckSmi(answer.reg());
       destination()->false_target()->Branch(is_smi);
 
@@ -3732,14 +3732,14 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       answer.Unuse();
       destination()->Split(below);  // Unsigned byte comparison needed.
 
-    } else if (check->Equals(Heap::boolean_symbol())) {
+    } else if (check->Equals(HEAP->boolean_symbol())) {
       __ CompareRoot(answer.reg(), Heap::kTrueValueRootIndex);
       destination()->true_target()->Branch(equal);
       __ CompareRoot(answer.reg(), Heap::kFalseValueRootIndex);
       answer.Unuse();
       destination()->Split(equal);
 
-    } else if (check->Equals(Heap::undefined_symbol())) {
+    } else if (check->Equals(HEAP->undefined_symbol())) {
       __ CompareRoot(answer.reg(), Heap::kUndefinedValueRootIndex);
       destination()->true_target()->Branch(equal);
 
@@ -3754,7 +3754,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       answer.Unuse();
       destination()->Split(not_zero);
 
-    } else if (check->Equals(Heap::function_symbol())) {
+    } else if (check->Equals(HEAP->function_symbol())) {
       Condition is_smi = masm_->CheckSmi(answer.reg());
       destination()->false_target()->Branch(is_smi);
       frame_->Spill(answer.reg());
@@ -3765,7 +3765,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       answer.Unuse();
       destination()->Split(equal);
 
-    } else if (check->Equals(Heap::object_symbol())) {
+    } else if (check->Equals(HEAP->object_symbol())) {
       Condition is_smi = masm_->CheckSmi(answer.reg());
       destination()->false_target()->Branch(is_smi);
       __ CompareRoot(answer.reg(), Heap::kNullValueRootIndex);
@@ -7969,7 +7969,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
 
 bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
-  Object* answer_object = Heap::undefined_value();
+  Object* answer_object = HEAP->undefined_value();
   switch (op) {
     case Token::ADD:
       // Use intptr_t to detect overflow of 32-bit int.
@@ -8043,7 +8043,7 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
       UNREACHABLE();
       break;
   }
-  if (answer_object == Heap::undefined_value()) {
+  if (answer_object == HEAP->undefined_value()) {
     return false;
   }
   frame_->Push(Handle<Object>(answer_object));

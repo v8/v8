@@ -5414,7 +5414,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
     Register scratch = VirtualFrame::scratch0();
 
-    if (check->Equals(Heap::number_symbol())) {
+    if (check->Equals(HEAP->number_symbol())) {
       __ tst(tos, Operand(kSmiTagMask));
       true_target()->Branch(eq);
       __ ldr(tos, FieldMemOperand(tos, HeapObject::kMapOffset));
@@ -5422,7 +5422,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ cmp(tos, ip);
       cc_reg_ = eq;
 
-    } else if (check->Equals(Heap::string_symbol())) {
+    } else if (check->Equals(HEAP->string_symbol())) {
       __ tst(tos, Operand(kSmiTagMask));
       false_target()->Branch(eq);
 
@@ -5438,7 +5438,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ cmp(scratch, Operand(FIRST_NONSTRING_TYPE));
       cc_reg_ = lt;
 
-    } else if (check->Equals(Heap::boolean_symbol())) {
+    } else if (check->Equals(HEAP->boolean_symbol())) {
       __ LoadRoot(ip, Heap::kTrueValueRootIndex);
       __ cmp(tos, ip);
       true_target()->Branch(eq);
@@ -5446,7 +5446,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ cmp(tos, ip);
       cc_reg_ = eq;
 
-    } else if (check->Equals(Heap::undefined_symbol())) {
+    } else if (check->Equals(HEAP->undefined_symbol())) {
       __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
       __ cmp(tos, ip);
       true_target()->Branch(eq);
@@ -5462,7 +5462,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
       cc_reg_ = eq;
 
-    } else if (check->Equals(Heap::function_symbol())) {
+    } else if (check->Equals(HEAP->function_symbol())) {
       __ tst(tos, Operand(kSmiTagMask));
       false_target()->Branch(eq);
       Register map_reg = scratch;
@@ -5472,7 +5472,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ CompareInstanceType(map_reg, tos, JS_REGEXP_TYPE);
       cc_reg_ = eq;
 
-    } else if (check->Equals(Heap::object_symbol())) {
+    } else if (check->Equals(HEAP->object_symbol())) {
       __ tst(tos, Operand(kSmiTagMask));
       false_target()->Branch(eq);
 

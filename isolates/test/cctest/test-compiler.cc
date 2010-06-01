@@ -319,7 +319,7 @@ TEST(Regression236) {
   v8::HandleScope scope;
 
   Handle<Script> script = Factory::NewScript(Factory::empty_string());
-  script->set_source(Heap::undefined_value());
+  script->set_source(HEAP->undefined_value());
   CHECK_EQ(-1, GetScriptLineNumber(script, 0));
   CHECK_EQ(-1, GetScriptLineNumber(script, 100));
   CHECK_EQ(-1, GetScriptLineNumber(script, -1));

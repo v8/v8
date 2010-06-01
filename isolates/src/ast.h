@@ -1583,7 +1583,7 @@ class FunctionLiteral: public Expression {
         end_position_(end_position),
         is_expression_(is_expression),
         function_token_position_(RelocInfo::kNoPosition),
-        inferred_name_(Heap::empty_string()),
+        inferred_name_(HEAP->empty_string()),
         try_full_codegen_(false) {
 #ifdef DEBUG
     already_compiled_ = false;

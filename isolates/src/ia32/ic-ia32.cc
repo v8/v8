@@ -1354,14 +1354,14 @@ void LoadIC::ClearInlinedVersion(Address address) {
   // Reset the map check of the inlined inobject property load (if
   // present) to guarantee failure by holding an invalid map (the null
   // value).  The offset can be patched to anything.
-  PatchInlinedLoad(address, Heap::null_value(), kMaxInt);
+  PatchInlinedLoad(address, HEAP->null_value(), kMaxInt);
 }
 
 
 void KeyedLoadIC::ClearInlinedVersion(Address address) {
   // Insert null as the map to check for to make sure the map check fails
   // sending control flow to the IC instead of the inlined version.
-  PatchInlinedLoad(address, Heap::null_value());
+  PatchInlinedLoad(address, HEAP->null_value());
 }
 
 
@@ -1369,14 +1369,14 @@ void KeyedStoreIC::ClearInlinedVersion(Address address) {
   // Insert null as the elements map to check for.  This will make
   // sure that the elements fast-case map check fails so that control
   // flows to the IC instead of the inlined version.
-  PatchInlinedStore(address, Heap::null_value());
+  PatchInlinedStore(address, HEAP->null_value());
 }
 
 
 void KeyedStoreIC::RestoreInlinedVersion(Address address) {
   // Restore the fast-case elements map check so that the inlined
   // version can be used again.
-  PatchInlinedStore(address, Heap::fixed_array_map());
+  PatchInlinedStore(address, HEAP->fixed_array_map());
 }
 
 

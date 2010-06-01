@@ -148,7 +148,7 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
     ASSERT(catcher.HasCaught());
     ASSERT(Top::has_pending_exception());
     ASSERT(Top::external_caught_exception());
-    if (Top::pending_exception() == Heap::termination_exception()) {
+    if (Top::pending_exception() == HEAP->termination_exception()) {
       result = Factory::termination_exception();
     } else {
       result = v8::Utils::OpenHandle(*catcher.Exception());
@@ -593,7 +593,7 @@ static Object* RuntimePreempt() {
   Thread::YieldCPU();
 #endif
 
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 
@@ -601,12 +601,12 @@ static Object* RuntimePreempt() {
 Object* Execution::DebugBreakHelper() {
   // Just continue if breaks are disabled.
   if (Debug::disable_break()) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   // Ignore debug break during bootstrapping.
   if (Bootstrapper::IsActive()) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   {
@@ -616,12 +616,12 @@ Object* Execution::DebugBreakHelper() {
     if (fun && fun->IsJSFunction()) {
       // Don't stop in builtin functions.
       if (JSFunction::cast(fun)->IsBuiltin()) {
-        return Heap::undefined_value();
+        return HEAP->undefined_value();
       }
       GlobalObject* global = JSFunction::cast(fun)->context()->global();
       // Don't stop in debugger functions.
       if (Debug::IsDebugGlobal(global)) {
-        return Heap::undefined_value();
+        return HEAP->undefined_value();
       }
     }
   }
@@ -636,7 +636,7 @@ Object* Execution::DebugBreakHelper() {
   ProcessDebugMesssages(debug_command_only);
 
   // Return to continue execution.
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 void Execution::ProcessDebugMesssages(bool debug_command_only) {
@@ -674,7 +674,7 @@ Object* Execution::HandleStackGuardInterrupt() {
     StackGuard::Continue(INTERRUPT);
     return Top::StackOverflow();
   }
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 // --- G C   E x t e n s i o n ---

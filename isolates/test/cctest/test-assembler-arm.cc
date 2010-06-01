@@ -72,7 +72,7 @@ TEST(0) {
   Object* code = Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()));
+                                  Handle<Object>(HEAP->undefined_value()));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -109,7 +109,7 @@ TEST(1) {
   Object* code = Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()));
+                                  Handle<Object>(HEAP->undefined_value()));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -155,7 +155,7 @@ TEST(2) {
   Object* code = Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()));
+                                  Handle<Object>(HEAP->undefined_value()));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -203,7 +203,7 @@ TEST(3) {
   Object* code = Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()));
+                                  Handle<Object>(HEAP->undefined_value()));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -263,7 +263,7 @@ TEST(4) {
     Object* code = Heap::CreateCode(desc,
                                     NULL,
                                     Code::ComputeFlags(Code::STUB),
-                                    Handle<Object>(Heap::undefined_value()));
+                                    Handle<Object>(HEAP->undefined_value()));
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();

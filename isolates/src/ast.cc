@@ -135,7 +135,7 @@ ObjectLiteral::Property::Property(Literal* key, Expression* value) {
   key_ = key;
   value_ = value;
   Object* k = *key->handle();
-  if (k->IsSymbol() && Heap::Proto_symbol()->Equals(String::cast(k))) {
+  if (k->IsSymbol() && HEAP->Proto_symbol()->Equals(String::cast(k))) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
     kind_ = MATERIALIZED_LITERAL;

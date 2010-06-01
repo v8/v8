@@ -8624,17 +8624,17 @@ static void MorphAString(i::String* string,
   CHECK(i::StringShape(string).IsExternal());
   if (string->IsAsciiRepresentation()) {
     // Check old map is not symbol or long.
-    CHECK(string->map() == i::Heap::external_ascii_string_map());
+    CHECK(string->map() == HEAP->external_ascii_string_map());
     // Morph external string to be TwoByte string.
-    string->set_map(i::Heap::external_string_map());
+    string->set_map(HEAP->external_string_map());
     i::ExternalTwoByteString* morphed =
          i::ExternalTwoByteString::cast(string);
     morphed->set_resource(uc16_resource);
   } else {
     // Check old map is not symbol or long.
-    CHECK(string->map() == i::Heap::external_string_map());
+    CHECK(string->map() == HEAP->external_string_map());
     // Morph external string to be ASCII string.
-    string->set_map(i::Heap::external_ascii_string_map());
+    string->set_map(HEAP->external_ascii_string_map());
     i::ExternalAsciiString* morphed =
          i::ExternalAsciiString::cast(string);
     morphed->set_resource(ascii_resource);

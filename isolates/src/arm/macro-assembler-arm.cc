@@ -41,7 +41,7 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       generating_stub_(false),
       allow_stub_calls_(true),
-      code_object_(Heap::undefined_value()) {
+      code_object_(HEAP->undefined_value()) {
 }
 
 

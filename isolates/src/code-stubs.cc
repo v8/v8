@@ -38,9 +38,9 @@ namespace internal {
 
 bool CodeStub::FindCodeInCache(Code** code_out) {
   if (has_custom_cache()) return GetCustomCache(code_out);
-  int index = Heap::code_stubs()->FindEntry(GetKey());
+  int index = HEAP->code_stubs()->FindEntry(GetKey());
   if (index != NumberDictionary::kNotFound) {
-    *code_out = Code::cast(Heap::code_stubs()->ValueAt(index));
+    *code_out = Code::cast(HEAP->code_stubs()->ValueAt(index));
     return true;
   }
   return false;
@@ -112,7 +112,7 @@ Handle<Code> CodeStub::GetCode() {
       // Update the dictionary and the root in Heap.
       Handle<NumberDictionary> dict =
           Factory::DictionaryAtNumberPut(
-              Handle<NumberDictionary>(Heap::code_stubs()),
+              Handle<NumberDictionary>(HEAP->code_stubs()),
               GetKey(),
               new_object);
       Heap::public_set_code_stubs(*dict);
@@ -150,7 +150,7 @@ Object* CodeStub::TryGetCode() {
       SetCustomCache(code);
     } else {
       // Try to update the code cache but do not fail if unable.
-      new_object = Heap::code_stubs()->AtNumberPut(GetKey(), code);
+      new_object = HEAP->code_stubs()->AtNumberPut(GetKey(), code);
       if (!new_object->IsFailure()) {
         Heap::public_set_code_stubs(NumberDictionary::cast(new_object));
       }

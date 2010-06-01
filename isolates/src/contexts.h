@@ -28,6 +28,8 @@
 #ifndef V8_CONTEXTS_H_
 #define V8_CONTEXTS_H_
 
+#include "isolate.h"
+
 namespace v8 {
 namespace internal {
 
@@ -261,12 +263,12 @@ class Context: public FixedArray {
 
   // Tells whether the global context is marked with out of memory.
   bool has_out_of_memory() {
-    return global_context()->out_of_memory() == Heap::true_value();
+    return global_context()->out_of_memory() == HEAP->true_value();
   }
 
   // Mark the global context with out of memory.
   void mark_out_of_memory() {
-    global_context()->set_out_of_memory(Heap::true_value());
+    global_context()->set_out_of_memory(HEAP->true_value());
   }
 
   // The exception holder is the object used as a with object in

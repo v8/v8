@@ -1366,7 +1366,7 @@ void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
 
 
 bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
-  Object* answer_object = Heap::undefined_value();
+  Object* answer_object = HEAP->undefined_value();
   switch (op) {
     case Token::ADD:
       if (Smi::IsValid(left + right)) {
@@ -1438,7 +1438,7 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
       UNREACHABLE();
       break;
   }
-  if (answer_object == Heap::undefined_value()) {
+  if (answer_object == HEAP->undefined_value()) {
     return false;
   }
   frame_->Push(Handle<Object>(answer_object));
@@ -8268,7 +8268,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     Result answer = frame_->Pop();
     answer.ToRegister();
 
-    if (check->Equals(Heap::number_symbol())) {
+    if (check->Equals(HEAP->number_symbol())) {
       __ test(answer.reg(), Immediate(kSmiTagMask));
       destination()->true_target()->Branch(zero);
       frame_->Spill(answer.reg());
@@ -8277,7 +8277,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       answer.Unuse();
       destination()->Split(equal);
 
-    } else if (check->Equals(Heap::string_symbol())) {
+    } else if (check->Equals(HEAP->string_symbol())) {
       __ test(answer.reg(), Immediate(kSmiTagMask));
       destination()->false_target()->Branch(zero);
 
@@ -8293,14 +8293,14 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       answer.Unuse();
       destination()->Split(below);
 
-    } else if (check->Equals(Heap::boolean_symbol())) {
+    } else if (check->Equals(HEAP->boolean_symbol())) {
       __ cmp(answer.reg(), Factory::true_value());
       destination()->true_target()->Branch(equal);
       __ cmp(answer.reg(), Factory::false_value());
       answer.Unuse();
       destination()->Split(equal);
 
-    } else if (check->Equals(Heap::undefined_symbol())) {
+    } else if (check->Equals(HEAP->undefined_symbol())) {
       __ cmp(answer.reg(), Factory::undefined_value());
       destination()->true_target()->Branch(equal);
 
@@ -8316,7 +8316,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       answer.Unuse();
       destination()->Split(not_zero);
 
-    } else if (check->Equals(Heap::function_symbol())) {
+    } else if (check->Equals(HEAP->function_symbol())) {
       __ test(answer.reg(), Immediate(kSmiTagMask));
       destination()->false_target()->Branch(zero);
       frame_->Spill(answer.reg());
@@ -8326,7 +8326,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ CmpInstanceType(answer.reg(), JS_REGEXP_TYPE);
       answer.Unuse();
       destination()->Split(equal);
-    } else if (check->Equals(Heap::object_symbol())) {
+    } else if (check->Equals(HEAP->object_symbol())) {
       __ test(answer.reg(), Immediate(kSmiTagMask));
       destination()->false_target()->Branch(zero);
       __ cmp(answer.reg(), Factory::null_value());

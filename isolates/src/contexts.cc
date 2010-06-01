@@ -155,11 +155,11 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         // slot found.
         int index =
             ScopeInfo<>::ContextSlotIndex(*code,
-                                          Heap::arguments_shadow_symbol(),
+                                          HEAP->arguments_shadow_symbol(),
                                           NULL);
         ASSERT(index >= 0);  // arguments must exist and be in the heap context
         Handle<JSObject> arguments(JSObject::cast(context->get(index)));
-        ASSERT(arguments->HasLocalProperty(Heap::length_symbol()));
+        ASSERT(arguments->HasLocalProperty(HEAP->length_symbol()));
         if (FLAG_trace_contexts) {
           PrintF("=> found parameter %d in arguments object\n", param_index);
         }

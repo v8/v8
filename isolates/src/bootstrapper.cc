@@ -52,7 +52,7 @@ class SourceCodeCache BASE_EMBEDDED {
   explicit SourceCodeCache(Script::Type type): type_(type), cache_(NULL) { }
 
   void Initialize(bool create_heap_objects) {
-    cache_ = create_heap_objects ? Heap::empty_fixed_array() : NULL;
+    cache_ = create_heap_objects ? HEAP->empty_fixed_array() : NULL;
   }
 
   void Iterate(ObjectVisitor* v) {
@@ -113,7 +113,7 @@ NativesExternalStringResource::NativesExternalStringResource(const char* source)
 
 Handle<String> Bootstrapper::NativesSourceLookup(int index) {
   ASSERT(0 <= index && index < Natives::GetBuiltinsCount());
-  if (Heap::natives_source_cache()->get(index)->IsUndefined()) {
+  if (HEAP->natives_source_cache()->get(index)->IsUndefined()) {
     if (!Snapshot::IsEnabled() || FLAG_new_snapshot) {
       // We can use external strings for the natives.
       NativesExternalStringResource* resource =
@@ -121,15 +121,15 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
               Natives::GetScriptSource(index).start());
       Handle<String> source_code =
           Factory::NewExternalStringFromAscii(resource);
-      Heap::natives_source_cache()->set(index, *source_code);
+      HEAP->natives_source_cache()->set(index, *source_code);
     } else {
       // Old snapshot code can't cope with external strings at all.
       Handle<String> source_code =
         Factory::NewStringFromAscii(Natives::GetScriptSource(index));
-      Heap::natives_source_cache()->set(index, *source_code);
+      HEAP->natives_source_cache()->set(index, *source_code);
     }
   }
-  Handle<Object> cached_source(Heap::natives_source_cache()->get(index));
+  Handle<Object> cached_source(HEAP->natives_source_cache()->get(index));
   return Handle<String>::cast(cached_source);
 }
 
@@ -438,7 +438,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   fm->set_instance_descriptors(*function_map_descriptors);
   fm->set_function_with_prototype(true);
 
-  Handle<String> object_name = Handle<String>(Heap::Object_symbol());
+  Handle<String> object_name = Handle<String>(HEAP->Object_symbol());
 
   {  // --- O b j e c t ---
     Handle<JSFunction> object_fun =
@@ -457,7 +457,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
     global_context()->set_initial_object_prototype(*prototype);
     SetPrototype(object_fun, prototype);
     object_function_map->
-      set_instance_descriptors(Heap::empty_descriptor_array());
+      set_instance_descriptors(HEAP->empty_descriptor_array());
   }
 
   // Allocate the empty function as the prototype for function ECMAScript
@@ -545,7 +545,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
   }
 
   if (js_global_template.is_null()) {
-    Handle<String> name = Handle<String>(Heap::empty_symbol());
+    Handle<String> name = Handle<String>(HEAP->empty_symbol());
     Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
     js_global_function =
         Factory::NewFunction(name, JS_GLOBAL_OBJECT_TYPE,
@@ -575,7 +575,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
   // Step 2: create or re-initialize the global proxy object.
   Handle<JSFunction> global_proxy_function;
   if (global_template.IsEmpty()) {
-    Handle<String> name = Handle<String>(Heap::empty_symbol());
+    Handle<String> name = Handle<String>(HEAP->empty_symbol());
     Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
     global_proxy_function =
         Factory::NewFunction(name, JS_GLOBAL_PROXY_TYPE,
@@ -657,7 +657,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   // object reinitialization.
   global_context()->set_security_token(*inner_global);
 
-  Handle<String> object_name = Handle<String>(Heap::Object_symbol());
+  Handle<String> object_name = Handle<String>(HEAP->Object_symbol());
   SetProperty(inner_global, object_name, Top::object_function(), DONT_ENUM);
 
   Handle<JSObject> global = Handle<JSObject>(global_context()->global());
@@ -763,7 +763,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     int enum_index = 0;
     {
       // ECMA-262, section 15.10.7.1.
-      FieldDescriptor field(Heap::source_symbol(),
+      FieldDescriptor field(HEAP->source_symbol(),
                             JSRegExp::kSourceFieldIndex,
                             final,
                             enum_index++);
@@ -771,7 +771,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     }
     {
       // ECMA-262, section 15.10.7.2.
-      FieldDescriptor field(Heap::global_symbol(),
+      FieldDescriptor field(HEAP->global_symbol(),
                             JSRegExp::kGlobalFieldIndex,
                             final,
                             enum_index++);
@@ -779,7 +779,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     }
     {
       // ECMA-262, section 15.10.7.3.
-      FieldDescriptor field(Heap::ignore_case_symbol(),
+      FieldDescriptor field(HEAP->ignore_case_symbol(),
                             JSRegExp::kIgnoreCaseFieldIndex,
                             final,
                             enum_index++);
@@ -787,7 +787,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     }
     {
       // ECMA-262, section 15.10.7.4.
-      FieldDescriptor field(Heap::multiline_symbol(),
+      FieldDescriptor field(HEAP->multiline_symbol(),
                             JSRegExp::kMultilineFieldIndex,
                             final,
                             enum_index++);
@@ -797,7 +797,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
       // ECMA-262, section 15.10.7.5.
       PropertyAttributes writable =
           static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-      FieldDescriptor field(Heap::last_index_symbol(),
+      FieldDescriptor field(HEAP->last_index_symbol(),
                             JSRegExp::kLastIndexFieldIndex,
                             writable,
                             enum_index++);
@@ -861,11 +861,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
 #ifdef DEBUG
     LookupResult lookup;
-    result->LocalLookup(Heap::callee_symbol(), &lookup);
+    result->LocalLookup(HEAP->callee_symbol(), &lookup);
     ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
     ASSERT(lookup.GetFieldIndex() == Heap::arguments_callee_index);
 
-    result->LocalLookup(Heap::length_symbol(), &lookup);
+    result->LocalLookup(HEAP->length_symbol(), &lookup);
     ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
     ASSERT(lookup.GetFieldIndex() == Heap::arguments_length_index);
 
@@ -917,10 +917,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   }
 
   // Initialize the out of memory slot.
-  global_context()->set_out_of_memory(Heap::false_value());
+  global_context()->set_out_of_memory(HEAP->false_value());
 
   // Initialize the data slot.
-  global_context()->set_data(Heap::undefined_value());
+  global_context()->set_data(HEAP->undefined_value());
 }
 
 
@@ -1298,7 +1298,7 @@ bool Genesis::InstallNatives() {
 
     int enum_index = 0;
     {
-      FieldDescriptor index_field(Heap::index_symbol(),
+      FieldDescriptor index_field(HEAP->index_symbol(),
                                   JSRegExpResult::kIndexIndex,
                                   NONE,
                                   enum_index++);
@@ -1306,7 +1306,7 @@ bool Genesis::InstallNatives() {
     }
 
     {
-      FieldDescriptor input_field(Heap::input_symbol(),
+      FieldDescriptor input_field(HEAP->input_symbol(),
                                   JSRegExpResult::kInputIndex,
                                   NONE,
                                   enum_index++);

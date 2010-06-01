@@ -29,6 +29,7 @@
 #define V8_TOP_H_
 
 #include "frames-inl.h"
+#include "isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -173,7 +174,7 @@ class Top {
     thread_local_.pending_exception_ = exception;
   }
   static void clear_pending_exception() {
-    thread_local_.pending_exception_ = Heap::the_hole_value();
+    thread_local_.pending_exception_ = HEAP->the_hole_value();
   }
 
   static Object** pending_exception_address() {
@@ -185,7 +186,7 @@ class Top {
   static void clear_pending_message() {
     thread_local_.has_pending_message_ = false;
     thread_local_.pending_message_ = NULL;
-    thread_local_.pending_message_obj_ = Heap::the_hole_value();
+    thread_local_.pending_message_obj_ = HEAP->the_hole_value();
     thread_local_.pending_message_script_ = NULL;
   }
   static v8::TryCatch* try_catch_handler() {
@@ -217,7 +218,7 @@ class Top {
     return !thread_local_.scheduled_exception_->IsTheHole();
   }
   static void clear_scheduled_exception() {
-    thread_local_.scheduled_exception_ = Heap::the_hole_value();
+    thread_local_.scheduled_exception_ = HEAP->the_hole_value();
   }
 
   static void setup_external_caught() {

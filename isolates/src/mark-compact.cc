@@ -228,7 +228,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   if ((type & kShortcutTypeMask) != kShortcutTypeTag) return object;
 
   Object* second = reinterpret_cast<ConsString*>(object)->unchecked_second();
-  if (second != Heap::raw_unchecked_empty_string()) {
+  if (second != HEAP->raw_unchecked_empty_string()) {
     return object;
   }
 
@@ -378,7 +378,7 @@ class SymbolTableCleaner : public ObjectVisitor {
           Heap::FinalizeExternalString(String::cast(*p));
         }
         // Set the entry to null_value (as deleted).
-        *p = Heap::raw_unchecked_null_value();
+        *p = HEAP->raw_unchecked_null_value();
         pointers_removed_++;
       }
     }
@@ -432,7 +432,7 @@ void MarkCompactCollector::MarkDescriptorArray(
     DescriptorArray* descriptors) {
   if (descriptors->IsMarked()) return;
   // Empty descriptor array is marked as a root before any maps are marked.
-  ASSERT(descriptors != Heap::raw_unchecked_empty_descriptor_array());
+  ASSERT(descriptors != HEAP->raw_unchecked_empty_descriptor_array());
   SetMark(descriptors);
 
   FixedArray* contents = reinterpret_cast<FixedArray*>(
@@ -474,7 +474,7 @@ void MarkCompactCollector::CreateBackPointers() {
           map->instance_type() <= JS_FUNCTION_TYPE) {
         map->CreateBackPointers();
       } else {
-        ASSERT(map->instance_descriptors() == Heap::empty_descriptor_array());
+        ASSERT(map->instance_descriptors() == HEAP->empty_descriptor_array());
       }
     }
   }
@@ -518,7 +518,7 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
 
 
 void MarkCompactCollector::MarkSymbolTable() {
-  SymbolTable* symbol_table = Heap::raw_unchecked_symbol_table();
+  SymbolTable* symbol_table = HEAP->raw_unchecked_symbol_table();
   // Mark the symbol table itself.
   SetMark(symbol_table);
   // Explicitly mark the prefix.
@@ -710,7 +710,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   // Prune the symbol table removing all symbols only pointed to by the
   // symbol table.  Cannot use symbol_table() here because the symbol
   // table is marked.
-  SymbolTable* symbol_table = Heap::raw_unchecked_symbol_table();
+  SymbolTable* symbol_table = HEAP->raw_unchecked_symbol_table();
   SymbolTableCleaner v;
   symbol_table->IterateElements(&v);
   symbol_table->ElementsRemoved(v.PointersRemoved());

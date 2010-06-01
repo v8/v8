@@ -64,8 +64,8 @@ void IC::TraceIC(const char* type,
                  const char* extra_info) {
   if (FLAG_trace_ic) {
     State new_state = StateFrom(new_target,
-                                Heap::undefined_value(),
-                                Heap::undefined_value());
+                                HEAP->undefined_value(),
+                                HEAP->undefined_value());
     PrintF("[%s (%c->%c)%s", type,
            TransitionMarkFromState(old_state),
            TransitionMarkFromState(new_state),
@@ -456,7 +456,7 @@ Object* CallIC::LoadFunction(State state,
     }
   }
 
-  ASSERT(result != Heap::the_hole_value());
+  ASSERT(result != HEAP->the_hole_value());
 
   if (result->IsJSFunction()) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -587,7 +587,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
     // objects is read-only and therefore always returns the length of
     // the underlying string value.  See ECMA-262 15.5.5.1.
     if ((object->IsString() || object->IsStringWrapper()) &&
-        name->Equals(Heap::length_symbol())) {
+        name->Equals(HEAP->length_symbol())) {
       HandleScope scope;
       // Get the string if we have a string wrapper object.
       if (object->IsJSValue()) {
@@ -610,7 +610,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
     }
 
     // Use specialized code for getting the length of arrays.
-    if (object->IsJSArray() && name->Equals(Heap::length_symbol())) {
+    if (object->IsJSArray() && name->Equals(HEAP->length_symbol())) {
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
 #endif
@@ -625,7 +625,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
     }
 
     // Use specialized code for getting prototype of functions.
-    if (object->IsJSFunction() && name->Equals(Heap::prototype_symbol()) &&
+    if (object->IsJSFunction() && name->Equals(HEAP->prototype_symbol()) &&
         JSFunction::cast(*object)->should_have_prototype()) {
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
@@ -810,7 +810,7 @@ Object* KeyedLoadIC::Load(State state,
 
     if (FLAG_use_ic) {
       // Use specialized code for getting the length of strings.
-      if (object->IsString() && name->Equals(Heap::length_symbol())) {
+      if (object->IsString() && name->Equals(HEAP->length_symbol())) {
         Handle<String> string = Handle<String>::cast(object);
         Object* code = NULL;
         code = StubCache::ComputeKeyedLoadStringLength(*name, *string);
@@ -823,7 +823,7 @@ Object* KeyedLoadIC::Load(State state,
       }
 
       // Use specialized code for getting the length of arrays.
-      if (object->IsJSArray() && name->Equals(Heap::length_symbol())) {
+      if (object->IsJSArray() && name->Equals(HEAP->length_symbol())) {
         Handle<JSArray> array = Handle<JSArray>::cast(object);
         Object* code = StubCache::ComputeKeyedLoadArrayLength(*name, *array);
         if (code->IsFailure()) return code;
@@ -835,7 +835,7 @@ Object* KeyedLoadIC::Load(State state,
       }
 
       // Use specialized code for getting prototype of functions.
-      if (object->IsJSFunction() && name->Equals(Heap::prototype_symbol()) &&
+      if (object->IsJSFunction() && name->Equals(HEAP->prototype_symbol()) &&
         JSFunction::cast(*object)->should_have_prototype()) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(object);
         Object* code =
@@ -1054,7 +1054,7 @@ Object* StoreIC::Store(State state,
 
   // Use specialized code for setting the length of arrays.
   if (receiver->IsJSArray()
-      && name->Equals(Heap::length_symbol())
+      && name->Equals(HEAP->length_symbol())
       && receiver->AllowsSetElementsLength()) {
 #ifdef DEBUG
     if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");

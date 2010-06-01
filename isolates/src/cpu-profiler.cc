@@ -312,7 +312,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   singleton_->processor_->CodeCreateEvent(
       tag,
       name,
-      Heap::empty_string(),
+      HEAP->empty_string(),
       v8::CpuProfileNode::kNoLineNumberInfo,
       code->address(),
       code->ExecutableSize());

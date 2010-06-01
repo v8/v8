@@ -621,7 +621,7 @@ class FunctionInfoListener {
     // scopes of this chain.
     Scope* outer_scope = scope->outer_scope();
     if (outer_scope == NULL) {
-      return Heap::undefined_value();
+      return HEAP->undefined_value();
     }
     do {
       ZoneList<Variable*> list(10);
@@ -656,7 +656,7 @@ class FunctionInfoListener {
         scope_info_length++;
       }
       SetElement(scope_info_list, scope_info_length,
-                 Handle<Object>(Heap::null_value()));
+                 Handle<Object>(HEAP->null_value()));
       scope_info_length++;
 
       outer_scope = outer_scope->outer_scope();
@@ -870,7 +870,7 @@ Object* LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
   shared_info->set_construct_stub(
       Builtins::builtin(Builtins::JSConstructStubGeneric));
 
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 
@@ -1069,7 +1069,7 @@ Object* LiveEdit::PatchFunctionPositions(
     }
   }
 
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 
@@ -1103,13 +1103,13 @@ Object* LiveEdit::ChangeScriptSource(Handle<Script> original_script,
     old_script_object = old_script;
     Debugger::OnAfterCompile(old_script, Debugger::SEND_WHEN_DEBUGGING);
   } else {
-    old_script_object = Handle<Object>(Heap::null_value());
+    old_script_object = Handle<Object>(HEAP->null_value());
   }
 
   original_script->set_source(*new_source);
 
   // Drop line ends so that they will be recalculated.
-  original_script->set_line_ends(Heap::undefined_value());
+  original_script->set_line_ends(HEAP->undefined_value());
 
   return *old_script_object;
 }

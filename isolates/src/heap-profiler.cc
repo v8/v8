@@ -71,14 +71,14 @@ JSObjectsCluster Clusterizer::Clusterize(HeapObject* obj, bool fine_grain) {
     JSObject* js_obj = JSObject::cast(obj);
     String* constructor = JSObject::cast(js_obj)->constructor_name();
     // Differentiate Object and Array instances.
-    if (fine_grain && (constructor == Heap::Object_symbol() ||
-                       constructor == Heap::Array_symbol())) {
+    if (fine_grain && (constructor == HEAP->Object_symbol() ||
+                       constructor == HEAP->Array_symbol())) {
       return JSObjectsCluster(constructor, obj);
     } else {
       return JSObjectsCluster(constructor);
     }
   } else if (obj->IsString()) {
-    return JSObjectsCluster(Heap::String_symbol());
+    return JSObjectsCluster(HEAP->String_symbol());
   } else if (obj->IsJSGlobalPropertyCell()) {
     return JSObjectsCluster(JSObjectsCluster::GLOBAL_PROPERTY);
   } else if (obj->IsCode() || obj->IsSharedFunctionInfo() || obj->IsScript()) {

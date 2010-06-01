@@ -98,7 +98,7 @@ TEST(CodeEvents) {
       i::Vector<const char>(aaa_str, i::StrLength(aaa_str)));
   processor.CodeCreateEvent(i::Logger::FUNCTION_TAG,
                             *aaa_name,
-                            i::Heap::empty_string(),
+                            HEAP->empty_string(),
                             0,
                             ToAddress(0x1000),
                             0x100);

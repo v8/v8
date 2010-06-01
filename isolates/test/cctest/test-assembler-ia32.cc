@@ -72,7 +72,7 @@ TEST(AssemblerIa320) {
   Object* code = Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()));
+                                  Handle<Object>(HEAP->undefined_value()));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -110,7 +110,7 @@ TEST(AssemblerIa321) {
   Object* code = Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()));
+                                  Handle<Object>(HEAP->undefined_value()));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -152,7 +152,7 @@ TEST(AssemblerIa322) {
   Object* code = Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()));
+                                  Handle<Object>(HEAP->undefined_value()));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -187,7 +187,7 @@ TEST(AssemblerIa323) {
       Code::cast(Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value())));
+                                  Handle<Object>(HEAP->undefined_value())));
   // don't print the code - our disassembler can't handle cvttss2si
   // instead print bytes
   Disassembler::Dump(stdout,
@@ -222,7 +222,7 @@ TEST(AssemblerIa324) {
       Code::cast(Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value())));
+                                  Handle<Object>(HEAP->undefined_value())));
   // don't print the code - our disassembler can't handle cvttsd2si
   // instead print bytes
   Disassembler::Dump(stdout,
@@ -252,7 +252,7 @@ TEST(AssemblerIa325) {
       Code::cast(Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value())));
+                                  Handle<Object>(HEAP->undefined_value())));
   F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
   CHECK_EQ(42, res);
@@ -290,7 +290,7 @@ TEST(AssemblerIa326) {
       Code::cast(Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value())));
+                                  Handle<Object>(HEAP->undefined_value())));
 #ifdef DEBUG
   ::printf("\n---\n");
   // don't print the code - our disassembler can't handle SSE instructions
@@ -331,7 +331,7 @@ TEST(AssemblerIa328) {
       Code::cast(Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value())));
+                                  Handle<Object>(HEAP->undefined_value())));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -387,7 +387,7 @@ TEST(AssemblerIa329) {
       Code::cast(Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value())));
+                                  Handle<Object>(HEAP->undefined_value())));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();

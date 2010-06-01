@@ -322,7 +322,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
       script->set_column_offset(Smi::FromInt(column_offset));
     }
 
-    script->set_data(script_data.is_null() ? Heap::undefined_value()
+    script->set_data(script_data.is_null() ? HEAP->undefined_value()
                                            : *script_data);
 
     // Compile the function and add it to the cache.

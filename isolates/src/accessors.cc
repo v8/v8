@@ -41,7 +41,7 @@ template <class C>
 static C* FindInPrototypeChain(Object* obj, bool* found_it) {
   ASSERT(!*found_it);
   while (!Is<C>(obj)) {
-    if (obj == Heap::null_value()) return NULL;
+    if (obj == HEAP->null_value()) return NULL;
     obj = obj->GetPrototype();
   }
   *found_it = true;
@@ -123,7 +123,7 @@ Object* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
       // This means one of the object's prototypes is a JSArray and
       // the object does not have a 'length' property.
       // Calling SetProperty causes an infinite loop.
-      return object->IgnoreAttributesAndSetLocalProperty(Heap::length_symbol(),
+      return object->IgnoreAttributesAndSetLocalProperty(HEAP->length_symbol(),
                                                          value, NONE);
     }
   }
@@ -363,7 +363,7 @@ Object* Accessors::ScriptGetEvalFromScript(Object* object, void*) {
       return *GetScriptWrapper(eval_from_script);
     }
   }
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 
@@ -386,7 +386,7 @@ Object* Accessors::ScriptGetEvalFromScriptPosition(Object* object, void*) {
   // If this is not a script compiled through eval there is no eval position.
   int compilation_type = Smi::cast(script->compilation_type())->value();
   if (compilation_type != Script::COMPILATION_TYPE_EVAL) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   // Get the function from where eval was called and find the source position
@@ -440,7 +440,7 @@ const AccessorDescriptor Accessors::ScriptEvalFromFunctionName = {
 Object* Accessors::FunctionGetPrototype(Object* object, void*) {
   bool found_it = false;
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return Heap::undefined_value();
+  if (!found_it) return HEAP->undefined_value();
   if (!function->has_prototype()) {
     Object* prototype = Heap::AllocateFunctionPrototype(function);
     if (prototype->IsFailure()) return prototype;
@@ -456,7 +456,7 @@ Object* Accessors::FunctionSetPrototype(JSObject* object,
                                         void*) {
   bool found_it = false;
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return Heap::undefined_value();
+  if (!found_it) return HEAP->undefined_value();
   if (function->has_initial_map()) {
     // If the function has allocated the initial map
     // replace it with a copy containing the new prototype.
@@ -518,7 +518,7 @@ const AccessorDescriptor Accessors::FunctionLength = {
 Object* Accessors::FunctionGetName(Object* object, void*) {
   bool found_it = false;
   JSFunction* holder = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return Heap::undefined_value();
+  if (!found_it) return HEAP->undefined_value();
   return holder->shared()->name();
 }
 
@@ -539,7 +539,7 @@ Object* Accessors::FunctionGetArguments(Object* object, void*) {
   HandleScope scope;
   bool found_it = false;
   JSFunction* holder = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return Heap::undefined_value();
+  if (!found_it) return HEAP->undefined_value();
   Handle<JSFunction> function(holder);
 
   // Find the top invocation of the function by traversing frames.
@@ -550,7 +550,7 @@ Object* Accessors::FunctionGetArguments(Object* object, void*) {
 
     // If there is an arguments variable in the stack, we return that.
     int index = ScopeInfo<>::StackSlotIndex(frame->code(),
-                                            Heap::arguments_symbol());
+                                            HEAP->arguments_symbol());
     if (index >= 0) {
       Handle<Object> arguments = Handle<Object>(frame->GetExpression(index));
       if (!arguments->IsTheHole()) return *arguments;
@@ -578,7 +578,7 @@ Object* Accessors::FunctionGetArguments(Object* object, void*) {
   }
 
   // No frame corresponding to the given function found. Return null.
-  return Heap::null_value();
+  return HEAP->null_value();
 }
 
 
@@ -598,7 +598,7 @@ Object* Accessors::FunctionGetCaller(Object* object, void*) {
   HandleScope scope;
   bool found_it = false;
   JSFunction* holder = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return Heap::undefined_value();
+  if (!found_it) return HEAP->undefined_value();
   Handle<JSFunction> function(holder);
 
   // Find the top invocation of the function by traversing frames.
@@ -610,14 +610,14 @@ Object* Accessors::FunctionGetCaller(Object* object, void*) {
     // frames, e.g. frames for scripts not functions.
     while (true) {
       it.Advance();
-      if (it.done()) return Heap::null_value();
+      if (it.done()) return HEAP->null_value();
       JSFunction* caller = JSFunction::cast(it.frame()->function());
       if (!caller->shared()->is_toplevel()) return caller;
     }
   }
 
   // No frame corresponding to the given function found. Return null.
-  return Heap::null_value();
+  return HEAP->null_value();
 }
 
 

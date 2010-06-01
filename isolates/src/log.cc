@@ -962,7 +962,7 @@ void Logger::SuspectReadEvent(String* name, Object* obj) {
   LogMessageBuilder msg;
   String* class_name = obj->IsJSObject()
                        ? JSObject::cast(obj)->class_name()
-                       : Heap::empty_string();
+                       : HEAP->empty_string();
   msg.Append("suspect-read,");
   msg.Append(class_name);
   msg.Append(',');

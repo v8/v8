@@ -175,7 +175,7 @@ TEST(MarkCompactCollector) {
   JSFunction* function =
     JSFunction::cast(Heap::AllocateFunction(*Top::function_map(),
                                             function_share,
-                                            Heap::undefined_value()));
+                                            HEAP->undefined_value()));
   Map* initial_map =
       Map::cast(Heap::AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize));
   function->set_initial_map(initial_map);

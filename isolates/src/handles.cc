@@ -621,13 +621,13 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
 
   // Only collect keys if access is permitted.
   for (Handle<Object> p = object;
-       *p != Heap::null_value();
+       *p != HEAP->null_value();
        p = Handle<Object>(p->GetPrototype())) {
     Handle<JSObject> current(JSObject::cast(*p));
 
     // Check access rights if required.
     if (current->IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(*current, Heap::undefined_value(),
+      !Top::MayNamedAccess(*current, HEAP->undefined_value(),
                            v8::ACCESS_KEYS)) {
       Top::ReportFailedAccessCheck(*current, v8::ACCESS_KEYS);
       break;

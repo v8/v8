@@ -214,7 +214,7 @@ typedef bool (*DirtyRegionCallback)(Address start,
 // The all static Heap captures the interface to the global object heap.
 // All JavaScript contexts by this process share the same object heap.
 
-class Heap : public AllStatic {
+class Heap {
  public:
   // Configure heap size before setup. Return false if the heap has been
   // setup already.
@@ -369,9 +369,7 @@ class Heap : public AllStatic {
   static Object* AllocateCodeCache();
 
   // Clear the Instanceof cache (used when a prototype changes).
-  static void ClearInstanceofCache() {
-    set_instanceof_cache_function(the_hole_value());
-  }
+  static inline void ClearInstanceofCache();
 
   // Allocates and fully initializes a String.  There are two String
   // encodings: ASCII and two byte. One should choose between the three string
@@ -661,9 +659,7 @@ class Heap : public AllStatic {
   static inline Object* PrepareForCompare(String* str);
 
   // Converts the given boolean condition to JavaScript boolean value.
-  static Object* ToBoolean(bool condition) {
-    return condition ? true_value() : false_value();
-  }
+  static inline Object* ToBoolean(bool condition);
 
   // Code that should be run before and after each GC.  Includes some
   // reporting/verification activities when compiled with DEBUG set.
@@ -710,10 +706,10 @@ class Heap : public AllStatic {
   // Heap root getters.  We have versions with and without type::cast() here.
   // You can't use type::cast during GC because the assert fails.
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
-  static inline type* name() {                                                 \
+  type* name() {                                                               \
     return type::cast(roots_[k##camel_name##RootIndex]);                       \
   }                                                                            \
-  static inline type* raw_unchecked_##name() {                                 \
+  type* raw_unchecked_##name() {                                               \
     return reinterpret_cast<type*>(roots_[k##camel_name##RootIndex]);          \
   }
   ROOT_LIST(ROOT_ACCESSOR)
@@ -721,13 +717,13 @@ class Heap : public AllStatic {
 
 // Utility type maps
 #define STRUCT_MAP_ACCESSOR(NAME, Name, name)                                  \
-    static inline Map* name##_map() {                                          \
+    Map* name##_map() {                                                        \
       return Map::cast(roots_[k##Name##MapRootIndex]);                         \
     }
   STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
-#define SYMBOL_ACCESSOR(name, str) static inline String* name() {              \
+#define SYMBOL_ACCESSOR(name, str) String* name() {                            \
     return String::cast(roots_[k##name##RootIndex]);                           \
   }
   SYMBOL_LIST(SYMBOL_ACCESSOR)
@@ -1022,6 +1018,8 @@ class Heap : public AllStatic {
   static GCTracer* tracer() { return tracer_; }
 
  private:
+  Heap();
+  
   static int reserved_semispace_size_;
   static int max_semispace_size_;
   static int initial_semispace_size_;
@@ -1224,10 +1222,7 @@ class Heap : public AllStatic {
 
   // Completely clear the Instanceof cache (to stop it keeping objects alive
   // around a GC).
-  static void CompletelyClearInstanceofCache() {
-    set_instanceof_cache_map(the_hole_value());
-    set_instanceof_cache_function(the_hole_value());
-  }
+  static inline void CompletelyClearInstanceofCache();
 
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source
@@ -1273,6 +1268,9 @@ class Heap : public AllStatic {
   friend class DisallowAllocationFailure;
   friend class AlwaysAllocateScope;
   friend class LinearAllocationScope;
+  friend class Isolate;
+  
+  DISALLOW_COPY_AND_ASSIGN(Heap);
 };
 
 

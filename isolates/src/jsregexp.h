@@ -1403,7 +1403,7 @@ class RegExpEngine: public AllStatic {
   struct CompilationResult {
     explicit CompilationResult(const char* error_message)
         : error_message(error_message),
-          code(Heap::the_hole_value()),
+          code(HEAP->the_hole_value()),
           num_registers(0) {}
     CompilationResult(Object* code, int registers)
       : error_message(NULL),

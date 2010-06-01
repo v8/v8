@@ -148,25 +148,25 @@ TEST(ClustersCoarserSimple) {
   i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
 
   JSObjectsRetainerTree tree;
-  JSObjectsCluster function(i::Heap::function_class_symbol());
+  JSObjectsCluster function(HEAP->function_class_symbol());
   JSObjectsCluster a(*i::Factory::NewStringFromAscii(i::CStrVector("A")));
   JSObjectsCluster b(*i::Factory::NewStringFromAscii(i::CStrVector("B")));
 
   // o1 <- Function
   JSObjectsCluster o1 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x100, &function);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x100, &function);
   // o2 <- Function
   JSObjectsCluster o2 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x200, &function);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x200, &function);
   // o3 <- A, B
   JSObjectsCluster o3 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x300, &a, &b);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x300, &a, &b);
   // o4 <- B, A
   JSObjectsCluster o4 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x400, &b, &a);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x400, &b, &a);
   // o5 <- A, B, Function
   JSObjectsCluster o5 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x500,
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x500,
                           &a, &b, &function);
 
   ClustersCoarser coarser;
@@ -187,20 +187,20 @@ TEST(ClustersCoarserMultipleConstructors) {
   i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
 
   JSObjectsRetainerTree tree;
-  JSObjectsCluster function(i::Heap::function_class_symbol());
+  JSObjectsCluster function(HEAP->function_class_symbol());
 
   // o1 <- Function
   JSObjectsCluster o1 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x100, &function);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x100, &function);
   // a1 <- Function
   JSObjectsCluster a1 =
-      AddHeapObjectToTree(&tree, i::Heap::Array_symbol(), 0x1000, &function);
+      AddHeapObjectToTree(&tree, HEAP->Array_symbol(), 0x1000, &function);
   // o2 <- Function
   JSObjectsCluster o2 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x200, &function);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x200, &function);
   // a2 <- Function
   JSObjectsCluster a2 =
-      AddHeapObjectToTree(&tree, i::Heap::Array_symbol(), 0x2000, &function);
+      AddHeapObjectToTree(&tree, HEAP->Array_symbol(), 0x2000, &function);
 
   ClustersCoarser coarser;
   coarser.Process(&tree);
@@ -231,21 +231,21 @@ TEST(ClustersCoarserPathsTraversal) {
   // o21 ~ o22, and o11 ~ o12.
 
   JSObjectsCluster o =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x100);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x100);
   JSObjectsCluster o11 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x110, &o);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x110, &o);
   JSObjectsCluster o12 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x120, &o);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x120, &o);
   JSObjectsCluster o21 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x210, &o11);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x210, &o11);
   JSObjectsCluster o22 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x220, &o12);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x220, &o12);
   JSObjectsCluster p =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x300, &o21);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x300, &o21);
   JSObjectsCluster q =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x310, &o21, &o22);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x310, &o21, &o22);
   JSObjectsCluster r =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x320, &o22);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x320, &o22);
 
   ClustersCoarser coarser;
   coarser.Process(&tree);
@@ -283,19 +283,19 @@ TEST(ClustersCoarserSelf) {
   // we expect that coarser will deduce equivalences: p ~ q ~ r, o1 ~ o2;
 
   JSObjectsCluster o =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x100);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x100);
   JSObjectsCluster o1 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x110, &o);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x110, &o);
   JSObjectsCluster o2 =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x120, &o);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x120, &o);
   JSObjectsCluster p =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x300, &o1);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x300, &o1);
   AddSelfReferenceToTree(&tree, &p);
   JSObjectsCluster q =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x310, &o1, &o2);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x310, &o1, &o2);
   AddSelfReferenceToTree(&tree, &q);
   JSObjectsCluster r =
-      AddHeapObjectToTree(&tree, i::Heap::Object_symbol(), 0x320, &o2);
+      AddHeapObjectToTree(&tree, HEAP->Object_symbol(), 0x320, &o2);
   AddSelfReferenceToTree(&tree, &r);
 
   ClustersCoarser coarser;

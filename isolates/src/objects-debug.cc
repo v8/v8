@@ -853,7 +853,7 @@ void Oddball::OddballVerify() {
   VerifyHeapPointer(to_string());
   Object* number = to_number();
   if (number->IsHeapObject()) {
-    ASSERT(number == Heap::nan_value());
+    ASSERT(number == HEAP->nan_value());
   } else {
     ASSERT(number->IsSmi());
     int value = Smi::cast(number)->value();
@@ -1233,7 +1233,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       FixedArray* e = FixedArray::cast(elements());
       int len = e->length();
       for (int i = 0; i < len; i++) {
-        if (e->get(i) == Heap::the_hole_value()) holes++;
+        if (e->get(i) == HEAP->the_hole_value()) holes++;
       }
       info->number_of_fast_used_elements_   += len - holes;
       info->number_of_fast_unused_elements_ += holes;

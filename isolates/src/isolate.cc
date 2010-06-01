@@ -53,12 +53,12 @@ Isolate* Isolate::Create(Deserializer* des) {
   // While we're still building out support for isolates, only support
   // one single global isolate.
   ASSERT(global_isolate == NULL);
-  Isolate* new_isolate = new Isolate();
-  if (new_isolate->Init(des)) {
-    global_isolate = new_isolate;
-    return new_isolate;
+  global_isolate = new Isolate();
+  if (global_isolate->Init(des)) {
+    return global_isolate;
   } else {
-    delete new_isolate;
+    delete global_isolate;
+    global_isolate = NULL;
     return NULL;
   }
 }
@@ -71,7 +71,10 @@ Isolate::Isolate() {
 Isolate::~Isolate() {
 }
 
+
 bool Isolate::Init(Deserializer* des) {
+  ASSERT(global_isolate == this);
+  
   bool create_heap_objects = des == NULL;
 
 #ifdef DEBUG

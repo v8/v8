@@ -28,6 +28,7 @@
 #ifndef V8_HEAP_PROFILER_H_
 #define V8_HEAP_PROFILER_H_
 
+#include "isolate.h"
 #include "zone.h"
 
 namespace v8 {
@@ -98,10 +99,10 @@ class JSObjectsCluster BASE_EMBEDDED {
     // We use symbols that are illegal JS identifiers to identify special cases.
     // Their actual value is irrelevant for us.
     switch (special) {
-      case ROOTS: return Heap::result_symbol();
-      case GLOBAL_PROPERTY: return Heap::code_symbol();
-      case CODE: return Heap::arguments_shadow_symbol();
-      case SELF: return Heap::catch_var_symbol();
+      case ROOTS: return HEAP->result_symbol();
+      case GLOBAL_PROPERTY: return HEAP->code_symbol();
+      case CODE: return HEAP->arguments_shadow_symbol();
+      case SELF: return HEAP->catch_var_symbol();
       default:
         UNREACHABLE();
         return NULL;

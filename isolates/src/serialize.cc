@@ -1010,7 +1010,7 @@ void PartialSerializer::Serialize(Object** object) {
   for (int index = partial_snapshot_cache_length_;
        index < kPartialSnapshotCacheCapacity;
        index++) {
-    partial_snapshot_cache_[index] = Heap::undefined_value();
+    partial_snapshot_cache_[index] = HEAP->undefined_value();
     startup_serializer_->VisitPointer(&partial_snapshot_cache_[index]);
   }
   partial_snapshot_cache_length_ = kPartialSnapshotCacheCapacity;
@@ -1318,7 +1318,7 @@ void Serializer::ObjectSerializer::VisitExternalAsciiString(
   Address references_start = reinterpret_cast<Address>(resource_pointer);
   OutputRawData(references_start);
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-    Object* source = Heap::natives_source_cache()->get(i);
+    Object* source = HEAP->natives_source_cache()->get(i);
     if (!source->IsUndefined()) {
       ExternalAsciiString* string = ExternalAsciiString::cast(source);
       typedef v8::String::ExternalAsciiStringResource Resource;

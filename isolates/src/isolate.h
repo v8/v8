@@ -28,6 +28,8 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
+#include "heap.h"
+
 namespace v8 {
 namespace internal {
 
@@ -36,7 +38,7 @@ class Deserializer;
 class Isolate {
  public:
   // Returns the single global isolate.
-  static inline Isolate* Current() {
+  static Isolate* Current() {
     ASSERT(global_isolate != NULL);
     return global_isolate;
   }
@@ -50,6 +52,9 @@ class Isolate {
   
   ~Isolate();
   
+  // Accessors.
+  Heap* heap() { return &heap_; }
+  
  private:
   Isolate();
   
@@ -57,8 +62,13 @@ class Isolate {
   
   bool Init(Deserializer* des);
 
+  Heap heap_;
+
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
+
+// Temporary macros for accessing fields off the global isolate.
+#define HEAP (v8::internal::Isolate::Current()->heap())
 
 
 } }  // namespace v8::internal

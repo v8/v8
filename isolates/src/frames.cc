@@ -373,7 +373,7 @@ StackFrame::Type StackFrame::GetCallerState(State* state) const {
 
 
 Code* EntryFrame::code() const {
-  return Heap::js_entry_code();
+  return HEAP->js_entry_code();
 }
 
 
@@ -396,7 +396,7 @@ StackFrame::Type EntryFrame::GetCallerState(State* state) const {
 
 
 Code* EntryConstructFrame::code() const {
-  return Heap::js_construct_entry_code();
+  return HEAP->js_construct_entry_code();
 }
 
 

@@ -838,13 +838,13 @@ Object* Debug::Break(Arguments args) {
   // Just continue if breaks are disabled or debugger cannot be loaded.
   if (disable_break() || !Load()) {
     SetAfterBreakTarget(frame);
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   // Enter the debugger.
   EnterDebugger debugger;
   if (debugger.FailedToEnter()) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   // Postpone interrupt during breakpoint processing.
@@ -870,7 +870,7 @@ Object* Debug::Break(Arguments args) {
 
   // If there is one or more real break points check whether any of these are
   // triggered.
-  Handle<Object> break_points_hit(Heap::undefined_value());
+  Handle<Object> break_points_hit(HEAP->undefined_value());
   if (break_location_iterator.HasBreakPoint()) {
     Handle<Object> break_point_objects =
         Handle<Object>(break_location_iterator.BreakPointObjects());
@@ -915,7 +915,7 @@ Object* Debug::Break(Arguments args) {
     SetAfterBreakTarget(frame);
   }
 
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 
@@ -984,7 +984,7 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   }
 
   // Return whether the break point is triggered.
-  return *result == Heap::true_value();
+  return *result == HEAP->true_value();
 }
 
 
@@ -1257,8 +1257,8 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
       // Reverse lookup required as the minor key cannot be retrieved
       // from the code object.
       Handle<Object> obj(
-          Heap::code_stubs()->SlowReverseLookup(*call_function_stub));
-      ASSERT(*obj != Heap::undefined_value());
+          HEAP->code_stubs()->SlowReverseLookup(*call_function_stub));
+      ASSERT(*obj != HEAP->undefined_value());
       ASSERT(obj->IsSmi());
       // Get the STUB key and extract major and minor key.
       uint32_t key = Smi::cast(*obj)->value();
@@ -1414,10 +1414,10 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
 // Simple function for returning the source positions for active break points.
 Handle<Object> Debug::GetSourceBreakLocations(
     Handle<SharedFunctionInfo> shared) {
-  if (!HasDebugInfo(shared)) return Handle<Object>(Heap::undefined_value());
+  if (!HasDebugInfo(shared)) return Handle<Object>(HEAP->undefined_value());
   Handle<DebugInfo> debug_info = GetDebugInfo(shared);
   if (debug_info->GetBreakPointCount() == 0) {
-    return Handle<Object>(Heap::undefined_value());
+    return Handle<Object>(HEAP->undefined_value());
   }
   Handle<FixedArray> locations =
       Factory::NewFixedArray(debug_info->GetBreakPointCount());
@@ -1587,7 +1587,7 @@ void Debug::RemoveDebugInfo(Handle<DebugInfo> debug_info) {
       } else {
         prev->set_next(current->next());
       }
-      current->debug_info()->shared()->set_debug_info(Heap::undefined_value());
+      current->debug_info()->shared()->set_debug_info(HEAP->undefined_value());
       delete current;
 
       // If there are no more debug info objects there are not more break

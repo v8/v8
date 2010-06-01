@@ -26,7 +26,7 @@ static void CheckMap(Map* map, int type, int instance_size) {
 #ifdef DEBUG
   CHECK(Heap::Contains(map));
 #endif
-  CHECK_EQ(Heap::meta_map(), map->map());
+  CHECK_EQ(HEAP->meta_map(), map->map());
   CHECK_EQ(type, map->instance_type());
   CHECK_EQ(instance_size, map->instance_size());
 }
@@ -34,10 +34,10 @@ static void CheckMap(Map* map, int type, int instance_size) {
 
 TEST(HeapMaps) {
   InitializeVM();
-  CheckMap(Heap::meta_map(), MAP_TYPE, Map::kSize);
-  CheckMap(Heap::heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
-  CheckMap(Heap::fixed_array_map(), FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
-  CheckMap(Heap::string_map(), STRING_TYPE, SeqTwoByteString::kAlignedSize);
+  CheckMap(HEAP->meta_map(), MAP_TYPE, Map::kSize);
+  CheckMap(HEAP->heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
+  CheckMap(HEAP->fixed_array_map(), FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
+  CheckMap(HEAP->string_map(), STRING_TYPE, SeqTwoByteString::kAlignedSize);
 }
 
 
@@ -79,7 +79,7 @@ static void CheckFindCodeObject() {
   Object* code = Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()));
+                                  Handle<Object>(HEAP->undefined_value()));
   CHECK(code->IsCode());
 
   HeapObject* obj = HeapObject::cast(code);
@@ -93,7 +93,7 @@ static void CheckFindCodeObject() {
   Object* copy = Heap::CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()));
+                                  Handle<Object>(HEAP->undefined_value()));
   CHECK(copy->IsCode());
   HeapObject* obj_copy = HeapObject::cast(copy);
   Object* not_right = Heap::FindCodeObject(obj_copy->address() +
@@ -146,21 +146,21 @@ TEST(HeapObjects) {
            value->Number());
 
   // nan oddball checks
-  CHECK(Heap::nan_value()->IsNumber());
-  CHECK(isnan(Heap::nan_value()->Number()));
+  CHECK(HEAP->nan_value()->IsNumber());
+  CHECK(isnan(HEAP->nan_value()->Number()));
 
   Handle<String> s = Factory::NewStringFromAscii(CStrVector("fisk hest "));
   CHECK(s->IsString());
   CHECK_EQ(10, s->length());
 
-  String* object_symbol = String::cast(Heap::Object_symbol());
+  String* object_symbol = String::cast(HEAP->Object_symbol());
   CHECK(Top::context()->global()->HasLocalProperty(object_symbol));
 
   // Check ToString for oddballs
-  CheckOddball(Heap::true_value(), "true");
-  CheckOddball(Heap::false_value(), "false");
-  CheckOddball(Heap::null_value(), "null");
-  CheckOddball(Heap::undefined_value(), "undefined");
+  CheckOddball(HEAP->true_value(), "true");
+  CheckOddball(HEAP->false_value(), "false");
+  CheckOddball(HEAP->null_value(), "null");
+  CheckOddball(HEAP->undefined_value(), "undefined");
 
   // Check ToString for Smis
   CheckSmi(0, "0");
@@ -553,7 +553,7 @@ TEST(ObjectProperties) {
   InitializeVM();
 
   v8::HandleScope sc;
-  String* object_symbol = String::cast(Heap::Object_symbol());
+  String* object_symbol = String::cast(HEAP->Object_symbol());
   JSFunction* object_function =
       JSFunction::cast(Top::context()->global()->GetProperty(object_symbol));
   Handle<JSFunction> constructor(object_function);
@@ -684,7 +684,7 @@ TEST(JSObjectCopy) {
   InitializeVM();
 
   v8::HandleScope sc;
-  String* object_symbol = String::cast(Heap::Object_symbol());
+  String* object_symbol = String::cast(HEAP->Object_symbol());
   JSFunction* object_function =
       JSFunction::cast(Top::context()->global()->GetProperty(object_symbol));
   Handle<JSFunction> constructor(object_function);

@@ -45,7 +45,7 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       generating_stub_(false),
       allow_stub_calls_(true),
-      code_object_(Heap::undefined_value()) {
+      code_object_(HEAP->undefined_value()) {
 }
 
 
@@ -1110,7 +1110,7 @@ Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
     IllegalOperation(num_arguments);
     // Since we did not call the stub, there was no allocation failure.
     // Return some non-failure object.
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   // TODO(1236192): Most runtime routines don't need the number of

@@ -100,10 +100,10 @@ Object* StubCache::ComputeLoadNonexistent(String* name, JSObject* receiver) {
   // there are global objects involved, we need to check global
   // property cells in the stub and therefore the stub will be
   // specific to the name.
-  String* cache_name = Heap::empty_string();
+  String* cache_name = HEAP->empty_string();
   if (receiver->IsGlobalObject()) cache_name = name;
   JSObject* last = receiver;
-  while (last->GetPrototype() != Heap::null_value()) {
+  while (last->GetPrototype() != HEAP->null_value()) {
     last = JSObject::cast(last->GetPrototype());
     if (last->IsGlobalObject()) cache_name = name;
   }
@@ -599,22 +599,22 @@ Object* StubCache::ComputeCallGlobal(int argc,
 
 static Object* GetProbeValue(Code::Flags flags) {
   // Use raw_unchecked... so we don't get assert failures during GC.
-  NumberDictionary* dictionary = Heap::raw_unchecked_non_monomorphic_cache();
+  NumberDictionary* dictionary = HEAP->raw_unchecked_non_monomorphic_cache();
   int entry = dictionary->FindEntry(flags);
   if (entry != -1) return dictionary->ValueAt(entry);
-  return Heap::raw_unchecked_undefined_value();
+  return HEAP->raw_unchecked_undefined_value();
 }
 
 
 static Object* ProbeCache(Code::Flags flags) {
   Object* probe = GetProbeValue(flags);
-  if (probe != Heap::undefined_value()) return probe;
+  if (probe != HEAP->undefined_value()) return probe;
   // Seed the cache with an undefined value to make sure that any
   // generated code object can always be inserted into the cache
   // without causing  allocation failures.
   Object* result =
-      Heap::non_monomorphic_cache()->AtNumberPut(flags,
-                                                 Heap::undefined_value());
+      HEAP->non_monomorphic_cache()->AtNumberPut(flags,
+                                                 HEAP->undefined_value());
   if (result->IsFailure()) return result;
   Heap::public_set_non_monomorphic_cache(NumberDictionary::cast(result));
   return probe;
@@ -624,13 +624,13 @@ static Object* ProbeCache(Code::Flags flags) {
 static Object* FillCache(Object* code) {
   if (code->IsCode()) {
     int entry =
-        Heap::non_monomorphic_cache()->FindEntry(
+        HEAP->non_monomorphic_cache()->FindEntry(
             Code::cast(code)->flags());
     // The entry must be present see comment in ProbeCache.
     ASSERT(entry != -1);
-    ASSERT(Heap::non_monomorphic_cache()->ValueAt(entry) ==
-           Heap::undefined_value());
-    Heap::non_monomorphic_cache()->ValueAtPut(entry, code);
+    ASSERT(HEAP->non_monomorphic_cache()->ValueAt(entry) ==
+           HEAP->undefined_value());
+    HEAP->non_monomorphic_cache()->ValueAtPut(entry, code);
     CHECK(GetProbeValue(Code::cast(code)->flags()) == code);
   }
   return code;
@@ -743,11 +743,11 @@ Object* StubCache::ComputeLazyCompile(int argc) {
 
 void StubCache::Clear() {
   for (int i = 0; i < kPrimaryTableSize; i++) {
-    primary_[i].key = Heap::empty_string();
+    primary_[i].key = HEAP->empty_string();
     primary_[i].value = Builtins::builtin(Builtins::Illegal);
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
-    secondary_[j].key = Heap::empty_string();
+    secondary_[j].key = HEAP->empty_string();
     secondary_[j].value = Builtins::builtin(Builtins::Illegal);
   }
 }
@@ -786,7 +786,7 @@ Object* LoadCallbackProperty(Arguments args) {
     result = fun(v8::Utils::ToLocal(args.at<String>(4)), info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION();
-  if (result.IsEmpty()) return Heap::undefined_value();
+  if (result.IsEmpty()) return HEAP->undefined_value();
   return *v8::Utils::OpenHandle(*result);
 }
 
@@ -856,7 +856,7 @@ Object* LoadPropertyWithInterceptorOnly(Arguments args) {
     }
   }
 
-  return Heap::no_interceptor_result_sentinel();
+  return HEAP->no_interceptor_result_sentinel();
 }
 
 
@@ -866,7 +866,7 @@ static Object* ThrowReferenceError(String* name) {
   // can't use either LoadIC or KeyedLoadIC constructors.
   IC ic(IC::NO_EXTRA_FRAME);
   ASSERT(ic.target()->is_load_stub() || ic.target()->is_keyed_load_stub());
-  if (!ic.SlowIsContextual()) return Heap::undefined_value();
+  if (!ic.SlowIsContextual()) return HEAP->undefined_value();
 
   // Throw a reference error.
   HandleScope scope;
@@ -1110,7 +1110,7 @@ void StubCompiler::LookupPostInterceptor(JSObject* holder,
   if (!lookup->IsProperty()) {
     lookup->NotFound();
     Object* proto = holder->GetPrototype();
-    if (proto != Heap::null_value()) {
+    if (proto != HEAP->null_value()) {
       proto->Lookup(name, lookup);
     }
   }
@@ -1161,7 +1161,7 @@ Object* CallStubCompiler::CompileCustomCall(int generator_id,
 #undef CALL_GENERATOR_CASE
     }
     UNREACHABLE();
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
 }
 
 

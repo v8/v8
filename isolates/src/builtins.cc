@@ -170,12 +170,12 @@ static inline bool CalledAsConstructor() {
 
 BUILTIN(Illegal) {
   UNREACHABLE();
-  return Heap::undefined_value();  // Make compiler happy.
+  return HEAP->undefined_value();  // Make compiler happy.
 }
 
 
 BUILTIN(EmptyFunction) {
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 
@@ -256,7 +256,7 @@ static Object* AllocateEmptyJSArray() {
   if (result->IsFailure()) return result;
   JSArray* result_array = JSArray::cast(result);
   result_array->set_length(Smi::FromInt(0));
-  result_array->set_elements(Heap::empty_fixed_array());
+  result_array->set_elements(HEAP->empty_fixed_array());
   return result_array;
 }
 
@@ -296,7 +296,7 @@ static void MoveElements(AssertNoAllocation* no_gc,
 
 
 static void FillWithHoles(FixedArray* dst, int from, int to) {
-  MemsetPointer(dst->data_start() + from, Heap::the_hole_value(), to - from);
+  MemsetPointer(dst->data_start() + from, HEAP->the_hole_value(), to - from);
 }
 
 
@@ -321,7 +321,7 @@ static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
   // we still do it.
   Heap::CreateFillerObjectAt(elms->address(), to_trim * kPointerSize);
 
-  former_start[to_trim] = Heap::fixed_array_map();
+  former_start[to_trim] = HEAP->fixed_array_map();
   former_start[to_trim + 1] = Smi::FromInt(len - to_trim);
 
   ASSERT_EQ(elms->address() + to_trim * kPointerSize,
@@ -334,14 +334,14 @@ static bool ArrayPrototypeHasNoElements(Context* global_context,
                                         JSObject* array_proto) {
   // This method depends on non writability of Object and Array prototype
   // fields.
-  if (array_proto->elements() != Heap::empty_fixed_array()) return false;
+  if (array_proto->elements() != HEAP->empty_fixed_array()) return false;
   // Hidden prototype
   array_proto = JSObject::cast(array_proto->GetPrototype());
-  ASSERT(array_proto->elements() == Heap::empty_fixed_array());
+  ASSERT(array_proto->elements() == HEAP->empty_fixed_array());
   // Object.prototype
   array_proto = JSObject::cast(array_proto->GetPrototype());
   if (array_proto != global_context->initial_object_prototype()) return false;
-  if (array_proto->elements() != Heap::empty_fixed_array()) return false;
+  if (array_proto->elements() != HEAP->empty_fixed_array()) return false;
   ASSERT(array_proto->GetPrototype()->IsNull());
   return true;
 }
@@ -356,7 +356,7 @@ static bool IsJSArrayWithFastElements(Object* receiver,
   JSArray* array = JSArray::cast(receiver);
 
   HeapObject* elms = HeapObject::cast(array->elements());
-  if (elms->map() != Heap::fixed_array_map()) {
+  if (elms->map() != HEAP->fixed_array_map()) {
     return false;
   }
 
@@ -460,7 +460,7 @@ BUILTIN(ArrayPop) {
   JSArray* array = JSArray::cast(receiver);
 
   int len = Smi::cast(array->length())->value();
-  if (len == 0) return Heap::undefined_value();
+  if (len == 0) return HEAP->undefined_value();
 
   // Get top element
   Object* top = elms->get(len - 1);
@@ -490,12 +490,12 @@ BUILTIN(ArrayShift) {
   ASSERT(array->HasFastElements());
 
   int len = Smi::cast(array->length())->value();
-  if (len == 0) return Heap::undefined_value();
+  if (len == 0) return HEAP->undefined_value();
 
   // Get first element
   Object* first = elms->get(0);
   if (first->IsTheHole()) {
-    first = Heap::undefined_value();
+    first = HEAP->undefined_value();
   }
 
   if (Heap::new_space()->Contains(elms)) {
@@ -506,7 +506,7 @@ BUILTIN(ArrayShift) {
     // Shift the elements.
     AssertNoAllocation no_gc;
     MoveElements(&no_gc, elms, 0, elms, 1, len - 1);
-    elms->set(len - 1, Heap::the_hole_value());
+    elms->set(len - 1, HEAP->the_hole_value());
   }
 
   // Set the length.
@@ -653,7 +653,7 @@ BUILTIN(ArraySplice) {
   // compatibility.
   // TraceMonkey follows ECMA-262 though.
   if (n_arguments == 0) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   int relative_start = 0;
@@ -878,12 +878,12 @@ static inline Object* TypeCheck(int argc,
 
   Object* holder = recv;
   if (!recv_type->IsUndefined()) {
-    for (; holder != Heap::null_value(); holder = holder->GetPrototype()) {
+    for (; holder != HEAP->null_value(); holder = holder->GetPrototype()) {
       if (holder->IsInstanceOf(FunctionTemplateInfo::cast(recv_type))) {
         break;
       }
     }
-    if (holder == Heap::null_value()) return holder;
+    if (holder == HEAP->null_value()) return holder;
   }
   Object* args_obj = sig->args();
   // If there is no argument signature we're done
@@ -896,13 +896,13 @@ static inline Object* TypeCheck(int argc,
     if (argtype->IsUndefined()) continue;
     Object** arg = &argv[-1 - i];
     Object* current = *arg;
-    for (; current != Heap::null_value(); current = current->GetPrototype()) {
+    for (; current != HEAP->null_value(); current = current->GetPrototype()) {
       if (current->IsInstanceOf(FunctionTemplateInfo::cast(argtype))) {
         *arg = current;
         break;
       }
     }
-    if (current == Heap::null_value()) *arg = Heap::undefined_value();
+    if (current == HEAP->null_value()) *arg = HEAP->undefined_value();
   }
   return holder;
 }
@@ -971,7 +971,7 @@ static Object* HandleApiCallHelper(
       value = callback(new_args);
     }
     if (value.IsEmpty()) {
-      result = Heap::undefined_value();
+      result = HEAP->undefined_value();
     } else {
       result = *reinterpret_cast<Object**>(*value);
     }
@@ -1054,7 +1054,7 @@ BUILTIN(FastHandleApiCall) {
     value = callback(new_args);
   }
   if (value.IsEmpty()) {
-    result = Heap::undefined_value();
+    result = HEAP->undefined_value();
   } else {
     result = *reinterpret_cast<Object**>(*value);
   }
@@ -1120,7 +1120,7 @@ static Object* HandleApiCallAsFunctionOrConstructor(
       value = callback(new_args);
     }
     if (value.IsEmpty()) {
-      result = Heap::undefined_value();
+      result = HEAP->undefined_value();
     } else {
       result = *reinterpret_cast<Object**>(*value);
     }

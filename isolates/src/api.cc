@@ -319,7 +319,7 @@ v8::Handle<Value> ThrowException(v8::Handle<v8::Value> value) {
   // If we're passed an empty handle, we throw an undefined exception
   // to deal more gracefully with out of memory situations.
   if (value.IsEmpty()) {
-    i::Top::ScheduleThrow(i::Heap::undefined_value());
+    i::Top::ScheduleThrow(HEAP->undefined_value());
   } else {
     i::Top::ScheduleThrow(*Utils::OpenHandle(*value));
   }
@@ -1296,7 +1296,7 @@ void Script::SetData(v8::Handle<String> data) {
 
 v8::TryCatch::TryCatch()
     : next_(i::Top::try_catch_handler_address()),
-      exception_(i::Heap::the_hole_value()),
+      exception_(HEAP->the_hole_value()),
       message_(i::Smi::FromInt(0)),
       is_verbose_(false),
       can_continue_(true),
@@ -1373,7 +1373,7 @@ v8::Local<v8::Message> v8::TryCatch::Message() const {
 
 
 void v8::TryCatch::Reset() {
-  exception_ = i::Heap::the_hole_value();
+  exception_ = HEAP->the_hole_value();
   message_ = i::Smi::FromInt(0);
 }
 
@@ -1758,7 +1758,7 @@ bool Value::IsUint32() const {
 bool Value::IsDate() const {
   if (IsDeadCheck("v8::Value::IsDate()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return obj->HasSpecificClassOf(i::Heap::Date_symbol());
+  return obj->HasSpecificClassOf(HEAP->Date_symbol());
 }
 
 
@@ -1927,7 +1927,7 @@ void v8::Array::CheckCast(Value* that) {
 void v8::Date::CheckCast(v8::Value* that) {
   if (IsDeadCheck("v8::Date::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->HasSpecificClassOf(i::Heap::Date_symbol()),
+  ApiCheck(obj->HasSpecificClassOf(HEAP->Date_symbol()),
            "v8::Date::Cast()",
            "Could not convert to date");
 }
@@ -3153,7 +3153,7 @@ Persistent<Context> v8::Context::New(
         proxy_constructor->set_needs_access_check(
             global_constructor->needs_access_check());
         global_constructor->set_needs_access_check(false);
-        global_constructor->set_access_check_info(i::Heap::undefined_value());
+        global_constructor->set_access_check_info(HEAP->undefined_value());
       }
     }
 
@@ -3666,7 +3666,7 @@ bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
   NeanderObject obj(2);
   obj.set(0, *i::Factory::NewProxy(FUNCTION_ADDR(that)));
   obj.set(1, data.IsEmpty() ?
-             i::Heap::undefined_value() :
+             HEAP->undefined_value() :
              *Utils::OpenHandle(*data));
   listeners.add(obj.value());
   return true;
@@ -3685,7 +3685,7 @@ void V8::RemoveMessageListeners(MessageCallback that) {
     NeanderObject listener(i::JSObject::cast(listeners.get(i)));
     i::Handle<i::Proxy> callback_obj(i::Proxy::cast(listener.get(0)));
     if (callback_obj->proxy() == FUNCTION_ADDR(that)) {
-      listeners.set(i, i::Heap::undefined_value());
+      listeners.set(i, HEAP->undefined_value());
     }
   }
 }
@@ -3868,7 +3868,7 @@ void V8::TerminateExecution() {
 bool V8::IsExecutionTerminating() {
   if (!i::V8::IsRunning()) return false;
   if (i::Top::has_scheduled_exception()) {
-    return i::Top::scheduled_exception() == i::Heap::termination_exception();
+    return i::Top::scheduled_exception() == HEAP->termination_exception();
   }
   return false;
 }

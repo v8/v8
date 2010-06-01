@@ -1598,7 +1598,7 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     uint32_t dummy;
     if (literal != NULL &&
         literal->handle()->IsString() &&
-        !String::cast(*(literal->handle()))->Equals(Heap::Proto_symbol()) &&
+        !String::cast(*(literal->handle()))->Equals(HEAP->Proto_symbol()) &&
         !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
       Handle<String> key = Handle<String>::cast(literal->handle());
 

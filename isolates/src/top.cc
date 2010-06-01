@@ -535,7 +535,7 @@ void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
   if (!constructor->shared()->IsApiFunction()) return;
   Object* data_obj =
       constructor->shared()->get_api_func_data()->access_check_info();
-  if (data_obj == Heap::undefined_value()) return;
+  if (data_obj == HEAP->undefined_value()) return;
 
   HandleScope scope;
   Handle<JSObject> receiver_handle(receiver);
@@ -598,7 +598,7 @@ bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
 
   Object* data_obj =
      constructor->shared()->get_api_func_data()->access_check_info();
-  if (data_obj == Heap::undefined_value()) return false;
+  if (data_obj == HEAP->undefined_value()) return false;
 
   Object* fun_obj = AccessCheckInfo::cast(data_obj)->named_callback();
   v8::NamedSecurityCallback callback =
@@ -643,7 +643,7 @@ bool Top::MayIndexedAccess(JSObject* receiver,
 
   Object* data_obj =
       constructor->shared()->get_api_func_data()->access_check_info();
-  if (data_obj == Heap::undefined_value()) return false;
+  if (data_obj == HEAP->undefined_value()) return false;
 
   Object* fun_obj = AccessCheckInfo::cast(data_obj)->indexed_callback();
   v8::IndexedSecurityCallback callback =
@@ -691,7 +691,7 @@ Failure* Top::StackOverflow() {
 
 
 Failure* Top::TerminateExecution() {
-  DoThrow(Heap::termination_exception(), NULL, NULL);
+  DoThrow(HEAP->termination_exception(), NULL, NULL);
   return Failure::Exception();
 }
 
@@ -710,7 +710,7 @@ Failure* Top::ReThrow(Object* exception, MessageLocation* location) {
 
 
 Failure* Top::ThrowIllegalOperation() {
-  return Throw(Heap::illegal_access_symbol());
+  return Throw(HEAP->illegal_access_symbol());
 }
 
 
@@ -761,7 +761,7 @@ void Top::PrintCurrentStackTrace(FILE* out) {
 
 
 void Top::ComputeLocation(MessageLocation* target) {
-  *target = MessageLocation(Handle<Script>(Heap::empty_script()), -1, -1);
+  *target = MessageLocation(Handle<Script>(HEAP->empty_script()), -1, -1);
   StackTraceFrameIterator it;
   if (!it.done()) {
     JavaScriptFrame* frame = it.frame();
@@ -838,7 +838,7 @@ void Top::DoThrow(Object* exception,
   // Determine reporting and whether the exception is caught externally.
   bool is_caught_externally = false;
   bool is_out_of_memory = exception == Failure::OutOfMemoryException();
-  bool is_termination_exception = exception == Heap::termination_exception();
+  bool is_termination_exception = exception == HEAP->termination_exception();
   bool catchable_by_javascript = !is_termination_exception && !is_out_of_memory;
   bool should_return_exception =
       ShouldReturnException(&is_caught_externally, catchable_by_javascript);
@@ -909,10 +909,10 @@ void Top::ReportPendingMessages() {
   if (thread_local_.pending_exception_ == Failure::OutOfMemoryException()) {
     context()->mark_out_of_memory();
   } else if (thread_local_.pending_exception_ ==
-             Heap::termination_exception()) {
+             HEAP->termination_exception()) {
     if (external_caught) {
       thread_local_.TryCatchHandler()->can_continue_ = false;
-      thread_local_.TryCatchHandler()->exception_ = Heap::null_value();
+      thread_local_.TryCatchHandler()->exception_ = HEAP->null_value();
     }
   } else {
     Handle<Object> exception(pending_exception());
@@ -958,7 +958,7 @@ bool Top::OptionalRescheduleException(bool is_bottom_call) {
   // Allways reschedule out of memory exceptions.
   if (!is_out_of_memory()) {
     bool is_termination_exception =
-        pending_exception() == Heap::termination_exception();
+        pending_exception() == HEAP->termination_exception();
 
     // Do not reschedule the exception if this is the bottom call.
     bool clear_exception = is_bottom_call;

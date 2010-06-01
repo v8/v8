@@ -46,6 +46,11 @@
 #include "arm/regexp-macro-assembler-arm.h"
 #endif
 
+// Since we're converting Heap over in stages, this file is in a strange state
+// with regard to static/nonstatic methods. THIS refers to this in a
+// method that will eventually become non-static. HEAP should be used in
+// methods that will remain static.
+#define THIS HEAP
 
 namespace v8 {
 namespace internal {
@@ -138,6 +143,12 @@ double GCTracer::last_gc_end_timestamp_ = 0.0;
 int GCTracer::max_gc_pause_ = 0;
 int GCTracer::max_alive_after_gc_ = 0;
 int GCTracer::min_in_mutator_ = kMaxInt;
+
+Heap::Heap() {
+  // TODO(zarko): members that previously relied on static initialization
+  // should be initialized here.
+}
+
 
 int Heap::Capacity() {
   if (!HasBeenSetup()) return 0;
@@ -359,8 +370,8 @@ void Heap::GarbageCollectionEpilogue() {
 
   Counters::alive_after_last_gc.Set(SizeOfObjects());
 
-  Counters::symbol_table_capacity.Set(symbol_table()->Capacity());
-  Counters::number_of_symbols.Set(symbol_table()->NumberOfElements());
+  Counters::symbol_table_capacity.Set(THIS->symbol_table()->Capacity());
+  Counters::number_of_symbols.Set(THIS->symbol_table()->NumberOfElements());
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   ReportStatisticsAfterGC();
 #endif
@@ -465,7 +476,7 @@ class SymbolTableVerifier : public ObjectVisitor {
 static void VerifySymbolTable() {
 #ifdef DEBUG
   SymbolTableVerifier verifier;
-  Heap::symbol_table()->IterateElements(&verifier);
+  HEAP->symbol_table()->IterateElements(&verifier);
 #endif  // DEBUG
 }
 
@@ -1064,7 +1075,7 @@ static inline bool IsShortcutCandidate(HeapObject* object, Map* map) {
   InstanceType type = map->instance_type();
   if ((type & kShortcutTypeMask) != kShortcutTypeTag) return false;
   ASSERT(object->IsString() && !object->IsSymbol());
-  return ConsString::cast(object)->unchecked_second() == Heap::empty_string();
+  return ConsString::cast(object)->unchecked_second() == HEAP->empty_string();
 }
 
 
@@ -1183,7 +1194,7 @@ Object* Heap::AllocatePartialMap(InstanceType instance_type,
   if (result->IsFailure()) return result;
 
   // Map::cast cannot be used due to uninitialized map field.
-  reinterpret_cast<Map*>(result)->set_map(raw_unchecked_meta_map());
+  reinterpret_cast<Map*>(result)->set_map(THIS->raw_unchecked_meta_map());
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
   reinterpret_cast<Map*>(result)->set_inobject_properties(0);
@@ -1200,15 +1211,15 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   if (result->IsFailure()) return result;
 
   Map* map = reinterpret_cast<Map*>(result);
-  map->set_map(meta_map());
+  map->set_map(THIS->meta_map());
   map->set_instance_type(instance_type);
-  map->set_prototype(null_value());
-  map->set_constructor(null_value());
+  map->set_prototype(THIS->null_value());
+  map->set_constructor(THIS->null_value());
   map->set_instance_size(instance_size);
   map->set_inobject_properties(0);
   map->set_pre_allocated_property_fields(0);
-  map->set_instance_descriptors(empty_descriptor_array());
-  map->set_code_cache(empty_fixed_array());
+  map->set_instance_descriptors(THIS->empty_descriptor_array());
+  map->set_code_cache(THIS->empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
@@ -1227,8 +1238,8 @@ Object* Heap::AllocateCodeCache() {
   Object* result = AllocateStruct(CODE_CACHE_TYPE);
   if (result->IsFailure()) return result;
   CodeCache* code_cache = CodeCache::cast(result);
-  code_cache->set_default_cache(empty_fixed_array());
-  code_cache->set_normal_type_cache(undefined_value());
+  code_cache->set_default_cache(THIS->empty_fixed_array());
+  code_cache->set_normal_type_cache(THIS->undefined_value());
   return code_cache;
 }
 
@@ -1278,7 +1289,7 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_empty_fixed_array(FixedArray::cast(obj));
 
-  obj = Allocate(oddball_map(), OLD_DATA_SPACE);
+  obj = Allocate(THIS->oddball_map(), OLD_DATA_SPACE);
   if (obj->IsFailure()) return false;
   set_null_value(obj);
 
@@ -1288,24 +1299,26 @@ bool Heap::CreateInitialMaps() {
   set_empty_descriptor_array(DescriptorArray::cast(obj));
 
   // Fix the instance_descriptors for the existing maps.
-  meta_map()->set_instance_descriptors(empty_descriptor_array());
-  meta_map()->set_code_cache(empty_fixed_array());
+  THIS->meta_map()->set_instance_descriptors(THIS->empty_descriptor_array());
+  THIS->meta_map()->set_code_cache(THIS->empty_fixed_array());
 
-  fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
-  fixed_array_map()->set_code_cache(empty_fixed_array());
+  THIS->fixed_array_map()->set_instance_descriptors(
+      THIS->empty_descriptor_array());
+  THIS->fixed_array_map()->set_code_cache(
+      THIS->empty_fixed_array());
 
-  oddball_map()->set_instance_descriptors(empty_descriptor_array());
-  oddball_map()->set_code_cache(empty_fixed_array());
+  THIS->oddball_map()->set_instance_descriptors(THIS->empty_descriptor_array());
+  THIS->oddball_map()->set_code_cache(THIS->empty_fixed_array());
 
   // Fix prototype object for existing maps.
-  meta_map()->set_prototype(null_value());
-  meta_map()->set_constructor(null_value());
+  THIS->meta_map()->set_prototype(THIS->null_value());
+  THIS->meta_map()->set_constructor(THIS->null_value());
 
-  fixed_array_map()->set_prototype(null_value());
-  fixed_array_map()->set_constructor(null_value());
+  THIS->fixed_array_map()->set_prototype(THIS->null_value());
+  THIS->fixed_array_map()->set_constructor(THIS->null_value());
 
-  oddball_map()->set_prototype(null_value());
-  oddball_map()->set_constructor(null_value());
+  THIS->oddball_map()->set_prototype(THIS->null_value());
+  THIS->oddball_map()->set_constructor(THIS->null_value());
 
   obj = AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
   if (obj->IsFailure()) return false;
@@ -1420,7 +1433,7 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_shared_function_info_map(Map::cast(obj));
 
-  ASSERT(!Heap::InNewSpace(Heap::empty_fixed_array()));
+  ASSERT(!Heap::InNewSpace(HEAP->empty_fixed_array()));
   return true;
 }
 
@@ -1434,7 +1447,7 @@ Object* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
   Object* result = AllocateRaw(HeapNumber::kSize, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
-  HeapObject::cast(result)->set_map(heap_number_map());
+  HeapObject::cast(result)->set_map(THIS->heap_number_map());
   HeapNumber::cast(result)->set_value(value);
   return result;
 }
@@ -1450,7 +1463,7 @@ Object* Heap::AllocateHeapNumber(double value) {
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   Object* result = new_space_.AllocateRaw(HeapNumber::kSize);
   if (result->IsFailure()) return result;
-  HeapObject::cast(result)->set_map(heap_number_map());
+  HeapObject::cast(result)->set_map(THIS->heap_number_map());
   HeapNumber::cast(result)->set_value(value);
   return result;
 }
@@ -1459,7 +1472,7 @@ Object* Heap::AllocateHeapNumber(double value) {
 Object* Heap::AllocateJSGlobalPropertyCell(Object* value) {
   Object* result = AllocateRawCell();
   if (result->IsFailure()) return result;
-  HeapObject::cast(result)->set_map(global_property_cell_map());
+  HeapObject::cast(result)->set_map(THIS->global_property_cell_map());
   JSGlobalPropertyCell::cast(result)->set_value(value);
   return result;
 }
@@ -1467,7 +1480,7 @@ Object* Heap::AllocateJSGlobalPropertyCell(Object* value) {
 
 Object* Heap::CreateOddball(const char* to_string,
                             Object* to_number) {
-  Object* result = Allocate(oddball_map(), OLD_DATA_SPACE);
+  Object* result = Allocate(THIS->oddball_map(), OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
   return Oddball::cast(result)->Initialize(to_string, to_number);
 }
@@ -1480,7 +1493,7 @@ bool Heap::CreateApiObjects() {
   if (obj->IsFailure()) return false;
   set_neander_map(Map::cast(obj));
 
-  obj = Heap::AllocateJSObjectFromMap(neander_map());
+  obj = Heap::AllocateJSObjectFromMap(THIS->neander_map());
   if (obj->IsFailure()) return false;
   Object* elements = AllocateFixedArray(2);
   if (elements->IsFailure()) return false;
@@ -1548,16 +1561,16 @@ bool Heap::CreateInitialObjects() {
   obj = AllocateHeapNumber(-0.0, TENURED);
   if (obj->IsFailure()) return false;
   set_minus_zero_value(obj);
-  ASSERT(signbit(minus_zero_value()->Number()) != 0);
+  ASSERT(signbit(THIS->minus_zero_value()->Number()) != 0);
 
   obj = AllocateHeapNumber(OS::nan_value(), TENURED);
   if (obj->IsFailure()) return false;
   set_nan_value(obj);
 
-  obj = Allocate(oddball_map(), OLD_DATA_SPACE);
+  obj = Allocate(THIS->oddball_map(), OLD_DATA_SPACE);
   if (obj->IsFailure()) return false;
   set_undefined_value(obj);
-  ASSERT(!InNewSpace(undefined_value()));
+  ASSERT(!InNewSpace(THIS->undefined_value()));
 
   // Allocate initial symbol table.
   obj = SymbolTable::Allocate(kInitialSymbolTableSize);
@@ -1568,11 +1581,11 @@ bool Heap::CreateInitialObjects() {
   // Assign the print strings for oddballs after creating symboltable.
   Object* symbol = LookupAsciiSymbol("undefined");
   if (symbol->IsFailure()) return false;
-  Oddball::cast(undefined_value())->set_to_string(String::cast(symbol));
-  Oddball::cast(undefined_value())->set_to_number(nan_value());
+  Oddball::cast(THIS->undefined_value())->set_to_string(String::cast(symbol));
+  Oddball::cast(THIS->undefined_value())->set_to_number(THIS->nan_value());
 
   // Allocate the null_value
-  obj = Oddball::cast(null_value())->Initialize("null", Smi::FromInt(0));
+  obj = Oddball::cast(THIS->null_value())->Initialize("null", Smi::FromInt(0));
   if (obj->IsFailure()) return false;
 
   obj = CreateOddball("true", Smi::FromInt(1));
@@ -1652,7 +1665,7 @@ bool Heap::CreateInitialObjects() {
   set_natives_source_cache(FixedArray::cast(obj));
 
   // Handling of script id generation is in Factory::NewScript.
-  set_last_script_id(undefined_value());
+  set_last_script_id(THIS->undefined_value());
 
   // Initialize keyed lookup cache.
   KeyedLookupCache::Clear();
@@ -1684,9 +1697,9 @@ Object* Heap::InitializeNumberStringCache() {
 
 void Heap::FlushNumberStringCache() {
   // Flush the number to string cache.
-  int len = number_string_cache()->length();
+  int len = THIS->number_string_cache()->length();
   for (int i = 0; i < len; i++) {
-    number_string_cache()->set_undefined(i);
+    THIS->number_string_cache()->set_undefined(i);
   }
 }
 
@@ -1704,35 +1717,35 @@ static inline int smi_get_hash(Smi* smi) {
 
 Object* Heap::GetNumberStringCache(Object* number) {
   int hash;
-  int mask = (number_string_cache()->length() >> 1) - 1;
+  int mask = (THIS->number_string_cache()->length() >> 1) - 1;
   if (number->IsSmi()) {
     hash = smi_get_hash(Smi::cast(number)) & mask;
   } else {
     hash = double_get_hash(number->Number()) & mask;
   }
-  Object* key = number_string_cache()->get(hash * 2);
+  Object* key = THIS->number_string_cache()->get(hash * 2);
   if (key == number) {
-    return String::cast(number_string_cache()->get(hash * 2 + 1));
+    return String::cast(THIS->number_string_cache()->get(hash * 2 + 1));
   } else if (key->IsHeapNumber() &&
              number->IsHeapNumber() &&
              key->Number() == number->Number()) {
-    return String::cast(number_string_cache()->get(hash * 2 + 1));
+    return String::cast(THIS->number_string_cache()->get(hash * 2 + 1));
   }
-  return undefined_value();
+  return THIS->undefined_value();
 }
 
 
 void Heap::SetNumberStringCache(Object* number, String* string) {
   int hash;
-  int mask = (number_string_cache()->length() >> 1) - 1;
+  int mask = (THIS->number_string_cache()->length() >> 1) - 1;
   if (number->IsSmi()) {
     hash = smi_get_hash(Smi::cast(number)) & mask;
-    number_string_cache()->set(hash * 2, Smi::cast(number));
+    THIS->number_string_cache()->set(hash * 2, Smi::cast(number));
   } else {
     hash = double_get_hash(number->Number()) & mask;
-    number_string_cache()->set(hash * 2, number);
+    THIS->number_string_cache()->set(hash * 2, number);
   }
-  number_string_cache()->set(hash * 2 + 1, string);
+  THIS->number_string_cache()->set(hash * 2 + 1, string);
 }
 
 
@@ -1740,7 +1753,7 @@ Object* Heap::NumberToString(Object* number, bool check_number_string_cache) {
   Counters::number_to_string_runtime.Increment();
   if (check_number_string_cache) {
     Object* cached = GetNumberStringCache(number);
-    if (cached != undefined_value()) {
+    if (cached != THIS->undefined_value()) {
       return cached;
     }
   }
@@ -1818,7 +1831,7 @@ Object* Heap::AllocateProxy(Address proxy, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate proxies in paged spaces.
   STATIC_ASSERT(Proxy::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  Object* result = Allocate(proxy_map(), space);
+  Object* result = Allocate(THIS->proxy_map(), space);
   if (result->IsFailure()) return result;
 
   Proxy::cast(result)->set_proxy(proxy);
@@ -1827,7 +1840,8 @@ Object* Heap::AllocateProxy(Address proxy, PretenureFlag pretenure) {
 
 
 Object* Heap::AllocateSharedFunctionInfo(Object* name) {
-  Object* result = Allocate(shared_function_info_map(), OLD_POINTER_SPACE);
+  Object* result = Allocate(THIS->shared_function_info_map(),
+      OLD_POINTER_SPACE);
   if (result->IsFailure()) return result;
 
   SharedFunctionInfo* share = SharedFunctionInfo::cast(result);
@@ -1839,15 +1853,15 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_expected_nof_properties(0);
   share->set_length(0);
   share->set_formal_parameter_count(0);
-  share->set_instance_class_name(Object_symbol());
-  share->set_function_data(undefined_value());
-  share->set_script(undefined_value());
+  share->set_instance_class_name(THIS->Object_symbol());
+  share->set_function_data(THIS->undefined_value());
+  share->set_script(THIS->undefined_value());
   share->set_start_position_and_type(0);
-  share->set_debug_info(undefined_value());
-  share->set_inferred_name(empty_string());
+  share->set_debug_info(THIS->undefined_value());
+  share->set_inferred_name(THIS->empty_string());
   share->set_compiler_hints(0);
   share->set_this_property_assignments_count(0);
-  share->set_this_property_assignments(undefined_value());
+  share->set_this_property_assignments(THIS->undefined_value());
   share->set_num_literals(0);
   share->set_end_position(0);
   share->set_function_token_position(0);
@@ -1867,7 +1881,7 @@ static inline Object* MakeOrFindTwoCharacterString(uint32_t c1, uint32_t c2) {
   // Numeric strings have a different hash algorithm not known by
   // LookupTwoCharsSymbolIfExists, so we skip this step for such strings.
   if ((!Between(c1, '0', '9') || !Between(c2, '0', '9')) &&
-      Heap::symbol_table()->LookupTwoCharsSymbolIfExists(c1, c2, &symbol)) {
+      HEAP->symbol_table()->LookupTwoCharsSymbolIfExists(c1, c2, &symbol)) {
     return symbol;
   // Now we know the length is 2, we might as well make use of that fact
   // when building the new string.
@@ -1978,7 +1992,7 @@ Object* Heap::AllocateConsString(String* first, String* second) {
     }
   }
 
-  Map* map = is_ascii ? cons_ascii_string_map() : cons_string_map();
+  Map* map = is_ascii ? THIS->cons_ascii_string_map() : THIS->cons_string_map();
 
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
@@ -2043,7 +2057,7 @@ Object* Heap::AllocateExternalStringFromAscii(
     return Failure::OutOfMemoryException();
   }
 
-  Map* map = external_ascii_string_map();
+  Map* map = THIS->external_ascii_string_map();
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
 
@@ -2064,7 +2078,7 @@ Object* Heap::AllocateExternalStringFromTwoByte(
     return Failure::OutOfMemoryException();
   }
 
-  Map* map = Heap::external_string_map();
+  Map* map = HEAP->external_string_map();
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
 
@@ -2079,15 +2093,15 @@ Object* Heap::AllocateExternalStringFromTwoByte(
 
 Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
   if (code <= String::kMaxAsciiCharCode) {
-    Object* value = Heap::single_character_string_cache()->get(code);
-    if (value != Heap::undefined_value()) return value;
+    Object* value = THIS->single_character_string_cache()->get(code);
+    if (value != THIS->undefined_value()) return value;
 
     char buffer[1];
     buffer[0] = static_cast<char>(code);
     Object* result = LookupSymbol(Vector<const char>(buffer, 1));
 
     if (result->IsFailure()) return result;
-    Heap::single_character_string_cache()->set(code, result);
+    THIS->single_character_string_cache()->set(code, result);
     return result;
   }
 
@@ -2112,7 +2126,7 @@ Object* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
       : lo_space_->AllocateRaw(size);
   if (result->IsFailure()) return result;
 
-  reinterpret_cast<ByteArray*>(result)->set_map(byte_array_map());
+  reinterpret_cast<ByteArray*>(result)->set_map(THIS->byte_array_map());
   reinterpret_cast<ByteArray*>(result)->set_length(length);
   return result;
 }
@@ -2128,7 +2142,7 @@ Object* Heap::AllocateByteArray(int length) {
   Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
-  reinterpret_cast<ByteArray*>(result)->set_map(byte_array_map());
+  reinterpret_cast<ByteArray*>(result)->set_map(THIS->byte_array_map());
   reinterpret_cast<ByteArray*>(result)->set_length(length);
   return result;
 }
@@ -2138,11 +2152,11 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
-    filler->set_map(one_pointer_filler_map());
+    filler->set_map(THIS->one_pointer_filler_map());
   } else if (size == 2 * kPointerSize) {
-    filler->set_map(two_pointer_filler_map());
+    filler->set_map(THIS->two_pointer_filler_map());
   } else {
-    filler->set_map(byte_array_map());
+    filler->set_map(THIS->byte_array_map());
     ByteArray::cast(filler)->set_length(ByteArray::LengthFor(size));
   }
 }
@@ -2155,7 +2169,7 @@ Object* Heap::AllocatePixelArray(int length,
   Object* result = AllocateRaw(PixelArray::kAlignedSize, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
-  reinterpret_cast<PixelArray*>(result)->set_map(pixel_array_map());
+  reinterpret_cast<PixelArray*>(result)->set_map(THIS->pixel_array_map());
   reinterpret_cast<PixelArray*>(result)->set_length(length);
   reinterpret_cast<PixelArray*>(result)->set_external_pointer(external_pointer);
 
@@ -2203,7 +2217,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   if (result->IsFailure()) return result;
 
   // Initialize the object
-  HeapObject::cast(result)->set_map(code_map());
+  HeapObject::cast(result)->set_map(THIS->code_map());
   Code* code = Code::cast(result);
   ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
   code->set_instruction_size(desc.instr_size);
@@ -2330,8 +2344,8 @@ Object* Heap::InitializeFunction(JSFunction* function,
   function->initialize_elements();
   function->set_shared(shared);
   function->set_prototype_or_initial_map(prototype);
-  function->set_context(undefined_value());
-  function->set_literals(empty_fixed_array());
+  function->set_context(THIS->undefined_value());
+  function->set_literals(THIS->empty_fixed_array());
   return function;
 }
 
@@ -2347,7 +2361,7 @@ Object* Heap::AllocateFunctionPrototype(JSFunction* function) {
   // When creating the prototype for the function we must set its
   // constructor to the function.
   Object* result =
-      JSObject::cast(prototype)->SetProperty(constructor_symbol(),
+      JSObject::cast(prototype)->SetProperty(THIS->constructor_symbol(),
                                              function,
                                              DONT_ENUM);
   if (result->IsFailure()) return result;
@@ -2588,7 +2602,7 @@ Object* Heap::AllocateGlobalObject(JSFunction* constructor) {
 
   // Setup the global object as a normalized object.
   global->set_map(new_map);
-  global->map()->set_instance_descriptors(Heap::empty_descriptor_array());
+  global->map()->set_instance_descriptors(HEAP->empty_descriptor_array());
   global->set_properties(dictionary);
 
   // Make sure result is a global object with properties in dictionary.
@@ -2760,12 +2774,24 @@ Map* Heap::SymbolMapForString(String* string) {
 
   // Find the corresponding symbol map for strings.
   Map* map = string->map();
-  if (map == ascii_string_map()) return ascii_symbol_map();
-  if (map == string_map()) return symbol_map();
-  if (map == cons_string_map()) return cons_symbol_map();
-  if (map == cons_ascii_string_map()) return cons_ascii_symbol_map();
-  if (map == external_string_map()) return external_symbol_map();
-  if (map == external_ascii_string_map()) return external_ascii_symbol_map();
+  if (map == THIS->ascii_string_map()) {
+    return THIS->ascii_symbol_map();
+  }
+  if (map == THIS->string_map()) {
+    return THIS->symbol_map();
+  }
+  if (map == THIS->cons_string_map()) {
+    return THIS->cons_symbol_map();
+  }
+  if (map == THIS->cons_ascii_string_map()) {
+    return THIS->cons_ascii_symbol_map();
+  }
+  if (map == THIS->external_string_map()) {
+    return THIS->external_symbol_map();
+  }
+  if (map == THIS->external_ascii_string_map()) {
+    return THIS->external_ascii_symbol_map();
+  }
 
   // No match found.
   return NULL;
@@ -2796,13 +2822,13 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
     if (chars > SeqAsciiString::kMaxLength) {
       return Failure::OutOfMemoryException();
     }
-    map = ascii_symbol_map();
+    map = THIS->ascii_symbol_map();
     size = SeqAsciiString::SizeFor(chars);
   } else {
     if (chars > SeqTwoByteString::kMaxLength) {
       return Failure::OutOfMemoryException();
     }
-    map = symbol_map();
+    map = THIS->symbol_map();
     size = SeqTwoByteString::SizeFor(chars);
   }
 
@@ -2854,7 +2880,7 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   if (result->IsFailure()) return result;
 
   // Partially initialize the object.
-  HeapObject::cast(result)->set_map(ascii_string_map());
+  HeapObject::cast(result)->set_map(THIS->ascii_string_map());
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
@@ -2886,7 +2912,7 @@ Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
   if (result->IsFailure()) return result;
 
   // Partially initialize the object.
-  HeapObject::cast(result)->set_map(string_map());
+  HeapObject::cast(result)->set_map(THIS->string_map());
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
@@ -2899,7 +2925,7 @@ Object* Heap::AllocateEmptyFixedArray() {
   Object* result = AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
   // Initialize the object.
-  reinterpret_cast<FixedArray*>(result)->set_map(fixed_array_map());
+  reinterpret_cast<FixedArray*>(result)->set_map(THIS->fixed_array_map());
   reinterpret_cast<FixedArray*>(result)->set_length(0);
   return result;
 }
@@ -2942,16 +2968,16 @@ Object* Heap::CopyFixedArray(FixedArray* src) {
 
 Object* Heap::AllocateFixedArray(int length) {
   ASSERT(length >= 0);
-  if (length == 0) return empty_fixed_array();
+  if (length == 0) return THIS->empty_fixed_array();
   Object* result = AllocateRawFixedArray(length);
   if (!result->IsFailure()) {
     // Initialize header.
     FixedArray* array = reinterpret_cast<FixedArray*>(result);
-    array->set_map(fixed_array_map());
+    array->set_map(THIS->fixed_array_map());
     array->set_length(length);
     // Initialize body.
-    ASSERT(!Heap::InNewSpace(undefined_value()));
-    MemsetPointer(array->data_start(), undefined_value(), length);
+    ASSERT(!Heap::InNewSpace(THIS->undefined_value()));
+    MemsetPointer(array->data_start(), THIS->undefined_value(), length);
   }
   return result;
 }
@@ -2985,14 +3011,14 @@ static Object* AllocateFixedArrayWithFiller(int length,
                                             PretenureFlag pretenure,
                                             Object* filler) {
   ASSERT(length >= 0);
-  ASSERT(Heap::empty_fixed_array()->IsFixedArray());
-  if (length == 0) return Heap::empty_fixed_array();
+  ASSERT(HEAP->empty_fixed_array()->IsFixedArray());
+  if (length == 0) return HEAP->empty_fixed_array();
 
   ASSERT(!Heap::InNewSpace(filler));
   Object* result = Heap::AllocateRawFixedArray(length, pretenure);
   if (result->IsFailure()) return result;
 
-  HeapObject::cast(result)->set_map(Heap::fixed_array_map());
+  HeapObject::cast(result)->set_map(HEAP->fixed_array_map());
   FixedArray* array = FixedArray::cast(result);
   array->set_length(length);
   MemsetPointer(array->data_start(), filler, length);
@@ -3001,22 +3027,24 @@ static Object* AllocateFixedArrayWithFiller(int length,
 
 
 Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
-  return AllocateFixedArrayWithFiller(length, pretenure, undefined_value());
+  return AllocateFixedArrayWithFiller(length, pretenure,
+      THIS->undefined_value());
 }
 
 
 Object* Heap::AllocateFixedArrayWithHoles(int length, PretenureFlag pretenure) {
-  return AllocateFixedArrayWithFiller(length, pretenure, the_hole_value());
+  return AllocateFixedArrayWithFiller(length, pretenure,
+      THIS->the_hole_value());
 }
 
 
 Object* Heap::AllocateUninitializedFixedArray(int length) {
-  if (length == 0) return empty_fixed_array();
+  if (length == 0) return THIS->empty_fixed_array();
 
   Object* obj = AllocateRawFixedArray(length);
   if (obj->IsFailure()) return obj;
 
-  reinterpret_cast<FixedArray*>(obj)->set_map(fixed_array_map());
+  reinterpret_cast<FixedArray*>(obj)->set_map(THIS->fixed_array_map());
   FixedArray::cast(obj)->set_length(length);
   return obj;
 }
@@ -3025,7 +3053,7 @@ Object* Heap::AllocateUninitializedFixedArray(int length) {
 Object* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
   Object* result = Heap::AllocateFixedArray(length, pretenure);
   if (result->IsFailure()) return result;
-  reinterpret_cast<HeapObject*>(result)->set_map(hash_table_map());
+  reinterpret_cast<HeapObject*>(result)->set_map(THIS->hash_table_map());
   ASSERT(result->IsHashTable());
   return result;
 }
@@ -3035,7 +3063,7 @@ Object* Heap::AllocateGlobalContext() {
   Object* result = Heap::AllocateFixedArray(Context::GLOBAL_CONTEXT_SLOTS);
   if (result->IsFailure()) return result;
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(global_context_map());
+  context->set_map(THIS->global_context_map());
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
   return result;
@@ -3047,7 +3075,7 @@ Object* Heap::AllocateFunctionContext(int length, JSFunction* function) {
   Object* result = Heap::AllocateFixedArray(length);
   if (result->IsFailure()) return result;
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(context_map());
+  context->set_map(THIS->context_map());
   context->set_closure(function);
   context->set_fcontext(context);
   context->set_previous(NULL);
@@ -3066,7 +3094,8 @@ Object* Heap::AllocateWithContext(Context* previous,
   Object* result = Heap::AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
   if (result->IsFailure()) return result;
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(is_catch_context ? catch_context_map() : context_map());
+  context->set_map(is_catch_context ? THIS->catch_context_map() :
+      THIS->context_map());
   context->set_closure(previous->closure());
   context->set_fcontext(previous->fcontext());
   context->set_previous(previous);
@@ -3082,7 +3111,8 @@ Object* Heap::AllocateWithContext(Context* previous,
 Object* Heap::AllocateStruct(InstanceType type) {
   Map* map;
   switch (type) {
-#define MAKE_CASE(NAME, Name, name) case NAME##_TYPE: map = name##_map(); break;
+#define MAKE_CASE(NAME, Name, name) \
+    case NAME##_TYPE: map = THIS->name##_map(); break;
 STRUCT_LIST(MAKE_CASE)
 #undef MAKE_CASE
     default:
@@ -3353,7 +3383,7 @@ void Heap::Verify() {
 
 Object* Heap::LookupSymbol(Vector<const char> string) {
   Object* symbol = NULL;
-  Object* new_table = symbol_table()->LookupSymbol(string, &symbol);
+  Object* new_table = THIS->symbol_table()->LookupSymbol(string, &symbol);
   if (new_table->IsFailure()) return new_table;
   // Can't use set_symbol_table because SymbolTable::cast knows that
   // SymbolTable is a singleton and checks for identity.
@@ -3366,7 +3396,7 @@ Object* Heap::LookupSymbol(Vector<const char> string) {
 Object* Heap::LookupSymbol(String* string) {
   if (string->IsSymbol()) return string;
   Object* symbol = NULL;
-  Object* new_table = symbol_table()->LookupString(string, &symbol);
+  Object* new_table = THIS->symbol_table()->LookupString(string, &symbol);
   if (new_table->IsFailure()) return new_table;
   // Can't use set_symbol_table because SymbolTable::cast knows that
   // SymbolTable is a singleton and checks for identity.
@@ -3381,7 +3411,7 @@ bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
     *symbol = string;
     return true;
   }
-  return symbol_table()->LookupSymbolIfExists(string, symbol);
+  return THIS->symbol_table()->LookupSymbolIfExists(string, symbol);
 }
 
 
@@ -4631,7 +4661,7 @@ void TranscendentalCache::Clear() {
 void ExternalStringTable::CleanUp() {
   int last = 0;
   for (int i = 0; i < new_space_strings_.length(); ++i) {
-    if (new_space_strings_[i] == Heap::raw_unchecked_null_value()) continue;
+    if (new_space_strings_[i] == HEAP->raw_unchecked_null_value()) continue;
     if (Heap::InNewSpace(new_space_strings_[i])) {
       new_space_strings_[last++] = new_space_strings_[i];
     } else {
@@ -4641,7 +4671,7 @@ void ExternalStringTable::CleanUp() {
   new_space_strings_.Rewind(last);
   last = 0;
   for (int i = 0; i < old_space_strings_.length(); ++i) {
-    if (old_space_strings_[i] == Heap::raw_unchecked_null_value()) continue;
+    if (old_space_strings_[i] == HEAP->raw_unchecked_null_value()) continue;
     ASSERT(!Heap::InNewSpace(old_space_strings_[i]));
     old_space_strings_[last++] = old_space_strings_[i];
   }

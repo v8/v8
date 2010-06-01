@@ -283,7 +283,7 @@ class LookupResult BASE_EMBEDDED {
   Object* GetCallbackObject() {
     if (lookup_type_ == CONSTANT_TYPE) {
       // For now we only have the __proto__ as constant type.
-      return Heap::prototype_accessors();
+      return HEAP->prototype_accessors();
     }
     return GetValue();
   }

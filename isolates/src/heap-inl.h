@@ -29,6 +29,7 @@
 #define V8_HEAP_INL_H_
 
 #include "log.h"
+#include "isolate.h"
 #include "v8-counters.h"
 
 namespace v8 {
@@ -464,11 +465,11 @@ void ExternalStringTable::Verify() {
 #ifdef DEBUG
   for (int i = 0; i < new_space_strings_.length(); ++i) {
     ASSERT(Heap::InNewSpace(new_space_strings_[i]));
-    ASSERT(new_space_strings_[i] != Heap::raw_unchecked_null_value());
+    ASSERT(new_space_strings_[i] != HEAP->raw_unchecked_null_value());
   }
   for (int i = 0; i < old_space_strings_.length(); ++i) {
     ASSERT(!Heap::InNewSpace(old_space_strings_[i]));
-    ASSERT(old_space_strings_[i] != Heap::raw_unchecked_null_value());
+    ASSERT(old_space_strings_[i] != HEAP->raw_unchecked_null_value());
   }
 #endif
 }
@@ -485,6 +486,23 @@ void ExternalStringTable::ShrinkNewStrings(int position) {
   new_space_strings_.Rewind(position);
   Verify();
 }
+
+
+void Heap::ClearInstanceofCache() {
+  set_instanceof_cache_function(HEAP->the_hole_value());
+}
+
+
+Object* Heap::ToBoolean(bool condition) {
+  return condition ? HEAP->true_value() : HEAP->false_value();
+}
+
+
+void Heap::CompletelyClearInstanceofCache() {
+  set_instanceof_cache_map(HEAP->the_hole_value());
+  set_instanceof_cache_function(HEAP->the_hole_value());
+}
+
 
 } }  // namespace v8::internal
 

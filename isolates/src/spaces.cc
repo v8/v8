@@ -1629,14 +1629,14 @@ void FreeListNode::set_size(int size_in_bytes) {
   // field and a next pointer, we give it a filler map that gives it the
   // correct size.
   if (size_in_bytes > ByteArray::kHeaderSize) {
-    set_map(Heap::raw_unchecked_byte_array_map());
+    set_map(HEAP->raw_unchecked_byte_array_map());
     // Can't use ByteArray::cast because it fails during deserialization.
     ByteArray* this_as_byte_array = reinterpret_cast<ByteArray*>(this);
     this_as_byte_array->set_length(ByteArray::LengthFor(size_in_bytes));
   } else if (size_in_bytes == kPointerSize) {
-    set_map(Heap::raw_unchecked_one_pointer_filler_map());
+    set_map(HEAP->raw_unchecked_one_pointer_filler_map());
   } else if (size_in_bytes == 2 * kPointerSize) {
-    set_map(Heap::raw_unchecked_two_pointer_filler_map());
+    set_map(HEAP->raw_unchecked_two_pointer_filler_map());
   } else {
     UNREACHABLE();
   }
@@ -1647,7 +1647,7 @@ void FreeListNode::set_size(int size_in_bytes) {
 
 Address FreeListNode::next() {
   ASSERT(IsFreeListNode(this));
-  if (map() == Heap::raw_unchecked_byte_array_map()) {
+  if (map() == HEAP->raw_unchecked_byte_array_map()) {
     ASSERT(Size() >= kNextOffset + kPointerSize);
     return Memory::Address_at(address() + kNextOffset);
   } else {
@@ -1658,7 +1658,7 @@ Address FreeListNode::next() {
 
 void FreeListNode::set_next(Address next) {
   ASSERT(IsFreeListNode(this));
-  if (map() == Heap::raw_unchecked_byte_array_map()) {
+  if (map() == HEAP->raw_unchecked_byte_array_map()) {
     ASSERT(Size() >= kNextOffset + kPointerSize);
     Memory::Address_at(address() + kNextOffset) = next;
   } else {
@@ -2506,7 +2506,7 @@ void MapSpace::VerifyObject(HeapObject* object) {
 void CellSpace::VerifyObject(HeapObject* object) {
   // The object should be a global object property cell or a free-list node.
   ASSERT(object->IsJSGlobalPropertyCell() ||
-         object->map() == Heap::two_pointer_filler_map());
+         object->map() == HEAP->two_pointer_filler_map());
 }
 #endif
 

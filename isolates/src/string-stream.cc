@@ -377,7 +377,7 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
 void StringStream::PrintFixedArray(FixedArray* array, unsigned int limit) {
   for (unsigned int i = 0; i < 10 && i < limit; i++) {
     Object* element = array->get(i);
-    if (element != Heap::the_hole_value()) {
+    if (element != HEAP->the_hole_value()) {
       for (int len = 1; len < 18; len++)
         Put(' ');
       Add("%d: %o\n", i, array->get(i));
@@ -526,10 +526,10 @@ void StringStream::PrintFunction(Object* f, Object* receiver, Code** code) {
 void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
   Object* name = fun->shared()->name();
   bool print_name = false;
-  for (Object* p = receiver; p != Heap::null_value(); p = p->GetPrototype()) {
+  for (Object* p = receiver; p != HEAP->null_value(); p = p->GetPrototype()) {
     if (p->IsJSObject()) {
       Object* key = JSObject::cast(p)->SlowReverseLookup(fun);
-      if (key != Heap::undefined_value()) {
+      if (key != HEAP->undefined_value()) {
         if (!name->IsString() ||
             !key->IsString() ||
             !String::cast(name)->Equals(String::cast(key))) {

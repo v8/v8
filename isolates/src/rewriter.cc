@@ -242,7 +242,7 @@ void AstOptimizer::VisitVariableProxy(VariableProxy* node) {
     }
 
     if (!var->is_this() &&
-        !Heap::result_symbol()->Equals(*var->name())) {
+        !HEAP->result_symbol()->Equals(*var->name())) {
       func_name_inferrer_.PushName(var->name());
     }
 
@@ -264,7 +264,7 @@ void AstOptimizer::VisitLiteral(Literal* node) {
     node->set_side_effect_free(true);
   } else if (literal->IsString()) {
     Handle<String> lit_str(Handle<String>::cast(literal));
-    if (!Heap::prototype_symbol()->Equals(*lit_str)) {
+    if (!HEAP->prototype_symbol()->Equals(*lit_str)) {
       func_name_inferrer_.PushName(lit_str);
     }
   } else if (literal->IsHeapNumber()) {

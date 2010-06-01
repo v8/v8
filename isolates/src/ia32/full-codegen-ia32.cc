@@ -1853,7 +1853,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // also use the full code generator.
     FunctionLiteral* lit = fun->AsFunctionLiteral();
     if (lit != NULL &&
-        lit->name()->Equals(Heap::empty_string()) &&
+        lit->name()->Equals(HEAP->empty_string()) &&
         loop_depth() == 0) {
       lit->set_try_full_codegen(true);
     }
