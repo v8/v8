@@ -47,6 +47,7 @@ class UnboundQueue BASE_EMBEDDED {
   INLINE(void Dequeue(Record* rec));
   INLINE(void Enqueue(const Record& rec));
   INLINE(bool IsEmpty()) { return divider_ == last_; }
+  INLINE(Record* Peek());
 
  private:
   INLINE(void DeleteFirst());

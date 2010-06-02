@@ -123,6 +123,7 @@ namespace internal {
   /* How is the generic keyed-load stub used? */                      \
   SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                  \
   SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)            \
+  SC(keyed_load_generic_lookup_cache, V8.KeyedLoadGenericLookupCache) \
   SC(keyed_load_generic_slow, V8.KeyedLoadGenericSlow)                \
   SC(keyed_load_external_array_slow, V8.KeyedLoadExternalArraySlow)   \
   /* Count how much the monomorphic keyed-load stubs are hit. */      \

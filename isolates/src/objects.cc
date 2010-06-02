@@ -2700,7 +2700,7 @@ Object* JSObject::DefineGetterSetter(String* name,
     return HEAP->undefined_value();
   }
 
-  uint32_t index;
+  uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
   if (is_element && IsJSArray()) return HEAP->undefined_value();
 
@@ -2958,7 +2958,7 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
 
   // Make the lookup and include prototypes.
   int accessor_index = is_getter ? kGetterIndex : kSetterIndex;
-  uint32_t index;
+  uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     for (Object* obj = this;
          obj != HEAP->null_value();
