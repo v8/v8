@@ -3177,7 +3177,7 @@ class Internals {
   static const int kProxyProxyOffset = sizeof(void*);
   static const int kJSObjectHeaderSize = 3 * sizeof(void*);
   static const int kFullStringRepresentationMask = 0x07;
-  static const int kExternalTwoByteRepresentationTag = 0x03;
+  static const int kExternalTwoByteRepresentationTag = 0x02;
 
   // These constants are compiler dependent so their values must be
   // defined within the implementation.

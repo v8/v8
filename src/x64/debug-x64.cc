@@ -144,9 +144,10 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for IC load call (from ic-x64.cc).
   // ----------- S t a t e -------------
+  //  -- rax    : receiver
   //  -- rcx    : name
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, rcx.bit(), false);
+  Generate_DebugBreakCallHelper(masm, rax.bit() | rcx.bit(), false);
 }
 
 

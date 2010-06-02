@@ -1127,15 +1127,15 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in rcx and the global
     // object on the stack.
-    __ push(CodeGenerator::GlobalObject());
     __ Move(rcx, var->name());
+    __ movq(rax, CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
     // A test rax instruction following the call is used by the IC to
     // indicate that the inobject property case was inlined.  Ensure there
     // is no test rax instruction here.
     __ nop();
-    DropAndApply(1, context, rax);
+    Apply(context, rax);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
     Comment cmnt(masm_, "Lookup slot");
@@ -1693,14 +1693,12 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
   Comment cmnt(masm_, "[ Property");
   Expression* key = expr->key();
 
-  // Evaluate receiver.
-  VisitForValue(expr->obj(), kStack);
-
   if (key->IsPropertyName()) {
+    VisitForValue(expr->obj(), kAccumulator);
     EmitNamedPropertyLoad(expr);
-    // Drop receiver left on the stack by IC.
-    DropAndApply(1, context_, rax);
+    Apply(context_, rax);
   } else {
+    VisitForValue(expr->obj(), kStack);
     VisitForValue(expr->key(), kStack);
     EmitKeyedPropertyLoad(expr);
     // Drop key and receiver left on the stack by IC.
@@ -2745,13 +2743,13 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           !proxy->var()->is_this() &&
           proxy->var()->is_global()) {
         Comment cmnt(masm_, "Global variable");
-        __ push(CodeGenerator::GlobalObject());
         __ Move(rcx, proxy->name());
+        __ movq(rax, CodeGenerator::GlobalObject());
         Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
         // Use a regular load, not a contextual load, to avoid a reference
         // error.
         __ Call(ic, RelocInfo::CODE_TARGET);
-        __ movq(Operand(rsp, 0), rax);
+        __ push(rax);
       } else if (proxy != NULL &&
                  proxy->var()->slot() != NULL &&
                  proxy->var()->slot()->type() == Slot::LOOKUP) {
@@ -2861,10 +2859,12 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     if (expr->is_postfix() && context_ != Expression::kEffect) {
       __ Push(Smi::FromInt(0));
     }
-    VisitForValue(prop->obj(), kStack);
     if (assign_type == NAMED_PROPERTY) {
+      VisitForValue(prop->obj(), kAccumulator);
+      __ push(rax);  // Copy of receiver, needed for later store.
       EmitNamedPropertyLoad(prop);
     } else {
+      VisitForValue(prop->obj(), kStack);
       VisitForValue(prop->key(), kStack);
       EmitKeyedPropertyLoad(prop);
     }

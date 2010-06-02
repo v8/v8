@@ -1072,14 +1072,14 @@ void VirtualFrame::MoveResultsToRegisters(Result* a,
 
 
 Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
-  // Name and receiver are on the top of the frame.  The IC expects
-  // name in rcx and receiver on the stack.  It does not drop the
-  // receiver.
+  // Name and receiver are on the top of the frame.  Both are dropped.
+  // The IC expects name in rcx and receiver in rax.
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   Result name = Pop();
-  PrepareForCall(1, 0);  // One stack arg, not callee-dropped.
-  name.ToRegister(rcx);
-  name.Unuse();
+  Result receiver = Pop();
+  PrepareForCall(0, 0);  // One stack arg, not callee-dropped.
+  MoveResultsToRegisters(&name, &receiver, rcx, rax);
+
   return RawCallCodeObject(ic, mode);
 }
 

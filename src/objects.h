@@ -408,7 +408,7 @@ const uint32_t kStringRepresentationMask = 0x03;
 enum StringRepresentationTag {
   kSeqStringTag = 0x0,
   kConsStringTag = 0x1,
-  kExternalStringTag = 0x3
+  kExternalStringTag = 0x2
 };
 const uint32_t kIsConsStringMask = 0x1;
 

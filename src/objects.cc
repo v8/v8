@@ -2958,7 +2958,7 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
 
   // Make the lookup and include prototypes.
   int accessor_index = is_getter ? kGetterIndex : kSetterIndex;
-  uint32_t index;
+  uint32_t index = 0;  // Initialize index to make compiler happy.
   if (name->AsArrayIndex(&index)) {
     for (Object* obj = this;
          obj != Heap::null_value();

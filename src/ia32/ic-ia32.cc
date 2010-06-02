@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -305,8 +305,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- esp[0] : return address
   // -----------------------------------
   Label slow, check_string, index_smi, index_string;
-  Label check_pixel_array, probe_dictionary;
-  Label check_number_dictionary;
+  Label check_pixel_array, probe_dictionary, check_number_dictionary;
 
   // Check that the object isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
@@ -329,8 +328,9 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Check that the key is a smi.
   __ test(eax, Immediate(kSmiTagMask));
   __ j(not_zero, &check_string, not_taken);
-  // Get the elements array of the object.
   __ bind(&index_smi);
+  // Now the key is known to be a smi. This place is also jumped to from below
+  // where a numeric string is converted to a smi.
   __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ CheckMap(ecx, Factory::fixed_array_map(), &check_pixel_array, true);
@@ -409,6 +409,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ j(not_zero, &index_string, not_taken);
 
   // Is the string a symbol?
+  // ecx: key map.
   __ movzx_b(ebx, FieldOperand(ecx, Map::kInstanceTypeOffset));
   ASSERT(kSymbolTag != 0);
   __ test(ebx, Immediate(kIsSymbolMask));
@@ -461,6 +462,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceSizeOffset));
   __ add(ecx, Operand(edi));
   __ mov(eax, FieldOperand(edx, ecx, times_pointer_size, 0));
+  __ IncrementCounter(&Counters::keyed_load_generic_lookup_cache, 1);
   __ ret(0);
 
   // Do a quick inline probe of the receiver's dictionary, if it
@@ -487,10 +489,17 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&index_string);
   // We want the smi-tagged index in eax.  kArrayIndexValueMask has zeros in
   // the low kHashShift bits.
+  // eax: key (string).
+  // ebx: hash field.
+  // edx: receiver.
   ASSERT(String::kHashShift >= kSmiTagSize);
   __ and_(ebx, String::kArrayIndexValueMask);
   __ shr(ebx, String::kHashShift - kSmiTagSize);
+  // Here we actually clobber the key (eax) which will be used if calling into
+  // runtime later. However as the new key is the numeric value of a string key
+  // there is no difference in using either key.
   __ mov(eax, ebx);
+  // Now jump to the place where smi keys are handled.
   __ jmp(&index_smi);
 }
 
@@ -1322,7 +1331,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   __ CheckAccessGlobalProxy(eax, edx, &miss);
   __ jmp(&probe);
 
-  // Cache miss: Restore receiver from stack and jump to runtime.
+  // Cache miss: Jump to runtime.
   __ bind(&miss);
   GenerateMiss(masm);
 }
