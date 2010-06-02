@@ -164,7 +164,7 @@ bool ThreadManager::RestoreThread() {
 #endif
   from = StackGuard::RestoreStackGuard(from);
   from = RegExpStack::RestoreStack(from);
-  from = Bootstrapper::RestoreState(from);
+  from = Isolate::Current()->bootstrapper()->RestoreState(from);
   Thread::SetThreadLocal(thread_state_key, NULL);
   if (state->terminate_on_restore()) {
     StackGuard::TerminateExecution();
@@ -198,7 +198,8 @@ static int ArchiveSpacePerThread() {
 #endif
                      StackGuard::ArchiveSpacePerThread() +
                     RegExpStack::ArchiveSpacePerThread() +
-                   Bootstrapper::ArchiveSpacePerThread() +
+                    Isolate::Current()->bootstrapper()->
+                                 ArchiveSpacePerThread() +
                     Relocatable::ArchiveSpacePerThread();
 }
 
@@ -295,7 +296,7 @@ void ThreadManager::EagerlyArchiveThread() {
 #endif
   to = StackGuard::ArchiveStackGuard(to);
   to = RegExpStack::ArchiveStack(to);
-  to = Bootstrapper::ArchiveState(to);
+  to = Isolate::Current()->bootstrapper()->ArchiveState(to);
   lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
   lazily_archived_thread_state_ = NULL;
 }
@@ -309,7 +310,7 @@ void ThreadManager::FreeThreadResources() {
 #endif
   StackGuard::FreeThreadResources();
   RegExpStack::FreeThreadResources();
-  Bootstrapper::FreeThreadResources();
+  Isolate::Current()->bootstrapper()->FreeThreadResources();
 }
 
 

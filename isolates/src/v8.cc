@@ -75,7 +75,7 @@ void V8::TearDown() {
   }
 
   Builtins::TearDown();
-  Bootstrapper::TearDown();
+  Isolate::Current()->bootstrapper()->TearDown();
 
   Top::TearDown();
 

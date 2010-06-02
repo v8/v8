@@ -3702,7 +3702,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointer(BitCast<Object**, String**>(&hidden_symbol_));
   v->Synchronize("symbol");
 
-  Bootstrapper::Iterate(v);
+  Isolate::Current()->bootstrapper()->Iterate(v);
   v->Synchronize("bootstrapper");
   Top::Iterate(v);
   v->Synchronize("top");

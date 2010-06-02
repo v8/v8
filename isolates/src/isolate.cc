@@ -120,7 +120,7 @@ bool Isolate::Init(Deserializer* des) {
     return false;
   }
 
-  Bootstrapper::Initialize(create_heap_objects);
+  bootstrapper_->Initialize(create_heap_objects);
   Builtins::Setup(create_heap_objects);
   Top::Initialize();
 

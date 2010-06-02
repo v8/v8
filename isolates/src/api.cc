@@ -3158,7 +3158,7 @@ Persistent<Context> v8::Context::New(
     }
 
     // Create the environment.
-    env = i::Bootstrapper::CreateEnvironment(
+    env = i::Isolate::Current()->bootstrapper()->CreateEnvironment(
         Utils::OpenHandle(*global_object),
         proxy_template,
         extensions);
@@ -3261,7 +3261,7 @@ void Context::DetachGlobal() {
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  i::Bootstrapper::DetachGlobal(context);
+  i::Isolate::Current()->bootstrapper()->DetachGlobal(context);
 }
 
 
@@ -3271,7 +3271,9 @@ void Context::ReattachGlobal(Handle<Object> global_object) {
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  i::Bootstrapper::ReattachGlobal(context, Utils::OpenHandle(*global_object));
+  i::Isolate::Current()->bootstrapper()->ReattachGlobal(
+      context,
+      Utils::OpenHandle(*global_object));
 }
 
 

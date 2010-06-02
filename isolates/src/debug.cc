@@ -758,9 +758,10 @@ bool Debug::Load() {
   // Create the debugger context.
   HandleScope scope;
   Handle<Context> context =
-      Bootstrapper::CreateEnvironment(Handle<Object>::null(),
-                                      v8::Handle<ObjectTemplate>(),
-                                      NULL);
+      Isolate::Current()->bootstrapper()->CreateEnvironment(
+          Handle<Object>::null(),
+          v8::Handle<ObjectTemplate>(),
+          NULL);
 
   // Use the debugger context.
   SaveContext save;

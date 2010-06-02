@@ -55,24 +55,24 @@ class BootstrapperActive BASE_EMBEDDED {
 class Bootstrapper {
  public:
   // Requires: Heap::Setup has been called.
-  static void Initialize(bool create_heap_objects);
-  static void TearDown();
+  void Initialize(bool create_heap_objects);
+  void TearDown();
 
   // Creates a JavaScript Global Context with initial object graph.
   // The returned value is a global handle casted to V8Environment*.
-  static Handle<Context> CreateEnvironment(
+  Handle<Context> CreateEnvironment(
       Handle<Object> global_object,
       v8::Handle<v8::ObjectTemplate> global_template,
       v8::ExtensionConfiguration* extensions);
 
   // Detach the environment from its outer global object.
-  static void DetachGlobal(Handle<Context> env);
+  void DetachGlobal(Handle<Context> env);
 
   // Reattach an outer global object to an environment.
-  static void ReattachGlobal(Handle<Context> env, Handle<Object> global_object);
+  void ReattachGlobal(Handle<Context> env, Handle<Object> global_object);
 
   // Traverses the pointers for memory management.
-  static void Iterate(ObjectVisitor* v);
+  void Iterate(ObjectVisitor* v);
 
   // Accessor for the native scripts source code.
   static Handle<String> NativesSourceLookup(int index);
@@ -81,18 +81,18 @@ class Bootstrapper {
   static bool IsActive() { return BootstrapperActive::IsActive(); }
 
   // Support for thread preemption.
-  static int ArchiveSpacePerThread();
-  static char* ArchiveState(char* to);
-  static char* RestoreState(char* from);
-  static void FreeThreadResources();
+  int ArchiveSpacePerThread();
+  char* ArchiveState(char* to);
+  char* RestoreState(char* from);
+  void FreeThreadResources();
 
   // This will allocate a char array that is deleted when V8 is shut down.
   // It should only be used for strictly finite allocations.
   static char* AllocateAutoDeletedArray(int bytes);
 
   // Used for new context creation.
-  static bool InstallExtensions(Handle<Context> global_context,
-                                v8::ExtensionConfiguration* extensions);
+  bool InstallExtensions(Handle<Context> global_context,
+                         v8::ExtensionConfiguration* extensions);
 
  private:
   friend class Isolate;
