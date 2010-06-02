@@ -174,8 +174,8 @@ class StubCache {
 
   // ---
 
-  static Object* ComputeCallInitialize(int argc, InLoopFlag in_loop);
-  static Object* ComputeCallPreMonomorphic(int argc, InLoopFlag in_loop);
+  Object* ComputeCallInitialize(int argc, InLoopFlag in_loop);
+  Object* ComputeCallPreMonomorphic(int argc, InLoopFlag in_loop);
   Object* ComputeCallNormal(int argc, InLoopFlag in_loop);
   Object* ComputeCallMegamorphic(int argc, InLoopFlag in_loop);
   Object* ComputeCallMiss(int argc);
@@ -188,26 +188,26 @@ class StubCache {
   Object* ComputeCallDebugPrepareStepIn(int argc);
 #endif
 
-  static Object* ComputeLazyCompile(int argc);
+  Object* ComputeLazyCompile(int argc);
 
 
   // Update cache for entry hash(name, map).
-  static Code* Set(String* name, Map* map, Code* code);
+  Code* Set(String* name, Map* map, Code* code);
 
   // Clear the lookup table (@ mark compact collection).
   void Clear();
 
   // Functions for generating stubs at startup.
-  static void GenerateMiss(MacroAssembler* masm);
+  void GenerateMiss(MacroAssembler* masm);
 
   // Generate code for probing the stub cache table.
   // If extra != no_reg it might be used as am extra scratch register.
-  static void GenerateProbe(MacroAssembler* masm,
-                            Code::Flags flags,
-                            Register receiver,
-                            Register name,
-                            Register scratch,
-                            Register extra);
+  void GenerateProbe(MacroAssembler* masm,
+                     Code::Flags flags,
+                     Register receiver,
+                     Register name,
+                     Register scratch,
+                     Register extra);
 
   enum Table {
     kPrimary,
@@ -225,7 +225,7 @@ class StubCache {
   static Entry secondary_[];
 
   // Computes the hashed offsets for primary and secondary caches.
-  static int PrimaryOffset(String* name, Code::Flags flags, Map* map) {
+  RLYSTC int PrimaryOffset(String* name, Code::Flags flags, Map* map) {
     // This works well because the heap object tag size and the hash
     // shift are equal.  Shifting down the length field to get the
     // hash code would effectively throw away two bits of the hash
@@ -248,7 +248,7 @@ class StubCache {
     return key & ((kPrimaryTableSize - 1) << kHeapObjectTagSize);
   }
 
-  static int SecondaryOffset(String* name, Code::Flags flags, int seed) {
+  RLYSTC int SecondaryOffset(String* name, Code::Flags flags, int seed) {
     // Use the seed from the primary cache in the secondary cache.
     uint32_t string_low32bits =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name));
@@ -265,7 +265,7 @@ class StubCache {
   // ends in String::kHashShift 0s.  Then we shift it so it is a multiple
   // of sizeof(Entry).  This makes it easier to avoid making mistakes
   // in the hashed offset computations.
-  static Entry* entry(Entry* table, int offset) {
+  RLYSTC Entry* entry(Entry* table, int offset) {
     const int shift_amount = kPointerSizeLog2 + 1 - String::kHashShift;
     return reinterpret_cast<Entry*>(
         reinterpret_cast<Address>(table) + (offset << shift_amount));

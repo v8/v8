@@ -796,7 +796,8 @@ OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
 
 
 Handle<Code> ComputeLazyCompile(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeLazyCompile(argc), Code);
+  CALL_HEAP_FUNCTION(Isolate::Current()->stub_cache()->ComputeLazyCompile(argc),
+                     Code);
 }
 
 

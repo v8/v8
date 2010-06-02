@@ -254,7 +254,9 @@ Handle<Code> CodeGenerator::ComputeCallInitialize(
     // that it needs so we need to ensure it is generated already.
     ComputeCallInitialize(argc, NOT_IN_LOOP);
   }
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitialize(argc, in_loop), Code);
+  CALL_HEAP_FUNCTION(
+      Isolate::Current()->stub_cache()->ComputeCallInitialize(argc, in_loop),
+      Code);
 }
 
 

@@ -77,6 +77,11 @@ class Isolate {
 #define HEAP (v8::internal::Isolate::Current()->heap())
 
 
+// Temporary macro to be used to flag definitions that are indeed static
+// and not per-isolate. (It would be great to be able to grep for [static]!)
+#define RLYSTC static
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_ISOLATE_H_

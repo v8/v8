@@ -1172,7 +1172,8 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // Probe the stub cache.
   Code::Flags flags =
       Code::ComputeFlags(Code::CALL_IC, NOT_IN_LOOP, MONOMORPHIC, NORMAL, argc);
-  StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, rax);
+  Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, rdx, rcx, rbx,
+                                                  rax);
 
   // If the stub cache probing failed, the receiver might be a value.
   // For value objects, we use the map of the prototype objects for
@@ -1208,7 +1209,8 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Probe the stub cache for the value object.
   __ bind(&probe);
-  StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, no_reg);
+  Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, rdx, rcx, rbx,
+                                                  no_reg);
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
@@ -1391,7 +1393,8 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
-  StubCache::GenerateProbe(masm, flags, rax, rcx, rbx, rdx);
+  Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, rax, rcx, rbx,
+                                                  rdx);
 
   // Cache miss: Jump to runtime.
   StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
@@ -1516,7 +1519,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
-  StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, no_reg);
+  Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, rdx, rcx, rbx,
+                                                  no_reg);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);

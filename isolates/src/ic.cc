@@ -499,7 +499,8 @@ void CallIC::UpdateCaches(LookupResult* lookup,
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
-    code = StubCache::ComputeCallPreMonomorphic(argc, in_loop);
+    code = Isolate::Current()->stub_cache()->ComputeCallPreMonomorphic(argc,
+                                                                       in_loop);
   } else if (state == MONOMORPHIC) {
     code = Isolate::Current()->stub_cache()->ComputeCallMegamorphic(argc,
                                                                     in_loop);
@@ -624,7 +625,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       Code* target = NULL;
       target = Builtins::builtin(Builtins::LoadIC_StringLength);
       set_target(target);
-      StubCache::Set(*name, map, target);
+      Isolate::Current()->stub_cache()->Set(*name, map, target);
       return Smi::FromInt(String::cast(*object)->length());
     }
 
@@ -639,7 +640,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 
       Code* target = Builtins::builtin(Builtins::LoadIC_ArrayLength);
       set_target(target);
-      StubCache::Set(*name, map, target);
+      Isolate::Current()->stub_cache()->Set(*name, map, target);
       return JSArray::cast(*object)->length();
     }
 
@@ -651,7 +652,9 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 #endif
       Code* target = Builtins::builtin(Builtins::LoadIC_FunctionPrototype);
       set_target(target);
-      StubCache::Set(*name, HeapObject::cast(*object)->map(), target);
+      Isolate::Current()->stub_cache()->Set(*name,
+                                            HeapObject::cast(*object)->map(),
+                                            target);
       return Accessors::FunctionGetPrototype(*object, 0);
     }
   }
@@ -1110,7 +1113,9 @@ Object* StoreIC::Store(State state,
 #endif
     Code* target = Builtins::builtin(Builtins::StoreIC_ArrayLength);
     set_target(target);
-    StubCache::Set(*name, HeapObject::cast(*object)->map(), target);
+    Isolate::Current()->stub_cache()->Set(*name,
+                                          HeapObject::cast(*object)->map(),
+                                          target);
     return receiver->SetProperty(*name, *value, NONE);
   }
 
