@@ -459,6 +459,7 @@ static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
 
 
 TEST(CharacterClassEscapes) {
+  v8::internal::V8::Initialize(NULL);
   TestCharacterClassEscapes('.', IsRegExpNewline);
   TestCharacterClassEscapes('d', IsDigit);
   TestCharacterClassEscapes('D', NotDigit);
@@ -525,6 +526,7 @@ static unsigned PseudoRandom(int i, int j) {
 
 
 TEST(SplayTreeSimple) {
+  v8::internal::V8::Initialize(NULL);
   static const unsigned kLimit = 1000;
   ZoneScope zone_scope(DELETE_ON_EXIT);
   ZoneSplayTree<TestConfig> tree;
@@ -577,6 +579,7 @@ TEST(SplayTreeSimple) {
 
 
 TEST(DispatchTableConstruction) {
+  v8::internal::V8::Initialize(NULL);
   // Initialize test data.
   static const int kLimit = 1000;
   static const int kRangeCount = 8;
@@ -1336,6 +1339,7 @@ TEST(MacroAssembler) {
 
 
 TEST(AddInverseToTable) {
+  v8::internal::V8::Initialize(NULL);
   static const int kLimit = 1000;
   static const int kRangeCount = 16;
   for (int t = 0; t < 10; t++) {
@@ -1511,6 +1515,7 @@ static void TestSimpleRangeCaseIndependence(CharacterRange input,
 
 
 TEST(CharacterRangeCaseIndependence) {
+  v8::internal::V8::Initialize(NULL);
   TestSimpleRangeCaseIndependence(CharacterRange::Singleton('a'),
                                   CharacterRange::Singleton('A'));
   TestSimpleRangeCaseIndependence(CharacterRange::Singleton('z'),
@@ -1552,6 +1557,7 @@ static bool InClass(uc16 c, ZoneList<CharacterRange>* ranges) {
 
 
 TEST(CharClassDifference) {
+  v8::internal::V8::Initialize(NULL);
   ZoneScope zone_scope(DELETE_ON_EXIT);
   ZoneList<CharacterRange>* base = new ZoneList<CharacterRange>(1);
   base->Add(CharacterRange::Everything());
@@ -1578,6 +1584,7 @@ TEST(CharClassDifference) {
 
 
 TEST(CanonicalizeCharacterSets) {
+  v8::internal::V8::Initialize(NULL);
   ZoneScope scope(DELETE_ON_EXIT);
   ZoneList<CharacterRange>* list = new ZoneList<CharacterRange>(4);
   CharacterSet set(list);
@@ -1648,6 +1655,7 @@ static bool CharacterInSet(ZoneList<CharacterRange>* set, uc16 value) {
 }
 
 TEST(CharacterRangeMerge) {
+  v8::internal::V8::Initialize(NULL);
   ZoneScope zone_scope(DELETE_ON_EXIT);
   ZoneList<CharacterRange> l1(4);
   ZoneList<CharacterRange> l2(4);

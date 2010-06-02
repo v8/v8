@@ -30,6 +30,7 @@
 
 #include "apiutils.h"
 #include "heap.h"
+#include "zone.h"
 
 namespace v8 {
 namespace internal {
@@ -38,8 +39,13 @@ class Bootstrapper;
 class Deserializer;
 class StubCache;
 
+#define ISOLATE_INIT_LIST(V)                                                   \
+  V(bool, zone_allow_allocation, true) /* AssertNoZoneAllocation */
+
 class Isolate {
  public:
+  ~Isolate();
+
   // Returns the single global isolate.
   static Isolate* Current() {
     ASSERT(global_isolate != NULL);
@@ -52,20 +58,25 @@ class Isolate {
   
   // Initialize process-wide state.
   static void InitOnce();
-  
-  ~Isolate();
-  
-  // Accessors.
+
+#define GLOBAL_ACCESSOR(type, name, initialvalue)                              \
+  type name() const { return name##_; }                                        \
+  void set_##name(type value) { name##_ = value; }
+  ISOLATE_INIT_LIST(GLOBAL_ACCESSOR)
+#undef GLOBAL_ACCESSOR
+
+
   Bootstrapper* bootstrapper() { return bootstrapper_; }
   Heap* heap() { return &heap_; }
   StubCache* stub_cache() { return stub_cache_; }
   v8::ImplementationUtilities::HandleScopeData* handle_scope_data() {
     return &handle_scope_data_;
   }
+  Zone* zone() { return &zone_; }
 
  private:
   Isolate();
-  
+
   static Isolate* global_isolate;
   
   bool Init(Deserializer* des);
@@ -74,17 +85,29 @@ class Isolate {
   Heap heap_;
   StubCache* stub_cache_;
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
+  Zone zone_;
+  
+#define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
+  type name##_;
+  ISOLATE_INIT_LIST(GLOBAL_BACKING_STORE)
+#undef GLOBAL_BACKING_STORE
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
 
-// Temporary macros for accessing fields off the global isolate.
+// Temporary macros for accessing fields off the global isolate. Define these
+// when reformatting code would become burdensome.
 #define HEAP (v8::internal::Isolate::Current()->heap())
+#define ZONE (v8::internal::Isolate::Current()->zone())
 
 
 // Temporary macro to be used to flag definitions that are indeed static
 // and not per-isolate. (It would be great to be able to grep for [static]!)
 #define RLYSTC static
+
+
+// Temporary macro to be used to flag classes that should be static.
+#define STATIC_CLASS class
 
 
 } }  // namespace v8::internal

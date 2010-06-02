@@ -28,6 +28,7 @@
 #ifndef V8_ZONE_INL_H_
 #define V8_ZONE_INL_H_
 
+#include "isolate.h"
 #include "zone.h"
 #include "v8-counters.h"
 
@@ -35,8 +36,19 @@ namespace v8 {
 namespace internal {
 
 
+AssertNoZoneAllocation::AssertNoZoneAllocation()
+    : prev_(Isolate::Current()->zone_allow_allocation()) {
+  Isolate::Current()->set_zone_allow_allocation(false);
+}
+
+
+AssertNoZoneAllocation::~AssertNoZoneAllocation() {
+  Isolate::Current()->set_zone_allow_allocation(prev_);
+}
+
+
 inline void* Zone::New(int size) {
-  ASSERT(AssertNoZoneAllocation::allow_allocation());
+  ASSERT(Isolate::Current()->zone_allow_allocation());
   ASSERT(ZoneScope::nesting() > 0);
   // Round up the requested size to fit the alignment.
   size = RoundUp(size, kAlignment);
@@ -53,7 +65,7 @@ inline void* Zone::New(int size) {
 
 template <typename T>
 T* Zone::NewArray(int length) {
-  return static_cast<T*>(Zone::New(length * sizeof(T)));
+  return static_cast<T*>(New(length * sizeof(T)));
 }
 
 
@@ -74,6 +86,19 @@ ZoneSplayTree<Config>::~ZoneSplayTree() {
   // in the destructor.  For a zone-allocated tree, nodes will be
   // freed by the Zone.
   SplayTree<Config, ZoneListAllocationPolicy>::ResetRoot();
+}
+
+
+// TODO(isolates): for performance reasons, this should be replaced with a new
+//                 operator that takes the zone in which the object should be
+//                 allocated.
+void* ZoneObject::operator new(size_t size) {
+  return ZONE->New(static_cast<int>(size));
+}
+
+
+inline void* ZoneListAllocationPolicy::New(int size) {
+  return ZONE->New(size);
 }
 
 

@@ -113,7 +113,7 @@ static void InitializeBuildingBlocks(
         break;
       }
       case 2: {
-        uc16* buf = Zone::NewArray<uc16>(len);
+        uc16* buf = ZONE->NewArray<uc16>(len);
         for (int j = 0; j < len; j++) {
           buf[j] = gen() % 65536;
         }
@@ -365,7 +365,7 @@ TEST(ExternalShortStringAdd) {
 
   // Generate short ascii and non-ascii external strings.
   for (int i = 0; i <= kMaxLength; i++) {
-    char* ascii = Zone::NewArray<char>(i + 1);
+    char* ascii = ZONE->NewArray<char>(i + 1);
     for (int j = 0; j < i; j++) {
       ascii[j] = 'a';
     }
@@ -377,7 +377,7 @@ TEST(ExternalShortStringAdd) {
         v8::String::NewExternal(ascii_resource);
 
     ascii_external_strings->Set(v8::Integer::New(i), ascii_external_string);
-    uc16* non_ascii = Zone::NewArray<uc16>(i + 1);
+    uc16* non_ascii = ZONE->NewArray<uc16>(i + 1);
     for (int j = 0; j < i; j++) {
       non_ascii[j] = 0x1234;
     }

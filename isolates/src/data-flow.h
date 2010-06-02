@@ -45,7 +45,7 @@ class BitVector: public ZoneObject {
   explicit BitVector(int length)
       : length_(length),
         data_length_(SizeFor(length)),
-        data_(Zone::NewArray<uint32_t>(data_length_)) {
+        data_(ZONE->NewArray<uint32_t>(data_length_)) {
     ASSERT(length > 0);
     Clear();
   }
@@ -53,7 +53,7 @@ class BitVector: public ZoneObject {
   BitVector(const BitVector& other)
       : length_(other.length()),
         data_length_(SizeFor(length_)),
-        data_(Zone::NewArray<uint32_t>(data_length_)) {
+        data_(ZONE->NewArray<uint32_t>(data_length_)) {
     CopyFrom(other);
   }
 

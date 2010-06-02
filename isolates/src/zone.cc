@@ -34,14 +34,21 @@ namespace v8 {
 namespace internal {
 
 
-Address Zone::position_ = 0;
-Address Zone::limit_ = 0;
-int Zone::zone_excess_limit_ = 256 * MB;
-int Zone::segment_bytes_allocated_ = 0;
-
-bool AssertNoZoneAllocation::allow_allocation_ = true;
-
 int ZoneScope::nesting_ = 0;
+
+Zone::Zone()
+    : zone_excess_limit_(256 * MB),
+      segment_bytes_allocated_(0),
+      position_(0),
+      limit_(0) {
+}
+
+
+ZoneScope::~ZoneScope() {
+  if (ShouldDeleteOnExit()) ZONE->DeleteAll();
+  --nesting_;
+}
+
 
 // Segments represent chunks of memory: They have starting address
 // (encoded in the this pointer) and a size in bytes. Segments are
@@ -67,7 +74,7 @@ class Segment {
   // of the segment chain. Returns the new segment.
   static Segment* New(int size) {
     Segment* result = reinterpret_cast<Segment*>(Malloced::New(size));
-    Zone::adjust_segment_bytes_allocated(size);
+    ZONE->adjust_segment_bytes_allocated(size);
     if (result != NULL) {
       result->next_ = head_;
       result->size_ = size;
@@ -78,7 +85,7 @@ class Segment {
 
   // Deletes the given segment. Does not touch the segment chain.
   static void Delete(Segment* segment, int size) {
-    Zone::adjust_segment_bytes_allocated(-size);
+    ZONE->adjust_segment_bytes_allocated(-size);
     Malloced::Delete(segment);
   }
 

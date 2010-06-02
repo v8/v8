@@ -42,7 +42,7 @@ class ZoneAllocator: public Allocator {
   /* nothing to do */
   virtual ~ZoneAllocator()  {}
 
-  virtual void* New(size_t size)  { return Zone::New(static_cast<int>(size)); }
+  virtual void* New(size_t size)  { return ZONE->New(static_cast<int>(size)); }
 
   /* ignored - Zone is freed in one fell swoop */
   virtual void Delete(void* p)  {}

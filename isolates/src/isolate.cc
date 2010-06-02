@@ -68,6 +68,10 @@ Isolate::Isolate()
     : bootstrapper_(NULL),
       stub_cache_(NULL) {
   handle_scope_data_.Initialize();
+#define ISOLATE_INIT_EXECUTE(type, name, initial_value)                        \
+  name##_ = (initial_value);
+  ISOLATE_INIT_LIST(ISOLATE_INIT_EXECUTE)
+#undef ISOLATE_INIT_EXECUTE
 }
 
 

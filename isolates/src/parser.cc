@@ -4293,7 +4293,7 @@ void RegExpParser::Advance() {
     StackLimitCheck check;
     if (check.HasOverflowed()) {
       ReportError(CStrVector(Top::kStackOverflowMessage));
-    } else if (Zone::excess_allocation()) {
+    } else if (ZONE->excess_allocation()) {
       ReportError(CStrVector("Regular expression too large"));
     } else {
       current_ = in()->Get(next_pos_);
