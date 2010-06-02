@@ -303,7 +303,7 @@ TEST(5) {
     Object* code = Heap::CreateCode(desc,
                                     NULL,
                                     Code::ComputeFlags(Code::STUB),
-                                    Handle<Object>(Heap::undefined_value()));
+                                    Handle<Object>(HEAP->undefined_value()));
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
