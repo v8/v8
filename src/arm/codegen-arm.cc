@@ -869,10 +869,10 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         Register smi_test_reg;
         Condition cond;
         if (!rhs_is_smi || !lhs_is_smi) {
-          if (!rhs_is_smi) {
-            smi_test_reg = rhs;
-          } else if (!lhs_is_smi) {
+          if (rhs_is_smi) {
             smi_test_reg = lhs;
+          } else if (lhs_is_smi) {
+            smi_test_reg = rhs;
           } else {
             smi_test_reg = VirtualFrame::scratch0();
             __ orr(smi_test_reg, rhs, Operand(lhs));
