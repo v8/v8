@@ -454,11 +454,10 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(edi,
          Operand::StaticArray(ecx, times_pointer_size, cache_field_offsets));
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInObjectPropertiesOffset));
-  __ cmp(edi, Operand(ecx));
+  __ sub(edi, Operand(ecx));
   __ j(above_equal, &slow);
 
   // Load in-object property.
-  __ sub(edi, Operand(ecx));
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceSizeOffset));
   __ add(ecx, Operand(edi));
   __ mov(eax, FieldOperand(edx, ecx, times_pointer_size, 0));
@@ -690,7 +689,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
   __ fincstp();
   // Fall through to slow case.
 
-  // Slow case: Load key and receiver from stack and jump to runtime.
+  // Slow case: Jump to runtime.
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_external_array_slow, 1);
   GenerateRuntimeGetProperty(masm);

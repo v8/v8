@@ -8766,6 +8766,9 @@ Result CodeGenerator::EmitKeyedLoad() {
     key.ToRegister();
     receiver.ToRegister();
 
+    // If key and receiver are shared registers on the frame, their values will
+    // be automatically saved and restored when going to deferred code.
+    // The result is in elements, which is guaranteed non-shared.
     DeferredReferenceGetKeyedValue* deferred =
         new DeferredReferenceGetKeyedValue(elements.reg(),
                                            receiver.reg(),

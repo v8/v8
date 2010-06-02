@@ -1505,14 +1505,12 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
                                                    JSObject* holder,
                                                    AccessorInfo* callback) {
   // ----------- S t a t e -------------
+  //  -- rax     : key
+  //  -- rdx     : receiver
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_callback, 1);
 
   // Check that the name has not changed.
@@ -1520,7 +1518,7 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   __ j(not_equal, &miss);
 
   Failure* failure = Failure::InternalError();
-  bool success = GenerateLoadCallback(receiver, holder, rcx, rax, rbx, rdx,
+  bool success = GenerateLoadCallback(receiver, holder, rdx, rax, rbx, rcx,
                                       callback, name, &miss, &failure);
   if (!success) return failure;
 
@@ -1535,21 +1533,19 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
 
 Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_array_length, 1);
 
   // Check that the name has not changed.
   __ Cmp(rax, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadArrayLength(masm(), rcx, rdx, &miss);
+  GenerateLoadArrayLength(masm(), rdx, rcx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_array_length, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -1564,21 +1560,19 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
                                                    JSObject* holder,
                                                    Object* value) {
   // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_constant_function, 1);
 
   // Check that the name has not changed.
   __ Cmp(rax, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadConstant(receiver, holder, rcx, rbx, rdx,
+  GenerateLoadConstant(receiver, holder, rdx, rbx, rcx,
                        value, name, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_constant_function, 1);
@@ -1591,21 +1585,19 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
 
 Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_function_prototype, 1);
 
   // Check that the name has not changed.
   __ Cmp(rax, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadFunctionPrototype(masm(), rcx, rdx, rbx, &miss);
+  GenerateLoadFunctionPrototype(masm(), rdx, rcx, rbx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_function_prototype, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -1619,14 +1611,12 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
                                                       JSObject* holder,
                                                       String* name) {
   // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_interceptor, 1);
 
   // Check that the name has not changed.
@@ -1638,9 +1628,9 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   GenerateLoadInterceptor(receiver,
                           holder,
                           &lookup,
-                          rcx,
-                          rax,
                           rdx,
+                          rax,
+                          rcx,
                           rbx,
                           name,
                           &miss);
@@ -1655,21 +1645,19 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 
 Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   // ----------- S t a t e -------------
-  //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
+  //  -- rax    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_string_length, 1);
 
   // Check that the name has not changed.
   __ Cmp(rax, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadStringLength(masm(), rcx, rdx, rbx, &miss);
+  GenerateLoadStringLength(masm(), rdx, rcx, rbx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_string_length, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -1847,21 +1835,19 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
                                                 JSObject* holder,
                                                 int index) {
   // ----------- S t a t e -------------
-  //  -- rsp[0] : return address
-  //  -- rsp[8] : name
-  //  -- rsp[16] : receiver
+  //  -- rax     : key
+  //  -- rdx     : receiver
+  //  -- rsp[0]  : return address
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_field, 1);
 
   // Check that the name has not changed.
   __ Cmp(rax, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadField(receiver, holder, rcx, rbx, rdx, index, name, &miss);
+  GenerateLoadField(receiver, holder, rdx, rbx, rcx, index, name, &miss);
 
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_field, 1);
