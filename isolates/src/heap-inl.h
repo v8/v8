@@ -416,6 +416,8 @@ void Heap::SetLastScriptId(Object* last_script_id) {
   } while (false)
 
 
+// TODO(isolates): cache isolate: either accept as a parameter or
+//                 set to some known symbol (__CUR_ISOLATE__?)
 #define CALL_HEAP_FUNCTION(FUNCTION_CALL, TYPE)                \
   CALL_AND_RETRY(FUNCTION_CALL,                                \
                  return Handle<TYPE>(TYPE::cast(__object__)),  \

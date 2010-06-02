@@ -63,12 +63,16 @@ static void PrintLn(v8::Local<v8::Value> value) {
 
 
 static Handle<Code> ComputeCallDebugBreak(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallDebugBreak(argc), Code);
+  CALL_HEAP_FUNCTION(
+      Isolate::Current()->stub_cache()->ComputeCallDebugBreak(argc),
+      Code);
 }
 
 
 static Handle<Code> ComputeCallDebugPrepareStepIn(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallDebugPrepareStepIn(argc), Code);
+  CALL_HEAP_FUNCTION(
+      Isolate::Current()->stub_cache()->ComputeCallDebugPrepareStepIn(argc),
+      Code);
 }
 
 

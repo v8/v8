@@ -176,16 +176,16 @@ class StubCache {
 
   static Object* ComputeCallInitialize(int argc, InLoopFlag in_loop);
   static Object* ComputeCallPreMonomorphic(int argc, InLoopFlag in_loop);
-  static Object* ComputeCallNormal(int argc, InLoopFlag in_loop);
-  static Object* ComputeCallMegamorphic(int argc, InLoopFlag in_loop);
-  static Object* ComputeCallMiss(int argc);
+  Object* ComputeCallNormal(int argc, InLoopFlag in_loop);
+  Object* ComputeCallMegamorphic(int argc, InLoopFlag in_loop);
+  Object* ComputeCallMiss(int argc);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
-  static Code* FindCallInitialize(int argc, InLoopFlag in_loop);
+  Code* FindCallInitialize(int argc, InLoopFlag in_loop);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  static Object* ComputeCallDebugBreak(int argc);
-  static Object* ComputeCallDebugPrepareStepIn(int argc);
+  Object* ComputeCallDebugBreak(int argc);
+  Object* ComputeCallDebugPrepareStepIn(int argc);
 #endif
 
   static Object* ComputeLazyCompile(int argc);
@@ -195,7 +195,7 @@ class StubCache {
   static Code* Set(String* name, Map* map, Code* code);
 
   // Clear the lookup table (@ mark compact collection).
-  static void Clear();
+  void Clear();
 
   // Functions for generating stubs at startup.
   static void GenerateMiss(MacroAssembler* masm);

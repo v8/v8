@@ -236,7 +236,9 @@ void CallIC::Clear(Address address, Code* target) {
   InLoopFlag in_loop = target->ic_in_loop();
   if (state == UNINITIALIZED) return;
   Code* code =
-      StubCache::FindCallInitialize(target->arguments_count(), in_loop);
+      Isolate::Current()->stub_cache()->FindCallInitialize(
+          target->arguments_count(),
+          in_loop);
   SetTargetAtAddress(address, code);
 }
 
@@ -499,7 +501,8 @@ void CallIC::UpdateCaches(LookupResult* lookup,
     // setting the monomorphic state.
     code = StubCache::ComputeCallPreMonomorphic(argc, in_loop);
   } else if (state == MONOMORPHIC) {
-    code = StubCache::ComputeCallMegamorphic(argc, in_loop);
+    code = Isolate::Current()->stub_cache()->ComputeCallMegamorphic(argc,
+                                                                    in_loop);
   } else {
     // Compute monomorphic stub.
     switch (lookup->type()) {

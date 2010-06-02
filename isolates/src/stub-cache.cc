@@ -763,7 +763,9 @@ void StubCache::Clear() {
 
 // Support function for computing call IC miss stubs.
 Handle<Code> ComputeCallMiss(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallMiss(argc), Code);
+  CALL_HEAP_FUNCTION(
+      Isolate::Current()->stub_cache()->ComputeCallMiss(argc),
+      Code);
 }
 
 

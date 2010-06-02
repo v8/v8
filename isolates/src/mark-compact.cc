@@ -146,7 +146,7 @@ void MarkCompactCollector::Finish() {
   // force lazy re-initialization of it. This must be done after the
   // GC, because it relies on the new address of certain old space
   // objects (empty string, illegal builtin).
-  StubCache::Clear();
+  Isolate::Current()->stub_cache()->Clear();
 
   ExternalStringTable::CleanUp();
 
