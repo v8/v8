@@ -54,7 +54,7 @@ inline T* Handle<T>::operator*() const {
 #ifdef DEBUG
 inline NoHandleAllocation::NoHandleAllocation() {
   v8::ImplementationUtilities::HandleScopeData* current =
-      v8::ImplementationUtilities::CurrentHandleScope();
+      Isolate::Current()->handle_scope_data();
   extensions_ = current->extensions;
   // Shrink the current handle scope to make it impossible to do
   // handle allocations without an explicit handle scope.
@@ -66,7 +66,7 @@ inline NoHandleAllocation::NoHandleAllocation() {
 inline NoHandleAllocation::~NoHandleAllocation() {
   // Restore state in current handle scope to re-enable handle
   // allocations.
-  v8::ImplementationUtilities::CurrentHandleScope()->extensions = extensions_;
+  Isolate::Current()->handle_scope_data()->extensions = extensions_;
 }
 #endif
 

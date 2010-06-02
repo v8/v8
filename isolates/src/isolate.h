@@ -28,6 +28,7 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
+#include "apiutils.h"
 #include "heap.h"
 
 namespace v8 {
@@ -58,7 +59,10 @@ class Isolate {
   Bootstrapper* bootstrapper() { return bootstrapper_; }
   Heap* heap() { return &heap_; }
   StubCache* stub_cache() { return stub_cache_; }
-  
+  v8::ImplementationUtilities::HandleScopeData* handle_scope_data() {
+    return &handle_scope_data_;
+  }
+
  private:
   Isolate();
   
@@ -69,6 +73,7 @@ class Isolate {
   Bootstrapper* bootstrapper_;
   Heap heap_;
   StubCache* stub_cache_;
+  v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };

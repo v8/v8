@@ -67,6 +67,7 @@ Isolate* Isolate::Create(Deserializer* des) {
 Isolate::Isolate()
     : bootstrapper_(NULL),
       stub_cache_(NULL) {
+  handle_scope_data_.Initialize();
 }
 
 

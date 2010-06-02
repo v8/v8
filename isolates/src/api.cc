@@ -265,12 +265,6 @@ static inline bool EnsureInitialized(const char* location) {
 }
 
 
-ImplementationUtilities::HandleScopeData*
-    ImplementationUtilities::CurrentHandleScope() {
-  return &i::HandleScope::current_;
-}
-
-
 #ifdef DEBUG
 void ImplementationUtilities::ZapHandleRange(i::Object** begin,
                                              i::Object** end) {
@@ -449,6 +443,9 @@ void V8::DisposeGlobal(i::Object** obj) {
 
 HandleScope::HandleScope() : is_closed_(false) {
   API_ENTRY_CHECK("HandleScope::HandleScope");
+  // Handle scope is per-isolate so we need to initialize the current one
+  // if it wasn't already.
+  EnsureInitialized("HandleScope::HandleScope");
   i::HandleScope::Enter(&previous_);
 }
 
@@ -3053,8 +3050,7 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
 bool v8::V8::Initialize() {
   if (i::V8::IsRunning()) return true;
   ENTER_V8;
-  HandleScope scope;
-  if (i::Snapshot::Initialize()) return true;
+  if(i::Snapshot::Initialize()) return true;
   return i::V8::Initialize(NULL);
 }
 
@@ -4381,7 +4377,7 @@ char* HandleScopeImplementer::ArchiveThread(char* storage) {
 
 char* HandleScopeImplementer::ArchiveThreadHelper(char* storage) {
   v8::ImplementationUtilities::HandleScopeData* current =
-      v8::ImplementationUtilities::CurrentHandleScope();
+      Isolate::Current()->handle_scope_data();
   handle_scope_data_ = *current;
   memcpy(storage, this, sizeof(*this));
 
@@ -4404,7 +4400,7 @@ char* HandleScopeImplementer::RestoreThread(char* storage) {
 
 char* HandleScopeImplementer::RestoreThreadHelper(char* storage) {
   memcpy(this, storage, sizeof(*this));
-  *v8::ImplementationUtilities::CurrentHandleScope() = handle_scope_data_;
+  *Isolate::Current()->handle_scope_data() = handle_scope_data_;
   return storage + ArchiveSpacePerThread();
 }
 
@@ -4430,7 +4426,7 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
 
 void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
   v8::ImplementationUtilities::HandleScopeData* current =
-      v8::ImplementationUtilities::CurrentHandleScope();
+      Isolate::Current()->handle_scope_data();
   thread_local.handle_scope_data_ = *current;
   thread_local.IterateThis(v);
 }

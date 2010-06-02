@@ -57,8 +57,6 @@ class ImplementationUtilities {
   // to access the HandleScope data.
   typedef v8::HandleScope::Data HandleScopeData;
 
-  static HandleScopeData* CurrentHandleScope();
-
 #ifdef DEBUG
   static void ZapHandleRange(internal::Object** begin, internal::Object** end);
 #endif

@@ -44,25 +44,25 @@ namespace v8 {
 namespace internal {
 
 
-v8::ImplementationUtilities::HandleScopeData HandleScope::current_ =
-    { -1, NULL, NULL };
-
-
 int HandleScope::NumberOfHandles() {
   int n = HandleScopeImplementer::instance()->blocks()->length();
   if (n == 0) return 0;
   return ((n - 1) * kHandleBlockSize) + static_cast<int>(
-      (current_.next - HandleScopeImplementer::instance()->blocks()->last()));
+      (Isolate::Current()->handle_scope_data()->next -
+          HandleScopeImplementer::instance()->blocks()->last()));
 }
 
 
 Object** HandleScope::Extend() {
-  Object** result = current_.next;
+  v8::ImplementationUtilities::HandleScopeData* current =
+      Isolate::Current()->handle_scope_data();
 
-  ASSERT(result == current_.limit);
+  Object** result = current->next;
+
+  ASSERT(result == current->limit);
   // Make sure there's at least one scope on the stack and that the
   // top of the scope stack isn't a barrier.
-  if (current_.extensions < 0) {
+  if (current->extensions < 0) {
     Utils::ReportApiFailure("v8::HandleScope::CreateHandle()",
                             "Cannot create a handle without a HandleScope");
     return NULL;
@@ -72,21 +72,21 @@ Object** HandleScope::Extend() {
   // for fast creation of scopes after scope barriers.
   if (!impl->blocks()->is_empty()) {
     Object** limit = &impl->blocks()->last()[kHandleBlockSize];
-    if (current_.limit != limit) {
-      current_.limit = limit;
+    if (current->limit != limit) {
+      current->limit = limit;
     }
   }
 
   // If we still haven't found a slot for the handle, we extend the
   // current handle scope by allocating a new handle block.
-  if (result == current_.limit) {
+  if (result == current->limit) {
     // If there's a spare block, use it for growing the current scope.
     result = impl->GetSpareOrNewBlock();
     // Add the extension to the global list of blocks, but count the
     // extension as part of the current scope.
     impl->blocks()->Add(result);
-    current_.extensions++;
-    current_.limit = &result[kHandleBlockSize];
+    current->extensions++;
+    current->limit = &result[kHandleBlockSize];
   }
 
   return result;
@@ -94,8 +94,11 @@ Object** HandleScope::Extend() {
 
 
 void HandleScope::DeleteExtensions() {
-  ASSERT(current_.extensions != 0);
-  HandleScopeImplementer::instance()->DeleteExtensions(current_.extensions);
+  v8::ImplementationUtilities::HandleScopeData* current =
+      Isolate::Current()->handle_scope_data();
+
+  ASSERT(current->extensions != 0);
+  HandleScopeImplementer::instance()->DeleteExtensions(current->extensions);
 }
 
 
@@ -108,17 +111,20 @@ void HandleScope::ZapRange(Object** start, Object** end) {
 
 
 Address HandleScope::current_extensions_address() {
-  return reinterpret_cast<Address>(&current_.extensions);
+  return reinterpret_cast<Address>(
+      &Isolate::Current()->handle_scope_data()->extensions);
 }
 
 
 Address HandleScope::current_next_address() {
-  return reinterpret_cast<Address>(&current_.next);
+  return reinterpret_cast<Address>(
+      &Isolate::Current()->handle_scope_data()->next);
 }
 
 
 Address HandleScope::current_limit_address() {
-  return reinterpret_cast<Address>(&current_.limit);
+  return reinterpret_cast<Address>(
+      &Isolate::Current()->handle_scope_data()->limit);
 }
 
 
