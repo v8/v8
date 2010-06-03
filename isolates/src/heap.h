@@ -1019,7 +1019,7 @@ class Heap {
 
  private:
   Heap();
-  
+
   static int reserved_semispace_size_;
   static int max_semispace_size_;
   static int initial_semispace_size_;
@@ -1269,7 +1269,7 @@ class Heap {
   friend class AlwaysAllocateScope;
   friend class LinearAllocationScope;
   friend class Isolate;
-  
+
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };
 

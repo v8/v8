@@ -3050,7 +3050,7 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
 bool v8::V8::Initialize() {
   if (i::V8::IsRunning()) return true;
   ENTER_V8;
-  if(i::Snapshot::Initialize()) return true;
+  if (i::Snapshot::Initialize()) return true;
   return i::V8::Initialize(NULL);
 }
 

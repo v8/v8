@@ -293,7 +293,6 @@ DEPENDENT_TEST(Deserialize, Serialize) {
   // serialization.  That doesn't matter.  We don't need to be able to
   // serialize a snapshot in a VM that is booted from a snapshot.
   if (!Snapshot::IsEnabled()) {
-
     Deserialize();
 
     v8::Persistent<v8::Context> env = v8::Context::New();
@@ -306,7 +305,6 @@ DEPENDENT_TEST(Deserialize, Serialize) {
 
 DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
   if (!Snapshot::IsEnabled()) {
-
     Deserialize();
 
     v8::Persistent<v8::Context> env = v8::Context::New();
@@ -319,7 +317,6 @@ DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
 
 DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
   if (!Snapshot::IsEnabled()) {
-
     Deserialize();
 
     v8::Persistent<v8::Context> env = v8::Context::New();
@@ -337,7 +334,6 @@ DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
 DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
                SerializeTwice) {
   if (!Snapshot::IsEnabled()) {
-
     Deserialize();
 
     v8::Persistent<v8::Context> env = v8::Context::New();

@@ -73,7 +73,7 @@ class Zone {
 
  private:
   friend class Isolate;
-  
+
   // All pointers returned from New() have this alignment.
   static const int kAlignment = kPointerSize;
 

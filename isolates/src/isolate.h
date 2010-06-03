@@ -55,7 +55,7 @@ class Isolate {
   // Creates a new isolate (perhaps using a deserializer). Returns null
   // on failure.
   static Isolate* Create(Deserializer* des);
-  
+
   // Initialize process-wide state.
   static void InitOnce();
 
@@ -78,7 +78,7 @@ class Isolate {
   Isolate();
 
   static Isolate* global_isolate;
-  
+
   bool Init(Deserializer* des);
 
   Bootstrapper* bootstrapper_;
@@ -86,7 +86,7 @@ class Isolate {
   StubCache* stub_cache_;
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
   Zone zone_;
-  
+
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
   type name##_;
   ISOLATE_INIT_LIST(GLOBAL_BACKING_STORE)
