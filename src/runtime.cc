@@ -1665,7 +1665,7 @@ static Object* Runtime_StringCharCodeAt(Arguments args) {
   } else {
     ASSERT(index->IsHeapNumber());
     double value = HeapNumber::cast(index)->value();
-    i = static_cast<uint32_t>(value);
+    i = static_cast<uint32_t>(DoubleToInteger(value));
   }
 
   // Flatten the string.  If someone wants to get a char at an index

@@ -48,6 +48,7 @@ function basicTest(s, len) {
   assertEquals("", s().charAt(-1/0));
   assertEquals("t", s().charAt(0));
   assertEquals("t", s().charAt(-0.0));
+  assertEquals("t", s().charAt(-0.1));
   assertEquals("t", s().charAt(0.4));
   assertEquals("e", s().charAt(slowIndex1));
   assertEquals("s", s().charAt(slowIndex2));
@@ -63,6 +64,7 @@ function basicTest(s, len) {
   assertEquals(101, s().charCodeAt(true));
   assertEquals(116, s().charCodeAt(0));
   assertEquals(116, s().charCodeAt(-0.0));
+  assertEquals(116, s().charCodeAt(-0.1));
   assertEquals(116, s().charCodeAt(0.4));
   assertEquals(101, s().charCodeAt(slowIndex1));
   assertEquals(115, s().charCodeAt(slowIndex2));
