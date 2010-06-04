@@ -293,15 +293,12 @@ function RegExpTest(string) {
     return cache.answer;
   }
 
-  // Remove irrelevant '.*' around a test regexp. The expression  
-  // checks whether this.source starts and ends with '.*' and that the third 
-  // char is not a '?' and that the third to last char is not a '\'. 
+  // Remove irrelevant preceeding '.*' in a test regexp. The expression  
+  // checks whether this.source starts with '.*' and that the third 
+  // char is not a '?'
   if (%_StringCharCodeAt(this.source,0) == 46 && // '.'
       %_StringCharCodeAt(this.source,1) == 42 && // '*' 
-      %_StringCharCodeAt(this.source,2) != 63 && // '?'
-      %_StringCharCodeAt(this.source,this.source.length - 3) != 28 && // '\'
-      %_StringCharCodeAt(this.source,this.source.length - 2) == 46 && // '.'   
-      %_StringCharCodeAt(this.source,this.source.length - 1) == 42) { // '*'
+      %_StringCharCodeAt(this.source,2) != 63) { // '?' 
     if (!%_ObjectEquals(regexp_key, this)) {
       regexp_key = this; 
       regexp_val = new $RegExp(this.source.substring(2,
