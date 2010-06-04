@@ -2624,9 +2624,8 @@ void CodeGenerator::Comparison(AstNode* node,
       ASSERT(temp.is_valid());
       __ mov(temp.reg(),
              FieldOperand(operand.reg(), HeapObject::kMapOffset));
-      __ movzx_b(temp.reg(),
-                 FieldOperand(temp.reg(), Map::kBitFieldOffset));
-      __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
+      __ test_b(FieldOperand(temp.reg(), Map::kBitFieldOffset),
+                1 << Map::kIsUndetectable);
       temp.Unuse();
       operand.Unuse();
       dest->Split(not_zero);
@@ -2720,11 +2719,9 @@ void CodeGenerator::Comparison(AstNode* node,
       // left_side is a sequential ASCII string.
       left_side = Result(left_reg);
       right_side = Result(right_val);
-      Result temp2 = allocator_->Allocate();
-      ASSERT(temp2.is_valid());
       // Test string equality and comparison.
+      Label comparison_done;
       if (cc == equal) {
-        Label comparison_done;
         __ cmp(FieldOperand(left_side.reg(), String::kLengthOffset),
                Immediate(Smi::FromInt(1)));
         __ j(not_equal, &comparison_done);
@@ -2732,34 +2729,25 @@ void CodeGenerator::Comparison(AstNode* node,
             static_cast<uint8_t>(String::cast(*right_val)->Get(0));
         __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
                 char_value);
-        __ bind(&comparison_done);
       } else {
-        __ mov(temp2.reg(),
-               FieldOperand(left_side.reg(), String::kLengthOffset));
-        __ SmiUntag(temp2.reg());
-        __ sub(Operand(temp2.reg()), Immediate(1));
-        Label comparison;
-        // If the length is 0 then the subtraction gave -1 which compares less
-        // than any character.
-        __ j(negative, &comparison);
-        // Otherwise load the first character.
-        __ movzx_b(temp2.reg(),
-                   FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize));
-        __ bind(&comparison);
+        __ cmp(FieldOperand(left_side.reg(), String::kLengthOffset),
+               Immediate(Smi::FromInt(1)));
+        // If the length is 0 then the jump is taken and the flags
+        // correctly represent being less than the one-character string.
+        __ j(below, &comparison_done);
         // Compare the first character of the string with the
         // constant 1-character string.
         uint8_t char_value =
             static_cast<uint8_t>(String::cast(*right_val)->Get(0));
-        __ cmp(Operand(temp2.reg()), Immediate(char_value));
-        Label characters_were_different;
-        __ j(not_equal, &characters_were_different);
+        __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
+                char_value);
+        __ j(not_equal, &comparison_done);
         // If the first character is the same then the long string sorts after
         // the short one.
         __ cmp(FieldOperand(left_side.reg(), String::kLengthOffset),
                Immediate(Smi::FromInt(1)));
-        __ bind(&characters_were_different);
       }
-      temp2.Unuse();
+      __ bind(&comparison_done);
       left_side.Unuse();
       right_side.Unuse();
       dest->Split(cc);
@@ -4148,9 +4136,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // eax: value to be iterated over
   __ test(eax, Immediate(kSmiTagMask));
   primitive.Branch(zero);
-  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+  __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
   jsobject.Branch(above_equal);
 
   primitive.Bind();
@@ -6357,14 +6343,15 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   ASSERT(map.is_valid());
   __ mov(map.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
   // Undetectable objects behave like undefined when tested with typeof.
-  __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kBitFieldOffset));
-  __ test(map.reg(), Immediate(1 << Map::kIsUndetectable));
+  __ test_b(FieldOperand(map.reg(), Map::kBitFieldOffset),
+            1 << Map::kIsUndetectable);
   destination()->false_target()->Branch(not_zero);
-  __ mov(map.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  // Do a range test for JSObject type.  We can't use
+  // MacroAssembler::IsInstanceJSObjectType, because we are using a
+  // ControlDestination, so we copy its implementation here.
   __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kInstanceTypeOffset));
-  __ cmp(map.reg(), FIRST_JS_OBJECT_TYPE);
-  destination()->false_target()->Branch(below);
-  __ cmp(map.reg(), LAST_JS_OBJECT_TYPE);
+  __ sub(Operand(map.reg()), Immediate(FIRST_JS_OBJECT_TYPE));
+  __ cmp(map.reg(), LAST_JS_OBJECT_TYPE - FIRST_JS_OBJECT_TYPE);
   obj.Unuse();
   map.Unuse();
   destination()->Split(below_equal);
@@ -6400,9 +6387,8 @@ void CodeGenerator::GenerateIsUndetectableObject(ZoneList<Expression*>* args) {
   ASSERT(temp.is_valid());
   __ mov(temp.reg(),
          FieldOperand(obj.reg(), HeapObject::kMapOffset));
-  __ movzx_b(temp.reg(),
-             FieldOperand(temp.reg(), Map::kBitFieldOffset));
-  __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
+  __ test_b(FieldOperand(temp.reg(), Map::kBitFieldOffset),
+            1 << Map::kIsUndetectable);
   obj.Unuse();
   temp.Unuse();
   destination()->Split(not_zero);
@@ -6476,20 +6462,16 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  { Result tmp = allocator()->Allocate();
-    __ mov(obj.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
-    __ movzx_b(tmp.reg(), FieldOperand(obj.reg(), Map::kInstanceTypeOffset));
-    __ cmp(tmp.reg(), FIRST_JS_OBJECT_TYPE);
-    null.Branch(below);
+  __ CmpObjectType(obj.reg(), FIRST_JS_OBJECT_TYPE, obj.reg());
+  null.Branch(below);
 
-    // As long as JS_FUNCTION_TYPE is the last instance type and it is
-    // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
-    // LAST_JS_OBJECT_TYPE.
-    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-    ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-    __ cmp(tmp.reg(), JS_FUNCTION_TYPE);
-    function.Branch(equal);
-  }
+  // As long as JS_FUNCTION_TYPE is the last instance type and it is
+  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+  // LAST_JS_OBJECT_TYPE.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+  __ CmpInstanceType(obj.reg(), JS_FUNCTION_TYPE);
+  function.Branch(equal);
 
   // Check if the constructor in the map is a function.
   { Result tmp = allocator()->Allocate();
@@ -7070,8 +7052,8 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   // has no indexed interceptor.
   __ CmpObjectType(object.reg(), FIRST_JS_OBJECT_TYPE, tmp1.reg());
   deferred->Branch(below);
-  __ movzx_b(tmp1.reg(), FieldOperand(tmp1.reg(), Map::kBitFieldOffset));
-  __ test(tmp1.reg(), Immediate(KeyedLoadIC::kSlowCaseBitFieldMask));
+  __ test_b(FieldOperand(tmp1.reg(), Map::kBitFieldOffset),
+            KeyedLoadIC::kSlowCaseBitFieldMask);
   deferred->Branch(not_zero);
 
   // Check the object's elements are in fast case.
@@ -8325,10 +8307,10 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       Result temp = allocator()->Allocate();
       ASSERT(temp.is_valid());
       __ mov(temp.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kBitFieldOffset));
-      __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
+      __ test_b(FieldOperand(temp.reg(), Map::kBitFieldOffset),
+                1 << Map::kIsUndetectable);
       destination()->false_target()->Branch(not_zero);
-      __ CmpObjectType(answer.reg(), FIRST_NONSTRING_TYPE, temp.reg());
+      __ CmpInstanceType(temp.reg(), FIRST_NONSTRING_TYPE);
       temp.Unuse();
       answer.Unuse();
       destination()->Split(below);
@@ -8350,9 +8332,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       // It can be an undetectable object.
       frame_->Spill(answer.reg());
       __ mov(answer.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ movzx_b(answer.reg(),
-                 FieldOperand(answer.reg(), Map::kBitFieldOffset));
-      __ test(answer.reg(), Immediate(1 << Map::kIsUndetectable));
+      __ test_b(FieldOperand(answer.reg(), Map::kBitFieldOffset),
+                1 << Map::kIsUndetectable);
       answer.Unuse();
       destination()->Split(not_zero);
 
@@ -8379,14 +8360,15 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       destination()->false_target()->Branch(equal);
 
       // It can be an undetectable object.
-      __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kBitFieldOffset));
-      __ test(map.reg(), Immediate(1 << Map::kIsUndetectable));
+      __ test_b(FieldOperand(map.reg(), Map::kBitFieldOffset),
+                1 << Map::kIsUndetectable);
       destination()->false_target()->Branch(not_zero);
-      __ mov(map.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      // Do a range test for JSObject type.  We can't use
+      // MacroAssembler::IsInstanceJSObjectType, because we are using a
+      // ControlDestination, so we copy its implementation here.
       __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kInstanceTypeOffset));
-      __ cmp(map.reg(), FIRST_JS_OBJECT_TYPE);
-      destination()->false_target()->Branch(below);
-      __ cmp(map.reg(), LAST_JS_OBJECT_TYPE);
+      __ sub(Operand(map.reg()), Immediate(FIRST_JS_OBJECT_TYPE));
+      __ cmp(map.reg(), LAST_JS_OBJECT_TYPE - FIRST_JS_OBJECT_TYPE);
       answer.Unuse();
       map.Unuse();
       destination()->Split(below_equal);
@@ -9313,20 +9295,19 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ movzx_b(ecx, FieldOperand(edx, Map::kInstanceTypeOffset));
 
   // Undetectable => false.
-  __ movzx_b(ebx, FieldOperand(edx, Map::kBitFieldOffset));
-  __ and_(ebx, 1 << Map::kIsUndetectable);
+  __ test_b(FieldOperand(edx, Map::kBitFieldOffset),
+            1 << Map::kIsUndetectable);
   __ j(not_zero, &false_result);
 
   // JavaScript object => true.
-  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+  __ CmpInstanceType(edx, FIRST_JS_OBJECT_TYPE);
   __ j(above_equal, &true_result);
 
   // String value => false iff empty.
-  __ cmp(ecx, FIRST_NONSTRING_TYPE);
+  __ CmpInstanceType(edx, FIRST_NONSTRING_TYPE);
   __ j(above_equal, &not_string);
-  __ mov(edx, FieldOperand(eax, String::kLengthOffset));
   ASSERT(kSmiTag == 0);
-  __ test(edx, Operand(edx));
+  __ cmp(FieldOperand(eax, String::kLengthOffset), Immediate(0));
   __ j(zero, &false_result);
   __ jmp(&true_result);
 
@@ -11782,13 +11763,10 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // There is no test for undetectability in strict equality.
 
       // Get the type of the first operand.
-      __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-
       // If the first object is a JS object, we have done pointer comparison.
-      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
       Label first_non_object;
-      __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
       __ j(below, &first_non_object);
 
       // Return non-zero (eax is not zero)
@@ -11799,17 +11777,14 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
       __ bind(&first_non_object);
       // Check for oddballs: true, false, null, undefined.
-      __ cmp(ecx, ODDBALL_TYPE);
+      __ CmpInstanceType(ecx, ODDBALL_TYPE);
       __ j(equal, &return_not_equal);
 
-      __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-
-      __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+      __ CmpObjectType(edx, FIRST_JS_OBJECT_TYPE, ecx);
       __ j(above_equal, &return_not_equal);
 
       // Check for oddballs: true, false, null, undefined.
-      __ cmp(ecx, ODDBALL_TYPE);
+      __ CmpInstanceType(ecx, ODDBALL_TYPE);
       __ j(equal, &return_not_equal);
 
       // Fall through to the general case.
@@ -12451,12 +12426,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ j(zero, &slow, not_taken);
 
   // Check that the left hand is a JS object.
-  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));  // eax - object map
-  __ movzx_b(ecx, FieldOperand(eax, Map::kInstanceTypeOffset));  // ecx - type
-  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-  __ j(below, &slow, not_taken);
-  __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-  __ j(above, &slow, not_taken);
+  __ IsObjectJSObjectType(eax, eax, edx, &slow);
 
   // Get the prototype of the function.
   __ mov(edx, Operand(esp, 1 * kPointerSize));  // 1 ~ return address
@@ -12481,12 +12451,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Check that the function prototype is a JS object.
   __ test(ebx, Immediate(kSmiTagMask));
   __ j(zero, &slow, not_taken);
-  __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-  __ j(below, &slow, not_taken);
-  __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-  __ j(above, &slow, not_taken);
+  __ IsObjectJSObjectType(ebx, ecx, ecx, &slow);
 
   // Register mapping:
   //   eax is object map.
@@ -12921,14 +12886,12 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // ebx: length of resulting flat string as a smi
   // edx: second string
   Label non_ascii_string_add_flat_result;
-  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
   ASSERT(kStringEncodingMask == kAsciiStringTag);
-  __ test(ecx, Immediate(kAsciiStringTag));
+  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
   __ j(zero, &non_ascii_string_add_flat_result);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ test(ecx, Immediate(kAsciiStringTag));
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
   __ j(zero, &string_add_runtime);
 
   __ bind(&make_flat_ascii_string);
@@ -12969,8 +12932,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // edx: second string
   __ bind(&non_ascii_string_add_flat_result);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ and_(ecx, kAsciiStringTag);
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
   __ j(not_zero, &string_add_runtime);
   // Both strings are two byte strings. As they are short they are both
   // flat.

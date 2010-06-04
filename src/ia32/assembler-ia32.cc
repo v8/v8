@@ -1328,6 +1328,15 @@ void Assembler::test(const Operand& op, const Immediate& imm) {
 }
 
 
+void Assembler::test_b(const Operand& op, uint8_t imm8) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF6);
+  emit_operand(eax, op);
+  EMIT(imm8);
+}
+
+
 void Assembler::xor_(Register dst, int32_t imm32) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

@@ -315,8 +315,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
 
   // Check bit field.
-  __ movzx_b(ebx, FieldOperand(ecx, Map::kBitFieldOffset));
-  __ test(ebx, Immediate(kSlowCaseBitFieldMask));
+  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset), kSlowCaseBitFieldMask);
   __ j(not_zero, &slow, not_taken);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
@@ -410,9 +409,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Is the string a symbol?
   // ecx: key map.
-  __ movzx_b(ebx, FieldOperand(ecx, Map::kInstanceTypeOffset));
   ASSERT(kSymbolTag != 0);
-  __ test(ebx, Immediate(kIsSymbolMask));
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kIsSymbolMask);
   __ j(zero, &slow, not_taken);
 
   // If the receiver is a fast-case object, check the keyed lookup
@@ -564,8 +562,8 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
   // Check that the receiver does not require access checks.  We need
   // to check this explicitly since this generic stub does not perform
   // map checks.
-  __ movzx_b(ebx, FieldOperand(ecx, Map::kBitFieldOffset));
-  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+            1 << Map::kIsAccessCheckNeeded);
   __ j(not_zero, &slow, not_taken);
 
   __ CmpInstanceType(ecx, JS_OBJECT_TYPE);
@@ -754,8 +752,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
   // to do this because this generic stub does not perform map checks.
-  __ movzx_b(ebx, FieldOperand(edi, Map::kBitFieldOffset));
-  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ test_b(FieldOperand(edi, Map::kBitFieldOffset),
+            1 << Map::kIsAccessCheckNeeded);
   __ j(not_zero, &slow, not_taken);
   // Check that the key is a smi.
   __ test(ecx, Immediate(kSmiTagMask));
@@ -872,8 +870,8 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
   // to do this because this generic stub does not perform map checks.
-  __ movzx_b(ebx, FieldOperand(edi, Map::kBitFieldOffset));
-  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ test_b(FieldOperand(edi, Map::kBitFieldOffset),
+            1 << Map::kIsAccessCheckNeeded);
   __ j(not_zero, &slow);
   // Check that the key is a smi.
   __ test(ecx, Immediate(kSmiTagMask));
@@ -1179,8 +1177,8 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // Accessing global object: Load and invoke.
   __ bind(&global_object);
   // Check that the global object does not require access checks.
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kBitFieldOffset));
-  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
+            1 << Map::kIsAccessCheckNeeded);
   __ j(not_equal, &miss, not_taken);
   GenerateNormalHelper(masm, argc, true, &miss);
 
@@ -1191,8 +1189,8 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ j(equal, &global_proxy, not_taken);
   // Check that the non-global, non-global-proxy object does not
   // require access checks.
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kBitFieldOffset));
-  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
+            1 << Map::kIsAccessCheckNeeded);
   __ j(not_equal, &miss, not_taken);
   __ bind(&invoke);
   GenerateNormalHelper(masm, argc, false, &miss);
@@ -1308,8 +1306,8 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   __ j(equal, &global, not_taken);
 
   // Check for non-global object that requires access check.
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kBitFieldOffset));
-  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
+            1 << Map::kIsAccessCheckNeeded);
   __ j(not_zero, &miss, not_taken);
 
   // Search the dictionary placing the result in eax.

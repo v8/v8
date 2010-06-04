@@ -7476,7 +7476,7 @@ Result CodeGenerator::EmitKeyedLoad() {
     __ bind(deferred->patch_site());
     // Use masm-> here instead of the double underscore macro since extra
     // coverage code can interfere with the patching.  Do not use a load
-    // from the root away to load null_value, since the load must be patched
+    // from the root array to load null_value, since the load must be patched
     // with the expected receiver map, which is not in the root array.
     masm_->movq(kScratchRegister, Factory::null_value(),
                 RelocInfo::EMBEDDED_OBJECT);

@@ -1520,9 +1520,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ jmp(&miss);
       } else {
         // Check that the object is a string or a symbol.
-        __ mov(eax, FieldOperand(edx, HeapObject::kMapOffset));
-        __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
-        __ cmp(eax, FIRST_NONSTRING_TYPE);
+        __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, eax);
         __ j(above_equal, &miss, not_taken);
         // Check that the maps starting from the prototype haven't changed.
         GenerateLoadGlobalFunctionPrototype(masm(),
