@@ -560,7 +560,7 @@ class ClearThreadJSFunctionResultCachesVisitor: public ThreadVisitor  {
 void Heap::ClearJSFunctionResultCaches() {
   if (Bootstrapper::IsActive()) return;
   ClearThreadJSFunctionResultCachesVisitor visitor;
-  ThreadManager::IterateThreads(&visitor);
+  ThreadManager::IterateArchivedThreads(&visitor);
 }
 
 
