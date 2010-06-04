@@ -525,12 +525,54 @@ class StringBuilder {
 };
 
 
+// Custom memcpy implementation for platforms where the standard version
+// may not be good enough.
+// TODO(lrn): Check whether some IA32 platforms should be excluded.
+#if defined(V8_TARGET_ARCH_IA32)
+
+// TODO(lrn): Extend to other platforms as needed.
+
+typedef void (*MemCopyFunction)(void* dest, const void* src, size_t size);
+
+// Implemented in codegen-<arch>.cc.
+MemCopyFunction CreateMemCopyFunction();
+
+// Copy memory area to disjoint memory area.
+static inline void MemCopy(void* dest, const void* src, size_t size) {
+  static MemCopyFunction memcopy = CreateMemCopyFunction();
+  (*memcopy)(dest, src, size);
+#ifdef DEBUG
+  CHECK_EQ(0, memcmp(dest, src, size));
+#endif
+}
+
+
+// Limit below which the extra overhead of the MemCopy function is likely
+// to outweigh the benefits of faster copying.
+// TODO(lrn): Try to find a more precise value.
+static const int kMinComplexMemCopy = 256;
+
+#else  // V8_TARGET_ARCH_IA32
+
+static inline void MemCopy(void* dest, const void* src, size_t size) {
+  memcpy(dest, src, size);
+}
+
+static const int kMinComplexMemCopy = 256;
+
+#endif  // V8_TARGET_ARCH_IA32
+
+
 // Copy from ASCII/16bit chars to ASCII/16bit chars.
 template <typename sourcechar, typename sinkchar>
 static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
   sinkchar* limit = dest + chars;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
   if (sizeof(*dest) == sizeof(*src)) {
+    if (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest))) {
+      MemCopy(dest, src, chars * sizeof(*dest));
+      return;
+    }
     // Number of characters in a uintptr_t.
     static const int kStepSize = sizeof(uintptr_t) / sizeof(*dest);  // NOLINT
     while (dest <= limit - kStepSize) {

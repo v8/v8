@@ -13498,6 +13498,211 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
 #undef __
 
+#define __ masm.
+
+MemCopyFunction CreateMemCopyFunction() {
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  HandleScope handles;
+  MacroAssembler masm(buffer, static_cast<int>(actual_size));
+
+  // Generated code is put into a fixed, unmovable, buffer, and not into
+  // the V8 heap. We can't, and don't, refer to any relocatable addresses
+  // (e.g. the JavaScript nan-object).
+
+  // 32-bit C declaration function calls pass arguments on stack.
+
+  // Stack layout:
+  // esp[12]: Third argument, size.
+  // esp[8]: Second argument, source pointer.
+  // esp[4]: First argument, destination pointer.
+  // esp[0]: return address
+
+  const int kDestinationOffset = 1 * kPointerSize;
+  const int kSourceOffset = 2 * kPointerSize;
+  const int kSizeOffset = 3 * kPointerSize;
+
+  int stack_offset = 0;  // Update if we change the stack height.
+
+  if (FLAG_debug_code) {
+    __ cmp(Operand(esp, kSizeOffset + stack_offset),
+           Immediate(kMinComplexMemCopy));
+    Label ok;
+    __ j(greater_equal, &ok);
+    __ int3();
+    __ bind(&ok);
+  }
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope enable(SSE2);
+    __ push(edi);
+    __ push(esi);
+    stack_offset += 2 * kPointerSize;
+    Register dst = edi;
+    Register src = esi;
+    Register count = ecx;
+    __ mov(dst, Operand(esp, stack_offset + kDestinationOffset));
+    __ mov(src, Operand(esp, stack_offset + kSourceOffset));
+    __ mov(count, Operand(esp, stack_offset + kSizeOffset));
+
+
+    __ movdqu(xmm0, Operand(src, 0));
+    __ movdqu(Operand(dst, 0), xmm0);
+    __ mov(edx, dst);
+    __ and_(edx, 0xF);
+    __ neg(edx);
+    __ add(Operand(edx), Immediate(16));
+    __ add(dst, Operand(edx));
+    __ add(src, Operand(edx));
+    __ sub(Operand(count), edx);
+
+    // edi is now aligned. Check if esi is also aligned.
+    Label unaligned_source;
+    __ test(Operand(src), Immediate(0x0F));
+    __ j(not_zero, &unaligned_source);
+    {
+      __ IncrementCounter(&Counters::memcopy_aligned, 1);
+      // Copy loop for aligned source and destination.
+      __ mov(edx, count);
+      Register loop_count = ecx;
+      Register count = edx;
+      __ shr(loop_count, 5);
+      {
+        // Main copy loop.
+        Label loop;
+        __ bind(&loop);
+        __ prefetch(Operand(src, 0x20), 1);
+        __ movdqa(xmm0, Operand(src, 0x00));
+        __ movdqa(xmm1, Operand(src, 0x10));
+        __ add(Operand(src), Immediate(0x20));
+
+        __ movdqa(Operand(dst, 0x00), xmm0);
+        __ movdqa(Operand(dst, 0x10), xmm1);
+        __ add(Operand(dst), Immediate(0x20));
+
+        __ dec(loop_count);
+        __ j(not_zero, &loop);
+      }
+
+      // At most 31 bytes to copy.
+      Label move_less_16;
+      __ test(Operand(count), Immediate(0x10));
+      __ j(zero, &move_less_16);
+      __ movdqa(xmm0, Operand(src, 0));
+      __ add(Operand(src), Immediate(0x10));
+      __ movdqa(Operand(dst, 0), xmm0);
+      __ add(Operand(dst), Immediate(0x10));
+      __ bind(&move_less_16);
+
+      // At most 15 bytes to copy. Copy 16 bytes at end of string.
+      __ and_(count, 0xF);
+      __ movdqu(xmm0, Operand(src, count, times_1, -0x10));
+      __ movdqu(Operand(dst, count, times_1, -0x10), xmm0);
+
+      __ pop(esi);
+      __ pop(edi);
+      __ ret(0);
+    }
+    __ Align(16);
+    {
+      // Copy loop for unaligned source and aligned destination.
+      // If source is not aligned, we can't read it as efficiently.
+      __ bind(&unaligned_source);
+      __ IncrementCounter(&Counters::memcopy_unaligned, 1);
+      __ mov(edx, ecx);
+      Register loop_count = ecx;
+      Register count = edx;
+      __ shr(loop_count, 5);
+      {
+        // Main copy loop
+        Label loop;
+        __ bind(&loop);
+        __ prefetch(Operand(src, 0x20), 1);
+        __ movdqu(xmm0, Operand(src, 0x00));
+        __ movdqu(xmm1, Operand(src, 0x10));
+        __ add(Operand(src), Immediate(0x20));
+
+        __ movdqa(Operand(dst, 0x00), xmm0);
+        __ movdqa(Operand(dst, 0x10), xmm1);
+        __ add(Operand(dst), Immediate(0x20));
+
+        __ dec(loop_count);
+        __ j(not_zero, &loop);
+      }
+
+      // At most 31 bytes to copy.
+      Label move_less_16;
+      __ test(Operand(count), Immediate(0x10));
+      __ j(zero, &move_less_16);
+      __ movdqu(xmm0, Operand(src, 0));
+      __ add(Operand(src), Immediate(0x10));
+      __ movdqa(Operand(dst, 0), xmm0);
+      __ add(Operand(dst), Immediate(0x10));
+      __ bind(&move_less_16);
+
+      // At most 15 bytes to copy. Copy 16 bytes at end of string.
+      __ and_(count, 0x0F);
+      __ movdqu(xmm0, Operand(src, count, times_1, -0x10));
+      __ movdqu(Operand(dst, count, times_1, -0x10), xmm0);
+
+      __ pop(esi);
+      __ pop(edi);
+      __ ret(0);
+    }
+
+  } else {
+    __ IncrementCounter(&Counters::memcopy_noxmm, 1);
+    // SSE2 not supported. Unlikely to happen in practice.
+    __ push(edi);
+    __ push(esi);
+    stack_offset += 2 * kPointerSize;
+    __ cld();
+    Register dst = edi;
+    Register src = esi;
+    Register count = ecx;
+    __ mov(dst, Operand(esp, stack_offset + kDestinationOffset));
+    __ mov(src, Operand(esp, stack_offset + kSourceOffset));
+    __ mov(count, Operand(esp, stack_offset + kSizeOffset));
+
+    // Copy the first word.
+    __ mov(eax, Operand(src, 0));
+    __ mov(Operand(dst, 0), eax);
+
+    // Increment src,dstso that dst is aligned.
+    __ mov(edx, dst);
+    __ and_(edx, 0x03);
+    __ neg(edx);
+    __ add(Operand(edx), Immediate(4));  // edx = 4 - (dst & 3)
+    __ add(dst, Operand(edx));
+    __ add(src, Operand(edx));
+    __ sub(Operand(count), edx);
+    // edi is now aligned, ecx holds number of remaning bytes to copy.
+
+    __ mov(edx, count);
+    count = edx;
+    __ shr(ecx, 2);  // Make word count instead of byte count.
+    __ rep_movs();
+
+    // At most 3 bytes left to copy. Copy 4 bytes at end of string.
+    __ and_(count, 3);
+    __ mov(eax, Operand(src, count, times_1, -4));
+    __ mov(Operand(dst, count, times_1, -4), eax);
+
+    __ pop(esi);
+    __ pop(edi);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  // Call the function from C++.
+  return FUNCTION_CAST<MemCopyFunction>(buffer);
+}
+
+#undef __
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_IA32
