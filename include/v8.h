@@ -2335,15 +2335,6 @@ typedef void (*GCEpilogueCallback)(GCType type, GCCallbackFlags flags);
 typedef void (*GCCallback)();
 
 
-// --- C o n t e x t  G e n e r a t o r ---
-
-/**
- * Applications must provide a callback function which is called to generate
- * a context if a context was not deserialized from the snapshot.
- */
-typedef Persistent<Context> (*ContextGenerator)();
-
-
 /**
  * Profiler modules.
  *
