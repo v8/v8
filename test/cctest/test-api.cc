@@ -27,6 +27,8 @@
 
 #include <limits.h>
 
+#define USE_NEW_QUERY_CALLBACKS
+
 #include "v8.h"
 
 #include "api.h"
@@ -1120,11 +1122,11 @@ v8::Handle<v8::Boolean> CheckThisIndexedPropertyQuery(
 }
 
 
-v8::Handle<v8::Boolean> CheckThisNamedPropertyQuery(Local<String> property,
+v8::Handle<v8::Integer> CheckThisNamedPropertyQuery(Local<String> property,
                                                     const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Boolean>();
+  return v8::Handle<v8::Integer>();
 }
 
 
@@ -1221,13 +1223,13 @@ static v8::Handle<Value> PrePropertyHandlerGet(Local<String> key,
 }
 
 
-static v8::Handle<v8::Boolean> PrePropertyHandlerHas(Local<String> key,
-                                                     const AccessorInfo&) {
+static v8::Handle<v8::Integer> PrePropertyHandlerQuery(Local<String> key,
+                                                       const AccessorInfo&) {
   if (v8_str("pre")->Equals(key)) {
-    return v8::True();
+    return v8::Integer::New(v8::None);
   }
 
-  return v8::Handle<v8::Boolean>();  // do not intercept the call
+  return v8::Handle<v8::Integer>();  // do not intercept the call
 }
 
 
@@ -1236,7 +1238,7 @@ THREADED_TEST(PrePropertyHandler) {
   v8::Handle<v8::FunctionTemplate> desc = v8::FunctionTemplate::New();
   desc->InstanceTemplate()->SetNamedPropertyHandler(PrePropertyHandlerGet,
                                                     0,
-                                                    PrePropertyHandlerHas);
+                                                    PrePropertyHandlerQuery);
   LocalContext env(NULL, desc->InstanceTemplate());
   Script::Compile(v8_str(
       "var pre = 'Object: pre'; var on = 'Object: on';"))->Run();
