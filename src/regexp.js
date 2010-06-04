@@ -301,8 +301,7 @@ function RegExpTest(string) {
       %_StringCharCodeAt(this.source,2) != 63) { // '?' 
     if (!%_ObjectEquals(regexp_key, this)) {
       regexp_key = this; 
-      regexp_val = new $RegExp(this.source.substring(2,
-                                                     this.source.length - 2),
+      regexp_val = new $RegExp(this.source.substring(2, this.source.length),
                                (this.global ? 'g' : '')
                                + (this.ignoreCase ? 'i' : '')
                                + (this.multiline ? 'm' : ''));
