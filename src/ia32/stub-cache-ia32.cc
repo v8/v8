@@ -172,6 +172,17 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 }
 
 
+void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
+    MacroAssembler* masm, int index, Register prototype) {
+  // Get the global function with the given index.
+  JSFunction* function = JSFunction::cast(Top::global_context()->get(index));
+  // Load its initial map. The global functions all have initial maps.
+  __ Set(prototype, Immediate(Handle<Map>(function->initial_map())));
+  // Load the prototype from the initial map.
+  __ mov(prototype, FieldOperand(prototype, Map::kPrototypeOffset));
+}
+
+
 void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
                                            Register receiver,
                                            Register scratch,
@@ -1328,9 +1339,9 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
   Label index_out_of_range;
 
   // Check that the maps starting from the prototype haven't changed.
-  GenerateLoadGlobalFunctionPrototype(masm(),
-                                      Context::STRING_FUNCTION_INDEX,
-                                      eax);
+  GenerateDirectLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            eax);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, name, &miss);
 
@@ -1394,9 +1405,9 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   Label index_out_of_range;
 
   // Check that the maps starting from the prototype haven't changed.
-  GenerateLoadGlobalFunctionPrototype(masm(),
-                                      Context::STRING_FUNCTION_INDEX,
-                                      eax);
+  GenerateDirectLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            eax);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, name, &miss);
 
@@ -1523,9 +1534,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, eax);
         __ j(above_equal, &miss, not_taken);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::STRING_FUNCTION_INDEX,
-                                            eax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::STRING_FUNCTION_INDEX, eax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, name, &miss);
       }
@@ -1544,9 +1554,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ j(not_equal, &miss, not_taken);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::NUMBER_FUNCTION_INDEX,
-                                            eax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::NUMBER_FUNCTION_INDEX, eax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, name, &miss);
       }
@@ -1566,9 +1575,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ j(not_equal, &miss, not_taken);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::BOOLEAN_FUNCTION_INDEX,
-                                            eax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::BOOLEAN_FUNCTION_INDEX, eax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, name, &miss);
       }

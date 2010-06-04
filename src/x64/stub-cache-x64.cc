@@ -114,6 +114,17 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 }
 
 
+void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
+    MacroAssembler* masm, int index, Register prototype) {
+  // Get the global function with the given index.
+  JSFunction* function = JSFunction::cast(Top::global_context()->get(index));
+  // Load its initial map. The global functions all have initial maps.
+  __ Move(prototype, Handle<Map>(function->initial_map()));
+  // Load the prototype from the initial map.
+  __ movq(prototype, FieldOperand(prototype, Map::kPrototypeOffset));
+}
+
+
 // Load a fast property out of a holder object (src). In-object properties
 // are loaded directly otherwise the property is loaded from the properties
 // fixed array.
@@ -776,9 +787,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rax);
         __ j(above_equal, &miss);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::STRING_FUNCTION_INDEX,
-                                            rax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::STRING_FUNCTION_INDEX, rax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
                         rbx, rdx, name, &miss);
       }
@@ -796,9 +806,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ j(not_equal, &miss);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::NUMBER_FUNCTION_INDEX,
-                                            rax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::NUMBER_FUNCTION_INDEX, rax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
                         rbx, rdx, name, &miss);
       }
@@ -818,9 +827,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ j(not_equal, &miss);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::BOOLEAN_FUNCTION_INDEX,
-                                            rax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::BOOLEAN_FUNCTION_INDEX, rax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
                         rbx, rdx, name, &miss);
       }
