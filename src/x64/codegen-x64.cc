@@ -2883,26 +2883,66 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Allocate a frame slot for the receiver.
     frame_->Push(Factory::undefined_value());
+
+    // Load the arguments.
     int arg_count = args->length();
     for (int i = 0; i < arg_count; i++) {
       Load(args->at(i));
       frame_->SpillTop();
     }
 
-    // Prepare the stack for the call to ResolvePossiblyDirectEval.
+    // Result to hold the result of the function resolution and the
+    // final result of the eval call.
+    Result result;
+
+    // If we know that eval can only be shadowed by eval-introduced
+    // variables we attempt to load the global eval function directly
+    // in generated code. If we succeed, there is no need to perform a
+    // context lookup in the runtime system.
+    JumpTarget done;
+    if (var->slot() != NULL && var->mode() == Variable::DYNAMIC_GLOBAL) {
+      ASSERT(var->slot()->type() == Slot::LOOKUP);
+      JumpTarget slow;
+      // Prepare the stack for the call to
+      // ResolvePossiblyDirectEvalNoLookup by pushing the loaded
+      // function, the first argument to the eval call and the
+      // receiver.
+      Result fun = LoadFromGlobalSlotCheckExtensions(var->slot(),
+                                                     NOT_INSIDE_TYPEOF,
+                                                     &slow);
+      frame_->Push(&fun);
+      if (arg_count > 0) {
+        frame_->PushElementAt(arg_count);
+      } else {
+        frame_->Push(Factory::undefined_value());
+      }
+      frame_->PushParameterAt(-1);
+
+      // Resolve the call.
+      result =
+          frame_->CallRuntime(Runtime::kResolvePossiblyDirectEvalNoLookup, 3);
+
+      done.Jump(&result);
+      slow.Bind();
+    }
+
+    // Prepare the stack for the call to ResolvePossiblyDirectEval by
+    // pushing the loaded function, the first argument to the eval
+    // call and the receiver.
     frame_->PushElementAt(arg_count + 1);
     if (arg_count > 0) {
       frame_->PushElementAt(arg_count);
     } else {
       frame_->Push(Factory::undefined_value());
     }
-
-    // Push the receiver.
     frame_->PushParameterAt(-1);
 
     // Resolve the call.
-    Result result =
-        frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+    result = frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+
+    // If we generated fast-case code bind the jump-target where fast
+    // and slow case merge.
+    if (done.is_linked()) done.Bind(&result);
 
     // The runtime call returns a pair of values in rax (function) and
     // rdx (receiver). Touch up the stack with the right values.
