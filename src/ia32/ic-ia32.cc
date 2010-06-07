@@ -1044,22 +1044,21 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 // Defined in ic.cc.
 Object* CallIC_Miss(Arguments args);
 
-void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
+// The generated code does not accept smi keys.
+// The generated code falls through if both probes miss.
+static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
+                                          int argc,
+                                          Code::Kind kind,
+                                          Label* miss) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
+  //  -- edx                 : receiver
   // -----------------------------------
-  Label number, non_number, non_string, boolean, probe, miss;
-
-  // Get the receiver of the function from the stack; 1 ~ return address.
-  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+  Label number, non_number, non_string, boolean, probe;
 
   // Probe the stub cache.
   Code::Flags flags =
-      Code::ComputeFlags(Code::CALL_IC, NOT_IN_LOOP, MONOMORPHIC, NORMAL, argc);
+      Code::ComputeFlags(kind, NOT_IN_LOOP, MONOMORPHIC, NORMAL, argc);
   StubCache::GenerateProbe(masm, flags, edx, ecx, ebx, eax);
 
   // If the stub cache probing failed, the receiver might be a value.
@@ -1079,7 +1078,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Check for string.
   __ bind(&non_number);
-  __ cmp(ebx, FIRST_NONSTRING_TYPE);
+  __ CmpInstanceType(ebx, FIRST_NONSTRING_TYPE);
   __ j(above_equal, &non_string, taken);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::STRING_FUNCTION_INDEX, edx);
@@ -1090,7 +1089,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ cmp(edx, Factory::true_value());
   __ j(equal, &boolean, not_taken);
   __ cmp(edx, Factory::false_value());
-  __ j(not_equal, &miss, taken);
+  __ j(not_equal, miss, taken);
   __ bind(&boolean);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::BOOLEAN_FUNCTION_INDEX, edx);
@@ -1098,10 +1097,6 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // Probe the stub cache for the value object.
   __ bind(&probe);
   StubCache::GenerateProbe(masm, flags, edx, ecx, ebx, no_reg);
-
-  // Cache miss: Jump to runtime.
-  __ bind(&miss);
-  GenerateMiss(masm, argc);
 }
 
 
@@ -1141,8 +1136,8 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   __ InvokeFunction(edi, actual, JUMP_FUNCTION);
 }
 
-
-void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
+// The generated code never falls through.
+static void GenerateCallNormal(MacroAssembler* masm, int argc, Label* miss) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
   //  -- esp[0]              : return address
@@ -1150,20 +1145,20 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   //  -- ...
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
-  Label miss, global_object, non_global_object;
+  Label global_object, non_global_object;
 
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
 
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, miss, not_taken);
 
   // Check that the receiver is a valid JS object.
   __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
   __ movzx_b(eax, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ cmp(eax, FIRST_JS_OBJECT_TYPE);
-  __ j(below, &miss, not_taken);
+  __ j(below, miss, not_taken);
 
   // If this assert fails, we have to check upper bound too.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
@@ -1179,8 +1174,8 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // Check that the global object does not require access checks.
   __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
             1 << Map::kIsAccessCheckNeeded);
-  __ j(not_equal, &miss, not_taken);
-  GenerateNormalHelper(masm, argc, true, &miss);
+  __ j(not_equal, miss, not_taken);
+  GenerateNormalHelper(masm, argc, true, miss);
 
   // Accessing non-global object: Check for access to global proxy.
   Label global_proxy, invoke;
@@ -1191,22 +1186,18 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // require access checks.
   __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
             1 << Map::kIsAccessCheckNeeded);
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, miss, not_taken);
   __ bind(&invoke);
-  GenerateNormalHelper(masm, argc, false, &miss);
+  GenerateNormalHelper(masm, argc, false, miss);
 
   // Global object proxy access: Check access rights.
   __ bind(&global_proxy);
-  __ CheckAccessGlobalProxy(edx, eax, &miss);
+  __ CheckAccessGlobalProxy(edx, eax, miss);
   __ jmp(&invoke);
-
-  // Cache miss: Jump to runtime.
-  __ bind(&miss);
-  GenerateMiss(masm, argc);
 }
 
 
-void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
   //  -- esp[0]              : return address
@@ -1228,7 +1219,7 @@ void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   // Call the entry.
   CEntryStub stub(1);
   __ mov(eax, Immediate(2));
-  __ mov(ebx, Immediate(ExternalReference(IC_Utility(kCallIC_Miss))));
+  __ mov(ebx, Immediate(ExternalReference(IC_Utility(id))));
   __ CallStub(&stub);
 
   // Move result to edi and exit the internal frame.
@@ -1256,6 +1247,106 @@ void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   ParameterCount actual(argc);
   __ bind(&invoke);
   __ InvokeFunction(edi, actual, JUMP_FUNCTION);
+}
+
+
+void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
+  Label miss;
+  // Get the receiver of the function from the stack; 1 ~ return address.
+  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+  GenerateMonomorphicCacheProbe(masm, argc, Code::CALL_IC, &miss);
+  __ bind(&miss);
+  GenerateMiss(masm, argc);
+}
+
+
+void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
+  Label miss;
+  GenerateCallNormal(masm, argc, &miss);
+  __ bind(&miss);
+  GenerateMiss(masm, argc);
+}
+
+
+void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+  GenerateCallMiss(masm, argc, IC::kCallIC_Miss);
+}
+
+
+void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
+  // Get the receiver of the function from the stack; 1 ~ return address.
+  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+
+  Label miss, skip_probe;
+
+  // Do not probe monomorphic cache if a key is a smi.
+  __ test(ecx, Immediate(kSmiTagMask));
+  __ j(equal, &skip_probe, taken);
+
+  GenerateMonomorphicCacheProbe(masm, argc, Code::KEYED_CALL_IC, &skip_probe);
+
+  __ bind(&skip_probe);
+
+  __ mov(eax, ecx);
+  __ EnterInternalFrame();
+  __ push(ecx);
+  __ call(Handle<Code>(Builtins::builtin(Builtins::KeyedLoadIC_Generic)),
+          RelocInfo::CODE_TARGET);
+  __ pop(ecx);
+  __ LeaveInternalFrame();
+  __ mov(edi, eax);
+
+  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &miss, not_taken);
+
+  // Check that the receiver is a valid JS object.
+  __ CmpObjectType(edx, FIRST_JS_OBJECT_TYPE, eax);
+  __ j(below, &miss, not_taken);
+
+  // Check that the value is a JavaScript function.
+  __ test(edi, Immediate(kSmiTagMask));
+  __ j(zero, &miss, not_taken);
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
+  __ j(not_equal, &miss, not_taken);
+
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ InvokeFunction(edi, actual, JUMP_FUNCTION);
+
+  __ bind(&miss);
+  GenerateMiss(masm, argc);
+}
+
+
+void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
+  Label miss;
+  GenerateCallNormal(masm, argc, &miss);
+  __ bind(&miss);
+  GenerateMiss(masm, argc);
+}
+
+
+void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+  GenerateCallMiss(masm, argc, IC::kKeyedCallIC_Miss);
 }
 
 

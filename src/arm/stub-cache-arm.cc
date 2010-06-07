@@ -1019,6 +1019,12 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 }
 
 
+void CallStubCompiler::GenerateMissBranch() {
+  Handle<Code> ic = ComputeCallMiss(arguments().immediate(), kind_);
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+}
+
+
 Object* CallStubCompiler::CompileCallField(JSObject* object,
                                            JSObject* holder,
                                            int index,
@@ -1045,8 +1051,7 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(FIELD, name);
@@ -1095,8 +1100,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1145,8 +1149,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1317,8 +1320,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   }
 
   __ bind(&miss_in_smi_check);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1364,8 +1366,7 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(INTERCEPTOR, name);
@@ -1447,8 +1448,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // Handle call cache miss.
   __ bind(&miss);
   __ IncrementCounter(&Counters::call_global_inline_miss, 1, r1, r3);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(NORMAL, name);

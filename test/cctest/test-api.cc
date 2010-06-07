@@ -7078,6 +7078,163 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss2) {
 }
 
 
+v8::Handle<Value> keyed_call_ic_function;
+
+static v8::Handle<Value> InterceptorKeyedCallICGetter(
+    Local<String> name, const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (v8_str("x")->Equals(name)) {
+    return keyed_call_ic_function;
+  }
+  return v8::Handle<Value>();
+}
+
+
+// Test the case when we stored cacheable lookup into
+// a stub, but the function name changed (to another cacheable function).
+THREADED_TEST(InterceptorKeyedCallICKeyChange1) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "proto = new Object();"
+    "proto.y = function(x) { return x + 1; };"
+    "proto.z = function(x) { return x - 1; };"
+    "o.__proto__ = proto;"
+    "var result = 0;"
+    "var method = 'y';"
+    "for (var i = 0; i < 10; i++) {"
+    "  if (i == 5) { method = 'z'; };"
+    "  result += o[method](41);"
+    "}");
+  CHECK_EQ(42*5 + 40*5, context->Global()->Get(v8_str("result"))->Int32Value());
+}
+
+
+// Test the case when we stored cacheable lookup into
+// a stub, but the function name changed (and the new function is present
+// both before and after the interceptor in the prototype chain).
+THREADED_TEST(InterceptorKeyedCallICKeyChange2) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorKeyedCallICGetter);
+  LocalContext context;
+  context->Global()->Set(v8_str("proto1"), templ->NewInstance());
+  keyed_call_ic_function =
+      v8_compile("function f(x) { return x - 1; }; f")->Run();
+  v8::Handle<Value> value = CompileRun(
+    "o = new Object();"
+    "proto2 = new Object();"
+    "o.y = function(x) { return x + 1; };"
+    "proto2.y = function(x) { return x + 2; };"
+    "o.__proto__ = proto1;"
+    "proto1.__proto__ = proto2;"
+    "var result = 0;"
+    "var method = 'x';"
+    "for (var i = 0; i < 10; i++) {"
+    "  if (i == 5) { method = 'y'; };"
+    "  result += o[method](41);"
+    "}");
+  CHECK_EQ(42*5 + 40*5, context->Global()->Get(v8_str("result"))->Int32Value());
+}
+
+
+// Same as InterceptorKeyedCallICKeyChange1 only the cacheable function sit
+// on the global object.
+THREADED_TEST(InterceptorKeyedCallICKeyChangeOnGlobal) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "function inc(x) { return x + 1; };"
+    "inc(1);"
+    "function dec(x) { return x - 1; };"
+    "dec(1);"
+    "o.__proto__ = this;"
+    "this.__proto__.x = inc;"
+    "this.__proto__.y = dec;"
+    "var result = 0;"
+    "var method = 'x';"
+    "for (var i = 0; i < 10; i++) {"
+    "  if (i == 5) { method = 'y'; };"
+    "  result += o[method](41);"
+    "}");
+  CHECK_EQ(42*5 + 40*5, context->Global()->Get(v8_str("result"))->Int32Value());
+}
+
+
+// Test the case when actual function to call sits on global object.
+THREADED_TEST(InterceptorKeyedCallICFromGlobal) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ_o->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "function len(x) { return x.length; };"
+    "o.__proto__ = this;"
+    "var m = 'parseFloat';"
+    "var result = 0;"
+    "for (var i = 0; i < 10; i++) {"
+    "  if (i == 5) {"
+    "    m = 'len';"
+    "    saved_result = result;"
+    "  };"
+    "  result = o[m]('239');"
+    "}");
+  CHECK_EQ(3, context->Global()->Get(v8_str("result"))->Int32Value());
+  CHECK_EQ(239, context->Global()->Get(v8_str("saved_result"))->Int32Value());
+}
+
+// Test the map transition before the interceptor.
+THREADED_TEST(InterceptorKeyedCallICMapChangeBefore) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("proto"), templ_o->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "var o = new Object();"
+    "o.__proto__ = proto;"
+    "o.method = function(x) { return x + 1; };"
+    "var m = 'method';"
+    "var result = 0;"
+    "for (var i = 0; i < 10; i++) {"
+    "  if (i == 5) { o.method = function(x) { return x - 1; }; };"
+    "  result += o[m](41);"
+    "}");
+  CHECK_EQ(42*5 + 40*5, context->Global()->Get(v8_str("result"))->Int32Value());
+}
+
+
+// Test the map transition after the interceptor.
+THREADED_TEST(InterceptorKeyedCallICMapChangeAfter) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ_o->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "var proto = new Object();"
+    "o.__proto__ = proto;"
+    "proto.method = function(x) { return x + 1; };"
+    "var m = 'method';"
+    "var result = 0;"
+    "for (var i = 0; i < 10; i++) {"
+    "  if (i == 5) { proto.method = function(x) { return x - 1; }; };"
+    "  result += o[m](41);"
+    "}");
+  CHECK_EQ(42*5 + 40*5, context->Global()->Get(v8_str("result"))->Int32Value());
+}
+
+
 static int interceptor_call_count = 0;
 
 static v8::Handle<Value> InterceptorICRefErrorGetter(Local<String> name,

@@ -1040,6 +1040,20 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 }
 
 
+void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
+  if (kind_ == Code::KEYED_CALL_IC) {
+    __ cmp(Operand(ecx), Immediate(Handle<String>(name)));
+    __ j(not_equal, miss, not_taken);
+  }
+}
+
+
+void CallStubCompiler::GenerateMissBranch() {
+  Handle<Code> ic = ComputeCallMiss(arguments().immediate(), kind_);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
+}
+
+
 Object* CallStubCompiler::CompileCallField(JSObject* object,
                                            JSObject* holder,
                                            int index,
@@ -1052,6 +1066,8 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -1084,8 +1100,7 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(FIELD, name);
@@ -1112,6 +1127,8 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   }
 
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -1230,8 +1247,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   }
 
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1258,6 +1274,8 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   }
 
   Label miss, return_undefined, call_builtin;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -1312,8 +1330,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
                                1);
 
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1337,6 +1354,7 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
 
   Label miss;
   Label index_out_of_range;
+  GenerateNameCheck(name, &miss);
 
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
@@ -1346,7 +1364,7 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
                   ebx, edx, name, &miss);
 
   Register receiver = ebx;
-  Register index = ecx;
+  Register index = edi;
   Register scratch = edx;
   Register result = eax;
   __ mov(receiver, Operand(esp, (argc + 1) * kPointerSize));
@@ -1375,11 +1393,8 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&miss);
-  // Restore function name in ecx.
-  __ Set(ecx, Immediate(Handle<String>(name)));
 
-  Handle<Code> ic = ComputeCallMiss(argc);
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1404,6 +1419,8 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   Label miss;
   Label index_out_of_range;
 
+  GenerateNameCheck(name, &miss);
+
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
@@ -1412,7 +1429,7 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
                   ebx, edx, name, &miss);
 
   Register receiver = eax;
-  Register index = ecx;
+  Register index = edi;
   Register scratch1 = ebx;
   Register scratch2 = edx;
   Register result = eax;
@@ -1444,10 +1461,8 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
 
   __ bind(&miss);
   // Restore function name in ecx.
-  __ Set(ecx, Immediate(Handle<String>(name)));
 
-  Handle<Code> ic = ComputeCallMiss(argc);
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1479,6 +1494,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   }
 
   Label miss_in_smi_check;
+
+  GenerateNameCheck(name, &miss_in_smi_check);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -1599,8 +1616,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
     FreeSpaceForFastApiCall(masm(), eax);
   }
   __ bind(&miss_in_smi_check);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1618,6 +1634,8 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the number of arguments.
   const int argc = arguments().immediate();
@@ -1661,8 +1679,7 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   // Handle load cache miss.
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(argc);
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(INTERCEPTOR, name);
@@ -1682,6 +1699,8 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the number of arguments.
   const int argc = arguments().immediate();
@@ -1745,8 +1764,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // Handle call cache miss.
   __ bind(&miss);
   __ IncrementCounter(&Counters::call_global_inline_miss, 1);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(NORMAL, name);

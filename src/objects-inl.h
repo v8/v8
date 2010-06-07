@@ -2196,7 +2196,8 @@ Code::Flags Code::flags() {
 void Code::set_flags(Code::Flags flags) {
   STATIC_ASSERT(Code::NUMBER_OF_KINDS <= (kFlagsKindMask >> kFlagsKindShift)+1);
   // Make sure that all call stubs have an arguments count.
-  ASSERT(ExtractKindFromFlags(flags) != CALL_IC ||
+  ASSERT((ExtractKindFromFlags(flags) != CALL_IC &&
+          ExtractKindFromFlags(flags) != KEYED_CALL_IC) ||
          ExtractArgumentsCountFromFlags(flags) >= 0);
   WRITE_INT_FIELD(this, kFlagsOffset, flags);
 }
@@ -2232,7 +2233,7 @@ PropertyType Code::type() {
 
 
 int Code::arguments_count() {
-  ASSERT(is_call_stub() || kind() == STUB);
+  ASSERT(is_call_stub() || is_keyed_call_stub() || kind() == STUB);
   return ExtractArgumentsCountFromFlags(flags());
 }
 

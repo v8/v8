@@ -2669,6 +2669,7 @@ class Code: public HeapObject {
     LOAD_IC,
     KEYED_LOAD_IC,
     CALL_IC,
+    KEYED_CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
     BINARY_OP_IC,
@@ -2723,6 +2724,7 @@ class Code: public HeapObject {
   inline bool is_store_stub() { return kind() == STORE_IC; }
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
+  inline bool is_keyed_call_stub() { return kind() == KEYED_CALL_IC; }
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline CodeStub::Major major_key();

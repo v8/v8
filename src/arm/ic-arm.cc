@@ -496,6 +496,21 @@ void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
 }
 
 
+void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+  UNREACHABLE();
+}
+
+
+void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
+  UNREACHABLE();
+}
+
+
+void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
+  UNREACHABLE();
+}
+
+
 // Defined in ic.cc.
 Object* LoadIC_Miss(Arguments args);
 

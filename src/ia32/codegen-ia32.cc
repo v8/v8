@@ -5975,18 +5975,31 @@ void CodeGenerator::VisitCall(Call* node) {
         ref.GetValue();
         // Use global object as receiver.
         LoadGlobalReceiver();
+        // Call the function.
+        CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
       } else {
+        // Push the receiver onto the frame.
         Load(property->obj());
-        frame()->Dup();
-        Load(property->key());
-        Result function = EmitKeyedLoad();
-        Result receiver = frame_->Pop();
-        frame_->Push(&function);
-        frame_->Push(&receiver);
-      }
 
-      // Call the function.
-      CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
+        // Load the arguments.
+        int arg_count = args->length();
+        for (int i = 0; i < arg_count; i++) {
+          Load(args->at(i));
+          frame_->SpillTop();
+        }
+
+        // Load the name of the function.
+        Load(property->key());
+
+        // Call the IC initialization code.
+        CodeForSourcePosition(node->position());
+        Result result =
+            frame_->CallKeyedCallIC(RelocInfo::CODE_TARGET,
+                                    arg_count,
+                                    loop_nesting());
+        frame_->RestoreContextRegister();
+        frame_->Push(&result);
+      }
     }
 
   } else {
