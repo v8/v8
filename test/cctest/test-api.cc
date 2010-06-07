@@ -612,6 +612,71 @@ THREADED_TEST(ScavengeExternalAsciiString) {
 }
 
 
+static int dispose_count = 0;
+static void DisposeExternalStringCount(
+    String::ExternalStringResourceBase* resource) {
+  dispose_count++;
+}
+
+
+static void DisposeExternalStringDeleteAndCount(
+    String::ExternalStringResourceBase* resource) {
+  delete resource;
+  dispose_count++;
+}
+
+
+TEST(ExternalStringWithResourceDisposeCallback) {
+  const char* c_source = "1 + 2 * 3";
+
+  // Set an external string collected callback which does not delete the object.
+  v8::V8::SetExternalStringDiposeCallback(DisposeExternalStringCount);
+
+  // Use a stack allocated external string resource allocated object.
+  dispose_count = 0;
+  TestAsciiResource::dispose_count = 0;
+  TestAsciiResource res_stack(i::StrDup(c_source));
+  {
+    v8::HandleScope scope;
+    LocalContext env;
+    Local<String> source =  String::NewExternal(&res_stack);
+    Local<Script> script = Script::Compile(source);
+    Local<Value> value = script->Run();
+    CHECK(value->IsNumber());
+    CHECK_EQ(7, value->Int32Value());
+    v8::internal::Heap::CollectAllGarbage(false);
+    CHECK_EQ(0, TestAsciiResource::dispose_count);
+  }
+  v8::internal::CompilationCache::Clear();
+  v8::internal::Heap::CollectAllGarbage(false);
+  CHECK_EQ(1, dispose_count);
+  CHECK_EQ(0, TestAsciiResource::dispose_count);
+
+  // Set an external string collected callback which does delete the object.
+  v8::V8::SetExternalStringDiposeCallback(DisposeExternalStringDeleteAndCount);
+
+  // Use a heap allocated external string resource allocated object.
+  dispose_count = 0;
+  TestAsciiResource::dispose_count = 0;
+  TestAsciiResource* res_heap = new TestAsciiResource(i::StrDup(c_source));
+  {
+    v8::HandleScope scope;
+    LocalContext env;
+    Local<String> source =  String::NewExternal(res_heap);
+    Local<Script> script = Script::Compile(source);
+    Local<Value> value = script->Run();
+    CHECK(value->IsNumber());
+    CHECK_EQ(7, value->Int32Value());
+    v8::internal::Heap::CollectAllGarbage(false);
+    CHECK_EQ(0, TestAsciiResource::dispose_count);
+  }
+  v8::internal::CompilationCache::Clear();
+  v8::internal::Heap::CollectAllGarbage(false);
+  CHECK_EQ(1, dispose_count);
+  CHECK_EQ(1, TestAsciiResource::dispose_count);
+}
+
+
 THREADED_TEST(StringConcat) {
   {
     v8::HandleScope scope;

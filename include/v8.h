@@ -1122,11 +1122,13 @@ class V8EXPORT String : public Primitive {
 
   /**
    * Creates a new external string using the data defined in the given
-   * resource. The resource is deleted when the external string is no
-   * longer live on V8's heap. The caller of this function should not
-   * delete or modify the resource. Neither should the underlying buffer be
-   * deallocated or modified except through the destructor of the
-   * external string resource.
+   * resource. When the external string is no longer live on V8's heap the
+   * resource will be disposed. If a disposal callback has been set using
+   * SetExternalStringDiposeCallback this callback will be called to dispose
+   * the resource. Otherwise, V8 will dispose the resource using the C++ delete
+   * operator. The caller of this function should not otherwise delete or
+   * modify the resource. Neither should the underlying buffer be deallocated
+   * or modified except through the destructor of the external string resource.
    */
   static Local<String> NewExternal(ExternalStringResource* resource);
 
@@ -1136,17 +1138,20 @@ class V8EXPORT String : public Primitive {
    * will use the external string resource. The external string resource's
    * character contents needs to be equivalent to this string.
    * Returns true if the string has been changed to be an external string.
-   * The string is not modified if the operation fails.
+   * The string is not modified if the operation fails. See NewExternal for
+   * information on the lifetime of the resource.
    */
   bool MakeExternal(ExternalStringResource* resource);
 
   /**
    * Creates a new external string using the ascii data defined in the given
-   * resource. The resource is deleted when the external string is no
-   * longer live on V8's heap. The caller of this function should not
-   * delete or modify the resource. Neither should the underlying buffer be
-   * deallocated or modified except through the destructor of the
-   * external string resource.
+   * resource. When the external string is no longer live on V8's heap the
+   * resource will be disposed. If a disposal callback has been set using
+   * SetExternalStringDiposeCallback this callback will be called to dispose
+   * the resource. Otherwise, V8 will dispose the resource using the C++ delete
+   * operator. The caller of this function should not otherwise delete or
+   * modify the resource. Neither should the underlying buffer be deallocated
+   * or modified except through the destructor of the external string resource.
    */
   static Local<String> NewExternal(ExternalAsciiStringResource* resource);
 
@@ -1156,7 +1161,8 @@ class V8EXPORT String : public Primitive {
    * will use the external string resource. The external string resource's
    * character contents needs to be equivalent to this string.
    * Returns true if the string has been changed to be an external string.
-   * The string is not modified if the operation fails.
+   * The string is not modified if the operation fails. See NewExternal for
+   * information on the lifetime of the resource.
    */
   bool MakeExternal(ExternalAsciiStringResource* resource);
 
@@ -1243,6 +1249,10 @@ class V8EXPORT String : public Primitive {
   void VerifyExternalStringResource(ExternalStringResource* val) const;
   static void CheckCast(v8::Value* obj);
 };
+
+
+typedef void (*ExternalStringDiposeCallback)
+    (String::ExternalStringResourceBase* resource);
 
 
 /**
@@ -2460,6 +2470,15 @@ class V8EXPORT V8 {
    * Remove all message listeners from the specified callback function.
    */
   static void RemoveMessageListeners(MessageCallback that);
+
+  /**
+   * Set a callback to be called when an external string is no longer live on
+   * V8's heap. The resource will no longer be needed by V8 and the embedder
+   * can dispose of if. If this callback is not set V8 will free the resource
+   * using the C++ delete operator.
+   */
+  static void SetExternalStringDiposeCallback(
+      ExternalStringDiposeCallback that);
 
   /**
    * Sets V8 flags from a string.
