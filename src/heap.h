@@ -1274,6 +1274,10 @@ class Heap : public AllStatic {
   // Flush the number to string cache.
   static void FlushNumberStringCache();
 
+  // Flush code from functions we do not expect to use again. The code will
+  // be replaced with a lazy compilable version.
+  static void FlushCode();
+
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
 
