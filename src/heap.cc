@@ -659,17 +659,18 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
 void Heap::MarkCompact(GCTracer* tracer) {
   gc_state_ = MARK_COMPACT;
-  if (MarkCompactCollector::IsCompacting()) {
-    mc_count_++;
-  } else {
-    ms_count_++;
-  }
-  tracer->set_full_gc_count(mc_count_);
   LOG(ResourceEvent("markcompact", "begin"));
 
   MarkCompactCollector::Prepare(tracer);
 
   bool is_compacting = MarkCompactCollector::IsCompacting();
+
+  if (is_compacting) {
+    mc_count_++;
+  } else {
+    ms_count_++;
+  }
+  tracer->set_full_gc_count(mc_count_ + ms_count_);
 
   MarkCompactPrologue(is_compacting);
 
