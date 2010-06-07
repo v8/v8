@@ -25,35 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_VIRTUAL_FRAME_ARM_INL_H_
-#define V8_VIRTUAL_FRAME_ARM_INL_H_
+// idx is a valid array index but is too big to be cached in hash field.
+var idx = 10000000;
 
-#include "assembler-arm.h"
-#include "virtual-frame-arm.h"
+// Create a JSObject with NumberDictionary as a backing store for elements.
+var obj = { };
+for (var i = 0; i < 100000; i += 100) { obj[i] = "obj" + i; }
 
-namespace v8 {
-namespace internal {
+// Set value using numeric index.
+obj[idx] = "obj" + idx;
 
-// These VirtualFrame methods should actually be in a virtual-frame-arm-inl.h
-// file if such a thing existed.
-MemOperand VirtualFrame::ParameterAt(int index) {
-  // Index -1 corresponds to the receiver.
-  ASSERT(-1 <= index);  // -1 is the receiver.
-  ASSERT(index <= parameter_count());
-  return MemOperand(fp, (1 + parameter_count() - index) * kPointerSize);
-}
+// Make a string from index.
+var str = "" + idx;
 
-  // The receiver frame slot.
-MemOperand VirtualFrame::Receiver() {
-  return ParameterAt(-1);
-}
+// Force hash computation for the string representation of index.
+for (var i = 0; i < 10; i++) { ({})[str]; }
 
-
-void VirtualFrame::Forget(int count) {
-  SpillAll();
-  LowerHeight(count);
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_VIRTUAL_FRAME_ARM_INL_H_
+// Try getting value back using string and number representations of
+// the same index.
+assertEquals(obj[str], obj[idx])

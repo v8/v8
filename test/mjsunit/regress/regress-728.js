@@ -25,35 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_VIRTUAL_FRAME_ARM_INL_H_
-#define V8_VIRTUAL_FRAME_ARM_INL_H_
+var obj = { 0: "obj0" };
 
-#include "assembler-arm.h"
-#include "virtual-frame-arm.h"
+// Array index k is to big to fit into the string hash field.
+var k = 16777217;
+var h = "" + k;
 
-namespace v8 {
-namespace internal {
+obj[k] = "obj" + k;
 
-// These VirtualFrame methods should actually be in a virtual-frame-arm-inl.h
-// file if such a thing existed.
-MemOperand VirtualFrame::ParameterAt(int index) {
-  // Index -1 corresponds to the receiver.
-  ASSERT(-1 <= index);  // -1 is the receiver.
-  ASSERT(index <= parameter_count());
-  return MemOperand(fp, (1 + parameter_count() - index) * kPointerSize);
-}
+// Force computation of hash for the string representation of array index.
+for (var i = 0; i < 10; i++) { ({})[h]; }
 
-  // The receiver frame slot.
-MemOperand VirtualFrame::Receiver() {
-  return ParameterAt(-1);
-}
+function get(idx) { return obj[idx]; }
 
-
-void VirtualFrame::Forget(int count) {
-  SpillAll();
-  LowerHeight(count);
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_VIRTUAL_FRAME_ARM_INL_H_
+assertEquals(get(0), "obj0");
+assertEquals(get(h), "obj" + h);
