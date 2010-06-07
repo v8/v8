@@ -11316,57 +11316,58 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // ecx: RegExp data (FixedArray)
   // Check the representation and encoding of the subject string.
-  Label seq_ascii_string, seq_two_byte_string, check_code;
+  Label seq_string, seq_two_byte_string, check_code;
+  const int kStringRepresentationEncodingMask =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
   __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  // First check for flat two-byte string.
-  __ test_b(Operand(ebx),
-          kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask);
-  ASSERT_EQ(0, kStringTag | kSeqStringTag | kTwoByteStringTag);
-  __ j(zero, &seq_two_byte_string);
-  // Any other flat string must be a flat ascii string.
-  __ test_b(Operand(ebx), kIsNotStringMask | kStringRepresentationMask);
-  __ j(zero, &seq_ascii_string);
+  __ and_(ebx, kStringRepresentationEncodingMask);
+  // First check for sequential string.
+  ASSERT_EQ(0, kStringTag);
+  ASSERT_EQ(0, kSeqStringTag);
+  __ test(Operand(ebx),
+          Immediate(kIsNotStringMask | kStringRepresentationMask));
+  __ j(zero, &seq_string);
 
   // Check for flat cons string.
-  // If this is a string, and not an external string, it is a cons string.
   // A flat cons string is a cons string where the second part is the empty
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  ASSERT(kExternalStringTag !=0);
-  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
-  __ test_b(Operand(ebx), kIsNotStringMask | kExternalStringTag);
-  __ j(not_zero, &runtime);
-  // String is a cons string.
-  __ cmp(FieldOperand(eax, ConsString::kSecondOffset),
-         Factory::empty_string());
+  __ and_(ebx, kStringRepresentationMask);
+  __ cmp(ebx, kConsStringTag);
+  __ j(not_equal, &runtime);
+  __ mov(edx, FieldOperand(eax, ConsString::kSecondOffset));
+  __ cmp(Operand(edx), Factory::empty_string());
   __ j(not_equal, &runtime);
   __ mov(eax, FieldOperand(eax, ConsString::kFirstOffset));
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  // String is a cons string with empty second part.
-  // eax: first part of cons string.
-  // ebx: map of first part of cons string.
-  // Is first part a flat two byte string?
-  __ test_b(FieldOperand(ebx, Map::kInstanceTypeOffset),
-            kStringRepresentationMask | kStringEncodingMask);
-  ASSERT_EQ(0, kSeqStringTag | kTwoByteStringTag);
-  __ j(zero, &seq_two_byte_string);
-  // Any other flat string must be ascii.
-  __ test_b(FieldOperand(ebx, Map::kInstanceTypeOffset),
-            kStringRepresentationMask);
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  ASSERT_EQ(0, kSeqStringTag);
+  __ test(ebx, Immediate(kStringRepresentationMask));
   __ j(not_zero, &runtime);
+  __ and_(ebx, kStringRepresentationEncodingMask);
 
-  __ bind(&seq_ascii_string);
-  // eax: subject string (flat ascii)
+  __ bind(&seq_string);
+  // eax: subject string (sequential either ascii to two byte)
+  // ebx: suject string type & kStringRepresentationEncodingMask
   // ecx: RegExp data (FixedArray)
+  // Check that the irregexp code has been generated for an ascii string. If
+  // it has, the field contains a code object otherwise it contains the hole.
+  const int kSeqTwoByteString = kStringTag | kSeqStringTag | kTwoByteStringTag;
+  __ cmp(ebx, kSeqTwoByteString);
+  __ j(equal, &seq_two_byte_string);
+  if (FLAG_debug_code) {
+    __ cmp(ebx, kStringTag | kSeqStringTag | kAsciiStringTag);
+    __ Check(equal, "Expected sequential ascii string");
+  }
   __ mov(edx, FieldOperand(ecx, JSRegExp::kDataAsciiCodeOffset));
   __ Set(edi, Immediate(1));  // Type is ascii.
   __ jmp(&check_code);
 
   __ bind(&seq_two_byte_string);
-  // eax: subject string (flat two byte)
+  // eax: subject string
   // ecx: RegExp data (FixedArray)
   __ mov(edx, FieldOperand(ecx, JSRegExp::kDataUC16CodeOffset));
   __ Set(edi, Immediate(0));  // Type is two byte.
@@ -12772,17 +12773,16 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Make sure that both arguments are strings if not known in advance.
   if (string_check_) {
-    __ mov(ecx, eax);
-    __ and_(Operand(ecx), edx);
-    __ test(ecx, Immediate(kSmiTagMask));
+    __ test(eax, Immediate(kSmiTagMask));
     __ j(zero, &string_add_runtime);
-    __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-    __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-    __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
-    __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-    __ or_(Operand(ecx), ebx);
-    __ test_b(Operand(ecx), kIsNotStringMask);
-    __ j(not_zero, &string_add_runtime);
+    __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, ebx);
+    __ j(above_equal, &string_add_runtime);
+
+    // First argument is a a string, test second.
+    __ test(edx, Immediate(kSmiTagMask));
+    __ j(zero, &string_add_runtime);
+    __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, ebx);
+    __ j(above_equal, &string_add_runtime);
   }
 
   // Both arguments are strings.
@@ -12813,8 +12813,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // ecx: length of second string as a smi
   // edx: second string
   // Look at the length of the result of adding the two strings.
-  Label make_two_character_string, longer_than_two,
-      make_flat_string, make_flat_ascii_string, make_flat_non_ascii_string;
+  Label string_add_flat_result, longer_than_two;
   __ bind(&both_not_zero_length);
   __ add(ebx, Operand(ecx));
   ASSERT(Smi::kMaxValue == String::kMaxLength);
@@ -12835,6 +12834,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Try to lookup two character string in symbol table. If it is not found
   // just allocate a new one.
+  Label make_two_character_string, make_flat_ascii_string;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
       masm, ebx, ecx, eax, edx, edi, &make_two_character_string);
   __ IncrementCounter(&Counters::string_add_native, 1);
@@ -12847,7 +12847,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ bind(&longer_than_two);
   // Check if resulting string will be flat.
   __ cmp(Operand(ebx), Immediate(Smi::FromInt(String::kMinNonFlatLength)));
-  __ j(below, &make_flat_string);
+  __ j(below, &string_add_flat_result);
 
   // If result is not supposed to be flat allocate a cons string object. If both
   // strings are ascii the result is an ascii cons string.
@@ -12878,38 +12878,37 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ AllocateConsString(ecx, edi, no_reg, &string_add_runtime);
   __ jmp(&allocated);
 
-  // Handle creating a flat result. Branch to runtime if either string
-  // is external or if they are not both ascii or both two-byte.
-  // Otherwise branch to ascii case or two-byte case.
+  // Handle creating a flat result. First check that both strings are not
+  // external strings.
   // eax: first string
   // ebx: length of resulting flat string as a smi
   // edx: second string
-  __ bind(&make_flat_string);
+  __ bind(&string_add_flat_result);
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(edi, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ and_(ecx, kStringRepresentationMask);
+  __ cmp(ecx, kExternalStringTag);
+  __ j(equal, &string_add_runtime);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ or_(ecx, Operand(edi));
-  ASSERT(kExternalStringTag !=0);
-  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
-  ASSERT_EQ(0, kSeqStringTag & kExternalStringTag);
-  ASSERT_EQ(0, kTwoByteStringTag);
-  __ test_b(Operand(ecx), kExternalStringTag | kStringEncodingMask);
-  __ j(zero, &make_flat_non_ascii_string);  // Neither is ascii or external.
-  __ test_b(Operand(ecx), kExternalStringTag);
-  __ j(not_zero, &string_add_runtime);  // One or both is external.
-
-  // At this point, neither is external, and at least one is ascii.
-  // Check that both are ascii, by computing mask & first type & second type.
-  __ and_(edi, kStringEncodingMask);
+  __ and_(ecx, kStringRepresentationMask);
+  __ cmp(ecx, kExternalStringTag);
+  __ j(equal, &string_add_runtime);
+  // Now check if both strings are ascii strings.
+  // eax: first string
+  // ebx: length of resulting flat string as a smi
+  // edx: second string
+  Label non_ascii_string_add_flat_result;
+  ASSERT(kStringEncodingMask == kAsciiStringTag);
+  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
+  __ j(zero, &non_ascii_string_add_flat_result);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ test_b(edi, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  ASSERT(kAsciiStringTag != 0);
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
   __ j(zero, &string_add_runtime);
 
   __ bind(&make_flat_ascii_string);
-  // Both strings are ascii strings.  As they are short they are both flat.
-  // Create a flat ascii result.
+  // Both strings are ascii strings. As they are short they are both flat.
   // ebx: length of resulting flat string as a smi
   __ SmiUntag(ebx);
   __ AllocateAsciiString(eax, ebx, ecx, edx, edi, &string_add_runtime);
@@ -12940,10 +12939,14 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::string_add_native, 1);
   __ ret(2 * kPointerSize);
 
-  // Both strings are two-byte strings.  As they are short they are both flat.
-  // Create a flat two byte result.
+  // Handle creating a flat two byte result.
+  // eax: first string - known to be two byte
   // ebx: length of resulting flat string as a smi
-  __ bind(&make_flat_non_ascii_string);
+  // edx: second string
+  __ bind(&non_ascii_string_add_flat_result);
+  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
+  __ j(not_zero, &string_add_runtime);
   // Both strings are two byte strings. As they are short they are both
   // flat.
   __ SmiUntag(ebx);
