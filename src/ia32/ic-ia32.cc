@@ -404,8 +404,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ j(above_equal, &slow);
   // Is the string an array index, with cached numeric value?
   __ mov(ebx, FieldOperand(eax, String::kHashFieldOffset));
-  __ test(ebx, Immediate(String::kIsArrayIndexMask));
-  __ j(not_zero, &index_string, not_taken);
+  __ test(ebx, Immediate(String::kContainsCachedArrayIndexMask));
+  __ j(zero, &index_string, not_taken);
 
   // Is the string a symbol?
   // ecx: key map.

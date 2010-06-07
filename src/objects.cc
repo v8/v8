@@ -4850,7 +4850,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
   if (length() <= kMaxCachedArrayIndexLength) {
     Hash();  // force computation of hash code
     uint32_t field = hash_field();
-    if ((field & kIsArrayIndexMask) == 0) return false;
+    if ((field & kIsNotArrayIndexMask) != 0) return false;
     // Isolate the array index form the full hash field.
     *index = (kArrayIndexHashMask & field) >> kHashShift;
     return true;
@@ -4869,10 +4869,14 @@ static inline uint32_t HashField(uint32_t hash,
     // For array indexes mix the length into the hash as an array index could
     // be zero.
     ASSERT(length > 0);
+    ASSERT(length <= String::kMaxArrayIndexSize);
     ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
            (1 << String::kArrayIndexValueBits));
-    result |= String::kIsArrayIndexMask;
+    ASSERT(String::kMaxArrayIndexSize < (1 << String::kArrayIndexValueBits));
+    result &= ~String::kIsNotArrayIndexMask;
     result |= length << String::kArrayIndexHashLengthShift;
+  } else {
+    result |= String::kIsNotArrayIndexMask;
   }
   return result;
 }

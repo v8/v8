@@ -2987,8 +2987,7 @@ StringHasher::StringHasher(int length)
   : length_(length),
     raw_running_hash_(0),
     array_index_(0),
-    is_array_index_(0 < length_ &&
-                    length_ <= String::kMaxCachedArrayIndexLength),
+    is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
     is_first_char_(true),
     is_valid_(true) { }
 
@@ -3051,7 +3050,9 @@ uint32_t StringHasher::GetHash() {
 
 bool String::AsArrayIndex(uint32_t* index) {
   uint32_t field = hash_field();
-  if (IsHashFieldComputed(field) && !(field & kIsArrayIndexMask)) return false;
+  if (IsHashFieldComputed(field) && (field & kIsNotArrayIndexMask)) {
+    return false;
+  }
   return SlowAsArrayIndex(index);
 }
 

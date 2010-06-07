@@ -37,11 +37,13 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // General helper functions
 
+#define IS_POWER_OF_TWO(x) (((x) & ((x) - 1)) == 0)
+
 // Returns true iff x is a power of 2 (or zero). Cannot be used with the
 // maximally negative value of the type T (the -1 overflows).
 template <typename T>
 static inline bool IsPowerOf2(T x) {
-  return (x & (x - 1)) == 0;
+  return IS_POWER_OF_TWO(x);
 }
 
 

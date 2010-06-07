@@ -442,8 +442,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ j(above_equal, &slow);
   // Is the string an array index, with cached numeric value?
   __ movl(rbx, FieldOperand(rax, String::kHashFieldOffset));
-  __ testl(rbx, Immediate(String::kIsArrayIndexMask));
-  __ j(not_zero, &index_string);  // The value in rbx is used at jump target.
+  __ testl(rbx, Immediate(String::kContainsCachedArrayIndexMask));
+  __ j(zero, &index_string);  // The value in rbx is used at jump target.
 
   // Is the string a symbol?
   ASSERT(kSymbolTag != 0);

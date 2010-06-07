@@ -4194,11 +4194,11 @@ class String: public HeapObject {
   // computed the 2nd bit tells whether the string can be used as an
   // array index.
   static const int kHashNotComputedMask = 1;
-  static const int kIsArrayIndexMask = 1 << 1;
-  static const int kNofLengthBitFields = 2;
+  static const int kIsNotArrayIndexMask = 1 << 1;
+  static const int kNofHashBitFields = 2;
 
   // Shift constant retrieving hash code from hash field.
-  static const int kHashShift = kNofLengthBitFields;
+  static const int kHashShift = kNofHashBitFields;
 
   // Array index strings this short can keep their index in the hash
   // field.
@@ -4207,18 +4207,35 @@ class String: public HeapObject {
   // For strings which are array indexes the hash value has the string length
   // mixed into the hash, mainly to avoid a hash value of zero which would be
   // the case for the string '0'. 24 bits are used for the array index value.
-  static const int kArrayIndexHashLengthShift = 24 + kNofLengthBitFields;
+  static const int kArrayIndexValueBits = 24;
+  static const int kArrayIndexLengthBits =
+      kBitsPerInt - kArrayIndexValueBits - kNofHashBitFields;
+
+  STATIC_CHECK((kArrayIndexLengthBits > 0));
+
+  static const int kArrayIndexHashLengthShift =
+      kArrayIndexValueBits + kNofHashBitFields;
+
   static const int kArrayIndexHashMask = (1 << kArrayIndexHashLengthShift) - 1;
-  static const int kArrayIndexValueBits =
-      kArrayIndexHashLengthShift - kHashShift;
+
   static const int kArrayIndexValueMask =
       ((1 << kArrayIndexValueBits) - 1) << kHashShift;
 
+  // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
+  // could use a mask to test if the length of string is less than or equal to
+  // kMaxCachedArrayIndexLength.
+  STATIC_CHECK(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
+
+  static const int kContainsCachedArrayIndexMask =
+      (~kMaxCachedArrayIndexLength << kArrayIndexHashLengthShift) |
+      kIsNotArrayIndexMask;
+
   // Value of empty hash field indicating that the hash is not computed.
-  static const int kEmptyHashField = kHashNotComputedMask;
+  static const int kEmptyHashField =
+      kIsNotArrayIndexMask | kHashNotComputedMask;
 
   // Value of hash field containing computed hash equal to zero.
-  static const int kZeroHash = 0;
+  static const int kZeroHash = kIsNotArrayIndexMask;
 
   // Maximal string length.
   static const int kMaxLength = (1 << (32 - 2)) - 1;
