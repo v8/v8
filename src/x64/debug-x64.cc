@@ -197,7 +197,7 @@ void Debug::GenerateSlot(MacroAssembler* masm) {
 void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
   // In the places where a debug break slot is inserted no registers can contain
   // object pointers.
-  Generate_DebugBreakCallHelper(masm, 0, false);
+  Generate_DebugBreakCallHelper(masm, 0, true);
 }
 
 
