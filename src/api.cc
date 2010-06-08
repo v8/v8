@@ -1120,6 +1120,12 @@ ScriptData* ScriptData::PreCompile(const char* input, int length) {
 }
 
 
+ScriptData* ScriptData::PreCompile(v8::Handle<String> source) {
+  i::Handle<i::String> str = Utils::OpenHandle(*source);
+  return i::PreParse(str, NULL, NULL);
+}
+
+
 ScriptData* ScriptData::New(const char* data, int length) {
   // Return an empty ScriptData if the length is obviously invalid.
   if (length % sizeof(unsigned) != 0) {

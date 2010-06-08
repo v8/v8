@@ -513,6 +513,7 @@ class V8EXPORT Data {
 class V8EXPORT ScriptData {  // NOLINT
  public:
   virtual ~ScriptData() { }
+
   /**
    * Pre-compiles the specified script (context-independent).
    *
@@ -520,6 +521,16 @@ class V8EXPORT ScriptData {  // NOLINT
    * \param length Length of UTF-8 script source code.
    */
   static ScriptData* PreCompile(const char* input, int length);
+
+  /**
+   * Pre-compiles the specified script (context-independent).
+   *
+   * NOTE: Pre-compilation using this method cannot happen on another thread
+   * without using Lockers.
+   *
+   * \param source Script source code.
+   */
+  static ScriptData* PreCompile(Handle<String> source);
 
   /**
    * Load previous pre-compilation data.

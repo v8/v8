@@ -8497,6 +8497,30 @@ TEST(PreCompileDeserializationError) {
 }
 
 
+// Verifies that the Handle<String> and const char* versions of the API produce
+// the same results (at least for one trivial case).
+TEST(PreCompileAPIVariationsAreSame) {
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+
+  const char* cstring = "function foo(a) { return a+1; }";
+  v8::ScriptData* sd_from_cstring =
+      v8::ScriptData::PreCompile(cstring, i::StrLength(cstring));
+
+  TestAsciiResource* resource = new TestAsciiResource(cstring);
+  v8::ScriptData* sd_from_istring = v8::ScriptData::PreCompile(
+      v8::String::NewExternal(resource));
+
+  CHECK_EQ(sd_from_cstring->Length(), sd_from_istring->Length());
+  CHECK_EQ(0, memcmp(sd_from_cstring->Data(),
+                     sd_from_istring->Data(),
+                     sd_from_cstring->Length()));
+
+  delete sd_from_cstring;
+  delete sd_from_istring;
+}
+
+
 // This tests that we do not allow dictionary load/call inline caches
 // to use functions that have not yet been compiled.  The potential
 // problem of loading a function that has not yet been compiled can
