@@ -2249,8 +2249,10 @@ static void FlushCodeForFunction(SharedFunctionInfo* function_info) {
 
 
 void Heap::FlushCode() {
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Do not flush code if the debugger is loaded or there are breakpoints.
   if (Debug::IsLoaded() || Debug::has_break_points()) return;
+#endif
   HeapObjectIterator it(old_pointer_space());
   for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
     if (obj->IsJSFunction()) {
