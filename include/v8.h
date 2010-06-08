@@ -134,6 +134,7 @@ namespace internal {
 
 class Arguments;
 class Object;
+class Heap;
 class Top;
 
 }
@@ -1037,12 +1038,24 @@ class V8EXPORT String : public Primitive {
   class V8EXPORT ExternalStringResourceBase {
    public:
     virtual ~ExternalStringResourceBase() {}
+
    protected:
     ExternalStringResourceBase() {}
+
+    /**
+     * Internally V8 will call this Dispose method when the external string
+     * resource is no longer needed. The default implementation will use the
+     * delete operator. This method can be overridden in subclasses to
+     * control how allocated external string resources are disposed.
+     */
+    virtual void Dispose() { delete this; }
+
    private:
     // Disallow copying and assigning.
     ExternalStringResourceBase(const ExternalStringResourceBase&);
     void operator=(const ExternalStringResourceBase&);
+
+    friend class v8::internal::Heap;
   };
 
   /**
@@ -1059,10 +1072,17 @@ class V8EXPORT String : public Primitive {
      * buffer.
      */
     virtual ~ExternalStringResource() {}
-    /** The string data from the underlying buffer.*/
+
+    /**
+     * The string data from the underlying buffer.
+     */
     virtual const uint16_t* data() const = 0;
-    /** The length of the string. That is, the number of two-byte characters.*/
+
+    /**
+     * The length of the string. That is, the number of two-byte characters.
+     */
     virtual size_t length() const = 0;
+
    protected:
     ExternalStringResource() {}
   };
@@ -1134,12 +1154,10 @@ class V8EXPORT String : public Primitive {
   /**
    * Creates a new external string using the data defined in the given
    * resource. When the external string is no longer live on V8's heap the
-   * resource will be disposed. If a disposal callback has been set using
-   * SetExternalStringDiposeCallback this callback will be called to dispose
-   * the resource. Otherwise, V8 will dispose the resource using the C++ delete
-   * operator. The caller of this function should not otherwise delete or
-   * modify the resource. Neither should the underlying buffer be deallocated
-   * or modified except through the destructor of the external string resource.
+   * resource will be disposed by calling its Dispose method. The caller of
+   * this function should not otherwise delete or modify the resource. Neither
+   * should the underlying buffer be deallocated or modified except through the
+   * destructor of the external string resource.
    */
   static Local<String> NewExternal(ExternalStringResource* resource);
 
@@ -1157,12 +1175,10 @@ class V8EXPORT String : public Primitive {
   /**
    * Creates a new external string using the ascii data defined in the given
    * resource. When the external string is no longer live on V8's heap the
-   * resource will be disposed. If a disposal callback has been set using
-   * SetExternalStringDiposeCallback this callback will be called to dispose
-   * the resource. Otherwise, V8 will dispose the resource using the C++ delete
-   * operator. The caller of this function should not otherwise delete or
-   * modify the resource. Neither should the underlying buffer be deallocated
-   * or modified except through the destructor of the external string resource.
+   * resource will be disposed by calling its Dispose method. The caller of
+   * this function should not otherwise delete or modify the resource. Neither
+   * should the underlying buffer be deallocated or modified except through the
+   * destructor of the external string resource.
    */
   static Local<String> NewExternal(ExternalAsciiStringResource* resource);
 
@@ -1260,10 +1276,6 @@ class V8EXPORT String : public Primitive {
   void VerifyExternalStringResource(ExternalStringResource* val) const;
   static void CheckCast(v8::Value* obj);
 };
-
-
-typedef void (*ExternalStringDiposeCallback)
-    (String::ExternalStringResourceBase* resource);
 
 
 /**
@@ -2481,15 +2493,6 @@ class V8EXPORT V8 {
    * Remove all message listeners from the specified callback function.
    */
   static void RemoveMessageListeners(MessageCallback that);
-
-  /**
-   * Set a callback to be called when an external string is no longer live on
-   * V8's heap. The resource will no longer be needed by V8 and the embedder
-   * can dispose of if. If this callback is not set V8 will free the resource
-   * using the C++ delete operator.
-   */
-  static void SetExternalStringDiposeCallback(
-      ExternalStringDiposeCallback that);
 
   /**
    * Sets V8 flags from a string.

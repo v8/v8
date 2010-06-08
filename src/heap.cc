@@ -98,8 +98,6 @@ size_t Heap::code_range_size_ = 0;
 // set up by ConfigureHeap otherwise.
 int Heap::reserved_semispace_size_ = Heap::max_semispace_size_;
 
-ExternalStringDiposeCallback Heap::external_string_dispose_callback_ = NULL;
-
 List<Heap::GCPrologueCallbackPair> Heap::gc_prologue_callbacks_;
 List<Heap::GCEpilogueCallbackPair> Heap::gc_epilogue_callbacks_;
 

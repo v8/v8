@@ -3698,14 +3698,6 @@ void V8::RemoveMessageListeners(MessageCallback that) {
 }
 
 
-void V8::SetExternalStringDiposeCallback(
-    ExternalStringDiposeCallback callback) {
-  if (IsDeadCheck("v8::V8::SetExternalStringDiposeCallback()"))
-    return;
-  i::Heap::SetExternalStringDiposeCallback(callback);
-}
-
-
 void V8::SetCounterFunction(CounterLookupCallback callback) {
   if (IsDeadCheck("v8::V8::SetCounterFunction()")) return;
   i::StatsTable::SetCounterFunction(callback);
