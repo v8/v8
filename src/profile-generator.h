@@ -41,6 +41,9 @@ class TokenEnumerator {
   ~TokenEnumerator();
   int GetTokenId(Object* token);
 
+  static const int kNoSecurityToken = -1;
+  static const int kInheritsSecurityToken = -2;
+
  private:
   static void TokenRemovedCallback(v8::Persistent<v8::Value> handle,
                                    void* parameter);
@@ -78,8 +81,6 @@ class CodeEntry {
   void CopyData(const CodeEntry& source);
 
   static const char* kEmptyNamePrefix;
-  static const int kNoSecurityToken = -1;
-  static const int kInheritsSecurityToken = -2;
 
  private:
   unsigned call_uid_;
