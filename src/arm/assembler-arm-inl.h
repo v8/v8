@@ -168,6 +168,12 @@ bool RelocInfo::IsPatchedReturnSequence() {
 }
 
 
+bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
+  Instr current_instr = Assembler::instr_at(pc_);
+  return !Assembler::IsNop(current_instr, 2);
+}
+
+
 void RelocInfo::Visit(ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
@@ -178,8 +184,10 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (Debug::has_break_points() &&
-             RelocInfo::IsJSReturn(mode) &&
-             IsPatchedReturnSequence()) {
+             (RelocInfo::IsJSReturn(mode) &&
+              IsPatchedReturnSequence()) ||
+             (RelocInfo::IsDebugBreakSlot(mode) &&
+              IsPatchedDebugBreakSlotSequence())) {
     visitor->VisitDebugTarget(this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
