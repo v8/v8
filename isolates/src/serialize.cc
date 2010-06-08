@@ -510,10 +510,11 @@ ExternalReferenceDecoder::~ExternalReferenceDecoder() {
 
 bool Serializer::serialization_enabled_ = false;
 bool Serializer::too_late_to_enable_now_ = false;
-ExternalReferenceDecoder* Deserializer::external_reference_decoder_ = NULL;
 
 
-Deserializer::Deserializer(SnapshotByteSource* source) : source_(source) {
+Deserializer::Deserializer(SnapshotByteSource* source)
+    : source_(source),
+      external_reference_decoder_(NULL) {
 }
 
 
@@ -601,7 +602,8 @@ void Deserializer::Deserialize() {
   ASSERT(HandleScopeImplementer::instance()->blocks()->is_empty());
   // Make sure the entire partial snapshot cache is traversed, filling it with
   // valid object pointers.
-  partial_snapshot_cache_length_ = kPartialSnapshotCacheCapacity;
+  Isolate::Current()->set_serialize_partial_snapshot_cache_length(
+      Isolate::kPartialSnapshotCacheCapacity);
   ASSERT_EQ(NULL, external_reference_decoder_);
   external_reference_decoder_ = new ExternalReferenceDecoder();
   Heap::IterateStrongRoots(this, VISIT_ONLY_STRONG);
@@ -623,7 +625,7 @@ void Deserializer::DeserializePartial(Object** root) {
 
 Deserializer::~Deserializer() {
   ASSERT(source_->AtEOF());
-  if (external_reference_decoder_ != NULL) {
+  if (external_reference_decoder_) {
     delete external_reference_decoder_;
     external_reference_decoder_ = NULL;
   }
@@ -690,6 +692,7 @@ void Deserializer::ReadChunk(Object** current,
                              Object** limit,
                              int source_space,
                              Address address) {
+  Isolate* isolate = Isolate::Current();
   while (current < limit) {
     int data = source_->Get();
     switch (data) {
@@ -721,11 +724,12 @@ void Deserializer::ReadChunk(Object** current,
             new_object = Heap::roots_address()[root_id];                       \
           } else if (where == kPartialSnapshotCache) {                         \
             int cache_index = source_->GetInt();                               \
-            new_object = partial_snapshot_cache_[cache_index];                 \
+            new_object = isolate->serialize_partial_snapshot_cache()           \
+                [cache_index];                                                 \
           } else if (where == kExternalReference) {                            \
             int reference_id = source_->GetInt();                              \
-            Address address =                                                  \
-                external_reference_decoder_->Decode(reference_id);             \
+            Address address = external_reference_decoder_->                    \
+                Decode(reference_id);                                          \
             new_object = reinterpret_cast<Object*>(address);                   \
           } else if (where == kBackref) {                                      \
             emit_write_barrier =                                               \
@@ -973,6 +977,9 @@ Serializer::Serializer(SnapshotByteSink* sink)
       current_root_index_(0),
       external_reference_encoder_(new ExternalReferenceEncoder),
       large_object_total_(0) {
+  // The serializer is meant to be used only to generate initial heap images
+  // from a context in which there is only one isolate.
+  ASSERT(Isolate::number_of_isolates() == 1);
   for (int i = 0; i <= LAST_SPACE; i++) {
     fullness_[i] = 0;
   }
@@ -1002,18 +1009,22 @@ void StartupSerializer::SerializeStrongReferences() {
 
 void PartialSerializer::Serialize(Object** object) {
   this->VisitPointer(object);
+  Isolate* isolate = Isolate::Current();
 
   // After we have done the partial serialization the partial snapshot cache
   // will contain some references needed to decode the partial snapshot.  We
   // fill it up with undefineds so it has a predictable length so the
   // deserialization code doesn't need to know the length.
-  for (int index = partial_snapshot_cache_length_;
-       index < kPartialSnapshotCacheCapacity;
+  for (int index = isolate->serialize_partial_snapshot_cache_length();
+       index < Isolate::kPartialSnapshotCacheCapacity;
        index++) {
-    partial_snapshot_cache_[index] = HEAP->undefined_value();
-    startup_serializer_->VisitPointer(&partial_snapshot_cache_[index]);
+    isolate->serialize_partial_snapshot_cache()[index] =
+        isolate->heap()->undefined_value();
+    startup_serializer_->VisitPointer(
+        &isolate->serialize_partial_snapshot_cache()[index]);
   }
-  partial_snapshot_cache_length_ = kPartialSnapshotCacheCapacity;
+  isolate->set_serialize_partial_snapshot_cache_length(
+      Isolate::kPartialSnapshotCacheCapacity);
 }
 
 
@@ -1032,11 +1043,6 @@ void Serializer::VisitPointers(Object** start, Object** end) {
 }
 
 
-Object* SerializerDeserializer::partial_snapshot_cache_[
-    kPartialSnapshotCacheCapacity];
-int SerializerDeserializer::partial_snapshot_cache_length_ = 0;
-
-
 // This ensures that the partial snapshot cache keeps things alive during GC and
 // tracks their movement.  When it is called during serialization of the startup
 // snapshot the partial snapshot is empty, so nothing happens.  When the partial
@@ -1046,9 +1052,11 @@ int SerializerDeserializer::partial_snapshot_cache_length_ = 0;
 // deserialization we therefore need to visit the cache array.  This fills it up
 // with pointers to deserialized objects.
 void SerializerDeserializer::Iterate(ObjectVisitor* visitor) {
+  Isolate* isolate = Isolate::Current();
   visitor->VisitPointers(
-      &partial_snapshot_cache_[0],
-      &partial_snapshot_cache_[partial_snapshot_cache_length_]);
+      isolate->serialize_partial_snapshot_cache(),
+      &isolate->serialize_partial_snapshot_cache()[
+          isolate->serialize_partial_snapshot_cache_length()]);
 }
 
 
@@ -1056,27 +1064,34 @@ void SerializerDeserializer::Iterate(ObjectVisitor* visitor) {
 // the root iteration code (above) will iterate over array elements, writing the
 // references to deserialized objects in them.
 void SerializerDeserializer::SetSnapshotCacheSize(int size) {
-  partial_snapshot_cache_length_ = size;
+  Isolate::Current()->set_serialize_partial_snapshot_cache_length(size);
 }
 
 
 int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
-  for (int i = 0; i < partial_snapshot_cache_length_; i++) {
-    Object* entry = partial_snapshot_cache_[i];
+  Isolate* isolate = Isolate::Current();
+
+  for (int i = 0;
+       i < isolate->serialize_partial_snapshot_cache_length();
+       i++) {
+    Object* entry = isolate->serialize_partial_snapshot_cache()[i];
     if (entry == heap_object) return i;
   }
 
   // We didn't find the object in the cache.  So we add it to the cache and
   // then visit the pointer so that it becomes part of the startup snapshot
   // and we can refer to it from the partial snapshot.
-  int length = partial_snapshot_cache_length_;
-  CHECK(length < kPartialSnapshotCacheCapacity);
-  partial_snapshot_cache_[length] = heap_object;
-  startup_serializer_->VisitPointer(&partial_snapshot_cache_[length]);
+  int length = isolate->serialize_partial_snapshot_cache_length();
+  CHECK(length < Isolate::kPartialSnapshotCacheCapacity);
+  isolate->serialize_partial_snapshot_cache()[length] = heap_object;
+  startup_serializer_->VisitPointer(
+      &isolate->serialize_partial_snapshot_cache()[length]);
   // We don't recurse from the startup snapshot generator into the partial
   // snapshot generator.
-  ASSERT(length == partial_snapshot_cache_length_);
-  return partial_snapshot_cache_length_++;
+  int new_length = isolate->serialize_partial_snapshot_cache_length();
+  ASSERT(length == new_length);
+  isolate->set_serialize_partial_snapshot_cache_length(length + 1);
+  return length;
 }
 
 
@@ -1165,8 +1180,8 @@ void StartupSerializer::SerializeObject(
 
 
 void StartupSerializer::SerializeWeakReferences() {
-  for (int i = partial_snapshot_cache_length_;
-       i < kPartialSnapshotCacheCapacity;
+  for (int i = Isolate::Current()->serialize_partial_snapshot_cache_length();
+       i < Isolate::kPartialSnapshotCacheCapacity;
        i++) {
     sink_->Put(kRootArray + kPlain + kStartOfObject, "RootSerialization");
     sink_->PutInt(Heap::kUndefinedValueRootIndex, "root_index");

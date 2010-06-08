@@ -43,6 +43,7 @@ namespace internal {
 
 
 Isolate* Isolate::global_isolate = NULL;
+int Isolate::number_of_isolates_ = 0;
 
 
 void Isolate::InitOnce() {
@@ -55,6 +56,7 @@ Isolate* Isolate::Create(Deserializer* des) {
   ASSERT(global_isolate == NULL);
   global_isolate = new Isolate();
   if (global_isolate->Init(des)) {
+    ++number_of_isolates_;
     return global_isolate;
   } else {
     delete global_isolate;
@@ -65,13 +67,19 @@ Isolate* Isolate::Create(Deserializer* des) {
 
 
 Isolate::Isolate()
-    : bootstrapper_(NULL),
+    : initialized_(false),
+      bootstrapper_(NULL),
       stub_cache_(NULL) {
   handle_scope_data_.Initialize();
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value)                        \
   name##_ = (initial_value);
   ISOLATE_INIT_LIST(ISOLATE_INIT_EXECUTE)
 #undef ISOLATE_INIT_EXECUTE
+
+#define ISOLATE_INIT_ARRAY_EXECUTE(type, name, length)                         \
+  memset(name##_, 0, sizeof(type) * length);
+  ISOLATE_INIT_ARRAY_LIST(ISOLATE_INIT_ARRAY_EXECUTE)
+#undef ISOLATE_INIT_ARRAY_EXECUTE
 }
 
 
@@ -80,6 +88,8 @@ Isolate::~Isolate() {
   stub_cache_ = NULL;
   delete bootstrapper_;
   bootstrapper_ = NULL;
+
+  if (initialized_) --number_of_isolates_;
 }
 
 
@@ -163,6 +173,8 @@ bool Isolate::Init(Deserializer* des) {
     LOG(LogCodeObjects());
     LOG(LogCompiledFunctions());
   }
+
+  initialized_ = true;
 
   return true;
 }

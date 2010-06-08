@@ -39,8 +39,15 @@ class Bootstrapper;
 class Deserializer;
 class StubCache;
 
+#define ISOLATE_INIT_ARRAY_LIST(V)                                             \
+  /* SerializerDeserializer state. */                                          \
+  V(Object*, serialize_partial_snapshot_cache, kPartialSnapshotCacheCapacity)
+
 #define ISOLATE_INIT_LIST(V)                                                   \
-  V(bool, zone_allow_allocation, true) /* AssertNoZoneAllocation */
+  /* AssertNoZoneAllocation state. */                                          \
+  V(bool, zone_allow_allocation, true)                                         \
+  /* SerializerDeserializer state. */                                          \
+  V(int, serialize_partial_snapshot_cache_length, 0)
 
 class Isolate {
  public:
@@ -65,7 +72,12 @@ class Isolate {
   ISOLATE_INIT_LIST(GLOBAL_ACCESSOR)
 #undef GLOBAL_ACCESSOR
 
+#define GLOBAL_ARRAY_ACCESSOR(type, name, length)                              \
+  type* name() { return &(name##_[0]); }
+  ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_ACCESSOR)
+#undef GLOBAL_ARRAY_ACCESSOR
 
+  // Accessors.
   Bootstrapper* bootstrapper() { return bootstrapper_; }
   Heap* heap() { return &heap_; }
   StubCache* stub_cache() { return stub_cache_; }
@@ -74,12 +86,21 @@ class Isolate {
   }
   Zone* zone() { return &zone_; }
 
+  // SerializerDeserializer state.
+  static const int kPartialSnapshotCacheCapacity = 1300;
+
+  static int number_of_isolates() { return number_of_isolates_; }
+
  private:
   Isolate();
 
   static Isolate* global_isolate;
+  // TODO(isolates): Access to this global counter should be serialized.
+  static int number_of_isolates_;
 
   bool Init(Deserializer* des);
+
+  bool initialized_;
 
   Bootstrapper* bootstrapper_;
   Heap heap_;
@@ -91,6 +112,11 @@ class Isolate {
   type name##_;
   ISOLATE_INIT_LIST(GLOBAL_BACKING_STORE)
 #undef GLOBAL_BACKING_STORE
+
+#define GLOBAL_ARRAY_BACKING_STORE(type, name, length)                         \
+  type name##_[length];
+  ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_BACKING_STORE)
+#undef GLOBAL_ARRAY_BACKING_STORE
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
@@ -108,6 +134,10 @@ class Isolate {
 
 // Temporary macro to be used to flag classes that should be static.
 #define STATIC_CLASS class
+
+
+// Temporary macro to be used to flag classes that have been converted.
+#define ISOLATED_CLASS class
 
 
 } }  // namespace v8::internal

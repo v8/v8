@@ -144,7 +144,7 @@ class SnapshotByteSource {
 // This only works for objects in the first page of a space.  Don't use this for
 // things in newspace since it bypasses the write barrier.
 
-static const int k64 = (sizeof(uintptr_t) - 4) / 4;
+RLYSTC const int k64 = (sizeof(uintptr_t) - 4) / 4;
 
 #define COMMON_REFERENCE_PATTERNS(f)                               \
   f(kNumberOfSpaces, 2, (11 - k64))                                \
@@ -177,8 +177,8 @@ static const int k64 = (sizeof(uintptr_t) - 4) / 4;
 // both.
 class SerializerDeserializer: public ObjectVisitor {
  public:
-  static void Iterate(ObjectVisitor* visitor);
-  static void SetSnapshotCacheSize(int size);
+  RLYSTC void Iterate(ObjectVisitor* visitor);
+  RLYSTC void SetSnapshotCacheSize(int size);
 
  protected:
   // Where the pointed-to object can be found:
@@ -216,40 +216,36 @@ class SerializerDeserializer: public ObjectVisitor {
 
   // Misc.
   // Raw data to be copied from the snapshot.
-  static const int kRawData = 0x30;
+  RLYSTC const int kRawData = 0x30;
   // Some common raw lengths: 0x31-0x3f
   // A tag emitted at strategic points in the snapshot to delineate sections.
   // If the deserializer does not find these at the expected moments then it
   // is an indication that the snapshot and the VM do not fit together.
   // Examine the build process for architecture, version or configuration
   // mismatches.
-  static const int kSynchronize = 0x70;
+  RLYSTC const int kSynchronize = 0x70;
   // Used for the source code of the natives, which is in the executable, but
   // is referred to from external strings in the snapshot.
-  static const int kNativesStringResource = 0x71;
-  static const int kNewPage = 0x72;
+  RLYSTC const int kNativesStringResource = 0x71;
+  RLYSTC const int kNewPage = 0x72;
   // 0x73-0x7f                            Free.
   // 0xb0-0xbf                            Free.
   // 0xf0-0xff                            Free.
 
 
-  static const int kLargeData = LAST_SPACE;
-  static const int kLargeCode = kLargeData + 1;
-  static const int kLargeFixedArray = kLargeCode + 1;
-  static const int kNumberOfSpaces = kLargeFixedArray + 1;
-  static const int kAnyOldSpace = -1;
+  RLYSTC const int kLargeData = LAST_SPACE;
+  RLYSTC const int kLargeCode = kLargeData + 1;
+  RLYSTC const int kLargeFixedArray = kLargeCode + 1;
+  RLYSTC const int kNumberOfSpaces = kLargeFixedArray + 1;
+  RLYSTC const int kAnyOldSpace = -1;
 
   // A bitmask for getting the space out of an instruction.
-  static const int kSpaceMask = 15;
+  RLYSTC const int kSpaceMask = 15;
 
-  static inline bool SpaceIsLarge(int space) { return space >= kLargeData; }
-  static inline bool SpaceIsPaged(int space) {
+  RLYSTC inline bool SpaceIsLarge(int space) { return space >= kLargeData; }
+  RLYSTC inline bool SpaceIsPaged(int space) {
     return space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE;
   }
-
-  static int partial_snapshot_cache_length_;
-  static const int kPartialSnapshotCacheCapacity = 1300;
-  static Object* partial_snapshot_cache_[];
 };
 
 
@@ -320,7 +316,6 @@ class Deserializer: public SerializerDeserializer {
   List<Address> pages_[SerializerDeserializer::kNumberOfSpaces];
 
   SnapshotByteSource* source_;
-  static ExternalReferenceDecoder* external_reference_decoder_;
   // This is the address of the next object that will be allocated in each
   // space.  It is used to calculate the addresses of back-references.
   Address high_water_[LAST_SPACE + 1];
@@ -328,6 +323,8 @@ class Deserializer: public SerializerDeserializer {
   // is used to set the location of the new page when we encounter a
   // START_NEW_PAGE_SERIALIZATION tag.
   Address last_object_address_;
+
+  ExternalReferenceDecoder* external_reference_decoder_;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };
@@ -376,19 +373,19 @@ class SerializationAddressMapper {
   }
 
  private:
-  static bool SerializationMatchFun(void* key1, void* key2) {
+  RLYSTC bool SerializationMatchFun(void* key1, void* key2) {
     return key1 == key2;
   }
 
-  static uint32_t Hash(HeapObject* obj) {
+  RLYSTC uint32_t Hash(HeapObject* obj) {
     return static_cast<int32_t>(reinterpret_cast<intptr_t>(obj->address()));
   }
 
-  static void* Key(HeapObject* obj) {
+  RLYSTC void* Key(HeapObject* obj) {
     return reinterpret_cast<void*>(obj->address());
   }
 
-  static void* Value(int v) {
+  RLYSTC void* Value(int v) {
     return reinterpret_cast<void*>(v);
   }
 
@@ -398,7 +395,8 @@ class SerializationAddressMapper {
 };
 
 
-class Serializer : public SerializerDeserializer {
+// There can be only one serializer per V8 process.
+STATIC_CLASS Serializer : public SerializerDeserializer {
  public:
   explicit Serializer(SnapshotByteSink* sink);
   ~Serializer();
@@ -410,25 +408,25 @@ class Serializer : public SerializerDeserializer {
     return fullness_[space];
   }
 
-  static void Enable() {
+  RLYSTC void Enable() {
     if (!serialization_enabled_) {
       ASSERT(!too_late_to_enable_now_);
     }
     serialization_enabled_ = true;
   }
 
-  static void Disable() { serialization_enabled_ = false; }
+  RLYSTC void Disable() { serialization_enabled_ = false; }
   // Call this when you have made use of the fact that there is no serialization
   // going on.
-  static void TooLateToEnableNow() { too_late_to_enable_now_ = true; }
-  static bool enabled() { return serialization_enabled_; }
+  RLYSTC void TooLateToEnableNow() { too_late_to_enable_now_ = true; }
+  RLYSTC bool enabled() { return serialization_enabled_; }
   SerializationAddressMapper* address_mapper() { return &address_mapper_; }
 #ifdef DEBUG
   virtual void Synchronize(const char* tag);
 #endif
 
  protected:
-  static const int kInvalidRootIndex = -1;
+  RLYSTC const int kInvalidRootIndex = -1;
   virtual int RootIndex(HeapObject* heap_object) = 0;
   virtual bool ShouldBeInThePartialSnapshotCache(HeapObject* o) = 0;
 
@@ -481,11 +479,11 @@ class Serializer : public SerializerDeserializer {
   // object space it may return kLargeCode or kLargeFixedArray in order
   // to indicate to the deserializer what kind of large object allocation
   // to make.
-  static int SpaceOfObject(HeapObject* object);
+  RLYSTC int SpaceOfObject(HeapObject* object);
   // This just returns the space of the object.  It will return LO_SPACE
   // for all large objects since you can't check the type of the object
   // once the map has been used for the serialization address.
-  static int SpaceOfAlreadySerializedObject(HeapObject* object);
+  RLYSTC int SpaceOfAlreadySerializedObject(HeapObject* object);
   int Allocate(int space, int size, bool* new_page_started);
   int EncodeExternalReference(Address addr) {
     return external_reference_encoder_->Encode(addr);
@@ -499,9 +497,9 @@ class Serializer : public SerializerDeserializer {
   SnapshotByteSink* sink_;
   int current_root_index_;
   ExternalReferenceEncoder* external_reference_encoder_;
-  static bool serialization_enabled_;
+  RLYSTC bool serialization_enabled_;
   // Did we already make use of the fact that serialization was not enabled?
-  static bool too_late_to_enable_now_;
+  RLYSTC bool too_late_to_enable_now_;
   int large_object_total_;
   SerializationAddressMapper address_mapper_;
 
@@ -552,7 +550,7 @@ class StartupSerializer : public Serializer {
     // strong roots have been serialized we can create a partial snapshot
     // which will repopulate the cache with objects neede by that partial
     // snapshot.
-    partial_snapshot_cache_length_ = 0;
+    Isolate::Current()->set_serialize_partial_snapshot_cache_length(0);
   }
   // Serialize the current state of the heap.  The order is:
   // 1) Strong references.
