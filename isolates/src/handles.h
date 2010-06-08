@@ -137,7 +137,7 @@ class HandleScope {
   }
 
   // Deallocates any extensions used by the current scope.
-  static void DeleteExtensions();
+  static void DeleteExtensions(Isolate* isolate);
 
   static Address current_extensions_address();
   static Address current_next_address();
@@ -165,10 +165,11 @@ class HandleScope {
   // once, and only for the current scope.
   static void Leave(
       const v8::ImplementationUtilities::HandleScopeData* previous) {
+    Isolate* isolate = Isolate::Current();
     v8::ImplementationUtilities::HandleScopeData* current =
-        Isolate::Current()->handle_scope_data();
+        isolate->handle_scope_data();
     if (current->extensions > 0) {
-      DeleteExtensions();
+      DeleteExtensions(isolate);
     }
     *current = *previous;
 #ifdef DEBUG

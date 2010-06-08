@@ -155,8 +155,9 @@ bool ThreadManager::RestoreThread() {
     StackGuard::InitThread(access);
     return false;
   }
+  Isolate* isolate = Isolate::Current();
   char* from = state->data();
-  from = HandleScopeImplementer::RestoreThread(from);
+  from = isolate->handle_scope_implementer()->RestoreThread(from);
   from = Top::RestoreThread(from);
   from = Relocatable::RestoreState(from);
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -164,7 +165,7 @@ bool ThreadManager::RestoreThread() {
 #endif
   from = StackGuard::RestoreStackGuard(from);
   from = RegExpStack::RestoreStack(from);
-  from = Isolate::Current()->bootstrapper()->RestoreState(from);
+  from = isolate->bootstrapper()->RestoreState(from);
   Thread::SetThreadLocal(thread_state_key, NULL);
   if (state->terminate_on_restore()) {
     StackGuard::TerminateExecution();
@@ -198,8 +199,7 @@ static int ArchiveSpacePerThread() {
 #endif
                      StackGuard::ArchiveSpacePerThread() +
                     RegExpStack::ArchiveSpacePerThread() +
-                    Isolate::Current()->bootstrapper()->
-                                 ArchiveSpacePerThread() +
+                   Bootstrapper::ArchiveSpacePerThread() +
                     Relocatable::ArchiveSpacePerThread();
 }
 
@@ -285,10 +285,11 @@ void ThreadManager::ArchiveThread() {
 void ThreadManager::EagerlyArchiveThread() {
   ThreadState* state = lazily_archived_thread_state_;
   state->LinkInto(ThreadState::IN_USE_LIST);
+  Isolate* isolate = Isolate::Current();
   char* to = state->data();
   // Ensure that data containing GC roots are archived first, and handle them
   // in ThreadManager::Iterate(ObjectVisitor*).
-  to = HandleScopeImplementer::ArchiveThread(to);
+  to = isolate->handle_scope_implementer()->ArchiveThread(to);
   to = Top::ArchiveThread(to);
   to = Relocatable::ArchiveState(to);
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -296,21 +297,22 @@ void ThreadManager::EagerlyArchiveThread() {
 #endif
   to = StackGuard::ArchiveStackGuard(to);
   to = RegExpStack::ArchiveStack(to);
-  to = Isolate::Current()->bootstrapper()->ArchiveState(to);
+  to = isolate->bootstrapper()->ArchiveState(to);
   lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
   lazily_archived_thread_state_ = NULL;
 }
 
 
 void ThreadManager::FreeThreadResources() {
-  HandleScopeImplementer::FreeThreadResources();
+  Isolate* isolate = Isolate::Current();
+  isolate->handle_scope_implementer()->FreeThreadResources();
   Top::FreeThreadResources();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug::FreeThreadResources();
 #endif
   StackGuard::FreeThreadResources();
   RegExpStack::FreeThreadResources();
-  Isolate::Current()->bootstrapper()->FreeThreadResources();
+  isolate->bootstrapper()->FreeThreadResources();
 }
 
 

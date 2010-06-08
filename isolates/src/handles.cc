@@ -45,17 +45,19 @@ namespace internal {
 
 
 int HandleScope::NumberOfHandles() {
-  int n = HandleScopeImplementer::instance()->blocks()->length();
+  Isolate* isolate = Isolate::Current();
+  HandleScopeImplementer* impl = isolate->handle_scope_implementer();
+  int n = impl->blocks()->length();
   if (n == 0) return 0;
   return ((n - 1) * kHandleBlockSize) + static_cast<int>(
-      (Isolate::Current()->handle_scope_data()->next -
-          HandleScopeImplementer::instance()->blocks()->last()));
+      (isolate->handle_scope_data()->next - impl->blocks()->last()));
 }
 
 
 Object** HandleScope::Extend() {
+  Isolate* isolate = Isolate::Current();
   v8::ImplementationUtilities::HandleScopeData* current =
-      Isolate::Current()->handle_scope_data();
+      isolate->handle_scope_data();
 
   Object** result = current->next;
 
@@ -67,7 +69,7 @@ Object** HandleScope::Extend() {
                             "Cannot create a handle without a HandleScope");
     return NULL;
   }
-  HandleScopeImplementer* impl = HandleScopeImplementer::instance();
+  HandleScopeImplementer* impl = isolate->handle_scope_implementer();
   // If there's more room in the last block, we use that. This is used
   // for fast creation of scopes after scope barriers.
   if (!impl->blocks()->is_empty()) {
@@ -93,12 +95,13 @@ Object** HandleScope::Extend() {
 }
 
 
-void HandleScope::DeleteExtensions() {
+void HandleScope::DeleteExtensions(Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
   v8::ImplementationUtilities::HandleScopeData* current =
-      Isolate::Current()->handle_scope_data();
+      isolate->handle_scope_data();
 
   ASSERT(current->extensions != 0);
-  HandleScopeImplementer::instance()->DeleteExtensions(current->extensions);
+  isolate->handle_scope_implementer()->DeleteExtensions(current->extensions);
 }
 
 

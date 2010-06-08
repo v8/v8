@@ -81,7 +81,7 @@ class Bootstrapper {
   static bool IsActive() { return BootstrapperActive::IsActive(); }
 
   // Support for thread preemption.
-  int ArchiveSpacePerThread();
+  RLYSTC int ArchiveSpacePerThread();
   char* ArchiveState(char* to);
   char* RestoreState(char* from);
   void FreeThreadResources();

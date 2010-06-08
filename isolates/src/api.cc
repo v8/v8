@@ -66,20 +66,24 @@ namespace v8 {
 
 
 #define EXCEPTION_PREAMBLE()                                      \
-  thread_local.IncrementCallDepth();                              \
+  i::Isolate* isolate = i::Isolate::Current();                    \
+  isolate->handle_scope_implementer()->IncrementCallDepth();      \
   ASSERT(!i::Top::external_caught_exception());                   \
   bool has_pending_exception = false
 
 
 #define EXCEPTION_BAILOUT_CHECK(value)                                         \
   do {                                                                         \
-    thread_local.DecrementCallDepth();                                         \
+    i::HandleScopeImplementer* handle_scope_implementer =                      \
+        isolate->handle_scope_implementer();                                   \
+    handle_scope_implementer->DecrementCallDepth();                            \
     if (has_pending_exception) {                                               \
-      if (thread_local.CallDepthIsZero() && i::Top::is_out_of_memory()) {      \
-        if (!thread_local.ignore_out_of_memory())                              \
+      if (handle_scope_implementer->CallDepthIsZero() &&                       \
+          i::Top::is_out_of_memory()) {                                        \
+        if (!handle_scope_implementer->ignore_out_of_memory())                 \
           i::V8::FatalProcessOutOfMemory(NULL);                                \
       }                                                                        \
-      bool call_depth_is_zero = thread_local.CallDepthIsZero();                \
+      bool call_depth_is_zero = handle_scope_implementer->CallDepthIsZero();   \
       i::Top::OptionalRescheduleException(call_depth_is_zero);                 \
       return value;                                                            \
     }                                                                          \
@@ -94,11 +98,6 @@ namespace v8 {
                "Entering the V8 API without proper locking in place");         \
     }                                                                          \
   } while (false)
-
-// --- D a t a   t h a t   i s   s p e c i f i c   t o   a   t h r e a d ---
-
-
-static i::HandleScopeImplementer thread_local;
 
 
 // --- E x c e p t i o n   B e h a v i o r ---
@@ -458,6 +457,7 @@ HandleScope::~HandleScope() {
 
 
 int HandleScope::NumberOfHandles() {
+  EnsureInitialized("HandleScope::NumberOfHandles");
   return i::HandleScope::NumberOfHandles();
 }
 
@@ -471,23 +471,29 @@ void Context::Enter() {
   if (IsDeadCheck("v8::Context::Enter()")) return;
   ENTER_V8;
   i::Handle<i::Context> env = Utils::OpenHandle(this);
-  thread_local.EnterContext(env);
+  // TODO(isolates): Context should have a pointer to isolate.
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->handle_scope_implementer()->EnterContext(env);
 
-  thread_local.SaveContext(i::Top::context());
+  isolate->handle_scope_implementer()->SaveContext(i::Top::context());
   i::Top::set_context(*env);
 }
 
 
 void Context::Exit() {
   if (!i::V8::IsRunning()) return;
-  if (!ApiCheck(thread_local.LeaveLastContext(),
+  // TODO(isolates): Context should have a pointer to isolate.
+  i::Isolate* isolate = i::Isolate::Current();
+
+  if (!ApiCheck(isolate->handle_scope_implementer()->LeaveLastContext(),
                 "v8::Context::Exit()",
                 "Cannot exit non-entered context")) {
     return;
   }
 
   // Content of 'last_context' could be NULL.
-  i::Context* last_context = thread_local.RestoreContext();
+  i::Context* last_context =
+      isolate->handle_scope_implementer()->RestoreContext();
   i::Top::set_context(last_context);
 }
 
@@ -3216,7 +3222,8 @@ bool Context::InContext() {
 
 v8::Local<v8::Context> Context::GetEntered() {
   if (IsDeadCheck("v8::Context::GetEntered()")) return Local<Context>();
-  i::Handle<i::Object> last = thread_local.LastEnteredContext();
+  i::Handle<i::Object> last =
+      i::Isolate::Current()->handle_scope_implementer()->LastEnteredContext();
   if (last.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(last);
   return Utils::ToLocal(context);
@@ -3651,7 +3658,8 @@ Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
 
 
 void V8::IgnoreOutOfMemoryException() {
-  thread_local.set_ignore_out_of_memory(true);
+  i::Isolate::Current()->handle_scope_implementer()->set_ignore_out_of_memory(
+      true);
 }
 
 
@@ -4360,22 +4368,12 @@ const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title,
 namespace internal {
 
 
-HandleScopeImplementer* HandleScopeImplementer::instance() {
-  return &thread_local;
-}
-
-
 void HandleScopeImplementer::FreeThreadResources() {
-  thread_local.Free();
+  Free();
 }
 
 
 char* HandleScopeImplementer::ArchiveThread(char* storage) {
-  return thread_local.ArchiveThreadHelper(storage);
-}
-
-
-char* HandleScopeImplementer::ArchiveThreadHelper(char* storage) {
   v8::ImplementationUtilities::HandleScopeData* current =
       Isolate::Current()->handle_scope_data();
   handle_scope_data_ = *current;
@@ -4389,16 +4387,11 @@ char* HandleScopeImplementer::ArchiveThreadHelper(char* storage) {
 
 
 int HandleScopeImplementer::ArchiveSpacePerThread() {
-  return sizeof(thread_local);
+  return sizeof(HandleScopeImplementer);
 }
 
 
 char* HandleScopeImplementer::RestoreThread(char* storage) {
-  return thread_local.RestoreThreadHelper(storage);
-}
-
-
-char* HandleScopeImplementer::RestoreThreadHelper(char* storage) {
   memcpy(this, storage, sizeof(*this));
   *Isolate::Current()->handle_scope_data() = handle_scope_data_;
   return storage + ArchiveSpacePerThread();
@@ -4427,8 +4420,8 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
 void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
   v8::ImplementationUtilities::HandleScopeData* current =
       Isolate::Current()->handle_scope_data();
-  thread_local.handle_scope_data_ = *current;
-  thread_local.IterateThis(v);
+  handle_scope_data_ = *current;
+  IterateThis(v);
 }
 
 

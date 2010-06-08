@@ -599,7 +599,7 @@ void Deserializer::Deserialize() {
   // No active threads.
   ASSERT_EQ(NULL, ThreadState::FirstInUse());
   // No active handles.
-  ASSERT(HandleScopeImplementer::instance()->blocks()->is_empty());
+  ASSERT(Isolate::Current()->handle_scope_implementer()->blocks()->is_empty());
   // Make sure the entire partial snapshot cache is traversed, filling it with
   // valid object pointers.
   Isolate::Current()->set_serialize_partial_snapshot_cache_length(
@@ -995,7 +995,7 @@ void StartupSerializer::SerializeStrongReferences() {
   // No active threads.
   CHECK_EQ(NULL, ThreadState::FirstInUse());
   // No active or weak handles.
-  CHECK(HandleScopeImplementer::instance()->blocks()->is_empty());
+  CHECK(Isolate::Current()->handle_scope_implementer()->blocks()->is_empty());
   CHECK_EQ(0, GlobalHandles::NumberOfWeakHandles());
   // We don't support serializing installed extensions.
   for (RegisteredExtension* ext = RegisteredExtension::first_extension();
@@ -1088,8 +1088,7 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
       &isolate->serialize_partial_snapshot_cache()[length]);
   // We don't recurse from the startup snapshot generator into the partial
   // snapshot generator.
-  int new_length = isolate->serialize_partial_snapshot_cache_length();
-  ASSERT(length == new_length);
+  ASSERT(length == isolate->serialize_partial_snapshot_cache_length());
   isolate->set_serialize_partial_snapshot_cache_length(length + 1);
   return length;
 }

@@ -37,6 +37,7 @@ namespace internal {
 
 class Bootstrapper;
 class Deserializer;
+class HandleScopeImplementer;
 class StubCache;
 
 #define ISOLATE_INIT_ARRAY_LIST(V)                                             \
@@ -84,6 +85,10 @@ class Isolate {
   v8::ImplementationUtilities::HandleScopeData* handle_scope_data() {
     return &handle_scope_data_;
   }
+  HandleScopeImplementer* handle_scope_implementer() {
+    ASSERT(handle_scope_implementer_);
+    return handle_scope_implementer_;
+  }
   Zone* zone() { return &zone_; }
 
   // SerializerDeserializer state.
@@ -106,6 +111,7 @@ class Isolate {
   Heap heap_;
   StubCache* stub_cache_;
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
+  HandleScopeImplementer* handle_scope_implementer_;
   Zone zone_;
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
@@ -136,9 +142,10 @@ class Isolate {
 #define STATIC_CLASS class
 
 
-// Temporary macro to be used to flag classes that have been converted.
+// Temporary macro to be used to flag classes that are completely converted
+// to be isolate-friendly. Their mix of static/nonstatic methods/fields is
+// correct.
 #define ISOLATED_CLASS class
-
 
 } }  // namespace v8::internal
 

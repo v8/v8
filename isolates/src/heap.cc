@@ -3702,7 +3702,8 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointer(BitCast<Object**, String**>(&hidden_symbol_));
   v->Synchronize("symbol");
 
-  Isolate::Current()->bootstrapper()->Iterate(v);
+  Isolate* isolate = Isolate::Current();
+  isolate->bootstrapper()->Iterate(v);
   v->Synchronize("bootstrapper");
   Top::Iterate(v);
   v->Synchronize("top");
@@ -3717,7 +3718,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->Synchronize("compilationcache");
 
   // Iterate over local handles in handle scopes.
-  HandleScopeImplementer::Iterate(v);
+  isolate->handle_scope_implementer()->Iterate(v);
   v->Synchronize("handlescope");
 
   // Iterate over the builtin code objects and code stubs in the
@@ -4098,7 +4099,7 @@ class PrintHandleVisitor: public ObjectVisitor {
 void Heap::PrintHandles() {
   PrintF("Handles:\n");
   PrintHandleVisitor v;
-  HandleScopeImplementer::Iterate(&v);
+  Isolate::Current()->handle_scope_implementer()->Iterate(&v);
 }
 
 #endif

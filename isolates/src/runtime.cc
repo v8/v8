@@ -10125,8 +10125,9 @@ static Object* Runtime_Abort(Arguments args) {
 
 static Object* Runtime_DeleteHandleScopeExtensions(Arguments args) {
   ASSERT(args.length() == 0);
-  HandleScope::DeleteExtensions();
-  return HEAP->undefined_value();
+  Isolate* isolate = Isolate::Current();
+  HandleScope::DeleteExtensions(isolate);
+  return isolate->heap()->undefined_value();
 }
 
 

@@ -325,14 +325,14 @@ namespace internal {
 
 // This class is here in order to be able to declare it a friend of
 // HandleScope.  Moving these methods to be members of HandleScope would be
-// neat in some ways, but it would expose external implementation details in
+// neat in some ways, but it would expose internal implementation details in
 // our public header file, which is undesirable.
 //
-// There is a singleton instance of this class to hold the per-thread data.
-// For multithreaded V8 programs this data is copied in and out of storage
+// An isolate has a single instance of this class to hold the current thread's
+// data. In multithreaded V8 programs this data is copied in and out of storage
 // so that the currently executing thread always has its own copy of this
 // data.
-class HandleScopeImplementer {
+ISOLATED_CLASS HandleScopeImplementer {
  public:
 
   HandleScopeImplementer()
@@ -343,16 +343,14 @@ class HandleScopeImplementer {
         ignore_out_of_memory_(false),
         call_depth_(0) { }
 
-  static HandleScopeImplementer* instance();
-
   // Threading support for handle data.
   static int ArchiveSpacePerThread();
-  static char* RestoreThread(char* from);
-  static char* ArchiveThread(char* to);
-  static void FreeThreadResources();
+  char* RestoreThread(char* from);
+  char* ArchiveThread(char* to);
+  void FreeThreadResources();
 
   // Garbage collection support.
-  static void Iterate(v8::internal::ObjectVisitor* v);
+  void Iterate(v8::internal::ObjectVisitor* v);
   static char* Iterate(v8::internal::ObjectVisitor* v, char* data);
 
 

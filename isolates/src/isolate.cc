@@ -69,7 +69,8 @@ Isolate* Isolate::Create(Deserializer* des) {
 Isolate::Isolate()
     : initialized_(false),
       bootstrapper_(NULL),
-      stub_cache_(NULL) {
+      stub_cache_(NULL),
+      handle_scope_implementer_(NULL) {
   handle_scope_data_.Initialize();
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value)                        \
   name##_ = (initial_value);
@@ -105,6 +106,7 @@ bool Isolate::Init(Deserializer* des) {
 
   // Allocate per-isolate globals early.
   bootstrapper_ = new Bootstrapper();
+  handle_scope_implementer_ = new HandleScopeImplementer();
   stub_cache_ = new StubCache();
 
   // Enable logging before setting up the heap
