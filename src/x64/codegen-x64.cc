@@ -7133,6 +7133,25 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
 }
 
 
+void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
+                                                  Register right,
+                                                  TypeInfo left_info,
+                                                  TypeInfo right_info,
+                                                  DeferredCode* deferred) {
+  if (!left_info.IsSmi() && !right_info.IsSmi()) {
+    __ JumpIfNotBothSmi(left, right, deferred->entry_label());
+  } else if (!left_info.IsSmi()) {
+    __ JumpIfNotSmi(left, deferred->entry_label());
+  } else if (!right_info.IsSmi()) {
+    __ JumpIfNotSmi(right, deferred->entry_label());
+  }
+  if (FLAG_debug_code) {
+    __ AbortIfNotSmi(left);
+    __ AbortIfNotSmi(right);
+  }
+}
+
+
 // Implements a binary operation using a deferred code object and some
 // inline code to operate on smis quickly.
 Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
@@ -7142,9 +7161,6 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
   // Copy the type info because left and right may be overwritten.
   TypeInfo left_type_info = left->type_info();
   TypeInfo right_type_info = right->type_info();
-  USE(left_type_info);
-  USE(right_type_info);
-  // TODO(X64): Use type information in calculations.
   Token::Value op = expr->op();
   Result answer;
   // Special handling of div and mod because they use fixed registers.
@@ -7221,7 +7237,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           left->reg(),
                                           right->reg(),
                                           overwrite_mode);
-    __ JumpIfNotBothSmi(left->reg(), right->reg(), deferred->entry_label());
+    JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(),
+                                  left_type_info, right_type_info, deferred);
 
     if (op == Token::DIV) {
       __ SmiDiv(rax, left->reg(), right->reg(), deferred->entry_label());
@@ -7303,7 +7320,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
         }
       }
     } else {
-      __ JumpIfNotBothSmi(left->reg(), rcx, deferred->entry_label());
+      JumpIfNotBothSmiUsingTypeInfo(left->reg(), rcx,
+                                    left_type_info, right_type_info, deferred);
     }
     __ bind(&do_op);
 
@@ -7351,7 +7369,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                         left->reg(),
                                         right->reg(),
                                         overwrite_mode);
-  __ JumpIfNotBothSmi(left->reg(), right->reg(), deferred->entry_label());
+  JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(),
+                                left_type_info, right_type_info, deferred);
 
   switch (op) {
     case Token::ADD:
