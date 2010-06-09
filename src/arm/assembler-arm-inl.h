@@ -116,9 +116,10 @@ Address* RelocInfo::target_reference_address() {
 
 
 Address RelocInfo::call_address() {
-  ASSERT(IsPatchedReturnSequence());
-  // The 2 instructions offset assumes patched return sequence.
-  ASSERT(IsJSReturn(rmode()));
+  // The 2 instructions offset assumes patched debug break slot or return
+  // sequence.
+  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   return Memory::Address_at(pc_ + 2 * Assembler::kInstrSize);
 }
 
