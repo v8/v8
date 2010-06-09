@@ -5904,6 +5904,7 @@ TEST(ProvisionalBreakpointOnLineOutOfRange) {
 
 
 static void BreakMessageHandler(const v8::Debug::Message& message) {
+  i::Isolate* isolate = i::Isolate::Current();
   if (message.IsEvent() && message.GetEvent() == v8::Break) {
     // Count the number of breaks.
     break_point_hit_count++;
@@ -5915,18 +5916,18 @@ static void BreakMessageHandler(const v8::Debug::Message& message) {
   } else if (message.IsEvent() && message.GetEvent() == v8::AfterCompile) {
     v8::HandleScope scope;
 
-    bool is_debug_break = i::StackGuard::IsDebugBreak();
+    bool is_debug_break = isolate->stack_guard()->IsDebugBreak();
     // Force DebugBreak flag while serializer is working.
-    i::StackGuard::DebugBreak();
+    isolate->stack_guard()->DebugBreak();
 
     // Force serialization to trigger some internal JS execution.
     v8::Handle<v8::String> json = message.GetJSON();
 
     // Restore previous state.
     if (is_debug_break) {
-      i::StackGuard::DebugBreak();
+      isolate->stack_guard()->DebugBreak();
     } else {
-      i::StackGuard::Continue(i::DEBUGBREAK);
+      isolate->stack_guard()->Continue(i::DEBUGBREAK);
     }
   }
 }

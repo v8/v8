@@ -995,7 +995,7 @@ static T& frame_entry(Address re_frame, int frame_offset) {
 int RegExpMacroAssemblerARM::CheckStackGuardState(Address* return_address,
                                                   Code* re_code,
                                                   Address re_frame) {
-  if (StackGuard::IsStackOverflow()) {
+  if (Isolate::Current()->stack_guard()->IsStackOverflow()) {
     Top::StackOverflow();
     return EXCEPTION;
   }

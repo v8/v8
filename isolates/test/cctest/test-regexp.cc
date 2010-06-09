@@ -663,7 +663,7 @@ typedef RegExpMacroAssembler ArchRegExpMacroAssembler;
 class ContextInitializer {
  public:
   ContextInitializer()
-      : env_(), scope_(), zone_(DELETE_ON_EXIT), stack_guard_() {
+      : env_(), scope_(), zone_(DELETE_ON_EXIT) {
     env_ = v8::Context::New();
     env_->Enter();
   }
@@ -675,7 +675,6 @@ class ContextInitializer {
   v8::Persistent<v8::Context> env_;
   v8::HandleScope scope_;
   v8::internal::ZoneScope zone_;
-  v8::internal::StackGuard stack_guard_;
 };
 
 

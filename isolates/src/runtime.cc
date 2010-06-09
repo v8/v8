@@ -6999,9 +6999,9 @@ static Object* Runtime_StackOverflow(Arguments args) {
 
 static Object* Runtime_StackGuard(Arguments args) {
   ASSERT(args.length() == 1);
-
+  Isolate* isolate = Isolate::Current();
   // First check if this is a real stack overflow.
-  if (StackGuard::IsStackOverflow()) {
+  if (isolate->stack_guard()->IsStackOverflow()) {
     return Runtime_StackOverflow(args);
   }
 
@@ -7949,8 +7949,9 @@ static Object* Runtime_SetDebugEventListener(Arguments args) {
 
 static Object* Runtime_Break(Arguments args) {
   ASSERT(args.length() == 0);
-  StackGuard::DebugBreak();
-  return HEAP->undefined_value();
+  Isolate* isolate = Isolate::Current();
+  isolate->stack_guard()->DebugBreak();
+  return isolate->heap()->undefined_value();
 }
 
 

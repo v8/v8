@@ -40,6 +40,31 @@ namespace v8 {
 namespace internal {
 
 
+StackGuard::StackGuard()
+    : isolate_(NULL),
+      stack_limit_key_(Thread::CreateThreadLocalKey()) {
+  thread_local_.Clear();
+}
+
+
+void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
+  ASSERT(isolate_ != NULL);
+  // Ignore attempts to interrupt when interrupts are postponed.
+  if (should_postpone_interrupts(lock)) return;
+  thread_local_.jslimit_ = kInterruptLimit;
+  thread_local_.climit_ = kInterruptLimit;
+  isolate_->heap()->SetStackLimits();
+}
+
+
+void StackGuard::reset_limits(const ExecutionAccess& lock) {
+  ASSERT(isolate_ != NULL);
+  thread_local_.jslimit_ = thread_local_.real_jslimit_;
+  thread_local_.climit_ = thread_local_.real_climit_;
+  isolate_->heap()->SetStackLimits();
+}
+
+
 static Handle<Object> Invoke(bool construct,
                              Handle<JSFunction> func,
                              Handle<Object> receiver,
@@ -205,10 +230,6 @@ Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
 }
 
 
-// Static state for stack guards.
-StackGuard::ThreadLocal StackGuard::thread_local_;
-
-
 bool StackGuard::IsStackOverflow() {
   ExecutionAccess access;
   return (thread_local_.jslimit_ != kInterruptLimit &&
@@ -323,15 +344,19 @@ void StackGuard::Continue(InterruptFlag after_what) {
 }
 
 
-int StackGuard::ArchiveSpacePerThread() {
-  return sizeof(ThreadLocal);
-}
-
-
 char* StackGuard::ArchiveStackGuard(char* to) {
   ExecutionAccess access;
   memcpy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
   ThreadLocal blank;
+  blank.Clear();
+
+  // Set the stack limits using the old thread_local_.
+  // TODO(isolates): This was the old semantics of constructing a ThreadLocal
+  //                 (as the ctor called SetStackLimits, which looked at the
+  //                 current thread_local_ from StackGuard)-- but is this
+  //                 really what was intended?
+  isolate_->heap()->SetStackLimits();
+
   thread_local_ = blank;
   return to + sizeof(ThreadLocal);
 }
@@ -340,7 +365,7 @@ char* StackGuard::ArchiveStackGuard(char* to) {
 char* StackGuard::RestoreStackGuard(char* from) {
   ExecutionAccess access;
   memcpy(reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
-  Heap::SetStackLimits();
+  isolate_->heap()->SetStackLimits();
   return from + sizeof(ThreadLocal);
 }
 
@@ -356,6 +381,10 @@ void StackGuard::FreeThreadResources() {
 }
 
 
+StackGuard::ThreadLocal::ThreadLocal() {
+}
+
+
 void StackGuard::ThreadLocal::Clear() {
   real_jslimit_ = kIllegalLimit;
   jslimit_ = kIllegalLimit;
@@ -364,11 +393,11 @@ void StackGuard::ThreadLocal::Clear() {
   nesting_ = 0;
   postpone_interrupts_nesting_ = 0;
   interrupt_flags_ = 0;
-  Heap::SetStackLimits();
 }
 
 
-void StackGuard::ThreadLocal::Initialize() {
+bool StackGuard::ThreadLocal::Initialize() {
+  bool should_set_stack_limits = false;
   if (real_climit_ == kIllegalLimit) {
     // Takes the address of the limit variable in order to find out where
     // the top of stack is right now.
@@ -378,21 +407,23 @@ void StackGuard::ThreadLocal::Initialize() {
     jslimit_ = SimulatorStack::JsLimitFromCLimit(limit);
     real_climit_ = limit;
     climit_ = limit;
-    Heap::SetStackLimits();
+    should_set_stack_limits = true;
   }
   nesting_ = 0;
   postpone_interrupts_nesting_ = 0;
   interrupt_flags_ = 0;
+  return should_set_stack_limits;
 }
 
 
 void StackGuard::ClearThread(const ExecutionAccess& lock) {
   thread_local_.Clear();
+  isolate_->heap()->SetStackLimits();
 }
 
 
 void StackGuard::InitThread(const ExecutionAccess& lock) {
-  thread_local_.Initialize();
+  if (thread_local_.Initialize()) { isolate_->heap()->SetStackLimits(); }
   void* stored_limit = Thread::GetThreadLocal(stack_limit_key);
   // You should hold the ExecutionAccess lock when you call this.
   if (stored_limit != NULL) {
@@ -572,8 +603,10 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
 
 
 static Object* RuntimePreempt() {
+  Isolate* isolate = Isolate::Current();
+
   // Clear the preempt request flag.
-  StackGuard::Continue(PREEMPT);
+  isolate->stack_guard()->Continue(PREEMPT);
 
   ContextSwitcher::PreemptionReceived();
 
@@ -593,20 +626,22 @@ static Object* RuntimePreempt() {
   Thread::YieldCPU();
 #endif
 
-  return HEAP->undefined_value();
+  return isolate->heap()->undefined_value();
 }
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 Object* Execution::DebugBreakHelper() {
+  Isolate* isolate = Isolate::Current();
+
   // Just continue if breaks are disabled.
   if (Debug::disable_break()) {
-    return HEAP->undefined_value();
+    return isolate->heap()->undefined_value();
   }
 
   // Ignore debug break during bootstrapping.
   if (Bootstrapper::IsActive()) {
-    return HEAP->undefined_value();
+    return isolate->heap()->undefined_value();
   }
 
   {
@@ -616,32 +651,33 @@ Object* Execution::DebugBreakHelper() {
     if (fun && fun->IsJSFunction()) {
       // Don't stop in builtin functions.
       if (JSFunction::cast(fun)->IsBuiltin()) {
-        return HEAP->undefined_value();
+        return isolate->heap()->undefined_value();
       }
       GlobalObject* global = JSFunction::cast(fun)->context()->global();
       // Don't stop in debugger functions.
       if (Debug::IsDebugGlobal(global)) {
-        return HEAP->undefined_value();
+        return isolate->heap()->undefined_value();
       }
     }
   }
 
   // Collect the break state before clearing the flags.
   bool debug_command_only =
-      StackGuard::IsDebugCommand() && !StackGuard::IsDebugBreak();
+      isolate->stack_guard()->IsDebugCommand() &&
+      !isolate->stack_guard()->IsDebugBreak();
 
   // Clear the debug break request flag.
-  StackGuard::Continue(DEBUGBREAK);
+  isolate->stack_guard()->Continue(DEBUGBREAK);
 
   ProcessDebugMesssages(debug_command_only);
 
   // Return to continue execution.
-  return HEAP->undefined_value();
+  return isolate->heap()->undefined_value();
 }
 
 void Execution::ProcessDebugMesssages(bool debug_command_only) {
   // Clear the debug command request flag.
-  StackGuard::Continue(DEBUGCOMMAND);
+  Isolate::Current()->stack_guard()->Continue(DEBUGCOMMAND);
 
   HandleScope scope;
   // Enter the debugger. Just continue if we fail to enter the debugger.
@@ -659,22 +695,24 @@ void Execution::ProcessDebugMesssages(bool debug_command_only) {
 #endif
 
 Object* Execution::HandleStackGuardInterrupt() {
+  Isolate* isolate = Isolate::Current();
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (StackGuard::IsDebugBreak() || StackGuard::IsDebugCommand()) {
+  if (isolate->stack_guard()->IsDebugBreak() ||
+      isolate->stack_guard()->IsDebugCommand()) {
     DebugBreakHelper();
   }
 #endif
-  if (StackGuard::IsPreempted()) RuntimePreempt();
-  if (StackGuard::IsTerminateExecution()) {
-    StackGuard::Continue(TERMINATE);
+  if (isolate->stack_guard()->IsPreempted()) RuntimePreempt();
+  if (isolate->stack_guard()->IsTerminateExecution()) {
+    isolate->stack_guard()->Continue(TERMINATE);
     return Top::TerminateExecution();
   }
-  if (StackGuard::IsInterrupted()) {
+  if (isolate->stack_guard()->IsInterrupted()) {
     // interrupt
-    StackGuard::Continue(INTERRUPT);
+    isolate->stack_guard()->Continue(INTERRUPT);
     return Top::StackOverflow();
   }
-  return HEAP->undefined_value();
+  return isolate->heap()->undefined_value();
 }
 
 // --- G C   E x t e n s i o n ---

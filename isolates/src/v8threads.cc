@@ -50,6 +50,7 @@ bool Locker::active_ = false;
 // Constructor for the Locker object.  Once the Locker is constructed the
 // current thread will be guaranteed to have the big V8 lock.
 Locker::Locker() : has_lock_(false), top_level_(true) {
+  internal::Isolate* isolate = internal::Isolate::Current();
   // Record that the Locker has been used at least once.
   active_ = true;
   // Get the big lock if necessary.
@@ -68,8 +69,8 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
       top_level_ = false;
     } else {
       internal::ExecutionAccess access;
-      internal::StackGuard::ClearThread(access);
-      internal::StackGuard::InitThread(access);
+      isolate->stack_guard()->ClearThread(access);
+      isolate->stack_guard()->InitThread(access);
     }
   }
   ASSERT(internal::ThreadManager::IsLockedByCurrentThread());
@@ -125,6 +126,7 @@ namespace internal {
 
 
 bool ThreadManager::RestoreThread() {
+  Isolate* isolate = Isolate::Current();
   // First check whether the current thread has been 'lazily archived', ie
   // not archived at all.  If that is the case we put the state storage we
   // had prepared back in the free list, since we didn't need it after all.
@@ -152,10 +154,9 @@ bool ThreadManager::RestoreThread() {
       reinterpret_cast<ThreadState*>(Thread::GetThreadLocal(thread_state_key));
   if (state == NULL) {
     // This is a new thread.
-    StackGuard::InitThread(access);
+    isolate->stack_guard()->InitThread(access);
     return false;
   }
-  Isolate* isolate = Isolate::Current();
   char* from = state->data();
   from = isolate->handle_scope_implementer()->RestoreThread(from);
   from = Top::RestoreThread(from);
@@ -163,12 +164,12 @@ bool ThreadManager::RestoreThread() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   from = Debug::RestoreDebug(from);
 #endif
-  from = StackGuard::RestoreStackGuard(from);
+  from = isolate->stack_guard()->RestoreStackGuard(from);
   from = RegExpStack::RestoreStack(from);
   from = isolate->bootstrapper()->RestoreState(from);
   Thread::SetThreadLocal(thread_state_key, NULL);
   if (state->terminate_on_restore()) {
-    StackGuard::TerminateExecution();
+    isolate->stack_guard()->TerminateExecution();
     state->set_terminate_on_restore(false);
   }
   state->set_id(kInvalidId);
@@ -283,9 +284,9 @@ void ThreadManager::ArchiveThread() {
 
 
 void ThreadManager::EagerlyArchiveThread() {
+  Isolate* isolate = Isolate::Current();
   ThreadState* state = lazily_archived_thread_state_;
   state->LinkInto(ThreadState::IN_USE_LIST);
-  Isolate* isolate = Isolate::Current();
   char* to = state->data();
   // Ensure that data containing GC roots are archived first, and handle them
   // in ThreadManager::Iterate(ObjectVisitor*).
@@ -295,7 +296,7 @@ void ThreadManager::EagerlyArchiveThread() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   to = Debug::ArchiveDebug(to);
 #endif
-  to = StackGuard::ArchiveStackGuard(to);
+  to = isolate->stack_guard()->ArchiveStackGuard(to);
   to = RegExpStack::ArchiveStack(to);
   to = isolate->bootstrapper()->ArchiveState(to);
   lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
@@ -310,7 +311,7 @@ void ThreadManager::FreeThreadResources() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug::FreeThreadResources();
 #endif
-  StackGuard::FreeThreadResources();
+  isolate->stack_guard()->FreeThreadResources();
   RegExpStack::FreeThreadResources();
   isolate->bootstrapper()->FreeThreadResources();
 }
@@ -447,7 +448,7 @@ void ContextSwitcher::StopPreemption() {
 void ContextSwitcher::Run() {
   while (keep_going_) {
     OS::Sleep(sleep_ms_);
-    StackGuard::Preempt();
+    Isolate::Current()->stack_guard()->Preempt();
   }
 }
 

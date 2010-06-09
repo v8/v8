@@ -53,7 +53,6 @@ bool V8::Initialize(Deserializer* des) {
   has_fatal_error_ = false;
   has_been_disposed_ = false;
 
-  Isolate::InitOnce();
   return (Isolate::Create(des) != NULL);
 }
 

@@ -202,6 +202,7 @@ class ZoneScopeInfo;
 // Forward declaration of the GCTracer class.
 class GCTracer;
 class HeapStats;
+class Isolate;
 
 
 typedef String* (*ExternalStringTableUpdaterCallback)(Object** pointer);
@@ -232,7 +233,7 @@ class Heap {
   // Set the stack limit in the roots_ array.  Some architectures generate
   // code that looks here, because it is faster than loading from the static
   // jslimit_/real_jslimit_ variable in the StackGuard.
-  static void SetStackLimits();
+  void SetStackLimits();
 
   // Returns whether Setup has been called.
   static bool HasBeenSetup();
@@ -1019,6 +1020,10 @@ class Heap {
 
  private:
   Heap();
+
+  // TODO(isolates): Technically this can be calculated directly from
+  //                 any pointer to Heap.
+  Isolate* isolate_;
 
   static int reserved_semispace_size_;
   static int max_semispace_size_;

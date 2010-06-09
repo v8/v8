@@ -144,7 +144,7 @@ int GCTracer::max_gc_pause_ = 0;
 int GCTracer::max_alive_after_gc_ = 0;
 int GCTracer::min_in_mutator_ = kMaxInt;
 
-Heap::Heap() {
+Heap::Heap() : isolate_(NULL) {
   // TODO(zarko): members that previously relied on static initialization
   // should be initialized here.
 }
@@ -3944,6 +3944,8 @@ bool Heap::Setup(bool create_heap_objects) {
 
 
 void Heap::SetStackLimits() {
+  ASSERT(isolate_ != NULL);
+  ASSERT(isolate_ == Isolate::Current());
   // On 64 bit machines, pointers are generally out of range of Smis.  We write
   // something that looks like an out of range Smi to the GC.
 
@@ -3951,10 +3953,10 @@ void Heap::SetStackLimits() {
   // These are actually addresses, but the tag makes the GC ignore it.
   roots_[kStackLimitRootIndex] =
       reinterpret_cast<Object*>(
-          (StackGuard::jslimit() & ~kSmiTagMask) | kSmiTag);
+          (isolate_->stack_guard()->jslimit() & ~kSmiTagMask) | kSmiTag);
   roots_[kRealStackLimitRootIndex] =
       reinterpret_cast<Object*>(
-          (StackGuard::real_jslimit() & ~kSmiTagMask) | kSmiTag);
+          (isolate_->stack_guard()->real_jslimit() & ~kSmiTagMask) | kSmiTag);
 }
 
 

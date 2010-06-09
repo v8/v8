@@ -377,10 +377,6 @@ class Top {
   static void MarkCompactEpilogue(bool is_compacting,
                                   ThreadLocalTop* archived_thread_data);
 
-  // Debug.
-  // Mutex for serializing access to break control structures.
-  static Mutex* break_access_;
-
   friend class SaveContext;
   friend class AssertNoContextChange;
   friend class ExecutionAccess;

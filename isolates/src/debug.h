@@ -780,6 +780,10 @@ class EnterDebugger BASE_EMBEDDED {
   }
 
   ~EnterDebugger() {
+    // TODO(isolates): Check to see if this is the same isolate as in the
+    //                 constructor.
+    Isolate* isolate = Isolate::Current();
+
     // Restore to the previous break state.
     Debug::SetBreak(break_frame_id_, break_id_);
 
@@ -792,9 +796,9 @@ class EnterDebugger BASE_EMBEDDED {
       if (!Top::has_pending_exception()) {
         // Try to avoid any pending debug break breaking in the clear mirror
         // cache JavaScript code.
-        if (StackGuard::IsDebugBreak()) {
+        if (isolate->stack_guard()->IsDebugBreak()) {
           Debug::set_interrupts_pending(DEBUGBREAK);
-          StackGuard::Continue(DEBUGBREAK);
+          isolate->stack_guard()->Continue(DEBUGBREAK);
         }
         Debug::ClearMirrorCache();
       }
@@ -805,17 +809,17 @@ class EnterDebugger BASE_EMBEDDED {
         // This re-scheduling of preemption is to avoid starvation in some
         // debugging scenarios.
         Debug::clear_interrupt_pending(PREEMPT);
-        StackGuard::Preempt();
+        isolate->stack_guard()->Preempt();
       }
       if (Debug::is_interrupt_pending(DEBUGBREAK)) {
         Debug::clear_interrupt_pending(DEBUGBREAK);
-        StackGuard::DebugBreak();
+        isolate->stack_guard()->DebugBreak();
       }
 
       // If there are commands in the queue when leaving the debugger request
       // that these commands are processed.
       if (Debugger::HasCommands()) {
-        StackGuard::DebugCommand();
+        isolate->stack_guard()->DebugCommand();
       }
 
       // If leaving the debugger with the debugger no longer active unload it.

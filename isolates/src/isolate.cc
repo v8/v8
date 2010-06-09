@@ -46,15 +46,35 @@ Isolate* Isolate::global_isolate = NULL;
 int Isolate::number_of_isolates_ = 0;
 
 
+class IsolateInitializer {
+ public:
+  IsolateInitializer() {
+    Isolate::InitOnce();
+  }
+};
+
+
+static IsolateInitializer isolate_initializer;
+
+
 void Isolate::InitOnce() {
+  ASSERT(global_isolate == NULL);
+  global_isolate = new Isolate();
+  ASSERT(global_isolate->PreInit());
 }
 
 
 Isolate* Isolate::Create(Deserializer* des) {
   // While we're still building out support for isolates, only support
   // one single global isolate.
-  ASSERT(global_isolate == NULL);
-  global_isolate = new Isolate();
+
+  if (global_isolate != NULL) {
+    // Allow for two-phase initialization.
+    ASSERT(global_isolate->state_ != INITIALIZED);
+  } else {
+    global_isolate = new Isolate();
+  }
+
   if (global_isolate->Init(des)) {
     ++number_of_isolates_;
     return global_isolate;
@@ -67,11 +87,16 @@ Isolate* Isolate::Create(Deserializer* des) {
 
 
 Isolate::Isolate()
-    : initialized_(false),
+    : state_(UNINITIALIZED),
       bootstrapper_(NULL),
+      break_access_(OS::CreateMutex()),
       stub_cache_(NULL),
       handle_scope_implementer_(NULL) {
+  heap_.isolate_ = this;
+  stack_guard_.isolate_ = this;
+
   handle_scope_data_.Initialize();
+
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value)                        \
   name##_ = (initial_value);
   ISOLATE_INIT_LIST(ISOLATE_INIT_EXECUTE)
@@ -90,7 +115,26 @@ Isolate::~Isolate() {
   delete bootstrapper_;
   bootstrapper_ = NULL;
 
-  if (initialized_) --number_of_isolates_;
+  if (state_ == INITIALIZED) --number_of_isolates_;
+}
+
+
+bool Isolate::PreInit() {
+  if (state_ != UNINITIALIZED) return true;
+  ASSERT(global_isolate == this);
+
+  // Safe after setting Heap::isolate_, initializing StackGuard and
+  // ensuring that Isolate::Current() == this.
+  heap()->SetStackLimits();
+
+#ifdef DEBUG
+  DisallowAllocationFailure disallow_allocation_failure;
+#endif
+  bootstrapper_ = new Bootstrapper();
+  handle_scope_implementer_ = new HandleScopeImplementer();
+  stub_cache_ = new StubCache();
+  state_ = PREINITIALIZED;
+  return true;
 }
 
 
@@ -104,10 +148,7 @@ bool Isolate::Init(Deserializer* des) {
   DisallowAllocationFailure disallow_allocation_failure;
 #endif
 
-  // Allocate per-isolate globals early.
-  bootstrapper_ = new Bootstrapper();
-  handle_scope_implementer_ = new HandleScopeImplementer();
-  stub_cache_ = new StubCache();
+  if (state_ == UNINITIALIZED && !PreInit()) return false;
 
   // Enable logging before setting up the heap
   Logger::Setup();
@@ -127,7 +168,7 @@ bool Isolate::Init(Deserializer* des) {
     // will ensure this too, but we don't have to use lockers if we are only
     // using one thread.
     ExecutionAccess lock;
-    StackGuard::InitThread(lock);
+    stack_guard_.InitThread(lock);
   }
 
   // Setup the object heap
@@ -159,7 +200,7 @@ bool Isolate::Init(Deserializer* des) {
 
   // Deserializing may put strange things in the root array's copy of the
   // stack guard.
-  Heap::SetStackLimits();
+  heap_.SetStackLimits();
 
   // Setup the CPU support. Must be done after heap setup and after
   // any deserialization because we have to have the initial heap
@@ -176,8 +217,7 @@ bool Isolate::Init(Deserializer* des) {
     LOG(LogCompiledFunctions());
   }
 
-  initialized_ = true;
-
+  state_ = INITIALIZED;
   return true;
 }
 

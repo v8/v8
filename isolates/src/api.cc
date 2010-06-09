@@ -381,15 +381,18 @@ ResourceConstraints::ResourceConstraints()
 
 
 bool SetResourceConstraints(ResourceConstraints* constraints) {
+  i::Isolate* isolate = i::Isolate::Current();
+
   int young_space_size = constraints->max_young_space_size();
   int old_gen_size = constraints->max_old_space_size();
   if (young_space_size != 0 || old_gen_size != 0) {
-    bool result = i::Heap::ConfigureHeap(young_space_size / 2, old_gen_size);
+    bool result = isolate->heap()->ConfigureHeap(young_space_size / 2,
+                                                 old_gen_size);
     if (!result) return false;
   }
   if (constraints->stack_limit() != NULL) {
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
-    i::StackGuard::SetStackLimit(limit);
+    isolate->stack_guard()->SetStackLimit(limit);
   }
   return true;
 }
@@ -3854,11 +3857,12 @@ int V8::GetCurrentThreadId() {
 void V8::TerminateExecution(int thread_id) {
   if (!i::V8::IsRunning()) return;
   API_ENTRY_CHECK("V8::GetCurrentThreadId()");
+  i::Isolate* isolate = i::Isolate::Current();
   // If the thread_id identifies the current thread just terminate
   // execution right away.  Otherwise, ask the thread manager to
   // terminate the thread with the given id if any.
   if (thread_id == i::Top::thread_id()) {
-    i::StackGuard::TerminateExecution();
+    isolate->stack_guard()->TerminateExecution();
   } else {
     i::ThreadManager::TerminateExecution(thread_id);
   }
@@ -3867,7 +3871,7 @@ void V8::TerminateExecution(int thread_id) {
 
 void V8::TerminateExecution() {
   if (!i::V8::IsRunning()) return;
-  i::StackGuard::TerminateExecution();
+  i::Isolate::Current()->stack_guard()->TerminateExecution();
 }
 
 
@@ -4095,7 +4099,7 @@ bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
 
 void Debug::DebugBreak() {
   if (!i::V8::IsRunning()) return;
-  i::StackGuard::DebugBreak();
+  i::Isolate::Current()->stack_guard()->DebugBreak();
 }
 
 

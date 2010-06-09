@@ -40,7 +40,6 @@ namespace v8 {
 namespace internal {
 
 ThreadLocalTop Top::thread_local_;
-Mutex* Top::break_access_ = OS::CreateMutex();
 
 NoAllocationStringAllocator* preallocated_message_space = NULL;
 
@@ -1056,12 +1055,12 @@ char* Top::RestoreThread(char* from) {
 
 
 ExecutionAccess::ExecutionAccess() {
-  Top::break_access_->Lock();
+  Isolate::Current()->break_access()->Lock();
 }
 
 
 ExecutionAccess::~ExecutionAccess() {
-  Top::break_access_->Unlock();
+  Isolate::Current()->break_access()->Unlock();
 }
 
 

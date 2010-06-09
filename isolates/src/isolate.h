@@ -30,6 +30,7 @@
 
 #include "apiutils.h"
 #include "heap.h"
+#include "execution.h"
 #include "zone.h"
 
 namespace v8 {
@@ -64,9 +65,6 @@ class Isolate {
   // on failure.
   static Isolate* Create(Deserializer* des);
 
-  // Initialize process-wide state.
-  static void InitOnce();
-
 #define GLOBAL_ACCESSOR(type, name, initialvalue)                              \
   type name() const { return name##_; }                                        \
   void set_##name(type value) { name##_ = value; }
@@ -78,8 +76,13 @@ class Isolate {
   ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_ACCESSOR)
 #undef GLOBAL_ARRAY_ACCESSOR
 
+  // Debug.
+  // Mutex for serializing access to break control structures.
+  Mutex* break_access() { return break_access_; }
+
   // Accessors.
   Bootstrapper* bootstrapper() { return bootstrapper_; }
+  StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
   StubCache* stub_cache() { return stub_cache_; }
   v8::ImplementationUtilities::HandleScopeData* handle_scope_data() {
@@ -103,12 +106,25 @@ class Isolate {
   // TODO(isolates): Access to this global counter should be serialized.
   static int number_of_isolates_;
 
+  // Initialize process-wide state.
+  static void InitOnce();
+
+  bool PreInit();
+
   bool Init(Deserializer* des);
 
-  bool initialized_;
+  enum State {
+    UNINITIALIZED,    // Some components may not have been allocated.
+    PREINITIALIZED,   // Components have been allocated but not initialized.
+    INITIALIZED       // All components are fully initialized.
+  };
+
+  State state_;
 
   Bootstrapper* bootstrapper_;
+  Mutex* break_access_;
   Heap heap_;
+  StackGuard stack_guard_;
   StubCache* stub_cache_;
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
@@ -124,8 +140,47 @@ class Isolate {
   ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_BACKING_STORE)
 #undef GLOBAL_ARRAY_BACKING_STORE
 
+  friend class IsolateInitializer;
+
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
+
+
+// Support for checking for stack-overflows in C++ code.
+class StackLimitCheck BASE_EMBEDDED {
+ public:
+  bool HasOverflowed() const {
+    StackGuard* stack_guard = Isolate::Current()->stack_guard();
+    // Stack has overflowed in C++ code only if stack pointer exceeds the C++
+    // stack guard and the limits are not set to interrupt values.
+    // TODO(214): Stack overflows are ignored if a interrupt is pending. This
+    // code should probably always use the initial C++ limit.
+    return (reinterpret_cast<uintptr_t>(this) < stack_guard->climit()) &&
+           stack_guard->IsStackOverflow();
+  }
+};
+
+
+// Support for temporarily postponing interrupts. When the outermost
+// postpone scope is left the interrupts will be re-enabled and any
+// interrupts that occurred while in the scope will be taken into
+// account.
+class PostponeInterruptsScope BASE_EMBEDDED {
+ public:
+  PostponeInterruptsScope() {
+    StackGuard* stack_guard = Isolate::Current()->stack_guard();
+    stack_guard->thread_local_.postpone_interrupts_nesting_++;
+    stack_guard->DisableInterrupts();
+  }
+
+  ~PostponeInterruptsScope() {
+    StackGuard* stack_guard = Isolate::Current()->stack_guard();
+    if (--stack_guard->thread_local_.postpone_interrupts_nesting_ == 0) {
+      stack_guard->EnableInterrupts();
+    }
+  }
+};
+
 
 // Temporary macros for accessing fields off the global isolate. Define these
 // when reformatting code would become burdensome.

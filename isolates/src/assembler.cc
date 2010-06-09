@@ -608,12 +608,14 @@ ExternalReference ExternalReference::roots_address() {
 
 
 ExternalReference ExternalReference::address_of_stack_limit() {
-  return ExternalReference(StackGuard::address_of_jslimit());
+  return ExternalReference(
+      Isolate::Current()->stack_guard()->address_of_jslimit());
 }
 
 
 ExternalReference ExternalReference::address_of_real_stack_limit() {
-  return ExternalReference(StackGuard::address_of_real_jslimit());
+  return ExternalReference(
+      Isolate::Current()->stack_guard()->address_of_real_jslimit());
 }
 
 

@@ -2211,7 +2211,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
   // added. It should be enough to clear the flag only once while we are in the
   // debugger.
   ASSERT(Debug::InDebugger());
-  StackGuard::Continue(DEBUGCOMMAND);
+  Isolate::Current()->stack_guard()->Continue(DEBUGCOMMAND);
 
   // Notify the debugger that a debug event has occurred unless auto continue is
   // active in which case no event is send.
@@ -2453,7 +2453,7 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command,
 
   // Set the debug command break flag to have the command processed.
   if (!Debug::InDebugger()) {
-    StackGuard::DebugCommand();
+    Isolate::Current()->stack_guard()->DebugCommand();
   }
 
   MessageDispatchHelperThread* dispatch_thread;
