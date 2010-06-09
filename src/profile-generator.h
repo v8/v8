@@ -56,6 +56,28 @@ class TokenEnumerator {
 };
 
 
+// Provides a storage of strings allocated in C++ heap, to hold them
+// forever, even if they disappear from JS heap or external storage.
+class StringsStorage {
+ public:
+  StringsStorage();
+  ~StringsStorage();
+
+  const char* GetName(String* name);
+
+ private:
+  INLINE(static bool StringsMatch(void* key1, void* key2)) {
+    return strcmp(reinterpret_cast<char*>(key1),
+                  reinterpret_cast<char*>(key2)) == 0;
+  }
+
+  // String::Hash -> const char*
+  HashMap names_;
+
+  DISALLOW_COPY_AND_ASSIGN(StringsStorage);
+};
+
+
 class CodeEntry {
  public:
   explicit INLINE(CodeEntry(int security_token_id));
@@ -258,10 +280,12 @@ class CpuProfilesCollection {
                             String* title,
                             double actual_sampling_rate);
   List<CpuProfile*>* Profiles(int security_token_id);
+  const char* GetName(String* name) {
+    return function_and_resource_names_.GetName(name);
+  }
   CpuProfile* GetProfile(int security_token_id, unsigned uid);
   inline bool is_last_profile();
 
-  const char* GetName(String* name);
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
                           String* name, String* resource_name, int line_number);
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, const char* name);
@@ -280,17 +304,11 @@ class CpuProfilesCollection {
   List<CpuProfile*>* GetProfilesList(int security_token_id);
   int TokenToIndex(int security_token_id);
 
-  INLINE(static bool StringsMatch(void* key1, void* key2)) {
-    return strcmp(reinterpret_cast<char*>(key1),
-                  reinterpret_cast<char*>(key2)) == 0;
-  }
-
   INLINE(static bool UidsMatch(void* key1, void* key2)) {
     return key1 == key2;
   }
 
-  // String::Hash -> const char*
-  HashMap function_and_resource_names_;
+  StringsStorage function_and_resource_names_;
   // args_count -> char*
   List<char*> args_count_names_;
   List<CodeEntry*> code_entries_;

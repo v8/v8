@@ -86,6 +86,37 @@ void TokenEnumerator::TokenRemoved(Object** token_location) {
 }
 
 
+StringsStorage::StringsStorage()
+    : names_(StringsMatch) {
+}
+
+
+StringsStorage::~StringsStorage() {
+  for (HashMap::Entry* p = names_.Start();
+       p != NULL;
+       p = names_.Next(p)) {
+    DeleteArray(reinterpret_cast<const char*>(p->value));
+  }
+}
+
+
+const char* StringsStorage::GetName(String* name) {
+  if (name->IsString()) {
+    char* c_name =
+        name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL).Detach();
+    HashMap::Entry* cache_entry = names_.Lookup(c_name, name->Hash(), true);
+    if (cache_entry->value == NULL) {
+      // New entry added.
+      cache_entry->value = c_name;
+    } else {
+      DeleteArray(c_name);
+    }
+    return reinterpret_cast<const char*>(cache_entry->value);
+  }
+  return "";
+}
+
+
 const char* CodeEntry::kEmptyNamePrefix = "";
 unsigned CodeEntry::next_call_uid_ = 1;
 
@@ -438,8 +469,7 @@ void CodeMap::Print() {
 
 
 CpuProfilesCollection::CpuProfilesCollection()
-    : function_and_resource_names_(StringsMatch),
-      profiles_uids_(UidsMatch),
+    : profiles_uids_(UidsMatch),
       current_profiles_semaphore_(OS::CreateSemaphore(1)) {
   // Create list of unabridged profiles.
   profiles_by_token_.Add(new List<CpuProfile*>());
@@ -470,11 +500,6 @@ CpuProfilesCollection::~CpuProfilesCollection() {
   profiles_by_token_.Iterate(DeleteProfilesList);
   code_entries_.Iterate(DeleteCodeEntry);
   args_count_names_.Iterate(DeleteArgsCountName);
-  for (HashMap::Entry* p = function_and_resource_names_.Start();
-       p != NULL;
-       p = function_and_resource_names_.Next(p)) {
-    DeleteArray(reinterpret_cast<const char*>(p->value));
-  }
 }
 
 
@@ -663,27 +688,6 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(int security_token_id) {
   CodeEntry* entry = new CodeEntry(security_token_id);
   code_entries_.Add(entry);
   return entry;
-}
-
-
-const char* CpuProfilesCollection::GetName(String* name) {
-  if (name->IsString()) {
-    char* c_name =
-        name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL).Detach();
-    HashMap::Entry* cache_entry =
-        function_and_resource_names_.Lookup(c_name,
-                                            name->Hash(),
-                                            true);
-    if (cache_entry->value == NULL) {
-      // New entry added.
-      cache_entry->value = c_name;
-    } else {
-      DeleteArray(c_name);
-    }
-    return reinterpret_cast<const char*>(cache_entry->value);
-  } else {
-    return "";
-  }
 }
 
 
