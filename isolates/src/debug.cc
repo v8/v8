@@ -62,16 +62,17 @@ static void PrintLn(v8::Local<v8::Value> value) {
 }
 
 
-static Handle<Code> ComputeCallDebugBreak(int argc) {
+static Handle<Code> ComputeCallDebugBreak(int argc, Code::Kind kind) {
   CALL_HEAP_FUNCTION(
-      Isolate::Current()->stub_cache()->ComputeCallDebugBreak(argc),
+      Isolate::Current()->stub_cache()->ComputeCallDebugBreak(argc, kind),
       Code);
 }
 
 
-static Handle<Code> ComputeCallDebugPrepareStepIn(int argc) {
+static Handle<Code> ComputeCallDebugPrepareStepIn(int argc,  Code::Kind kind) {
   CALL_HEAP_FUNCTION(
-      Isolate::Current()->stub_cache()->ComputeCallDebugPrepareStepIn(argc),
+      Isolate::Current()->stub_cache()->ComputeCallDebugPrepareStepIn(
+          argc, kind),
       Code);
 }
 
@@ -132,10 +133,14 @@ void BreakLocationIterator::Next() {
       ASSERT(statement_position_ >= 0);
     }
 
-    // Check for breakable code target. Look in the original code as setting
-    // break points can cause the code targets in the running (debugged) code to
-    // be of a different kind than in the original code.
-    if (RelocInfo::IsCodeTarget(rmode())) {
+    if (IsDebugBreakSlot()) {
+      // There is always a possible break point at a debug break slot.
+      break_point_++;
+      return;
+    } else if (RelocInfo::IsCodeTarget(rmode())) {
+      // Check for breakable code target. Look in the original code as setting
+      // break points can cause the code targets in the running (debugged) code
+      // to be of a different kind than in the original code.
       Address target = original_rinfo()->target_address();
       Code* code = Code::GetCodeFromTargetAddress(target);
       if ((code->is_inline_cache_stub() &&
@@ -332,6 +337,9 @@ void BreakLocationIterator::SetDebugBreak() {
   if (RelocInfo::IsJSReturn(rmode())) {
     // Patch the frame exit code with a break point.
     SetDebugBreakAtReturn();
+  } else if (IsDebugBreakSlot()) {
+    // Patch the code in the break slot.
+    SetDebugBreakAtSlot();
   } else {
     // Patch the IC call.
     SetDebugBreakAtIC();
@@ -349,6 +357,9 @@ void BreakLocationIterator::ClearDebugBreak() {
   if (RelocInfo::IsJSReturn(rmode())) {
     // Restore the frame exit code.
     ClearDebugBreakAtReturn();
+  } else if (IsDebugBreakSlot()) {
+    // Restore the code in the break slot.
+    ClearDebugBreakAtSlot();
   } else {
     // Patch the IC call.
     ClearDebugBreakAtIC();
@@ -364,13 +375,14 @@ void BreakLocationIterator::PrepareStepIn() {
   // construct call or CallFunction stub call.
   Address target = rinfo()->target_address();
   Handle<Code> code(Code::GetCodeFromTargetAddress(target));
-  if (code->is_call_stub()) {
+  if (code->is_call_stub() || code->is_keyed_call_stub()) {
     // Step in through IC call is handled by the runtime system. Therefore make
     // sure that the any current IC is cleared and the runtime system is
     // called. If the executing code has a debug break at the location change
     // the call in the original code as it is the code there that will be
     // executed in place of the debug break call.
-    Handle<Code> stub = ComputeCallDebugPrepareStepIn(code->arguments_count());
+    Handle<Code> stub = ComputeCallDebugPrepareStepIn(code->arguments_count(),
+                                                      code->kind());
     if (IsDebugBreak()) {
       original_rinfo()->set_target_address(stub->entry());
     } else {
@@ -419,6 +431,8 @@ bool BreakLocationIterator::HasBreakPoint() {
 bool BreakLocationIterator::IsDebugBreak() {
   if (RelocInfo::IsJSReturn(rmode())) {
     return IsDebugBreakAtReturn();
+  } else if (IsDebugBreakSlot()) {
+    return IsDebugBreakAtSlot();
   } else {
     return Debug::IsDebugBreak(rinfo()->target_address());
   }
@@ -477,6 +491,11 @@ void BreakLocationIterator::ClearDebugBreakAtIC() {
 
 bool BreakLocationIterator::IsDebuggerStatement() {
   return RelocInfo::DEBUG_BREAK == rmode();
+}
+
+
+bool BreakLocationIterator::IsDebugBreakSlot() {
+  return RelocInfo::DEBUG_BREAK_SLOT == rmode();
 }
 
 
@@ -575,6 +594,7 @@ bool Debug::break_on_uncaught_exception_ = true;
 
 Handle<Context> Debug::debug_context_ = Handle<Context>();
 Code* Debug::debug_break_return_ = NULL;
+Code* Debug::debug_break_slot_ = NULL;
 
 
 void ScriptCache::Add(Handle<Script> script) {
@@ -658,6 +678,10 @@ void Debug::Setup(bool create_heap_objects) {
     debug_break_return_ =
         Builtins::builtin(Builtins::Return_DebugBreak);
     ASSERT(debug_break_return_->IsCode());
+    // Get code to handle debug break in debug break slots.
+    debug_break_slot_ =
+        Builtins::builtin(Builtins::Slot_DebugBreak);
+    ASSERT(debug_break_slot_->IsCode());
   }
 }
 
@@ -827,6 +851,7 @@ void Debug::PreemptionWhileInDebugger() {
 
 void Debug::Iterate(ObjectVisitor* v) {
   v->VisitPointer(BitCast<Object**, Code**>(&(debug_break_return_)));
+  v->VisitPointer(BitCast<Object**, Code**>(&(debug_break_slot_)));
 }
 
 
@@ -1192,7 +1217,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
     Address target = it.rinfo()->target_address();
     Code* code = Code::GetCodeFromTargetAddress(target);
-    if (code->is_call_stub()) {
+    if (code->is_call_stub() || code->is_keyed_call_stub()) {
       is_call_target = true;
     }
     if (code->is_inline_cache_stub()) {
@@ -1378,7 +1403,8 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   if (code->is_inline_cache_stub()) {
     switch (code->kind()) {
       case Code::CALL_IC:
-        return ComputeCallDebugBreak(code->arguments_count());
+      case Code::KEYED_CALL_IC:
+        return ComputeCallDebugBreak(code->arguments_count(), code->kind());
 
       case Code::LOAD_IC:
         return Handle<Code>(Builtins::builtin(Builtins::LoadIC_DebugBreak));
@@ -1633,15 +1659,20 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   // break point is still active after processing the break point.
   Address addr = frame->pc() - Assembler::kCallTargetAddressOffset;
 
-  // Check if the location is at JS exit.
+  // Check if the location is at JS exit or debug break slot.
   bool at_js_return = false;
   bool break_at_js_return_active = false;
+  bool at_debug_break_slot = false;
   RelocIterator it(debug_info->code());
-  while (!it.done()) {
+  while (!it.done() && !at_js_return && !at_debug_break_slot) {
     if (RelocInfo::IsJSReturn(it.rinfo()->rmode())) {
       at_js_return = (it.rinfo()->pc() ==
           addr - Assembler::kPatchReturnSequenceAddressOffset);
       break_at_js_return_active = it.rinfo()->IsPatchedReturnSequence();
+    }
+    if (RelocInfo::IsDebugBreakSlot(it.rinfo()->rmode())) {
+      at_debug_break_slot = (it.rinfo()->pc() ==
+          addr - Assembler::kPatchDebugBreakSlotAddressOffset);
     }
     it.next();
   }
@@ -1659,24 +1690,29 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
     // Move back to where the call instruction sequence started.
     thread_local_.after_break_target_ =
         addr - Assembler::kPatchReturnSequenceAddressOffset;
-  } else {
-    // Check if there still is a debug break call at the target address. If the
-    // break point has been removed it will have disappeared. If it have
-    // disappeared don't try to look in the original code as the running code
-    // will have the right address. This takes care of the case where the last
-    // break point is removed from the function and therefore no "original code"
-    // is available. If the debug break call is still there find the address in
-    // the original code.
-    if (IsDebugBreak(Assembler::target_address_at(addr))) {
-      // If the break point is still there find the call address which was
-      // overwritten in the original code by the call to DebugBreakXXX.
+  } else if (at_debug_break_slot) {
+    // Address of where the debug break slot starts.
+    addr = addr - Assembler::kPatchDebugBreakSlotAddressOffset;
 
-      // Find the corresponding address in the original code.
-      addr += original_code->instruction_start() - code->instruction_start();
-    }
+    // Continue just after the slot.
+    thread_local_.after_break_target_ = addr + Assembler::kDebugBreakSlotLength;
+  } else if (IsDebugBreak(Assembler::target_address_at(addr))) {
+    // We now know that there is still a debug break call at the target address,
+    // so the break point is still there and the original code will hold the
+    // address to jump to in order to complete the call which is replaced by a
+    // call to DebugBreakXXX.
+
+    // Find the corresponding address in the original code.
+    addr += original_code->instruction_start() - code->instruction_start();
 
     // Install jump to the call address in the original code. This will be the
     // call which was overwritten by the call to DebugBreakXXX.
+    thread_local_.after_break_target_ = Assembler::target_address_at(addr);
+  } else {
+    // There is no longer a break point present. Don't try to look in the
+    // original code as the running code will have the right address. This takes
+    // care of the case where the last break point is removed from the function
+    // and therefore no "original code" is available.
     thread_local_.after_break_target_ = Assembler::target_address_at(addr);
   }
 }

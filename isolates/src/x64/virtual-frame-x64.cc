@@ -1077,7 +1077,7 @@ Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   Result name = Pop();
   Result receiver = Pop();
-  PrepareForCall(0, 0);  // One stack arg, not callee-dropped.
+  PrepareForCall(0, 0);
   MoveResultsToRegisters(&name, &receiver, rcx, rax);
 
   return RawCallCodeObject(ic, mode);
@@ -1088,7 +1088,10 @@ Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
   // Key and receiver are on top of the frame.  The IC expects them on
   // the stack.  It does not drop them.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
+  Result name = Pop();
+  Result receiver = Pop();
+  PrepareForCall(0, 0);
+  MoveResultsToRegisters(&name, &receiver, rax, rdx);
   return RawCallCodeObject(ic, mode);
 }
 

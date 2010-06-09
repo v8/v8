@@ -859,10 +859,10 @@ void FunctionTemplate::SetHiddenPrototype(bool value) {
 }
 
 
-void FunctionTemplate::SetNamedInstancePropertyHandler(
+void FunctionTemplate::SetNamedInstancePropertyHandlerImpl(
       NamedPropertyGetter getter,
       NamedPropertySetter setter,
-      NamedPropertyQuery query,
+      NamedPropertyQueryImpl query,
       NamedPropertyDeleter remover,
       NamedPropertyEnumerator enumerator,
       Handle<Value> data) {
@@ -993,12 +993,13 @@ void ObjectTemplate::SetAccessor(v8::Handle<String> name,
 }
 
 
-void ObjectTemplate::SetNamedPropertyHandler(NamedPropertyGetter getter,
-                                             NamedPropertySetter setter,
-                                             NamedPropertyQuery query,
-                                             NamedPropertyDeleter remover,
-                                             NamedPropertyEnumerator enumerator,
-                                             Handle<Value> data) {
+void ObjectTemplate::SetNamedPropertyHandlerImpl(NamedPropertyGetter getter,
+                                                 NamedPropertySetter setter,
+                                                 NamedPropertyQueryImpl query,
+                                                 NamedPropertyDeleter remover,
+                                                 NamedPropertyEnumerator
+                                                    enumerator,
+                                                 Handle<Value> data) {
   if (IsDeadCheck("v8::ObjectTemplate::SetNamedPropertyHandler()")) return;
   ENTER_V8;
   HandleScope scope;
@@ -1006,12 +1007,12 @@ void ObjectTemplate::SetNamedPropertyHandler(NamedPropertyGetter getter,
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
-  Utils::ToLocal(cons)->SetNamedInstancePropertyHandler(getter,
-                                                        setter,
-                                                        query,
-                                                        remover,
-                                                        enumerator,
-                                                        data);
+  Utils::ToLocal(cons)->SetNamedInstancePropertyHandlerImpl(getter,
+                                                            setter,
+                                                            query,
+                                                            remover,
+                                                            enumerator,
+                                                            data);
 }
 
 
@@ -1122,6 +1123,12 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 ScriptData* ScriptData::PreCompile(const char* input, int length) {
   unibrow::Utf8InputBuffer<> buf(input, length);
   return i::PreParse(i::Handle<i::String>(), &buf, NULL);
+}
+
+
+ScriptData* ScriptData::PreCompile(v8::Handle<String> source) {
+  i::Handle<i::String> str = Utils::OpenHandle(*source);
+  return i::PreParse(str, NULL, NULL);
 }
 
 

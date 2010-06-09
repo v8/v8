@@ -1176,7 +1176,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
 
     // Load the object.
     MemOperand object_loc = EmitSlotSearch(object_slot, rax);
-    __ push(object_loc);
+    __ movq(rdx, object_loc);
 
     // Assert that the key is a smi.
     Literal* key_literal = property->key()->AsLiteral();
@@ -1184,7 +1184,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     ASSERT(key_literal->handle()->IsSmi());
 
     // Load the key.
-    __ Push(key_literal->handle());
+    __ Move(rax, key_literal->handle());
 
     // Do a keyed property load.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
@@ -1192,8 +1192,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     // Notice: We must not have a "test rax, ..." instruction after the
     // call. It is treated specially by the LoadIC code.
     __ nop();
-    // Drop key and object left on the stack by IC, and push the result.
-    DropAndApply(2, context, rax);
+    Apply(context, rax);
   }
 }
 
@@ -1699,10 +1698,10 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
     Apply(context_, rax);
   } else {
     VisitForValue(expr->obj(), kStack);
-    VisitForValue(expr->key(), kStack);
+    VisitForValue(expr->key(), kAccumulator);
+    __ pop(rdx);
     EmitKeyedPropertyLoad(expr);
-    // Drop key and receiver left on the stack by IC.
-    DropAndApply(2, context_, rax);
+    Apply(context_, rax);
   }
 }
 
@@ -1824,7 +1823,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Call to a keyed property, use keyed load IC followed by function
       // call.
       VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kStack);
+      VisitForValue(prop->key(), kAccumulator);
+      __ movq(rdx, Operand(rsp, 0));
       // Record source code position for IC call.
       SetSourcePosition(prop->position());
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
@@ -1832,8 +1832,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // By emitting a nop we make sure that we do not have a "test rax,..."
       // instruction after the call it is treated specially by the LoadIC code.
       __ nop();
-      // Drop key left on the stack by IC.
-      __ Drop(1);
       // Pop receiver.
       __ pop(rbx);
       // Push result (function).
@@ -2865,7 +2863,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       EmitNamedPropertyLoad(prop);
     } else {
       VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kStack);
+      VisitForValue(prop->key(), kAccumulator);
+      __ movq(rdx, Operand(rsp, 0));  // Leave receiver on stack
+      __ push(rax);  // Copy of key, needed for later store.
       EmitKeyedPropertyLoad(prop);
     }
   }

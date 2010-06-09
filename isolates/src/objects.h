@@ -2669,6 +2669,7 @@ class Code: public HeapObject {
     LOAD_IC,
     KEYED_LOAD_IC,
     CALL_IC,
+    KEYED_CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
     BINARY_OP_IC,
@@ -2723,6 +2724,7 @@ class Code: public HeapObject {
   inline bool is_store_stub() { return kind() == STORE_IC; }
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
+  inline bool is_keyed_call_stub() { return kind() == KEYED_CALL_IC; }
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline CodeStub::Major major_key();
@@ -3306,6 +3308,12 @@ class SharedFunctionInfo: public HeapObject {
   inline bool try_full_codegen();
   inline void set_try_full_codegen(bool flag);
 
+  // Indicates if this function can be lazy compiled.
+  // This is used to determine if we can safely flush code from a function
+  // when doing GC if we expect that the function will no longer be used.
+  inline bool allows_lazy_compilation();
+  inline void set_allows_lazy_compilation(bool flag);
+
   // Check whether a inlined constructor can be generated with the given
   // prototype.
   bool CanGenerateInlineConstructor(Object* prototype);
@@ -3431,6 +3439,7 @@ class SharedFunctionInfo: public HeapObject {
   // Bit positions in compiler_hints.
   static const int kHasOnlySimpleThisPropertyAssignments = 0;
   static const int kTryFullCodegen = 1;
+  static const int kAllowLazyCompilation = 2;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
@@ -4192,11 +4201,11 @@ class String: public HeapObject {
   // computed the 2nd bit tells whether the string can be used as an
   // array index.
   static const int kHashNotComputedMask = 1;
-  static const int kIsArrayIndexMask = 1 << 1;
-  static const int kNofLengthBitFields = 2;
+  static const int kIsNotArrayIndexMask = 1 << 1;
+  static const int kNofHashBitFields = 2;
 
   // Shift constant retrieving hash code from hash field.
-  static const int kHashShift = kNofLengthBitFields;
+  static const int kHashShift = kNofHashBitFields;
 
   // Array index strings this short can keep their index in the hash
   // field.
@@ -4205,18 +4214,35 @@ class String: public HeapObject {
   // For strings which are array indexes the hash value has the string length
   // mixed into the hash, mainly to avoid a hash value of zero which would be
   // the case for the string '0'. 24 bits are used for the array index value.
-  static const int kArrayIndexHashLengthShift = 24 + kNofLengthBitFields;
+  static const int kArrayIndexValueBits = 24;
+  static const int kArrayIndexLengthBits =
+      kBitsPerInt - kArrayIndexValueBits - kNofHashBitFields;
+
+  STATIC_CHECK((kArrayIndexLengthBits > 0));
+
+  static const int kArrayIndexHashLengthShift =
+      kArrayIndexValueBits + kNofHashBitFields;
+
   static const int kArrayIndexHashMask = (1 << kArrayIndexHashLengthShift) - 1;
-  static const int kArrayIndexValueBits =
-      kArrayIndexHashLengthShift - kHashShift;
+
   static const int kArrayIndexValueMask =
       ((1 << kArrayIndexValueBits) - 1) << kHashShift;
 
+  // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
+  // could use a mask to test if the length of string is less than or equal to
+  // kMaxCachedArrayIndexLength.
+  STATIC_CHECK(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
+
+  static const int kContainsCachedArrayIndexMask =
+      (~kMaxCachedArrayIndexLength << kArrayIndexHashLengthShift) |
+      kIsNotArrayIndexMask;
+
   // Value of empty hash field indicating that the hash is not computed.
-  static const int kEmptyHashField = kHashNotComputedMask;
+  static const int kEmptyHashField =
+      kIsNotArrayIndexMask | kHashNotComputedMask;
 
   // Value of hash field containing computed hash equal to zero.
-  static const int kZeroHash = 0;
+  static const int kZeroHash = kIsNotArrayIndexMask;
 
   // Maximal string length.
   static const int kMaxLength = (1 << (32 - 2)) - 1;

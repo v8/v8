@@ -468,8 +468,15 @@ class Assembler : public Malloced {
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset = 1;  // JMP imm32.
 
+  // Distance between start of patched debug break slot and the emitted address
+  // to jump to.
+  static const int kPatchDebugBreakSlotAddressOffset = 1;  // JMP imm32.
+
   static const int kCallInstructionLength = 5;
   static const int kJSReturnSequenceLength = 6;
+
+  // The debug break slot must be able to contain a call instruction.
+  static const int kDebugBreakSlotLength = kCallInstructionLength;
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -637,6 +644,7 @@ class Assembler : public Malloced {
   void test(Register reg, const Operand& op);
   void test_b(Register reg, const Operand& op);
   void test(const Operand& op, const Immediate& imm);
+  void test_b(const Operand& op, uint8_t imm8);
 
   void xor_(Register dst, int32_t imm32);
   void xor_(Register dst, const Operand& src);
@@ -790,6 +798,15 @@ class Assembler : public Malloced {
   void pxor(XMMRegister dst, XMMRegister src);
   void ptest(XMMRegister dst, XMMRegister src);
 
+  // Parallel XMM operations.
+  void movntdqa(XMMRegister src, const Operand& dst);
+  void movntdq(const Operand& dst, XMMRegister src);
+  // Prefetch src position into cache level.
+  // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
+  // non-temporal
+  void prefetch(const Operand& src, int level);
+  // TODO(lrn): Need SFENCE for movnt?
+
   // Debugging
   void Print();
 
@@ -799,13 +816,16 @@ class Assembler : public Malloced {
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();
 
+  // Mark address of a debug break slot.
+  void RecordDebugBreakSlot();
+
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --debug_code to enable.
   void RecordComment(const char* msg);
 
   void RecordPosition(int pos);
   void RecordStatementPosition(int pos);
-  void WriteRecordedPositions();
+  bool WriteRecordedPositions();
 
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
@@ -822,6 +842,8 @@ class Assembler : public Malloced {
 
   // Get the number of bytes available in the buffer.
   inline int available_space() const { return reloc_info_writer.pos() - pc_; }
+
+  static bool IsNop(Address addr) { return *addr == 0x90; }
 
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;

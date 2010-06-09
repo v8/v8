@@ -152,11 +152,13 @@ IC::State IC::StateFrom(Code* target, Object* receiver, Object* name) {
   // to prototype check failure.
   int index = map->IndexInCodeCache(name, target);
   if (index >= 0) {
-    // For keyed load/store, the most likely cause of cache failure is
+    // For keyed load/store/call, the most likely cause of cache failure is
     // that the key has changed.  We do not distinguish between
     // prototype and non-prototype failures for keyed access.
     Code::Kind kind = target->kind();
-    if (kind == Code::KEYED_LOAD_IC || kind == Code::KEYED_STORE_IC) {
+    if (kind == Code::KEYED_LOAD_IC ||
+        kind == Code::KEYED_STORE_IC ||
+        kind == Code::KEYED_CALL_IC) {
       return MONOMORPHIC;
     }
 
@@ -196,9 +198,9 @@ RelocInfo::Mode IC::ComputeMode() {
 
 Failure* IC::TypeError(const char* type,
                        Handle<Object> object,
-                       Handle<String> name) {
+                       Handle<Object> key) {
   HandleScope scope;
-  Handle<Object> args[2] = { name, object };
+  Handle<Object> args[2] = { key, object };
   Handle<Object> error = Factory::NewTypeError(type, HandleVector(args, 2));
   return Top::Throw(*error);
 }
@@ -224,6 +226,7 @@ void IC::Clear(Address address) {
     case Code::STORE_IC: return StoreIC::Clear(address, target);
     case Code::KEYED_STORE_IC: return KeyedStoreIC::Clear(address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
+    case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
     case Code::BINARY_OP_IC: return;  // Clearing these is tricky and does not
                                       // make any performance difference.
     default: UNREACHABLE();
@@ -231,14 +234,14 @@ void IC::Clear(Address address) {
 }
 
 
-void CallIC::Clear(Address address, Code* target) {
+void CallICBase::Clear(Address address, Code* target) {
   State state = target->ic_state();
-  InLoopFlag in_loop = target->ic_in_loop();
   if (state == UNINITIALIZED) return;
   Code* code =
       Isolate::Current()->stub_cache()->FindCallInitialize(
           target->arguments_count(),
-          in_loop);
+          target->ic_in_loop(),
+          target->kind());
   SetTargetAtAddress(address, code);
 }
 
@@ -366,7 +369,7 @@ static void LookupForRead(Object* object,
 }
 
 
-Object* CallIC::TryCallAsFunction(Object* object) {
+Object* CallICBase::TryCallAsFunction(Object* object) {
   HandleScope scope;
   Handle<Object> target(object);
   Handle<Object> delegate = Execution::GetFunctionDelegate(target);
@@ -385,7 +388,7 @@ Object* CallIC::TryCallAsFunction(Object* object) {
   return *delegate;
 }
 
-void CallIC::ReceiverToObject(Handle<Object> object) {
+void CallICBase::ReceiverToObject(Handle<Object> object) {
   HandleScope scope;
   Handle<Object> receiver(object);
 
@@ -398,9 +401,9 @@ void CallIC::ReceiverToObject(Handle<Object> object) {
 }
 
 
-Object* CallIC::LoadFunction(State state,
-                             Handle<Object> object,
-                             Handle<String> name) {
+Object* CallICBase::LoadFunction(State state,
+                                 Handle<Object> object,
+                                 Handle<String> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
@@ -483,7 +486,7 @@ Object* CallIC::LoadFunction(State state,
 }
 
 
-void CallIC::UpdateCaches(LookupResult* lookup,
+void CallICBase::UpdateCaches(LookupResult* lookup,
                           State state,
                           Handle<Object> object,
                           Handle<String> name) {
@@ -500,10 +503,12 @@ void CallIC::UpdateCaches(LookupResult* lookup,
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
     code = Isolate::Current()->stub_cache()->ComputeCallPreMonomorphic(argc,
-                                                                       in_loop);
+                                                                       in_loop,
+                                                                       kind_);
   } else if (state == MONOMORPHIC) {
     code = Isolate::Current()->stub_cache()->ComputeCallMegamorphic(argc,
-                                                                    in_loop);
+                                                                    in_loop,
+                                                                    kind_);
   } else {
     // Compute monomorphic stub.
     switch (lookup->type()) {
@@ -512,6 +517,7 @@ void CallIC::UpdateCaches(LookupResult* lookup,
         code = Isolate::Current()->stub_cache()->ComputeCallField(
             argc,
             in_loop,
+            kind_,
             *name,
             *object,
             lookup->holder(),
@@ -526,6 +532,7 @@ void CallIC::UpdateCaches(LookupResult* lookup,
         code = Isolate::Current()->stub_cache()->ComputeCallConstant(
             argc,
             in_loop,
+            kind_,
             *name,
             *object,
             lookup->holder(),
@@ -544,6 +551,7 @@ void CallIC::UpdateCaches(LookupResult* lookup,
           JSFunction* function = JSFunction::cast(cell->value());
           code = Isolate::Current()->stub_cache()->ComputeCallGlobal(argc,
                                                                      in_loop,
+                                                                     kind_,
                                                                      *name,
                                                                      *receiver,
                                                                      global,
@@ -557,6 +565,7 @@ void CallIC::UpdateCaches(LookupResult* lookup,
           if (lookup->holder() != *receiver) return;
           code = Isolate::Current()->stub_cache()->ComputeCallNormal(argc,
                                                                      in_loop,
+                                                                     kind_,
                                                                      *name,
                                                                      *receiver);
         }
@@ -566,6 +575,7 @@ void CallIC::UpdateCaches(LookupResult* lookup,
         ASSERT(HasInterceptorGetter(lookup->holder()));
         code = Isolate::Current()->stub_cache()->ComputeCallInterceptor(
             argc,
+            kind_,
             *name,
             *object,
             lookup->holder());
@@ -589,8 +599,41 @@ void CallIC::UpdateCaches(LookupResult* lookup,
   }
 
 #ifdef DEBUG
-  TraceIC("CallIC", name, state, target(), in_loop ? " (in-loop)" : "");
+  TraceIC(kind_ == Code::CALL_IC ? "CallIC" : "KeyedCallIC",
+      name, state, target(), in_loop ? " (in-loop)" : "");
 #endif
+}
+
+
+Object* KeyedCallIC::LoadFunction(State state,
+                                  Handle<Object> object,
+                                  Handle<Object> key) {
+  if (key->IsSymbol()) {
+    return CallICBase::LoadFunction(state, object, Handle<String>::cast(key));
+  }
+
+  if (object->IsUndefined() || object->IsNull()) {
+    return TypeError("non_object_property_call", object, key);
+  }
+
+  if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
+    ReceiverToObject(object);
+  } else {
+    if (FLAG_use_ic && state != MEGAMORPHIC && !object->IsAccessCheckNeeded()) {
+      int argc = target()->arguments_count();
+      InLoopFlag in_loop = target()->ic_in_loop();
+      Object* code = Isolate::Current()->stub_cache()->ComputeCallMegamorphic(
+          argc, in_loop, Code::KEYED_CALL_IC);
+      if (!code->IsFailure()) {
+        set_target(Code::cast(code));
+      }
+    }
+  }
+  Object* result = Runtime::GetObjectProperty(object, key);
+  if (result->IsJSFunction()) return result;
+  result = TryCallAsFunction(result);
+  return result->IsJSFunction() ?
+      result : TypeError("property_not_function", object, key);
 }
 
 
@@ -1363,7 +1406,22 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
 // Static IC stub generators.
 //
 
-// Used from ic_<arch>.cc.
+static Object* CompileFunction(Object* result,
+                               Handle<Object> object,
+                               InLoopFlag in_loop) {
+  // Compile now with optimization.
+  HandleScope scope;
+  Handle<JSFunction> function = Handle<JSFunction>(JSFunction::cast(result));
+  if (in_loop == IN_LOOP) {
+    CompileLazyInLoop(function, object, CLEAR_EXCEPTION);
+  } else {
+    CompileLazy(function, object, CLEAR_EXCEPTION);
+  }
+  return *function;
+}
+
+
+// Used from ic-<arch>.cc.
 Object* CallIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
@@ -1382,21 +1440,27 @@ Object* CallIC_Miss(Arguments args) {
   if (!result->IsJSFunction() || JSFunction::cast(result)->is_compiled()) {
     return result;
   }
-
-  // Compile now with optimization.
-  HandleScope scope;
-  Handle<JSFunction> function = Handle<JSFunction>(JSFunction::cast(result));
-  InLoopFlag in_loop = ic.target()->ic_in_loop();
-  if (in_loop == IN_LOOP) {
-    CompileLazyInLoop(function, args.at<Object>(0), CLEAR_EXCEPTION);
-  } else {
-    CompileLazy(function, args.at<Object>(0), CLEAR_EXCEPTION);
-  }
-  return *function;
+  return CompileFunction(result, args.at<Object>(0), ic.target()->ic_in_loop());
 }
 
 
-// Used from ic_<arch>.cc.
+// Used from ic-<arch>.cc.
+Object* KeyedCallIC_Miss(Arguments args) {
+  NoHandleAllocation na;
+  ASSERT(args.length() == 2);
+  KeyedCallIC ic;
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  Object* result =
+      ic.LoadFunction(state, args.at<Object>(0), args.at<Object>(1));
+
+  if (!result->IsJSFunction() || JSFunction::cast(result)->is_compiled()) {
+    return result;
+  }
+  return CompileFunction(result, args.at<Object>(0), ic.target()->ic_in_loop());
+}
+
+
+// Used from ic-<arch>.cc.
 Object* LoadIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
@@ -1406,7 +1470,7 @@ Object* LoadIC_Miss(Arguments args) {
 }
 
 
-// Used from ic_<arch>.cc
+// Used from ic-<arch>.cc
 Object* KeyedLoadIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
@@ -1416,7 +1480,7 @@ Object* KeyedLoadIC_Miss(Arguments args) {
 }
 
 
-// Used from ic_<arch>.cc.
+// Used from ic-<arch>.cc.
 Object* StoreIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
@@ -1474,7 +1538,7 @@ Object* SharedStoreIC_ExtendStorage(Arguments args) {
 }
 
 
-// Used from ic_<arch>.cc.
+// Used from ic-<arch>.cc.
 Object* KeyedStoreIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);

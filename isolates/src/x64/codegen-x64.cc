@@ -660,9 +660,25 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
 
 
 void DeferredReferenceGetKeyedValue::Generate() {
-  __ push(receiver_);  // First IC argument.
-  __ push(key_);       // Second IC argument.
-
+  if (receiver_.is(rdx)) {
+    if (!key_.is(rax)) {
+      __ movq(rax, key_);
+    }  // else do nothing.
+  } else if (receiver_.is(rax)) {
+    if (key_.is(rdx)) {
+      __ xchg(rax, rdx);
+    } else if (key_.is(rax)) {
+      __ movq(rdx, receiver_);
+    } else {
+      __ movq(rdx, receiver_);
+      __ movq(rax, key_);
+    }
+  } else if (key_.is(rax)) {
+    __ movq(rdx, receiver_);
+  } else {
+    __ movq(rax, key_);
+    __ movq(rdx, receiver_);
+  }
   // Calculate the delta from the IC call instruction to the map check
   // movq instruction in the inlined version.  This delta is stored in
   // a test(rax, delta) instruction after the call so that we can find
@@ -686,8 +702,6 @@ void DeferredReferenceGetKeyedValue::Generate() {
   __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
 
   if (!dst_.is(rax)) __ movq(dst_, rax);
-  __ pop(key_);
-  __ pop(receiver_);
 }
 
 
@@ -2869,26 +2883,66 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Allocate a frame slot for the receiver.
     frame_->Push(Factory::undefined_value());
+
+    // Load the arguments.
     int arg_count = args->length();
     for (int i = 0; i < arg_count; i++) {
       Load(args->at(i));
       frame_->SpillTop();
     }
 
-    // Prepare the stack for the call to ResolvePossiblyDirectEval.
+    // Result to hold the result of the function resolution and the
+    // final result of the eval call.
+    Result result;
+
+    // If we know that eval can only be shadowed by eval-introduced
+    // variables we attempt to load the global eval function directly
+    // in generated code. If we succeed, there is no need to perform a
+    // context lookup in the runtime system.
+    JumpTarget done;
+    if (var->slot() != NULL && var->mode() == Variable::DYNAMIC_GLOBAL) {
+      ASSERT(var->slot()->type() == Slot::LOOKUP);
+      JumpTarget slow;
+      // Prepare the stack for the call to
+      // ResolvePossiblyDirectEvalNoLookup by pushing the loaded
+      // function, the first argument to the eval call and the
+      // receiver.
+      Result fun = LoadFromGlobalSlotCheckExtensions(var->slot(),
+                                                     NOT_INSIDE_TYPEOF,
+                                                     &slow);
+      frame_->Push(&fun);
+      if (arg_count > 0) {
+        frame_->PushElementAt(arg_count);
+      } else {
+        frame_->Push(Factory::undefined_value());
+      }
+      frame_->PushParameterAt(-1);
+
+      // Resolve the call.
+      result =
+          frame_->CallRuntime(Runtime::kResolvePossiblyDirectEvalNoLookup, 3);
+
+      done.Jump(&result);
+      slow.Bind();
+    }
+
+    // Prepare the stack for the call to ResolvePossiblyDirectEval by
+    // pushing the loaded function, the first argument to the eval
+    // call and the receiver.
     frame_->PushElementAt(arg_count + 1);
     if (arg_count > 0) {
       frame_->PushElementAt(arg_count);
     } else {
       frame_->Push(Factory::undefined_value());
     }
-
-    // Push the receiver.
     frame_->PushParameterAt(-1);
 
     // Resolve the call.
-    Result result =
-        frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+    result = frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+
+    // If we generated fast-case code bind the jump-target where fast
+    // and slow case merge.
+    if (done.is_linked()) done.Bind(&result);
 
     // The runtime call returns a pair of values in rax (function) and
     // rdx (receiver). Touch up the stack with the right values.
@@ -5852,7 +5906,6 @@ void CodeGenerator::EmitDynamicLoadFromSlotFastCase(Slot* slot,
           frame_->Push(&arguments);
           frame_->Push(key_literal->handle());
           *result = EmitKeyedLoad();
-          frame_->Drop(2);  // Drop key and receiver.
           done->Jump(result);
         }
       }
@@ -7080,6 +7133,25 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
 }
 
 
+void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
+                                                  Register right,
+                                                  TypeInfo left_info,
+                                                  TypeInfo right_info,
+                                                  DeferredCode* deferred) {
+  if (!left_info.IsSmi() && !right_info.IsSmi()) {
+    __ JumpIfNotBothSmi(left, right, deferred->entry_label());
+  } else if (!left_info.IsSmi()) {
+    __ JumpIfNotSmi(left, deferred->entry_label());
+  } else if (!right_info.IsSmi()) {
+    __ JumpIfNotSmi(right, deferred->entry_label());
+  }
+  if (FLAG_debug_code) {
+    __ AbortIfNotSmi(left);
+    __ AbortIfNotSmi(right);
+  }
+}
+
+
 // Implements a binary operation using a deferred code object and some
 // inline code to operate on smis quickly.
 Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
@@ -7089,9 +7161,6 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
   // Copy the type info because left and right may be overwritten.
   TypeInfo left_type_info = left->type_info();
   TypeInfo right_type_info = right->type_info();
-  USE(left_type_info);
-  USE(right_type_info);
-  // TODO(X64): Use type information in calculations.
   Token::Value op = expr->op();
   Result answer;
   // Special handling of div and mod because they use fixed registers.
@@ -7168,7 +7237,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           left->reg(),
                                           right->reg(),
                                           overwrite_mode);
-    __ JumpIfNotBothSmi(left->reg(), right->reg(), deferred->entry_label());
+    JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(),
+                                  left_type_info, right_type_info, deferred);
 
     if (op == Token::DIV) {
       __ SmiDiv(rax, left->reg(), right->reg(), deferred->entry_label());
@@ -7250,7 +7320,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
         }
       }
     } else {
-      __ JumpIfNotBothSmi(left->reg(), rcx, deferred->entry_label());
+      JumpIfNotBothSmiUsingTypeInfo(left->reg(), rcx,
+                                    left_type_info, right_type_info, deferred);
     }
     __ bind(&do_op);
 
@@ -7298,7 +7369,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                         left->reg(),
                                         right->reg(),
                                         overwrite_mode);
-  __ JumpIfNotBothSmi(left->reg(), right->reg(), deferred->entry_label());
+  JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(),
+                                left_type_info, right_type_info, deferred);
 
   switch (op) {
     case Token::ADD:
@@ -7447,6 +7519,9 @@ Result CodeGenerator::EmitKeyedLoad() {
     key.ToRegister();
     receiver.ToRegister();
 
+    // If key and receiver are shared registers on the frame, their values will
+    // be automatically saved and restored when going to deferred code.
+    // The result is returned in elements, which is not shared.
     DeferredReferenceGetKeyedValue* deferred =
         new DeferredReferenceGetKeyedValue(elements.reg(),
                                            receiver.reg(),
@@ -7459,9 +7534,9 @@ Result CodeGenerator::EmitKeyedLoad() {
     // initialization code.
     __ bind(deferred->patch_site());
     // Use masm-> here instead of the double underscore macro since extra
-    // coverage code can interfere with the patching.  Do not use
-    // root array to load null_value, since it must be patched with
-    // the expected receiver map.
+    // coverage code can interfere with the patching.  Do not use a load
+    // from the root array to load null_value, since the load must be patched
+    // with the expected receiver map, which is not in the root array.
     masm_->movq(kScratchRegister, Factory::null_value(),
                 RelocInfo::EMBEDDED_OBJECT);
     masm_->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
@@ -7504,8 +7579,6 @@ Result CodeGenerator::EmitKeyedLoad() {
     __ IncrementCounter(&Counters::keyed_load_inline, 1);
 
     deferred->BindExit();
-    frame_->Push(&receiver);
-    frame_->Push(&key);
   } else {
     Comment cmnt(masm_, "[ Load from keyed Property");
     result = frame_->CallKeyedLoadIC(RelocInfo::CODE_TARGET);
@@ -7516,7 +7589,7 @@ Result CodeGenerator::EmitKeyedLoad() {
     // the push that follows might be peep-hole optimized away.
     __ nop();
   }
-  ASSERT(frame()->height() == original_height);
+  ASSERT(frame()->height() == original_height - 2);
   return result;
 }
 
@@ -7560,7 +7633,6 @@ void Reference::GetValue() {
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
-      if (!persist_after_get_) set_unloaded();
       break;
     }
 
@@ -7573,26 +7645,27 @@ void Reference::GetValue() {
       }
       Result result = cgen_->EmitNamedLoad(GetName(), is_global);
       cgen_->frame()->Push(&result);
-      if (!persist_after_get_) {
-        set_unloaded();
-      }
       break;
     }
 
     case KEYED: {
       // A load of a bare identifier (load from global) cannot be keyed.
       ASSERT(expression_->AsVariableProxy()->AsVariable() == NULL);
-
+      if (persist_after_get_) {
+        cgen_->frame()->PushElementAt(1);
+        cgen_->frame()->PushElementAt(1);
+      }
       Result value = cgen_->EmitKeyedLoad();
       cgen_->frame()->Push(&value);
-      if (!persist_after_get_) {
-        cgen_->UnloadReference(this);
-      }
       break;
     }
 
     default:
       UNREACHABLE();
+  }
+
+  if (!persist_after_get_) {
+    set_unloaded();
   }
 }
 

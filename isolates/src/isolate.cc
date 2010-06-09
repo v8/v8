@@ -60,7 +60,7 @@ static IsolateInitializer isolate_initializer;
 void Isolate::InitOnce() {
   ASSERT(global_isolate == NULL);
   global_isolate = new Isolate();
-  ASSERT(global_isolate->PreInit());
+  CHECK(global_isolate->PreInit());
 }
 
 

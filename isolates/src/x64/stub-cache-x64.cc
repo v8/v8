@@ -114,6 +114,17 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 }
 
 
+void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
+    MacroAssembler* masm, int index, Register prototype) {
+  // Get the global function with the given index.
+  JSFunction* function = JSFunction::cast(Top::global_context()->get(index));
+  // Load its initial map. The global functions all have initial maps.
+  __ Move(prototype, Handle<Map>(function->initial_map()));
+  // Load the prototype from the initial map.
+  __ movq(prototype, FieldOperand(prototype, Map::kPrototypeOffset));
+}
+
+
 // Load a fast property out of a holder object (src). In-object properties
 // are loaded directly otherwise the property is loaded from the properties
 // fixed array.
@@ -695,6 +706,12 @@ static Object* GenerateCheckPropertyCell(MacroAssembler* masm,
 
 #define __ ACCESS_MASM((masm()))
 
+void CallStubCompiler::GenerateMissBranch() {
+  Handle<Code> ic = ComputeCallMiss(arguments().immediate(), kind_);
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+}
+
+
 Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSObject* holder,
                                               JSFunction* function,
@@ -776,9 +793,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rax);
         __ j(above_equal, &miss);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::STRING_FUNCTION_INDEX,
-                                            rax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::STRING_FUNCTION_INDEX, rax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
                         rbx, rdx, name, &miss);
       }
@@ -796,9 +812,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ j(not_equal, &miss);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::NUMBER_FUNCTION_INDEX,
-                                            rax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::NUMBER_FUNCTION_INDEX, rax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
                         rbx, rdx, name, &miss);
       }
@@ -818,9 +833,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ j(not_equal, &miss);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::BOOLEAN_FUNCTION_INDEX,
-                                            rax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::BOOLEAN_FUNCTION_INDEX, rax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
                         rbx, rdx, name, &miss);
       }
@@ -845,8 +859,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
   // Handle call cache miss.
   __ bind(&miss_in_smi_check);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -897,8 +910,7 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(FIELD, name);
@@ -1052,8 +1064,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
   __ bind(&miss);
 
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1137,8 +1148,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
                                1);
   __ bind(&miss);
 
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1221,8 +1231,7 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   // Handle load cache miss.
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(argc);
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(INTERCEPTOR, name);
@@ -1305,8 +1314,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // Handle call cache miss.
   __ bind(&miss);
   __ IncrementCounter(&Counters::call_global_inline_miss, 1);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(NORMAL, name);
@@ -1505,14 +1513,12 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
                                                    JSObject* holder,
                                                    AccessorInfo* callback) {
   // ----------- S t a t e -------------
+  //  -- rax     : key
+  //  -- rdx     : receiver
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_callback, 1);
 
   // Check that the name has not changed.
@@ -1520,7 +1526,7 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   __ j(not_equal, &miss);
 
   Failure* failure = Failure::InternalError();
-  bool success = GenerateLoadCallback(receiver, holder, rcx, rax, rbx, rdx,
+  bool success = GenerateLoadCallback(receiver, holder, rdx, rax, rbx, rcx,
                                       callback, name, &miss, &failure);
   if (!success) return failure;
 
@@ -1535,21 +1541,19 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
 
 Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_array_length, 1);
 
   // Check that the name has not changed.
   __ Cmp(rax, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadArrayLength(masm(), rcx, rdx, &miss);
+  GenerateLoadArrayLength(masm(), rdx, rcx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_array_length, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -1564,21 +1568,19 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
                                                    JSObject* holder,
                                                    Object* value) {
   // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_constant_function, 1);
 
   // Check that the name has not changed.
   __ Cmp(rax, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadConstant(receiver, holder, rcx, rbx, rdx,
+  GenerateLoadConstant(receiver, holder, rdx, rbx, rcx,
                        value, name, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_constant_function, 1);
@@ -1591,21 +1593,19 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
 
 Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_function_prototype, 1);
 
   // Check that the name has not changed.
   __ Cmp(rax, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadFunctionPrototype(masm(), rcx, rdx, rbx, &miss);
+  GenerateLoadFunctionPrototype(masm(), rdx, rcx, rbx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_function_prototype, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -1619,14 +1619,12 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
                                                       JSObject* holder,
                                                       String* name) {
   // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_interceptor, 1);
 
   // Check that the name has not changed.
@@ -1638,9 +1636,9 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   GenerateLoadInterceptor(receiver,
                           holder,
                           &lookup,
-                          rcx,
-                          rax,
                           rdx,
+                          rax,
+                          rcx,
                           rbx,
                           name,
                           &miss);
@@ -1655,21 +1653,19 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 
 Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   // ----------- S t a t e -------------
-  //  -- rsp[0]  : return address
-  //  -- rsp[8]  : name
-  //  -- rsp[16] : receiver
+  //  -- rax    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_string_length, 1);
 
   // Check that the name has not changed.
   __ Cmp(rax, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadStringLength(masm(), rcx, rdx, rbx, &miss);
+  GenerateLoadStringLength(masm(), rdx, rcx, rbx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_string_length, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -1847,21 +1843,19 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
                                                 JSObject* holder,
                                                 int index) {
   // ----------- S t a t e -------------
-  //  -- rsp[0] : return address
-  //  -- rsp[8] : name
-  //  -- rsp[16] : receiver
+  //  -- rax     : key
+  //  -- rdx     : receiver
+  //  -- rsp[0]  : return address
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_field, 1);
 
   // Check that the name has not changed.
   __ Cmp(rax, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadField(receiver, holder, rcx, rbx, rdx, index, name, &miss);
+  GenerateLoadField(receiver, holder, rdx, rbx, rcx, index, name, &miss);
 
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_field, 1);

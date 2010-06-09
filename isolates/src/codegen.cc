@@ -255,10 +255,30 @@ Handle<Code> CodeGenerator::ComputeCallInitialize(
     ComputeCallInitialize(argc, NOT_IN_LOOP);
   }
   CALL_HEAP_FUNCTION(
-      Isolate::Current()->stub_cache()->ComputeCallInitialize(argc, in_loop),
+      Isolate::Current()->stub_cache()->ComputeCallInitialize(argc,
+                                                              in_loop,
+                                                              Code::CALL_IC),
       Code);
 }
 
+
+Handle<Code> CodeGenerator::ComputeKeyedCallInitialize(
+    int argc,
+    InLoopFlag in_loop) {
+  if (in_loop == IN_LOOP) {
+    // Force the creation of the corresponding stub outside loops,
+    // because it may be used when clearing the ICs later - it is
+    // possible for a series of IC transitions to lose the in-loop
+    // information, and the IC clearing code can't generate a stub
+    // that it needs so we need to ensure it is generated already.
+    ComputeKeyedCallInitialize(argc, NOT_IN_LOOP);
+  }
+  CALL_HEAP_FUNCTION(
+      Isolate::Current()->stub_cache()->ComputeCallInitialize(argc,
+                                                              in_loop,
+                                                              Code::KEYED_CALL_IC),
+      Code);
+}
 
 void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
@@ -399,31 +419,40 @@ CodeGenerator::ConditionAnalysis CodeGenerator::AnalyzeCondition(
 }
 
 
-void CodeGenerator::RecordPositions(MacroAssembler* masm, int pos) {
+bool CodeGenerator::RecordPositions(MacroAssembler* masm,
+                                    int pos,
+                                    bool right_here) {
   if (pos != RelocInfo::kNoPosition) {
     masm->RecordStatementPosition(pos);
     masm->RecordPosition(pos);
+    if (right_here) {
+      return masm->WriteRecordedPositions();
+    }
   }
+  return false;
 }
 
 
 void CodeGenerator::CodeForFunctionPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) RecordPositions(masm(), fun->start_position());
+  if (FLAG_debug_info) RecordPositions(masm(), fun->start_position(), false);
 }
 
 
 void CodeGenerator::CodeForReturnPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) RecordPositions(masm(), fun->end_position());
+  if (FLAG_debug_info) RecordPositions(masm(), fun->end_position(), false);
 }
 
 
 void CodeGenerator::CodeForStatementPosition(Statement* stmt) {
-  if (FLAG_debug_info) RecordPositions(masm(), stmt->statement_pos());
+  if (FLAG_debug_info) RecordPositions(masm(), stmt->statement_pos(), false);
 }
 
+
 void CodeGenerator::CodeForDoWhileConditionPosition(DoWhileStatement* stmt) {
-  if (FLAG_debug_info) RecordPositions(masm(), stmt->condition_position());
+  if (FLAG_debug_info)
+    RecordPositions(masm(), stmt->condition_position(), false);
 }
+
 
 void CodeGenerator::CodeForSourcePosition(int pos) {
   if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {

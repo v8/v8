@@ -142,6 +142,7 @@ class StubCache {
 
   Object* ComputeCallField(int argc,
                            InLoopFlag in_loop,
+                           Code::Kind,
                            String* name,
                            Object* object,
                            JSObject* holder,
@@ -149,6 +150,7 @@ class StubCache {
 
   Object* ComputeCallConstant(int argc,
                               InLoopFlag in_loop,
+                              Code::Kind,
                               String* name,
                               Object* object,
                               JSObject* holder,
@@ -156,16 +158,19 @@ class StubCache {
 
   Object* ComputeCallNormal(int argc,
                             InLoopFlag in_loop,
+                            Code::Kind,
                             String* name,
                             JSObject* receiver);
 
   Object* ComputeCallInterceptor(int argc,
+                                 Code::Kind,
                                  String* name,
                                  Object* object,
                                  JSObject* holder);
 
   Object* ComputeCallGlobal(int argc,
                             InLoopFlag in_loop,
+                            Code::Kind,
                             String* name,
                             JSObject* receiver,
                             GlobalObject* holder,
@@ -174,18 +179,33 @@ class StubCache {
 
   // ---
 
-  Object* ComputeCallInitialize(int argc, InLoopFlag in_loop);
-  Object* ComputeCallPreMonomorphic(int argc, InLoopFlag in_loop);
-  Object* ComputeCallNormal(int argc, InLoopFlag in_loop);
-  Object* ComputeCallMegamorphic(int argc, InLoopFlag in_loop);
-  Object* ComputeCallMiss(int argc);
+  Object* ComputeCallInitialize(int argc,
+                                InLoopFlag in_loop,
+                                Code::Kind kind);
+
+  Object* ComputeCallPreMonomorphic(int argc,
+                                    InLoopFlag in_loop,
+                                    Code::Kind kind);
+
+  Object* ComputeCallNormal(int argc,
+                            InLoopFlag in_loop,
+                            Code::Kind kind);
+
+  Object* ComputeCallMegamorphic(int argc,
+                                 InLoopFlag in_loop,
+                                 Code::Kind kind);
+
+  Object* ComputeCallMiss(int argc, Code::Kind kind);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
-  Code* FindCallInitialize(int argc, InLoopFlag in_loop);
+  Code* FindCallInitialize(int argc,
+                           InLoopFlag in_loop,
+                           Code::Kind kind);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Object* ComputeCallDebugBreak(int argc);
-  Object* ComputeCallDebugPrepareStepIn(int argc);
+  Object* ComputeCallDebugBreak(int argc, Code::Kind kind);
+
+  Object* ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind);
 #endif
 
   Object* ComputeLazyCompile(int argc);
@@ -196,9 +216,6 @@ class StubCache {
 
   // Clear the lookup table (@ mark compact collection).
   void Clear();
-
-  // Functions for generating stubs at startup.
-  void GenerateMiss(MacroAssembler* masm);
 
   // Generate code for probing the stub cache table.
   // If extra != no_reg it might be used as am extra scratch register.
@@ -323,7 +340,7 @@ Object* KeyedLoadPropertyWithInterceptor(Arguments args);
 
 
 // Support function for computing call IC miss stubs.
-Handle<Code> ComputeCallMiss(int argc);
+Handle<Code> ComputeCallMiss(int argc, Code::Kind kind);
 
 
 // The stub compiler compiles stubs for the stub cache.
@@ -353,6 +370,15 @@ class StubCompiler BASE_EMBEDDED {
   static void GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
                                                   int index,
                                                   Register prototype);
+
+  // Generates prototype loading code that uses the objects from the
+  // context we were in when this function was called.  This ties the
+  // generated code to a particular context and so must not be used in
+  // cases where the generated code is not allowed to have references
+  // to objects from a context.
+  static void GenerateDirectLoadGlobalFunctionPrototype(MacroAssembler* masm,
+                                                        int index,
+                                                        Register prototype);
 
   static void GenerateFastPropertyLoad(MacroAssembler* masm,
                                        Register dst, Register src,
@@ -590,8 +616,8 @@ class CallStubCompiler: public StubCompiler {
     kNumCallGenerators
   };
 
-  CallStubCompiler(int argc, InLoopFlag in_loop)
-      : arguments_(argc), in_loop_(in_loop) { }
+  CallStubCompiler(int argc, InLoopFlag in_loop, Code::Kind kind)
+      : arguments_(argc), in_loop_(in_loop), kind_(kind) { }
 
   Object* CompileCallField(JSObject* object,
                            JSObject* holder,
@@ -631,6 +657,7 @@ class CallStubCompiler: public StubCompiler {
  private:
   const ParameterCount arguments_;
   const InLoopFlag in_loop_;
+  const Code::Kind kind_;
 
   const ParameterCount& arguments() { return arguments_; }
 
@@ -639,6 +666,10 @@ class CallStubCompiler: public StubCompiler {
   // Convenience function. Calls GetCode above passing
   // CONSTANT_FUNCTION type and the name of the given function.
   Object* GetCode(JSFunction* function);
+
+  void GenerateNameCheck(String* name, Label* miss);
+
+  void GenerateMissBranch();
 };
 
 
