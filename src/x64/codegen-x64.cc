@@ -6894,7 +6894,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                             smi_value,
                                             overwrite_mode);
       }
-      __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+      JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                deferred);
       __ SmiAddConstant(operand->reg(),
                         operand->reg(),
                         smi_value,
@@ -6915,7 +6916,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
         DeferredCode* deferred = new DeferredInlineSmiSub(operand->reg(),
                                                           smi_value,
                                                           overwrite_mode);
-        __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
         // A smi currently fits in a 32-bit Immediate.
         __ SmiSubConstant(operand->reg(),
                           operand->reg(),
@@ -6944,7 +6946,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                            operand->reg(),
                                            smi_value,
                                            overwrite_mode);
-        __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
         __ SmiShiftArithmeticRightConstant(operand->reg(),
                                            operand->reg(),
                                            shift_value);
@@ -6971,7 +6974,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                            operand->reg(),
                                            smi_value,
                                            overwrite_mode);
-        __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
         __ SmiShiftLogicalRightConstant(answer.reg(),
                                         operand->reg(),
                                         shift_value,
@@ -7003,12 +7007,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                                    smi_value,
                                                    operand->reg(),
                                                    overwrite_mode);
-        if (!operand->type_info().IsSmi()) {
-          Condition is_smi = masm_->CheckSmi(operand->reg());
-          deferred->Branch(NegateCondition(is_smi));
-        } else if (FLAG_debug_code) {
-          __ AbortIfNotSmi(operand->reg());
-        }
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
 
         __ Move(answer.reg(), smi_value);
         __ SmiShiftLeft(answer.reg(), answer.reg(), operand->reg());
@@ -7029,7 +7029,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                              operand->reg(),
                                              smi_value,
                                              overwrite_mode);
-          __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+          JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                    deferred);
           deferred->BindExit();
           answer = *operand;
         } else {
@@ -7042,7 +7043,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                              operand->reg(),
                                              smi_value,
                                              overwrite_mode);
-          __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+          JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                    deferred);
           __ SmiShiftLeftConstant(answer.reg(),
                                   operand->reg(),
                                   shift_value);
@@ -7068,7 +7070,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                                                operand->reg(),
                                                                smi_value,
                                                                overwrite_mode);
-      __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+      JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                deferred);
       if (op == Token::BIT_AND) {
         __ SmiAndConstant(operand->reg(), operand->reg(), smi_value);
       } else if (op == Token::BIT_XOR) {
@@ -7130,6 +7133,18 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
   }
   ASSERT(answer.is_valid());
   return answer;
+}
+
+
+void CodeGenerator::JumpIfNotSmiUsingTypeInfo(Register reg,
+                                              TypeInfo type,
+                                              DeferredCode* deferred) {
+  if (!type.IsSmi()) {
+        __ JumpIfNotSmi(reg, deferred->entry_label());
+  }
+  if (FLAG_debug_code) {
+    __ AbortIfNotSmi(reg);
+  }
 }
 
 
