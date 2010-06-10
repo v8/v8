@@ -85,6 +85,11 @@ class Isolate {
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
   StubCache* stub_cache() { return stub_cache_; }
+
+  TranscendentalCache* transcendental_cache() const {
+    return transcendental_cache_;
+  }
+
   v8::ImplementationUtilities::HandleScopeData* handle_scope_data() {
     return &handle_scope_data_;
   }
@@ -126,6 +131,7 @@ class Isolate {
   Heap heap_;
   StackGuard stack_guard_;
   StubCache* stub_cache_;
+  TranscendentalCache* transcendental_cache_;
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
   Zone zone_;

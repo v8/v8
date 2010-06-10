@@ -5901,7 +5901,8 @@ static Object* Runtime_Math_acos(Arguments args) {
   Counters::math_acos.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return TranscendentalCache::Get(TranscendentalCache::ACOS, x);
+  Isolate* const isolate = Isolate::Current();
+  return isolate->transcendental_cache()->Get(TranscendentalCache::ACOS, x);
 }
 
 
@@ -5911,7 +5912,8 @@ static Object* Runtime_Math_asin(Arguments args) {
   Counters::math_asin.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return TranscendentalCache::Get(TranscendentalCache::ASIN, x);
+  Isolate* const isolate = Isolate::Current();
+  return isolate->transcendental_cache()->Get(TranscendentalCache::ASIN, x);
 }
 
 
@@ -5921,7 +5923,8 @@ static Object* Runtime_Math_atan(Arguments args) {
   Counters::math_atan.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return TranscendentalCache::Get(TranscendentalCache::ATAN, x);
+  Isolate* const isolate = Isolate::Current();
+  return isolate->transcendental_cache()->Get(TranscendentalCache::ATAN, x);
 }
 
 
@@ -5965,7 +5968,8 @@ static Object* Runtime_Math_cos(Arguments args) {
   Counters::math_cos.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return TranscendentalCache::Get(TranscendentalCache::COS, x);
+  Isolate* const isolate = Isolate::Current();
+  return isolate->transcendental_cache()->Get(TranscendentalCache::COS, x);
 }
 
 
@@ -5975,7 +5979,8 @@ static Object* Runtime_Math_exp(Arguments args) {
   Counters::math_exp.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return TranscendentalCache::Get(TranscendentalCache::EXP, x);
+  Isolate* const isolate = Isolate::Current();
+  return isolate->transcendental_cache()->Get(TranscendentalCache::EXP, x);
 }
 
 
@@ -5995,7 +6000,8 @@ static Object* Runtime_Math_log(Arguments args) {
   Counters::math_log.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return TranscendentalCache::Get(TranscendentalCache::LOG, x);
+  Isolate* const isolate = Isolate::Current();
+  return isolate->transcendental_cache()->Get(TranscendentalCache::LOG, x);
 }
 
 
@@ -6127,7 +6133,8 @@ static Object* Runtime_Math_sin(Arguments args) {
   Counters::math_sin.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return TranscendentalCache::Get(TranscendentalCache::SIN, x);
+  Isolate* const isolate = Isolate::Current();
+  return isolate->transcendental_cache()->Get(TranscendentalCache::SIN, x);
 }
 
 
@@ -6147,7 +6154,8 @@ static Object* Runtime_Math_tan(Arguments args) {
   Counters::math_tan.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return TranscendentalCache::Get(TranscendentalCache::TAN, x);
+  Isolate* const isolate = Isolate::Current();
+  return isolate->transcendental_cache()->Get(TranscendentalCache::TAN, x);
 }
 
 

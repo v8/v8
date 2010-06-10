@@ -324,7 +324,7 @@ void Heap::ReportStatisticsAfterGC() {
 
 
 void Heap::GarbageCollectionPrologue() {
-  TranscendentalCache::Clear();
+  Isolate::Current()->transcendental_cache()->Clear();
   ClearJSFunctionResultCaches();
   gc_count_++;
   unflattened_strings_length_ = 0;
@@ -4720,7 +4720,7 @@ bool Heap::GarbageCollectionGreedyCheck() {
 #endif
 
 
-TranscendentalCache::TranscendentalCache(TranscendentalCache::Type t)
+TranscendentalCache::SubCache::SubCache(Type t)
   : type_(t),
     heap_(HEAP) {
   uint32_t in0 = 0xffffffffu;  // Bit-pattern for a NaN that isn't
@@ -4731,9 +4731,6 @@ TranscendentalCache::TranscendentalCache(TranscendentalCache::Type t)
     elements_[i].output = NULL;
   }
 }
-
-
-TranscendentalCache* TranscendentalCache::caches_[kNumberOfCaches];
 
 
 void TranscendentalCache::Clear() {

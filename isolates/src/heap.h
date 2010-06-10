@@ -1817,97 +1817,108 @@ class TranscendentalCache {
  public:
   enum Type {ACOS, ASIN, ATAN, COS, EXP, LOG, SIN, TAN, kNumberOfCaches};
 
-  explicit TranscendentalCache(Type t);
-
   // Returns a heap number with f(input), where f is a math function specified
   // by the 'type' argument.
-  static inline Object* Get(Type type, double input) {
-    TranscendentalCache* cache = caches_[type];
-    if (cache == NULL) {
-      caches_[type] = cache = new TranscendentalCache(type);
-    }
-    return cache->Get(input);
-  }
+  inline Object* Get(Type type, double input);
 
   // The cache contains raw Object pointers.  This method disposes of
   // them before a garbage collection.
-  static void Clear();
+  void Clear();
 
  private:
-  inline Object* Get(double input) {
-    Converter c;
-    c.dbl = input;
-    int hash = Hash(c);
-    Element e = elements_[hash];
-    if (e.in[0] == c.integers[0] &&
-        e.in[1] == c.integers[1]) {
-      ASSERT(e.output != NULL);
-      Counters::transcendental_cache_hit.Increment();
-      return e.output;
-    }
-    double answer = Calculate(input);
-    Object* heap_number = heap_->AllocateHeapNumber(answer);
-    if (!heap_number->IsFailure()) {
-      elements_[hash].in[0] = c.integers[0];
-      elements_[hash].in[1] = c.integers[1];
-      elements_[hash].output = heap_number;
-    }
-    Counters::transcendental_cache_miss.Increment();
-    return heap_number;
-  }
+  class SubCache {
+    static const int kCacheSize = 512;
 
-  inline double Calculate(double input) {
-    switch (type_) {
-      case ACOS:
-        return acos(input);
-      case ASIN:
-        return asin(input);
-      case ATAN:
-        return atan(input);
-      case COS:
-        return cos(input);
-      case EXP:
-        return exp(input);
-      case LOG:
-        return log(input);
-      case SIN:
-        return sin(input);
-      case TAN:
-        return tan(input);
-      default:
-        return 0.0;  // Never happens.
+    explicit SubCache(Type t);
+
+    inline Object* Get(double input) {
+      Converter c;
+      c.dbl = input;
+      int hash = Hash(c);
+      Element e = elements_[hash];
+      if (e.in[0] == c.integers[0] &&
+          e.in[1] == c.integers[1]) {
+        ASSERT(e.output != NULL);
+        Counters::transcendental_cache_hit.Increment();
+        return e.output;
+      }
+      double answer = Calculate(input);
+      Object* heap_number = heap_->AllocateHeapNumber(answer);
+      if (!heap_number->IsFailure()) {
+        elements_[hash].in[0] = c.integers[0];
+        elements_[hash].in[1] = c.integers[1];
+        elements_[hash].output = heap_number;
+      }
+      Counters::transcendental_cache_miss.Increment();
+      return heap_number;
     }
-  }
-  static const int kCacheSize = 512;
-  struct Element {
-    uint32_t in[2];
-    Object* output;
+
+    inline double Calculate(double input) {
+      switch (type_) {
+        case ACOS:
+          return acos(input);
+        case ASIN:
+          return asin(input);
+        case ATAN:
+          return atan(input);
+        case COS:
+          return cos(input);
+        case EXP:
+          return exp(input);
+        case LOG:
+          return log(input);
+        case SIN:
+          return sin(input);
+        case TAN:
+          return tan(input);
+        default:
+          return 0.0;  // Never happens.
+      }
+    }
+    struct Element {
+      uint32_t in[2];
+      Object* output;
+    };
+    union Converter {
+      double dbl;
+      uint32_t integers[2];
+    };
+    inline static int Hash(const Converter& c) {
+      uint32_t hash = (c.integers[0] ^ c.integers[1]);
+      hash ^= hash >> 16;
+      hash ^= hash >> 8;
+      return (hash & (kCacheSize - 1));
+    }
+
+    // Inline implementation of the caching.
+    friend class TranscendentalCacheStub;
+
+    // For evaluating value.
+    friend class TranscendentalCache;
+
+    Element elements_[kCacheSize];
+    Type type_;
+    Heap* heap_;
+
+    DISALLOW_COPY_AND_ASSIGN(SubCache);
   };
-  union Converter {
-    double dbl;
-    uint32_t integers[2];
-  };
-  inline static int Hash(const Converter& c) {
-    uint32_t hash = (c.integers[0] ^ c.integers[1]);
-    hash ^= hash >> 16;
-    hash ^= hash >> 8;
-    return (hash & (kCacheSize - 1));
+
+  TranscendentalCache() {
+    for (int i = 0; i < kNumberOfCaches; ++i) caches_[i] = NULL;
   }
 
-  static Address cache_array_address() {
-    // Used to create an external reference.
-    return reinterpret_cast<Address>(caches_);
-  }
+  // Used to create an external reference.
+  inline Address cache_array_address();
 
-  // Allow access to the caches_ array as an ExternalReference.
-  friend class ExternalReference;
+  // Instantiation
+  friend class Isolate;
   // Inline implementation of the caching.
   friend class TranscendentalCacheStub;
+  // Allow access to the caches_ array as an ExternalReference.
+  friend class ExternalReference;
 
-  static TranscendentalCache* caches_[kNumberOfCaches];
-  Element elements_[kCacheSize];
-  Type type_;
-  Heap* heap_;
+  SubCache* caches_[kNumberOfCaches];
+  DISALLOW_COPY_AND_ASSIGN(TranscendentalCache);
 };
 
 

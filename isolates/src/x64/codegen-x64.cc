@@ -8180,14 +8180,15 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ xorl(rcx, rdx);
   __ xorl(rax, rdi);
   __ xorl(rcx, rax);
-  ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
-  __ andl(rcx, Immediate(TranscendentalCache::kCacheSize - 1));
+  ASSERT(IsPowerOf2(TranscendentalCache::SubCache::kCacheSize));
+  __ andl(rcx, Immediate(TranscendentalCache::SubCache::kCacheSize - 1));
   // ST[0] == double value.
   // rbx = bits of double value.
   // rcx = TranscendentalCache::hash(double value).
   __ movq(rax, ExternalReference::transcendental_cache_array_address());
   // rax points to cache array.
-  __ movq(rax, Operand(rax, type_ * sizeof(TranscendentalCache::caches_[0])));
+  __ movq(rax, Operand(rax, type_ * sizeof(Isolate::Current()->
+      transcendental_cache()->caches_[0])));
   // rax points to the cache for the type type_.
   // If NULL, the cache hasn't been initialized yet, so go through runtime.
   __ testq(rax, rax);
@@ -8195,7 +8196,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 #ifdef DEBUG
   // Check that the layout of cache elements match expectations.
   {  // NOLINT - doesn't like a single brace on a line.
-    TranscendentalCache::Element test_elem[2];
+    TranscendentalCache::SubCache::Element test_elem[2];
     char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
     char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
     char* elem_in0  = reinterpret_cast<char*>(&(test_elem[0].in[0]));

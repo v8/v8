@@ -589,7 +589,8 @@ ExternalReference ExternalReference::random_uint32_function() {
 
 
 ExternalReference ExternalReference::transcendental_cache_array_address() {
-  return ExternalReference(TranscendentalCache::cache_array_address());
+  return ExternalReference(Isolate::Current()->transcendental_cache()->
+      cache_array_address());
 }
 
 

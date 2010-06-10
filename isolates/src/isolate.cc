@@ -91,6 +91,7 @@ Isolate::Isolate()
       bootstrapper_(NULL),
       break_access_(OS::CreateMutex()),
       stub_cache_(NULL),
+      transcendental_cache_(new TranscendentalCache()),
       handle_scope_implementer_(NULL) {
   heap_.isolate_ = this;
   stack_guard_.isolate_ = this;
@@ -110,6 +111,8 @@ Isolate::Isolate()
 
 
 Isolate::~Isolate() {
+  delete transcendental_cache_;
+  transcendental_cache_ = NULL;
   delete stub_cache_;
   stub_cache_ = NULL;
   delete bootstrapper_;

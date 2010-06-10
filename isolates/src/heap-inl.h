@@ -511,6 +511,20 @@ void Heap::CompletelyClearInstanceofCache() {
 }
 
 
+Object* TranscendentalCache::Get(Type type, double input) {
+  SubCache* cache = caches_[type];
+  if (cache == NULL) {
+    caches_[type] = cache = new SubCache(type);
+  }
+  return cache->Get(input);
+}
+
+
+Address TranscendentalCache::cache_array_address() {
+  return reinterpret_cast<Address>(caches_);
+}
+
+
 Heap* _inline_get_heap_() {
   return HEAP;
 }
