@@ -575,7 +575,7 @@ TEST(LinearAllocation) {
     for (int i = 0;
          i + kSmallFixedArraySize <= new_space_size;
          i += kSmallFixedArraySize) {
-      Object* obj = Heap::AllocateFixedArray(kSmallFixedArrayLength);
+      Object* obj = HEAP->AllocateFixedArray(kSmallFixedArrayLength);
       if (new_last != NULL) {
         CHECK(reinterpret_cast<char*>(obj) ==
               reinterpret_cast<char*>(new_last) + kSmallFixedArraySize);
@@ -587,7 +587,7 @@ TEST(LinearAllocation) {
     for (int i = 0;
          i + kSmallFixedArraySize <= size;
          i += kSmallFixedArraySize) {
-      Object* obj = Heap::AllocateFixedArray(kSmallFixedArrayLength, TENURED);
+      Object* obj = HEAP->AllocateFixedArray(kSmallFixedArrayLength, TENURED);
       int old_page_fullness = i % Page::kPageSize;
       int page_fullness = (i + kSmallFixedArraySize) % Page::kPageSize;
       if (page_fullness < old_page_fullness ||
@@ -604,7 +604,7 @@ TEST(LinearAllocation) {
 
     Object* data_last = NULL;
     for (int i = 0; i + kSmallStringSize <= size; i += kSmallStringSize) {
-      Object* obj = Heap::AllocateRawAsciiString(kSmallStringLength, TENURED);
+      Object* obj = HEAP->AllocateRawAsciiString(kSmallStringLength, TENURED);
       int old_page_fullness = i % Page::kPageSize;
       int page_fullness = (i + kSmallStringSize) % Page::kPageSize;
       if (page_fullness < old_page_fullness ||
@@ -621,7 +621,7 @@ TEST(LinearAllocation) {
 
     Object* map_last = NULL;
     for (int i = 0; i + kMapSize <= size; i += kMapSize) {
-      Object* obj = Heap::AllocateMap(JS_OBJECT_TYPE, 42 * kPointerSize);
+      Object* obj = HEAP->AllocateMap(JS_OBJECT_TYPE, 42 * kPointerSize);
       int old_page_fullness = i % Page::kPageSize;
       int page_fullness = (i + kMapSize) % Page::kPageSize;
       if (page_fullness < old_page_fullness ||
@@ -642,7 +642,7 @@ TEST(LinearAllocation) {
       AlwaysAllocateScope always;
       int large_object_array_length =
           (size - FixedArray::kHeaderSize) / kPointerSize;
-      Object* obj = Heap::AllocateFixedArray(large_object_array_length,
+      Object* obj = HEAP->AllocateFixedArray(large_object_array_length,
                                              TENURED);
       CHECK(!obj->IsFailure());
     }

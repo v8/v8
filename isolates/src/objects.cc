@@ -54,7 +54,7 @@ const int kSetterIndex = 1;
 
 
 static Object* CreateJSValue(JSFunction* constructor, Object* value) {
-  Object* result = Heap::AllocateJSObject(constructor);
+  Object* result = HEAP->AllocateJSObject(constructor);
   if (result->IsFailure()) return result;
   JSValue::cast(result)->set_value(value);
   return result;
@@ -95,7 +95,7 @@ Object* Object::ToBoolean() {
   if (IsTrue()) return HEAP->true_value();
   if (IsFalse()) return HEAP->false_value();
   if (IsSmi()) {
-    return Heap::ToBoolean(Smi::cast(this)->value() != 0);
+    return HEAP->ToBoolean(Smi::cast(this)->value() != 0);
   }
   if (IsUndefined() || IsNull()) return HEAP->false_value();
   // Undetectable object is false
@@ -103,7 +103,7 @@ Object* Object::ToBoolean() {
     return HEAP->false_value();
   }
   if (IsString()) {
-    return Heap::ToBoolean(String::cast(this)->length() != 0);
+    return HEAP->ToBoolean(String::cast(this)->length() != 0);
   }
   if (IsHeapNumber()) {
     return HeapNumber::cast(this)->HeapNumberToBoolean();
@@ -371,7 +371,7 @@ Object* JSObject::SetNormalizedProperty(String* name,
   if (entry == StringDictionary::kNotFound) {
     Object* store_value = value;
     if (IsGlobalObject()) {
-      store_value = Heap::AllocateJSGlobalPropertyCell(value);
+      store_value = HEAP->AllocateJSGlobalPropertyCell(value);
       if (store_value->IsFailure()) return store_value;
     }
     Object* dict = property_dictionary()->Add(name, store_value, details);
@@ -641,7 +641,7 @@ Object* String::SlowTryFlatten(PretenureFlag pretenure) {
       Object* object;
       String* result;
       if (IsAsciiRepresentation()) {
-        object = Heap::AllocateRawAsciiString(len, tenure);
+        object = HEAP->AllocateRawAsciiString(len, tenure);
         if (object->IsFailure()) return object;
         result = String::cast(object);
         String* first = cs->first();
@@ -654,7 +654,7 @@ Object* String::SlowTryFlatten(PretenureFlag pretenure) {
                     0,
                     len - first_length);
       } else {
-        object = Heap::AllocateRawTwoByteString(len, tenure);
+        object = HEAP->AllocateRawTwoByteString(len, tenure);
         if (object->IsFailure()) return object;
         result = String::cast(object);
         uc16* dest = SeqTwoByteString::cast(result)->GetChars();
@@ -718,7 +718,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
-  Heap::CreateFillerObjectAt(this->address() + new_size, size - new_size);
+  HEAP->CreateFillerObjectAt(this->address() + new_size, size - new_size);
   return true;
 }
 
@@ -764,7 +764,7 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
 
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
-  Heap::CreateFillerObjectAt(this->address() + new_size, size - new_size);
+  HEAP->CreateFillerObjectAt(this->address() + new_size, size - new_size);
   return true;
 }
 
@@ -1362,7 +1362,7 @@ Object* JSObject::AddSlowProperty(String* name,
       dict->SetEntry(entry, name, store_value, details);
       return value;
     }
-    store_value = Heap::AllocateJSGlobalPropertyCell(value);
+    store_value = HEAP->AllocateJSGlobalPropertyCell(value);
     if (store_value->IsFailure()) return store_value;
     JSGlobalPropertyCell::cast(store_value)->set_value(value);
   }
@@ -1823,7 +1823,7 @@ Object* JSObject::SetProperty(LookupResult* result,
   // dictionary.  We make these short keys into symbols to avoid constantly
   // reallocating them.
   if (!name->IsSymbol() && name->length() <= 2) {
-    Object* symbol_version = Heap::LookupSymbol(name);
+    Object* symbol_version = HEAP->LookupSymbol(name);
     if (!symbol_version->IsFailure()) name = String::cast(symbol_version);
   }
 
@@ -2186,7 +2186,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
     int new_instance_size = map()->instance_size() - instance_size_delta;
     new_map->set_inobject_properties(0);
     new_map->set_instance_size(new_instance_size);
-    Heap::CreateFillerObjectAt(this->address() + new_instance_size,
+    HEAP->CreateFillerObjectAt(this->address() + new_instance_size,
                                instance_size_delta);
   }
   new_map->set_unused_property_fields(0);
@@ -2764,7 +2764,7 @@ Object* JSObject::DefineGetterSetter(String* name,
   }
 
   // Allocate the fixed array to hold getter and setter.
-  Object* structure = Heap::AllocateFixedArray(2, TENURED);
+  Object* structure = HEAP->AllocateFixedArray(2, TENURED);
   if (structure->IsFailure()) return structure;
 
   if (is_element) {
@@ -3027,7 +3027,7 @@ Object* JSObject::SlowReverseLookup(Object* value) {
 
 
 Object* Map::CopyDropDescriptors() {
-  Object* result = Heap::AllocateMap(instance_type(), instance_size());
+  Object* result = HEAP->AllocateMap(instance_type(), instance_size());
   if (result->IsFailure()) return result;
   Map::cast(result)->set_prototype(prototype());
   Map::cast(result)->set_constructor(constructor());
@@ -3074,7 +3074,7 @@ Object* Map::CopyDropTransitions() {
 Object* Map::UpdateCodeCache(String* name, Code* code) {
   // Allocate the code cache if not present.
   if (code_cache()->IsFixedArray()) {
-    Object* result = Heap::AllocateCodeCache();
+    Object* result = HEAP->AllocateCodeCache();
     if (result->IsFailure()) return result;
     set_code_cache(result);
   }
@@ -3315,7 +3315,7 @@ class CodeCacheHashTableKey : public HashTableKey {
 
   Object* AsObject() {
     ASSERT(code_ != NULL);
-    Object* obj = Heap::AllocateFixedArray(2);
+    Object* obj = HEAP->AllocateFixedArray(2);
     if (obj->IsFailure()) return obj;
     FixedArray* pair = FixedArray::cast(obj);
     pair->set(0, name_);
@@ -3401,7 +3401,7 @@ Object* FixedArray::AddKeysFromJSArray(JSArray* array) {
       int size = dict->NumberOfElements();
 
       // Allocate a temporary fixed array.
-      Object* object = Heap::AllocateFixedArray(size);
+      Object* object = HEAP->AllocateFixedArray(size);
       if (object->IsFailure()) return object;
       FixedArray* key_array = FixedArray::cast(object);
 
@@ -3441,7 +3441,7 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
   if (extra == 0) return this;
 
   // Allocate the result
-  Object* obj = Heap::AllocateFixedArray(len0 + extra);
+  Object* obj = HEAP->AllocateFixedArray(len0 + extra);
   if (obj->IsFailure()) return obj;
   // Fill in the content
   AssertNoAllocation no_gc;
@@ -3466,7 +3466,7 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
 
 Object* FixedArray::CopySize(int new_length) {
   if (new_length == 0) return HEAP->empty_fixed_array();
-  Object* obj = Heap::AllocateFixedArray(new_length);
+  Object* obj = HEAP->AllocateFixedArray(new_length);
   if (obj->IsFailure()) return obj;
   FixedArray* result = FixedArray::cast(obj);
   // Copy the content
@@ -3508,13 +3508,13 @@ Object* DescriptorArray::Allocate(int number_of_descriptors) {
   }
   // Allocate the array of keys.
   Object* array =
-      Heap::AllocateFixedArray(ToKeyIndex(number_of_descriptors));
+      HEAP->AllocateFixedArray(ToKeyIndex(number_of_descriptors));
   if (array->IsFailure()) return array;
   // Do not use DescriptorArray::cast on incomplete object.
   FixedArray* result = FixedArray::cast(array);
 
   // Allocate the content array and set it in the descriptor array.
-  array = Heap::AllocateFixedArray(number_of_descriptors << 1);
+  array = HEAP->AllocateFixedArray(number_of_descriptors << 1);
   if (array->IsFailure()) return array;
   result->set(kContentArrayIndex, array);
   result->set(kEnumerationIndexIndex,
@@ -4926,7 +4926,7 @@ uint32_t String::ComputeHashField(unibrow::CharacterStream* buffer,
 
 Object* String::SubString(int start, int end, PretenureFlag pretenure) {
   if (start == 0 && end == length()) return this;
-  Object* result = Heap::AllocateSubString(this, start, end, pretenure);
+  Object* result = HEAP->AllocateSubString(this, start, end, pretenure);
   return result;
 }
 
@@ -5017,7 +5017,7 @@ Object* JSFunction::SetInstancePrototype(Object* value) {
     // prototype is put into the initial map where it belongs.
     set_prototype_or_initial_map(value);
   }
-  Heap::ClearInstanceofCache();
+  HEAP->ClearInstanceofCache();
   return value;
 }
 
@@ -5076,7 +5076,7 @@ void Oddball::OddballIterateBody(ObjectVisitor* v) {
 
 
 Object* Oddball::Initialize(const char* to_string, Object* to_number) {
-  Object* symbol = Heap::LookupAsciiSymbol(to_string);
+  Object* symbol = HEAP->LookupAsciiSymbol(to_string);
   if (symbol->IsFailure()) return symbol;
   set_to_string(String::cast(symbol));
   set_to_number(to_number);
@@ -5553,7 +5553,7 @@ Object* JSArray::Initialize(int capacity) {
   if (capacity == 0) {
     new_elements = HEAP->empty_fixed_array();
   } else {
-    Object* obj = Heap::AllocateFixedArrayWithHoles(capacity);
+    Object* obj = HEAP->AllocateFixedArrayWithHoles(capacity);
     if (obj->IsFailure()) return obj;
     new_elements = FixedArray::cast(obj);
   }
@@ -5616,7 +5616,7 @@ Object* JSObject::SetElementsLength(Object* len) {
         int new_capacity = value > min ? value : min;
         if (new_capacity <= kMaxFastElementsLength ||
             !ShouldConvertToSlowElements(new_capacity)) {
-          Object* obj = Heap::AllocateFixedArrayWithHoles(new_capacity);
+          Object* obj = HEAP->AllocateFixedArrayWithHoles(new_capacity);
           if (obj->IsFailure()) return obj;
           if (IsJSArray()) {
             JSArray::cast(this)->set_length(Smi::cast(smi_length));
@@ -5661,7 +5661,7 @@ Object* JSObject::SetElementsLength(Object* len) {
 
   // len is not a number so make the array size one and
   // set only element to len.
-  Object* obj = Heap::AllocateFixedArray(1);
+  Object* obj = HEAP->AllocateFixedArray(1);
   if (obj->IsFailure()) return obj;
   FixedArray::cast(obj)->set(0, len);
   if (IsJSArray()) JSArray::cast(this)->set_length(Smi::FromInt(1));
@@ -5708,7 +5708,7 @@ Object* JSObject::SetPrototype(Object* value,
   Map::cast(new_map)->set_prototype(value);
   real_receiver->set_map(Map::cast(new_map));
 
-  Heap::ClearInstanceofCache();
+  HEAP->ClearInstanceofCache();
 
   return value;
 }
@@ -6091,7 +6091,7 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
     if (new_capacity <= kMaxFastElementsLength ||
         !ShouldConvertToSlowElements(new_capacity)) {
       ASSERT(static_cast<uint32_t>(new_capacity) > index);
-      Object* obj = Heap::AllocateFixedArrayWithHoles(new_capacity);
+      Object* obj = HEAP->AllocateFixedArrayWithHoles(new_capacity);
       if (obj->IsFailure()) return obj;
       SetFastElements(FixedArray::cast(obj));
       if (IsJSArray()) {
@@ -6219,7 +6219,7 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
         } else {
           new_length = NumberDictionary::cast(elements())->max_number_key() + 1;
         }
-        Object* obj = Heap::AllocateFixedArrayWithHoles(new_length);
+        Object* obj = HEAP->AllocateFixedArrayWithHoles(new_length);
         if (obj->IsFailure()) return obj;
         SetFastElements(FixedArray::cast(obj));
 #ifdef DEBUG
@@ -6250,7 +6250,7 @@ Object* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index, Object* value) {
   // sure that the length stays within 32-bits (unsigned).
   if (index >= old_len && index != 0xffffffff) {
     Object* len =
-        Heap::NumberFromDouble(static_cast<double>(index) + 1);
+        HEAP->NumberFromDouble(static_cast<double>(index) + 1);
     if (len->IsFailure()) return len;
     set_length(len);
   }
@@ -6417,7 +6417,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
       ExternalIntArray* array = ExternalIntArray::cast(elements());
       if (index < static_cast<uint32_t>(array->length())) {
         int32_t value = array->get(index);
-        return Heap::NumberFromInt32(value);
+        return HEAP->NumberFromInt32(value);
       }
       break;
     }
@@ -6426,7 +6426,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
           ExternalUnsignedIntArray::cast(elements());
       if (index < static_cast<uint32_t>(array->length())) {
         uint32_t value = array->get(index);
-        return Heap::NumberFromUint32(value);
+        return HEAP->NumberFromUint32(value);
       }
       break;
     }
@@ -6434,7 +6434,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
       ExternalFloatArray* array = ExternalFloatArray::cast(elements());
       if (index < static_cast<uint32_t>(array->length())) {
         float value = array->get(index);
-        return Heap::AllocateHeapNumber(value);
+        return HEAP->AllocateHeapNumber(value);
       }
       break;
     }
@@ -7015,7 +7015,7 @@ uint32_t NumberDictionaryShape::HashForObject(uint32_t key, Object* other) {
 
 
 Object* NumberDictionaryShape::AsObject(uint32_t key) {
-  return Heap::NumberFromUint32(key);
+  return HEAP->NumberFromUint32(key);
 }
 
 
@@ -7112,7 +7112,7 @@ class StringSharedKey : public HashTableKey {
   }
 
   Object* AsObject() {
-    Object* obj = Heap::AllocateFixedArray(2);
+    Object* obj = HEAP->AllocateFixedArray(2);
     if (obj->IsFailure()) return obj;
     FixedArray* pair = FixedArray::cast(obj);
     pair->set(0, shared_);
@@ -7193,7 +7193,7 @@ class Utf8SymbolKey : public HashTableKey {
 
   Object* AsObject() {
     if (hash_field_ == 0) Hash();
-    return Heap::AllocateSymbol(string_, chars_, hash_field_);
+    return HEAP->AllocateSymbol(string_, chars_, hash_field_);
   }
 
   Vector<const char> string_;
@@ -7222,7 +7222,7 @@ class SymbolKey : public HashTableKey {
     // be flat strings.
     string_ = string_->TryFlattenGetString();
     // Transform string to symbol if possible.
-    Map* map = Heap::SymbolMapForString(string_);
+    Map* map = HEAP->SymbolMapForString(string_);
     if (map != NULL) {
       string_->set_map(map);
       ASSERT(string_->IsSymbol());
@@ -7230,7 +7230,7 @@ class SymbolKey : public HashTableKey {
     }
     // Otherwise allocate a new symbol.
     StringInputBuffer buffer(string_);
-    return Heap::AllocateInternalSymbol(&buffer,
+    return HEAP->AllocateInternalSymbol(&buffer,
                                         string_->length(),
                                         string_->hash_field());
   }
@@ -7268,7 +7268,7 @@ Object* HashTable<Shape, Key>::Allocate(int at_least_space_for,
     return Failure::OutOfMemoryException();
   }
 
-  Object* obj = Heap::AllocateHashTable(EntryToIndex(capacity), pretenure);
+  Object* obj = HEAP->AllocateHashTable(EntryToIndex(capacity), pretenure);
   if (!obj->IsFailure()) {
     HashTable::cast(obj)->SetNumberOfElements(0);
     HashTable::cast(obj)->SetNumberOfDeletedElements(0);
@@ -7447,7 +7447,7 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
   HeapNumber* result_double = NULL;
   if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
     // Allocate space for result before we start mutating the object.
-    Object* new_double = Heap::AllocateHeapNumber(0.0);
+    Object* new_double = HEAP->AllocateHeapNumber(0.0);
     if (new_double->IsFailure()) return new_double;
     result_double = HeapNumber::cast(new_double);
   }
@@ -7527,7 +7527,7 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
 
     PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED: TENURED;
     Object* new_array =
-        Heap::AllocateFixedArray(dict->NumberOfElements(), tenure);
+        HEAP->AllocateFixedArray(dict->NumberOfElements(), tenure);
     if (new_array->IsFailure()) {
       return new_array;
     }
@@ -7553,7 +7553,7 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
   if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
     // Pessimistically allocate space for return value before
     // we start mutating the array.
-    Object* new_double = Heap::AllocateHeapNumber(0.0);
+    Object* new_double = HEAP->AllocateHeapNumber(0.0);
     if (new_double->IsFailure()) return new_double;
     result_double = HeapNumber::cast(new_double);
   }
@@ -7664,7 +7664,7 @@ static Object* ExternalArrayIntSetter(ExternalArrayClass* receiver,
     }
     receiver->set(index, cast_value);
   }
-  return Heap::NumberFromInt32(cast_value);
+  return HEAP->NumberFromInt32(cast_value);
 }
 
 
@@ -7714,7 +7714,7 @@ Object* ExternalUnsignedIntArray::SetValue(uint32_t index, Object* value) {
     }
     set(index, cast_value);
   }
-  return Heap::NumberFromUint32(cast_value);
+  return HEAP->NumberFromUint32(cast_value);
 }
 
 
@@ -7734,7 +7734,7 @@ Object* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
     }
     set(index, cast_value);
   }
-  return Heap::AllocateHeapNumber(cast_value);
+  return HEAP->AllocateHeapNumber(cast_value);
 }
 
 
@@ -7750,7 +7750,7 @@ Object* GlobalObject::EnsurePropertyCell(String* name) {
   ASSERT(!HasFastProperties());
   int entry = property_dictionary()->FindEntry(name);
   if (entry == StringDictionary::kNotFound) {
-    Object* cell = Heap::AllocateJSGlobalPropertyCell(HEAP->the_hole_value());
+    Object* cell = HEAP->AllocateJSGlobalPropertyCell(HEAP->the_hole_value());
     if (cell->IsFailure()) return cell;
     PropertyDetails details(NONE, NORMAL);
     details = details.AsDeleted();
@@ -8053,7 +8053,7 @@ Object* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
   int length = HashTable<Shape, Key>::NumberOfElements();
 
   // Allocate and initialize iteration order array.
-  Object* obj = Heap::AllocateFixedArray(length);
+  Object* obj = HEAP->AllocateFixedArray(length);
   if (obj->IsFailure()) return obj;
   FixedArray* iteration_order = FixedArray::cast(obj);
   for (int i = 0; i < length; i++) {
@@ -8061,7 +8061,7 @@ Object* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
   }
 
   // Allocate array with enumeration order.
-  obj = Heap::AllocateFixedArray(length);
+  obj = HEAP->AllocateFixedArray(length);
   if (obj->IsFailure()) return obj;
   FixedArray* enumeration_order = FixedArray::cast(obj);
 
@@ -8411,7 +8411,7 @@ Object* StringDictionary::TransformPropertiesToFastFor(
       number_of_fields + unused_property_fields - inobject_props;
 
   // Allocate the fixed array for the fields.
-  Object* fields = Heap::AllocateFixedArray(number_of_allocated_fields);
+  Object* fields = HEAP->AllocateFixedArray(number_of_allocated_fields);
   if (fields->IsFailure()) return fields;
 
   // Fill in the instance descriptor and the fields.
@@ -8422,7 +8422,7 @@ Object* StringDictionary::TransformPropertiesToFastFor(
     if (IsKey(k)) {
       Object* value = ValueAt(i);
       // Ensure the key is a symbol before writing into the instance descriptor.
-      Object* key = Heap::LookupSymbol(String::cast(k));
+      Object* key = HEAP->LookupSymbol(String::cast(k));
       if (key->IsFailure()) return key;
       PropertyDetails details = DetailsAt(i);
       PropertyType type = details.type();

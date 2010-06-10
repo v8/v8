@@ -38,13 +38,14 @@ using namespace v8::internal;
 static Object* AllocateAfterFailures() {
   static int attempts = 0;
   if (++attempts < 3) return Failure::RetryAfterGC(0);
+  Heap* heap = Isolate::Current()->heap();
 
   // New space.
   NewSpace* new_space = Heap::new_space();
   static const int kNewSpaceFillerSize = ByteArray::SizeFor(0);
   while (new_space->Available() > kNewSpaceFillerSize) {
     int available_before = new_space->Available();
-    CHECK(!Heap::AllocateByteArray(0)->IsFailure());
+    CHECK(!heap->AllocateByteArray(0)->IsFailure());
     if (available_before == new_space->Available()) {
       // It seems that we are avoiding new space allocations when
       // allocation is forced, so no need to fill up new space
@@ -52,30 +53,30 @@ static Object* AllocateAfterFailures() {
       break;
     }
   }
-  CHECK(!Heap::AllocateByteArray(100)->IsFailure());
-  CHECK(!Heap::AllocateFixedArray(100, NOT_TENURED)->IsFailure());
+  CHECK(!heap->AllocateByteArray(100)->IsFailure());
+  CHECK(!heap->AllocateFixedArray(100, NOT_TENURED)->IsFailure());
 
   // Make sure we can allocate through optimized allocation functions
   // for specific kinds.
-  CHECK(!Heap::AllocateFixedArray(100)->IsFailure());
-  CHECK(!Heap::AllocateHeapNumber(0.42)->IsFailure());
-  CHECK(!Heap::AllocateArgumentsObject(Smi::FromInt(87), 10)->IsFailure());
-  Object* object = Heap::AllocateJSObject(*Top::object_function());
-  CHECK(!Heap::CopyJSObject(JSObject::cast(object))->IsFailure());
+  CHECK(!heap->AllocateFixedArray(100)->IsFailure());
+  CHECK(!heap->AllocateHeapNumber(0.42)->IsFailure());
+  CHECK(!heap->AllocateArgumentsObject(Smi::FromInt(87), 10)->IsFailure());
+  Object* object = heap->AllocateJSObject(*Top::object_function());
+  CHECK(!heap->CopyJSObject(JSObject::cast(object))->IsFailure());
 
   // Old data space.
   OldSpace* old_data_space = Heap::old_data_space();
   static const int kOldDataSpaceFillerSize = ByteArray::SizeFor(0);
   while (old_data_space->Available() > kOldDataSpaceFillerSize) {
-    CHECK(!Heap::AllocateByteArray(0, TENURED)->IsFailure());
+    CHECK(!heap->AllocateByteArray(0, TENURED)->IsFailure());
   }
-  CHECK(!Heap::AllocateRawAsciiString(100, TENURED)->IsFailure());
+  CHECK(!heap->AllocateRawAsciiString(100, TENURED)->IsFailure());
 
   // Large object space.
   while (!Heap::OldGenerationAllocationLimitReached()) {
-    CHECK(!Heap::AllocateFixedArray(10000, TENURED)->IsFailure());
+    CHECK(!heap->AllocateFixedArray(10000, TENURED)->IsFailure());
   }
-  CHECK(!Heap::AllocateFixedArray(10000, TENURED)->IsFailure());
+  CHECK(!heap->AllocateFixedArray(10000, TENURED)->IsFailure());
 
   // Map space.
   MapSpace* map_space = Heap::map_space();
@@ -83,13 +84,13 @@ static Object* AllocateAfterFailures() {
   InstanceType instance_type = JS_OBJECT_TYPE;
   int instance_size = JSObject::kHeaderSize;
   while (map_space->Available() > kMapSpaceFillerSize) {
-    CHECK(!Heap::AllocateMap(instance_type, instance_size)->IsFailure());
+    CHECK(!heap->AllocateMap(instance_type, instance_size)->IsFailure());
   }
-  CHECK(!Heap::AllocateMap(instance_type, instance_size)->IsFailure());
+  CHECK(!heap->AllocateMap(instance_type, instance_size)->IsFailure());
 
   // Test that we can allocate in old pointer space and code space.
-  CHECK(!Heap::AllocateFixedArray(100, TENURED)->IsFailure());
-  CHECK(!Heap::CopyCode(Builtins::builtin(Builtins::Illegal))->IsFailure());
+  CHECK(!heap->AllocateFixedArray(100, TENURED)->IsFailure());
+  CHECK(!heap->CopyCode(Builtins::builtin(Builtins::Illegal))->IsFailure());
 
   // Return success.
   return Smi::FromInt(42);

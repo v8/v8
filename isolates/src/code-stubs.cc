@@ -141,7 +141,7 @@ Object* CodeStub::TryGetCode() {
         InLoop(),
         GetICState());
     Object* new_object =
-        Heap::CreateCode(desc, NULL, flags, masm.CodeObject());
+        HEAP->CreateCode(desc, NULL, flags, masm.CodeObject());
     if (new_object->IsFailure()) return new_object;
     code = Code::cast(new_object);
     RecordCodeGeneration(code, &masm);

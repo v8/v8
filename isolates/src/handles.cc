@@ -146,7 +146,7 @@ Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
 Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
     Handle<JSFunction> constructor,
     Handle<JSGlobalProxy> global) {
-  CALL_HEAP_FUNCTION(Heap::ReinitializeJSGlobalProxy(*constructor, *global),
+  CALL_HEAP_FUNCTION(HEAP->ReinitializeJSGlobalProxy(*constructor, *global),
                      JSGlobalProxy);
 }
 
@@ -337,7 +337,7 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = obj->map()->instance_descriptors();
     if ((descriptors->number_of_descriptors() > 0) &&
-        (descriptors->GetKey(0) == Heap::hidden_symbol()) &&
+        (descriptors->GetKey(0) == HEAP->hidden_symbol()) &&
         descriptors->IsProperty(0)) {
       ASSERT(descriptors->GetType(0) == FIELD);
       return Handle<Object>(obj->FastPropertyAt(descriptors->GetFieldIndex(0)));
@@ -376,7 +376,7 @@ Handle<Object> DeleteProperty(Handle<JSObject> obj,
 
 
 Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index) {
-  CALL_HEAP_FUNCTION(Heap::LookupSingleCharacterStringFromCode(index), Object);
+  CALL_HEAP_FUNCTION(HEAP->LookupSingleCharacterStringFromCode(index), Object);
 }
 
 
@@ -404,7 +404,7 @@ Handle<Object> SetElement(Handle<JSObject> object,
 
 
 Handle<JSObject> Copy(Handle<JSObject> obj) {
-  CALL_HEAP_FUNCTION(Heap::CopyJSObject(*obj), JSObject);
+  CALL_HEAP_FUNCTION(HEAP->CopyJSObject(*obj), JSObject);
 }
 
 

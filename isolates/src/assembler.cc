@@ -506,7 +506,7 @@ void RelocInfo::Verify() {
       ASSERT(addr != NULL);
       // Check that we can find the right code object.
       Code* code = Code::GetCodeFromTargetAddress(addr);
-      Object* found = Heap::FindCodeObject(addr);
+      Object* found = HEAP->FindCodeObject(addr);
       ASSERT(found->IsCode());
       ASSERT(code->address() == HeapObject::cast(found)->address());
       break;

@@ -201,9 +201,6 @@ class StackGuard {
  private:
   StackGuard();
 
-  Isolate* isolate_; // TODO(isolates): Technically this could be calculated
-                     //                 directly from a pointer to StackGuard.
-
   // You should hold the ExecutionAccess lock when calling this method.
   bool has_pending_interrupts(const ExecutionAccess& lock) {
     // Sanity check: We shouldn't be asking about pending interrupts
@@ -240,7 +237,7 @@ class StackGuard {
 
   class ThreadLocal {
    public:
-    ThreadLocal();
+    ThreadLocal() { Clear(); }
     // You should hold the ExecutionAccess lock when you call Initialize or
     // Clear.
     void Clear();
@@ -267,6 +264,9 @@ class StackGuard {
     int interrupt_flags_;
   };
 
+  // TODO(isolates): Technically this could be calculated directly from a
+  //                 pointer to StackGuard.
+  Isolate* isolate_;
   ThreadLocal thread_local_;
   Thread::LocalStorageKey stack_limit_key_;
 

@@ -2016,7 +2016,7 @@ void PagedSpace::PrepareForMarkCompact(bool will_compact) {
           // Otherwise iterators would not be able to scan this page
           // correctly.
 
-          Heap::CreateFillerObjectAt(last_in_use->AllocationTop(),
+          HEAP->CreateFillerObjectAt(last_in_use->AllocationTop(),
                                      size_in_bytes);
         }
 
@@ -2039,7 +2039,7 @@ void PagedSpace::PrepareForMarkCompact(bool will_compact) {
                                                p->ObjectAreaStart());
 
           p->SetAllocationWatermark(p->ObjectAreaStart());
-          Heap::CreateFillerObjectAt(p->ObjectAreaStart(), size_in_bytes);
+          HEAP->CreateFillerObjectAt(p->ObjectAreaStart(), size_in_bytes);
         }
       }
 

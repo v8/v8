@@ -43,7 +43,6 @@ namespace internal {
 StackGuard::StackGuard()
     : isolate_(NULL),
       stack_limit_key_(Thread::CreateThreadLocalKey()) {
-  thread_local_.Clear();
 }
 
 
@@ -348,7 +347,6 @@ char* StackGuard::ArchiveStackGuard(char* to) {
   ExecutionAccess access;
   memcpy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
   ThreadLocal blank;
-  blank.Clear();
 
   // Set the stack limits using the old thread_local_.
   // TODO(isolates): This was the old semantics of constructing a ThreadLocal
@@ -378,10 +376,6 @@ void StackGuard::FreeThreadResources() {
   Thread::SetThreadLocal(
       stack_limit_key,
       reinterpret_cast<void*>(thread_local_.real_climit_));
-}
-
-
-StackGuard::ThreadLocal::ThreadLocal() {
 }
 
 
@@ -423,7 +417,7 @@ void StackGuard::ClearThread(const ExecutionAccess& lock) {
 
 
 void StackGuard::InitThread(const ExecutionAccess& lock) {
-  if (thread_local_.Initialize()) { isolate_->heap()->SetStackLimits(); }
+  if (thread_local_.Initialize()) isolate_->heap()->SetStackLimits();
   void* stored_limit = Thread::GetThreadLocal(stack_limit_key);
   // You should hold the ExecutionAccess lock when you call this.
   if (stored_limit != NULL) {
@@ -455,7 +449,7 @@ Handle<Object> Execution::ToBoolean(Handle<Object> obj) {
     double value = obj->Number();
     result = !((value == 0) || isnan(value));
   }
-  return Handle<Object>(Heap::ToBoolean(result));
+  return Handle<Object>(HEAP->ToBoolean(result));
 }
 
 
@@ -621,9 +615,11 @@ static Object* RuntimePreempt() {
     Thread::YieldCPU();
   }
 #else
-  // Perform preemption.
-  v8::Unlocker unlocker;
-  Thread::YieldCPU();
+  { // NOLINT
+    // Perform preemption.
+    v8::Unlocker unlocker;
+    Thread::YieldCPU();
+  }
 #endif
 
   return isolate->heap()->undefined_value();

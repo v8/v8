@@ -560,7 +560,7 @@ void ContextSlotCache::Update(Code* code,
                               int slot_index) {
   String* symbol;
   ASSERT(slot_index > kNotFound);
-  if (Heap::LookupSymbolIfExists(name, &symbol)) {
+  if (HEAP->LookupSymbolIfExists(name, &symbol)) {
     int index = Hash(code, symbol);
     Key& key = keys_[index];
     key.code = code;
@@ -592,7 +592,7 @@ void ContextSlotCache::ValidateEntry(Code* code,
                                      Variable::Mode mode,
                                      int slot_index) {
   String* symbol;
-  if (Heap::LookupSymbolIfExists(name, &symbol)) {
+  if (HEAP->LookupSymbolIfExists(name, &symbol)) {
     int index = Hash(code, name);
     Key& key = keys_[index];
     ASSERT(key.code == code);

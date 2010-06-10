@@ -85,7 +85,7 @@ TEST(Promotion) {
   int array_size =
       (Heap::MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
       (kPointerSize * 4);
-  Object* obj = Heap::AllocateFixedArray(array_size);
+  Object* obj = HEAP->AllocateFixedArray(array_size);
   CHECK(!obj->IsFailure());
 
   Handle<FixedArray> array(FixedArray::cast(obj));
@@ -116,7 +116,7 @@ TEST(NoPromotion) {
   // Allocate a big Fixed array in the new space.
   int size = (Heap::MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
       kPointerSize;
-  Object* obj = Heap::AllocateFixedArray(size);
+  Object* obj = HEAP->AllocateFixedArray(size);
 
   Handle<FixedArray> array(FixedArray::cast(obj));
 
@@ -126,7 +126,7 @@ TEST(NoPromotion) {
   // Allocate objects in the old space until out of memory.
   FixedArray* host = *array;
   while (true) {
-    Object* obj = Heap::AllocateFixedArray(100, TENURED);
+    Object* obj = HEAP->AllocateFixedArray(100, TENURED);
     if (obj->IsFailure()) break;
 
     host->set(0, obj);
@@ -152,57 +152,57 @@ TEST(MarkCompactCollector) {
   const int ARRAY_SIZE = 100;
   Object* array;
   do {
-    array = Heap::AllocateFixedArray(ARRAY_SIZE);
+    array = HEAP->AllocateFixedArray(ARRAY_SIZE);
   } while (!array->IsFailure());
   CHECK(Heap::CollectGarbage(0, NEW_SPACE));
 
-  array = Heap::AllocateFixedArray(ARRAY_SIZE);
+  array = HEAP->AllocateFixedArray(ARRAY_SIZE);
   CHECK(!array->IsFailure());
 
   // keep allocating maps until it fails
   Object* mapp;
   do {
-    mapp = Heap::AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    mapp = HEAP->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   } while (!mapp->IsFailure());
   CHECK(Heap::CollectGarbage(0, MAP_SPACE));
-  mapp = Heap::AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  mapp = HEAP->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   CHECK(!mapp->IsFailure());
 
   // allocate a garbage
-  String* func_name = String::cast(Heap::LookupAsciiSymbol("theFunction"));
+  String* func_name = String::cast(HEAP->LookupAsciiSymbol("theFunction"));
   SharedFunctionInfo* function_share =
-    SharedFunctionInfo::cast(Heap::AllocateSharedFunctionInfo(func_name));
+    SharedFunctionInfo::cast(HEAP->AllocateSharedFunctionInfo(func_name));
   JSFunction* function =
-    JSFunction::cast(Heap::AllocateFunction(*Top::function_map(),
+    JSFunction::cast(HEAP->AllocateFunction(*Top::function_map(),
                                             function_share,
                                             HEAP->undefined_value()));
   Map* initial_map =
-      Map::cast(Heap::AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize));
+      Map::cast(HEAP->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize));
   function->set_initial_map(initial_map);
   Top::context()->global()->SetProperty(func_name, function, NONE);
 
-  JSObject* obj = JSObject::cast(Heap::AllocateJSObject(function));
+  JSObject* obj = JSObject::cast(HEAP->AllocateJSObject(function));
   CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
-  func_name = String::cast(Heap::LookupAsciiSymbol("theFunction"));
+  func_name = String::cast(HEAP->LookupAsciiSymbol("theFunction"));
   CHECK(Top::context()->global()->HasLocalProperty(func_name));
   Object* func_value = Top::context()->global()->GetProperty(func_name);
   CHECK(func_value->IsJSFunction());
   function = JSFunction::cast(func_value);
 
-  obj = JSObject::cast(Heap::AllocateJSObject(function));
-  String* obj_name = String::cast(Heap::LookupAsciiSymbol("theObject"));
+  obj = JSObject::cast(HEAP->AllocateJSObject(function));
+  String* obj_name = String::cast(HEAP->LookupAsciiSymbol("theObject"));
   Top::context()->global()->SetProperty(obj_name, obj, NONE);
-  String* prop_name = String::cast(Heap::LookupAsciiSymbol("theSlot"));
+  String* prop_name = String::cast(HEAP->LookupAsciiSymbol("theSlot"));
   obj->SetProperty(prop_name, Smi::FromInt(23), NONE);
 
   CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
-  obj_name = String::cast(Heap::LookupAsciiSymbol("theObject"));
+  obj_name = String::cast(HEAP->LookupAsciiSymbol("theObject"));
   CHECK(Top::context()->global()->HasLocalProperty(obj_name));
   CHECK(Top::context()->global()->GetProperty(obj_name)->IsJSObject());
   obj = JSObject::cast(Top::context()->global()->GetProperty(obj_name));
-  prop_name = String::cast(Heap::LookupAsciiSymbol("theSlot"));
+  prop_name = String::cast(HEAP->LookupAsciiSymbol("theSlot"));
   CHECK(obj->GetProperty(prop_name) == Smi::FromInt(23));
 }
 
@@ -282,9 +282,9 @@ TEST(ObjectGroups) {
   v8::HandleScope handle_scope;
 
   Handle<Object> g1s1 =
-    GlobalHandles::Create(Heap::AllocateFixedArray(1));
+    GlobalHandles::Create(HEAP->AllocateFixedArray(1));
   Handle<Object> g1s2 =
-    GlobalHandles::Create(Heap::AllocateFixedArray(1));
+    GlobalHandles::Create(HEAP->AllocateFixedArray(1));
   GlobalHandles::MakeWeak(g1s1.location(),
                           reinterpret_cast<void*>(1234),
                           &WeakPointerCallback);
@@ -293,9 +293,9 @@ TEST(ObjectGroups) {
                           &WeakPointerCallback);
 
   Handle<Object> g2s1 =
-    GlobalHandles::Create(Heap::AllocateFixedArray(1));
+    GlobalHandles::Create(HEAP->AllocateFixedArray(1));
   Handle<Object> g2s2 =
-    GlobalHandles::Create(Heap::AllocateFixedArray(1));
+    GlobalHandles::Create(HEAP->AllocateFixedArray(1));
   GlobalHandles::MakeWeak(g2s1.location(),
                           reinterpret_cast<void*>(1234),
                           &WeakPointerCallback);

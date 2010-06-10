@@ -189,7 +189,7 @@ BUILTIN(ArrayCodeGeneric) {
     // Allocate the JS Array
     JSFunction* constructor =
         Top::context()->global_context()->array_function();
-    Object* obj = Heap::AllocateJSObject(constructor);
+    Object* obj = HEAP->AllocateJSObject(constructor);
     if (obj->IsFailure()) return obj;
     array = JSArray::cast(obj);
   }
@@ -203,7 +203,7 @@ BUILTIN(ArrayCodeGeneric) {
     if (obj->IsSmi()) {
       int len = Smi::cast(obj)->value();
       if (len >= 0 && len < JSObject::kInitialMaxFastElementArray) {
-        Object* obj = Heap::AllocateFixedArrayWithHoles(len);
+        Object* obj = HEAP->AllocateFixedArrayWithHoles(len);
         if (obj->IsFailure()) return obj;
         array->SetContent(FixedArray::cast(obj));
         return array;
@@ -223,7 +223,7 @@ BUILTIN(ArrayCodeGeneric) {
   // Take the arguments as elements.
   int number_of_elements = args.length() - 1;
   Smi* len = Smi::FromInt(number_of_elements);
-  Object* obj = Heap::AllocateFixedArrayWithHoles(len->value());
+  Object* obj = HEAP->AllocateFixedArrayWithHoles(len->value());
   if (obj->IsFailure()) return obj;
 
   AssertNoAllocation no_gc;
@@ -245,7 +245,7 @@ BUILTIN(ArrayCodeGeneric) {
 static Object* AllocateJSArray() {
   JSFunction* array_function =
       Top::context()->global_context()->array_function();
-  Object* result = Heap::AllocateJSObject(array_function);
+  Object* result = HEAP->AllocateJSObject(array_function);
   if (result->IsFailure()) return result;
   return result;
 }
@@ -319,7 +319,7 @@ static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  Heap::CreateFillerObjectAt(elms->address(), to_trim * kPointerSize);
+  HEAP->CreateFillerObjectAt(elms->address(), to_trim * kPointerSize);
 
   former_start[to_trim] = HEAP->fixed_array_map();
   former_start[to_trim + 1] = Smi::FromInt(len - to_trim);
@@ -424,7 +424,7 @@ BUILTIN(ArrayPush) {
   if (new_length > elms->length()) {
     // New backing storage is needed.
     int capacity = new_length + (new_length >> 1) + 16;
-    Object* obj = Heap::AllocateUninitializedFixedArray(capacity);
+    Object* obj = HEAP->AllocateUninitializedFixedArray(capacity);
     if (obj->IsFailure()) return obj;
     FixedArray* new_elms = FixedArray::cast(obj);
 
@@ -535,7 +535,7 @@ BUILTIN(ArrayUnshift) {
   if (new_length > elms->length()) {
     // New backing storage is needed.
     int capacity = new_length + (new_length >> 1) + 16;
-    Object* obj = Heap::AllocateUninitializedFixedArray(capacity);
+    Object* obj = HEAP->AllocateUninitializedFixedArray(capacity);
     if (obj->IsFailure()) return obj;
     FixedArray* new_elms = FixedArray::cast(obj);
 
@@ -618,7 +618,7 @@ BUILTIN(ArraySlice) {
   if (result->IsFailure()) return result;
   JSArray* result_array = JSArray::cast(result);
 
-  result = Heap::AllocateUninitializedFixedArray(result_len);
+  result = HEAP->AllocateUninitializedFixedArray(result_len);
   if (result->IsFailure()) return result;
   FixedArray* result_elms = FixedArray::cast(result);
 
@@ -692,7 +692,7 @@ BUILTIN(ArraySplice) {
     if (result->IsFailure()) return result;
     result_array = JSArray::cast(result);
 
-    result = Heap::AllocateUninitializedFixedArray(actual_delete_count);
+    result = HEAP->AllocateUninitializedFixedArray(actual_delete_count);
     if (result->IsFailure()) return result;
     FixedArray* result_elms = FixedArray::cast(result);
 
@@ -746,7 +746,7 @@ BUILTIN(ArraySplice) {
     if (new_length > elms->length()) {
       // New backing storage is needed.
       int capacity = new_length + (new_length >> 1) + 16;
-      Object* obj = Heap::AllocateUninitializedFixedArray(capacity);
+      Object* obj = HEAP->AllocateUninitializedFixedArray(capacity);
       if (obj->IsFailure()) return obj;
       FixedArray* new_elms = FixedArray::cast(obj);
 
@@ -830,7 +830,7 @@ BUILTIN(ArrayConcat) {
   if (result->IsFailure()) return result;
   JSArray* result_array = JSArray::cast(result);
 
-  result = Heap::AllocateUninitializedFixedArray(result_len);
+  result = HEAP->AllocateUninitializedFixedArray(result_len);
   if (result->IsFailure()) return result;
   FixedArray* result_elms = FixedArray::cast(result);
 
@@ -1469,7 +1469,7 @@ void Builtins::Setup(bool create_heap_objects) {
         // During startup it's OK to always allocate and defer GC to later.
         // This simplifies things because we don't need to retry.
         AlwaysAllocateScope __scope__;
-        code = Heap::CreateCode(desc, NULL, flags, masm.CodeObject());
+        code = HEAP->CreateCode(desc, NULL, flags, masm.CodeObject());
         if (code->IsFailure()) {
           v8::internal::V8::FatalProcessOutOfMemory("CreateCode");
         }

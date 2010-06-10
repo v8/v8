@@ -69,7 +69,7 @@ TEST(0) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc,
+  Object* code = HEAP->CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(HEAP->undefined_value()));
@@ -106,7 +106,7 @@ TEST(1) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc,
+  Object* code = HEAP->CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(HEAP->undefined_value()));
@@ -152,7 +152,7 @@ TEST(2) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc,
+  Object* code = HEAP->CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(HEAP->undefined_value()));
@@ -200,7 +200,7 @@ TEST(3) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc,
+  Object* code = HEAP->CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(HEAP->undefined_value()));
@@ -260,7 +260,7 @@ TEST(4) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = Heap::CreateCode(desc,
+    Object* code = HEAP->CreateCode(desc,
                                     NULL,
                                     Code::ComputeFlags(Code::STUB),
                                     Handle<Object>(HEAP->undefined_value()));
@@ -300,7 +300,7 @@ TEST(5) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = Heap::CreateCode(desc,
+    Object* code = HEAP->CreateCode(desc,
                                     NULL,
                                     Code::ComputeFlags(Code::STUB),
                                     Handle<Object>(HEAP->undefined_value()));

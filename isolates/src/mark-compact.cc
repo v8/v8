@@ -377,7 +377,7 @@ class SymbolTableCleaner : public ObjectVisitor {
         // Since no objects have yet been moved we can safely access the map of
         // the object.
         if ((*p)->IsExternalString()) {
-          Heap::FinalizeExternalString(String::cast(*p));
+          HEAP->FinalizeExternalString(String::cast(*p));
         }
         // Set the entry to null_value (as deleted).
         *p = HEAP->raw_unchecked_null_value();

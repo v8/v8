@@ -185,7 +185,7 @@ IC::State IC::StateFrom(Code* target, Object* receiver, Object* name) {
 
 RelocInfo::Mode IC::ComputeMode() {
   Address addr = address();
-  Code* code = Code::cast(Heap::FindCodeObject(addr));
+  Code* code = Code::cast(HEAP->FindCodeObject(addr));
   for (RelocIterator it(code, RelocInfo::kCodeTargetMask);
        !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();

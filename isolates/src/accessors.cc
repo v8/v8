@@ -442,7 +442,7 @@ Object* Accessors::FunctionGetPrototype(Object* object, void*) {
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
   if (!found_it) return HEAP->undefined_value();
   if (!function->has_prototype()) {
-    Object* prototype = Heap::AllocateFunctionPrototype(function);
+    Object* prototype = HEAP->AllocateFunctionPrototype(function);
     if (prototype->IsFailure()) return prototype;
     Object* result = function->SetPrototype(prototype);
     if (result->IsFailure()) return result;

@@ -582,7 +582,7 @@ bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
 
   // Skip checks for hidden properties access.  Note, we do not
   // require existence of a context in this case.
-  if (key == Heap::hidden_symbol()) return true;
+  if (key == HEAP->hidden_symbol()) return true;
 
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.

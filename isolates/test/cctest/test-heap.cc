@@ -58,7 +58,7 @@ static void CheckSmi(int value, const char* string) {
 
 
 static void CheckNumber(double value, const char* string) {
-  Object* obj = Heap::NumberFromDouble(value);
+  Object* obj = HEAP->NumberFromDouble(value);
   CHECK(obj->IsNumber());
   bool exc;
   Object* print_string = *Execution::ToString(Handle<Object>(obj), &exc);
@@ -76,7 +76,7 @@ static void CheckFindCodeObject() {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc,
+  Object* code = HEAP->CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(HEAP->undefined_value()));
@@ -86,17 +86,17 @@ static void CheckFindCodeObject() {
   Address obj_addr = obj->address();
 
   for (int i = 0; i < obj->Size(); i += kPointerSize) {
-    Object* found = Heap::FindCodeObject(obj_addr + i);
+    Object* found = HEAP->FindCodeObject(obj_addr + i);
     CHECK_EQ(code, found);
   }
 
-  Object* copy = Heap::CreateCode(desc,
+  Object* copy = HEAP->CreateCode(desc,
                                   NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(HEAP->undefined_value()));
   CHECK(copy->IsCode());
   HeapObject* obj_copy = HeapObject::cast(copy);
-  Object* not_right = Heap::FindCodeObject(obj_copy->address() +
+  Object* not_right = HEAP->FindCodeObject(obj_copy->address() +
                                            obj_copy->Size() / 2);
   CHECK(not_right != code);
 }
@@ -106,40 +106,40 @@ TEST(HeapObjects) {
   InitializeVM();
 
   v8::HandleScope sc;
-  Object* value = Heap::NumberFromDouble(1.000123);
+  Object* value = HEAP->NumberFromDouble(1.000123);
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(1.000123, value->Number());
 
-  value = Heap::NumberFromDouble(1.0);
+  value = HEAP->NumberFromDouble(1.0);
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(1.0, value->Number());
 
-  value = Heap::NumberFromInt32(1024);
+  value = HEAP->NumberFromInt32(1024);
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(1024.0, value->Number());
 
-  value = Heap::NumberFromInt32(Smi::kMinValue);
+  value = HEAP->NumberFromInt32(Smi::kMinValue);
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMinValue, Smi::cast(value)->value());
 
-  value = Heap::NumberFromInt32(Smi::kMaxValue);
+  value = HEAP->NumberFromInt32(Smi::kMaxValue);
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMaxValue, Smi::cast(value)->value());
 
 #ifndef V8_TARGET_ARCH_X64
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
-  value = Heap::NumberFromInt32(Smi::kMinValue - 1);
+  value = HEAP->NumberFromInt32(Smi::kMinValue - 1);
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(static_cast<double>(Smi::kMinValue - 1), value->Number());
 #endif
 
-  value = Heap::NumberFromUint32(static_cast<uint32_t>(Smi::kMaxValue) + 1);
+  value = HEAP->NumberFromUint32(static_cast<uint32_t>(Smi::kMaxValue) + 1);
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(Smi::kMaxValue) + 1),
@@ -508,11 +508,11 @@ static const char* not_so_random_string_table[] = {
 
 static void CheckSymbols(const char** strings) {
   for (const char* string = *strings; *strings != 0; string = *strings++) {
-    Object* a = Heap::LookupAsciiSymbol(string);
+    Object* a = HEAP->LookupAsciiSymbol(string);
     // LookupAsciiSymbol may return a failure if a GC is needed.
     if (a->IsFailure()) continue;
     CHECK(a->IsSymbol());
-    Object* b = Heap::LookupAsciiSymbol(string);
+    Object* b = HEAP->LookupAsciiSymbol(string);
     if (b->IsFailure()) continue;
     CHECK_EQ(b, a);
     CHECK(String::cast(b)->IsEqualTo(CStrVector(string)));
@@ -840,7 +840,7 @@ TEST(LargeObjectSpaceContains) {
       kPointerSize;
   CHECK_EQ(bytes_to_allocate, FixedArray::SizeFor(n_elements));
   FixedArray* array = FixedArray::cast(
-      Heap::AllocateFixedArray(n_elements));
+      HEAP->AllocateFixedArray(n_elements));
 
   int index = n_elements - 1;
   CHECK_EQ(flags_ptr,
@@ -912,7 +912,7 @@ TEST(Regression39128) {
   Address* limit_addr = new_space->allocation_limit_address();
   while ((*limit_addr - *top_addr) > allocation_amount) {
     CHECK(!Heap::always_allocate());
-    Object* array = Heap::AllocateFixedArray(allocation_len);
+    Object* array = HEAP->AllocateFixedArray(allocation_len);
     CHECK(!array->IsFailure());
     CHECK(new_space->Contains(array));
   }
@@ -923,11 +923,11 @@ TEST(Regression39128) {
   CHECK(fixed_array_len < FixedArray::kMaxLength);
 
   CHECK(!Heap::always_allocate());
-  Object* array = Heap::AllocateFixedArray(fixed_array_len);
+  Object* array = HEAP->AllocateFixedArray(fixed_array_len);
   CHECK(!array->IsFailure());
   CHECK(new_space->Contains(array));
 
-  Object* object = Heap::AllocateJSObjectFromMap(*my_map);
+  Object* object = HEAP->AllocateJSObjectFromMap(*my_map);
   CHECK(!object->IsFailure());
   CHECK(new_space->Contains(object));
   JSObject* jsobject = JSObject::cast(object);
@@ -942,7 +942,7 @@ TEST(Regression39128) {
   // in old pointer space.
   Address old_pointer_space_top = Heap::old_pointer_space()->top();
   AlwaysAllocateScope aa_scope;
-  Object* clone_obj = Heap::CopyJSObject(jsobject);
+  Object* clone_obj = HEAP->CopyJSObject(jsobject);
   CHECK(!object->IsFailure());
   JSObject* clone = JSObject::cast(clone_obj);
   if (clone->address() != old_pointer_space_top) {

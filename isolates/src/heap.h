@@ -313,64 +313,64 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateJSObject(JSFunction* constructor,
-                                  PretenureFlag pretenure = NOT_TENURED);
+  Object* AllocateJSObject(JSFunction* constructor,
+                           PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates and initializes a new global object based on a constructor.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateGlobalObject(JSFunction* constructor);
+  Object* AllocateGlobalObject(JSFunction* constructor);
 
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
   // Returns failure if allocation failed.
-  static Object* CopyJSObject(JSObject* source);
+  Object* CopyJSObject(JSObject* source);
 
   // Allocates the function prototype.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateFunctionPrototype(JSFunction* function);
+  Object* AllocateFunctionPrototype(JSFunction* function);
 
   // Reinitialize an JSGlobalProxy based on a constructor.  The object
   // must have the same size as objects allocated using the
   // constructor.  The object is reinitialized and behaves as an
   // object that has been freshly allocated using the constructor.
-  static Object* ReinitializeJSGlobalProxy(JSFunction* constructor,
-                                           JSGlobalProxy* global);
+  Object* ReinitializeJSGlobalProxy(JSFunction* constructor,
+                                    JSGlobalProxy* global);
 
   // Allocates and initializes a new JavaScript object based on a map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateJSObjectFromMap(Map* map,
-                                         PretenureFlag pretenure = NOT_TENURED);
+  Object* AllocateJSObjectFromMap(Map* map,
+                                  PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a heap object based on the map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  static Object* Allocate(Map* map, AllocationSpace space);
+  Object* Allocate(Map* map, AllocationSpace space);
 
   // Allocates a JS Map in the heap.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  static Object* AllocateMap(InstanceType instance_type, int instance_size);
+  Object* AllocateMap(InstanceType instance_type, int instance_size);
 
   // Allocates a partial map for bootstrapping.
-  static Object* AllocatePartialMap(InstanceType instance_type,
-                                    int instance_size);
+  Object* AllocatePartialMap(InstanceType instance_type,
+                             int instance_size);
 
   // Allocate a map for the specified function
-  static Object* AllocateInitialMap(JSFunction* fun);
+  Object* AllocateInitialMap(JSFunction* fun);
 
   // Allocates an empty code cache.
-  static Object* AllocateCodeCache();
+  Object* AllocateCodeCache();
 
   // Clear the Instanceof cache (used when a prototype changes).
-  static inline void ClearInstanceofCache();
+  inline void ClearInstanceofCache();
 
   // Allocates and fully initializes a String.  There are two String
   // encodings: ASCII and two byte. One should choose between the three string
@@ -390,13 +390,13 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateStringFromAscii(
+  Object* AllocateStringFromAscii(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
-  static Object* AllocateStringFromUtf8(
+  Object* AllocateStringFromUtf8(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
-  static Object* AllocateStringFromTwoByte(
+  Object* AllocateStringFromTwoByte(
       Vector<const uc16> str,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -404,16 +404,16 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  static inline Object* AllocateSymbol(Vector<const char> str,
-                                       int chars,
-                                       uint32_t hash_field);
+  inline Object* AllocateSymbol(Vector<const char> str,
+                                int chars,
+                                uint32_t hash_field);
 
-  static Object* AllocateInternalSymbol(unibrow::CharacterStream* buffer,
-                                        int chars,
-                                        uint32_t hash_field);
+  Object* AllocateInternalSymbol(unibrow::CharacterStream* buffer,
+                                 int chars,
+                                 uint32_t hash_field);
 
-  static Object* AllocateExternalSymbol(Vector<const char> str,
-                                        int chars);
+  Object* AllocateExternalSymbol(Vector<const char> str,
+                                 int chars);
 
 
   // Allocates and partially initializes a String.  There are two String
@@ -423,10 +423,10 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateRawAsciiString(
+  Object* AllocateRawAsciiString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
-  static Object* AllocateRawTwoByteString(
+  Object* AllocateRawTwoByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -434,97 +434,97 @@ class Heap {
   // A cache is used for ascii codes.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed. Please note this does not perform a garbage collection.
-  static Object* LookupSingleCharacterStringFromCode(uint16_t code);
+  Object* LookupSingleCharacterStringFromCode(uint16_t code);
 
   // Allocate a byte array of the specified length
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateByteArray(int length, PretenureFlag pretenure);
+  Object* AllocateByteArray(int length, PretenureFlag pretenure);
 
   // Allocate a non-tenured byte array of the specified length
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateByteArray(int length);
+  Object* AllocateByteArray(int length);
 
   // Allocate a pixel array of the specified length
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocatePixelArray(int length,
-                                    uint8_t* external_pointer,
-                                    PretenureFlag pretenure);
+  Object* AllocatePixelArray(int length,
+                             uint8_t* external_pointer,
+                             PretenureFlag pretenure);
 
   // Allocates an external array of the specified length and type.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateExternalArray(int length,
-                                       ExternalArrayType array_type,
-                                       void* external_pointer,
-                                       PretenureFlag pretenure);
+  Object* AllocateExternalArray(int length,
+                                ExternalArrayType array_type,
+                                void* external_pointer,
+                                PretenureFlag pretenure);
 
   // Allocate a tenured JS global property cell.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateJSGlobalPropertyCell(Object* value);
+  Object* AllocateJSGlobalPropertyCell(Object* value);
 
   // Allocates a fixed array initialized with undefined values
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateFixedArray(int length, PretenureFlag pretenure);
+  Object* AllocateFixedArray(int length, PretenureFlag pretenure);
   // Allocates a fixed array initialized with undefined values
-  static Object* AllocateFixedArray(int length);
+  Object* AllocateFixedArray(int length);
 
   // Allocates an uninitialized fixed array. It must be filled by the caller.
   //
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateUninitializedFixedArray(int length);
+  Object* AllocateUninitializedFixedArray(int length);
 
   // Make a copy of src and return it. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
-  static Object* CopyFixedArray(FixedArray* src);
+  Object* CopyFixedArray(FixedArray* src);
 
   // Allocates a fixed array initialized with the hole values.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateFixedArrayWithHoles(
+  Object* AllocateFixedArrayWithHoles(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
   // AllocateHashTable is identical to AllocateFixedArray except
   // that the resulting object has hash_table_map as map.
-  static Object* AllocateHashTable(int length,
-                                   PretenureFlag pretenure = NOT_TENURED);
+  Object* AllocateHashTable(int length,
+                            PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a global (but otherwise uninitialized) context.
-  static Object* AllocateGlobalContext();
+  Object* AllocateGlobalContext();
 
   // Allocate a function context.
-  static Object* AllocateFunctionContext(int length, JSFunction* closure);
+  Object* AllocateFunctionContext(int length, JSFunction* closure);
 
   // Allocate a 'with' context.
-  static Object* AllocateWithContext(Context* previous,
-                                     JSObject* extension,
-                                     bool is_catch_context);
+  Object* AllocateWithContext(Context* previous,
+                              JSObject* extension,
+                              bool is_catch_context);
 
   // Allocates a new utility object in the old generation.
-  static Object* AllocateStruct(InstanceType type);
+  Object* AllocateStruct(InstanceType type);
 
   // Allocates a function initialized with a shared part.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateFunction(Map* function_map,
-                                  SharedFunctionInfo* shared,
-                                  Object* prototype,
-                                  PretenureFlag pretenure = TENURED);
+  Object* AllocateFunction(Map* function_map,
+                           SharedFunctionInfo* shared,
+                           Object* prototype,
+                           PretenureFlag pretenure = TENURED);
 
   // Indicies for direct access into argument objects.
   static const int kArgumentsObjectSize =
@@ -536,47 +536,47 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateArgumentsObject(Object* callee, int length);
+  Object* AllocateArgumentsObject(Object* callee, int length);
 
   // Same as NewNumberFromDouble, but may return a preallocated/immutable
   // number object (e.g., minus_zero_value_, nan_value_)
-  static Object* NumberFromDouble(double value,
-                                  PretenureFlag pretenure = NOT_TENURED);
+  Object* NumberFromDouble(double value,
+                           PretenureFlag pretenure = NOT_TENURED);
 
   // Allocated a HeapNumber from value.
-  static Object* AllocateHeapNumber(double value, PretenureFlag pretenure);
-  static Object* AllocateHeapNumber(double value);  // pretenure = NOT_TENURED
+  Object* AllocateHeapNumber(double value, PretenureFlag pretenure);
+  Object* AllocateHeapNumber(double value);  // pretenure = NOT_TENURED
 
   // Converts an int into either a Smi or a HeapNumber object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static inline Object* NumberFromInt32(int32_t value);
+  inline Object* NumberFromInt32(int32_t value);
 
   // Converts an int into either a Smi or a HeapNumber object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static inline Object* NumberFromUint32(uint32_t value);
+  inline Object* NumberFromUint32(uint32_t value);
 
   // Allocates a new proxy object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateProxy(Address proxy,
-                               PretenureFlag pretenure = NOT_TENURED);
+  Object* AllocateProxy(Address proxy,
+                        PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a new SharedFunctionInfo object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateSharedFunctionInfo(Object* name);
+  Object* AllocateSharedFunctionInfo(Object* name);
 
   // Allocates a new cons string object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateConsString(String* first, String* second);
+  Object* AllocateConsString(String* first, String* second);
 
   // Allocates a new sub string object which is a substring of an underlying
   // string buffer stretching from the index start (inclusive) to the index
@@ -584,37 +584,37 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateSubString(String* buffer,
-                                   int start,
-                                   int end,
-                                   PretenureFlag pretenure = NOT_TENURED);
+  Object* AllocateSubString(String* buffer,
+                            int start,
+                            int end,
+                            PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a new external string object, which is backed by a string
   // resource that resides outside the V8 heap.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateExternalStringFromAscii(
+  Object* AllocateExternalStringFromAscii(
       ExternalAsciiString::Resource* resource);
-  static Object* AllocateExternalStringFromTwoByte(
+  Object* AllocateExternalStringFromTwoByte(
       ExternalTwoByteString::Resource* resource);
 
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.
-  static inline void FinalizeExternalString(String* string);
+  inline void FinalizeExternalString(String* string);
 
   // Allocates an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  static inline Object* AllocateRaw(int size_in_bytes,
-                                    AllocationSpace space,
-                                    AllocationSpace retry_space);
+  inline Object* AllocateRaw(int size_in_bytes,
+                             AllocationSpace space,
+                             AllocationSpace retry_space);
 
   // Initialize a filler object to keep the ability to iterate over the heap
   // when shortening objects.
-  static void CreateFillerObjectAt(Address addr, int size);
+  void CreateFillerObjectAt(Address addr, int size);
 
   // Makes a new native code object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -622,33 +622,33 @@ class Heap {
   // self_reference. This allows generated code to reference its own Code
   // object by containing this pointer.
   // Please note this function does not perform a garbage collection.
-  static Object* CreateCode(const CodeDesc& desc,
-                            ZoneScopeInfo* sinfo,
-                            Code::Flags flags,
-                            Handle<Object> self_reference);
+  Object* CreateCode(const CodeDesc& desc,
+                     ZoneScopeInfo* sinfo,
+                     Code::Flags flags,
+                     Handle<Object> self_reference);
 
-  static Object* CopyCode(Code* code);
+  Object* CopyCode(Code* code);
 
   // Copy the code and scope info part of the code object, but insert
   // the provided data as the relocation information.
-  static Object* CopyCode(Code* code, Vector<byte> reloc_info);
+  Object* CopyCode(Code* code, Vector<byte> reloc_info);
 
   // Finds the symbol for string in the symbol table.
   // If not found, a new symbol is added to the table and returned.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  static Object* LookupSymbol(Vector<const char> str);
-  static Object* LookupAsciiSymbol(const char* str) {
+  Object* LookupSymbol(Vector<const char> str);
+  Object* LookupAsciiSymbol(const char* str) {
     return LookupSymbol(CStrVector(str));
   }
-  static Object* LookupSymbol(String* str);
-  static bool LookupSymbolIfExists(String* str, String** symbol);
-  static bool LookupTwoCharsSymbolIfExists(String* str, String** symbol);
+  Object* LookupSymbol(String* str);
+  bool LookupSymbolIfExists(String* str, String** symbol);
+  bool LookupTwoCharsSymbolIfExists(String* str, String** symbol);
 
   // Compute the matching symbol map for a string if possible.
   // NULL is returned if string is in new space or not flattened.
-  static Map* SymbolMapForString(String* str);
+  Map* SymbolMapForString(String* str);
 
   // Tries to flatten a string before compare operation.
   //
@@ -657,10 +657,10 @@ class Heap {
   // string might stay non-flat even when not a failure is returned.
   //
   // Please note this function does not perform a garbage collection.
-  static inline Object* PrepareForCompare(String* str);
+  inline Object* PrepareForCompare(String* str);
 
   // Converts the given boolean condition to JavaScript boolean value.
-  static inline Object* ToBoolean(bool condition);
+  inline Object* ToBoolean(bool condition);
 
   // Code that should be run before and after each GC.  Includes some
   // reporting/verification activities when compiled with DEBUG set.
@@ -732,7 +732,7 @@ class Heap {
 
   // The hidden_symbol is special because it is the empty string, but does
   // not match the empty string.
-  static String* hidden_symbol() { return hidden_symbol_; }
+  String* hidden_symbol() { return hidden_symbol_; }
 
   // Iterates over all roots in the heap.
   static void IterateRoots(ObjectVisitor* v, VisitMode mode);
@@ -853,8 +853,8 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  static Object* CreateSymbol(const char* str, int length, int hash);
-  static Object* CreateSymbol(String* str);
+  Object* CreateSymbol(const char* str, int length, int hash);
+  Object* CreateSymbol(String* str);
 
   // Write barrier support for address[offset] = o.
   static inline void RecordWrite(Address address, int offset);
@@ -863,7 +863,7 @@ class Heap {
   static inline void RecordWrites(Address address, int start, int len);
 
   // Given an address occupied by a live code object, return that object.
-  static Object* FindCodeObject(Address a);
+  Object* FindCodeObject(Address a);
 
   // Invoke Shrink on shrinkable spaces.
   static void Shrink();
@@ -912,23 +912,23 @@ class Heap {
   // Support for the API.
   //
 
-  static bool CreateApiObjects();
+  bool CreateApiObjects();
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.
-  static Object* GetNumberStringCache(Object* number);
+  Object* GetNumberStringCache(Object* number);
 
   // Update the cache with a new number-string pair.
-  static void SetNumberStringCache(Object* number, String* str);
+  void SetNumberStringCache(Object* number, String* str);
 
   // Adjusts the amount of registered external memory.
   // Returns the adjusted value.
   static inline int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
 
   // Allocate uninitialized fixed array.
-  static Object* AllocateRawFixedArray(int length);
-  static Object* AllocateRawFixedArray(int length,
-                                       PretenureFlag pretenure);
+  Object* AllocateRawFixedArray(int length);
+  Object* AllocateRawFixedArray(int length,
+                                PretenureFlag pretenure);
 
   // True if we have reached the allocation limit in the old generation that
   // should force the next GC (caused normally) to be a full one.
@@ -971,8 +971,8 @@ class Heap {
     kRootListLength
   };
 
-  static Object* NumberToString(Object* number,
-                                bool check_number_string_cache = true);
+  Object* NumberToString(Object* number,
+                         bool check_number_string_cache = true);
 
   static Map* MapForExternalArrayType(ExternalArrayType array_type);
   static RootListIndex RootIndexForExternalArrayType(
@@ -1182,32 +1182,32 @@ class Heap {
   // to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that (a) it doesn't
   // have to test the allocation space argument and (b) can reduce code size
   // (since both AllocateRaw and AllocateRawMap are inlined).
-  static inline Object* AllocateRawMap();
+  inline Object* AllocateRawMap();
 
   // Allocate an uninitialized object in the global property cell space.
-  static inline Object* AllocateRawCell();
+  inline Object* AllocateRawCell();
 
   // Initializes a JSObject based on its map.
-  static void InitializeJSObjectFromMap(JSObject* obj,
-                                        FixedArray* properties,
-                                        Map* map);
+  void InitializeJSObjectFromMap(JSObject* obj,
+                                 FixedArray* properties,
+                                 Map* map);
 
-  static bool CreateInitialMaps();
-  static bool CreateInitialObjects();
+  bool CreateInitialMaps();
+  bool CreateInitialObjects();
 
   // These four Create*EntryStub functions are here because of a gcc-4.4 bug
   // that assigns wrong vtable entries.
-  static void CreateCEntryStub();
-  static void CreateJSEntryStub();
-  static void CreateJSConstructEntryStub();
-  static void CreateRegExpCEntryStub();
+  void CreateCEntryStub();
+  void CreateJSEntryStub();
+  void CreateJSConstructEntryStub();
+  void CreateRegExpCEntryStub();
 
-  static void CreateFixedStubs();
+  void CreateFixedStubs();
 
-  static Object* CreateOddball(const char* to_string, Object* to_number);
+  Object* CreateOddball(const char* to_string, Object* to_number);
 
   // Allocate empty fixed array.
-  static Object* AllocateEmptyFixedArray();
+  Object* AllocateEmptyFixedArray();
 
   // Performs a minor collection in new generation.
   static void Scavenge();
@@ -1254,17 +1254,17 @@ class Heap {
   // other parts of the VM could use it. Specifically, a function that creates
   // instances of type JS_FUNCTION_TYPE benefit from the use of this function.
   // Please note this does not perform a garbage collection.
-  static inline Object* InitializeFunction(JSFunction* function,
-                                           SharedFunctionInfo* shared,
-                                           Object* prototype);
+  inline Object* InitializeFunction(JSFunction* function,
+                                    SharedFunctionInfo* shared,
+                                    Object* prototype);
 
   static GCTracer* tracer_;
 
 
   // Initializes the number to string cache based on the max semispace size.
-  static Object* InitializeNumberStringCache();
+  Object* InitializeNumberStringCache();
   // Flush the number to string cache.
-  static void FlushNumberStringCache();
+  void FlushNumberStringCache();
 
   // Flush code from functions we do not expect to use again. The code will
   // be replaced with a lazy compilable version.
@@ -1842,7 +1842,7 @@ class TranscendentalCache {
       return e.output;
     }
     double answer = Calculate(input);
-    Object* heap_number = Heap::AllocateHeapNumber(answer);
+    Object* heap_number = heap_->AllocateHeapNumber(answer);
     if (!heap_number->IsFailure()) {
       elements_[hash].in[0] = c.integers[0];
       elements_[hash].in[1] = c.integers[1];
@@ -1903,6 +1903,7 @@ class TranscendentalCache {
   static TranscendentalCache* caches_[kNumberOfCaches];
   Element elements_[kCacheSize];
   Type type_;
+  Heap* heap_;
 };
 
 

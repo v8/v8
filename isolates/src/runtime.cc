@@ -98,11 +98,11 @@ namespace internal {
 static StaticResource<StringInputBuffer> runtime_string_input_buffer;
 
 
-static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
+static Object* DeepCopyBoilerplate(Heap* heap, JSObject* boilerplate) {
   StackLimitCheck check;
   if (check.HasOverflowed()) return Top::StackOverflow();
 
-  Object* result = Heap::CopyJSObject(boilerplate);
+  Object* result = heap->CopyJSObject(boilerplate);
   if (result->IsFailure()) return result;
   JSObject* copy = JSObject::cast(result);
 
@@ -113,7 +113,7 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
       Object* value = properties->get(i);
       if (value->IsJSObject()) {
         JSObject* js_object = JSObject::cast(value);
-        result = DeepCopyBoilerplate(js_object);
+        result = DeepCopyBoilerplate(heap, js_object);
         if (result->IsFailure()) return result;
         properties->set(i, result);
       }
@@ -123,13 +123,13 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
       Object* value = copy->InObjectPropertyAt(i);
       if (value->IsJSObject()) {
         JSObject* js_object = JSObject::cast(value);
-        result = DeepCopyBoilerplate(js_object);
+        result = DeepCopyBoilerplate(heap, js_object);
         if (result->IsFailure()) return result;
         copy->InObjectPropertyAtPut(i, result);
       }
     }
   } else {
-    result = Heap::AllocateFixedArray(copy->NumberOfLocalProperties(NONE));
+    result = heap->AllocateFixedArray(copy->NumberOfLocalProperties(NONE));
     if (result->IsFailure()) return result;
     FixedArray* names = FixedArray::cast(result);
     copy->GetLocalPropertyNames(names, 0);
@@ -146,7 +146,7 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
       ASSERT(!value->IsFailure());
       if (value->IsJSObject()) {
         JSObject* js_object = JSObject::cast(value);
-        result = DeepCopyBoilerplate(js_object);
+        result = DeepCopyBoilerplate(heap, js_object);
         if (result->IsFailure()) return result;
         result = copy->SetProperty(key_string, result, NONE);
         if (result->IsFailure()) return result;
@@ -164,7 +164,7 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
         Object* value = elements->get(i);
         if (value->IsJSObject()) {
           JSObject* js_object = JSObject::cast(value);
-          result = DeepCopyBoilerplate(js_object);
+          result = DeepCopyBoilerplate(heap, js_object);
           if (result->IsFailure()) return result;
           elements->set(i, result);
         }
@@ -180,7 +180,7 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
           Object* value = element_dictionary->ValueAt(i);
           if (value->IsJSObject()) {
             JSObject* js_object = JSObject::cast(value);
-            result = DeepCopyBoilerplate(js_object);
+            result = DeepCopyBoilerplate(heap, js_object);
             if (result->IsFailure()) return result;
             element_dictionary->ValueAtPut(i, result);
           }
@@ -198,13 +198,13 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
 
 static Object* Runtime_CloneLiteralBoilerplate(Arguments args) {
   CONVERT_CHECKED(JSObject, boilerplate, args[0]);
-  return DeepCopyBoilerplate(boilerplate);
+  return DeepCopyBoilerplate(HEAP, boilerplate);
 }
 
 
 static Object* Runtime_CloneShallowLiteralBoilerplate(Arguments args) {
   CONVERT_CHECKED(JSObject, boilerplate, args[0]);
-  return Heap::CopyJSObject(boilerplate);
+  return HEAP->CopyJSObject(boilerplate);
 }
 
 
@@ -403,7 +403,7 @@ static Object* Runtime_CreateObjectLiteral(Arguments args) {
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
-  return DeepCopyBoilerplate(JSObject::cast(*boilerplate));
+  return DeepCopyBoilerplate(HEAP, JSObject::cast(*boilerplate));
 }
 
 
@@ -426,7 +426,7 @@ static Object* Runtime_CreateObjectLiteralShallow(Arguments args) {
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
-  return Heap::CopyJSObject(JSObject::cast(*boilerplate));
+  return HEAP->CopyJSObject(JSObject::cast(*boilerplate));
 }
 
 
@@ -445,7 +445,7 @@ static Object* Runtime_CreateArrayLiteral(Arguments args) {
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
-  return DeepCopyBoilerplate(JSObject::cast(*boilerplate));
+  return DeepCopyBoilerplate(HEAP, JSObject::cast(*boilerplate));
 }
 
 
@@ -464,7 +464,7 @@ static Object* Runtime_CreateArrayLiteralShallow(Arguments args) {
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
   }
-  return Heap::CopyJSObject(JSObject::cast(*boilerplate));
+  return HEAP->CopyJSObject(JSObject::cast(*boilerplate));
 }
 
 
@@ -475,7 +475,7 @@ static Object* Runtime_CreateCatchExtensionObject(Arguments args) {
   // Create a catch context extension object.
   JSFunction* constructor =
       Top::context()->global_context()->context_extension_function();
-  Object* object = Heap::AllocateJSObject(constructor);
+  Object* object = HEAP->AllocateJSObject(constructor);
   if (object->IsFailure()) return object;
   // Assign the exception value to the catch variable and make sure
   // that the catch variable is DontDelete.
@@ -549,7 +549,7 @@ static Object* Runtime_IsConstructCall(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 0);
   JavaScriptFrameIterator it;
-  return Heap::ToBoolean(it.frame()->IsConstructor());
+  return HEAP->ToBoolean(it.frame()->IsConstructor());
 }
 
 
@@ -626,9 +626,9 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
       PropertyDetails details = dictionary->DetailsAt(entry);
       elms->set(IS_ACCESSOR_INDEX, HEAP->false_value());
       elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
-      elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsDontDelete()));
-      elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!details.IsDontEnum()));
-      elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
+      elms->set(WRITABLE_INDEX, HEAP->ToBoolean(!details.IsDontDelete()));
+      elms->set(ENUMERABLE_INDEX, HEAP->ToBoolean(!details.IsDontEnum()));
+      elms->set(CONFIGURABLE_INDEX, HEAP->ToBoolean(!details.IsReadOnly()));
       return *desc;
     } else {
       // Elements that are stored as array elements always has:
@@ -657,7 +657,7 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
           obj, structure, name, result.holder());
       elms->set(IS_ACCESSOR_INDEX, HEAP->false_value());
       elms->set(VALUE_INDEX, value);
-      elms->set(WRITABLE_INDEX, Heap::ToBoolean(!result.IsReadOnly()));
+      elms->set(WRITABLE_INDEX, HEAP->ToBoolean(!result.IsReadOnly()));
     } else if (structure->IsFixedArray()) {
       // __defineGetter__/__defineSetter__ callback.
       elms->set(IS_ACCESSOR_INDEX, HEAP->true_value());
@@ -669,11 +669,11 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
   } else {
     elms->set(IS_ACCESSOR_INDEX, HEAP->false_value());
     elms->set(VALUE_INDEX, result.GetLazyValue());
-    elms->set(WRITABLE_INDEX, Heap::ToBoolean(!result.IsReadOnly()));
+    elms->set(WRITABLE_INDEX, HEAP->ToBoolean(!result.IsReadOnly()));
   }
 
-  elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!result.IsDontEnum()));
-  elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!result.IsDontDelete()));
+  elms->set(ENUMERABLE_INDEX, HEAP->ToBoolean(!result.IsDontEnum()));
+  elms->set(CONFIGURABLE_INDEX, HEAP->ToBoolean(!result.IsDontDelete()));
   return *desc;
 }
 
@@ -1291,10 +1291,10 @@ static Object* Runtime_RegExpConstructResult(Arguments args) {
   if (elements_count > JSArray::kMaxFastElementsLength) {
     return Top::ThrowIllegalOperation();
   }
-  Object* new_object = Heap::AllocateFixedArrayWithHoles(elements_count);
+  Object* new_object = HEAP->AllocateFixedArrayWithHoles(elements_count);
   if (new_object->IsFailure()) return new_object;
   FixedArray* elements = FixedArray::cast(new_object);
-  new_object = Heap::AllocateRaw(JSRegExpResult::kSize,
+  new_object = HEAP->AllocateRaw(JSRegExpResult::kSize,
                                  NEW_SPACE,
                                  OLD_POINTER_SPACE);
   if (new_object->IsFailure()) return new_object;
@@ -1642,7 +1642,7 @@ static Object* CharFromCode(Object* char_code) {
   uint32_t code;
   if (char_code->ToArrayIndex(&code)) {
     if (code <= 0xffff) {
-      return Heap::LookupSingleCharacterStringFromCode(code);
+      return HEAP->LookupSingleCharacterStringFromCode(code);
     }
   }
   return HEAP->empty_string();
@@ -1888,12 +1888,12 @@ class ReplacementStringBuilder {
 
  private:
   Handle<String> NewRawAsciiString(int size) {
-    CALL_HEAP_FUNCTION(Heap::AllocateRawAsciiString(size), String);
+    CALL_HEAP_FUNCTION(HEAP->AllocateRawAsciiString(size), String);
   }
 
 
   Handle<String> NewRawTwoByteString(int size) {
-    CALL_HEAP_FUNCTION(Heap::AllocateRawTwoByteString(size), String);
+    CALL_HEAP_FUNCTION(HEAP->AllocateRawTwoByteString(size), String);
   }
 
 
@@ -3557,26 +3557,26 @@ static Object* Runtime_NumberToRadixString(Arguments args) {
       RUNTIME_ASSERT(radix <= 36);
       // Character array used for conversion.
       static const char kCharTable[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-      return Heap::LookupSingleCharacterStringFromCode(kCharTable[value]);
+      return HEAP->LookupSingleCharacterStringFromCode(kCharTable[value]);
     }
   }
 
   // Slow case.
   CONVERT_DOUBLE_CHECKED(value, args[0]);
   if (isnan(value)) {
-    return Heap::AllocateStringFromAscii(CStrVector("NaN"));
+    return HEAP->AllocateStringFromAscii(CStrVector("NaN"));
   }
   if (isinf(value)) {
     if (value < 0) {
-      return Heap::AllocateStringFromAscii(CStrVector("-Infinity"));
+      return HEAP->AllocateStringFromAscii(CStrVector("-Infinity"));
     }
-    return Heap::AllocateStringFromAscii(CStrVector("Infinity"));
+    return HEAP->AllocateStringFromAscii(CStrVector("Infinity"));
   }
   CONVERT_DOUBLE_CHECKED(radix_number, args[1]);
   int radix = FastD2I(radix_number);
   RUNTIME_ASSERT(2 <= radix && radix <= 36);
   char* str = DoubleToRadixCString(value, radix);
-  Object* result = Heap::AllocateStringFromAscii(CStrVector(str));
+  Object* result = HEAP->AllocateStringFromAscii(CStrVector(str));
   DeleteArray(str);
   return result;
 }
@@ -3588,19 +3588,19 @@ static Object* Runtime_NumberToFixed(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(value, args[0]);
   if (isnan(value)) {
-    return Heap::AllocateStringFromAscii(CStrVector("NaN"));
+    return HEAP->AllocateStringFromAscii(CStrVector("NaN"));
   }
   if (isinf(value)) {
     if (value < 0) {
-      return Heap::AllocateStringFromAscii(CStrVector("-Infinity"));
+      return HEAP->AllocateStringFromAscii(CStrVector("-Infinity"));
     }
-    return Heap::AllocateStringFromAscii(CStrVector("Infinity"));
+    return HEAP->AllocateStringFromAscii(CStrVector("Infinity"));
   }
   CONVERT_DOUBLE_CHECKED(f_number, args[1]);
   int f = FastD2I(f_number);
   RUNTIME_ASSERT(f >= 0);
   char* str = DoubleToFixedCString(value, f);
-  Object* res = Heap::AllocateStringFromAscii(CStrVector(str));
+  Object* res = HEAP->AllocateStringFromAscii(CStrVector(str));
   DeleteArray(str);
   return res;
 }
@@ -3612,19 +3612,19 @@ static Object* Runtime_NumberToExponential(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(value, args[0]);
   if (isnan(value)) {
-    return Heap::AllocateStringFromAscii(CStrVector("NaN"));
+    return HEAP->AllocateStringFromAscii(CStrVector("NaN"));
   }
   if (isinf(value)) {
     if (value < 0) {
-      return Heap::AllocateStringFromAscii(CStrVector("-Infinity"));
+      return HEAP->AllocateStringFromAscii(CStrVector("-Infinity"));
     }
-    return Heap::AllocateStringFromAscii(CStrVector("Infinity"));
+    return HEAP->AllocateStringFromAscii(CStrVector("Infinity"));
   }
   CONVERT_DOUBLE_CHECKED(f_number, args[1]);
   int f = FastD2I(f_number);
   RUNTIME_ASSERT(f >= -1 && f <= 20);
   char* str = DoubleToExponentialCString(value, f);
-  Object* res = Heap::AllocateStringFromAscii(CStrVector(str));
+  Object* res = HEAP->AllocateStringFromAscii(CStrVector(str));
   DeleteArray(str);
   return res;
 }
@@ -3636,19 +3636,19 @@ static Object* Runtime_NumberToPrecision(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(value, args[0]);
   if (isnan(value)) {
-    return Heap::AllocateStringFromAscii(CStrVector("NaN"));
+    return HEAP->AllocateStringFromAscii(CStrVector("NaN"));
   }
   if (isinf(value)) {
     if (value < 0) {
-      return Heap::AllocateStringFromAscii(CStrVector("-Infinity"));
+      return HEAP->AllocateStringFromAscii(CStrVector("-Infinity"));
     }
-    return Heap::AllocateStringFromAscii(CStrVector("Infinity"));
+    return HEAP->AllocateStringFromAscii(CStrVector("Infinity"));
   }
   CONVERT_DOUBLE_CHECKED(f_number, args[1]);
   int f = FastD2I(f_number);
   RUNTIME_ASSERT(f >= 1 && f <= 21);
   char* str = DoubleToPrecisionCString(value, f);
-  Object* res = Heap::AllocateStringFromAscii(CStrVector(str));
+  Object* res = HEAP->AllocateStringFromAscii(CStrVector(str));
   DeleteArray(str);
   return res;
 }
@@ -4160,11 +4160,11 @@ static Object* Runtime_IsPropertyEnumerable(Arguments args) {
 
   uint32_t index;
   if (key->AsArrayIndex(&index)) {
-    return Heap::ToBoolean(object->HasElement(index));
+    return HEAP->ToBoolean(object->HasElement(index));
   }
 
   PropertyAttributes att = object->GetLocalPropertyAttribute(key);
-  return Heap::ToBoolean(att != ABSENT && (att & DONT_ENUM) == 0);
+  return HEAP->ToBoolean(att != ABSENT && (att & DONT_ENUM) == 0);
 }
 
 
@@ -4287,7 +4287,7 @@ static Object* Runtime_GetLocalPropertyNames(Arguments args) {
     int dest_pos = 0;
     for (int i = 0; i < total_property_count; i++) {
       Object* name = old_names->get(i);
-      if (name == Heap::hidden_symbol()) {
+      if (name == HEAP->hidden_symbol()) {
         continue;
       }
       names->set(dest_pos++, name);
@@ -4569,7 +4569,7 @@ static Object* Runtime_StringToNumber(Arguments args) {
   }
 
   // Slower case.
-  return Heap::NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
+  return HEAP->NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
 }
 
 
@@ -4591,9 +4591,9 @@ static Object* Runtime_StringFromCharCodeArray(Arguments args) {
 
   Object* object = NULL;
   if (i == length) {  // The string is ASCII.
-    object = Heap::AllocateRawAsciiString(length);
+    object = HEAP->AllocateRawAsciiString(length);
   } else {  // The string is not ASCII.
-    object = Heap::AllocateRawTwoByteString(length);
+    object = HEAP->AllocateRawTwoByteString(length);
   }
 
   if (object->IsFailure()) return object;
@@ -4678,7 +4678,7 @@ static Object* Runtime_URIEscape(Arguments args) {
   if (escaped_length == length) {
     return source;
   }
-  Object* o = Heap::AllocateRawAsciiString(escaped_length);
+  Object* o = HEAP->AllocateRawAsciiString(escaped_length);
   if (o->IsFailure()) return o;
   String* destination = String::cast(o);
   int dest_position = 0;
@@ -4782,8 +4782,8 @@ static Object* Runtime_URIUnescape(Arguments args) {
     return source;
 
   Object* o = ascii ?
-              Heap::AllocateRawAsciiString(unescaped_length) :
-              Heap::AllocateRawTwoByteString(unescaped_length);
+              HEAP->AllocateRawAsciiString(unescaped_length) :
+              HEAP->AllocateRawTwoByteString(unescaped_length);
   if (o->IsFailure()) return o;
   String* destination = String::cast(o);
 
@@ -4807,7 +4807,7 @@ static Object* Runtime_StringParseInt(Arguments args) {
 
   RUNTIME_ASSERT(radix == 0 || (2 <= radix && radix <= 36));
   double value = StringToInt(s, radix);
-  return Heap::NumberFromDouble(value);
+  return HEAP->NumberFromDouble(value);
   return HEAP->nan_value();
 }
 
@@ -4820,7 +4820,7 @@ static Object* Runtime_StringParseFloat(Arguments args) {
   double value = StringToDouble(str, ALLOW_TRAILING_JUNK, OS::nan_value());
 
   // Create a number object from the value.
-  return Heap::NumberFromDouble(value);
+  return HEAP->NumberFromDouble(value);
 }
 
 
@@ -4845,8 +4845,8 @@ static Object* ConvertCaseHelper(String* s,
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
   Object* o = s->IsAsciiRepresentation()
-      ? Heap::AllocateRawAsciiString(length)
-      : Heap::AllocateRawTwoByteString(length);
+      ? HEAP->AllocateRawAsciiString(length)
+      : HEAP->AllocateRawTwoByteString(length);
   if (o->IsFailure()) return o;
   String* result = String::cast(o);
   bool has_changed_character = false;
@@ -4997,7 +4997,7 @@ static Object* ConvertCase(
   // dependent upper/lower conversions.
   SeqAsciiString* seq_ascii = TryGetSeqAsciiString(s);
   if (seq_ascii != NULL) {
-    Object* o = Heap::AllocateRawAsciiString(length);
+    Object* o = HEAP->AllocateRawAsciiString(length);
     if (o->IsFailure()) return o;
     SeqAsciiString* result = SeqAsciiString::cast(o);
     bool has_changed_character = ConvertTraits::ConvertAscii(
@@ -5264,7 +5264,7 @@ static Object* Runtime_StringToArray(Arguments args) {
 
   Handle<FixedArray> elements;
   if (s->IsFlat() && s->IsAsciiRepresentation()) {
-    Object* obj = Heap::AllocateUninitializedFixedArray(length);
+    Object* obj = HEAP->AllocateUninitializedFixedArray(length);
     if (obj->IsFailure()) return obj;
     elements = Handle<FixedArray>(FixedArray::cast(obj));
 
@@ -5309,7 +5309,7 @@ static Object* Runtime_NumberToString(Arguments args) {
   Object* number = args[0];
   RUNTIME_ASSERT(number->IsNumber());
 
-  return Heap::NumberToString(number);
+  return HEAP->NumberToString(number);
 }
 
 
@@ -5320,7 +5320,7 @@ static Object* Runtime_NumberToStringSkipCache(Arguments args) {
   Object* number = args[0];
   RUNTIME_ASSERT(number->IsNumber());
 
-  return Heap::NumberToString(number, false);
+  return HEAP->NumberToString(number, false);
 }
 
 
@@ -5334,7 +5334,7 @@ static Object* Runtime_NumberToInteger(Arguments args) {
   if (number > 0 && number <= Smi::kMaxValue) {
     return Smi::FromInt(static_cast<int>(number));
   }
-  return Heap::NumberFromDouble(DoubleToInteger(number));
+  return HEAP->NumberFromDouble(DoubleToInteger(number));
 }
 
 
@@ -5356,7 +5356,7 @@ static Object* Runtime_NumberToIntegerMapMinusZero(Arguments args) {
   // Map both -0 and +0 to +0.
   if (double_value == 0) double_value = 0;
 
-  return Heap::NumberFromDouble(double_value);
+  return HEAP->NumberFromDouble(double_value);
 }
 
 
@@ -5365,7 +5365,7 @@ static Object* Runtime_NumberToJSUint32(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_NUMBER_CHECKED(int32_t, number, Uint32, args[0]);
-  return Heap::NumberFromUint32(number);
+  return HEAP->NumberFromUint32(number);
 }
 
 
@@ -5379,7 +5379,7 @@ static Object* Runtime_NumberToJSInt32(Arguments args) {
   if (number > 0 && number <= Smi::kMaxValue) {
     return Smi::FromInt(static_cast<int>(number));
   }
-  return Heap::NumberFromInt32(DoubleToInt32(number));
+  return HEAP->NumberFromInt32(DoubleToInt32(number));
 }
 
 
@@ -5410,7 +5410,7 @@ static Object* Runtime_NumberAdd(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::AllocateHeapNumber(x + y);
+  return HEAP->AllocateHeapNumber(x + y);
 }
 
 
@@ -5420,7 +5420,7 @@ static Object* Runtime_NumberSub(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::AllocateHeapNumber(x - y);
+  return HEAP->AllocateHeapNumber(x - y);
 }
 
 
@@ -5430,7 +5430,7 @@ static Object* Runtime_NumberMul(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::AllocateHeapNumber(x * y);
+  return HEAP->AllocateHeapNumber(x * y);
 }
 
 
@@ -5439,7 +5439,7 @@ static Object* Runtime_NumberUnaryMinus(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(-x);
+  return HEAP->AllocateHeapNumber(-x);
 }
 
 
@@ -5449,7 +5449,7 @@ static Object* Runtime_NumberDiv(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::NumberFromDouble(x / y);
+  return HEAP->NumberFromDouble(x / y);
 }
 
 
@@ -5462,7 +5462,7 @@ static Object* Runtime_NumberMod(Arguments args) {
 
   x = modulo(x, y);
   // NumberFromDouble may return a Smi instead of a Number object
-  return Heap::NumberFromDouble(x);
+  return HEAP->NumberFromDouble(x);
 }
 
 
@@ -5472,7 +5472,7 @@ static Object* Runtime_StringAdd(Arguments args) {
   CONVERT_CHECKED(String, str1, args[0]);
   CONVERT_CHECKED(String, str2, args[1]);
   Counters::string_add_runtime.Increment();
-  return Heap::AllocateConsString(str1, str2);
+  return HEAP->AllocateConsString(str1, str2);
 }
 
 
@@ -5603,7 +5603,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
   Object* object;
 
   if (ascii) {
-    object = Heap::AllocateRawAsciiString(length);
+    object = HEAP->AllocateRawAsciiString(length);
     if (object->IsFailure()) return object;
     SeqAsciiString* answer = SeqAsciiString::cast(object);
     StringBuilderConcatHelper(special,
@@ -5612,7 +5612,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
                               array_length);
     return answer;
   } else {
-    object = Heap::AllocateRawTwoByteString(length);
+    object = HEAP->AllocateRawTwoByteString(length);
     if (object->IsFailure()) return object;
     SeqTwoByteString* answer = SeqTwoByteString::cast(object);
     StringBuilderConcatHelper(special,
@@ -5630,7 +5630,7 @@ static Object* Runtime_NumberOr(Arguments args) {
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return Heap::NumberFromInt32(x | y);
+  return HEAP->NumberFromInt32(x | y);
 }
 
 
@@ -5640,7 +5640,7 @@ static Object* Runtime_NumberAnd(Arguments args) {
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return Heap::NumberFromInt32(x & y);
+  return HEAP->NumberFromInt32(x & y);
 }
 
 
@@ -5650,7 +5650,7 @@ static Object* Runtime_NumberXor(Arguments args) {
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return Heap::NumberFromInt32(x ^ y);
+  return HEAP->NumberFromInt32(x ^ y);
 }
 
 
@@ -5659,7 +5659,7 @@ static Object* Runtime_NumberNot(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  return Heap::NumberFromInt32(~x);
+  return HEAP->NumberFromInt32(~x);
 }
 
 
@@ -5669,7 +5669,7 @@ static Object* Runtime_NumberShl(Arguments args) {
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return Heap::NumberFromInt32(x << (y & 0x1f));
+  return HEAP->NumberFromInt32(x << (y & 0x1f));
 }
 
 
@@ -5679,7 +5679,7 @@ static Object* Runtime_NumberShr(Arguments args) {
 
   CONVERT_NUMBER_CHECKED(uint32_t, x, Uint32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return Heap::NumberFromUint32(x >> (y & 0x1f));
+  return HEAP->NumberFromUint32(x >> (y & 0x1f));
 }
 
 
@@ -5689,7 +5689,7 @@ static Object* Runtime_NumberSar(Arguments args) {
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return Heap::NumberFromInt32(ArithmeticShiftRight(x, y & 0x1f));
+  return HEAP->NumberFromInt32(ArithmeticShiftRight(x, y & 0x1f));
 }
 
 
@@ -5885,9 +5885,9 @@ static Object* Runtime_StringCompare(Arguments args) {
   if (d < 0) return Smi::FromInt(LESS);
   else if (d > 0) return Smi::FromInt(GREATER);
 
-  Object* obj = Heap::PrepareForCompare(x);
+  Object* obj = HEAP->PrepareForCompare(x);
   if (obj->IsFailure()) return obj;
-  obj = Heap::PrepareForCompare(y);
+  obj = HEAP->PrepareForCompare(y);
   if (obj->IsFailure()) return obj;
 
   return (x->IsFlat() && y->IsFlat()) ? FlatStringCompare(x, y)
@@ -5945,7 +5945,7 @@ static Object* Runtime_Math_atan2(Arguments args) {
   } else {
     result = atan2(x, y);
   }
-  return Heap::AllocateHeapNumber(result);
+  return HEAP->AllocateHeapNumber(result);
 }
 
 
@@ -5955,7 +5955,7 @@ static Object* Runtime_Math_ceil(Arguments args) {
   Counters::math_ceil.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::NumberFromDouble(ceiling(x));
+  return HEAP->NumberFromDouble(ceiling(x));
 }
 
 
@@ -5985,7 +5985,7 @@ static Object* Runtime_Math_floor(Arguments args) {
   Counters::math_floor.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::NumberFromDouble(floor(x));
+  return HEAP->NumberFromDouble(floor(x));
 }
 
 
@@ -6041,7 +6041,7 @@ static Object* Runtime_Math_pow(Arguments args) {
   // custom powi() function than the generic pow().
   if (args[1]->IsSmi()) {
     int y = Smi::cast(args[1])->value();
-    return Heap::AllocateHeapNumber(powi(x, y));
+    return HEAP->AllocateHeapNumber(powi(x, y));
   }
 
   CONVERT_DOUBLE_CHECKED(y, args[1]);
@@ -6052,10 +6052,10 @@ static Object* Runtime_Math_pow(Arguments args) {
       // square root of a number. To speed up such computations, we
       // explictly check for this case and use the sqrt() function
       // which is faster than pow().
-      return Heap::AllocateHeapNumber(sqrt(x));
+      return HEAP->AllocateHeapNumber(sqrt(x));
     } else if (y == -0.5) {
       // Optimized using Math.pow(x, -0.5) == 1 / Math.pow(x, 0.5).
-      return Heap::AllocateHeapNumber(1.0 / sqrt(x));
+      return HEAP->AllocateHeapNumber(1.0 / sqrt(x));
     }
   }
 
@@ -6064,7 +6064,7 @@ static Object* Runtime_Math_pow(Arguments args) {
   } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
     return HEAP->nan_value();
   } else {
-    return Heap::AllocateHeapNumber(pow(x, y));
+    return HEAP->AllocateHeapNumber(pow(x, y));
   }
 }
 
@@ -6080,7 +6080,7 @@ static Object* Runtime_Math_pow_cfunction(Arguments args) {
   } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
       return HEAP->nan_value();
   } else {
-      return Heap::AllocateHeapNumber(pow(x, y));
+      return HEAP->AllocateHeapNumber(pow(x, y));
   }
 }
 
@@ -6117,7 +6117,7 @@ static Object* Runtime_RoundNumber(Arguments args) {
   if (sign && value >= -0.5) return HEAP->minus_zero_value();
 
   // Do not call NumberFromDouble() to avoid extra checks.
-  return Heap::AllocateHeapNumber(floor(value + 0.5));
+  return HEAP->AllocateHeapNumber(floor(value + 0.5));
 }
 
 
@@ -6137,7 +6137,7 @@ static Object* Runtime_Math_sqrt(Arguments args) {
   Counters::math_sqrt.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(sqrt(x));
+  return HEAP->AllocateHeapNumber(sqrt(x));
 }
 
 
@@ -6521,12 +6521,12 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
   Object** parameters = reinterpret_cast<Object**>(args[1]);
   const int length = Smi::cast(args[2])->value();
 
-  Object* result = Heap::AllocateArgumentsObject(callee, length);
+  Object* result = HEAP->AllocateArgumentsObject(callee, length);
   if (result->IsFailure()) return result;
   // Allocate the elements if needed.
   if (length > 0) {
     // Allocate the fixed array.
-    Object* obj = Heap::AllocateRawFixedArray(length);
+    Object* obj = HEAP->AllocateRawFixedArray(length);
     if (obj->IsFailure()) return obj;
 
     AssertNoAllocation no_gc;
@@ -6696,7 +6696,7 @@ static Object* Runtime_NewContext(Arguments args) {
 
   CONVERT_CHECKED(JSFunction, function, args[0]);
   int length = ScopeInfo<>::NumberOfContextSlots(function->code());
-  Object* result = Heap::AllocateFunctionContext(length, function);
+  Object* result = HEAP->AllocateFunctionContext(length, function);
   if (result->IsFailure()) return result;
 
   Top::set_context(Context::cast(result));
@@ -6720,7 +6720,7 @@ static Object* PushContextHelper(Object* object, bool is_catch_context) {
   }
 
   Object* result =
-      Heap::AllocateWithContext(Top::context(),
+      HEAP->AllocateWithContext(Top::context(),
                                 JSObject::cast(js_object),
                                 is_catch_context);
   if (result->IsFailure()) return result;
@@ -7155,7 +7155,7 @@ static Object* Runtime_DateCurrentTime(Arguments args) {
   // time is milliseconds. Therefore, we floor the result of getting
   // the OS time.
   double millis = floor(OS::TimeCurrentMillis());
-  return Heap::NumberFromDouble(millis);
+  return HEAP->NumberFromDouble(millis);
 }
 
 
@@ -7195,7 +7195,7 @@ static Object* Runtime_DateLocalTimezone(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   const char* zone = OS::LocalTimezone(x);
-  return Heap::AllocateStringFromUtf8(CStrVector(zone));
+  return HEAP->AllocateStringFromUtf8(CStrVector(zone));
 }
 
 
@@ -7203,7 +7203,7 @@ static Object* Runtime_DateLocalTimeOffset(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 0);
 
-  return Heap::NumberFromDouble(OS::LocalTimeOffset());
+  return HEAP->NumberFromDouble(OS::LocalTimeOffset());
 }
 
 
@@ -7212,7 +7212,7 @@ static Object* Runtime_DateDaylightSavingsOffset(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::NumberFromDouble(OS::DaylightSavingsOffset(x));
+  return HEAP->NumberFromDouble(OS::DaylightSavingsOffset(x));
 }
 
 
@@ -7470,14 +7470,14 @@ static uint32_t IterateExternalArrayElements(Handle<JSObject> receiver,
             visitor->visit(j, e);
           } else {
             Handle<Object> e(
-                Heap::AllocateHeapNumber(static_cast<ElementType>(val)));
+                HEAP->AllocateHeapNumber(static_cast<ElementType>(val)));
             visitor->visit(j, e);
           }
         }
       }
     } else {
       for (uint32_t j = 0; j < len; j++) {
-        Handle<Object> e(Heap::AllocateHeapNumber(array->get(j)));
+        Handle<Object> e(HEAP->AllocateHeapNumber(array->get(j)));
         visitor->visit(j, e);
       }
     }
@@ -8379,11 +8379,11 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   }
 
   // Add the constructor information.
-  details->set(kFrameDetailsConstructCallIndex, Heap::ToBoolean(constructor));
+  details->set(kFrameDetailsConstructCallIndex, HEAP->ToBoolean(constructor));
 
   // Add information on whether this frame is invoked in the debugger context.
   details->set(kFrameDetailsDebuggerFrameIndex,
-               Heap::ToBoolean(*save->context() == *Debug::debug_context()));
+               HEAP->ToBoolean(*save->context() == *Debug::debug_context()));
 
   // Fill the dynamic part.
   int details_index = kFrameDetailsFirstDynamicIndex;
@@ -9571,7 +9571,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
                             NULL, 0, arguments_function);
 
   // Allocate an array to hold the result.
-  Object* object = Heap::AllocateFixedArray(count);
+  Object* object = HEAP->AllocateFixedArray(count);
   if (object->IsFailure()) return object;
   FixedArray* instances = FixedArray::cast(object);
 
@@ -9581,7 +9581,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
 
   // Return result as JS array.
   Object* result =
-      Heap::AllocateJSObject(
+      HEAP->AllocateJSObject(
           Top::context()->global_context()->array_function());
   if (!result->IsFailure()) JSArray::cast(result)->SetContent(instances);
   return result;
@@ -9637,7 +9637,7 @@ static Object* Runtime_DebugConstructedBy(Arguments args) {
   count = DebugConstructedBy(constructor, max_references, NULL, 0);
 
   // Allocate an array to hold the result.
-  Object* object = Heap::AllocateFixedArray(count);
+  Object* object = HEAP->AllocateFixedArray(count);
   if (object->IsFailure()) return object;
   FixedArray* instances = FixedArray::cast(object);
 
@@ -9646,7 +9646,7 @@ static Object* Runtime_DebugConstructedBy(Arguments args) {
 
   // Return result as JS array.
   Object* result =
-      Heap::AllocateJSObject(
+      HEAP->AllocateJSObject(
           Top::context()->global_context()->array_function());
   if (!result->IsFailure()) JSArray::cast(result)->SetContent(instances);
   return result;
@@ -10131,7 +10131,7 @@ static Object* Runtime_GetV8Version(Arguments args) {
 
   const char* version_string = v8::V8::GetVersion();
 
-  return Heap::AllocateStringFromAscii(CStrVector(version_string), NOT_TENURED);
+  return HEAP->AllocateStringFromAscii(CStrVector(version_string), NOT_TENURED);
 }
 
 
