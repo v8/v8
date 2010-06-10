@@ -75,7 +75,7 @@ TEST(Promotion) {
   // from new space.
   FLAG_gc_global = true;
   FLAG_always_compact = true;
-  Heap::ConfigureHeap(2*256*KB, 4*MB);
+  HEAP->ConfigureHeap(2*256*KB, 4*MB);
 
   InitializeVM();
 
@@ -83,7 +83,7 @@ TEST(Promotion) {
 
   // Allocate a fixed array in the new space.
   int array_size =
-      (Heap::MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
+      (HEAP->MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
       (kPointerSize * 4);
   Object* obj = HEAP->AllocateFixedArray(array_size);
   CHECK(!obj->IsFailure());
@@ -91,18 +91,18 @@ TEST(Promotion) {
   Handle<FixedArray> array(FixedArray::cast(obj));
 
   // Array should be in the new space.
-  CHECK(Heap::InSpace(*array, NEW_SPACE));
+  CHECK(HEAP->InSpace(*array, NEW_SPACE));
 
   // Call the m-c collector, so array becomes an old object.
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   // Array now sits in the old space
-  CHECK(Heap::InSpace(*array, OLD_POINTER_SPACE));
+  CHECK(HEAP->InSpace(*array, OLD_POINTER_SPACE));
 }
 
 
 TEST(NoPromotion) {
-  Heap::ConfigureHeap(2*256*KB, 4*MB);
+  HEAP->ConfigureHeap(2*256*KB, 4*MB);
 
   // Test the situation that some objects in new space are promoted to
   // the old space
@@ -111,17 +111,17 @@ TEST(NoPromotion) {
   v8::HandleScope sc;
 
   // Do a mark compact GC to shrink the heap.
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   // Allocate a big Fixed array in the new space.
-  int size = (Heap::MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
+  int size = (HEAP->MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
       kPointerSize;
   Object* obj = HEAP->AllocateFixedArray(size);
 
   Handle<FixedArray> array(FixedArray::cast(obj));
 
   // Array still stays in the new space.
-  CHECK(Heap::InSpace(*array, NEW_SPACE));
+  CHECK(HEAP->InSpace(*array, NEW_SPACE));
 
   // Allocate objects in the old space until out of memory.
   FixedArray* host = *array;
@@ -134,10 +134,10 @@ TEST(NoPromotion) {
   }
 
   // Call mark compact GC, and it should pass.
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   // array should not be promoted because the old space is full.
-  CHECK(Heap::InSpace(*array, NEW_SPACE));
+  CHECK(HEAP->InSpace(*array, NEW_SPACE));
 }
 
 
@@ -146,7 +146,7 @@ TEST(MarkCompactCollector) {
 
   v8::HandleScope sc;
   // call mark-compact when heap is empty
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   // keep allocating garbage in new space until it fails
   const int ARRAY_SIZE = 100;
@@ -154,7 +154,7 @@ TEST(MarkCompactCollector) {
   do {
     array = HEAP->AllocateFixedArray(ARRAY_SIZE);
   } while (!array->IsFailure());
-  CHECK(Heap::CollectGarbage(0, NEW_SPACE));
+  CHECK(HEAP->CollectGarbage(0, NEW_SPACE));
 
   array = HEAP->AllocateFixedArray(ARRAY_SIZE);
   CHECK(!array->IsFailure());
@@ -164,7 +164,7 @@ TEST(MarkCompactCollector) {
   do {
     mapp = HEAP->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   } while (!mapp->IsFailure());
-  CHECK(Heap::CollectGarbage(0, MAP_SPACE));
+  CHECK(HEAP->CollectGarbage(0, MAP_SPACE));
   mapp = HEAP->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   CHECK(!mapp->IsFailure());
 
@@ -182,7 +182,7 @@ TEST(MarkCompactCollector) {
   Top::context()->global()->SetProperty(func_name, function, NONE);
 
   JSObject* obj = JSObject::cast(HEAP->AllocateJSObject(function));
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   func_name = String::cast(HEAP->LookupAsciiSymbol("theFunction"));
   CHECK(Top::context()->global()->HasLocalProperty(func_name));
@@ -196,7 +196,7 @@ TEST(MarkCompactCollector) {
   String* prop_name = String::cast(HEAP->LookupAsciiSymbol("theSlot"));
   obj->SetProperty(prop_name, Smi::FromInt(23), NONE);
 
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   obj_name = String::cast(HEAP->LookupAsciiSymbol("theObject"));
   CHECK(Top::context()->global()->HasLocalProperty(obj_name));
@@ -225,15 +225,15 @@ TEST(MapCompact) {
       Handle<Map> map = CreateMap();
       map->set_prototype(*root);
       root = Factory::NewJSObjectFromMap(map);
-    } while (Heap::map_space()->MapPointersEncodable());
+    } while (HEAP->map_space()->MapPointersEncodable());
   }
   // Now, as we don't have any handles to just allocated maps, we should
   // be able to trigger map compaction.
   // To give an additional chance to fail, try to force compaction which
   // should be impossible right now.
-  Heap::CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
   // And now map pointers should be encodable again.
-  CHECK(Heap::map_space()->MapPointersEncodable());
+  CHECK(HEAP->map_space()->MapPointersEncodable());
 }
 
 
@@ -255,16 +255,16 @@ static void GCEpilogueCallbackFunc() {
 TEST(GCCallback) {
   InitializeVM();
 
-  Heap::SetGlobalGCPrologueCallback(&GCPrologueCallbackFunc);
-  Heap::SetGlobalGCEpilogueCallback(&GCEpilogueCallbackFunc);
+  HEAP->SetGlobalGCPrologueCallback(&GCPrologueCallbackFunc);
+  HEAP->SetGlobalGCEpilogueCallback(&GCEpilogueCallbackFunc);
 
   // Scavenge does not call GC callback functions.
-  Heap::PerformScavenge();
+  HEAP->PerformScavenge();
 
   CHECK_EQ(0, gc_starts);
   CHECK_EQ(gc_ends, gc_starts);
 
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
   CHECK_EQ(1, gc_starts);
   CHECK_EQ(gc_ends, gc_starts);
 }
@@ -316,7 +316,7 @@ TEST(ObjectGroups) {
     GlobalHandles::AddGroup(g2_objects, 2);
   }
   // Do a full GC
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   // All object should be alive.
   CHECK_EQ(0, NumberOfWeakCalls);
@@ -334,7 +334,7 @@ TEST(ObjectGroups) {
     GlobalHandles::AddGroup(g2_objects, 2);
   }
 
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   // All objects should be gone. 5 global handles in total.
   CHECK_EQ(5, NumberOfWeakCalls);

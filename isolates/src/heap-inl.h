@@ -378,7 +378,7 @@ void Heap::SetLastScriptId(Object* last_script_id) {
 
 
 #define GC_GREEDY_CHECK() \
-  ASSERT(!FLAG_gc_greedy || v8::internal::Heap::GarbageCollectionGreedyCheck())
+  ASSERT(!FLAG_gc_greedy || HEAP->GarbageCollectionGreedyCheck())
 
 
 // Calls the FUNCTION_CALL function and retries it up to three times
@@ -397,7 +397,7 @@ void Heap::SetLastScriptId(Object* last_script_id) {
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0");      \
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
-    Heap::CollectGarbage(Failure::cast(__object__)->requested(),          \
+    HEAP->CollectGarbage(Failure::cast(__object__)->requested(),          \
                          Failure::cast(__object__)->allocation_space());  \
     __object__ = FUNCTION_CALL;                                           \
     if (!__object__->IsFailure()) RETURN_VALUE;                           \
@@ -406,7 +406,7 @@ void Heap::SetLastScriptId(Object* last_script_id) {
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
     Counters::gc_last_resort_from_handles.Increment();                    \
-    Heap::CollectAllGarbage(false);                                       \
+    HEAP->CollectAllGarbage(false);                                       \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
       __object__ = FUNCTION_CALL;                                         \
@@ -446,7 +446,7 @@ inline bool Heap::allow_allocation(bool new_state) {
 
 void ExternalStringTable::AddString(String* string) {
   ASSERT(string->IsExternalString());
-  if (Heap::InNewSpace(string)) {
+  if (HEAP->InNewSpace(string)) {
     new_space_strings_.Add(string);
   } else {
     old_space_strings_.Add(string);
@@ -471,11 +471,11 @@ void ExternalStringTable::Iterate(ObjectVisitor* v) {
 void ExternalStringTable::Verify() {
 #ifdef DEBUG
   for (int i = 0; i < new_space_strings_.length(); ++i) {
-    ASSERT(Heap::InNewSpace(new_space_strings_[i]));
+    ASSERT(HEAP->InNewSpace(new_space_strings_[i]));
     ASSERT(new_space_strings_[i] != HEAP->raw_unchecked_null_value());
   }
   for (int i = 0; i < old_space_strings_.length(); ++i) {
-    ASSERT(!Heap::InNewSpace(old_space_strings_[i]));
+    ASSERT(!HEAP->InNewSpace(old_space_strings_[i]));
     ASSERT(old_space_strings_[i] != HEAP->raw_unchecked_null_value());
   }
 #endif
@@ -484,7 +484,7 @@ void ExternalStringTable::Verify() {
 
 void ExternalStringTable::AddOldString(String* string) {
   ASSERT(string->IsExternalString());
-  ASSERT(!Heap::InNewSpace(string));
+  ASSERT(!HEAP->InNewSpace(string));
   old_space_strings_.Add(string);
 }
 
@@ -508,6 +508,11 @@ Object* Heap::ToBoolean(bool condition) {
 void Heap::CompletelyClearInstanceofCache() {
   set_instanceof_cache_map(HEAP->the_hole_value());
   set_instanceof_cache_function(HEAP->the_hole_value());
+}
+
+
+Heap* _inline_get_heap_() {
+  return HEAP;
 }
 
 

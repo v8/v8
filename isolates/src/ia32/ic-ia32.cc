@@ -572,7 +572,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
   // Check that the elements array is the appropriate type of
   // ExternalArray.
   __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
-  Handle<Map> map(Heap::MapForExternalArrayType(array_type));
+  Handle<Map> map(HEAP->MapForExternalArrayType(array_type));
   __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
          Immediate(map));
   __ j(not_equal, &slow, not_taken);
@@ -886,7 +886,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   // edx: receiver, a JSObject
   // ecx: key, a smi
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-  __ CheckMap(edi, Handle<Map>(Heap::MapForExternalArrayType(array_type)),
+  __ CheckMap(edi, Handle<Map>(HEAP->MapForExternalArrayType(array_type)),
               &slow, true);
 
   // Check that the index is in range.

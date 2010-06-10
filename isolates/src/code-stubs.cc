@@ -115,7 +115,7 @@ Handle<Code> CodeStub::GetCode() {
               Handle<NumberDictionary>(HEAP->code_stubs()),
               GetKey(),
               new_object);
-      Heap::public_set_code_stubs(*dict);
+      HEAP->public_set_code_stubs(*dict);
     }
     code = *new_object;
   }
@@ -152,7 +152,7 @@ Object* CodeStub::TryGetCode() {
       // Try to update the code cache but do not fail if unable.
       new_object = HEAP->code_stubs()->AtNumberPut(GetKey(), code);
       if (!new_object->IsFailure()) {
-        Heap::public_set_code_stubs(NumberDictionary::cast(new_object));
+        HEAP->public_set_code_stubs(NumberDictionary::cast(new_object));
       }
     }
   }

@@ -90,10 +90,10 @@ TEST(Page) {
 
 
 TEST(MemoryAllocator) {
-  CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved()));
+  CHECK(HEAP->ConfigureHeapDefault());
+  CHECK(MemoryAllocator::Setup(HEAP->MaxReserved()));
 
-  OldSpace faked_space(Heap::MaxReserved(), OLD_POINTER_SPACE, NOT_EXECUTABLE);
+  OldSpace faked_space(HEAP->MaxReserved(), OLD_POINTER_SPACE, NOT_EXECUTABLE);
   int total_pages = 0;
   int requested = 2;
   int allocated;
@@ -146,17 +146,17 @@ TEST(MemoryAllocator) {
 
 
 TEST(NewSpace) {
-  CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved()));
+  CHECK(HEAP->ConfigureHeapDefault());
+  CHECK(MemoryAllocator::Setup(HEAP->MaxReserved()));
 
   NewSpace new_space;
 
   void* chunk =
-      MemoryAllocator::ReserveInitialChunk(4 * Heap::ReservedSemiSpaceSize());
+      MemoryAllocator::ReserveInitialChunk(4 * HEAP->ReservedSemiSpaceSize());
   CHECK(chunk != NULL);
   Address start = RoundUp(static_cast<Address>(chunk),
-                          2 * Heap::ReservedSemiSpaceSize());
-  CHECK(new_space.Setup(start, 2 * Heap::ReservedSemiSpaceSize()));
+                          2 * HEAP->ReservedSemiSpaceSize());
+  CHECK(new_space.Setup(start, 2 * HEAP->ReservedSemiSpaceSize()));
   CHECK(new_space.HasBeenSetup());
 
   while (new_space.Available() >= Page::kMaxHeapObjectSize) {
@@ -171,19 +171,19 @@ TEST(NewSpace) {
 
 
 TEST(OldSpace) {
-  CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved()));
+  CHECK(HEAP->ConfigureHeapDefault());
+  CHECK(MemoryAllocator::Setup(HEAP->MaxReserved()));
 
-  OldSpace* s = new OldSpace(Heap::MaxOldGenerationSize(),
+  OldSpace* s = new OldSpace(HEAP->MaxOldGenerationSize(),
                              OLD_POINTER_SPACE,
                              NOT_EXECUTABLE);
   CHECK(s != NULL);
 
   void* chunk =
-      MemoryAllocator::ReserveInitialChunk(4 * Heap::ReservedSemiSpaceSize());
+      MemoryAllocator::ReserveInitialChunk(4 * HEAP->ReservedSemiSpaceSize());
   CHECK(chunk != NULL);
   Address start = static_cast<Address>(chunk);
-  size_t size = RoundUp(start, 2 * Heap::ReservedSemiSpaceSize()) - start;
+  size_t size = RoundUp(start, 2 * HEAP->ReservedSemiSpaceSize()) - start;
 
   CHECK(s->Setup(start, size));
 
@@ -199,9 +199,9 @@ TEST(OldSpace) {
 
 
 TEST(LargeObjectSpace) {
-  CHECK(Heap::Setup(false));
+  CHECK(HEAP->Setup(false));
 
-  LargeObjectSpace* lo = Heap::lo_space();
+  LargeObjectSpace* lo = HEAP->lo_space();
   CHECK(lo != NULL);
 
   Map* faked_map = reinterpret_cast<Map*>(HeapObject::FromAddress(0));

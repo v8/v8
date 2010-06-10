@@ -108,7 +108,7 @@ class ThreadB: public v8::internal::Thread {
           v8::Context::Scope context_scope(v8::Context::New());
 
           // Clear the caches by forcing major GC.
-          v8::internal::Heap::CollectAllGarbage(false);
+          HEAP->CollectAllGarbage(false);
           turn = SECOND_TIME_FILL_CACHE;
           break;
         }

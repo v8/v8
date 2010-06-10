@@ -338,7 +338,7 @@ void StringStream::PrintName(Object* name) {
 
 void StringStream::PrintUsingMap(JSObject* js_object) {
   Map* map = js_object->map();
-  if (!Heap::Contains(map) ||
+  if (!HEAP->Contains(map) ||
       !map->IsHeapObject() ||
       !map->IsMap()) {
     Add("<Invalid map>\n");
@@ -444,12 +444,12 @@ void StringStream::PrintMentionedObjectCache() {
 
 
 void StringStream::PrintSecurityTokenIfChanged(Object* f) {
-  if (!f->IsHeapObject() || !Heap::Contains(HeapObject::cast(f))) {
+  if (!f->IsHeapObject() || !HEAP->Contains(HeapObject::cast(f))) {
     return;
   }
   Map* map = HeapObject::cast(f)->map();
   if (!map->IsHeapObject() ||
-      !Heap::Contains(map) ||
+      !HEAP->Contains(map) ||
       !map->IsMap() ||
       !f->IsJSFunction()) {
     return;
@@ -458,10 +458,10 @@ void StringStream::PrintSecurityTokenIfChanged(Object* f) {
   JSFunction* fun = JSFunction::cast(f);
   Object* perhaps_context = fun->unchecked_context();
   if (perhaps_context->IsHeapObject() &&
-      Heap::Contains(HeapObject::cast(perhaps_context)) &&
+      HEAP->Contains(HeapObject::cast(perhaps_context)) &&
       perhaps_context->IsContext()) {
     Context* context = fun->context();
-    if (!Heap::Contains(context)) {
+    if (!HEAP->Contains(context)) {
       Add("(Function context is outside heap)\n");
       return;
     }
@@ -478,8 +478,8 @@ void StringStream::PrintSecurityTokenIfChanged(Object* f) {
 
 void StringStream::PrintFunction(Object* f, Object* receiver, Code** code) {
   if (f->IsHeapObject() &&
-      Heap::Contains(HeapObject::cast(f)) &&
-      Heap::Contains(HeapObject::cast(f)->map()) &&
+      HEAP->Contains(HeapObject::cast(f)) &&
+      HEAP->Contains(HeapObject::cast(f)->map()) &&
       HeapObject::cast(f)->map()->IsMap()) {
     if (f->IsJSFunction()) {
       JSFunction* fun = JSFunction::cast(f);
@@ -506,11 +506,11 @@ void StringStream::PrintFunction(Object* f, Object* receiver, Code** code) {
       Add("/* warning: 'function' was not a heap object */ ");
       return;
     }
-    if (!Heap::Contains(HeapObject::cast(f))) {
+    if (!HEAP->Contains(HeapObject::cast(f))) {
       Add("/* warning: 'function' was not on the heap */ ");
       return;
     }
-    if (!Heap::Contains(HeapObject::cast(f)->map())) {
+    if (!HEAP->Contains(HeapObject::cast(f)->map())) {
       Add("/* warning: function's map was not on the heap */ ");
       return;
     }

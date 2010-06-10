@@ -274,9 +274,10 @@ Handle<Code> CodeGenerator::ComputeKeyedCallInitialize(
     ComputeKeyedCallInitialize(argc, NOT_IN_LOOP);
   }
   CALL_HEAP_FUNCTION(
-      Isolate::Current()->stub_cache()->ComputeCallInitialize(argc,
-                                                              in_loop,
-                                                              Code::KEYED_CALL_IC),
+      Isolate::Current()->stub_cache()->
+          ComputeCallInitialize(argc,
+                                in_loop,
+                                Code::KEYED_CALL_IC),
       Code);
 }
 

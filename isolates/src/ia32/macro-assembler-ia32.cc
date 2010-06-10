@@ -92,7 +92,7 @@ void MacroAssembler::InNewSpace(Register object,
     int32_t new_space_start = reinterpret_cast<int32_t>(
         ExternalReference::new_space_start().address());
     lea(scratch, Operand(object, -new_space_start));
-    and_(scratch, Heap::NewSpaceMask());
+    and_(scratch, HEAP->NewSpaceMask());
     j(cc, branch);
   }
 }
@@ -541,7 +541,7 @@ Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
     ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
     JSObject* prototype = JSObject::cast(object->GetPrototype());
-    if (Heap::InNewSpace(prototype)) {
+    if (HEAP->InNewSpace(prototype)) {
       // Get the map of the current object.
       mov(scratch, FieldOperand(reg, HeapObject::kMapOffset));
       cmp(Operand(scratch), Immediate(Handle<Map>(object->map())));

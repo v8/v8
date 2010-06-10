@@ -1053,7 +1053,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
   // ExternalArray.
   __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::RootIndexForExternalArrayType(array_type));
+  __ LoadRoot(ip, HEAP->RootIndexForExternalArrayType(array_type));
   __ cmp(r2, ip);
   __ b(ne, &slow);
 
@@ -1602,7 +1602,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   // Check that the elements array is the appropriate type of ExternalArray.
   __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ ldr(r4, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::RootIndexForExternalArrayType(array_type));
+  __ LoadRoot(ip, HEAP->RootIndexForExternalArrayType(array_type));
   __ cmp(r4, ip);
   __ b(ne, &slow);
 

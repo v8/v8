@@ -209,16 +209,16 @@ void MacroAssembler::InNewSpace(Register object,
     cmpq(scratch, kScratchRegister);
     j(cc, branch);
   } else {
-    ASSERT(is_int32(static_cast<int64_t>(Heap::NewSpaceMask())));
+    ASSERT(is_int32(static_cast<int64_t>(HEAP->NewSpaceMask())));
     intptr_t new_space_start =
-        reinterpret_cast<intptr_t>(Heap::NewSpaceStart());
+        reinterpret_cast<intptr_t>(HEAP->NewSpaceStart());
     movq(kScratchRegister, -new_space_start, RelocInfo::NONE);
     if (scratch.is(object)) {
       addq(scratch, kScratchRegister);
     } else {
       lea(scratch, Operand(object, kScratchRegister, times_1, 0));
     }
-    and_(scratch, Immediate(static_cast<int32_t>(Heap::NewSpaceMask())));
+    and_(scratch, Immediate(static_cast<int32_t>(HEAP->NewSpaceMask())));
     j(cc, branch);
   }
 }
@@ -2187,7 +2187,7 @@ Register MacroAssembler::CheckMaps(JSObject* object,
     ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
     JSObject* prototype = JSObject::cast(object->GetPrototype());
-    if (Heap::InNewSpace(prototype)) {
+    if (HEAP->InNewSpace(prototype)) {
       // Get the map of the current object.
       movq(scratch, FieldOperand(reg, HeapObject::kMapOffset));
       Cmp(scratch, Handle<Map>(object->map()));

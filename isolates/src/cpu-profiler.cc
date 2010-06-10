@@ -462,7 +462,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     processor_ = new ProfilerEventsProcessor(generator_);
     processor_->Start();
     // Enumerate stuff we already have in the heap.
-    if (Heap::HasBeenSetup()) {
+    if (HEAP->HasBeenSetup()) {
       Logger::LogCodeObjects();
       Logger::LogCompiledFunctions();
       Logger::LogFunctionObjects();

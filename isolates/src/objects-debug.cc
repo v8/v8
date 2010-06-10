@@ -298,7 +298,7 @@ void HeapObject::HeapObjectVerify() {
 
 void HeapObject::VerifyHeapPointer(Object* p) {
   ASSERT(p->IsHeapObject());
-  ASSERT(Heap::Contains(HeapObject::cast(p)));
+  ASSERT(HEAP->Contains(HeapObject::cast(p)));
 }
 
 
@@ -632,10 +632,10 @@ void Map::MapPrint() {
 
 
 void Map::MapVerify() {
-  ASSERT(!Heap::InNewSpace(this));
+  ASSERT(!HEAP->InNewSpace(this));
   ASSERT(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
   ASSERT(kPointerSize <= instance_size()
-         && instance_size() < Heap::Capacity());
+         && instance_size() < HEAP->Capacity());
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
 }
@@ -717,7 +717,7 @@ void String::StringVerify() {
   CHECK(IsString());
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
   if (IsSymbol()) {
-    CHECK(!Heap::InNewSpace(this));
+    CHECK(!HEAP->InNewSpace(this));
   }
 }
 

@@ -24,7 +24,7 @@ static void InitializeVM() {
 static void CheckMap(Map* map, int type, int instance_size) {
   CHECK(map->IsHeapObject());
 #ifdef DEBUG
-  CHECK(Heap::Contains(map));
+  CHECK(HEAP->Contains(map));
 #endif
   CHECK_EQ(HEAP->meta_map(), map->map());
   CHECK_EQ(type, map->instance_type());
@@ -197,8 +197,8 @@ TEST(GarbageCollection) {
 
   v8::HandleScope sc;
   // Check GC.
-  int free_bytes = Heap::MaxObjectSizeInPagedSpace();
-  CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
+  int free_bytes = HEAP->MaxObjectSizeInPagedSpace();
+  CHECK(HEAP->CollectGarbage(free_bytes, NEW_SPACE));
 
   Handle<String> name = Factory::LookupAsciiSymbol("theFunction");
   Handle<String> prop_name = Factory::LookupAsciiSymbol("theSlot");
@@ -223,7 +223,7 @@ TEST(GarbageCollection) {
     CHECK_EQ(Smi::FromInt(24), obj->GetProperty(*prop_namex));
   }
 
-  CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
+  CHECK(HEAP->CollectGarbage(free_bytes, NEW_SPACE));
 
   // Function should be alive.
   CHECK(Top::context()->global()->HasLocalProperty(*name));
@@ -241,7 +241,7 @@ TEST(GarbageCollection) {
   }
 
   // After gc, it should survive.
-  CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
+  CHECK(HEAP->CollectGarbage(free_bytes, NEW_SPACE));
 
   CHECK(Top::context()->global()->HasLocalProperty(*obj_name));
   CHECK(Top::context()->global()->GetProperty(*obj_name)->IsJSObject());
@@ -303,7 +303,7 @@ TEST(GlobalHandles) {
   }
 
   // after gc, it should survive
-  CHECK(Heap::CollectGarbage(0, NEW_SPACE));
+  CHECK(HEAP->CollectGarbage(0, NEW_SPACE));
 
   CHECK((*h1)->IsString());
   CHECK((*h2)->IsHeapNumber());
@@ -352,7 +352,7 @@ TEST(WeakGlobalHandlesScavenge) {
                           &TestWeakGlobalHandleCallback);
 
   // Scavenge treats weak pointers as normal roots.
-  Heap::PerformScavenge();
+  HEAP->PerformScavenge();
 
   CHECK((*h1)->IsString());
   CHECK((*h2)->IsHeapNumber());
@@ -384,8 +384,8 @@ TEST(WeakGlobalHandlesMark) {
     h2 = GlobalHandles::Create(*u);
   }
 
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
-  CHECK(Heap::CollectGarbage(0, NEW_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, NEW_SPACE));
   // Make sure the object is promoted.
 
   GlobalHandles::MakeWeak(h2.location(),
@@ -394,7 +394,7 @@ TEST(WeakGlobalHandlesMark) {
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
   CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   CHECK((*h1)->IsString());
 
@@ -432,12 +432,12 @@ TEST(DeleteWeakGlobalHandle) {
                           &TestDeleteWeakGlobalHandleCallback);
 
   // Scanvenge does not recognize weak reference.
-  Heap::PerformScavenge();
+  HEAP->PerformScavenge();
 
   CHECK(!WeakPointerCleared);
 
   // Mark-compact treats weak reference properly.
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   CHECK(WeakPointerCleared);
 }
@@ -795,7 +795,7 @@ TEST(Iteration) {
       Factory::NewStringFromAscii(CStrVector("abcdefghij"), TENURED);
 
   // Allocate a large string (for large object space).
-  int large_size = Heap::MaxObjectSizeInPagedSpace() + 1;
+  int large_size = HEAP->MaxObjectSizeInPagedSpace() + 1;
   char* str = new char[large_size];
   for (int i = 0; i < large_size - 1; ++i) str[i] = 'a';
   str[large_size - 1] = '\0';
@@ -814,10 +814,10 @@ TEST(Iteration) {
 TEST(LargeObjectSpaceContains) {
   InitializeVM();
 
-  int free_bytes = Heap::MaxObjectSizeInPagedSpace();
-  CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
+  int free_bytes = HEAP->MaxObjectSizeInPagedSpace();
+  CHECK(HEAP->CollectGarbage(free_bytes, NEW_SPACE));
 
-  Address current_top = Heap::new_space()->top();
+  Address current_top = HEAP->new_space()->top();
   Page* page = Page::FromAddress(current_top);
   Address current_page = page->address();
   Address next_page = current_page + Page::kPageSize;
@@ -850,8 +850,8 @@ TEST(LargeObjectSpaceContains) {
   // CHECK(Page::FromAddress(next_page)->IsLargeObjectPage());
 
   HeapObject* addr = HeapObject::FromAddress(next_page + 2 * kPointerSize);
-  CHECK(Heap::new_space()->Contains(addr));
-  CHECK(!Heap::lo_space()->Contains(addr));
+  CHECK(HEAP->new_space()->Contains(addr));
+  CHECK(!HEAP->lo_space()->Contains(addr));
 }
 
 
@@ -882,7 +882,7 @@ TEST(Regression39128) {
 
   // Increase the chance of 'bump-the-pointer' allocation in old space.
   bool force_compaction = true;
-  Heap::CollectAllGarbage(force_compaction);
+  HEAP->CollectAllGarbage(force_compaction);
 
   v8::HandleScope scope;
 
@@ -905,13 +905,13 @@ TEST(Regression39128) {
   // just enough room to allocate JSObject and thus fill the newspace.
 
   int allocation_amount = Min(FixedArray::kMaxSize,
-                              Heap::MaxObjectSizeInNewSpace());
+                              HEAP->MaxObjectSizeInNewSpace());
   int allocation_len = LenFromSize(allocation_amount);
-  NewSpace* new_space = Heap::new_space();
+  NewSpace* new_space = HEAP->new_space();
   Address* top_addr = new_space->allocation_top_address();
   Address* limit_addr = new_space->allocation_limit_address();
   while ((*limit_addr - *top_addr) > allocation_amount) {
-    CHECK(!Heap::always_allocate());
+    CHECK(!HEAP->always_allocate());
     Object* array = HEAP->AllocateFixedArray(allocation_len);
     CHECK(!array->IsFailure());
     CHECK(new_space->Contains(array));
@@ -922,7 +922,7 @@ TEST(Regression39128) {
   int fixed_array_len = LenFromSize(to_fill);
   CHECK(fixed_array_len < FixedArray::kMaxLength);
 
-  CHECK(!Heap::always_allocate());
+  CHECK(!HEAP->always_allocate());
   Object* array = HEAP->AllocateFixedArray(fixed_array_len);
   CHECK(!array->IsFailure());
   CHECK(new_space->Contains(array));
@@ -940,7 +940,7 @@ TEST(Regression39128) {
 
   // Step 4: clone jsobject, but force always allocate first to create a clone
   // in old pointer space.
-  Address old_pointer_space_top = Heap::old_pointer_space()->top();
+  Address old_pointer_space_top = HEAP->old_pointer_space()->top();
   AlwaysAllocateScope aa_scope;
   Object* clone_obj = HEAP->CopyJSObject(jsobject);
   CHECK(!object->IsFailure());
@@ -949,7 +949,7 @@ TEST(Regression39128) {
     // Alas, got allocated from free list, we cannot do checks.
     return;
   }
-  CHECK(Heap::old_pointer_space()->Contains(clone->address()));
+  CHECK(HEAP->old_pointer_space()->Contains(clone->address()));
 
   // Step 5: verify validity of region dirty marks.
   Address clone_addr = clone->address();
@@ -979,16 +979,16 @@ TEST(TestCodeFlushing) {
   Handle<JSFunction> function(JSFunction::cast(func_value));
   CHECK(function->shared()->is_compiled());
 
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
 
   // foo should still be in the compilation cache and therefore not
   // have been removed.
   CHECK(function->shared()->is_compiled());
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
 
   // foo should no longer be in the compilation cache
   CHECK(!function->shared()->is_compiled());

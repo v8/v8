@@ -41,7 +41,7 @@ static Object* AllocateAfterFailures() {
   Heap* heap = Isolate::Current()->heap();
 
   // New space.
-  NewSpace* new_space = Heap::new_space();
+  NewSpace* new_space = heap->new_space();
   static const int kNewSpaceFillerSize = ByteArray::SizeFor(0);
   while (new_space->Available() > kNewSpaceFillerSize) {
     int available_before = new_space->Available();
@@ -65,7 +65,7 @@ static Object* AllocateAfterFailures() {
   CHECK(!heap->CopyJSObject(JSObject::cast(object))->IsFailure());
 
   // Old data space.
-  OldSpace* old_data_space = Heap::old_data_space();
+  OldSpace* old_data_space = heap->old_data_space();
   static const int kOldDataSpaceFillerSize = ByteArray::SizeFor(0);
   while (old_data_space->Available() > kOldDataSpaceFillerSize) {
     CHECK(!heap->AllocateByteArray(0, TENURED)->IsFailure());
@@ -73,13 +73,13 @@ static Object* AllocateAfterFailures() {
   CHECK(!heap->AllocateRawAsciiString(100, TENURED)->IsFailure());
 
   // Large object space.
-  while (!Heap::OldGenerationAllocationLimitReached()) {
+  while (!heap->OldGenerationAllocationLimitReached()) {
     CHECK(!heap->AllocateFixedArray(10000, TENURED)->IsFailure());
   }
   CHECK(!heap->AllocateFixedArray(10000, TENURED)->IsFailure());
 
   // Map space.
-  MapSpace* map_space = Heap::map_space();
+  MapSpace* map_space = heap->map_space();
   static const int kMapSpaceFillerSize = Map::kSize;
   InstanceType instance_type = JS_OBJECT_TYPE;
   int instance_size = JSObject::kHeaderSize;

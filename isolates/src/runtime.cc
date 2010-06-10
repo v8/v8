@@ -5234,7 +5234,7 @@ static int CopyCachedAsciiCharsToArray(const char* chars,
   for (i = 0; i < length; ++i) {
     Object* value = ascii_cache->get(chars[i]);
     if (value == undefined) break;
-    ASSERT(!Heap::InNewSpace(value));
+    ASSERT(!HEAP->InNewSpace(value));
     elements->set(i, value, SKIP_WRITE_BARRIER);
   }
   if (i < length) {
@@ -9549,7 +9549,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
   ASSERT(args.length() == 3);
 
   // First perform a full GC in order to avoid references from dead objects.
-  Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 
   // Check parameters.
   CONVERT_CHECKED(JSObject, target, args[0]);
@@ -9625,7 +9625,7 @@ static Object* Runtime_DebugConstructedBy(Arguments args) {
   ASSERT(args.length() == 2);
 
   // First perform a full GC in order to avoid dead objects.
-  Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 
   // Check parameters.
   CONVERT_CHECKED(JSFunction, constructor, args[0]);
@@ -10327,12 +10327,12 @@ void Runtime::PerformGC(Object* result) {
   if (failure->IsRetryAfterGC()) {
     // Try to do a garbage collection; ignore it if it fails. The C
     // entry stub will throw an out-of-memory exception in that case.
-    Heap::CollectGarbage(failure->requested(), failure->allocation_space());
+    HEAP->CollectGarbage(failure->requested(), failure->allocation_space());
   } else {
     // Handle last resort GC and make sure to allow future allocations
     // to grow the heap without causing GCs (if possible).
     Counters::gc_last_resort_from_js.Increment();
-    Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
   }
 }
 

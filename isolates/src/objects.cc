@@ -624,7 +624,7 @@ Object* String::SlowTryFlatten(PretenureFlag pretenure) {
   // allowed.  This is to avoid an assertion failure when allocating.
   // Flattening strings is the only case where we always allow
   // allocation because no GC is performed if the allocation fails.
-  if (!Heap::IsAllocationAllowed()) return this;
+  if (!HEAP->IsAllocationAllowed()) return this;
 #endif
 
   switch (StringShape(this).representation_tag()) {
@@ -636,7 +636,7 @@ Object* String::SlowTryFlatten(PretenureFlag pretenure) {
       // There's little point in putting the flat string in new space if the
       // cons string is in old space.  It can never get GCed until there is
       // an old space GC.
-      PretenureFlag tenure = Heap::InNewSpace(this) ? pretenure : TENURED;
+      PretenureFlag tenure = HEAP->InNewSpace(this) ? pretenure : TENURED;
       int len = length();
       Object* object;
       String* result;
@@ -866,12 +866,12 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       Object* constructor = map()->constructor();
       bool printed = false;
       if (constructor->IsHeapObject() &&
-          !Heap::Contains(HeapObject::cast(constructor))) {
+          !HEAP->Contains(HeapObject::cast(constructor))) {
         accumulator->Add("!!!INVALID CONSTRUCTOR!!!");
       } else {
         bool global_object = IsJSGlobalProxy();
         if (constructor->IsJSFunction()) {
-          if (!Heap::Contains(JSFunction::cast(constructor)->shared())) {
+          if (!HEAP->Contains(JSFunction::cast(constructor)->shared())) {
             accumulator->Add("!!!INVALID SHARED ON CONSTRUCTOR!!!");
           } else {
             Object* constructor_name =
@@ -907,11 +907,11 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
 
 void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
   // if (!Heap::InNewSpace(this)) PrintF("*", this);
-  if (!Heap::Contains(this)) {
+  if (!HEAP->Contains(this)) {
     accumulator->Add("!!!INVALID POINTER!!!");
     return;
   }
-  if (!Heap::Contains(map())) {
+  if (!HEAP->Contains(map())) {
     accumulator->Add("!!!INVALID MAP!!!");
     return;
   }
@@ -1294,7 +1294,7 @@ Object* JSObject::AddFastProperty(String* name,
 Object* JSObject::AddConstantFunctionProperty(String* name,
                                               JSFunction* function,
                                               PropertyAttributes attributes) {
-  ASSERT(!Heap::InNewSpace(function));
+  ASSERT(!HEAP->InNewSpace(function));
 
   // Allocate new instance descriptors with (name, function) added
   ConstantFunctionDescriptor d(name, function, attributes);
@@ -1382,7 +1382,7 @@ Object* JSObject::AddProperty(String* name,
     // Ensure the descriptor array does not get too big.
     if (map()->instance_descriptors()->number_of_descriptors() <
         DescriptorArray::kMaxNumberOfDescriptors) {
-      if (value->IsJSFunction() && !Heap::InNewSpace(value)) {
+      if (value->IsJSFunction() && !HEAP->InNewSpace(value)) {
         return AddConstantFunctionProperty(name,
                                            JSFunction::cast(value),
                                            attributes);
@@ -3787,7 +3787,7 @@ static StaticResource<StringInputBuffer> string_input_buffer;
 
 
 bool String::LooksValid() {
-  if (!Heap::Contains(this)) return false;
+  if (!HEAP->Contains(this)) return false;
   return true;
 }
 
@@ -7310,7 +7310,7 @@ Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
 
   const int kMinCapacityForPretenure = 256;
   bool pretenure =
-      (capacity > kMinCapacityForPretenure) && !Heap::InNewSpace(this);
+      (capacity > kMinCapacityForPretenure) && !HEAP->InNewSpace(this);
   Object* obj = Allocate(nof * 2, pretenure ? TENURED : NOT_TENURED);
   if (obj->IsFailure()) return obj;
 
@@ -7525,7 +7525,7 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
     }
     // Convert to fast elements.
 
-    PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED: TENURED;
+    PretenureFlag tenure = HEAP->InNewSpace(this) ? NOT_TENURED: TENURED;
     Object* new_array =
         HEAP->AllocateFixedArray(dict->NumberOfElements(), tenure);
     if (new_array->IsFailure()) {
@@ -8394,7 +8394,7 @@ Object* StringDictionary::TransformPropertiesToFastFor(
       ASSERT(type != FIELD);
       instance_descriptor_length++;
       if (type == NORMAL &&
-          (!value->IsJSFunction() || Heap::InNewSpace(value))) {
+          (!value->IsJSFunction() || HEAP->InNewSpace(value))) {
         number_of_fields += 1;
       }
     }
@@ -8427,7 +8427,7 @@ Object* StringDictionary::TransformPropertiesToFastFor(
       PropertyDetails details = DetailsAt(i);
       PropertyType type = details.type();
 
-      if (value->IsJSFunction() && !Heap::InNewSpace(value)) {
+      if (value->IsJSFunction() && !HEAP->InNewSpace(value)) {
         ConstantFunctionDescriptor d(String::cast(key),
                                      JSFunction::cast(value),
                                      details.attributes(),

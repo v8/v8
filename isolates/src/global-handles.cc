@@ -367,7 +367,7 @@ void GlobalHandles::PostGarbageCollectionProcessing() {
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
   // At the same time deallocate all DESTROYED nodes.
-  ASSERT(Heap::gc_state() == Heap::NOT_IN_GC);
+  ASSERT(HEAP->gc_state() == Heap::NOT_IN_GC);
   const int initial_post_gc_processing_count = ++post_gc_processing_count;
   Node** p = &head_;
   while (*p != NULL) {

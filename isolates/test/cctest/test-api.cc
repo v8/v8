@@ -383,11 +383,11 @@ THREADED_TEST(ScriptUsingStringResource) {
     CHECK(source->IsExternal());
     CHECK_EQ(resource,
              static_cast<TestResource*>(source->GetExternalStringResource()));
-    v8::internal::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestResource::dispose_count);
   }
   v8::internal::CompilationCache::Clear();
-  v8::internal::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestResource::dispose_count);
 }
 
@@ -404,11 +404,11 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    v8::internal::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
   v8::internal::CompilationCache::Clear();
-  v8::internal::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
 
@@ -421,19 +421,19 @@ THREADED_TEST(ScriptMakingExternalString) {
     LocalContext env;
     Local<String> source = String::New(two_byte_source);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
     bool success = source->MakeExternal(new TestResource(two_byte_source));
     CHECK(success);
     Local<Script> script = Script::Compile(source);
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    v8::internal::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestResource::dispose_count);
   }
   v8::internal::CompilationCache::Clear();
-  v8::internal::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestResource::dispose_count);
 }
 
@@ -446,8 +446,8 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     LocalContext env;
     Local<String> source = v8_str(c_source);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
     bool success = source->MakeExternal(
         new TestAsciiResource(i::StrDup(c_source)));
     CHECK(success);
@@ -455,11 +455,11 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    v8::internal::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
   v8::internal::CompilationCache::Clear();
-  v8::internal::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
 
@@ -469,15 +469,15 @@ TEST(MakingExternalStringConditions) {
   LocalContext env;
 
   // Free some space in the new space so that we can check freshness.
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);
+  HEAP->CollectGarbage(0, i::NEW_SPACE);
+  HEAP->CollectGarbage(0, i::NEW_SPACE);
 
   Local<String> small_string = String::New(AsciiToTwoByteString("small"));
   // We should refuse to externalize newly created small string.
   CHECK(!small_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+  HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+  HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
   // Old space strings should be accepted.
   CHECK(small_string->CanMakeExternal());
 
@@ -506,15 +506,15 @@ TEST(MakingExternalAsciiStringConditions) {
   LocalContext env;
 
   // Free some space in the new space so that we can check freshness.
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);
+  HEAP->CollectGarbage(0, i::NEW_SPACE);
+  HEAP->CollectGarbage(0, i::NEW_SPACE);
 
   Local<String> small_string = String::New("small");
   // We should refuse to externalize newly created small string.
   CHECK(!small_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+  HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+  HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
   // Old space strings should be accepted.
   CHECK(small_string->CanMakeExternal());
 
@@ -546,13 +546,13 @@ THREADED_TEST(UsingExternalString) {
         String::NewExternal(new TestResource(two_byte_string));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
     i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
     CHECK(isymbol->IsSymbol());
   }
-  i::Heap::CollectAllGarbage(false);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -564,13 +564,13 @@ THREADED_TEST(UsingExternalAsciiString) {
         new TestAsciiResource(i::StrDup(one_byte_string)));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
     i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
     CHECK(isymbol->IsSymbol());
   }
-  i::Heap::CollectAllGarbage(false);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -583,12 +583,12 @@ THREADED_TEST(ScavengeExternalString) {
     Local<String> string =
         String::NewExternal(new TestResource(two_byte_string));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-    i::Heap::CollectGarbage(0, i::NEW_SPACE);
-    in_new_space = i::Heap::InNewSpace(*istring);
-    CHECK(in_new_space || i::Heap::old_data_space()->Contains(*istring));
+    HEAP->CollectGarbage(0, i::NEW_SPACE);
+    in_new_space = HEAP->InNewSpace(*istring);
+    CHECK(in_new_space || HEAP->old_data_space()->Contains(*istring));
     CHECK_EQ(0, TestResource::dispose_count);
   }
-  i::Heap::CollectGarbage(0, in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
+  HEAP->CollectGarbage(0, in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
   CHECK_EQ(1, TestResource::dispose_count);
 }
 
@@ -602,12 +602,12 @@ THREADED_TEST(ScavengeExternalAsciiString) {
     Local<String> string = String::NewExternal(
         new TestAsciiResource(i::StrDup(one_byte_string)));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-    i::Heap::CollectGarbage(0, i::NEW_SPACE);
-    in_new_space = i::Heap::InNewSpace(*istring);
-    CHECK(in_new_space || i::Heap::old_data_space()->Contains(*istring));
+    HEAP->CollectGarbage(0, i::NEW_SPACE);
+    in_new_space = HEAP->InNewSpace(*istring);
+    CHECK(in_new_space || HEAP->old_data_space()->Contains(*istring));
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  i::Heap::CollectGarbage(0, in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
+  HEAP->CollectGarbage(0, in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
 
@@ -647,11 +647,11 @@ TEST(ExternalStringWithDisposeHandling) {
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    v8::internal::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
   v8::internal::CompilationCache::Clear();
-  v8::internal::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(0, TestAsciiResource::dispose_count);
 
@@ -668,11 +668,11 @@ TEST(ExternalStringWithDisposeHandling) {
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    v8::internal::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
   v8::internal::CompilationCache::Clear();
-  v8::internal::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
@@ -711,8 +711,8 @@ THREADED_TEST(StringConcat) {
     CHECK_EQ(68, value->Int32Value());
   }
   v8::internal::CompilationCache::Clear();
-  i::Heap::CollectAllGarbage(false);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -1464,12 +1464,12 @@ THREADED_TEST(InternalFieldsNativePointers) {
 
   // Check reading and writing aligned pointers.
   obj->SetPointerInInternalField(0, aligned);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(aligned, obj->GetPointerFromInternalField(0));
 
   // Check reading and writing unaligned pointers.
   obj->SetPointerInInternalField(0, unaligned);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
 
   delete[] data;
@@ -1495,19 +1495,19 @@ THREADED_TEST(InternalFieldsNativePointersAndExternal) {
   CHECK_EQ(1, reinterpret_cast<uintptr_t>(unaligned) & 0x1);
 
   obj->SetPointerInInternalField(0, aligned);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(aligned, v8::External::Unwrap(obj->GetInternalField(0)));
 
   obj->SetPointerInInternalField(0, unaligned);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(unaligned, v8::External::Unwrap(obj->GetInternalField(0)));
 
   obj->SetInternalField(0, v8::External::Wrap(aligned));
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(aligned, obj->GetPointerFromInternalField(0));
 
   obj->SetInternalField(0, v8::External::Wrap(unaligned));
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
 
   delete[] data;
@@ -1520,7 +1520,7 @@ THREADED_TEST(IdentityHash) {
 
   // Ensure that the test starts with an fresh heap to test whether the hash
   // code is based on the address.
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   Local<v8::Object> obj = v8::Object::New();
   int hash = obj->GetIdentityHash();
   int hash1 = obj->GetIdentityHash();
@@ -1530,7 +1530,7 @@ THREADED_TEST(IdentityHash) {
   // objects should not be assigned the same hash code. If the test below fails
   // the random number generator should be evaluated.
   CHECK_NE(hash, hash2);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   int hash3 = v8::Object::New()->GetIdentityHash();
   // Make sure that the identity hash is not based on the initial address of
   // the object alone. If the test below fails the random number generator
@@ -1550,7 +1550,7 @@ THREADED_TEST(HiddenProperties) {
   v8::Local<v8::String> empty = v8_str("");
   v8::Local<v8::String> prop_name = v8_str("prop_name");
 
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 
   // Make sure delete of a non-existent hidden value works
   CHECK(obj->DeleteHiddenValue(key));
@@ -1560,7 +1560,7 @@ THREADED_TEST(HiddenProperties) {
   CHECK(obj->SetHiddenValue(key, v8::Integer::New(2002)));
   CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
 
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 
   // Make sure we do not find the hidden property.
   CHECK(!obj->Has(empty));
@@ -1571,7 +1571,7 @@ THREADED_TEST(HiddenProperties) {
   CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
   CHECK_EQ(2003, obj->Get(empty)->Int32Value());
 
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 
   // Add another property and delete it afterwards to force the object in
   // slow case.
@@ -1582,7 +1582,7 @@ THREADED_TEST(HiddenProperties) {
   CHECK(obj->Delete(prop_name));
   CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
 
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 
   CHECK(obj->DeleteHiddenValue(key));
   CHECK(obj->GetHiddenValue(key).IsEmpty());
@@ -3822,7 +3822,7 @@ static void ForceScavenge(v8::Persistent<v8::Value> obj, void* data) {
   obj.Dispose();
   obj.Clear();
   in_scavenge = true;
-  i::Heap::PerformScavenge();
+  HEAP->PerformScavenge();
   in_scavenge = false;
   *(reinterpret_cast<bool*>(data)) = true;
 }
@@ -3859,7 +3859,7 @@ THREADED_TEST(NoWeakRefCallbacksInScavenge) {
   object_b.MakeWeak(&released_in_scavenge, &CheckIsNotInvokedInScavenge);
 
   while (!object_a_disposed) {
-    i::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
   }
   CHECK(!released_in_scavenge);
 }
@@ -3877,7 +3877,7 @@ static v8::Handle<Value> ArgumentsTestCallback(const v8::Arguments& args) {
   CHECK_EQ(v8::Integer::New(3), args[2]);
   CHECK_EQ(v8::Undefined(), args[3]);
   v8::HandleScope scope;
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   return v8::Undefined();
 }
 
@@ -6054,7 +6054,7 @@ static v8::Handle<Value> InterceptorHasOwnPropertyGetterGC(
     Local<String> name,
     const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   return v8::Handle<Value>();
 }
 
@@ -6788,7 +6788,7 @@ static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
   int* call_count = reinterpret_cast<int*>(v8::External::Unwrap(info.Data()));
   ++(*call_count);
   if ((*call_count) % 20 == 0) {
-    v8::internal::Heap::CollectAllGarbage(true);
+    HEAP->CollectAllGarbage(true);
   }
   return v8::Handle<Value>();
 }
@@ -7889,11 +7889,11 @@ static int GetSurvivingGlobalObjectsCount() {
   // the first garbage collection but some of the maps have already
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
-  v8::internal::Heap::CollectAllGarbage(false);
-  v8::internal::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   int count = GetGlobalObjectsCount();
 #ifdef DEBUG
-  if (count > 0) v8::internal::Heap::TracePathToGlobal();
+  if (count > 0) HEAP->TracePathToGlobal();
 #endif
   return count;
 }
@@ -7960,7 +7960,7 @@ THREADED_TEST(NewPersistentHandleFromWeakCallback) {
   // weak callback of the first handle would be able to 'reallocate' it.
   handle1.MakeWeak(NULL, NewPersistentHandleCallback);
   handle2.Dispose();
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -7968,7 +7968,7 @@ v8::Persistent<v8::Object> to_be_disposed;
 
 void DisposeAndForceGcCallback(v8::Persistent<v8::Value> handle, void*) {
   to_be_disposed.Dispose();
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -7983,7 +7983,7 @@ THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
   }
   handle1.MakeWeak(NULL, DisposeAndForceGcCallback);
   to_be_disposed = handle2;
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 }
 
 void DisposingCallback(v8::Persistent<v8::Value> handle, void*) {
@@ -8008,7 +8008,7 @@ THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
   }
   handle2.MakeWeak(NULL, DisposingCallback);
   handle3.MakeWeak(NULL, HandleCreatingCallback);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -8623,7 +8623,7 @@ class RegExpInterruptTest {
       {
         v8::Locker lock;
         // TODO(lrn): Perhaps create some garbage before collecting.
-        i::Heap::CollectAllGarbage(false);
+        HEAP->CollectAllGarbage(false);
         gc_count_++;
       }
       i::OS::Sleep(1);
@@ -8744,7 +8744,7 @@ class ApplyInterruptTest {
     while (gc_during_apply_ < kRequiredGCs) {
       {
         v8::Locker lock;
-        i::Heap::CollectAllGarbage(false);
+        HEAP->CollectAllGarbage(false);
         gc_count_++;
       }
       i::OS::Sleep(1);
@@ -9453,11 +9453,11 @@ THREADED_TEST(PixelArray) {
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
   i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(kElementCount,
                                                               pixel_data);
-  i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
+  HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
     pixels->set(i, i % 256);
   }
-  i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
+  HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
     CHECK_EQ(i % 256, pixels->get(i));
     CHECK_EQ(i % 256, pixel_data[i]);
@@ -9668,11 +9668,11 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   i::Handle<ExternalArrayClass> array =
       i::Handle<ExternalArrayClass>::cast(
           i::Factory::NewExternalArray(kElementCount, array_type, array_data));
-  i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
+  HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
     array->set(i, static_cast<ElementType>(i));
   }
-  i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
+  HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(array->get(i)));
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(array_data[i]));
@@ -9788,7 +9788,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                       "  }"
                       "}"
                       "sum;");
-  i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
+  HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   CHECK_EQ(28, result->Int32Value());
 
   // Make sure out-of-range loads do not throw.
@@ -10469,7 +10469,7 @@ TEST(Regress528) {
     other_context->Enter();
     CompileRun(source_simple);
     other_context->Exit();
-    v8::internal::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 1) break;
   }
   CHECK_GE(2, gc_count);
@@ -10491,7 +10491,7 @@ TEST(Regress528) {
     other_context->Enter();
     CompileRun(source_eval);
     other_context->Exit();
-    v8::internal::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 1) break;
   }
   CHECK_GE(2, gc_count);
@@ -10518,7 +10518,7 @@ TEST(Regress528) {
     other_context->Enter();
     CompileRun(source_exception);
     other_context->Exit();
-    v8::internal::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 1) break;
   }
   CHECK_GE(2, gc_count);
@@ -10734,26 +10734,26 @@ TEST(GCCallbacks) {
   v8::V8::AddGCEpilogueCallback(EpilogueCallback);
   CHECK_EQ(0, prologue_call_count);
   CHECK_EQ(0, epilogue_call_count);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, prologue_call_count);
   CHECK_EQ(1, epilogue_call_count);
   v8::V8::AddGCPrologueCallback(PrologueCallbackSecond);
   v8::V8::AddGCEpilogueCallback(EpilogueCallbackSecond);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(1, prologue_call_count_second);
   CHECK_EQ(1, epilogue_call_count_second);
   v8::V8::RemoveGCPrologueCallback(PrologueCallback);
   v8::V8::RemoveGCEpilogueCallback(EpilogueCallback);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(2, prologue_call_count_second);
   CHECK_EQ(2, epilogue_call_count_second);
   v8::V8::RemoveGCPrologueCallback(PrologueCallbackSecond);
   v8::V8::RemoveGCEpilogueCallback(EpilogueCallbackSecond);
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(2, prologue_call_count_second);
@@ -10781,7 +10781,7 @@ THREADED_TEST(AddToJSFunctionResultCache) {
       "    return 'Different results for ' + key1 + ': ' + r1 + ' vs. ' + r1_;"
       "  return 'PASSED';"
       "})()";
-  v8::internal::Heap::ClearJSFunctionResultCaches();
+  HEAP->ClearJSFunctionResultCaches();
   ExpectString(code, "PASSED");
 }
 
@@ -10805,7 +10805,7 @@ THREADED_TEST(FillJSFunctionResultCache) {
       "    return 'FAILED: k0CacheSize is too small';"
       "  return 'PASSED';"
       "})()";
-  v8::internal::Heap::ClearJSFunctionResultCaches();
+  HEAP->ClearJSFunctionResultCaches();
   ExpectString(code, "PASSED");
 }
 
@@ -10830,7 +10830,7 @@ THREADED_TEST(RoundRobinGetFromCache) {
       "  };"
       "  return 'PASSED';"
       "})()";
-  v8::internal::Heap::ClearJSFunctionResultCaches();
+  HEAP->ClearJSFunctionResultCaches();
   ExpectString(code, "PASSED");
 }
 
@@ -10855,7 +10855,7 @@ THREADED_TEST(ReverseGetFromCache) {
       "  };"
       "  return 'PASSED';"
       "})()";
-  v8::internal::Heap::ClearJSFunctionResultCaches();
+  HEAP->ClearJSFunctionResultCaches();
   ExpectString(code, "PASSED");
 }
 
@@ -10873,6 +10873,6 @@ THREADED_TEST(TestEviction) {
       "  };"
       "  return 'PASSED';"
       "})()";
-  v8::internal::Heap::ClearJSFunctionResultCaches();
+  HEAP->ClearJSFunctionResultCaches();
   ExpectString(code, "PASSED");
 }

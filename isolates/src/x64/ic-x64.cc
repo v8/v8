@@ -606,7 +606,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
   // rdx: JSObject
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
   __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
-                 Heap::RootIndexForExternalArrayType(array_type));
+                 HEAP->RootIndexForExternalArrayType(array_type));
   __ j(not_equal, &slow);
 
   // Check that the index is in range.
@@ -961,7 +961,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   // rdx: receiver (a JSObject)
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
   __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
-                 Heap::RootIndexForExternalArrayType(array_type));
+                 HEAP->RootIndexForExternalArrayType(array_type));
   __ j(not_equal, &slow);
 
   // Check that the index is in range.

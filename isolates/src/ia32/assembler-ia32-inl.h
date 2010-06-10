@@ -207,7 +207,7 @@ Immediate::Immediate(Label* internal_offset) {
 Immediate::Immediate(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!Heap::InNewSpace(obj));
+  ASSERT(!HEAP->InNewSpace(obj));
   if (obj->IsHeapObject()) {
     x_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
@@ -234,7 +234,7 @@ void Assembler::emit(uint32_t x) {
 void Assembler::emit(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!Heap::InNewSpace(obj));
+  ASSERT(!HEAP->InNewSpace(obj));
   if (obj->IsHeapObject()) {
     emit(reinterpret_cast<intptr_t>(handle.location()),
          RelocInfo::EMBEDDED_OBJECT);

@@ -537,7 +537,7 @@ RetainerHeapProfile::RetainerHeapProfile()
     : zscope_(DELETE_ON_EXIT) {
   JSObjectsCluster roots(JSObjectsCluster::ROOTS);
   ReferencesExtractor extractor(roots, this);
-  Heap::IterateRoots(&extractor, VISIT_ONLY_STRONG);
+  HEAP->IterateRoots(&extractor, VISIT_ONLY_STRONG);
 }
 
 
@@ -616,7 +616,7 @@ static void PrintProducerStackTrace(Object* obj, void* trace) {
 void HeapProfiler::WriteSample() {
   LOG(HeapSampleBeginEvent("Heap", "allocated"));
   LOG(HeapSampleStats(
-      "Heap", "allocated", Heap::CommittedMemory(), Heap::SizeOfObjects()));
+      "Heap", "allocated", HEAP->CommittedMemory(), HEAP->SizeOfObjects()));
 
   HistogramInfo info[LAST_TYPE+1];
 #define DEF_TYPE_NAME(name) info[name].set_name(#name);

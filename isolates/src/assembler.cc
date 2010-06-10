@@ -609,7 +609,7 @@ ExternalReference ExternalReference::the_hole_value_location() {
 
 
 ExternalReference ExternalReference::roots_address() {
-  return ExternalReference(Heap::roots_address());
+  return ExternalReference(HEAP->roots_address());
 }
 
 
@@ -631,27 +631,27 @@ ExternalReference ExternalReference::address_of_regexp_stack_limit() {
 
 
 ExternalReference ExternalReference::new_space_start() {
-  return ExternalReference(Heap::NewSpaceStart());
+  return ExternalReference(HEAP->NewSpaceStart());
 }
 
 
 ExternalReference ExternalReference::new_space_mask() {
-  return ExternalReference(reinterpret_cast<Address>(Heap::NewSpaceMask()));
+  return ExternalReference(reinterpret_cast<Address>(HEAP->NewSpaceMask()));
 }
 
 
 ExternalReference ExternalReference::new_space_allocation_top_address() {
-  return ExternalReference(Heap::NewSpaceAllocationTopAddress());
+  return ExternalReference(HEAP->NewSpaceAllocationTopAddress());
 }
 
 
 ExternalReference ExternalReference::heap_always_allocate_scope_depth() {
-  return ExternalReference(Heap::always_allocate_scope_depth_address());
+  return ExternalReference(HEAP->always_allocate_scope_depth_address());
 }
 
 
 ExternalReference ExternalReference::new_space_allocation_limit_address() {
-  return ExternalReference(Heap::NewSpaceAllocationLimitAddress());
+  return ExternalReference(HEAP->NewSpaceAllocationLimitAddress());
 }
 
 

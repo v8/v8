@@ -62,7 +62,7 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
 
   // Validate that the name does not move on scavenge, and that we
   // can use identity checks instead of string equality checks.
-  ASSERT(!Heap::InNewSpace(name));
+  ASSERT(!HEAP->InNewSpace(name));
   ASSERT(name->IsSymbol());
 
   // The state bits are not important to the hash function because
@@ -634,7 +634,7 @@ static Object* ProbeCache(Code::Flags flags) {
       HEAP->non_monomorphic_cache()->AtNumberPut(flags,
                                                  HEAP->undefined_value());
   if (result->IsFailure()) return result;
-  Heap::public_set_non_monomorphic_cache(NumberDictionary::cast(result));
+  HEAP->public_set_non_monomorphic_cache(NumberDictionary::cast(result));
   return probe;
 }
 

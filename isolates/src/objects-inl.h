@@ -747,19 +747,19 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_FIELD(p, offset, value) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
 
-
+// TODO(isolates): Pass heap in to these macros.
 #define WRITE_BARRIER(object, offset) \
-  Heap::RecordWrite(object->address(), offset);
+  HEAP->RecordWrite(object->address(), offset);
 
 // CONDITIONAL_WRITE_BARRIER must be issued after the actual
 // write due to the assert validating the written value.
 #define CONDITIONAL_WRITE_BARRIER(object, offset, mode) \
   if (mode == UPDATE_WRITE_BARRIER) { \
-    Heap::RecordWrite(object->address(), offset); \
+    HEAP->RecordWrite(object->address(), offset); \
   } else { \
     ASSERT(mode == SKIP_WRITE_BARRIER); \
-    ASSERT(Heap::InNewSpace(object) || \
-           !Heap::InNewSpace(READ_FIELD(object, offset)) || \
+    ASSERT(HEAP->InNewSpace(object) || \
+           !HEAP->InNewSpace(READ_FIELD(object, offset)) || \
            Page::FromAddress(object->address())->           \
                IsRegionDirty(object->address() + offset));  \
   }
@@ -1187,13 +1187,13 @@ void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
 
 
 void JSObject::initialize_properties() {
-  ASSERT(!Heap::InNewSpace(HEAP->empty_fixed_array()));
+  ASSERT(!HEAP->InNewSpace(HEAP->empty_fixed_array()));
   WRITE_FIELD(this, kPropertiesOffset, HEAP->empty_fixed_array());
 }
 
 
 void JSObject::initialize_elements() {
-  ASSERT(!Heap::InNewSpace(HEAP->empty_fixed_array()));
+  ASSERT(!HEAP->InNewSpace(HEAP->empty_fixed_array()));
   WRITE_FIELD(this, kElementsOffset, HEAP->empty_fixed_array());
 }
 
@@ -1402,7 +1402,7 @@ void FixedArray::set(int index, Object* value) {
 
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(const AssertNoAllocation&) {
-  if (Heap::InNewSpace(this)) return SKIP_WRITE_BARRIER;
+  if (HEAP->InNewSpace(this)) return SKIP_WRITE_BARRIER;
   return UPDATE_WRITE_BARRIER;
 }
 
@@ -1419,14 +1419,14 @@ void FixedArray::set(int index,
 
 void FixedArray::fast_set(FixedArray* array, int index, Object* value) {
   ASSERT(index >= 0 && index < array->length());
-  ASSERT(!Heap::InNewSpace(value));
+  ASSERT(!HEAP->InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
 }
 
 
 void FixedArray::set_undefined(int index) {
   ASSERT(index >= 0 && index < this->length());
-  ASSERT(!Heap::InNewSpace(HEAP->undefined_value()));
+  ASSERT(!HEAP->InNewSpace(HEAP->undefined_value()));
   WRITE_FIELD(this, kHeaderSize + index * kPointerSize,
               HEAP->undefined_value());
 }
@@ -1434,14 +1434,14 @@ void FixedArray::set_undefined(int index) {
 
 void FixedArray::set_null(int index) {
   ASSERT(index >= 0 && index < this->length());
-  ASSERT(!Heap::InNewSpace(HEAP->null_value()));
+  ASSERT(!HEAP->InNewSpace(HEAP->null_value()));
   WRITE_FIELD(this, kHeaderSize + index * kPointerSize, HEAP->null_value());
 }
 
 
 void FixedArray::set_the_hole(int index) {
   ASSERT(index >= 0 && index < this->length());
-  ASSERT(!Heap::InNewSpace(HEAP->the_hole_value()));
+  ASSERT(!HEAP->InNewSpace(HEAP->the_hole_value()));
   WRITE_FIELD(this, kHeaderSize + index * kPointerSize, HEAP->the_hole_value());
 }
 
@@ -1563,8 +1563,8 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   ASSERT(descriptor_number < number_of_descriptors());
 
   // Make sure none of the elements in desc are in new space.
-  ASSERT(!Heap::InNewSpace(desc->GetKey()));
-  ASSERT(!Heap::InNewSpace(desc->GetValue()));
+  ASSERT(!HEAP->InNewSpace(desc->GetKey()));
+  ASSERT(!HEAP->InNewSpace(desc->GetValue()));
 
   fast_set(this, ToKeyIndex(descriptor_number), desc->GetKey());
   FixedArray* content_array = GetContentArray();
@@ -2723,7 +2723,7 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
                                                    Code* value) {
   ASSERT(0 <= id && id < kJSBuiltinsCount);
   WRITE_FIELD(this, OffsetOfCodeWithId(id), value);
-  ASSERT(!Heap::InNewSpace(value));
+  ASSERT(!HEAP->InNewSpace(value));
 }
 
 
@@ -3174,7 +3174,7 @@ void Map::ClearCodeCache() {
   // No write barrier is needed since empty_fixed_array is not in new space.
   // Please note this function is used during marking:
   //  - MarkCompactCollector::MarkUnmarkedObject
-  ASSERT(!Heap::InNewSpace(HEAP->raw_unchecked_empty_fixed_array()));
+  ASSERT(!HEAP->InNewSpace(HEAP->raw_unchecked_empty_fixed_array()));
   WRITE_FIELD(this, kCodeCacheOffset, HEAP->raw_unchecked_empty_fixed_array());
 }
 
@@ -3188,7 +3188,7 @@ void JSArray::EnsureSize(int required_size) {
     // constantly growing.
     Expand(required_size + (required_size >> 3));
     // It's a performance benefit to keep a frequently used array in new-space.
-  } else if (!Heap::new_space()->Contains(elts) &&
+  } else if (!HEAP->new_space()->Contains(elts) &&
              required_size < kArraySizeThatFitsComfortablyInNewSpace) {
     // Expand will allocate a new backing store in new space even if the size
     // we asked for isn't larger than what we had before.

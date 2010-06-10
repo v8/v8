@@ -125,7 +125,7 @@ bool Isolate::PreInit() {
 
   // Safe after setting Heap::isolate_, initializing StackGuard and
   // ensuring that Isolate::Current() == this.
-  heap()->SetStackLimits();
+  heap_.SetStackLimits();
 
 #ifdef DEBUG
   DisallowAllocationFailure disallow_allocation_failure;
@@ -172,8 +172,8 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   // Setup the object heap
-  ASSERT(!Heap::HasBeenSetup());
-  if (!Heap::Setup(create_heap_objects)) {
+  ASSERT(!heap_.HasBeenSetup());
+  if (!heap_.Setup(create_heap_objects)) {
     V8::SetFatalError();
     return false;
   }

@@ -412,8 +412,8 @@ void CheckDebuggerUnloaded(bool check_functions) {
   CHECK_EQ(NULL, Debug::debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
-  Heap::CollectAllGarbage(false);
-  Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 
   // Iterate the head and check that there are no debugger related objects left.
   HeapIterator iterator;
@@ -867,10 +867,10 @@ static void DebugEventBreakPointCollectGarbage(
     break_point_hit_count++;
     if (break_point_hit_count % 2 == 0) {
       // Scavenge.
-      Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
+      HEAP->CollectGarbage(0, v8::internal::NEW_SPACE);
     } else {
       // Mark sweep (and perhaps compact).
-      Heap::CollectAllGarbage(false);
+      HEAP->CollectAllGarbage(false);
     }
   }
 }
@@ -891,7 +891,7 @@ static void DebugEventBreak(v8::DebugEvent event,
 
     // Run the garbage collector to enforce heap verification if option
     // --verify-heap is set.
-    Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
+    HEAP->CollectGarbage(0, v8::internal::NEW_SPACE);
 
     // Set the break flag again to come back here as soon as possible.
     v8::Debug::DebugBreak();
@@ -1253,12 +1253,12 @@ static void CallAndGC(v8::Local<v8::Object> recv, v8::Local<v8::Function> f) {
     CHECK_EQ(1 + i * 3, break_point_hit_count);
 
     // Scavenge and call function.
-    Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
+    HEAP->CollectGarbage(0, v8::internal::NEW_SPACE);
     f->Call(recv, 0, NULL);
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     f->Call(recv, 0, NULL);
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }
@@ -6051,7 +6051,7 @@ TEST(ScriptCollectedEvent) {
 
   // Do garbage collection to ensure that only the script in this test will be
   // collected afterwards.
-  Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 
   script_collected_count = 0;
   v8::Debug::SetDebugEventListener(DebugEventScriptCollectedEvent,
@@ -6063,7 +6063,7 @@ TEST(ScriptCollectedEvent) {
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.
-  Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 
   CHECK_EQ(2, script_collected_count);
 
@@ -6098,7 +6098,7 @@ TEST(ScriptCollectedEventContext) {
 
     // Do garbage collection to ensure that only the script in this test will be
     // collected afterwards.
-    Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
 
     v8::Debug::SetMessageHandler2(ScriptCollectedMessageHandler);
     {
@@ -6109,7 +6109,7 @@ TEST(ScriptCollectedEventContext) {
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.
-  Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 
   CHECK_EQ(2, script_collected_message_count);
 

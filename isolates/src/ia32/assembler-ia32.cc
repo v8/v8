@@ -57,7 +57,7 @@ uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 // The Probe method needs executable memory, so it uses Heap::CreateCode.
 // Allocation failure is silent and leads to safe default.
 void CpuFeatures::Probe() {
-  ASSERT(Heap::HasBeenSetup());
+  ASSERT(HEAP->HasBeenSetup());
   ASSERT(supported_ == 0);
   if (Serializer::enabled()) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
@@ -2442,7 +2442,7 @@ void Assembler::GrowBuffer() {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if ((desc.buffer_size > kMaximalBufferSize) ||
-      (desc.buffer_size > Heap::MaxOldGenerationSize())) {
+      (desc.buffer_size > HEAP->MaxOldGenerationSize())) {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 

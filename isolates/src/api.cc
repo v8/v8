@@ -169,7 +169,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location) {
   heap_stats.destroyed_global_handle_count = &destroyed_global_handle_count;
   int end_marker;
   heap_stats.end_marker = &end_marker;
-  i::Heap::RecordStats(&heap_stats);
+  HEAP->RecordStats(&heap_stats);
   i::V8::SetFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
   {
@@ -2742,7 +2742,7 @@ class StringTracker {
   // externalization requests for the string.
   static void RecordWrite(i::Handle<i::String> string) {
     i::Address address = reinterpret_cast<i::Address>(*string);
-    i::Address top = i::Heap::NewSpaceTop();
+    i::Address top = HEAP->NewSpaceTop();
     if (IsFreshString(address, top)) {
       IncrementUseCount(top);
     }
@@ -2753,7 +2753,7 @@ class StringTracker {
   // history.
   static inline bool IsFreshUnusedString(i::Handle<i::String> string) {
     i::Address address = reinterpret_cast<i::Address>(*string);
-    i::Address top = i::Heap::NewSpaceTop();
+    i::Address top = HEAP->NewSpaceTop();
     return IsFreshString(address, top) && IsUseCountLow(top);
   }
 
@@ -3081,8 +3081,8 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0), used_heap_size_(0) { }
 
 
 void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
-  heap_statistics->set_total_heap_size(i::Heap::CommittedMemory());
-  heap_statistics->set_used_heap_size(i::Heap::SizeOfObjects());
+  heap_statistics->set_total_heap_size(HEAP->CommittedMemory());
+  heap_statistics->set_used_heap_size(HEAP->SizeOfObjects());
 }
 
 
@@ -3096,13 +3096,13 @@ bool v8::V8::IdleNotification() {
 
 void v8::V8::LowMemoryNotification() {
   if (!i::V8::IsRunning()) return;
-  i::Heap::CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
 }
 
 
 int v8::V8::ContextDisposedNotification() {
   if (!i::V8::IsRunning()) return 0;
-  return i::Heap::NotifyContextDisposed();
+  return HEAP->NotifyContextDisposed();
 }
 
 
@@ -3744,43 +3744,43 @@ void V8::AddObjectGroup(Persistent<Value>* objects, size_t length) {
 
 int V8::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
   if (IsDeadCheck("v8::V8::AdjustAmountOfExternalAllocatedMemory()")) return 0;
-  return i::Heap::AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+  return HEAP->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
 }
 
 
 void V8::SetGlobalGCPrologueCallback(GCCallback callback) {
   if (IsDeadCheck("v8::V8::SetGlobalGCPrologueCallback()")) return;
-  i::Heap::SetGlobalGCPrologueCallback(callback);
+  HEAP->SetGlobalGCPrologueCallback(callback);
 }
 
 
 void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
   if (IsDeadCheck("v8::V8::SetGlobalGCEpilogueCallback()")) return;
-  i::Heap::SetGlobalGCEpilogueCallback(callback);
+  HEAP->SetGlobalGCEpilogueCallback(callback);
 }
 
 
 void V8::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
   if (IsDeadCheck("v8::V8::AddGCPrologueCallback()")) return;
-  i::Heap::AddGCPrologueCallback(callback, gc_type);
+  HEAP->AddGCPrologueCallback(callback, gc_type);
 }
 
 
 void V8::RemoveGCPrologueCallback(GCPrologueCallback callback) {
   if (IsDeadCheck("v8::V8::RemoveGCPrologueCallback()")) return;
-  i::Heap::RemoveGCPrologueCallback(callback);
+  HEAP->RemoveGCPrologueCallback(callback);
 }
 
 
 void V8::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
   if (IsDeadCheck("v8::V8::AddGCEpilogueCallback()")) return;
-  i::Heap::AddGCEpilogueCallback(callback, gc_type);
+  HEAP->AddGCEpilogueCallback(callback, gc_type);
 }
 
 
 void V8::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
   if (IsDeadCheck("v8::V8::RemoveGCEpilogueCallback()")) return;
-  i::Heap::RemoveGCEpilogueCallback(callback);
+  HEAP->RemoveGCEpilogueCallback(callback);
 }
 
 
@@ -3815,12 +3815,12 @@ void V8::ResumeProfilerEx(int flags, int tag) {
     // snapshot.
 
     // Make a GC prior to taking a snapshot.
-    i::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     // Reset snapshot flag and CPU module flags.
     flags &= ~(PROFILER_MODULE_HEAP_SNAPSHOT | PROFILER_MODULE_CPU);
     const int current_flags = i::Logger::GetActiveProfilerModules();
     i::Logger::ResumeProfiler(flags, tag);
-    i::Heap::CollectAllGarbage(false);
+    HEAP->CollectAllGarbage(false);
     i::Logger::PauseProfiler(~current_flags & flags, tag);
   } else {
     i::Logger::ResumeProfiler(flags, tag);

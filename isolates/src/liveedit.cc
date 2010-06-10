@@ -799,7 +799,7 @@ static void IterateAllThreads(ThreadVisitor* visitor) {
 
 // Finds all references to original and replaces them with substitution.
 static void ReplaceCodeObject(Code* original, Code* substitution) {
-  ASSERT(!Heap::InNewSpace(substitution));
+  ASSERT(!HEAP->InNewSpace(substitution));
 
   AssertNoAllocation no_allocations_please;
 
@@ -815,7 +815,7 @@ static void ReplaceCodeObject(Code* original, Code* substitution) {
     FrameCookingThreadVisitor cooking_visitor;
     IterateAllThreads(&cooking_visitor);
 
-    Heap::IterateStrongRoots(&visitor, VISIT_ALL);
+    HEAP->IterateStrongRoots(&visitor, VISIT_ALL);
 
     FrameUncookingThreadVisitor uncooking_visitor;
     IterateAllThreads(&uncooking_visitor);

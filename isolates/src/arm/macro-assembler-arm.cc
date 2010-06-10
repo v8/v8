@@ -820,7 +820,7 @@ Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
 
     reg = holder_reg;  // from now the object is in holder_reg
     JSObject* prototype = JSObject::cast(object->GetPrototype());
-    if (Heap::InNewSpace(prototype)) {
+    if (HEAP->InNewSpace(prototype)) {
       // The prototype is in new space; we cannot store a reference
       // to it in the code. Load it from the map.
       ldr(reg, FieldMemOperand(scratch, Map::kPrototypeOffset));

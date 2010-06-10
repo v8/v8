@@ -1045,7 +1045,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
         // be in map space.
         Map* map = object->map();
         ASSERT(map->IsMap());
-        ASSERT(Heap::map_space()->Contains(map));
+        ASSERT(HEAP->map_space()->Contains(map));
 
         // Perform space-specific object verification.
         VerifyObject(object);
@@ -1081,8 +1081,8 @@ bool NewSpace::Setup(Address start, int size) {
   // start and size. The provided space is divided into two semi-spaces.
   // To support fast containment testing in the new space, the size of
   // this chunk must be a power of two and it must be aligned to its size.
-  int initial_semispace_capacity = Heap::InitialSemiSpaceSize();
-  int maximum_semispace_capacity = Heap::MaxSemiSpaceSize();
+  int initial_semispace_capacity = HEAP->InitialSemiSpaceSize();
+  int maximum_semispace_capacity = HEAP->MaxSemiSpaceSize();
 
   ASSERT(initial_semispace_capacity <= maximum_semispace_capacity);
   ASSERT(IsPowerOf2(maximum_semispace_capacity));
@@ -1098,7 +1098,7 @@ bool NewSpace::Setup(Address start, int size) {
 #undef SET_NAME
 #endif
 
-  ASSERT(size == 2 * Heap::ReservedSemiSpaceSize());
+  ASSERT(size == 2 * HEAP->ReservedSemiSpaceSize());
   ASSERT(IsAddressAligned(start, size, 0));
 
   if (!to_space_.Setup(start,
@@ -1256,7 +1256,7 @@ void NewSpace::Verify() {
     // be in map space.
     Map* map = object->map();
     ASSERT(map->IsMap());
-    ASSERT(Heap::map_space()->Contains(map));
+    ASSERT(HEAP->map_space()->Contains(map));
 
     // The object should not be code or a map.
     ASSERT(!object->IsMap());
@@ -2062,7 +2062,7 @@ bool PagedSpace::ReserveSpace(int bytes) {
   int bytes_left_to_reserve = bytes;
   while (bytes_left_to_reserve > 0) {
     if (!reserved_page->next_page()->is_valid()) {
-      if (Heap::OldGenerationAllocationLimitReached()) return false;
+      if (HEAP->OldGenerationAllocationLimitReached()) return false;
       Expand(reserved_page);
     }
     bytes_left_to_reserve -= Page::kPageSize;
@@ -2080,7 +2080,7 @@ bool PagedSpace::ReserveSpace(int bytes) {
 // You have to call this last, since the implementation from PagedSpace
 // doesn't know that memory was 'promised' to large object space.
 bool LargeObjectSpace::ReserveSpace(int bytes) {
-  return Heap::OldGenerationSpaceAvailable() >= bytes;
+  return HEAP->OldGenerationSpaceAvailable() >= bytes;
 }
 
 
@@ -2099,7 +2099,7 @@ HeapObject* OldSpace::SlowAllocateRaw(int size_in_bytes) {
 
   // There is no next page in this space.  Try free list allocation unless that
   // is currently forbidden.
-  if (!Heap::linear_allocation()) {
+  if (!HEAP->linear_allocation()) {
     int wasted_bytes;
     Object* result = free_list_.Allocate(size_in_bytes, &wasted_bytes);
     accounting_stats_.WasteBytes(wasted_bytes);
@@ -2125,7 +2125,7 @@ HeapObject* OldSpace::SlowAllocateRaw(int size_in_bytes) {
   // Free list allocation failed and there is no next page.  Fail if we have
   // hit the old generation size limit that should cause a garbage
   // collection.
-  if (!Heap::always_allocate() && Heap::OldGenerationAllocationLimitReached()) {
+  if (!HEAP->always_allocate() && HEAP->OldGenerationAllocationLimitReached()) {
     return NULL;
   }
 
@@ -2399,7 +2399,7 @@ HeapObject* FixedSpace::SlowAllocateRaw(int size_in_bytes) {
   // There is no next page in this space.  Try free list allocation unless
   // that is currently forbidden.  The fixed space free list implicitly assumes
   // that all free blocks are of the fixed size.
-  if (!Heap::linear_allocation()) {
+  if (!HEAP->linear_allocation()) {
     Object* result = free_list_.Allocate();
     if (!result->IsFailure()) {
       accounting_stats_.AllocateBytes(size_in_bytes);
@@ -2422,7 +2422,7 @@ HeapObject* FixedSpace::SlowAllocateRaw(int size_in_bytes) {
   // Free list allocation failed and there is no next page.  Fail if we have
   // hit the old generation size limit that should cause a garbage
   // collection.
-  if (!Heap::always_allocate() && Heap::OldGenerationAllocationLimitReached()) {
+  if (!HEAP->always_allocate() && HEAP->OldGenerationAllocationLimitReached()) {
     return NULL;
   }
 
@@ -2627,7 +2627,7 @@ Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
 
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
-  if (!Heap::always_allocate() && Heap::OldGenerationAllocationLimitReached()) {
+  if (!HEAP->always_allocate() && HEAP->OldGenerationAllocationLimitReached()) {
     return Failure::RetryAfterGC(requested_size, identity());
   }
 
@@ -2717,7 +2717,7 @@ void LargeObjectSpace::IterateDirtyRegions(ObjectSlotCallback copy_object) {
         // Iterate regions of the first normal page covering object.
         uint32_t first_region_number = page->GetRegionNumberForAddress(start);
         newmarks |=
-            Heap::IterateDirtyRegions(marks >> first_region_number,
+            HEAP->IterateDirtyRegions(marks >> first_region_number,
                                       start,
                                       end,
                                       &Heap::IteratePointersInDirtyRegion,
@@ -2728,7 +2728,7 @@ void LargeObjectSpace::IterateDirtyRegions(ObjectSlotCallback copy_object) {
         while (end <= object_end) {
           // Iterate next 32 regions.
           newmarks |=
-              Heap::IterateDirtyRegions(marks,
+              HEAP->IterateDirtyRegions(marks,
                                         start,
                                         end,
                                         &Heap::IteratePointersInDirtyRegion,
@@ -2741,7 +2741,7 @@ void LargeObjectSpace::IterateDirtyRegions(ObjectSlotCallback copy_object) {
           // Iterate the last piece of an object which is less than
           // Page::kPageSize.
           newmarks |=
-              Heap::IterateDirtyRegions(marks,
+              HEAP->IterateDirtyRegions(marks,
                                         start,
                                         object_end,
                                         &Heap::IteratePointersInDirtyRegion,
@@ -2790,7 +2790,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
 
 bool LargeObjectSpace::Contains(HeapObject* object) {
   Address address = object->address();
-  if (Heap::new_space()->Contains(address)) {
+  if (HEAP->new_space()->Contains(address)) {
     return false;
   }
   Page* page = Page::FromAddress(address);
@@ -2819,7 +2819,7 @@ void LargeObjectSpace::Verify() {
     // in map space.
     Map* map = object->map();
     ASSERT(map->IsMap());
-    ASSERT(Heap::map_space()->Contains(map));
+    ASSERT(HEAP->map_space()->Contains(map));
 
     // We have only code, sequential strings, external strings
     // (sequential strings that have been morphed into external
@@ -2846,9 +2846,9 @@ void LargeObjectSpace::Verify() {
         Object* element = array->get(j);
         if (element->IsHeapObject()) {
           HeapObject* element_object = HeapObject::cast(element);
-          ASSERT(Heap::Contains(element_object));
+          ASSERT(HEAP->Contains(element_object));
           ASSERT(element_object->map()->IsMap());
-          if (Heap::InNewSpace(element_object)) {
+          if (HEAP->InNewSpace(element_object)) {
             Address array_addr = object->address();
             Address element_addr = array_addr + FixedArray::kHeaderSize +
                 j * kPointerSize;

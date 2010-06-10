@@ -80,7 +80,7 @@ void V8::TearDown() {
 
   CpuProfiler::TearDown();
 
-  Heap::TearDown();
+  HEAP->TearDown();
 
   Logger::TearDown();
 
@@ -122,7 +122,7 @@ bool V8::IdleNotification() {
   if (!FLAG_use_idle_notification) return true;
 
   // Tell the heap that it may want to adjust.
-  return Heap::IdleNotification();
+  return HEAP->IdleNotification();
 }
 
 

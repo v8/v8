@@ -105,7 +105,7 @@ static int register_code(int reg) {
 
 TEST(ExternalReferenceEncoder) {
   StatsTable::SetCounterFunction(counter_function);
-  Heap::Setup(false);
+  HEAP->Setup(false);
   ExternalReferenceEncoder encoder;
   CHECK_EQ(make_code(BUILTIN, Builtins::ArrayCode),
            Encode(encoder, Builtins::ArrayCode));
@@ -142,7 +142,7 @@ TEST(ExternalReferenceEncoder) {
 
 TEST(ExternalReferenceDecoder) {
   StatsTable::SetCounterFunction(counter_function);
-  Heap::Setup(false);
+  HEAP->Setup(false);
   ExternalReferenceDecoder decoder;
   CHECK_EQ(AddressOf(Builtins::ArrayCode),
            decoder.Decode(make_code(BUILTIN, Builtins::ArrayCode)));
@@ -279,7 +279,7 @@ static void Deserialize() {
 static void SanityCheck() {
   v8::HandleScope scope;
 #ifdef DEBUG
-  Heap::Verify();
+  HEAP->Verify();
 #endif
   CHECK(Top::global()->IsJSObject());
   CHECK(Top::global_context()->IsContext());
@@ -361,8 +361,8 @@ TEST(PartialSerialization) {
       Bootstrapper::NativesSourceLookup(i);
     }
   }
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
 
   Object* raw_foo;
   {
@@ -420,7 +420,7 @@ static void ReserveSpaceForPartialSnapshot(const char* file_name) {
 #undef fscanf
 #endif
   fclose(fp);
-  Heap::ReserveSpace(new_size,
+  HEAP->ReserveSpace(new_size,
                      pointer_size,
                      data_size,
                      code_size,
@@ -481,7 +481,7 @@ TEST(ContextSerialization) {
   }
   // If we don't do this then we end up with a stray root pointing at the
   // context even after we have disposed of env.
-  Heap::CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
 
   int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
   Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
@@ -553,7 +553,7 @@ TEST(LinearAllocation) {
 
   for (int size = 1000; size < 5 * MB; size += size >> 1) {
     int new_space_size = (size < new_space_max) ? size : new_space_max;
-    Heap::ReserveSpace(
+    HEAP->ReserveSpace(
         new_space_size,
         size,              // Old pointer space.
         size,              // Old data space.

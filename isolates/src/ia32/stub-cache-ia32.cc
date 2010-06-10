@@ -289,7 +289,7 @@ static void PushInterceptorArguments(MacroAssembler* masm,
                                      JSObject* holder_obj) {
   __ push(name);
   InterceptorInfo* interceptor = holder_obj->GetNamedInterceptor();
-  ASSERT(!Heap::InNewSpace(interceptor));
+  ASSERT(!HEAP->InNewSpace(interceptor));
   Register scratch = name;
   __ mov(scratch, Immediate(Handle<Object>(interceptor)));
   __ push(scratch);
@@ -372,7 +372,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   __ mov(Operand(esp, 4 * kPointerSize), edi);
   bool info_loaded = false;
   Object* callback = optimization.api_call_info()->callback();
-  if (Heap::InNewSpace(callback)) {
+  if (HEAP->InNewSpace(callback)) {
     info_loaded = true;
     __ mov(ecx, Handle<CallHandlerInfo>(optimization.api_call_info()));
     __ mov(ebx, FieldOperand(ecx, CallHandlerInfo::kCallbackOffset));
@@ -381,7 +381,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
     __ mov(Operand(esp, 3 * kPointerSize), Immediate(Handle<Object>(callback)));
   }
   Object* call_data = optimization.api_call_info()->data();
-  if (Heap::InNewSpace(call_data)) {
+  if (HEAP->InNewSpace(call_data)) {
     if (!info_loaded) {
       __ mov(ecx, Handle<CallHandlerInfo>(optimization.api_call_info()));
     }
@@ -1724,7 +1724,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   __ mov(edi, FieldOperand(edi, JSGlobalPropertyCell::kValueOffset));
 
   // Check that the cell contains the same function.
-  if (Heap::InNewSpace(function)) {
+  if (HEAP->InNewSpace(function)) {
     // We can't embed a pointer to a function in new space so we have
     // to verify that the shared function info is unchanged. This has
     // the nice side effect that multiple closures based on the same

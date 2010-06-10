@@ -83,7 +83,7 @@ uint32_t Page::AllocationWatermarkOffset() {
 
 
 void Page::SetAllocationWatermark(Address allocation_watermark) {
-  if ((Heap::gc_state() == Heap::SCAVENGE) && IsWatermarkValid()) {
+  if ((HEAP->gc_state() == Heap::SCAVENGE) && IsWatermarkValid()) {
     // When iterating intergenerational references during scavenge
     // we might decide to promote an encountered young object.
     // We will allocate a space for such an object and put it
@@ -237,7 +237,7 @@ void Page::ClearPageFlags() {
 void Page::ClearGCFields() {
   InvalidateWatermark(true);
   SetAllocationWatermark(ObjectAreaStart());
-  if (Heap::gc_state() == Heap::SCAVENGE) {
+  if (HEAP->gc_state() == Heap::SCAVENGE) {
     SetCachedAllocationWatermark(ObjectAreaStart());
   }
   SetRegionMarks(kAllRegionsCleanMarks);

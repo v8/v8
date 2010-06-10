@@ -750,8 +750,8 @@ class ScavengeVisitor: public ObjectVisitor {
  private:
   void ScavengePointer(Object** p) {
     Object* object = *p;
-    if (!Heap::InNewSpace(object)) return;
-    Heap::ScavengeObject(reinterpret_cast<HeapObject**>(p),
+    if (!HEAP->InNewSpace(object)) return;
+    HEAP->ScavengeObject(reinterpret_cast<HeapObject**>(p),
                          reinterpret_cast<HeapObject*>(object));
   }
 };
@@ -771,7 +771,7 @@ class PromotionQueue {
     *(--rear_) = object;
     *(--rear_) = map;
     // Assert no overflow into live objects.
-    ASSERT(reinterpret_cast<Address>(rear_) >= Heap::new_space()->top());
+    ASSERT(reinterpret_cast<Address>(rear_) >= HEAP->new_space()->top());
   }
 
   void remove(HeapObject** object, Map** map) {
@@ -800,7 +800,7 @@ class VerifyNonPointerSpacePointersVisitor: public ObjectVisitor {
   void VisitPointers(Object** start, Object**end) {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
-        ASSERT(!Heap::InNewSpace(HeapObject::cast(*current)));
+        ASSERT(!HEAP->InNewSpace(HeapObject::cast(*current)));
       }
     }
   }
@@ -811,12 +811,12 @@ static void VerifyNonPointerSpacePointers() {
   // Verify that there are no pointers to new space in spaces where we
   // do not expect them.
   VerifyNonPointerSpacePointersVisitor v;
-  HeapObjectIterator code_it(Heap::code_space());
+  HeapObjectIterator code_it(HEAP->code_space());
   for (HeapObject* object = code_it.next();
        object != NULL; object = code_it.next())
     object->Iterate(&v);
 
-  HeapObjectIterator data_it(Heap::old_data_space());
+  HeapObjectIterator data_it(HEAP->old_data_space());
   for (HeapObject* object = data_it.next();
        object != NULL; object = data_it.next())
     object->Iterate(&v);
@@ -967,14 +967,14 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
   Object** last = start;
 
   for (Object** p = start; p < end; ++p) {
-    ASSERT(Heap::InFromSpace(*p));
+    ASSERT(InFromSpace(*p));
     String* target = updater_func(p);
 
     if (target == NULL) continue;
 
     ASSERT(target->IsExternalString());
 
-    if (Heap::InNewSpace(target)) {
+    if (InNewSpace(target)) {
       // String is still in new space.  Update the table entry.
       *last = target;
       ++last;
@@ -1142,13 +1142,13 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
         return;
       }
     } else {
-      OldSpace* target_space = Heap::TargetSpace(object);
-      ASSERT(target_space == Heap::old_pointer_space_ ||
-             target_space == Heap::old_data_space_);
+      OldSpace* target_space = TargetSpace(object);
+      ASSERT(target_space == old_pointer_space_ ||
+             target_space == old_data_space_);
       result = target_space->AllocateRaw(object_size);
       if (!result->IsFailure()) {
         HeapObject* target = HeapObject::cast(result);
-        if (target_space == Heap::old_pointer_space_) {
+        if (target_space == old_pointer_space_) {
           // Save the from-space object pointer and its map pointer at the
           // top of the to space to be swept and copied later.  Write the
           // forwarding address over the map word of the from-space
@@ -1188,7 +1188,7 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
 
 
 void Heap::ScavengePointer(HeapObject** p) {
-  ScavengeObject(p, *p);
+  HEAP->ScavengeObject(p, *p);
 }
 
 
@@ -1435,7 +1435,7 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_shared_function_info_map(Map::cast(obj));
 
-  ASSERT(!Heap::InNewSpace(empty_fixed_array()));
+  ASSERT(!InNewSpace(empty_fixed_array()));
   return true;
 }
 
@@ -1495,7 +1495,7 @@ bool Heap::CreateApiObjects() {
   if (obj->IsFailure()) return false;
   set_neander_map(Map::cast(obj));
 
-  obj = Heap::AllocateJSObjectFromMap(THIS->neander_map());
+  obj = AllocateJSObjectFromMap(THIS->neander_map());
   if (obj->IsFailure()) return false;
   Object* elements = AllocateFixedArray(2);
   if (elements->IsFailure()) return false;
@@ -1547,11 +1547,11 @@ void Heap::CreateFixedStubs() {
   //    debugger_statement_code_ = *stub.GetCode();
   // }
   // To workaround the problem, make separate functions without inlining.
-  Heap::CreateCEntryStub();
-  Heap::CreateJSEntryStub();
-  Heap::CreateJSConstructEntryStub();
+  CreateCEntryStub();
+  CreateJSEntryStub();
+  CreateJSConstructEntryStub();
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-  Heap::CreateRegExpCEntryStub();
+  CreateRegExpCEntryStub();
 #endif
 }
 
@@ -2019,8 +2019,7 @@ Object* Heap::AllocateSubString(String* buffer,
   int length = end - start;
 
   if (length == 1) {
-    return Heap::LookupSingleCharacterStringFromCode(
-        buffer->Get(start));
+    return LookupSingleCharacterStringFromCode(buffer->Get(start));
   } else if (length == 2) {
     // Optimization for 2-byte strings often used as keys in a decompression
     // dictionary.  Check whether we already have the string in the symbol
@@ -2109,7 +2108,7 @@ Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
     return result;
   }
 
-  Object* result = Heap::AllocateRawTwoByteString(1);
+  Object* result = AllocateRawTwoByteString(1);
   if (result->IsFailure()) return result;
   String* answer = String::cast(result);
   answer->Set(0, code);
@@ -2516,7 +2515,7 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
   // suggested by the function.
   int instance_size = fun->shared()->CalculateInstanceSize();
   int in_object_properties = fun->shared()->CalculateInObjectProperties();
-  Object* map_obj = Heap::AllocateMap(JS_OBJECT_TYPE, instance_size);
+  Object* map_obj = AllocateMap(JS_OBJECT_TYPE, instance_size);
   if (map_obj->IsFailure()) return map_obj;
 
   // Fetch or allocate prototype.
@@ -2666,7 +2665,7 @@ Object* Heap::AllocateGlobalObject(JSFunction* constructor) {
     PropertyDetails d =
         PropertyDetails(details.attributes(), CALLBACKS, details.index());
     Object* value = descs->GetCallbacksObject(i);
-    value = Heap::AllocateJSGlobalPropertyCell(value);
+    value = AllocateJSGlobalPropertyCell(value);
     if (value->IsFailure()) return value;
 
     Object* result = dictionary->Add(descs->GetKey(i), value, d);
@@ -2723,7 +2722,7 @@ Object* Heap::CopyJSObject(JSObject* source) {
   } else {
     clone = new_space_.AllocateRaw(object_size);
     if (clone->IsFailure()) return clone;
-    ASSERT(Heap::InNewSpace(clone));
+    ASSERT(InNewSpace(clone));
     // Since we know the clone is allocated in new space, we can copy
     // the contents without worrying about updating the write barrier.
     CopyBlock(HeapObject::cast(clone)->address(),
@@ -3034,7 +3033,7 @@ Object* Heap::CopyFixedArray(FixedArray* src) {
   int len = src->length();
   Object* obj = AllocateRawFixedArray(len);
   if (obj->IsFailure()) return obj;
-  if (Heap::InNewSpace(obj)) {
+  if (InNewSpace(obj)) {
     HeapObject* dst = HeapObject::cast(obj);
     CopyBlock(dst->address(), src->address(), FixedArray::SizeFor(len));
     return obj;
@@ -3061,7 +3060,7 @@ Object* Heap::AllocateFixedArray(int length) {
     array->set_map(THIS->fixed_array_map());
     array->set_length(length);
     // Initialize body.
-    ASSERT(!Heap::InNewSpace(THIS->undefined_value()));
+    ASSERT(!InNewSpace(THIS->undefined_value()));
     MemsetPointer(array->data_start(), THIS->undefined_value(), length);
   }
   return result;
@@ -3099,7 +3098,7 @@ static Object* AllocateFixedArrayWithFiller(Heap* heap, int length,
   ASSERT(heap->empty_fixed_array()->IsFixedArray());
   if (length == 0) return heap->empty_fixed_array();
 
-  ASSERT(!Heap::InNewSpace(filler));
+  ASSERT(!heap->InNewSpace(filler));
   Object* result = heap->AllocateRawFixedArray(length, pretenure);
   if (result->IsFailure()) return result;
 
@@ -3136,7 +3135,7 @@ Object* Heap::AllocateUninitializedFixedArray(int length) {
 
 
 Object* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
-  Object* result = Heap::AllocateFixedArray(length, pretenure);
+  Object* result = AllocateFixedArray(length, pretenure);
   if (result->IsFailure()) return result;
   reinterpret_cast<HeapObject*>(result)->set_map(THIS->hash_table_map());
   ASSERT(result->IsHashTable());
@@ -3145,7 +3144,7 @@ Object* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
 
 
 Object* Heap::AllocateGlobalContext() {
-  Object* result = Heap::AllocateFixedArray(Context::GLOBAL_CONTEXT_SLOTS);
+  Object* result = AllocateFixedArray(Context::GLOBAL_CONTEXT_SLOTS);
   if (result->IsFailure()) return result;
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map(THIS->global_context_map());
@@ -3157,7 +3156,7 @@ Object* Heap::AllocateGlobalContext() {
 
 Object* Heap::AllocateFunctionContext(int length, JSFunction* function) {
   ASSERT(length >= Context::MIN_CONTEXT_SLOTS);
-  Object* result = Heap::AllocateFixedArray(length);
+  Object* result = AllocateFixedArray(length);
   if (result->IsFailure()) return result;
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map(THIS->context_map());
@@ -3176,7 +3175,7 @@ Object* Heap::AllocateFunctionContext(int length, JSFunction* function) {
 Object* Heap::AllocateWithContext(Context* previous,
                                   JSObject* extension,
                                   bool is_catch_context) {
-  Object* result = Heap::AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
+  Object* result = AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
   if (result->IsFailure()) return result;
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map(is_catch_context ? THIS->catch_context_map() :
@@ -3207,7 +3206,7 @@ STRUCT_LIST(MAKE_CASE)
   int size = map->instance_size();
   AllocationSpace space =
       (size > MaxObjectSizeInPagedSpace()) ? LO_SPACE : OLD_POINTER_SPACE;
-  Object* result = Heap::Allocate(map, space);
+  Object* result = Allocate(map, space);
   if (result->IsFailure()) return result;
   Struct::cast(result)->InitializeBody(size);
   return result;
@@ -3279,7 +3278,7 @@ bool Heap::IdleNotification() {
   // Make sure that we have no pending context disposals and
   // conditionally uncommit from space.
   ASSERT(contexts_disposed_ == 0);
-  if (uncommit) Heap::UncommitFromSpace();
+  if (uncommit) UncommitFromSpace();
   return finished;
 }
 
@@ -3406,7 +3405,7 @@ static void VerifyPointersUnderWatermark(
     Address start = page->ObjectAreaStart();
     Address end = page->AllocationWatermark();
 
-    Heap::IterateDirtyRegions(Page::kAllRegionsDirtyMarks,
+    HEAP->IterateDirtyRegions(Page::kAllRegionsDirtyMarks,
                               start,
                               end,
                               visit_dirty_region,
@@ -3427,7 +3426,7 @@ static void VerifyPointersUnderWatermark(LargeObjectSpace* space) {
         // When we are not in GC the Heap::InNewSpace() predicate
         // checks that pointers which satisfy predicate point into
         // the active semispace.
-        Heap::InNewSpace(*slot);
+        HEAP->InNewSpace(*slot);
         slot_address += kPointerSize;
       }
     }
@@ -3520,10 +3519,10 @@ bool Heap::IteratePointersInDirtyRegion(Address start,
 
   while (slot_address < end) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
-    if (Heap::InNewSpace(*slot)) {
+    if (HEAP->InNewSpace(*slot)) {
       ASSERT((*slot)->IsHeapObject());
       copy_object_func(reinterpret_cast<HeapObject**>(slot));
-      if (Heap::InNewSpace(*slot)) {
+      if (HEAP->InNewSpace(*slot)) {
         ASSERT((*slot)->IsHeapObject());
         pointers_to_new_space_found = true;
       }
@@ -3558,13 +3557,13 @@ static bool IteratePointersInDirtyMaps(Address start,
   bool pointers_to_new_space_found = false;
 
   while (map_address < end) {
-    ASSERT(!Heap::InNewSpace(Memory::Object_at(map_address)));
+    ASSERT(!HEAP->InNewSpace(Memory::Object_at(map_address)));
     ASSERT(Memory::Object_at(map_address)->IsMap());
 
     Address pointer_fields_start = map_address + Map::kPointerFieldsBeginOffset;
     Address pointer_fields_end = map_address + Map::kPointerFieldsEndOffset;
 
-    if (Heap::IteratePointersInDirtyRegion(pointer_fields_start,
+    if (HEAP->IteratePointersInDirtyRegion(pointer_fields_start,
                                            pointer_fields_end,
                                            copy_object_func)) {
       pointers_to_new_space_found = true;
@@ -3638,10 +3637,10 @@ void Heap::IterateAndMarkPointersToNewSpace(Address start,
 
   while (slot_address < end) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
-    if (Heap::InNewSpace(*slot)) {
+    if (InNewSpace(*slot)) {
       ASSERT((*slot)->IsHeapObject());
       callback(reinterpret_cast<HeapObject**>(slot));
-      if (Heap::InNewSpace(*slot)) {
+      if (InNewSpace(*slot)) {
         ASSERT((*slot)->IsHeapObject());
         marks |= page->GetRegionMaskForAddress(slot_address);
       }
@@ -4195,19 +4194,19 @@ void Heap::PrintHandles() {
 Space* AllSpaces::next() {
   switch (counter_++) {
     case NEW_SPACE:
-      return Heap::new_space();
+      return HEAP->new_space();
     case OLD_POINTER_SPACE:
-      return Heap::old_pointer_space();
+      return HEAP->old_pointer_space();
     case OLD_DATA_SPACE:
-      return Heap::old_data_space();
+      return HEAP->old_data_space();
     case CODE_SPACE:
-      return Heap::code_space();
+      return HEAP->code_space();
     case MAP_SPACE:
-      return Heap::map_space();
+      return HEAP->map_space();
     case CELL_SPACE:
-      return Heap::cell_space();
+      return HEAP->cell_space();
     case LO_SPACE:
-      return Heap::lo_space();
+      return HEAP->lo_space();
     default:
       return NULL;
   }
@@ -4217,15 +4216,15 @@ Space* AllSpaces::next() {
 PagedSpace* PagedSpaces::next() {
   switch (counter_++) {
     case OLD_POINTER_SPACE:
-      return Heap::old_pointer_space();
+      return HEAP->old_pointer_space();
     case OLD_DATA_SPACE:
-      return Heap::old_data_space();
+      return HEAP->old_data_space();
     case CODE_SPACE:
-      return Heap::code_space();
+      return HEAP->code_space();
     case MAP_SPACE:
-      return Heap::map_space();
+      return HEAP->map_space();
     case CELL_SPACE:
-      return Heap::cell_space();
+      return HEAP->cell_space();
     default:
       return NULL;
   }
@@ -4236,11 +4235,11 @@ PagedSpace* PagedSpaces::next() {
 OldSpace* OldSpaces::next() {
   switch (counter_++) {
     case OLD_POINTER_SPACE:
-      return Heap::old_pointer_space();
+      return HEAP->old_pointer_space();
     case OLD_DATA_SPACE:
-      return Heap::old_data_space();
+      return HEAP->old_data_space();
     case CODE_SPACE:
-      return Heap::code_space();
+      return HEAP->code_space();
     default:
       return NULL;
   }
@@ -4285,25 +4284,25 @@ ObjectIterator* SpaceIterator::CreateIterator() {
 
   switch (current_space_) {
     case NEW_SPACE:
-      iterator_ = new SemiSpaceIterator(Heap::new_space());
+      iterator_ = new SemiSpaceIterator(HEAP->new_space());
       break;
     case OLD_POINTER_SPACE:
-      iterator_ = new HeapObjectIterator(Heap::old_pointer_space());
+      iterator_ = new HeapObjectIterator(HEAP->old_pointer_space());
       break;
     case OLD_DATA_SPACE:
-      iterator_ = new HeapObjectIterator(Heap::old_data_space());
+      iterator_ = new HeapObjectIterator(HEAP->old_data_space());
       break;
     case CODE_SPACE:
-      iterator_ = new HeapObjectIterator(Heap::code_space());
+      iterator_ = new HeapObjectIterator(HEAP->code_space());
       break;
     case MAP_SPACE:
-      iterator_ = new HeapObjectIterator(Heap::map_space());
+      iterator_ = new HeapObjectIterator(HEAP->map_space());
       break;
     case CELL_SPACE:
-      iterator_ = new HeapObjectIterator(Heap::cell_space());
+      iterator_ = new HeapObjectIterator(HEAP->cell_space());
       break;
     case LO_SPACE:
-      iterator_ = new LargeObjectIterator(Heap::lo_space());
+      iterator_ = new LargeObjectIterator(HEAP->lo_space());
       break;
   }
 
@@ -4560,7 +4559,7 @@ GCTracer::GCTracer()
   previous_marked_count_ = MarkCompactCollector::previous_marked_count();
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
   start_time_ = OS::TimeCurrentMillis();
-  start_size_ = Heap::SizeOfObjects();
+  start_size_ = HEAP->SizeOfObjects();
 
   for (int i = 0; i < Scope::kNumberOfScopes; i++) {
     scopes_[i] = 0;
@@ -4568,7 +4567,7 @@ GCTracer::GCTracer()
 
   in_free_list_or_wasted_before_gc_ = CountTotalHolesSize();
 
-  allocated_since_last_gc_ = Heap::SizeOfObjects() - alive_after_last_gc_;
+  allocated_since_last_gc_ = HEAP->SizeOfObjects() - alive_after_last_gc_;
 
   if (last_gc_end_timestamp_ > 0) {
     spent_in_mutator_ = Max(start_time_ - last_gc_end_timestamp_, 0.0);
@@ -4582,7 +4581,7 @@ GCTracer::~GCTracer() {
 
   bool first_gc = (last_gc_end_timestamp_ == 0);
 
-  alive_after_last_gc_ = Heap::SizeOfObjects();
+  alive_after_last_gc_ = HEAP->SizeOfObjects();
   last_gc_end_timestamp_ = OS::TimeCurrentMillis();
 
   int time = static_cast<int>(last_gc_end_timestamp_ - start_time_);
@@ -4631,7 +4630,7 @@ GCTracer::~GCTracer() {
     PrintF("compact=%d ", static_cast<int>(scopes_[Scope::MC_COMPACT]));
 
     PrintF("total_size_before=%d ", start_size_);
-    PrintF("total_size_after=%d ", Heap::SizeOfObjects());
+    PrintF("total_size_after=%d ", HEAP->SizeOfObjects());
     PrintF("holes_size_before=%d ", in_free_list_or_wasted_before_gc_);
     PrintF("holes_size_after=%d ", CountTotalHolesSize());
 
@@ -4642,7 +4641,7 @@ GCTracer::~GCTracer() {
   }
 
 #if defined(ENABLE_LOGGING_AND_PROFILING)
-  Heap::PrintShortHeapStatistics();
+  HEAP->PrintShortHeapStatistics();
 #endif
 }
 
@@ -4751,7 +4750,7 @@ void ExternalStringTable::CleanUp() {
   int last = 0;
   for (int i = 0; i < new_space_strings_.length(); ++i) {
     if (new_space_strings_[i] == HEAP->raw_unchecked_null_value()) continue;
-    if (Heap::InNewSpace(new_space_strings_[i])) {
+    if (HEAP->InNewSpace(new_space_strings_[i])) {
       new_space_strings_[last++] = new_space_strings_[i];
     } else {
       old_space_strings_.Add(new_space_strings_[i]);
@@ -4761,7 +4760,7 @@ void ExternalStringTable::CleanUp() {
   last = 0;
   for (int i = 0; i < old_space_strings_.length(); ++i) {
     if (old_space_strings_[i] == HEAP->raw_unchecked_null_value()) continue;
-    ASSERT(!Heap::InNewSpace(old_space_strings_[i]));
+    ASSERT(!HEAP->InNewSpace(old_space_strings_[i]));
     old_space_strings_[last++] = old_space_strings_[i];
   }
   old_space_strings_.Rewind(last);

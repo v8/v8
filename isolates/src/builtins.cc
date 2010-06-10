@@ -274,7 +274,7 @@ static void CopyElements(AssertNoAllocation* no_gc,
             len);
   WriteBarrierMode mode = dst->GetWriteBarrierMode(*no_gc);
   if (mode == UPDATE_WRITE_BARRIER) {
-    Heap::RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
+    HEAP->RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
   }
 }
 
@@ -290,7 +290,7 @@ static void MoveElements(AssertNoAllocation* no_gc,
           len * kPointerSize);
   WriteBarrierMode mode = dst->GetWriteBarrierMode(*no_gc);
   if (mode == UPDATE_WRITE_BARRIER) {
-    Heap::RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
+    HEAP->RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
   }
 }
 
@@ -306,7 +306,7 @@ static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
   // and thus the trick is just not applicable.
   // In old space we do not use this trick to avoid dealing with
   // region dirty marks.
-  ASSERT(Heap::new_space()->Contains(elms));
+  ASSERT(HEAP->new_space()->Contains(elms));
 
   STATIC_ASSERT(FixedArray::kMapOffset == 0);
   STATIC_ASSERT(FixedArray::kLengthOffset == kPointerSize);
@@ -498,7 +498,7 @@ BUILTIN(ArrayShift) {
     first = HEAP->undefined_value();
   }
 
-  if (Heap::new_space()->Contains(elms)) {
+  if (HEAP->new_space()->Contains(elms)) {
     // As elms still in the same space they used to be (new space),
     // there is no need to update region dirty mark.
     array->set_elements(LeftTrimFixedArray(elms, 1), SKIP_WRITE_BARRIER);
@@ -716,7 +716,7 @@ BUILTIN(ArraySplice) {
 
   if (item_count < actual_delete_count) {
     // Shrink the array.
-    const bool trim_array = Heap::new_space()->Contains(elms) &&
+    const bool trim_array = HEAP->new_space()->Contains(elms) &&
       ((actual_start + item_count) <
           (len - actual_delete_count - actual_start));
     if (trim_array) {

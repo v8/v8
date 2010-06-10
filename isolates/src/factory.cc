@@ -175,7 +175,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
       id = 0;
     }
   }
-  Heap::SetLastScriptId(Smi::FromInt(id));
+  HEAP->SetLastScriptId(Smi::FromInt(id));
 
   // Create and initialize script object.
   Handle<Proxy> wrapper = Factory::NewProxy(0, TENURED);

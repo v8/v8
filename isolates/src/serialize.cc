@@ -610,8 +610,8 @@ void Deserializer::Deserialize() {
       Isolate::kPartialSnapshotCacheCapacity);
   ASSERT_EQ(NULL, external_reference_decoder_);
   external_reference_decoder_ = new ExternalReferenceDecoder();
-  Heap::IterateStrongRoots(this, VISIT_ONLY_STRONG);
-  Heap::IterateWeakRoots(this, VISIT_ALL);
+  HEAP->IterateStrongRoots(this, VISIT_ONLY_STRONG);
+  HEAP->IterateWeakRoots(this, VISIT_ALL);
 }
 
 
@@ -672,20 +672,20 @@ void Deserializer::ReadObject(int space_number,
 #define ASSIGN_DEST_SPACE(space_number)                                        \
   Space* dest_space;                                                           \
   if (space_number == NEW_SPACE) {                                             \
-    dest_space = Heap::new_space();                                            \
+    dest_space = HEAP->new_space();                                            \
   } else if (space_number == OLD_POINTER_SPACE) {                              \
-    dest_space = Heap::old_pointer_space();                                    \
+    dest_space = HEAP->old_pointer_space();                                    \
   } else if (space_number == OLD_DATA_SPACE) {                                 \
-    dest_space = Heap::old_data_space();                                       \
+    dest_space = HEAP->old_data_space();                                       \
   } else if (space_number == CODE_SPACE) {                                     \
-    dest_space = Heap::code_space();                                           \
+    dest_space = HEAP->code_space();                                           \
   } else if (space_number == MAP_SPACE) {                                      \
-    dest_space = Heap::map_space();                                            \
+    dest_space = HEAP->map_space();                                            \
   } else if (space_number == CELL_SPACE) {                                     \
-    dest_space = Heap::cell_space();                                           \
+    dest_space = HEAP->cell_space();                                           \
   } else {                                                                     \
     ASSERT(space_number >= LO_SPACE);                                          \
-    dest_space = Heap::lo_space();                                             \
+    dest_space = HEAP->lo_space();                                             \
   }
 
 
@@ -725,7 +725,7 @@ void Deserializer::ReadChunk(Object** current,
             ReadObject(space_number, dest_space, &new_object);                 \
           } else if (where == kRootArray) {                                    \
             int root_id = source_->GetInt();                                   \
-            new_object = Heap::roots_address()[root_id];                       \
+            new_object = HEAP->roots_address()[root_id];                       \
           } else if (where == kPartialSnapshotCache) {                         \
             int cache_index = source_->GetInt();                               \
             new_object = isolate->serialize_partial_snapshot_cache()           \
@@ -771,7 +771,7 @@ void Deserializer::ReadChunk(Object** current,
           }                                                                    \
         }                                                                      \
         if (emit_write_barrier) {                                              \
-          Heap::RecordWrite(address, static_cast<int>(                         \
+          HEAP->RecordWrite(address, static_cast<int>(                         \
               reinterpret_cast<Address>(current) - address));                  \
         }                                                                      \
         if (!current_was_incremented) {                                        \
@@ -1007,7 +1007,7 @@ void StartupSerializer::SerializeStrongReferences() {
        ext = ext->next()) {
     CHECK_NE(v8::INSTALLED, ext->state());
   }
-  Heap::IterateStrongRoots(this, VISIT_ONLY_STRONG);
+  HEAP->IterateStrongRoots(this, VISIT_ONLY_STRONG);
 }
 
 
@@ -1100,7 +1100,7 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
 
 int PartialSerializer::RootIndex(HeapObject* heap_object) {
   for (int i = 0; i < Heap::kRootListLength; i++) {
-    Object* root = Heap::roots_address()[i];
+    Object* root = HEAP->roots_address()[i];
     if (root == heap_object) return i;
   }
   return kInvalidRootIndex;
@@ -1189,7 +1189,7 @@ void StartupSerializer::SerializeWeakReferences() {
     sink_->Put(kRootArray + kPlain + kStartOfObject, "RootSerialization");
     sink_->PutInt(Heap::kUndefinedValueRootIndex, "root_index");
   }
-  Heap::IterateWeakRoots(this, VISIT_ALL);
+  HEAP->IterateWeakRoots(this, VISIT_ALL);
 }
 
 
@@ -1386,7 +1386,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
 int Serializer::SpaceOfObject(HeapObject* object) {
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     AllocationSpace s = static_cast<AllocationSpace>(i);
-    if (Heap::InSpace(object, s)) {
+    if (HEAP->InSpace(object, s)) {
       if (i == LO_SPACE) {
         if (object->IsCode()) {
           return kLargeCode;
@@ -1407,7 +1407,7 @@ int Serializer::SpaceOfObject(HeapObject* object) {
 int Serializer::SpaceOfAlreadySerializedObject(HeapObject* object) {
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     AllocationSpace s = static_cast<AllocationSpace>(i);
-    if (Heap::InSpace(object, s)) {
+    if (HEAP->InSpace(object, s)) {
       return i;
     }
   }

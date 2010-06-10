@@ -1200,7 +1200,7 @@ bool Genesis::InstallNatives() {
     // Allocate the empty script.
     Handle<Script> script = Factory::NewScript(Factory::empty_string());
     script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
-    Heap::public_set_empty_script(*script);
+    HEAP->public_set_empty_script(*script);
   }
   {
     // Builtin function for OpaqueReference -- a JSValue-based object,
