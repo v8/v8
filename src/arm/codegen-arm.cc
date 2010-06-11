@@ -8278,7 +8278,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     // r3 = high 32 bits of double value
     // Compute hash:
     //   h = (low ^ high); h ^= h >> 16; h ^= h >> 8; h = h & (cacheSize - 1);
-    __ eor(r1, r2, Operand(r2));
+    __ eor(r1, r2, Operand(r3));
     __ eor(r1, r1, Operand(r1, LSR, 16));
     __ eor(r1, r1, Operand(r1, LSR, 8));
     ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
