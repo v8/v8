@@ -10290,13 +10290,14 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, ebx);
   __ xor_(ecx, Operand(edx));
   __ mov(eax, ecx);
-  __ sar(eax, 16);
+  __ shr(eax, 16);
   __ xor_(ecx, Operand(eax));
   __ mov(eax, ecx);
-  __ sar(eax, 8);
+  __ shr(eax, 8);
   __ xor_(ecx, Operand(eax));
   ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
   __ and_(Operand(ecx), Immediate(TranscendentalCache::kCacheSize - 1));
+
   // ST[0] == double value.
   // ebx = low 32 bits of double value.
   // edx = high 32 bits of double value.

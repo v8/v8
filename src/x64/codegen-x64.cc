@@ -8189,14 +8189,15 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ movl(rcx, rdx);
   __ movl(rax, rdx);
   __ movl(rdi, rdx);
-  __ sarl(rdx, Immediate(8));
-  __ sarl(rcx, Immediate(16));
-  __ sarl(rax, Immediate(24));
+  __ shrl(rdx, Immediate(8));
+  __ shrl(rcx, Immediate(16));
+  __ shrl(rax, Immediate(24));
   __ xorl(rcx, rdx);
   __ xorl(rax, rdi);
   __ xorl(rcx, rax);
   ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
   __ andl(rcx, Immediate(TranscendentalCache::kCacheSize - 1));
+
   // ST[0] == double value.
   // rbx = bits of double value.
   // rcx = TranscendentalCache::hash(double value).
