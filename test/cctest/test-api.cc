@@ -9671,6 +9671,8 @@ static int ExternalArrayElementSize(v8::ExternalArrayType array_type) {
       UNREACHABLE();
       return -1;
   }
+  UNREACHABLE();
+  return -1;
 }
 
 
