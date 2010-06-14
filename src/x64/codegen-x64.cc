@@ -8601,59 +8601,58 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ cmpl(rdx, rax);
   __ j(greater, &runtime);
 
-  // ecx: RegExp data (FixedArray)
+  // rcx: RegExp data (FixedArray)
   // Check the representation and encoding of the subject string.
-  Label seq_string, seq_two_byte_string, check_code;
-  const int kStringRepresentationEncodingMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  Label seq_ascii_string, seq_two_byte_string, check_code;
   __ movq(rax, Operand(rsp, kSubjectOffset));
   __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
   __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
-  __ andb(rbx, Immediate(kStringRepresentationEncodingMask));
-  // First check for sequential string.
-  ASSERT_EQ(0, kStringTag);
-  ASSERT_EQ(0, kSeqStringTag);
+  // First check for flat two byte string.
+  __ andb(rbx, Immediate(
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask));
+  ASSERT_EQ(0, kStringTag | kSeqStringTag | kTwoByteStringTag);
+  __ j(zero, &seq_two_byte_string);
+  // Any other flat string must be a flat ascii string.
   __ testb(rbx, Immediate(kIsNotStringMask | kStringRepresentationMask));
-  __ j(zero, &seq_string);
+  __ j(zero, &seq_ascii_string);
 
   // Check for flat cons string.
   // A flat cons string is a cons string where the second part is the empty
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  __ andb(rbx, Immediate(kStringRepresentationMask));
-  __ cmpb(rbx, Immediate(kConsStringTag));
-  __ j(not_equal, &runtime);
+  ASSERT(kExternalStringTag !=0);
+  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
+  __ testb(rbx, Immediate(kIsNotStringMask | kExternalStringTag));
+  __ j(not_zero, &runtime);
+  // String is a cons string.
   __ movq(rdx, FieldOperand(rax, ConsString::kSecondOffset));
   __ Cmp(rdx, Factory::empty_string());
   __ j(not_equal, &runtime);
   __ movq(rax, FieldOperand(rax, ConsString::kFirstOffset));
   __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-  __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
-  ASSERT_EQ(0, kSeqStringTag);
-  __ testb(rbx, Immediate(kStringRepresentationMask));
+  // String is a cons string with empty second part.
+  // eax: first part of cons string.
+  // ebx: map of first part of cons string.
+  // Is first part a flat two byte string?
+  __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
+           Immediate(kStringRepresentationMask | kStringEncodingMask));
+  ASSERT_EQ(0, kSeqStringTag | kTwoByteStringTag);
+  __ j(zero, &seq_two_byte_string);
+  // Any other flat string must be ascii.
+  __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
+           Immediate(kStringRepresentationMask));
   __ j(not_zero, &runtime);
-  __ andb(rbx, Immediate(kStringRepresentationEncodingMask));
 
-  __ bind(&seq_string);
-  // rax: subject string (sequential either ascii to two byte)
-  // rbx: suject string type & kStringRepresentationEncodingMask
+  __ bind(&seq_ascii_string);
+  // rax: subject string (sequential ascii)
   // rcx: RegExp data (FixedArray)
-  // Check that the irregexp code has been generated for an ascii string. If
-  // it has, the field contains a code object otherwise it contains the hole.
-  const int kSeqTwoByteString = kStringTag | kSeqStringTag | kTwoByteStringTag;
-  __ cmpb(rbx, Immediate(kSeqTwoByteString));
-  __ j(equal, &seq_two_byte_string);
-  if (FLAG_debug_code) {
-    __ cmpb(rbx, Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
-    __ Check(equal, "Expected sequential ascii string");
-  }
   __ movq(r12, FieldOperand(rcx, JSRegExp::kDataAsciiCodeOffset));
   __ Set(rdi, 1);  // Type is ascii.
   __ jmp(&check_code);
 
   __ bind(&seq_two_byte_string);
-  // rax: subject string
+  // rax: subject string (flat two-byte)
   // rcx: RegExp data (FixedArray)
   __ movq(r12, FieldOperand(rcx, JSRegExp::kDataUC16CodeOffset));
   __ Set(rdi, 0);  // Type is two byte.
