@@ -6918,8 +6918,7 @@ void DeferredSearchCache::Generate() {
   __ bind(&cache_miss);
   __ push(cache_);  // store a reference to cache
   __ push(key_);  // store a key
-  Handle<Object> receiver(Top::global_context()->global());
-  __ push(Immediate(receiver));
+  __ push(Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ push(key_);
   // On ia32 function must be in edi.
   __ mov(edi, FieldOperand(cache_, JSFunctionResultCache::kFactoryOffset));

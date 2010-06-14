@@ -4793,8 +4793,7 @@ void DeferredSearchCache::Generate() {
   __ bind(&cache_miss);
   __ push(cache_);  // store a reference to cache
   __ push(key_);  // store a key
-  Handle<Object> receiver(Top::global_context()->global());
-  __ Push(receiver);
+  __ push(Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ push(key_);
   // On x64 function must be in rdi.
   __ movq(rdi, FieldOperand(cache_, JSFunctionResultCache::kFactoryOffset));
