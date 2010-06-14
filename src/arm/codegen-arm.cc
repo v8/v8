@@ -1203,7 +1203,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         switch (op) {
           case Token::BIT_OR:  __ orr(tos, tos, Operand(value)); break;
           case Token::BIT_XOR: __ eor(tos, tos, Operand(value)); break;
-          case Token::BIT_AND: __ and_(tos, tos, Operand(value)); break;
+          case Token::BIT_AND: __ And(tos, tos, Operand(value)); break;
           default: UNREACHABLE();
         }
         frame_->EmitPush(tos, TypeInfo::Smi());
@@ -1215,7 +1215,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         switch (op) {
           case Token::BIT_OR:  __ orr(tos, tos, Operand(value)); break;
           case Token::BIT_XOR: __ eor(tos, tos, Operand(value)); break;
-          case Token::BIT_AND: __ and_(tos, tos, Operand(value)); break;
+          case Token::BIT_AND: __ And(tos, tos, Operand(value)); break;
           default: UNREACHABLE();
         }
         deferred->BindExit();
@@ -6628,8 +6628,12 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   // Gets the wrong answer for 0, but we already checked for that case above.
   __ CountLeadingZeros(source_, mantissa, zeros_);
   // Compute exponent and or it into the exponent register.
-  // We use mantissa as a scratch register here.
-  __ rsb(mantissa, zeros_, Operand(31 + HeapNumber::kExponentBias));
+  // We use mantissa as a scratch register here.  Use a fudge factor to
+  // divide the constant 31 + HeapNumber::kExponentBias, 0x41d, into two parts
+  // that fit in the ARM's constant field.
+  int fudge = 0x400;
+  __ rsb(mantissa, zeros_, Operand(31 + HeapNumber::kExponentBias - fudge));
+  __ add(mantissa, mantissa, Operand(fudge));
   __ orr(exponent,
          exponent,
          Operand(mantissa, LSL, HeapNumber::kExponentShift));
@@ -6702,15 +6706,12 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
                                           bool never_nan_nan) {
   Label not_identical;
   Label heap_number, return_equal;
-  Register exp_mask_reg = r5;
   __ cmp(r0, r1);
   __ b(ne, &not_identical);
 
   // The two objects are identical.  If we know that one of them isn't NaN then
   // we now know they test equal.
   if (cc != eq || !never_nan_nan) {
-    __ mov(exp_mask_reg, Operand(HeapNumber::kExponentMask));
-
     // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
     // so we do the second best thing - test it ourselves.
     // They are both equal and they are not both Smis so both of them are not
@@ -6771,8 +6772,9 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
       // Read top bits of double representation (second word of value).
       __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
       // Test that exponent bits are all set.
-      __ and_(r3, r2, Operand(exp_mask_reg));
-      __ cmp(r3, Operand(exp_mask_reg));
+      __ Sbfx(r3, r2, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
+      // NaNs have all-one exponents so they sign extend to -1.
+      __ cmp(r3, Operand(-1));
       __ b(ne, &return_equal);
 
       // Shift out flag and all exponent bits, retaining only mantissa.
@@ -6893,14 +6895,14 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cc) {
   Register rhs_mantissa = exp_first ? r1 : r0;
   Register lhs_mantissa = exp_first ? r3 : r2;
   Label one_is_nan, neither_is_nan;
-  Label lhs_not_nan_exp_mask_is_loaded;
 
-  Register exp_mask_reg = r5;
-
-  __ mov(exp_mask_reg, Operand(HeapNumber::kExponentMask));
-  __ and_(r4, lhs_exponent, Operand(exp_mask_reg));
-  __ cmp(r4, Operand(exp_mask_reg));
-  __ b(ne, &lhs_not_nan_exp_mask_is_loaded);
+  __ Sbfx(r4,
+          lhs_exponent,
+          HeapNumber::kExponentShift,
+          HeapNumber::kExponentBits);
+  // NaNs have all-one exponents so they sign extend to -1.
+  __ cmp(r4, Operand(-1));
+  __ b(ne, lhs_not_nan);
   __ mov(r4,
          Operand(lhs_exponent, LSL, HeapNumber::kNonMantissaBitsInTopWord),
          SetCC);
@@ -6909,10 +6911,12 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cc) {
   __ b(ne, &one_is_nan);
 
   __ bind(lhs_not_nan);
-  __ mov(exp_mask_reg, Operand(HeapNumber::kExponentMask));
-  __ bind(&lhs_not_nan_exp_mask_is_loaded);
-  __ and_(r4, rhs_exponent, Operand(exp_mask_reg));
-  __ cmp(r4, Operand(exp_mask_reg));
+  __ Sbfx(r4,
+          rhs_exponent,
+          HeapNumber::kExponentShift,
+          HeapNumber::kExponentBits);
+  // NaNs have all-one exponents so they sign extend to -1.
+  __ cmp(r4, Operand(-1));
   __ b(ne, &neither_is_nan);
   __ mov(r4,
          Operand(rhs_exponent, LSL, HeapNumber::kNonMantissaBitsInTopWord),
@@ -7633,7 +7637,10 @@ static void GetInt32(MacroAssembler* masm,
   // Get exponent word.
   __ ldr(scratch, FieldMemOperand(source, HeapNumber::kExponentOffset));
   // Get exponent alone in scratch2.
-  __ and_(scratch2, scratch, Operand(HeapNumber::kExponentMask));
+  __ Ubfx(scratch2,
+          scratch,
+          HeapNumber::kExponentShift,
+          HeapNumber::kExponentBits);
   // Load dest with zero.  We use this either for the final shift or
   // for the answer.
   __ mov(dest, Operand(0));
@@ -7641,9 +7648,14 @@ static void GetInt32(MacroAssembler* masm,
   // A non-Smi integer is 1.xxx * 2^30 so the exponent is 30 (biased).  This is
   // the exponent that we are fastest at and also the highest exponent we can
   // handle here.
-  const uint32_t non_smi_exponent =
-      (HeapNumber::kExponentBias + 30) << HeapNumber::kExponentShift;
-  __ cmp(scratch2, Operand(non_smi_exponent));
+  const uint32_t non_smi_exponent = HeapNumber::kExponentBias + 30;
+  // The non_smi_exponent, 0x41d, is too big for ARM's immediate field so we
+  // split it up to avoid a constant pool entry.  You can't do that in general
+  // for cmp because of the overflow flag, but we know the exponent is in the
+  // range 0-2047 so there is no overflow.
+  int fudge_factor = 0x400;
+  __ sub(scratch2, scratch2, Operand(fudge_factor));
+  __ cmp(scratch2, Operand(non_smi_exponent - fudge_factor));
   // If we have a match of the int32-but-not-Smi exponent then skip some logic.
   __ b(eq, &right_exponent);
   // If the exponent is higher than that then go to slow case.  This catches
@@ -7653,17 +7665,14 @@ static void GetInt32(MacroAssembler* masm,
   // We know the exponent is smaller than 30 (biased).  If it is less than
   // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
   // it rounds to zero.
-  const uint32_t zero_exponent =
-      (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;
-  __ sub(scratch2, scratch2, Operand(zero_exponent), SetCC);
+  const uint32_t zero_exponent = HeapNumber::kExponentBias + 0;
+  __ sub(scratch2, scratch2, Operand(zero_exponent - fudge_factor), SetCC);
   // Dest already has a Smi zero.
   __ b(lt, &done);
   if (!CpuFeatures::IsSupported(VFP3)) {
-    // We have a shifted exponent between 0 and 30 in scratch2.
-    __ mov(dest, Operand(scratch2, LSR, HeapNumber::kExponentShift));
-    // We now have the exponent in dest.  Subtract from 30 to get
-    // how much to shift down.
-    __ rsb(dest, dest, Operand(30));
+    // We have an exponent between 0 and 30 in scratch2.  Subtract from 30 to
+    // get how much to shift down.
+    __ rsb(dest, scratch2, Operand(30));
   }
   __ bind(&right_exponent);
   if (CpuFeatures::IsSupported(VFP3)) {
@@ -8282,14 +8291,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ eor(r1, r1, Operand(r1, LSR, 16));
     __ eor(r1, r1, Operand(r1, LSR, 8));
     ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
-    if (CpuFeatures::IsSupported(ARMv7)) {
-      const int kTranscendentalCacheSizeBits = 9;
-      ASSERT_EQ(1 << kTranscendentalCacheSizeBits,
-                TranscendentalCache::kCacheSize);
-      __ ubfx(r1, r1, 0, kTranscendentalCacheSizeBits);
-    } else {
-      __ and_(r1, r1, Operand(TranscendentalCache::kCacheSize - 1));
-    }
+    __ And(r1, r1, Operand(TranscendentalCache::kCacheSize - 1));
 
     // r2 = low 32 bits of double value.
     // r3 = high 32 bits of double value.

@@ -873,7 +873,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(r3, Operand(r2, ASR, KeyedLookupCache::kMapHashShift));
   __ ldr(r4, FieldMemOperand(r0, String::kHashFieldOffset));
   __ eor(r3, r3, Operand(r4, ASR, String::kHashShift));
-  __ and_(r3, r3, Operand(KeyedLookupCache::kCapacityMask));
+  __ And(r3, r3, Operand(KeyedLookupCache::kCapacityMask));
 
   // Load the key (consisting of map and symbol) from the cache and
   // check for match.
@@ -932,11 +932,11 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // We want the smi-tagged index in r0.  kArrayIndexValueMask has zeros in
   // the low kHashShift bits.
   ASSERT(String::kHashShift >= kSmiTagSize);
-  __ and_(r3, r3, Operand(String::kArrayIndexValueMask));
+  __ Ubfx(r3, r3, String::kHashShift, String::kArrayIndexValueBits);
   // Here we actually clobber the key (r0) which will be used if calling into
   // runtime later. However as the new key is the numeric value of a string key
   // there is no difference in using either key.
-  __ mov(r0, Operand(r3, ASR, String::kHashShift - kSmiTagSize));
+  __ mov(r0, Operand(r3, LSL, kSmiTagSize));
   // Now jump to the place where smi keys are handled.
   __ jmp(&index_smi);
 }
@@ -1665,32 +1665,29 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
 
-    // vldr requires offset to be a multiple of 4 so we can not
-    // include -kHeapObjectTag into it.
-    __ sub(r5, r0, Operand(kHeapObjectTag));
-    __ vldr(d0, r5, HeapNumber::kValueOffset);
 
     if (array_type == kExternalFloatArray) {
+      // vldr requires offset to be a multiple of 4 so we can not
+      // include -kHeapObjectTag into it.
+      __ sub(r5, r0, Operand(kHeapObjectTag));
+      __ vldr(d0, r5, HeapNumber::kValueOffset);
       __ vcvt_f32_f64(s0, d0);
       __ vmov(r5, s0);
       __ str(r5, MemOperand(r3, r4, LSL, 2));
     } else {
-      Label done;
-
       // Need to perform float-to-int conversion.
-      // Test for NaN.
-      __ vcmp(d0, d0);
-      // Move vector status bits to normal status bits.
-      __ vmrs(v8::internal::pc);
-      __ mov(r5, Operand(0), LeaveCC, vs);  // NaN converts to 0.
-      __ b(vs, &done);
+      // Test for NaN or infinity (both give zero).
+      __ ldr(r6, FieldMemOperand(r5, HeapNumber::kExponentOffset));
 
-      // Test whether exponent equal to 0x7FF (infinity or NaN).
-      __ vmov(r6, r7, d0);
-      __ mov(r5, Operand(0x7FF00000));
-      __ and_(r6, r6, Operand(r5));
-      __ teq(r6, Operand(r5));
-      __ mov(r6, Operand(0), LeaveCC, eq);
+      // Hoisted load.  vldr requires offset to be a multiple of 4 so we can not
+      // include -kHeapObjectTag into it.
+      __ sub(r5, r0, Operand(kHeapObjectTag));
+      __ vldr(d0, r5, HeapNumber::kValueOffset);
+
+      __ Sbfx(r6, r6, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
+      // NaNs and Infinities have all-one exponents so they sign extend to -1.
+      __ cmp(r6, Operand(-1));
+      __ mov(r5, Operand(Smi::FromInt(0)), LeaveCC, eq);
 
       // Not infinity or NaN simply convert to int.
       if (IsElementTypeSigned(array_type)) {
@@ -1698,10 +1695,8 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       } else {
         __ vcvt_u32_f64(s0, d0, ne);
       }
-
       __ vmov(r5, s0, ne);
 
-      __ bind(&done);
       switch (array_type) {
         case kExternalByteArray:
         case kExternalUnsignedByteArray:
