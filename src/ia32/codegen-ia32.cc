@@ -3278,6 +3278,9 @@ void CodeGenerator::VisitAndSpill(Statement* statement) {
 
 
 void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(in_spilled_code());
   set_in_spilled_code(false);
   VisitStatements(statements);
@@ -3285,14 +3288,20 @@ void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
     frame_->SpillAll();
   }
   set_in_spilled_code(true);
+
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(!in_spilled_code());
   for (int i = 0; has_valid_frame() && i < statements->length(); i++) {
     Visit(statements->at(i));
   }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 

@@ -342,56 +342,27 @@ void CodeGenerator::Generate(CompilationInfo* info) {
     }
   }
 
-  // Generate the return sequence if necessary.
-  if (has_valid_frame() || function_return_.is_linked()) {
-    if (!function_return_.is_linked()) {
-      CodeForReturnPosition(info->function());
-    }
-    // exit
-    // r0: result
-    // sp: stack pointer
-    // fp: frame pointer
-    // cp: callee's context
+  // Handle the return from the function.
+  if (has_valid_frame()) {
+    // If there is a valid frame, control flow can fall off the end of
+    // the body.  In that case there is an implicit return statement.
+    ASSERT(!function_return_is_shadowed_);
+    frame_->PrepareForReturn();
     __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-
+    if (function_return_.is_bound()) {
+      function_return_.Jump();
+    } else {
+      function_return_.Bind();
+      GenerateReturnSequence();
+    }
+  } else if (function_return_.is_linked()) {
+    // If the return target has dangling jumps to it, then we have not
+    // yet generated the return sequence.  This can happen when (a)
+    // control does not flow off the end of the body so we did not
+    // compile an artificial return statement just above, and (b) there
+    // are return statements in the body but (c) they are all shadowed.
     function_return_.Bind();
-    if (FLAG_trace) {
-      // Push the return value on the stack as the parameter.
-      // Runtime::TraceExit returns the parameter as it is.
-      frame_->EmitPush(r0);
-      frame_->CallRuntime(Runtime::kTraceExit, 1);
-    }
-
-#ifdef DEBUG
-    // Add a label for checking the size of the code used for returning.
-    Label check_exit_codesize;
-    masm_->bind(&check_exit_codesize);
-#endif
-    // Make sure that the constant pool is not emitted inside of the return
-    // sequence.
-    { Assembler::BlockConstPoolScope block_const_pool(masm_);
-      // Tear down the frame which will restore the caller's frame pointer and
-      // the link register.
-      frame_->Exit();
-
-      // Here we use masm_-> instead of the __ macro to avoid the code coverage
-      // tool from instrumenting as we rely on the code size here.
-      int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
-      masm_->add(sp, sp, Operand(sp_delta));
-      masm_->Jump(lr);
-
-#ifdef DEBUG
-      // Check that the size of the code used for returning matches what is
-      // expected by the debugger. If the sp_delts above cannot be encoded in
-      // the add instruction the add will generate two instructions.
-      int return_sequence_length =
-          masm_->InstructionsGeneratedSince(&check_exit_codesize);
-      CHECK(return_sequence_length ==
-            Assembler::kJSReturnSequenceInstructions ||
-            return_sequence_length ==
-            Assembler::kJSReturnSequenceInstructions + 1);
-#endif
-    }
+    GenerateReturnSequence();
   }
 
   // Adjust for function-level loop nesting.
@@ -1958,8 +1929,56 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
     // returning thus making it easier to merge.
     frame_->EmitPop(r0);
     frame_->PrepareForReturn();
+    if (function_return_.is_bound()) {
+      // If the function return label is already bound we reuse the
+      // code by jumping to the return site.
+      function_return_.Jump();
+    } else {
+      function_return_.Bind();
+      GenerateReturnSequence();
+    }
+  }
+}
 
-    function_return_.Jump();
+
+void CodeGenerator::GenerateReturnSequence() {
+  if (FLAG_trace) {
+    // Push the return value on the stack as the parameter.
+    // Runtime::TraceExit returns the parameter as it is.
+    frame_->EmitPush(r0);
+    frame_->CallRuntime(Runtime::kTraceExit, 1);
+  }
+
+#ifdef DEBUG
+  // Add a label for checking the size of the code used for returning.
+  Label check_exit_codesize;
+  masm_->bind(&check_exit_codesize);
+#endif
+  // Make sure that the constant pool is not emitted inside of the return
+  // sequence.
+  { Assembler::BlockConstPoolScope block_const_pool(masm_);
+    // Tear down the frame which will restore the caller's frame pointer and
+    // the link register.
+    frame_->Exit();
+
+    // Here we use masm_-> instead of the __ macro to avoid the code coverage
+    // tool from instrumenting as we rely on the code size here.
+    int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
+    masm_->add(sp, sp, Operand(sp_delta));
+    masm_->Jump(lr);
+    DeleteFrame();
+
+#ifdef DEBUG
+    // Check that the size of the code used for returning matches what is
+    // expected by the debugger. If the sp_delts above cannot be encoded in
+    // the add instruction the add will generate two instructions.
+    int return_sequence_length =
+        masm_->InstructionsGeneratedSince(&check_exit_codesize);
+    CHECK(return_sequence_length ==
+          Assembler::kJSReturnSequenceInstructions ||
+          return_sequence_length ==
+          Assembler::kJSReturnSequenceInstructions + 1);
+#endif
   }
 }
 
