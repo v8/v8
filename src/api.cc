@@ -2613,6 +2613,35 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
 }
 
 
+bool v8::Object::HasIndexedPropertiesInPixelData() {
+  ON_BAILOUT("v8::HasIndexedPropertiesInPixelData()", return false);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  return self->HasPixelElements();
+}
+
+
+uint8_t* v8::Object::GetIndexedPropertiesPixelData() {
+  ON_BAILOUT("v8::GetIndexedPropertiesPixelData()", return NULL);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (self->HasPixelElements()) {
+    return i::PixelArray::cast(self->elements())->external_pointer();
+  } else {
+    return NULL;
+  }
+}
+
+
+int v8::Object::GetIndexedPropertiesPixelDataLength() {
+  ON_BAILOUT("v8::GetIndexedPropertiesPixelDataLength()", return -1);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (self->HasPixelElements()) {
+    return i::PixelArray::cast(self->elements())->length();
+  } else {
+    return -1;
+  }
+}
+
+
 void v8::Object::SetIndexedPropertiesToExternalArrayData(
     void* data,
     ExternalArrayType array_type,
@@ -2634,6 +2663,60 @@ void v8::Object::SetIndexedPropertiesToExternalArrayData(
   i::Handle<i::ExternalArray> array =
       i::Factory::NewExternalArray(length, array_type, data);
   self->set_elements(*array);
+}
+
+
+bool v8::Object::HasIndexedPropertiesInExternalArrayData() {
+  ON_BAILOUT("v8::HasIndexedPropertiesInExternalArrayData()", return false);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  return self->HasExternalArrayElements();
+}
+
+
+void* v8::Object::GetIndexedPropertiesExternalArrayData() {
+  ON_BAILOUT("v8::GetIndexedPropertiesExternalArrayData()", return NULL);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (self->HasExternalArrayElements()) {
+    return i::ExternalArray::cast(self->elements())->external_pointer();
+  } else {
+    return NULL;
+  }
+}
+
+
+ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
+  ON_BAILOUT("v8::GetIndexedPropertiesExternalArrayDataType()",
+             return static_cast<ExternalArrayType>(-1));
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  switch (self->elements()->map()->instance_type()) {
+    case i::EXTERNAL_BYTE_ARRAY_TYPE:
+      return kExternalByteArray;
+    case i::EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+      return kExternalUnsignedByteArray;
+    case i::EXTERNAL_SHORT_ARRAY_TYPE:
+      return kExternalShortArray;
+    case i::EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+      return kExternalUnsignedShortArray;
+    case i::EXTERNAL_INT_ARRAY_TYPE:
+      return kExternalIntArray;
+    case i::EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+      return kExternalUnsignedIntArray;
+    case i::EXTERNAL_FLOAT_ARRAY_TYPE:
+      return kExternalFloatArray;
+    default:
+      return static_cast<ExternalArrayType>(-1);
+  }
+}
+
+
+int v8::Object::GetIndexedPropertiesExternalArrayDataLength() {
+  ON_BAILOUT("v8::GetIndexedPropertiesExternalArrayDataLength()", return 0);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (self->HasExternalArrayElements()) {
+    return i::ExternalArray::cast(self->elements())->length();
+  } else {
+    return -1;
+  }
 }
 
 
