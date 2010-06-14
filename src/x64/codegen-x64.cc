@@ -8369,7 +8369,7 @@ void IntegerConvert(MacroAssembler* masm,
   // Double to remove sign bit, shift exponent down to least significant bits.
   // and subtract bias to get the unshifted, unbiased exponent.
   __ lea(double_exponent, Operand(double_value, double_value, times_1, 0));
-  __ shr(double_exponent, Immediate(64 - HeapNumber::KExponentBits));
+  __ shr(double_exponent, Immediate(64 - HeapNumber::kExponentBits));
   __ subl(double_exponent, Immediate(HeapNumber::kExponentBias));
   // Check whether the exponent is too big for a 63 bit unsigned integer.
   __ cmpl(double_exponent, Immediate(63));
