@@ -2151,6 +2151,11 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Set the value for entry.
   void ValueAtPut(int entry, Object* value) {
+    // Check that this value can actually be written.
+    PropertyDetails details = DetailsAt(entry);
+    // If a value has not been initilized we allow writing to it even if
+    // it is read only (a declared const that has not been initialized).
+    if (details.IsReadOnly() && !ValueAt(entry)->IsTheHole()) return;
     this->set(HashTable<Shape, Key>::EntryToIndex(entry)+1, value);
   }
 
