@@ -8292,7 +8292,7 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm,
   // Move exponent and sign bits to low bits.
   __ shr(rdi, Immediate(HeapNumber::kMantissaBits));
   // Remove sign bit.
-  __ andl(rdi, Immediate((1 << HeapNumber::KExponentBits) - 1));
+  __ andl(rdi, Immediate((1 << HeapNumber::kExponentBits) - 1));
   int supported_exponent_limit = (63 + HeapNumber::kExponentBias);
   __ cmpl(rdi, Immediate(supported_exponent_limit));
   __ j(below, &in_range);
