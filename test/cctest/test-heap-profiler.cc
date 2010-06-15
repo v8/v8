@@ -6,6 +6,7 @@
 
 #include "v8.h"
 #include "heap-profiler.h"
+#include "snapshot.h"
 #include "string-stream.h"
 #include "cctest.h"
 #include "zone-inl.h"
@@ -457,9 +458,23 @@ TEST(HeapSnapshot) {
       "var c2 = new C2(a2);");
   const v8::HeapSnapshot* snapshot_env2 =
       v8::HeapProfiler::TakeSnapshot(v8::String::New("env2"));
-  CHECK_EQ(1, snapshot_env2->GetHead()->GetChildrenCount());
-  const v8::HeapGraphNode* global_env2 =
-      snapshot_env2->GetHead()->GetChild(0)->GetToNode();
+  const v8::HeapGraphNode* global_env2;
+  if (i::Snapshot::IsEnabled()) {
+    // In case if snapshots are enabled, there will present a
+    // vanilla deserealized global object, without properties
+    // added by the test code.
+    CHECK_EQ(2, snapshot_env2->GetHead()->GetChildrenCount());
+    // Choose the global object of a bigger size.
+    const v8::HeapGraphNode* node0 =
+        snapshot_env2->GetHead()->GetChild(0)->GetToNode();
+    const v8::HeapGraphNode* node1 =
+        snapshot_env2->GetHead()->GetChild(1)->GetToNode();
+    global_env2 = node0->GetTotalSize() > node1->GetTotalSize() ?
+        node0 : node1;
+  } else {
+    CHECK_EQ(1, snapshot_env2->GetHead()->GetChildrenCount());
+    global_env2 = snapshot_env2->GetHead()->GetChild(0)->GetToNode();
+  }
 
   // Verify, that JS global object of env2 doesn't have '..1'
   // properties, but has '..2' properties.
