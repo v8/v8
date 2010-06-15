@@ -445,9 +445,6 @@ void V8::DisposeGlobal(i::Object** obj) {
 
 HandleScope::HandleScope() : is_closed_(false) {
   API_ENTRY_CHECK("HandleScope::HandleScope");
-  // Handle scope is per-isolate so we need to initialize the current one
-  // if it wasn't already.
-  EnsureInitialized("HandleScope::HandleScope");
   i::HandleScope::Enter(&previous_);
 }
 
