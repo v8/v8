@@ -1472,28 +1472,37 @@ class HeapIterator BASE_EMBEDDED {
 class KeyedLookupCache {
  public:
   // Lookup field offset for (map, name). If absent, -1 is returned.
-  static int Lookup(Map* map, String* name);
+  int Lookup(Map* map, String* name);
 
   // Update an element in the cache.
-  static void Update(Map* map, String* name, int field_offset);
+  void Update(Map* map, String* name, int field_offset);
 
   // Clear the cache.
-  static void Clear();
+  void Clear();
 
   static const int kLength = 64;
   static const int kCapacityMask = kLength - 1;
   static const int kMapHashShift = 2;
+  static const int kNotFound = -1;
 
  private:
+  KeyedLookupCache() {
+    for (int i = 0; i < kLength; ++i) {
+      keys_[i].map = NULL;
+      keys_[i].name = NULL;
+      field_offsets_[i] = kNotFound;
+    }
+  }
+
   static inline int Hash(Map* map, String* name);
 
   // Get the address of the keys and field_offsets arrays.  Used in
   // generated code to perform cache lookups.
-  static Address keys_address() {
+  Address keys_address() {
     return reinterpret_cast<Address>(&keys_);
   }
 
-  static Address field_offsets_address() {
+  Address field_offsets_address() {
     return reinterpret_cast<Address>(&field_offsets_);
   }
 
@@ -1501,10 +1510,13 @@ class KeyedLookupCache {
     Map* map;
     String* name;
   };
-  static Key keys_[kLength];
-  static int field_offsets_[kLength];
+
+  Key keys_[kLength];
+  int field_offsets_[kLength];
 
   friend class ExternalReference;
+  friend class Isolate;
+  DISALLOW_COPY_AND_ASSIGN(KeyedLookupCache);
 };
 
 
@@ -1516,7 +1528,7 @@ class DescriptorLookupCache {
  public:
   // Lookup descriptor index for (map, name).
   // If absent, kAbsent is returned.
-  static int Lookup(DescriptorArray* array, String* name) {
+  int Lookup(DescriptorArray* array, String* name) {
     if (!StringShape(name).IsSymbol()) return kAbsent;
     int index = Hash(array, name);
     Key& key = keys_[index];
@@ -1525,7 +1537,7 @@ class DescriptorLookupCache {
   }
 
   // Update an element in the cache.
-  static void Update(DescriptorArray* array, String* name, int result) {
+  void Update(DescriptorArray* array, String* name, int result) {
     ASSERT(result != kAbsent);
     if (StringShape(name).IsSymbol()) {
       int index = Hash(array, name);
@@ -1537,10 +1549,18 @@ class DescriptorLookupCache {
   }
 
   // Clear the cache.
-  static void Clear();
+  void Clear();
 
   static const int kAbsent = -2;
  private:
+  DescriptorLookupCache() {
+    for (int i = 0; i < kLength; ++i) {
+      keys_[i].array = NULL;
+      keys_[i].name = NULL;
+      results_[i] = kAbsent;
+    }
+  }
+
   static int Hash(DescriptorArray* array, String* name) {
     // Uses only lower 32 bits if pointers are larger.
     uint32_t array_hash =
@@ -1556,8 +1576,11 @@ class DescriptorLookupCache {
     String* name;
   };
 
-  static Key keys_[kLength];
-  static int results_[kLength];
+  Key keys_[kLength];
+  int results_[kLength];
+
+  friend class Isolate;
+  DISALLOW_COPY_AND_ASSIGN(DescriptorLookupCache);
 };
 
 

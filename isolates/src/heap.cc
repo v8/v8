@@ -705,9 +705,9 @@ void Heap::MarkCompact(GCTracer* tracer) {
 void Heap::MarkCompactPrologue(bool is_compacting) {
   // At any old GC clear the keyed lookup cache to enable collection of unused
   // maps.
-  KeyedLookupCache::Clear();
-  ContextSlotCache::Clear();
-  DescriptorLookupCache::Clear();
+  isolate_->keyed_lookup_cache()->Clear();
+  isolate_->context_slot_cache()->Clear();
+  isolate_->descriptor_lookup_cache()->Clear();
 
   CompilationCache::MarkCompactPrologue();
 
@@ -860,7 +860,7 @@ void Heap::Scavenge() {
   LOG(ResourceEvent("scavenge", "begin"));
 
   // Clear descriptor cache.
-  DescriptorLookupCache::Clear();
+  isolate_->descriptor_lookup_cache()->Clear();
 
   // Used for updating survived_since_last_expansion_ at function end.
   int survived_watermark = PromotedSpaceSize();
@@ -1670,13 +1670,13 @@ bool Heap::CreateInitialObjects() {
   set_last_script_id(undefined_value());
 
   // Initialize keyed lookup cache.
-  KeyedLookupCache::Clear();
+  isolate_->keyed_lookup_cache()->Clear();
 
   // Initialize context slot cache.
-  ContextSlotCache::Clear();
+  isolate_->context_slot_cache()->Clear();
 
   // Initialize descriptor cache.
-  DescriptorLookupCache::Clear();
+  isolate_->descriptor_lookup_cache()->Clear();
 
   // Initialize compilation cache.
   CompilationCache::Clear();
@@ -4672,7 +4672,7 @@ int KeyedLookupCache::Lookup(Map* map, String* name) {
   if ((key.map == map) && key.name->Equals(name)) {
     return field_offsets_[index];
   }
-  return -1;
+  return kNotFound;
 }
 
 
@@ -4693,21 +4693,9 @@ void KeyedLookupCache::Clear() {
 }
 
 
-KeyedLookupCache::Key KeyedLookupCache::keys_[KeyedLookupCache::kLength];
-
-
-int KeyedLookupCache::field_offsets_[KeyedLookupCache::kLength];
-
-
 void DescriptorLookupCache::Clear() {
   for (int index = 0; index < kLength; index++) keys_[index].array = NULL;
 }
-
-
-DescriptorLookupCache::Key
-DescriptorLookupCache::keys_[DescriptorLookupCache::kLength];
-
-int DescriptorLookupCache::results_[DescriptorLookupCache::kLength];
 
 
 #ifdef DEBUG

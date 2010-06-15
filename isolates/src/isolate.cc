@@ -34,6 +34,7 @@
 #include "log.h"
 #include "isolate.h"
 #include "serialize.h"
+#include "scopeinfo.h"
 #include "simulator.h"
 #include "stub-cache.h"
 #include "oprofile-agent.h"
@@ -92,6 +93,9 @@ Isolate::Isolate()
       break_access_(OS::CreateMutex()),
       stub_cache_(NULL),
       transcendental_cache_(new TranscendentalCache()),
+      keyed_lookup_cache_(new KeyedLookupCache()),
+      context_slot_cache_(new ContextSlotCache()),
+      descriptor_lookup_cache_(new DescriptorLookupCache()),
       handle_scope_implementer_(NULL) {
   heap_.isolate_ = this;
   stack_guard_.isolate_ = this;
@@ -111,6 +115,13 @@ Isolate::Isolate()
 
 
 Isolate::~Isolate() {
+  delete descriptor_lookup_cache_;
+  descriptor_lookup_cache_ = NULL;
+  delete context_slot_cache_;
+  context_slot_cache_ = NULL;
+  delete keyed_lookup_cache_;
+  keyed_lookup_cache_ = NULL;
+
   delete transcendental_cache_;
   transcendental_cache_ = NULL;
   delete stub_cache_;

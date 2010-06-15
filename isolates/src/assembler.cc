@@ -595,12 +595,14 @@ ExternalReference ExternalReference::transcendental_cache_array_address() {
 
 
 ExternalReference ExternalReference::keyed_lookup_cache_keys() {
-  return ExternalReference(KeyedLookupCache::keys_address());
+  return ExternalReference(Isolate::Current()->
+      keyed_lookup_cache()->keys_address());
 }
 
 
 ExternalReference ExternalReference::keyed_lookup_cache_field_offsets() {
-  return ExternalReference(KeyedLookupCache::field_offsets_address());
+  return ExternalReference(Isolate::Current()->
+      keyed_lookup_cache()->field_offsets_address());
 }
 
 

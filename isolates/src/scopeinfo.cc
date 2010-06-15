@@ -431,7 +431,8 @@ int ScopeInfo<Allocator>::ContextSlotIndex(Code* code,
                                            String* name,
                                            Variable::Mode* mode) {
   ASSERT(name->IsSymbol());
-  int result = ContextSlotCache::Lookup(code, name, mode);
+  Isolate* isolate = Isolate::Current();
+  int result = isolate->context_slot_cache()->Lookup(code, name, mode);
   if (result != ContextSlotCache::kNotFound) return result;
   if (code->sinfo_size() > 0) {
     // Loop below depends on the NULL sentinel after the context slot names.
@@ -450,13 +451,13 @@ int ScopeInfo<Allocator>::ContextSlotIndex(Code* code,
         Variable::Mode mode_value = static_cast<Variable::Mode>(v);
         if (mode != NULL) *mode = mode_value;
         result = static_cast<int>((p - p0) >> 1) + Context::MIN_CONTEXT_SLOTS;
-        ContextSlotCache::Update(code, name, mode_value, result);
+        isolate->context_slot_cache()->Update(code, name, mode_value, result);
         return result;
       }
       p += 2;
     }
   }
-  ContextSlotCache::Update(code, name, Variable::INTERNAL, -1);
+  isolate->context_slot_cache()->Update(code, name, Variable::INTERNAL, -1);
   return -1;
 }
 
@@ -577,12 +578,6 @@ void ContextSlotCache::Update(Code* code,
 void ContextSlotCache::Clear() {
   for (int index = 0; index < kLength; index++) keys_[index].code = NULL;
 }
-
-
-ContextSlotCache::Key ContextSlotCache::keys_[ContextSlotCache::kLength];
-
-
-uint32_t ContextSlotCache::values_[ContextSlotCache::kLength];
 
 
 #ifdef DEBUG

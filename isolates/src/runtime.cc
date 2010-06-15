@@ -3771,7 +3771,9 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
     if (receiver->HasFastProperties()) {
       // Attempt to use lookup cache.
       Map* receiver_map = receiver->map();
-      int offset = KeyedLookupCache::Lookup(receiver_map, key);
+      KeyedLookupCache* keyed_lookup_cache = Isolate::Current()->
+        keyed_lookup_cache();
+      int offset = keyed_lookup_cache->Lookup(receiver_map, key);
       if (offset != -1) {
         Object* value = receiver->FastPropertyAt(offset);
         return value->IsTheHole() ? HEAP->undefined_value() : value;
@@ -3781,7 +3783,7 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
       receiver->LocalLookup(key, &result);
       if (result.IsProperty() && result.type() == FIELD) {
         int offset = result.GetFieldIndex();
-        KeyedLookupCache::Update(receiver_map, key, offset);
+        keyed_lookup_cache->Update(receiver_map, key, offset);
         return receiver->FastPropertyAt(offset);
       }
     } else {

@@ -37,6 +37,7 @@ namespace v8 {
 namespace internal {
 
 class Bootstrapper;
+class ContextSlotCache;
 class Deserializer;
 class HandleScopeImplementer;
 class SaveContext;
@@ -164,8 +165,20 @@ class Isolate {
   StubCache* stub_cache() { return stub_cache_; }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
 
-  TranscendentalCache* transcendental_cache() const {
+  TranscendentalCache* transcendental_cache() {
     return transcendental_cache_;
+  }
+
+  KeyedLookupCache* keyed_lookup_cache() {
+    return keyed_lookup_cache_;
+  }
+
+  ContextSlotCache* context_slot_cache() {
+    return context_slot_cache_;
+  }
+
+  DescriptorLookupCache* descriptor_lookup_cache() {
+    return descriptor_lookup_cache_;
   }
 
   v8::ImplementationUtilities::HandleScopeData* handle_scope_data() {
@@ -211,6 +224,9 @@ class Isolate {
   StubCache* stub_cache_;
   ThreadLocalTop thread_local_top_;
   TranscendentalCache* transcendental_cache_;
+  KeyedLookupCache* keyed_lookup_cache_;
+  ContextSlotCache* context_slot_cache_;
+  DescriptorLookupCache* descriptor_lookup_cache_;
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
   Zone zone_;

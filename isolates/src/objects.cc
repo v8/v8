@@ -1682,10 +1682,13 @@ bool JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
 
 void JSObject::LookupInDescriptor(String* name, LookupResult* result) {
   DescriptorArray* descriptors = map()->instance_descriptors();
-  int number = DescriptorLookupCache::Lookup(descriptors, name);
+  DescriptorLookupCache* descriptor_lookup_cache = Isolate::Current()->
+      descriptor_lookup_cache();
+  int number = descriptor_lookup_cache->Lookup(descriptors, name);
+
   if (number == DescriptorLookupCache::kAbsent) {
     number = descriptors->Search(name);
-    DescriptorLookupCache::Update(descriptors, name, number);
+    descriptor_lookup_cache->Update(descriptors, name, number);
   }
   if (number != DescriptorArray::kNotFound) {
     result->DescriptorResult(this, descriptors->GetDetails(number), number);
