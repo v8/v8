@@ -1768,20 +1768,11 @@ typedef Handle<Value> (*NamedPropertySetter)(Local<String> property,
 
 /**
  * Returns a non-empty handle if the interceptor intercepts the request.
- * The result is either boolean (true if property exists and false
- * otherwise) or an integer encoding property attributes.
+ * The result is an integer encoding property attributes (like v8::None,
+ * v8::DontEnum, etc.)
  */
-#ifdef USE_NEW_QUERY_CALLBACKS
 typedef Handle<Integer> (*NamedPropertyQuery)(Local<String> property,
                                               const AccessorInfo& info);
-#else
-typedef Handle<Boolean> (*NamedPropertyQuery)(Local<String> property,
-                                              const AccessorInfo& info);
-#endif
-
-typedef Handle<Value> (*NamedPropertyQueryImpl)(Local<String> property,
-                                                const AccessorInfo& info);
-
 
 
 /**
@@ -2033,16 +2024,7 @@ class V8EXPORT FunctionTemplate : public Template {
                                        NamedPropertyQuery query,
                                        NamedPropertyDeleter remover,
                                        NamedPropertyEnumerator enumerator,
-                                       Handle<Value> data) {
-    NamedPropertyQueryImpl casted =
-        reinterpret_cast<NamedPropertyQueryImpl>(query);
-    SetNamedInstancePropertyHandlerImpl(getter,
-                                        setter,
-                                        casted,
-                                        remover,
-                                        enumerator,
-                                        data);
-  }
+                                       Handle<Value> data);
   void SetIndexedInstancePropertyHandler(IndexedPropertyGetter getter,
                                          IndexedPropertySetter setter,
                                          IndexedPropertyQuery query,
@@ -2054,13 +2036,6 @@ class V8EXPORT FunctionTemplate : public Template {
 
   friend class Context;
   friend class ObjectTemplate;
- private:
-  void SetNamedInstancePropertyHandlerImpl(NamedPropertyGetter getter,
-                                           NamedPropertySetter setter,
-                                           NamedPropertyQueryImpl query,
-                                           NamedPropertyDeleter remover,
-                                           NamedPropertyEnumerator enumerator,
-                                           Handle<Value> data);
 };
 
 
@@ -2118,7 +2093,8 @@ class V8EXPORT ObjectTemplate : public Template {
    *
    * \param getter The callback to invoke when getting a property.
    * \param setter The callback to invoke when setting a property.
-   * \param query The callback to invoke to check if an object has a property.
+   * \param query The callback to invoke to check if a property is present,
+   *   and if present, get its attributes.
    * \param deleter The callback to invoke when deleting a property.
    * \param enumerator The callback to invoke to enumerate all the named
    *   properties of an object.
@@ -2130,26 +2106,7 @@ class V8EXPORT ObjectTemplate : public Template {
                                NamedPropertyQuery query = 0,
                                NamedPropertyDeleter deleter = 0,
                                NamedPropertyEnumerator enumerator = 0,
-                               Handle<Value> data = Handle<Value>()) {
-    NamedPropertyQueryImpl casted =
-        reinterpret_cast<NamedPropertyQueryImpl>(query);
-    SetNamedPropertyHandlerImpl(getter,
-                                setter,
-                                casted,
-                                deleter,
-                                enumerator,
-                                data);
-  }
-
- private:
-  void SetNamedPropertyHandlerImpl(NamedPropertyGetter getter,
-                                   NamedPropertySetter setter,
-                                   NamedPropertyQueryImpl query,
-                                   NamedPropertyDeleter deleter,
-                                   NamedPropertyEnumerator enumerator,
-                                   Handle<Value> data);
-
- public:
+                               Handle<Value> data = Handle<Value>());
 
   /**
    * Sets an indexed property handler on the object template.

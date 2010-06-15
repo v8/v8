@@ -854,10 +854,10 @@ void FunctionTemplate::SetHiddenPrototype(bool value) {
 }
 
 
-void FunctionTemplate::SetNamedInstancePropertyHandlerImpl(
+void FunctionTemplate::SetNamedInstancePropertyHandler(
       NamedPropertyGetter getter,
       NamedPropertySetter setter,
-      NamedPropertyQueryImpl query,
+      NamedPropertyQuery query,
       NamedPropertyDeleter remover,
       NamedPropertyEnumerator enumerator,
       Handle<Value> data) {
@@ -988,13 +988,12 @@ void ObjectTemplate::SetAccessor(v8::Handle<String> name,
 }
 
 
-void ObjectTemplate::SetNamedPropertyHandlerImpl(NamedPropertyGetter getter,
-                                                 NamedPropertySetter setter,
-                                                 NamedPropertyQueryImpl query,
-                                                 NamedPropertyDeleter remover,
-                                                 NamedPropertyEnumerator
-                                                    enumerator,
-                                                 Handle<Value> data) {
+void ObjectTemplate::SetNamedPropertyHandler(NamedPropertyGetter getter,
+                                             NamedPropertySetter setter,
+                                             NamedPropertyQuery query,
+                                             NamedPropertyDeleter remover,
+                                             NamedPropertyEnumerator enumerator,
+                                             Handle<Value> data) {
   if (IsDeadCheck("v8::ObjectTemplate::SetNamedPropertyHandler()")) return;
   ENTER_V8;
   HandleScope scope;
@@ -1002,12 +1001,12 @@ void ObjectTemplate::SetNamedPropertyHandlerImpl(NamedPropertyGetter getter,
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
-  Utils::ToLocal(cons)->SetNamedInstancePropertyHandlerImpl(getter,
-                                                            setter,
-                                                            query,
-                                                            remover,
-                                                            enumerator,
-                                                            data);
+  Utils::ToLocal(cons)->SetNamedInstancePropertyHandler(getter,
+                                                        setter,
+                                                        query,
+                                                        remover,
+                                                        enumerator,
+                                                        data);
 }
 
 
