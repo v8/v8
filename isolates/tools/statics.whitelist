@@ -1,0 +1,4 @@
+.*00000000 \.data$
+.*00000000 \.bss$
+.*00000000 \.rodata$
+.*hidden vtable for.*
