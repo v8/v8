@@ -43,82 +43,6 @@ namespace internal {
 class SaveContext;  // Forward declaration.
 class ThreadVisitor;  // Defined in v8threads.h
 
-class ThreadLocalTop BASE_EMBEDDED {
- public:
-  // Initialize the thread data.
-  void Initialize();
-
-  // Get the top C++ try catch handler or NULL if none are registered.
-  //
-  // This method is not guarenteed to return an address that can be
-  // used for comparison with addresses into the JS stack.  If such an
-  // address is needed, use try_catch_handler_address.
-  v8::TryCatch* TryCatchHandler();
-
-  // Get the address of the top C++ try catch handler or NULL if
-  // none are registered.
-  //
-  // This method always returns an address that can be compared to
-  // pointers into the JavaScript stack.  When running on actual
-  // hardware, try_catch_handler_address and TryCatchHandler return
-  // the same pointer.  When running on a simulator with a separate JS
-  // stack, try_catch_handler_address returns a JS stack address that
-  // corresponds to the place on the JS stack where the C++ handler
-  // would have been if the stack were not separate.
-  inline Address try_catch_handler_address() {
-    return try_catch_handler_address_;
-  }
-
-  // Set the address of the top C++ try catch handler.
-  inline void set_try_catch_handler_address(Address address) {
-    try_catch_handler_address_ = address;
-  }
-
-  void Free() {
-    ASSERT(!has_pending_message_);
-    ASSERT(!external_caught_exception_);
-    ASSERT(try_catch_handler_address_ == NULL);
-  }
-
-  // The context where the current execution method is created and for variable
-  // lookups.
-  Context* context_;
-  int thread_id_;
-  Object* pending_exception_;
-  bool has_pending_message_;
-  const char* pending_message_;
-  Object* pending_message_obj_;
-  Script* pending_message_script_;
-  int pending_message_start_pos_;
-  int pending_message_end_pos_;
-  // Use a separate value for scheduled exceptions to preserve the
-  // invariants that hold about pending_exception.  We may want to
-  // unify them later.
-  Object* scheduled_exception_;
-  bool external_caught_exception_;
-  SaveContext* save_context_;
-  v8::TryCatch* catcher_;
-
-  // Stack.
-  Address c_entry_fp_;  // the frame pointer of the top c entry frame
-  Address handler_;   // try-blocks are chained through the stack
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  Address js_entry_sp_;  // the stack pointer of the bottom js entry frame
-#endif
-  bool stack_is_cooked_;
-  inline bool stack_is_cooked() { return stack_is_cooked_; }
-  inline void set_stack_is_cooked(bool value) { stack_is_cooked_ = value; }
-
-  // Generated code scratch locations.
-  int32_t formal_count_;
-
-  // Call back function to report unsafe JS accesses.
-  v8::FailedAccessCheckCallback failed_access_check_callback_;
-
- private:
-  Address try_catch_handler_address_;
-};
-
 #define TOP_ADDRESS_LIST(C)            \
   C(handler_address)                   \
   C(c_entry_fp_address)                \
@@ -147,53 +71,53 @@ class Top {
   static Address get_address_from_id(AddressId id);
 
   // Access to top context (where the current function object was created).
-  static Context* context() { return thread_local_.context_; }
+  static Context* context() { return thread_local()->context_; }
   static void set_context(Context* context) {
-    thread_local_.context_ = context;
+    thread_local()->context_ = context;
   }
-  static Context** context_address() { return &thread_local_.context_; }
+  static Context** context_address() { return &thread_local()->context_; }
 
-  static SaveContext* save_context() {return thread_local_.save_context_; }
+  static SaveContext* save_context() {return thread_local()->save_context_; }
   static void set_save_context(SaveContext* save) {
-    thread_local_.save_context_ = save;
+    thread_local()->save_context_ = save;
   }
 
   // Access to current thread id.
-  static int thread_id() { return thread_local_.thread_id_; }
-  static void set_thread_id(int id) { thread_local_.thread_id_ = id; }
+  static int thread_id() { return thread_local()->thread_id_; }
+  static void set_thread_id(int id) { thread_local()->thread_id_ = id; }
 
   // Interface to pending exception.
   static Object* pending_exception() {
     ASSERT(has_pending_exception());
-    return thread_local_.pending_exception_;
+    return thread_local()->pending_exception_;
   }
   static bool external_caught_exception() {
-    return thread_local_.external_caught_exception_;
+    return thread_local()->external_caught_exception_;
   }
   static void set_pending_exception(Object* exception) {
-    thread_local_.pending_exception_ = exception;
+    thread_local()->pending_exception_ = exception;
   }
   static void clear_pending_exception() {
-    thread_local_.pending_exception_ = HEAP->the_hole_value();
+    thread_local()->pending_exception_ = HEAP->the_hole_value();
   }
 
   static Object** pending_exception_address() {
-    return &thread_local_.pending_exception_;
+    return &thread_local()->pending_exception_;
   }
   static bool has_pending_exception() {
-    return !thread_local_.pending_exception_->IsTheHole();
+    return !thread_local()->pending_exception_->IsTheHole();
   }
   static void clear_pending_message() {
-    thread_local_.has_pending_message_ = false;
-    thread_local_.pending_message_ = NULL;
-    thread_local_.pending_message_obj_ = HEAP->the_hole_value();
-    thread_local_.pending_message_script_ = NULL;
+    thread_local()->has_pending_message_ = false;
+    thread_local()->pending_message_ = NULL;
+    thread_local()->pending_message_obj_ = HEAP->the_hole_value();
+    thread_local()->pending_message_script_ = NULL;
   }
   static v8::TryCatch* try_catch_handler() {
-    return thread_local_.TryCatchHandler();
+    return thread_local()->TryCatchHandler();
   }
   static Address try_catch_handler_address() {
-    return thread_local_.try_catch_handler_address();
+    return thread_local()->try_catch_handler_address();
   }
   // This method is called by the api after operations that may throw
   // exceptions.  If an exception was thrown and not handled by an external
@@ -203,29 +127,29 @@ class Top {
 
 
   static bool* external_caught_exception_address() {
-    return &thread_local_.external_caught_exception_;
+    return &thread_local()->external_caught_exception_;
   }
 
   static Object** scheduled_exception_address() {
-    return &thread_local_.scheduled_exception_;
+    return &thread_local()->scheduled_exception_;
   }
 
   static Object* scheduled_exception() {
     ASSERT(has_scheduled_exception());
-    return thread_local_.scheduled_exception_;
+    return thread_local()->scheduled_exception_;
   }
   static bool has_scheduled_exception() {
-    return !thread_local_.scheduled_exception_->IsTheHole();
+    return !thread_local()->scheduled_exception_->IsTheHole();
   }
   static void clear_scheduled_exception() {
-    thread_local_.scheduled_exception_ = HEAP->the_hole_value();
+    thread_local()->scheduled_exception_ = HEAP->the_hole_value();
   }
 
   static void setup_external_caught() {
-    thread_local_.external_caught_exception_ =
+    thread_local()->external_caught_exception_ =
         has_pending_exception() &&
-        (thread_local_.catcher_ != NULL) &&
-        (try_catch_handler() == thread_local_.catcher_);
+        (thread_local()->catcher_ != NULL) &&
+        (try_catch_handler() == thread_local()->catcher_);
   }
 
   // Tells whether the current context has experienced an out of memory
@@ -239,9 +163,9 @@ class Top {
   static Address handler(ThreadLocalTop* thread) { return thread->handler_; }
 
   static inline Address* c_entry_fp_address() {
-    return &thread_local_.c_entry_fp_;
+    return &thread_local()->c_entry_fp_;
   }
-  static inline Address* handler_address() { return &thread_local_.handler_; }
+  static inline Address* handler_address() { return &thread_local()->handler_; }
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // Bottom JS entry (see StackTracer::Trace in log.cc).
@@ -249,12 +173,12 @@ class Top {
     return thread->js_entry_sp_;
   }
   static inline Address* js_entry_sp_address() {
-    return &thread_local_.js_entry_sp_;
+    return &thread_local()->js_entry_sp_;
   }
 #endif
 
   // Generated code scratch locations.
-  static void* formal_count_address() { return &thread_local_.formal_count_; }
+  static void* formal_count_address() { return &thread_local()->formal_count_; }
 
   static void MarkCompactPrologue(bool is_compacting);
   static void MarkCompactEpilogue(bool is_compacting);
@@ -346,7 +270,7 @@ class Top {
   static Handle<Context> GetCallingGlobalContext();
 
   static Handle<JSBuiltinsObject> builtins() {
-    return Handle<JSBuiltinsObject>(thread_local_.context_->builtins());
+    return Handle<JSBuiltinsObject>(thread_local()->context_->builtins());
   }
 
   static void RegisterTryCatchHandler(v8::TryCatch* that);
@@ -359,17 +283,18 @@ class Top {
   GLOBAL_CONTEXT_FIELDS(TOP_GLOBAL_CONTEXT_FIELD_ACCESSOR)
 #undef TOP_GLOBAL_CONTEXT_FIELD_ACCESSOR
 
-  static inline ThreadLocalTop* GetCurrentThread() { return &thread_local_; }
   static int ArchiveSpacePerThread() { return sizeof(ThreadLocalTop); }
   static char* ArchiveThread(char* to);
   static char* RestoreThread(char* from);
-  static void FreeThreadResources() { thread_local_.Free(); }
+  static void FreeThreadResources() { thread_local()->Free(); }
 
   static const char* kStackOverflowMessage;
 
  private:
   // The context that initiated this JS execution.
-  static ThreadLocalTop thread_local_;
+  static ThreadLocalTop* thread_local() {
+    return Isolate::Current()->thread_local_top();
+  }
   static void InitializeThreadLocal();
   static void PrintStackTrace(FILE* out, ThreadLocalTop* thread);
   static void MarkCompactPrologue(bool is_compacting,

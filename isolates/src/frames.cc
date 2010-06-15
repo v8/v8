@@ -68,7 +68,8 @@ class StackHandlerIterator BASE_EMBEDDED {
 #define INITIALIZE_SINGLETON(type, field) field##_(this),
 StackFrameIterator::StackFrameIterator()
     : STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
-      frame_(NULL), handler_(NULL), thread_(Top::GetCurrentThread()),
+      frame_(NULL), handler_(NULL),
+      thread_(Isolate::Current()->thread_local_top()),
       fp_(NULL), sp_(NULL), advance_(&StackFrameIterator::AdvanceWithHandler) {
   Reset();
 }
@@ -81,7 +82,7 @@ StackFrameIterator::StackFrameIterator(ThreadLocalTop* t)
 StackFrameIterator::StackFrameIterator(bool use_top, Address fp, Address sp)
     : STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
       frame_(NULL), handler_(NULL),
-      thread_(use_top ? Top::GetCurrentThread() : NULL),
+      thread_(use_top ? Isolate::Current()->thread_local_top() : NULL),
       fp_(use_top ? NULL : fp), sp_(sp),
       advance_(use_top ? &StackFrameIterator::AdvanceWithHandler :
                &StackFrameIterator::AdvanceWithoutHandler) {
@@ -204,8 +205,8 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     low_bound_(low_bound), high_bound_(high_bound),
     is_valid_top_(
         IsWithinBounds(low_bound, high_bound,
-                       Top::c_entry_fp(Top::GetCurrentThread())) &&
-        Top::handler(Top::GetCurrentThread()) != NULL),
+                       Top::c_entry_fp(Isolate::Current()->thread_local_top()))
+        && Top::handler(Isolate::Current()->thread_local_top()) != NULL),
     is_valid_fp_(IsWithinBounds(low_bound, high_bound, fp)),
     is_working_iterator_(is_valid_top_ || is_valid_fp_),
     iteration_done_(!is_working_iterator_),

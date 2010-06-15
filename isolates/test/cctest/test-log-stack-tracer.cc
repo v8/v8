@@ -130,8 +130,8 @@ v8::Handle<v8::Value> TraceExtension::JSTrace(const v8::Arguments& args) {
 
 
 static Address GetJsEntrySp() {
-  CHECK_NE(NULL, Top::GetCurrentThread());
-  return Top::js_entry_sp(Top::GetCurrentThread());
+  CHECK_NE(NULL, i::Isolate::Current()->thread_local_top());
+  return Top::js_entry_sp(i::Isolate::Current()->thread_local_top());
 }
 
 

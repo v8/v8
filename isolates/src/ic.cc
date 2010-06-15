@@ -81,7 +81,7 @@ IC::IC(FrameDepth depth) {
   // To improve the performance of the (much used) IC code, we unfold
   // a few levels of the stack frame iteration code. This yields a
   // ~35% speedup when running DeltaBlue with the '--nouse-ic' flag.
-  const Address entry = Top::c_entry_fp(Top::GetCurrentThread());
+  const Address entry = Top::c_entry_fp(Isolate::Current()->thread_local_top());
   Address* pc_address =
       reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
   Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);

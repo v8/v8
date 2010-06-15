@@ -148,7 +148,7 @@ static inline bool CalledAsConstructor() {
   StackFrame* frame = it.frame();
   bool reference_result = frame->is_construct();
 #endif
-  Address fp = Top::c_entry_fp(Top::GetCurrentThread());
+  Address fp = Top::c_entry_fp(Isolate::Current()->thread_local_top());
   // Because we know fp points to an exit frame we can use the relevant
   // part of ExitFrame::ComputeCallerState directly.
   const int kCallerOffset = ExitFrameConstants::kCallerFPOffset;

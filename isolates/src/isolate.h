@@ -39,7 +39,84 @@ namespace internal {
 class Bootstrapper;
 class Deserializer;
 class HandleScopeImplementer;
+class SaveContext;
 class StubCache;
+
+class ThreadLocalTop BASE_EMBEDDED {
+ public:
+  // Initialize the thread data.
+  void Initialize();
+
+  // Get the top C++ try catch handler or NULL if none are registered.
+  //
+  // This method is not guarenteed to return an address that can be
+  // used for comparison with addresses into the JS stack.  If such an
+  // address is needed, use try_catch_handler_address.
+  v8::TryCatch* TryCatchHandler();
+
+  // Get the address of the top C++ try catch handler or NULL if
+  // none are registered.
+  //
+  // This method always returns an address that can be compared to
+  // pointers into the JavaScript stack.  When running on actual
+  // hardware, try_catch_handler_address and TryCatchHandler return
+  // the same pointer.  When running on a simulator with a separate JS
+  // stack, try_catch_handler_address returns a JS stack address that
+  // corresponds to the place on the JS stack where the C++ handler
+  // would have been if the stack were not separate.
+  inline Address try_catch_handler_address() {
+    return try_catch_handler_address_;
+  }
+
+  // Set the address of the top C++ try catch handler.
+  inline void set_try_catch_handler_address(Address address) {
+    try_catch_handler_address_ = address;
+  }
+
+  void Free() {
+    ASSERT(!has_pending_message_);
+    ASSERT(!external_caught_exception_);
+    ASSERT(try_catch_handler_address_ == NULL);
+  }
+
+  // The context where the current execution method is created and for variable
+  // lookups.
+  Context* context_;
+  int thread_id_;
+  Object* pending_exception_;
+  bool has_pending_message_;
+  const char* pending_message_;
+  Object* pending_message_obj_;
+  Script* pending_message_script_;
+  int pending_message_start_pos_;
+  int pending_message_end_pos_;
+  // Use a separate value for scheduled exceptions to preserve the
+  // invariants that hold about pending_exception.  We may want to
+  // unify them later.
+  Object* scheduled_exception_;
+  bool external_caught_exception_;
+  SaveContext* save_context_;
+  v8::TryCatch* catcher_;
+
+  // Stack.
+  Address c_entry_fp_;  // the frame pointer of the top c entry frame
+  Address handler_;   // try-blocks are chained through the stack
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  Address js_entry_sp_;  // the stack pointer of the bottom js entry frame
+#endif
+  bool stack_is_cooked_;
+  inline bool stack_is_cooked() { return stack_is_cooked_; }
+  inline void set_stack_is_cooked(bool value) { stack_is_cooked_ = value; }
+
+  // Generated code scratch locations.
+  int32_t formal_count_;
+
+  // Call back function to report unsafe JS accesses.
+  v8::FailedAccessCheckCallback failed_access_check_callback_;
+
+ private:
+  Address try_catch_handler_address_;
+};
 
 #define ISOLATE_INIT_ARRAY_LIST(V)                                             \
   /* SerializerDeserializer state. */                                          \
@@ -85,6 +162,7 @@ class Isolate {
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
   StubCache* stub_cache() { return stub_cache_; }
+  ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
 
   TranscendentalCache* transcendental_cache() const {
     return transcendental_cache_;
@@ -131,6 +209,7 @@ class Isolate {
   Heap heap_;
   StackGuard stack_guard_;
   StubCache* stub_cache_;
+  ThreadLocalTop thread_local_top_;
   TranscendentalCache* transcendental_cache_;
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
