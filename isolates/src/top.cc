@@ -71,7 +71,10 @@ class TopState {
 
 
 // TODO(isolates): We will be moving this to Isolate ASAP.
-static TopState top_state;
+static TopState* GetTopState() {
+  static TopState top_state;
+  return &top_state;
+}
 
 
 v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
@@ -98,7 +101,7 @@ void ThreadLocalTop::Initialize() {
 
 
 Address Top::get_address_from_id(Top::AddressId id) {
-  return top_state.top_addresses_[id];
+  return GetTopState()->top_addresses_[id];
 }
 
 
@@ -269,36 +272,36 @@ void TopState::PreallocatedMemoryThreadStop() {
 
 
 void Top::Initialize() {
-  CHECK(!top_state.initialized_);
+  CHECK(!GetTopState()->initialized_);
 
   InitializeThreadLocal();
 
   // Only preallocate on the first initialization.
   if (FLAG_preallocate_message_memory &&
-      (top_state.preallocated_message_space_ == NULL)) {
+      (GetTopState()->preallocated_message_space_ == NULL)) {
     // Start the thread which will set aside some memory.
-    top_state.PreallocatedMemoryThreadStart();
-    top_state.preallocated_message_space_ =
+    GetTopState()->PreallocatedMemoryThreadStart();
+    GetTopState()->preallocated_message_space_ =
         new NoAllocationStringAllocator(
-            top_state.preallocated_memory_thread_->data(),
-            top_state.preallocated_memory_thread_->length());
+            GetTopState()->preallocated_memory_thread_->data(),
+            GetTopState()->preallocated_memory_thread_->length());
     PreallocatedStorage::Init(
-        top_state.preallocated_memory_thread_->length() / 4);
+        GetTopState()->preallocated_memory_thread_->length() / 4);
   }
-  top_state.initialized_ = true;
+  GetTopState()->initialized_ = true;
 }
 
 
 void Top::TearDown() {
-  if (top_state.initialized_) {
+  if (GetTopState()->initialized_) {
     // Remove the external reference to the preallocated stack memory.
-    if (top_state.preallocated_message_space_ != NULL) {
-      delete top_state.preallocated_message_space_;
-      top_state.preallocated_message_space_ = NULL;
+    if (GetTopState()->preallocated_message_space_ != NULL) {
+      delete GetTopState()->preallocated_message_space_;
+      GetTopState()->preallocated_message_space_ = NULL;
     }
 
-    top_state.PreallocatedMemoryThreadStop();
-    top_state.initialized_ = false;
+    GetTopState()->PreallocatedMemoryThreadStop();
+    GetTopState()->initialized_ = false;
   }
 }
 
@@ -359,24 +362,24 @@ void Top::MarkCompactEpilogue(bool is_compacting, ThreadLocalTop* thread) {
 
 
 Handle<String> Top::StackTraceString() {
-  if (top_state.stack_trace_nesting_level_ == 0) {
-    top_state.stack_trace_nesting_level_++;
+  if (GetTopState()->stack_trace_nesting_level_ == 0) {
+    GetTopState()->stack_trace_nesting_level_++;
     HeapStringAllocator allocator;
     StringStream::ClearMentionedObjectCache();
     StringStream accumulator(&allocator);
-    top_state.incomplete_message_ = &accumulator;
+    GetTopState()->incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
     Handle<String> stack_trace = accumulator.ToString();
-    top_state.incomplete_message_ = NULL;
-    top_state.stack_trace_nesting_level_ = 0;
+    GetTopState()->incomplete_message_ = NULL;
+    GetTopState()->stack_trace_nesting_level_ = 0;
     return stack_trace;
-  } else if (top_state.stack_trace_nesting_level_ == 1) {
-    top_state.stack_trace_nesting_level_++;
+  } else if (GetTopState()->stack_trace_nesting_level_ == 1) {
+    GetTopState()->stack_trace_nesting_level_++;
     OS::PrintError(
       "\n\nAttempt to print stack while printing stack (double fault)\n");
     OS::PrintError(
       "If you are lucky you may find a partial stack dump on stdout.\n\n");
-    top_state.incomplete_message_->OutputToStdOut();
+    GetTopState()->incomplete_message_->OutputToStdOut();
     return Factory::empty_symbol();
   } else {
     OS::Abort();
@@ -469,14 +472,14 @@ Local<StackTrace> Top::CaptureCurrentStackTrace(
 
 
 void Top::PrintStack() {
-  if (top_state.stack_trace_nesting_level_ == 0) {
-    top_state.stack_trace_nesting_level_++;
+  if (GetTopState()->stack_trace_nesting_level_ == 0) {
+    GetTopState()->stack_trace_nesting_level_++;
 
     StringAllocator* allocator;
-    if (top_state.preallocated_message_space_ == NULL) {
+    if (GetTopState()->preallocated_message_space_ == NULL) {
       allocator = new HeapStringAllocator();
     } else {
-      allocator = top_state.preallocated_message_space_;
+      allocator = GetTopState()->preallocated_message_space_;
     }
 
     NativeAllocationChecker allocation_checker(
@@ -486,23 +489,23 @@ void Top::PrintStack() {
 
     StringStream::ClearMentionedObjectCache();
     StringStream accumulator(allocator);
-    top_state.incomplete_message_ = &accumulator;
+    GetTopState()->incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
     accumulator.OutputToStdOut();
     accumulator.Log();
-    top_state.incomplete_message_ = NULL;
-    top_state.stack_trace_nesting_level_ = 0;
-    if (top_state.preallocated_message_space_ == NULL) {
+    GetTopState()->incomplete_message_ = NULL;
+    GetTopState()->stack_trace_nesting_level_ = 0;
+    if (GetTopState()->preallocated_message_space_ == NULL) {
       // Remove the HeapStringAllocator created above.
       delete allocator;
     }
-  } else if (top_state.stack_trace_nesting_level_ == 1) {
-    top_state.stack_trace_nesting_level_++;
+  } else if (GetTopState()->stack_trace_nesting_level_ == 1) {
+    GetTopState()->stack_trace_nesting_level_++;
     OS::PrintError(
       "\n\nAttempt to print stack while printing stack (double fault)\n");
     OS::PrintError(
       "If you are lucky you may find a partial stack dump on stdout.\n\n");
-    top_state.incomplete_message_->OutputToStdOut();
+    GetTopState()->incomplete_message_->OutputToStdOut();
   }
 }
 
