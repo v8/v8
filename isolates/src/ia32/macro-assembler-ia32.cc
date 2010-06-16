@@ -408,7 +408,7 @@ void MacroAssembler::EnterExitFrameEpilogue(ExitFrame::Mode mode, int argc) {
   sub(Operand(esp), Immediate(argc * kPointerSize));
 
   // Get the required frame alignment for the OS.
-  static const int kFrameAlignment = OS::ActivationFrameAlignment();
+  const int kFrameAlignment = OS::ActivationFrameAlignment();
   if (kFrameAlignment > 0) {
     ASSERT(IsPowerOf2(kFrameAlignment));
     and_(esp, -kFrameAlignment);

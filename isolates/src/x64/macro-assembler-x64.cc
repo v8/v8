@@ -2102,7 +2102,7 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode, int result_size) {
 #endif
 
   // Get the required frame alignment for the OS.
-  static const int kFrameAlignment = OS::ActivationFrameAlignment();
+  const int kFrameAlignment = OS::ActivationFrameAlignment();
   if (kFrameAlignment > 0) {
     ASSERT(IsPowerOf2(kFrameAlignment));
     movq(kScratchRegister, Immediate(-kFrameAlignment));

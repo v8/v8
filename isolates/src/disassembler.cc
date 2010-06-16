@@ -61,24 +61,24 @@ class V8NameConverter: public disasm::NameConverter {
   Code* code() const { return code_; }
  private:
   Code* code_;
+
+  EmbeddedVector<char, 128> v8_buffer_;
 };
 
 
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
-  static v8::internal::EmbeddedVector<char, 128> buffer;
-
   const char* name = Builtins::Lookup(pc);
   if (name != NULL) {
-    OS::SNPrintF(buffer, "%s  (%p)", name, pc);
-    return buffer.start();
+    OS::SNPrintF(v8_buffer_, "%s  (%p)", name, pc);
+    return v8_buffer_.start();
   }
 
   if (code_ != NULL) {
     int offs = static_cast<int>(pc - code_->instruction_start());
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_->instruction_size()) {
-      OS::SNPrintF(buffer, "%d  (%p)", offs, pc);
-      return buffer.start();
+      OS::SNPrintF(v8_buffer_, "%d  (%p)", offs, pc);
+      return v8_buffer_.start();
     }
   }
 

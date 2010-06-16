@@ -119,6 +119,18 @@ class ThreadLocalTop BASE_EMBEDDED {
   Address try_catch_handler_address_;
 };
 
+#if defined(V8_TARGET_ARCH_ARM)
+
+#define ISOLATE_PLATFORM_INIT_LIST(V)                                          \
+  /* VirtualFrame::SpilledScope state */                                       \
+  V(bool, is_virtual_frame_in_spilled_scope, false)
+
+#else
+
+#define ISOLATE_PLATFORM_INIT_LIST(V)
+
+#endif
+
 #define ISOLATE_INIT_ARRAY_LIST(V)                                             \
   /* SerializerDeserializer state. */                                          \
   V(Object*, serialize_partial_snapshot_cache, kPartialSnapshotCacheCapacity)
@@ -127,7 +139,8 @@ class ThreadLocalTop BASE_EMBEDDED {
   /* AssertNoZoneAllocation state. */                                          \
   V(bool, zone_allow_allocation, true)                                         \
   /* SerializerDeserializer state. */                                          \
-  V(int, serialize_partial_snapshot_cache_length, 0)
+  V(int, serialize_partial_snapshot_cache_length, 0)                           \
+  ISOLATE_PLATFORM_INIT_LIST(V)
 
 class Isolate {
  public:

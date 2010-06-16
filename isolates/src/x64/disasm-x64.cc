@@ -267,7 +267,9 @@ void InstructionTable::AddJumpConditionalShort() {
 }
 
 
+// TODO(isolates): This appears to act morally as a constant. Is it safe?
 static InstructionTable instruction_table;
+
 
 static InstructionDesc cmov_instructions[16] = {
   {"cmovo", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
@@ -1593,9 +1595,8 @@ static const char* xmm_regs[16] = {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  static v8::internal::EmbeddedVector<char, 32> tmp_buffer;
-  v8::internal::OS::SNPrintF(tmp_buffer, "%p", addr);
-  return tmp_buffer.start();
+  v8::internal::OS::SNPrintF(tmp_buffer_, "%p", addr);
+  return tmp_buffer_.start();
 }
 
 

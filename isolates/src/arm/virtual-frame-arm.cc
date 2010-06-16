@@ -413,9 +413,6 @@ const VirtualFrame::TopOfStack VirtualFrame::kStateAfterPush[TOS_STATES] =
     { R0_TOS, R1_R0_TOS, R0_R1_TOS, R0_R1_TOS, R1_R0_TOS };
 
 
-bool VirtualFrame::SpilledScope::is_spilled_ = false;
-
-
 void VirtualFrame::Drop(int count) {
   ASSERT(count >= 0);
   ASSERT(height() >= count);
