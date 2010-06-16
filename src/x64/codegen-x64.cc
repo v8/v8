@@ -4429,7 +4429,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   // Since xmm3 is 1 and xmm2 is -0.5 this is simply xmm2 + xmm3.
   __ addsd(xmm2, xmm3);
   // xmm2 now has 0.5.
-  __ comisd(xmm2, xmm1);
+  __ ucomisd(xmm2, xmm1);
   call_runtime.Branch(not_equal);
 
   // Calculates square root.
@@ -6512,7 +6512,7 @@ void CodeGenerator::GenerateInlineNumberComparison(Result* left_side,
                         &not_numbers);
   LoadComparisonOperand(masm_, right_side, xmm1, left_side, right_side,
                         &not_numbers);
-  __ comisd(xmm0, xmm1);
+  __ ucomisd(xmm0, xmm1);
   // Bail out if a NaN is involved.
   not_numbers.Branch(parity_even, left_side, right_side);
 
@@ -8909,7 +8909,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
     CpuFeatures::Scope fscope(SSE2);
     __ movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
     __ movsd(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
-    __ comisd(xmm0, xmm1);
+    __ ucomisd(xmm0, xmm1);
     __ j(parity_even, not_found);  // Bail out if NaN is involved.
     __ j(not_equal, not_found);  // The cache did not contain this value.
     __ jmp(&load_result_from_cache);
@@ -9116,7 +9116,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     FloatingPointHelper::LoadFloatOperand(masm, rax, xmm1,
                                           &non_number_comparison);
 
-    __ comisd(xmm0, xmm1);
+    __ ucomisd(xmm0, xmm1);
 
     // Don't base result on EFLAGS when a NaN is involved.
     __ j(parity_even, &unordered);

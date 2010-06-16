@@ -604,6 +604,10 @@ void CodeGenerator::ConvertInt32ResultToNumber(Result* value) {
     RegisterFile empty_regs;
     SetFrame(clone, &empty_regs);
     __ bind(&allocation_failed);
+    if (!CpuFeatures::IsSupported(SSE2)) {
+      // Pop the value from the floating point stack.
+      __ fstp(0);
+    }
     unsafe_bailout_->Jump();
 
     done.Bind(value);
@@ -2991,7 +2995,7 @@ void CodeGenerator::GenerateInlineNumberComparison(Result* left_side,
                               &not_numbers);
     LoadComparisonOperandSSE2(masm_, right_side, xmm1, left_side, right_side,
                               &not_numbers);
-    __ comisd(xmm0, xmm1);
+    __ ucomisd(xmm0, xmm1);
   } else {
     Label check_right, compare;
 
@@ -7306,7 +7310,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     // Since xmm3 is 1 and xmm2 is -0.5 this is simply xmm2 + xmm3.
     __ addsd(xmm2, xmm3);
     // xmm2 now has 0.5.
-    __ comisd(xmm2, xmm1);
+    __ ucomisd(xmm2, xmm1);
     call_runtime.Branch(not_equal);
     // Calculates square root.
     __ movsd(xmm1, xmm0);
@@ -11592,7 +11596,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
       CpuFeatures::Scope fscope(SSE2);
       __ movdbl(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
       __ movdbl(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
-      __ comisd(xmm0, xmm1);
+      __ ucomisd(xmm0, xmm1);
     } else {
       __ fld_d(FieldOperand(object, HeapNumber::kValueOffset));
       __ fld_d(FieldOperand(probe, HeapNumber::kValueOffset));
@@ -11817,7 +11821,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       CpuFeatures::Scope use_cmov(CMOV);
 
       FloatingPointHelper::LoadSSE2Operands(masm, &non_number_comparison);
-      __ comisd(xmm0, xmm1);
+      __ ucomisd(xmm0, xmm1);
 
       // Don't base result on EFLAGS when a NaN is involved.
       __ j(parity_even, &unordered, not_taken);

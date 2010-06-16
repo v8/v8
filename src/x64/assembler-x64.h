@@ -1122,7 +1122,6 @@ class Assembler : public Malloced {
   void xorpd(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
-  void comisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, XMMRegister src);
 
   // The first argument is the reg field, the second argument is the r/m field.
