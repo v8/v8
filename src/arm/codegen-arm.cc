@@ -4088,28 +4088,34 @@ void CodeGenerator::VisitCall(Call* node) {
       VirtualFrame::SpilledScope spilled_scope(frame_);
 
       Load(property->obj());
-      if (!property->is_synthetic()) {
-        // Duplicate receiver for later use.
-        __ ldr(r0, MemOperand(sp, 0));
-        frame_->EmitPush(r0);
-      }
-      Load(property->key());
-      EmitKeyedLoad();
-      // Put the function below the receiver.
       if (property->is_synthetic()) {
+        Load(property->key());
+        EmitKeyedLoad();
+        // Put the function below the receiver.
         // Use the global receiver.
         frame_->EmitPush(r0);  // Function.
         LoadGlobalReceiver(r0);
+        // Call the function.
+        CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
+        frame_->EmitPush(r0);
       } else {
-        // Switch receiver and function.
-        frame_->EmitPop(r1);  // Receiver.
-        frame_->EmitPush(r0);  // Function.
-        frame_->EmitPush(r1);  // Receiver.
-      }
+        // Load the arguments.
+        int arg_count = args->length();
+        for (int i = 0; i < arg_count; i++) {
+          Load(args->at(i));
+        }
 
-      // Call the function.
-      CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
-      frame_->EmitPush(r0);
+        // Set the name register and call the IC initialization code.
+        Load(property->key());
+        frame_->EmitPop(r2);  // Function name.
+
+        InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+        Handle<Code> stub = ComputeKeyedCallInitialize(arg_count, in_loop);
+        CodeForSourcePosition(node->position());
+        frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
+        __ ldr(cp, frame_->Context());
+        frame_->EmitPush(r0);
+      }
     }
 
   } else {

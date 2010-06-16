@@ -3108,25 +3108,31 @@ void CodeGenerator::VisitCall(Call* node) {
         ref.GetValue();
         // Use global object as receiver.
         LoadGlobalReceiver();
+       // Call the function.
+        CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
       } else {
-        Reference ref(this, property, false);
-        ASSERT(ref.size() == 2);
-        Result key = frame_->Pop();
-        frame_->Dup();  // Duplicate the receiver.
-        frame_->Push(&key);
-        ref.GetValue();
-        // Top of frame contains function to call, with duplicate copy of
-        // receiver below it.  Swap them.
-        Result function = frame_->Pop();
-        Result receiver = frame_->Pop();
-        frame_->Push(&function);
-        frame_->Push(&receiver);
+        // Push the receiver onto the frame.
+        Load(property->obj());
+
+        // Load the arguments.
+        int arg_count = args->length();
+        for (int i = 0; i < arg_count; i++) {
+          Load(args->at(i));
+          frame_->SpillTop();
+        }
+
+        // Load the name of the function.
+        Load(property->key());
+
+        // Call the IC initialization code.
+        CodeForSourcePosition(node->position());
+        Result result = frame_->CallKeyedCallIC(RelocInfo::CODE_TARGET,
+                                                arg_count,
+                                                loop_nesting());
+        frame_->RestoreContextRegister();
+        frame_->Push(&result);
       }
-
-      // Call the function.
-      CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
     }
-
   } else {
     // ----------------------------------
     // JavaScript example: 'foo(1, 2, 3)'  // foo is not global
