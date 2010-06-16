@@ -8164,6 +8164,28 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         }
         __ Ret();
         __ bind(&smi_is_unsuitable);
+      } else if (op_ == Token::MOD &&
+                 runtime_operands_type_ != BinaryOpIC::HEAP_NUMBERS &&
+                 runtime_operands_type_ != BinaryOpIC::STRINGS) {
+        // Do generate a bit of smi code for modulus even though the default for
+        // modulus is not to do it, but as the ARM processor has no coprocessor
+        // support for modulus checking for smis makes sense.
+        Label slow;
+        ASSERT(!ShouldGenerateSmiCode());
+        ASSERT(kSmiTag == 0);  // Adjust code below.
+        // Check for two positive smis.
+        __ orr(smi_test_reg, lhs, Operand(rhs));
+        __ tst(smi_test_reg, Operand(0x80000000u | kSmiTagMask));
+        __ b(ne, &slow);
+        // Check that rhs is a power of two and not zero.
+        __ sub(scratch, rhs, Operand(1), SetCC);
+        __ b(mi, &slow);
+        __ tst(rhs, scratch);
+        __ b(ne, &slow);
+        // Calculate power of two modulus.
+        __ and_(result, lhs, Operand(scratch));
+        __ Ret();
+        __ bind(&slow);
       }
       HandleBinaryOpSlowCases(
           masm,
