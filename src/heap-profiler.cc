@@ -326,19 +326,26 @@ HeapProfiler::~HeapProfiler() {
   delete snapshots_;
 }
 
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 void HeapProfiler::Setup() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   if (singleton_ == NULL) {
     singleton_ = new HeapProfiler();
   }
+#endif
 }
 
 
 void HeapProfiler::TearDown() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   delete singleton_;
   singleton_ = NULL;
+#endif
 }
 
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(const char* name) {
   ASSERT(singleton_ != NULL);
