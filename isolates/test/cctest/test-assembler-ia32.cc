@@ -167,7 +167,7 @@ TEST(AssemblerIa322) {
 typedef int (*F3)(float x);
 
 TEST(AssemblerIa323) {
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
 
   InitializeVM();
   v8::HandleScope scope;
@@ -175,7 +175,7 @@ TEST(AssemblerIa323) {
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(SSE2));
+  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
   { CpuFeatures::Scope fscope(SSE2);
     __ cvttss2si(eax, Operand(esp, 4));
     __ ret(0);
@@ -203,7 +203,7 @@ TEST(AssemblerIa323) {
 typedef int (*F4)(double x);
 
 TEST(AssemblerIa324) {
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
 
   InitializeVM();
   v8::HandleScope scope;
@@ -211,7 +211,7 @@ TEST(AssemblerIa324) {
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(SSE2));
+  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
   CpuFeatures::Scope fscope(SSE2);
   __ cvttsd2si(eax, Operand(esp, 4));
   __ ret(0);
@@ -262,11 +262,11 @@ TEST(AssemblerIa325) {
 typedef double (*F5)(double x, double y);
 
 TEST(AssemblerIa326) {
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
 
   InitializeVM();
   v8::HandleScope scope;
-  CHECK(CpuFeatures::IsSupported(SSE2));
+  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
   CpuFeatures::Scope fscope(SSE2);
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
@@ -309,11 +309,11 @@ TEST(AssemblerIa326) {
 typedef double (*F6)(int x);
 
 TEST(AssemblerIa328) {
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
 
   InitializeVM();
   v8::HandleScope scope;
-  CHECK(CpuFeatures::IsSupported(SSE2));
+  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
   CpuFeatures::Scope fscope(SSE2);
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);

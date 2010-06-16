@@ -90,6 +90,7 @@ Isolate* Isolate::Create(Deserializer* des) {
 Isolate::Isolate()
     : state_(UNINITIALIZED),
       bootstrapper_(NULL),
+      cpu_features_(NULL),
       break_access_(OS::CreateMutex()),
       stub_cache_(NULL),
       transcendental_cache_(new TranscendentalCache()),
@@ -126,6 +127,8 @@ Isolate::~Isolate() {
   transcendental_cache_ = NULL;
   delete stub_cache_;
   stub_cache_ = NULL;
+  delete cpu_features_;
+  cpu_features_ = NULL;
   delete bootstrapper_;
   bootstrapper_ = NULL;
 
@@ -145,6 +148,7 @@ bool Isolate::PreInit() {
   DisallowAllocationFailure disallow_allocation_failure;
 #endif
   bootstrapper_ = new Bootstrapper();
+  cpu_features_ = new CpuFeatures();
   handle_scope_implementer_ = new HandleScopeImplementer();
   stub_cache_ = new StubCache();
   state_ = PREINITIALIZED;

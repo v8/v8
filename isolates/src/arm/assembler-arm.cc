@@ -44,11 +44,11 @@
 namespace v8 {
 namespace internal {
 
-// Safe default is no features.
-unsigned CpuFeatures::supported_ = 0;
-unsigned CpuFeatures::enabled_ = 0;
-unsigned CpuFeatures::found_by_runtime_probing_ = 0;
-
+CpuFeatures::CpuFeatures()
+    : supported_(0),
+      enabled_(0),
+      found_by_runtime_probing_(0) {
+}
 
 #ifdef __arm__
 static uint64_t CpuFeaturesImpliedByCompiler() {
@@ -294,19 +294,18 @@ static const Instr kLdrStrInstrTypeMask = 0xffff0000;
 static const Instr kLdrStrInstrArgumentMask = 0x0000ffff;
 static const Instr kLdrStrOffsetMask = 0x00000fff;
 
-// Spare buffer.
 static const int kMinimalBufferSize = 4*KB;
-static byte* spare_buffer_ = NULL;
 
 Assembler::Assembler(void* buffer, int buffer_size) {
+  Isolate* isolate = Isolate::Current();
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
       buffer_size = kMinimalBufferSize;
 
-      if (spare_buffer_ != NULL) {
-        buffer = spare_buffer_;
-        spare_buffer_ = NULL;
+      if (isolate->assembler_spare_buffer() != NULL) {
+        buffer = isolate->assembler_spare_buffer();
+        isolate->set_assembler_spare_buffer(NULL);
       }
     }
     if (buffer == NULL) {
@@ -343,10 +342,12 @@ Assembler::Assembler(void* buffer, int buffer_size) {
 
 
 Assembler::~Assembler() {
+  Isolate* isolate = Isolate::Current();
   ASSERT(const_pool_blocked_nesting_ == 0);
   if (own_buffer_) {
-    if (spare_buffer_ == NULL && buffer_size_ == kMinimalBufferSize) {
-      spare_buffer_ = buffer_;
+    if (isolate->assembler_spare_buffer() == NULL &&
+        buffer_size_ == kMinimalBufferSize) {
+      isolate->set_assembler_spare_buffer(buffer_);
     } else {
       DeleteArray(buffer_);
     }
@@ -1104,7 +1105,7 @@ void Assembler::ubfx(Register dst,
                      int width,
                      Condition cond) {
   // v7 and above.
-  ASSERT(CpuFeatures::IsSupported(ARMv7));
+  ASSERT(Isolate::Current()->cpu_features()->IsSupported(ARMv7));
   ASSERT(!dst.is(pc) && !src.is(pc));
   ASSERT((lsb >= 0) && (lsb <= 31));
   ASSERT((width >= 1) && (width <= (32 - lsb)));
@@ -1124,7 +1125,7 @@ void Assembler::sbfx(Register dst,
                      int width,
                      Condition cond) {
   // v7 and above.
-  ASSERT(CpuFeatures::IsSupported(ARMv7));
+  ASSERT(Isolate::Current()->cpu_features()->IsSupported(ARMv7));
   ASSERT(!dst.is(pc) && !src.is(pc));
   ASSERT((lsb >= 0) && (lsb <= 31));
   ASSERT((width >= 1) && (width <= (32 - lsb)));
@@ -1139,7 +1140,7 @@ void Assembler::sbfx(Register dst,
 //   bfc dst, #lsb, #width
 void Assembler::bfc(Register dst, int lsb, int width, Condition cond) {
   // v7 and above.
-  ASSERT(CpuFeatures::IsSupported(ARMv7));
+  ASSERT(Isolate::Current()->cpu_features()->IsSupported(ARMv7));
   ASSERT(!dst.is(pc));
   ASSERT((lsb >= 0) && (lsb <= 31));
   ASSERT((width >= 1) && (width <= (32 - lsb)));
@@ -1158,7 +1159,7 @@ void Assembler::bfi(Register dst,
                     int width,
                     Condition cond) {
   // v7 and above.
-  ASSERT(CpuFeatures::IsSupported(ARMv7));
+  ASSERT(Isolate::Current()->cpu_features()->IsSupported(ARMv7));
   ASSERT(!dst.is(pc) && !src.is(pc));
   ASSERT((lsb >= 0) && (lsb <= 31));
   ASSERT((width >= 1) && (width <= (32 - lsb)));
@@ -1428,7 +1429,7 @@ void Assembler::ldrsh(Register dst, const MemOperand& src, Condition cond) {
 
 void Assembler::ldrd(Register dst1, Register dst2,
                      const MemOperand& src, Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(ARMv7));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(ARMv7));
   ASSERT(src.rm().is(no_reg));
   ASSERT(!dst1.is(lr));  // r14.
   ASSERT_EQ(0, dst1.code() % 2);
@@ -1443,7 +1444,7 @@ void Assembler::strd(Register src1, Register src2,
   ASSERT(!src1.is(lr));  // r14.
   ASSERT_EQ(0, src1.code() % 2);
   ASSERT_EQ(src1.code() + 1, src2.code());
-  ASSERT(CpuFeatures::IsEnabled(ARMv7));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(ARMv7));
   addrmod3(cond | B7 | B6 | B5 | B4, src1, dst);
 }
 
@@ -1661,7 +1662,7 @@ void Assembler::vldr(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-628.
   // cond(31-28) | 1101(27-24)| 1001(23-20) | Rbase(19-16) |
   // Vdst(15-12) | 1011(11-8) | offset
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
   emit(cond | 0xD9*B20 | base.code()*B16 | dst.code()*B12 |
@@ -1677,7 +1678,7 @@ void Assembler::vldr(const SwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-628.
   // cond(31-28) | 1101(27-24)| 1001(23-20) | Rbase(19-16) |
   // Vdst(15-12) | 1010(11-8) | offset
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
   emit(cond | 0xD9*B20 | base.code()*B16 | dst.code()*B12 |
@@ -1693,7 +1694,7 @@ void Assembler::vstr(const DwVfpRegister src,
   // Instruction details available in ARM DDI 0406A, A8-786.
   // cond(31-28) | 1101(27-24)| 1000(23-20) | | Rbase(19-16) |
   // Vsrc(15-12) | 1011(11-8) | (offset/4)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
   emit(cond | 0xD8*B20 | base.code()*B16 | src.code()*B12 |
@@ -1709,7 +1710,7 @@ void Assembler::vmov(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-646.
   // cond(31-28) | 1100(27-24)| 010(23-21) | op=0(20) | Rt2(19-16) |
   // Rt(15-12) | 1011(11-8) | 00(7-6) | M(5) | 1(4) | Vm
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   ASSERT(!src1.is(pc) && !src2.is(pc));
   emit(cond | 0xC*B24 | B22 | src2.code()*B16 |
        src1.code()*B12 | 0xB*B8 | B4 | dst.code());
@@ -1724,7 +1725,7 @@ void Assembler::vmov(const Register dst1,
   // Instruction details available in ARM DDI 0406A, A8-646.
   // cond(31-28) | 1100(27-24)| 010(23-21) | op=1(20) | Rt2(19-16) |
   // Rt(15-12) | 1011(11-8) | 00(7-6) | M(5) | 1(4) | Vm
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   ASSERT(!dst1.is(pc) && !dst2.is(pc));
   emit(cond | 0xC*B24 | B22 | B20 | dst2.code()*B16 |
        dst1.code()*B12 | 0xB*B8 | B4 | src.code());
@@ -1738,7 +1739,7 @@ void Assembler::vmov(const SwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-642.
   // cond(31-28) | 1110(27-24)| 000(23-21) | op=0(20) | Vn(19-16) |
   // Rt(15-12) | 1010(11-8) | N(7)=0 | 00(6-5) | 1(4) | 0000(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   ASSERT(!src.is(pc));
   emit(cond | 0xE*B24 | (dst.code() >> 1)*B16 |
        src.code()*B12 | 0xA*B8 | (0x1 & dst.code())*B7 | B4);
@@ -1752,7 +1753,7 @@ void Assembler::vmov(const Register dst,
   // Instruction details available in ARM DDI 0406A, A8-642.
   // cond(31-28) | 1110(27-24)| 000(23-21) | op=1(20) | Vn(19-16) |
   // Rt(15-12) | 1010(11-8) | N(7)=0 | 00(6-5) | 1(4) | 0000(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   ASSERT(!dst.is(pc));
   emit(cond | 0xE*B24 | B20 | (src.code() >> 1)*B16 |
        dst.code()*B12 | 0xA*B8 | (0x1 & src.code())*B7 | B4);
@@ -1875,7 +1876,7 @@ static Instr EncodeVCVT(const VFPType dst_type,
 void Assembler::vcvt_f64_s32(const DwVfpRegister dst,
                              const SwVfpRegister src,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(F64, dst.code(), S32, src.code(), cond));
 }
 
@@ -1883,7 +1884,7 @@ void Assembler::vcvt_f64_s32(const DwVfpRegister dst,
 void Assembler::vcvt_f32_s32(const SwVfpRegister dst,
                              const SwVfpRegister src,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(F32, dst.code(), S32, src.code(), cond));
 }
 
@@ -1891,7 +1892,7 @@ void Assembler::vcvt_f32_s32(const SwVfpRegister dst,
 void Assembler::vcvt_f64_u32(const DwVfpRegister dst,
                              const SwVfpRegister src,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(F64, dst.code(), U32, src.code(), cond));
 }
 
@@ -1899,7 +1900,7 @@ void Assembler::vcvt_f64_u32(const DwVfpRegister dst,
 void Assembler::vcvt_s32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(S32, dst.code(), F64, src.code(), cond));
 }
 
@@ -1907,7 +1908,7 @@ void Assembler::vcvt_s32_f64(const SwVfpRegister dst,
 void Assembler::vcvt_u32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(U32, dst.code(), F64, src.code(), cond));
 }
 
@@ -1915,7 +1916,7 @@ void Assembler::vcvt_u32_f64(const SwVfpRegister dst,
 void Assembler::vcvt_f64_f32(const DwVfpRegister dst,
                              const SwVfpRegister src,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(F64, dst.code(), F32, src.code(), cond));
 }
 
@@ -1923,7 +1924,7 @@ void Assembler::vcvt_f64_f32(const DwVfpRegister dst,
 void Assembler::vcvt_f32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(F32, dst.code(), F64, src.code(), cond));
 }
 
@@ -1937,7 +1938,7 @@ void Assembler::vadd(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-536.
   // cond(31-28) | 11100(27-23)| D=?(22) | 11(21-20) | Vn(19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=0 | 0(6) | M=?(5) | 0(4) | Vm(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(cond | 0xE*B24 | 0x3*B20 | src1.code()*B16 |
        dst.code()*B12 | 0x5*B9 | B8 | src2.code());
 }
@@ -1952,7 +1953,7 @@ void Assembler::vsub(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-784.
   // cond(31-28) | 11100(27-23)| D=?(22) | 11(21-20) | Vn(19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=0 | 1(6) | M=?(5) | 0(4) | Vm(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(cond | 0xE*B24 | 0x3*B20 | src1.code()*B16 |
        dst.code()*B12 | 0x5*B9 | B8 | B6 | src2.code());
 }
@@ -1967,7 +1968,7 @@ void Assembler::vmul(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-784.
   // cond(31-28) | 11100(27-23)| D=?(22) | 10(21-20) | Vn(19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=0 | 0(6) | M=?(5) | 0(4) | Vm(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(cond | 0xE*B24 | 0x2*B20 | src1.code()*B16 |
        dst.code()*B12 | 0x5*B9 | B8 | src2.code());
 }
@@ -1982,7 +1983,7 @@ void Assembler::vdiv(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-584.
   // cond(31-28) | 11101(27-23)| D=?(22) | 00(21-20) | Vn(19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=? | 0(6) | M=?(5) | 0(4) | Vm(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(cond | 0xE*B24 | B23 | src1.code()*B16 |
        dst.code()*B12 | 0x5*B9 | B8 | src2.code());
 }
@@ -1996,7 +1997,7 @@ void Assembler::vcmp(const DwVfpRegister src1,
   // Instruction details available in ARM DDI 0406A, A8-570.
   // cond(31-28) | 11101 (27-23)| D=?(22) | 11 (21-20) | 0100 (19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | E(7)=? | 1(6) | M(5)=? | 0(4) | Vm(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(cond | 0xE*B24 |B23 | 0x3*B20 | B18 |
        src1.code()*B12 | 0x5*B9 | B8 | B6 | src2.code());
 }
@@ -2006,7 +2007,7 @@ void Assembler::vmrs(Register dst, Condition cond) {
   // Instruction details available in ARM DDI 0406A, A8-652.
   // cond(31-28) | 1110 (27-24) | 1111(23-20)| 0001 (19-16) |
   // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(cond | 0xE*B24 | 0xF*B20 |  B16 |
        dst.code()*B12 | 0xA*B8 | B4);
 }

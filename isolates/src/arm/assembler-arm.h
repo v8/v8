@@ -479,20 +479,20 @@ class MemOperand BASE_EMBEDDED {
 
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a Scope before use.
-class CpuFeatures : public AllStatic {
+class CpuFeatures {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
-  static void Probe();
+  void Probe();
 
   // Check whether a feature is supported by the target CPU.
-  static bool IsSupported(CpuFeature f) {
+  bool IsSupported(CpuFeature f) const {
     if (f == VFP3 && !FLAG_enable_vfp3) return false;
     return (supported_ & (1u << f)) != 0;
   }
 
   // Check whether a feature is currently enabled.
-  static bool IsEnabled(CpuFeature f) {
+  bool IsEnabled(CpuFeature f) const {
     return (enabled_ & (1u << f)) != 0;
   }
 
@@ -500,16 +500,23 @@ class CpuFeatures : public AllStatic {
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
    public:
-    explicit Scope(CpuFeature f) {
-      ASSERT(CpuFeatures::IsSupported(f));
+    explicit Scope(CpuFeature f)
+        : cpu_features_(Isolate::Current()->cpu_features()),
+          isolate_(Isolate::Current()) {
+      ASSERT(cpu_features_->IsSupported(f));
       ASSERT(!Serializer::enabled() ||
-             (found_by_runtime_probing_ & (1u << f)) == 0);
-      old_enabled_ = CpuFeatures::enabled_;
-      CpuFeatures::enabled_ |= 1u << f;
+             (cpu_features_->found_by_runtime_probing_ & (1u << f)) == 0);
+      old_enabled_ = cpu_features_->enabled_;
+      cpu_features_->enabled_ |= 1u << f;
     }
-    ~Scope() { CpuFeatures::enabled_ = old_enabled_; }
+    ~Scope() {
+      ASSERT_EQ(Isolate::Current(), isolate_);
+      cpu_features_->enabled_ = old_enabled_;
+    }
    private:
     unsigned old_enabled_;
+    CpuFeatures* cpu_features_;
+    Isolate* isolate_;
 #else
    public:
     explicit Scope(CpuFeature f) {}
@@ -517,9 +524,15 @@ class CpuFeatures : public AllStatic {
   };
 
  private:
-  static unsigned supported_;
-  static unsigned enabled_;
-  static unsigned found_by_runtime_probing_;
+  CpuFeatures();
+
+  unsigned supported_;
+  unsigned enabled_;
+  unsigned found_by_runtime_probing_;
+
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
 

@@ -294,7 +294,7 @@ TEST(Type1) {
 TEST(Type3) {
   SETUP();
 
-  if (CpuFeatures::IsSupported(ARMv7)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     COMPARE(ubfx(r0, r1, 5, 10),
             "e7e902d1       ubfx r0, r1, #5, #10");
     COMPARE(ubfx(r1, r0, 5, 10),

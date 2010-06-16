@@ -45,7 +45,7 @@ namespace v8 {
 namespace internal {
 
 void CPU::Setup() {
-  CpuFeatures::Probe();
+  Isolate::Current()->cpu_features()->Probe();
 }
 
 

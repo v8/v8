@@ -827,7 +827,7 @@ void VirtualFrame::UntaggedPushFrameSlotAt(int index) {
           cgen()->unsafe_bailout_->Branch(not_equal);
         }
 
-        if (!CpuFeatures::IsSupported(SSE2)) {
+        if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
           UNREACHABLE();
         } else {
           CpuFeatures::Scope use_sse2(SSE2);

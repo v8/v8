@@ -802,7 +802,7 @@ class GenericBinaryOpStub: public CodeStub {
     if (static_operands_type_.IsSmi()) {
       mode_ = NO_OVERWRITE;
     }
-    use_sse3_ = CpuFeatures::IsSupported(SSE3);
+    use_sse3_ = Isolate::Current()->cpu_features()->IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 

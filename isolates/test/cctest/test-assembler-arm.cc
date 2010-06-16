@@ -239,7 +239,7 @@ TEST(4) {
   Label L, C;
 
 
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
 
     __ mov(ip, Operand(sp));
@@ -288,7 +288,7 @@ TEST(5) {
 
   Assembler assm(NULL, 0);
 
-  if (CpuFeatures::IsSupported(ARMv7)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     CpuFeatures::Scope scope(ARMv7);
     // On entry, r0 = 0xAAAAAAAA = 0b10..10101010.
     __ ubfx(r0, r0, 1, 12);  // 0b00..010101010101 = 0x555

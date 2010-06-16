@@ -316,7 +316,7 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
 
 
 void MacroAssembler::FCmp() {
-  if (CpuFeatures::IsSupported(CMOV)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(CMOV)) {
     fucomip();
     ffree(0);
     fincstp();

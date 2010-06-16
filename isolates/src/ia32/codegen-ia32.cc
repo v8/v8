@@ -573,7 +573,7 @@ void CodeGenerator::ConvertInt32ResultToNumber(Result* value) {
     __ sar(val, 1);
     // If there was an overflow, bits 30 and 31 of the original number disagree.
     __ xor_(val, 0x80000000u);
-    if (CpuFeatures::IsSupported(SSE2)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
       __ cvtsi2sd(xmm0, Operand(val));
     } else {
@@ -591,7 +591,7 @@ void CodeGenerator::ConvertInt32ResultToNumber(Result* value) {
                           no_reg, &allocation_failed);
     VirtualFrame* clone = new VirtualFrame(frame_);
     scratch.Unuse();
-    if (CpuFeatures::IsSupported(SSE2)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
       __ movdbl(FieldOperand(val, HeapNumber::kValueOffset), xmm0);
     } else {
@@ -627,7 +627,7 @@ void CodeGenerator::Load(Expression* expr) {
       safe_int32_mode_enabled() &&
       expr->side_effect_free() &&
       expr->num_bit_ops() > 2 &&
-      CpuFeatures::IsSupported(SSE2)) {
+      Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
     BreakTarget unsafe_bailout;
     JumpTarget done;
     unsafe_bailout.set_expected_height(frame_->height());
@@ -1070,7 +1070,8 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 
 void DeferredInlineBinaryOperation::Generate() {
   Label done;
-  if (CpuFeatures::IsSupported(SSE2) && ((op_ == Token::ADD) ||
+  if (Isolate::Current()->cpu_features()->IsSupported(SSE2) &&
+      ((op_ == Token::ADD) ||
       (op_ ==Token::SUB) ||
       (op_ == Token::MUL) ||
       (op_ == Token::DIV))) {
@@ -1669,7 +1670,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
     Label do_op, left_nonsmi;
     // If right is a smi we make a fast case if left is either a smi
     // or a heapnumber.
-    if (CpuFeatures::IsSupported(SSE2) && right_type_info.IsSmi()) {
+    if (Isolate::Current()->cpu_features()->IsSupported(SSE2) &&
+        right_type_info.IsSmi()) {
       CpuFeatures::Scope use_sse2(SSE2);
       __ mov(answer.reg(), left->reg());
       // Fast case - both are actually smis.
@@ -2562,7 +2564,7 @@ void CodeGenerator::Comparison(AstNode* node,
         bool is_loop_condition = (node->AsExpression() != NULL) &&
             node->AsExpression()->is_loop_condition();
         if (!is_loop_condition &&
-            CpuFeatures::IsSupported(SSE2) &&
+            Isolate::Current()->cpu_features()->IsSupported(SSE2) &&
             right_val->IsSmi()) {
           // Right side is a constant smi and left side has been checked
           // not to be a smi.
@@ -2983,7 +2985,7 @@ void CodeGenerator::GenerateInlineNumberComparison(Result* left_side,
   ASSERT(right_side->is_register());
 
   JumpTarget not_numbers;
-  if (CpuFeatures::IsSupported(SSE2)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
     CpuFeatures::Scope use_sse2(SSE2);
 
     // Load left and right operand into registers xmm0 and xmm1 and compare.
@@ -6681,7 +6683,7 @@ void CodeGenerator::GenerateRandomHeapNumber(
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   // This is implemented on both SSE2 and FPU.
-  if (CpuFeatures::IsSupported(SSE2)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
     CpuFeatures::Scope fscope(SSE2);
     __ mov(ebx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
     __ movd(xmm1, Operand(ebx));
@@ -7156,7 +7158,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   Load(args->at(0));
   Load(args->at(1));
-  if (!CpuFeatures::IsSupported(SSE2)) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
     Result res = frame_->CallRuntime(Runtime::kMath_pow, 2);
     frame_->Push(&res);
   } else {
@@ -7357,7 +7359,7 @@ void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
 
-  if (!CpuFeatures::IsSupported(SSE2)) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
     Result result = frame()->CallRuntime(Runtime::kMath_sqrt, 1);
     frame()->Push(&result);
   } else {
@@ -9712,7 +9714,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // number in eax.
       __ AllocateHeapNumber(eax, ecx, ebx, slow);
       // Store the result in the HeapNumber and return.
-      if (CpuFeatures::IsSupported(SSE2)) {
+      if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
         __ cvtsi2sd(xmm0, Operand(left));
         __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -9757,7 +9759,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           break;
       }
       __ AllocateHeapNumber(ecx, ebx, no_reg, slow);
-      if (CpuFeatures::IsSupported(SSE2)) {
+      if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
         FloatingPointHelper::LoadSSE2Smis(masm, ebx);
         switch (op_) {
@@ -9849,7 +9851,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         }
 
         Label not_floats;
-        if (CpuFeatures::IsSupported(SSE2)) {
+        if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           if (static_operands_type_.IsNumber()) {
             if (FLAG_debug_code) {
@@ -9983,7 +9985,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
             default: UNREACHABLE();
           }
           // Store the result in the HeapNumber and return.
-          if (CpuFeatures::IsSupported(SSE2)) {
+          if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
             CpuFeatures::Scope use_sse2(SSE2);
             __ cvtsi2sd(xmm0, Operand(ebx));
             __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -10467,7 +10469,8 @@ void IntegerConvert(MacroAssembler* masm,
   Label done, right_exponent, normal_exponent;
   Register scratch = ebx;
   Register scratch2 = edi;
-  if (type_info.IsInteger32() && CpuFeatures::IsEnabled(SSE2)) {
+  if (type_info.IsInteger32() &&
+      Isolate::Current()->cpu_features()->IsEnabled(SSE2)) {
     CpuFeatures::Scope scope(SSE2);
     __ cvttsd2si(ecx, FieldOperand(source, HeapNumber::kValueOffset));
     return;
@@ -10973,7 +10976,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     IntegerConvert(masm,
                    eax,
                    TypeInfo::Unknown(),
-                   CpuFeatures::IsSupported(SSE3),
+                   Isolate::Current()->cpu_features()->IsSupported(SSE3),
                    &slow);
 
     // Do the bitwise operation and check if the result fits in a smi.
@@ -10996,7 +10999,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ AllocateHeapNumber(ebx, edx, edi, &slow);
       __ mov(eax, Operand(ebx));
     }
-    if (CpuFeatures::IsSupported(SSE2)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope use_sse2(SSE2);
       __ cvtsi2sd(xmm0, Operand(ecx));
       __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -11581,7 +11584,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                         FixedArray::kHeaderSize));
     __ test(probe, Immediate(kSmiTagMask));
     __ j(zero, not_found);
-    if (CpuFeatures::IsSupported(SSE2)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
       __ movdbl(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
       __ movdbl(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
@@ -11805,7 +11808,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   if (include_number_compare_) {
     Label non_number_comparison;
     Label unordered;
-    if (CpuFeatures::IsSupported(SSE2)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope use_sse2(SSE2);
       CpuFeatures::Scope use_cmov(CMOV);
 
@@ -13538,7 +13541,7 @@ MemCopyFunction CreateMemCopyFunction() {
     __ int3();
     __ bind(&ok);
   }
-  if (CpuFeatures::IsSupported(SSE2)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
     CpuFeatures::Scope enable(SSE2);
     __ push(edi);
     __ push(esi);

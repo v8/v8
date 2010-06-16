@@ -37,6 +37,7 @@
 #ifndef V8_IA32_ASSEMBLER_IA32_H_
 #define V8_IA32_ASSEMBLER_IA32_H_
 
+#include "isolate.h"
 #include "serialize.h"
 
 namespace v8 {
@@ -362,13 +363,13 @@ class Displacement BASE_EMBEDDED {
 //   } else {
 //     // Generate standard x87 floating point code.
 //   }
-class CpuFeatures : public AllStatic {
+class CpuFeatures {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
-  static void Probe();
+  void Probe();
   // Check whether a feature is supported by the target CPU.
-  static bool IsSupported(CpuFeature f) {
+  bool IsSupported(CpuFeature f) const {
     if (f == SSE2 && !FLAG_enable_sse2) return false;
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == CMOV && !FLAG_enable_cmov) return false;
@@ -376,32 +377,47 @@ class CpuFeatures : public AllStatic {
     return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
   }
   // Check whether a feature is currently enabled.
-  static bool IsEnabled(CpuFeature f) {
+  bool IsEnabled(CpuFeature f) const {
     return (enabled_ & (static_cast<uint64_t>(1) << f)) != 0;
   }
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
    public:
-    explicit Scope(CpuFeature f) {
+    explicit Scope(CpuFeature f)
+        : cpu_features_(Isolate::Current()->cpu_features()),
+          isolate_(Isolate::Current()) {
       uint64_t mask = static_cast<uint64_t>(1) << f;
-      ASSERT(CpuFeatures::IsSupported(f));
-      ASSERT(!Serializer::enabled() || (found_by_runtime_probing_ & mask) == 0);
-      old_enabled_ = CpuFeatures::enabled_;
-      CpuFeatures::enabled_ |= mask;
+      ASSERT(cpu_features_->IsSupported(f));
+      ASSERT(!Serializer::enabled() ||
+          (cpu_features_->found_by_runtime_probing_ & mask) == 0);
+      old_enabled_ = cpu_features_->enabled_;
+      cpu_features_->enabled_ |= mask;
     }
-    ~Scope() { CpuFeatures::enabled_ = old_enabled_; }
+    ~Scope() {
+      ASSERT_EQ(Isolate::Current(), isolate_);
+      cpu_features_->enabled_ = old_enabled_;
+    }
    private:
     uint64_t old_enabled_;
+    CpuFeatures* cpu_features_;
+    Isolate* isolate_;
 #else
    public:
     explicit Scope(CpuFeature f) {}
 #endif
   };
+
  private:
-  static uint64_t supported_;
-  static uint64_t enabled_;
-  static uint64_t found_by_runtime_probing_;
+  CpuFeatures();
+
+  uint64_t supported_;
+  uint64_t enabled_;
+  uint64_t found_by_runtime_probing_;
+
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
 
@@ -913,8 +929,6 @@ class Assembler : public Malloced {
   int buffer_size_;
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
-  // A previously allocated buffer of kMinimalBufferSize bytes, or NULL.
-  static byte* spare_buffer_;
 
   // code generation
   byte* pc_;  // the program counter; moves forward

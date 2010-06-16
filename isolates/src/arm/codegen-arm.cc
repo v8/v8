@@ -4702,7 +4702,7 @@ void CodeGenerator::GenerateRandomHeapNumber(
   // Convert 32 random bits in r0 to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     __ PrepareCallCFunction(0, r1);
     __ CallCFunction(ExternalReference::random_uint32_function(), 0);
 
@@ -6814,7 +6814,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   }
 
   // Lhs (r1) is a smi, rhs (r0) is a number.
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     // Convert lhs to a double in d7              .
     CpuFeatures::Scope scope(VFP3);
     __ mov(r7, Operand(r1, ASR, kSmiTagSize));
@@ -6853,7 +6853,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   }
 
   // Rhs (r0) is a smi, lhs (r1) is a heap number.
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     // Convert rhs to a double in d6              .
     CpuFeatures::Scope scope(VFP3);
     // Load the double from lhs, tagged HeapNumber r1, to d7.
@@ -7022,7 +7022,7 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 
   // Both are heap numbers.  Load them up then jump to the code we have
   // for that.
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     __ sub(r7, r0, Operand(kHeapObjectTag));
     __ vldr(d6, r7, HeapNumber::kValueOffset);
@@ -7086,7 +7086,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Label load_result_from_cache;
   if (!object_is_smi) {
     __ BranchOnSmi(object, &is_smi);
-    if (CpuFeatures::IsSupported(VFP3)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       __ CheckMap(object,
                   scratch1,
@@ -7208,7 +7208,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   __ bind(&both_loaded_as_doubles);
   // The arguments have been converted to doubles and stored in d6 and d7, if
   // VFP3 is supported, or in r0, r1, r2, and r3.
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     __ bind(&lhs_not_nan);
     CpuFeatures::Scope scope(VFP3);
     Label no_nan;
@@ -7325,7 +7325,8 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     Register rhs,
     const Builtins::JavaScript& builtin) {
   Label slow, slow_reverse, do_the_call;
-  bool use_fp_registers = CpuFeatures::IsSupported(VFP3) && Token::MOD != op_;
+  bool use_fp_registers = Isolate::Current()->cpu_features()->IsSupported(VFP3)
+      && Token::MOD != op_;
 
   ASSERT((lhs.is(r0) && rhs.is(r1)) || (lhs.is(r1) && rhs.is(r0)));
 
@@ -7648,7 +7649,7 @@ static void GetInt32(MacroAssembler* masm,
   __ sub(scratch2, scratch2, Operand(zero_exponent), SetCC);
   // Dest already has a Smi zero.
   __ b(lt, &done);
-  if (!CpuFeatures::IsSupported(VFP3)) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     // We have a shifted exponent between 0 and 30 in scratch2.
     __ mov(dest, Operand(scratch2, LSR, HeapNumber::kExponentShift));
     // We now have the exponent in dest.  Subtract from 30 to get
@@ -7656,7 +7657,7 @@ static void GetInt32(MacroAssembler* masm,
     __ rsb(dest, dest, Operand(30));
   }
   __ bind(&right_exponent);
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     // ARMv7 VFP3 instructions implementing double precision to integer
     // conversion using round to zero.

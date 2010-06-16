@@ -1090,7 +1090,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
       __ ldr(value, MemOperand(r3, key, LSL, 1));
       break;
     case kExternalFloatArray:
-      if (CpuFeatures::IsSupported(VFP3)) {
+      if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
         CpuFeatures::Scope scope(VFP3);
         __ add(r2, r3, Operand(key, LSL, 1));
         __ vldr(s0, r2, 0);
@@ -1125,7 +1125,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
     // conversion. Use r0 for result as key is not needed any more.
     __ AllocateHeapNumber(r0, r3, r4, &slow);
 
-    if (CpuFeatures::IsSupported(VFP3)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       __ vmov(s0, value);
       __ vcvt_f64_s32(d0, s0);
@@ -1140,7 +1140,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
     // The test is different for unsigned int values. Since we need
     // the value to be in the range of a positive smi, we can't
     // handle either of the top two bits being set in the value.
-    if (CpuFeatures::IsSupported(VFP3)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       Label box_int, done;
       __ tst(value, Operand(0xC0000000));
@@ -1202,7 +1202,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
   } else if (array_type == kExternalFloatArray) {
     // For the floating-point array type, we need to always allocate a
     // HeapNumber.
-    if (CpuFeatures::IsSupported(VFP3)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
@@ -1490,7 +1490,7 @@ static void ConvertIntToFloat(MacroAssembler* masm,
                               Register fval,
                               Register scratch1,
                               Register scratch2) {
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     __ vmov(s0, ival);
     __ vcvt_f32_s32(s0, s0);
@@ -1665,7 +1665,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   // The WebGL specification leaves the behavior of storing NaN and
   // +/-Infinity into integer arrays basically undefined. For more
   // reproducible behavior, convert these to zero.
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
 
     // vldr requires offset to be a multiple of 4 so we can not

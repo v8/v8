@@ -2447,7 +2447,7 @@ Object* ConstructStubCompiler::CompileConstructStub(
       int arg_number = shared->GetThisPropertyAssignmentArgument(i);
       __ mov(ebx, edi);
       __ cmp(eax, arg_number);
-      if (CpuFeatures::IsSupported(CMOV)) {
+      if (Isolate::Current()->cpu_features()->IsSupported(CMOV)) {
         CpuFeatures::Scope use_cmov(CMOV);
         __ cmov(above, ebx, Operand(ecx, arg_number * -kPointerSize));
       } else {

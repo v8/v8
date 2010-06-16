@@ -38,6 +38,7 @@ namespace internal {
 
 class Bootstrapper;
 class ContextSlotCache;
+class CpuFeatures;
 class Deserializer;
 class HandleScopeImplementer;
 class SaveContext;
@@ -140,6 +141,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   V(bool, zone_allow_allocation, true)                                         \
   /* SerializerDeserializer state. */                                          \
   V(int, serialize_partial_snapshot_cache_length, 0)                           \
+  /* Assembler state. */                                                       \
+  /* A previously allocated buffer of kMinimalBufferSize bytes, or NULL. */    \
+  V(byte*, assembler_spare_buffer, NULL)                                       \
   ISOLATE_PLATFORM_INIT_LIST(V)
 
 class Isolate {
@@ -173,12 +177,13 @@ class Isolate {
 
   // Accessors.
   Bootstrapper* bootstrapper() { return bootstrapper_; }
+  CpuFeatures* cpu_features() { return cpu_features_; }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
   StubCache* stub_cache() { return stub_cache_; }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
 
-  TranscendentalCache* transcendental_cache() {
+  TranscendentalCache* transcendental_cache() const {
     return transcendental_cache_;
   }
 
@@ -231,6 +236,7 @@ class Isolate {
   State state_;
 
   Bootstrapper* bootstrapper_;
+  CpuFeatures* cpu_features_;
   Mutex* break_access_;
   Heap heap_;
   StackGuard stack_guard_;
