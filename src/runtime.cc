@@ -9061,7 +9061,7 @@ static Object* Runtime_SetFunctionBreakPoint(Arguments args) {
   Handle<Object> break_point_object_arg = args.at<Object>(2);
 
   // Set break point.
-  Debug::SetBreakPoint(shared, source_position, break_point_object_arg);
+  Debug::SetBreakPoint(shared, break_point_object_arg, &source_position);
 
   return Heap::undefined_value();
 }
@@ -9159,8 +9159,9 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
 }
 
 
-// Change the state of a break point in a script. NOTE: Regarding performance
-// see the NOTE for GetScriptFromScriptData.
+// Changes the state of a break point in a script and returns source position
+// where break point was set. NOTE: Regarding performance see the NOTE for
+// GetScriptFromScriptData.
 // args[0]: script to set break point in
 // args[1]: number: break source position (within the script source)
 // args[2]: number: break point object
@@ -9188,7 +9189,9 @@ static Object* Runtime_SetScriptBreakPoint(Arguments args) {
     } else {
       position = source_position - shared->start_position();
     }
-    Debug::SetBreakPoint(shared, position, break_point_object_arg);
+    Debug::SetBreakPoint(shared, break_point_object_arg, &position);
+    position += shared->start_position();
+    return Smi::FromInt(position);
   }
   return  Heap::undefined_value();
 }

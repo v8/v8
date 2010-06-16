@@ -192,8 +192,9 @@ static int SetBreakPoint(Handle<v8::internal::JSFunction> fun, int position) {
   static int break_point = 0;
   Handle<v8::internal::SharedFunctionInfo> shared(fun->shared());
   Debug::SetBreakPoint(
-      shared, position,
-      Handle<Object>(v8::internal::Smi::FromInt(++break_point)));
+      shared,
+      Handle<Object>(v8::internal::Smi::FromInt(++break_point)),
+      &position);
   return break_point;
 }
 
