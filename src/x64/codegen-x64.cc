@@ -8177,7 +8177,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   // ST[0] == double value
   // rbx = bits of double value.
   // rdx = also bits of double value.
-  // Compute hash (h is 32 bits, bits are 64):
+  // Compute hash (h is 32 bits, bits are 64 and the shifts are arithmetic):
   //   h = h0 = bits ^ (bits >> 32);
   //   h ^= h >> 16;
   //   h ^= h >> 8;
@@ -8188,9 +8188,9 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ movl(rcx, rdx);
   __ movl(rax, rdx);
   __ movl(rdi, rdx);
-  __ shrl(rdx, Immediate(8));
-  __ shrl(rcx, Immediate(16));
-  __ shrl(rax, Immediate(24));
+  __ sarl(rdx, Immediate(8));
+  __ sarl(rcx, Immediate(16));
+  __ sarl(rax, Immediate(24));
   __ xorl(rcx, rdx);
   __ xorl(rax, rdi);
   __ xorl(rcx, rax);

@@ -8304,11 +8304,11 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ bind(&loaded);
     // r2 = low 32 bits of double value
     // r3 = high 32 bits of double value
-    // Compute hash:
+    // Compute hash (the shifts are arithmetic):
     //   h = (low ^ high); h ^= h >> 16; h ^= h >> 8; h = h & (cacheSize - 1);
     __ eor(r1, r2, Operand(r3));
-    __ eor(r1, r1, Operand(r1, LSR, 16));
-    __ eor(r1, r1, Operand(r1, LSR, 8));
+    __ eor(r1, r1, Operand(r1, ASR, 16));
+    __ eor(r1, r1, Operand(r1, ASR, 8));
     ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
     __ And(r1, r1, Operand(TranscendentalCache::kCacheSize - 1));
 
