@@ -56,87 +56,9 @@ namespace v8 {
 namespace internal {
 
 
-String* Heap::hidden_symbol_;
-Object* Heap::roots_[Heap::kRootListLength];
-
-
-NewSpace Heap::new_space_;
-OldSpace* Heap::old_pointer_space_ = NULL;
-OldSpace* Heap::old_data_space_ = NULL;
-OldSpace* Heap::code_space_ = NULL;
-MapSpace* Heap::map_space_ = NULL;
-CellSpace* Heap::cell_space_ = NULL;
-LargeObjectSpace* Heap::lo_space_ = NULL;
-
 static const int kMinimumPromotionLimit = 2*MB;
 static const int kMinimumAllocationLimit = 8*MB;
 
-int Heap::old_gen_promotion_limit_ = kMinimumPromotionLimit;
-int Heap::old_gen_allocation_limit_ = kMinimumAllocationLimit;
-
-int Heap::old_gen_exhausted_ = false;
-
-int Heap::amount_of_external_allocated_memory_ = 0;
-int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
-
-// semispace_size_ should be a power of 2 and old_generation_size_ should be
-// a multiple of Page::kPageSize.
-#if defined(ANDROID)
-int Heap::max_semispace_size_  = 2*MB;
-int Heap::max_old_generation_size_ = 192*MB;
-int Heap::initial_semispace_size_ = 128*KB;
-size_t Heap::code_range_size_ = 0;
-#elif defined(V8_TARGET_ARCH_X64)
-int Heap::max_semispace_size_  = 16*MB;
-int Heap::max_old_generation_size_ = 1*GB;
-int Heap::initial_semispace_size_ = 1*MB;
-size_t Heap::code_range_size_ = 512*MB;
-#else
-int Heap::max_semispace_size_  = 8*MB;
-int Heap::max_old_generation_size_ = 512*MB;
-int Heap::initial_semispace_size_ = 512*KB;
-size_t Heap::code_range_size_ = 0;
-#endif
-
-// The snapshot semispace size will be the default semispace size if
-// snapshotting is used and will be the requested semispace size as
-// set up by ConfigureHeap otherwise.
-int Heap::reserved_semispace_size_ = Heap::max_semispace_size_;
-
-List<Heap::GCPrologueCallbackPair> Heap::gc_prologue_callbacks_;
-List<Heap::GCEpilogueCallbackPair> Heap::gc_epilogue_callbacks_;
-
-GCCallback Heap::global_gc_prologue_callback_ = NULL;
-GCCallback Heap::global_gc_epilogue_callback_ = NULL;
-
-// Variables set based on semispace_size_ and old_generation_size_ in
-// ConfigureHeap.
-
-// Will be 4 * reserved_semispace_size_ to ensure that young
-// generation can be aligned to its size.
-int Heap::survived_since_last_expansion_ = 0;
-int Heap::external_allocation_limit_ = 0;
-
-Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
-
-int Heap::mc_count_ = 0;
-int Heap::ms_count_ = 0;
-int Heap::gc_count_ = 0;
-
-GCTracer* Heap::tracer_ = NULL;
-
-int Heap::unflattened_strings_length_ = 0;
-
-int Heap::always_allocate_scope_depth_ = 0;
-int Heap::linear_allocation_scope_depth_ = 0;
-int Heap::contexts_disposed_ = 0;
-
-#ifdef DEBUG
-bool Heap::allocation_allowed_ = true;
-
-int Heap::allocation_timeout_ = 0;
-bool Heap::disallow_allocation_failure_ = false;
-#endif  // DEBUG
 
 int GCTracer::alive_after_last_gc_ = 0;
 double GCTracer::last_gc_end_timestamp_ = 0.0;
@@ -144,9 +66,64 @@ int GCTracer::max_gc_pause_ = 0;
 int GCTracer::max_alive_after_gc_ = 0;
 int GCTracer::min_in_mutator_ = kMaxInt;
 
-Heap::Heap() : isolate_(NULL) {
-  // TODO(zarko): members that previously relied on static initialization
-  // should be initialized here.
+Heap::Heap()
+    : isolate_(NULL),
+// semispace_size_ should be a power of 2 and old_generation_size_ should be
+// a multiple of Page::kPageSize.
+#if defined(ANDROID)
+      reserved_semispace_size_(2*MB),
+      max_semispace_size_(2*MB),
+      initial_semispace_size_(128*KB),
+      max_old_generation_size_(192*MB),
+      code_range_size_(0),
+#elif defined(V8_TARGET_ARCH_X64)
+      reserved_semispace_size_(16*MB),
+      max_semispace_size_(16*MB),
+      initial_semispace_size_(1*MB),
+      max_old_generation_size_(1*GB),
+      code_range_size_(512*MB),
+#else
+      reserved_semispace_size_(8*MB),
+      max_semispace_size_(8*MB),
+      initial_semispace_size_(512*KB),
+      max_old_generation_size_(512*MB),
+      code_range_size_(0),
+#endif
+// Variables set based on semispace_size_ and old_generation_size_ in
+// ConfigureHeap (survived_since_last_expansion_, external_allocation_limit_)
+// Will be 4 * reserved_semispace_size_ to ensure that young
+// generation can be aligned to its size.
+      survived_since_last_expansion_(0),
+      always_allocate_scope_depth_(0),
+      linear_allocation_scope_depth_(0),
+      contexts_disposed_(0),
+      old_pointer_space_(NULL),
+      old_data_space_(NULL),
+      code_space_(NULL),
+      map_space_(NULL),
+      cell_space_(NULL),
+      lo_space_(NULL),
+      gc_state_(NOT_IN_GC),
+      mc_count_(0),
+      ms_count_(0),
+      gc_count_(0),
+      unflattened_strings_length_(0),
+#ifdef DEBUG
+      allocation_allowed_(true),
+      allocation_timeout_(0),
+      disallow_allocation_failure_(false),
+#endif  // DEBUG
+      old_gen_promotion_limit_(kMinimumPromotionLimit),
+      old_gen_allocation_limit_(kMinimumAllocationLimit),
+      external_allocation_limit_(0),
+      amount_of_external_allocated_memory_(0),
+      amount_of_external_allocated_memory_at_last_global_gc_(0),
+      old_gen_exhausted_(false),
+      hidden_symbol_(NULL),
+      global_gc_prologue_callback_(NULL),
+      global_gc_epilogue_callback_(NULL),
+      tracer_(NULL) {
+  memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
 }
 
 

@@ -1030,21 +1030,21 @@ class Heap {
   //                 any pointer to Heap.
   Isolate* isolate_;
 
-  static int reserved_semispace_size_;
-  static int max_semispace_size_;
-  static int initial_semispace_size_;
-  static int max_old_generation_size_;
-  static size_t code_range_size_;
+  int reserved_semispace_size_;
+  int max_semispace_size_;
+  int initial_semispace_size_;
+  int max_old_generation_size_;
+  size_t code_range_size_;
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
-  static int survived_since_last_expansion_;
+  int survived_since_last_expansion_;
 
-  static int always_allocate_scope_depth_;
-  static int linear_allocation_scope_depth_;
+  int always_allocate_scope_depth_;
+  int linear_allocation_scope_depth_;
 
   // For keeping track of context disposals.
-  static int contexts_disposed_;
+  int contexts_disposed_;
 
 #if defined(V8_TARGET_ARCH_X64)
   static const int kMaxObjectSizeInNewSpace = 512*KB;
@@ -1052,14 +1052,14 @@ class Heap {
   static const int kMaxObjectSizeInNewSpace = 256*KB;
 #endif
 
-  static NewSpace new_space_;
-  static OldSpace* old_pointer_space_;
-  static OldSpace* old_data_space_;
-  static OldSpace* code_space_;
-  static MapSpace* map_space_;
-  static CellSpace* cell_space_;
-  static LargeObjectSpace* lo_space_;
-  static HeapState gc_state_;
+  NewSpace new_space_;
+  OldSpace* old_pointer_space_;
+  OldSpace* old_data_space_;
+  OldSpace* code_space_;
+  MapSpace* map_space_;
+  CellSpace* cell_space_;
+  LargeObjectSpace* lo_space_;
+  HeapState gc_state_;
 
   // Returns the size of object residing in non new spaces.
   int PromotedSpaceSize();
@@ -1067,59 +1067,59 @@ class Heap {
   // Returns the amount of external memory registered since last global gc.
   int PromotedExternalMemorySize();
 
-  static int mc_count_;  // how many mark-compact collections happened
-  static int ms_count_;  // how many mark-sweep collections happened
-  static int gc_count_;  // how many gc happened
+  int mc_count_;  // how many mark-compact collections happened
+  int ms_count_;  // how many mark-sweep collections happened
+  int gc_count_;  // how many gc happened
 
   // Total length of the strings we failed to flatten since the last GC.
-  static int unflattened_strings_length_;
+  int unflattened_strings_length_;
 
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
-  static inline void set_##name(type* value) {                                 \
+  inline void set_##name(type* value) {                                 \
     roots_[k##camel_name##RootIndex] = value;                                  \
   }
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
 #ifdef DEBUG
-  static bool allocation_allowed_;
+  bool allocation_allowed_;
 
   // If the --gc-interval flag is set to a positive value, this
   // variable holds the value indicating the number of allocations
   // remain until the next failure and garbage collection.
-  static int allocation_timeout_;
+  int allocation_timeout_;
 
   // Do we expect to be able to handle allocation failure at this
   // time?
-  static bool disallow_allocation_failure_;
+  bool disallow_allocation_failure_;
 #endif  // DEBUG
 
   // Limit that triggers a global GC on the next (normally caused) GC.  This
   // is checked when we have already decided to do a GC to help determine
   // which collector to invoke.
-  static int old_gen_promotion_limit_;
+  int old_gen_promotion_limit_;
 
   // Limit that triggers a global GC as soon as is reasonable.  This is
   // checked before expanding a paged space in the old generation and on
   // every allocation in large object space.
-  static int old_gen_allocation_limit_;
+  int old_gen_allocation_limit_;
 
   // Limit on the amount of externally allocated memory allowed
   // between global GCs. If reached a global GC is forced.
-  static int external_allocation_limit_;
+  int external_allocation_limit_;
 
   // The amount of external memory registered through the API kept alive
   // by global handles
-  static int amount_of_external_allocated_memory_;
+  int amount_of_external_allocated_memory_;
 
   // Caches the amount of external memory registered at the last global gc.
-  static int amount_of_external_allocated_memory_at_last_global_gc_;
+  int amount_of_external_allocated_memory_at_last_global_gc_;
 
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
-  static int old_gen_exhausted_;
+  int old_gen_exhausted_;
 
-  static Object* roots_[kRootListLength];
+  Object* roots_[kRootListLength];
 
   struct StringTypeTable {
     InstanceType type;
@@ -1144,7 +1144,7 @@ class Heap {
 
   // The special hidden symbol which is an empty string, but does not match
   // any string when looked up in properties.
-  static String* hidden_symbol_;
+  String* hidden_symbol_;
 
   // GC callback function, called before and after mark-compact GC.
   // Allocations in the callback function are disallowed.
@@ -1158,7 +1158,7 @@ class Heap {
     GCPrologueCallback callback;
     GCType gc_type;
   };
-  static List<GCPrologueCallbackPair> gc_prologue_callbacks_;
+  List<GCPrologueCallbackPair> gc_prologue_callbacks_;
 
   struct GCEpilogueCallbackPair {
     GCEpilogueCallbackPair(GCEpilogueCallback callback, GCType gc_type)
@@ -1170,10 +1170,10 @@ class Heap {
     GCEpilogueCallback callback;
     GCType gc_type;
   };
-  static List<GCEpilogueCallbackPair> gc_epilogue_callbacks_;
+  List<GCEpilogueCallbackPair> gc_epilogue_callbacks_;
 
-  static GCCallback global_gc_prologue_callback_;
-  static GCCallback global_gc_epilogue_callback_;
+  GCCallback global_gc_prologue_callback_;
+  GCCallback global_gc_epilogue_callback_;
 
   // Checks whether a global GC is necessary
   GarbageCollector SelectGarbageCollector(AllocationSpace space);
@@ -1262,7 +1262,7 @@ class Heap {
                                     SharedFunctionInfo* shared,
                                     Object* prototype);
 
-  static GCTracer* tracer_;
+  GCTracer* tracer_;
 
 
   // Initializes the number to string cache based on the max semispace size.
