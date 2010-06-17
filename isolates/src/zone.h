@@ -39,6 +39,7 @@ enum ZoneScopeMode {
   DONT_DELETE_ON_EXIT
 };
 
+class Segment;
 
 // The Zone supports very fast allocation of small chunks of
 // memory. The chunks cannot be deallocated individually, but instead
@@ -73,6 +74,7 @@ class Zone {
 
  private:
   friend class Isolate;
+  friend class ZoneScope;
 
   // All pointers returned from New() have this alignment.
   static const int kAlignment = kPointerSize;
@@ -103,12 +105,22 @@ class Zone {
   // room in the Zone already.
   Address NewExpand(int size);
 
+  // Creates a new segment, sets it size, and pushes it to the front
+  // of the segment chain. Returns the new segment.
+  Segment* NewSegment(int size);
+
+  // Deletes the given segment. Does not touch the segment chain.
+  void DeleteSegment(Segment* segment, int size);
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
   // is guaranteed to be aligned as dictated by kAlignment.
   Address position_;
   Address limit_;
+
+  int scope_nesting_;
+
+  Segment* segment_head_;
 };
 
 
@@ -167,35 +179,6 @@ class ZoneList: public List<T, ZoneListAllocationPolicy> {
 };
 
 
-// ZoneScopes keep track of the current parsing and compilation
-// nesting and cleans up generated ASTs in the Zone when exiting the
-// outer-most scope.
-class ZoneScope BASE_EMBEDDED {
- public:
-  explicit ZoneScope(ZoneScopeMode mode) : mode_(mode) {
-    nesting_++;
-  }
-
-  virtual ~ZoneScope();
-
-  bool ShouldDeleteOnExit() {
-    return nesting_ == 1 && mode_ == DELETE_ON_EXIT;
-  }
-
-  // For ZoneScopes that do not delete on exit by default, call this
-  // method to request deletion on exit.
-  void DeleteOnExit() {
-    mode_ = DELETE_ON_EXIT;
-  }
-
-  static int nesting() { return nesting_; }
-
- private:
-  ZoneScopeMode mode_;
-  static int nesting_;
-};
-
-
 // A zone splay tree.  The config type parameter encapsulates the
 // different configurations of a concrete splay tree (see splay-tree.h).
 // The tree itself and all its elements are allocated in the Zone.
@@ -205,6 +188,31 @@ class ZoneSplayTree: public SplayTree<Config, ZoneListAllocationPolicy> {
   ZoneSplayTree()
       : SplayTree<Config, ZoneListAllocationPolicy>() {}
   ~ZoneSplayTree();
+};
+
+
+// ZoneScopes keep track of the current parsing and compilation
+// nesting and cleans up generated ASTs in the Zone when exiting the
+// outer-most scope.
+class ZoneScope BASE_EMBEDDED {
+ public:
+  inline explicit ZoneScope(ZoneScopeMode mode);
+
+  virtual ~ZoneScope();
+
+  inline bool ShouldDeleteOnExit();
+
+  // For ZoneScopes that do not delete on exit by default, call this
+  // method to request deletion on exit.
+  void DeleteOnExit() {
+    mode_ = DELETE_ON_EXIT;
+  }
+
+  inline static int nesting();
+
+ private:
+  Isolate* isolate_;
+  ZoneScopeMode mode_;
 };
 
 

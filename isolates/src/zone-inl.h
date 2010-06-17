@@ -102,6 +102,23 @@ inline void* ZoneListAllocationPolicy::New(int size) {
 }
 
 
+ZoneScope::ZoneScope(ZoneScopeMode mode)
+    : isolate_(Isolate::Current()),
+      mode_(mode) {
+  isolate_->zone()->scope_nesting_++;
+}
+
+
+bool ZoneScope::ShouldDeleteOnExit() {
+  return isolate_->zone()->scope_nesting_ == 1 && mode_ == DELETE_ON_EXIT;
+}
+
+
+int ZoneScope::nesting() {
+  return Isolate::Current()->zone()->scope_nesting_;
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_ZONE_INL_H_
