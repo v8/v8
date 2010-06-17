@@ -5113,7 +5113,7 @@ void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     TranscendentalCacheStub stub(TranscendentalCache::SIN);
     frame_->SpillAllButCopyTOSToR0();
     frame_->CallStub(&stub, 1);
@@ -5127,7 +5127,7 @@ void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     TranscendentalCacheStub stub(TranscendentalCache::COS);
     frame_->SpillAllButCopyTOSToR0();
     frame_->CallStub(&stub, 1);
@@ -8309,7 +8309,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   Label input_not_smi;
   Label loaded;
 
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     // Load argument and check if it is a smi.
     __ BranchOnNotSmi(r0, &input_not_smi);
 
@@ -8338,8 +8338,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ eor(r1, r2, Operand(r3));
     __ eor(r1, r1, Operand(r1, ASR, 16));
     __ eor(r1, r1, Operand(r1, ASR, 8));
-    ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
-    __ And(r1, r1, Operand(TranscendentalCache::kCacheSize - 1));
+    ASSERT(IsPowerOf2(TranscendentalCache::SubCache::kCacheSize));
+    __ And(r1, r1, Operand(TranscendentalCache::SubCache::kCacheSize - 1));
 
     // r2 = low 32 bits of double value.
     // r3 = high 32 bits of double value.
@@ -8347,7 +8347,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ mov(r0,
            Operand(ExternalReference::transcendental_cache_array_address()));
     // r0 points to cache array.
-    __ ldr(r0, MemOperand(r0, type_ * sizeof(TranscendentalCache::caches_[0])));
+    __ ldr(r0, MemOperand(r0, type_ * sizeof(
+        Isolate::Current()->transcendental_cache()->caches_[0])));
     // r0 points to the cache for the type type_.
     // If NULL, the cache hasn't been initialized yet, so go through runtime.
     __ cmp(r0, Operand(0));
@@ -8355,7 +8356,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
 #ifdef DEBUG
     // Check that the layout of cache elements match expectations.
-    { TranscendentalCache::Element test_elem[2];
+    { TranscendentalCache::SubCache::Element test_elem[2];
       char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
       char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
       char* elem_in0 = reinterpret_cast<char*>(&(test_elem[0].in[0]));

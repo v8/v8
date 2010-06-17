@@ -218,7 +218,8 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
                          Condition cond) {
-  if (!CpuFeatures::IsSupported(ARMv7) || src2.is_single_instruction()) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7) ||
+      src2.is_single_instruction()) {
     and_(dst, src1, src2, LeaveCC, cond);
     return;
   }
@@ -238,7 +239,7 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
 void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width,
                           Condition cond) {
   ASSERT(lsb < 32);
-  if (!CpuFeatures::IsSupported(ARMv7)) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
     and_(dst, src1, Operand(mask), LeaveCC, cond);
     if (lsb != 0) {
@@ -253,7 +254,7 @@ void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width,
 void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width,
                           Condition cond) {
   ASSERT(lsb < 32);
-  if (!CpuFeatures::IsSupported(ARMv7)) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
     and_(dst, src1, Operand(mask), LeaveCC, cond);
     int shift_up = 32 - lsb - width;
