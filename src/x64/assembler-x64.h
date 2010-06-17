@@ -765,6 +765,7 @@ class Assembler : public Malloced {
 
   void incq(Register dst);
   void incq(const Operand& dst);
+  void incl(Register dst);
   void incl(const Operand& dst);
 
   void lea(Register dst, const Operand& src);

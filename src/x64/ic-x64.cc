@@ -1013,6 +1013,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ movq(FieldOperand(rbx, index2.reg, index2.scale, FixedArray::kHeaderSize),
           rax);
   __ movq(rdx, rax);
+  __ SmiToInteger32(rcx, rcx);
   __ RecordWriteNonSmi(rbx, 0, rdx, rcx);
   __ ret(0);
 }

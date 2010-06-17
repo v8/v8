@@ -1148,6 +1148,15 @@ void Assembler::incl(const Operand& dst) {
 }
 
 
+void Assembler::incl(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xFF);
+  emit_modrm(0, dst);
+}
+
+
 void Assembler::int3() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

@@ -4769,8 +4769,8 @@ void DeferredSearchCache::Generate() {
   __ cmpq(ArrayElement(cache_, dst_), key_);
   __ j(not_equal, &first_loop);
 
-  __ Integer32ToSmi(scratch_, dst_);
-  __ movq(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), scratch_);
+  __ Integer32ToSmiField(
+      FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
   __ movq(dst_, ArrayElement(cache_, dst_, 1));
   __ jmp(exit_label());
 
@@ -4791,8 +4791,8 @@ void DeferredSearchCache::Generate() {
   __ cmpq(ArrayElement(cache_, dst_), key_);
   __ j(not_equal, &second_loop);
 
-  __ Integer32ToSmi(scratch_, dst_);
-  __ movq(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), scratch_);
+  __ Integer32ToSmiField(
+      FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
   __ movq(dst_, ArrayElement(cache_, dst_, 1));
   __ jmp(exit_label());
 
@@ -4814,50 +4814,50 @@ void DeferredSearchCache::Generate() {
   // cache miss this optimization would hardly matter much.
 
   // Check if we could add new entry to cache.
-  __ movq(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
-  __ movq(r9, FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset));
-  __ SmiCompare(rbx, r9);
+  __ SmiToInteger32(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
+  __ SmiToInteger32(r9,
+                    FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset));
+  __ cmpl(rbx, r9);
   __ j(greater, &add_new_entry);
 
   // Check if we could evict entry after finger.
-  __ movq(rdx, FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
-  __ SmiToInteger32(rdx, rdx);
-  __ SmiToInteger32(rbx, rbx);
-  __ addq(rdx, kEntrySizeImm);
+  __ SmiToInteger32(rdx,
+                    FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
+  __ addl(rdx, kEntrySizeImm);
   Label forward;
-  __ cmpq(rbx, rdx);
+  __ cmpl(rbx, rdx);
   __ j(greater, &forward);
   // Need to wrap over the cache.
   __ movl(rdx, kEntriesIndexImm);
   __ bind(&forward);
-  __ Integer32ToSmi(r9, rdx);
+  __ movl(r9, rdx);
   __ jmp(&update_cache);
 
   __ bind(&add_new_entry);
-  // r9 holds cache size as smi.
-  __ SmiToInteger32(rdx, r9);
-  __ SmiAddConstant(rbx, r9, Smi::FromInt(JSFunctionResultCache::kEntrySize));
-  __ movq(FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset), rbx);
+  // r9 holds cache size as int32.
+  __ leal(rbx, Operand(r9, JSFunctionResultCache::kEntrySize));
+  __ Integer32ToSmiField(
+      FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset), rbx);
 
   // Update the cache itself.
-  // rdx holds the index as int.
-  // r9 holds the index as smi.
+  // r9 holds the index as int32.
   __ bind(&update_cache);
   __ pop(rbx);  // restore the key
-  __ movq(FieldOperand(rcx, JSFunctionResultCache::kFingerOffset), r9);
+  __ Integer32ToSmiField(
+      FieldOperand(rcx, JSFunctionResultCache::kFingerOffset), r9);
   // Store key.
-  __ movq(ArrayElement(rcx, rdx), rbx);
+  __ movq(ArrayElement(rcx, r9), rbx);
   __ RecordWrite(rcx, 0, rbx, r9);
 
   // Store value.
   __ pop(rcx);  // restore the cache.
-  __ movq(rdx, FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
-  __ SmiAddConstant(rdx, rdx, Smi::FromInt(1));
-  __ movq(r9, rdx);
-  __ SmiToInteger32(rdx, rdx);
+  __ SmiToInteger32(rdx,
+                    FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
+  __ incl(rdx);
+  // Backup rax, because the RecordWrite macro clobbers its arguments.
   __ movq(rbx, rax);
-  __ movq(ArrayElement(rcx, rdx), rbx);
-  __ RecordWrite(rcx, 0, rbx, r9);
+  __ movq(ArrayElement(rcx, rdx), rax);
+  __ RecordWrite(rcx, 0, rbx, rdx);
 
   if (!dst_.is(rax)) {
     __ movq(dst_, rax);
@@ -8551,18 +8551,18 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // rcx: RegExp data (FixedArray)
   // Check the type of the RegExp. Only continue if type is JSRegExp::IRREGEXP.
-  __ movq(rbx, FieldOperand(rcx, JSRegExp::kDataTagOffset));
-  __ SmiCompare(rbx, Smi::FromInt(JSRegExp::IRREGEXP));
+  __ SmiToInteger32(rbx, FieldOperand(rcx, JSRegExp::kDataTagOffset));
+  __ cmpl(rbx, Immediate(JSRegExp::IRREGEXP));
   __ j(not_equal, &runtime);
 
   // rcx: RegExp data (FixedArray)
   // Check that the number of captures fit in the static offsets vector buffer.
-  __ movq(rdx, FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
+  __ SmiToInteger32(rdx,
+                    FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
   // Calculate number of capture registers (number_of_captures + 1) * 2.
-  __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rdx, 1);
-  __ addq(rdx, Immediate(2));  // rdx was number_of_captures * 2.
+  __ leal(rdx, Operand(rdx, rdx, times_1, 2));
   // Check that the static offsets vector buffer is large enough.
-  __ cmpq(rdx, Immediate(OffsetsVector::kStaticOffsetsVectorSize));
+  __ cmpl(rdx, Immediate(OffsetsVector::kStaticOffsetsVectorSize));
   __ j(above, &runtime);
 
   // rcx: RegExp data (FixedArray)
@@ -8572,17 +8572,15 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ JumpIfSmi(rax, &runtime);
   Condition is_string = masm->IsObjectStringType(rax, rbx, rbx);
   __ j(NegateCondition(is_string), &runtime);
-  // Get the length of the string to rbx.
-  __ movq(rbx, FieldOperand(rax, String::kLengthOffset));
 
-  // rbx: Length of subject string as smi
-  // rcx: RegExp data (FixedArray)
-  // rdx: Number of capture registers
+  // rax: Subject string.
+  // rcx: RegExp data (FixedArray).
+  // rdx: Number of capture registers.
   // Check that the third argument is a positive smi less than the string
   // length. A negative value will be greater (unsigned comparison).
-  __ movq(rax, Operand(rsp, kPreviousIndexOffset));
-  __ JumpIfNotSmi(rax, &runtime);
-  __ SmiCompare(rax, rbx);
+  __ movq(rbx, Operand(rsp, kPreviousIndexOffset));
+  __ JumpIfNotSmi(rbx, &runtime);
+  __ SmiCompare(rbx, FieldOperand(rax, String::kLengthOffset));
   __ j(above_equal, &runtime);
 
   // rcx: RegExp data (FixedArray)
@@ -8600,8 +8598,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the last match info has space for the capture registers and the
   // additional information. Ensure no overflow in add.
   ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
-  __ movq(rax, FieldOperand(rbx, FixedArray::kLengthOffset));
-  __ SmiToInteger32(rax, rax);
+  __ SmiToInteger32(rax, FieldOperand(rbx, FixedArray::kLengthOffset));
   __ addl(rdx, Immediate(RegExpImpl::kLastMatchOverhead));
   __ cmpl(rdx, rax);
   __ j(greater, &runtime);
@@ -8674,8 +8671,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // r12: code
   // Load used arguments before starting to push arguments for call to native
   // RegExp code to avoid handling changing stack height.
-  __ movq(rbx, Operand(rsp, kPreviousIndexOffset));
-  __ SmiToInteger64(rbx, rbx);  // Previous index from smi.
+  __ SmiToInteger64(rbx, Operand(rsp, kPreviousIndexOffset));
 
   // rax: subject string
   // rbx: previous index
@@ -8787,10 +8783,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ bind(&success);
   __ movq(rax, Operand(rsp, kJSRegExpOffset));
   __ movq(rcx, FieldOperand(rax, JSRegExp::kDataOffset));
-  __ movq(rdx, FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
+  __ SmiToInteger32(rax,
+                    FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
   // Calculate number of capture registers (number_of_captures + 1) * 2.
-  __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rdx, 1);
-  __ addq(rdx, Immediate(2));  // rdx was number_of_captures * 2.
+  __ leal(rdx, Operand(rax, rax, times_1, 2));
 
   // rdx: Number of capture registers
   // Load last_match_info which is still known to be a fast case JSArray.
@@ -8833,7 +8829,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                        rdx,
                        times_pointer_size,
                        RegExpImpl::kFirstCaptureOffset),
-                       rdi);
+          rdi);
   __ jmp(&next_capture);
   __ bind(&done);
 
@@ -8877,9 +8873,9 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
 
   // Make the hash mask from the length of the number string cache. It
   // contains two elements (number and string) for each cache entry.
-  __ movq(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
-  // Divide smi tagged length by two.
-  __ PositiveSmiDivPowerOfTwoToInteger32(mask, mask, 1);
+  __ SmiToInteger32(
+      mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
+  __ shrl(mask, Immediate(1));
   __ subq(mask, Immediate(1));  // Make mask.
 
   // Calculate the entry in the number string cache. The hash value in the
@@ -8916,8 +8912,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   }
 
   __ bind(&is_smi);
-  __ movq(scratch, object);
-  __ SmiToInteger32(scratch, scratch);
+  __ SmiToInteger32(scratch, object);
   GenerateConvertHashCodeToIndex(masm, scratch, mask);
 
   Register index = scratch;
@@ -9344,29 +9339,30 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ j(equal, &adaptor_frame);
 
   // Get the length from the frame.
-  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
+  __ SmiToInteger32(rcx, Operand(rsp, 1 * kPointerSize));
   __ jmp(&try_allocate);
 
   // Patch the arguments.length and the parameters pointer.
   __ bind(&adaptor_frame);
-  __ movq(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ movq(Operand(rsp, 1 * kPointerSize), rcx);
+  __ SmiToInteger32(rcx,
+                    Operand(rdx,
+                            ArgumentsAdaptorFrameConstants::kLengthOffset));
+  // Space on stack must already hold a smi.
+  __ Integer32ToSmiField(Operand(rsp, 1 * kPointerSize), rcx);
   // Do not clobber the length index for the indexing operation since
   // it is used compute the size for allocation later.
-  SmiIndex index = masm->SmiToIndex(rbx, rcx, kPointerSizeLog2);
-  __ lea(rdx, Operand(rdx, index.reg, index.scale, kDisplacement));
+  __ lea(rdx, Operand(rdx, rcx, times_pointer_size, kDisplacement));
   __ movq(Operand(rsp, 2 * kPointerSize), rdx);
 
   // Try the new space allocation. Start out with computing the size of
   // the arguments object and the elements array.
   Label add_arguments_object;
   __ bind(&try_allocate);
-  __ testq(rcx, rcx);
+  __ testl(rcx, rcx);
   __ j(zero, &add_arguments_object);
-  index = masm->SmiToIndex(rcx, rcx, kPointerSizeLog2);
-  __ lea(rcx, Operand(index.reg, index.scale, FixedArray::kHeaderSize));
+  __ leal(rcx, Operand(rcx, times_pointer_size, FixedArray::kHeaderSize));
   __ bind(&add_arguments_object);
-  __ addq(rcx, Immediate(Heap::kArgumentsObjectSize));
+  __ addl(rcx, Immediate(Heap::kArgumentsObjectSize));
 
   // Do the allocation of both objects in one go.
   __ AllocateInNewSpace(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
@@ -9378,10 +9374,13 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ movq(rdi, Operand(rdi, offset));
 
   // Copy the JS object part.
-  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
-    __ movq(kScratchRegister, FieldOperand(rdi, i));
-    __ movq(FieldOperand(rax, i), kScratchRegister);
-  }
+  STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
+  __ movq(kScratchRegister, FieldOperand(rdi, 0 * kPointerSize));
+  __ movq(rdx, FieldOperand(rdi, 1 * kPointerSize));
+  __ movq(rbx, FieldOperand(rdi, 2 * kPointerSize));
+  __ movq(FieldOperand(rax, 0 * kPointerSize), kScratchRegister);
+  __ movq(FieldOperand(rax, 1 * kPointerSize), rdx);
+  __ movq(FieldOperand(rax, 2 * kPointerSize), rbx);
 
   // Setup the callee in-object property.
   ASSERT(Heap::arguments_callee_index == 0);
@@ -9395,7 +9394,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
   // If there are no actual arguments, we're done.
   Label done;
-  __ testq(rcx, rcx);
+  __ SmiTest(rcx);
   __ j(zero, &done);
 
   // Get the parameters pointer from the stack and untag the length.
@@ -9417,7 +9416,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ movq(FieldOperand(rdi, FixedArray::kHeaderSize), kScratchRegister);
   __ addq(rdi, Immediate(kPointerSize));
   __ subq(rdx, Immediate(kPointerSize));
-  __ decq(rcx);
+  __ decl(rcx);
   __ j(not_zero, &loop);
 
   // Return and remove the on-stack parameters.
@@ -10832,19 +10831,13 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   __ push(rax);
 
   // Push this stub's key.
-  __ movq(rax, Immediate(MinorKey()));
-  __ Integer32ToSmi(rax, rax);
-  __ push(rax);
+  __ Push(Smi::FromInt(MinorKey()));
 
   // Although the operation and the type info are encoded into the key,
   // the encoding is opaque, so push them too.
-  __ movq(rax, Immediate(op_));
-  __ Integer32ToSmi(rax, rax);
-  __ push(rax);
+  __ Push(Smi::FromInt(op_));
 
-  __ movq(rax, Immediate(runtime_operands_type_));
-  __ Integer32ToSmi(rax, rax);
-  __ push(rax);
+  __ Push(Smi::FromInt(runtime_operands_type_));
 
   __ push(rcx);
 
