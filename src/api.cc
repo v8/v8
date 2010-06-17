@@ -4460,6 +4460,7 @@ Handle<Value> HeapGraphEdge::GetName() const {
       reinterpret_cast<const i::HeapGraphEdge*>(this);
   switch (edge->type()) {
     case i::HeapGraphEdge::CONTEXT_VARIABLE:
+    case i::HeapGraphEdge::INTERNAL:
     case i::HeapGraphEdge::PROPERTY:
       return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
           edge->name())));
