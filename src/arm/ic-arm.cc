@@ -1692,7 +1692,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ Ret(eq);
   // Update write barrier for the elements array address.
   __ sub(r4, r5, Operand(elements));
-  __ RecordWrite(elements, r4, r5);
+  __ RecordWrite(elements, Operand(r4), r5, r6);
 
   __ Ret();
 }

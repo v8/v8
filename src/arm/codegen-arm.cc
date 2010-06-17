@@ -268,8 +268,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
             // Load the offset into r3.
             int slot_offset =
                 FixedArray::kHeaderSize + slot->index() * kPointerSize;
-            __ mov(r3, Operand(slot_offset));
-            __ RecordWrite(r2, r3, r1);
+            __ RecordWrite(r2, Operand(slot_offset), r3, r1);
           }
         }
       }
@@ -3109,9 +3108,8 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       exit.Branch(eq);
       // scratch is loaded with context when calling SlotOperand above.
       int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-      __ mov(r3, Operand(offset));
       // r1 could be identical with tos, but that doesn't matter.
-      __ RecordWrite(scratch, r3, r1);
+      __ RecordWrite(scratch, Operand(offset), r3, r1);
     }
     // If we definitely did not jump over the assignment, we do not need
     // to bind the exit label.  Doing so can defeat peephole
@@ -3464,8 +3462,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     __ str(r0, FieldMemOperand(r1, offset));
 
     // Update the write barrier for the array address.
-    __ mov(r3, Operand(offset));
-    __ RecordWrite(r1, r3, r2);
+    __ RecordWrite(r1, Operand(offset), r3, r2);
   }
   ASSERT_EQ(original_height + 1, frame_->height());
 }
@@ -4279,8 +4276,7 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   // Store the value.
   __ str(r0, FieldMemOperand(r1, JSValue::kValueOffset));
   // Update the write barrier.
-  __ mov(r2, Operand(JSValue::kValueOffset - kHeapObjectTag));
-  __ RecordWrite(r1, r2, r3);
+  __ RecordWrite(r1, Operand(JSValue::kValueOffset - kHeapObjectTag), r2, r3);
   // Leave.
   leave.Bind();
   frame_->EmitPush(r0);
@@ -7207,7 +7203,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 
 
 void RecordWriteStub::Generate(MacroAssembler* masm) {
-  __ RecordWriteHelper(object_, offset_, scratch_);
+  __ RecordWriteHelper(object_, Operand(offset_), offset_, scratch_);
   __ Ret();
 }
 
@@ -9453,17 +9449,15 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                              RegExpImpl::kLastCaptureCountOffset));
   // Store last subject and last input.
   __ mov(r3, last_match_info_elements);  // Moved up to reduce latency.
-  __ mov(r2, Operand(RegExpImpl::kLastSubjectOffset));  // Ditto.
   __ str(subject,
          FieldMemOperand(last_match_info_elements,
                          RegExpImpl::kLastSubjectOffset));
-  __ RecordWrite(r3, r2, r7);
+  __ RecordWrite(r3, Operand(RegExpImpl::kLastSubjectOffset), r2, r7);
   __ str(subject,
          FieldMemOperand(last_match_info_elements,
                          RegExpImpl::kLastInputOffset));
   __ mov(r3, last_match_info_elements);
-  __ mov(r2, Operand(RegExpImpl::kLastInputOffset));
-  __ RecordWrite(r3, r2, r7);
+  __ RecordWrite(r3, Operand(RegExpImpl::kLastInputOffset), r2, r7);
 
   // Get the static offsets vector filled by the native regexp code.
   ExternalReference address_of_static_offsets_vector =
