@@ -116,7 +116,7 @@ function listener(event, exec_state, event_data, data) {
     mirror = debug.MakeMirror(o.a);
     testArguments(dcp, '{"type":"handle","target":' + mirror.handle() + '}', true, false);
 
-    testArguments(dcp, '{"type":"script","target":"sourceUrlScript","line":1}', true, true);
+    testArguments(dcp, '{"type":"script","target":"sourceUrlScript","line":0}', true, true);
 
     // Indicate that all was processed.
     listenerComplete = true;

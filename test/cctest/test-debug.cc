@@ -2028,6 +2028,51 @@ TEST(ScriptBreakPointLine) {
 }
 
 
+// Test top level script break points set on lines.
+TEST(ScriptBreakPointLineTopLevel) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
+                                   v8::Undefined());
+
+  v8::Local<v8::String> script = v8::String::New(
+    "function f() {\n"
+    "  a = 1;                   // line 1\n"
+    "}\n"
+    "a = 2;                     // line 3\n");
+  v8::Local<v8::Function> f;
+  {
+    v8::HandleScope scope;
+    v8::Script::Compile(script, v8::String::New("test.html"))->Run();
+  }
+  f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+
+  Heap::CollectAllGarbage(false);
+
+  SetScriptBreakPointByNameFromJS("test.html", 3, -1);
+
+  // Call f and check that there was no break points.
+  break_point_hit_count = 0;
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Recompile and run script and check that break point was hit.
+  break_point_hit_count = 0;
+  v8::Script::Compile(script, v8::String::New("test.html"))->Run();
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Call f and check that there are still no break points.
+  break_point_hit_count = 0;
+  f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  CHECK_EQ(0, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
 // Test that it is possible to remove the last break point for a function
 // inside the break handling of that break point.
 TEST(RemoveBreakPointInBreak) {

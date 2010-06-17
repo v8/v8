@@ -9081,8 +9081,6 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
   // The current candidate for the source position:
   int target_start_position = RelocInfo::kNoPosition;
   Handle<SharedFunctionInfo> target;
-  // The current candidate for the last function in script:
-  Handle<SharedFunctionInfo> last;
   while (!done) {
     HeapIterator iterator;
     for (HeapObject* obj = iterator.next();
@@ -9123,25 +9121,12 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
               }
             }
           }
-
-          // Keep track of the last function in the script.
-          if (last.is_null() ||
-              shared->end_position() > last->start_position()) {
-            last = shared;
-          }
         }
       }
     }
 
-    // Make sure some candidate is selected.
     if (target.is_null()) {
-      if (!last.is_null()) {
-        // Position after the last function - use last.
-        target = last;
-      } else {
-        // Unable to find function - possibly script without any function.
-        return Heap::undefined_value();
-      }
+      return Heap::undefined_value();
     }
 
     // If the candidate found is compiled we are done. NOTE: when lazy
