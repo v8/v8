@@ -12852,7 +12852,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // If result is not supposed to be flat allocate a cons string object. If both
   // strings are ascii the result is an ascii cons string.
-  Label non_ascii, allocated;
+  Label non_ascii, allocated, ascii_data;
   __ mov(edi, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(edi, Map::kInstanceTypeOffset));
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
@@ -12861,6 +12861,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   ASSERT(kStringEncodingMask == kAsciiStringTag);
   __ test(ecx, Immediate(kAsciiStringTag));
   __ j(zero, &non_ascii);
+  __ bind(&ascii_data);
   // Allocate an acsii cons string.
   __ AllocateAsciiConsString(ecx, edi, no_reg, &string_add_runtime);
   __ bind(&allocated);
@@ -12875,6 +12876,19 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::string_add_native, 1);
   __ ret(2 * kPointerSize);
   __ bind(&non_ascii);
+  // At least one of the strings is two-byte. Check whether it happens
+  // to contain only ascii characters.
+  // ecx: first instance type AND second instance type.
+  // edi: second instance type.
+  __ test(ecx, Immediate(kAsciiDataHintMask));
+  __ j(not_zero, &ascii_data);
+  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ xor_(edi, Operand(ecx));
+  ASSERT(kAsciiStringTag != 0 && kAsciiDataHintTag != 0);
+  __ and_(edi, kAsciiStringTag | kAsciiDataHintTag);
+  __ cmp(edi, kAsciiStringTag | kAsciiDataHintTag);
+  __ j(equal, &ascii_data);
   // Allocate a two byte cons string.
   __ AllocateConsString(ecx, edi, no_reg, &string_add_runtime);
   __ jmp(&allocated);

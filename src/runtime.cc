@@ -4946,16 +4946,6 @@ static Object* ConvertCaseHelper(String* s,
 }
 
 
-static inline SeqAsciiString* TryGetSeqAsciiString(String* s) {
-  if (!s->IsFlat() || !s->IsAsciiRepresentation()) return NULL;
-  if (s->IsConsString()) {
-    ASSERT(ConsString::cast(s)->second()->length() == 0);
-    return SeqAsciiString::cast(ConsString::cast(s)->first());
-  }
-  return SeqAsciiString::cast(s);
-}
-
-
 namespace {
 
 struct ToLowerTraits {
@@ -5002,7 +4992,7 @@ static Object* ConvertCase(
     unibrow::Mapping<typename ConvertTraits::UnibrowConverter, 128>* mapping) {
   NoHandleAllocation ha;
   CONVERT_CHECKED(String, s, args[0]);
-  s->TryFlatten();
+  s = s->TryFlattenGetString();
 
   const int length = s->length();
   // Assume that the string is not empty; we need this assumption later
@@ -5014,13 +5004,12 @@ static Object* ConvertCase(
   // character is also ascii.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  SeqAsciiString* seq_ascii = TryGetSeqAsciiString(s);
-  if (seq_ascii != NULL) {
+  if (s->IsSeqAsciiString()) {
     Object* o = Heap::AllocateRawAsciiString(length);
     if (o->IsFailure()) return o;
     SeqAsciiString* result = SeqAsciiString::cast(o);
     bool has_changed_character = ConvertTraits::ConvertAscii(
-        result->GetChars(), seq_ascii->GetChars(), length);
+        result->GetChars(), SeqAsciiString::cast(s)->GetChars(), length);
     return has_changed_character ? result : s;
   }
 
@@ -5564,7 +5553,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = special->IsAsciiRepresentation();
+  bool ascii = special->HasOnlyAsciiChars();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
@@ -5605,7 +5594,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
       String* element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
-      if (ascii && !element->IsAsciiRepresentation()) {
+      if (ascii && !element->HasOnlyAsciiChars()) {
         ascii = false;
       }
     } else {

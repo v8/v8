@@ -11205,16 +11205,17 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // If result is not supposed to be flat, allocate a cons string object. If
   // both strings are ascii the result is an ascii cons string.
   // rax: first string
-  // ebx: length of resulting flat string
+  // rbx: length of resulting flat string
   // rdx: second string
   // r8: instance type of first string
   // r9: instance type of second string
-  Label non_ascii, allocated;
+  Label non_ascii, allocated, ascii_data;
   __ movl(rcx, r8);
   __ and_(rcx, r9);
   ASSERT(kStringEncodingMask == kAsciiStringTag);
   __ testl(rcx, Immediate(kAsciiStringTag));
   __ j(zero, &non_ascii);
+  __ bind(&ascii_data);
   // Allocate an acsii cons string.
   __ AllocateAsciiConsString(rcx, rdi, no_reg, &string_add_runtime);
   __ bind(&allocated);
@@ -11228,6 +11229,18 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::string_add_native, 1);
   __ ret(2 * kPointerSize);
   __ bind(&non_ascii);
+  // At least one of the strings is two-byte. Check whether it happens
+  // to contain only ascii characters.
+  // rcx: first instance type AND second instance type.
+  // r8: first instance type.
+  // r9: second instance type.
+  __ testb(rcx, Immediate(kAsciiDataHintMask));
+  __ j(not_zero, &ascii_data);
+  __ xor_(r8, r9);
+  ASSERT(kAsciiStringTag != 0 && kAsciiDataHintTag != 0);
+  __ andb(r8, Immediate(kAsciiStringTag | kAsciiDataHintTag));
+  __ cmpb(r8, Immediate(kAsciiStringTag | kAsciiDataHintTag));
+  __ j(equal, &ascii_data);
   // Allocate a two byte cons string.
   __ AllocateConsString(rcx, rdi, no_reg, &string_add_runtime);
   __ jmp(&allocated);
@@ -11235,7 +11248,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Handle creating a flat result. First check that both strings are not
   // external strings.
   // rax: first string
-  // ebx: length of resulting flat string as smi
+  // rbx: length of resulting flat string as smi
   // rdx: second string
   // r8: instance type of first string
   // r9: instance type of first string
@@ -11251,7 +11264,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(equal, &string_add_runtime);
   // Now check if both strings are ascii strings.
   // rax: first string
-  // ebx: length of resulting flat string
+  // rbx: length of resulting flat string
   // rdx: second string
   // r8: instance type of first string
   // r9: instance type of second string
