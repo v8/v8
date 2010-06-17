@@ -125,7 +125,7 @@ Object* StubCache::ComputeLoadNonexistent(String* name, JSObject* receiver) {
         receiver->map()->UpdateCodeCache(cache_name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
@@ -143,7 +143,7 @@ Object* StubCache::ComputeLoadField(String* name,
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
@@ -162,7 +162,7 @@ Object* StubCache::ComputeLoadCallback(String* name,
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
@@ -181,7 +181,7 @@ Object* StubCache::ComputeLoadConstant(String* name,
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
@@ -198,13 +198,12 @@ Object* StubCache::ComputeLoadInterceptor(String* name,
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
 Object* StubCache::ComputeLoadNormal(String* name, JSObject* receiver) {
-  Code* code = Builtins::builtin(Builtins::LoadIC_Normal);
-  return Set(name, receiver->map(), code);
+  return Builtins::builtin(Builtins::LoadIC_Normal);
 }
 
 
@@ -227,7 +226,7 @@ Object* StubCache::ComputeLoadGlobal(String* name,
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
@@ -372,7 +371,7 @@ Object* StubCache::ComputeStoreField(String* name,
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
@@ -389,7 +388,7 @@ Object* StubCache::ComputeStoreGlobal(String* name,
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
@@ -407,7 +406,7 @@ Object* StubCache::ComputeStoreCallback(String* name,
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
@@ -424,7 +423,7 @@ Object* StubCache::ComputeStoreInterceptor(String* name,
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
@@ -490,7 +489,7 @@ Object* StubCache::ComputeCallConstant(int argc,
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, map, Code::cast(code));
+  return code;
 }
 
 
@@ -529,7 +528,7 @@ Object* StubCache::ComputeCallField(int argc,
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, map, Code::cast(code));
+  return code;
 }
 
 
@@ -567,7 +566,7 @@ Object* StubCache::ComputeCallInterceptor(int argc,
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, map, Code::cast(code));
+  return code;
 }
 
 
@@ -578,7 +577,7 @@ Object* StubCache::ComputeCallNormal(int argc,
                                      JSObject* receiver) {
   Object* code = ComputeCallNormal(argc, in_loop, kind);
   if (code->IsFailure()) return code;
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
@@ -611,7 +610,7 @@ Object* StubCache::ComputeCallGlobal(int argc,
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
-  return Set(name, receiver->map(), Code::cast(code));
+  return code;
 }
 
 
@@ -1112,6 +1111,7 @@ Object* StubCompiler::CompileCallDebugBreak(Code::Flags flags) {
     Code* code = Code::cast(result);
     USE(code);
     Code::Kind kind = Code::ExtractKindFromFlags(flags);
+    USE(kind);
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_DEBUG_BREAK_TAG),
                             code, code->arguments_count()));
   }

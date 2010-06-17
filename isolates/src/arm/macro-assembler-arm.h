@@ -93,6 +93,14 @@ class MacroAssembler: public Assembler {
             Register scratch = no_reg,
             Condition cond = al);
 
+
+  void And(Register dst, Register src1, const Operand& src2,
+           Condition cond = al);
+  void Ubfx(Register dst, Register src, int lsb, int width,
+            Condition cond = al);
+  void Sbfx(Register dst, Register src, int lsb, int width,
+            Condition cond = al);
+
   void Call(Label* target);
   void Move(Register dst, Handle<Object> value);
   // May do nothing if the registers are identical.
@@ -401,14 +409,22 @@ class MacroAssembler: public Assembler {
                            InstanceType type);
 
 
-  // Check if the map of an object is equal to a specified map and
-  // branch to label if not. Skip the smi check if not required
-  // (object is known to be a heap object)
+  // Check if the map of an object is equal to a specified map (either
+  // given directly or as an index into the root list) and branch to
+  // label if not. Skip the smi check if not required (object is known
+  // to be a heap object)
   void CheckMap(Register obj,
                 Register scratch,
                 Handle<Map> map,
                 Label* fail,
                 bool is_heap_object);
+
+  void CheckMap(Register obj,
+                Register scratch,
+                Heap::RootListIndex index,
+                Label* fail,
+                bool is_heap_object);
+
 
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.

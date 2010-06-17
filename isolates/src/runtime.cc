@@ -626,9 +626,9 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
       PropertyDetails details = dictionary->DetailsAt(entry);
       elms->set(IS_ACCESSOR_INDEX, HEAP->false_value());
       elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
-      elms->set(WRITABLE_INDEX, HEAP->ToBoolean(!details.IsDontDelete()));
+      elms->set(WRITABLE_INDEX, HEAP->ToBoolean(!details.IsReadOnly()));
       elms->set(ENUMERABLE_INDEX, HEAP->ToBoolean(!details.IsDontEnum()));
-      elms->set(CONFIGURABLE_INDEX, HEAP->ToBoolean(!details.IsReadOnly()));
+      elms->set(CONFIGURABLE_INDEX, HEAP->ToBoolean(!details.IsDontDelete()));
       return *desc;
     } else {
       // Elements that are stored as array elements always has:
@@ -3851,10 +3851,28 @@ static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   int unchecked = flag->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
 
+  PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
+
+  // Check if this is an element.
+  uint32_t index;
+  bool is_element = name->AsArrayIndex(&index);
+
+  // Special case for elements if any of the flags are true.
+  // If elements are in fast case we always implicitly assume that:
+  // DONT_DELETE: false, DONT_ENUM: false, READ_ONLY: false.
+  if (((unchecked & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0) &&
+      is_element) {
+    // Normalize the elements to enable attributes on the property.
+    js_object->NormalizeElements();
+    NumberDictionary* dictionary = js_object->element_dictionary();
+    // Make sure that we never go back to fast case.
+    dictionary->set_requires_slow_elements();
+    PropertyDetails details = PropertyDetails(attr, NORMAL);
+    dictionary->Set(index, *obj_value, details);
+  }
+
   LookupResult result;
   js_object->LocalLookupRealNamedProperty(*name, &result);
-
-  PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
   // Take special care when attributes are different and there is already
   // a property. For simplicity we normalize the property which enables us
@@ -3871,6 +3889,7 @@ static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
                                                           *obj_value,
                                                           attr);
   }
+
   return Runtime::SetObjectProperty(js_object, name, obj_value, attr);
 }
 
@@ -8254,8 +8273,9 @@ static const int kFrameDetailsArgumentCountIndex = 3;
 static const int kFrameDetailsLocalCountIndex = 4;
 static const int kFrameDetailsSourcePositionIndex = 5;
 static const int kFrameDetailsConstructCallIndex = 6;
-static const int kFrameDetailsDebuggerFrameIndex = 7;
-static const int kFrameDetailsFirstDynamicIndex = 8;
+static const int kFrameDetailsAtReturnIndex = 7;
+static const int kFrameDetailsDebuggerFrameIndex = 8;
+static const int kFrameDetailsFirstDynamicIndex = 9;
 
 // Return an array with frame details
 // args[0]: number: break id
@@ -8269,9 +8289,11 @@ static const int kFrameDetailsFirstDynamicIndex = 8;
 // 4: Local count
 // 5: Source position
 // 6: Constructor call
-// 7: Debugger frame
+// 7: Is at return
+// 8: Debugger frame
 // Arguments name, value
 // Locals name, value
+// Return value if any
 static Object* Runtime_GetFrameDetails(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
@@ -8347,8 +8369,39 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
     }
   }
 
-  // Now advance to the arguments adapter frame (if any). If contains all
-  // the provided parameters and
+  // Check whether this frame is positioned at return.
+  int at_return = (index == 0) ? Debug::IsBreakAtReturn(it.frame()) : false;
+
+  // If positioned just before return find the value to be returned and add it
+  // to the frame information.
+  Handle<Object> return_value = Factory::undefined_value();
+  if (at_return) {
+    StackFrameIterator it2;
+    Address internal_frame_sp = NULL;
+    while (!it2.done()) {
+      if (it2.frame()->is_internal()) {
+        internal_frame_sp = it2.frame()->sp();
+      } else {
+        if (it2.frame()->is_java_script()) {
+          if (it2.frame()->id() == it.frame()->id()) {
+            // The internal frame just before the JavaScript frame contains the
+            // value to return on top. A debug break at return will create an
+            // internal frame to store the return value (eax/rax/r0) before
+            // entering the debug break exit frame.
+            if (internal_frame_sp != NULL) {
+              return_value =
+                  Handle<Object>(Memory::Object_at(internal_frame_sp));
+              break;
+            }
+          }
+        }
+
+        // Indicate that the previous frame was not an internal frame.
+        internal_frame_sp = NULL;
+      }
+      it2.Advance();
+    }
+  }
 
   // Now advance to the arguments adapter frame (if any). It contains all
   // the provided parameters whereas the function frame always have the number
@@ -8365,7 +8418,8 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
 
   // Calculate the size of the result.
   int details_size = kFrameDetailsFirstDynamicIndex +
-                     2 * (argument_count + info.NumberOfLocals());
+                     2 * (argument_count + info.NumberOfLocals()) +
+                     (at_return ? 1 : 0);
   Handle<FixedArray> details = Factory::NewFixedArray(details_size);
 
   // Add the frame id.
@@ -8390,6 +8444,9 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
 
   // Add the constructor information.
   details->set(kFrameDetailsConstructCallIndex, HEAP->ToBoolean(constructor));
+
+  // Add the at return information.
+  details->set(kFrameDetailsAtReturnIndex, HEAP->ToBoolean(at_return));
 
   // Add information on whether this frame is invoked in the debugger context.
   details->set(kFrameDetailsDebuggerFrameIndex,
@@ -8418,6 +8475,11 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   // Add locals name and value from the temporary copy from the function frame.
   for (int i = 0; i < info.NumberOfLocals() * 2; i++) {
     details->set(details_index++, locals->get(i));
+  }
+
+  // Add the value being returned.
+  if (at_return) {
+    details->set(details_index++, *return_value);
   }
 
   // Add the receiver (same as in function frame).
@@ -9010,7 +9072,7 @@ static Object* Runtime_SetFunctionBreakPoint(Arguments args) {
   Handle<Object> break_point_object_arg = args.at<Object>(2);
 
   // Set break point.
-  Debug::SetBreakPoint(shared, source_position, break_point_object_arg);
+  Debug::SetBreakPoint(shared, break_point_object_arg, &source_position);
 
   return HEAP->undefined_value();
 }
@@ -9108,8 +9170,9 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
 }
 
 
-// Change the state of a break point in a script. NOTE: Regarding performance
-// see the NOTE for GetScriptFromScriptData.
+// Changes the state of a break point in a script and returns source position
+// where break point was set. NOTE: Regarding performance see the NOTE for
+// GetScriptFromScriptData.
 // args[0]: script to set break point in
 // args[1]: number: break source position (within the script source)
 // args[2]: number: break point object
@@ -9137,7 +9200,9 @@ static Object* Runtime_SetScriptBreakPoint(Arguments args) {
     } else {
       position = source_position - shared->start_position();
     }
-    Debug::SetBreakPoint(shared, position, break_point_object_arg);
+    Debug::SetBreakPoint(shared, break_point_object_arg, &position);
+    position += shared->start_position();
+    return Smi::FromInt(position);
   }
   return  HEAP->undefined_value();
 }

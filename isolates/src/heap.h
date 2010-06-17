@@ -1898,18 +1898,21 @@ class TranscendentalCache {
           return 0.0;  // Never happens.
       }
     }
+
     struct Element {
       uint32_t in[2];
       Object* output;
     };
+
     union Converter {
       double dbl;
       uint32_t integers[2];
     };
+
     inline static int Hash(const Converter& c) {
       uint32_t hash = (c.integers[0] ^ c.integers[1]);
-      hash ^= hash >> 16;
-      hash ^= hash >> 8;
+      hash ^= static_cast<int32_t>(hash) >> 16;
+      hash ^= static_cast<int32_t>(hash) >> 8;
       return (hash & (kCacheSize - 1));
     }
 

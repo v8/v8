@@ -3108,25 +3108,31 @@ void CodeGenerator::VisitCall(Call* node) {
         ref.GetValue();
         // Use global object as receiver.
         LoadGlobalReceiver();
+       // Call the function.
+        CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
       } else {
-        Reference ref(this, property, false);
-        ASSERT(ref.size() == 2);
-        Result key = frame_->Pop();
-        frame_->Dup();  // Duplicate the receiver.
-        frame_->Push(&key);
-        ref.GetValue();
-        // Top of frame contains function to call, with duplicate copy of
-        // receiver below it.  Swap them.
-        Result function = frame_->Pop();
-        Result receiver = frame_->Pop();
-        frame_->Push(&function);
-        frame_->Push(&receiver);
+        // Push the receiver onto the frame.
+        Load(property->obj());
+
+        // Load the arguments.
+        int arg_count = args->length();
+        for (int i = 0; i < arg_count; i++) {
+          Load(args->at(i));
+          frame_->SpillTop();
+        }
+
+        // Load the name of the function.
+        Load(property->key());
+
+        // Call the IC initialization code.
+        CodeForSourcePosition(node->position());
+        Result result = frame_->CallKeyedCallIC(RelocInfo::CODE_TARGET,
+                                                arg_count,
+                                                loop_nesting());
+        frame_->RestoreContextRegister();
+        frame_->Push(&result);
       }
-
-      // Call the function.
-      CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
     }
-
   } else {
     // ----------------------------------
     // JavaScript example: 'foo(1, 2, 3)'  // foo is not global
@@ -4423,7 +4429,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   // Since xmm3 is 1 and xmm2 is -0.5 this is simply xmm2 + xmm3.
   __ addsd(xmm2, xmm3);
   // xmm2 now has 0.5.
-  __ comisd(xmm2, xmm1);
+  __ ucomisd(xmm2, xmm1);
   call_runtime.Branch(not_equal);
 
   // Calculates square root.
@@ -4793,8 +4799,7 @@ void DeferredSearchCache::Generate() {
   __ bind(&cache_miss);
   __ push(cache_);  // store a reference to cache
   __ push(key_);  // store a key
-  Handle<Object> receiver(Top::global_context()->global());
-  __ Push(receiver);
+  __ push(Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ push(key_);
   // On x64 function must be in rdi.
   __ movq(rdi, FieldOperand(cache_, JSFunctionResultCache::kFactoryOffset));
@@ -6507,7 +6512,7 @@ void CodeGenerator::GenerateInlineNumberComparison(Result* left_side,
                         &not_numbers);
   LoadComparisonOperand(masm_, right_side, xmm1, left_side, right_side,
                         &not_numbers);
-  __ comisd(xmm0, xmm1);
+  __ ucomisd(xmm0, xmm1);
   // Bail out if a NaN is involved.
   not_numbers.Branch(parity_even, left_side, right_side);
 
@@ -6894,7 +6899,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                             smi_value,
                                             overwrite_mode);
       }
-      __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+      JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                deferred);
       __ SmiAddConstant(operand->reg(),
                         operand->reg(),
                         smi_value,
@@ -6915,7 +6921,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
         DeferredCode* deferred = new DeferredInlineSmiSub(operand->reg(),
                                                           smi_value,
                                                           overwrite_mode);
-        __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
         // A smi currently fits in a 32-bit Immediate.
         __ SmiSubConstant(operand->reg(),
                           operand->reg(),
@@ -6944,7 +6951,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                            operand->reg(),
                                            smi_value,
                                            overwrite_mode);
-        __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
         __ SmiShiftArithmeticRightConstant(operand->reg(),
                                            operand->reg(),
                                            shift_value);
@@ -6971,7 +6979,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                            operand->reg(),
                                            smi_value,
                                            overwrite_mode);
-        __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
         __ SmiShiftLogicalRightConstant(answer.reg(),
                                         operand->reg(),
                                         shift_value,
@@ -7003,12 +7012,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                                    smi_value,
                                                    operand->reg(),
                                                    overwrite_mode);
-        if (!operand->type_info().IsSmi()) {
-          Condition is_smi = masm_->CheckSmi(operand->reg());
-          deferred->Branch(NegateCondition(is_smi));
-        } else if (FLAG_debug_code) {
-          __ AbortIfNotSmi(operand->reg());
-        }
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
 
         __ Move(answer.reg(), smi_value);
         __ SmiShiftLeft(answer.reg(), answer.reg(), operand->reg());
@@ -7029,7 +7034,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                              operand->reg(),
                                              smi_value,
                                              overwrite_mode);
-          __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+          JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                    deferred);
           deferred->BindExit();
           answer = *operand;
         } else {
@@ -7042,7 +7048,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                              operand->reg(),
                                              smi_value,
                                              overwrite_mode);
-          __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+          JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                    deferred);
           __ SmiShiftLeftConstant(answer.reg(),
                                   operand->reg(),
                                   shift_value);
@@ -7068,7 +7075,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                                                operand->reg(),
                                                                smi_value,
                                                                overwrite_mode);
-      __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
+      JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                deferred);
       if (op == Token::BIT_AND) {
         __ SmiAndConstant(operand->reg(), operand->reg(), smi_value);
       } else if (op == Token::BIT_XOR) {
@@ -7130,6 +7138,18 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
   }
   ASSERT(answer.is_valid());
   return answer;
+}
+
+
+void CodeGenerator::JumpIfNotSmiUsingTypeInfo(Register reg,
+                                              TypeInfo type,
+                                              DeferredCode* deferred) {
+  if (!type.IsSmi()) {
+        __ JumpIfNotSmi(reg, deferred->entry_label());
+  }
+  if (FLAG_debug_code) {
+    __ AbortIfNotSmi(reg);
+  }
 }
 
 
@@ -8163,7 +8183,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   // ST[0] == double value
   // rbx = bits of double value.
   // rdx = also bits of double value.
-  // Compute hash (h is 32 bits, bits are 64):
+  // Compute hash (h is 32 bits, bits are 64 and the shifts are arithmetic):
   //   h = h0 = bits ^ (bits >> 32);
   //   h ^= h >> 16;
   //   h ^= h >> 8;
@@ -8182,6 +8202,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ xorl(rcx, rax);
   ASSERT(IsPowerOf2(TranscendentalCache::SubCache::kCacheSize));
   __ andl(rcx, Immediate(TranscendentalCache::SubCache::kCacheSize - 1));
+
   // ST[0] == double value.
   // rbx = bits of double value.
   // rcx = TranscendentalCache::hash(double value).
@@ -8278,7 +8299,7 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm,
   // Move exponent and sign bits to low bits.
   __ shr(rdi, Immediate(HeapNumber::kMantissaBits));
   // Remove sign bit.
-  __ andl(rdi, Immediate((1 << HeapNumber::KExponentBits) - 1));
+  __ andl(rdi, Immediate((1 << HeapNumber::kExponentBits) - 1));
   int supported_exponent_limit = (63 + HeapNumber::kExponentBias);
   __ cmpl(rdi, Immediate(supported_exponent_limit));
   __ j(below, &in_range);
@@ -8355,7 +8376,7 @@ void IntegerConvert(MacroAssembler* masm,
   // Double to remove sign bit, shift exponent down to least significant bits.
   // and subtract bias to get the unshifted, unbiased exponent.
   __ lea(double_exponent, Operand(double_value, double_value, times_1, 0));
-  __ shr(double_exponent, Immediate(64 - HeapNumber::KExponentBits));
+  __ shr(double_exponent, Immediate(64 - HeapNumber::kExponentBits));
   __ subl(double_exponent, Immediate(HeapNumber::kExponentBias));
   // Check whether the exponent is too big for a 63 bit unsigned integer.
   __ cmpl(double_exponent, Immediate(63));
@@ -8586,59 +8607,58 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ cmpl(rdx, rax);
   __ j(greater, &runtime);
 
-  // ecx: RegExp data (FixedArray)
+  // rcx: RegExp data (FixedArray)
   // Check the representation and encoding of the subject string.
-  Label seq_string, seq_two_byte_string, check_code;
-  const int kStringRepresentationEncodingMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  Label seq_ascii_string, seq_two_byte_string, check_code;
   __ movq(rax, Operand(rsp, kSubjectOffset));
   __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
   __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
-  __ andb(rbx, Immediate(kStringRepresentationEncodingMask));
-  // First check for sequential string.
-  ASSERT_EQ(0, kStringTag);
-  ASSERT_EQ(0, kSeqStringTag);
+  // First check for flat two byte string.
+  __ andb(rbx, Immediate(
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask));
+  ASSERT_EQ(0, kStringTag | kSeqStringTag | kTwoByteStringTag);
+  __ j(zero, &seq_two_byte_string);
+  // Any other flat string must be a flat ascii string.
   __ testb(rbx, Immediate(kIsNotStringMask | kStringRepresentationMask));
-  __ j(zero, &seq_string);
+  __ j(zero, &seq_ascii_string);
 
   // Check for flat cons string.
   // A flat cons string is a cons string where the second part is the empty
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  __ andb(rbx, Immediate(kStringRepresentationMask));
-  __ cmpb(rbx, Immediate(kConsStringTag));
-  __ j(not_equal, &runtime);
+  ASSERT(kExternalStringTag !=0);
+  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
+  __ testb(rbx, Immediate(kIsNotStringMask | kExternalStringTag));
+  __ j(not_zero, &runtime);
+  // String is a cons string.
   __ movq(rdx, FieldOperand(rax, ConsString::kSecondOffset));
   __ Cmp(rdx, Factory::empty_string());
   __ j(not_equal, &runtime);
   __ movq(rax, FieldOperand(rax, ConsString::kFirstOffset));
   __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-  __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
-  ASSERT_EQ(0, kSeqStringTag);
-  __ testb(rbx, Immediate(kStringRepresentationMask));
+  // String is a cons string with empty second part.
+  // eax: first part of cons string.
+  // ebx: map of first part of cons string.
+  // Is first part a flat two byte string?
+  __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
+           Immediate(kStringRepresentationMask | kStringEncodingMask));
+  ASSERT_EQ(0, kSeqStringTag | kTwoByteStringTag);
+  __ j(zero, &seq_two_byte_string);
+  // Any other flat string must be ascii.
+  __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
+           Immediate(kStringRepresentationMask));
   __ j(not_zero, &runtime);
-  __ andb(rbx, Immediate(kStringRepresentationEncodingMask));
 
-  __ bind(&seq_string);
-  // rax: subject string (sequential either ascii to two byte)
-  // rbx: suject string type & kStringRepresentationEncodingMask
+  __ bind(&seq_ascii_string);
+  // rax: subject string (sequential ascii)
   // rcx: RegExp data (FixedArray)
-  // Check that the irregexp code has been generated for an ascii string. If
-  // it has, the field contains a code object otherwise it contains the hole.
-  const int kSeqTwoByteString = kStringTag | kSeqStringTag | kTwoByteStringTag;
-  __ cmpb(rbx, Immediate(kSeqTwoByteString));
-  __ j(equal, &seq_two_byte_string);
-  if (FLAG_debug_code) {
-    __ cmpb(rbx, Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
-    __ Check(equal, "Expected sequential ascii string");
-  }
   __ movq(r12, FieldOperand(rcx, JSRegExp::kDataAsciiCodeOffset));
   __ Set(rdi, 1);  // Type is ascii.
   __ jmp(&check_code);
 
   __ bind(&seq_two_byte_string);
-  // rax: subject string
+  // rax: subject string (flat two-byte)
   // rcx: RegExp data (FixedArray)
   __ movq(r12, FieldOperand(rcx, JSRegExp::kDataUC16CodeOffset));
   __ Set(rdi, 0);  // Type is two byte.
@@ -8890,7 +8910,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
     CpuFeatures::Scope fscope(SSE2);
     __ movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
     __ movsd(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
-    __ comisd(xmm0, xmm1);
+    __ ucomisd(xmm0, xmm1);
     __ j(parity_even, not_found);  // Bail out if NaN is involved.
     __ j(not_equal, not_found);  // The cache did not contain this value.
     __ jmp(&load_result_from_cache);
@@ -9097,7 +9117,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     FloatingPointHelper::LoadFloatOperand(masm, rax, xmm1,
                                           &non_number_comparison);
 
-    __ comisd(xmm0, xmm1);
+    __ ucomisd(xmm0, xmm1);
 
     // Don't base result on EFLAGS when a NaN is involved.
     __ j(parity_even, &unordered);

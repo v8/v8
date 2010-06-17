@@ -1033,8 +1033,8 @@ Handle<DebugInfo> Debug::GetDebugInfo(Handle<SharedFunctionInfo> shared) {
 
 
 void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
-                          int source_position,
-                          Handle<Object> break_point_object) {
+                          Handle<Object> break_point_object,
+                          int* source_position) {
   HandleScope scope;
 
   if (!EnsureDebugInfo(shared)) {
@@ -1048,8 +1048,10 @@ void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
 
   // Find the break point and change it.
   BreakLocationIterator it(debug_info, SOURCE_BREAK_LOCATIONS);
-  it.FindBreakLocationFromPosition(source_position);
+  it.FindBreakLocationFromPosition(*source_position);
   it.SetBreakPoint(break_point_object);
+
+  *source_position = it.position();
 
   // At least one active break point now.
   ASSERT(debug_info->GetBreakPointCount() > 0);
@@ -1715,6 +1717,40 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
     // and therefore no "original code" is available.
     thread_local_.after_break_target_ = Assembler::target_address_at(addr);
   }
+}
+
+
+bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
+  HandleScope scope;
+
+  // Get the executing function in which the debug break occurred.
+  Handle<SharedFunctionInfo> shared =
+      Handle<SharedFunctionInfo>(JSFunction::cast(frame->function())->shared());
+  if (!EnsureDebugInfo(shared)) {
+    // Return if we failed to retrieve the debug info.
+    return false;
+  }
+  Handle<DebugInfo> debug_info = GetDebugInfo(shared);
+  Handle<Code> code(debug_info->code());
+#ifdef DEBUG
+  // Get the code which is actually executing.
+  Handle<Code> frame_code(frame->code());
+  ASSERT(frame_code.is_identical_to(code));
+#endif
+
+  // Find the call address in the running code.
+  Address addr = frame->pc() - Assembler::kCallTargetAddressOffset;
+
+  // Check if the location is at JS return.
+  RelocIterator it(debug_info->code());
+  while (!it.done()) {
+    if (RelocInfo::IsJSReturn(it.rinfo()->rmode())) {
+      return (it.rinfo()->pc() ==
+          addr - Assembler::kPatchReturnSequenceAddressOffset);
+    }
+    it.next();
+  }
+  return false;
 }
 
 

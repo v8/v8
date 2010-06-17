@@ -31,8 +31,9 @@
 
 #include "bootstrapper.h"
 #include "debug.h"
-#include "log.h"
+#include "heap-profiler.h"
 #include "isolate.h"
+#include "log.h"
 #include "serialize.h"
 #include "scopeinfo.h"
 #include "simulator.h"
@@ -172,6 +173,7 @@ bool Isolate::Init(Deserializer* des) {
   Logger::Setup();
 
   CpuProfiler::Setup();
+  HeapProfiler::Setup();
 
   // Setup the platform OS support.
   OS::Setup();

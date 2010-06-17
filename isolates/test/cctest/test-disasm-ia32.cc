@@ -375,7 +375,7 @@ TEST(DisasmIa320) {
       __ divsd(xmm1, xmm0);
       __ movdbl(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ movdbl(Operand(ebx, ecx, times_4, 10000), xmm1);
-      __ comisd(xmm0, xmm1);
+      __ ucomisd(xmm0, xmm1);
 
       // 128 bit move instructions.
       __ movdqa(xmm0, Operand(ebx, ecx, times_4, 10000));

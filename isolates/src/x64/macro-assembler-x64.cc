@@ -696,15 +696,12 @@ void MacroAssembler::SmiAdd(Register dst,
       movq(dst, src1);
       addq(dst, src2);
     }
-    Assert(no_overflow, "Smi addition onverflow");
+    Assert(no_overflow, "Smi addition overflow");
   } else if (dst.is(src1)) {
-    addq(dst, src2);
-    Label smi_result;
-    j(no_overflow, &smi_result);
-    // Restore src1.
-    subq(src1, src2);
-    jmp(on_not_smi_result);
-    bind(&smi_result);
+    movq(kScratchRegister, src1);
+    addq(kScratchRegister, src2);
+    j(overflow, on_not_smi_result);
+    movq(dst, kScratchRegister);
   } else {
     movq(dst, src1);
     addq(dst, src2);
@@ -727,15 +724,11 @@ void MacroAssembler::SmiSub(Register dst,
       movq(dst, src1);
       subq(dst, src2);
     }
-    Assert(no_overflow, "Smi substraction onverflow");
+    Assert(no_overflow, "Smi subtraction overflow");
   } else if (dst.is(src1)) {
+    cmpq(dst, src2);
+    j(overflow, on_not_smi_result);
     subq(dst, src2);
-    Label smi_result;
-    j(no_overflow, &smi_result);
-    // Restore src1.
-    addq(src1, src2);
-    jmp(on_not_smi_result);
-    bind(&smi_result);
   } else {
     movq(dst, src1);
     subq(dst, src2);
@@ -757,15 +750,12 @@ void MacroAssembler::SmiSub(Register dst,
       movq(dst, src1);
       subq(dst, src2);
     }
-    Assert(no_overflow, "Smi substraction onverflow");
+    Assert(no_overflow, "Smi subtraction overflow");
   } else if (dst.is(src1)) {
-    subq(dst, src2);
-    Label smi_result;
-    j(no_overflow, &smi_result);
-    // Restore src1.
-    addq(src1, src2);
-    jmp(on_not_smi_result);
-    bind(&smi_result);
+    movq(kScratchRegister, src1);
+    subq(kScratchRegister, src2);
+    j(overflow, on_not_smi_result);
+    movq(src1, kScratchRegister);
   } else {
     movq(dst, src1);
     subq(dst, src2);
@@ -883,12 +873,9 @@ void MacroAssembler::SmiAddConstant(Register dst,
     ASSERT(!dst.is(kScratchRegister));
 
     Move(kScratchRegister, constant);
-    addq(dst, kScratchRegister);
-    Label result_ok;
-    j(no_overflow, &result_ok);
-    subq(dst, kScratchRegister);
-    jmp(on_not_smi_result);
-    bind(&result_ok);
+    addq(kScratchRegister, dst);
+    j(overflow, on_not_smi_result);
+    movq(dst, kScratchRegister);
   } else {
     Move(dst, constant);
     addq(dst, src);
@@ -910,10 +897,12 @@ void MacroAssembler::SmiSubConstant(Register dst, Register src, Smi* constant) {
   } else {
     // Subtract by adding the negative, to do it in two operations.
     if (constant->value() == Smi::kMinValue) {
-      Move(kScratchRegister, constant);
-      movq(dst, src);
-      subq(dst, kScratchRegister);
+      Move(dst, constant);
+      // Adding and subtracting the min-value gives the same result, it only
+      // differs on the overflow bit, which we don't check here.
+      addq(dst, src);
     } else {
+      // Subtract by adding the negation.
       Move(dst, Smi::FromInt(-constant->value()));
       addq(dst, src);
     }
@@ -931,21 +920,32 @@ void MacroAssembler::SmiSubConstant(Register dst,
     }
   } else if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
-
-    Move(kScratchRegister, constant);
-    subq(dst, kScratchRegister);
-    Label sub_success;
-    j(no_overflow, &sub_success);
-    addq(src, kScratchRegister);
-    jmp(on_not_smi_result);
-    bind(&sub_success);
+    if (constant->value() == Smi::kMinValue) {
+      // Subtracting min-value from any non-negative value will overflow.
+      // We test the non-negativeness before doing the subtraction.
+      testq(src, src);
+      j(not_sign, on_not_smi_result);
+      Move(kScratchRegister, constant);
+      subq(dst, kScratchRegister);
+    } else {
+      // Subtract by adding the negation.
+      Move(kScratchRegister, Smi::FromInt(-constant->value()));
+      addq(kScratchRegister, dst);
+      j(overflow, on_not_smi_result);
+      movq(dst, kScratchRegister);
+    }
   } else {
     if (constant->value() == Smi::kMinValue) {
-      Move(kScratchRegister, constant);
-      movq(dst, src);
-      subq(dst, kScratchRegister);
-      j(overflow, on_not_smi_result);
+      // Subtracting min-value from any non-negative value will overflow.
+      // We test the non-negativeness before doing the subtraction.
+      testq(src, src);
+      j(not_sign, on_not_smi_result);
+      Move(dst, constant);
+      // Adding and subtracting the min-value gives the same result, it only
+      // differs on the overflow bit, which we don't check here.
+      addq(dst, src);
     } else {
+      // Subtract by adding the negation.
       Move(dst, Smi::FromInt(-(constant->value())));
       addq(dst, src);
       j(overflow, on_not_smi_result);

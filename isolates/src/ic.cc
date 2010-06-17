@@ -58,7 +58,7 @@ static char TransitionMarkFromState(IC::State state) {
 }
 
 void IC::TraceIC(const char* type,
-                 Handle<String> name,
+                 Handle<Object> name,
                  State old_state,
                  Code* new_target,
                  const char* extra_info) {
@@ -388,6 +388,7 @@ Object* CallICBase::TryCallAsFunction(Object* object) {
   return *delegate;
 }
 
+
 void CallICBase::ReceiverToObject(Handle<Object> object) {
   HandleScope scope;
   Handle<Object> receiver(object);
@@ -596,6 +597,11 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
       state == MONOMORPHIC ||
       state == MONOMORPHIC_PROTOTYPE_FAILURE) {
     set_target(Code::cast(code));
+  } else if (state == MEGAMORPHIC) {
+    // Update the stub cache.
+    Isolate::Current()->stub_cache()->Set(*name,
+                                          GetCodeCacheMapForObject(*object),
+                                          Code::cast(code));
   }
 
 #ifdef DEBUG
@@ -618,15 +624,19 @@ Object* KeyedCallIC::LoadFunction(State state,
 
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
     ReceiverToObject(object);
-  } else {
-    if (FLAG_use_ic && state != MEGAMORPHIC && !object->IsAccessCheckNeeded()) {
-      int argc = target()->arguments_count();
-      InLoopFlag in_loop = target()->ic_in_loop();
-      Object* code = Isolate::Current()->stub_cache()->ComputeCallMegamorphic(
-          argc, in_loop, Code::KEYED_CALL_IC);
-      if (!code->IsFailure()) {
-        set_target(Code::cast(code));
-      }
+  }
+
+  if (FLAG_use_ic && state != MEGAMORPHIC && !object->IsAccessCheckNeeded()) {
+    int argc = target()->arguments_count();
+    InLoopFlag in_loop = target()->ic_in_loop();
+    Object* code = Isolate::Current()->stub_cache()->ComputeCallMegamorphic(
+        argc, in_loop, Code::KEYED_CALL_IC);
+    if (!code->IsFailure()) {
+      set_target(Code::cast(code));
+#ifdef DEBUG
+      TraceIC(
+          "KeyedCallIC", key, state, target(), in_loop ? " (in-loop)" : "");
+#endif
     }
   }
   Object* result = Runtime::GetObjectProperty(object, key);
@@ -668,7 +678,6 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       Code* target = NULL;
       target = Builtins::builtin(Builtins::LoadIC_StringLength);
       set_target(target);
-      Isolate::Current()->stub_cache()->Set(*name, map, target);
       return Smi::FromInt(String::cast(*object)->length());
     }
 
@@ -683,7 +692,6 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 
       Code* target = Builtins::builtin(Builtins::LoadIC_ArrayLength);
       set_target(target);
-      Isolate::Current()->stub_cache()->Set(*name, map, target);
       return JSArray::cast(*object)->length();
     }
 
@@ -695,9 +703,6 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 #endif
       Code* target = Builtins::builtin(Builtins::LoadIC_FunctionPrototype);
       set_target(target);
-      Isolate::Current()->stub_cache()->Set(*name,
-                                            HeapObject::cast(*object)->map(),
-                                            target);
       return Accessors::FunctionGetPrototype(*object, 0);
     }
   }
@@ -866,6 +871,11 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     set_target(Code::cast(code));
   } else if (state == MONOMORPHIC) {
     set_target(megamorphic_stub());
+  } else if (state == MEGAMORPHIC) {
+    // Update the stub cache.
+    Isolate::Current()->stub_cache()->Set(*name,
+                                          GetCodeCacheMapForObject(*object),
+                                          Code::cast(code));
   }
 
 #ifdef DEBUG
@@ -1146,7 +1156,6 @@ Object* StoreIC::Store(State state,
     return *value;
   }
 
-
   // Use specialized code for setting the length of arrays.
   if (receiver->IsJSArray()
       && name->Equals(HEAP->length_symbol())
@@ -1156,9 +1165,6 @@ Object* StoreIC::Store(State state,
 #endif
     Code* target = Builtins::builtin(Builtins::StoreIC_ArrayLength);
     set_target(target);
-    Isolate::Current()->stub_cache()->Set(*name,
-                                          HeapObject::cast(*object)->map(),
-                                          target);
     return receiver->SetProperty(*name, *value, NONE);
   }
 
@@ -1257,8 +1263,13 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   if (state == UNINITIALIZED || state == MONOMORPHIC_PROTOTYPE_FAILURE) {
     set_target(Code::cast(code));
   } else if (state == MONOMORPHIC) {
-    // Only move to mega morphic if the target changes.
+    // Only move to megamorphic if the target changes.
     if (target() != Code::cast(code)) set_target(megamorphic_stub());
+  } else if (state == MEGAMORPHIC) {
+    // Update the stub cache.
+    Isolate::Current()->stub_cache()->Set(*name,
+                                          receiver->map(),
+                                          Code::cast(code));
   }
 
 #ifdef DEBUG

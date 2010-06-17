@@ -33,6 +33,7 @@
 #include "serialize.h"
 #include "simulator.h"
 #include "stub-cache.h"
+#include "heap-profiler.h"
 #include "oprofile-agent.h"
 #include "log.h"
 
@@ -77,6 +78,8 @@ void V8::TearDown() {
   Isolate::Current()->bootstrapper()->TearDown();
 
   Top::TearDown();
+
+  HeapProfiler::TearDown();
 
   CpuProfiler::TearDown();
 

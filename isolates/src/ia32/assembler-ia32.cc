@@ -2154,17 +2154,6 @@ void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
 }
 
 
-void Assembler::comisd(XMMRegister dst, XMMRegister src) {
-  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(SSE2));
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x2F);
-  emit_sse_operand(dst, src);
-}
-
-
 void Assembler::ucomisd(XMMRegister dst, XMMRegister src) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(SSE2));
   EnsureSpace ensure_space(this);

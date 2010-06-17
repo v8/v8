@@ -230,8 +230,8 @@ class Debug {
 
   static Object* Break(Arguments args);
   static void SetBreakPoint(Handle<SharedFunctionInfo> shared,
-                            int source_position,
-                            Handle<Object> break_point_object);
+                            Handle<Object> break_point_object,
+                            int* source_position);
   static void ClearBreakPoint(Handle<Object> break_point_object);
   static void ClearAllBreakPoints();
   static void FloodWithOneShot(Handle<SharedFunctionInfo> shared);
@@ -269,6 +269,9 @@ class Debug {
 
   // Check whether a global object is the debug global object.
   static bool IsDebugGlobal(GlobalObject* global);
+
+  // Check whether this frame is just about to return.
+  static bool IsBreakAtReturn(JavaScriptFrame* frame);
 
   // Fast check to see if any break points are active.
   inline static bool has_break_points() { return has_break_points_; }

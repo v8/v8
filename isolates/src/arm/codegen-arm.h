@@ -315,6 +315,12 @@ class CodeGenerator: public AstVisitor {
   // Main code generation function
   void Generate(CompilationInfo* info);
 
+  // Generate the return sequence code.  Should be called no more than
+  // once per compiled function, immediately after binding the return
+  // target (which can not be done more than once).  The return value should
+  // be in r0.
+  void GenerateReturnSequence();
+
   // Returns the arguments allocation mode.
   ArgumentsAllocationMode ArgumentsMode();
 
@@ -586,6 +592,21 @@ class CodeGenerator: public AstVisitor {
   friend class FullCodeGenSyntaxChecker;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
+};
+
+
+// Compute a transcendental math function natively, or call the
+// TranscendentalCache runtime function.
+class TranscendentalCacheStub: public CodeStub {
+ public:
+  explicit TranscendentalCacheStub(TranscendentalCache::Type type)
+      : type_(type) {}
+  void Generate(MacroAssembler* masm);
+ private:
+  TranscendentalCache::Type type_;
+  Major MajorKey() { return TranscendentalCache; }
+  int MinorKey() { return type_; }
+  Runtime::FunctionId RuntimeFunction();
 };
 
 
