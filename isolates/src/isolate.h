@@ -28,6 +28,8 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
+// #define V8_USE_TLS_FOR_GLOBAL_ISOLATE
+
 #include "apiutils.h"
 #include "heap.h"
 #include "execution.h"
@@ -152,9 +154,23 @@ class Isolate {
 
   // Returns the single global isolate.
   static Isolate* Current() {
-    ASSERT(global_isolate != NULL);
-    return global_isolate;
+#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
+    Isolate* isolate = reinterpret_cast<Isolate*>(
+        Thread::GetThreadLocal(global_isolate_key_));
+    if (isolate == NULL) {
+      isolate = InitThreadForGlobalIsolate();
+      ASSERT(isolate != NULL);
+    }
+    return isolate;
+#else
+    ASSERT(global_isolate_ != NULL);
+    return global_isolate_;
+#endif
   }
+
+#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
+  static Isolate* InitThreadForGlobalIsolate();
+#endif
 
   // Creates a new isolate (perhaps using a deserializer). Returns null
   // on failure.
@@ -216,7 +232,11 @@ class Isolate {
  private:
   Isolate();
 
-  static Isolate* global_isolate;
+#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
+  static Thread::LocalStorageKey global_isolate_key_;
+#endif
+  static Isolate* global_isolate_;
+
   // TODO(isolates): Access to this global counter should be serialized.
   static int number_of_isolates_;
 

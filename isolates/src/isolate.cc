@@ -44,7 +44,18 @@ namespace v8 {
 namespace internal {
 
 
-Isolate* Isolate::global_isolate = NULL;
+#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
+Thread::LocalStorageKey Isolate::global_isolate_key_;
+
+
+Isolate* Isolate::InitThreadForGlobalIsolate() {
+  ASSERT(global_isolate_ != NULL);
+  Thread::SetThreadLocal(global_isolate_key_, global_isolate_);
+  return global_isolate_;
+}
+#endif
+
+Isolate* Isolate::global_isolate_ = NULL;
 int Isolate::number_of_isolates_ = 0;
 
 
@@ -60,9 +71,12 @@ static IsolateInitializer isolate_initializer;
 
 
 void Isolate::InitOnce() {
-  ASSERT(global_isolate == NULL);
-  global_isolate = new Isolate();
-  CHECK(global_isolate->PreInit());
+  ASSERT(global_isolate_ == NULL);
+#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
+  global_isolate_key_ = Thread::CreateThreadLocalKey();
+#endif
+  global_isolate_ = new Isolate();
+  CHECK(global_isolate_->PreInit());
 }
 
 
@@ -70,19 +84,22 @@ Isolate* Isolate::Create(Deserializer* des) {
   // While we're still building out support for isolates, only support
   // one single global isolate.
 
-  if (global_isolate != NULL) {
+  if (global_isolate_ != NULL) {
     // Allow for two-phase initialization.
-    ASSERT(global_isolate->state_ != INITIALIZED);
+    ASSERT(global_isolate_->state_ != INITIALIZED);
   } else {
-    global_isolate = new Isolate();
+    global_isolate_ = new Isolate();
   }
 
-  if (global_isolate->Init(des)) {
+  if (global_isolate_->Init(des)) {
     ++number_of_isolates_;
-    return global_isolate;
+    return global_isolate_;
   } else {
-    delete global_isolate;
-    global_isolate = NULL;
+    delete global_isolate_;
+    global_isolate_ = NULL;
+#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
+    Thread::SetThreadLocal(global_isolate_key_, NULL);
+#endif
     return NULL;
   }
 }
@@ -139,7 +156,11 @@ Isolate::~Isolate() {
 
 bool Isolate::PreInit() {
   if (state_ != UNINITIALIZED) return true;
-  ASSERT(global_isolate == this);
+  ASSERT(global_isolate_ == this);
+
+#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
+  InitThreadForGlobalIsolate();
+#endif
 
   // Safe after setting Heap::isolate_, initializing StackGuard and
   // ensuring that Isolate::Current() == this.
@@ -158,7 +179,7 @@ bool Isolate::PreInit() {
 
 
 bool Isolate::Init(Deserializer* des) {
-  ASSERT(global_isolate == this);
+  ASSERT(global_isolate_ == this);
 
   bool create_heap_objects = des == NULL;
 
