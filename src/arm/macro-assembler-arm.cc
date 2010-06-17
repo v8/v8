@@ -1528,6 +1528,16 @@ void MacroAssembler::Assert(Condition cc, const char* msg) {
 }
 
 
+void MacroAssembler::AssertRegisterIsRoot(Register reg,
+                                          Heap::RootListIndex index) {
+  if (FLAG_debug_code) {
+    LoadRoot(ip, index);
+    cmp(reg, ip);
+    Check(eq, "Register did not match expected root");
+  }
+}
+
+
 void MacroAssembler::Check(Condition cc, const char* msg) {
   Label L;
   b(cc, &L);
@@ -1646,6 +1656,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
 void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch1,
                                         Register scratch2,
+                                        Register heap_number_map,
                                         Label* gc_required) {
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
@@ -1656,9 +1667,9 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                      gc_required,
                      TAG_OBJECT);
 
-  // Get heap number map and store it in the allocated object.
-  LoadRoot(scratch1, Heap::kHeapNumberMapRootIndex);
-  str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
+  // Store heap number map in the allocated object.
+  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
 }
 
 

@@ -379,6 +379,7 @@ class MacroAssembler: public Assembler {
   void AllocateHeapNumber(Register result,
                           Register scratch1,
                           Register scratch2,
+                          Register heap_number_map,
                           Label* gc_required);
 
   // ---------------------------------------------------------------------------
@@ -558,6 +559,7 @@ class MacroAssembler: public Assembler {
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
   void Assert(Condition cc, const char* msg);
+  void AssertRegisterIsRoot(Register reg, Heap::RootListIndex index);
 
   // Like Assert(), but always enabled.
   void Check(Condition cc, const char* msg);
