@@ -279,7 +279,10 @@ enum Condition {
 
 
 // Returns the equivalent of !cc.
-INLINE(Condition NegateCondition(Condition cc));
+inline Condition NegateCondition(Condition cc) {
+  ASSERT(cc != al);
+  return static_cast<Condition>(cc ^ ne);
+}
 
 
 // Corresponds to transposing the operands of a comparison.
