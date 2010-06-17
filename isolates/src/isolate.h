@@ -45,6 +45,7 @@ class Deserializer;
 class HandleScopeImplementer;
 class SaveContext;
 class StubCache;
+class ScannerCharacterClasses;
 
 class ThreadLocalTop BASE_EMBEDDED {
  public:
@@ -224,6 +225,10 @@ class Isolate {
   }
   Zone* zone() { return &zone_; }
 
+  ScannerCharacterClasses* scanner_character_classes() {
+    return scanner_character_classes_;
+  }
+
   // SerializerDeserializer state.
   static const int kPartialSnapshotCacheCapacity = 1300;
 
@@ -268,6 +273,7 @@ class Isolate {
   DescriptorLookupCache* descriptor_lookup_cache_;
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
+  ScannerCharacterClasses* scanner_character_classes_;
   Zone zone_;
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \

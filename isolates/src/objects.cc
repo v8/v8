@@ -1230,7 +1230,9 @@ Object* JSObject::AddFastProperty(String* name,
   // Normalize the object if the name is an actual string (not the
   // hidden symbols) and is not a real identifier.
   StringInputBuffer buffer(name);
-  if (!Scanner::IsIdentifier(&buffer) && name != HEAP->hidden_symbol()) {
+  Isolate* isolate = Isolate::Current();
+  if (!isolate->scanner_character_classes()->IsIdentifier(&buffer) &&
+      name != isolate->heap()->hidden_symbol()) {
     Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
     if (obj->IsFailure()) return obj;
     return AddSlowProperty(name, value, attributes);
@@ -4757,7 +4759,8 @@ bool String::MarkAsUndetectable() {
 
 bool String::IsEqualTo(Vector<const char> str) {
   int slen = length();
-  Access<Scanner::Utf8Decoder> decoder(Scanner::utf8_decoder());
+  Access<Scanner::Utf8Decoder> decoder(Isolate::Current()->
+      scanner_character_classes()->utf8_decoder());
   decoder->Reset(str.start(), str.length());
   int i;
   for (i = 0; i < slen && decoder->has_more(); i++) {

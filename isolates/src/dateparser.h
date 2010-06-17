@@ -69,7 +69,8 @@ class DateParser : public AllStatic {
     explicit InputReader(Vector<Char> s)
         : index_(0),
           buffer_(s),
-          has_read_number_(false) {
+          has_read_number_(false),
+          character_classes_(Isolate::Current()->scanner_character_classes()) {
       Next();
     }
 
@@ -102,7 +103,7 @@ class DateParser : public AllStatic {
     bool Skip(uint32_t c) { return ch_ == c ?  (Next(), true) : false; }
 
     bool SkipWhiteSpace() {
-      return Scanner::kIsWhiteSpace.get(ch_) ? (Next(), true) : false;
+      return character_classes_->IsWhiteSpace(ch_) ? (Next(), true) : false;
     }
 
     bool SkipParentheses() {
@@ -138,6 +139,7 @@ class DateParser : public AllStatic {
     Vector<Char> buffer_;
     bool has_read_number_;
     uint32_t ch_;
+    ScannerCharacterClasses* character_classes_;
   };
 
   enum KeywordType { INVALID, MONTH_NAME, TIME_ZONE_NAME, AM_PM };

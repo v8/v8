@@ -120,9 +120,11 @@ static const double JUNK_STRING_VALUE = OS::nan_value();
 
 // Returns true if a nonspace found and false if the end has reached.
 template <class Iterator, class EndMark>
-static inline bool AdvanceToNonspace(Iterator* current, EndMark end) {
+static inline bool AdvanceToNonspace(ScannerCharacterClasses* character_classes,
+                                     Iterator* current,
+                                     EndMark end) {
   while (*current != end) {
-    if (!Scanner::kIsWhiteSpace.get(**current)) return true;
+    if (!character_classes->IsWhiteSpace(**current)) return true;
     ++*current;
   }
   return false;
@@ -143,10 +145,12 @@ static double SignedZero(bool sign) {
 
 // Parsing integers with radix 2, 4, 8, 16, 32. Assumes current != end.
 template <int radix_log_2, class Iterator, class EndMark>
-static double InternalStringToIntDouble(Iterator current,
-                                        EndMark end,
-                                        bool sign,
-                                        bool allow_trailing_junk) {
+static double InternalStringToIntDouble(
+    ScannerCharacterClasses* character_classes,
+    Iterator current,
+    EndMark end,
+    bool sign,
+    bool allow_trailing_junk) {
   ASSERT(current != end);
 
   // Skip leading 0s.
@@ -168,7 +172,8 @@ static double InternalStringToIntDouble(Iterator current,
     } else if (radix > 10 && *current >= 'A' && *current < 'A' + radix - 10) {
       digit = static_cast<char>(*current) - 'A' + 10;
     } else {
-      if (allow_trailing_junk || !AdvanceToNonspace(&current, end)) {
+      if (allow_trailing_junk ||
+          !AdvanceToNonspace(character_classes, &current, end)) {
         break;
       } else {
         return JUNK_STRING_VALUE;
@@ -199,7 +204,8 @@ static double InternalStringToIntDouble(Iterator current,
         exponent += radix_log_2;
       }
 
-      if (!allow_trailing_junk && AdvanceToNonspace(&current, end)) {
+      if (!allow_trailing_junk &&
+          AdvanceToNonspace(character_classes, &current, end)) {
         return JUNK_STRING_VALUE;
       }
 
@@ -243,11 +249,16 @@ static double InternalStringToIntDouble(Iterator current,
 
 
 template <class Iterator, class EndMark>
-static double InternalStringToInt(Iterator current, EndMark end, int radix) {
+static double InternalStringToInt(ScannerCharacterClasses* character_classes,
+                                  Iterator current,
+                                  EndMark end,
+                                  int radix) {
   const bool allow_trailing_junk = true;
   const double empty_string_val = JUNK_STRING_VALUE;
 
-  if (!AdvanceToNonspace(&current, end)) return empty_string_val;
+  if (!AdvanceToNonspace(character_classes, &current, end)) {
+    return empty_string_val;
+  }
 
   bool sign = false;
   bool leading_zero = false;
@@ -255,10 +266,14 @@ static double InternalStringToInt(Iterator current, EndMark end, int radix) {
   if (*current == '+') {
     // Ignore leading sign; skip following spaces.
     ++current;
-    if (!AdvanceToNonspace(&current, end)) return JUNK_STRING_VALUE;
+    if (!AdvanceToNonspace(character_classes, &current, end)) {
+      return JUNK_STRING_VALUE;
+    }
   } else if (*current == '-') {
     ++current;
-    if (!AdvanceToNonspace(&current, end)) return JUNK_STRING_VALUE;
+    if (!AdvanceToNonspace(character_classes, &current, end)) {
+      return JUNK_STRING_VALUE;
+    }
     sign = true;
   }
 
@@ -309,21 +324,21 @@ static double InternalStringToInt(Iterator current, EndMark end, int radix) {
     switch (radix) {
       case 2:
         return InternalStringToIntDouble<1>(
-                   current, end, sign, allow_trailing_junk);
+            character_classes, current, end, sign, allow_trailing_junk);
       case 4:
         return InternalStringToIntDouble<2>(
-                   current, end, sign, allow_trailing_junk);
+            character_classes, current, end, sign, allow_trailing_junk);
       case 8:
         return InternalStringToIntDouble<3>(
-                   current, end, sign, allow_trailing_junk);
+            character_classes, current, end, sign, allow_trailing_junk);
 
       case 16:
         return InternalStringToIntDouble<4>(
-                   current, end, sign, allow_trailing_junk);
+            character_classes, current, end, sign, allow_trailing_junk);
 
       case 32:
         return InternalStringToIntDouble<5>(
-                   current, end, sign, allow_trailing_junk);
+            character_classes, current, end, sign, allow_trailing_junk);
       default:
         UNREACHABLE();
     }
@@ -348,7 +363,8 @@ static double InternalStringToInt(Iterator current, EndMark end, int radix) {
       if (current == end) break;
     }
 
-    if (!allow_trailing_junk && AdvanceToNonspace(&current, end)) {
+    if (!allow_trailing_junk &&
+        AdvanceToNonspace(character_classes, &current, end)) {
       return JUNK_STRING_VALUE;
     }
 
@@ -412,7 +428,8 @@ static double InternalStringToInt(Iterator current, EndMark end, int radix) {
     v = v * multiplier + part;
   } while (!done);
 
-  if (!allow_trailing_junk && AdvanceToNonspace(&current, end)) {
+  if (!allow_trailing_junk &&
+      AdvanceToNonspace(character_classes, &current, end)) {
     return JUNK_STRING_VALUE;
   }
 
@@ -426,7 +443,8 @@ static double InternalStringToInt(Iterator current, EndMark end, int radix) {
 // 2. *current - gets the current character in the sequence.
 // 3. ++current (advances the position).
 template <class Iterator, class EndMark>
-static double InternalStringToDouble(Iterator current,
+static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
+                                     Iterator current,
                                      EndMark end,
                                      int flags,
                                      double empty_string_val) {
@@ -438,7 +456,9 @@ static double InternalStringToDouble(Iterator current,
   // 'parsing_done'.
   // 4. 'current' is not dereferenced after the 'parsing_done' label.
   // 5. Code before 'parsing_done' may rely on 'current != end'.
-  if (!AdvanceToNonspace(&current, end)) return empty_string_val;
+  if (!AdvanceToNonspace(character_classes, &current, end)) {
+    return empty_string_val;
+  }
 
   const bool allow_trailing_junk = (flags & ALLOW_TRAILING_JUNK) != 0;
 
@@ -460,11 +480,15 @@ static double InternalStringToDouble(Iterator current,
   if (*current == '+') {
     // Ignore leading sign; skip following spaces.
     ++current;
-    if (!AdvanceToNonspace(&current, end)) return JUNK_STRING_VALUE;
+    if (!AdvanceToNonspace(character_classes, &current, end)) {
+      return JUNK_STRING_VALUE;
+    }
   } else if (*current == '-') {
     buffer[buffer_pos++] = '-';
     ++current;
-    if (!AdvanceToNonspace(&current, end)) return JUNK_STRING_VALUE;
+    if (!AdvanceToNonspace(character_classes, &current, end)) {
+      return JUNK_STRING_VALUE;
+    }
     sign = true;
   }
 
@@ -474,7 +498,8 @@ static double InternalStringToDouble(Iterator current,
       return JUNK_STRING_VALUE;
     }
 
-    if (!allow_trailing_junk && AdvanceToNonspace(&current, end)) {
+    if (!allow_trailing_junk &&
+        AdvanceToNonspace(character_classes, &current, end)) {
       return JUNK_STRING_VALUE;
     }
 
@@ -497,7 +522,8 @@ static double InternalStringToDouble(Iterator current,
       }
 
       bool sign = (buffer_pos > 0 && buffer[0] == '-');
-      return InternalStringToIntDouble<4>(current,
+      return InternalStringToIntDouble<4>(character_classes,
+                                          current,
                                           end,
                                           sign,
                                           allow_trailing_junk);
@@ -630,7 +656,8 @@ static double InternalStringToDouble(Iterator current,
     exponent += (sign == '-' ? -num : num);
   }
 
-  if (!allow_trailing_junk && AdvanceToNonspace(&current, end)) {
+  if (!allow_trailing_junk &&
+      AdvanceToNonspace(character_classes, &current, end)) {
     return JUNK_STRING_VALUE;
   }
 
@@ -641,7 +668,8 @@ static double InternalStringToDouble(Iterator current,
     bool sign = buffer[0] == '-';
     int start_pos = (sign ? 1 : 0);
 
-    return InternalStringToIntDouble<3>(buffer + start_pos,
+    return InternalStringToIntDouble<3>(character_classes,
+                                        buffer + start_pos,
                                         buffer + buffer_pos,
                                         sign,
                                         allow_trailing_junk);
@@ -693,18 +721,23 @@ static double InternalStringToDouble(Iterator current,
 }
 
 double StringToDouble(String* str, int flags, double empty_string_val) {
+  ScannerCharacterClasses* character_classes =
+      Isolate::Current()->scanner_character_classes();
   StringShape shape(str);
   if (shape.IsSequentialAscii()) {
     const char* begin = SeqAsciiString::cast(str)->GetChars();
     const char* end = begin + str->length();
-    return InternalStringToDouble(begin, end, flags, empty_string_val);
+    return InternalStringToDouble(character_classes, begin, end, flags,
+                                  empty_string_val);
   } else if (shape.IsSequentialTwoByte()) {
     const uc16* begin = SeqTwoByteString::cast(str)->GetChars();
     const uc16* end = begin + str->length();
-    return InternalStringToDouble(begin, end, flags, empty_string_val);
+    return InternalStringToDouble(character_classes, begin, end, flags,
+                                  empty_string_val);
   } else {
     StringInputBuffer buffer(str);
-    return InternalStringToDouble(StringInputBufferIterator(&buffer),
+    return InternalStringToDouble(character_classes,
+                                  StringInputBufferIterator(&buffer),
                                   StringInputBufferIterator::EndMarker(),
                                   flags,
                                   empty_string_val);
@@ -713,18 +746,21 @@ double StringToDouble(String* str, int flags, double empty_string_val) {
 
 
 double StringToInt(String* str, int radix) {
+  ScannerCharacterClasses* character_classes =
+      Isolate::Current()->scanner_character_classes();
   StringShape shape(str);
   if (shape.IsSequentialAscii()) {
     const char* begin = SeqAsciiString::cast(str)->GetChars();
     const char* end = begin + str->length();
-    return InternalStringToInt(begin, end, radix);
+    return InternalStringToInt(character_classes, begin, end, radix);
   } else if (shape.IsSequentialTwoByte()) {
     const uc16* begin = SeqTwoByteString::cast(str)->GetChars();
     const uc16* end = begin + str->length();
-    return InternalStringToInt(begin, end, radix);
+    return InternalStringToInt(character_classes, begin, end, radix);
   } else {
     StringInputBuffer buffer(str);
-    return InternalStringToInt(StringInputBufferIterator(&buffer),
+    return InternalStringToInt(character_classes,
+                               StringInputBufferIterator(&buffer),
                                StringInputBufferIterator::EndMarker(),
                                radix);
   }
@@ -732,9 +768,11 @@ double StringToInt(String* str, int radix) {
 
 
 double StringToDouble(const char* str, int flags, double empty_string_val) {
+  ScannerCharacterClasses* character_classes =
+      Isolate::Current()->scanner_character_classes();
   const char* end = str + StrLength(str);
-
-  return InternalStringToDouble(str, end, flags, empty_string_val);
+  return InternalStringToDouble(character_classes, str, end, flags,
+                                empty_string_val);
 }
 
 

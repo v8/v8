@@ -2779,7 +2779,8 @@ Object* Heap::AllocateStringFromUtf8(Vector<const char> string,
                                      PretenureFlag pretenure) {
   // Count the number of characters in the UTF-8 string and check if
   // it is an ASCII string.
-  Access<Scanner::Utf8Decoder> decoder(Scanner::utf8_decoder());
+  Access<Scanner::Utf8Decoder> decoder(isolate_->
+      scanner_character_classes()->utf8_decoder());
   decoder->Reset(string.start(), string.length());
   int chars = 0;
   bool is_ascii = true;

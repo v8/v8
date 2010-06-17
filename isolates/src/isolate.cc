@@ -35,6 +35,7 @@
 #include "isolate.h"
 #include "log.h"
 #include "serialize.h"
+#include "scanner.h"
 #include "scopeinfo.h"
 #include "simulator.h"
 #include "stub-cache.h"
@@ -115,7 +116,8 @@ Isolate::Isolate()
       keyed_lookup_cache_(new KeyedLookupCache()),
       context_slot_cache_(new ContextSlotCache()),
       descriptor_lookup_cache_(new DescriptorLookupCache()),
-      handle_scope_implementer_(NULL) {
+      handle_scope_implementer_(NULL),
+      scanner_character_classes_(new ScannerCharacterClasses()) {
   heap_.isolate_ = this;
   stack_guard_.isolate_ = this;
 
@@ -134,6 +136,9 @@ Isolate::Isolate()
 
 
 Isolate::~Isolate() {
+  delete scanner_character_classes_;
+  scanner_character_classes_ = NULL;
+
   delete descriptor_lookup_cache_;
   descriptor_lookup_cache_ = NULL;
   delete context_slot_cache_;
