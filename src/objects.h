@@ -491,10 +491,12 @@ enum InstanceType {
   TYPE_SWITCH_INFO_TYPE,
   SCRIPT_TYPE,
   CODE_CACHE_TYPE,
-#ifdef ENABLE_DEBUGGER_SUPPORT
+  // The following two instance types are only used when ENABLE_DEBUGGER_SUPPORT
+  // is defined. However as include/v8.h contain some of the instance type
+  // constants always having them avoids them getting different numbers
+  // depending on whether ENABLE_DEBUGGER_SUPPORT is defined or not.
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
-#endif
 
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
@@ -526,6 +528,11 @@ enum InstanceType {
   FIRST_JS_OBJECT_TYPE = JS_VALUE_TYPE,
   LAST_JS_OBJECT_TYPE = JS_REGEXP_TYPE
 };
+
+
+STATIC_CHECK(JS_OBJECT_TYPE == Internals::kJSObjectType);
+STATIC_CHECK(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
+STATIC_CHECK(PROXY_TYPE == Internals::kProxyType);
 
 
 enum CompareResult {

@@ -106,9 +106,6 @@ static i::HandleScopeImplementer thread_local;
 
 
 static FatalErrorCallback exception_behavior = NULL;
-int i::Internals::kJSObjectType = JS_OBJECT_TYPE;
-int i::Internals::kFirstNonstringType = FIRST_NONSTRING_TYPE;
-int i::Internals::kProxyType = PROXY_TYPE;
 
 static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
