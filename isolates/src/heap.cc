@@ -301,7 +301,7 @@ void Heap::ReportStatisticsAfterGC() {
 
 
 void Heap::GarbageCollectionPrologue() {
-  Isolate::Current()->transcendental_cache()->Clear();
+  isolate_->transcendental_cache()->Clear();
   ClearJSFunctionResultCaches();
   gc_count_++;
   unflattened_strings_length_ = 0;
@@ -3767,8 +3767,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointer(BitCast<Object**, String**>(&hidden_symbol_));
   v->Synchronize("symbol");
 
-  Isolate* isolate = Isolate::Current();
-  isolate->bootstrapper()->Iterate(v);
+  isolate_->bootstrapper()->Iterate(v);
   v->Synchronize("bootstrapper");
   Top::Iterate(v);
   v->Synchronize("top");
@@ -3783,7 +3782,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->Synchronize("compilationcache");
 
   // Iterate over local handles in handle scopes.
-  isolate->handle_scope_implementer()->Iterate(v);
+  isolate_->handle_scope_implementer()->Iterate(v);
   v->Synchronize("handlescope");
 
   // Iterate over the builtin code objects and code stubs in the
@@ -4166,7 +4165,7 @@ class PrintHandleVisitor: public ObjectVisitor {
 void Heap::PrintHandles() {
   PrintF("Handles:\n");
   PrintHandleVisitor v;
-  Isolate::Current()->handle_scope_implementer()->Iterate(&v);
+  isolate_->handle_scope_implementer()->Iterate(&v);
 }
 
 #endif
