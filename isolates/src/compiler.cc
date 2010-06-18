@@ -293,13 +293,15 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
 
+  CompilationCache* compilation_cache = Isolate::Current()->compilation_cache();
+
   // Do a lookup in the compilation cache but not for extensions.
   Handle<SharedFunctionInfo> result;
   if (extension == NULL) {
-    result = CompilationCache::LookupScript(source,
-                                            script_name,
-                                            line_offset,
-                                            column_offset);
+    result = compilation_cache->LookupScript(source,
+                                             script_name,
+                                             line_offset,
+                                             column_offset);
   }
 
   if (result.is_null()) {
@@ -334,7 +336,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                               extension,
                               pre_data);
     if (extension == NULL && !result.is_null()) {
-      CompilationCache::PutScript(source, result);
+      compilation_cache->PutScript(source, result);
     }
 
     // Get rid of the pre-parsing data (if necessary).
@@ -363,13 +365,15 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
 
+  CompilationCache* compilation_cache = Isolate::Current()->compilation_cache();
+
   // Do a lookup in the compilation cache; if the entry is not there,
   // invoke the compiler and add the result to the cache.  If we're
   // evaluating json we bypass the cache since we can't be sure a
   // potential value in the cache has been validated.
   Handle<SharedFunctionInfo> result;
   if (validate == DONT_VALIDATE_JSON)
-    result = CompilationCache::LookupEval(source, context, is_global);
+    result = compilation_cache->LookupEval(source, context, is_global);
 
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
@@ -384,7 +388,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     if (!result.is_null() && validate != VALIDATE_JSON) {
       // For json it's unlikely that we'll ever see exactly the same
       // string again so we don't use the compilation cache.
-      CompilationCache::PutEval(source, context, is_global, result);
+      compilation_cache->PutEval(source, context, is_global, result);
     }
   }
 

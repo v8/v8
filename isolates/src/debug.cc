@@ -2465,12 +2465,13 @@ void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
 
 
 void Debugger::ListenersChanged() {
+  Isolate* isolate = Isolate::Current();
   if (IsDebuggerActive()) {
     // Disable the compilation cache when the debugger is active.
-    CompilationCache::Disable();
+    isolate->compilation_cache()->Disable();
     debugger_unload_pending_ = false;
   } else {
-    CompilationCache::Enable();
+    isolate->compilation_cache()->Enable();
     // Unload the debugger if event listener and message handler cleared.
     // Schedule this for later, because we may be in non-V8 thread.
     debugger_unload_pending_ = true;

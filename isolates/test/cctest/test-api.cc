@@ -384,7 +384,7 @@ THREADED_TEST(ScriptUsingStringResource) {
     HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestResource::dispose_count);
   }
-  v8::internal::CompilationCache::Clear();
+  v8::internal::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestResource::dispose_count);
 }
@@ -405,7 +405,7 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
     HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  v8::internal::CompilationCache::Clear();
+  v8::internal::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
@@ -430,7 +430,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestResource::dispose_count);
   }
-  v8::internal::CompilationCache::Clear();
+  v8::internal::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestResource::dispose_count);
 }
@@ -456,7 +456,7 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  v8::internal::CompilationCache::Clear();
+  v8::internal::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
@@ -648,7 +648,7 @@ TEST(ExternalStringWithDisposeHandling) {
     HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  v8::internal::CompilationCache::Clear();
+  v8::internal::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(0, TestAsciiResource::dispose_count);
@@ -669,7 +669,7 @@ TEST(ExternalStringWithDisposeHandling) {
     HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  v8::internal::CompilationCache::Clear();
+  v8::internal::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
@@ -708,7 +708,7 @@ THREADED_TEST(StringConcat) {
     CHECK(value->IsNumber());
     CHECK_EQ(68, value->Int32Value());
   }
-  v8::internal::CompilationCache::Clear();
+  v8::internal::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   HEAP->CollectAllGarbage(false);
 }

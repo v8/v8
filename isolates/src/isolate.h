@@ -39,6 +39,7 @@ namespace v8 {
 namespace internal {
 
 class Bootstrapper;
+class CompilationCache;
 class ContextSlotCache;
 class CpuFeatures;
 class Deserializer;
@@ -195,6 +196,7 @@ class Isolate {
   // Accessors.
   Bootstrapper* bootstrapper() { return bootstrapper_; }
   CpuFeatures* cpu_features() { return cpu_features_; }
+  CompilationCache* compilation_cache() { return compilation_cache_; }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
   StubCache* stub_cache() { return stub_cache_; }
@@ -261,6 +263,7 @@ class Isolate {
   State state_;
 
   Bootstrapper* bootstrapper_;
+  CompilationCache* compilation_cache_;
   CpuFeatures* cpu_features_;
   Mutex* break_access_;
   Heap heap_;

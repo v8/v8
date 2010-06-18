@@ -111,7 +111,8 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                    Handle<String> pattern,
                                    Handle<String> flag_str) {
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
-  Handle<FixedArray> cached = CompilationCache::LookupRegExp(pattern, flags);
+  CompilationCache* compilation_cache = Isolate::Current()->compilation_cache();
+  Handle<FixedArray> cached = compilation_cache->LookupRegExp(pattern, flags);
   bool in_cache = !cached.is_null();
   LOG(RegExpCompileEvent(re, in_cache));
 
@@ -151,7 +152,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   // Compilation succeeded so the data is set on the regexp
   // and we can store it in the cache.
   Handle<FixedArray> data(FixedArray::cast(re->data()));
-  CompilationCache::PutRegExp(pattern, flags, data);
+  compilation_cache->PutRegExp(pattern, flags, data);
 
   return re;
 }

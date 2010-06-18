@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "bootstrapper.h"
+#include "compilation-cache.h"
 #include "debug.h"
 #include "heap-profiler.h"
 #include "isolate.h"
@@ -109,6 +110,7 @@ Isolate* Isolate::Create(Deserializer* des) {
 Isolate::Isolate()
     : state_(UNINITIALIZED),
       bootstrapper_(NULL),
+      compilation_cache_(new CompilationCache()),
       cpu_features_(NULL),
       break_access_(OS::CreateMutex()),
       stub_cache_(NULL),
@@ -152,6 +154,8 @@ Isolate::~Isolate() {
   stub_cache_ = NULL;
   delete cpu_features_;
   cpu_features_ = NULL;
+  delete compilation_cache_;
+  compilation_cache_ = NULL;
   delete bootstrapper_;
   bootstrapper_ = NULL;
 

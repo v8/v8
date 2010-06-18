@@ -32,6 +32,128 @@ namespace v8 {
 namespace internal {
 
 
+// The compilation cache consists of several generational sub-caches which uses
+// this class as a base class. A sub-cache contains a compilation cache tables
+// for each generation of the sub-cache. Since the same source code string has
+// different compiled code for scripts and evals, we use separate sub-caches
+// for different compilation modes, to avoid retrieving the wrong result.
+class CompilationSubCache {
+ public:
+  explicit CompilationSubCache(int generations): generations_(generations) {
+    tables_ = NewArray<Object*>(generations);
+  }
+
+  ~CompilationSubCache() { DeleteArray(tables_); }
+
+  // Index for the first generation in the cache.
+  static const int kFirstGeneration = 0;
+
+  // Get the compilation cache tables for a specific generation.
+  Handle<CompilationCacheTable> GetTable(int generation);
+
+  // Accessors for first generation.
+  Handle<CompilationCacheTable> GetFirstTable() {
+    return GetTable(kFirstGeneration);
+  }
+  void SetFirstTable(Handle<CompilationCacheTable> value) {
+    ASSERT(kFirstGeneration < generations_);
+    tables_[kFirstGeneration] = *value;
+  }
+
+  // Age the sub-cache by evicting the oldest generation and creating a new
+  // young generation.
+  void Age();
+
+  bool HasFunction(SharedFunctionInfo* function_info);
+
+  // GC support.
+  void Iterate(ObjectVisitor* v);
+
+  // Clear this sub-cache evicting all its content.
+  void Clear();
+
+  // Number of generations in this sub-cache.
+  inline int generations() { return generations_; }
+
+ private:
+  int generations_;  // Number of generations.
+  Object** tables_;  // Compilation cache tables - one for each generation.
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationSubCache);
+};
+
+
+// Sub-cache for scripts.
+class CompilationCacheScript : public CompilationSubCache {
+ public:
+  explicit CompilationCacheScript(int generations)
+      : CompilationSubCache(generations) { }
+
+  Handle<SharedFunctionInfo> Lookup(Handle<String> source,
+                                    Handle<Object> name,
+                                    int line_offset,
+                                    int column_offset);
+  void Put(Handle<String> source, Handle<SharedFunctionInfo> function_info);
+
+ private:
+  // Note: Returns a new hash table if operation results in expansion.
+  Handle<CompilationCacheTable> TablePut(
+      Handle<String> source, Handle<SharedFunctionInfo> function_info);
+
+  bool HasOrigin(Handle<SharedFunctionInfo> function_info,
+                 Handle<Object> name,
+                 int line_offset,
+                 int column_offset);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
+};
+
+
+// Sub-cache for eval scripts.
+class CompilationCacheEval: public CompilationSubCache {
+ public:
+  explicit CompilationCacheEval(int generations)
+      : CompilationSubCache(generations) { }
+
+  Handle<SharedFunctionInfo> Lookup(Handle<String> source,
+                                    Handle<Context> context);
+
+  void Put(Handle<String> source,
+           Handle<Context> context,
+           Handle<SharedFunctionInfo> function_info);
+
+ private:
+  // Note: Returns a new hash table if operation results in expansion.
+  Handle<CompilationCacheTable> TablePut(
+      Handle<String> source,
+      Handle<Context> context,
+      Handle<SharedFunctionInfo> function_info);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEval);
+};
+
+
+// Sub-cache for regular expressions.
+class CompilationCacheRegExp: public CompilationSubCache {
+ public:
+  explicit CompilationCacheRegExp(int generations)
+      : CompilationSubCache(generations) { }
+
+  Handle<FixedArray> Lookup(Handle<String> source, JSRegExp::Flags flags);
+
+  void Put(Handle<String> source,
+           JSRegExp::Flags flags,
+           Handle<FixedArray> data);
+ private:
+  // Note: Returns a new hash table if operation results in expansion.
+  Handle<CompilationCacheTable> TablePut(Handle<String> source,
+                                         JSRegExp::Flags flags,
+                                         Handle<FixedArray> data);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheRegExp);
+};
+
+
 // The compilation cache keeps shared function infos for compiled
 // scripts and evals. The shared function infos are looked up using
 // the source string as the key. For regular expressions the
@@ -41,59 +163,79 @@ class CompilationCache {
   // Finds the script shared function info for a source
   // string. Returns an empty handle if the cache doesn't contain a
   // script for the given source string with the right origin.
-  static Handle<SharedFunctionInfo> LookupScript(Handle<String> source,
-                                                 Handle<Object> name,
-                                                 int line_offset,
-                                                 int column_offset);
+  Handle<SharedFunctionInfo> LookupScript(Handle<String> source,
+                                          Handle<Object> name,
+                                          int line_offset,
+                                          int column_offset);
 
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
   // contain a script for the given source string.
-  static Handle<SharedFunctionInfo> LookupEval(Handle<String> source,
-                                               Handle<Context> context,
-                                               bool is_global);
+  Handle<SharedFunctionInfo> LookupEval(Handle<String> source,
+                                        Handle<Context> context,
+                                        bool is_global);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
-  static Handle<FixedArray> LookupRegExp(Handle<String> source,
-                                         JSRegExp::Flags flags);
+  Handle<FixedArray> LookupRegExp(Handle<String> source,
+                                  JSRegExp::Flags flags);
 
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.
-  static void PutScript(Handle<String> source,
-                        Handle<SharedFunctionInfo> function_info);
+  void PutScript(Handle<String> source,
+                 Handle<SharedFunctionInfo> function_info);
 
   // Associate the (source, context->closure()->shared(), kind) triple
   // with the shared function info. This may overwrite an existing mapping.
-  static void PutEval(Handle<String> source,
-                      Handle<Context> context,
-                      bool is_global,
-                      Handle<SharedFunctionInfo> function_info);
+  void PutEval(Handle<String> source,
+               Handle<Context> context,
+               bool is_global,
+               Handle<SharedFunctionInfo> function_info);
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.
-  static void PutRegExp(Handle<String> source,
-                        JSRegExp::Flags flags,
-                        Handle<FixedArray> data);
+  void PutRegExp(Handle<String> source,
+                 JSRegExp::Flags flags,
+                 Handle<FixedArray> data);
 
   // Clear the cache - also used to initialize the cache at startup.
-  static void Clear();
+  void Clear();
 
 
-  static bool HasFunction(SharedFunctionInfo* function_info);
+  bool HasFunction(SharedFunctionInfo* function_info);
 
   // GC support.
-  static void Iterate(ObjectVisitor* v);
+  void Iterate(ObjectVisitor* v);
 
   // Notify the cache that a mark-sweep garbage collection is about to
   // take place. This is used to retire entries from the cache to
   // avoid keeping them alive too long without using them.
-  static void MarkCompactPrologue();
+  void MarkCompactPrologue();
 
   // Enable/disable compilation cache. Used by debugger to disable compilation
   // cache during debugging to make sure new scripts are always compiled.
-  static void Enable();
-  static void Disable();
+  void Enable();
+  void Disable();
+ private:
+  CompilationCache();
+
+  // The number of sub caches covering the different types to cache.
+  static const int kSubCacheCount = 4;
+
+  CompilationCacheScript script_;
+  CompilationCacheEval eval_global_;
+  CompilationCacheEval eval_contextual_;
+  CompilationCacheRegExp reg_exp_;
+  CompilationSubCache* subcaches_[kSubCacheCount];
+
+  // Current enable state of the compilation cache.
+  bool enabled_;
+
+  bool IsEnabled() { return FLAG_compilation_cache && enabled_; }
+
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(CompilationCache);
 };
 
 

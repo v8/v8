@@ -688,7 +688,7 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   isolate_->context_slot_cache()->Clear();
   isolate_->descriptor_lookup_cache()->Clear();
 
-  CompilationCache::MarkCompactPrologue();
+  isolate_->compilation_cache()->MarkCompactPrologue();
 
   Top::MarkCompactPrologue(is_compacting);
   ThreadManager::MarkCompactPrologue(is_compacting);
@@ -1658,7 +1658,7 @@ bool Heap::CreateInitialObjects() {
   isolate_->descriptor_lookup_cache()->Clear();
 
   // Initialize compilation cache.
-  CompilationCache::Clear();
+  isolate_->compilation_cache()->Clear();
 
   return true;
 }
@@ -2222,7 +2222,8 @@ static void FlushCodeForFunction(SharedFunctionInfo* function_info) {
   if (function_info->is_toplevel()) return;
 
   // If this function is in the compilation cache we do not flush the code.
-  if (CompilationCache::HasFunction(function_info)) return;
+  if (Isolate::Current()->compilation_cache()->HasFunction(function_info))
+      return;
 
   // Make sure we are not referencing the code from the stack.
   for (StackFrameIterator it; !it.done(); it.Advance()) {
@@ -3224,7 +3225,7 @@ bool Heap::IdleNotification() {
     // Before doing the mark-sweep collections we clear the
     // compilation cache to avoid hanging on to source code and
     // generated code for cached functions.
-    CompilationCache::Clear();
+    isolate_->compilation_cache()->Clear();
 
     CollectAllGarbage(false);
     new_space_.Shrink();
@@ -3778,7 +3779,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   Debug::Iterate(v);
 #endif
   v->Synchronize("debug");
-  CompilationCache::Iterate(v);
+  isolate_->compilation_cache()->Iterate(v);
   v->Synchronize("compilationcache");
 
   // Iterate over local handles in handle scopes.
