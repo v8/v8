@@ -109,9 +109,9 @@ class Profiler: public Thread {
   void Run();
 
   // Pause and Resume TickSample data collection.
-  static bool paused() { return paused_; }
-  static void pause() { paused_ = true; }
-  static void resume() { paused_ = false; }
+  bool paused() { return paused_; }
+  void pause() { paused_ = true; }
+  void resume() { paused_ = false; }
 
  private:
   // Returns the next index in the cyclic buffer.
@@ -133,10 +133,8 @@ class Profiler: public Thread {
   bool running_;
 
   // Tells whether we are currently recording tick samples.
-  static bool paused_;
+  bool paused_;
 };
-
-bool Profiler::paused_ = false;
 
 
 //
@@ -262,7 +260,8 @@ Profiler::Profiler()
       overflow_(false),
       buffer_semaphore_(OS::CreateSemaphore(0)),
       engaged_(false),
-      running_(false) {
+      running_(false),
+      paused_(false) {
 }
 
 
