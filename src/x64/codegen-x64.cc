@@ -314,11 +314,17 @@ class FloatingPointHelper : public AllStatic {
   // operands, jumps to the non_float label otherwise.
   static void CheckNumberOperands(MacroAssembler* masm,
                                   Label* non_float);
+  // As CheckNumberOperands above, but expects the HeapNumber map in
+  // a register.
+  static void CheckNumberOperands(MacroAssembler* masm,
+                                  Label* non_float,
+                                  Register heap_number_map);
 
   // Takes the operands in rdx and rax and loads them as integers in rax
   // and rcx.
   static void LoadAsIntegers(MacroAssembler* masm,
-                             Label* operand_conversion_failure);
+                             Label* operand_conversion_failure,
+                             Register heap_number_map);
 };
 
 
@@ -9988,6 +9994,7 @@ void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
 void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
                                            Register src,
                                            XMMRegister dst) {
+  ASSERT(!src.is(kScratchRegister));
   Label load_smi, done;
 
   __ JumpIfSmi(src, &load_smi);
@@ -9995,8 +10002,8 @@ void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
   __ jmp(&done);
 
   __ bind(&load_smi);
-  __ SmiToInteger32(src, src);
-  __ cvtlsi2sd(dst, src);
+  __ SmiToInteger32(kScratchRegister, src);
+  __ cvtlsi2sd(dst, kScratchRegister);
 
   __ bind(&done);
 }
@@ -10026,10 +10033,8 @@ void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
 void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
                                             XMMRegister dst1,
                                             XMMRegister dst2) {
-  __ movq(kScratchRegister, rdx);
-  LoadFloatOperand(masm, kScratchRegister, dst1);
-  __ movq(kScratchRegister, rax);
-  LoadFloatOperand(masm, kScratchRegister, dst2);
+  LoadFloatOperand(masm, rdx, dst1);
+  LoadFloatOperand(masm, rax, dst2);
 }
 
 
@@ -10046,7 +10051,8 @@ void FloatingPointHelper::LoadFloatOperandsFromSmis(MacroAssembler* masm,
 // Input: rdx, rax are the left and right objects of a bit op.
 // Output: rax, rcx are left and right integers for a bit op.
 void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
-                                         Label* conversion_failure) {
+                                         Label* conversion_failure,
+                                         Register heap_number_map) {
   // Check float operands.
   Label arg1_is_object, check_undefined_arg1;
   Label arg2_is_object, check_undefined_arg2;
@@ -10064,8 +10070,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ jmp(&load_arg2);
 
   __ bind(&arg1_is_object);
-  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
-  __ CompareRoot(rbx, Heap::kHeapNumberMapRootIndex);
+  __ cmpq(FieldOperand(rdx, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg1);
   // Get the untagged integer version of the edx heap number in rcx.
   IntegerConvert(masm, rdx, rdx);
@@ -10086,8 +10091,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ jmp(&done);
 
   __ bind(&arg2_is_object);
-  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-  __ CompareRoot(rbx, Heap::kHeapNumberMapRootIndex);
+  __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg2);
   // Get the untagged integer version of the eax heap number in ecx.
   IntegerConvert(masm, rcx, rax);
@@ -10137,6 +10141,26 @@ void FloatingPointHelper::CheckNumberOperands(MacroAssembler* masm,
   __ bind(&test_other);
   __ JumpIfSmi(rax, &done);  // argument in rax is OK
   __ Cmp(FieldOperand(rax, HeapObject::kMapOffset), Factory::heap_number_map());
+  __ j(not_equal, non_float);  // The argument in rax is not a number.
+
+  // Fall-through: Both operands are numbers.
+  __ bind(&done);
+}
+
+
+void FloatingPointHelper::CheckNumberOperands(MacroAssembler* masm,
+                                              Label* non_float,
+                                              Register heap_number_map) {
+  Label test_other, done;
+  // Test if both operands are numbers (heap_numbers or smis).
+  // If not, jump to label non_float.
+  __ JumpIfSmi(rdx, &test_other);  // argument in rdx is OK
+  __ cmpq(FieldOperand(rdx, HeapObject::kMapOffset), heap_number_map);
+  __ j(not_equal, non_float);  // The argument in rdx is not a number.
+
+  __ bind(&test_other);
+  __ JumpIfSmi(rax, &done);  // argument in rax is OK
+  __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, non_float);  // The argument in rax is not a number.
 
   // Fall-through: Both operands are numbers.
@@ -10503,6 +10527,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   }
   // Floating point case.
   if (ShouldGenerateFPCode()) {
+    // Load the HeapNumber map here and use it throughout the FP code.
+    Register heap_number_map = r9;
     switch (op_) {
       case Token::ADD:
       case Token::SUB:
@@ -10517,17 +10543,25 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           // forever for all other operations (also if smi code is skipped).
           GenerateTypeTransition(masm);
         }
+        __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
 
         Label not_floats;
         // rax: y
         // rdx: x
-      if (static_operands_type_.IsNumber() && FLAG_debug_code) {
-        // Assert at runtime that inputs are only numbers.
-        __ AbortIfNotNumber(rdx);
-        __ AbortIfNotNumber(rax);
-      } else {
-        FloatingPointHelper::CheckNumberOperands(masm, &call_runtime);
-      }
+        if (static_operands_type_.IsNumber() && FLAG_debug_code) {
+          // Assert at runtime that inputs are only numbers.
+          __ AbortIfNotNumber(rdx);
+          __ AbortIfNotNumber(rax);
+        } else {
+          if (FLAG_debug_code) {
+            __ AbortIfNotRootValue(heap_number_map,
+                                   Heap::kHeapNumberMapRootIndex,
+                                   "HeapNumberMap register clobbered.");
+          }
+          FloatingPointHelper::CheckNumberOperands(masm,
+                                                   &call_runtime,
+                                                   heap_number_map);
+        }
         // Fast-case: Both operands are numbers.
         // xmm4 and xmm5 are volatile XMM registers.
         FloatingPointHelper::LoadFloatOperands(masm, xmm4, xmm5);
@@ -10550,9 +10584,24 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           }
         }
         switch (mode) {
+          // TODO(lrn): Allocate this when we first see that the
+          // left register is a smi (and load it into xmm4).
           case OVERWRITE_LEFT:
             __ JumpIfNotSmi(rdx, &skip_allocation);
-            __ AllocateHeapNumber(rbx, rcx, &call_runtime);
+            // Allocate heap number in new space.
+            __ AllocateInNewSpace(HeapNumber::kSize,
+                                  rbx,
+                                  rcx,
+                                  no_reg,
+                                  &call_runtime,
+                                  TAG_OBJECT);
+            if (FLAG_debug_code) {
+              __ AbortIfNotRootValue(heap_number_map,
+                                     Heap::kHeapNumberMapRootIndex,
+                                     "HeapNumberMap register clobbered.");
+            }
+            __ movq(FieldOperand(rbx, HeapObject::kMapOffset),
+                    heap_number_map);
             __ movq(rdx, rbx);
             __ bind(&skip_allocation);
             __ movq(rax, rdx);
@@ -10560,12 +10609,26 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           case OVERWRITE_RIGHT:
             // If the argument in rax is already an object, we skip the
             // allocation of a heap number.
+            // TODO(lrn): Allocate the heap number when we first see that the
+            // right register is a smi (and load it into xmm5).
             __ JumpIfNotSmi(rax, &skip_allocation);
             // Fall through!
           case NO_OVERWRITE:
             // Allocate a heap number for the result. Keep rax and rdx intact
             // for the possible runtime call.
-            __ AllocateHeapNumber(rbx, rcx, &call_runtime);
+            __ AllocateInNewSpace(HeapNumber::kSize,
+                                  rbx,
+                                  rcx,
+                                  no_reg,
+                                  &call_runtime,
+                                  TAG_OBJECT);
+            if (FLAG_debug_code) {
+              __ AbortIfNotRootValue(heap_number_map,
+                                     Heap::kHeapNumberMapRootIndex,
+                                     "HeapNumberMap register clobbered.");
+            }
+            __ movq(FieldOperand(rbx, HeapObject::kMapOffset),
+                    heap_number_map);
             __ movq(rax, rbx);
             __ bind(&skip_allocation);
             break;
@@ -10596,8 +10659,11 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       case Token::SAR:
       case Token::SHL:
       case Token::SHR: {
-        Label skip_allocation, non_smi_result;
-        FloatingPointHelper::LoadAsIntegers(masm, &call_runtime);
+        Label skip_allocation, non_smi_shr_result;
+        __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+        FloatingPointHelper::LoadAsIntegers(masm,
+                                            &call_runtime,
+                                            heap_number_map);
         switch (op_) {
           case Token::BIT_OR:  __ orl(rax, rcx); break;
           case Token::BIT_AND: __ andl(rax, rcx); break;
@@ -10609,21 +10675,22 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         }
         if (op_ == Token::SHR) {
           // Check if result is negative. This can only happen for a shift
-          // by zero, which also doesn't update the sign flag.
+          // by zero.
           __ testl(rax, rax);
-          __ j(negative, &non_smi_result);
+          __ j(negative, &non_smi_shr_result);
         }
-        __ JumpIfNotValidSmiValue(rax, &non_smi_result);
-        // Tag smi result, if possible, and return.
+        STATIC_ASSERT(kSmiValueSize == 32);
+        // Tag smi result and return.
         __ Integer32ToSmi(rax, rax);
         GenerateReturn(masm);
 
-        // All ops except SHR return a signed int32 that we load in
-        // a HeapNumber.
-        if (op_ != Token::SHR && non_smi_result.is_linked()) {
-          __ bind(&non_smi_result);
+        // All bit-ops except SHR return a signed int32 that can be
+        // returned immediately as a smi.
+        if (op_ == Token::SHR) {
+          ASSERT(non_smi_shr_result.is_linked());
+          __ bind(&non_smi_shr_result);
           // Allocate a heap number if needed.
-          __ movsxlq(rbx, rax);  // rbx: sign extended 32-bit result
+          __ movl(rbx, rax);  // rbx holds result value (uint32 value as int64).
           switch (mode_) {
             case OVERWRITE_LEFT:
             case OVERWRITE_RIGHT:
@@ -10634,22 +10701,31 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
               __ JumpIfNotSmi(rax, &skip_allocation);
               // Fall through!
             case NO_OVERWRITE:
-              __ AllocateHeapNumber(rax, rcx, &call_runtime);
+              // Allocate heap number in new space.
+              __ AllocateInNewSpace(HeapNumber::kSize,
+                                    rax,
+                                    rcx,
+                                    no_reg,
+                                    &call_runtime,
+                                    TAG_OBJECT);
+              // Set the map.
+              if (FLAG_debug_code) {
+                __ AbortIfNotRootValue(heap_number_map,
+                                       Heap::kHeapNumberMapRootIndex,
+                                       "HeapNumberMap register clobbered.");
+              }
+              __ movq(FieldOperand(rax, HeapObject::kMapOffset),
+                      heap_number_map);
               __ bind(&skip_allocation);
               break;
             default: UNREACHABLE();
           }
           // Store the result in the HeapNumber and return.
-          __ movq(Operand(rsp, 1 * kPointerSize), rbx);
-          __ fild_s(Operand(rsp, 1 * kPointerSize));
-          __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
+          __ cvtqsi2sd(xmm0, rbx);
+          __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm0);
           GenerateReturn(masm);
         }
 
-        // SHR should return uint32 - go to runtime for non-smi/negative result.
-        if (op_ == Token::SHR) {
-          __ bind(&non_smi_result);
-        }
         break;
       }
       default: UNREACHABLE(); break;
@@ -10682,7 +10758,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       Label not_strings, both_strings, not_string1, string1, string1_smi2;
 
       // If this stub has already generated FP-specific code then the arguments
-      // are already in rdx, rax
+      // are already in rdx, rax.
       if (!ShouldGenerateFPCode() && !HasArgsInRegisters()) {
         GenerateLoadArguments(masm);
       }

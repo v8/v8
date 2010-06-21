@@ -35,6 +35,7 @@
 #include "macro-assembler-x64.h"
 #include "serialize.h"
 #include "debug.h"
+#include "heap.h"
 
 namespace v8 {
 namespace internal {
@@ -1729,6 +1730,17 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
   Condition is_smi = CheckSmi(object);
   Assert(is_smi, "Operand not a smi");
 }
+
+
+void MacroAssembler::AbortIfNotRootValue(Register src,
+                                         Heap::RootListIndex root_value_index,
+                                         const char* message) {
+  ASSERT(!src.is(kScratchRegister));
+  LoadRoot(kScratchRegister, root_value_index);
+  cmpq(src, kScratchRegister);
+  Check(equal, message);
+}
+
 
 
 Condition MacroAssembler::IsObjectStringType(Register heap_object,
