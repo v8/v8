@@ -326,7 +326,7 @@ TEST(DisasmIa320) {
   __ j(zero, &Ljcc, taken);
   __ j(zero, &Ljcc, not_taken);
 
-  // __ mov(Operand::StaticVariable(Top::handler_address()), eax);
+  // __ mov(Operand::StaticVariable(Isolate::handler_address()), eax);
   // 0xD9 instructions
   __ nop();
 

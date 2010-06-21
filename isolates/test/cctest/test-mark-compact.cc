@@ -31,7 +31,6 @@
 
 #include "global-handles.h"
 #include "snapshot.h"
-#include "top.h"
 #include "cctest.h"
 
 using namespace v8::internal;
@@ -173,35 +172,40 @@ TEST(MarkCompactCollector) {
   SharedFunctionInfo* function_share =
     SharedFunctionInfo::cast(HEAP->AllocateSharedFunctionInfo(func_name));
   JSFunction* function =
-    JSFunction::cast(HEAP->AllocateFunction(*Top::function_map(),
+    JSFunction::cast(HEAP->AllocateFunction(*Isolate::Current()->function_map(),
                                             function_share,
                                             HEAP->undefined_value()));
   Map* initial_map =
       Map::cast(HEAP->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize));
   function->set_initial_map(initial_map);
-  Top::context()->global()->SetProperty(func_name, function, NONE);
+  Isolate::Current()->context()->global()->SetProperty(func_name,
+                                                       function,
+                                                       NONE);
 
   JSObject* obj = JSObject::cast(HEAP->AllocateJSObject(function));
   CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   func_name = String::cast(HEAP->LookupAsciiSymbol("theFunction"));
-  CHECK(Top::context()->global()->HasLocalProperty(func_name));
-  Object* func_value = Top::context()->global()->GetProperty(func_name);
+  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(func_name));
+  Object* func_value =
+      Isolate::Current()->context()->global()->GetProperty(func_name);
   CHECK(func_value->IsJSFunction());
   function = JSFunction::cast(func_value);
 
   obj = JSObject::cast(HEAP->AllocateJSObject(function));
   String* obj_name = String::cast(HEAP->LookupAsciiSymbol("theObject"));
-  Top::context()->global()->SetProperty(obj_name, obj, NONE);
+  Isolate::Current()->context()->global()->SetProperty(obj_name, obj, NONE);
   String* prop_name = String::cast(HEAP->LookupAsciiSymbol("theSlot"));
   obj->SetProperty(prop_name, Smi::FromInt(23), NONE);
 
   CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
 
   obj_name = String::cast(HEAP->LookupAsciiSymbol("theObject"));
-  CHECK(Top::context()->global()->HasLocalProperty(obj_name));
-  CHECK(Top::context()->global()->GetProperty(obj_name)->IsJSObject());
-  obj = JSObject::cast(Top::context()->global()->GetProperty(obj_name));
+  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(obj_name));
+  CHECK(Isolate::Current()->context()->global()->GetProperty(obj_name)->
+      IsJSObject());
+  obj = JSObject::cast(Isolate::Current()->context()->global()->
+      GetProperty(obj_name));
   prop_name = String::cast(HEAP->LookupAsciiSymbol("theSlot"));
   CHECK(obj->GetProperty(prop_name) == Smi::FromInt(23));
 }

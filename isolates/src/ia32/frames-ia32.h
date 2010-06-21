@@ -28,6 +28,8 @@
 #ifndef V8_IA32_FRAMES_IA32_H_
 #define V8_IA32_FRAMES_IA32_H_
 
+#include "memory.h"
+
 namespace v8 {
 namespace internal {
 

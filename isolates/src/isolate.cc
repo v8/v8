@@ -46,6 +46,117 @@ namespace v8 {
 namespace internal {
 
 
+// Create a dummy thread that will wait forever on a semaphore. The only
+// purpose for this thread is to have some stack area to save essential data
+// into for use by a stacks only core dump (aka minidump).
+class PreallocatedMemoryThread: public Thread {
+ public:
+  char* data() {
+    if (data_ready_semaphore_ != NULL) {
+      // Initial access is guarded until the data has been published.
+      data_ready_semaphore_->Wait();
+      delete data_ready_semaphore_;
+      data_ready_semaphore_ = NULL;
+    }
+    return data_;
+  }
+
+  unsigned length() {
+    if (data_ready_semaphore_ != NULL) {
+      // Initial access is guarded until the data has been published.
+      data_ready_semaphore_->Wait();
+      delete data_ready_semaphore_;
+      data_ready_semaphore_ = NULL;
+    }
+    return length_;
+  }
+
+  // Stop the PreallocatedMemoryThread and release its resources.
+  void StopThread() {
+    keep_running_ = false;
+    wait_for_ever_semaphore_->Signal();
+
+    // Wait for the thread to terminate.
+    Join();
+
+    if (data_ready_semaphore_ != NULL) {
+      delete data_ready_semaphore_;
+      data_ready_semaphore_ = NULL;
+    }
+
+    delete wait_for_ever_semaphore_;
+    wait_for_ever_semaphore_ = NULL;
+  }
+
+ protected:
+  // When the thread starts running it will allocate a fixed number of bytes
+  // on the stack and publish the location of this memory for others to use.
+  void Run() {
+    EmbeddedVector<char, 15 * 1024> local_buffer;
+
+    // Initialize the buffer with a known good value.
+    OS::StrNCpy(local_buffer, "Trace data was not generated.\n",
+                local_buffer.length());
+
+    // Publish the local buffer and signal its availability.
+    data_ = local_buffer.start();
+    length_ = local_buffer.length();
+    data_ready_semaphore_->Signal();
+
+    while (keep_running_) {
+      // This thread will wait here until the end of time.
+      wait_for_ever_semaphore_->Wait();
+    }
+
+    // Make sure we access the buffer after the wait to remove all possibility
+    // of it being optimized away.
+    OS::StrNCpy(local_buffer, "PreallocatedMemoryThread shutting down.\n",
+                local_buffer.length());
+  }
+
+
+ private:
+  PreallocatedMemoryThread()
+      : keep_running_(true),
+        wait_for_ever_semaphore_(OS::CreateSemaphore(0)),
+        data_ready_semaphore_(OS::CreateSemaphore(0)),
+        data_(NULL),
+        length_(0) {
+  }
+
+  // Used to make sure that the thread keeps looping even for spurious wakeups.
+  bool keep_running_;
+
+  // This semaphore is used by the PreallocatedMemoryThread to wait for ever.
+  Semaphore* wait_for_ever_semaphore_;
+  // Semaphore to signal that the data has been initialized.
+  Semaphore* data_ready_semaphore_;
+
+  // Location and size of the preallocated memory block.
+  char* data_;
+  unsigned length_;
+
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(PreallocatedMemoryThread);
+};
+
+
+void Isolate::PreallocatedMemoryThreadStart() {
+  if (preallocated_memory_thread_ != NULL) return;
+  preallocated_memory_thread_ = new PreallocatedMemoryThread();
+  preallocated_memory_thread_->Start();
+}
+
+
+void Isolate::PreallocatedMemoryThreadStop() {
+  if (preallocated_memory_thread_ == NULL) return;
+  preallocated_memory_thread_->StopThread();
+  // Done with the thread entirely.
+  delete preallocated_memory_thread_;
+  preallocated_memory_thread_ = NULL;
+}
+
 #ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
 Thread::LocalStorageKey Isolate::global_isolate_key_;
 
@@ -57,6 +168,7 @@ Isolate* Isolate::InitThreadForGlobalIsolate() {
 }
 #endif
 
+
 Isolate* Isolate::global_isolate_ = NULL;
 int Isolate::number_of_isolates_ = 0;
 
@@ -67,7 +179,6 @@ class IsolateInitializer {
     Isolate::InitOnce();
   }
 };
-
 
 static IsolateInitializer isolate_initializer;
 
@@ -109,6 +220,10 @@ Isolate* Isolate::Create(Deserializer* des) {
 
 Isolate::Isolate()
     : state_(UNINITIALIZED),
+      stack_trace_nesting_level_(0),
+      incomplete_message_(NULL),
+      preallocated_memory_thread_(NULL),
+      preallocated_message_space_(NULL),
       bootstrapper_(NULL),
       compilation_cache_(new CompilationCache()),
       cpu_features_(NULL),
@@ -120,6 +235,9 @@ Isolate::Isolate()
       descriptor_lookup_cache_(new DescriptorLookupCache()),
       handle_scope_implementer_(NULL),
       scanner_character_classes_(new ScannerCharacterClasses()) {
+  memset(isolate_addresses_, 0,
+      sizeof(isolate_addresses_[0]) * (k_isolate_address_count + 1));
+
   heap_.isolate_ = this;
   stack_guard_.isolate_ = this;
 
@@ -137,7 +255,37 @@ Isolate::Isolate()
 }
 
 
+void Isolate::TearDownAndRecreateGlobalIsolate() {
+  if (global_isolate_ != NULL) {
+    delete global_isolate_;
+    global_isolate_ = NULL;
+  }
+
+  global_isolate_ = new Isolate();
+  global_isolate_->PreInit();
+}
+
+
 Isolate::~Isolate() {
+  if (state_ == INITIALIZED) {
+    OProfileAgent::TearDown();
+    if (FLAG_preemption) {
+      v8::Locker locker;
+      v8::Locker::StopPreemption();
+    }
+    Builtins::TearDown();
+    bootstrapper_->TearDown();
+
+    // Remove the external reference to the preallocated stack memory.
+    delete preallocated_message_space_;
+    preallocated_message_space_ = NULL;
+    PreallocatedMemoryThreadStop();
+
+    HeapProfiler::TearDown();
+    CpuProfiler::TearDown();
+    heap_.TearDown();
+    Logger::TearDown();
+  }
   delete scanner_character_classes_;
   scanner_character_classes_ = NULL;
 
@@ -178,6 +326,13 @@ bool Isolate::PreInit() {
 #ifdef DEBUG
   DisallowAllocationFailure disallow_allocation_failure;
 #endif
+
+#define C(name) isolate_addresses_[Isolate::k_##name] =                        \
+    reinterpret_cast<Address>(name());
+  ISOLATE_ADDRESS_LIST(C)
+  ISOLATE_ADDRESS_LIST_PROF(C)
+#undef C
+
   bootstrapper_ = new Bootstrapper();
   cpu_features_ = new CpuFeatures();
   handle_scope_implementer_ = new HandleScopeImplementer();
@@ -187,8 +342,17 @@ bool Isolate::PreInit() {
 }
 
 
+void Isolate::InitializeThreadLocal() {
+  thread_local_top_.Initialize();
+  clear_pending_exception();
+  clear_pending_message();
+  clear_scheduled_exception();
+}
+
+
 bool Isolate::Init(Deserializer* des) {
   ASSERT(global_isolate_ == this);
+  ASSERT(state_ != INITIALIZED);
 
   bool create_heap_objects = des == NULL;
 
@@ -230,7 +394,19 @@ bool Isolate::Init(Deserializer* des) {
 
   bootstrapper_->Initialize(create_heap_objects);
   Builtins::Setup(create_heap_objects);
-  Top::Initialize();
+
+  InitializeThreadLocal();
+
+  // Only preallocate on the first initialization.
+  if (FLAG_preallocate_message_memory && preallocated_message_space_ == NULL) {
+    // Start the thread which will set aside some memory.
+    PreallocatedMemoryThreadStart();
+    preallocated_message_space_ =
+        new NoAllocationStringAllocator(
+            preallocated_memory_thread_->data(),
+            preallocated_memory_thread_->length());
+    PreallocatedStorage::Init(preallocated_memory_thread_->length() / 4);
+  }
 
   if (FLAG_preemption) {
     v8::Locker locker;

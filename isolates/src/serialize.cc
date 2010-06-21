@@ -38,7 +38,6 @@
 #include "serialize.h"
 #include "stub-cache.h"
 #include "v8threads.h"
-#include "top.h"
 #include "bootstrapper.h"
 
 namespace v8 {
@@ -276,24 +275,25 @@ void ExternalReferenceTable::PopulateTable() {
   }
 
   // Top addresses
-  const char* top_address_format = "Top::%s";
+  const char* top_address_format = "Isolate::%s";
 
   const char* AddressNames[] = {
 #define C(name) #name,
-    TOP_ADDRESS_LIST(C)
-    TOP_ADDRESS_LIST_PROF(C)
+    ISOLATE_ADDRESS_LIST(C)
+    ISOLATE_ADDRESS_LIST_PROF(C)
     NULL
 #undef C
   };
 
   int top_format_length = StrLength(top_address_format) - 2;
-  for (uint16_t i = 0; i < Top::k_top_address_count; ++i) {
+  for (uint16_t i = 0; i < Isolate::k_isolate_address_count; ++i) {
     const char* address_name = AddressNames[i];
     Vector<char> name =
         Vector<char>::New(top_format_length + StrLength(address_name) + 1);
     const char* chars = name.start();
     OS::SNPrintF(name, top_address_format, address_name);
-    Add(Top::get_address_from_id((Top::AddressId)i), TOP_ADDRESS, i, chars);
+    Add(Isolate::Current()->get_address_from_id((Isolate::AddressId)i),
+        TOP_ADDRESS, i, chars);
   }
 
   // Extensions

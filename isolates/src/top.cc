@@ -39,43 +39,6 @@
 namespace v8 {
 namespace internal {
 
-class PreallocatedMemoryThread;
-
-class TopState {
- public:
-  TopState()
-      : preallocated_message_space_(NULL),
-        initialized_(false),
-        stack_trace_nesting_level_(0),
-        incomplete_message_(NULL),
-        preallocated_memory_thread_(NULL) {
-#define C(name) top_addresses_[Top::k_##name] =                                \
-        reinterpret_cast<Address>(Top::name());
-        TOP_ADDRESS_LIST(C)
-        TOP_ADDRESS_LIST_PROF(C)
-#undef C
-    top_addresses_[Top::k_top_address_count] = NULL;
-  }
-
-  inline void PreallocatedMemoryThreadStart();
-  inline void PreallocatedMemoryThreadStop();
-
-  NoAllocationStringAllocator* preallocated_message_space_;
-  bool initialized_;
-  int stack_trace_nesting_level_;
-  StringStream* incomplete_message_;
-  // The preallocated memory thread singleton.
-  PreallocatedMemoryThread* preallocated_memory_thread_;
-  Address top_addresses_[Top::k_top_address_count + 1];
-};
-
-
-// TODO(isolates): We will be moving this to Isolate ASAP.
-static TopState* GetTopState() {
-  static TopState top_state;
-  return &top_state;
-}
-
 
 v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
   return TRY_CATCH_FROM_ADDRESS(try_catch_handler_address());
@@ -100,30 +63,30 @@ void ThreadLocalTop::Initialize() {
 }
 
 
-Address Top::get_address_from_id(Top::AddressId id) {
-  return GetTopState()->top_addresses_[id];
+Address Isolate::get_address_from_id(Isolate::AddressId id) {
+  return isolate_addresses_[id];
 }
 
 
-char* Top::Iterate(ObjectVisitor* v, char* thread_storage) {
+char* Isolate::Iterate(ObjectVisitor* v, char* thread_storage) {
   ThreadLocalTop* thread = reinterpret_cast<ThreadLocalTop*>(thread_storage);
   Iterate(v, thread);
   return thread_storage + sizeof(ThreadLocalTop);
 }
 
 
-void Top::IterateThread(ThreadVisitor* v) {
-  v->VisitThread(thread_local());
+void Isolate::IterateThread(ThreadVisitor* v) {
+  v->VisitThread(thread_local_top());
 }
 
 
-void Top::IterateThread(ThreadVisitor* v, char* t) {
+void Isolate::IterateThread(ThreadVisitor* v, char* t) {
   ThreadLocalTop* thread = reinterpret_cast<ThreadLocalTop*>(t);
   v->VisitThread(thread);
 }
 
 
-void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
+void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   v->VisitPointer(&(thread->pending_exception_));
   v->VisitPointer(&(thread->pending_message_obj_));
   v->VisitPointer(
@@ -145,168 +108,13 @@ void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
 }
 
 
-void Top::Iterate(ObjectVisitor* v) {
-  ThreadLocalTop* current_t = thread_local();
+void Isolate::Iterate(ObjectVisitor* v) {
+  ThreadLocalTop* current_t = thread_local_top();
   Iterate(v, current_t);
 }
 
 
-void Top::InitializeThreadLocal() {
-  thread_local()->Initialize();
-  clear_pending_exception();
-  clear_pending_message();
-  clear_scheduled_exception();
-}
-
-
-// Create a dummy thread that will wait forever on a semaphore. The only
-// purpose for this thread is to have some stack area to save essential data
-// into for use by a stacks only core dump (aka minidump).
-class PreallocatedMemoryThread: public Thread {
- public:
-  char* data() {
-    if (data_ready_semaphore_ != NULL) {
-      // Initial access is guarded until the data has been published.
-      data_ready_semaphore_->Wait();
-      delete data_ready_semaphore_;
-      data_ready_semaphore_ = NULL;
-    }
-    return data_;
-  }
-
-  unsigned length() {
-    if (data_ready_semaphore_ != NULL) {
-      // Initial access is guarded until the data has been published.
-      data_ready_semaphore_->Wait();
-      delete data_ready_semaphore_;
-      data_ready_semaphore_ = NULL;
-    }
-    return length_;
-  }
-
-  // Stop the PreallocatedMemoryThread and release its resources.
-  void StopThread() {
-    keep_running_ = false;
-    wait_for_ever_semaphore_->Signal();
-
-    // Wait for the thread to terminate.
-    Join();
-
-    if (data_ready_semaphore_ != NULL) {
-      delete data_ready_semaphore_;
-      data_ready_semaphore_ = NULL;
-    }
-
-    delete wait_for_ever_semaphore_;
-    wait_for_ever_semaphore_ = NULL;
-  }
-
- protected:
-  // When the thread starts running it will allocate a fixed number of bytes
-  // on the stack and publish the location of this memory for others to use.
-  void Run() {
-    EmbeddedVector<char, 15 * 1024> local_buffer;
-
-    // Initialize the buffer with a known good value.
-    OS::StrNCpy(local_buffer, "Trace data was not generated.\n",
-                local_buffer.length());
-
-    // Publish the local buffer and signal its availability.
-    data_ = local_buffer.start();
-    length_ = local_buffer.length();
-    data_ready_semaphore_->Signal();
-
-    while (keep_running_) {
-      // This thread will wait here until the end of time.
-      wait_for_ever_semaphore_->Wait();
-    }
-
-    // Make sure we access the buffer after the wait to remove all possibility
-    // of it being optimized away.
-    OS::StrNCpy(local_buffer, "PreallocatedMemoryThread shutting down.\n",
-                local_buffer.length());
-  }
-
-
- private:
-  PreallocatedMemoryThread()
-      : keep_running_(true),
-        wait_for_ever_semaphore_(OS::CreateSemaphore(0)),
-        data_ready_semaphore_(OS::CreateSemaphore(0)),
-        data_(NULL),
-        length_(0) {
-  }
-
-  // Used to make sure that the thread keeps looping even for spurious wakeups.
-  bool keep_running_;
-
-  // This semaphore is used by the PreallocatedMemoryThread to wait for ever.
-  Semaphore* wait_for_ever_semaphore_;
-  // Semaphore to signal that the data has been initialized.
-  Semaphore* data_ready_semaphore_;
-
-  // Location and size of the preallocated memory block.
-  char* data_;
-  unsigned length_;
-
-  friend class TopState;
-
-  DISALLOW_COPY_AND_ASSIGN(PreallocatedMemoryThread);
-};
-
-
-void TopState::PreallocatedMemoryThreadStart() {
-  if (preallocated_memory_thread_ != NULL) return;
-  preallocated_memory_thread_ = new PreallocatedMemoryThread();
-  preallocated_memory_thread_->Start();
-}
-
-
-void TopState::PreallocatedMemoryThreadStop() {
-  if (preallocated_memory_thread_ == NULL) return;
-  preallocated_memory_thread_->StopThread();
-  // Done with the thread entirely.
-  delete preallocated_memory_thread_;
-  preallocated_memory_thread_ = NULL;
-}
-
-
-void Top::Initialize() {
-  CHECK(!GetTopState()->initialized_);
-
-  InitializeThreadLocal();
-
-  // Only preallocate on the first initialization.
-  if (FLAG_preallocate_message_memory &&
-      (GetTopState()->preallocated_message_space_ == NULL)) {
-    // Start the thread which will set aside some memory.
-    GetTopState()->PreallocatedMemoryThreadStart();
-    GetTopState()->preallocated_message_space_ =
-        new NoAllocationStringAllocator(
-            GetTopState()->preallocated_memory_thread_->data(),
-            GetTopState()->preallocated_memory_thread_->length());
-    PreallocatedStorage::Init(
-        GetTopState()->preallocated_memory_thread_->length() / 4);
-  }
-  GetTopState()->initialized_ = true;
-}
-
-
-void Top::TearDown() {
-  if (GetTopState()->initialized_) {
-    // Remove the external reference to the preallocated stack memory.
-    if (GetTopState()->preallocated_message_space_ != NULL) {
-      delete GetTopState()->preallocated_message_space_;
-      GetTopState()->preallocated_message_space_ = NULL;
-    }
-
-    GetTopState()->PreallocatedMemoryThreadStop();
-    GetTopState()->initialized_ = false;
-  }
-}
-
-
-void Top::RegisterTryCatchHandler(v8::TryCatch* that) {
+void Isolate::RegisterTryCatchHandler(v8::TryCatch* that) {
   // The ARM simulator has a separate JS stack.  We therefore register
   // the C++ try catch handler with the simulator and get back an
   // address that can be used for comparisons with addresses into the
@@ -314,72 +122,72 @@ void Top::RegisterTryCatchHandler(v8::TryCatch* that) {
   // returned will be the address of the C++ try catch handler itself.
   Address address = reinterpret_cast<Address>(
       SimulatorStack::RegisterCTryCatch(reinterpret_cast<uintptr_t>(that)));
-  thread_local()->set_try_catch_handler_address(address);
+  thread_local_top()->set_try_catch_handler_address(address);
 }
 
 
-void Top::UnregisterTryCatchHandler(v8::TryCatch* that) {
-  ASSERT(thread_local()->TryCatchHandler() == that);
-  thread_local()->set_try_catch_handler_address(
+void Isolate::UnregisterTryCatchHandler(v8::TryCatch* that) {
+  ASSERT(thread_local_top()->TryCatchHandler() == that);
+  thread_local_top()->set_try_catch_handler_address(
       reinterpret_cast<Address>(that->next_));
-  thread_local()->catcher_ = NULL;
+  thread_local_top()->catcher_ = NULL;
   SimulatorStack::UnregisterCTryCatch();
 }
 
 
-void Top::MarkCompactPrologue(bool is_compacting) {
-  MarkCompactPrologue(is_compacting, thread_local());
+void Isolate::MarkCompactPrologue(bool is_compacting) {
+  MarkCompactPrologue(is_compacting, thread_local_top());
 }
 
 
-void Top::MarkCompactPrologue(bool is_compacting, char* data) {
+void Isolate::MarkCompactPrologue(bool is_compacting, char* data) {
   MarkCompactPrologue(is_compacting, reinterpret_cast<ThreadLocalTop*>(data));
 }
 
 
-void Top::MarkCompactPrologue(bool is_compacting, ThreadLocalTop* thread) {
+void Isolate::MarkCompactPrologue(bool is_compacting, ThreadLocalTop* thread) {
   if (is_compacting) {
     StackFrame::CookFramesForThread(thread);
   }
 }
 
 
-void Top::MarkCompactEpilogue(bool is_compacting, char* data) {
+void Isolate::MarkCompactEpilogue(bool is_compacting, char* data) {
   MarkCompactEpilogue(is_compacting, reinterpret_cast<ThreadLocalTop*>(data));
 }
 
 
-void Top::MarkCompactEpilogue(bool is_compacting) {
-  MarkCompactEpilogue(is_compacting, thread_local());
+void Isolate::MarkCompactEpilogue(bool is_compacting) {
+  MarkCompactEpilogue(is_compacting, thread_local_top());
 }
 
 
-void Top::MarkCompactEpilogue(bool is_compacting, ThreadLocalTop* thread) {
+void Isolate::MarkCompactEpilogue(bool is_compacting, ThreadLocalTop* thread) {
   if (is_compacting) {
     StackFrame::UncookFramesForThread(thread);
   }
 }
 
 
-Handle<String> Top::StackTraceString() {
-  if (GetTopState()->stack_trace_nesting_level_ == 0) {
-    GetTopState()->stack_trace_nesting_level_++;
+Handle<String> Isolate::StackTraceString() {
+  if (stack_trace_nesting_level_ == 0) {
+    stack_trace_nesting_level_++;
     HeapStringAllocator allocator;
     StringStream::ClearMentionedObjectCache();
     StringStream accumulator(&allocator);
-    GetTopState()->incomplete_message_ = &accumulator;
+    incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
     Handle<String> stack_trace = accumulator.ToString();
-    GetTopState()->incomplete_message_ = NULL;
-    GetTopState()->stack_trace_nesting_level_ = 0;
+    incomplete_message_ = NULL;
+    stack_trace_nesting_level_ = 0;
     return stack_trace;
-  } else if (GetTopState()->stack_trace_nesting_level_ == 1) {
-    GetTopState()->stack_trace_nesting_level_++;
+  } else if (stack_trace_nesting_level_ == 1) {
+    stack_trace_nesting_level_++;
     OS::PrintError(
       "\n\nAttempt to print stack while printing stack (double fault)\n");
     OS::PrintError(
       "If you are lucky you may find a partial stack dump on stdout.\n\n");
-    GetTopState()->incomplete_message_->OutputToStdOut();
+    incomplete_message_->OutputToStdOut();
     return Factory::empty_symbol();
   } else {
     OS::Abort();
@@ -389,7 +197,7 @@ Handle<String> Top::StackTraceString() {
 }
 
 
-Local<StackTrace> Top::CaptureCurrentStackTrace(
+Local<StackTrace> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
   v8::HandleScope scope;
   // Ensure no negative values.
@@ -471,15 +279,15 @@ Local<StackTrace> Top::CaptureCurrentStackTrace(
 }
 
 
-void Top::PrintStack() {
-  if (GetTopState()->stack_trace_nesting_level_ == 0) {
-    GetTopState()->stack_trace_nesting_level_++;
+void Isolate::PrintStack() {
+  if (stack_trace_nesting_level_ == 0) {
+    stack_trace_nesting_level_++;
 
     StringAllocator* allocator;
-    if (GetTopState()->preallocated_message_space_ == NULL) {
+    if (preallocated_message_space_ == NULL) {
       allocator = new HeapStringAllocator();
     } else {
-      allocator = GetTopState()->preallocated_message_space_;
+      allocator = preallocated_message_space_;
     }
 
     NativeAllocationChecker allocation_checker(
@@ -489,23 +297,23 @@ void Top::PrintStack() {
 
     StringStream::ClearMentionedObjectCache();
     StringStream accumulator(allocator);
-    GetTopState()->incomplete_message_ = &accumulator;
+    incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
     accumulator.OutputToStdOut();
     accumulator.Log();
-    GetTopState()->incomplete_message_ = NULL;
-    GetTopState()->stack_trace_nesting_level_ = 0;
-    if (GetTopState()->preallocated_message_space_ == NULL) {
+    incomplete_message_ = NULL;
+    stack_trace_nesting_level_ = 0;
+    if (preallocated_message_space_ == NULL) {
       // Remove the HeapStringAllocator created above.
       delete allocator;
     }
-  } else if (GetTopState()->stack_trace_nesting_level_ == 1) {
-    GetTopState()->stack_trace_nesting_level_++;
+  } else if (stack_trace_nesting_level_ == 1) {
+    stack_trace_nesting_level_++;
     OS::PrintError(
       "\n\nAttempt to print stack while printing stack (double fault)\n");
     OS::PrintError(
       "If you are lucky you may find a partial stack dump on stdout.\n\n");
-    GetTopState()->incomplete_message_->OutputToStdOut();
+    incomplete_message_->OutputToStdOut();
   }
 }
 
@@ -519,13 +327,13 @@ static void PrintFrames(StringStream* accumulator,
 }
 
 
-void Top::PrintStack(StringStream* accumulator) {
+void Isolate::PrintStack(StringStream* accumulator) {
   // The MentionedObjectCache is not GC-proof at the moment.
   AssertNoAllocation nogc;
   ASSERT(StringStream::IsMentionedObjectCacheClear());
 
   // Avoid printing anything if there are no frames.
-  if (c_entry_fp(thread_local()) == 0) return;
+  if (c_entry_fp(thread_local_top()) == 0) return;
 
   accumulator->Add(
       "\n==== Stack trace ============================================\n\n");
@@ -540,17 +348,18 @@ void Top::PrintStack(StringStream* accumulator) {
 }
 
 
-void Top::SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback) {
-  ASSERT(thread_local()->failed_access_check_callback_ == NULL);
-  thread_local()->failed_access_check_callback_ = callback;
+void Isolate::SetFailedAccessCheckCallback(
+    v8::FailedAccessCheckCallback callback) {
+  ASSERT(thread_local_top()->failed_access_check_callback_ == NULL);
+  thread_local_top()->failed_access_check_callback_ = callback;
 }
 
 
-void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
-  if (!thread_local()->failed_access_check_callback_) return;
+void Isolate::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
+  if (!thread_local_top()->failed_access_check_callback_) return;
 
   ASSERT(receiver->IsAccessCheckNeeded());
-  ASSERT(Top::context());
+  ASSERT(context());
   // The callers of this method are not expecting a GC.
   AssertNoAllocation no_gc;
 
@@ -559,12 +368,12 @@ void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
   if (!constructor->shared()->IsApiFunction()) return;
   Object* data_obj =
       constructor->shared()->get_api_func_data()->access_check_info();
-  if (data_obj == HEAP->undefined_value()) return;
+  if (data_obj == heap_.undefined_value()) return;
 
   HandleScope scope;
   Handle<JSObject> receiver_handle(receiver);
   Handle<Object> data(AccessCheckInfo::cast(data_obj)->data());
-  thread_local()->failed_access_check_callback_(
+  thread_local_top()->failed_access_check_callback_(
     v8::Utils::ToLocal(receiver_handle),
     type,
     v8::Utils::ToLocal(data));
@@ -576,7 +385,8 @@ enum MayAccessDecision {
 };
 
 
-static MayAccessDecision MayAccessPreCheck(JSObject* receiver,
+static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
+                                           JSObject* receiver,
                                            v8::AccessType type) {
   // During bootstrapping, callback functions are not enabled yet.
   if (Bootstrapper::IsActive()) return YES;
@@ -586,8 +396,8 @@ static MayAccessDecision MayAccessPreCheck(JSObject* receiver,
     if (!receiver_context->IsContext()) return NO;
 
     // Get the global context of current top context.
-    // avoid using Top::global_context() because it uses Handle.
-    Context* global_context = Top::context()->global()->global_context();
+    // avoid using Isolate::global_context() because it uses Handle.
+    Context* global_context = isolate->context()->global()->global_context();
     if (receiver_context == global_context) return YES;
 
     if (Context::cast(receiver_context)->security_token() ==
@@ -599,7 +409,8 @@ static MayAccessDecision MayAccessPreCheck(JSObject* receiver,
 }
 
 
-bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
+bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
+                             v8::AccessType type) {
   ASSERT(receiver->IsAccessCheckNeeded());
 
   // The callers of this method are not expecting a GC.
@@ -607,13 +418,13 @@ bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
 
   // Skip checks for hidden properties access.  Note, we do not
   // require existence of a context in this case.
-  if (key == HEAP->hidden_symbol()) return true;
+  if (key == heap_.hidden_symbol()) return true;
 
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
-  ASSERT(Top::context());
+  ASSERT(context());
 
-  MayAccessDecision decision = MayAccessPreCheck(receiver, type);
+  MayAccessDecision decision = MayAccessPreCheck(this, receiver, type);
   if (decision != UNKNOWN) return decision == YES;
 
   // Get named access check callback
@@ -622,7 +433,7 @@ bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
 
   Object* data_obj =
      constructor->shared()->get_api_func_data()->access_check_info();
-  if (data_obj == HEAP->undefined_value()) return false;
+  if (data_obj == heap_.undefined_value()) return false;
 
   Object* fun_obj = AccessCheckInfo::cast(data_obj)->named_callback();
   v8::NamedSecurityCallback callback =
@@ -648,17 +459,17 @@ bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
 }
 
 
-bool Top::MayIndexedAccess(JSObject* receiver,
-                           uint32_t index,
-                           v8::AccessType type) {
+bool Isolate::MayIndexedAccess(JSObject* receiver,
+                               uint32_t index,
+                               v8::AccessType type) {
   ASSERT(receiver->IsAccessCheckNeeded());
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
-  ASSERT(Top::context());
+  ASSERT(context());
   // The callers of this method are not expecting a GC.
   AssertNoAllocation no_gc;
 
-  MayAccessDecision decision = MayAccessPreCheck(receiver, type);
+  MayAccessDecision decision = MayAccessPreCheck(this, receiver, type);
   if (decision != UNKNOWN) return decision == YES;
 
   // Get indexed access check callback
@@ -667,7 +478,7 @@ bool Top::MayIndexedAccess(JSObject* receiver,
 
   Object* data_obj =
       constructor->shared()->get_api_func_data()->access_check_info();
-  if (data_obj == HEAP->undefined_value()) return false;
+  if (data_obj == heap_.undefined_value()) return false;
 
   Object* fun_obj = AccessCheckInfo::cast(data_obj)->indexed_callback();
   v8::IndexedSecurityCallback callback =
@@ -692,15 +503,15 @@ bool Top::MayIndexedAccess(JSObject* receiver,
 }
 
 
-const char* Top::kStackOverflowMessage =
+const char* Isolate::kStackOverflowMessage =
   "Uncaught RangeError: Maximum call stack size exceeded";
 
 
-Failure* Top::StackOverflow() {
+Failure* Isolate::StackOverflow() {
   HandleScope scope;
   Handle<String> key = Factory::stack_overflow_symbol();
   Handle<JSObject> boilerplate =
-      Handle<JSObject>::cast(GetProperty(Top::builtins(), key));
+      Handle<JSObject>::cast(GetProperty(builtins(), key));
   Handle<Object> exception = Copy(boilerplate);
   // TODO(1240995): To avoid having to call JavaScript code to compute
   // the message for stack overflow exceptions which is very likely to
@@ -714,41 +525,41 @@ Failure* Top::StackOverflow() {
 }
 
 
-Failure* Top::TerminateExecution() {
-  DoThrow(HEAP->termination_exception(), NULL, NULL);
+Failure* Isolate::TerminateExecution() {
+  DoThrow(heap_.termination_exception(), NULL, NULL);
   return Failure::Exception();
 }
 
 
-Failure* Top::Throw(Object* exception, MessageLocation* location) {
+Failure* Isolate::Throw(Object* exception, MessageLocation* location) {
   DoThrow(exception, location, NULL);
   return Failure::Exception();
 }
 
 
-Failure* Top::ReThrow(Object* exception, MessageLocation* location) {
+Failure* Isolate::ReThrow(Object* exception, MessageLocation* location) {
   // Set the exception being re-thrown.
   set_pending_exception(exception);
   return Failure::Exception();
 }
 
 
-Failure* Top::ThrowIllegalOperation() {
-  return Throw(HEAP->illegal_access_symbol());
+Failure* Isolate::ThrowIllegalOperation() {
+  return Throw(heap_.illegal_access_symbol());
 }
 
 
-void Top::ScheduleThrow(Object* exception) {
+void Isolate::ScheduleThrow(Object* exception) {
   // When scheduling a throw we first throw the exception to get the
   // error reporting if it is uncaught before rescheduling it.
   Throw(exception);
-  thread_local()->scheduled_exception_ = pending_exception();
-  thread_local()->external_caught_exception_ = false;
+  thread_local_top()->scheduled_exception_ = pending_exception();
+  thread_local_top()->external_caught_exception_ = false;
   clear_pending_exception();
 }
 
 
-Object* Top::PromoteScheduledException() {
+Object* Isolate::PromoteScheduledException() {
   Object* thrown = scheduled_exception();
   clear_scheduled_exception();
   // Re-throw the exception to avoid getting repeated error reporting.
@@ -756,7 +567,7 @@ Object* Top::PromoteScheduledException() {
 }
 
 
-void Top::PrintCurrentStackTrace(FILE* out) {
+void Isolate::PrintCurrentStackTrace(FILE* out) {
   StackTraceFrameIterator it;
   while (!it.done()) {
     HandleScope scope;
@@ -784,8 +595,8 @@ void Top::PrintCurrentStackTrace(FILE* out) {
 }
 
 
-void Top::ComputeLocation(MessageLocation* target) {
-  *target = MessageLocation(Handle<Script>(HEAP->empty_script()), -1, -1);
+void Isolate::ComputeLocation(MessageLocation* target) {
+  *target = MessageLocation(Handle<Script>(heap_.empty_script()), -1, -1);
   StackTraceFrameIterator it;
   if (!it.done()) {
     JavaScriptFrame* frame = it.frame();
@@ -802,9 +613,9 @@ void Top::ComputeLocation(MessageLocation* target) {
 }
 
 
-void Top::ReportUncaughtException(Handle<Object> exception,
-                                  MessageLocation* location,
-                                  Handle<String> stack_trace) {
+void Isolate::ReportUncaughtException(Handle<Object> exception,
+                                      MessageLocation* location,
+                                      Handle<String> stack_trace) {
   Handle<Object> message;
   if (!Bootstrapper::IsActive()) {
     // It's not safe to try to make message objects while the bootstrapper
@@ -821,11 +632,11 @@ void Top::ReportUncaughtException(Handle<Object> exception,
 }
 
 
-bool Top::ShouldReturnException(bool* is_caught_externally,
-                                bool catchable_by_javascript) {
+bool Isolate::ShouldReturnException(bool* is_caught_externally,
+                                    bool catchable_by_javascript) {
   // Find the top-most try-catch handler.
   StackHandler* handler =
-      StackHandler::FromAddress(Top::handler(thread_local()));
+      StackHandler::FromAddress(Isolate::handler(thread_local_top()));
   while (handler != NULL && !handler->is_try_catch()) {
     handler = handler->next();
   }
@@ -833,7 +644,7 @@ bool Top::ShouldReturnException(bool* is_caught_externally,
   // Get the address of the external handler so we can compare the address to
   // determine which one is closer to the top of the stack.
   Address external_handler_address =
-      thread_local()->try_catch_handler_address();
+      thread_local_top()->try_catch_handler_address();
 
   // The exception has been externally caught if and only if there is
   // an external handler which is on top of the top-most try-catch
@@ -844,7 +655,7 @@ bool Top::ShouldReturnException(bool* is_caught_externally,
 
   if (*is_caught_externally) {
     // Only report the exception if the external handler is verbose.
-    return thread_local()->TryCatchHandler()->is_verbose_;
+    return thread_local_top()->TryCatchHandler()->is_verbose_;
   } else {
     // Report the exception if it isn't caught by JavaScript code.
     return handler == NULL;
@@ -852,9 +663,9 @@ bool Top::ShouldReturnException(bool* is_caught_externally,
 }
 
 
-void Top::DoThrow(Object* exception,
-                  MessageLocation* location,
-                  const char* message) {
+void Isolate::DoThrow(Object* exception,
+                      MessageLocation* location,
+                      const char* message) {
   ASSERT(!has_pending_exception());
 
   HandleScope scope;
@@ -863,7 +674,7 @@ void Top::DoThrow(Object* exception,
   // Determine reporting and whether the exception is caught externally.
   bool is_caught_externally = false;
   bool is_out_of_memory = exception == Failure::OutOfMemoryException();
-  bool is_termination_exception = exception == HEAP->termination_exception();
+  bool is_termination_exception = exception == heap_.termination_exception();
   bool catchable_by_javascript = !is_termination_exception && !is_out_of_memory;
   bool should_return_exception =
       ShouldReturnException(&is_caught_externally, catchable_by_javascript);
@@ -881,7 +692,7 @@ void Top::DoThrow(Object* exception,
   MessageLocation potential_computed_location;
   bool try_catch_needs_message =
       is_caught_externally &&
-      thread_local()->TryCatchHandler()->capture_message_;
+      thread_local_top()->TryCatchHandler()->capture_message_;
   if (report_exception || try_catch_needs_message) {
     if (location == NULL) {
       // If no location was specified we use a computed one instead
@@ -900,19 +711,19 @@ void Top::DoThrow(Object* exception,
   }
 
   // Save the message for reporting if the the exception remains uncaught.
-  thread_local()->has_pending_message_ = report_exception;
-  thread_local()->pending_message_ = message;
+  thread_local_top()->has_pending_message_ = report_exception;
+  thread_local_top()->pending_message_ = message;
   if (!message_obj.is_null()) {
-    thread_local()->pending_message_obj_ = *message_obj;
+    thread_local_top()->pending_message_obj_ = *message_obj;
     if (location != NULL) {
-      thread_local()->pending_message_script_ = *location->script();
-      thread_local()->pending_message_start_pos_ = location->start_pos();
-      thread_local()->pending_message_end_pos_ = location->end_pos();
+      thread_local_top()->pending_message_script_ = *location->script();
+      thread_local_top()->pending_message_start_pos_ = location->start_pos();
+      thread_local_top()->pending_message_end_pos_ = location->end_pos();
     }
   }
 
   if (is_caught_externally) {
-    thread_local()->catcher_ = thread_local()->TryCatchHandler();
+    thread_local_top()->catcher_ = thread_local_top()->TryCatchHandler();
   }
 
   // NOTE: Notifying the debugger or generating the message
@@ -922,44 +733,46 @@ void Top::DoThrow(Object* exception,
 }
 
 
-void Top::ReportPendingMessages() {
+void Isolate::ReportPendingMessages() {
   ASSERT(has_pending_exception());
   setup_external_caught();
   // If the pending exception is OutOfMemoryException set out_of_memory in
   // the global context.  Note: We have to mark the global context here
   // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
   // set it.
-  bool external_caught = thread_local()->external_caught_exception_;
+  bool external_caught = thread_local_top()->external_caught_exception_;
   HandleScope scope;
-  if (thread_local()->pending_exception_ == Failure::OutOfMemoryException()) {
+  if (thread_local_top()->pending_exception_ ==
+      Failure::OutOfMemoryException()) {
     context()->mark_out_of_memory();
-  } else if (thread_local()->pending_exception_ ==
-             HEAP->termination_exception()) {
+  } else if (thread_local_top()->pending_exception_ ==
+             heap_.termination_exception()) {
     if (external_caught) {
-      thread_local()->TryCatchHandler()->can_continue_ = false;
-      thread_local()->TryCatchHandler()->exception_ = HEAP->null_value();
+      thread_local_top()->TryCatchHandler()->can_continue_ = false;
+      thread_local_top()->TryCatchHandler()->exception_ = heap_.null_value();
     }
   } else {
     Handle<Object> exception(pending_exception());
-    thread_local()->external_caught_exception_ = false;
+    thread_local_top()->external_caught_exception_ = false;
     if (external_caught) {
-      thread_local()->TryCatchHandler()->can_continue_ = true;
-      thread_local()->TryCatchHandler()->exception_ =
-        thread_local()->pending_exception_;
-      if (!thread_local()->pending_message_obj_->IsTheHole()) {
-        try_catch_handler()->message_ = thread_local()->pending_message_obj_;
+      thread_local_top()->TryCatchHandler()->can_continue_ = true;
+      thread_local_top()->TryCatchHandler()->exception_ =
+        thread_local_top()->pending_exception_;
+      if (!thread_local_top()->pending_message_obj_->IsTheHole()) {
+        try_catch_handler()->message_ =
+            thread_local_top()->pending_message_obj_;
       }
     }
-    if (thread_local()->has_pending_message_) {
-      thread_local()->has_pending_message_ = false;
-      if (thread_local()->pending_message_ != NULL) {
-        MessageHandler::ReportMessage(thread_local()->pending_message_);
-      } else if (!thread_local()->pending_message_obj_->IsTheHole()) {
-        Handle<Object> message_obj(thread_local()->pending_message_obj_);
-        if (thread_local()->pending_message_script_ != NULL) {
-          Handle<Script> script(thread_local()->pending_message_script_);
-          int start_pos = thread_local()->pending_message_start_pos_;
-          int end_pos = thread_local()->pending_message_end_pos_;
+    if (thread_local_top()->has_pending_message_) {
+      thread_local_top()->has_pending_message_ = false;
+      if (thread_local_top()->pending_message_ != NULL) {
+        MessageHandler::ReportMessage(thread_local_top()->pending_message_);
+      } else if (!thread_local_top()->pending_message_obj_->IsTheHole()) {
+        Handle<Object> message_obj(thread_local_top()->pending_message_obj_);
+        if (thread_local_top()->pending_message_script_ != NULL) {
+          Handle<Script> script(thread_local_top()->pending_message_script_);
+          int start_pos = thread_local_top()->pending_message_start_pos_;
+          int end_pos = thread_local_top()->pending_message_end_pos_;
           MessageLocation location(script, start_pos, end_pos);
           MessageHandler::ReportMessage(&location, message_obj);
         } else {
@@ -967,40 +780,40 @@ void Top::ReportPendingMessages() {
         }
       }
     }
-    thread_local()->external_caught_exception_ = external_caught;
+    thread_local_top()->external_caught_exception_ = external_caught;
     set_pending_exception(*exception);
   }
   clear_pending_message();
 }
 
 
-void Top::TraceException(bool flag) {
-  FLAG_trace_exception = flag;
+void Isolate::TraceException(bool flag) {
+  FLAG_trace_exception = flag; // TODO(isolates): This is an unfortunate use.
 }
 
 
-bool Top::OptionalRescheduleException(bool is_bottom_call) {
+bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
   // Allways reschedule out of memory exceptions.
   if (!is_out_of_memory()) {
     bool is_termination_exception =
-        pending_exception() == HEAP->termination_exception();
+        pending_exception() == heap_.termination_exception();
 
     // Do not reschedule the exception if this is the bottom call.
     bool clear_exception = is_bottom_call;
 
     if (is_termination_exception) {
       if (is_bottom_call) {
-        thread_local()->external_caught_exception_ = false;
+        thread_local_top()->external_caught_exception_ = false;
         clear_pending_exception();
         return false;
       }
-    } else if (thread_local()->external_caught_exception_) {
+    } else if (thread_local_top()->external_caught_exception_) {
       // If the exception is externally caught, clear it if there are no
       // JavaScript frames on the way to the C++ frame that has the
       // external handler.
-      ASSERT(thread_local()->try_catch_handler_address() != NULL);
+      ASSERT(thread_local_top()->try_catch_handler_address() != NULL);
       Address external_handler_address =
-          thread_local()->try_catch_handler_address();
+          thread_local_top()->try_catch_handler_address();
       JavaScriptFrameIterator it;
       if (it.done() || (it.frame()->sp() > external_handler_address)) {
         clear_exception = true;
@@ -1009,20 +822,20 @@ bool Top::OptionalRescheduleException(bool is_bottom_call) {
 
     // Clear the exception if needed.
     if (clear_exception) {
-      thread_local()->external_caught_exception_ = false;
+      thread_local_top()->external_caught_exception_ = false;
       clear_pending_exception();
       return false;
     }
   }
 
   // Reschedule the exception.
-  thread_local()->scheduled_exception_ = pending_exception();
+  thread_local_top()->scheduled_exception_ = pending_exception();
   clear_pending_exception();
   return true;
 }
 
 
-bool Top::is_out_of_memory() {
+bool Isolate::is_out_of_memory() {
   if (has_pending_exception()) {
     Object* e = pending_exception();
     if (e->IsFailure() && Failure::cast(e)->IsOutOfMemoryException()) {
@@ -1039,13 +852,13 @@ bool Top::is_out_of_memory() {
 }
 
 
-Handle<Context> Top::global_context() {
-  GlobalObject* global = thread_local()->context_->global();
+Handle<Context> Isolate::global_context() {
+  GlobalObject* global = thread_local_top()->context_->global();
   return Handle<Context>(global->global_context());
 }
 
 
-Handle<Context> Top::GetCallingGlobalContext() {
+Handle<Context> Isolate::GetCallingGlobalContext() {
   JavaScriptFrameIterator it;
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (Debug::InDebugger()) {
@@ -1067,15 +880,17 @@ Handle<Context> Top::GetCallingGlobalContext() {
 }
 
 
-char* Top::ArchiveThread(char* to) {
-  memcpy(to, reinterpret_cast<char*>(thread_local()), sizeof(ThreadLocalTop));
+char* Isolate::ArchiveThread(char* to) {
+  memcpy(to, reinterpret_cast<char*>(thread_local_top()),
+      sizeof(ThreadLocalTop));
   InitializeThreadLocal();
   return to + sizeof(ThreadLocalTop);
 }
 
 
-char* Top::RestoreThread(char* from) {
-  memcpy(reinterpret_cast<char*>(thread_local()), from, sizeof(ThreadLocalTop));
+char* Isolate::RestoreThread(char* from) {
+  memcpy(reinterpret_cast<char*>(thread_local_top()), from,
+      sizeof(ThreadLocalTop));
   return from + sizeof(ThreadLocalTop);
 }
 

@@ -40,7 +40,6 @@
 #include "profile-generator-inl.h"
 #include "serialize.h"
 #include "snapshot.h"
-#include "top.h"
 #include "utils.h"
 #include "v8threads.h"
 #include "version.h"
@@ -69,7 +68,7 @@ namespace v8 {
 #define EXCEPTION_PREAMBLE()                                      \
   i::Isolate* isolate = i::Isolate::Current();                    \
   isolate->handle_scope_implementer()->IncrementCallDepth();      \
-  ASSERT(!i::Top::external_caught_exception());                   \
+  ASSERT(!isolate->external_caught_exception());                  \
   bool has_pending_exception = false
 
 
@@ -80,12 +79,12 @@ namespace v8 {
     handle_scope_implementer->DecrementCallDepth();                            \
     if (has_pending_exception) {                                               \
       if (handle_scope_implementer->CallDepthIsZero() &&                       \
-          i::Top::is_out_of_memory()) {                                        \
+          i::Isolate::Current()->is_out_of_memory()) {                         \
         if (!handle_scope_implementer->ignore_out_of_memory())                 \
           i::V8::FatalProcessOutOfMemory(NULL);                                \
       }                                                                        \
       bool call_depth_is_zero = handle_scope_implementer->CallDepthIsZero();   \
-      i::Top::OptionalRescheduleException(call_depth_is_zero);                 \
+      i::Isolate::Current()->OptionalRescheduleException(call_depth_is_zero);  \
       return value;                                                            \
     }                                                                          \
   } while (false)
@@ -313,9 +312,9 @@ v8::Handle<Value> ThrowException(v8::Handle<v8::Value> value) {
   // If we're passed an empty handle, we throw an undefined exception
   // to deal more gracefully with out of memory situations.
   if (value.IsEmpty()) {
-    i::Top::ScheduleThrow(HEAP->undefined_value());
+    i::Isolate::Current()->ScheduleThrow(HEAP->undefined_value());
   } else {
-    i::Top::ScheduleThrow(*Utils::OpenHandle(*value));
+    i::Isolate::Current()->ScheduleThrow(*Utils::OpenHandle(*value));
   }
   return v8::Undefined();
 }
@@ -476,8 +475,8 @@ void Context::Enter() {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->handle_scope_implementer()->EnterContext(env);
 
-  isolate->handle_scope_implementer()->SaveContext(i::Top::context());
-  i::Top::set_context(*env);
+  isolate->handle_scope_implementer()->SaveContext(isolate->context());
+  isolate->set_context(*env);
 }
 
 
@@ -495,7 +494,7 @@ void Context::Exit() {
   // Content of 'last_context' could be NULL.
   i::Context* last_context =
       isolate->handle_scope_implementer()->RestoreContext();
-  i::Top::set_context(last_context);
+  isolate->set_context(last_context);
 }
 
 
@@ -1215,8 +1214,9 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   i::Handle<i::SharedFunctionInfo> function =
       i::Handle<i::SharedFunctionInfo>(i::SharedFunctionInfo::cast(*obj));
   i::Handle<i::JSFunction> result =
-      i::Factory::NewFunctionFromSharedFunctionInfo(function,
-                                                    i::Top::global_context());
+      i::Factory::NewFunctionFromSharedFunctionInfo(
+          function,
+          i::Isolate::Current()->global_context());
   return Local<Script>(ToApi<Script>(result));
 }
 
@@ -1242,12 +1242,13 @@ Local<Value> Script::Run() {
       i::Handle<i::SharedFunctionInfo>
           function_info(i::SharedFunctionInfo::cast(*obj));
       fun = i::Factory::NewFunctionFromSharedFunctionInfo(
-          function_info, i::Top::global_context());
+          function_info, i::Isolate::Current()->global_context());
     } else {
       fun = i::Handle<i::JSFunction>(i::JSFunction::cast(*obj));
     }
     EXCEPTION_PREAMBLE();
-    i::Handle<i::Object> receiver(i::Top::context()->global_proxy());
+    i::Handle<i::Object> receiver(
+        i::Isolate::Current()->context()->global_proxy());
     i::Handle<i::Object> result =
         i::Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(Local<Value>());
@@ -1305,14 +1306,14 @@ void Script::SetData(v8::Handle<String> data) {
 
 
 v8::TryCatch::TryCatch()
-    : next_(i::Top::try_catch_handler_address()),
+    : next_(i::Isolate::Current()->try_catch_handler_address()),
       exception_(HEAP->the_hole_value()),
       message_(i::Smi::FromInt(0)),
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
       rethrow_(false) {
-  i::Top::RegisterTryCatchHandler(this);
+  i::Isolate::Current()->RegisterTryCatchHandler(this);
 }
 
 
@@ -1320,10 +1321,10 @@ v8::TryCatch::~TryCatch() {
   if (rethrow_) {
     v8::HandleScope scope;
     v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(Exception());
-    i::Top::UnregisterTryCatchHandler(this);
+    i::Isolate::Current()->UnregisterTryCatchHandler(this);
     v8::ThrowException(exc);
   } else {
-    i::Top::UnregisterTryCatchHandler(this);
+    i::Isolate::Current()->UnregisterTryCatchHandler(this);
   }
 }
 
@@ -1450,7 +1451,8 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                i::Object** argv[],
                                                bool* has_pending_exception) {
   i::Handle<i::String> fmt_str = i::Factory::LookupAsciiSymbol(name);
-  i::Object* object_fun = i::Top::builtins()->GetProperty(*fmt_str);
+  i::Object* object_fun =
+      i::Isolate::Current()->builtins()->GetProperty(*fmt_str);
   i::Handle<i::JSFunction> fun =
       i::Handle<i::JSFunction>(i::JSFunction::cast(object_fun));
   i::Handle<i::Object> value =
@@ -1464,7 +1466,7 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                bool* has_pending_exception) {
   i::Object** argv[1] = { data.location() };
   return CallV8HeapFunction(name,
-                            i::Top::builtins(),
+                            i::Isolate::Current()->builtins(),
                             1,
                             argv,
                             has_pending_exception);
@@ -1555,7 +1557,7 @@ Local<String> Message::GetSourceLine() const {
 void Message::PrintCurrentStackTrace(FILE* out) {
   if (IsDeadCheck("v8::Message::PrintCurrentStackTrace()")) return;
   ENTER_V8;
-  i::Top::PrintCurrentStackTrace(out);
+  i::Isolate::Current()->PrintCurrentStackTrace(out);
 }
 
 
@@ -1589,7 +1591,7 @@ Local<StackTrace> StackTrace::CurrentStackTrace(int frame_limit,
     StackTraceOptions options) {
   if (IsDeadCheck("v8::StackTrace::CurrentStackTrace()")) Local<StackTrace>();
   ENTER_V8;
-  return i::Top::CaptureCurrentStackTrace(frame_limit, options);
+  return i::Isolate::Current()->CaptureCurrentStackTrace(frame_limit, options);
 }
 
 
@@ -3306,7 +3308,7 @@ bool Context::HasOutOfMemoryException() {
 
 
 bool Context::InContext() {
-  return i::Top::context() != NULL;
+  return i::Isolate::Current()->context() != NULL;
 }
 
 
@@ -3322,7 +3324,7 @@ v8::Local<v8::Context> Context::GetEntered() {
 
 v8::Local<v8::Context> Context::GetCurrent() {
   if (IsDeadCheck("v8::Context::GetCurrent()")) return Local<Context>();
-  i::Handle<i::Object> current = i::Top::global_context();
+  i::Handle<i::Object> current = i::Isolate::Current()->global_context();
   if (current.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(current);
   return Utils::ToLocal(context);
@@ -3331,7 +3333,8 @@ v8::Local<v8::Context> Context::GetCurrent() {
 
 v8::Local<v8::Context> Context::GetCalling() {
   if (IsDeadCheck("v8::Context::GetCalling()")) return Local<Context>();
-  i::Handle<i::Object> calling = i::Top::GetCallingGlobalContext();
+  i::Handle<i::Object> calling =
+      i::Isolate::Current()->GetCallingGlobalContext();
   if (calling.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(calling);
   return Utils::ToLocal(context);
@@ -3630,7 +3633,7 @@ Local<v8::Object> v8::Object::New() {
   LOG_API("Object::New");
   ENTER_V8;
   i::Handle<i::JSObject> obj =
-      i::Factory::NewJSObject(i::Top::object_function());
+      i::Factory::NewJSObject(i::Isolate::Current()->object_function());
   return Utils::ToLocal(obj);
 }
 
@@ -3811,7 +3814,7 @@ void V8::EnableSlidingStateWindow() {
 void V8::SetFailedAccessCheckCallbackFunction(
       FailedAccessCheckCallback callback) {
   if (IsDeadCheck("v8::V8::SetFailedAccessCheckCallbackFunction()")) return;
-  i::Top::SetFailedAccessCheckCallback(callback);
+  i::Isolate::Current()->SetFailedAccessCheckCallback(callback);
 }
 
 
@@ -3937,7 +3940,7 @@ int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
 int V8::GetCurrentThreadId() {
   API_ENTRY_CHECK("V8::GetCurrentThreadId()");
   EnsureInitialized("V8::GetCurrentThreadId()");
-  return i::Top::thread_id();
+  return i::Isolate::Current()->thread_id();
 }
 
 
@@ -3948,7 +3951,7 @@ void V8::TerminateExecution(int thread_id) {
   // If the thread_id identifies the current thread just terminate
   // execution right away.  Otherwise, ask the thread manager to
   // terminate the thread with the given id if any.
-  if (thread_id == i::Top::thread_id()) {
+  if (thread_id == isolate->thread_id()) {
     isolate->stack_guard()->TerminateExecution();
   } else {
     i::ThreadManager::TerminateExecution(thread_id);
@@ -3964,8 +3967,9 @@ void V8::TerminateExecution() {
 
 bool V8::IsExecutionTerminating() {
   if (!i::V8::IsRunning()) return false;
-  if (i::Top::has_scheduled_exception()) {
-    return i::Top::scheduled_exception() == HEAP->termination_exception();
+  if (i::Isolate::Current()->has_scheduled_exception()) {
+    return i::Isolate::Current()->scheduled_exception() ==
+        HEAP->termination_exception();
   }
   return false;
 }

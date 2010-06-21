@@ -67,25 +67,7 @@ void V8::SetFatalError() {
 void V8::TearDown() {
   if (!has_been_setup_ || has_been_disposed_) return;
 
-  OProfileAgent::TearDown();
-
-  if (FLAG_preemption) {
-    v8::Locker locker;
-    v8::Locker::StopPreemption();
-  }
-
-  Builtins::TearDown();
-  Isolate::Current()->bootstrapper()->TearDown();
-
-  Top::TearDown();
-
-  HeapProfiler::TearDown();
-
-  CpuProfiler::TearDown();
-
-  HEAP->TearDown();
-
-  Logger::TearDown();
+  Isolate::TearDownAndRecreateGlobalIsolate();
 
   is_running_ = false;
   has_been_disposed_ = true;

@@ -1276,7 +1276,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
           source->length(),
           false));
     } else if (scanner().stack_overflow()) {
-      Top::StackOverflow();
+      Isolate::Current()->StackOverflow();
     }
   }
 
@@ -1331,7 +1331,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
   // If there was a stack overflow we have to get rid of AST and it is
   // not safe to do before scope has been deleted.
   if (result == NULL) {
-    Top::StackOverflow();
+    Isolate::Current()->StackOverflow();
     zone_scope.DeleteOnExit();
   }
   return result;
@@ -1373,7 +1373,7 @@ FunctionLiteral* Parser::ParseJson(Handle<String> source) {
           source->length(),
           false));
     } else if (scanner().stack_overflow()) {
-      Top::StackOverflow();
+      Isolate::Current()->StackOverflow();
     }
   }
 
@@ -1402,7 +1402,7 @@ void AstBuildingParser::ReportMessageAt(Scanner::Location source_location,
     SetElement(array, i, Factory::NewStringFromUtf8(CStrVector(args[i])));
   }
   Handle<Object> result = Factory::NewSyntaxError(type, array);
-  Top::Throw(*result, &location);
+  Isolate::Current()->Throw(*result, &location);
 }
 
 
@@ -4295,7 +4295,7 @@ void RegExpParser::Advance() {
   if (next_pos_ < in()->length()) {
     StackLimitCheck check;
     if (check.HasOverflowed()) {
-      ReportError(CStrVector(Top::kStackOverflowMessage));
+      ReportError(CStrVector(Isolate::kStackOverflowMessage));
     } else if (ZONE->excess_allocation()) {
       ReportError(CStrVector("Regular expression too large"));
     } else {

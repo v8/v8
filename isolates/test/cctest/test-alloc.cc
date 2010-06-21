@@ -27,7 +27,6 @@
 
 #include "v8.h"
 #include "accessors.h"
-#include "top.h"
 
 #include "cctest.h"
 
@@ -61,7 +60,8 @@ static Object* AllocateAfterFailures() {
   CHECK(!heap->AllocateFixedArray(100)->IsFailure());
   CHECK(!heap->AllocateHeapNumber(0.42)->IsFailure());
   CHECK(!heap->AllocateArgumentsObject(Smi::FromInt(87), 10)->IsFailure());
-  Object* object = heap->AllocateJSObject(*Top::object_function());
+  Object* object = heap->AllocateJSObject(
+      *Isolate::Current()->object_function());
   CHECK(!heap->CopyJSObject(JSObject::cast(object))->IsFailure());
 
   // Old data space.

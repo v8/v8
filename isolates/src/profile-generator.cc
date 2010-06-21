@@ -30,7 +30,6 @@
 #include "v8.h"
 #include "global-handles.h"
 #include "scopeinfo.h"
-#include "top.h"
 #include "zone-inl.h"
 
 #include "profile-generator-inl.h"
@@ -1390,7 +1389,8 @@ void HeapSnapshot::CutObjectsFromForeignSecurityContexts() {
 
 int HeapSnapshot::GetGlobalSecurityToken() {
   return collection_->token_enumerator()->GetTokenId(
-      Top::context()->global()->global_context()->security_token());
+      Isolate::Current()->context()->global()->global_context()->
+          security_token());
 }
 
 

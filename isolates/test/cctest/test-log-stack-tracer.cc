@@ -10,7 +10,7 @@
 
 #include "codegen.h"
 #include "log.h"
-#include "top.h"
+#include "isolate.h"
 #include "cctest.h"
 #include "disassembler.h"
 #include "register-allocator-inl.h"
@@ -25,10 +25,10 @@ using v8::Value;
 using v8::internal::byte;
 using v8::internal::Address;
 using v8::internal::Handle;
+using v8::internal::Isolate;
 using v8::internal::JSFunction;
 using v8::internal::StackTracer;
 using v8::internal::TickSample;
-using v8::internal::Top;
 
 namespace i = v8::internal;
 
@@ -58,11 +58,12 @@ static void DoTrace(Address fp) {
 // Hide c_entry_fp to emulate situation when sampling is done while
 // pure JS code is being executed
 static void DoTraceHideCEntryFPAddress(Address fp) {
-  v8::internal::Address saved_c_frame_fp = *(Top::c_entry_fp_address());
+  v8::internal::Address saved_c_frame_fp =
+      *(Isolate::Current()->c_entry_fp_address());
   CHECK(saved_c_frame_fp);
-  *(Top::c_entry_fp_address()) = 0;
+  *(Isolate::Current()->c_entry_fp_address()) = 0;
   DoTrace(fp);
-  *(Top::c_entry_fp_address()) = saved_c_frame_fp;
+  *(Isolate::Current()->c_entry_fp_address()) = saved_c_frame_fp;
 }
 
 
@@ -131,7 +132,7 @@ v8::Handle<v8::Value> TraceExtension::JSTrace(const v8::Arguments& args) {
 
 static Address GetJsEntrySp() {
   CHECK_NE(NULL, i::Isolate::Current()->thread_local_top());
-  return Top::js_entry_sp(i::Isolate::Current()->thread_local_top());
+  return Isolate::js_entry_sp(i::Isolate::Current()->thread_local_top());
 }
 
 
@@ -270,7 +271,7 @@ static void CreateTraceCallerFunction(const char* func_name,
 
 // This test verifies that stack tracing works when called during
 // execution of a native function called from JS code. In this case,
-// StackTracer uses Top::c_entry_fp as a starting point for stack
+// StackTracer uses Isolate::c_entry_fp as a starting point for stack
 // walking.
 TEST(CFromJSStackTrace) {
   // TODO(711) The hack of replacing the inline runtime function
@@ -310,7 +311,7 @@ TEST(CFromJSStackTrace) {
 // This test verifies that stack tracing works when called during
 // execution of JS code. However, as calling StackTracer requires
 // entering native code, we can only emulate pure JS by erasing
-// Top::c_entry_fp value. In this case, StackTracer uses passed frame
+// Isolate::c_entry_fp value. In this case, StackTracer uses passed frame
 // pointer value as a starting point for stack walking.
 TEST(PureJSStackTrace) {
   // TODO(711) The hack of replacing the inline runtime function

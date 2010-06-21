@@ -159,7 +159,7 @@ bool ThreadManager::RestoreThread() {
   }
   char* from = state->data();
   from = isolate->handle_scope_implementer()->RestoreThread(from);
-  from = Top::RestoreThread(from);
+  from = isolate->RestoreThread(from);
   from = Relocatable::RestoreState(from);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   from = Debug::RestoreDebug(from);
@@ -194,7 +194,7 @@ void ThreadManager::Unlock() {
 
 static int ArchiveSpacePerThread() {
   return HandleScopeImplementer::ArchiveSpacePerThread() +
-                            Top::ArchiveSpacePerThread() +
+                        Isolate::ArchiveSpacePerThread() +
 #ifdef ENABLE_DEBUGGER_SUPPORT
                           Debug::ArchiveSpacePerThread() +
 #endif
@@ -291,7 +291,7 @@ void ThreadManager::EagerlyArchiveThread() {
   // Ensure that data containing GC roots are archived first, and handle them
   // in ThreadManager::Iterate(ObjectVisitor*).
   to = isolate->handle_scope_implementer()->ArchiveThread(to);
-  to = Top::ArchiveThread(to);
+  to = isolate->ArchiveThread(to);
   to = Relocatable::ArchiveState(to);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   to = Debug::ArchiveDebug(to);
@@ -307,7 +307,7 @@ void ThreadManager::EagerlyArchiveThread() {
 void ThreadManager::FreeThreadResources() {
   Isolate* isolate = Isolate::Current();
   isolate->handle_scope_implementer()->FreeThreadResources();
-  Top::FreeThreadResources();
+  isolate->FreeThreadResources();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug::FreeThreadResources();
 #endif
@@ -329,7 +329,7 @@ void ThreadManager::Iterate(ObjectVisitor* v) {
        state = state->Next()) {
     char* data = state->data();
     data = HandleScopeImplementer::Iterate(v, data);
-    data = Top::Iterate(v, data);
+    data = Isolate::Current()->Iterate(v, data);
     data = Relocatable::Iterate(v, data);
   }
 }
@@ -341,7 +341,7 @@ void ThreadManager::IterateArchivedThreads(ThreadVisitor* v) {
        state = state->Next()) {
     char* data = state->data();
     data += HandleScopeImplementer::ArchiveSpacePerThread();
-    Top::IterateThread(v, data);
+    Isolate::Current()->IterateThread(v, data);
   }
 }
 
@@ -352,7 +352,7 @@ void ThreadManager::MarkCompactPrologue(bool is_compacting) {
        state = state->Next()) {
     char* data = state->data();
     data += HandleScopeImplementer::ArchiveSpacePerThread();
-    Top::MarkCompactPrologue(is_compacting, data);
+    Isolate::Current()->MarkCompactPrologue(is_compacting, data);
   }
 }
 
@@ -363,7 +363,7 @@ void ThreadManager::MarkCompactEpilogue(bool is_compacting) {
        state = state->Next()) {
     char* data = state->data();
     data += HandleScopeImplementer::ArchiveSpacePerThread();
-    Top::MarkCompactEpilogue(is_compacting, data);
+    Isolate::Current()->MarkCompactEpilogue(is_compacting, data);
   }
 }
 
@@ -379,7 +379,7 @@ void ThreadManager::AssignId() {
     int thread_id = ++last_id_;
     ASSERT(thread_id > 0);  // see the comment near last_id_ definition.
     Thread::SetThreadLocalInt(thread_id_key, thread_id);
-    Top::set_thread_id(thread_id);
+    Isolate::Current()->set_thread_id(thread_id);
   }
 }
 

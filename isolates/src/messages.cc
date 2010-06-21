@@ -32,7 +32,6 @@
 #include "execution.h"
 #include "messages.h"
 #include "spaces-inl.h"
-#include "top.h"
 
 namespace v8 {
 namespace internal {
@@ -74,7 +73,8 @@ Handle<Object> MessageHandler::MakeMessageObject(
   for (int i = 0; i < args.length(); i++)
     SetElement(Handle<JSArray>::cast(array), i, args[i]);
 
-  Handle<JSFunction> fun(Top::global_context()->make_message_fun());
+  Handle<JSFunction> fun(
+      Isolate::Current()->global_context()->make_message_fun());
   int start, end;
   Handle<Object> script;
   if (loc) {
@@ -148,12 +148,14 @@ Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
   Handle<String> fmt_str = Factory::LookupAsciiSymbol("FormatMessage");
   Handle<JSFunction> fun =
       Handle<JSFunction>(
-          JSFunction::cast(Top::builtins()->GetProperty(*fmt_str)));
+          JSFunction::cast(
+              Isolate::Current()->builtins()->GetProperty(*fmt_str)));
   Object** argv[1] = { data.location() };
 
   bool caught_exception;
   Handle<Object> result =
-      Execution::TryCall(fun, Top::builtins(), 1, argv, &caught_exception);
+      Execution::TryCall(fun,
+          Isolate::Current()->builtins(), 1, argv, &caught_exception);
 
   if (caught_exception || !result->IsString()) {
     return Factory::LookupAsciiSymbol("<error>");

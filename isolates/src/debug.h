@@ -795,7 +795,7 @@ class EnterDebugger BASE_EMBEDDED {
     if (!load_failed_) {
       // NOTE the member variable save which saves the previous context before
       // this change.
-      Top::set_context(*Debug::debug_context());
+      Isolate::Current()->set_context(*Debug::debug_context());
     }
   }
 
@@ -813,7 +813,7 @@ class EnterDebugger BASE_EMBEDDED {
       // pending exception as clearing the mirror cache calls back into
       // JavaScript. This can happen if the v8::Debug::Call is used in which
       // case the exception should end up in the calling code.
-      if (!Top::has_pending_exception()) {
+      if (!isolate->has_pending_exception()) {
         // Try to avoid any pending debug break breaking in the clear mirror
         // cache JavaScript code.
         if (isolate->stack_guard()->IsDebugBreak()) {

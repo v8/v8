@@ -135,7 +135,7 @@ namespace internal {
 class Arguments;
 class Object;
 class Heap;
-class Top;
+class Isolate;
 
 }
 
@@ -2885,7 +2885,7 @@ class V8EXPORT TryCatch {
   bool capture_message_ : 1;
   bool rethrow_ : 1;
 
-  friend class v8::internal::Top;
+  friend class v8::internal::Isolate;
 };
 
 

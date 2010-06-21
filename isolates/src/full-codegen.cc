@@ -679,7 +679,7 @@ Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
   FullCodeGenerator cgen(&masm);
   cgen.Generate(info, PRIMARY);
   if (cgen.HasStackOverflow()) {
-    ASSERT(!Top::has_pending_exception());
+    ASSERT(!Isolate::Current()->has_pending_exception());
     return Handle<Code>::null();
   }
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);

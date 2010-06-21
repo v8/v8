@@ -176,10 +176,10 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
   ASSERT(result <= SUCCESS);
   ASSERT(result >= RETRY);
 
-  if (result == EXCEPTION && !Top::has_pending_exception()) {
+  if (result == EXCEPTION && !Isolate::Current()->has_pending_exception()) {
     // We detected a stack overflow (on the backtrack stack) in RegExp code,
     // but haven't created the exception yet.
-    Top::StackOverflow();
+    Isolate::Current()->StackOverflow();
   }
   return static_cast<Result>(result);
 }

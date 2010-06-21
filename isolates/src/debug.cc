@@ -79,7 +79,8 @@ static Handle<Code> ComputeCallDebugPrepareStepIn(int argc,  Code::Kind kind) {
 
 static v8::Handle<v8::Context> GetDebugEventContext() {
   Handle<Context> context = Debug::debugger_entry()->GetContext();
-  // Top::context() may have been NULL when "script collected" event occured.
+  // Isolate::context() may have been NULL when "script collected" event
+  // occured.
   if (*context == NULL) {
     return v8::Local<v8::Context>();
   }
@@ -738,13 +739,13 @@ bool Debug::CompileDebuggerScript(int index) {
 
   // Silently ignore stack overflows during compilation.
   if (function_info.is_null()) {
-    ASSERT(Top::has_pending_exception());
-    Top::clear_pending_exception();
+    ASSERT(Isolate::Current()->has_pending_exception());
+    Isolate::Current()->clear_pending_exception();
     return false;
   }
 
   // Execute the shared function in the debugger context.
-  Handle<Context> context = Top::global_context();
+  Handle<Context> context = Isolate::Current()->global_context();
   bool caught_exception = false;
   Handle<JSFunction> function =
       Factory::NewFunctionFromSharedFunctionInfo(function_info, context);
@@ -793,7 +794,7 @@ bool Debug::Load() {
 
   // Use the debugger context.
   SaveContext save;
-  Top::set_context(*context);
+  Isolate::Current()->set_context(*context);
 
   // Expose the builtins object in the debugger context.
   Handle<String> key = Factory::LookupAsciiSymbol("builtins");
@@ -1005,8 +1006,8 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
     reinterpret_cast<Object**>(break_point_object.location())
   };
   Handle<Object> result = Execution::TryCall(check_break_point,
-                                             Top::builtins(), argc, argv,
-                                             &caught_exception);
+                                             Isolate::Current()->builtins(),
+                                             argc, argv, &caught_exception);
 
   // If exception or non boolean result handle as not triggered
   if (caught_exception || !result->IsBoolean()) {
@@ -1767,12 +1768,12 @@ bool Debug::IsDebugGlobal(GlobalObject* global) {
 
 void Debug::ClearMirrorCache() {
   HandleScope scope;
-  ASSERT(Top::context() == *Debug::debug_context());
+  ASSERT(Isolate::Current()->context() == *Debug::debug_context());
 
   // Clear the mirror cache.
   Handle<String> function_name =
       Factory::LookupSymbol(CStrVector("ClearMirrorCache"));
-  Handle<Object> fun(Top::global()->GetProperty(*function_name));
+  Handle<Object> fun(Isolate::Current()->global()->GetProperty(*function_name));
   ASSERT(fun->IsJSFunction());
   bool caught_exception;
   Handle<Object> js_object = Execution::TryCall(
@@ -1874,11 +1875,12 @@ Semaphore* Debugger::command_received_ = OS::CreateSemaphore(0);
 Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
                                       int argc, Object*** argv,
                                       bool* caught_exception) {
-  ASSERT(Top::context() == *Debug::debug_context());
+  ASSERT(Isolate::Current()->context() == *Debug::debug_context());
 
   // Create the execution state object.
   Handle<String> constructor_str = Factory::LookupSymbol(constructor_name);
-  Handle<Object> constructor(Top::global()->GetProperty(*constructor_str));
+  Handle<Object> constructor(
+      Isolate::Current()->global()->GetProperty(*constructor_str));
   ASSERT(constructor->IsJSFunction());
   if (!constructor->IsJSFunction()) {
     *caught_exception = true;
@@ -2022,13 +2024,13 @@ void Debugger::OnDebugBreak(Handle<Object> break_points_hit,
   HandleScope scope;
 
   // Debugger has already been entered by caller.
-  ASSERT(Top::context() == *Debug::debug_context());
+  ASSERT(Isolate::Current()->context() == *Debug::debug_context());
 
   // Bail out if there is no listener for this event
   if (!Debugger::EventActive(v8::Break)) return;
 
   // Debugger must be entered in advance.
-  ASSERT(Top::context() == *Debug::debug_context());
+  ASSERT(Isolate::Current()->context() == *Debug::debug_context());
 
   // Create the event data object.
   bool caught_exception = false;
@@ -2120,7 +2122,7 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   Object** argv[argc] = { reinterpret_cast<Object**>(wrapper.location()) };
   Handle<Object> result = Execution::TryCall(
       Handle<JSFunction>::cast(update_script_break_points),
-      Top::builtins(), argc, argv,
+      Isolate::Current()->builtins(), argc, argv,
       &caught_exception);
   if (caught_exception) {
     return;
@@ -2219,7 +2221,8 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
                               exec_state.location(),
                               Handle<Object>::cast(event_data).location(),
                               event_listener_data_.location() };
-      Handle<Object> result = Execution::TryCall(fun, Top::global(),
+      Handle<Object> result = Execution::TryCall(fun,
+                                                 Isolate::Current()->global(),
                                                  argc, argv, &caught_exception);
       // Silently ignore exceptions from debug event listeners.
     }
@@ -2735,7 +2738,7 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
 
 v8::Handle<v8::Context> MessageImpl::GetEventContext() const {
   v8::Handle<v8::Context> context = GetDebugEventContext();
-  // Top::context() may be NULL when "script collected" event occures.
+  // Isolate::context() may be NULL when "script collected" event occures.
   ASSERT(!context.IsEmpty() || event_ == v8::ScriptCollected);
   return GetDebugEventContext();
 }

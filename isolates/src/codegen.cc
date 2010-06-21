@@ -216,7 +216,7 @@ Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
   CodeGeneratorScope scope(&cgen);
   cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
-    ASSERT(!Top::has_pending_exception());
+    ASSERT(!Isolate::Current()->has_pending_exception());
     return Handle<Code>::null();
   }
 

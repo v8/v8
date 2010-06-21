@@ -1218,8 +1218,8 @@ TEST(MacroAssemblerStackOverflow) {
               NULL);
 
   CHECK_EQ(NativeRegExpMacroAssembler::EXCEPTION, result);
-  CHECK(Top::has_pending_exception());
-  Top::clear_pending_exception();
+  CHECK(Isolate::Current()->has_pending_exception());
+  Isolate::Current()->clear_pending_exception();
 }
 
 
@@ -1266,7 +1266,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(42, captures[1]);
 
-  Top::clear_pending_exception();
+  Isolate::Current()->clear_pending_exception();
 }
 
 #else  // V8_INTERPRETED_REGEXP

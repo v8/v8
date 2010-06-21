@@ -42,7 +42,6 @@ int JSCallerSavedCode(int n);
 
 // Forward declarations.
 class StackFrameIterator;
-class Top;
 class ThreadLocalTop;
 
 

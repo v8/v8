@@ -53,7 +53,7 @@ namespace internal {
 
 
 #define RUNTIME_ASSERT(value) \
-  if (!(value)) return Top::ThrowIllegalOperation();
+  if (!(value)) return Isolate::Current()->ThrowIllegalOperation();
 
 // Cast the given object to a value of the specified type and store
 // it in a variable with the given name.  If the object is not of the
@@ -100,7 +100,7 @@ static StaticResource<StringInputBuffer> runtime_string_input_buffer;
 
 static Object* DeepCopyBoilerplate(Heap* heap, JSObject* boilerplate) {
   StackLimitCheck check;
-  if (check.HasOverflowed()) return Top::StackOverflow();
+  if (check.HasOverflowed()) return Isolate::Current()->StackOverflow();
 
   Object* result = heap->CopyJSObject(boilerplate);
   if (result->IsFailure()) return result;
@@ -474,7 +474,8 @@ static Object* Runtime_CreateCatchExtensionObject(Arguments args) {
   Object* value = args[1];
   // Create a catch context extension object.
   JSFunction* constructor =
-      Top::context()->global_context()->context_extension_function();
+      Isolate::Current()->context()->global_context()->
+          context_extension_function();
   Object* object = HEAP->AllocateJSObject(constructor);
   if (object->IsFailure()) return object;
   // Assign the exception value to the catch variable and make sure
@@ -772,13 +773,14 @@ static Object* ThrowRedeclarationError(const char* type, Handle<String> name) {
   Handle<Object> args[2] = { type_handle, name };
   Handle<Object> error =
       Factory::NewTypeError("redeclaration", HandleVector(args, 2));
-  return Top::Throw(*error);
+  return Isolate::Current()->Throw(*error);
 }
 
 
 static Object* Runtime_DeclareGlobals(Arguments args) {
   HandleScope scope;
-  Handle<GlobalObject> global = Handle<GlobalObject>(Top::context()->global());
+  Handle<GlobalObject> global = Handle<GlobalObject>(
+      Isolate::Current()->context()->global());
 
   Handle<Context> context = args.at<Context>(0);
   CONVERT_ARG_CHECKED(FixedArray, pairs, 1);
@@ -951,7 +953,8 @@ static Object* Runtime_DeclareContextSlot(Arguments args) {
     } else {
       // The function context's extension context does not exists - allocate
       // it.
-      context_ext = Factory::NewJSObject(Top::context_extension_function());
+      context_ext = Factory::NewJSObject(
+          Isolate::Current()->context_extension_function());
       // And store it in the extension slot.
       context->set_extension(*context_ext);
     }
@@ -980,7 +983,7 @@ static Object* Runtime_InitializeVarGlobal(Arguments args) {
   bool assign = args.length() == 2;
 
   CONVERT_ARG_CHECKED(String, name, 0);
-  GlobalObject* global = Top::context()->global();
+  GlobalObject* global = Isolate::Current()->context()->global();
 
   // According to ECMA-262, section 12.2, page 62, the property must
   // not be deletable.
@@ -1006,7 +1009,7 @@ static Object* Runtime_InitializeVarGlobal(Arguments args) {
       if (lookup.IsReadOnly()) {
         // If we found readonly property on one of hidden prototypes,
         // just shadow it.
-        if (real_holder != Top::context()->global()) break;
+        if (real_holder != Isolate::Current()->context()->global()) break;
         return ThrowRedeclarationError("const", name);
       }
 
@@ -1028,7 +1031,7 @@ static Object* Runtime_InitializeVarGlobal(Arguments args) {
           // overwrite it with a variable declaration we must throw a
           // re-declaration error.  However if we found readonly property
           // on one of hidden prototypes, just shadow it.
-          if (real_holder != Top::context()->global()) break;
+          if (real_holder != Isolate::Current()->context()->global()) break;
           return ThrowRedeclarationError("const", name);
         }
       }
@@ -1054,7 +1057,7 @@ static Object* Runtime_InitializeVarGlobal(Arguments args) {
     real_holder = JSObject::cast(proto);
   }
 
-  global = Top::context()->global();
+  global = Isolate::Current()->context()->global();
   if (assign) {
     return global->IgnoreAttributesAndSetLocalProperty(*name,
                                                        args[1],
@@ -1073,7 +1076,7 @@ static Object* Runtime_InitializeConstGlobal(Arguments args) {
   Handle<Object> value = args.at<Object>(1);
 
   // Get the current global object from top.
-  GlobalObject* global = Top::context()->global();
+  GlobalObject* global = Isolate::Current()->context()->global();
 
   // According to ECMA-262, section 12.2, page 62, the property must
   // not be deletable. Since it's a const, it must be READ_ONLY too.
@@ -1112,7 +1115,7 @@ static Object* Runtime_InitializeConstGlobal(Arguments args) {
     // Restore global object from context (in case of GC) and continue
     // with setting the value because the property is either absent or
     // read-only. We also have to do redo the lookup.
-    global = Top::context()->global();
+    global = Isolate::Current()->context()->global();
 
     // BUG 1213579: Handle the case where we have to set a read-only
     // property through an interceptor and only do it if it's
@@ -1197,7 +1200,8 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
   // The property could not be found, we introduce it in the global
   // context.
   if (attributes == ABSENT) {
-    Handle<JSObject> global = Handle<JSObject>(Top::context()->global());
+    Handle<JSObject> global = Handle<JSObject>(
+        Isolate::Current()->context()->global());
     SetProperty(global, name, value, NONE);
     return *value;
   }
@@ -1240,7 +1244,7 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
       // are converted to empty handles in handle operations.  We
       // need to convert back to exceptions here.
       if (set.is_null()) {
-        ASSERT(Top::has_pending_exception());
+        ASSERT(Isolate::Current()->has_pending_exception());
         return Failure::Exception();
       }
     }
@@ -1289,7 +1293,7 @@ static Object* Runtime_RegExpConstructResult(Arguments args) {
   ASSERT(args.length() == 3);
   CONVERT_SMI_CHECKED(elements_count, args[0]);
   if (elements_count > JSArray::kMaxFastElementsLength) {
-    return Top::ThrowIllegalOperation();
+    return Isolate::Current()->ThrowIllegalOperation();
   }
   Object* new_object = HEAP->AllocateFixedArrayWithHoles(elements_count);
   if (new_object->IsFailure()) return new_object;
@@ -1302,7 +1306,7 @@ static Object* Runtime_RegExpConstructResult(Arguments args) {
     AssertNoAllocation no_gc;
     HandleScope scope;
     reinterpret_cast<HeapObject*>(new_object)->
-        set_map(Top::global_context()->regexp_result_map());
+        set_map(Isolate::Current()->global_context()->regexp_result_map());
   }
   JSArray* array = JSArray::cast(new_object);
   array->set_properties(HEAP->empty_fixed_array());
@@ -1417,7 +1421,8 @@ static Object* Runtime_SpecialArrayFunctions(Arguments args) {
 
 static Object* Runtime_GetGlobalReceiver(Arguments args) {
   // Returns a real global receiver, not one of builtins object.
-  Context* global_context = Top::context()->global()->global_context();
+  Context* global_context =
+      Isolate::Current()->context()->global()->global_context();
   return global_context->global()->global_receiver();
 }
 
@@ -1444,7 +1449,7 @@ static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
       RegExpImpl::CreateRegExpLiteral(constructor, pattern, flags,
                                       &has_pending_exception);
   if (has_pending_exception) {
-    ASSERT(Top::has_pending_exception());
+    ASSERT(Isolate::Current()->has_pending_exception());
     return Failure::Exception();
   }
   literals->set(index, *regexp);
@@ -3703,7 +3708,7 @@ Object* Runtime::GetObjectProperty(Handle<Object> object, Handle<Object> key) {
     Handle<Object> error =
         Factory::NewTypeError("non_object_property_load",
                               HandleVector(args, 2));
-    return Top::Throw(*error);
+    return Isolate::Current()->Throw(*error);
   }
 
   // Check if the given key is an array index.
@@ -3905,7 +3910,7 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
     Handle<Object> error =
         Factory::NewTypeError("non_object_property_store",
                               HandleVector(args, 2));
-    return Top::Throw(*error);
+    return Isolate::Current()->Throw(*error);
   }
 
   // If the object isn't a JavaScript object, we ignore the store.
@@ -4251,8 +4256,10 @@ static Object* Runtime_GetLocalPropertyNames(Arguments args) {
   if (obj->IsJSGlobalProxy()) {
     // Only collect names if access is permitted.
     if (obj->IsAccessCheckNeeded() &&
-        !Top::MayNamedAccess(*obj, HEAP->undefined_value(), v8::ACCESS_KEYS)) {
-      Top::ReportFailedAccessCheck(*obj, v8::ACCESS_KEYS);
+        !Isolate::Current()->MayNamedAccess(*obj,
+                                            HEAP->undefined_value(),
+                                            v8::ACCESS_KEYS)) {
+      Isolate::Current()->ReportFailedAccessCheck(*obj, v8::ACCESS_KEYS);
       return *Factory::NewJSArray(0);
     }
     obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
@@ -4268,10 +4275,10 @@ static Object* Runtime_GetLocalPropertyNames(Arguments args) {
   for (int i = 0; i < length; i++) {
     // Only collect names if access is permitted.
     if (jsproto->IsAccessCheckNeeded() &&
-        !Top::MayNamedAccess(*jsproto,
-                             HEAP->undefined_value(),
-                             v8::ACCESS_KEYS)) {
-      Top::ReportFailedAccessCheck(*jsproto, v8::ACCESS_KEYS);
+        !Isolate::Current()->MayNamedAccess(*jsproto,
+                                            HEAP->undefined_value(),
+                                            v8::ACCESS_KEYS)) {
+      Isolate::Current()->ReportFailedAccessCheck(*jsproto, v8::ACCESS_KEYS);
       return *Factory::NewJSArray(0);
     }
     int n;
@@ -4444,7 +4451,7 @@ static Object* Runtime_GetArgumentsProperty(Arguments args) {
     if (index < n) {
       return frame->GetParameter(index);
     } else {
-      return Top::initial_object_prototype()->GetElement(index);
+      return Isolate::Current()->initial_object_prototype()->GetElement(index);
     }
   }
 
@@ -4453,7 +4460,7 @@ static Object* Runtime_GetArgumentsProperty(Arguments args) {
   if (key->Equals(HEAP->callee_symbol())) return frame->function();
 
   // Lookup in the initial Object.prototype object.
-  return Top::initial_object_prototype()->GetProperty(*key);
+  return Isolate::Current()->initial_object_prototype()->GetProperty(*key);
 }
 
 
@@ -4690,7 +4697,7 @@ static Object* Runtime_URIEscape(Arguments args) {
       // We don't allow strings that are longer than a maximal length.
       ASSERT(String::kMaxLength < 0x7fffffff - 6);  // Cannot overflow.
       if (escaped_length > String::kMaxLength) {
-        Top::context()->mark_out_of_memory();
+        Isolate::Current()->context()->mark_out_of_memory();
         return Failure::OutOfMemoryException();
       }
     }
@@ -4921,7 +4928,7 @@ static Object* ConvertCaseHelper(String* s,
         if (char_length == 0) char_length = 1;
         current_length += char_length;
         if (current_length > Smi::kMaxValue) {
-          Top::context()->mark_out_of_memory();
+          Isolate::Current()->context()->mark_out_of_memory();
           return Failure::OutOfMemoryException();
         }
       }
@@ -5541,7 +5548,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
   ASSERT(args.length() == 3);
   CONVERT_CHECKED(JSArray, array, args[0]);
   if (!args[1]->IsSmi()) {
-    Top::context()->mark_out_of_memory();
+    Isolate::Current()->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
   int array_length = Smi::cast(args[1])->value();
@@ -5552,7 +5559,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
 
   int special_length = special->length();
   if (!array->HasFastElements()) {
-    return Top::Throw(HEAP->illegal_argument_symbol());
+    return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
   }
   FixedArray* fixed_array = FixedArray::cast(array->elements());
   if (fixed_array->length() < array_length) {
@@ -5586,21 +5593,21 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
         // Get the position and check that it is a positive smi.
         i++;
         if (i >= array_length) {
-          return Top::Throw(HEAP->illegal_argument_symbol());
+          return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
         }
         Object* next_smi = fixed_array->get(i);
         if (!next_smi->IsSmi()) {
-          return Top::Throw(HEAP->illegal_argument_symbol());
+          return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
         }
         pos = Smi::cast(next_smi)->value();
         if (pos < 0) {
-          return Top::Throw(HEAP->illegal_argument_symbol());
+          return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
         }
       }
       ASSERT(pos >= 0);
       ASSERT(len >= 0);
       if (pos > special_length || len > special_length - pos) {
-        return Top::Throw(HEAP->illegal_argument_symbol());
+        return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
       }
       increment = len;
     } else if (elt->IsString()) {
@@ -5611,10 +5618,10 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
         ascii = false;
       }
     } else {
-      return Top::Throw(HEAP->illegal_argument_symbol());
+      return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
     }
     if (increment > String::kMaxLength - position) {
-      Top::context()->mark_out_of_memory();
+      Isolate::Current()->context()->mark_out_of_memory();
       return Failure::OutOfMemoryException();
     }
     position += increment;
@@ -6617,7 +6624,7 @@ static Object* Runtime_NewObject(Arguments args) {
     Vector< Handle<Object> > arguments = HandleVector(&constructor, 1);
     Handle<Object> type_error =
         Factory::NewTypeError("not_constructor", arguments);
-    return Top::Throw(*type_error);
+    return Isolate::Current()->Throw(*type_error);
   }
 
   Handle<JSFunction> function = Handle<JSFunction>::cast(constructor);
@@ -6628,7 +6635,7 @@ static Object* Runtime_NewObject(Arguments args) {
     Vector< Handle<Object> > arguments = HandleVector(&constructor, 1);
     Handle<Object> type_error =
         Factory::NewTypeError("not_constructor", arguments);
-    return Top::Throw(*type_error);
+    return Isolate::Current()->Throw(*type_error);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -6651,7 +6658,7 @@ static Object* Runtime_NewObject(Arguments args) {
       // instead of a new JSFunction object. This way, errors are
       // reported the same way whether or not 'Function' is called
       // using 'new'.
-      return Top::context()->global();
+      return Isolate::Current()->context()->global();
     }
   }
 
@@ -6728,7 +6735,7 @@ static Object* Runtime_NewContext(Arguments args) {
   Object* result = HEAP->AllocateFunctionContext(length, function);
   if (result->IsFailure()) return result;
 
-  Top::set_context(Context::cast(result));
+  Isolate::Current()->set_context(Context::cast(result));
 
   return result;  // non-failure
 }
@@ -6744,18 +6751,18 @@ static Object* PushContextHelper(Object* object, bool is_catch_context) {
       Handle<Object> handle(object);
       Handle<Object> result =
           Factory::NewTypeError("with_expression", HandleVector(&handle, 1));
-      return Top::Throw(*result);
+      return Isolate::Current()->Throw(*result);
     }
   }
 
   Object* result =
-      HEAP->AllocateWithContext(Top::context(),
+      HEAP->AllocateWithContext(Isolate::Current()->context(),
                                 JSObject::cast(js_object),
                                 is_catch_context);
   if (result->IsFailure()) return result;
 
   Context* context = Context::cast(result);
-  Top::set_context(context);
+  Isolate::Current()->set_context(context);
 
   return result;
 }
@@ -6794,7 +6801,7 @@ static Object* Runtime_LookupContext(Arguments args) {
   }
 
   // No intermediate context found. Use global object by default.
-  return Top::context()->global();
+  return Isolate::Current()->context()->global();
 }
 
 
@@ -6836,7 +6843,7 @@ static inline Object* Unhole(Object* x, PropertyAttributes attributes) {
 
 static JSObject* ComputeReceiverForNonGlobal(JSObject* holder) {
   ASSERT(!holder->IsGlobalObject());
-  Context* top = Top::context();
+  Context* top = Isolate::Current()->context();
   // Get the context extension function.
   JSFunction* context_extension_function =
       top->global_context()->context_extension_function();
@@ -6858,7 +6865,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   ASSERT_EQ(2, args.length());
 
   if (!args[0]->IsContext() || !args[1]->IsString()) {
-    return MakePair(Top::ThrowIllegalOperation(), NULL);
+    return MakePair(Isolate::Current()->ThrowIllegalOperation(), NULL);
   }
   Handle<Context> context = args.at<Context>(0);
   Handle<String> name = args.at<String>(1);
@@ -6876,7 +6883,8 @@ static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
     // If the "property" we were looking for is a local variable or an
     // argument in a context, the receiver is the global object; see
     // ECMA-262, 3rd., 10.1.6 and 10.2.3.
-    JSObject* receiver = Top::context()->global()->global_receiver();
+    JSObject* receiver =
+        Isolate::Current()->context()->global()->global_receiver();
     Object* value = (holder->IsContext())
         ? Context::cast(*holder)->get(index)
         : JSObject::cast(*holder)->GetElement(index);
@@ -6891,7 +6899,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
     if (object->IsGlobalObject()) {
       receiver = GlobalObject::cast(object)->global_receiver();
     } else if (context->is_exception_holder(*holder)) {
-      receiver = Top::context()->global()->global_receiver();
+      receiver = Isolate::Current()->context()->global()->global_receiver();
     } else {
       receiver = ComputeReceiverForNonGlobal(object);
     }
@@ -6905,7 +6913,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
     // The property doesn't exist - throw exception.
     Handle<Object> reference_error =
         Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
-    return MakePair(Top::Throw(*reference_error), NULL);
+    return MakePair(Isolate::Current()->Throw(*reference_error), NULL);
   } else {
     // The property doesn't exist - return undefined
     return MakePair(HEAP->undefined_value(), HEAP->undefined_value());
@@ -6964,7 +6972,7 @@ static Object* Runtime_StoreContextSlot(Arguments args) {
     // The property was not found. It needs to be stored in the global context.
     ASSERT(attributes == ABSENT);
     attributes = NONE;
-    context_ext = Handle<JSObject>(Top::context()->global());
+    context_ext = Handle<JSObject>(Isolate::Current()->context()->global());
   }
 
   // Set the property, but ignore if read_only variable on the context
@@ -6976,7 +6984,7 @@ static Object* Runtime_StoreContextSlot(Arguments args) {
       // Failure::Exception is converted to a null handle in the
       // handle-based methods such as SetProperty.  We therefore need
       // to convert null handles back to exceptions.
-      ASSERT(Top::has_pending_exception());
+      ASSERT(Isolate::Current()->has_pending_exception());
       return Failure::Exception();
     }
   }
@@ -6988,7 +6996,7 @@ static Object* Runtime_Throw(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
 
-  return Top::Throw(args[0]);
+  return Isolate::Current()->Throw(args[0]);
 }
 
 
@@ -6996,13 +7004,13 @@ static Object* Runtime_ReThrow(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
 
-  return Top::ReThrow(args[0]);
+  return Isolate::Current()->ReThrow(args[0]);
 }
 
 
 static Object* Runtime_PromoteScheduledException(Arguments args) {
   ASSERT_EQ(0, args.length());
-  return Top::PromoteScheduledException();
+  return Isolate::Current()->PromoteScheduledException();
 }
 
 
@@ -7013,13 +7021,13 @@ static Object* Runtime_ThrowReferenceError(Arguments args) {
   Handle<Object> name(args[0]);
   Handle<Object> reference_error =
     Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
-  return Top::Throw(*reference_error);
+  return Isolate::Current()->Throw(*reference_error);
 }
 
 
 static Object* Runtime_StackOverflow(Arguments args) {
   NoHandleAllocation na;
-  return Top::StackOverflow();
+  return Isolate::Current()->StackOverflow();
 }
 
 
@@ -7170,7 +7178,7 @@ static Object* Runtime_DebugPrint(Arguments args) {
 static Object* Runtime_DebugTrace(Arguments args) {
   ASSERT(args.length() == 0);
   NoHandleAllocation ha;
-  Top::PrintStack();
+  Isolate::Current()->PrintStack();
   return HEAP->undefined_value();
 }
 
@@ -7260,7 +7268,7 @@ static Object* Runtime_CompileString(Arguments args) {
   CONVERT_ARG_CHECKED(Oddball, is_json, 1)
 
   // Compile source string in the global context.
-  Handle<Context> context(Top::context()->global_context());
+  Handle<Context> context(Isolate::Current()->context()->global_context());
   Compiler::ValidationState validate = (is_json->IsTrue())
     ? Compiler::VALIDATE_JSON : Compiler::DONT_VALIDATE_JSON;
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(source,
@@ -7280,13 +7288,13 @@ static ObjectPair CompileGlobalEval(Handle<String> source,
   // and return the compiled function bound in the local context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source,
-      Handle<Context>(Top::context()),
-      Top::context()->IsGlobalContext(),
+      Handle<Context>(Isolate::Current()->context()),
+      Isolate::Current()->context()->IsGlobalContext(),
       Compiler::DONT_VALIDATE_JSON);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
   Handle<JSFunction> compiled = Factory::NewFunctionFromSharedFunctionInfo(
       shared,
-      Handle<Context>(Top::context()),
+      Handle<Context>(Isolate::Current()->context()),
       NOT_TENURED);
   return MakePair(*compiled, *receiver);
 }
@@ -7295,7 +7303,7 @@ static ObjectPair CompileGlobalEval(Handle<String> source,
 static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
   ASSERT(args.length() == 3);
   if (!args[0]->IsJSFunction()) {
-    return MakePair(Top::ThrowIllegalOperation(), NULL);
+    return MakePair(Isolate::Current()->ThrowIllegalOperation(), NULL);
   }
 
   HandleScope scope;
@@ -7303,9 +7311,9 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
   Handle<Object> receiver;  // Will be overwritten.
 
   // Compute the calling context.
-  Handle<Context> context = Handle<Context>(Top::context());
+  Handle<Context> context = Handle<Context>(Isolate::Current()->context());
 #ifdef DEBUG
-  // Make sure Top::context() agrees with the old code that traversed
+  // Make sure Isolate::context() agrees with the old code that traversed
   // the stack frames to compute the context.
   StackFrameLocator locator;
   JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
@@ -7335,7 +7343,7 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
     Handle<Object> name = Factory::eval_symbol();
     Handle<Object> reference_error =
         Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
-    return MakePair(Top::Throw(*reference_error), NULL);
+    return MakePair(Isolate::Current()->Throw(*reference_error), NULL);
   }
 
   if (!context->IsGlobalContext()) {
@@ -7345,16 +7353,18 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
       context = Handle<Context>::cast(receiver);
       receiver = Handle<Object>(context->get(index));
     } else if (receiver->IsJSContextExtensionObject()) {
-      receiver = Handle<JSObject>(Top::context()->global()->global_receiver());
+      receiver = Handle<JSObject>(
+          Isolate::Current()->context()->global()->global_receiver());
     }
     return MakePair(*callee, *receiver);
   }
 
   // 'eval' is bound in the global context, but it may have been overwritten.
   // Compare it to the builtin 'GlobalEval' function to make sure.
-  if (*callee != Top::global_context()->global_eval_fun() ||
+  if (*callee != Isolate::Current()->global_context()->global_eval_fun() ||
       !args[1]->IsString()) {
-    return MakePair(*callee, Top::context()->global()->global_receiver());
+    return MakePair(*callee,
+                    Isolate::Current()->context()->global()->global_receiver());
   }
 
   return CompileGlobalEval(args.at<String>(1), args.at<Object>(2));
@@ -7364,7 +7374,7 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
 static ObjectPair Runtime_ResolvePossiblyDirectEvalNoLookup(Arguments args) {
   ASSERT(args.length() == 3);
   if (!args[0]->IsJSFunction()) {
-    return MakePair(Top::ThrowIllegalOperation(), NULL);
+    return MakePair(Isolate::Current()->ThrowIllegalOperation(), NULL);
   }
 
   HandleScope scope;
@@ -7372,9 +7382,10 @@ static ObjectPair Runtime_ResolvePossiblyDirectEvalNoLookup(Arguments args) {
 
   // 'eval' is bound in the global context, but it may have been overwritten.
   // Compare it to the builtin 'GlobalEval' function to make sure.
-  if (*callee != Top::global_context()->global_eval_fun() ||
+  if (*callee != Isolate::Current()->global_context()->global_eval_fun() ||
       !args[1]->IsString()) {
-    return MakePair(*callee, Top::context()->global()->global_receiver());
+    return MakePair(*callee,
+                    Isolate::Current()->context()->global()->global_receiver());
   }
 
   return CompileGlobalEval(args.at<String>(1), args.at<Object>(2));
@@ -7390,10 +7401,10 @@ static Object* Runtime_SetNewFunctionAttributes(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, func, 0);
   ASSERT(func->map()->instance_type() ==
-         Top::function_instance_map()->instance_type());
+         Isolate::Current()->function_instance_map()->instance_type());
   ASSERT(func->map()->instance_size() ==
-         Top::function_instance_map()->instance_size());
-  func->set_map(*Top::function_instance_map());
+         Isolate::Current()->function_instance_map()->instance_size());
+  func->set_map(*Isolate::Current()->function_instance_map());
   return *func;
 }
 
@@ -7876,7 +7887,7 @@ static Object* Runtime_SwapElements(Arguments args) {
   uint32_t index1, index2;
   if (!key1->ToArrayIndex(&index1)
       || !key2->ToArrayIndex(&index2)) {
-    return Top::ThrowIllegalOperation();
+    return Isolate::Current()->ThrowIllegalOperation();
   }
 
   Handle<JSObject> jsobject = Handle<JSObject>::cast(object);
@@ -8033,8 +8044,8 @@ static Object* DebugLookupResultValue(Object* receiver, String* name,
         value = receiver->GetPropertyWithCallback(
             receiver, structure, name, result->holder());
         if (value->IsException()) {
-          value = Top::pending_exception();
-          Top::clear_pending_exception();
+          value = Isolate::Current()->pending_exception();
+          Isolate::Current()->clear_pending_exception();
           if (caught_exception != NULL) {
             *caught_exception = true;
           }
@@ -8085,7 +8096,7 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   // context and not some internal debugger context.
   SaveContext save;
   if (Debug::InDebugger()) {
-    Top::set_context(*Debug::debugger_entry()->GetContext());
+    Isolate::Current()->set_context(*Debug::debugger_entry()->GetContext());
   }
 
   // Skip the global proxy as it has no properties and always delegates to the
@@ -8239,7 +8250,7 @@ static Object* Runtime_CheckExecutionState(Arguments args) {
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   // Check that the break id is valid.
   if (Debug::break_id() == 0 || break_id != Debug::break_id()) {
-    return Top::Throw(HEAP->illegal_execution_state_symbol());
+    return Isolate::Current()->Throw(HEAP->illegal_execution_state_symbol());
   }
 
   return HEAP->true_value();
@@ -8319,7 +8330,7 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
-  SaveContext* save = Top::save_context();
+  SaveContext* save = Isolate::Current()->save_context();
   while (save != NULL && !save->below(it.frame())) {
     save = save->prev();
   }
@@ -8537,7 +8548,8 @@ static Handle<JSObject> MaterializeLocalScope(JavaScriptFrame* frame) {
 
   // Allocate and initialize a JSObject with all the arguments, stack locals
   // heap locals and extension properties of the debugged function.
-  Handle<JSObject> local_scope = Factory::NewJSObject(Top::object_function());
+  Handle<JSObject> local_scope =
+      Factory::NewJSObject(Isolate::Current()->object_function());
 
   // First fill all parameters.
   for (int i = 0; i < scope_info.number_of_parameters(); ++i) {
@@ -8588,7 +8600,8 @@ static Handle<JSObject> MaterializeClosure(Handle<Context> context) {
 
   // Allocate and initialize a JSObject with all the content of theis function
   // closure.
-  Handle<JSObject> closure_scope = Factory::NewJSObject(Top::object_function());
+  Handle<JSObject> closure_scope =
+      Factory::NewJSObject(Isolate::Current()->object_function());
 
   // Check whether the arguments shadow object exists.
   int arguments_shadow_index =
@@ -8946,7 +8959,8 @@ static Object* Runtime_GetCFrames(Arguments args) {
   Handle<String> text_str = Factory::LookupAsciiSymbol("text");
   Handle<FixedArray> frames_array = Factory::NewFixedArray(frames_count);
   for (int i = 0; i < frames_count; i++) {
-    Handle<JSObject> frame_value = Factory::NewJSObject(Top::object_function());
+    Handle<JSObject> frame_value =
+        Factory::NewJSObject(Isolate::Current()->object_function());
     frame_value->SetProperty(
         *address_str,
         *Factory::NewNumberFromInt(reinterpret_cast<int>(frames[i].address)),
@@ -9252,7 +9266,7 @@ static Object* Runtime_PrepareStep(Arguments args) {
   Object* check = Runtime_CheckExecutionState(args);
   if (check->IsFailure()) return check;
   if (!args[1]->IsNumber() || !args[2]->IsNumber()) {
-    return Top::Throw(HEAP->illegal_argument_symbol());
+    return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
   }
 
   // Get the step action and check validity.
@@ -9262,13 +9276,13 @@ static Object* Runtime_PrepareStep(Arguments args) {
       step_action != StepOut &&
       step_action != StepInMin &&
       step_action != StepMin) {
-    return Top::Throw(HEAP->illegal_argument_symbol());
+    return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
   }
 
   // Get the number of steps.
   int step_count = NumberToInt32(args[2]);
   if (step_count < 1) {
-    return Top::Throw(HEAP->illegal_argument_symbol());
+    return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
   }
 
   // Clear all current stepping setup.
@@ -9384,13 +9398,13 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
-  SaveContext* save = Top::save_context();
+  SaveContext* save = Isolate::Current()->save_context();
   while (save != NULL && !save->below(frame)) {
     save = save->prev();
   }
   ASSERT(save != NULL);
   SaveContext savex;
-  Top::set_context(*(save->context()));
+  Isolate::Current()->set_context(*(save->context()));
 
   // Create the (empty) function replacing the function on the stack frame for
   // the purpose of evaluating in the context created below. It is important
@@ -9491,12 +9505,12 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
     top = top->prev();
   }
   if (top != NULL) {
-    Top::set_context(*top->context());
+    Isolate::Current()->set_context(*top->context());
   }
 
   // Get the global context now set to the top context from before the
   // debugger was invoked.
-  Handle<Context> context = Top::global_context();
+  Handle<Context> context = Isolate::Current()->global_context();
 
   // Compile the source to be evaluated.
   Handle<SharedFunctionInfo> shared =
@@ -9511,7 +9525,7 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
 
   // Invoke the result of the compilation to get the evaluation function.
   bool has_pending_exception;
-  Handle<Object> receiver = Top::global();
+  Handle<Object> receiver = Isolate::Current()->global();
   Handle<Object> result =
     Execution::Call(compiled_function, receiver, 0, NULL,
                     &has_pending_exception);
@@ -9540,7 +9554,8 @@ static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
   }
 
   // Return result as a JS array.
-  Handle<JSObject> result = Factory::NewJSObject(Top::array_function());
+  Handle<JSObject> result = Factory::NewJSObject(
+      Isolate::Current()->array_function());
   Handle<JSArray>::cast(result)->SetContent(*instances);
   return *result;
 }
@@ -9636,7 +9651,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
 
   // Get the constructor function for context extension and arguments array.
   JSObject* arguments_boilerplate =
-      Top::context()->global_context()->arguments_boilerplate();
+      Isolate::Current()->context()->global_context()->arguments_boilerplate();
   JSFunction* arguments_function =
       JSFunction::cast(arguments_boilerplate->map()->constructor());
 
@@ -9657,7 +9672,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
   // Return result as JS array.
   Object* result =
       HEAP->AllocateJSObject(
-          Top::context()->global_context()->array_function());
+          Isolate::Current()->context()->global_context()->array_function());
   if (!result->IsFailure()) JSArray::cast(result)->SetContent(instances);
   return result;
 }
@@ -9722,7 +9737,7 @@ static Object* Runtime_DebugConstructedBy(Arguments args) {
   // Return result as JS array.
   Object* result =
       HEAP->AllocateJSObject(
-          Top::context()->global_context()->array_function());
+          Isolate::Current()->context()->global_context()->array_function());
   if (!result->IsFailure()) JSArray::cast(result)->SetContent(instances);
   return result;
 }
@@ -9857,7 +9872,7 @@ static Object* Runtime_LiveEditGatherCompileInfo(Arguments args) {
 
   JSArray* result =  LiveEdit::GatherCompileInfo(script_handle, source);
 
-  if (Top::has_pending_exception()) {
+  if (Isolate::Current()->has_pending_exception()) {
     return Failure::Exception();
   }
 
@@ -10026,11 +10041,11 @@ static Object* Runtime_ExecuteInDebugContext(Arguments args) {
   bool pending_exception;
   {
     if (without_debugger) {
-      result = Execution::Call(function, Top::global(), 0, NULL,
+      result = Execution::Call(function, Isolate::Current()->global(), 0, NULL,
                                &pending_exception);
     } else {
       EnterDebugger enter_debugger;
-      result = Execution::Call(function, Top::global(), 0, NULL,
+      result = Execution::Call(function, Isolate::Current()->global(), 0, NULL,
                                &pending_exception);
     }
   }
@@ -10214,7 +10229,7 @@ static Object* Runtime_Abort(Arguments args) {
   ASSERT(args.length() == 2);
   OS::PrintError("abort: %s\n", reinterpret_cast<char*>(args[0]) +
                                     Smi::cast(args[1])->value());
-  Top::PrintStack();
+  Isolate::Current()->PrintStack();
   OS::Abort();
   UNREACHABLE();
   return NULL;
@@ -10241,7 +10256,7 @@ static Object* CacheMiss(FixedArray* cache_obj, int index, Object* key_obj) {
   Handle<JSFunction> factory(JSFunction::cast(
         cache->get(JSFunctionResultCache::kFactoryIndex)));
   // TODO(antonm): consider passing a receiver when constructing a cache.
-  Handle<Object> receiver(Top::global_context()->global());
+  Handle<Object> receiver(Isolate::Current()->global_context()->global());
 
   Handle<Object> value;
   {

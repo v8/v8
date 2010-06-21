@@ -2630,7 +2630,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   function_return_is_shadowed_ = function_return_was_shadowed;
 
   // Get an external reference to the handler address.
-  ExternalReference handler_address(Top::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address);
 
   // If we can fall off the end of the try block, unlink from try chain.
   if (has_valid_frame()) {
@@ -2744,7 +2744,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
   function_return_is_shadowed_ = function_return_was_shadowed;
 
   // Get an external reference to the handler address.
-  ExternalReference handler_address(Top::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address);
 
   // If we can fall off the end of the try block, unlink from the try
   // chain and set the state on the frame to FALLING.
@@ -4936,7 +4936,7 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
   int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
 
   Handle<FixedArray> jsfunction_result_caches(
-      Top::global_context()->jsfunction_result_caches());
+      Isolate::Current()->global_context()->jsfunction_result_caches());
   if (jsfunction_result_caches->length() <= cache_id) {
     __ Abort("Attempt to use undefined cache.");
     frame_->EmitPushRoot(Heap::kUndefinedValueRootIndex);
@@ -8513,7 +8513,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
 
   // Drop the sp to the top of the handler.
-  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+  __ mov(r3, Operand(ExternalReference(Isolate::k_handler_address)));
   __ ldr(sp, MemOperand(r3));
 
   // Restore the next handler and frame pointer, discard handler state.
@@ -8547,7 +8547,7 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
   ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
 
   // Drop sp to the top stack handler.
-  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+  __ mov(r3, Operand(ExternalReference(Isolate::k_handler_address)));
   __ ldr(sp, MemOperand(r3));
 
   // Unwind the handlers until the ENTRY handler is found.
@@ -8571,7 +8571,8 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
 
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
-    ExternalReference external_caught(Top::k_external_caught_exception_address);
+    ExternalReference external_caught(
+        Isolate::k_external_caught_exception_address);
     __ mov(r0, Operand(false));
     __ mov(r2, Operand(external_caught));
     __ str(r0, MemOperand(r2));
@@ -8579,7 +8580,8 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
     // Set pending exception and r0 to out of memory exception.
     Failure* out_of_memory = Failure::OutOfMemoryException();
     __ mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
-    __ mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
+    __ mov(r2, Operand(
+        ExternalReference(Isolate::k_pending_exception_address)));
     __ str(r0, MemOperand(r2));
   }
 
@@ -8726,7 +8728,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Retrieve the pending exception and clear the variable.
   __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
   __ ldr(r3, MemOperand(ip));
-  __ mov(ip, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address)));
   __ ldr(r0, MemOperand(ip));
   __ str(r3, MemOperand(ip));
 
@@ -8839,7 +8841,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
   __ mov(r7, Operand(Smi::FromInt(marker)));
   __ mov(r6, Operand(Smi::FromInt(marker)));
-  __ mov(r5, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  __ mov(r5, Operand(ExternalReference(Isolate::k_c_entry_fp_address)));
   __ ldr(r5, MemOperand(r5));
   __ Push(r8, r7, r6, r5);
 
@@ -8853,7 +8855,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // exception field in the JSEnv and return a failure sentinel.
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
-  __ mov(ip, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address)));
   __ str(r0, MemOperand(ip));
   __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ b(&exit);
@@ -8870,7 +8872,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Clear any pending exceptions.
   __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
   __ ldr(r5, MemOperand(ip));
-  __ mov(ip, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address)));
   __ str(r5, MemOperand(ip));
 
   // Invoke the function by calling through JS entry trampoline builtin.
@@ -8903,7 +8905,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // displacement since the current stack pointer (sp) points directly
   // to the stack handler.
   __ ldr(r3, MemOperand(sp, StackHandlerConstants::kNextOffset));
-  __ mov(ip, Operand(ExternalReference(Top::k_handler_address)));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_handler_address)));
   __ str(r3, MemOperand(ip));
   // No need to restore registers
   __ add(sp, sp, Operand(StackHandlerConstants::kSize));
@@ -8912,7 +8914,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ bind(&exit);  // r0 holds result
   // Restore the top frame descriptors from the stack.
   __ pop(r3);
-  __ mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_c_entry_fp_address)));
   __ str(r3, MemOperand(ip));
 
   // Reset the stack to the callee saved registers.
@@ -9428,7 +9430,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   __ mov(r0, Operand(ExternalReference::the_hole_value_location()));
   __ ldr(r0, MemOperand(r0, 0));
-  __ mov(r1, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ mov(r1, Operand(ExternalReference(Isolate::k_pending_exception_address)));
   __ ldr(r1, MemOperand(r1, 0));
   __ cmp(r0, r1);
   __ b(eq, &runtime);

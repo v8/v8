@@ -2119,7 +2119,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   function_return_is_shadowed_ = function_return_was_shadowed;
 
   // Get an external reference to the handler address.
-  ExternalReference handler_address(Top::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address);
 
   // Make sure that there's nothing left on the stack above the
   // handler structure.
@@ -2248,7 +2248,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
   function_return_is_shadowed_ = function_return_was_shadowed;
 
   // Get an external reference to the handler address.
-  ExternalReference handler_address(Top::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address);
 
   // If we can fall off the end of the try block, unlink from the try
   // chain and set the state on the frame to FALLING.
@@ -4872,7 +4872,7 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
   int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
 
   Handle<FixedArray> jsfunction_result_caches(
-      Top::global_context()->jsfunction_result_caches());
+      Isolate::Current()->global_context()->jsfunction_result_caches());
   if (jsfunction_result_caches->length() <= cache_id) {
     __ Abort("Attempt to use undefined cache.");
     frame_->Push(Factory::undefined_value());
@@ -8775,7 +8775,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  ExternalReference pending_exception_address(Top::k_pending_exception_address);
+  ExternalReference pending_exception_address(
+      Isolate::k_pending_exception_address);
   __ movq(kScratchRegister, pending_exception_address);
   __ Cmp(kScratchRegister, Factory::the_hole_value());
   __ j(equal, &runtime);
@@ -9496,7 +9497,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
             StackHandlerConstants::kPCOffset);
 
-  ExternalReference handler_address(Top::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address);
   __ movq(kScratchRegister, handler_address);
   __ movq(rsp, Operand(kScratchRegister, 0));
   // get next in chain
@@ -9634,7 +9635,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(equal, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
-  ExternalReference pending_exception_address(Top::k_pending_exception_address);
+  ExternalReference pending_exception_address(
+      Isolate::k_pending_exception_address);
   __ movq(kScratchRegister, pending_exception_address);
   __ movq(rax, Operand(kScratchRegister, 0));
   __ movq(rdx, ExternalReference::the_hole_value_location());
@@ -9657,7 +9659,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
                                           UncatchableExceptionType type) {
   // Fetch top stack handler.
-  ExternalReference handler_address(Top::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address);
   __ movq(kScratchRegister, handler_address);
   __ movq(rsp, Operand(kScratchRegister, 0));
 
@@ -9680,12 +9682,13 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
 
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
-    ExternalReference external_caught(Top::k_external_caught_exception_address);
+    ExternalReference external_caught(
+        Isolate::k_external_caught_exception_address);
     __ movq(rax, Immediate(false));
     __ store_rax(external_caught);
 
     // Set pending exception and rax to out of memory exception.
-    ExternalReference pending_exception(Top::k_pending_exception_address);
+    ExternalReference pending_exception(Isolate::k_pending_exception_address);
     __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
     __ store_rax(pending_exception);
   }
@@ -9862,13 +9865,13 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // callee-save in JS code as well.
 
   // Save copies of the top frame descriptor on the stack.
-  ExternalReference c_entry_fp(Top::k_c_entry_fp_address);
+  ExternalReference c_entry_fp(Isolate::k_c_entry_fp_address);
   __ load_rax(c_entry_fp);
   __ push(rax);
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // If this is the outermost JS call, set js_entry_sp value.
-  ExternalReference js_entry_sp(Top::k_js_entry_sp_address);
+  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address);
   __ load_rax(js_entry_sp);
   __ testq(rax, rax);
   __ j(not_zero, &not_outermost_js);
@@ -9882,7 +9885,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Caught exception: Store result (exception) in the pending
   // exception field in the JSEnv and return a failure sentinel.
-  ExternalReference pending_exception(Top::k_pending_exception_address);
+  ExternalReference pending_exception(Isolate::k_pending_exception_address);
   __ store_rax(pending_exception);
   __ movq(rax, Failure::Exception(), RelocInfo::NONE);
   __ jmp(&exit);
@@ -9914,7 +9917,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ call(kScratchRegister);
 
   // Unlink this frame from the handler chain.
-  __ movq(kScratchRegister, ExternalReference(Top::k_handler_address));
+  __ movq(kScratchRegister, ExternalReference(Isolate::k_handler_address));
   __ pop(Operand(kScratchRegister, 0));
   // Pop next_sp.
   __ addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
@@ -9931,7 +9934,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Restore the top frame descriptor from the stack.
   __ bind(&exit);
-  __ movq(kScratchRegister, ExternalReference(Top::k_c_entry_fp_address));
+  __ movq(kScratchRegister, ExternalReference(Isolate::k_c_entry_fp_address));
   __ pop(Operand(kScratchRegister, 0));
 
   // Restore callee-saved registers (X64 conventions).

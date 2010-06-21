@@ -411,7 +411,7 @@ static void CompileScriptForTracker(Handle<Script> script) {
 
   // Check for parse errors.
   if (lit == NULL) {
-    ASSERT(Top::has_pending_exception());
+    ASSERT(Isolate::Current()->has_pending_exception());
     return;
   }
 
@@ -423,7 +423,7 @@ static void CompileScriptForTracker(Handle<Script> script) {
 
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
-    Top::StackOverflow();
+    Isolate::Current()->StackOverflow();
     return;
   }
   tracker.RecordRootFunctionInfo(code);
@@ -437,7 +437,8 @@ static Handle<Object> UnwrapJSValue(Handle<JSValue> jsValue) {
 // Wraps any object into a OpaqueReference, that will hide the object
 // from JavaScript.
 static Handle<JSValue> WrapInJSValue(Object* object) {
-  Handle<JSFunction> constructor = Top::opaque_reference_function();
+  Handle<JSFunction> constructor =
+      Isolate::Current()->opaque_reference_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(Factory::NewJSObject(constructor));
   result->set_value(object);
@@ -793,7 +794,7 @@ class FrameUncookingThreadVisitor : public ThreadVisitor {
 };
 
 static void IterateAllThreads(ThreadVisitor* visitor) {
-  Top::IterateThread(visitor);
+  Isolate::Current()->IterateThread(visitor);
   ThreadManager::IterateArchivedThreads(visitor);
 }
 
@@ -844,7 +845,7 @@ Object* LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
   HandleScope scope;
 
   if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
-    return Top::ThrowIllegalOperation();
+    return Isolate::Current()->ThrowIllegalOperation();
   }
 
   FunctionInfoWrapper compile_info_wrapper(new_compile_info_array);
@@ -1038,7 +1039,7 @@ Object* LiveEdit::PatchFunctionPositions(
     Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array) {
 
   if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
-    return Top::ThrowIllegalOperation();
+    return Isolate::Current()->ThrowIllegalOperation();
   }
 
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
@@ -1166,7 +1167,8 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
 static bool FixTryCatchHandler(StackFrame* top_frame,
                                StackFrame* bottom_frame) {
   Address* pointer_address =
-      &Memory::Address_at(Top::get_address_from_id(Top::k_handler_address));
+      &Memory::Address_at(Isolate::Current()->get_address_from_id(
+          Isolate::k_handler_address));
 
   while (*pointer_address < top_frame->sp()) {
     pointer_address = &Memory::Address_at(*pointer_address);

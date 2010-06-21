@@ -29,9 +29,10 @@
 #ifndef V8_HANDLES_INL_H_
 #define V8_HANDLES_INL_H_
 
+#include "api.h"
 #include "apiutils.h"
 #include "handles.h"
-#include "api.h"
+#include "isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -48,6 +49,54 @@ inline T* Handle<T>::operator*() const {
   ASSERT(location_ != NULL);
   ASSERT(reinterpret_cast<Address>(*location_) != kHandleZapValue);
   return *location_;
+}
+
+
+HandleScope::HandleScope()
+    : previous_(*Isolate::Current()->handle_scope_data()) {
+  Isolate::Current()->handle_scope_data()->extensions = 0;
+}
+
+
+template <typename T>
+T** HandleScope::CreateHandle(T* value) {
+  v8::ImplementationUtilities::HandleScopeData* current =
+      Isolate::Current()->handle_scope_data();
+
+  internal::Object** cur = current->next;
+  if (cur == current->limit) cur = Extend();
+  // Update the current next field, set the value in the created
+  // handle, and return the result.
+  ASSERT(cur < current->limit);
+  current->next = cur + 1;
+
+  T** result = reinterpret_cast<T**>(cur);
+  *result = value;
+  return result;
+}
+
+
+void HandleScope::Enter(
+    v8::ImplementationUtilities::HandleScopeData* previous) {
+  v8::ImplementationUtilities::HandleScopeData* current =
+      Isolate::Current()->handle_scope_data();
+  *previous = *current;
+  current->extensions = 0;
+}
+
+
+void HandleScope::Leave(
+    const v8::ImplementationUtilities::HandleScopeData* previous) {
+  Isolate* isolate = Isolate::Current();
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate->handle_scope_data();
+  if (current->extensions > 0) {
+    DeleteExtensions(isolate);
+  }
+  *current = *previous;
+#ifdef DEBUG
+  ZapRange(current->next, current->limit);
+#endif
 }
 
 

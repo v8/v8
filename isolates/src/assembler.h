@@ -36,7 +36,6 @@
 #define V8_ASSEMBLER_H_
 
 #include "runtime.h"
-#include "top.h"
 #include "token.h"
 #include "objects.h"
 
@@ -418,7 +417,7 @@ class ExternalReference BASE_EMBEDDED {
 
   explicit ExternalReference(StatsCounter* counter);
 
-  explicit ExternalReference(Top::AddressId id);
+  explicit ExternalReference(Isolate::AddressId id);
 
   explicit ExternalReference(const SCTableReference& table_ref);
 

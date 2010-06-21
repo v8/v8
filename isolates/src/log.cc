@@ -148,7 +148,7 @@ void StackTracer::Trace(TickSample* sample) {
 
   if (sample->state == GC) return;
 
-  const Address js_entry_sp = Top::js_entry_sp(
+  const Address js_entry_sp = Isolate::js_entry_sp(
       Isolate::Current()->thread_local_top());
   if (js_entry_sp == 0) {
     // Not executing JS now.

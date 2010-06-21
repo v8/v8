@@ -455,8 +455,9 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
     global_context()->set_object_function(*object_fun);
 
     // Allocate a new prototype for the object function.
-    Handle<JSObject> prototype = Factory::NewJSObject(Top::object_function(),
-                                                      TENURED);
+    Handle<JSObject> prototype = Factory::NewJSObject(
+        Isolate::Current()->object_function(),
+        TENURED);
 
     global_context()->set_initial_object_prototype(*prototype);
     SetPrototype(object_fun, prototype);
@@ -505,7 +506,7 @@ void Genesis::CreateRoots() {
   global_context_ =
       Handle<Context>::cast(
           GlobalHandles::Create(*Factory::NewGlobalContext()));
-  Top::set_context(*global_context());
+  Isolate::Current()->set_context(*global_context());
 
   // Allocate the message listeners object.
   {
@@ -560,7 +561,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
         Handle<JSObject>(
             JSObject::cast(js_global_function->instance_prototype()));
     SetProperty(prototype, Factory::constructor_symbol(),
-                Top::object_function(), NONE);
+                Isolate::Current()->object_function(), NONE);
   } else {
     Handle<FunctionTemplateInfo> js_global_constructor(
         FunctionTemplateInfo::cast(js_global_template->constructor()));
@@ -662,7 +663,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   global_context()->set_security_token(*inner_global);
 
   Handle<String> object_name = Handle<String>(HEAP->Object_symbol());
-  SetProperty(inner_global, object_name, Top::object_function(), DONT_ENUM);
+  SetProperty(inner_global, object_name,
+      Isolate::Current()->object_function(), DONT_ENUM);
 
   Handle<JSObject> global = Handle<JSObject>(global_context()->global());
 
@@ -673,8 +675,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   {  // --- A r r a y ---
     Handle<JSFunction> array_function =
         InstallFunction(global, "Array", JS_ARRAY_TYPE, JSArray::kSize,
-                        Top::initial_object_prototype(), Builtins::ArrayCode,
-                        true);
+                        Isolate::Current()->initial_object_prototype(),
+                        Builtins::ArrayCode, true);
     array_function->shared()->set_construct_stub(
         Builtins::builtin(Builtins::ArrayConstructCode));
     array_function->shared()->DontAdaptArguments();
@@ -703,24 +705,24 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   {  // --- N u m b e r ---
     Handle<JSFunction> number_fun =
         InstallFunction(global, "Number", JS_VALUE_TYPE, JSValue::kSize,
-                        Top::initial_object_prototype(), Builtins::Illegal,
-                        true);
+                        Isolate::Current()->initial_object_prototype(),
+                        Builtins::Illegal, true);
     global_context()->set_number_function(*number_fun);
   }
 
   {  // --- B o o l e a n ---
     Handle<JSFunction> boolean_fun =
         InstallFunction(global, "Boolean", JS_VALUE_TYPE, JSValue::kSize,
-                        Top::initial_object_prototype(), Builtins::Illegal,
-                        true);
+                        Isolate::Current()->initial_object_prototype(),
+                        Builtins::Illegal, true);
     global_context()->set_boolean_function(*boolean_fun);
   }
 
   {  // --- S t r i n g ---
     Handle<JSFunction> string_fun =
         InstallFunction(global, "String", JS_VALUE_TYPE, JSValue::kSize,
-                        Top::initial_object_prototype(), Builtins::Illegal,
-                        true);
+                        Isolate::Current()->initial_object_prototype(),
+                        Builtins::Illegal, true);
     global_context()->set_string_function(*string_fun);
     // Add 'length' property to strings.
     Handle<DescriptorArray> string_descriptors =
@@ -741,8 +743,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // Builtin functions for Date.prototype.
     Handle<JSFunction> date_fun =
         InstallFunction(global, "Date", JS_VALUE_TYPE, JSValue::kSize,
-                        Top::initial_object_prototype(), Builtins::Illegal,
-                        true);
+                        Isolate::Current()->initial_object_prototype(),
+                        Builtins::Illegal, true);
 
     global_context()->set_date_function(*date_fun);
   }
@@ -752,8 +754,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // Builtin functions for RegExp.prototype.
     Handle<JSFunction> regexp_fun =
         InstallFunction(global, "RegExp", JS_REGEXP_TYPE, JSRegExp::kSize,
-                        Top::initial_object_prototype(), Builtins::Illegal,
-                        true);
+                        Isolate::Current()->initial_object_prototype(),
+                        Builtins::Illegal, true);
     global_context()->set_regexp_function(*regexp_fun);
 
     ASSERT(regexp_fun->has_initial_map());
@@ -944,10 +946,11 @@ bool Genesis::CompileNative(Vector<const char> name, Handle<String> source) {
                                     source,
                                     NULL,
                                     NULL,
-                                    Handle<Context>(Top::context()),
+                                    Handle<Context>(
+                                        Isolate::Current()->context()),
                                     true);
-  ASSERT(Top::has_pending_exception() != result);
-  if (!result) Top::clear_pending_exception();
+  ASSERT(Isolate::Current()->has_pending_exception() != result);
+  if (!result) Isolate::Current()->clear_pending_exception();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger::set_compiling_natives(false);
 #endif
@@ -1071,7 +1074,7 @@ bool Genesis::InstallNatives() {
   // Create a bridge function that has context in the global context.
   Handle<JSFunction> bridge =
       Factory::NewFunction(Factory::empty_symbol(), Factory::undefined_value());
-  ASSERT(bridge->context() == *Top::global_context());
+  ASSERT(bridge->context() == *Isolate::Current()->global_context());
 
   // Allocate the builtins context.
   Handle<Context> context =
@@ -1084,10 +1087,10 @@ bool Genesis::InstallNatives() {
     // Builtin functions for Script.
     Handle<JSFunction> script_fun =
         InstallFunction(builtins, "Script", JS_VALUE_TYPE, JSValue::kSize,
-                        Top::initial_object_prototype(), Builtins::Illegal,
-                        false);
+                        Isolate::Current()->initial_object_prototype(),
+                        Builtins::Illegal, false);
     Handle<JSObject> prototype =
-        Factory::NewJSObject(Top::object_function(), TENURED);
+        Factory::NewJSObject(Isolate::Current()->object_function(), TENURED);
     SetPrototype(script_fun, prototype);
     global_context()->set_script_function(*script_fun);
 
@@ -1208,10 +1211,11 @@ bool Genesis::InstallNatives() {
     // objects, that JavaScript code may not access.
     Handle<JSFunction> opaque_reference_fun =
         InstallFunction(builtins, "OpaqueReference", JS_VALUE_TYPE,
-                        JSValue::kSize, Top::initial_object_prototype(),
+                        JSValue::kSize,
+                        Isolate::Current()->initial_object_prototype(),
                         Builtins::Illegal, false);
     Handle<JSObject> prototype =
-        Factory::NewJSObject(Top::object_function(), TENURED);
+        Factory::NewJSObject(Isolate::Current()->object_function(), TENURED);
     SetPrototype(opaque_reference_fun, prototype);
     global_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
@@ -1240,7 +1244,8 @@ bool Genesis::InstallNatives() {
   // Install Function.prototype.call and apply.
   { Handle<String> key = Factory::function_class_symbol();
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(GetProperty(Top::global(), key));
+        Handle<JSFunction>::cast(
+            GetProperty(Isolate::Current()->global(), key));
     Handle<JSObject> proto =
         Handle<JSObject>(JSObject::cast(function->instance_prototype()));
 
@@ -1400,7 +1405,7 @@ bool Bootstrapper::InstallExtensions(Handle<Context> global_context,
                                      v8::ExtensionConfiguration* extensions) {
   BootstrapperActive active;
   SaveContext saved_context;
-  Top::set_context(*global_context);
+  Isolate::Current()->set_context(*global_context);
   if (!Genesis::InstallExtensions(global_context, extensions)) return false;
   Genesis::InstallSpecialObjects(global_context);
   return true;
@@ -1523,11 +1528,12 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
                                     source_code,
                                     &extensions_cache,
                                     extension,
-                                    Handle<Context>(Top::context()),
+                                    Handle<Context>(
+                                        Isolate::Current()->context()),
                                     false);
-  ASSERT(Top::has_pending_exception() != result);
+  ASSERT(Isolate::Current()->has_pending_exception() != result);
   if (!result) {
-    Top::clear_pending_exception();
+    Isolate::Current()->clear_pending_exception();
   }
   current->set_state(v8::INSTALLED);
   return result;
@@ -1588,8 +1594,8 @@ bool Genesis::ConfigureApiObject(Handle<JSObject> object,
   Handle<JSObject> obj =
       Execution::InstantiateObject(object_template, &pending_exception);
   if (pending_exception) {
-    ASSERT(Top::has_pending_exception());
-    Top::clear_pending_exception();
+    ASSERT(Isolate::Current()->has_pending_exception());
+    Isolate::Current()->clear_pending_exception();
     return false;
   }
   TransferObject(obj, object);
@@ -1709,10 +1715,11 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 
   Handle<DescriptorArray> function_map_descriptors =
       ComputeFunctionInstanceDescriptor(ADD_WRITEABLE_PROTOTYPE);
-  Handle<Map> fm = Factory::CopyMapDropDescriptors(Top::function_map());
+  Handle<Map> fm = Factory::CopyMapDropDescriptors(
+      Isolate::Current()->function_map());
   fm->set_instance_descriptors(*function_map_descriptors);
   fm->set_function_with_prototype(true);
-  Top::context()->global_context()->set_function_map(*fm);
+  Isolate::Current()->context()->global_context()->set_function_map(*fm);
 }
 
 
@@ -1732,7 +1739,7 @@ Genesis::Genesis(Handle<Object> global_object,
   if (!new_context.is_null()) {
     global_context_ =
       Handle<Context>::cast(GlobalHandles::Create(*new_context));
-    Top::set_context(*global_context_);
+    Isolate::Current()->set_context(*global_context_);
     i::Counters::contexts_created_by_snapshot.Increment();
     result_ = global_context_;
     JSFunction* empty_function =

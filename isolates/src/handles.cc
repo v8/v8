@@ -351,7 +351,8 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
     // Hidden properties object not found. Allocate a new hidden properties
     // object if requested. Otherwise return the undefined value.
     if (create_if_needed) {
-      Handle<Object> hidden_obj = Factory::NewJSObject(Top::object_function());
+      Handle<Object> hidden_obj =
+          Factory::NewJSObject(Isolate::Current()->object_function());
       CALL_HEAP_FUNCTION(obj->SetHiddenPropertiesObject(*hidden_obj), Object);
     } else {
       return Factory::undefined_value();
@@ -444,7 +445,7 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
 
   // Construct a new script wrapper.
   Counters::script_wrappers.Increment();
-  Handle<JSFunction> constructor = Top::script_function();
+  Handle<JSFunction> constructor = Isolate::Current()->script_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(Factory::NewJSObject(constructor));
   result->set_value(*script);
@@ -623,7 +624,8 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
   Handle<FixedArray> content = Factory::empty_fixed_array();
   Handle<JSObject> arguments_boilerplate =
       Handle<JSObject>(
-          Top::context()->global_context()->arguments_boilerplate());
+          Isolate::Current()->context()->global_context()->
+              arguments_boilerplate());
   Handle<JSFunction> arguments_function =
       Handle<JSFunction>(
           JSFunction::cast(arguments_boilerplate->map()->constructor()));
@@ -636,9 +638,9 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
 
     // Check access rights if required.
     if (current->IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(*current, HEAP->undefined_value(),
-                           v8::ACCESS_KEYS)) {
-      Top::ReportFailedAccessCheck(*current, v8::ACCESS_KEYS);
+        !Isolate::Current()->MayNamedAccess(*current, HEAP->undefined_value(),
+                                            v8::ACCESS_KEYS)) {
+      Isolate::Current()->ReportFailedAccessCheck(*current, v8::ACCESS_KEYS);
       break;
     }
 
@@ -750,8 +752,10 @@ static bool CompileLazyHelper(CompilationInfo* info,
   // Compile the source information to a code object.
   ASSERT(!info->shared_info()->is_compiled());
   bool result = Compiler::CompileLazy(info);
-  ASSERT(result != Top::has_pending_exception());
-  if (!result && flag == CLEAR_EXCEPTION) Top::clear_pending_exception();
+  ASSERT(result != Isolate::Current()->has_pending_exception());
+  if (!result && flag == CLEAR_EXCEPTION) {
+    Isolate::Current()->clear_pending_exception();
+  }
   return result;
 }
 

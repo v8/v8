@@ -148,7 +148,7 @@ static inline bool CalledAsConstructor() {
   StackFrame* frame = it.frame();
   bool reference_result = frame->is_construct();
 #endif
-  Address fp = Top::c_entry_fp(Isolate::Current()->thread_local_top());
+  Address fp = Isolate::c_entry_fp(Isolate::Current()->thread_local_top());
   // Because we know fp points to an exit frame we can use the relevant
   // part of ExitFrame::ComputeCallerState directly.
   const int kCallerOffset = ExitFrameConstants::kCallerFPOffset;
@@ -188,7 +188,7 @@ BUILTIN(ArrayCodeGeneric) {
   } else {
     // Allocate the JS Array
     JSFunction* constructor =
-        Top::context()->global_context()->array_function();
+        Isolate::Current()->context()->global_context()->array_function();
     Object* obj = HEAP->AllocateJSObject(constructor);
     if (obj->IsFailure()) return obj;
     array = JSArray::cast(obj);
@@ -244,7 +244,7 @@ BUILTIN(ArrayCodeGeneric) {
 
 static Object* AllocateJSArray() {
   JSFunction* array_function =
-      Top::context()->global_context()->array_function();
+      Isolate::Current()->context()->global_context()->array_function();
   Object* result = HEAP->AllocateJSObject(array_function);
   if (result->IsFailure()) return result;
   return result;
@@ -369,7 +369,7 @@ static bool IsFastElementMovingAllowed(Object* receiver,
                                        FixedArray** elements) {
   if (!IsJSArrayWithFastElements(receiver, elements)) return false;
 
-  Context* global_context = Top::context()->global_context();
+  Context* global_context = Isolate::Current()->context()->global_context();
   JSObject* array_proto =
       JSObject::cast(global_context->array_function()->prototype());
   if (JSArray::cast(receiver)->GetPrototype() != array_proto) return false;
@@ -382,8 +382,9 @@ static Object* CallJsBuiltin(const char* name,
   HandleScope handleScope;
 
   Handle<Object> js_builtin =
-      GetProperty(Handle<JSObject>(Top::global_context()->builtins()),
-                  name);
+      GetProperty(Handle<JSObject>(
+          Isolate::Current()->global_context()->builtins()),
+          name);
   ASSERT(js_builtin->IsJSFunction());
   Handle<JSFunction> function(Handle<JSFunction>::cast(js_builtin));
   ScopedVector<Object**> argv(args.length() - 1);
@@ -789,7 +790,7 @@ BUILTIN(ArraySplice) {
 
 
 BUILTIN(ArrayConcat) {
-  Context* global_context = Top::context()->global_context();
+  Context* global_context = Isolate::Current()->context()->global_context();
   JSObject* array_proto =
       JSObject::cast(global_context->array_function()->prototype());
   if (!ArrayPrototypeHasNoElements(global_context, array_proto)) {
@@ -923,7 +924,7 @@ static Object* HandleApiCallHelper(
     bool pending_exception = false;
     Factory::ConfigureInstance(desc, Handle<JSObject>::cast(args.receiver()),
                                &pending_exception);
-    ASSERT(Top::has_pending_exception() == pending_exception);
+    ASSERT(Isolate::Current()->has_pending_exception() == pending_exception);
     if (pending_exception) return Failure::Exception();
     fun_data = *desc;
   }
@@ -934,7 +935,7 @@ static Object* HandleApiCallHelper(
     // This function cannot be called with the given receiver.  Abort!
     Handle<Object> obj =
         Factory::NewTypeError("illegal_invocation", HandleVector(&function, 1));
-    return Top::Throw(*obj);
+    return Isolate::Current()->Throw(*obj);
   }
 
   Object* raw_call_data = fun_data->call_code();

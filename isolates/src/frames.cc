@@ -31,7 +31,6 @@
 #include "mark-compact.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
-#include "top.h"
 
 namespace v8 {
 namespace internal {
@@ -131,8 +130,10 @@ void StackFrameIterator::Reset() {
   StackFrame::State state;
   StackFrame::Type type;
   if (thread_ != NULL) {
-    type = ExitFrame::GetStateForFramePointer(Top::c_entry_fp(thread_), &state);
-    handler_ = StackHandler::FromAddress(Top::handler(thread_));
+    type = ExitFrame::GetStateForFramePointer(
+        Isolate::c_entry_fp(thread_), &state);
+    handler_ = StackHandler::FromAddress(
+        Isolate::handler(thread_));
   } else {
     ASSERT(fp_ != NULL);
     state.fp = fp_;
@@ -205,8 +206,9 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     low_bound_(low_bound), high_bound_(high_bound),
     is_valid_top_(
         IsWithinBounds(low_bound, high_bound,
-                       Top::c_entry_fp(Isolate::Current()->thread_local_top()))
-        && Top::handler(Isolate::Current()->thread_local_top()) != NULL),
+                       Isolate::c_entry_fp(
+                          Isolate::Current()->thread_local_top())) &&
+        Isolate::handler(Isolate::Current()->thread_local_top()) != NULL),
     is_valid_fp_(IsWithinBounds(low_bound, high_bound, fp)),
     is_working_iterator_(is_valid_top_ || is_valid_fp_),
     iteration_done_(!is_working_iterator_),

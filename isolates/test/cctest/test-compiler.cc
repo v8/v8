@@ -34,7 +34,6 @@
 #include "execution.h"
 #include "factory.h"
 #include "platform.h"
-#include "top.h"
 #include "cctest.h"
 
 using namespace v8::internal;
@@ -100,14 +99,14 @@ static void InitializeVM() {
 
 static Object* GetGlobalProperty(const char* name) {
   Handle<String> symbol = Factory::LookupAsciiSymbol(name);
-  return Top::context()->global()->GetProperty(*symbol);
+  return Isolate::Current()->context()->global()->GetProperty(*symbol);
 }
 
 
 static void SetGlobalProperty(const char* name, Object* value) {
   Handle<Object> object(value);
   Handle<String> symbol = Factory::LookupAsciiSymbol(name);
-  Handle<JSObject> global(Top::context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global());
   SetProperty(global, symbol, object, NONE);
 }
 
@@ -124,7 +123,7 @@ static Handle<JSFunction> Compile(const char* source) {
                         Handle<String>::null(),
                         NOT_NATIVES_CODE);
   return Factory::NewFunctionFromSharedFunctionInfo(shared_function,
-                                                    Top::global_context());
+      Isolate::Current()->global_context());
 }
 
 
@@ -137,7 +136,7 @@ static double Inc(int x) {
   if (fun.is_null()) return -1;
 
   bool has_pending_exception;
-  Handle<JSObject> global(Top::context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->Number();
@@ -158,7 +157,7 @@ static double Add(int x, int y) {
   SetGlobalProperty("x", Smi::FromInt(x));
   SetGlobalProperty("y", Smi::FromInt(y));
   bool has_pending_exception;
-  Handle<JSObject> global(Top::context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->Number();
@@ -178,7 +177,7 @@ static double Abs(int x) {
 
   SetGlobalProperty("x", Smi::FromInt(x));
   bool has_pending_exception;
-  Handle<JSObject> global(Top::context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->Number();
@@ -199,7 +198,7 @@ static double Sum(int n) {
 
   SetGlobalProperty("n", Smi::FromInt(n));
   bool has_pending_exception;
-  Handle<JSObject> global(Top::context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->Number();
@@ -220,7 +219,7 @@ TEST(Print) {
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
   bool has_pending_exception;
-  Handle<JSObject> global(Top::context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 }
@@ -253,7 +252,7 @@ TEST(Stuff) {
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   bool has_pending_exception;
-  Handle<JSObject> global(Top::context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   CHECK_EQ(511.0, GetGlobalProperty("r")->Number());
@@ -268,11 +267,11 @@ TEST(UncaughtThrow) {
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   bool has_pending_exception;
-  Handle<JSObject> global(Top::context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global());
   Handle<Object> result =
       Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(has_pending_exception);
-  CHECK_EQ(42.0, Top::pending_exception()->Number());
+  CHECK_EQ(42.0, Isolate::Current()->pending_exception()->Number());
 }
 
 
@@ -293,13 +292,13 @@ TEST(C2JSFrames) {
 
   // Run the generated code to populate the global object with 'foo'.
   bool has_pending_exception;
-  Handle<JSObject> global(Top::context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun0, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 
   Handle<Object> fun1 =
       Handle<Object>(
-          Top::context()->global()->GetProperty(
+          Isolate::Current()->context()->global()->GetProperty(
               *Factory::LookupAsciiSymbol("foo")));
   CHECK(fun1->IsJSFunction());
 

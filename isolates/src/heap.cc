@@ -690,7 +690,7 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
 
   isolate_->compilation_cache()->MarkCompactPrologue();
 
-  Top::MarkCompactPrologue(is_compacting);
+  Isolate::Current()->MarkCompactPrologue(is_compacting);
   ThreadManager::MarkCompactPrologue(is_compacting);
 
   CompletelyClearInstanceofCache();
@@ -700,7 +700,7 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
 
 
 void Heap::MarkCompactEpilogue(bool is_compacting) {
-  Top::MarkCompactEpilogue(is_compacting);
+  Isolate::Current()->MarkCompactEpilogue(is_compacting);
   ThreadManager::MarkCompactEpilogue(is_compacting);
 }
 
@@ -1916,7 +1916,7 @@ Object* Heap::AllocateConsString(String* first, String* second) {
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
-    Top::context()->mark_out_of_memory();
+    Isolate::Current()->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
 
@@ -2035,7 +2035,7 @@ Object* Heap::AllocateExternalStringFromAscii(
     ExternalAsciiString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    Top::context()->mark_out_of_memory();
+    Isolate::Current()->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
 
@@ -2056,7 +2056,7 @@ Object* Heap::AllocateExternalStringFromTwoByte(
     ExternalTwoByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    Top::context()->mark_out_of_memory();
+    Isolate::Current()->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
 
@@ -2454,7 +2454,7 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
 
   JSObject* boilerplate =
-      Top::context()->global_context()->arguments_boilerplate();
+      Isolate::Current()->context()->global_context()->arguments_boilerplate();
 
   // Check that the size of the boilerplate matches our
   // expectations. The ArgumentsAccessStub::GenerateNewObject relies
@@ -3268,7 +3268,7 @@ bool Heap::IdleNotification() {
 
 void Heap::Print() {
   if (!HasBeenSetup()) return;
-  Top::PrintStack();
+  Isolate::Current()->PrintStack();
   AllSpaces spaces;
   for (Space* space = spaces.next(); space != NULL; space = spaces.next())
     space->Print();
@@ -3769,7 +3769,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 
   isolate_->bootstrapper()->Iterate(v);
   v->Synchronize("bootstrapper");
-  Top::Iterate(v);
+  isolate_->Iterate(v);
   v->Synchronize("top");
   Relocatable::Iterate(v);
   v->Synchronize("relocatable");

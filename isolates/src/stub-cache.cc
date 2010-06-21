@@ -905,7 +905,7 @@ static Object* ThrowReferenceError(String* name) {
   Handle<Object> error =
       Factory::NewReferenceError("not_defined",
                                   HandleVector(&name_handle, 1));
-  return Top::Throw(*error);
+  return Isolate::Current()->Throw(*error);
 }
 
 

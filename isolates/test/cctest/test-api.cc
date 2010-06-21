@@ -34,7 +34,6 @@
 #include "execution.h"
 #include "snapshot.h"
 #include "platform.h"
-#include "top.h"
 #include "utils.h"
 #include "cctest.h"
 
@@ -2327,7 +2326,7 @@ v8::Handle<Value> CThrowCountDown(const v8::Arguments& args) {
       if (try_catch.HasCaught()) {
         CHECK_EQ(expected, count);
         CHECK(result.IsEmpty());
-        CHECK(!i::Top::has_scheduled_exception());
+        CHECK(!i::Isolate::Current()->has_scheduled_exception());
       } else {
         CHECK_NE(expected, count);
       }
@@ -5670,7 +5669,7 @@ THREADED_TEST(SetPrototypeThrows) {
   v8::TryCatch try_catch;
   CHECK(!o1->SetPrototype(o0));
   CHECK(!try_catch.HasCaught());
-  ASSERT(!i::Top::has_pending_exception());
+  ASSERT(!i::Isolate::Current()->has_pending_exception());
 
   CHECK_EQ(42, CompileRun("function f() { return 42; }; f()")->Int32Value());
 }
@@ -8995,7 +8994,8 @@ class RegExpStringModificationTest {
     // Inject the input as a global variable.
     i::Handle<i::String> input_name =
         i::Factory::NewStringFromAscii(i::Vector<const char>("input", 5));
-    i::Top::global_context()->global()->SetProperty(*input_name, *input_, NONE);
+    i::Isolate::Current()->global_context()->global()->
+        SetProperty(*input_name, *input_, NONE);
 
 
     MorphThread morph_thread(this);

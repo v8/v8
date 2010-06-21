@@ -383,8 +383,8 @@ void MacroAssembler::EnterExitFramePrologue(ExitFrame::Mode mode) {
   push(Immediate(CodeObject()));  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
-  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
-  ExternalReference context_address(Top::k_context_address);
+  ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address);
+  ExternalReference context_address(Isolate::k_context_address);
   mov(Operand::StaticVariable(c_entry_fp_address), ebp);
   mov(Operand::StaticVariable(context_address), esi);
 }
@@ -465,7 +465,7 @@ void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode) {
   lea(esp, Operand(esi, 1 * kPointerSize));
 
   // Restore current context from top and clear it in debug mode.
-  ExternalReference context_address(Top::k_context_address);
+  ExternalReference context_address(Isolate::k_context_address);
   mov(esi, Operand::StaticVariable(context_address));
 #ifdef DEBUG
   mov(Operand::StaticVariable(context_address), Immediate(0));
@@ -475,7 +475,7 @@ void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode) {
   push(ecx);
 
   // Clear the top frame.
-  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
+  ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address);
   mov(Operand::StaticVariable(c_entry_fp_address), Immediate(0));
 }
 
@@ -501,15 +501,16 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     push(Immediate(0));  // NULL frame pointer.
   }
   // Save the current handler as the next handler.
-  push(Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
+  push(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address)));
   // Link this handler as the new current one.
-  mov(Operand::StaticVariable(ExternalReference(Top::k_handler_address)), esp);
+  mov(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address)),
+      esp);
 }
 
 
 void MacroAssembler::PopTryHandler() {
   ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
-  pop(Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
+  pop(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address)));
   add(Operand(esp), Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
 

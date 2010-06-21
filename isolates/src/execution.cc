@@ -125,12 +125,12 @@ static Handle<Object> Invoke(bool construct,
 
   // Update the pending exception flag and return the value.
   *has_pending_exception = value->IsException();
-  ASSERT(*has_pending_exception == Top::has_pending_exception());
+  ASSERT(*has_pending_exception == Isolate::Current()->has_pending_exception());
   if (*has_pending_exception) {
-    Top::ReportPendingMessages();
+    Isolate::Current()->ReportPendingMessages();
     return Handle<Object>();
   } else {
-    Top::clear_pending_message();
+    Isolate::Current()->clear_pending_message();
   }
 
   return Handle<Object>(value);
@@ -148,7 +148,8 @@ Handle<Object> Execution::Call(Handle<JSFunction> func,
 
 Handle<Object> Execution::New(Handle<JSFunction> func, int argc,
                               Object*** args, bool* pending_exception) {
-  return Invoke(true, func, Top::global(), argc, args, pending_exception);
+  return Invoke(true, func, Isolate::Current()->global(), argc, args,
+                pending_exception);
 }
 
 
@@ -170,18 +171,19 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
 
   if (*caught_exception) {
     ASSERT(catcher.HasCaught());
-    ASSERT(Top::has_pending_exception());
-    ASSERT(Top::external_caught_exception());
-    if (Top::pending_exception() == HEAP->termination_exception()) {
+    ASSERT(Isolate::Current()->has_pending_exception());
+    ASSERT(Isolate::Current()->external_caught_exception());
+    if (Isolate::Current()->pending_exception() ==
+        HEAP->termination_exception()) {
       result = Factory::termination_exception();
     } else {
       result = v8::Utils::OpenHandle(*catcher.Exception());
     }
-    Top::OptionalRescheduleException(true);
+    Isolate::Current()->OptionalRescheduleException(true);
   }
 
-  ASSERT(!Top::has_pending_exception());
-  ASSERT(!Top::external_caught_exception());
+  ASSERT(!Isolate::Current()->has_pending_exception());
+  ASSERT(!Isolate::Current()->external_caught_exception());
   return result;
 }
 
@@ -204,7 +206,7 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   if (object->IsHeapObject() &&
       HeapObject::cast(*object)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
-        Top::global_context()->call_as_function_delegate());
+        Isolate::Current()->global_context()->call_as_function_delegate());
   }
 
   return Factory::undefined_value();
@@ -222,7 +224,7 @@ Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
   if (object->IsHeapObject() &&
       HeapObject::cast(*object)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
-        Top::global_context()->call_as_constructor_delegate());
+        Isolate::Current()->global_context()->call_as_constructor_delegate());
   }
 
   return Factory::undefined_value();
@@ -354,8 +356,8 @@ char* StackGuard::ArchiveStackGuard(char* to) {
   //                 current thread_local_ from StackGuard)-- but is this
   //                 really what was intended?
   isolate_->heap()->SetStackLimits();
-
   thread_local_ = blank;
+
   return to + sizeof(ThreadLocal);
 }
 
@@ -428,12 +430,13 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 
 // --- C a l l s   t o   n a t i v e s ---
 
-#define RETURN_NATIVE_CALL(name, argc, argv, has_pending_exception) \
-  do {                                                              \
-    Object** args[argc] = argv;                                     \
-    ASSERT(has_pending_exception != NULL);                          \
-    return Call(Top::name##_fun(), Top::builtins(), argc, args,     \
-                has_pending_exception);                             \
+#define RETURN_NATIVE_CALL(name, argc, argv, has_pending_exception)            \
+  do {                                                                         \
+    Object** args[argc] = argv;                                                \
+    ASSERT(has_pending_exception != NULL);                                     \
+    return Call(Isolate::Current()->name##_fun(),                              \
+                Isolate::Current()->builtins(), argc, args,                    \
+                has_pending_exception);                                        \
   } while (false)
 
 
@@ -505,7 +508,7 @@ Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
   }
 
   Handle<Object> char_at =
-      GetProperty(Top::builtins(), Factory::char_at_symbol());
+      GetProperty(Isolate::Current()->builtins(), Factory::char_at_symbol());
   if (!char_at->IsJSFunction()) {
     return Factory::undefined_value();
   }
@@ -530,12 +533,14 @@ Handle<JSFunction> Execution::InstantiateFunction(
   // Fast case: see if the function has already been instantiated
   int serial_number = Smi::cast(data->serial_number())->value();
   Object* elm =
-      Top::global_context()->function_cache()->GetElement(serial_number);
+      Isolate::Current()->global_context()->function_cache()->
+          GetElement(serial_number);
   if (elm->IsJSFunction()) return Handle<JSFunction>(JSFunction::cast(elm));
   // The function has not yet been instantiated in this context; do it.
   Object** args[1] = { Handle<Object>::cast(data).location() };
   Handle<Object> result =
-      Call(Top::instantiate_fun(), Top::builtins(), 1, args, exc);
+      Call(Isolate::Current()->instantiate_fun(),
+           Isolate::Current()->builtins(), 1, args, exc);
   if (*exc) return Handle<JSFunction>::null();
   return Handle<JSFunction>::cast(result);
 }
@@ -563,7 +568,8 @@ Handle<JSObject> Execution::InstantiateObject(Handle<ObjectTemplateInfo> data,
   } else {
     Object** args[1] = { Handle<Object>::cast(data).location() };
     Handle<Object> result =
-        Call(Top::instantiate_fun(), Top::builtins(), 1, args, exc);
+        Call(Isolate::Current()->instantiate_fun(),
+             Isolate::Current()->builtins(), 1, args, exc);
     if (*exc) return Handle<JSObject>::null();
     return Handle<JSObject>::cast(result);
   }
@@ -574,7 +580,8 @@ void Execution::ConfigureInstance(Handle<Object> instance,
                                   Handle<Object> instance_template,
                                   bool* exc) {
   Object** args[2] = { instance.location(), instance_template.location() };
-  Execution::Call(Top::configure_instance_fun(), Top::builtins(), 2, args, exc);
+  Execution::Call(Isolate::Current()->configure_instance_fun(),
+                  Isolate::Current()->builtins(), 2, args, exc);
 }
 
 
@@ -588,9 +595,9 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
                           pos.location(),
                           is_global.location() };
   bool caught_exception = false;
-  Handle<Object> result = TryCall(Top::get_stack_trace_line_fun(),
-                                  Top::builtins(), argc, args,
-                                  &caught_exception);
+  Handle<Object> result =
+      TryCall(Isolate::Current()->get_stack_trace_line_fun(),
+              Isolate::Current()->builtins(), argc, args, &caught_exception);
   if (caught_exception || !result->IsString()) return Factory::empty_symbol();
   return Handle<String>::cast(result);
 }
@@ -701,12 +708,12 @@ Object* Execution::HandleStackGuardInterrupt() {
   if (isolate->stack_guard()->IsPreempted()) RuntimePreempt();
   if (isolate->stack_guard()->IsTerminateExecution()) {
     isolate->stack_guard()->Continue(TERMINATE);
-    return Top::TerminateExecution();
+    return isolate->TerminateExecution();
   }
   if (isolate->stack_guard()->IsInterrupted()) {
     // interrupt
     isolate->stack_guard()->Continue(INTERRUPT);
-    return Top::StackOverflow();
+    return isolate->StackOverflow();
   }
   return isolate->heap()->undefined_value();
 }

@@ -34,7 +34,6 @@
 #include "jsregexp.h"
 #include "platform.h"
 #include "runtime.h"
-#include "top.h"
 #include "compilation-cache.h"
 #include "string-stream.h"
 #include "parser.h"
@@ -100,7 +99,7 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
   SetElement(array, 0, pattern);
   SetElement(array, 1, error_text);
   Handle<Object> regexp_err = Factory::NewSyntaxError(message, array);
-  Top::Throw(*regexp_err);
+  Isolate::Current()->Throw(*regexp_err);
 }
 
 
@@ -168,7 +167,7 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
     case JSRegExp::IRREGEXP: {
       Handle<Object> result =
           IrregexpExec(regexp, subject, index, last_match_info);
-      ASSERT(!result.is_null() || Top::has_pending_exception());
+      ASSERT(!result.is_null() || Isolate::Current()->has_pending_exception());
       return result;
     }
     default:
@@ -254,7 +253,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   if (entry->IsJSObject()) {
     // If it's a JSObject, a previous compilation failed and threw this object.
     // Re-throw the object without trying again.
-    Top::Throw(entry);
+    Isolate::Current()->Throw(entry);
     return false;
   }
   ASSERT(entry->IsTheHole());
@@ -292,7 +291,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
                Factory::NewStringFromUtf8(CStrVector(result.error_message)));
     Handle<Object> regexp_err =
         Factory::NewSyntaxError("malformed_regexp", array);
-    Top::Throw(*regexp_err);
+    Isolate::Current()->Throw(*regexp_err);
     re->SetDataAt(JSRegExp::code_index(is_ascii), *regexp_err);
     return false;
   }
@@ -396,7 +395,7 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
                                           index);
     if (res != NativeRegExpMacroAssembler::RETRY) {
       ASSERT(res != NativeRegExpMacroAssembler::EXCEPTION ||
-             Top::has_pending_exception());
+             Isolate::Current()->has_pending_exception());
       STATIC_ASSERT(
           static_cast<int>(NativeRegExpMacroAssembler::SUCCESS) == RE_SUCCESS);
       STATIC_ASSERT(
@@ -459,7 +458,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   int required_registers = RegExpImpl::IrregexpPrepare(jsregexp, subject);
   if (required_registers < 0) {
     // Compiling failed with an exception.
-    ASSERT(Top::has_pending_exception());
+    ASSERT(Isolate::Current()->has_pending_exception());
     return Handle<Object>::null();
   }
 
@@ -487,7 +486,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
     return last_match_info;
   }
   if (res == RE_EXCEPTION) {
-    ASSERT(Top::has_pending_exception());
+    ASSERT(Isolate::Current()->has_pending_exception());
     return Handle<Object>::null();
   }
   ASSERT(res == RE_FAILURE);

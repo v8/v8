@@ -75,7 +75,7 @@ Object* Object::ToObject(Context* global_context) {
 
 
 Object* Object::ToObject() {
-  Context* global_context = Top::context()->global_context();
+  Context* global_context = Isolate::Current()->context()->global_context();
   if (IsJSObject()) {
     return this;
   } else if (IsNumber()) {
@@ -115,7 +115,7 @@ Object* Object::ToBoolean() {
 void Object::Lookup(String* name, LookupResult* result) {
   if (IsJSObject()) return JSObject::cast(this)->Lookup(name, result);
   Object* holder = NULL;
-  Context* global_context = Top::context()->global_context();
+  Context* global_context = Isolate::Current()->context()->global_context();
   if (IsString()) {
     holder = global_context->string_function()->instance_prototype();
   } else if (IsNumber()) {
@@ -270,7 +270,7 @@ Object* JSObject::GetPropertyWithFailedAccessCheck(
 
   // No accessible property found.
   *attributes = ABSENT;
-  Top::ReportFailedAccessCheck(this, v8::ACCESS_GET);
+  Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_GET);
   return HEAP->undefined_value();
 }
 
@@ -333,7 +333,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
     }
   }
 
-  Top::ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+  Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
   return ABSENT;
 }
 
@@ -463,7 +463,7 @@ Object* Object::GetProperty(Object* receiver,
       // property from the current object, we still check that we have
       // access to it.
       JSObject* checked = JSObject::cast(current);
-      if (!Top::MayNamedAccess(checked, name, v8::ACCESS_GET)) {
+      if (!Isolate::Current()->MayNamedAccess(checked, name, v8::ACCESS_GET)) {
         return checked->GetPropertyWithFailedAccessCheck(receiver,
                                                          result,
                                                          name,
@@ -521,7 +521,7 @@ Object* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
 Object* Object::GetPrototype() {
   // The object is either a number, a string, a boolean, or a real JS object.
   if (IsJSObject()) return JSObject::cast(this)->map()->prototype();
-  Context* context = Top::context()->global_context();
+  Context* context = Isolate::Current()->context()->global_context();
 
   if (IsNumber()) return context->number_function()->instance_prototype();
   if (IsString()) return context->string_function()->instance_prototype();
@@ -587,7 +587,7 @@ Failure* Failure::RetryAfterGC(int requested_bytes, AllocationSpace space) {
       !Smi::IsValid(value) ||
       value != ((value << kFailureTypeTagSize) >> kFailureTypeTagSize) ||
       !Smi::IsValid(value << kFailureTypeTagSize)) {
-    Top::context()->mark_out_of_memory();
+    Isolate::Current()->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
   return Construct(RETRY_AFTER_GC, value);
@@ -1252,7 +1252,8 @@ Object* JSObject::AddFastProperty(String* name,
   // global object_function's map and there is not a transition for name.
   bool allow_map_transition =
         !old_descriptors->Contains(name) &&
-        (Top::context()->global_context()->object_function()->map() != map());
+        (Isolate::Current()->context()->global_context()->object_function()->
+            map() != map());
 
   ASSERT(index < map()->inobject_properties() ||
          (index - map()->inobject_properties()) < properties()->length() ||
@@ -1315,7 +1316,8 @@ Object* JSObject::AddConstantFunctionProperty(String* name,
 
   // If the old map is the global object map (from new Object()),
   // then transitions are not added to it, so we are done.
-  if (old_map == Top::context()->global_context()->object_function()->map()) {
+  if (old_map == Isolate::Current()->context()->global_context()->
+      object_function()->map()) {
     return function;
   }
 
@@ -1448,7 +1450,8 @@ Object* JSObject::ConvertDescriptorToFieldAndMapTransition(
     return result;
   }
   // Do not add transitions to the map of "new Object()".
-  if (map() == Top::context()->global_context()->object_function()->map()) {
+  if (map() == Isolate::Current()->context()->global_context()->
+      object_function()->map()) {
     return result;
   }
 
@@ -1609,8 +1612,9 @@ Object* JSObject::SetPropertyWithCallback(Object* structure,
       Handle<String> key(name);
       Handle<Object> holder_handle(holder);
       Handle<Object> args[2] = { key, holder_handle };
-      return Top::Throw(*Factory::NewTypeError("no_setter_in_callback",
-                                               HandleVector(args, 2)));
+      return Isolate::Current()->Throw(
+          *Factory::NewTypeError("no_setter_in_callback",
+          HandleVector(args, 2)));
     }
   }
 
@@ -1811,7 +1815,7 @@ Object* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
     }
   }
 
-  Top::ReportFailedAccessCheck(this, v8::ACCESS_SET);
+  Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_SET);
   return value;
 }
 
@@ -1834,7 +1838,7 @@ Object* JSObject::SetProperty(LookupResult* result,
 
   // Check access rights if needed.
   if (IsAccessCheckNeeded()
-      && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
+      && !Isolate::Current()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
     return SetPropertyWithFailedAccessCheck(result, name, value);
   }
 
@@ -1921,7 +1925,7 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
   LocalLookup(name, &result);
   // Check access rights if needed.
   if (IsAccessCheckNeeded()
-      && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
+      && !Isolate::Current()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
     return SetPropertyWithFailedAccessCheck(&result, name, value);
   }
 
@@ -2070,7 +2074,7 @@ PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
                                                   bool continue_search) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(this, name, v8::ACCESS_HAS)) {
+      !Isolate::Current()->MayNamedAccess(this, name, v8::ACCESS_HAS)) {
     return GetPropertyAttributeWithFailedAccessCheck(receiver,
                                                      result,
                                                      name,
@@ -2363,8 +2367,8 @@ Object* JSObject::DeleteElementWithInterceptor(uint32_t index) {
 Object* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayIndexedAccess(this, index, v8::ACCESS_DELETE)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
+      !Isolate::Current()->MayIndexedAccess(this, index, v8::ACCESS_DELETE)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
     return HEAP->false_value();
   }
 
@@ -2426,8 +2430,8 @@ Object* JSObject::DeleteProperty(String* name, DeleteMode mode) {
 
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(this, name, v8::ACCESS_DELETE)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
+      !Isolate::Current()->MayNamedAccess(this, name, v8::ACCESS_DELETE)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
     return HEAP->false_value();
   }
 
@@ -2527,7 +2531,8 @@ bool JSObject::ReferencesObject(Object* obj) {
   if (IsJSFunction()) {
     // Get the constructor function for arguments array.
     JSObject* arguments_boilerplate =
-        Top::context()->global_context()->arguments_boilerplate();
+        Isolate::Current()->context()->global_context()->
+            arguments_boilerplate();
     JSFunction* arguments_function =
         JSFunction::cast(arguments_boilerplate->map()->constructor());
 
@@ -2775,7 +2780,7 @@ Object* JSObject::DefineGetterSetter(String* name,
 
 bool JSObject::CanSetCallback(String* name) {
   ASSERT(!IsAccessCheckNeeded()
-         || Top::MayNamedAccess(this, name, v8::ACCESS_SET));
+         || Isolate::Current()->MayNamedAccess(this, name, v8::ACCESS_SET));
 
   // Check if there is an API defined callback object which prohibits
   // callback overwriting in this object or it's prototype chain.
@@ -2856,8 +2861,8 @@ Object* JSObject::DefineAccessor(String* name, bool is_getter, JSFunction* fun,
                                  PropertyAttributes attributes) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_SET);
+      !Isolate::Current()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_SET);
     return HEAP->undefined_value();
   }
 
@@ -2880,8 +2885,8 @@ Object* JSObject::DefineAccessor(AccessorInfo* info) {
   String* name = String::cast(info->name());
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_SET);
+      !Isolate::Current()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_SET);
     return HEAP->undefined_value();
   }
 
@@ -2955,8 +2960,8 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
 
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(this, name, v8::ACCESS_HAS)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+      !Isolate::Current()->MayNamedAccess(this, name, v8::ACCESS_HAS)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
     return HEAP->undefined_value();
   }
 
@@ -5040,7 +5045,8 @@ Object* JSFunction::SetPrototype(Object* value) {
     map()->set_constructor(value);
     map()->set_non_instance_prototype(true);
     construct_prototype =
-        Top::context()->global_context()->initial_object_prototype();
+        Isolate::Current()->context()->global_context()->
+            initial_object_prototype();
   } else {
     map()->set_non_instance_prototype(false);
   }
@@ -5582,8 +5588,9 @@ static int NewElementsCapacity(int old_capacity) {
 
 static Object* ArrayLengthRangeError() {
   HandleScope scope;
-  return Top::Throw(*Factory::NewRangeError("invalid_array_length",
-                                            HandleVector<Object>(NULL, 0)));
+  return Isolate::Current()->Throw(
+      *Factory::NewRangeError("invalid_array_length",
+          HandleVector<Object>(NULL, 0)));
 }
 
 
@@ -5683,8 +5690,8 @@ Object* JSObject::SetPrototype(Object* value,
     if (JSObject::cast(pt) == this) {
       // Cycle detected.
       HandleScope scope;
-      return Top::Throw(*Factory::NewError("cyclic_proto",
-                                           HandleVector<Object>(NULL, 0)));
+      return Isolate::Current()->Throw(
+          *Factory::NewError("cyclic_proto", HandleVector<Object>(NULL, 0)));
     }
   }
 
@@ -5809,8 +5816,8 @@ bool JSObject::HasElementWithInterceptor(JSObject* receiver, uint32_t index) {
 bool JSObject::HasLocalElement(uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+      !Isolate::Current()->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
     return false;
   }
 
@@ -5861,8 +5868,8 @@ bool JSObject::HasLocalElement(uint32_t index) {
 bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+      !Isolate::Current()->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
     return false;
   }
 
@@ -6044,8 +6051,9 @@ Object* JSObject::SetElementWithCallback(Object* structure,
       Handle<Object> holder_handle(holder);
       Handle<Object> key(Factory::NewNumberFromUint(index));
       Handle<Object> args[2] = { key, holder_handle };
-      return Top::Throw(*Factory::NewTypeError("no_setter_in_callback",
-                                               HandleVector(args, 2)));
+      return Isolate::Current()->Throw(
+          *Factory::NewTypeError("no_setter_in_callback",
+              HandleVector(args, 2)));
     }
   }
 
@@ -6111,8 +6119,8 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
 Object* JSObject::SetElement(uint32_t index, Object* value) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayIndexedAccess(this, index, v8::ACCESS_SET)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_SET);
+      !Isolate::Current()->MayIndexedAccess(this, index, v8::ACCESS_SET)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_SET);
     return value;
   }
 
@@ -6350,8 +6358,8 @@ Object* JSObject::GetElementWithInterceptor(JSObject* receiver,
 Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayIndexedAccess(this, index, v8::ACCESS_GET)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_GET);
+      !Isolate::Current()->MayIndexedAccess(this, index, v8::ACCESS_GET)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_GET);
     return HEAP->undefined_value();
   }
 
@@ -6670,8 +6678,8 @@ Object* JSObject::GetPropertyWithInterceptor(
 bool JSObject::HasRealNamedProperty(String* key) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(this, key, v8::ACCESS_HAS)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+      !Isolate::Current()->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
     return false;
   }
 
@@ -6684,8 +6692,8 @@ bool JSObject::HasRealNamedProperty(String* key) {
 bool JSObject::HasRealElementProperty(uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+      !Isolate::Current()->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
     return false;
   }
 
@@ -6732,8 +6740,8 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
 bool JSObject::HasRealNamedCallbackProperty(String* key) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(this, key, v8::ACCESS_HAS)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+      !Isolate::Current()->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
+    Isolate::Current()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
     return false;
   }
 

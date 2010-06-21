@@ -1622,7 +1622,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     push(Immediate(0));  // NULL frame pointer.
   }
   // Save the current handler.
-  movq(kScratchRegister, ExternalReference(Top::k_handler_address));
+  movq(kScratchRegister, ExternalReference(Isolate::k_handler_address));
   push(Operand(kScratchRegister, 0));
   // Link this handler.
   movq(Operand(kScratchRegister, 0), rsp);
@@ -1632,7 +1632,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 void MacroAssembler::PopTryHandler() {
   ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
   // Unlink this handler.
-  movq(kScratchRegister, ExternalReference(Top::k_handler_address));
+  movq(kScratchRegister, ExternalReference(Isolate::k_handler_address));
   pop(Operand(kScratchRegister, 0));
   // Remove the remaining fields.
   addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
@@ -2058,8 +2058,8 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode, int result_size) {
   push(kScratchRegister);  // Accessed from EditFrame::code_slot.
 
   // Save the frame pointer and the context in top.
-  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
-  ExternalReference context_address(Top::k_context_address);
+  ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address);
+  ExternalReference context_address(Isolate::k_context_address);
   movq(r14, rax);  // Backup rax before we use it.
 
   movq(rax, rbp);
@@ -2139,7 +2139,7 @@ void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode, int result_size) {
   lea(rsp, Operand(r15, 1 * kPointerSize));
 
   // Restore current context from top and clear it in debug mode.
-  ExternalReference context_address(Top::k_context_address);
+  ExternalReference context_address(Isolate::k_context_address);
   movq(kScratchRegister, context_address);
   movq(rsi, Operand(kScratchRegister, 0));
 #ifdef DEBUG
@@ -2150,7 +2150,7 @@ void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode, int result_size) {
   push(rcx);
 
   // Clear the top frame.
-  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
+  ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address);
   movq(kScratchRegister, c_entry_fp_address);
   movq(Operand(kScratchRegister, 0), Immediate(0));
 }

@@ -473,9 +473,9 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
   push(ip);  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
-  mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  mov(ip, Operand(ExternalReference(Isolate::k_c_entry_fp_address)));
   str(fp, MemOperand(ip));
-  mov(ip, Operand(ExternalReference(Top::k_context_address)));
+  mov(ip, Operand(ExternalReference(Isolate::k_context_address)));
   str(cp, MemOperand(ip));
 
   // Setup argc and the builtin function in callee-saved registers.
@@ -540,11 +540,11 @@ void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode) {
 
   // Clear top frame.
   mov(r3, Operand(0));
-  mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  mov(ip, Operand(ExternalReference(Isolate::k_c_entry_fp_address)));
   str(r3, MemOperand(ip));
 
   // Restore current context from top and clear it in debug mode.
-  mov(ip, Operand(ExternalReference(Top::k_context_address)));
+  mov(ip, Operand(ExternalReference(Isolate::k_context_address)));
   ldr(cp, MemOperand(ip));
 #ifdef DEBUG
   str(r3, MemOperand(ip));
@@ -791,7 +791,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
            && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
     stm(db_w, sp, r3.bit() | fp.bit() | lr.bit());
     // Save the current handler as the next handler.
-    mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+    mov(r3, Operand(ExternalReference(Isolate::k_handler_address)));
     ldr(r1, MemOperand(r3));
     ASSERT(StackHandlerConstants::kNextOffset == 0);
     push(r1);
@@ -810,7 +810,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
            && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
     stm(db_w, sp, r6.bit() | ip.bit() | lr.bit());
     // Save the current handler as the next handler.
-    mov(r7, Operand(ExternalReference(Top::k_handler_address)));
+    mov(r7, Operand(ExternalReference(Isolate::k_handler_address)));
     ldr(r6, MemOperand(r7));
     ASSERT(StackHandlerConstants::kNextOffset == 0);
     push(r6);
@@ -823,7 +823,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 void MacroAssembler::PopTryHandler() {
   ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
   pop(r1);
-  mov(ip, Operand(ExternalReference(Top::k_handler_address)));
+  mov(ip, Operand(ExternalReference(Isolate::k_handler_address)));
   add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   str(r1, MemOperand(ip));
 }

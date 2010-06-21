@@ -56,7 +56,6 @@
 #include "v8.h"
 
 #include "platform.h"
-#include "top.h"
 #include "v8threads.h"
 
 
@@ -732,9 +731,9 @@ static inline bool IsVmThread() {
   // stored in TLS. To verify that the thread is really executing VM,
   // we check Top's data. Having that ThreadManager::RestoreThread first
   // restores ThreadLocalTop from TLS, and only then erases the TLS value,
-  // reading Top::thread_id() should not be affected by races.
+  // reading Isolate::thread_id() should not be affected by races.
   if (ThreadManager::HasId() && !ThreadManager::IsArchived() &&
-      ThreadManager::CurrentId() == Top::thread_id()) {
+      ThreadManager::CurrentId() == Isolate::Current()->thread_id()) {
     return true;
   }
   return false;

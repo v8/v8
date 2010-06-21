@@ -107,9 +107,7 @@ class Handle {
 // for which the handle scope has been deleted is undefined.
 class HandleScope {
  public:
-  HandleScope() : previous_(*Isolate::Current()->handle_scope_data()) {
-    Isolate::Current()->handle_scope_data()->extensions = 0;
-  }
+  inline HandleScope();
 
   ~HandleScope() {
     Leave(&previous_);
@@ -120,21 +118,7 @@ class HandleScope {
 
   // Creates a new handle with the given value.
   template <typename T>
-  static inline T** CreateHandle(T* value) {
-    v8::ImplementationUtilities::HandleScopeData* current =
-        Isolate::Current()->handle_scope_data();
-
-    internal::Object** cur = current->next;
-    if (cur == current->limit) cur = Extend();
-    // Update the current next field, set the value in the created
-    // handle, and return the result.
-    ASSERT(cur < current->limit);
-    current->next = cur + 1;
-
-    T** result = reinterpret_cast<T**>(cur);
-    *result = value;
-    return result;
-  }
+  static inline T** CreateHandle(T* value);
 
   // Deallocates any extensions used by the current scope.
   static void DeleteExtensions(Isolate* isolate);
@@ -153,29 +137,13 @@ class HandleScope {
   const v8::ImplementationUtilities::HandleScopeData previous_;
 
   // Pushes a fresh handle scope to be used when allocating new handles.
-  static void Enter(
-      v8::ImplementationUtilities::HandleScopeData* previous) {
-    v8::ImplementationUtilities::HandleScopeData* current =
-        Isolate::Current()->handle_scope_data();
-    *previous = *current;
-    current->extensions = 0;
-  }
+  static inline void Enter(
+      v8::ImplementationUtilities::HandleScopeData* previous);
 
   // Re-establishes the previous scope state. Should be called only
   // once, and only for the current scope.
-  static void Leave(
-      const v8::ImplementationUtilities::HandleScopeData* previous) {
-    Isolate* isolate = Isolate::Current();
-    v8::ImplementationUtilities::HandleScopeData* current =
-        isolate->handle_scope_data();
-    if (current->extensions > 0) {
-      DeleteExtensions(isolate);
-    }
-    *current = *previous;
-#ifdef DEBUG
-    ZapRange(current->next, current->limit);
-#endif
-  }
+  static inline void Leave(
+      const v8::ImplementationUtilities::HandleScopeData* previous);
 
   // Extend the handle scope making room for more handles.
   static internal::Object** Extend();

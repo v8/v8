@@ -172,8 +172,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 
   PostponeInterruptsScope postpone;
 
-  ASSERT(!i::Top::global_context().is_null());
-  script->set_context_data((*i::Top::global_context())->data());
+  ASSERT(!i::Isolate::Current()->global_context().is_null());
+  script->set_context_data((*i::Isolate::Current()->global_context())->data());
 
   bool is_json = (validate == Compiler::VALIDATE_JSON);
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -210,7 +210,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 
   // Check for parse errors.
   if (lit == NULL) {
-    ASSERT(Top::has_pending_exception());
+    ASSERT(Isolate::Current()->has_pending_exception());
     return Handle<SharedFunctionInfo>::null();
   }
 
@@ -228,7 +228,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
-    Top::StackOverflow();
+    Isolate::Current()->StackOverflow();
     return Handle<SharedFunctionInfo>::null();
   }
 
@@ -345,7 +345,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     }
   }
 
-  if (result.is_null()) Top::ReportPendingMessages();
+  if (result.is_null()) Isolate::Current()->ReportPendingMessages();
   return result;
 }
 
@@ -423,7 +423,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
   // Check for parse errors.
   if (lit == NULL) {
-    ASSERT(Top::has_pending_exception());
+    ASSERT(Isolate::Current()->has_pending_exception());
     return false;
   }
   info->set_function(lit);
@@ -438,7 +438,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
   // Check for stack-overflow exception.
   if (code.is_null()) {
-    Top::StackOverflow();
+    Isolate::Current()->StackOverflow();
     return false;
   }
 

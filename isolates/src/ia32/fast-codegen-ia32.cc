@@ -447,7 +447,7 @@ Handle<Code> FastCodeGenerator::MakeCode(CompilationInfo* info) {
   FastCodeGenerator fast_cgen(&masm);
   fast_cgen.Generate(info);
   if (fast_cgen.HasStackOverflow()) {
-    ASSERT(!Top::has_pending_exception());
+    ASSERT(!Isolate::Current()->has_pending_exception());
     return Handle<Code>::null();
   }
 
@@ -458,7 +458,7 @@ Handle<Code> FastCodeGenerator::MakeCode(CompilationInfo* info) {
   info->set_mode(CompilationInfo::SECONDARY);
   cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
-    ASSERT(!Top::has_pending_exception());
+    ASSERT(!Isolate::Current()->has_pending_exception());
     return Handle<Code>::null();
   }
 

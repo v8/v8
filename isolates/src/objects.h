@@ -787,7 +787,7 @@ class Failure: public Object {
   enum Type {
     RETRY_AFTER_GC = 0,
     EXCEPTION = 1,       // Returning this marker tells the real exception
-                         // is in Top::pending_exception.
+                         // is in Isolate::pending_exception.
     INTERNAL_ERROR = 2,
     OUT_OF_MEMORY_EXCEPTION = 3
   };

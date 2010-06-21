@@ -1173,7 +1173,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ LoadExternalReference(t0, ExternalReference::the_hole_value_location());
   __ lw(a3, MemOperand(t0));
   __ LoadExternalReference(t0,
-      ExternalReference(Top::k_pending_exception_address));
+      ExternalReference(Isolate::k_pending_exception_address));
   __ lw(v0, MemOperand(t0));
   __ sw(a3, MemOperand(t0));
 
@@ -1270,7 +1270,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
   __ li(t2, Operand(Smi::FromInt(marker)));
   __ li(t1, Operand(Smi::FromInt(marker)));
-  __ LoadExternalReference(t0, ExternalReference(Top::k_c_entry_fp_address));
+  __ LoadExternalReference(t0,
+      ExternalReference(Isolate::k_c_entry_fp_address));
   __ lw(t0, MemOperand(t0));
   __ MultiPush(t0.bit() | t1.bit() | t2.bit() | t3.bit());
 
@@ -1306,7 +1307,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
   __ LoadExternalReference(t0,
-      ExternalReference(Top::k_pending_exception_address));
+      ExternalReference(Isolate::k_pending_exception_address));
   __ sw(v0, MemOperand(t0));  // We come back from 'invoke'. result is in v0.
   __ li(v0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ b(&exit);
@@ -1324,7 +1325,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ LoadExternalReference(t0, ExternalReference::the_hole_value_location());
   __ lw(t1, MemOperand(t0));
   __ LoadExternalReference(t0,
-      ExternalReference(Top::k_pending_exception_address));
+      ExternalReference(Isolate::k_pending_exception_address));
   __ sw(t1, MemOperand(t0));
 
   // Invoke the function by calling through JS entry trampoline builtin.
@@ -1363,7 +1364,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // displacement since the current stack pointer (sp) points directly
   // to the stack handler.
   __ lw(t1, MemOperand(sp, StackHandlerConstants::kNextOffset));
-  __ LoadExternalReference(t0, ExternalReference(Top::k_handler_address));
+  __ LoadExternalReference(t0, ExternalReference(Isolate::k_handler_address));
   __ sw(t1, MemOperand(t0));
 
   // This restores sp to its position before PushTryHandler.
@@ -1372,7 +1373,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ bind(&exit);  // v0 holds result
   // Restore the top frame descriptors from the stack.
   __ Pop(t1);
-  __ LoadExternalReference(t0, ExternalReference(Top::k_c_entry_fp_address));
+  __ LoadExternalReference(t0,
+                           ExternalReference(Isolate::k_c_entry_fp_address));
   __ sw(t1, MemOperand(t0));
 
   // Reset the stack to the callee saved registers.

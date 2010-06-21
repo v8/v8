@@ -996,7 +996,7 @@ int RegExpMacroAssemblerARM::CheckStackGuardState(Address* return_address,
                                                   Code* re_code,
                                                   Address re_frame) {
   if (Isolate::Current()->stack_guard()->IsStackOverflow()) {
-    Top::StackOverflow();
+    Isolate::Current()->StackOverflow();
     return EXCEPTION;
   }
 

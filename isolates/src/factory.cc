@@ -301,7 +301,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Context> context,
     PretenureFlag pretenure) {
   Handle<JSFunction> result = BaseNewFunctionFromSharedFunctionInfo(
-      function_info, Top::function_map(), pretenure);
+      function_info, Isolate::Current()->function_map(), pretenure);
   result->set_context(*context);
   int number_of_literals = function_info->num_literals();
   Handle<FixedArray> literals =
@@ -412,7 +412,8 @@ Handle<Object> Factory::NewError(const char* maker,
                                  const char* type,
                                  Handle<JSArray> args) {
   Handle<String> make_str = Factory::LookupAsciiSymbol(maker);
-  Handle<Object> fun_obj(Top::builtins()->GetProperty(*make_str));
+  Handle<Object> fun_obj(
+      Isolate::Current()->builtins()->GetProperty(*make_str));
   // If the builtins haven't been properly configured yet this error
   // constructor may not have been defined.  Bail out.
   if (!fun_obj->IsJSFunction())
@@ -426,7 +427,7 @@ Handle<Object> Factory::NewError(const char* maker,
   // running the factory method, use the exception as the result.
   bool caught_exception;
   Handle<Object> result = Execution::TryCall(fun,
-                                             Top::builtins(),
+                                             Isolate::Current()->builtins(),
                                              2,
                                              argv,
                                              &caught_exception);
@@ -445,14 +446,14 @@ Handle<Object> Factory::NewError(const char* constructor,
   Handle<JSFunction> fun =
       Handle<JSFunction>(
           JSFunction::cast(
-              Top::builtins()->GetProperty(*constr)));
+              Isolate::Current()->builtins()->GetProperty(*constr)));
   Object** argv[1] = { Handle<Object>::cast(message).location() };
 
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
   bool caught_exception;
   Handle<Object> result = Execution::TryCall(fun,
-                                             Top::builtins(),
+                                             Isolate::Current()->builtins(),
                                              1,
                                              argv,
                                              &caught_exception);
@@ -648,7 +649,8 @@ Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
 
 Handle<JSArray> Factory::NewJSArray(int length,
                                     PretenureFlag pretenure) {
-  Handle<JSObject> obj = NewJSObject(Top::array_function(), pretenure);
+  Handle<JSObject> obj =
+      NewJSObject(Isolate::Current()->array_function(), pretenure);
   CALL_HEAP_FUNCTION(Handle<JSArray>::cast(obj)->Initialize(length), JSArray);
 }
 
@@ -656,7 +658,8 @@ Handle<JSArray> Factory::NewJSArray(int length,
 Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArray> elements,
                                                 PretenureFlag pretenure) {
   Handle<JSArray> result =
-      Handle<JSArray>::cast(NewJSObject(Top::array_function(), pretenure));
+      Handle<JSArray>::cast(NewJSObject(Isolate::Current()->array_function(),
+                                        pretenure));
   result->SetContent(*elements);
   return result;
 }
@@ -700,7 +703,7 @@ Handle<NumberDictionary> Factory::DictionaryAtNumberPut(
 Handle<JSFunction> Factory::NewFunctionHelper(Handle<String> name,
                                               Handle<Object> prototype) {
   Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
-  CALL_HEAP_FUNCTION(HEAP->AllocateFunction(*Top::function_map(),
+  CALL_HEAP_FUNCTION(HEAP->AllocateFunction(*Isolate::Current()->function_map(),
                                             *function_share,
                                             *prototype),
                      JSFunction);
@@ -710,7 +713,7 @@ Handle<JSFunction> Factory::NewFunctionHelper(Handle<String> name,
 Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         Handle<Object> prototype) {
   Handle<JSFunction> fun = NewFunctionHelper(name, prototype);
-  fun->set_context(Top::context()->global_context());
+  fun->set_context(Isolate::Current()->context()->global_context());
   return fun;
 }
 
@@ -719,7 +722,7 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototypeHelper(
     Handle<String> name) {
   Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
   CALL_HEAP_FUNCTION(HEAP->AllocateFunction(
-                         *Top::function_without_prototype_map(),
+                         *Isolate::Current()->function_without_prototype_map(),
                          *function_share,
                          *the_hole_value()),
                      JSFunction);
@@ -728,7 +731,7 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototypeHelper(
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name) {
   Handle<JSFunction> fun = NewFunctionWithoutPrototypeHelper(name);
-  fun->set_context(Top::context()->global_context());
+  fun->set_context(Isolate::Current()->context()->global_context());
   return fun;
 }
 

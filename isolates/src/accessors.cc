@@ -31,7 +31,6 @@
 #include "execution.h"
 #include "factory.h"
 #include "scopeinfo.h"
-#include "top.h"
 
 namespace v8 {
 namespace internal {
@@ -87,10 +86,10 @@ Object* Accessors::ArrayGetLength(Object* object, void*) {
 Object* Accessors::FlattenNumber(Object* value) {
   if (value->IsNumber() || !value->IsJSValue()) return value;
   JSValue* wrapper = JSValue::cast(value);
-  ASSERT(
-      Top::context()->global_context()->number_function()->has_initial_map());
-  Map* number_map =
-      Top::context()->global_context()->number_function()->initial_map();
+  ASSERT(Isolate::Current()->context()->global_context()->number_function()->
+      has_initial_map());
+  Map* number_map = Isolate::Current()->context()->global_context()->
+      number_function()->initial_map();
   if (wrapper->map() == number_map) return wrapper->value();
   return value;
 }
@@ -127,8 +126,9 @@ Object* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
                                                          value, NONE);
     }
   }
-  return Top::Throw(*Factory::NewRangeError("invalid_array_length",
-                                            HandleVector<Object>(NULL, 0)));
+  return Isolate::Current()->Throw(
+      *Factory::NewRangeError("invalid_array_length",
+          HandleVector<Object>(NULL, 0)));
 }
 
 

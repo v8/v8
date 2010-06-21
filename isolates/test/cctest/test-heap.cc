@@ -154,7 +154,8 @@ TEST(HeapObjects) {
   CHECK_EQ(10, s->length());
 
   String* object_symbol = String::cast(HEAP->Object_symbol());
-  CHECK(Top::context()->global()->HasLocalProperty(object_symbol));
+  CHECK(
+      Isolate::Current()->context()->global()->HasLocalProperty(object_symbol));
 
   // Check ToString for oddballs
   CheckOddball(HEAP->true_value(), "true");
@@ -213,7 +214,8 @@ TEST(GarbageCollection) {
     Handle<Map> initial_map =
         Factory::NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     function->set_initial_map(*initial_map);
-    Top::context()->global()->SetProperty(*name, *function, NONE);
+    Isolate::Current()->context()->global()->SetProperty(*name, *function,
+                                                         NONE);
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = Factory::NewJSObject(function);
     obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
@@ -226,9 +228,10 @@ TEST(GarbageCollection) {
   CHECK(HEAP->CollectGarbage(free_bytes, NEW_SPACE));
 
   // Function should be alive.
-  CHECK(Top::context()->global()->HasLocalProperty(*name));
+  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(*name));
   // Check function is retained.
-  Object* func_value = Top::context()->global()->GetProperty(*name);
+  Object* func_value =
+      Isolate::Current()->context()->global()->GetProperty(*name);
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
 
@@ -236,17 +239,19 @@ TEST(GarbageCollection) {
     HandleScope inner_scope;
     // Allocate another object, make it reachable from global.
     Handle<JSObject> obj = Factory::NewJSObject(function);
-    Top::context()->global()->SetProperty(*obj_name, *obj, NONE);
+    Isolate::Current()->context()->global()->SetProperty(*obj_name, *obj, NONE);
     obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
   }
 
   // After gc, it should survive.
   CHECK(HEAP->CollectGarbage(free_bytes, NEW_SPACE));
 
-  CHECK(Top::context()->global()->HasLocalProperty(*obj_name));
-  CHECK(Top::context()->global()->GetProperty(*obj_name)->IsJSObject());
+  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(*obj_name));
+  CHECK(Isolate::Current()->context()->global()->GetProperty(*obj_name)->
+      IsJSObject());
   JSObject* obj =
-      JSObject::cast(Top::context()->global()->GetProperty(*obj_name));
+      JSObject::cast(Isolate::Current()->context()->global()->
+          GetProperty(*obj_name));
   CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
 }
 
@@ -555,7 +560,8 @@ TEST(ObjectProperties) {
   v8::HandleScope sc;
   String* object_symbol = String::cast(HEAP->Object_symbol());
   JSFunction* object_function =
-      JSFunction::cast(Top::context()->global()->GetProperty(object_symbol));
+      JSFunction::cast(Isolate::Current()->context()->global()->
+          GetProperty(object_symbol));
   Handle<JSFunction> constructor(object_function);
   Handle<JSObject> obj = Factory::NewJSObject(constructor);
   Handle<String> first = Factory::LookupAsciiSymbol("first");
@@ -643,7 +649,8 @@ TEST(JSArray) {
   v8::HandleScope sc;
   Handle<String> name = Factory::LookupAsciiSymbol("Array");
   Handle<JSFunction> function = Handle<JSFunction>(
-      JSFunction::cast(Top::context()->global()->GetProperty(*name)));
+      JSFunction::cast(Isolate::Current()->context()->global()->
+          GetProperty(*name)));
 
   // Allocate the object.
   Handle<JSObject> object = Factory::NewJSObject(function);
@@ -686,7 +693,8 @@ TEST(JSObjectCopy) {
   v8::HandleScope sc;
   String* object_symbol = String::cast(HEAP->Object_symbol());
   JSFunction* object_function =
-      JSFunction::cast(Top::context()->global()->GetProperty(object_symbol));
+      JSFunction::cast(Isolate::Current()->context()->global()->
+          GetProperty(object_symbol));
   Handle<JSFunction> constructor(object_function);
   Handle<JSObject> obj = Factory::NewJSObject(constructor);
   Handle<String> first = Factory::LookupAsciiSymbol("first");
@@ -891,7 +899,8 @@ TEST(Regression39128) {
   // that region dirty marks are updated correctly.
 
   // Step 1: prepare a map for the object.  We add 1 inobject property to it.
-  Handle<JSFunction> object_ctor(Top::global_context()->object_function());
+  Handle<JSFunction> object_ctor(
+      Isolate::Current()->global_context()->object_function());
   CHECK(object_ctor->has_initial_map());
   Handle<Map> object_map(object_ctor->initial_map());
   // Create a map with single inobject property.
@@ -976,7 +985,8 @@ TEST(TestCodeFlushing) {
   CompileRun(source);
 
   // Check function is compiled.
-  Object* func_value = Top::context()->global()->GetProperty(*foo_name);
+  Object* func_value =
+      Isolate::Current()->context()->global()->GetProperty(*foo_name);
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
   CHECK(function->shared()->is_compiled());

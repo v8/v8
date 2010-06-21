@@ -973,5 +973,5 @@ $Error.prototype.message = '';
 
 
 // Boilerplate for exceptions for stack overflows. Used from
-// Top::StackOverflow().
+// Isolate::StackOverflow().
 const kStackOverflowBoilerplate = MakeRangeError('stack_overflow', []);

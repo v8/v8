@@ -3383,7 +3383,7 @@ TEST(BreakOnException) {
   DebugLocalContext env;
   env.ExposeDebug();
 
-  v8::internal::Top::TraceException(false);
+  v8::internal::Isolate::Current()->TraceException(false);
 
   // Create functions for testing break on exception.
   v8::Local<v8::Function> throws =
@@ -3527,7 +3527,7 @@ TEST(BreakOnCompileException) {
   v8::HandleScope scope;
   DebugLocalContext env;
 
-  v8::internal::Top::TraceException(false);
+  v8::internal::Isolate::Current()->TraceException(false);
 
   // Create a function for checking the function when hitting a break point.
   frame_count = CompileFunction(&env, frame_count_source, "frame_count");

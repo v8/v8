@@ -564,8 +564,8 @@ ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}
 
 
-ExternalReference::ExternalReference(Top::AddressId id)
-  : address_(Top::get_address_from_id(id)) {}
+ExternalReference::ExternalReference(Isolate::AddressId id)
+  : address_(Isolate::Current()->get_address_from_id(id)) {}
 
 
 ExternalReference::ExternalReference(const SCTableReference& table_ref)
@@ -674,7 +674,7 @@ ExternalReference ExternalReference::handle_scope_limit_address() {
 
 
 ExternalReference ExternalReference::scheduled_exception_address() {
-  return ExternalReference(Top::scheduled_exception_address());
+  return ExternalReference(Isolate::Current()->scheduled_exception_address());
 }
 
 
