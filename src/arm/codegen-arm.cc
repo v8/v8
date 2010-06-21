@@ -7984,10 +7984,11 @@ const char* GenericBinaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, len),
-               "GenericBinaryOpStub_%s_%s%s",
+               "GenericBinaryOpStub_%s_%s%s_%s",
                op_name,
                overwrite_name,
-               specialized_on_rhs_ ? "_ConstantRhs" : 0);
+               specialized_on_rhs_ ? "_ConstantRhs" : "",
+               BinaryOpIC::GetName(runtime_operands_type_));
   return name_;
 }
 
