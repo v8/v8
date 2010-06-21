@@ -8155,7 +8155,7 @@ Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
 
 template<typename Shape, typename Key>
 Object* Dictionary<Shape, Key>::AtPut(Key key, Object* value) {
-  int entry = FindEntry(key);
+  int entry = this->FindEntry(key);
 
   // If the entry is present set the value;
   if (entry != Dictionary<Shape, Key>::kNotFound) {
@@ -8180,7 +8180,7 @@ Object* Dictionary<Shape, Key>::Add(Key key,
                                     Object* value,
                                     PropertyDetails details) {
   // Valdate key is absent.
-  SLOW_ASSERT((FindEntry(key) == Dictionary<Shape, Key>::kNotFound));
+  SLOW_ASSERT((this->FindEntry(key) == Dictionary<Shape, Key>::kNotFound));
   // Check whether the dictionary should be extended.
   Object* obj = EnsureCapacity(1, key);
   if (obj->IsFailure()) return obj;
@@ -8239,7 +8239,7 @@ Object* NumberDictionary::AddNumberEntry(uint32_t key,
                                          Object* value,
                                          PropertyDetails details) {
   UpdateMaxNumberKey(key);
-  SLOW_ASSERT(FindEntry(key) == kNotFound);
+  SLOW_ASSERT(this->FindEntry(key) == kNotFound);
   return Add(key, value, details);
 }
 
