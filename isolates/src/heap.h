@@ -30,6 +30,7 @@
 
 #include <math.h>
 
+#include "mark-compact.h"
 #include "splay-tree-inl.h"
 #include "v8-counters.h"
 
@@ -1023,6 +1024,19 @@ class Heap {
 
   GCTracer* tracer() { return tracer_; }
 
+  // Returns maximum GC pause.
+  int get_max_gc_pause() { return max_gc_pause_; }
+
+  // Returns maximum size of objects alive after GC.
+  int get_max_alive_after_gc() { return max_alive_after_gc_; }
+
+  // Returns minimal interval between two subsequent collections.
+  int get_min_in_mutator() { return min_in_mutator_; }
+
+  MarkCompactCollector* mark_compact_collector() {
+    return &mark_compact_collector_;
+  }
+
  private:
   Heap();
 
@@ -1277,10 +1291,33 @@ class Heap {
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
 
+  // Maximum GC pause.
+  int max_gc_pause_;
+
+  // Maximum size of objects alive after GC.
+  int max_alive_after_gc_;
+
+  // Minimal interval between two subsequent collections.
+  int min_in_mutator_;
+
+  // Size of objects alive after last GC.
+  int alive_after_last_gc_;
+
+  double last_gc_end_timestamp_;
+
+  MarkCompactCollector mark_compact_collector_;
+
+  // This field contains the meaning of the WATERMARK_INVALIDATED flag.
+  // Instead of clearing this flag from all pages we just flip
+  // its meaning at the beginning of a scavenge.
+  intptr_t page_watermark_invalidated_mark_;
+
   friend class Factory;
+  friend class GCTracer;
   friend class DisallowAllocationFailure;
   friend class AlwaysAllocateScope;
   friend class LinearAllocationScope;
+  friend class Page;
   friend class Isolate;
 
   DISALLOW_COPY_AND_ASSIGN(Heap);
@@ -1584,53 +1621,6 @@ class DescriptorLookupCache {
 };
 
 
-// ----------------------------------------------------------------------------
-// Marking stack for tracing live objects.
-
-class MarkingStack {
- public:
-  void Initialize(Address low, Address high) {
-    top_ = low_ = reinterpret_cast<HeapObject**>(low);
-    high_ = reinterpret_cast<HeapObject**>(high);
-    overflowed_ = false;
-  }
-
-  bool is_full() { return top_ >= high_; }
-
-  bool is_empty() { return top_ <= low_; }
-
-  bool overflowed() { return overflowed_; }
-
-  void clear_overflowed() { overflowed_ = false; }
-
-  // Push the (marked) object on the marking stack if there is room,
-  // otherwise mark the object as overflowed and wait for a rescan of the
-  // heap.
-  void Push(HeapObject* object) {
-    CHECK(object->IsHeapObject());
-    if (is_full()) {
-      object->SetOverflow();
-      overflowed_ = true;
-    } else {
-      *(top_++) = object;
-    }
-  }
-
-  HeapObject* Pop() {
-    ASSERT(!is_empty());
-    HeapObject* object = *(--top_);
-    CHECK(object->IsHeapObject());
-    return object;
-  }
-
- private:
-  HeapObject** low_;
-  HeapObject** top_;
-  HeapObject** high_;
-  bool overflowed_;
-};
-
-
 // A helper class to document/test C++ scopes where we do not
 // expect a GC. Usage:
 //
@@ -1730,7 +1720,7 @@ class GCTracer BASE_EMBEDDED {
     double start_time_;
   };
 
-  GCTracer();
+  explicit GCTracer(Heap* heap);
   ~GCTracer();
 
   // Sets the collector.
@@ -1755,15 +1745,6 @@ class GCTracer BASE_EMBEDDED {
   void increment_promoted_objects_size(int object_size) {
     promoted_objects_size_ += object_size;
   }
-
-  // Returns maximum GC pause.
-  static int get_max_gc_pause() { return max_gc_pause_; }
-
-  // Returns maximum size of objects alive after GC.
-  static int get_max_alive_after_gc() { return max_alive_after_gc_; }
-
-  // Returns minimal interval between two subsequent collections.
-  static int get_min_in_mutator() { return min_in_mutator_; }
 
  private:
   // Returns a string matching the collector.
@@ -1820,19 +1801,7 @@ class GCTracer BASE_EMBEDDED {
   // Size of objects promoted during the current collection.
   int promoted_objects_size_;
 
-  // Maximum GC pause.
-  static int max_gc_pause_;
-
-  // Maximum size of objects alive after GC.
-  static int max_alive_after_gc_;
-
-  // Minimal interval between two subsequent collections.
-  static int min_in_mutator_;
-
-  // Size of objects alive after last GC.
-  static int alive_after_last_gc_;
-
-  static double last_gc_end_timestamp_;
+  Heap* heap_;
 };
 
 

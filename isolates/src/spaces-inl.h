@@ -57,18 +57,18 @@ Page* PageIterator::next() {
 // Page
 
 Page* Page::next_page() {
-  return MemoryAllocator::GetNextPage(this);
+  return Isolate::Current()->memory_allocator()->GetNextPage(this);
 }
 
 
 Address Page::AllocationTop() {
-  PagedSpace* owner = MemoryAllocator::PageOwner(this);
+  PagedSpace* owner = Isolate::Current()->memory_allocator()->PageOwner(this);
   return owner->PageAllocationTop(this);
 }
 
 
 Address Page::AllocationWatermark() {
-  PagedSpace* owner = MemoryAllocator::PageOwner(this);
+  PagedSpace* owner = Isolate::Current()->memory_allocator()->PageOwner(this);
   if (this == owner->AllocationTopPage()) {
     return owner->top();
   }
@@ -221,21 +221,23 @@ void Page::ClearRegionMarks(Address start, Address end, bool reaches_limit) {
 
 
 void Page::FlipMeaningOfInvalidatedWatermarkFlag() {
-  watermark_invalidated_mark_ ^= WATERMARK_INVALIDATED;
+  HEAP->page_watermark_invalidated_mark_ ^= WATERMARK_INVALIDATED;
 }
 
 
 bool Page::IsWatermarkValid() {
-  return (flags_ & WATERMARK_INVALIDATED) != watermark_invalidated_mark_;
+  return (flags_ & WATERMARK_INVALIDATED) !=
+      HEAP->page_watermark_invalidated_mark_;
 }
 
 
 void Page::InvalidateWatermark(bool value) {
   if (value) {
-    flags_ = (flags_ & ~WATERMARK_INVALIDATED) | watermark_invalidated_mark_;
+    flags_ = (flags_ & ~WATERMARK_INVALIDATED) |
+             HEAP->page_watermark_invalidated_mark_;
   } else {
     flags_ = (flags_ & ~WATERMARK_INVALIDATED) |
-             (watermark_invalidated_mark_ ^ WATERMARK_INVALIDATED);
+             (HEAP->page_watermark_invalidated_mark_ ^ WATERMARK_INVALIDATED);
   }
 
   ASSERT(IsWatermarkValid() == !value);
@@ -392,7 +394,7 @@ bool PagedSpace::Contains(Address addr) {
   Page* p = Page::FromAddress(addr);
   ASSERT(p->is_valid());
 
-  return MemoryAllocator::IsPageInSpace(p, this);
+  return Isolate::Current()->memory_allocator()->IsPageInSpace(p, this);
 }
 
 
@@ -470,6 +472,12 @@ Object* NewSpace::AllocateRawInternal(int size_in_bytes,
          && alloc_info->limit == space->high());
 #endif
   return obj;
+}
+
+
+int LargeObjectSpace::Available() {
+  return LargeObjectChunk::ObjectSizeFor(
+      Isolate::Current()->memory_allocator()->Available());
 }
 
 

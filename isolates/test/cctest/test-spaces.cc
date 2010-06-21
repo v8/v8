@@ -90,37 +90,42 @@ TEST(Page) {
 
 
 TEST(MemoryAllocator) {
-  CHECK(HEAP->ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(HEAP->MaxReserved()));
+  Isolate* isolate = Isolate::Current();
 
-  OldSpace faked_space(HEAP->MaxReserved(), OLD_POINTER_SPACE, NOT_EXECUTABLE);
+  CHECK(isolate->heap()->ConfigureHeapDefault());
+  CHECK(isolate->memory_allocator()->Setup(isolate->heap()->MaxReserved()));
+
+  OldSpace faked_space(isolate->heap()->MaxReserved(), OLD_POINTER_SPACE,
+                       NOT_EXECUTABLE);
   int total_pages = 0;
   int requested = 2;
   int allocated;
   // If we request two pages, we should get one or two.
   Page* first_page =
-      MemoryAllocator::AllocatePages(requested, &allocated, &faked_space);
+      isolate->memory_allocator()->AllocatePages(
+          requested, &allocated, &faked_space);
   CHECK(first_page->is_valid());
   CHECK(allocated > 0 && allocated <= 2);
   total_pages += allocated;
 
   Page* last_page = first_page;
   for (Page* p = first_page; p->is_valid(); p = p->next_page()) {
-    CHECK(MemoryAllocator::IsPageInSpace(p, &faked_space));
+    CHECK(isolate->memory_allocator()->IsPageInSpace(p, &faked_space));
     last_page = p;
   }
 
   // Again, we should get one or two pages.
   Page* others =
-      MemoryAllocator::AllocatePages(requested, &allocated, &faked_space);
+      isolate->memory_allocator()->AllocatePages(
+          requested, &allocated, &faked_space);
   CHECK(others->is_valid());
   CHECK(allocated > 0 && allocated <= 2);
   total_pages += allocated;
 
-  MemoryAllocator::SetNextPage(last_page, others);
+  isolate->memory_allocator()->SetNextPage(last_page, others);
   int page_count = 0;
   for (Page* p = first_page; p->is_valid(); p = p->next_page()) {
-    CHECK(MemoryAllocator::IsPageInSpace(p, &faked_space));
+    CHECK(isolate->memory_allocator()->IsPageInSpace(p, &faked_space));
     page_count++;
   }
   CHECK(total_pages == page_count);
@@ -132,27 +137,28 @@ TEST(MemoryAllocator) {
   // should free the entire second chunk.  It will return the last page in the
   // first chunk (if the second page was in the first chunk) or else an
   // invalid page (if the second page was the start of the second chunk).
-  Page* free_return = MemoryAllocator::FreePages(second_page);
+  Page* free_return = isolate->memory_allocator()->FreePages(second_page);
   CHECK(free_return == last_page || !free_return->is_valid());
-  MemoryAllocator::SetNextPage(first_page, free_return);
+  isolate->memory_allocator()->SetNextPage(first_page, free_return);
 
   // Freeing pages in the first chunk starting at the first page should free
   // the first chunk and return an invalid page.
-  Page* invalid_page = MemoryAllocator::FreePages(first_page);
+  Page* invalid_page = isolate->memory_allocator()->FreePages(first_page);
   CHECK(!invalid_page->is_valid());
 
-  MemoryAllocator::TearDown();
+  isolate->memory_allocator()->TearDown();
 }
 
 
 TEST(NewSpace) {
   CHECK(HEAP->ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(HEAP->MaxReserved()));
+  CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved()));
 
   NewSpace new_space;
 
   void* chunk =
-      MemoryAllocator::ReserveInitialChunk(4 * HEAP->ReservedSemiSpaceSize());
+      Isolate::Current()->memory_allocator()->ReserveInitialChunk(
+          4 * HEAP->ReservedSemiSpaceSize());
   CHECK(chunk != NULL);
   Address start = RoundUp(static_cast<Address>(chunk),
                           2 * HEAP->ReservedSemiSpaceSize());
@@ -166,13 +172,13 @@ TEST(NewSpace) {
   }
 
   new_space.TearDown();
-  MemoryAllocator::TearDown();
+  Isolate::Current()->memory_allocator()->TearDown();
 }
 
 
 TEST(OldSpace) {
   CHECK(HEAP->ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(HEAP->MaxReserved()));
+  CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved()));
 
   OldSpace* s = new OldSpace(HEAP->MaxOldGenerationSize(),
                              OLD_POINTER_SPACE,
@@ -180,7 +186,8 @@ TEST(OldSpace) {
   CHECK(s != NULL);
 
   void* chunk =
-      MemoryAllocator::ReserveInitialChunk(4 * HEAP->ReservedSemiSpaceSize());
+      Isolate::Current()->memory_allocator()->ReserveInitialChunk(
+          4 * HEAP->ReservedSemiSpaceSize());
   CHECK(chunk != NULL);
   Address start = static_cast<Address>(chunk);
   size_t size = RoundUp(start, 2 * HEAP->ReservedSemiSpaceSize()) - start;
@@ -194,7 +201,7 @@ TEST(OldSpace) {
 
   s->TearDown();
   delete s;
-  MemoryAllocator::TearDown();
+  Isolate::Current()->memory_allocator()->TearDown();
 }
 
 
@@ -236,5 +243,5 @@ TEST(LargeObjectSpace) {
   lo->TearDown();
   delete lo;
 
-  MemoryAllocator::TearDown();
+  Isolate::Current()->memory_allocator()->TearDown();
 }

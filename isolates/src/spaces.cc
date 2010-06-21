@@ -41,8 +41,6 @@ namespace internal {
          && (info).top <= (space).high()              \
          && (info).limit == (space).high())
 
-intptr_t Page::watermark_invalidated_mark_ = Page::WATERMARK_INVALIDATED;
-
 // ----------------------------------------------------------------------------
 // HeapObjectIterator
 
@@ -142,10 +140,14 @@ PageIterator::PageIterator(PagedSpace* space, Mode mode) : space_(space) {
 // -----------------------------------------------------------------------------
 // CodeRange
 
-List<CodeRange::FreeBlock> CodeRange::free_list_(0);
-List<CodeRange::FreeBlock> CodeRange::allocation_list_(0);
-int CodeRange::current_allocation_block_index_ = 0;
-VirtualMemory* CodeRange::code_range_ = NULL;
+
+CodeRange::CodeRange()
+    : code_range_(NULL),
+      free_list_(0),
+      allocation_list_(0),
+      current_allocation_block_index_(0),
+      isolate_(NULL) {
+}
 
 
 bool CodeRange::Setup(const size_t requested) {
@@ -264,19 +266,22 @@ void CodeRange::TearDown() {
 // -----------------------------------------------------------------------------
 // MemoryAllocator
 //
-int MemoryAllocator::capacity_   = 0;
-int MemoryAllocator::size_       = 0;
-
-VirtualMemory* MemoryAllocator::initial_chunk_ = NULL;
 
 // 270 is an estimate based on the static default heap size of a pair of 256K
 // semispaces and a 64M old generation.
 const int kEstimatedNumberOfChunks = 270;
-List<MemoryAllocator::ChunkInfo> MemoryAllocator::chunks_(
-    kEstimatedNumberOfChunks);
-List<int> MemoryAllocator::free_chunk_ids_(kEstimatedNumberOfChunks);
-int MemoryAllocator::max_nof_chunks_ = 0;
-int MemoryAllocator::top_ = 0;
+
+
+MemoryAllocator::MemoryAllocator()
+    : capacity_(0),
+      size_(0),
+      initial_chunk_(NULL),
+      chunks_(kEstimatedNumberOfChunks),
+      free_chunk_ids_(kEstimatedNumberOfChunks),
+      max_nof_chunks_(0),
+      top_(0),
+      isolate_(NULL) {
+}
 
 
 void MemoryAllocator::Push(int free_chunk_id) {
@@ -344,8 +349,8 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
                                          Executability executable) {
   if (size_ + static_cast<int>(requested) > capacity_) return NULL;
   void* mem;
-  if (executable == EXECUTABLE  && CodeRange::exists()) {
-    mem = CodeRange::AllocateRawMemory(requested, allocated);
+  if (executable == EXECUTABLE && isolate_->code_range()->exists()) {
+    mem = isolate_->code_range()->AllocateRawMemory(requested, allocated);
   } else {
     mem = OS::Allocate(requested, allocated, (executable == EXECUTABLE));
   }
@@ -363,8 +368,8 @@ void MemoryAllocator::FreeRawMemory(void* mem, size_t length) {
 #ifdef DEBUG
   ZapBlock(reinterpret_cast<Address>(mem), length);
 #endif
-  if (CodeRange::contains(static_cast<Address>(mem))) {
-    CodeRange::FreeRawMemory(mem, length);
+  if (isolate_->code_range()->contains(static_cast<Address>(mem))) {
+    isolate_->code_range()->FreeRawMemory(mem, length);
   } else {
     OS::Free(mem, length);
   }
@@ -724,14 +729,16 @@ bool PagedSpace::Setup(Address start, size_t size) {
   // contain at least one page, ignore it and allocate instead.
   int pages_in_chunk = PagesInChunk(start, size);
   if (pages_in_chunk > 0) {
-    first_page_ = MemoryAllocator::CommitPages(RoundUp(start, Page::kPageSize),
-                                               Page::kPageSize * pages_in_chunk,
-                                               this, &num_pages);
+    first_page_ = Isolate::Current()->memory_allocator()->CommitPages(
+        RoundUp(start, Page::kPageSize),
+        Page::kPageSize * pages_in_chunk,
+        this, &num_pages);
   } else {
     int requested_pages = Min(MemoryAllocator::kPagesPerChunk,
                               max_capacity_ / Page::kObjectAreaSize);
     first_page_ =
-        MemoryAllocator::AllocatePages(requested_pages, &num_pages, this);
+        Isolate::Current()->memory_allocator()->AllocatePages(
+            requested_pages, &num_pages, this);
     if (!first_page_->is_valid()) return false;
   }
 
@@ -764,7 +771,7 @@ bool PagedSpace::HasBeenSetup() {
 
 
 void PagedSpace::TearDown() {
-  MemoryAllocator::FreeAllPages(this);
+  Isolate::Current()->memory_allocator()->FreeAllPages(this);
   first_page_ = NULL;
   accounting_stats_.Clear();
 }
@@ -775,8 +782,9 @@ void PagedSpace::TearDown() {
 void PagedSpace::Protect() {
   Page* page = first_page_;
   while (page->is_valid()) {
-    MemoryAllocator::ProtectChunkFromPage(page);
-    page = MemoryAllocator::FindLastPageInSameChunk(page)->next_page();
+    Isolate::Current()->memory_allocator()->ProtectChunkFromPage(page);
+    page = Isolate::Current()->memory_allocator()->
+        FindLastPageInSameChunk(page)->next_page();
   }
 }
 
@@ -784,8 +792,9 @@ void PagedSpace::Protect() {
 void PagedSpace::Unprotect() {
   Page* page = first_page_;
   while (page->is_valid()) {
-    MemoryAllocator::UnprotectChunkFromPage(page);
-    page = MemoryAllocator::FindLastPageInSameChunk(page)->next_page();
+    Isolate::Current()->memory_allocator()->UnprotectChunkFromPage(page);
+    page = Isolate::Current()->memory_allocator()->
+        FindLastPageInSameChunk(page)->next_page();
   }
 }
 
@@ -803,7 +812,7 @@ void PagedSpace::MarkAllPagesClean() {
 Object* PagedSpace::FindObject(Address addr) {
   // Note: this function can only be called before or after mark-compact GC
   // because it accesses map pointers.
-  ASSERT(!MarkCompactCollector::in_use());
+  ASSERT(!HEAP->mark_compact_collector()->in_use());
 
   if (!Contains(addr)) return Failure::Exception();
 
@@ -919,13 +928,14 @@ bool PagedSpace::Expand(Page* last_page) {
   if (available_pages <= 0) return false;
 
   int desired_pages = Min(available_pages, MemoryAllocator::kPagesPerChunk);
-  Page* p = MemoryAllocator::AllocatePages(desired_pages, &desired_pages, this);
+  Page* p = Isolate::Current()->memory_allocator()->AllocatePages(
+      desired_pages, &desired_pages, this);
   if (!p->is_valid()) return false;
 
   accounting_stats_.ExpandSpace(desired_pages * Page::kObjectAreaSize);
   ASSERT(Capacity() <= max_capacity_);
 
-  MemoryAllocator::SetNextPage(last_page, p);
+  Isolate::Current()->memory_allocator()->SetNextPage(last_page, p);
 
   // Sequentially clear region marks of new pages and and cache the
   // new last page in the space.
@@ -968,8 +978,9 @@ void PagedSpace::Shrink() {
   }
 
   // Free pages after top_page.
-  Page* p = MemoryAllocator::FreePages(top_page->next_page());
-  MemoryAllocator::SetNextPage(top_page, p);
+  Page* p = Isolate::Current()->memory_allocator()->
+      FreePages(top_page->next_page());
+  Isolate::Current()->memory_allocator()->SetNextPage(top_page, p);
 
   // Find out how many pages we failed to free and update last_page_.
   // Please note pages can only be freed in whole chunks.
@@ -991,7 +1002,8 @@ bool PagedSpace::EnsureCapacity(int capacity) {
   Page* last_page = AllocationTopPage();
   Page* next_page = last_page->next_page();
   while (next_page->is_valid()) {
-    last_page = MemoryAllocator::FindLastPageInSameChunk(next_page);
+    last_page = Isolate::Current()->memory_allocator()->
+        FindLastPageInSameChunk(next_page);
     next_page = last_page->next_page();
   }
 
@@ -1000,7 +1012,8 @@ bool PagedSpace::EnsureCapacity(int capacity) {
     if (!Expand(last_page)) return false;
     ASSERT(last_page->next_page()->is_valid());
     last_page =
-        MemoryAllocator::FindLastPageInSameChunk(last_page->next_page());
+        Isolate::Current()->memory_allocator()->FindLastPageInSameChunk(
+            last_page->next_page());
   } while (Capacity() < capacity);
 
   return true;
@@ -1020,7 +1033,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
   // space.
   ASSERT(allocation_info_.VerifyPagedAllocation());
   Page* top_page = Page::FromAllocationTop(allocation_info_.top);
-  ASSERT(MemoryAllocator::IsPageInSpace(top_page, this));
+  ASSERT(Isolate::Current()->memory_allocator()->IsPageInSpace(top_page, this));
 
   // Loop over all the pages.
   bool above_allocation_top = false;
@@ -1153,16 +1166,16 @@ void NewSpace::TearDown() {
 #ifdef ENABLE_HEAP_PROTECTION
 
 void NewSpace::Protect() {
-  MemoryAllocator::Protect(ToSpaceLow(), Capacity());
-  MemoryAllocator::Protect(FromSpaceLow(), Capacity());
+  Isolate::Current()->memory_allocator()->Protect(ToSpaceLow(), Capacity());
+  Isolate::Current()->memory_allocator()->Protect(FromSpaceLow(), Capacity());
 }
 
 
 void NewSpace::Unprotect() {
-  MemoryAllocator::Unprotect(ToSpaceLow(), Capacity(),
-                             to_space_.executable());
-  MemoryAllocator::Unprotect(FromSpaceLow(), Capacity(),
-                             from_space_.executable());
+  Isolate::Current()->memory_allocator()->Unprotect(ToSpaceLow(), Capacity(),
+                                                    to_space_.executable());
+  Isolate::Current()->memory_allocator()->Unprotect(FromSpaceLow(), Capacity(),
+                                                    from_space_.executable());
 }
 
 #endif
@@ -1281,7 +1294,8 @@ void NewSpace::Verify() {
 
 bool SemiSpace::Commit() {
   ASSERT(!is_committed());
-  if (!MemoryAllocator::CommitBlock(start_, capacity_, executable())) {
+  if (!Isolate::Current()->memory_allocator()->CommitBlock(
+      start_, capacity_, executable())) {
     return false;
   }
   committed_ = true;
@@ -1291,7 +1305,8 @@ bool SemiSpace::Commit() {
 
 bool SemiSpace::Uncommit() {
   ASSERT(is_committed());
-  if (!MemoryAllocator::UncommitBlock(start_, capacity_)) {
+  if (!Isolate::Current()->memory_allocator()->UncommitBlock(
+      start_, capacity_)) {
     return false;
   }
   committed_ = false;
@@ -1337,7 +1352,8 @@ bool SemiSpace::Grow() {
   int maximum_extra = maximum_capacity_ - capacity_;
   int extra = Min(RoundUp(capacity_, static_cast<int>(OS::AllocateAlignment())),
                   maximum_extra);
-  if (!MemoryAllocator::CommitBlock(high(), extra, executable())) {
+  if (!Isolate::Current()->memory_allocator()->CommitBlock(
+      high(), extra, executable())) {
     return false;
   }
   capacity_ += extra;
@@ -1350,7 +1366,8 @@ bool SemiSpace::GrowTo(int new_capacity) {
   ASSERT(new_capacity > capacity_);
   size_t delta = new_capacity - capacity_;
   ASSERT(IsAligned(delta, OS::AllocateAlignment()));
-  if (!MemoryAllocator::CommitBlock(high(), delta, executable())) {
+  if (!Isolate::Current()->memory_allocator()->CommitBlock(
+      high(), delta, executable())) {
     return false;
   }
   capacity_ = new_capacity;
@@ -1363,7 +1380,8 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
   ASSERT(new_capacity < capacity_);
   size_t delta = capacity_ - new_capacity;
   ASSERT(IsAligned(delta, OS::AllocateAlignment()));
-  if (!MemoryAllocator::UncommitBlock(high() - delta, delta)) {
+  if (!Isolate::Current()->memory_allocator()->UncommitBlock(
+      high() - delta, delta)) {
     return false;
   }
   capacity_ = new_capacity;
@@ -1411,36 +1429,32 @@ void SemiSpaceIterator::Initialize(NewSpace* space, Address start,
 
 
 #ifdef DEBUG
-// A static array of histogram info for each type.
-static HistogramInfo heap_histograms[LAST_TYPE+1];
-static JSObject::SpillInformation js_spill_information;
-
 // heap_histograms is shared, always clear it before using it.
 static void ClearHistograms() {
+  Isolate* isolate = Isolate::Current();
   // We reset the name each time, though it hasn't changed.
-#define DEF_TYPE_NAME(name) heap_histograms[name].set_name(#name);
+#define DEF_TYPE_NAME(name) isolate->heap_histograms()[name].set_name(#name);
   INSTANCE_TYPE_LIST(DEF_TYPE_NAME)
 #undef DEF_TYPE_NAME
 
-#define CLEAR_HISTOGRAM(name) heap_histograms[name].clear();
+#define CLEAR_HISTOGRAM(name) isolate->heap_histograms()[name].clear();
   INSTANCE_TYPE_LIST(CLEAR_HISTOGRAM)
 #undef CLEAR_HISTOGRAM
 
-  js_spill_information.Clear();
+  isolate->js_spill_information()->Clear();
 }
 
 
-static int code_kind_statistics[Code::NUMBER_OF_KINDS];
-
-
 static void ClearCodeKindStatistics() {
+  Isolate* isolate = Isolate::Current();
   for (int i = 0; i < Code::NUMBER_OF_KINDS; i++) {
-    code_kind_statistics[i] = 0;
+    isolate->code_kind_statistics()[i] = 0;
   }
 }
 
 
 static void ReportCodeKindStatistics() {
+  Isolate* isolate = Isolate::Current();
   const char* table[Code::NUMBER_OF_KINDS] = { NULL };
 
 #define CASE(name)                            \
@@ -1466,8 +1480,9 @@ static void ReportCodeKindStatistics() {
 
   PrintF("\n   Code kind histograms: \n");
   for (int i = 0; i < Code::NUMBER_OF_KINDS; i++) {
-    if (code_kind_statistics[i] > 0) {
-      PrintF("     %-20s: %10d bytes\n", table[i], code_kind_statistics[i]);
+    if (isolate->code_kind_statistics()[i] > 0) {
+      PrintF("     %-20s: %10d bytes\n", table[i],
+          isolate->code_kind_statistics()[i]);
     }
   }
   PrintF("\n");
@@ -1475,14 +1490,16 @@ static void ReportCodeKindStatistics() {
 
 
 static int CollectHistogramInfo(HeapObject* obj) {
+  Isolate* isolate = Isolate::Current();
   InstanceType type = obj->map()->instance_type();
   ASSERT(0 <= type && type <= LAST_TYPE);
-  ASSERT(heap_histograms[type].name() != NULL);
-  heap_histograms[type].increment_number(1);
-  heap_histograms[type].increment_bytes(obj->Size());
+  ASSERT(isolate->heap_histograms()[type].name() != NULL);
+  isolate->heap_histograms()[type].increment_number(1);
+  isolate->heap_histograms()[type].increment_bytes(obj->Size());
 
   if (FLAG_collect_heap_spill_statistics && obj->IsJSObject()) {
-    JSObject::cast(obj)->IncrementSpillStatistics(&js_spill_information);
+    JSObject::cast(obj)->IncrementSpillStatistics(
+        isolate->js_spill_information());
   }
 
   return obj->Size();
@@ -1490,13 +1507,14 @@ static int CollectHistogramInfo(HeapObject* obj) {
 
 
 static void ReportHistogram(bool print_spill) {
+  Isolate* isolate = Isolate::Current();
   PrintF("\n  Object Histogram:\n");
   for (int i = 0; i <= LAST_TYPE; i++) {
-    if (heap_histograms[i].number() > 0) {
+    if (isolate->heap_histograms()[i].number() > 0) {
       PrintF("    %-34s%10d (%10d bytes)\n",
-             heap_histograms[i].name(),
-             heap_histograms[i].number(),
-             heap_histograms[i].bytes());
+             isolate->heap_histograms()[i].name(),
+             isolate->heap_histograms()[i].number(),
+             isolate->heap_histograms()[i].bytes());
     }
   }
   PrintF("\n");
@@ -1505,8 +1523,8 @@ static void ReportHistogram(bool print_spill) {
   int string_number = 0;
   int string_bytes = 0;
 #define INCREMENT(type, size, name, camel_name)      \
-    string_number += heap_histograms[type].number(); \
-    string_bytes += heap_histograms[type].bytes();
+    string_number += isolate->heap_histograms()[type].number(); \
+    string_bytes += isolate->heap_histograms()[type].bytes();
   STRING_TYPE_LIST(INCREMENT)
 #undef INCREMENT
   if (string_number > 0) {
@@ -1515,7 +1533,7 @@ static void ReportHistogram(bool print_spill) {
   }
 
   if (FLAG_collect_heap_spill_statistics && print_spill) {
-    js_spill_information.Print();
+    isolate->js_spill_information()->Print();
   }
 }
 #endif  // DEBUG
@@ -1700,7 +1718,7 @@ void OldSpaceFreeList::RebuildSizeList() {
 
 int OldSpaceFreeList::Free(Address start, int size_in_bytes) {
 #ifdef DEBUG
-  MemoryAllocator::ZapBlock(start, size_in_bytes);
+  Isolate::Current()->memory_allocator()->ZapBlock(start, size_in_bytes);
 #endif
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(size_in_bytes);
@@ -1832,10 +1850,10 @@ void FixedSizeFreeList::Reset() {
 
 void FixedSizeFreeList::Free(Address start) {
 #ifdef DEBUG
-  MemoryAllocator::ZapBlock(start, object_size_);
+  Isolate::Current()->memory_allocator()->ZapBlock(start, object_size_);
 #endif
   // We only use the freelists with mark-sweep.
-  ASSERT(!MarkCompactCollector::IsCompacting());
+  ASSERT(!HEAP->mark_compact_collector()->IsCompacting());
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(object_size_);
   node->set_next(NULL);
@@ -1952,13 +1970,14 @@ void PagedSpace::FreePages(Page* prev, Page* last) {
     first_page_ = last->next_page();
   } else {
     first = prev->next_page();
-    MemoryAllocator::SetNextPage(prev, last->next_page());
+    Isolate::Current()->memory_allocator()->SetNextPage(
+        prev, last->next_page());
   }
 
   // Attach it after the last page.
-  MemoryAllocator::SetNextPage(last_page_, first);
+  Isolate::Current()->memory_allocator()->SetNextPage(last_page_, first);
   last_page_ = last;
-  MemoryAllocator::SetNextPage(last, NULL);
+  Isolate::Current()->memory_allocator()->SetNextPage(last, NULL);
 
   // Clean them up.
   do {
@@ -1995,10 +2014,8 @@ void PagedSpace::PrepareForMarkCompact(bool will_compact) {
 
     if (!page_list_is_chunk_ordered_) {
       Page* new_last_in_use = Page::FromAddress(NULL);
-      MemoryAllocator::RelinkPageListInChunkOrder(this,
-                                                  &first_page_,
-                                                  &last_page_,
-                                                  &new_last_in_use);
+      Isolate::Current()->memory_allocator()->RelinkPageListInChunkOrder(this,
+          &first_page_, &last_page_, &new_last_in_use);
       ASSERT(new_last_in_use->is_valid());
 
       if (new_last_in_use != last_in_use) {
@@ -2287,11 +2304,12 @@ static void CollectCommentStatistics(RelocIterator* it) {
 // - by code kind
 // - by code comment
 void PagedSpace::CollectCodeStatistics() {
+  Isolate* isolate = Isolate::Current();
   HeapObjectIterator obj_it(this);
   for (HeapObject* obj = obj_it.next(); obj != NULL; obj = obj_it.next()) {
     if (obj->IsCode()) {
       Code* code = Code::cast(obj);
-      code_kind_statistics[code->kind()] += code->Size();
+      isolate->code_kind_statistics()[code->kind()] += code->Size();
       RelocIterator it(code);
       int delta = 0;
       const byte* prev_pc = code->instruction_start();
@@ -2544,13 +2562,12 @@ LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
                                         size_t* chunk_size,
                                         Executability executable) {
   size_t requested = ChunkSizeFor(size_in_bytes);
-  void* mem = MemoryAllocator::AllocateRawMemory(requested,
-                                                 chunk_size,
-                                                 executable);
+  void* mem = Isolate::Current()->memory_allocator()->AllocateRawMemory(
+      requested, chunk_size, executable);
   if (mem == NULL) return NULL;
   LOG(NewEvent("LargeObjectChunk", mem, *chunk_size));
   if (*chunk_size < requested) {
-    MemoryAllocator::FreeRawMemory(mem, *chunk_size);
+    Isolate::Current()->memory_allocator()->FreeRawMemory(mem, *chunk_size);
     LOG(DeleteEvent("LargeObjectChunk", mem));
     return NULL;
   }
@@ -2588,7 +2605,8 @@ void LargeObjectSpace::TearDown() {
     LargeObjectChunk* chunk = first_chunk_;
     first_chunk_ = first_chunk_->next();
     LOG(DeleteEvent("LargeObjectChunk", chunk->address()));
-    MemoryAllocator::FreeRawMemory(chunk->address(), chunk->size());
+    Isolate::Current()->memory_allocator()->FreeRawMemory(chunk->address(),
+                                                          chunk->size());
   }
 
   size_ = 0;
@@ -2601,7 +2619,8 @@ void LargeObjectSpace::TearDown() {
 void LargeObjectSpace::Protect() {
   LargeObjectChunk* chunk = first_chunk_;
   while (chunk != NULL) {
-    MemoryAllocator::Protect(chunk->address(), chunk->size());
+    Isolate::Current()->memory_allocator()->Protect(chunk->address(),
+                                                    chunk->size());
     chunk = chunk->next();
   }
 }
@@ -2611,8 +2630,8 @@ void LargeObjectSpace::Unprotect() {
   LargeObjectChunk* chunk = first_chunk_;
   while (chunk != NULL) {
     bool is_code = chunk->GetObject()->IsCode();
-    MemoryAllocator::Unprotect(chunk->address(), chunk->size(),
-                               is_code ? EXECUTABLE : NOT_EXECUTABLE);
+    Isolate::Current()->memory_allocator()->Unprotect(chunk->address(),
+        chunk->size(), is_code ? EXECUTABLE : NOT_EXECUTABLE);
     chunk = chunk->next();
   }
 }
@@ -2762,7 +2781,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
     HeapObject* object = current->GetObject();
     if (object->IsMarked()) {
       object->ClearMark();
-      MarkCompactCollector::tracer()->decrement_marked_count();
+      HEAP->mark_compact_collector()->tracer()->decrement_marked_count();
       previous = current;
       current = current->next();
     } else {
@@ -2778,10 +2797,11 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       }
 
       // Free the chunk.
-      MarkCompactCollector::ReportDeleteIfNeeded(object);
+      HEAP->mark_compact_collector()->ReportDeleteIfNeeded(object);
       size_ -= static_cast<int>(chunk_size);
       page_count_--;
-      MemoryAllocator::FreeRawMemory(chunk_address, chunk_size);
+      Isolate::Current()->memory_allocator()->FreeRawMemory(
+          chunk_address, chunk_size);
       LOG(DeleteEvent("LargeObjectChunk", chunk_address));
     }
   }
@@ -2886,11 +2906,12 @@ void LargeObjectSpace::ReportStatistics() {
 
 
 void LargeObjectSpace::CollectCodeStatistics() {
+  Isolate* isolate = Isolate::Current();
   LargeObjectIterator obj_it(this);
   for (HeapObject* obj = obj_it.next(); obj != NULL; obj = obj_it.next()) {
     if (obj->IsCode()) {
       Code* code = Code::cast(obj);
-      code_kind_statistics[code->kind()] += code->Size();
+      isolate->code_kind_statistics()[code->kind()] += code->Size();
     }
   }
 }

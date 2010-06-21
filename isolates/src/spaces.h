@@ -34,6 +34,8 @@
 namespace v8 {
 namespace internal {
 
+class Isolate;
+
 // -----------------------------------------------------------------------------
 // Heap structures:
 //
@@ -303,11 +305,6 @@ class Page {
   STATIC_CHECK(kBitsPerInt - kAllocationWatermarkOffsetShift >=
                kAllocationWatermarkOffsetBits);
 
-  // This field contains the meaning of the WATERMARK_INVALIDATED flag.
-  // Instead of clearing this flag from all pages we just flip
-  // its meaning at the beginning of a scavenge.
-  static intptr_t watermark_invalidated_mark_;
-
   //---------------------------------------------------------------------------
   // Page header description.
   //
@@ -395,19 +392,19 @@ class Space : public Malloced {
 // displacements cover the entire 4GB virtual address space.  On 64-bit
 // platforms, we support this using the CodeRange object, which reserves and
 // manages a range of virtual memory.
-class CodeRange : public AllStatic {
+class CodeRange {
  public:
   // Reserves a range of virtual memory, but does not commit any of it.
   // Can only be called once, at heap initialization time.
   // Returns false on failure.
-  static bool Setup(const size_t requested_size);
+  bool Setup(const size_t requested_size);
 
   // Frees the range of virtual memory, and frees the data structures used to
   // manage it.
-  static void TearDown();
+  void TearDown();
 
-  static bool exists() { return code_range_ != NULL; }
-  static bool contains(Address address) {
+  bool exists() { return code_range_ != NULL; }
+  bool contains(Address address) {
     if (code_range_ == NULL) return false;
     Address start = static_cast<Address>(code_range_->address());
     return start <= address && address < start + code_range_->size();
@@ -416,12 +413,14 @@ class CodeRange : public AllStatic {
   // Allocates a chunk of memory from the large-object portion of
   // the code range.  On platforms with no separate code range, should
   // not be called.
-  static void* AllocateRawMemory(const size_t requested, size_t* allocated);
-  static void FreeRawMemory(void* buf, size_t length);
+  void* AllocateRawMemory(const size_t requested, size_t* allocated);
+  void FreeRawMemory(void* buf, size_t length);
 
  private:
+  CodeRange();
+
   // The reserved range of virtual memory that all code objects are put in.
-  static VirtualMemory* code_range_;
+  VirtualMemory* code_range_;
   // Plain old data class, just a struct plus a constructor.
   class FreeBlock {
    public:
@@ -437,20 +436,26 @@ class CodeRange : public AllStatic {
   // Freed blocks of memory are added to the free list.  When the allocation
   // list is exhausted, the free list is sorted and merged to make the new
   // allocation list.
-  static List<FreeBlock> free_list_;
+  List<FreeBlock> free_list_;
   // Memory is allocated from the free blocks on the allocation list.
   // The block at current_allocation_block_index_ is the current block.
-  static List<FreeBlock> allocation_list_;
-  static int current_allocation_block_index_;
+  List<FreeBlock> allocation_list_;
+  int current_allocation_block_index_;
 
   // Finds a block on the allocation list that contains at least the
   // requested amount of memory.  If none is found, sorts and merges
   // the existing free memory blocks, and searches again.
   // If none can be found, terminates V8 with FatalProcessOutOfMemory.
-  static void GetNextAllocationBlock(size_t requested);
+  void GetNextAllocationBlock(size_t requested);
   // Compares the start addresses of two free blocks.
   static int CompareFreeBlockAddress(const FreeBlock* left,
                                      const FreeBlock* right);
+
+  friend class Isolate;
+
+  Isolate* isolate_;
+
+  DISALLOW_COPY_AND_ASSIGN(CodeRange);
 };
 
 
@@ -478,14 +483,14 @@ class CodeRange : public AllStatic {
 //
 
 
-class MemoryAllocator : public AllStatic {
+class MemoryAllocator {
  public:
   // Initializes its internal bookkeeping structures.
   // Max capacity of the total space.
-  static bool Setup(int max_capacity);
+  bool Setup(int max_capacity);
 
   // Deletes valid chunks.
-  static void TearDown();
+  void TearDown();
 
   // Reserves an initial address range of virtual memory to be split between
   // the two new space semispaces, the old space, and the map space.  The
@@ -496,7 +501,7 @@ class MemoryAllocator : public AllStatic {
   // address of the initial chunk if successful, with the side effect of
   // setting the initial chunk, or else NULL if unsuccessful and leaves the
   // initial chunk NULL.
-  static void* ReserveInitialChunk(const size_t requested);
+  void* ReserveInitialChunk(const size_t requested);
 
   // Commits pages from an as-yet-unmanaged block of virtual memory into a
   // paged space.  The block should be part of the initial chunk reserved via
@@ -505,24 +510,24 @@ class MemoryAllocator : public AllStatic {
   // address is non-null and that it is big enough to hold at least one
   // page-aligned page.  The call always succeeds, and num_pages is always
   // greater than zero.
-  static Page* CommitPages(Address start, size_t size, PagedSpace* owner,
-                           int* num_pages);
+  Page* CommitPages(Address start, size_t size, PagedSpace* owner,
+                    int* num_pages);
 
   // Commit a contiguous block of memory from the initial chunk.  Assumes that
   // the address is not NULL, the size is greater than zero, and that the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
-  static bool CommitBlock(Address start, size_t size, Executability executable);
+  bool CommitBlock(Address start, size_t size, Executability executable);
 
   // Uncommit a contiguous block of memory [start..(start+size)[.
   // start is not NULL, the size is greater than zero, and the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
-  static bool UncommitBlock(Address start, size_t size);
+  bool UncommitBlock(Address start, size_t size);
 
   // Zaps a contiguous block of memory [start..(start+size)[ thus
   // filling it up with a recognizable non-NULL bit pattern.
-  static void ZapBlock(Address start, size_t size);
+  void ZapBlock(Address start, size_t size);
 
   // Attempts to allocate the requested (non-zero) number of pages from the
   // OS.  Fewer pages might be allocated than requested. If it fails to
@@ -533,8 +538,8 @@ class MemoryAllocator : public AllStatic {
   // number of allocated pages is returned in the output parameter
   // allocated_pages.  If the PagedSpace owner is executable and there is
   // a code range, the pages are allocated from the code range.
-  static Page* AllocatePages(int requested_pages, int* allocated_pages,
-                             PagedSpace* owner);
+  Page* AllocatePages(int requested_pages, int* allocated_pages,
+                      PagedSpace* owner);
 
   // Frees pages from a given page and after. Requires pages to be
   // linked in chunk-order (see comment for class).
@@ -543,10 +548,10 @@ class MemoryAllocator : public AllStatic {
   // Otherwise, the function searches a page after 'p' that is
   // the first page of a chunk. Pages after the found page
   // are freed and the function returns 'p'.
-  static Page* FreePages(Page* p);
+  Page* FreePages(Page* p);
 
   // Frees all pages owned by given space.
-  static void FreeAllPages(PagedSpace* space);
+  void FreeAllPages(PagedSpace* space);
 
   // Allocates and frees raw memory of certain size.
   // These are just thin wrappers around OS::Allocate and OS::Free,
@@ -554,61 +559,61 @@ class MemoryAllocator : public AllStatic {
   // If the flag is EXECUTABLE and a code range exists, the requested
   // memory is allocated from the code range.  If a code range exists
   // and the freed memory is in it, the code range manages the freed memory.
-  static void* AllocateRawMemory(const size_t requested,
-                                 size_t* allocated,
-                                 Executability executable);
-  static void FreeRawMemory(void* buf, size_t length);
+  void* AllocateRawMemory(const size_t requested,
+                          size_t* allocated,
+                          Executability executable);
+  void FreeRawMemory(void* buf, size_t length);
 
   // Returns the maximum available bytes of heaps.
-  static int Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
+  int Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
 
   // Returns allocated spaces in bytes.
-  static int Size() { return size_; }
+  int Size() { return size_; }
 
   // Returns maximum available bytes that the old space can have.
-  static int MaxAvailable() {
+  int MaxAvailable() {
     return (Available() / Page::kPageSize) * Page::kObjectAreaSize;
   }
 
   // Links two pages.
-  static inline void SetNextPage(Page* prev, Page* next);
+  inline void SetNextPage(Page* prev, Page* next);
 
   // Returns the next page of a given page.
-  static inline Page* GetNextPage(Page* p);
+  inline Page* GetNextPage(Page* p);
 
   // Checks whether a page belongs to a space.
-  static inline bool IsPageInSpace(Page* p, PagedSpace* space);
+  inline bool IsPageInSpace(Page* p, PagedSpace* space);
 
   // Returns the space that owns the given page.
-  static inline PagedSpace* PageOwner(Page* page);
+  inline PagedSpace* PageOwner(Page* page);
 
   // Finds the first/last page in the same chunk as a given page.
-  static Page* FindFirstPageInSameChunk(Page* p);
-  static Page* FindLastPageInSameChunk(Page* p);
+  Page* FindFirstPageInSameChunk(Page* p);
+  Page* FindLastPageInSameChunk(Page* p);
 
   // Relinks list of pages owned by space to make it chunk-ordered.
   // Returns new first and last pages of space.
   // Also returns last page in relinked list which has WasInUsedBeforeMC
   // flag set.
-  static void RelinkPageListInChunkOrder(PagedSpace* space,
-                                         Page** first_page,
-                                         Page** last_page,
-                                         Page** last_page_in_use);
+  void RelinkPageListInChunkOrder(PagedSpace* space,
+                                  Page** first_page,
+                                  Page** last_page,
+                                  Page** last_page_in_use);
 
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect a block of memory by marking it read-only/writable.
-  static inline void Protect(Address start, size_t size);
-  static inline void Unprotect(Address start, size_t size,
-                               Executability executable);
+  inline void Protect(Address start, size_t size);
+  inline void Unprotect(Address start, size_t size,
+                        Executability executable);
 
   // Protect/unprotect a chunk given a page in the chunk.
-  static inline void ProtectChunkFromPage(Page* page);
-  static inline void UnprotectChunkFromPage(Page* page);
+  inline void ProtectChunkFromPage(Page* page);
+  inline void UnprotectChunkFromPage(Page* page);
 #endif
 
 #ifdef DEBUG
   // Reports statistic info of the space.
-  static void ReportStatistics();
+  void ReportStatistics();
 #endif
 
   // Due to encoding limitation, we can only have 8K chunks.
@@ -623,14 +628,16 @@ class MemoryAllocator : public AllStatic {
   static const int kChunkSize = kPagesPerChunk * Page::kPageSize;
 
  private:
+  MemoryAllocator();
+
   // Maximum space size in bytes.
-  static int capacity_;
+  int capacity_;
 
   // Allocated space size in bytes.
-  static int size_;
+  int size_;
 
   // The initial chunk of virtual memory.
-  static VirtualMemory* initial_chunk_;
+  VirtualMemory* initial_chunk_;
 
   // Allocated chunk info: chunk start address, chunk size, and owning space.
   class ChunkInfo BASE_EMBEDDED {
@@ -652,43 +659,49 @@ class MemoryAllocator : public AllStatic {
   };
 
   // Chunks_, free_chunk_ids_ and top_ act as a stack of free chunk ids.
-  static List<ChunkInfo> chunks_;
-  static List<int> free_chunk_ids_;
-  static int max_nof_chunks_;
-  static int top_;
+  List<ChunkInfo> chunks_;
+  List<int> free_chunk_ids_;
+  int max_nof_chunks_;
+  int top_;
 
   // Push/pop a free chunk id onto/from the stack.
-  static void Push(int free_chunk_id);
-  static int Pop();
-  static bool OutOfChunkIds() { return top_ == 0; }
+  void Push(int free_chunk_id);
+  int Pop();
+  bool OutOfChunkIds() { return top_ == 0; }
 
   // Frees a chunk.
-  static void DeleteChunk(int chunk_id);
+  void DeleteChunk(int chunk_id);
 
   // Basic check whether a chunk id is in the valid range.
-  static inline bool IsValidChunkId(int chunk_id);
+  inline bool IsValidChunkId(int chunk_id);
 
   // Checks whether a chunk id identifies an allocated chunk.
-  static inline bool IsValidChunk(int chunk_id);
+  inline bool IsValidChunk(int chunk_id);
 
   // Returns the chunk id that a page belongs to.
-  static inline int GetChunkId(Page* p);
+  inline int GetChunkId(Page* p);
 
   // True if the address lies in the initial chunk.
-  static inline bool InInitialChunk(Address address);
+  inline bool InInitialChunk(Address address);
 
   // Initializes pages in a chunk. Returns the first page address.
   // This function and GetChunkId() are provided for the mark-compact
   // collector to rebuild page headers in the from space, which is
   // used as a marking stack and its page headers are destroyed.
-  static Page* InitializePagesInChunk(int chunk_id, int pages_in_chunk,
-                                      PagedSpace* owner);
+  Page* InitializePagesInChunk(int chunk_id, int pages_in_chunk,
+                               PagedSpace* owner);
 
-  static Page* RelinkPagesInChunk(int chunk_id,
-                                  Address chunk_start,
-                                  size_t chunk_size,
-                                  Page* prev,
-                                  Page** last_page_in_use);
+  Page* RelinkPagesInChunk(int chunk_id,
+                           Address chunk_start,
+                           size_t chunk_size,
+                           Page* prev,
+                           Page** last_page_in_use);
+
+  friend class Isolate;
+
+  Isolate* isolate_;
+
+  DISALLOW_COPY_AND_ASSIGN(MemoryAllocator);
 };
 
 
@@ -2106,9 +2119,7 @@ class LargeObjectSpace : public Space {
   Object* AllocateRawFixedArray(int size_in_bytes);
 
   // Available bytes for objects in this space.
-  int Available() {
-    return LargeObjectChunk::ObjectSizeFor(MemoryAllocator::Available());
-  }
+  inline int Available();
 
   virtual int Size() {
     return size_;

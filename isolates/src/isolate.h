@@ -45,6 +45,7 @@ namespace internal {
 class Bootstrapper;
 class CompilationCache;
 class ContextSlotCache;
+class CodeRange;
 class CpuFeatures;
 class Deserializer;
 class HandleScopeImplementer;
@@ -453,6 +454,7 @@ class Isolate {
 
   Bootstrapper* bootstrapper() { return bootstrapper_; }
   CpuFeatures* cpu_features() { return cpu_features_; }
+  CodeRange* code_range() { return code_range_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
@@ -461,6 +463,10 @@ class Isolate {
 
   TranscendentalCache* transcendental_cache() const {
     return transcendental_cache_;
+  }
+
+  MemoryAllocator* memory_allocator() {
+    return memory_allocator_;
   }
 
   KeyedLookupCache* keyed_lookup_cache() {
@@ -487,6 +493,16 @@ class Isolate {
   ScannerCharacterClasses* scanner_character_classes() {
     return scanner_character_classes_;
   }
+
+#ifdef DEBUG
+  HistogramInfo* heap_histograms() { return heap_histograms_; }
+
+  JSObject::SpillInformation* js_spill_information() {
+    return &js_spill_information_;
+  }
+
+  int* code_kind_statistics() { return code_kind_statistics_; }
+#endif
 
   // SerializerDeserializer state.
   static const int kPartialSnapshotCacheCapacity = 1300;
@@ -541,12 +557,14 @@ class Isolate {
   Bootstrapper* bootstrapper_;
   CompilationCache* compilation_cache_;
   CpuFeatures* cpu_features_;
+  CodeRange* code_range_;
   Mutex* break_access_;
   Heap heap_;
   StackGuard stack_guard_;
   StubCache* stub_cache_;
   ThreadLocalTop thread_local_top_;
   TranscendentalCache* transcendental_cache_;
+  MemoryAllocator* memory_allocator_;
   KeyedLookupCache* keyed_lookup_cache_;
   ContextSlotCache* context_slot_cache_;
   DescriptorLookupCache* descriptor_lookup_cache_;
@@ -554,6 +572,13 @@ class Isolate {
   HandleScopeImplementer* handle_scope_implementer_;
   ScannerCharacterClasses* scanner_character_classes_;
   Zone zone_;
+
+#ifdef DEBUG
+  // A static array of histogram info for each type.
+  HistogramInfo heap_histograms_[LAST_TYPE + 1];
+  JSObject::SpillInformation js_spill_information_;
+  int code_kind_statistics_[Code::NUMBER_OF_KINDS];
+#endif
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
   type name##_;

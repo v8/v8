@@ -40,6 +40,7 @@
 #include "scopeinfo.h"
 #include "simulator.h"
 #include "stub-cache.h"
+#include "spaces.h"
 #include "oprofile-agent.h"
 
 namespace v8 {
@@ -227,9 +228,11 @@ Isolate::Isolate()
       bootstrapper_(NULL),
       compilation_cache_(new CompilationCache()),
       cpu_features_(NULL),
+      code_range_(new CodeRange()),
       break_access_(OS::CreateMutex()),
       stub_cache_(NULL),
       transcendental_cache_(new TranscendentalCache()),
+      memory_allocator_(new MemoryAllocator()),
       keyed_lookup_cache_(new KeyedLookupCache()),
       context_slot_cache_(new ContextSlotCache()),
       descriptor_lookup_cache_(new DescriptorLookupCache()),
@@ -240,6 +243,15 @@ Isolate::Isolate()
 
   heap_.isolate_ = this;
   stack_guard_.isolate_ = this;
+  memory_allocator_->isolate_ = this;
+  code_range_->isolate_ = this;
+
+#ifdef DEBUG
+  // heap_histograms_ initializes itself.
+  memset(&js_spill_information_, 0, sizeof(js_spill_information_));
+  memset(code_kind_statistics_, 0,
+         sizeof(code_kind_statistics_[0]) * Code::NUMBER_OF_KINDS);
+#endif
 
   handle_scope_data_.Initialize();
 
@@ -306,6 +318,11 @@ Isolate::~Isolate() {
   compilation_cache_ = NULL;
   delete bootstrapper_;
   bootstrapper_ = NULL;
+
+  delete memory_allocator_;
+  memory_allocator_ = NULL;
+  delete code_range_;
+  code_range_ = NULL;
 
   if (state_ == INITIALIZED) --number_of_isolates_;
 }

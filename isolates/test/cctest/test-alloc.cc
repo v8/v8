@@ -183,7 +183,7 @@ class Block {
 
 TEST(CodeRange) {
   const int code_range_size = 16*MB;
-  CodeRange::Setup(code_range_size);
+  Isolate::Current()->code_range()->Setup(code_range_size);
   int current_allocated = 0;
   int total_allocated = 0;
   List<Block> blocks(1000);
@@ -195,14 +195,16 @@ TEST(CodeRange) {
       size_t requested = (Page::kPageSize << (Pseudorandom() % 6)) +
            Pseudorandom() % 5000 + 1;
       size_t allocated = 0;
-      void* base = CodeRange::AllocateRawMemory(requested, &allocated);
+      void* base = Isolate::Current()->code_range()->
+          AllocateRawMemory(requested, &allocated);
       blocks.Add(Block(base, static_cast<int>(allocated)));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);
     } else {
       // Free a block.
       int index = Pseudorandom() % blocks.length();
-      CodeRange::FreeRawMemory(blocks[index].base, blocks[index].size);
+      Isolate::Current()->code_range()->FreeRawMemory(
+          blocks[index].base, blocks[index].size);
       current_allocated -= blocks[index].size;
       if (index < blocks.length() - 1) {
         blocks[index] = blocks.RemoveLast();
@@ -212,5 +214,5 @@ TEST(CodeRange) {
     }
   }
 
-  CodeRange::TearDown();
+  Isolate::Current()->code_range()->TearDown();
 }

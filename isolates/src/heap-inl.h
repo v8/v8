@@ -527,6 +527,15 @@ Heap* _inline_get_heap_() {
 }
 
 
+void MarkCompactCollector::SetMark(HeapObject* obj) {
+  tracer_->increment_marked_count();
+#ifdef DEBUG
+  UpdateLiveObjectCount(obj);
+#endif
+  obj->SetMark();
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_HEAP_INL_H_

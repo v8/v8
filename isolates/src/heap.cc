@@ -60,12 +60,6 @@ static const int kMinimumPromotionLimit = 2*MB;
 static const int kMinimumAllocationLimit = 8*MB;
 
 
-int GCTracer::alive_after_last_gc_ = 0;
-double GCTracer::last_gc_end_timestamp_ = 0.0;
-int GCTracer::max_gc_pause_ = 0;
-int GCTracer::max_alive_after_gc_ = 0;
-int GCTracer::min_in_mutator_ = kMaxInt;
-
 Heap::Heap()
     : isolate_(NULL),
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
@@ -122,8 +116,15 @@ Heap::Heap()
       hidden_symbol_(NULL),
       global_gc_prologue_callback_(NULL),
       global_gc_epilogue_callback_(NULL),
-      tracer_(NULL) {
+      tracer_(NULL),
+      max_gc_pause_(0),
+      max_alive_after_gc_(0),
+      min_in_mutator_(kMaxInt),
+      alive_after_last_gc_(0),
+      last_gc_end_timestamp_(0.0),
+      page_watermark_invalidated_mark_(Page::WATERMARK_INVALIDATED) {
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
+  mark_compact_collector_.heap_ = this;
 }
 
 
@@ -202,7 +203,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   // and does not count available bytes already in the old space or code
   // space.  Undercounting is safe---we may get an unrequested full GC when
   // a scavenge would have succeeded.
-  if (MemoryAllocator::MaxAvailable() <= new_space_.Size()) {
+  if (isolate_->memory_allocator()->MaxAvailable() <= new_space_.Size()) {
     Counters::gc_compactor_caused_by_oldspace_exhaustion.Increment();
     return MARK_COMPACTOR;
   }
@@ -247,8 +248,8 @@ void Heap::ReportStatisticsBeforeGC() {
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
   PrintF("Memory allocator,   used: %8d, available: %8d\n",
-         MemoryAllocator::Size(),
-         MemoryAllocator::Available());
+         isolate_->memory_allocator()->Size(),
+         isolate_->memory_allocator()->Available());
   PrintF("New space,          used: %8d, available: %8d\n",
          Heap::new_space_.Size(),
          new_space_.Available());
@@ -362,9 +363,9 @@ void Heap::CollectAllGarbage(bool force_compaction) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
-  MarkCompactCollector::SetForceCompaction(force_compaction);
+  mark_compact_collector_.SetForceCompaction(force_compaction);
   CollectGarbage(0, OLD_POINTER_SPACE);
-  MarkCompactCollector::SetForceCompaction(false);
+  mark_compact_collector_.SetForceCompaction(false);
 }
 
 
@@ -381,7 +382,7 @@ bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
   allocation_timeout_ = Max(6, FLAG_gc_interval);
 #endif
 
-  { GCTracer tracer;
+  { GCTracer tracer(this);
     GarbageCollectionPrologue();
     // The GC count was incremented in the prologue.  Tell the tracer about
     // it.
@@ -427,7 +428,7 @@ bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
 
 
 void Heap::PerformScavenge() {
-  GCTracer tracer;
+  GCTracer tracer(this);
   PerformGarbageCollection(NEW_SPACE, SCAVENGER, &tracer);
 }
 
@@ -436,7 +437,6 @@ void Heap::PerformScavenge() {
 // Helper class for verifying the symbol table.
 class SymbolTableVerifier : public ObjectVisitor {
  public:
-  SymbolTableVerifier() { }
   void VisitPointers(Object** start, Object** end) {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
@@ -652,9 +652,9 @@ void Heap::MarkCompact(GCTracer* tracer) {
   gc_state_ = MARK_COMPACT;
   LOG(ResourceEvent("markcompact", "begin"));
 
-  MarkCompactCollector::Prepare(tracer);
+  mark_compact_collector_.Prepare(tracer);
 
-  bool is_compacting = MarkCompactCollector::IsCompacting();
+  bool is_compacting = mark_compact_collector_.IsCompacting();
 
   if (is_compacting) {
     mc_count_++;
@@ -665,7 +665,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
   MarkCompactPrologue(is_compacting);
 
-  MarkCompactCollector::CollectGarbage();
+  mark_compact_collector_.CollectGarbage();
 
   MarkCompactEpilogue(is_compacting);
 
@@ -718,7 +718,6 @@ Object* Heap::FindCodeObject(Address a) {
 // Helper class for copying HeapObjects
 class ScavengeVisitor: public ObjectVisitor {
  public:
-
   void VisitPointer(Object** p) { ScavengePointer(p); }
 
   void VisitPointers(Object** start, Object** end) {
@@ -2283,7 +2282,8 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   // Initialize the object
   HeapObject::cast(result)->set_map(THIS->code_map());
   Code* code = Code::cast(result);
-  ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
+  ASSERT(!isolate_->code_range()->exists() ||
+      isolate_->code_range()->contains(code->address()));
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_size(desc.reloc_size);
   code->set_sinfo_size(sinfo_size);
@@ -2326,7 +2326,8 @@ Object* Heap::CopyCode(Code* code) {
   CopyBlock(new_addr, old_addr, obj_size);
   // Relocate the copy.
   Code* new_code = Code::cast(result);
-  ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
+  ASSERT(!isolate_->code_range()->exists() ||
+      isolate_->code_range()->contains(code->address()));
   new_code->Relocate(new_addr - old_addr);
   return new_code;
 }
@@ -2372,7 +2373,8 @@ Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   memcpy(new_code->sinfo_start(), code->sinfo_start(), code->sinfo_size());
 
   // Relocate the copy.
-  ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
+  ASSERT(!isolate_->code_range()->exists() ||
+      isolate_->code_range()->contains(code->address()));
   new_code->Relocate(new_addr - old_addr);
 
 #ifdef DEBUG
@@ -3303,7 +3305,7 @@ void Heap::ReportHeapStatistics(const char* title) {
   PrintF("\n");
 
   PrintF("Heap statistics : ");
-  MemoryAllocator::ReportStatistics();
+  isolate_->memory_allocator()->ReportStatistics();
   PrintF("To space : ");
   new_space_.ReportStatistics();
   PrintF("Old pointer space : ");
@@ -3925,9 +3927,10 @@ bool Heap::Setup(bool create_heap_objects) {
   // space.  The chunk is double the size of the requested reserved
   // new space size to ensure that we can find a pair of semispaces that
   // are contiguous and aligned to their size.
-  if (!MemoryAllocator::Setup(MaxReserved())) return false;
+  if (!isolate_->memory_allocator()->Setup(MaxReserved())) return false;
   void* chunk =
-      MemoryAllocator::ReserveInitialChunk(4 * reserved_semispace_size_);
+      isolate_->memory_allocator()->ReserveInitialChunk(
+          4 * reserved_semispace_size_);
   if (chunk == NULL) return false;
 
   // Align the pair of semispaces to their size, which must be a power
@@ -3955,7 +3958,7 @@ bool Heap::Setup(bool create_heap_objects) {
   // On 64-bit platform(s), we put all code objects in a 2 GB range of
   // virtual address space, so that they can call each other with near calls.
   if (code_range_size_ > 0) {
-    if (!CodeRange::Setup(code_range_size_)) {
+    if (!isolate_->code_range()->Setup(code_range_size_)) {
       return false;
     }
   }
@@ -4030,9 +4033,9 @@ void Heap::TearDown() {
     PrintF("gc_count=%d ", gc_count_);
     PrintF("mark_sweep_count=%d ", ms_count_);
     PrintF("mark_compact_count=%d ", mc_count_);
-    PrintF("max_gc_pause=%d ", GCTracer::get_max_gc_pause());
-    PrintF("min_in_mutator=%d ", GCTracer::get_min_in_mutator());
-    PrintF("max_alive_after_gc=%d ", GCTracer::get_max_alive_after_gc());
+    PrintF("max_gc_pause=%d ", get_max_gc_pause());
+    PrintF("min_in_mutator=%d ", get_min_in_mutator());
+    PrintF("max_alive_after_gc=%d ", get_max_alive_after_gc());
     PrintF("\n\n");
   }
 
@@ -4078,7 +4081,7 @@ void Heap::TearDown() {
     lo_space_ = NULL;
   }
 
-  MemoryAllocator::TearDown();
+  isolate_->memory_allocator()->TearDown();
 }
 
 
@@ -4369,7 +4372,6 @@ class MarkObjectVisitor : public ObjectVisitor {
   }
 };
 
-static MarkObjectVisitor mark_visitor;
 
 static void MarkObjectRecursively(Object** p) {
   if (!(*p)->IsHeapObject()) return;
@@ -4397,6 +4399,8 @@ static void MarkObjectRecursively(Object** p) {
 
   MarkObjectRecursively(&map);
 
+  MarkObjectVisitor mark_visitor;
+
   obj->IterateBody(map_p->instance_type(), obj->SizeFromMap(map_p),
                    &mark_visitor);
 
@@ -4417,7 +4421,6 @@ class UnmarkObjectVisitor : public ObjectVisitor {
   }
 };
 
-static UnmarkObjectVisitor unmark_visitor;
 
 static void UnmarkObjectRecursively(Object** p) {
   if (!(*p)->IsHeapObject()) return;
@@ -4439,6 +4442,8 @@ static void UnmarkObjectRecursively(Object** p) {
   obj->set_map(reinterpret_cast<Map*>(map_p));
 
   UnmarkObjectRecursively(reinterpret_cast<Object**>(&map_p));
+
+  UnmarkObjectVisitor unmark_visitor;
 
   obj->IterateBody(Map::cast(map_p)->instance_type(),
                    obj->SizeFromMap(Map::cast(map_p)),
@@ -4523,7 +4528,7 @@ static int CountTotalHolesSize() {
 }
 
 
-GCTracer::GCTracer()
+GCTracer::GCTracer(Heap* heap)
     : start_time_(0.0),
       start_size_(0),
       gc_count_(0),
@@ -4532,14 +4537,16 @@ GCTracer::GCTracer()
       marked_count_(0),
       allocated_since_last_gc_(0),
       spent_in_mutator_(0),
-      promoted_objects_size_(0) {
+      promoted_objects_size_(0),
+      heap_(heap) {
   // These two fields reflect the state of the previous full collection.
   // Set them before they are changed by the collector.
-  previous_has_compacted_ = MarkCompactCollector::HasCompacted();
-  previous_marked_count_ = MarkCompactCollector::previous_marked_count();
+  previous_has_compacted_ = heap_->mark_compact_collector_.HasCompacted();
+  previous_marked_count_ =
+      heap_->mark_compact_collector_.previous_marked_count();
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
   start_time_ = OS::TimeCurrentMillis();
-  start_size_ = HEAP->SizeOfObjects();
+  start_size_ = heap_->SizeOfObjects();
 
   for (int i = 0; i < Scope::kNumberOfScopes; i++) {
     scopes_[i] = 0;
@@ -4547,10 +4554,11 @@ GCTracer::GCTracer()
 
   in_free_list_or_wasted_before_gc_ = CountTotalHolesSize();
 
-  allocated_since_last_gc_ = HEAP->SizeOfObjects() - alive_after_last_gc_;
+  allocated_since_last_gc_ =
+      heap_->SizeOfObjects() - heap_->alive_after_last_gc_;
 
-  if (last_gc_end_timestamp_ > 0) {
-    spent_in_mutator_ = Max(start_time_ - last_gc_end_timestamp_, 0.0);
+  if (heap_->last_gc_end_timestamp_ > 0) {
+    spent_in_mutator_ = Max(start_time_ - heap_->last_gc_end_timestamp_, 0.0);
   }
 }
 
@@ -4559,20 +4567,21 @@ GCTracer::~GCTracer() {
   // Printf ONE line iff flag is set.
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
 
-  bool first_gc = (last_gc_end_timestamp_ == 0);
+  bool first_gc = (heap_->last_gc_end_timestamp_ == 0);
 
-  alive_after_last_gc_ = HEAP->SizeOfObjects();
-  last_gc_end_timestamp_ = OS::TimeCurrentMillis();
+  heap_->alive_after_last_gc_ = heap_->SizeOfObjects();
+  heap_->last_gc_end_timestamp_ = OS::TimeCurrentMillis();
 
-  int time = static_cast<int>(last_gc_end_timestamp_ - start_time_);
+  int time = static_cast<int>(heap_->last_gc_end_timestamp_ - start_time_);
 
   // Update cumulative GC statistics if required.
   if (FLAG_print_cumulative_gc_stat) {
-    max_gc_pause_ = Max(max_gc_pause_, time);
-    max_alive_after_gc_ = Max(max_alive_after_gc_, alive_after_last_gc_);
+    heap_->max_gc_pause_ = Max(heap_->max_gc_pause_, time);
+    heap_->max_alive_after_gc_ = Max(heap_->max_alive_after_gc_,
+                                     heap_->alive_after_last_gc_);
     if (!first_gc) {
-      min_in_mutator_ = Min(min_in_mutator_,
-                            static_cast<int>(spent_in_mutator_));
+      heap_->min_in_mutator_ = Min(heap_->min_in_mutator_,
+                                   static_cast<int>(spent_in_mutator_));
     }
   }
 
@@ -4597,7 +4606,8 @@ GCTracer::~GCTracer() {
         PrintF("s");
         break;
       case MARK_COMPACTOR:
-        PrintF(MarkCompactCollector::HasCompacted() ? "mc" : "ms");
+        PrintF("%s",
+               heap_->mark_compact_collector_.HasCompacted() ? "mc" : "ms");
         break;
       default:
         UNREACHABLE();
@@ -4610,7 +4620,7 @@ GCTracer::~GCTracer() {
     PrintF("compact=%d ", static_cast<int>(scopes_[Scope::MC_COMPACT]));
 
     PrintF("total_size_before=%d ", start_size_);
-    PrintF("total_size_after=%d ", HEAP->SizeOfObjects());
+    PrintF("total_size_after=%d ", heap_->SizeOfObjects());
     PrintF("holes_size_before=%d ", in_free_list_or_wasted_before_gc_);
     PrintF("holes_size_after=%d ", CountTotalHolesSize());
 
@@ -4621,7 +4631,7 @@ GCTracer::~GCTracer() {
   }
 
 #if defined(ENABLE_LOGGING_AND_PROFILING)
-  HEAP->PrintShortHeapStatistics();
+  heap_->PrintShortHeapStatistics();
 #endif
 }
 
@@ -4631,8 +4641,8 @@ const char* GCTracer::CollectorString() {
     case SCAVENGER:
       return "Scavenge";
     case MARK_COMPACTOR:
-      return MarkCompactCollector::HasCompacted() ? "Mark-compact"
-                                                  : "Mark-sweep";
+      return heap_->mark_compact_collector_.HasCompacted() ? "Mark-compact"
+                                                           : "Mark-sweep";
   }
   return "Unknown GC";
 }
