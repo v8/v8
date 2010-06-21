@@ -104,7 +104,7 @@ static int register_code(int reg) {
 
 
 TEST(ExternalReferenceEncoder) {
-  StatsTable::SetCounterFunction(counter_function);
+  i::Isolate::Current()->stats_table()->SetCounterFunction(counter_function);
   HEAP->Setup(false);
   ExternalReferenceEncoder encoder;
   CHECK_EQ(make_code(BUILTIN, Builtins::ArrayCode),
@@ -141,7 +141,7 @@ TEST(ExternalReferenceEncoder) {
 
 
 TEST(ExternalReferenceDecoder) {
-  StatsTable::SetCounterFunction(counter_function);
+  i::Isolate::Current()->stats_table()->SetCounterFunction(counter_function);
   HEAP->Setup(false);
   ExternalReferenceDecoder decoder;
   CHECK_EQ(AddressOf(Builtins::ArrayCode),

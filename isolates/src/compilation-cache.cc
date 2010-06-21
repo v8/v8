@@ -123,6 +123,13 @@ void CompilationSubCache::Clear() {
 }
 
 
+CompilationCacheScript::CompilationCacheScript(int generations)
+     : CompilationSubCache(generations),
+       script_histogram_(NULL),
+       script_histogram_initialized_(false) {
+}
+
+
 // We only re-use a cached function for some script source code if the
 // script originates from the same place. This is to avoid issues
 // when reporting errors, etc.
@@ -178,16 +185,19 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
     }
   }
 
-  // TODO(isolates): make it per isolate
-  static void* script_histogram = StatsTable::CreateHistogram(
-      "V8.ScriptCache",
-      0,
-      kScriptGenerations,
-      kScriptGenerations + 1);
+  if (!script_histogram_initialized_) {
+    script_histogram_ = Isolate::Current()->stats_table()->CreateHistogram(
+        "V8.ScriptCache",
+        0,
+        kScriptGenerations,
+        kScriptGenerations + 1);
+    script_histogram_initialized_ = true;
+  }
 
-  if (script_histogram != NULL) {
+  if (script_histogram_ != NULL) {
     // The level NUMBER_OF_SCRIPT_GENERATIONS is equivalent to a cache miss.
-    StatsTable::AddHistogramSample(script_histogram, generation);
+    Isolate::Current()->stats_table()->AddHistogramSample(
+        script_histogram_, generation);
   }
 
   // Once outside the manacles of the handle scope, we need to recheck

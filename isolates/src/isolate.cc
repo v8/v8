@@ -230,6 +230,7 @@ Isolate::Isolate()
       cpu_features_(NULL),
       code_range_(new CodeRange()),
       break_access_(OS::CreateMutex()),
+      stats_table_(new StatsTable()),
       stub_cache_(NULL),
       transcendental_cache_(new TranscendentalCache()),
       memory_allocator_(new MemoryAllocator()),
@@ -312,6 +313,9 @@ Isolate::~Isolate() {
   transcendental_cache_ = NULL;
   delete stub_cache_;
   stub_cache_ = NULL;
+  delete stats_table_;
+  stats_table_ = NULL;
+
   delete cpu_features_;
   cpu_features_ = NULL;
   delete compilation_cache_;

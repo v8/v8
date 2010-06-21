@@ -3792,17 +3792,18 @@ void V8::RemoveMessageListeners(MessageCallback that) {
 
 void V8::SetCounterFunction(CounterLookupCallback callback) {
   if (IsDeadCheck("v8::V8::SetCounterFunction()")) return;
-  i::StatsTable::SetCounterFunction(callback);
+  i::Isolate::Current()->stats_table()->SetCounterFunction(callback);
 }
 
 void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
   if (IsDeadCheck("v8::V8::SetCreateHistogramFunction()")) return;
-  i::StatsTable::SetCreateHistogramFunction(callback);
+  i::Isolate::Current()->stats_table()->SetCreateHistogramFunction(callback);
 }
 
 void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {
   if (IsDeadCheck("v8::V8::SetAddHistogramSampleFunction()")) return;
-  i::StatsTable::SetAddHistogramSampleFunction(callback);
+  i::Isolate::Current()->stats_table()->
+      SetAddHistogramSampleFunction(callback);
 }
 
 void V8::EnableSlidingStateWindow() {

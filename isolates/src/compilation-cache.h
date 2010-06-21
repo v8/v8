@@ -86,8 +86,7 @@ class CompilationSubCache {
 // Sub-cache for scripts.
 class CompilationCacheScript : public CompilationSubCache {
  public:
-  explicit CompilationCacheScript(int generations)
-      : CompilationSubCache(generations) { }
+  explicit CompilationCacheScript(int generations);
 
   Handle<SharedFunctionInfo> Lookup(Handle<String> source,
                                     Handle<Object> name,
@@ -104,6 +103,9 @@ class CompilationCacheScript : public CompilationSubCache {
                  Handle<Object> name,
                  int line_offset,
                  int column_offset);
+
+  void* script_histogram_;
+  bool script_histogram_initialized_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
 };

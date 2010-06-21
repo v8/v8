@@ -458,6 +458,7 @@ class Isolate {
   CompilationCache* compilation_cache() { return compilation_cache_; }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
+  StatsTable* stats_table() { return stats_table_; }
   StubCache* stub_cache() { return stub_cache_; }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
 
@@ -561,6 +562,7 @@ class Isolate {
   Mutex* break_access_;
   Heap heap_;
   StackGuard stack_guard_;
+  StatsTable* stats_table_;
   StubCache* stub_cache_;
   ThreadLocalTop thread_local_top_;
   TranscendentalCache* transcendental_cache_;
