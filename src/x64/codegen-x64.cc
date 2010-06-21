@@ -274,7 +274,11 @@ class FloatingPointHelper : public AllStatic {
   // Takes the operands in rdx and rax and loads them as integers in rax
   // and rcx.
   static void LoadAsIntegers(MacroAssembler* masm,
-                             Label* operand_conversion_failure);
+                             Label* operand_conversion_failure,
+                             Register heap_number_map);
+  // As above, but we know the operands to be numbers. In that case,
+  // conversion can't fail.
+  static void LoadNumbersAsIntegers(MacroAssembler* masm);
 };
 
 
@@ -9928,6 +9932,13 @@ void FloatingPointHelper::LoadSSE2SmiOperands(MacroAssembler* masm) {
 
 
 void FloatingPointHelper::LoadSSE2NumberOperands(MacroAssembler* masm) {
+  if (FLAG_debug_code) {
+    // Both arguments can not be smis. That case is handled by smi-only code.
+    Label ok;
+    __ JumpIfNotBothSmi(rax, rdx, &ok);
+    __ Abort("Both arguments smi but not handled by smi-code.");
+    __ bind(&ok);
+  }
   Label load_smi_rdx, load_nonsmi_rax, load_smi_rax, done;
   // Load operand in rdx into xmm0.
   __ JumpIfSmi(rdx, &load_smi_rdx);
@@ -9941,7 +9952,7 @@ void FloatingPointHelper::LoadSSE2NumberOperands(MacroAssembler* masm) {
   __ bind(&load_smi_rdx);
   __ SmiToInteger32(kScratchRegister, rdx);
   __ cvtlsi2sd(xmm0, kScratchRegister);
-  __ JumpIfNotSmi(rax, &load_nonsmi_rax);
+  __ jmp(&load_nonsmi_rax);
 
   __ bind(&load_smi_rax);
   __ SmiToInteger32(kScratchRegister, rax);
@@ -9984,7 +9995,8 @@ void FloatingPointHelper::LoadSSE2UnknownOperands(MacroAssembler* masm,
 // Input: rdx, rax are the left and right objects of a bit op.
 // Output: rax, rcx are left and right integers for a bit op.
 void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
-                                         Label* conversion_failure) {
+                                         Label* conversion_failure,
+                                         Register heap_number_map) {
   // Check float operands.
   Label arg1_is_object, check_undefined_arg1;
   Label arg2_is_object, check_undefined_arg2;
@@ -10002,8 +10014,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ jmp(&load_arg2);
 
   __ bind(&arg1_is_object);
-  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
-  __ CompareRoot(rbx, Heap::kHeapNumberMapRootIndex);
+  __ cmpq(FieldOperand(rdx, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg1);
   // Get the untagged integer version of the edx heap number in rcx.
   IntegerConvert(masm, rdx, rdx);
@@ -10024,11 +10035,45 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ jmp(&done);
 
   __ bind(&arg2_is_object);
-  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-  __ CompareRoot(rbx, Heap::kHeapNumberMapRootIndex);
+  __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg2);
   // Get the untagged integer version of the eax heap number in ecx.
   IntegerConvert(masm, rcx, rax);
+  __ bind(&done);
+  __ movl(rax, rdx);
+}
+
+
+// Input: rdx, rax are the left and right objects of a bit op.
+// Output: rax, rcx are left and right integers for a bit op.
+void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
+  if (FLAG_debug_code) {
+    // Both arguments can not be smis. That case is handled by smi-only code.
+    Label ok;
+    __ JumpIfNotBothSmi(rax, rdx, &ok);
+    __ Abort("Both arguments smi but not handled by smi-code.");
+    __ bind(&ok);
+  }
+  // Check float operands.
+  Label done;
+  Label rax_is_object;
+  Label rdx_is_object;
+  Label rax_is_smi;
+  Label rdx_is_smi;
+
+  __ JumpIfNotSmi(rdx, &rdx_is_object);
+  __ SmiToInteger32(rdx, rdx);
+
+  __ bind(&rax_is_object);
+  IntegerConvert(masm, rcx, rax);  // Uses rdi, rcx and rbx.
+  __ jmp(&done);
+
+  __ bind(&rdx_is_object);
+  IntegerConvert(masm, rdx, rdx);  // Uses rdi, rcx and rbx.
+  __ JumpIfNotSmi(rax, &rax_is_object);
+  __ bind(&rax_is_smi);
+  __ SmiToInteger32(rcx, rax);
+
   __ bind(&done);
   __ movl(rax, rdx);
 }
@@ -10487,34 +10532,52 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       case Token::SAR:
       case Token::SHL:
       case Token::SHR: {
-        Label skip_allocation, non_smi_result;
-        FloatingPointHelper::LoadAsIntegers(masm, &call_runtime);
+        Label skip_allocation, non_smi_shr_result;
+        Register heap_number_map = r9;
+        __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+        if (static_operands_type_.IsNumber()) {
+          if (FLAG_debug_code) {
+            // Assert at runtime that inputs are only numbers.
+            __ AbortIfNotNumber(rdx);
+            __ AbortIfNotNumber(rax);
+          }
+          FloatingPointHelper::LoadNumbersAsIntegers(masm);
+        } else {
+          FloatingPointHelper::LoadAsIntegers(masm,
+                                              &call_runtime,
+                                              heap_number_map);
+        }
         switch (op_) {
           case Token::BIT_OR:  __ orl(rax, rcx); break;
           case Token::BIT_AND: __ andl(rax, rcx); break;
           case Token::BIT_XOR: __ xorl(rax, rcx); break;
           case Token::SAR: __ sarl_cl(rax); break;
           case Token::SHL: __ shll_cl(rax); break;
-          case Token::SHR: __ shrl_cl(rax); break;
+          case Token::SHR: {
+            __ shrl_cl(rax);
+            // Check if result is negative. This can only happen for a shift
+            // by zero.
+            __ testl(rax, rax);
+            __ j(negative, &non_smi_shr_result);
+            break;
+          }
           default: UNREACHABLE();
         }
-        if (op_ == Token::SHR) {
-          // Check if result is negative. This can only happen for a shift
-          // by zero, which also doesn't update the sign flag.
-          __ testl(rax, rax);
-          __ j(negative, &non_smi_result);
-        }
-        __ JumpIfNotValidSmiValue(rax, &non_smi_result);
-        // Tag smi result, if possible, and return.
+
+        STATIC_ASSERT(kSmiValueSize == 32);
+        // Tag smi result and return.
         __ Integer32ToSmi(rax, rax);
         GenerateReturn(masm);
 
-        // All ops except SHR return a signed int32 that we load in
-        // a HeapNumber.
-        if (op_ != Token::SHR && non_smi_result.is_linked()) {
-          __ bind(&non_smi_result);
+        // All bit-ops except SHR return a signed int32 that can be
+        // returned immediately as a smi.
+        // We might need to allocate a HeapNumber if we shift a negative
+        // number right by zero (i.e., convert to UInt32).
+        if (op_ == Token::SHR) {
+          ASSERT(non_smi_shr_result.is_linked());
+          __ bind(&non_smi_shr_result);
           // Allocate a heap number if needed.
-          __ movsxlq(rbx, rax);  // rbx: sign extended 32-bit result
+          __ movl(rbx, rax);  // rbx holds result value (uint32 value as int64).
           switch (mode_) {
             case OVERWRITE_LEFT:
             case OVERWRITE_RIGHT:
@@ -10525,22 +10588,33 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
               __ JumpIfNotSmi(rax, &skip_allocation);
               // Fall through!
             case NO_OVERWRITE:
-              __ AllocateHeapNumber(rax, rcx, &call_runtime);
+              // Allocate heap number in new space.
+              // Not using AllocateHeapNumber macro in order to reuse
+              // already loaded heap_number_map.
+              __ AllocateInNewSpace(HeapNumber::kSize,
+                                    rax,
+                                    rcx,
+                                    no_reg,
+                                    &call_runtime,
+                                    TAG_OBJECT);
+              // Set the map.
+              if (FLAG_debug_code) {
+                __ AbortIfNotRootValue(heap_number_map,
+                                       Heap::kHeapNumberMapRootIndex,
+                                       "HeapNumberMap register clobbered.");
+              }
+              __ movq(FieldOperand(rax, HeapObject::kMapOffset),
+                      heap_number_map);
               __ bind(&skip_allocation);
               break;
             default: UNREACHABLE();
           }
           // Store the result in the HeapNumber and return.
-          __ movq(Operand(rsp, 1 * kPointerSize), rbx);
-          __ fild_s(Operand(rsp, 1 * kPointerSize));
-          __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
+          __ cvtqsi2sd(xmm0, rbx);
+          __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm0);
           GenerateReturn(masm);
         }
 
-        // SHR should return uint32 - go to runtime for non-smi/negative result.
-        if (op_ == Token::SHR) {
-          __ bind(&non_smi_result);
-        }
         break;
       }
       default: UNREACHABLE(); break;
@@ -10573,7 +10647,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       Label not_strings, both_strings, not_string1, string1, string1_smi2;
 
       // If this stub has already generated FP-specific code then the arguments
-      // are already in rdx, rax
+      // are already in rdx and rax.
       if (!ShouldGenerateFPCode() && !HasArgsInRegisters()) {
         GenerateLoadArguments(masm);
       }
