@@ -109,7 +109,7 @@ class Profiler: public Thread {
   void Run();
 
   // Pause and Resume TickSample data collection.
-  bool paused() { return paused_; }
+  bool paused() const { return paused_; }
   void pause() { paused_ = true; }
   void resume() { paused_ = false; }
 
