@@ -9932,13 +9932,6 @@ void FloatingPointHelper::LoadSSE2SmiOperands(MacroAssembler* masm) {
 
 
 void FloatingPointHelper::LoadSSE2NumberOperands(MacroAssembler* masm) {
-  if (FLAG_debug_code) {
-    // Both arguments can not be smis. That case is handled by smi-only code.
-    Label ok;
-    __ JumpIfNotBothSmi(rax, rdx, &ok);
-    __ Abort("Both arguments smi but not handled by smi-code.");
-    __ bind(&ok);
-  }
   Label load_smi_rdx, load_nonsmi_rax, load_smi_rax, done;
   // Load operand in rdx into xmm0.
   __ JumpIfSmi(rdx, &load_smi_rdx);
@@ -9952,7 +9945,7 @@ void FloatingPointHelper::LoadSSE2NumberOperands(MacroAssembler* masm) {
   __ bind(&load_smi_rdx);
   __ SmiToInteger32(kScratchRegister, rdx);
   __ cvtlsi2sd(xmm0, kScratchRegister);
-  __ jmp(&load_nonsmi_rax);
+  __ JumpIfNotSmi(rax, &load_nonsmi_rax);
 
   __ bind(&load_smi_rax);
   __ SmiToInteger32(kScratchRegister, rax);
@@ -10058,8 +10051,6 @@ void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
   Label done;
   Label rax_is_object;
   Label rdx_is_object;
-  Label rax_is_smi;
-  Label rdx_is_smi;
 
   __ JumpIfNotSmi(rdx, &rdx_is_object);
   __ SmiToInteger32(rdx, rdx);
@@ -10071,7 +10062,6 @@ void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
   __ bind(&rdx_is_object);
   IntegerConvert(masm, rdx, rdx);  // Uses rdi, rcx and rbx.
   __ JumpIfNotSmi(rax, &rax_is_object);
-  __ bind(&rax_is_smi);
   __ SmiToInteger32(rcx, rax);
 
   __ bind(&done);
