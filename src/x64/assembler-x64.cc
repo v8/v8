@@ -382,6 +382,11 @@ void Assembler::Align(int m) {
 }
 
 
+void Assembler::CodeTargetAlign() {
+  Align(16);  // Preferred alignment of jump targets on x64.
+}
+
+
 void Assembler::bind_to(Label* L, int pos) {
   ASSERT(!L->is_bound());  // Label may only be bound once.
   last_pc_ = NULL;

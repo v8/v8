@@ -394,6 +394,11 @@ void Assembler::Align(int m) {
 }
 
 
+void Assembler::CodeTargetAlign() {
+  Align(16);  // Tentative value.
+}
+
+
 bool Assembler::IsNop(Instr instr, int type) {
   // Check for mov rx, rx.
   ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
