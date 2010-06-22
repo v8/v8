@@ -28,7 +28,7 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
-// #define V8_USE_TLS_FOR_GLOBAL_ISOLATE
+#define V8_USE_TLS_FOR_GLOBAL_ISOLATE
 
 #include "apiutils.h"
 #include "contexts.h"
