@@ -431,21 +431,8 @@ class NamedEntriesDetector {
 
 static const v8::HeapGraphNode* GetGlobalObject(
     const v8::HeapSnapshot* snapshot) {
-  if (i::Snapshot::IsEnabled()) {
-    // In case if snapshots are enabled, there will present a
-    // vanilla deserealized global object, without properties
-    // added by the test code.
-    CHECK_EQ(2, snapshot->GetHead()->GetChildrenCount());
-    // Choose the global object of a bigger size.
-    const v8::HeapGraphNode* node0 =
-        snapshot->GetHead()->GetChild(0)->GetToNode();
-    const v8::HeapGraphNode* node1 =
-        snapshot->GetHead()->GetChild(1)->GetToNode();
-    return node0->GetTotalSize() > node1->GetTotalSize() ? node0 : node1;
-  } else {
-    CHECK_EQ(1, snapshot->GetHead()->GetChildrenCount());
-    return snapshot->GetHead()->GetChild(0)->GetToNode();
-  }
+  CHECK_EQ(1, snapshot->GetHead()->GetChildrenCount());
+  return snapshot->GetHead()->GetChild(0)->GetToNode();
 }
 
 
