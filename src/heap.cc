@@ -2264,6 +2264,12 @@ static void FlushCodeForFunction(SharedFunctionInfo* function_info) {
   ThreadManager::IterateArchivedThreads(&threadvisitor);
   if (threadvisitor.FoundCode()) return;
 
+  // Check that there are heap allocated locals in the scopeinfo. If
+  // there is, we are potentially using eval and need the scopeinfo
+  // for variable resolution.
+  if (ScopeInfo<>::HasHeapAllocatedLocals(function_info->code()))
+    return;
+
   HandleScope scope;
   // Compute the lazy compilable version of the code.
   function_info->set_code(*ComputeLazyCompile(function_info->length()));
