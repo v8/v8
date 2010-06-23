@@ -376,8 +376,13 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 void Assembler::Align(int m) {
   ASSERT(IsPowerOf2(m));
-  while ((pc_offset() & (m - 1)) != 0) {
-    nop();
+  int delta = (m - (pc_offset() & (m - 1))) & (m - 1);
+  while (delta >= 9) {
+    nop(9);
+    delta -= 9;
+  }
+  if (delta > 0) {
+    nop(delta);
   }
 }
 
@@ -837,9 +842,7 @@ void Assembler::call(Register adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   // Opcode: FF /2 r64.
-  if (adr.high_bit()) {
-    emit_rex_64(adr);
-  }
+  emit_optional_rex_32(adr);
   emit(0xFF);
   emit_modrm(0x2, adr);
 }
@@ -849,9 +852,9 @@ void Assembler::call(const Operand& op) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   // Opcode: FF /2 m64.
-  emit_rex_64(op);
+  emit_optional_rex_32(op);
   emit(0xFF);
-  emit_operand(2, op);
+  emit_operand(0x2, op);
 }
 
 
@@ -1270,9 +1273,7 @@ void Assembler::jmp(Register target) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   // Opcode FF/4 r64.
-  if (target.high_bit()) {
-    emit_rex_64(target);
-  }
+  emit_optional_rex_32(target);
   emit(0xFF);
   emit_modrm(0x4, target);
 }
@@ -1831,9 +1832,7 @@ void Assembler::nop(int n) {
 void Assembler::pop(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  if (dst.high_bit()) {
-    emit_rex_64(dst);
-  }
+  emit_optional_rex_32(dst);
   emit(0x58 | dst.low_bits());
 }
 
@@ -1841,7 +1840,7 @@ void Assembler::pop(Register dst) {
 void Assembler::pop(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(dst);  // Could be omitted in some cases.
+  emit_optional_rex_32(dst);
   emit(0x8F);
   emit_operand(0, dst);
 }
@@ -1857,9 +1856,7 @@ void Assembler::popfq() {
 void Assembler::push(Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  if (src.high_bit()) {
-    emit_rex_64(src);
-  }
+  emit_optional_rex_32(src);
   emit(0x50 | src.low_bits());
 }
 
@@ -1867,7 +1864,7 @@ void Assembler::push(Register src) {
 void Assembler::push(const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(src);  // Could be omitted in some cases.
+  emit_optional_rex_32(src);
   emit(0xFF);
   emit_operand(6, src);
 }

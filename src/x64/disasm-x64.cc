@@ -1028,9 +1028,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         if (opcode == 0x57) {
           mnemonic = "xorpd";
         } else if (opcode == 0x2E) {
-          mnemonic = "comisd";
-        } else if (opcode == 0x2F) {
           mnemonic = "ucomisd";
+        } else if (opcode == 0x2F) {
+          mnemonic = "comisd";
         } else {
           UnimplementedInstruction();
         }

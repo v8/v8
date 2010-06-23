@@ -1678,8 +1678,7 @@ void MacroAssembler::Ret() {
 
 void MacroAssembler::FCmp() {
   fucomip();
-  ffree(0);
-  fincstp();
+  fstp(0);
 }
 
 
