@@ -8951,48 +8951,31 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
     // so we do the second best thing - test it ourselves.
     // Note: if cc_ != equal, never_nan_nan_ is not used.
+    __ Set(rax, EQUAL);
     if (never_nan_nan_ && (cc_ == equal)) {
-      __ Set(rax, EQUAL);
       __ ret(0);
     } else {
-      Label return_equal;
       Label heap_number;
       // If it's not a heap number, then return equal.
       __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
              Factory::heap_number_map());
       __ j(equal, &heap_number);
-      __ bind(&return_equal);
-      __ Set(rax, EQUAL);
       __ ret(0);
 
       __ bind(&heap_number);
-      // It is a heap number, so return non-equal if it's NaN and equal if
-      // it's not NaN.
-      // The representation of NaN values has all exponent bits (52..62) set,
-      // and not all mantissa bits (0..51) clear.
-      // We only allow QNaNs, which have bit 51 set (which also rules out
-      // the value being Infinity).
+      // It is a heap number, so return  equal if it's not NaN.
+      // For NaN, return 1 for every condition except greater and
+      // greater-equal.  Return -1 for them, so the comparison yields
+      // false for all conditions except not-equal.
 
-      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
-      // all bits in the mask are set. We only need to check the word
-      // that contains the exponent and high bit of the mantissa.
-      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
-      __ movl(rdx, FieldOperand(rdx, HeapNumber::kExponentOffset));
-      __ xorl(rax, rax);
-      __ addl(rdx, rdx);  // Shift value and mask so mask applies to top bits.
-      __ cmpl(rdx, Immediate(kQuietNaNHighBitsMask << 1));
-      if (cc_ == equal) {
-        __ setcc(above_equal, rax);
-        __ ret(0);
-      } else {
-        Label nan;
-        __ j(above_equal, &nan);
-        __ Set(rax, EQUAL);
-        __ ret(0);
-        __ bind(&nan);
-        __ Set(rax, NegativeComparisonResult(cc_));
-        __ ret(0);
+      __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
+      __ ucomisd(xmm0, xmm0);
+      __ setcc(parity_even, rax);
+      // rax is 0 for equal non-NaN heapnumbers, 1 for NaNs.
+      if (cc_ == greater_equal || cc_ == greater) {
+        __ neg(rax);
       }
+      __ ret(0);
     }
 
     __ bind(&not_identical);
