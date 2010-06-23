@@ -193,7 +193,7 @@ DEFINE_bool(trace_gc_verbose, false,
             "print more details following each garbage collection")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
-DEFINE_bool(flush_code, false,
+DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again before full gc")
 
 // v8.cc
