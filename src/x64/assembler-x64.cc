@@ -2606,6 +2606,28 @@ void Assembler::movsd(XMMRegister dst, const Operand& src) {
 }
 
 
+void Assembler::movss(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF3);  // single
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x10);  // load
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movss(const Operand& src, XMMRegister dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF3);  // single
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x11);  // store
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::cvttss2si(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2661,6 +2683,17 @@ void Assembler::cvtlsi2sd(XMMRegister dst, Register src) {
 }
 
 
+void Assembler::cvtlsi2ss(XMMRegister dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x2A);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::cvtqsi2sd(XMMRegister dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2676,6 +2709,28 @@ void Assembler::cvtss2sd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x5A);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::cvtss2sd(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x5A);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::cvtsd2ss(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0x5A);
@@ -2758,6 +2813,18 @@ void Assembler::ucomisd(XMMRegister dst, XMMRegister src) {
   emit(0x2e);
   emit_sse_operand(dst, src);
 }
+
+
+void Assembler::ucomisd(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0f);
+  emit(0x2e);
+  emit_sse_operand(dst, src);
+}
+
 
 
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {

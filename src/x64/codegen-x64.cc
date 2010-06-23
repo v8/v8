@@ -5336,9 +5336,8 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
     dest->false_target()->Branch(equal);
     Condition is_smi = masm_->CheckSmi(value.reg());
     dest->true_target()->Branch(is_smi);
-    __ fldz();
-    __ fld_d(FieldOperand(value.reg(), HeapNumber::kValueOffset));
-    __ FCmp();
+    __ xorpd(xmm0, xmm0);
+    __ ucomisd(xmm0, FieldOperand(value.reg(), HeapNumber::kValueOffset));
     value.Unuse();
     dest->Split(not_zero);
   } else {
@@ -8000,14 +7999,12 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ jmp(&true_result);
 
   __ bind(&not_string);
-  // HeapNumber => false iff +0, -0, or NaN.
-  // These three cases set C3 when compared to zero in the FPU.
   __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &true_result);
-  __ fldz();  // Load zero onto fp stack
-  // Load heap-number double value onto fp stack
-  __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  __ FCmp();
+  // HeapNumber => false iff +0, -0, or NaN.
+  // These three cases set the zero flag when compared to zero using ucomisd.
+  __ xorpd(xmm0, xmm0);
+  __ ucomisd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
   __ j(zero, &false_result);
   // Fall through to |true_result|.
 
