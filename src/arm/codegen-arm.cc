@@ -969,44 +969,19 @@ void DeferredInlineSmiOperation::Generate() {
     case Token::MOD:
     case Token::BIT_OR:
     case Token::BIT_XOR:
-    case Token::BIT_AND: {
-      if (reversed_) {
-        if (tos_register_.is(r0)) {
-          __ mov(r1, Operand(Smi::FromInt(value_)));
-        } else {
-          ASSERT(tos_register_.is(r1));
-          __ mov(r0, Operand(Smi::FromInt(value_)));
-          lhs = r0;
-          rhs = r1;
-        }
-      } else {
-        if (tos_register_.is(r1)) {
-          __ mov(r0, Operand(Smi::FromInt(value_)));
-        } else {
-          ASSERT(tos_register_.is(r0));
-          __ mov(r1, Operand(Smi::FromInt(value_)));
-          lhs = r0;
-          rhs = r1;
-        }
-      }
-      break;
-    }
-
+    case Token::BIT_AND:
     case Token::SHL:
     case Token::SHR:
     case Token::SAR: {
-      if (!reversed_) {
-        if (tos_register_.is(r1)) {
-          __ mov(r0, Operand(Smi::FromInt(value_)));
-        } else {
-          ASSERT(tos_register_.is(r0));
-          __ mov(r1, Operand(Smi::FromInt(value_)));
+      if (tos_register_.is(r1)) {
+        __ mov(r0, Operand(Smi::FromInt(value_)));
+      } else {
+        ASSERT(tos_register_.is(r0));
+        __ mov(r1, Operand(Smi::FromInt(value_)));
+      }
+      if (reversed_ == tos_register_.is(r1)) {
           lhs = r0;
           rhs = r1;
-        }
-      } else {
-        ASSERT(op_ == Token::SHL);
-        __ mov(r1, Operand(Smi::FromInt(value_)));
       }
       break;
     }
