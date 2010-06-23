@@ -69,7 +69,6 @@ void CodeGenerator::ProcessDeferred() {
   while (!deferred_.is_empty()) {
     DeferredCode* code = deferred_.RemoveLast();
     ASSERT(masm_ == code->masm());
-    masm_->CodeTargetAlign();
     // Record position of deferred code stub.
     masm_->RecordStatementPosition(code->statement_position());
     if (code->position() != RelocInfo::kNoPosition) {
