@@ -5097,7 +5097,7 @@ ScriptDataImpl* PreParse(Handle<String> source,
   bool allow_natives_syntax =
       always_allow_natives_syntax ||
       FLAG_allow_natives_syntax ||
-      Bootstrapper::IsActive();
+      Isolate::Current()->bootstrapper()->IsActive();
   PreParser parser(no_script, allow_natives_syntax, extension);
   if (!parser.PreParseProgram(source, stream)) return NULL;
   // The list owns the backing store so we need to clone the vector.
@@ -5138,7 +5138,7 @@ FunctionLiteral* MakeAST(bool compile_in_global_context,
   bool allow_natives_syntax =
       always_allow_natives_syntax ||
       FLAG_allow_natives_syntax ||
-      Bootstrapper::IsActive();
+      Isolate::Current()->bootstrapper()->IsActive();
   AstBuildingParser parser(script, allow_natives_syntax, extension, pre_data);
   if (pre_data != NULL && pre_data->has_error()) {
     Scanner::Location loc = pre_data->MessageLocation();

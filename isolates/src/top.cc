@@ -389,7 +389,7 @@ static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
                                            JSObject* receiver,
                                            v8::AccessType type) {
   // During bootstrapping, callback functions are not enabled yet.
-  if (Bootstrapper::IsActive()) return YES;
+  if (isolate->bootstrapper()->IsActive()) return YES;
 
   if (receiver->IsJSGlobalProxy()) {
     Object* receiver_context = JSGlobalProxy::cast(receiver)->context();
@@ -617,7 +617,7 @@ void Isolate::ReportUncaughtException(Handle<Object> exception,
                                       MessageLocation* location,
                                       Handle<String> stack_trace) {
   Handle<Object> message;
-  if (!Bootstrapper::IsActive()) {
+  if (!bootstrapper()->IsActive()) {
     // It's not safe to try to make message objects while the bootstrapper
     // is active since the infrastructure may not have been properly
     // initialized.
@@ -699,7 +699,7 @@ void Isolate::DoThrow(Object* exception,
       ComputeLocation(&potential_computed_location);
       location = &potential_computed_location;
     }
-    if (!Bootstrapper::IsActive()) {
+    if (!bootstrapper()->IsActive()) {
       // It's not safe to try to make message objects or collect stack
       // traces while the bootstrapper is active since the infrastructure
       // may not have been properly initialized.

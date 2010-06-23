@@ -111,7 +111,8 @@ NativesExternalStringResource::NativesExternalStringResource(const char* source)
 }
 
 
-Bootstrapper::Bootstrapper() {
+Bootstrapper::Bootstrapper()
+    : nesting_(0) {
 }
 
 
@@ -1398,9 +1399,6 @@ void Genesis::InstallJSFunctionResultCaches() {
 }
 
 
-int BootstrapperActive::nesting_ = 0;
-
-
 bool Bootstrapper::InstallExtensions(Handle<Context> global_context,
                                      v8::ExtensionConfiguration* extensions) {
   BootstrapperActive active;
@@ -1781,46 +1779,28 @@ Genesis::Genesis(Handle<Object> global_object,
 
 // Reserve space for statics needing saving and restoring.
 int Bootstrapper::ArchiveSpacePerThread() {
-  return BootstrapperActive::ArchiveSpacePerThread();
+  return sizeof(NestingCounterType);
 }
 
 
 // Archive statics that are thread local.
 char* Bootstrapper::ArchiveState(char* to) {
-  return BootstrapperActive::ArchiveState(to);
+  *reinterpret_cast<NestingCounterType*>(to) = nesting_;
+  nesting_ = 0;
+  return to + sizeof(NestingCounterType);
 }
 
 
 // Restore statics that are thread local.
 char* Bootstrapper::RestoreState(char* from) {
-  return BootstrapperActive::RestoreState(from);
+  nesting_ = *reinterpret_cast<NestingCounterType*>(from);
+  return from + sizeof(NestingCounterType);
 }
 
 
 // Called when the top-level V8 mutex is destroyed.
 void Bootstrapper::FreeThreadResources() {
-  ASSERT(!BootstrapperActive::IsActive());
-}
-
-
-// Reserve space for statics needing saving and restoring.
-int BootstrapperActive::ArchiveSpacePerThread() {
-  return sizeof(nesting_);
-}
-
-
-// Archive statics that are thread local.
-char* BootstrapperActive::ArchiveState(char* to) {
-  *reinterpret_cast<int*>(to) = nesting_;
-  nesting_ = 0;
-  return to + sizeof(nesting_);
-}
-
-
-// Restore statics that are thread local.
-char* BootstrapperActive::RestoreState(char* from) {
-  nesting_ = *reinterpret_cast<int*>(from);
-  return from + sizeof(nesting_);
+  ASSERT(!IsActive());
 }
 
 } }  // namespace v8::internal

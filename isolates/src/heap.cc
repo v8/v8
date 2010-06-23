@@ -546,7 +546,7 @@ class ClearThreadJSFunctionResultCachesVisitor: public ThreadVisitor  {
 
 
 void Heap::ClearJSFunctionResultCaches() {
-  if (Bootstrapper::IsActive()) return;
+  if (isolate_->bootstrapper()->IsActive()) return;
   ClearThreadJSFunctionResultCachesVisitor visitor;
   ThreadManager::IterateArchivedThreads(&visitor);
 }
@@ -4691,7 +4691,7 @@ void DescriptorLookupCache::Clear() {
 #ifdef DEBUG
 bool Heap::GarbageCollectionGreedyCheck() {
   ASSERT(FLAG_gc_greedy);
-  if (Bootstrapper::IsActive()) return true;
+  if (isolate_->bootstrapper()->IsActive()) return true;
   if (disallow_allocation_failure()) return true;
   return CollectGarbage(0, NEW_SPACE);
 }

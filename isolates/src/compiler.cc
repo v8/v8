@@ -78,7 +78,7 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
   }
 
 #ifdef DEBUG
-  if (Bootstrapper::IsActive() ?
+  if (Isolate::Current()->bootstrapper()->IsActive() ?
       FLAG_print_builtin_scopes :
       FLAG_print_scopes) {
     info->scope()->Print();

@@ -330,7 +330,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
     if (!scope()->HasIllegalRedeclaration()) {
       Comment cmnt(masm_, "[ function body");
 #ifdef DEBUG
-      bool is_builtin = Bootstrapper::IsActive();
+      bool is_builtin = Isolate::Current()->bootstrapper()->IsActive();
       bool should_trace =
           is_builtin ? FLAG_trace_builtin_calls : FLAG_trace_calls;
       if (should_trace) {

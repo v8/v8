@@ -2656,14 +2656,17 @@ void JSObject::LocalLookup(String* name, LookupResult* result) {
     result->DisallowCaching();
   }
 
+  Isolate* isolate = Isolate::Current();
+
   // Check __proto__ before interceptor.
-  if (name->Equals(HEAP->Proto_symbol()) && !IsJSContextExtensionObject()) {
+  if (name->Equals(isolate->heap()->Proto_symbol()) &&
+      !IsJSContextExtensionObject()) {
     result->ConstantResult(this);
     return;
   }
 
   // Check for lookup interceptor except when bootstrapping.
-  if (HasNamedInterceptor() && !Bootstrapper::IsActive()) {
+  if (HasNamedInterceptor() && !isolate->bootstrapper()->IsActive()) {
     result->InterceptorResult(this);
     return;
   }

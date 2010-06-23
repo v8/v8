@@ -55,7 +55,7 @@ Context* Context::global_context() {
 
   // During bootstrapping, the global object might not be set and we
   // have to search the context chain to find the global context.
-  ASSERT(Bootstrapper::IsActive());
+  ASSERT(Isolate::Current()->bootstrapper()->IsActive());
   Context* current = this;
   while (!current->IsGlobalContext()) {
     JSFunction* closure = JSFunction::cast(current->closure());
@@ -242,14 +242,15 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
 bool Context::IsBootstrappingOrContext(Object* object) {
   // During bootstrapping we allow all objects to pass as
   // contexts. This is necessary to fix circular dependencies.
-  return Bootstrapper::IsActive() || object->IsContext();
+  return Isolate::Current()->bootstrapper()->IsActive() || object->IsContext();
 }
 
 
 bool Context::IsBootstrappingOrGlobalObject(Object* object) {
   // During bootstrapping we allow all objects to pass as global
   // objects. This is necessary to fix circular dependencies.
-  return Bootstrapper::IsActive() || object->IsGlobalObject();
+  return Isolate::Current()->bootstrapper()->IsActive() ||
+      object->IsGlobalObject();
 }
 #endif
 

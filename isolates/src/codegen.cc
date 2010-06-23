@@ -120,7 +120,7 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info) {
   bool print_json_ast = false;
   const char* ftype;
 
-  if (Bootstrapper::IsActive()) {
+  if (Isolate::Current()->bootstrapper()->IsActive()) {
     print_source = FLAG_print_builtin_source;
     print_ast = FLAG_print_builtin_ast;
     print_json_ast = FLAG_print_builtin_json_ast;
@@ -167,7 +167,7 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
       Factory::NewCode(desc, &sinfo, flags, masm->CodeObject());
 
 #ifdef ENABLE_DISASSEMBLER
-  bool print_code = Bootstrapper::IsActive()
+  bool print_code = Isolate::Current()->bootstrapper()->IsActive()
       ? FLAG_print_builtin_code
       : FLAG_print_code;
   if (print_code) {

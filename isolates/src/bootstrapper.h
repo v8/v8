@@ -33,23 +33,6 @@ namespace v8 {
 namespace internal {
 
 
-class BootstrapperActive BASE_EMBEDDED {
- public:
-  BootstrapperActive() { nesting_++; }
-  ~BootstrapperActive() { nesting_--; }
-
-  // Support for thread preemption.
-  static int ArchiveSpacePerThread();
-  static char* ArchiveState(char* to);
-  static char* RestoreState(char* from);
-
- private:
-  static bool IsActive() { return nesting_ != 0; }
-  static int nesting_;
-  friend class Bootstrapper;
-};
-
-
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
 class Bootstrapper {
@@ -78,7 +61,7 @@ class Bootstrapper {
   static Handle<String> NativesSourceLookup(int index);
 
   // Tells whether bootstrapping is active.
-  static bool IsActive() { return BootstrapperActive::IsActive(); }
+  bool IsActive() const { return nesting_ != 0; }
 
   // Support for thread preemption.
   RLYSTC int ArchiveSpacePerThread();
@@ -95,10 +78,30 @@ class Bootstrapper {
                          v8::ExtensionConfiguration* extensions);
 
  private:
+  typedef int NestingCounterType;
+  NestingCounterType nesting_;
+
+  friend class BootstrapperActive;
   friend class Isolate;
+
   Bootstrapper();
 
   DISALLOW_COPY_AND_ASSIGN(Bootstrapper);
+};
+
+
+class BootstrapperActive BASE_EMBEDDED {
+ public:
+  BootstrapperActive() {
+    ++Isolate::Current()->bootstrapper()->nesting_;
+  }
+
+  ~BootstrapperActive() {
+    --Isolate::Current()->bootstrapper()->nesting_;
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(BootstrapperActive);
 };
 
 

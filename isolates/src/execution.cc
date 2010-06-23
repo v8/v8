@@ -643,7 +643,7 @@ Object* Execution::DebugBreakHelper() {
   }
 
   // Ignore debug break during bootstrapping.
-  if (Bootstrapper::IsActive()) {
+  if (isolate->bootstrapper()->IsActive()) {
     return isolate->heap()->undefined_value();
   }
 
