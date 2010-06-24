@@ -3855,8 +3855,17 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     default:
       UNREACHABLE();
   }
-  Load(left);
-  Load(right);
+
+  if (left->IsTrivial()) {
+    Load(right);
+    Result right_result = frame_->Pop();
+    frame_->Push(left);
+    frame_->Push(&right_result);
+  } else {
+    Load(left);
+    Load(right);
+  }
+
   Comparison(node, cc, strict, destination());
 }
 
