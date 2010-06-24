@@ -128,7 +128,7 @@ int Heap::contexts_disposed_ = 0;
 
 int Heap::young_survivors_after_last_gc_ = 0;
 int Heap::high_survival_rate_period_length_ = 0;
-int Heap::survival_rate_ = 0;
+double Heap::survival_rate_ = 0;
 Heap::SurvivalRateTrend Heap::previous_survival_rate_trend_ = Heap::STABLE;
 Heap::SurvivalRateTrend Heap::survival_rate_trend_ = Heap::STABLE;
 bool Heap::bumped_old_gen_limits_ = false;

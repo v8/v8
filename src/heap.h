@@ -1282,7 +1282,7 @@ class Heap : public AllStatic {
 
   static int young_survivors_after_last_gc_;
   static int high_survival_rate_period_length_;
-  static int survival_rate_;
+  static double survival_rate_;
   static SurvivalRateTrend previous_survival_rate_trend_;
   static SurvivalRateTrend survival_rate_trend_;
   static bool bumped_old_gen_limits_;
