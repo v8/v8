@@ -5165,7 +5165,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ UnaryOperation");
 
   Token::Value op = node->op();
@@ -5237,8 +5236,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         break;
 
       case Token::SUB: {
-        VirtualFrame::SpilledScope spilled(frame_);
-        frame_->EmitPop(r0);
+        frame_->PopToR0();
         GenericUnaryOpStub stub(Token::SUB, overwrite);
         frame_->CallStub(&stub, 0);
         frame_->EmitPush(r0);  // r0 has result
@@ -5246,23 +5244,28 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       }
 
       case Token::BIT_NOT: {
-        // smi check
-        VirtualFrame::SpilledScope spilled(frame_);
-        frame_->EmitPop(r0);
-        JumpTarget smi_label;
+        Register tos = frame_->PopToRegister();
+        JumpTarget not_smi_label;
         JumpTarget continue_label;
-        __ tst(r0, Operand(kSmiTagMask));
-        smi_label.Branch(eq);
+        // Smi check.
+        __ tst(tos, Operand(kSmiTagMask));
+        not_smi_label.Branch(ne);
 
-        GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
-        frame_->CallStub(&stub, 0);
+        __ mvn(tos, Operand(tos));
+        __ bic(tos, tos, Operand(kSmiTagMask));  // Bit-clear inverted smi-tag.
+        frame_->EmitPush(tos);
+        // The fast case is the first to jump to the continue label, so it gets
+        // to decide the virtual frame layout.
         continue_label.Jump();
 
-        smi_label.Bind();
-        __ mvn(r0, Operand(r0));
-        __ bic(r0, r0, Operand(kSmiTagMask));  // bit-clear inverted smi-tag
+        not_smi_label.Bind();
+        frame_->SpillAll();
+        __ Move(r0, tos);
+        GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
+        frame_->CallStub(&stub, 0);
+        frame_->EmitPush(r0);
+
         continue_label.Bind();
-        frame_->EmitPush(r0);  // r0 has result
         break;
       }
 
@@ -5272,16 +5275,16 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         break;
 
       case Token::ADD: {
-        VirtualFrame::SpilledScope spilled(frame_);
-        frame_->EmitPop(r0);
+        Register tos = frame_->Peek();
         // Smi check.
         JumpTarget continue_label;
-        __ tst(r0, Operand(kSmiTagMask));
+        __ tst(tos, Operand(kSmiTagMask));
         continue_label.Branch(eq);
-        frame_->EmitPush(r0);
+
         frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, 1);
+        frame_->EmitPush(r0);
+
         continue_label.Bind();
-        frame_->EmitPush(r0);  // r0 has result
         break;
       }
       default:
@@ -5299,6 +5302,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
   int original_height = frame_->height();
 #endif
   Comment cmnt(masm_, "[ CountOperation");
+  VirtualFrame::RegisterAllocationScope scope(this);
 
   bool is_postfix = node->is_postfix();
   bool is_increment = node->op() == Token::INC;
@@ -5442,7 +5446,6 @@ void CodeGenerator::GenerateLogicalBooleanOperation(BinaryOperation* node) {
   // after evaluating the left hand side (due to the shortcut
   // semantics), but the compiler must (statically) know if the result
   // of compiling the binary operation is materialized or not.
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   if (node->op() == Token::AND) {
     JumpTarget is_true;
     LoadCondition(node->left(), &is_true, false_target(), false);
@@ -5627,8 +5630,6 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     if (left_is_null || right_is_null) {
       Load(left_is_null ? right : left);
       Register tos = frame_->PopToRegister();
-      // JumpTargets can't cope with register allocation yet.
-      frame_->SpillAll();
       __ LoadRoot(ip, Heap::kNullValueRootIndex);
       __ cmp(tos, ip);
 
@@ -5670,9 +5671,6 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     // Load the operand, move it to a register.
     LoadTypeofExpression(operation->expression());
     Register tos = frame_->PopToRegister();
-
-    // JumpTargets can't cope with register allocation yet.
-    frame_->SpillAll();
 
     Register scratch = VirtualFrame::scratch0();
 
@@ -5794,7 +5792,6 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       break;
 
     case Token::IN: {
-      VirtualFrame::SpilledScope scope(frame_);
       Load(left);
       Load(right);
       frame_->InvokeBuiltin(Builtins::IN, CALL_JS, 2);
@@ -5803,7 +5800,6 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     }
 
     case Token::INSTANCEOF: {
-      VirtualFrame::SpilledScope scope(frame_);
       Load(left);
       Load(right);
       InstanceofStub stub;
@@ -5901,9 +5897,14 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
 };
 
 
+// Takes key and register in r0 and r1 or vice versa.  Returns result
+// in r0.
 void DeferredReferenceGetKeyedValue::Generate() {
   ASSERT((key_.is(r0) && receiver_.is(r1)) ||
          (key_.is(r1) && receiver_.is(r0)));
+
+  VirtualFrame copied_frame(*frame_state()->frame());
+  copied_frame.SpillAll();
 
   Register scratch1 = VirtualFrame::scratch0();
   Register scratch2 = VirtualFrame::scratch1();
@@ -5924,6 +5925,13 @@ void DeferredReferenceGetKeyedValue::Generate() {
     // The call must be followed by a nop instruction to indicate that the
     // keyed load has been inlined.
     __ nop(PROPERTY_ACCESS_INLINED);
+
+    // Now go back to the frame that we entered with.  This will not overwrite
+    // the receiver or key registers since they were not in use when we came
+    // in.  The instructions emitted by this merge are skipped over by the
+    // inline load patching mechanism when looking for the branch instruction
+    // that tells it where the code to patch is.
+    copied_frame.MergeTo(frame_state()->frame());
 
     // Block the constant pool for one more instruction after leaving this
     // constant pool block scope to include the branch instruction ending the
@@ -6078,7 +6086,6 @@ void CodeGenerator::EmitKeyedLoad() {
     bool key_is_known_smi = frame_->KnownSmiAt(0);
     Register key = frame_->PopToRegister();
     Register receiver = frame_->PopToRegister(key);
-    VirtualFrame::SpilledScope spilled(frame_);
 
     // The deferred code expects key and receiver in registers.
     DeferredReferenceGetKeyedValue* deferred =
