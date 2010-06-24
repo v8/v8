@@ -690,6 +690,7 @@ static void PrintProducerStackTrace(Object* obj, void* trace) {
 
 
 void HeapProfiler::WriteSample() {
+  Isolate* isolate = Isolate::Current();
   LOG(HeapSampleBeginEvent("Heap", "allocated"));
   LOG(HeapSampleStats(
       "Heap", "allocated", HEAP->CommittedMemory(), HEAP->SizeOfObjects()));
@@ -730,8 +731,8 @@ void HeapProfiler::WriteSample() {
   js_cons_profile.PrintStats();
   js_retainer_profile.PrintStats();
 
-  GlobalHandles::IterateWeakRoots(PrintProducerStackTrace,
-                                  StackWeakReferenceCallback);
+  isolate->global_handles()->IterateWeakRoots(PrintProducerStackTrace,
+                                              StackWeakReferenceCallback);
 
   LOG(HeapSampleEndEvent("Heap", "allocated"));
 }
@@ -744,6 +745,7 @@ void ProducerHeapProfile::Setup() {
 }
 
 void ProducerHeapProfile::DoRecordJSObjectAllocation(Object* obj) {
+  Isolate* isolate = Isolate::Current();
   ASSERT(FLAG_log_producers);
   if (!can_log_) return;
   int framesCount = 0;
@@ -758,10 +760,10 @@ void ProducerHeapProfile::DoRecordJSObjectAllocation(Object* obj) {
     stack[i++] = it.frame()->pc();
   }
   stack[i] = NULL;
-  Handle<Object> handle = GlobalHandles::Create(obj);
-  GlobalHandles::MakeWeak(handle.location(),
-                          static_cast<void*>(stack.start()),
-                          StackWeakReferenceCallback);
+  Handle<Object> handle = isolate->global_handles()->Create(obj);
+  isolate->global_handles()->MakeWeak(handle.location(),
+                                      static_cast<void*>(stack.start()),
+                                      StackWeakReferenceCallback);
 }
 
 

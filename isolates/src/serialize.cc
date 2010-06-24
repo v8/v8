@@ -613,7 +613,8 @@ void Deserializer::Deserialize() {
   // Don't use the free lists while deserializing.
   LinearAllocationScope allocate_linearly;
   // No active threads.
-  ASSERT_EQ(NULL, ThreadState::FirstInUse());
+  ASSERT_EQ(NULL,
+      Isolate::Current()->thread_manager()->FirstThreadStateInUse());
   // No active handles.
   ASSERT(Isolate::Current()->handle_scope_implementer()->blocks()->is_empty());
   // Make sure the entire partial snapshot cache is traversed, filling it with
@@ -1008,13 +1009,14 @@ Serializer::~Serializer() {
 
 
 void StartupSerializer::SerializeStrongReferences() {
+  Isolate* isolate = Isolate::Current();
   // No active threads.
-  CHECK_EQ(NULL, ThreadState::FirstInUse());
+  CHECK_EQ(NULL, Isolate::Current()->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
-  CHECK(Isolate::Current()->handle_scope_implementer()->blocks()->is_empty());
-  CHECK_EQ(0, GlobalHandles::NumberOfWeakHandles());
+  CHECK(isolate->handle_scope_implementer()->blocks()->is_empty());
+  CHECK_EQ(0, isolate->global_handles()->NumberOfWeakHandles());
   // We don't support serializing installed extensions.
-  for (RegisteredExtension* ext = RegisteredExtension::first_extension();
+  for (RegisteredExtension* ext = v8::RegisteredExtension::first_extension();
        ext != NULL;
        ext = ext->next()) {
     CHECK_NE(v8::INSTALLED, ext->state());

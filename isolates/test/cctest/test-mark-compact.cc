@@ -280,34 +280,35 @@ static void WeakPointerCallback(v8::Persistent<v8::Value> handle, void* id) {
 }
 
 TEST(ObjectGroups) {
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
   InitializeVM();
 
   NumberOfWeakCalls = 0;
   v8::HandleScope handle_scope;
 
   Handle<Object> g1s1 =
-    GlobalHandles::Create(HEAP->AllocateFixedArray(1));
+    global_handles->Create(HEAP->AllocateFixedArray(1));
   Handle<Object> g1s2 =
-    GlobalHandles::Create(HEAP->AllocateFixedArray(1));
-  GlobalHandles::MakeWeak(g1s1.location(),
-                          reinterpret_cast<void*>(1234),
-                          &WeakPointerCallback);
-  GlobalHandles::MakeWeak(g1s2.location(),
-                          reinterpret_cast<void*>(1234),
-                          &WeakPointerCallback);
+    global_handles->Create(HEAP->AllocateFixedArray(1));
+  global_handles->MakeWeak(g1s1.location(),
+                           reinterpret_cast<void*>(1234),
+                           &WeakPointerCallback);
+  global_handles->MakeWeak(g1s2.location(),
+                           reinterpret_cast<void*>(1234),
+                           &WeakPointerCallback);
 
   Handle<Object> g2s1 =
-    GlobalHandles::Create(HEAP->AllocateFixedArray(1));
+    global_handles->Create(HEAP->AllocateFixedArray(1));
   Handle<Object> g2s2 =
-    GlobalHandles::Create(HEAP->AllocateFixedArray(1));
-  GlobalHandles::MakeWeak(g2s1.location(),
-                          reinterpret_cast<void*>(1234),
-                          &WeakPointerCallback);
-  GlobalHandles::MakeWeak(g2s2.location(),
-                          reinterpret_cast<void*>(1234),
-                          &WeakPointerCallback);
+    global_handles->Create(HEAP->AllocateFixedArray(1));
+  global_handles->MakeWeak(g2s1.location(),
+                           reinterpret_cast<void*>(1234),
+                           &WeakPointerCallback);
+  global_handles->MakeWeak(g2s2.location(),
+                           reinterpret_cast<void*>(1234),
+                           &WeakPointerCallback);
 
-  Handle<Object> root = GlobalHandles::Create(*g1s1);  // make a root.
+  Handle<Object> root = global_handles->Create(*g1s1);  // make a root.
 
   // Connect group 1 and 2, make a cycle.
   Handle<FixedArray>::cast(g1s2)->set(0, *g2s2);
@@ -316,8 +317,8 @@ TEST(ObjectGroups) {
   {
     Object** g1_objects[] = { g1s1.location(), g1s2.location() };
     Object** g2_objects[] = { g2s1.location(), g2s2.location() };
-    GlobalHandles::AddGroup(g1_objects, 2);
-    GlobalHandles::AddGroup(g2_objects, 2);
+    global_handles->AddGroup(g1_objects, 2);
+    global_handles->AddGroup(g2_objects, 2);
   }
   // Do a full GC
   CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
@@ -326,16 +327,16 @@ TEST(ObjectGroups) {
   CHECK_EQ(0, NumberOfWeakCalls);
 
   // Weaken the root.
-  GlobalHandles::MakeWeak(root.location(),
-                          reinterpret_cast<void*>(1234),
-                          &WeakPointerCallback);
+  global_handles->MakeWeak(root.location(),
+                           reinterpret_cast<void*>(1234),
+                           &WeakPointerCallback);
 
   // Groups are deleted, rebuild groups.
   {
     Object** g1_objects[] = { g1s1.location(), g1s2.location() };
     Object** g2_objects[] = { g2s1.location(), g2s2.location() };
-    GlobalHandles::AddGroup(g1_objects, 2);
-    GlobalHandles::AddGroup(g2_objects, 2);
+    global_handles->AddGroup(g1_objects, 2);
+    global_handles->AddGroup(g2_objects, 2);
   }
 
   CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));

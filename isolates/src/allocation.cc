@@ -98,15 +98,7 @@ char* StrNDup(const char* str, int n) {
 }
 
 
-int NativeAllocationChecker::allocation_disallowed_ = 0;
-
-
-PreallocatedStorage PreallocatedStorage::in_use_list_(0);
-PreallocatedStorage PreallocatedStorage::free_list_(0);
-bool PreallocatedStorage::preallocated_ = false;
-
-
-void PreallocatedStorage::Init(size_t size) {
+void Isolate::PreallocatedStorageInit(size_t size) {
   ASSERT(free_list_.next_ == &free_list_);
   ASSERT(free_list_.previous_ == &free_list_);
   PreallocatedStorage* free_chunk =
@@ -114,12 +106,12 @@ void PreallocatedStorage::Init(size_t size) {
   free_list_.next_ = free_list_.previous_ = free_chunk;
   free_chunk->next_ = free_chunk->previous_ = &free_list_;
   free_chunk->size_ = size - sizeof(PreallocatedStorage);
-  preallocated_ = true;
+  preallocated_storage_preallocated_ = true;
 }
 
 
-void* PreallocatedStorage::New(size_t size) {
-  if (!preallocated_) {
+void* Isolate::PreallocatedStorageNew(size_t size) {
+  if (!preallocated_storage_preallocated_) {
     return FreeStoreAllocationPolicy::New(size);
   }
   ASSERT(free_list_.next_ != &free_list_);
@@ -160,11 +152,11 @@ void* PreallocatedStorage::New(size_t size) {
 
 
 // We don't attempt to coalesce.
-void PreallocatedStorage::Delete(void* p) {
+void Isolate::PreallocatedStorageDelete(void* p) {
   if (p == NULL) {
     return;
   }
-  if (!preallocated_) {
+  if (!preallocated_storage_preallocated_) {
     FreeStoreAllocationPolicy::Delete(p);
     return;
   }

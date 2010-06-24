@@ -8003,7 +8003,7 @@ static Object* Runtime_SetDebugEventListener(Arguments args) {
                  args[0]->IsNull());
   Handle<Object> callback = args.at<Object>(0);
   Handle<Object> data = args.at<Object>(1);
-  Debugger::SetEventListener(callback, data);
+  Isolate::Current()->debugger()->SetEventListener(callback, data);
 
   return HEAP->undefined_value();
 }
@@ -8995,7 +8995,8 @@ static Object* Runtime_GetThreadCount(Arguments args) {
 
   // Count all archived V8 threads.
   int n = 0;
-  for (ThreadState* thread = ThreadState::FirstInUse();
+  for (ThreadState* thread =
+          Isolate::Current()->thread_manager()->FirstThreadStateInUse();
        thread != NULL;
        thread = thread->Next()) {
     n++;
@@ -9034,11 +9035,13 @@ static Object* Runtime_GetThreadDetails(Arguments args) {
     // Fill the details.
     details->set(kThreadDetailsCurrentThreadIndex, HEAP->true_value());
     details->set(kThreadDetailsThreadIdIndex,
-                 Smi::FromInt(ThreadManager::CurrentId()));
+                 Smi::FromInt(
+                     Isolate::Current()->thread_manager()->CurrentId()));
   } else {
     // Find the thread with the requested index.
     int n = 1;
-    ThreadState* thread = ThreadState::FirstInUse();
+    ThreadState* thread =
+        Isolate::Current()->thread_manager()->FirstThreadStateInUse();
     while (index != n && thread != NULL) {
       thread = thread->Next();
       n++;

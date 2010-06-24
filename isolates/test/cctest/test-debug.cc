@@ -440,8 +440,8 @@ void CheckDebuggerUnloaded(bool check_functions) {
 
 
 void ForceUnloadDebugger() {
-  Debugger::never_unload_debugger_ = false;
-  Debugger::UnloadDebugger();
+  Isolate::Current()->debugger()->never_unload_debugger_ = false;
+  Isolate::Current()->debugger()->UnloadDebugger();
 }
 
 
@@ -5433,6 +5433,7 @@ TEST(DebuggerDebugMessageDispatch) {
 
 
 TEST(DebuggerAgent) {
+  i::Debugger* debugger = i::Isolate::Current()->debugger();
   // Make sure these ports is not used by other tests to allow tests to run in
   // parallel.
   const int kPort1 = 5858;
@@ -5450,18 +5451,18 @@ TEST(DebuggerAgent) {
   i::Socket::Setup();
 
   // Test starting and stopping the agent without any client connection.
-  i::Debugger::StartAgent("test", kPort1);
-  i::Debugger::StopAgent();
+  debugger->StartAgent("test", kPort1);
+  debugger->StopAgent();
 
   // Test starting the agent, connecting a client and shutting down the agent
   // with the client connected.
-  ok = i::Debugger::StartAgent("test", kPort2);
+  ok = debugger->StartAgent("test", kPort2);
   CHECK(ok);
-  i::Debugger::WaitForAgent();
+  debugger->WaitForAgent();
   i::Socket* client = i::OS::CreateSocket();
   ok = client->Connect("localhost", port2_str);
   CHECK(ok);
-  i::Debugger::StopAgent();
+  debugger->StopAgent();
   delete client;
 
   // Test starting and stopping the agent with the required port already
@@ -5469,8 +5470,8 @@ TEST(DebuggerAgent) {
   i::Socket* server = i::OS::CreateSocket();
   server->Bind(kPort3);
 
-  i::Debugger::StartAgent("test", kPort3);
-  i::Debugger::StopAgent();
+  debugger->StartAgent("test", kPort3);
+  debugger->StopAgent();
 
   delete server;
 }

@@ -43,6 +43,25 @@
 // number. This define is mainly used by the SCons build script.
 #define SONAME            ""
 
+#if CANDIDATE_VERSION == true
+#define CANDIDATE_STRING " (candidate)"
+#else
+#define CANDIDATE_STRING ""
+#endif
+
+#define SX(x) #x
+#define S(x) SX(x)
+
+#if PATCH_LEVEL > 0
+#define VERSION_STRING                                                         \
+    S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER) "."              \
+        S(PATCH_LEVEL) CANDIDATE_STRING
+#else
+#define VERSION_STRING                                                         \
+    S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER)                  \
+        CANDIDATE_STRING
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -52,7 +71,7 @@ int Version::build_ = BUILD_NUMBER;
 int Version::patch_ = PATCH_LEVEL;
 bool Version::candidate_ = CANDIDATE_VERSION;
 const char* Version::soname_ = SONAME;
-
+const char* Version::version_string_ = VERSION_STRING;
 
 // Calculate the V8 version string.
 void Version::GetString(Vector<char> str) {

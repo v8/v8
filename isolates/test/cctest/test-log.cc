@@ -386,7 +386,7 @@ class LoopingJsThread : public LoopingThread {
  public:
   void RunLoop() {
     v8::Locker locker;
-    CHECK(v8::internal::ThreadManager::HasId());
+    CHECK(i::Isolate::Current()->thread_manager()->HasId());
     SetV8ThreadId();
     while (IsRunning()) {
       v8::HandleScope scope;
@@ -411,7 +411,7 @@ class LoopingNonJsThread : public LoopingThread {
     v8::Locker locker;
     v8::Unlocker unlocker;
     // Now thread has V8's id, but will not run VM code.
-    CHECK(v8::internal::ThreadManager::HasId());
+    CHECK(i::Isolate::Current()->thread_manager()->HasId());
     double i = 10;
     SignalRunning();
     while (IsRunning()) {

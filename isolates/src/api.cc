@@ -89,11 +89,13 @@ namespace v8 {
     }                                                                          \
   } while (false)
 
+// TODO(isolates): Add a parameter to this macro for an isolate.
 
 #define API_ENTRY_CHECK(msg)                                                   \
   do {                                                                         \
     if (v8::Locker::IsActive()) {                                              \
-      ApiCheck(i::ThreadManager::IsLockedByCurrentThread(),                    \
+      ApiCheck(i::Isolate::Current()->thread_manager()->                       \
+                  IsLockedByCurrentThread(),                                   \
                msg,                                                            \
                "Entering the V8 API without proper locking in place");         \
     }                                                                          \
@@ -103,7 +105,6 @@ namespace v8 {
 // --- E x c e p t i o n   B e h a v i o r ---
 
 
-static FatalErrorCallback exception_behavior = NULL;
 int i::Internals::kJSObjectType = JS_OBJECT_TYPE;
 int i::Internals::kFirstNonstringType = FIRST_NONSTRING_TYPE;
 int i::Internals::kProxyType = PROXY_TYPE;
@@ -116,11 +117,12 @@ static void DefaultFatalErrorHandler(const char* location,
 
 
 
-static FatalErrorCallback& GetFatalErrorHandler() {
-  if (exception_behavior == NULL) {
-    exception_behavior = DefaultFatalErrorHandler;
+static FatalErrorCallback GetFatalErrorHandler() {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (isolate->exception_behavior() == NULL) {
+    isolate->set_exception_behavior(DefaultFatalErrorHandler);
   }
-  return exception_behavior;
+  return isolate->exception_behavior();
 }
 
 
@@ -182,7 +184,8 @@ void i::V8::FatalProcessOutOfMemory(const char* location) {
 
 
 void V8::SetFatalErrorHandler(FatalErrorCallback that) {
-  exception_behavior = that;
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->set_exception_behavior(that);
 }
 
 
@@ -248,9 +251,6 @@ static inline bool EmptyCheck(const char* location, const v8::Data* obj) {
 }
 
 // --- S t a t i c s ---
-
-
-static i::StringInputBuffer write_input_buffer;
 
 
 static inline bool EnsureInitialized(const char* location) {
@@ -328,8 +328,8 @@ RegisteredExtension::RegisteredExtension(Extension* extension)
 
 
 void RegisteredExtension::Register(RegisteredExtension* that) {
-  that->next_ = RegisteredExtension::first_extension_;
-  RegisteredExtension::first_extension_ = that;
+  that->next_ = first_extension_;
+  first_extension_ = that;
 }
 
 
@@ -402,7 +402,7 @@ i::Object** V8::GlobalizeReference(i::Object** obj) {
   if (IsDeadCheck("V8::Persistent::New")) return NULL;
   LOG_API("Persistent::New");
   i::Handle<i::Object> result =
-      i::GlobalHandles::Create(*obj);
+      i::Isolate::Current()->global_handles()->Create(*obj);
   return result.location();
 }
 
@@ -410,13 +410,14 @@ i::Object** V8::GlobalizeReference(i::Object** obj) {
 void V8::MakeWeak(i::Object** object, void* parameters,
                   WeakReferenceCallback callback) {
   LOG_API("MakeWeak");
-  i::GlobalHandles::MakeWeak(object, parameters, callback);
+  i::Isolate::Current()->global_handles()->MakeWeak(object, parameters,
+                                                    callback);
 }
 
 
 void V8::ClearWeak(i::Object** obj) {
   LOG_API("ClearWeak");
-  i::GlobalHandles::ClearWeakness(obj);
+  i::Isolate::Current()->global_handles()->ClearWeakness(obj);
 }
 
 
@@ -437,7 +438,7 @@ bool V8::IsGlobalWeak(i::Object** obj) {
 void V8::DisposeGlobal(i::Object** obj) {
   LOG_API("DisposeGlobal");
   if (!i::V8::IsRunning()) return;
-  i::GlobalHandles::Destroy(obj);
+  i::Isolate::Current()->global_handles()->Destroy(obj);
 }
 
 // --- H a n d l e s ---
@@ -676,22 +677,20 @@ void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
 }
 
 
-// To distinguish the function templates, so that we can find them in the
-// function cache of the global context.
-static int next_serial_number = 0;
-
-
 Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
     v8::Handle<Value> data, v8::Handle<Signature> signature) {
   EnsureInitialized("v8::FunctionTemplate::New()");
   LOG_API("FunctionTemplate::New");
   ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Struct> struct_obj =
       i::Factory::NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
   i::Handle<i::FunctionTemplateInfo> obj =
       i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
   InitializeFunctionTemplate(obj);
-  obj->set_serial_number(i::Smi::FromInt(next_serial_number++));
+  int next_serial_number = isolate->next_serial_number();
+  isolate->set_next_serial_number(next_serial_number + 1);
+  obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (callback != 0) {
     if (data.IsEmpty()) data = v8::Undefined();
     Utils::ToLocal(obj)->SetCallHandler(callback, data);
@@ -2810,72 +2809,6 @@ int Function::GetScriptLineNumber() const {
 }
 
 
-namespace {
-
-// Tracks string usage to help make better decisions when
-// externalizing strings.
-//
-// Implementation note: internally this class only tracks fresh
-// strings and keeps a single use counter for them.
-class StringTracker {
- public:
-  // Records that the given string's characters were copied to some
-  // external buffer. If this happens often we should honor
-  // externalization requests for the string.
-  static void RecordWrite(i::Handle<i::String> string) {
-    i::Address address = reinterpret_cast<i::Address>(*string);
-    i::Address top = HEAP->NewSpaceTop();
-    if (IsFreshString(address, top)) {
-      IncrementUseCount(top);
-    }
-  }
-
-  // Estimates freshness and use frequency of the given string based
-  // on how close it is to the new space top and the recorded usage
-  // history.
-  static inline bool IsFreshUnusedString(i::Handle<i::String> string) {
-    i::Address address = reinterpret_cast<i::Address>(*string);
-    i::Address top = HEAP->NewSpaceTop();
-    return IsFreshString(address, top) && IsUseCountLow(top);
-  }
-
- private:
-  static inline bool IsFreshString(i::Address string, i::Address top) {
-    return top - kFreshnessLimit <= string && string <= top;
-  }
-
-  static inline bool IsUseCountLow(i::Address top) {
-    if (last_top_ != top) return true;
-    return use_count_ < kUseLimit;
-  }
-
-  static inline void IncrementUseCount(i::Address top) {
-    if (last_top_ != top) {
-      use_count_ = 0;
-      last_top_ = top;
-    }
-    ++use_count_;
-  }
-
-  // How close to the new space top a fresh string has to be.
-  static const int kFreshnessLimit = 1024;
-
-  // The number of uses required to consider a string useful.
-  static const int kUseLimit = 32;
-
-  // Single use counter shared by all fresh strings.
-  static int use_count_;
-
-  // Last new space top when the use count above was valid.
-  static i::Address last_top_;
-};
-
-int StringTracker::use_count_ = 0;
-i::Address StringTracker::last_top_ = NULL;
-
-}  // namespace
-
-
 int String::Length() const {
   if (IsDeadCheck("v8::String::Length()")) return 0;
   return Utils::OpenHandle(this)->length();
@@ -2895,8 +2828,10 @@ int String::WriteUtf8(char* buffer,
   if (IsDeadCheck("v8::String::WriteUtf8()")) return 0;
   LOG_API("String::WriteUtf8");
   ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  StringTracker::RecordWrite(str);
+  isolate->string_tracker()->RecordWrite(str);
   if (hints & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
@@ -2950,9 +2885,11 @@ int String::WriteAscii(char* buffer,
   if (IsDeadCheck("v8::String::WriteAscii()")) return 0;
   LOG_API("String::WriteAscii");
   ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  StringTracker::RecordWrite(str);
+  isolate->string_tracker()->RecordWrite(str);
   if (hints & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
@@ -2984,7 +2921,7 @@ int String::Write(uint16_t* buffer,
   ENTER_V8;
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  StringTracker::RecordWrite(str);
+  i::Isolate::Current()->string_tracker()->RecordWrite(str);
   if (hints & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
@@ -3189,9 +3126,7 @@ int v8::V8::ContextDisposedNotification() {
 
 
 const char* v8::V8::GetVersion() {
-  static v8::internal::EmbeddedVector<char, 128> buffer;
-  v8::internal::Version::GetString(buffer);
-  return buffer.start();
+  return i::Version::GetVersion();
 }
 
 
@@ -3581,7 +3516,9 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (this->IsExternal()) return false;  // Already an external string.
   ENTER_V8;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
-  if (StringTracker::IsFreshUnusedString(obj)) return false;
+  if (i::Isolate::Current()->string_tracker()->IsFreshUnusedString(obj)) {
+    return false;
+  }
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
     i::ExternalStringTable::AddString(*obj);
@@ -3607,7 +3544,9 @@ bool v8::String::MakeExternal(
   if (this->IsExternal()) return false;  // Already an external string.
   ENTER_V8;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
-  if (StringTracker::IsFreshUnusedString(obj)) return false;
+  if (i::Isolate::Current()->string_tracker()->IsFreshUnusedString(obj)) {
+    return false;
+  }
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
     i::ExternalStringTable::AddString(*obj);
@@ -3619,7 +3558,9 @@ bool v8::String::MakeExternal(
 bool v8::String::CanMakeExternal() {
   if (IsDeadCheck("v8::String::CanMakeExternal()")) return false;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
-  if (StringTracker::IsFreshUnusedString(obj)) return false;
+  if (i::Isolate::Current()->string_tracker()->IsFreshUnusedString(obj)) {
+    return false;
+  }
   int size = obj->Size();  // Byte size of the original string.
   if (size < i::ExternalString::kSize)
     return false;
@@ -3822,7 +3763,8 @@ void V8::SetFailedAccessCheckCallbackFunction(
 void V8::AddObjectGroup(Persistent<Value>* objects, size_t length) {
   if (IsDeadCheck("v8::V8::AddObjectGroup()")) return;
   STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
-  i::GlobalHandles::AddGroup(reinterpret_cast<i::Object***>(objects), length);
+  i::Isolate::Current()->global_handles()->AddGroup(
+      reinterpret_cast<i::Object***>(objects), length);
 }
 
 
@@ -3955,7 +3897,7 @@ void V8::TerminateExecution(int thread_id) {
   if (thread_id == isolate->thread_id()) {
     isolate->stack_guard()->TerminateExecution();
   } else {
-    i::ThreadManager::TerminateExecution(thread_id);
+    isolate->thread_manager()->TerminateExecution(thread_id);
   }
 }
 
@@ -4160,7 +4102,8 @@ bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   if (that != NULL) {
     proxy = i::Factory::NewProxy(FUNCTION_ADDR(EventCallbackWrapper));
   }
-  i::Debugger::SetEventListener(proxy, Utils::OpenHandle(*data));
+  i::Isolate::Current()->debugger()->SetEventListener(proxy,
+                                                      Utils::OpenHandle(*data));
   return true;
 }
 
@@ -4174,7 +4117,8 @@ bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
   if (that != NULL) {
     proxy = i::Factory::NewProxy(FUNCTION_ADDR(that));
   }
-  i::Debugger::SetEventListener(proxy, Utils::OpenHandle(*data));
+  i::Isolate::Current()->debugger()->SetEventListener(proxy,
+                                                      Utils::OpenHandle(*data));
   return true;
 }
 
@@ -4183,8 +4127,8 @@ bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
                                   Handle<Value> data) {
   ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
   ENTER_V8;
-  i::Debugger::SetEventListener(Utils::OpenHandle(*that),
-                                Utils::OpenHandle(*data));
+  i::Isolate::Current()->debugger()->SetEventListener(Utils::OpenHandle(*that),
+                                                      Utils::OpenHandle(*data));
   return true;
 }
 
@@ -4195,12 +4139,11 @@ void Debug::DebugBreak() {
 }
 
 
-static v8::Debug::MessageHandler message_handler = NULL;
-
 static void MessageHandlerWrapper(const v8::Debug::Message& message) {
-  if (message_handler) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (isolate->message_handler()) {
     v8::String::Value json(message.GetJSON());
-    message_handler(*json, json.length(), message.GetClientData());
+    (isolate->message_handler())(*json, json.length(), message.GetClientData());
   }
 }
 
@@ -4209,16 +4152,17 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
                               bool message_handler_thread) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
   ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
   // Message handler thread not supported any more. Parameter temporally left in
   // the API for client compatability reasons.
   CHECK(!message_handler_thread);
 
   // TODO(sgjesse) support the old message handler API through a simple wrapper.
-  message_handler = handler;
-  if (message_handler != NULL) {
-    i::Debugger::SetMessageHandler(MessageHandlerWrapper);
+  isolate->set_message_handler(handler);
+  if (handler != NULL) {
+    i::Isolate::Current()->debugger()->SetMessageHandler(MessageHandlerWrapper);
   } else {
-    i::Debugger::SetMessageHandler(NULL);
+    i::Isolate::Current()->debugger()->SetMessageHandler(NULL);
   }
 }
 
@@ -4226,15 +4170,15 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
 void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
   ENTER_V8;
-  i::Debugger::SetMessageHandler(handler);
+  i::Isolate::Current()->debugger()->SetMessageHandler(handler);
 }
 
 
 void Debug::SendCommand(const uint16_t* command, int length,
                         ClientData* client_data) {
   if (!i::V8::IsRunning()) return;
-  i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length),
-                              client_data);
+  i::Isolate::Current()->debugger()->ProcessCommand(
+      i::Vector<const uint16_t>(command, length), client_data);
 }
 
 
@@ -4242,7 +4186,7 @@ void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
                                    int period) {
   EnsureInitialized("v8::Debug::SetHostDispatchHandler");
   ENTER_V8;
-  i::Debugger::SetHostDispatchHandler(handler, period);
+  i::Isolate::Current()->debugger()->SetHostDispatchHandler(handler, period);
 }
 
 
@@ -4250,7 +4194,8 @@ void Debug::SetDebugMessageDispatchHandler(
     DebugMessageDispatchHandler handler, bool provide_locker) {
   EnsureInitialized("v8::Debug::SetDebugMessageDispatchHandler");
   ENTER_V8;
-  i::Debugger::SetDebugMessageDispatchHandler(handler, provide_locker);
+  i::Isolate::Current()->debugger()->SetDebugMessageDispatchHandler(
+      handler, provide_locker);
 }
 
 
@@ -4262,13 +4207,14 @@ Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
   i::Handle<i::Object> result;
   EXCEPTION_PREAMBLE();
   if (data.IsEmpty()) {
-    result = i::Debugger::Call(Utils::OpenHandle(*fun),
-                               i::Factory::undefined_value(),
-                               &has_pending_exception);
+    result =
+        i::Isolate::Current()->debugger()->Call(Utils::OpenHandle(*fun),
+                                                i::Factory::undefined_value(),
+                                                &has_pending_exception);
   } else {
-    result = i::Debugger::Call(Utils::OpenHandle(*fun),
-                               Utils::OpenHandle(*data),
-                               &has_pending_exception);
+    result = i::Isolate::Current()->debugger()->Call(Utils::OpenHandle(*fun),
+                                                     Utils::OpenHandle(*data),
+                                                     &has_pending_exception);
   }
   EXCEPTION_BAILOUT_CHECK(Local<Value>());
   return Utils::ToLocal(result);
@@ -4298,7 +4244,8 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
 
 
 bool Debug::EnableAgent(const char* name, int port, bool wait_for_connection) {
-  return i::Debugger::StartAgent(name, port, wait_for_connection);
+  return i::Isolate::Current()->debugger()->StartAgent(name, port,
+                                                       wait_for_connection);
 }
 
 void Debug::ProcessDebugMessages() {
@@ -4308,7 +4255,7 @@ void Debug::ProcessDebugMessages() {
 Local<Context> Debug::GetDebugContext() {
   EnsureInitialized("v8::Debug::GetDebugContext()");
   ENTER_V8;
-  return Utils::ToLocal(i::Debugger::GetDebugContext());
+  return Utils::ToLocal(i::Isolate::Current()->debugger()->GetDebugContext());
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT

@@ -39,7 +39,7 @@ namespace internal {
 // -------------------------------------------------------------------------
 // MarkCompactCollector
 
-MarkCompactCollector::MarkCompactCollector() :
+MarkCompactCollector::MarkCompactCollector() :  // NOLINT
 #ifdef DEBUG
       state_(IDLE),
 #endif
@@ -553,7 +553,8 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
 
 
 void MarkCompactCollector::MarkObjectGroups() {
-  List<ObjectGroup*>* object_groups = GlobalHandles::ObjectGroups();
+  List<ObjectGroup*>* object_groups =
+      heap_->isolate_->global_handles()->object_groups();
 
   for (int i = 0; i < object_groups->length(); i++) {
     ObjectGroup* entry = object_groups->at(i);
@@ -703,9 +704,9 @@ void MarkCompactCollector::MarkLiveObjects() {
   //
   // First we identify nonlive weak handles and mark them as pending
   // destruction.
-  GlobalHandles::IdentifyWeakHandles(&IsUnmarkedHeapObject);
+  heap_->isolate_->global_handles()->IdentifyWeakHandles(&IsUnmarkedHeapObject);
   // Then we mark the objects and process the transitive closure.
-  GlobalHandles::IterateWeakRoots(&root_visitor);
+  heap_->isolate_->global_handles()->IterateWeakRoots(&root_visitor);
   while (marking_stack_.overflowed()) {
     RefillMarkingStack();
     EmptyMarkingStack(root_visitor.stack_visitor());
@@ -726,7 +727,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   ExternalStringTable::CleanUp();
 
   // Remove object groups after marking phase.
-  GlobalHandles::RemoveObjectGroups();
+  heap_->isolate_->global_handles()->RemoveObjectGroups();
 }
 
 
@@ -1593,7 +1594,7 @@ class MapCompact {
   void UpdateMapPointersInRoots() {
     MapUpdatingVisitor map_updating_visitor;
     HEAP->IterateRoots(&map_updating_visitor, VISIT_ONLY_STRONG);
-    GlobalHandles::IterateWeakRoots(&map_updating_visitor);
+    heap_->isolate_->global_handles()->IterateWeakRoots(&map_updating_visitor);
   }
 
   void UpdateMapPointersInPagedSpace(PagedSpace* space) {
@@ -1956,7 +1957,7 @@ void MarkCompactCollector::UpdatePointers() {
 #endif
   UpdatingVisitor updating_visitor;
   HEAP->IterateRoots(&updating_visitor, VISIT_ONLY_STRONG);
-  GlobalHandles::IterateWeakRoots(&updating_visitor);
+  heap_->isolate_->global_handles()->IterateWeakRoots(&updating_visitor);
 
   int live_maps_size = IterateLiveObjects(heap_->map_space(),
                                           &UpdatePointersInOldObject);

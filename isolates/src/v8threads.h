@@ -34,8 +34,6 @@ namespace internal {
 
 class ThreadState {
  public:
-  // Iterate over in-use states.
-  static ThreadState* FirstInUse();
   // Returns NULL after the last one.
   ThreadState* Next();
 
@@ -43,8 +41,6 @@ class ThreadState {
 
   void LinkInto(List list);
   void Unlink();
-
-  static ThreadState* GetFree();
 
   // Id of thread.
   void set_id(int id) { id_ = id; }
@@ -59,7 +55,7 @@ class ThreadState {
   // Get data area for archiving a thread.
   char* data() { return data_; }
  private:
-  ThreadState();
+  explicit ThreadState(ThreadManager* thread_manager);
 
   void AllocateSpace();
 
@@ -69,13 +65,9 @@ class ThreadState {
   ThreadState* next_;
   ThreadState* previous_;
 
-  // In the following two lists there is always at least one object on the list.
-  // The first object is a flying anchor that is only there to simplify linking
-  // and unlinking.
-  // Head of linked list of free states.
-  static ThreadState* free_anchor_;
-  // Head of linked list of states in use.
-  static ThreadState* in_use_anchor_;
+  ThreadManager* thread_manager_;
+
+  friend class ThreadManager;
 };
 
 
@@ -93,37 +85,61 @@ class ThreadVisitor {
 };
 
 
-class ThreadManager : public AllStatic {
+class ThreadManager {
  public:
-  static void Lock();
-  static void Unlock();
+  void Lock();
+  void Unlock();
 
-  static void ArchiveThread();
-  static bool RestoreThread();
-  static void FreeThreadResources();
-  static bool IsArchived();
+  void ArchiveThread();
+  bool RestoreThread();
+  void FreeThreadResources();
+  bool IsArchived();
 
-  static void Iterate(ObjectVisitor* v);
-  static void IterateArchivedThreads(ThreadVisitor* v);
-  static void MarkCompactPrologue(bool is_compacting);
-  static void MarkCompactEpilogue(bool is_compacting);
-  static bool IsLockedByCurrentThread() { return mutex_owner_.IsSelf(); }
+  void Iterate(ObjectVisitor* v);
+  void IterateArchivedThreads(ThreadVisitor* v);
+  void MarkCompactPrologue(bool is_compacting);
+  void MarkCompactEpilogue(bool is_compacting);
+  bool IsLockedByCurrentThread() { return mutex_owner_.IsSelf(); }
 
-  static int CurrentId();
-  static void AssignId();
-  static bool HasId();
+  int CurrentId();
+  void AssignId();
+  bool HasId();
 
-  static void TerminateExecution(int thread_id);
+  void TerminateExecution(int thread_id);
+
+  // Iterate over in-use states.
+  ThreadState* FirstThreadStateInUse();
+  ThreadState* GetFreeThreadState();
 
   static const int kInvalidId = -1;
  private:
-  static void EagerlyArchiveThread();
+  ThreadManager();
+  ~ThreadManager();
 
-  static int last_id_;  // V8 threads are identified through an integer.
-  static Mutex* mutex_;
-  static ThreadHandle mutex_owner_;
-  static ThreadHandle lazily_archived_thread_;
-  static ThreadState* lazily_archived_thread_state_;
+  void EagerlyArchiveThread();
+
+  int last_id_;  // V8 threads are identified through an integer.
+  Mutex* mutex_;
+  ThreadHandle mutex_owner_;
+  ThreadHandle lazily_archived_thread_;
+  ThreadState* lazily_archived_thread_state_;
+
+  // In the following two lists there is always at least one object on the list.
+  // The first object is a flying anchor that is only there to simplify linking
+  // and unlinking.
+  // Head of linked list of free states.
+  ThreadState* free_anchor_;
+  // Head of linked list of states in use.
+  ThreadState* in_use_anchor_;
+
+  // TODO(isolates): Move all LocalStorageKeys under one such key per isolate.
+  Thread::LocalStorageKey thread_state_key_;
+  Thread::LocalStorageKey thread_id_key_;
+
+  Isolate* isolate_;
+
+  friend class Isolate;
+  friend class ThreadState;
 };
 
 
@@ -150,6 +166,7 @@ class ContextSwitcher: public Thread {
 
   bool keep_going_;
   int sleep_ms_;
+  Isolate* isolate_;
 
   static ContextSwitcher* singleton_;
 };

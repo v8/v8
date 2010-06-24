@@ -732,8 +732,10 @@ static inline bool IsVmThread() {
   // we check Top's data. Having that ThreadManager::RestoreThread first
   // restores ThreadLocalTop from TLS, and only then erases the TLS value,
   // reading Isolate::thread_id() should not be affected by races.
-  if (ThreadManager::HasId() && !ThreadManager::IsArchived() &&
-      ThreadManager::CurrentId() == Isolate::Current()->thread_id()) {
+  Isolate* isolate = Isolate::Current();
+  ThreadManager* thread_manager = isolate->thread_manager();
+  if (thread_manager->HasId() && !thread_manager->IsArchived() &&
+      thread_manager->CurrentId() == isolate->thread_id()) {
     return true;
   }
   return false;

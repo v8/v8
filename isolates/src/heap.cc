@@ -106,6 +106,7 @@ Heap::Heap()
       allocation_allowed_(true),
       allocation_timeout_(0),
       disallow_allocation_failure_(false),
+      debug_utils_(NULL),
 #endif  // DEBUG
       old_gen_promotion_limit_(kMinimumPromotionLimit),
       old_gen_allocation_limit_(kMinimumAllocationLimit),
@@ -340,7 +341,7 @@ void Heap::GarbageCollectionEpilogue() {
     Verify();
   }
 
-  if (FLAG_print_global_handles) GlobalHandles::Print();
+  if (FLAG_print_global_handles) isolate_->global_handles()->Print();
   if (FLAG_print_handles) PrintHandles();
   if (FLAG_gc_verbose) Print();
   if (FLAG_code_stats) ReportCodeStatistics("After GC");
@@ -548,7 +549,7 @@ class ClearThreadJSFunctionResultCachesVisitor: public ThreadVisitor  {
 void Heap::ClearJSFunctionResultCaches() {
   if (isolate_->bootstrapper()->IsActive()) return;
   ClearThreadJSFunctionResultCachesVisitor visitor;
-  ThreadManager::IterateArchivedThreads(&visitor);
+  isolate_->thread_manager()->IterateArchivedThreads(&visitor);
 }
 
 
@@ -618,7 +619,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
   if (collector == MARK_COMPACTOR) {
     DisableAssertNoAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-    GlobalHandles::PostGarbageCollectionProcessing();
+    isolate_->global_handles()->PostGarbageCollectionProcessing();
   }
 
   // Update relocatables.
@@ -690,8 +691,8 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
 
   isolate_->compilation_cache()->MarkCompactPrologue();
 
-  Isolate::Current()->MarkCompactPrologue(is_compacting);
-  ThreadManager::MarkCompactPrologue(is_compacting);
+  isolate_->MarkCompactPrologue(is_compacting);
+  isolate_->thread_manager()->MarkCompactPrologue(is_compacting);
 
   CompletelyClearInstanceofCache();
 
@@ -700,8 +701,8 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
 
 
 void Heap::MarkCompactEpilogue(bool is_compacting) {
-  Isolate::Current()->MarkCompactEpilogue(is_compacting);
-  ThreadManager::MarkCompactEpilogue(is_compacting);
+  isolate_->MarkCompactEpilogue(is_compacting);
+  isolate_->thread_manager()->MarkCompactEpilogue(is_compacting);
 }
 
 
@@ -2231,7 +2232,7 @@ static void FlushCodeForFunction(SharedFunctionInfo* function_info) {
   // Iterate the archived stacks in all threads to check if
   // the code is referenced.
   FlushingStackVisitor threadvisitor(function_info->code());
-  ThreadManager::IterateArchivedThreads(&threadvisitor);
+  Isolate::Current()->thread_manager()->IterateArchivedThreads(&threadvisitor);
   if (threadvisitor.FoundCode()) return;
 
   HandleScope scope;
@@ -3301,7 +3302,7 @@ void Heap::ReportHeapStatistics(const char* title) {
 
   PrintF("\n");
   PrintF("Number of handles : %d\n", HandleScope::NumberOfHandles());
-  GlobalHandles::PrintStats();
+  isolate_->global_handles()->PrintStats();
   PrintF("\n");
 
   PrintF("Heap statistics : ");
@@ -3797,14 +3798,14 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 
   // Iterate over global handles.
   if (mode == VISIT_ONLY_STRONG) {
-    GlobalHandles::IterateStrongRoots(v);
+    isolate_->global_handles()->IterateStrongRoots(v);
   } else {
-    GlobalHandles::IterateAllRoots(v);
+    isolate_->global_handles()->IterateAllRoots(v);
   }
   v->Synchronize("globalhandles");
 
   // Iterate over pointers being held by inactive threads.
-  ThreadManager::Iterate(v);
+  isolate_->thread_manager()->Iterate(v);
   v->Synchronize("threadmanager");
 
   // Iterate over the pointers the Serialization/Deserialization code is
@@ -3888,7 +3889,7 @@ void Heap::RecordStats(HeapStats* stats) {
   *stats->cell_space_size = cell_space_->Size();
   *stats->cell_space_capacity = cell_space_->Capacity();
   *stats->lo_space_size = lo_space_->Size();
-  GlobalHandles::RecordStats(stats);
+  isolate_->global_handles()->RecordStats(stats);
 }
 
 
@@ -3910,106 +3911,6 @@ int Heap::PromotedExternalMemorySize() {
 }
 
 
-bool Heap::Setup(bool create_heap_objects) {
-  // Initialize heap spaces and initial maps and objects. Whenever something
-  // goes wrong, just return false. The caller should check the results and
-  // call Heap::TearDown() to release allocated memory.
-  //
-  // If the heap is not yet configured (eg, through the API), configure it.
-  // Configuration is based on the flags new-space-size (really the semispace
-  // size) and old-space-size if set or the initial values of semispace_size_
-  // and old_generation_size_ otherwise.
-  if (!heap_configured) {
-    if (!ConfigureHeapDefault()) return false;
-  }
-
-  // Setup memory allocator and reserve a chunk of memory for new
-  // space.  The chunk is double the size of the requested reserved
-  // new space size to ensure that we can find a pair of semispaces that
-  // are contiguous and aligned to their size.
-  if (!isolate_->memory_allocator()->Setup(MaxReserved())) return false;
-  void* chunk =
-      isolate_->memory_allocator()->ReserveInitialChunk(
-          4 * reserved_semispace_size_);
-  if (chunk == NULL) return false;
-
-  // Align the pair of semispaces to their size, which must be a power
-  // of 2.
-  Address new_space_start =
-      RoundUp(reinterpret_cast<byte*>(chunk), 2 * reserved_semispace_size_);
-  if (!new_space_.Setup(new_space_start, 2 * reserved_semispace_size_)) {
-    return false;
-  }
-
-  // Initialize old pointer space.
-  old_pointer_space_ =
-      new OldSpace(max_old_generation_size_, OLD_POINTER_SPACE, NOT_EXECUTABLE);
-  if (old_pointer_space_ == NULL) return false;
-  if (!old_pointer_space_->Setup(NULL, 0)) return false;
-
-  // Initialize old data space.
-  old_data_space_ =
-      new OldSpace(max_old_generation_size_, OLD_DATA_SPACE, NOT_EXECUTABLE);
-  if (old_data_space_ == NULL) return false;
-  if (!old_data_space_->Setup(NULL, 0)) return false;
-
-  // Initialize the code space, set its maximum capacity to the old
-  // generation size. It needs executable memory.
-  // On 64-bit platform(s), we put all code objects in a 2 GB range of
-  // virtual address space, so that they can call each other with near calls.
-  if (code_range_size_ > 0) {
-    if (!isolate_->code_range()->Setup(code_range_size_)) {
-      return false;
-    }
-  }
-
-  code_space_ =
-      new OldSpace(max_old_generation_size_, CODE_SPACE, EXECUTABLE);
-  if (code_space_ == NULL) return false;
-  if (!code_space_->Setup(NULL, 0)) return false;
-
-  // Initialize map space.
-  map_space_ = new MapSpace(FLAG_use_big_map_space
-      ? max_old_generation_size_
-      : MapSpace::kMaxMapPageIndex * Page::kPageSize,
-      FLAG_max_map_space_pages,
-      MAP_SPACE);
-  if (map_space_ == NULL) return false;
-  if (!map_space_->Setup(NULL, 0)) return false;
-
-  // Initialize global property cell space.
-  cell_space_ = new CellSpace(max_old_generation_size_, CELL_SPACE);
-  if (cell_space_ == NULL) return false;
-  if (!cell_space_->Setup(NULL, 0)) return false;
-
-  // The large object code space may contain code or data.  We set the memory
-  // to be non-executable here for safety, but this means we need to enable it
-  // explicitly when allocating large code objects.
-  lo_space_ = new LargeObjectSpace(LO_SPACE);
-  if (lo_space_ == NULL) return false;
-  if (!lo_space_->Setup()) return false;
-
-  if (create_heap_objects) {
-    // Create initial maps.
-    if (!THIS->CreateInitialMaps()) return false;
-    if (!THIS->CreateApiObjects()) return false;
-
-    // Create initial objects
-    if (!THIS->CreateInitialObjects()) return false;
-  }
-
-  LOG(IntEvent("heap-capacity", Capacity()));
-  LOG(IntEvent("heap-available", Available()));
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  // This should be called only after initial objects have been created.
-  ProducerHeapProfile::Setup();
-#endif
-
-  return true;
-}
-
-
 void Heap::SetStackLimits() {
   ASSERT(isolate_ != NULL);
   ASSERT(isolate_ == Isolate::Current());
@@ -4024,64 +3925,6 @@ void Heap::SetStackLimits() {
   roots_[kRealStackLimitRootIndex] =
       reinterpret_cast<Object*>(
           (isolate_->stack_guard()->real_jslimit() & ~kSmiTagMask) | kSmiTag);
-}
-
-
-void Heap::TearDown() {
-  if (FLAG_print_cumulative_gc_stat) {
-    PrintF("\n\n");
-    PrintF("gc_count=%d ", gc_count_);
-    PrintF("mark_sweep_count=%d ", ms_count_);
-    PrintF("mark_compact_count=%d ", mc_count_);
-    PrintF("max_gc_pause=%d ", get_max_gc_pause());
-    PrintF("min_in_mutator=%d ", get_min_in_mutator());
-    PrintF("max_alive_after_gc=%d ", get_max_alive_after_gc());
-    PrintF("\n\n");
-  }
-
-  GlobalHandles::TearDown();
-
-  ExternalStringTable::TearDown();
-
-  new_space_.TearDown();
-
-  if (old_pointer_space_ != NULL) {
-    old_pointer_space_->TearDown();
-    delete old_pointer_space_;
-    old_pointer_space_ = NULL;
-  }
-
-  if (old_data_space_ != NULL) {
-    old_data_space_->TearDown();
-    delete old_data_space_;
-    old_data_space_ = NULL;
-  }
-
-  if (code_space_ != NULL) {
-    code_space_->TearDown();
-    delete code_space_;
-    code_space_ = NULL;
-  }
-
-  if (map_space_ != NULL) {
-    map_space_->TearDown();
-    delete map_space_;
-    map_space_ = NULL;
-  }
-
-  if (cell_space_ != NULL) {
-    cell_space_->TearDown();
-    delete cell_space_;
-    cell_space_ = NULL;
-  }
-
-  if (lo_space_ != NULL) {
-    lo_space_->TearDown();
-    delete lo_space_;
-    lo_space_ = NULL;
-  }
-
-  isolate_->memory_allocator()->TearDown();
 }
 
 
@@ -4351,154 +4194,176 @@ void HeapIterator::reset() {
 
 #ifdef DEBUG
 
-static bool search_for_any_global;
-static Object* search_target;
-static bool found_target;
-static List<Object*> object_stack(20);
-
-
 // Tags 0, 1, and 3 are used. Use 2 for marking visited HeapObject.
 static const int kMarkTag = 2;
 
-static void MarkObjectRecursively(Object** p);
-class MarkObjectVisitor : public ObjectVisitor {
+
+class HeapDebugUtils {
  public:
-  void VisitPointers(Object** start, Object** end) {
-    // Copy all HeapObject pointers in [start, end)
-    for (Object** p = start; p < end; p++) {
-      if ((*p)->IsHeapObject())
-        MarkObjectRecursively(p);
+  explicit HeapDebugUtils(Heap* heap)
+    : search_for_any_global_(false),
+      search_target_(NULL),
+      found_target_(false),
+      object_stack_(20),
+      heap_(heap) {
+  }
+
+  class MarkObjectVisitor : public ObjectVisitor {
+   public:
+    explicit MarkObjectVisitor(HeapDebugUtils* utils) : utils_(utils) { }
+
+    void VisitPointers(Object** start, Object** end) {
+      // Copy all HeapObject pointers in [start, end)
+      for (Object** p = start; p < end; p++) {
+        if ((*p)->IsHeapObject())
+          utils_->MarkObjectRecursively(p);
+      }
+    }
+
+    HeapDebugUtils* utils_;
+  };
+
+  void MarkObjectRecursively(Object** p) {
+    if (!(*p)->IsHeapObject()) return;
+
+    HeapObject* obj = HeapObject::cast(*p);
+
+    Object* map = obj->map();
+
+    if (!map->IsHeapObject()) return;  // visited before
+
+    if (found_target_) return;  // stop if target found
+    object_stack_.Add(obj);
+    if ((search_for_any_global_ && obj->IsJSGlobalObject()) ||
+        (!search_for_any_global_ && (obj == search_target_))) {
+      found_target_ = true;
+      return;
+    }
+
+    // not visited yet
+    Map* map_p = reinterpret_cast<Map*>(HeapObject::cast(map));
+
+    Address map_addr = map_p->address();
+
+    obj->set_map(reinterpret_cast<Map*>(map_addr + kMarkTag));
+
+    MarkObjectRecursively(&map);
+
+    MarkObjectVisitor mark_visitor(this);
+
+    obj->IterateBody(map_p->instance_type(), obj->SizeFromMap(map_p),
+                     &mark_visitor);
+
+    if (!found_target_)  // don't pop if found the target
+      object_stack_.RemoveLast();
+  }
+
+
+  class UnmarkObjectVisitor : public ObjectVisitor {
+   public:
+    explicit UnmarkObjectVisitor(HeapDebugUtils* utils) : utils_(utils) { }
+
+    void VisitPointers(Object** start, Object** end) {
+      // Copy all HeapObject pointers in [start, end)
+      for (Object** p = start; p < end; p++) {
+        if ((*p)->IsHeapObject())
+          utils_->UnmarkObjectRecursively(p);
+      }
+    }
+
+    HeapDebugUtils* utils_;
+  };
+
+
+  void UnmarkObjectRecursively(Object** p) {
+    if (!(*p)->IsHeapObject()) return;
+
+    HeapObject* obj = HeapObject::cast(*p);
+
+    Object* map = obj->map();
+
+    if (map->IsHeapObject()) return;  // unmarked already
+
+    Address map_addr = reinterpret_cast<Address>(map);
+
+    map_addr -= kMarkTag;
+
+    ASSERT_TAG_ALIGNED(map_addr);
+
+    HeapObject* map_p = HeapObject::FromAddress(map_addr);
+
+    obj->set_map(reinterpret_cast<Map*>(map_p));
+
+    UnmarkObjectRecursively(reinterpret_cast<Object**>(&map_p));
+
+    UnmarkObjectVisitor unmark_visitor(this);
+
+    obj->IterateBody(Map::cast(map_p)->instance_type(),
+                     obj->SizeFromMap(Map::cast(map_p)),
+                     &unmark_visitor);
+  }
+
+
+  void MarkRootObjectRecursively(Object** root) {
+    if (search_for_any_global_) {
+      ASSERT(search_target_ == NULL);
+    } else {
+      ASSERT(search_target_->IsHeapObject());
+    }
+    found_target_ = false;
+    object_stack_.Clear();
+
+    MarkObjectRecursively(root);
+    UnmarkObjectRecursively(root);
+
+    if (found_target_) {
+      PrintF("=====================================\n");
+      PrintF("====        Path to object       ====\n");
+      PrintF("=====================================\n\n");
+
+      ASSERT(!object_stack_.is_empty());
+      for (int i = 0; i < object_stack_.length(); i++) {
+        if (i > 0) PrintF("\n     |\n     |\n     V\n\n");
+        Object* obj = object_stack_[i];
+        obj->Print();
+      }
+      PrintF("=====================================\n");
     }
   }
-};
 
+  // Helper class for visiting HeapObjects recursively.
+  class MarkRootVisitor: public ObjectVisitor {
+   public:
+    explicit MarkRootVisitor(HeapDebugUtils* utils) : utils_(utils) { }
 
-static void MarkObjectRecursively(Object** p) {
-  if (!(*p)->IsHeapObject()) return;
-
-  HeapObject* obj = HeapObject::cast(*p);
-
-  Object* map = obj->map();
-
-  if (!map->IsHeapObject()) return;  // visited before
-
-  if (found_target) return;  // stop if target found
-  object_stack.Add(obj);
-  if ((search_for_any_global && obj->IsJSGlobalObject()) ||
-      (!search_for_any_global && (obj == search_target))) {
-    found_target = true;
-    return;
-  }
-
-  // not visited yet
-  Map* map_p = reinterpret_cast<Map*>(HeapObject::cast(map));
-
-  Address map_addr = map_p->address();
-
-  obj->set_map(reinterpret_cast<Map*>(map_addr + kMarkTag));
-
-  MarkObjectRecursively(&map);
-
-  MarkObjectVisitor mark_visitor;
-
-  obj->IterateBody(map_p->instance_type(), obj->SizeFromMap(map_p),
-                   &mark_visitor);
-
-  if (!found_target)  // don't pop if found the target
-    object_stack.RemoveLast();
-}
-
-
-static void UnmarkObjectRecursively(Object** p);
-class UnmarkObjectVisitor : public ObjectVisitor {
- public:
-  void VisitPointers(Object** start, Object** end) {
-    // Copy all HeapObject pointers in [start, end)
-    for (Object** p = start; p < end; p++) {
-      if ((*p)->IsHeapObject())
-        UnmarkObjectRecursively(p);
+    void VisitPointers(Object** start, Object** end) {
+      // Visit all HeapObject pointers in [start, end)
+      for (Object** p = start; p < end; p++) {
+        if ((*p)->IsHeapObject())
+          utils_->MarkRootObjectRecursively(p);
+      }
     }
-  }
-};
 
+    HeapDebugUtils* utils_;
+  };
 
-static void UnmarkObjectRecursively(Object** p) {
-  if (!(*p)->IsHeapObject()) return;
+  bool search_for_any_global_;
+  Object* search_target_;
+  bool found_target_;
+  List<Object*> object_stack_;
+  Heap* heap_;
 
-  HeapObject* obj = HeapObject::cast(*p);
-
-  Object* map = obj->map();
-
-  if (map->IsHeapObject()) return;  // unmarked already
-
-  Address map_addr = reinterpret_cast<Address>(map);
-
-  map_addr -= kMarkTag;
-
-  ASSERT_TAG_ALIGNED(map_addr);
-
-  HeapObject* map_p = HeapObject::FromAddress(map_addr);
-
-  obj->set_map(reinterpret_cast<Map*>(map_p));
-
-  UnmarkObjectRecursively(reinterpret_cast<Object**>(&map_p));
-
-  UnmarkObjectVisitor unmark_visitor;
-
-  obj->IterateBody(Map::cast(map_p)->instance_type(),
-                   obj->SizeFromMap(Map::cast(map_p)),
-                   &unmark_visitor);
-}
-
-
-static void MarkRootObjectRecursively(Object** root) {
-  if (search_for_any_global) {
-    ASSERT(search_target == NULL);
-  } else {
-    ASSERT(search_target->IsHeapObject());
-  }
-  found_target = false;
-  object_stack.Clear();
-
-  MarkObjectRecursively(root);
-  UnmarkObjectRecursively(root);
-
-  if (found_target) {
-    PrintF("=====================================\n");
-    PrintF("====        Path to object       ====\n");
-    PrintF("=====================================\n\n");
-
-    ASSERT(!object_stack.is_empty());
-    for (int i = 0; i < object_stack.length(); i++) {
-      if (i > 0) PrintF("\n     |\n     |\n     V\n\n");
-      Object* obj = object_stack[i];
-      obj->Print();
-    }
-    PrintF("=====================================\n");
-  }
-}
-
-
-// Helper class for visiting HeapObjects recursively.
-class MarkRootVisitor: public ObjectVisitor {
- public:
-  void VisitPointers(Object** start, Object** end) {
-    // Visit all HeapObject pointers in [start, end)
-    for (Object** p = start; p < end; p++) {
-      if ((*p)->IsHeapObject())
-        MarkRootObjectRecursively(p);
-    }
-  }
+  friend class Heap;
 };
 
 
 // Triggers a depth-first traversal of reachable objects from roots
 // and finds a path to a specific heap object and prints it.
 void Heap::TracePathToObject(Object* target) {
-  search_target = target;
-  search_for_any_global = false;
+  debug_utils_->search_target_ = target;
+  debug_utils_->search_for_any_global_ = false;
 
-  MarkRootVisitor root_visitor;
+  HeapDebugUtils::MarkRootVisitor root_visitor(debug_utils_);
   IterateRoots(&root_visitor, VISIT_ONLY_STRONG);
 }
 
@@ -4507,13 +4372,180 @@ void Heap::TracePathToObject(Object* target) {
 // and finds a path to any global object and prints it. Useful for
 // determining the source for leaks of global objects.
 void Heap::TracePathToGlobal() {
-  search_target = NULL;
-  search_for_any_global = true;
+  debug_utils_->search_target_ = NULL;
+  debug_utils_->search_for_any_global_ = true;
 
-  MarkRootVisitor root_visitor;
+  HeapDebugUtils::MarkRootVisitor root_visitor(debug_utils_);
   IterateRoots(&root_visitor, VISIT_ONLY_STRONG);
 }
 #endif
+
+
+bool Heap::Setup(bool create_heap_objects) {
+#ifdef DEBUG
+  debug_utils_ = new HeapDebugUtils(this);
+#endif
+
+  // Initialize heap spaces and initial maps and objects. Whenever something
+  // goes wrong, just return false. The caller should check the results and
+  // call Heap::TearDown() to release allocated memory.
+  //
+  // If the heap is not yet configured (eg, through the API), configure it.
+  // Configuration is based on the flags new-space-size (really the semispace
+  // size) and old-space-size if set or the initial values of semispace_size_
+  // and old_generation_size_ otherwise.
+  if (!heap_configured) {
+    if (!ConfigureHeapDefault()) return false;
+  }
+
+  // Setup memory allocator and reserve a chunk of memory for new
+  // space.  The chunk is double the size of the requested reserved
+  // new space size to ensure that we can find a pair of semispaces that
+  // are contiguous and aligned to their size.
+  if (!isolate_->memory_allocator()->Setup(MaxReserved())) return false;
+  void* chunk =
+      isolate_->memory_allocator()->ReserveInitialChunk(
+          4 * reserved_semispace_size_);
+  if (chunk == NULL) return false;
+
+  // Align the pair of semispaces to their size, which must be a power
+  // of 2.
+  Address new_space_start =
+      RoundUp(reinterpret_cast<byte*>(chunk), 2 * reserved_semispace_size_);
+  if (!new_space_.Setup(new_space_start, 2 * reserved_semispace_size_)) {
+    return false;
+  }
+
+  // Initialize old pointer space.
+  old_pointer_space_ =
+      new OldSpace(max_old_generation_size_, OLD_POINTER_SPACE, NOT_EXECUTABLE);
+  if (old_pointer_space_ == NULL) return false;
+  if (!old_pointer_space_->Setup(NULL, 0)) return false;
+
+  // Initialize old data space.
+  old_data_space_ =
+      new OldSpace(max_old_generation_size_, OLD_DATA_SPACE, NOT_EXECUTABLE);
+  if (old_data_space_ == NULL) return false;
+  if (!old_data_space_->Setup(NULL, 0)) return false;
+
+  // Initialize the code space, set its maximum capacity to the old
+  // generation size. It needs executable memory.
+  // On 64-bit platform(s), we put all code objects in a 2 GB range of
+  // virtual address space, so that they can call each other with near calls.
+  if (code_range_size_ > 0) {
+    if (!isolate_->code_range()->Setup(code_range_size_)) {
+      return false;
+    }
+  }
+
+  code_space_ =
+      new OldSpace(max_old_generation_size_, CODE_SPACE, EXECUTABLE);
+  if (code_space_ == NULL) return false;
+  if (!code_space_->Setup(NULL, 0)) return false;
+
+  // Initialize map space.
+  map_space_ = new MapSpace(FLAG_use_big_map_space
+      ? max_old_generation_size_
+      : MapSpace::kMaxMapPageIndex * Page::kPageSize,
+      FLAG_max_map_space_pages,
+      MAP_SPACE);
+  if (map_space_ == NULL) return false;
+  if (!map_space_->Setup(NULL, 0)) return false;
+
+  // Initialize global property cell space.
+  cell_space_ = new CellSpace(max_old_generation_size_, CELL_SPACE);
+  if (cell_space_ == NULL) return false;
+  if (!cell_space_->Setup(NULL, 0)) return false;
+
+  // The large object code space may contain code or data.  We set the memory
+  // to be non-executable here for safety, but this means we need to enable it
+  // explicitly when allocating large code objects.
+  lo_space_ = new LargeObjectSpace(LO_SPACE);
+  if (lo_space_ == NULL) return false;
+  if (!lo_space_->Setup()) return false;
+
+  if (create_heap_objects) {
+    // Create initial maps.
+    if (!THIS->CreateInitialMaps()) return false;
+    if (!THIS->CreateApiObjects()) return false;
+
+    // Create initial objects
+    if (!THIS->CreateInitialObjects()) return false;
+  }
+
+  LOG(IntEvent("heap-capacity", Capacity()));
+  LOG(IntEvent("heap-available", Available()));
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // This should be called only after initial objects have been created.
+  ProducerHeapProfile::Setup();
+#endif
+
+  return true;
+}
+
+
+void Heap::TearDown() {
+  if (FLAG_print_cumulative_gc_stat) {
+    PrintF("\n\n");
+    PrintF("gc_count=%d ", gc_count_);
+    PrintF("mark_sweep_count=%d ", ms_count_);
+    PrintF("mark_compact_count=%d ", mc_count_);
+    PrintF("max_gc_pause=%d ", get_max_gc_pause());
+    PrintF("min_in_mutator=%d ", get_min_in_mutator());
+    PrintF("max_alive_after_gc=%d ", get_max_alive_after_gc());
+    PrintF("\n\n");
+  }
+
+  isolate_->global_handles()->TearDown();
+
+  ExternalStringTable::TearDown();
+
+  new_space_.TearDown();
+
+  if (old_pointer_space_ != NULL) {
+    old_pointer_space_->TearDown();
+    delete old_pointer_space_;
+    old_pointer_space_ = NULL;
+  }
+
+  if (old_data_space_ != NULL) {
+    old_data_space_->TearDown();
+    delete old_data_space_;
+    old_data_space_ = NULL;
+  }
+
+  if (code_space_ != NULL) {
+    code_space_->TearDown();
+    delete code_space_;
+    code_space_ = NULL;
+  }
+
+  if (map_space_ != NULL) {
+    map_space_->TearDown();
+    delete map_space_;
+    map_space_ = NULL;
+  }
+
+  if (cell_space_ != NULL) {
+    cell_space_->TearDown();
+    delete cell_space_;
+    cell_space_ = NULL;
+  }
+
+  if (lo_space_ != NULL) {
+    lo_space_->TearDown();
+    delete lo_space_;
+    lo_space_ = NULL;
+  }
+
+  isolate_->memory_allocator()->TearDown();
+
+#ifdef DEBUG
+  delete debug_utils_;
+  debug_utils_ = NULL;
+#endif
+}
 
 
 static int CountTotalHolesSize() {

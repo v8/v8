@@ -57,13 +57,15 @@ class ObjectGroup : public Malloced {
 
 typedef void (*WeakReferenceGuest)(Object* object, void* parameter);
 
-class GlobalHandles : public AllStatic {
+class GlobalHandles {
  public:
+  ~GlobalHandles();
+
   // Creates a new global handle that is alive until Destroy is called.
-  static Handle<Object> Create(Object* value);
+  Handle<Object> Create(Object* value);
 
   // Destroy a global handle.
-  static void Destroy(Object** location);
+  void Destroy(Object** location);
 
   // Make the global handle weak and set the callback parameter for the
   // handle.  When the garbage collector recognizes that only weak global
@@ -71,23 +73,23 @@ class GlobalHandles : public AllStatic {
   // function is invoked (for each handle) with the handle and corresponding
   // parameter as arguments.  Note: cleared means set to Smi::FromInt(0). The
   // reason is that Smi::FromInt(0) does not change during garage collection.
-  static void MakeWeak(Object** location,
-                       void* parameter,
-                       WeakReferenceCallback callback);
+  void MakeWeak(Object** location,
+                void* parameter,
+                WeakReferenceCallback callback);
 
   // Returns the current number of weak handles.
-  static int NumberOfWeakHandles() { return number_of_weak_handles_; }
+  int NumberOfWeakHandles() { return number_of_weak_handles_; }
 
-  static void RecordStats(HeapStats* stats);
+  void RecordStats(HeapStats* stats);
 
   // Returns the current number of weak handles to global objects.
   // These handles are also included in NumberOfWeakHandles().
-  static int NumberOfGlobalObjectWeakHandles() {
+  int NumberOfGlobalObjectWeakHandles() {
     return number_of_global_object_weak_handles_;
   }
 
   // Clear the weakness of a global handle.
-  static void ClearWeakness(Object** location);
+  void ClearWeakness(Object** location);
 
   // Tells whether global handle is near death.
   static bool IsNearDeath(Object** location);
@@ -96,65 +98,67 @@ class GlobalHandles : public AllStatic {
   static bool IsWeak(Object** location);
 
   // Process pending weak handles.
-  static void PostGarbageCollectionProcessing();
+  void PostGarbageCollectionProcessing();
 
   // Iterates over all strong handles.
-  static void IterateStrongRoots(ObjectVisitor* v);
+  void IterateStrongRoots(ObjectVisitor* v);
 
   // Iterates over all handles.
-  static void IterateAllRoots(ObjectVisitor* v);
+  void IterateAllRoots(ObjectVisitor* v);
 
   // Iterates over all weak roots in heap.
-  static void IterateWeakRoots(ObjectVisitor* v);
+  void IterateWeakRoots(ObjectVisitor* v);
 
   // Iterates over weak roots that are bound to a given callback.
-  static void IterateWeakRoots(WeakReferenceGuest f,
-                               WeakReferenceCallback callback);
+  void IterateWeakRoots(WeakReferenceGuest f,
+                        WeakReferenceCallback callback);
 
   // Find all weak handles satisfying the callback predicate, mark
   // them as pending.
-  static void IdentifyWeakHandles(WeakSlotCallback f);
+  void IdentifyWeakHandles(WeakSlotCallback f);
 
   // Add an object group.
   // Should only used in GC callback function before a collection.
   // All groups are destroyed after a mark-compact collection.
-  static void AddGroup(Object*** handles, size_t length);
+  void AddGroup(Object*** handles, size_t length);
 
   // Returns the object groups.
-  static List<ObjectGroup*>* ObjectGroups();
+  List<ObjectGroup*>* object_groups() { return &object_groups_; }
 
   // Remove bags, this should only happen after GC.
-  static void RemoveObjectGroups();
+  void RemoveObjectGroups();
 
   // Tear down the global handle structure.
-  static void TearDown();
+  void TearDown();
 
 #ifdef DEBUG
-  static void PrintStats();
-  static void Print();
+  void PrintStats();
+  void Print();
 #endif
   class Pool;
  private:
+  GlobalHandles();
+
   // Internal node structure, one for each global handle.
   class Node;
 
   // Field always containing the number of weak and near-death handles.
-  static int number_of_weak_handles_;
+  int number_of_weak_handles_;
 
   // Field always containing the number of weak and near-death handles
   // to global objects.  These objects are also included in
   // number_of_weak_handles_.
-  static int number_of_global_object_weak_handles_;
+  int number_of_global_object_weak_handles_;
 
   // Global handles are kept in a single linked list pointed to by head_.
-  static Node* head_;
-  static Node* head() { return head_; }
-  static void set_head(Node* value) { head_ = value; }
+  Node* head_;
+  Node* head() { return head_; }
+  void set_head(Node* value) { head_ = value; }
 
   // Free list for DESTROYED global handles not yet deallocated.
-  static Node* first_free_;
-  static Node* first_free() { return first_free_; }
-  static void set_first_free(Node* value) { first_free_ = value; }
+  Node* first_free_;
+  Node* first_free() { return first_free_; }
+  void set_first_free(Node* value) { first_free_ = value; }
 
   // List of deallocated nodes.
   // Deallocated nodes form a prefix of all the nodes and
@@ -167,11 +171,19 @@ class GlobalHandles : public AllStatic {
   //    node          node        ...         node       node
   //      .next      -> .next ->                .next ->
   //   <- .next_free <- .next_free           <- .next_free
-  static Node* first_deallocated_;
-  static Node* first_deallocated() { return first_deallocated_; }
-  static void set_first_deallocated(Node* value) {
+  Node* first_deallocated_;
+  Node* first_deallocated() { return first_deallocated_; }
+  void set_first_deallocated(Node* value) {
     first_deallocated_ = value;
   }
+
+  Pool* pool_;
+  int post_gc_processing_count_;
+  List<ObjectGroup*> object_groups_;
+
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(GlobalHandles);
 };
 
 

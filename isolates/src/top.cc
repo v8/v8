@@ -54,7 +54,7 @@ void ThreadLocalTop::Initialize() {
   stack_is_cooked_ = false;
   try_catch_handler_address_ = NULL;
   context_ = NULL;
-  int id = ThreadManager::CurrentId();
+  int id = Isolate::Current()->thread_manager()->CurrentId();
   thread_id_ = (id == 0) ? ThreadManager::kInvalidId : id;
   external_caught_exception_ = false;
   failed_access_check_callback_ = NULL;
@@ -683,7 +683,7 @@ void Isolate::DoThrow(Object* exception,
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger of exception.
   if (catchable_by_javascript) {
-    Debugger::OnException(exception_handle, report_exception);
+    debugger_->OnException(exception_handle, report_exception);
   }
 #endif
 
@@ -788,7 +788,7 @@ void Isolate::ReportPendingMessages() {
 
 
 void Isolate::TraceException(bool flag) {
-  FLAG_trace_exception = flag; // TODO(isolates): This is an unfortunate use.
+  FLAG_trace_exception = flag;  // TODO(isolates): This is an unfortunate use.
 }
 
 

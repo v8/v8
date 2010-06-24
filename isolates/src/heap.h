@@ -43,6 +43,7 @@ class Heap;
 inline Heap* _inline_get_heap_();
 
 // Forward declarations.
+class MapCompact;
 class ZoneScopeInfo;
 
 // Defines all the roots in Heap.
@@ -220,6 +221,10 @@ typedef bool (*DirtyRegionCallback)(Address start,
 
 // The all static Heap captures the interface to the global object heap.
 // All JavaScript contexts by this process share the same object heap.
+
+#ifdef DEBUG
+class HeapDebugUtils;
+#endif
 
 class Heap {
  public:
@@ -1106,6 +1111,8 @@ class Heap {
   // Do we expect to be able to handle allocation failure at this
   // time?
   bool disallow_allocation_failure_;
+
+  HeapDebugUtils* debug_utils_;
 #endif  // DEBUG
 
   // Limit that triggers a global GC on the next (normally caused) GC.  This
@@ -1319,6 +1326,8 @@ class Heap {
   friend class LinearAllocationScope;
   friend class Page;
   friend class Isolate;
+  friend class MarkCompactCollector;
+  friend class MapCompact;
 
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };

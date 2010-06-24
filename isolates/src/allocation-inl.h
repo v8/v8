@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,43 +25,53 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_VERSION_H_
-#define V8_VERSION_H_
+#ifndef V8_ALLOCATION_INL_H_
+#define V8_ALLOCATION_INL_H_
+
+#include "allocation.h"
 
 namespace v8 {
 namespace internal {
 
-class Version {
- public:
-  // Return the various version components.
-  static int GetMajor() { return major_; }
-  static int GetMinor() { return minor_; }
-  static int GetBuild() { return build_; }
-  static int GetPatch() { return patch_; }
-  static bool IsCandidate() { return candidate_; }
 
-  // Calculate the V8 version string.
-  static void GetString(Vector<char> str);
+NativeAllocationChecker::NativeAllocationChecker(
+    NativeAllocationChecker::NativeAllocationAllowed allowed)
+    : allowed_(allowed) {
+#ifdef DEBUG
+  if (allowed == DISALLOW) {
+    Isolate* isolate = Isolate::Current();
+    isolate->set_allocation_disallowed(isolate->allocation_disallowed() + 1);
+  }
+#endif
+}
 
-  // Calculate the SONAME for the V8 shared library.
-  static void GetSONAME(Vector<char> str);
 
-  static const char* GetVersion() { return version_string_; }
+NativeAllocationChecker::~NativeAllocationChecker() {
+#ifdef DEBUG
+  Isolate* isolate = Isolate::Current();
+  if (allowed_ == DISALLOW) {
+    isolate->set_allocation_disallowed(isolate->allocation_disallowed() - 1);
+  }
+  ASSERT(isolate->allocation_disallowed() >= 0);
+#endif
+}
 
- private:
-  static int major_;
-  static int minor_;
-  static int build_;
-  static int patch_;
-  static bool candidate_;
-  static const char* soname_;
-  static const char* version_string_;
 
-  // In test-version.cc.
-  friend void SetVersion(int major, int minor, int build, int patch,
-                         bool candidate, const char* soname);
-};
+bool NativeAllocationChecker::allocation_allowed() {
+  return Isolate::Current()->allocation_disallowed() == 0;
+}
+
+
+void* PreallocatedStorage::New(size_t size) {
+  return Isolate::Current()->PreallocatedStorageNew(size);
+}
+
+
+void PreallocatedStorage::Delete(void* p) {
+  return Isolate::Current()->PreallocatedStorageDelete(p);
+}
+
 
 } }  // namespace v8::internal
 
-#endif  // V8_VERSION_H_
+#endif  // V8_ALLOCATION_INL_H_

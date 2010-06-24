@@ -500,14 +500,15 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
 
 
 void Genesis::CreateRoots() {
+  Isolate* isolate = Isolate::Current();
   // Allocate the global context FixedArray first and then patch the
   // closure and extension object later (we need the empty function
   // and the global object, but in order to create those, we need the
   // global context).
   global_context_ =
       Handle<Context>::cast(
-          GlobalHandles::Create(*Factory::NewGlobalContext()));
-  Isolate::Current()->set_context(*global_context());
+          isolate->global_handles()->Create(*Factory::NewGlobalContext()));
+  isolate->set_context(*global_context());
 
   // Allocate the message listeners object.
   {
@@ -940,20 +941,20 @@ bool Genesis::CompileBuiltin(int index) {
 
 bool Genesis::CompileNative(Vector<const char> name, Handle<String> source) {
   HandleScope scope;
+  Isolate* isolate = Isolate::Current();
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Debugger::set_compiling_natives(true);
+  isolate->debugger()->set_compiling_natives(true);
 #endif
   bool result = CompileScriptCached(name,
                                     source,
                                     NULL,
                                     NULL,
-                                    Handle<Context>(
-                                        Isolate::Current()->context()),
+                                    Handle<Context>(isolate->context()),
                                     true);
-  ASSERT(Isolate::Current()->has_pending_exception() != result);
-  if (!result) Isolate::Current()->clear_pending_exception();
+  ASSERT(isolate->has_pending_exception() != result);
+  if (!result) isolate->clear_pending_exception();
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Debugger::set_compiling_natives(false);
+  isolate->debugger()->set_compiling_natives(false);
 #endif
   return result;
 }
@@ -1454,6 +1455,10 @@ void Genesis::InstallSpecialObjects(Handle<Context> global_context) {
 
 bool Genesis::InstallExtensions(Handle<Context> global_context,
                                 v8::ExtensionConfiguration* extensions) {
+  // TODO(isolates): Extensions on multiple isolates may take a little more
+  //                 effort. (The external API reads 'ignore'-- does that mean
+  //                 we can break the interface?)
+
   // Clear coloring of extension list
   v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
   while (current != NULL) {
@@ -1724,6 +1729,7 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 Genesis::Genesis(Handle<Object> global_object,
                  v8::Handle<v8::ObjectTemplate> global_template,
                  v8::ExtensionConfiguration* extensions) {
+  Isolate* isolate = Isolate::Current();
   result_ = Handle<Context>::null();
   // If V8 isn't running and cannot be initialized, just return.
   if (!V8::IsRunning() && !V8::Initialize(NULL)) return;
@@ -1736,8 +1742,8 @@ Genesis::Genesis(Handle<Object> global_object,
   Handle<Context> new_context = Snapshot::NewContextFromSnapshot();
   if (!new_context.is_null()) {
     global_context_ =
-      Handle<Context>::cast(GlobalHandles::Create(*new_context));
-    Isolate::Current()->set_context(*global_context_);
+      Handle<Context>::cast(isolate->global_handles()->Create(*new_context));
+    isolate->set_context(*global_context_);
     i::Counters::contexts_created_by_snapshot.Increment();
     result_ = global_context_;
     JSFunction* empty_function =

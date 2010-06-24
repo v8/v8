@@ -30,14 +30,17 @@
 
 #define V8_USE_TLS_FOR_GLOBAL_ISOLATE
 
+#include "allocation.h"
 #include "apiutils.h"
 #include "contexts.h"
 #include "execution.h"
 #include "frames-inl.h"
 #include "frames.h"
+#include "global-handles.h"
 #include "handles.h"
 #include "heap.h"
 #include "zone.h"
+#include "../include/v8-debug.h"
 
 namespace v8 {
 namespace internal {
@@ -45,6 +48,7 @@ namespace internal {
 class Bootstrapper;
 class CompilationCache;
 class ContextSlotCache;
+class ContextSwitcher;
 class CodeRange;
 class CpuFeatures;
 class Deserializer;
@@ -53,8 +57,16 @@ class NoAllocationStringAllocator;
 class PreallocatedMemoryThread;
 class SaveContext;
 class StubCache;
+class StringInputBuffer;
+class StringTracker;
 class ScannerCharacterClasses;
 class ThreadVisitor;  // Defined in v8threads.h
+class ThreadManager;
+
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+class Debugger;
+#endif
 
 #define RETURN_IF_SCHEDULED_EXCEPTION()              \
   if (Isolate::Current()->has_scheduled_exception()) \
@@ -175,6 +187,13 @@ class ThreadLocalTop BASE_EMBEDDED {
   /* Assembler state. */                                                       \
   /* A previously allocated buffer of kMinimalBufferSize bytes, or NULL. */    \
   V(byte*, assembler_spare_buffer, NULL)                                       \
+  /*This static counter ensures that NativeAllocationCheckers can be nested.*/ \
+  V(int, allocation_disallowed, 0)                                             \
+  V(FatalErrorCallback, exception_behavior, NULL)                              \
+  V(v8::Debug::MessageHandler, message_handler, NULL)                          \
+  /* To distinguish the function templates, so that we can find them in the */ \
+  /* function cache of the global context. */                                  \
+  V(int, next_serial_number, 0)                                                \
   ISOLATE_PLATFORM_INIT_LIST(V)
 
 class Isolate {
@@ -495,6 +514,28 @@ class Isolate {
     return scanner_character_classes_;
   }
 
+  StringInputBuffer* write_input_buffer() { return write_input_buffer_; }
+
+  GlobalHandles* global_handles() { return global_handles_; }
+
+  ThreadManager* thread_manager() { return thread_manager_; }
+
+  ContextSwitcher* context_switcher() { return context_switcher_; }
+
+  void set_context_switcher(ContextSwitcher* switcher) {
+    context_switcher_ = switcher;
+  }
+
+  StringTracker* string_tracker() { return string_tracker_; }
+
+  void* PreallocatedStorageNew(size_t size);
+  void PreallocatedStorageDelete(void* p);
+  void PreallocatedStorageInit(size_t size);
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  Debugger* debugger() { return debugger_; }
+#endif
+
 #ifdef DEBUG
   HistogramInfo* heap_histograms() { return heap_histograms_; }
 
@@ -510,6 +551,11 @@ class Isolate {
 
   static int number_of_isolates() { return number_of_isolates_; }
 
+  // Initialize process-wide state. Generally called from a static initializer,
+  // but may be called manually if necessary. Not thread-safe; should ideally
+  // be called by the same thread responsible for static initialization.
+  static void InitOnce();
+
  private:
   Isolate();
 
@@ -520,9 +566,6 @@ class Isolate {
 
   // TODO(isolates): Access to this global counter should be serialized.
   static int number_of_isolates_;
-
-  // Initialize process-wide state.
-  static void InitOnce();
 
   bool PreInit();
 
@@ -552,7 +595,7 @@ class Isolate {
   StringStream* incomplete_message_;
   // The preallocated memory thread singleton.
   PreallocatedMemoryThread* preallocated_memory_thread_;
-  Address isolate_addresses_[k_isolate_address_count + 1];
+  Address isolate_addresses_[k_isolate_address_count + 1];  // NOLINT
   NoAllocationStringAllocator* preallocated_message_space_;
 
   Bootstrapper* bootstrapper_;
@@ -574,12 +617,24 @@ class Isolate {
   HandleScopeImplementer* handle_scope_implementer_;
   ScannerCharacterClasses* scanner_character_classes_;
   Zone zone_;
+  PreallocatedStorage in_use_list_;
+  PreallocatedStorage free_list_;
+  bool preallocated_storage_preallocated_;
+  StringInputBuffer* write_input_buffer_;
+  GlobalHandles* global_handles_;
+  ContextSwitcher* context_switcher_;
+  ThreadManager* thread_manager_;
+  StringTracker* string_tracker_;
 
 #ifdef DEBUG
   // A static array of histogram info for each type.
   HistogramInfo heap_histograms_[LAST_TYPE + 1];
   JSObject::SpillInformation js_spill_information_;
   int code_kind_statistics_[Code::NUMBER_OF_KINDS];
+#endif
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  Debugger* debugger_;
 #endif
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
@@ -708,15 +763,18 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 #define HEAP (v8::internal::Isolate::Current()->heap())
 #define ZONE (v8::internal::Isolate::Current()->zone())
 
+
 // Tells whether the global context is marked with out of memory.
 inline bool Context::has_out_of_memory() {
   return global_context()->out_of_memory() == HEAP->true_value();
 }
 
+
 // Mark the global context with out of memory.
 inline void Context::mark_out_of_memory() {
   global_context()->set_out_of_memory(HEAP->true_value());
 }
+
 
 // Temporary macro to be used to flag definitions that are indeed static
 // and not per-isolate. (It would be great to be able to grep for [static]!)
@@ -734,5 +792,6 @@ inline void Context::mark_out_of_memory() {
 
 } }  // namespace v8::internal
 
+#include "allocation-inl.h"
 
 #endif  // V8_ISOLATE_H_

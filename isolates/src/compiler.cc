@@ -50,7 +50,8 @@ namespace internal {
 // compiler will be used for all code.
 static bool AlwaysFullCompiler() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  return FLAG_always_full_compiler || Debugger::IsDebuggerActive();
+  return FLAG_always_full_compiler ||
+      Isolate::Current()->debugger()->IsDebuggerActive();
 #else
   return FLAG_always_full_compiler;
 #endif
@@ -196,7 +197,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   }
 
   // Notify debugger
-  Debugger::OnBeforeCompile(script);
+  Isolate::Current()->debugger()->OnBeforeCompile(script);
 #endif
 
   // Only allow non-global compiles for eval.
@@ -266,7 +267,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
-  Debugger::OnAfterCompile(script, Debugger::NO_AFTER_COMPILE_FLAGS);
+  Isolate::Current()->debugger()->OnAfterCompile(
+      script, Debugger::NO_AFTER_COMPILE_FLAGS);
 #endif
 
   live_edit_tracker.RecordFunctionInfo(result, lit);

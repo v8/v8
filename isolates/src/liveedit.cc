@@ -795,7 +795,7 @@ class FrameUncookingThreadVisitor : public ThreadVisitor {
 
 static void IterateAllThreads(ThreadVisitor* visitor) {
   Isolate::Current()->IterateThread(visitor);
-  ThreadManager::IterateArchivedThreads(visitor);
+  Isolate::Current()->thread_manager()->IterateArchivedThreads(visitor);
 }
 
 // Finds all references to original and replaces them with substitution.
@@ -1102,7 +1102,8 @@ Object* LiveEdit::ChangeScriptSource(Handle<Script> original_script,
     Handle<Script> old_script = CreateScriptCopy(original_script);
     old_script->set_name(String::cast(*old_script_name));
     old_script_object = old_script;
-    Debugger::OnAfterCompile(old_script, Debugger::SEND_WHEN_DEBUGGING);
+    Isolate::Current()->debugger()->OnAfterCompile(
+        old_script, Debugger::SEND_WHEN_DEBUGGING);
   } else {
     old_script_object = Handle<Object>(HEAP->null_value());
   }
@@ -1388,7 +1389,8 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   // First check inactive threads. Fail if some functions are blocked there.
   InactiveThreadActivationsChecker inactive_threads_checker(shared_info_array,
                                                             result);
-  ThreadManager::IterateArchivedThreads(&inactive_threads_checker);
+  Isolate::Current()->thread_manager()->IterateArchivedThreads(
+      &inactive_threads_checker);
   if (inactive_threads_checker.HasBlockedFunctions()) {
     return result;
   }

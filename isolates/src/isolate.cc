@@ -42,6 +42,7 @@
 #include "stub-cache.h"
 #include "spaces.h"
 #include "oprofile-agent.h"
+#include "version.h"
 
 namespace v8 {
 namespace internal {
@@ -185,12 +186,13 @@ static IsolateInitializer isolate_initializer;
 
 
 void Isolate::InitOnce() {
-  ASSERT(global_isolate_ == NULL);
+  if (global_isolate_ == NULL) {
 #ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
-  global_isolate_key_ = Thread::CreateThreadLocalKey();
+    global_isolate_key_ = Thread::CreateThreadLocalKey();
 #endif
-  global_isolate_ = new Isolate();
-  CHECK(global_isolate_->PreInit());
+    global_isolate_ = new Isolate();
+    CHECK(global_isolate_->PreInit());
+  }
 }
 
 
@@ -226,26 +228,32 @@ Isolate::Isolate()
       preallocated_memory_thread_(NULL),
       preallocated_message_space_(NULL),
       bootstrapper_(NULL),
-      compilation_cache_(new CompilationCache()),
+      compilation_cache_(NULL),
       cpu_features_(NULL),
-      code_range_(new CodeRange()),
+      code_range_(NULL),
       break_access_(OS::CreateMutex()),
       stats_table_(new StatsTable()),
       stub_cache_(NULL),
-      transcendental_cache_(new TranscendentalCache()),
-      memory_allocator_(new MemoryAllocator()),
-      keyed_lookup_cache_(new KeyedLookupCache()),
-      context_slot_cache_(new ContextSlotCache()),
-      descriptor_lookup_cache_(new DescriptorLookupCache()),
+      transcendental_cache_(NULL),
+      memory_allocator_(NULL),
+      keyed_lookup_cache_(NULL),
+      context_slot_cache_(NULL),
+      descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
-      scanner_character_classes_(new ScannerCharacterClasses()) {
+      scanner_character_classes_(NULL),
+      in_use_list_(0),
+      free_list_(0),
+      preallocated_storage_preallocated_(false),
+      write_input_buffer_(NULL),
+      global_handles_(NULL),
+      context_switcher_(NULL),
+      thread_manager_(NULL),
+      string_tracker_(NULL) {
   memset(isolate_addresses_, 0,
       sizeof(isolate_addresses_[0]) * (k_isolate_address_count + 1));
 
   heap_.isolate_ = this;
   stack_guard_.isolate_ = this;
-  memory_allocator_->isolate_ = this;
-  code_range_->isolate_ = this;
 
 #ifdef DEBUG
   // heap_histograms_ initializes itself.
@@ -322,11 +330,28 @@ Isolate::~Isolate() {
   compilation_cache_ = NULL;
   delete bootstrapper_;
   bootstrapper_ = NULL;
+  delete write_input_buffer_;
+  write_input_buffer_ = NULL;
+
+  delete context_switcher_;
+  context_switcher_ = NULL;
+  delete thread_manager_;
+  thread_manager_ = NULL;
+
+  delete string_tracker_;
+  string_tracker_ = NULL;
 
   delete memory_allocator_;
   memory_allocator_ = NULL;
   delete code_range_;
   code_range_ = NULL;
+  delete global_handles_;
+  global_handles_ = NULL;
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  delete debugger_;
+  debugger_ = NULL;
+#endif
 
   if (state_ == INITIALIZED) --number_of_isolates_;
 }
@@ -335,6 +360,11 @@ Isolate::~Isolate() {
 bool Isolate::PreInit() {
   if (state_ != UNINITIALIZED) return true;
   ASSERT(global_isolate_ == this);
+
+  memory_allocator_ = new MemoryAllocator();
+  memory_allocator_->isolate_ = this;
+  code_range_ = new CodeRange();
+  code_range_->isolate_ = this;
 
 #ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
   InitThreadForGlobalIsolate();
@@ -354,10 +384,28 @@ bool Isolate::PreInit() {
   ISOLATE_ADDRESS_LIST_PROF(C)
 #undef C
 
+  string_tracker_ = new StringTracker();
+  string_tracker_->isolate_ = this;
+  thread_manager_ = new ThreadManager();
+  thread_manager_->isolate_ = this;
+  compilation_cache_ = new CompilationCache();
+  transcendental_cache_ = new TranscendentalCache();
+  keyed_lookup_cache_ = new KeyedLookupCache();
+  context_slot_cache_ = new ContextSlotCache();
+  descriptor_lookup_cache_ = new DescriptorLookupCache();
+  scanner_character_classes_ = new ScannerCharacterClasses();
+  write_input_buffer_ = new StringInputBuffer();
+  global_handles_ = new GlobalHandles();
   bootstrapper_ = new Bootstrapper();
   cpu_features_ = new CpuFeatures();
   handle_scope_implementer_ = new HandleScopeImplementer();
   stub_cache_ = new StubCache();
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  debugger_ = new Debugger();
+  debugger_->isolate_ = this;
+#endif
+
   state_ = PREINITIALIZED;
   return true;
 }
@@ -426,7 +474,7 @@ bool Isolate::Init(Deserializer* des) {
         new NoAllocationStringAllocator(
             preallocated_memory_thread_->data(),
             preallocated_memory_thread_->length());
-    PreallocatedStorage::Init(preallocated_memory_thread_->length() / 4);
+    PreallocatedStorageInit(preallocated_memory_thread_->length() / 4);
   }
 
   if (FLAG_preemption) {

@@ -431,12 +431,13 @@ static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
   Proxy* proxy = Script::cast(wrapper->value())->wrapper();
   ASSERT(proxy->proxy() == reinterpret_cast<Address>(cache.location()));
   proxy->set_proxy(0);
-  GlobalHandles::Destroy(cache.location());
+  Isolate::Current()->global_handles()->Destroy(cache.location());
   Counters::script_wrappers.Decrement();
 }
 
 
 Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
+  Isolate* isolate = Isolate::Current();
   if (script->wrapper()->proxy() != NULL) {
     // Return the script wrapper directly from the cache.
     return Handle<JSValue>(
@@ -445,7 +446,7 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
 
   // Construct a new script wrapper.
   Counters::script_wrappers.Increment();
-  Handle<JSFunction> constructor = Isolate::Current()->script_function();
+  Handle<JSFunction> constructor = isolate->script_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(Factory::NewJSObject(constructor));
   result->set_value(*script);
@@ -453,8 +454,9 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   // Create a new weak global handle and use it to cache the wrapper
   // for future use. The cache will automatically be cleared by the
   // garbage collector when it is not used anymore.
-  Handle<Object> handle = GlobalHandles::Create(*result);
-  GlobalHandles::MakeWeak(handle.location(), NULL, &ClearWrapperCache);
+  Handle<Object> handle = isolate->global_handles()->Create(*result);
+  isolate->global_handles()->MakeWeak(handle.location(), NULL,
+                                      &ClearWrapperCache);
   script->wrapper()->set_proxy(reinterpret_cast<Address>(handle.location()));
   return result;
 }

@@ -288,6 +288,7 @@ TEST(LocalHandles) {
 
 
 TEST(GlobalHandles) {
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
   InitializeVM();
 
   Handle<Object> h1;
@@ -301,10 +302,10 @@ TEST(GlobalHandles) {
     Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
     Handle<Object> u = Factory::NewNumber(1.12344);
 
-    h1 = GlobalHandles::Create(*i);
-    h2 = GlobalHandles::Create(*u);
-    h3 = GlobalHandles::Create(*i);
-    h4 = GlobalHandles::Create(*u);
+    h1 = global_handles->Create(*i);
+    h2 = global_handles->Create(*u);
+    h3 = global_handles->Create(*i);
+    h4 = global_handles->Create(*u);
   }
 
   // after gc, it should survive
@@ -316,12 +317,12 @@ TEST(GlobalHandles) {
   CHECK((*h4)->IsHeapNumber());
 
   CHECK_EQ(*h3, *h1);
-  GlobalHandles::Destroy(h1.location());
-  GlobalHandles::Destroy(h3.location());
+  global_handles->Destroy(h1.location());
+  global_handles->Destroy(h3.location());
 
   CHECK_EQ(*h4, *h2);
-  GlobalHandles::Destroy(h2.location());
-  GlobalHandles::Destroy(h4.location());
+  global_handles->Destroy(h2.location());
+  global_handles->Destroy(h4.location());
 }
 
 
@@ -335,6 +336,7 @@ static void TestWeakGlobalHandleCallback(v8::Persistent<v8::Value> handle,
 
 
 TEST(WeakGlobalHandlesScavenge) {
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
   InitializeVM();
 
   WeakPointerCleared = false;
@@ -348,13 +350,13 @@ TEST(WeakGlobalHandlesScavenge) {
     Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
     Handle<Object> u = Factory::NewNumber(1.12344);
 
-    h1 = GlobalHandles::Create(*i);
-    h2 = GlobalHandles::Create(*u);
+    h1 = global_handles->Create(*i);
+    h2 = global_handles->Create(*u);
   }
 
-  GlobalHandles::MakeWeak(h2.location(),
-                          reinterpret_cast<void*>(1234),
-                          &TestWeakGlobalHandleCallback);
+  global_handles->MakeWeak(h2.location(),
+                           reinterpret_cast<void*>(1234),
+                           &TestWeakGlobalHandleCallback);
 
   // Scavenge treats weak pointers as normal roots.
   HEAP->PerformScavenge();
@@ -363,15 +365,16 @@ TEST(WeakGlobalHandlesScavenge) {
   CHECK((*h2)->IsHeapNumber());
 
   CHECK(!WeakPointerCleared);
-  CHECK(!GlobalHandles::IsNearDeath(h2.location()));
-  CHECK(!GlobalHandles::IsNearDeath(h1.location()));
+  CHECK(!global_handles->IsNearDeath(h2.location()));
+  CHECK(!global_handles->IsNearDeath(h1.location()));
 
-  GlobalHandles::Destroy(h1.location());
-  GlobalHandles::Destroy(h2.location());
+  global_handles->Destroy(h1.location());
+  global_handles->Destroy(h2.location());
 }
 
 
 TEST(WeakGlobalHandlesMark) {
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
   InitializeVM();
 
   WeakPointerCleared = false;
@@ -385,17 +388,17 @@ TEST(WeakGlobalHandlesMark) {
     Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
     Handle<Object> u = Factory::NewNumber(1.12344);
 
-    h1 = GlobalHandles::Create(*i);
-    h2 = GlobalHandles::Create(*u);
+    h1 = global_handles->Create(*i);
+    h2 = global_handles->Create(*u);
   }
 
   CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
   CHECK(HEAP->CollectGarbage(0, NEW_SPACE));
   // Make sure the object is promoted.
 
-  GlobalHandles::MakeWeak(h2.location(),
-                          reinterpret_cast<void*>(1234),
-                          &TestWeakGlobalHandleCallback);
+  global_handles->MakeWeak(h2.location(),
+                           reinterpret_cast<void*>(1234),
+                           &TestWeakGlobalHandleCallback);
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
   CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
@@ -407,8 +410,8 @@ TEST(WeakGlobalHandlesMark) {
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
   CHECK(GlobalHandles::IsNearDeath(h2.location()));
 
-  GlobalHandles::Destroy(h1.location());
-  GlobalHandles::Destroy(h2.location());
+  global_handles->Destroy(h1.location());
+  global_handles->Destroy(h2.location());
 }
 
 static void TestDeleteWeakGlobalHandleCallback(
@@ -419,6 +422,7 @@ static void TestDeleteWeakGlobalHandleCallback(
 }
 
 TEST(DeleteWeakGlobalHandle) {
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
   InitializeVM();
 
   WeakPointerCleared = false;
@@ -429,12 +433,12 @@ TEST(DeleteWeakGlobalHandle) {
     HandleScope scope;
 
     Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
-    h = GlobalHandles::Create(*i);
+    h = global_handles->Create(*i);
   }
 
-  GlobalHandles::MakeWeak(h.location(),
-                          reinterpret_cast<void*>(1234),
-                          &TestDeleteWeakGlobalHandleCallback);
+  global_handles->MakeWeak(h.location(),
+                           reinterpret_cast<void*>(1234),
+                           &TestDeleteWeakGlobalHandleCallback);
 
   // Scanvenge does not recognize weak reference.
   HEAP->PerformScavenge();

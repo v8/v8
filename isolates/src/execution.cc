@@ -691,7 +691,8 @@ void Execution::ProcessDebugMesssages(bool debug_command_only) {
 
   // Notify the debug event listeners. Indicate auto continue if the break was
   // a debug command break.
-  Debugger::OnDebugBreak(Factory::undefined_value(), debug_command_only);
+  Isolate::Current()->debugger()->OnDebugBreak(Factory::undefined_value(),
+                                               debug_command_only);
 }
 
 

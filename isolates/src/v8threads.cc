@@ -36,11 +36,6 @@
 
 namespace v8 {
 
-static internal::Thread::LocalStorageKey thread_state_key =
-    internal::Thread::CreateThreadLocalKey();
-static internal::Thread::LocalStorageKey thread_id_key =
-    internal::Thread::CreateThreadLocalKey();
-
 
 // Track whether this V8 instance has ever called v8::Locker. This allows the
 // API code to verify that the lock is always held when V8 is being entered.
@@ -54,8 +49,8 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
   // Record that the Locker has been used at least once.
   active_ = true;
   // Get the big lock if necessary.
-  if (!internal::ThreadManager::IsLockedByCurrentThread()) {
-    internal::ThreadManager::Lock();
+  if (!isolate->thread_manager()->IsLockedByCurrentThread()) {
+    isolate->thread_manager()->Lock();
     has_lock_ = true;
     // Make sure that V8 is initialized.  Archiving of threads interferes
     // with deserialization by adding additional root pointers, so we must
@@ -65,7 +60,7 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
     }
     // This may be a locker within an unlocker in which case we have to
     // get the saved state for this thread and restore it.
-    if (internal::ThreadManager::RestoreThread()) {
+    if (isolate->thread_manager()->RestoreThread()) {
       top_level_ = false;
     } else {
       internal::ExecutionAccess access;
@@ -73,42 +68,46 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
       isolate->stack_guard()->InitThread(access);
     }
   }
-  ASSERT(internal::ThreadManager::IsLockedByCurrentThread());
+  ASSERT(isolate->thread_manager()->IsLockedByCurrentThread());
 
   // Make sure this thread is assigned a thread id.
-  internal::ThreadManager::AssignId();
+  isolate->thread_manager()->AssignId();
 }
 
 
 bool Locker::IsLocked() {
-  return internal::ThreadManager::IsLockedByCurrentThread();
+  return internal::Isolate::Current()->thread_manager()->
+      IsLockedByCurrentThread();
 }
 
 
 Locker::~Locker() {
-  ASSERT(internal::ThreadManager::IsLockedByCurrentThread());
+  internal::Isolate* isolate = internal::Isolate::Current();
+  ASSERT(isolate->thread_manager()->IsLockedByCurrentThread());
   if (has_lock_) {
     if (top_level_) {
-      internal::ThreadManager::FreeThreadResources();
+      isolate->thread_manager()->FreeThreadResources();
     } else {
-      internal::ThreadManager::ArchiveThread();
+      isolate->thread_manager()->ArchiveThread();
     }
-    internal::ThreadManager::Unlock();
+    isolate->thread_manager()->Unlock();
   }
 }
 
 
 Unlocker::Unlocker() {
-  ASSERT(internal::ThreadManager::IsLockedByCurrentThread());
-  internal::ThreadManager::ArchiveThread();
-  internal::ThreadManager::Unlock();
+  internal::Isolate* isolate = internal::Isolate::Current();
+  ASSERT(isolate->thread_manager()->IsLockedByCurrentThread());
+  isolate->thread_manager()->ArchiveThread();
+  isolate->thread_manager()->Unlock();
 }
 
 
 Unlocker::~Unlocker() {
-  ASSERT(!internal::ThreadManager::IsLockedByCurrentThread());
-  internal::ThreadManager::Lock();
-  internal::ThreadManager::RestoreThread();
+  internal::Isolate* isolate = internal::Isolate::Current();
+  ASSERT(!isolate->thread_manager()->IsLockedByCurrentThread());
+  isolate->thread_manager()->Lock();
+  isolate->thread_manager()->RestoreThread();
 }
 
 
@@ -126,18 +125,17 @@ namespace internal {
 
 
 bool ThreadManager::RestoreThread() {
-  Isolate* isolate = Isolate::Current();
   // First check whether the current thread has been 'lazily archived', ie
   // not archived at all.  If that is the case we put the state storage we
   // had prepared back in the free list, since we didn't need it after all.
   if (lazily_archived_thread_.IsSelf()) {
     lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
-    ASSERT(Thread::GetThreadLocal(thread_state_key) ==
+    ASSERT(Thread::GetThreadLocal(thread_state_key_) ==
            lazily_archived_thread_state_);
     lazily_archived_thread_state_->set_id(kInvalidId);
     lazily_archived_thread_state_->LinkInto(ThreadState::FREE_LIST);
     lazily_archived_thread_state_ = NULL;
-    Thread::SetThreadLocal(thread_state_key, NULL);
+    Thread::SetThreadLocal(thread_state_key_, NULL);
     return true;
   }
 
@@ -151,25 +149,25 @@ bool ThreadManager::RestoreThread() {
     EagerlyArchiveThread();
   }
   ThreadState* state =
-      reinterpret_cast<ThreadState*>(Thread::GetThreadLocal(thread_state_key));
+      reinterpret_cast<ThreadState*>(Thread::GetThreadLocal(thread_state_key_));
   if (state == NULL) {
     // This is a new thread.
-    isolate->stack_guard()->InitThread(access);
+    isolate_->stack_guard()->InitThread(access);
     return false;
   }
   char* from = state->data();
-  from = isolate->handle_scope_implementer()->RestoreThread(from);
-  from = isolate->RestoreThread(from);
+  from = isolate_->handle_scope_implementer()->RestoreThread(from);
+  from = isolate_->RestoreThread(from);
   from = Relocatable::RestoreState(from);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   from = Debug::RestoreDebug(from);
 #endif
-  from = isolate->stack_guard()->RestoreStackGuard(from);
+  from = isolate_->stack_guard()->RestoreStackGuard(from);
   from = RegExpStack::RestoreStack(from);
-  from = isolate->bootstrapper()->RestoreState(from);
-  Thread::SetThreadLocal(thread_state_key, NULL);
+  from = isolate_->bootstrapper()->RestoreState(from);
+  Thread::SetThreadLocal(thread_state_key_, NULL);
   if (state->terminate_on_restore()) {
-    isolate->stack_guard()->TerminateExecution();
+    isolate_->stack_guard()->TerminateExecution();
     state->set_terminate_on_restore(false);
   }
   state->set_id(kInvalidId);
@@ -205,13 +203,12 @@ static int ArchiveSpacePerThread() {
 }
 
 
-ThreadState* ThreadState::free_anchor_ = new ThreadState();
-ThreadState* ThreadState::in_use_anchor_ = new ThreadState();
-
-
-ThreadState::ThreadState() : id_(ThreadManager::kInvalidId),
-                             terminate_on_restore_(false),
-                             next_(this), previous_(this) {
+ThreadState::ThreadState(ThreadManager* thread_manager)
+    : id_(ThreadManager::kInvalidId),
+      terminate_on_restore_(false),
+      next_(this),
+      previous_(this),
+      thread_manager_(thread_manager) {
 }
 
 
@@ -228,7 +225,8 @@ void ThreadState::Unlink() {
 
 void ThreadState::LinkInto(List list) {
   ThreadState* flying_anchor =
-      list == FREE_LIST ? free_anchor_ : in_use_anchor_;
+      list == FREE_LIST ? thread_manager_->free_anchor_
+                        : thread_manager_->in_use_anchor_;
   next_ = flying_anchor->next_;
   previous_ = flying_anchor;
   flying_anchor->next_ = this;
@@ -236,10 +234,10 @@ void ThreadState::LinkInto(List list) {
 }
 
 
-ThreadState* ThreadState::GetFree() {
+ThreadState* ThreadManager::GetFreeThreadState() {
   ThreadState* gotten = free_anchor_->next_;
   if (gotten == free_anchor_) {
-    ThreadState* new_thread_state = new ThreadState();
+    ThreadState* new_thread_state = new ThreadState(this);
     new_thread_state->AllocateSpace();
     return new_thread_state;
   }
@@ -248,13 +246,13 @@ ThreadState* ThreadState::GetFree() {
 
 
 // Gets the first in the list of archived threads.
-ThreadState* ThreadState::FirstInUse() {
+ThreadState* ThreadManager::FirstThreadStateInUse() {
   return in_use_anchor_->Next();
 }
 
 
 ThreadState* ThreadState::Next() {
-  if (next_ == in_use_anchor_) return NULL;
+  if (next_ == thread_manager_->in_use_anchor_) return NULL;
   return next_;
 }
 
@@ -262,19 +260,32 @@ ThreadState* ThreadState::Next() {
 // Thread ids must start with 1, because in TLS having thread id 0 can't
 // be distinguished from not having a thread id at all (since NULL is
 // defined as 0.)
-int ThreadManager::last_id_ = 0;
-Mutex* ThreadManager::mutex_ = OS::CreateMutex();
-ThreadHandle ThreadManager::mutex_owner_(ThreadHandle::INVALID);
-ThreadHandle ThreadManager::lazily_archived_thread_(ThreadHandle::INVALID);
-ThreadState* ThreadManager::lazily_archived_thread_state_ = NULL;
+ThreadManager::ThreadManager()
+    : last_id_(0),
+      mutex_(OS::CreateMutex()),
+      mutex_owner_(ThreadHandle::INVALID),
+      lazily_archived_thread_(ThreadHandle::INVALID),
+      lazily_archived_thread_state_(NULL),
+      free_anchor_(NULL),
+      in_use_anchor_(NULL),
+      thread_state_key_(internal::Thread::CreateThreadLocalKey()),
+      thread_id_key_(internal::Thread::CreateThreadLocalKey()) {
+  free_anchor_ = new ThreadState(this);
+  in_use_anchor_ = new ThreadState(this);
+}
+
+
+ThreadManager::~ThreadManager() {
+  // TODO(isolates): Destroy TLS keys and mutexes.
+}
 
 
 void ThreadManager::ArchiveThread() {
   ASSERT(!lazily_archived_thread_.IsValid());
   ASSERT(!IsArchived());
-  ThreadState* state = ThreadState::GetFree();
+  ThreadState* state = GetFreeThreadState();
   state->Unlink();
-  Thread::SetThreadLocal(thread_state_key, reinterpret_cast<void*>(state));
+  Thread::SetThreadLocal(thread_state_key_, reinterpret_cast<void*>(state));
   lazily_archived_thread_.Initialize(ThreadHandle::SELF);
   lazily_archived_thread_state_ = state;
   ASSERT(state->id() == kInvalidId);
@@ -284,92 +295,90 @@ void ThreadManager::ArchiveThread() {
 
 
 void ThreadManager::EagerlyArchiveThread() {
-  Isolate* isolate = Isolate::Current();
   ThreadState* state = lazily_archived_thread_state_;
   state->LinkInto(ThreadState::IN_USE_LIST);
   char* to = state->data();
   // Ensure that data containing GC roots are archived first, and handle them
   // in ThreadManager::Iterate(ObjectVisitor*).
-  to = isolate->handle_scope_implementer()->ArchiveThread(to);
-  to = isolate->ArchiveThread(to);
+  to = isolate_->handle_scope_implementer()->ArchiveThread(to);
+  to = isolate_->ArchiveThread(to);
   to = Relocatable::ArchiveState(to);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   to = Debug::ArchiveDebug(to);
 #endif
-  to = isolate->stack_guard()->ArchiveStackGuard(to);
+  to = isolate_->stack_guard()->ArchiveStackGuard(to);
   to = RegExpStack::ArchiveStack(to);
-  to = isolate->bootstrapper()->ArchiveState(to);
+  to = isolate_->bootstrapper()->ArchiveState(to);
   lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
   lazily_archived_thread_state_ = NULL;
 }
 
 
 void ThreadManager::FreeThreadResources() {
-  Isolate* isolate = Isolate::Current();
-  isolate->handle_scope_implementer()->FreeThreadResources();
-  isolate->FreeThreadResources();
+  isolate_->handle_scope_implementer()->FreeThreadResources();
+  isolate_->FreeThreadResources();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug::FreeThreadResources();
 #endif
-  isolate->stack_guard()->FreeThreadResources();
+  isolate_->stack_guard()->FreeThreadResources();
   RegExpStack::FreeThreadResources();
-  isolate->bootstrapper()->FreeThreadResources();
+  isolate_->bootstrapper()->FreeThreadResources();
 }
 
 
 bool ThreadManager::IsArchived() {
-  return Thread::HasThreadLocal(thread_state_key);
+  return Thread::HasThreadLocal(thread_state_key_);
 }
 
 
 void ThreadManager::Iterate(ObjectVisitor* v) {
   // Expecting no threads during serialization/deserialization
-  for (ThreadState* state = ThreadState::FirstInUse();
+  for (ThreadState* state = FirstThreadStateInUse();
        state != NULL;
        state = state->Next()) {
     char* data = state->data();
     data = HandleScopeImplementer::Iterate(v, data);
-    data = Isolate::Current()->Iterate(v, data);
+    data = isolate_->Iterate(v, data);
     data = Relocatable::Iterate(v, data);
   }
 }
 
 
 void ThreadManager::IterateArchivedThreads(ThreadVisitor* v) {
-  for (ThreadState* state = ThreadState::FirstInUse();
+  for (ThreadState* state = FirstThreadStateInUse();
        state != NULL;
        state = state->Next()) {
     char* data = state->data();
     data += HandleScopeImplementer::ArchiveSpacePerThread();
-    Isolate::Current()->IterateThread(v, data);
+    isolate_->IterateThread(v, data);
   }
 }
 
 
 void ThreadManager::MarkCompactPrologue(bool is_compacting) {
-  for (ThreadState* state = ThreadState::FirstInUse();
+  for (ThreadState* state = FirstThreadStateInUse();
        state != NULL;
        state = state->Next()) {
     char* data = state->data();
     data += HandleScopeImplementer::ArchiveSpacePerThread();
-    Isolate::Current()->MarkCompactPrologue(is_compacting, data);
+    isolate_->MarkCompactPrologue(is_compacting, data);
   }
 }
 
 
 void ThreadManager::MarkCompactEpilogue(bool is_compacting) {
-  for (ThreadState* state = ThreadState::FirstInUse();
+  for (ThreadState* state = FirstThreadStateInUse();
        state != NULL;
        state = state->Next()) {
     char* data = state->data();
     data += HandleScopeImplementer::ArchiveSpacePerThread();
-    Isolate::Current()->MarkCompactEpilogue(is_compacting, data);
+    isolate_->MarkCompactEpilogue(is_compacting, data);
   }
 }
 
 
 int ThreadManager::CurrentId() {
-  return Thread::GetThreadLocalInt(thread_id_key);
+  return Thread::GetThreadLocalInt(thread_id_key_);
 }
 
 
@@ -378,19 +387,19 @@ void ThreadManager::AssignId() {
     ASSERT(Locker::IsLocked());
     int thread_id = ++last_id_;
     ASSERT(thread_id > 0);  // see the comment near last_id_ definition.
-    Thread::SetThreadLocalInt(thread_id_key, thread_id);
-    Isolate::Current()->set_thread_id(thread_id);
+    Thread::SetThreadLocalInt(thread_id_key_, thread_id);
+    isolate_->set_thread_id(thread_id);
   }
 }
 
 
 bool ThreadManager::HasId() {
-  return Thread::HasThreadLocal(thread_id_key);
+  return Thread::HasThreadLocal(thread_id_key_);
 }
 
 
 void ThreadManager::TerminateExecution(int thread_id) {
-  for (ThreadState* state = ThreadState::FirstInUse();
+  for (ThreadState* state = FirstThreadStateInUse();
        state != NULL;
        state = state->Next()) {
     if (thread_id == state->id()) {
@@ -407,22 +416,24 @@ ContextSwitcher* ContextSwitcher::singleton_ = NULL;
 
 ContextSwitcher::ContextSwitcher(int every_n_ms)
   : keep_going_(true),
-    sleep_ms_(every_n_ms) {
+    sleep_ms_(every_n_ms),
+    isolate_(Isolate::Current()) {
 }
 
 
 // Set the scheduling interval of V8 threads. This function starts the
 // ContextSwitcher thread if needed.
 void ContextSwitcher::StartPreemption(int every_n_ms) {
+  Isolate* isolate = Isolate::Current();
   ASSERT(Locker::IsLocked());
-  if (singleton_ == NULL) {
+  if (isolate->context_switcher() == NULL) {
     // If the ContextSwitcher thread is not running at the moment start it now.
-    singleton_ = new ContextSwitcher(every_n_ms);
-    singleton_->Start();
+    isolate->set_context_switcher(new ContextSwitcher(every_n_ms));
+    isolate->context_switcher()->Start();
   } else {
     // ContextSwitcher thread is already running, so we just change the
     // scheduling interval.
-    singleton_->sleep_ms_ = every_n_ms;
+    isolate->context_switcher()->sleep_ms_ = every_n_ms;
   }
 }
 
@@ -430,15 +441,17 @@ void ContextSwitcher::StartPreemption(int every_n_ms) {
 // Disable preemption of V8 threads. If multiple threads want to use V8 they
 // must cooperatively schedule amongst them from this point on.
 void ContextSwitcher::StopPreemption() {
+  Isolate* isolate = Isolate::Current();
   ASSERT(Locker::IsLocked());
-  if (singleton_ != NULL) {
+  if (isolate->context_switcher() != NULL) {
     // The ContextSwitcher thread is running. We need to stop it and release
     // its resources.
-    singleton_->keep_going_ = false;
-    singleton_->Join();  // Wait for the ContextSwitcher thread to exit.
+    isolate->context_switcher()->keep_going_ = false;
+    // Wait for the ContextSwitcher thread to exit.
+    isolate->context_switcher()->Join();
     // Thread has exited, now we can delete it.
-    delete(singleton_);
-    singleton_ = NULL;
+    delete(isolate->context_switcher());
+    isolate->set_context_switcher(NULL);
   }
 }
 
@@ -448,7 +461,7 @@ void ContextSwitcher::StopPreemption() {
 void ContextSwitcher::Run() {
   while (keep_going_) {
     OS::Sleep(sleep_ms_);
-    Isolate::Current()->stack_guard()->Preempt();
+    isolate_->stack_guard()->Preempt();
   }
 }
 

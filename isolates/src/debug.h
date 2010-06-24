@@ -633,87 +633,89 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
 
 class Debugger {
  public:
-  static void DebugRequest(const uint16_t* json_request, int length);
+  ~Debugger();
 
-  static Handle<Object> MakeJSObject(Vector<const char> constructor_name,
-                                     int argc, Object*** argv,
-                                     bool* caught_exception);
-  static Handle<Object> MakeExecutionState(bool* caught_exception);
-  static Handle<Object> MakeBreakEvent(Handle<Object> exec_state,
-                                       Handle<Object> break_points_hit,
-                                       bool* caught_exception);
-  static Handle<Object> MakeExceptionEvent(Handle<Object> exec_state,
-                                           Handle<Object> exception,
-                                           bool uncaught,
-                                           bool* caught_exception);
-  static Handle<Object> MakeNewFunctionEvent(Handle<Object> func,
-                                             bool* caught_exception);
-  static Handle<Object> MakeCompileEvent(Handle<Script> script,
-                                         bool before,
-                                         bool* caught_exception);
-  static Handle<Object> MakeScriptCollectedEvent(int id,
-                                                 bool* caught_exception);
-  static void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
-  static void OnException(Handle<Object> exception, bool uncaught);
-  static void OnBeforeCompile(Handle<Script> script);
+  void DebugRequest(const uint16_t* json_request, int length);
+
+  Handle<Object> MakeJSObject(Vector<const char> constructor_name,
+                              int argc, Object*** argv,
+                              bool* caught_exception);
+  Handle<Object> MakeExecutionState(bool* caught_exception);
+  Handle<Object> MakeBreakEvent(Handle<Object> exec_state,
+                                Handle<Object> break_points_hit,
+                                bool* caught_exception);
+  Handle<Object> MakeExceptionEvent(Handle<Object> exec_state,
+                                    Handle<Object> exception,
+                                    bool uncaught,
+                                    bool* caught_exception);
+  Handle<Object> MakeNewFunctionEvent(Handle<Object> func,
+                                      bool* caught_exception);
+  Handle<Object> MakeCompileEvent(Handle<Script> script,
+                                  bool before,
+                                  bool* caught_exception);
+  Handle<Object> MakeScriptCollectedEvent(int id,
+                                          bool* caught_exception);
+  void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
+  void OnException(Handle<Object> exception, bool uncaught);
+  void OnBeforeCompile(Handle<Script> script);
 
   enum AfterCompileFlags {
     NO_AFTER_COMPILE_FLAGS,
     SEND_WHEN_DEBUGGING
   };
-  static void OnAfterCompile(Handle<Script> script,
-                             AfterCompileFlags after_compile_flags);
-  static void OnNewFunction(Handle<JSFunction> fun);
-  static void OnScriptCollected(int id);
-  static void ProcessDebugEvent(v8::DebugEvent event,
-                                Handle<JSObject> event_data,
-                                bool auto_continue);
-  static void NotifyMessageHandler(v8::DebugEvent event,
-                                   Handle<JSObject> exec_state,
-                                   Handle<JSObject> event_data,
-                                   bool auto_continue);
-  static void SetEventListener(Handle<Object> callback, Handle<Object> data);
-  static void SetMessageHandler(v8::Debug::MessageHandler2 handler);
-  static void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
-                                     int period);
-  static void SetDebugMessageDispatchHandler(
+  void OnAfterCompile(Handle<Script> script,
+                      AfterCompileFlags after_compile_flags);
+  void OnNewFunction(Handle<JSFunction> fun);
+  void OnScriptCollected(int id);
+  void ProcessDebugEvent(v8::DebugEvent event,
+                         Handle<JSObject> event_data,
+                         bool auto_continue);
+  void NotifyMessageHandler(v8::DebugEvent event,
+                            Handle<JSObject> exec_state,
+                            Handle<JSObject> event_data,
+                            bool auto_continue);
+  void SetEventListener(Handle<Object> callback, Handle<Object> data);
+  void SetMessageHandler(v8::Debug::MessageHandler2 handler);
+  void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
+                              int period);
+  void SetDebugMessageDispatchHandler(
       v8::Debug::DebugMessageDispatchHandler handler,
       bool provide_locker);
 
   // Invoke the message handler function.
-  static void InvokeMessageHandler(MessageImpl message);
+  void InvokeMessageHandler(MessageImpl message);
 
   // Add a debugger command to the command queue.
-  static void ProcessCommand(Vector<const uint16_t> command,
-                             v8::Debug::ClientData* client_data = NULL);
+  void ProcessCommand(Vector<const uint16_t> command,
+                      v8::Debug::ClientData* client_data = NULL);
 
   // Check whether there are commands in the command queue.
-  static bool HasCommands();
+  bool HasCommands();
 
-  static Handle<Object> Call(Handle<JSFunction> fun,
-                             Handle<Object> data,
-                             bool* pending_exception);
+  Handle<Object> Call(Handle<JSFunction> fun,
+                      Handle<Object> data,
+                      bool* pending_exception);
 
   // Start the debugger agent listening on the provided port.
-  static bool StartAgent(const char* name, int port,
-                         bool wait_for_connection = false);
+  bool StartAgent(const char* name, int port,
+                  bool wait_for_connection = false);
 
   // Stop the debugger agent.
-  static void StopAgent();
+  void StopAgent();
 
   // Blocks until the agent has started listening for connections
-  static void WaitForAgent();
+  void WaitForAgent();
 
-  static void CallMessageDispatchHandler();
+  void CallMessageDispatchHandler();
 
-  static Handle<Context> GetDebugContext();
+  Handle<Context> GetDebugContext();
 
   // Unload the debugger if possible. Only called when no debugger is currently
   // active.
-  static void UnloadDebugger();
+  void UnloadDebugger();
   friend void ForceUnloadDebugger();  // In test-debug.cc
 
-  inline static bool EventActive(v8::DebugEvent event) {
+  inline bool EventActive(v8::DebugEvent event) {
     ScopedLock with(debugger_access_);
 
     // Check whether the message handler was been cleared.
@@ -727,39 +729,46 @@ class Debugger {
     return !compiling_natives_ && Debugger::IsDebuggerActive();
   }
 
-  static void set_compiling_natives(bool compiling_natives) {
+  void set_compiling_natives(bool compiling_natives) {
     Debugger::compiling_natives_ = compiling_natives;
   }
-  static bool compiling_natives() { return Debugger::compiling_natives_; }
-  static void set_loading_debugger(bool v) { is_loading_debugger_ = v; }
-  static bool is_loading_debugger() { return Debugger::is_loading_debugger_; }
+  bool compiling_natives() const { return compiling_natives_; }
+  void set_loading_debugger(bool v) { is_loading_debugger_ = v; }
+  bool is_loading_debugger() const { return is_loading_debugger_; }
 
-  static bool IsDebuggerActive();
+  bool IsDebuggerActive();
 
  private:
-  static void ListenersChanged();
+  Debugger();
 
-  static Mutex* debugger_access_;  // Mutex guarding debugger variables.
-  static Handle<Object> event_listener_;  // Global handle to listener.
-  static Handle<Object> event_listener_data_;
-  static bool compiling_natives_;  // Are we compiling natives?
-  static bool is_loading_debugger_;  // Are we loading the debugger?
-  static bool never_unload_debugger_;  // Can we unload the debugger?
-  static v8::Debug::MessageHandler2 message_handler_;
-  static bool debugger_unload_pending_;  // Was message handler cleared?
-  static v8::Debug::HostDispatchHandler host_dispatch_handler_;
-  static Mutex* dispatch_handler_access_;  // Mutex guarding dispatch handler.
-  static v8::Debug::DebugMessageDispatchHandler debug_message_dispatch_handler_;
-  static MessageDispatchHelperThread* message_dispatch_helper_thread_;
-  static int host_dispatch_micros_;
+  void ListenersChanged();
 
-  static DebuggerAgent* agent_;
+  Mutex* debugger_access_;  // Mutex guarding debugger variables.
+  Handle<Object> event_listener_;  // Global handle to listener.
+  Handle<Object> event_listener_data_;
+  bool compiling_natives_;  // Are we compiling natives?
+  bool is_loading_debugger_;  // Are we loading the debugger?
+  bool never_unload_debugger_;  // Can we unload the debugger?
+  v8::Debug::MessageHandler2 message_handler_;
+  bool debugger_unload_pending_;  // Was message handler cleared?
+  v8::Debug::HostDispatchHandler host_dispatch_handler_;
+  Mutex* dispatch_handler_access_;  // Mutex guarding dispatch handler.
+  v8::Debug::DebugMessageDispatchHandler debug_message_dispatch_handler_;
+  MessageDispatchHelperThread* message_dispatch_helper_thread_;
+  int host_dispatch_micros_;
+
+  DebuggerAgent* agent_;
 
   static const int kQueueInitialSize = 4;
-  static LockingCommandMessageQueue command_queue_;
-  static Semaphore* command_received_;  // Signaled for each command received.
+  LockingCommandMessageQueue command_queue_;
+  Semaphore* command_received_;  // Signaled for each command received.
+
+  Isolate* isolate_;
 
   friend class EnterDebugger;
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(Debugger);
 };
 
 
@@ -838,13 +847,13 @@ class EnterDebugger BASE_EMBEDDED {
 
       // If there are commands in the queue when leaving the debugger request
       // that these commands are processed.
-      if (Debugger::HasCommands()) {
+      if (isolate->debugger()->HasCommands()) {
         isolate->stack_guard()->DebugCommand();
       }
 
       // If leaving the debugger with the debugger no longer active unload it.
-      if (!Debugger::IsDebuggerActive()) {
-        Debugger::UnloadDebugger();
+      if (!isolate->debugger()->IsDebuggerActive()) {
+        isolate->debugger()->UnloadDebugger();
       }
     }
 

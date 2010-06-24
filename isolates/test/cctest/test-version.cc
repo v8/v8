@@ -49,6 +49,13 @@ void SetVersion(int major, int minor, int build, int patch,
 } }  // namespace v8::internal
 
 
+static void CheckBakedVersion() {
+  static v8::internal::EmbeddedVector<char, 128> dyn_version_str;
+  Version::GetString(dyn_version_str);
+  CHECK_EQ(Version::GetVersion(), dyn_version_str.start());
+}
+
+
 static void CheckVersion(int major, int minor, int build,
                          int patch, bool candidate,
                          const char* expected_version_string,
@@ -74,6 +81,7 @@ static void CheckVersion(int major, int minor, int build,
 
 
 TEST(VersionString) {
+  CheckBakedVersion();
   CheckVersion(0, 0, 0, 0, false, "0.0.0", "libv8-0.0.0.so");
   CheckVersion(0, 0, 0, 0, true,
                "0.0.0 (candidate)", "libv8-0.0.0-candidate.so");

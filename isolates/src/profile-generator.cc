@@ -45,24 +45,27 @@ TokenEnumerator::TokenEnumerator()
 
 
 TokenEnumerator::~TokenEnumerator() {
+  Isolate* isolate = Isolate::Current();
   for (int i = 0; i < token_locations_.length(); ++i) {
     if (!token_removed_[i]) {
-      GlobalHandles::ClearWeakness(token_locations_[i]);
-      GlobalHandles::Destroy(token_locations_[i]);
+      isolate->global_handles()->ClearWeakness(token_locations_[i]);
+      isolate->global_handles()->Destroy(token_locations_[i]);
     }
   }
 }
 
 
 int TokenEnumerator::GetTokenId(Object* token) {
+  Isolate* isolate = Isolate::Current();
   if (token == NULL) return TokenEnumerator::kNoSecurityToken;
   for (int i = 0; i < token_locations_.length(); ++i) {
     if (*token_locations_[i] == token && !token_removed_[i]) return i;
   }
-  Handle<Object> handle = GlobalHandles::Create(token);
+  Handle<Object> handle = isolate->global_handles()->Create(token);
   // handle.location() points to a memory cell holding a pointer
   // to a token object in the V8's heap.
-  GlobalHandles::MakeWeak(handle.location(), this, TokenRemovedCallback);
+  isolate->global_handles()->MakeWeak(handle.location(), this,
+                                      TokenRemovedCallback);
   token_locations_.Add(handle.location());
   token_removed_.Add(false);
   return token_locations_.length() - 1;
