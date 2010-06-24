@@ -930,7 +930,7 @@ bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
   // Patch the map check.
   Address ldr_map_instr_address =
       inline_end_address -
-      (CodeGenerator::kInlinedKeyedLoadInstructionsAfterPatch *
+      (CodeGenerator::GetInlinedKeyedLoadInstructionsAfterPatch() *
       Assembler::kInstrSize);
   Assembler::set_target_address_at(ldr_map_instr_address,
                                    reinterpret_cast<Address>(map));

@@ -8853,7 +8853,7 @@ Result CodeGenerator::EmitKeyedLoad() {
     // Use masm-> here instead of the double underscore macro since extra
     // coverage code can interfere with the patching.
     masm_->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
-              Immediate(Factory::null_value()));
+               Immediate(Factory::null_value()));
     deferred->Branch(not_equal);
 
     // Check that the key is a smi.
@@ -8868,9 +8868,11 @@ Result CodeGenerator::EmitKeyedLoad() {
     // is not a dictionary.
     __ mov(elements.reg(),
            FieldOperand(receiver.reg(), JSObject::kElementsOffset));
-    __ cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
-           Immediate(Factory::fixed_array_map()));
-    deferred->Branch(not_equal);
+    if (FLAG_debug_code) {
+      __ cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
+             Immediate(Factory::fixed_array_map()));
+      __ Assert(equal, "JSObject with fast elements map has slow elements");
+    }
 
     // Check that the key is within bounds.
     __ cmp(key.reg(),

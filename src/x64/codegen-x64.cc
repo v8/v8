@@ -7529,9 +7529,11 @@ Result CodeGenerator::EmitKeyedLoad() {
     // is not a dictionary.
     __ movq(elements.reg(),
             FieldOperand(receiver.reg(), JSObject::kElementsOffset));
-    __ Cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
-           Factory::fixed_array_map());
-    deferred->Branch(not_equal);
+    if (FLAG_debug_code) {
+      __ Cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
+             Factory::fixed_array_map());
+      __ Assert(equal, "JSObject with fast elements map has slow elements");
+    }
 
     // Check that key is within bounds.
     __ SmiCompare(key.reg(),
