@@ -2738,6 +2738,28 @@ void Assembler::cvtsd2ss(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::cvtsd2si(Register dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x2D);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::cvtsd2siq(Register dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x2D);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::addsd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

@@ -2641,7 +2641,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
   // Generate code to set the elements in the array that are not
   // literals.
-  for (int i = 0; i < node->values()->length(); i++) {
+  for (int i = 0; i < length; i++) {
     Expression* value = node->values()->at(i);
 
     // If value is a literal the property value is already set in the

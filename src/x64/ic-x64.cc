@@ -791,7 +791,6 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
 
     // Allocate a HeapNumber for the int and perform int-to-double
     // conversion.
-    ASSERT(array_type == kExternalUnsignedIntArray);
     // The value is zero-extended since we loaded the value from memory
     // with movl.
     __ cvtqsi2sd(xmm0, rcx);
@@ -1121,83 +1120,44 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   // The WebGL specification leaves the behavior of storing NaN and
   // +/-Infinity into integer arrays basically undefined. For more
   // reproducible behavior, convert these to zero.
-  __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
+  __ movsd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
   __ movq(rbx, FieldOperand(rbx, ExternalArray::kExternalPointerOffset));
   // rdi: untagged index
   // rbx: base pointer of external storage
   // top of FPU stack: value
   if (array_type == kExternalFloatArray) {
-    __ fstp_s(Operand(rbx, rdi, times_4, 0));
+    __ cvtsd2ss(xmm0, xmm0);
+    __ movss(Operand(rbx, rdi, times_4, 0), xmm0);
     __ ret(0);
   } else {
     // Need to perform float-to-int conversion.
-    // Test the top of the FP stack for NaN.
-    Label is_nan;
-    __ fucomi(0);
-    __ j(parity_even, &is_nan);
+    // Test the value for NaN.
 
-    __ push(rdx);  // Make room on the stack.  Receiver is no longer needed.
-    // TODO(lrn): If the rounding of this conversion is not deliberate, maybe
-    // switch to xmm registers.
-    __ fistp_d(Operand(rsp, 0));
-    __ pop(rdx);
+    // Convert to int32 and store the low byte/word.
+    // If the value is NaN or +/-infinity, the result is 0x80000000,
+    // which is automatically zero when taken mod 2^n, n < 32.
     // rdx: value (converted to an untagged integer)
     // rdi: untagged index
     // rbx: base pointer of external storage
     switch (array_type) {
       case kExternalByteArray:
       case kExternalUnsignedByteArray:
+        __ cvtsd2si(rdx, xmm0);
         __ movb(Operand(rbx, rdi, times_1, 0), rdx);
         break;
       case kExternalShortArray:
       case kExternalUnsignedShortArray:
+        __ cvtsd2si(rdx, xmm0);
         __ movw(Operand(rbx, rdi, times_2, 0), rdx);
         break;
       case kExternalIntArray:
       case kExternalUnsignedIntArray: {
-        // We also need to explicitly check for +/-Infinity. These are
-        // converted to MIN_INT, but we need to be careful not to
-        // confuse with legal uses of MIN_INT.  Since MIN_INT truncated
-        // to 8 or 16 bits is zero, we only perform this test when storing
-        // 32-bit ints.
-        Label not_infinity;
-        // This test would apparently detect both NaN and Infinity,
-        // but we've already checked for NaN using the FPU hardware
-        // above.
-        __ movzxwq(rcx, FieldOperand(rax, HeapNumber::kValueOffset + 6));
-        __ and_(rcx, Immediate(0x7FF0));
-        __ cmpw(rcx, Immediate(0x7FF0));
-        __ j(not_equal, &not_infinity);
-        __ movq(rdx, Immediate(0));
-        __ bind(&not_infinity);
+        // Convert to int64, so that NaN and infinities become
+        // 0x8000000000000000, which is zero mod 2^32.
+        __ cvtsd2siq(rdx, xmm0);
         __ movl(Operand(rbx, rdi, times_4, 0), rdx);
         break;
       }
-      default:
-        UNREACHABLE();
-        break;
-    }
-    __ ret(0);
-
-    __ bind(&is_nan);
-    // rdi: untagged index
-    // rbx: base pointer of external storage
-    __ ffree();
-    __ fincstp();
-    __ Set(rdx, 0);
-    switch (array_type) {
-      case kExternalByteArray:
-      case kExternalUnsignedByteArray:
-        __ movb(Operand(rbx, rdi, times_1, 0), rdx);
-        break;
-      case kExternalShortArray:
-      case kExternalUnsignedShortArray:
-        __ movw(Operand(rbx, rdi, times_2, 0), rdx);
-        break;
-      case kExternalIntArray:
-      case kExternalUnsignedIntArray:
-        __ movl(Operand(rbx, rdi, times_4, 0), rdx);
-        break;
       default:
         UNREACHABLE();
         break;
