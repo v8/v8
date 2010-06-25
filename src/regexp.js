@@ -197,6 +197,7 @@ function RegExpExec(string) {
       %_ObjectEquals(cache.regExp, this) &&
       %_ObjectEquals(cache.subject, string)) {
     if (cache.answerSaved) {
+      if (this.global) this.lastIndex = 0;
       return CloneRegExpResult(cache.answer);
     } else {
       saveAnswer = true;
