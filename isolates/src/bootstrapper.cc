@@ -340,7 +340,8 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
                                           Builtins::Name call,
                                           bool is_ecma_native) {
   Handle<String> symbol = Factory::LookupAsciiSymbol(name);
-  Handle<Code> call_code = Handle<Code>(Builtins::builtin(call));
+  Handle<Code> call_code = Handle<Code>(
+      Isolate::Current()->builtins()->builtin(call));
   Handle<JSFunction> function = prototype.is_null() ?
     Factory::NewFunctionWithoutPrototype(symbol, call_code) :
     Factory::NewFunctionWithPrototype(symbol,
@@ -474,7 +475,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
 
   // --- E m p t y ---
   Handle<Code> code =
-      Handle<Code>(Builtins::builtin(Builtins::EmptyFunction));
+      Handle<Code>(Isolate::Current()->builtins()->builtin(
+          Builtins::EmptyFunction));
   empty_function->set_code(*code);
   Handle<String> source = Factory::NewStringFromAscii(CStrVector("() {}"));
   Handle<Script> script = Factory::NewScript(source);
@@ -553,7 +555,8 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
 
   if (js_global_template.is_null()) {
     Handle<String> name = Handle<String>(HEAP->empty_symbol());
-    Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
+    Handle<Code> code = Handle<Code>(Isolate::Current()->builtins()->builtin(
+        Builtins::Illegal));
     js_global_function =
         Factory::NewFunction(name, JS_GLOBAL_OBJECT_TYPE,
                              JSGlobalObject::kSize, code, true);
@@ -583,7 +586,8 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
   Handle<JSFunction> global_proxy_function;
   if (global_template.IsEmpty()) {
     Handle<String> name = Handle<String>(HEAP->empty_symbol());
-    Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
+    Handle<Code> code = Handle<Code>(Isolate::Current()->builtins()->builtin(
+        Builtins::Illegal));
     global_proxy_function =
         Factory::NewFunction(name, JS_GLOBAL_PROXY_TYPE,
                              JSGlobalProxy::kSize, code, true);
@@ -680,7 +684,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                         Isolate::Current()->initial_object_prototype(),
                         Builtins::ArrayCode, true);
     array_function->shared()->set_construct_stub(
-        Builtins::builtin(Builtins::ArrayConstructCode));
+        Isolate::Current()->builtins()->builtin(Builtins::ArrayConstructCode));
     array_function->shared()->DontAdaptArguments();
 
     // This seems a bit hackish, but we need to make sure Array.length
@@ -840,7 +844,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // This is done by introducing an anonymous function with
     // class_name equals 'Arguments'.
     Handle<String> symbol = Factory::LookupAsciiSymbol("Arguments");
-    Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
+    Handle<Code> code = Handle<Code>(
+        Isolate::Current()->builtins()->builtin(Builtins::Illegal));
     Handle<JSObject> prototype =
         Handle<JSObject>(
             JSObject::cast(global_context()->object_function()->prototype()));
@@ -888,7 +893,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
   {  // --- context extension
     // Create a function for the context extension objects.
-    Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
+    Handle<Code> code = Handle<Code>(
+        Isolate::Current()->builtins()->builtin(Builtins::Illegal));
     Handle<JSFunction> context_extension_fun =
         Factory::NewFunction(Factory::empty_symbol(),
                              JS_CONTEXT_EXTENSION_OBJECT_TYPE,
@@ -905,7 +911,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   {
     // Setup the call-as-function delegate.
     Handle<Code> code =
-        Handle<Code>(Builtins::builtin(Builtins::HandleApiCallAsFunction));
+        Handle<Code>(Isolate::Current()->builtins()->builtin(
+            Builtins::HandleApiCallAsFunction));
     Handle<JSFunction> delegate =
         Factory::NewFunction(Factory::empty_symbol(), JS_OBJECT_TYPE,
                              JSObject::kHeaderSize, code, true);
@@ -916,7 +923,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   {
     // Setup the call-as-constructor delegate.
     Handle<Code> code =
-        Handle<Code>(Builtins::builtin(Builtins::HandleApiCallAsConstructor));
+        Handle<Code>(Isolate::Current()->builtins()->builtin(
+            Builtins::HandleApiCallAsConstructor));
     Handle<JSFunction> delegate =
         Factory::NewFunction(Factory::empty_symbol(), JS_OBJECT_TYPE,
                              JSObject::kHeaderSize, code, true);
@@ -1046,7 +1054,8 @@ bool Genesis::InstallNatives() {
   // Create a function for the builtins object. Allocate space for the
   // JavaScript builtins, a reference to the builtins object
   // (itself) and a reference to the global_context directly in the object.
-  Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
+  Handle<Code> code = Handle<Code>(
+      Isolate::Current()->builtins()->builtin(Builtins::Illegal));
   Handle<JSFunction> builtins_fun =
       Factory::NewFunction(Factory::empty_symbol(), JS_BUILTINS_OBJECT_TYPE,
                            JSBuiltinsObject::kSize, code, true);

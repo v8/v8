@@ -511,7 +511,7 @@ Failure* Isolate::StackOverflow() {
   HandleScope scope;
   Handle<String> key = Factory::stack_overflow_symbol();
   Handle<JSObject> boilerplate =
-      Handle<JSObject>::cast(GetProperty(builtins(), key));
+      Handle<JSObject>::cast(GetProperty(js_builtins_object(), key));
   Handle<Object> exception = Copy(boilerplate);
   // TODO(1240995): To avoid having to call JavaScript code to compute
   // the message for stack overflow exceptions which is very likely to

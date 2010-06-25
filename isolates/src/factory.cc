@@ -413,7 +413,7 @@ Handle<Object> Factory::NewError(const char* maker,
                                  Handle<JSArray> args) {
   Handle<String> make_str = Factory::LookupAsciiSymbol(maker);
   Handle<Object> fun_obj(
-      Isolate::Current()->builtins()->GetProperty(*make_str));
+      Isolate::Current()->js_builtins_object()->GetProperty(*make_str));
   // If the builtins haven't been properly configured yet this error
   // constructor may not have been defined.  Bail out.
   if (!fun_obj->IsJSFunction())
@@ -427,10 +427,7 @@ Handle<Object> Factory::NewError(const char* maker,
   // running the factory method, use the exception as the result.
   bool caught_exception;
   Handle<Object> result = Execution::TryCall(fun,
-                                             Isolate::Current()->builtins(),
-                                             2,
-                                             argv,
-                                             &caught_exception);
+      Isolate::Current()->js_builtins_object(), 2, argv, &caught_exception);
   return result;
 }
 
@@ -446,17 +443,14 @@ Handle<Object> Factory::NewError(const char* constructor,
   Handle<JSFunction> fun =
       Handle<JSFunction>(
           JSFunction::cast(
-              Isolate::Current()->builtins()->GetProperty(*constr)));
+              Isolate::Current()->js_builtins_object()->GetProperty(*constr)));
   Object** argv[1] = { Handle<Object>::cast(message).location() };
 
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
   bool caught_exception;
   Handle<Object> result = Execution::TryCall(fun,
-                                             Isolate::Current()->builtins(),
-                                             1,
-                                             argv,
-                                             &caught_exception);
+      Isolate::Current()->js_builtins_object(), 1, argv, &caught_exception);
   return result;
 }
 
@@ -788,9 +782,11 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,
 
 Handle<JSFunction> Factory::CreateApiFunction(
     Handle<FunctionTemplateInfo> obj, ApiInstanceType instance_type) {
-  Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::HandleApiCall));
+  Handle<Code> code = Handle<Code>(Isolate::Current()->builtins()->builtin(
+      Builtins::HandleApiCall));
   Handle<Code> construct_stub =
-      Handle<Code>(Builtins::builtin(Builtins::JSConstructStubApi));
+      Handle<Code>(Isolate::Current()->builtins()->builtin(
+          Builtins::JSConstructStubApi));
 
   int internal_field_count = 0;
   if (!obj->instance_template()->IsUndefined()) {

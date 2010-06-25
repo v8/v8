@@ -315,7 +315,7 @@ class VirtualFrame : public ZoneObject {
 
   // Call runtime given the number of arguments expected on (and
   // removed from) the stack.
-  Result CallRuntime(Runtime::Function* f, int arg_count);
+  Result CallRuntime(const Runtime::Function* f, int arg_count);
   Result CallRuntime(Runtime::FunctionId id, int arg_count);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -336,7 +336,6 @@ class VirtualFrame : public ZoneObject {
   // frame.  They are not dropped.
   Result CallKeyedLoadIC(RelocInfo::Mode mode);
 
-
   // Calling a store IC and a keyed store IC differ only by which ic is called
   // and by the order of the three arguments on the frame.
   Result CallCommonStoreIC(Handle<Code> ic,
@@ -347,7 +346,8 @@ class VirtualFrame : public ZoneObject {
   // Call store IC.  Name, value, and receiver are found on top
   // of the frame.  All are dropped.
   Result CallStoreIC() {
-    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+    Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+        Builtins::StoreIC_Initialize));
     Result name = Pop();
     Result value = Pop();
     Result receiver = Pop();
@@ -357,7 +357,8 @@ class VirtualFrame : public ZoneObject {
   // Call keyed store IC.  Value, key, and receiver are found on top
   // of the frame.  All are dropped.
   Result CallKeyedStoreIC() {
-    Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+    Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedStoreIC_Initialize));
     Result value = Pop();
     Result key = Pop();
     Result receiver = Pop();

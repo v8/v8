@@ -58,7 +58,8 @@ inline const char* StateToString(StateTag state) {
 VMState::VMState(StateTag state)
     : disabled_(true),
       state_(OTHER),
-      external_callback_(NULL) {
+      external_callback_(NULL),
+      isolate_(Isolate::Current()) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!LOGGER->is_logging() && !CpuProfiler::is_profiling()) {
     return;
@@ -74,8 +75,8 @@ VMState::VMState(StateTag state)
   if (state == EXTERNAL) state = OTHER;
 #endif
   state_ = state;
-  previous_ = current_state_;  // Save the previous state.
-  current_state_ = this;       // Install the new state.
+  previous_ = isolate_->vm_state();   // Save the previous state.
+  isolate_->set_vm_state(this);       // Install the new state.
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
@@ -102,8 +103,9 @@ VMState::VMState(StateTag state)
 
 
 VMState::~VMState() {
+  ASSERT(isolate_ == Isolate::Current());
   if (disabled_) return;
-  current_state_ = previous_;  // Return to the previous state.
+  isolate_->set_vm_state(previous_);  // Return to the previous state.
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {

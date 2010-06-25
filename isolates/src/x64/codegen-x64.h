@@ -546,16 +546,14 @@ class CodeGenerator: public AstVisitor {
 
   void CheckStack();
 
-  struct InlineRuntimeLUT {
-    void (CodeGenerator::*method)(ZoneList<Expression*>*);
-    const char* name;
-    int nargs;
-  };
-  static InlineRuntimeLUT* FindInlineRuntimeLUT(Handle<String> name);
+  static InlineRuntimeFunctionsTable::Entry* FindInlineRuntimeLUT(
+      Handle<String> name);
+
   bool CheckForInlineRuntimeCall(CallRuntime* node);
-  static bool PatchInlineRuntimeEntry(Handle<String> name,
-                                      const InlineRuntimeLUT& new_entry,
-                                      InlineRuntimeLUT* old_entry);
+  static bool PatchInlineRuntimeEntry(
+      Handle<String> name,
+      const InlineRuntimeFunctionsTable::Entry& new_entry,
+      InlineRuntimeFunctionsTable::Entry* old_entry);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
   static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
@@ -696,9 +694,8 @@ class CodeGenerator: public AstVisitor {
   // in a spilled state.
   bool in_spilled_code_;
 
-  static InlineRuntimeLUT kInlineRuntimeLUT[];
-
   friend class VirtualFrame;
+  friend class Isolate;
   friend class JumpTarget;
   friend class Reference;
   friend class Result;
@@ -707,6 +704,7 @@ class CodeGenerator: public AstVisitor {
   friend class FullCodeGenSyntaxChecker;
 
   friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
+  friend class InlineRuntimeFunctionsTable;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

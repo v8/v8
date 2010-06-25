@@ -1377,73 +1377,108 @@ static void Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
 }
 #endif
 
-Object* Builtins::builtins_[builtin_count] = { NULL, };
-const char* Builtins::names_[builtin_count] = { NULL, };
+
+Builtins::Builtins() {
+  memset(builtins_, 0, sizeof(builtins_[0]) * builtin_count);
+  memset(names_, 0, sizeof(names_[0]) * builtin_count);
+}
+
+
+Builtins::~Builtins() {
+}
+
 
 #define DEF_ENUM_C(name, ignore) FUNCTION_ADDR(Builtin_##name),
-  Address Builtins::c_functions_[cfunction_count] = {
-    BUILTIN_LIST_C(DEF_ENUM_C)
-  };
+Address const Builtins::c_functions_[cfunction_count] = {
+  BUILTIN_LIST_C(DEF_ENUM_C)
+};
 #undef DEF_ENUM_C
 
 #define DEF_JS_NAME(name, ignore) #name,
 #define DEF_JS_ARGC(ignore, argc) argc,
-const char* Builtins::javascript_names_[id_count] = {
+const char* const Builtins::javascript_names_[id_count] = {
   BUILTINS_LIST_JS(DEF_JS_NAME)
 };
 
-int Builtins::javascript_argc_[id_count] = {
+int const Builtins::javascript_argc_[id_count] = {
   BUILTINS_LIST_JS(DEF_JS_ARGC)
 };
 #undef DEF_JS_NAME
 #undef DEF_JS_ARGC
 
-static bool is_initialized = false;
+struct BuiltinDesc {
+  byte* generator;
+  byte* c_code;
+  const char* s_name;  // name is only used for generating log information.
+  int name;
+  Code::Flags flags;
+  BuiltinExtraArguments extra_args;
+};
+
+class BuiltinFunctionTable {
+ public:
+  BuiltinFunctionTable() {
+    Builtins::InitBuiltinFunctionTable();
+  }
+
+  static const BuiltinDesc* functions() { return functions_; }
+
+ private:
+  static BuiltinDesc functions_[Builtins::builtin_count + 1];
+
+  friend class Builtins;
+};
+
+BuiltinDesc BuiltinFunctionTable::functions_[Builtins::builtin_count + 1];
+
+static const BuiltinFunctionTable builtin_function_table_init;
+
+// Define array of pointers to generators and C builtin functions.
+// We do this in a sort of roundabout way so that we can do the initialization
+// within the lexical scope of Builtins:: and within a context where
+// Code::Flags names a non-abstract type.
+void Builtins::InitBuiltinFunctionTable() {
+  BuiltinDesc* functions = BuiltinFunctionTable::functions_;
+  functions[builtin_count].generator = NULL;
+  functions[builtin_count].c_code = NULL;
+  functions[builtin_count].s_name = NULL;
+  functions[builtin_count].name = builtin_count;
+  functions[builtin_count].flags = static_cast<Code::Flags>(0);
+  functions[builtin_count].extra_args = NO_EXTRA_ARGUMENTS;
+
+#define DEF_FUNCTION_PTR_C(aname, aextra_args)                         \
+    functions->generator = FUNCTION_ADDR(Generate_Adaptor);            \
+    functions->c_code = FUNCTION_ADDR(Builtin_##aname);                \
+    functions->s_name = #aname;                                        \
+    functions->name = c_##aname;                                       \
+    functions->flags = Code::ComputeFlags(Code::BUILTIN);              \
+    functions->extra_args = aextra_args;                               \
+    ++functions;
+
+#define DEF_FUNCTION_PTR_A(aname, kind, state)                              \
+    functions->generator = FUNCTION_ADDR(Generate_##aname);                 \
+    functions->c_code = NULL;                                               \
+    functions->s_name = #aname;                                             \
+    functions->name = aname;                                                \
+    functions->flags = Code::ComputeFlags(Code::kind, NOT_IN_LOOP, state);  \
+    functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
+    ++functions;
+
+  BUILTIN_LIST_C(DEF_FUNCTION_PTR_C)
+  BUILTIN_LIST_A(DEF_FUNCTION_PTR_A)
+  BUILTIN_LIST_DEBUG_A(DEF_FUNCTION_PTR_A)
+
+#undef DEF_FUNCTION_PTR_C
+#undef DEF_FUNCTION_PTR_A
+}
+
 void Builtins::Setup(bool create_heap_objects) {
-  ASSERT(!is_initialized);
+  ASSERT(!initialized_);
 
   // Create a scope for the handles in the builtins.
   HandleScope scope;
 
-  struct BuiltinDesc {
-    byte* generator;
-    byte* c_code;
-    const char* s_name;  // name is only used for generating log information.
-    int name;
-    Code::Flags flags;
-    BuiltinExtraArguments extra_args;
-  };
-
-#define DEF_FUNCTION_PTR_C(name, extra_args) \
-    { FUNCTION_ADDR(Generate_Adaptor),            \
-      FUNCTION_ADDR(Builtin_##name),              \
-      #name,                                      \
-      c_##name,                                   \
-      Code::ComputeFlags(Code::BUILTIN),          \
-      extra_args                                  \
-    },
-
-#define DEF_FUNCTION_PTR_A(name, kind, state)              \
-    { FUNCTION_ADDR(Generate_##name),                      \
-      NULL,                                                \
-      #name,                                               \
-      name,                                                \
-      Code::ComputeFlags(Code::kind, NOT_IN_LOOP, state),  \
-      NO_EXTRA_ARGUMENTS                                   \
-    },
-
-  // Define array of pointers to generators and C builtin functions.
-  static BuiltinDesc functions[] = {
-      BUILTIN_LIST_C(DEF_FUNCTION_PTR_C)
-      BUILTIN_LIST_A(DEF_FUNCTION_PTR_A)
-      BUILTIN_LIST_DEBUG_A(DEF_FUNCTION_PTR_A)
-      // Terminator:
-      { NULL, NULL, NULL, builtin_count, static_cast<Code::Flags>(0),
-        NO_EXTRA_ARGUMENTS }
-  };
-
-#undef DEF_FUNCTION_PTR_C
-#undef DEF_FUNCTION_PTR_A
+  const BuiltinDesc* functions = BuiltinFunctionTable::functions();
 
   // For now we generate builtin adaptor code into a stack-allocated
   // buffer, before copying it into individual code objects.
@@ -1494,12 +1529,12 @@ void Builtins::Setup(bool create_heap_objects) {
   }
 
   // Mark as initialized.
-  is_initialized = true;
+  initialized_ = true;
 }
 
 
 void Builtins::TearDown() {
-  is_initialized = false;
+  initialized_ = false;
 }
 
 
@@ -1509,7 +1544,8 @@ void Builtins::IterateBuiltins(ObjectVisitor* v) {
 
 
 const char* Builtins::Lookup(byte* pc) {
-  if (is_initialized) {  // may be called during initialization (disassembler!)
+  // may be called during initialization (disassembler!)
+  if (initialized_) {
     for (int i = 0; i < builtin_count; i++) {
       Code* entry = Code::cast(builtins_[i]);
       if (entry->contains(pc)) {

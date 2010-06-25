@@ -289,7 +289,7 @@ void VirtualFrame::CallJSFunction(int arg_count) {
 }
 
 
-void VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+void VirtualFrame::CallRuntime(const Runtime::Function* f, int arg_count) {
   SpillAll();
   Forget(arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
@@ -322,7 +322,8 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 
 
 void VirtualFrame::CallLoadIC(Handle<String> name, RelocInfo::Mode mode) {
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::LoadIC_Initialize));
   PopToR0();
   SpillAll();
   __ mov(r2, Operand(name));
@@ -331,7 +332,8 @@ void VirtualFrame::CallLoadIC(Handle<String> name, RelocInfo::Mode mode) {
 
 
 void VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::StoreIC_Initialize));
   PopToR0();
   if (is_contextual) {
     SpillAll();
@@ -346,7 +348,8 @@ void VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
 
 
 void VirtualFrame::CallKeyedLoadIC() {
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Initialize));
   PopToR1R0();
   SpillAll();
   CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
@@ -354,7 +357,8 @@ void VirtualFrame::CallKeyedLoadIC() {
 
 
 void VirtualFrame::CallKeyedStoreIC() {
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedStoreIC_Initialize));
   PopToR1R0();
   SpillAll();
   EmitPop(r2);
@@ -377,7 +381,8 @@ void VirtualFrame::CallCodeObject(Handle<Code> code,
       ASSERT(dropped_args == 0);
       break;
     case Code::BUILTIN:
-      ASSERT(*code == Builtins::builtin(Builtins::JSConstructCall));
+      ASSERT(*code == Isolate::Current()->builtins()->builtin(
+          Builtins::JSConstructCall));
       break;
     default:
       UNREACHABLE();

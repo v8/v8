@@ -766,7 +766,8 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       }
       __ pop(r2);  // Receiver.
 
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedStoreIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
       // Value in r0 is ignored (declarations are statements).
     }
@@ -1042,7 +1043,8 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     // object (receiver) in r0.
     __ ldr(r0, CodeGenerator::GlobalObject());
     __ mov(r2, Operand(var->name()));
-    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+        Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
     Apply(context, r0);
 
@@ -1095,7 +1097,8 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     __ mov(r0, Operand(key_literal->handle()));
 
     // Call keyed load IC. It has arguments key and receiver in r0 and r1.
-    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedLoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     Apply(context, r0);
   }
@@ -1168,7 +1171,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           VisitForValue(value, kAccumulator);
           __ mov(r2, Operand(key->handle()));
           __ ldr(r1, MemOperand(sp));
-          Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+          Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+              Builtins::StoreIC_Initialize));
           __ Call(ic, RelocInfo::CODE_TARGET);
           break;
         }
@@ -1370,7 +1374,8 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   Literal* key = prop->key()->AsLiteral();
   __ mov(r2, Operand(key->handle()));
   // Call load IC. It has arguments receiver and property name r0 and r2.
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::LoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 }
 
@@ -1378,7 +1383,8 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   // Call keyed load IC. It has arguments key and receiver in r0 and r1.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 }
 
@@ -1423,7 +1429,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       __ mov(r1, r0);
       __ pop(r0);  // Restore value.
       __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+      Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+          Builtins::StoreIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -1434,7 +1441,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       __ mov(r1, r0);
       __ pop(r2);
       __ pop(r0);  // Restore value.
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedStoreIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -1457,7 +1465,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // r2, and the global object in r1.
     __ mov(r2, Operand(var->name()));
     __ ldr(r1, CodeGenerator::GlobalObject());
-    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+    Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+        Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
 
   } else if (var->mode() != Variable::CONST || op == Token::INIT_CONST) {
@@ -1547,7 +1556,8 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ pop(r1);
   }
 
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::StoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -1591,7 +1601,8 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
     __ pop(r2);
   }
 
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -1777,7 +1788,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         SetSourcePosition(prop->position());
         __ pop(r1);  // We do not need to keep the receiver.
 
-        Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+        Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+            Builtins::KeyedLoadIC_Initialize));
         __ Call(ic, RelocInfo::CODE_TARGET);
         // Push result (function).
         __ push(r0);
@@ -1838,7 +1850,8 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   // Function is in sp[arg_count + 1].
   __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
 
-  Handle<Code> construct_builtin(Builtins::builtin(Builtins::JSConstructCall));
+  Handle<Code> construct_builtin(Isolate::Current()->builtins()->builtin(
+      Builtins::JSConstructCall));
   __ Call(construct_builtin, RelocInfo::CONSTRUCT_CALL);
 
   // Replace function on TOS with result in r0, or pop it.
@@ -2700,7 +2713,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         Comment cmnt(masm_, "Global variable");
         __ ldr(r0, CodeGenerator::GlobalObject());
         __ mov(r2, Operand(proxy->name()));
-        Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+        Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+            Builtins::LoadIC_Initialize));
         // Use a regular load, not a contextual load, to avoid a reference
         // error.
         __ Call(ic, RelocInfo::CODE_TARGET);
@@ -2906,7 +2920,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case NAMED_PROPERTY: {
       __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
       __ pop(r1);
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+      Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+          Builtins::StoreIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
       if (expr->is_postfix()) {
         if (context_ != Expression::kEffect) {
@@ -2920,7 +2935,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       __ pop(r1);  // Key.
       __ pop(r2);  // Receiver.
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedStoreIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
       if (expr->is_postfix()) {
         if (context_ != Expression::kEffect) {

@@ -149,13 +149,13 @@ Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
   Handle<JSFunction> fun =
       Handle<JSFunction>(
           JSFunction::cast(
-              Isolate::Current()->builtins()->GetProperty(*fmt_str)));
+              Isolate::Current()->js_builtins_object()->GetProperty(*fmt_str)));
   Object** argv[1] = { data.location() };
 
   bool caught_exception;
   Handle<Object> result =
       Execution::TryCall(fun,
-          Isolate::Current()->builtins(), 1, argv, &caught_exception);
+          Isolate::Current()->js_builtins_object(), 1, argv, &caught_exception);
 
   if (caught_exception || !result->IsString()) {
     return Factory::LookupAsciiSymbol("<error>");

@@ -275,7 +275,7 @@ class VirtualFrame : public ZoneObject {
 
   // Call runtime given the number of arguments expected on (and
   // removed from) the stack.
-  void CallRuntime(Runtime::Function* f, int arg_count);
+  void CallRuntime(const Runtime::Function* f, int arg_count);
   void CallRuntime(Runtime::FunctionId id, int arg_count);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

@@ -1548,7 +1548,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   __ CompareObjectType(r0, r1, r2, JS_FUNCTION_TYPE);
   __ b(ne, &build_args);
   __ ldr(r0, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
-  Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
+  Handle<Code> apply_code(
+      Isolate::Current()->builtins()->builtin(Builtins::FunctionApply));
   __ ldr(r1, FieldMemOperand(r0, SharedFunctionInfo::kCodeOffset));
   __ cmp(r1, Operand(apply_code));
   __ b(ne, &build_args);
@@ -3369,7 +3370,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         // else fall through
       case ObjectLiteral::Property::COMPUTED:
         if (key->handle()->IsSymbol()) {
-          Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+          Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+              Builtins::StoreIC_Initialize));
           Load(value);
           frame_->EmitPop(r0);
           __ mov(r2, Operand(key->handle()));
@@ -4174,7 +4176,8 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
   CodeForSourcePosition(node->position());
-  Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::JSConstructCall));
   frame_->CallCodeObject(ic, RelocInfo::CONSTRUCT_CALL, arg_count + 1);
 
   // Discard old TOS value and push r0 on the stack (same as Pop(), push(r0)).
@@ -5163,7 +5166,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   ZoneList<Expression*>* args = node->arguments();
   Comment cmnt(masm_, "[ CallRuntime");
-  Runtime::Function* function = node->function();
+  const Runtime::Function* function = node->function();
 
   if (function == NULL) {
     // Prepare stack for calling JS runtime function.
@@ -5899,7 +5902,8 @@ void DeferredReferenceGetNamedValue::Generate() {
 
   // The rest of the instructions in the deferred code must be together.
   { Assembler::BlockConstPoolScope block_const_pool(masm_);
-    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+        Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop(1) instruction to indicate that the
     // in-object has been inlined.
@@ -5958,7 +5962,8 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // The rest of the instructions in the deferred code must be together.
   { Assembler::BlockConstPoolScope block_const_pool(masm_);
     // Call keyed load IC. It has the arguments key and receiver in r0 and r1.
-    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedLoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop instruction to indicate that the
     // keyed load has been inlined.
@@ -6008,7 +6013,8 @@ void DeferredReferenceSetKeyedValue::Generate() {
   { Assembler::BlockConstPoolScope block_const_pool(masm_);
     // Call keyed store IC. It has the arguments value, key and receiver in r0,
     // r1 and r2.
-    Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+    Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedStoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop instruction to indicate that the
     // keyed store has been inlined.
@@ -9558,8 +9564,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ mov(r0, Operand(argc_));  // Setup the number of arguments.
   __ mov(r2, Operand(0));
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
-  __ Jump(Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline)),
-          RelocInfo::CODE_TARGET);
+  __ Jump(Handle<Code>(Isolate::Current()->builtins()->builtin(
+      Builtins::ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
 }
 
 

@@ -3138,7 +3138,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ CmpObjectType(eax, JS_FUNCTION_TYPE, ecx);
       __ j(not_equal, &build_args);
       __ mov(ecx, FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset));
-      Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
+      Handle<Code> apply_code(Isolate::Current()->builtins()->builtin(
+          Builtins::FunctionApply));
       __ cmp(FieldOperand(ecx, SharedFunctionInfo::kCodeOffset),
              Immediate(apply_code));
       __ j(not_equal, &build_args);
@@ -7430,7 +7431,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   ZoneList<Expression*>* args = node->arguments();
   Comment cmnt(masm_, "[ CallRuntime");
-  Runtime::Function* function = node->function();
+  const Runtime::Function* function = node->function();
 
   if (function == NULL) {
     // Push the builtins object found in the current global object.
@@ -8561,7 +8562,8 @@ void DeferredReferenceGetNamedValue::Generate() {
     __ mov(eax, receiver_);
   }
   __ Set(ecx, Immediate(name_));
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::LoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   // The call must be followed by a test eax instruction to indicate
   // that the inobject property case was inlined.
@@ -8626,7 +8628,8 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // it in the IC initialization code and patch the cmp instruction.
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the __
@@ -8724,7 +8727,8 @@ void DeferredReferenceSetKeyedValue::Generate() {
   }
 
   // Call the IC stub.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedStoreIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the
@@ -12014,7 +12018,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ Set(eax, Immediate(argc_));
   __ Set(ebx, Immediate(0));
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
-  Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
+  Handle<Code> adaptor(Isolate::Current()->builtins()->builtin(
+      Builtins::ArgumentsAdaptorTrampoline));
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
 

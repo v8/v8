@@ -389,9 +389,6 @@ class Debug_Address;
 #endif
 
 
-typedef void* ExternalReferenceRedirector(void* original, bool fp_return);
-
-
 // An ExternalReference represents a C++ address used in the generated
 // code. All references to C++ functions and variables must be encapsulated in
 // an ExternalReference instance. This is done in order to track the origin of
@@ -407,7 +404,7 @@ class ExternalReference BASE_EMBEDDED {
 
   explicit ExternalReference(Runtime::FunctionId id);
 
-  explicit ExternalReference(Runtime::Function* f);
+  explicit ExternalReference(const Runtime::Function* f);
 
   explicit ExternalReference(const IC_Utility& ic_utility);
 
@@ -502,27 +499,30 @@ class ExternalReference BASE_EMBEDDED {
   // This lets you register a function that rewrites all external references.
   // Used by the ARM simulator to catch calls to external references.
   static void set_redirector(ExternalReferenceRedirector* redirector) {
-    ASSERT(redirector_ == NULL);  // We can't stack them.
-    redirector_ = redirector;
+    // We can't stack them.
+    ASSERT(Isolate::Current()->external_reference_redirector() == NULL);
+    Isolate::Current()->set_external_reference_redirector(redirector);
   }
 
  private:
   explicit ExternalReference(void* address)
       : address_(address) {}
 
-  static ExternalReferenceRedirector* redirector_;
-
   static void* Redirect(void* address, bool fp_return = false) {
-    if (redirector_ == NULL) return address;
-    void* answer = (*redirector_)(address, fp_return);
+    ExternalReferenceRedirector* redirector =
+        Isolate::Current()->external_reference_redirector();
+    if (redirector == NULL) return address;
+    void* answer = (*redirector)(address, fp_return);
     return answer;
   }
 
   static void* Redirect(Address address_arg, bool fp_return = false) {
+    ExternalReferenceRedirector* redirector =
+        Isolate::Current()->external_reference_redirector();
     void* address = reinterpret_cast<void*>(address_arg);
-    void* answer = (redirector_ == NULL) ?
+    void* answer = (redirector == NULL) ?
                    address :
-                   (*redirector_)(address, fp_return);
+                   (*redirector)(address, fp_return);
     return answer;
   }
 

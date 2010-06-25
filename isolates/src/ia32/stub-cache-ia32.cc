@@ -398,7 +398,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
 
   // Jump to the fast api call builtin (tail call).
   Handle<Code> code = Handle<Code>(
-      Builtins::builtin(Builtins::FastHandleApiCall));
+      Isolate::Current()->builtins()->builtin(Builtins::FastHandleApiCall));
   ParameterCount expected(0);
   __ InvokeCode(code, expected, expected,
                 RelocInfo::CODE_TARGET, JUMP_FUNCTION);
@@ -613,9 +613,9 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
   ASSERT(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
   Code* code = NULL;
   if (kind == Code::LOAD_IC) {
-    code = Builtins::builtin(Builtins::LoadIC_Miss);
+    code = Isolate::Current()->builtins()->builtin(Builtins::LoadIC_Miss);
   } else {
-    code = Builtins::builtin(Builtins::KeyedLoadIC_Miss);
+    code = Isolate::Current()->builtins()->builtin(Builtins::KeyedLoadIC_Miss);
   }
 
   Handle<Code> ic(code);
@@ -1795,7 +1795,8 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
   // Handle store cache miss.
   __ bind(&miss);
   __ mov(ecx, Immediate(Handle<String>(name)));  // restore name
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::StoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -1846,7 +1847,8 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
 
   // Handle store cache miss.
   __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::StoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -1895,7 +1897,8 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 
   // Handle store cache miss.
   __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::StoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -1930,7 +1933,8 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // Handle store cache miss.
   __ bind(&miss);
   __ IncrementCounter(&Counters::named_store_global_inline_miss, 1);
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::StoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -1967,7 +1971,8 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   // Handle store cache miss.
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_store_field, 1);
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedStoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -2489,7 +2494,8 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // Jump to the generic stub in case the specialized code cannot handle the
   // construction.
   __ bind(&generic_stub_call);
-  Code* code = Builtins::builtin(Builtins::JSConstructStubGeneric);
+  Code* code = Isolate::Current()->builtins()->builtin(
+      Builtins::JSConstructStubGeneric);
   Handle<Code> generic_construct_stub(code);
   __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
 

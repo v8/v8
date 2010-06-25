@@ -1094,7 +1094,8 @@ Object* MacroAssembler::TryCallRuntime(Runtime::FunctionId id,
 }
 
 
-void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f,
+                                 int num_arguments) {
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
   // expectation.
@@ -1124,7 +1125,7 @@ void MacroAssembler::CallExternalReference(ExternalReference ref,
 }
 
 
-Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
+Object* MacroAssembler::TryCallRuntime(const Runtime::Function* f,
                                        int num_arguments) {
   if (f->nargs >= 0 && f->nargs != num_arguments) {
     IllegalOperation(num_arguments);
@@ -1283,7 +1284,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
   if (!definitely_matches) {
     Handle<Code> adaptor =
-        Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
+        Handle<Code>(Isolate::Current()->builtins()->builtin(
+            Builtins::ArgumentsAdaptorTrampoline));
     if (!code_constant.is_null()) {
       mov(edx, Immediate(code_constant));
       add(Operand(edx), Immediate(Code::kHeaderSize - kHeapObjectTag));

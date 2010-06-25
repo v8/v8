@@ -252,10 +252,10 @@ void Comparator::CalculateDifference(Comparator::Input* input,
 }
 
 
-static bool CompareSubstrings(Handle<String> s1, int pos1,
+static bool CompareSubstrings(Isolate* isolate, Handle<String> s1, int pos1,
                               Handle<String> s2, int pos2, int len) {
-  static StringInputBuffer buf1;
-  static StringInputBuffer buf2;
+  StringInputBuffer& buf1 = *isolate->liveedit_compare_substrings_buf1();
+  StringInputBuffer& buf2 = *isolate->liveedit_compare_substrings_buf2();
   buf1.Reset(*s1);
   buf1.Seek(pos1);
   buf2.Reset(*s2);
@@ -314,9 +314,10 @@ class LineEndsWrapper {
 // Represents 2 strings as 2 arrays of lines.
 class LineArrayCompareInput : public Comparator::Input {
  public:
-  LineArrayCompareInput(Handle<String> s1, Handle<String> s2,
+  LineArrayCompareInput(Isolate* isolate, Handle<String> s1, Handle<String> s2,
                         LineEndsWrapper line_ends1, LineEndsWrapper line_ends2)
-      : s1_(s1), s2_(s2), line_ends1_(line_ends1), line_ends2_(line_ends2) {
+      : isolate_(isolate), s1_(s1), s2_(s2), line_ends1_(line_ends1),
+        line_ends2_(line_ends2) {
   }
   int getLength1() {
     return line_ends1_.length();
@@ -334,10 +335,12 @@ class LineArrayCompareInput : public Comparator::Input {
     if (len1 != len2) {
       return false;
     }
-    return CompareSubstrings(s1_, line_start1, s2_, line_start2, len1);
+    return CompareSubstrings(isolate_, s1_, line_start1, s2_, line_start2,
+                             len1);
   }
 
  private:
+  Isolate* isolate_;
   Handle<String> s1_;
   Handle<String> s2_;
   LineEndsWrapper line_ends1_;
@@ -385,7 +388,8 @@ Handle<JSArray> LiveEdit::CompareStringsLinewise(Handle<String> s1,
   LineEndsWrapper line_ends1(s1);
   LineEndsWrapper line_ends2(s2);
 
-  LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
+  LineArrayCompareInput
+      input(Isolate::Current(), s1, s2, line_ends1, line_ends2);
   LineArrayCompareOutput output(line_ends1, line_ends2);
 
   Comparator::CalculateDifference(&input, &output);
@@ -394,7 +398,7 @@ Handle<JSArray> LiveEdit::CompareStringsLinewise(Handle<String> s1,
 }
 
 
-static void CompileScriptForTracker(Handle<Script> script) {
+static void CompileScriptForTracker(Isolate* isolate, Handle<Script> script) {
   const bool is_eval = false;
   const bool is_global = true;
   // TODO(635): support extensions.
@@ -411,19 +415,19 @@ static void CompileScriptForTracker(Handle<Script> script) {
 
   // Check for parse errors.
   if (lit == NULL) {
-    ASSERT(Isolate::Current()->has_pending_exception());
+    ASSERT(isolate->has_pending_exception());
     return;
   }
 
   // Compile the code.
   CompilationInfo info(lit, script, is_eval);
 
-  LiveEditFunctionTracker tracker(lit);
+  LiveEditFunctionTracker tracker(isolate, lit);
   Handle<Code> code = MakeCodeForLiveEdit(&info);
 
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
-    Isolate::Current()->StackOverflow();
+    isolate->StackOverflow();
     return;
   }
   tracker.RecordRootFunctionInfo(code);
@@ -700,18 +704,17 @@ class FunctionInfoListener {
   int current_parent_index_;
 };
 
-static FunctionInfoListener* active_function_info_listener = NULL;
-
 JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
                                      Handle<String> source) {
+  Isolate* isolate = Isolate::Current();
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
   FunctionInfoListener listener;
   Handle<Object> original_source = Handle<Object>(script->source());
   script->set_source(*source);
-  active_function_info_listener = &listener;
-  CompileScriptForTracker(script);
-  active_function_info_listener = NULL;
+  isolate->set_active_function_info_listener(&listener);
+  CompileScriptForTracker(isolate, script);
+  isolate->set_active_function_info_listener(NULL);
   script->set_source(*original_source);
 
   return *(listener.GetResult());
@@ -869,7 +872,8 @@ Object* LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
   shared_info->set_end_position(compile_info_wrapper.GetEndPosition());
 
   shared_info->set_construct_stub(
-      Builtins::builtin(Builtins::JSConstructStubGeneric));
+      Isolate::Current()->builtins()->builtin(
+          Builtins::JSConstructStubGeneric));
 
   return HEAP->undefined_value();
 }
@@ -1202,7 +1206,8 @@ static const char* DropFrames(Vector<StackFrame*> frames,
       pre_top_frame->code()->ic_state() == DEBUG_BREAK) {
     // OK, we can drop inline cache calls.
   } else if (pre_top_frame->code() ==
-      Builtins::builtin(Builtins::FrameDropper_LiveEdit)) {
+      Isolate::Current()->builtins()->builtin(
+          Builtins::FrameDropper_LiveEdit)) {
     // OK, we can drop our own code.
   } else if (pre_top_frame->code()->kind() == Code::STUB &&
       pre_top_frame->code()->major_key()) {
@@ -1226,7 +1231,8 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   // Make sure FixTryCatchHandler is idempotent.
   ASSERT(!FixTryCatchHandler(pre_top_frame, bottom_js_frame));
 
-  Handle<Code> code(Builtins::builtin(Builtins::FrameDropper_LiveEdit));
+  Handle<Code> code(Isolate::Current()->builtins()->builtin(
+      Builtins::FrameDropper_LiveEdit));
   top_frame->set_pc(code->entry());
   pre_top_frame->SetCallerFp(bottom_js_frame->fp());
 
@@ -1408,35 +1414,37 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
 }
 
 
-LiveEditFunctionTracker::LiveEditFunctionTracker(FunctionLiteral* fun) {
-  if (active_function_info_listener != NULL) {
-    active_function_info_listener->FunctionStarted(fun);
+LiveEditFunctionTracker::LiveEditFunctionTracker(Isolate* isolate,
+                                                 FunctionLiteral* fun)
+    : isolate_(isolate) {
+  if (isolate_->active_function_info_listener() != NULL) {
+    isolate_->active_function_info_listener()->FunctionStarted(fun);
   }
 }
 
 
 LiveEditFunctionTracker::~LiveEditFunctionTracker() {
-  if (active_function_info_listener != NULL) {
-    active_function_info_listener->FunctionDone();
+  if (isolate_->active_function_info_listener() != NULL) {
+    isolate_->active_function_info_listener()->FunctionDone();
   }
 }
 
 
 void LiveEditFunctionTracker::RecordFunctionInfo(
     Handle<SharedFunctionInfo> info, FunctionLiteral* lit) {
-  if (active_function_info_listener != NULL) {
-    active_function_info_listener->FunctionInfo(info, lit->scope());
+  if (isolate_->active_function_info_listener() != NULL) {
+    isolate_->active_function_info_listener()->FunctionInfo(info, lit->scope());
   }
 }
 
 
 void LiveEditFunctionTracker::RecordRootFunctionInfo(Handle<Code> code) {
-  active_function_info_listener->FunctionCode(code);
+  isolate_->active_function_info_listener()->FunctionCode(code);
 }
 
 
-bool LiveEditFunctionTracker::IsActive() {
-  return active_function_info_listener != NULL;
+bool LiveEditFunctionTracker::IsActive(Isolate* isolate) {
+  return isolate->active_function_info_listener() != NULL;
 }
 
 
@@ -1444,7 +1452,8 @@ bool LiveEditFunctionTracker::IsActive() {
 
 // This ifdef-else-endif section provides working or stub implementation of
 // LiveEditFunctionTracker.
-LiveEditFunctionTracker::LiveEditFunctionTracker(FunctionLiteral* fun) {
+LiveEditFunctionTracker::LiveEditFunctionTracker(Isolate* isolate,
+                                                 FunctionLiteral* fun) {
 }
 
 

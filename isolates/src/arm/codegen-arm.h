@@ -440,17 +440,12 @@ class CodeGenerator: public AstVisitor {
   void Branch(bool if_true, JumpTarget* target);
   void CheckStack();
 
-  struct InlineRuntimeLUT {
-    void (CodeGenerator::*method)(ZoneList<Expression*>*);
-    const char* name;
-    int nargs;
-  };
-
-  static InlineRuntimeLUT* FindInlineRuntimeLUT(Handle<String> name);
+  static InlineRuntimeFunctionsTable::Entry* FindInlineRuntimeLUT(
+      Handle<String> name);
   bool CheckForInlineRuntimeCall(CallRuntime* node);
   static bool PatchInlineRuntimeEntry(Handle<String> name,
-                                      const InlineRuntimeLUT& new_entry,
-                                      InlineRuntimeLUT* old_entry);
+      const InlineRuntimeFunctionsTable::Entry& new_entry,
+      InlineRuntimeFunctionsTable::Entry* old_entry);
 
   static Handle<Code> ComputeLazyCompile(int argc);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
@@ -582,14 +577,14 @@ class CodeGenerator: public AstVisitor {
   // to some unlinking code).
   bool function_return_is_shadowed_;
 
-  static InlineRuntimeLUT kInlineRuntimeLUT[];
-
   friend class VirtualFrame;
+  friend class Isolate;
   friend class JumpTarget;
   friend class Reference;
   friend class FastCodeGenerator;
   friend class FullCodeGenerator;
   friend class FullCodeGenSyntaxChecker;
+  friend class InlineRuntimeFunctionsTable;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

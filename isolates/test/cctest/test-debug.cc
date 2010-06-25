@@ -941,6 +941,7 @@ static void MessageCallbackCount(v8::Handle<v8::Message> message,
 // of break locations.
 TEST(DebugStub) {
   using ::v8::internal::Builtins;
+  using ::v8::internal::Isolate;
   v8::HandleScope scope;
   DebugLocalContext env;
 
@@ -953,12 +954,14 @@ TEST(DebugStub) {
                           "function f2(){x=1;}", "f2",
                           0,
                           v8::internal::RelocInfo::CODE_TARGET,
-                          Builtins::builtin(Builtins::StoreIC_DebugBreak));
+                          Isolate::Current()->builtins()->builtin(
+                              Builtins::StoreIC_DebugBreak));
   CheckDebugBreakFunction(&env,
                           "function f3(){var a=x;}", "f3",
                           0,
                           v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
-                          Builtins::builtin(Builtins::LoadIC_DebugBreak));
+                          Isolate::Current()->builtins()->builtin(
+                              Builtins::LoadIC_DebugBreak));
 
 // TODO(1240753): Make the test architecture independent or split
 // parts of the debugger into architecture dependent files. This
@@ -971,14 +974,16 @@ TEST(DebugStub) {
       "f4",
       0,
       v8::internal::RelocInfo::CODE_TARGET,
-      Builtins::builtin(Builtins::KeyedStoreIC_DebugBreak));
+      Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedStoreIC_DebugBreak));
   CheckDebugBreakFunction(
       &env,
       "function f5(){var index='propertyName'; var a={}; return a[index];}",
       "f5",
       0,
       v8::internal::RelocInfo::CODE_TARGET,
-      Builtins::builtin(Builtins::KeyedLoadIC_DebugBreak));
+      Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedLoadIC_DebugBreak));
 #endif
 
   // Check the debug break code stubs for call ICs with different number of

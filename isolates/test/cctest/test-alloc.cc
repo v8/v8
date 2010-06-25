@@ -90,7 +90,8 @@ static Object* AllocateAfterFailures() {
 
   // Test that we can allocate in old pointer space and code space.
   CHECK(!heap->AllocateFixedArray(100, TENURED)->IsFailure());
-  CHECK(!heap->CopyCode(Builtins::builtin(Builtins::Illegal))->IsFailure());
+  CHECK(!heap->CopyCode(Isolate::Current()->builtins()->builtin(
+      Builtins::Illegal))->IsFailure());
 
   // Return success.
   return Smi::FromInt(42);
@@ -133,7 +134,8 @@ TEST(StressJS) {
   // Force the creation of an initial map and set the code to
   // something empty.
   Factory::NewJSObject(function);
-  function->set_code(Builtins::builtin(Builtins::EmptyFunction));
+  function->set_code(Isolate::Current()->builtins()->builtin(
+      Builtins::EmptyFunction));
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());

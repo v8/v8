@@ -930,7 +930,7 @@ Result VirtualFrame::CallJSFunction(int arg_count) {
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+Result VirtualFrame::CallRuntime(const Runtime::Function* f, int arg_count) {
   PrepareForCall(arg_count, arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(f, arg_count);
@@ -1015,7 +1015,8 @@ Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   PrepareForCall(0, 0);  // No stack arguments.
   MoveResultsToRegisters(&name, &receiver, ecx, eax);
 
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::LoadIC_Initialize));
   return RawCallCodeObject(ic, mode);
 }
 
@@ -1027,7 +1028,8 @@ Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
   PrepareForCall(0, 0);
   MoveResultsToRegisters(&key, &receiver, eax, edx);
 
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Initialize));
   return RawCallCodeObject(ic, mode);
 }
 
@@ -1035,7 +1037,8 @@ Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
 Result VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
   // Value and (if not contextual) receiver are on top of the frame.
   //  The IC expects name in ecx, value in eax, and receiver in edx.
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::StoreIC_Initialize));
   Result value = Pop();
   if (is_contextual) {
     PrepareForCall(0, 0);
@@ -1096,7 +1099,8 @@ Result VirtualFrame::CallKeyedStoreIC() {
     receiver.Unuse();
   }
 
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedStoreIC_Initialize));
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 
@@ -1141,7 +1145,8 @@ Result VirtualFrame::CallConstructor(int arg_count) {
   // Arguments, receiver, and function are on top of the frame.  The
   // IC expects arg count in eax, function in edi, and the arguments
   // and receiver on the stack.
-  Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::JSConstructCall));
   // Duplicate the function before preparing the frame.
   PushElementAt(arg_count + 1);
   Result function = Pop();

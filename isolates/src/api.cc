@@ -1451,7 +1451,7 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                bool* has_pending_exception) {
   i::Handle<i::String> fmt_str = i::Factory::LookupAsciiSymbol(name);
   i::Object* object_fun =
-      i::Isolate::Current()->builtins()->GetProperty(*fmt_str);
+      i::Isolate::Current()->js_builtins_object()->GetProperty(*fmt_str);
   i::Handle<i::JSFunction> fun =
       i::Handle<i::JSFunction>(i::JSFunction::cast(object_fun));
   i::Handle<i::Object> value =
@@ -1465,7 +1465,7 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                bool* has_pending_exception) {
   i::Object** argv[1] = { data.location() };
   return CallV8HeapFunction(name,
-                            i::Isolate::Current()->builtins(),
+                            i::Isolate::Current()->js_builtins_object(),
                             1,
                             argv,
                             has_pending_exception);

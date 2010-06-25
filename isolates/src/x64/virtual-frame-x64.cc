@@ -1000,7 +1000,7 @@ Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+Result VirtualFrame::CallRuntime(const Runtime::Function* f, int arg_count) {
   PrepareForCall(arg_count, arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(f, arg_count);
@@ -1074,7 +1074,8 @@ void VirtualFrame::MoveResultsToRegisters(Result* a,
 Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   // Name and receiver are on the top of the frame.  Both are dropped.
   // The IC expects name in rcx and receiver in rax.
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::LoadIC_Initialize));
   Result name = Pop();
   Result receiver = Pop();
   PrepareForCall(0, 0);
@@ -1087,7 +1088,8 @@ Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
 Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
   // Key and receiver are on top of the frame.  The IC expects them on
   // the stack.  It does not drop them.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Initialize));
   Result name = Pop();
   Result receiver = Pop();
   PrepareForCall(0, 0);
@@ -1187,7 +1189,8 @@ Result VirtualFrame::CallConstructor(int arg_count) {
   // Arguments, receiver, and function are on top of the frame.  The
   // IC expects arg count in rax, function in rdi, and the arguments
   // and receiver on the stack.
-  Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::JSConstructCall));
   // Duplicate the function before preparing the frame.
   PushElementAt(arg_count + 1);
   Result function = Pop();

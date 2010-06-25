@@ -114,7 +114,6 @@ SOURCES = {
     variables.cc
     version.cc
     virtual-frame.cc
-    vm-state.cc
     zone.cc
     """),
   'arch:arm': Split("""

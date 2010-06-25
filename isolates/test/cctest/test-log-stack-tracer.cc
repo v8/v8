@@ -217,7 +217,7 @@ namespace internal {
 class CodeGeneratorPatcher {
  public:
   CodeGeneratorPatcher() {
-    CodeGenerator::InlineRuntimeLUT genGetFramePointer =
+    InlineRuntimeFunctionsTable::Entry genGetFramePointer =
         {&CodeGenerator::GenerateGetFramePointer, "_GetFramePointer", 0};
     // _RandomHeapNumber is just used as a dummy function that has zero
     // arguments, the same as the _GetFramePointer function we actually patch
@@ -235,7 +235,7 @@ class CodeGeneratorPatcher {
   }
 
  private:
-  CodeGenerator::InlineRuntimeLUT oldInlineEntry;
+  InlineRuntimeFunctionsTable::Entry oldInlineEntry;
 };
 
 } }  // namespace v8::internal

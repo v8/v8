@@ -1827,9 +1827,10 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
 
   SharedFunctionInfo* share = SharedFunctionInfo::cast(result);
   share->set_name(name);
-  Code* illegal = Builtins::builtin(Builtins::Illegal);
+  Code* illegal = isolate_->builtins()->builtin(Builtins::Illegal);
   share->set_code(illegal);
-  Code* construct_stub = Builtins::builtin(Builtins::JSConstructStubGeneric);
+  Code* construct_stub = isolate_->builtins()->builtin(
+      Builtins::JSConstructStubGeneric);
   share->set_construct_stub(construct_stub);
   share->set_expected_nof_properties(0);
   share->set_length(0);
@@ -3792,7 +3793,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   // heap. Note that it is not necessary to iterate over code objects
   // on scavenge collections.
   if (mode != VISIT_ALL_IN_SCAVENGE) {
-    Builtins::IterateBuiltins(v);
+    isolate_->builtins()->IterateBuiltins(v);
   }
   v->Synchronize("builtins");
 

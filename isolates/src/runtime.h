@@ -28,6 +28,8 @@
 #ifndef V8_RUNTIME_H_
 #define V8_RUNTIME_H_
 
+#include "zone.h"
+
 namespace v8 {
 namespace internal {
 
@@ -367,6 +369,39 @@ namespace internal {
 #define RUNTIME_FUNCTION_LIST_DEBUG(F)
 #endif
 
+#define INLINE_RUNTIME_FUNCTION_LIST(F) \
+  F(IsSmi, 1, 1)                                                             \
+  F(IsNonNegativeSmi, 1, 1)                                                  \
+  F(IsArray, 1, 1)                                                           \
+  F(IsRegExp, 1, 1)                                                          \
+  F(CallFunction, -1 /* receiver + n args + function */, 1)                  \
+  F(IsConstructCall, 0, 1)                                                   \
+  F(ArgumentsLength, 0, 1)                                                   \
+  F(Arguments, 1, 1)                                                         \
+  F(ClassOf, 1, 1)                                                           \
+  F(ValueOf, 1, 1)                                                           \
+  F(SetValueOf, 2, 1)                                                        \
+  F(StringCharCodeAt, 2, 1)                                                  \
+  F(StringCharFromCode, 1, 1)                                                \
+  F(StringCharAt, 2, 1)                                                      \
+  F(ObjectEquals, 2, 1)                                                      \
+  F(Log, 3, 1)                                                               \
+  F(RandomHeapNumber, 0, 1)                                                  \
+  F(IsObject, 1, 1)                                                          \
+  F(IsFunction, 1, 1)                                                        \
+  F(IsUndetectableObject, 1, 1)                                              \
+  F(StringAdd, 2, 1)                                                         \
+  F(SubString, 3, 1)                                                         \
+  F(StringCompare, 2, 1)                                                     \
+  F(RegExpExec, 4, 1)                                                        \
+  F(RegExpConstructResult, 3, 1)                                             \
+  F(GetFromCache, 2, 1)                                                      \
+  F(NumberToString, 1, 1)                                                    \
+  F(SwapElements, 3, 1)                                                      \
+  F(MathPow, 2, 1)                                                           \
+  F(MathSin, 1, 1)                                                           \
+  F(MathCos, 1, 1)                                                           \
+  F(MathSqrt, 1, 1)
 
 // ----------------------------------------------------------------------------
 // RUNTIME_FUNCTION_LIST defines all runtime functions accessed
@@ -410,10 +445,10 @@ class Runtime : public AllStatic {
   };
 
   // Get the runtime function with the given function id.
-  static Function* FunctionForId(FunctionId fid);
+  static const Function* FunctionForId(FunctionId fid);
 
   // Get the runtime function with the given name.
-  static Function* FunctionForName(const char* name);
+  static const Function* FunctionForName(const char* name);
 
   static int StringMatch(Handle<String> sub, Handle<String> pat, int index);
 
@@ -448,6 +483,147 @@ class Runtime : public AllStatic {
 
   // Helper functions used stubs.
   static void PerformGC(Object* result);
+};
+
+
+class RuntimeState {
+ public:
+  // State of the string match tables.
+  // SIMPLE: No usable content in the buffers.
+  // BOYER_MOORE_HORSPOOL: The bad_char_occurences table has been populated.
+  // BOYER_MOORE: The bmgs_buffers tables have also been populated.
+  // Whenever starting with a new needle, one should call InitializeStringSearch
+  // to determine which search strategy to use, and in the case of a long-needle
+  // strategy, the call also initializes the algorithm to SIMPLE.
+  enum StringSearchAlgorithm {
+    SIMPLE_SEARCH,
+    BOYER_MOORE_HORSPOOL,
+    BOYER_MOORE
+  };
+
+  // Cap on the maximal shift in the Boyer-Moore implementation. By setting a
+  // limit, we can fix the size of tables.
+  static const int kBMMaxShift = 0xff;
+  // Reduce alphabet to this size.
+  static const int kBMAlphabetSize = 0x100;
+  // For patterns below this length, the skip length of Boyer-Moore is too short
+  // to compensate for the algorithmic overhead compared to simple brute force.
+  static const int kBMMinPatternLength = 5;
+
+  // Holds the two buffers used by Boyer-Moore string search's Good Suffix
+  // shift. Only allows the last kBMMaxShift characters of the needle
+  // to be indexed.
+  class BMGoodSuffixBuffers {
+   public:
+    BMGoodSuffixBuffers() {}
+    inline void init(int needle_length) {
+      ASSERT(needle_length > 1);
+      int start = needle_length < kBMMaxShift ? 0 : needle_length - kBMMaxShift;
+      int len = needle_length - start;
+      biased_suffixes_ = suffixes_ - start;
+      biased_good_suffix_shift_ = good_suffix_shift_ - start;
+      for (int i = 0; i <= len; i++) {
+        good_suffix_shift_[i] = len;
+      }
+    }
+    inline int& suffix(int index) {
+      ASSERT(biased_suffixes_ + index >= suffixes_);
+      return biased_suffixes_[index];
+    }
+    inline int& shift(int index) {
+      ASSERT(biased_good_suffix_shift_ + index >= good_suffix_shift_);
+      return biased_good_suffix_shift_[index];
+    }
+   private:
+    int suffixes_[kBMMaxShift + 1];
+    int good_suffix_shift_[kBMMaxShift + 1];
+    int* biased_suffixes_;
+    int* biased_good_suffix_shift_;
+    DISALLOW_COPY_AND_ASSIGN(BMGoodSuffixBuffers);
+  };
+
+  int* bad_char_occurrence() { return bad_char_occurrence_; }
+  BMGoodSuffixBuffers* bmgs_buffers() { return &bmgs_buffers_; }
+  StringSearchAlgorithm algorithm() { return algorithm_; }
+  void set_algorithm(StringSearchAlgorithm a) { algorithm_ = a; }
+  StaticResource<StringInputBuffer>* string_input_buffer() {
+    return &string_input_buffer_;
+  }
+  unibrow::Mapping<unibrow::ToUppercase, 128>* to_upper_mapping() {
+    return &to_upper_mapping_;
+  }
+  unibrow::Mapping<unibrow::ToLowercase, 128>* to_lower_mapping() {
+    return &to_lower_mapping_;
+  }
+  StringInputBuffer* string_input_buffer_compare_bufx() {
+    return &string_input_buffer_compare_bufx_;
+  }
+  StringInputBuffer* string_input_buffer_compare_bufy() {
+    return &string_input_buffer_compare_bufy_;
+  }
+  StringInputBuffer* string_locale_compare_buf1() {
+    return &string_locale_compare_buf1_;
+  }
+  StringInputBuffer* string_locale_compare_buf2() {
+    return &string_locale_compare_buf2_;
+  }
+  int* smi_lexicographic_compare_x_elms() {
+    return smi_lexicographic_compare_x_elms_;
+  }
+  int* smi_lexicographic_compare_y_elms() {
+    return smi_lexicographic_compare_y_elms_;
+  }
+
+ private:
+  RuntimeState();
+
+  // These buffers are reused by BoyerMoore.
+  int bad_char_occurrence_[kBMAlphabetSize];
+  BMGoodSuffixBuffers bmgs_buffers_;
+  StringSearchAlgorithm algorithm_;
+  // Non-reentrant string buffer for efficient general use in the runtime.
+  StaticResource<StringInputBuffer> string_input_buffer_;
+  unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
+  unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;
+  StringInputBuffer string_input_buffer_compare_bufx_;
+  StringInputBuffer string_input_buffer_compare_bufy_;
+  StringInputBuffer string_locale_compare_buf1_;
+  StringInputBuffer string_locale_compare_buf2_;
+  int smi_lexicographic_compare_x_elms_[10];
+  int smi_lexicographic_compare_y_elms_[10];
+
+  friend class Isolate;
+  friend class Runtime;
+
+  DISALLOW_COPY_AND_ASSIGN(RuntimeState);
+};
+
+
+class InlineRuntimeFunctionsTable {
+ public:
+  enum {
+#define LUT_ENTRY(name, argc, resize) __##name,
+    INLINE_RUNTIME_FUNCTION_LIST(LUT_ENTRY)
+    kInlineRuntimeFunctionsTableSize
+#undef LUT_ENTRY
+  };
+
+  struct Entry {
+    void (CodeGenerator::*method)(ZoneList<Expression*>*);
+    const char* name;
+    int nargs;
+  };
+
+  Entry* entries() { return entries_; }
+
+ private:
+  InlineRuntimeFunctionsTable();
+
+  Entry entries_[kInlineRuntimeFunctionsTableSize];
+
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(InlineRuntimeFunctionsTable);
 };
 
 

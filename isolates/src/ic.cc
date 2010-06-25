@@ -279,20 +279,26 @@ void KeyedStoreIC::Clear(Address address, Code* target) {
 Code* KeyedLoadIC::external_array_stub(JSObject::ElementsKind elements_kind) {
   switch (elements_kind) {
     case JSObject::EXTERNAL_BYTE_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalByteArray);
+      return Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedLoadIC_ExternalByteArray);
     case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalUnsignedByteArray);
+      return Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedLoadIC_ExternalUnsignedByteArray);
     case JSObject::EXTERNAL_SHORT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalShortArray);
+      return Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedLoadIC_ExternalShortArray);
     case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return Builtins::builtin(
+      return Isolate::Current()->builtins()->builtin(
           Builtins::KeyedLoadIC_ExternalUnsignedShortArray);
     case JSObject::EXTERNAL_INT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalIntArray);
+      return Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedLoadIC_ExternalIntArray);
     case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalUnsignedIntArray);
+      return Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedLoadIC_ExternalUnsignedIntArray);
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalFloatArray);
+      return Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedLoadIC_ExternalFloatArray);
     default:
       UNREACHABLE();
       return NULL;
@@ -303,21 +309,26 @@ Code* KeyedLoadIC::external_array_stub(JSObject::ElementsKind elements_kind) {
 Code* KeyedStoreIC::external_array_stub(JSObject::ElementsKind elements_kind) {
   switch (elements_kind) {
     case JSObject::EXTERNAL_BYTE_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedStoreIC_ExternalByteArray);
+      return Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedStoreIC_ExternalByteArray);
     case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      return Builtins::builtin(
+      return Isolate::Current()->builtins()->builtin(
           Builtins::KeyedStoreIC_ExternalUnsignedByteArray);
     case JSObject::EXTERNAL_SHORT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedStoreIC_ExternalShortArray);
+      return Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedStoreIC_ExternalShortArray);
     case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return Builtins::builtin(
+      return Isolate::Current()->builtins()->builtin(
           Builtins::KeyedStoreIC_ExternalUnsignedShortArray);
     case JSObject::EXTERNAL_INT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedStoreIC_ExternalIntArray);
+      return Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedStoreIC_ExternalIntArray);
     case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedStoreIC_ExternalUnsignedIntArray);
+      return Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedStoreIC_ExternalUnsignedIntArray);
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedStoreIC_ExternalFloatArray);
+      return Isolate::Current()->builtins()->builtin(
+          Builtins::KeyedStoreIC_ExternalFloatArray);
     default:
       UNREACHABLE();
       return NULL;
@@ -677,7 +688,8 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       }
 
       Code* target = NULL;
-      target = Builtins::builtin(Builtins::LoadIC_StringLength);
+      target = Isolate::Current()->builtins()->builtin(
+          Builtins::LoadIC_StringLength);
       set_target(target);
       return Smi::FromInt(String::cast(*object)->length());
     }
@@ -691,7 +703,8 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       const int offset = JSArray::kLengthOffset;
       PatchInlinedLoad(address(), map, offset);
 
-      Code* target = Builtins::builtin(Builtins::LoadIC_ArrayLength);
+      Code* target = Isolate::Current()->builtins()->builtin(
+          Builtins::LoadIC_ArrayLength);
       set_target(target);
       return JSArray::cast(*object)->length();
     }
@@ -702,7 +715,8 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
 #endif
-      Code* target = Builtins::builtin(Builtins::LoadIC_FunctionPrototype);
+      Code* target = Isolate::Current()->builtins()->builtin(
+          Builtins::LoadIC_FunctionPrototype);
       set_target(target);
       return Accessors::FunctionGetPrototype(*object, 0);
     }
@@ -1164,7 +1178,8 @@ Object* StoreIC::Store(State state,
 #ifdef DEBUG
     if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
 #endif
-    Code* target = Builtins::builtin(Builtins::StoreIC_ArrayLength);
+    Code* target = Isolate::Current()->builtins()->builtin(
+        Builtins::StoreIC_ArrayLength);
     set_target(target);
     return receiver->SetProperty(*name, *value, NONE);
   }

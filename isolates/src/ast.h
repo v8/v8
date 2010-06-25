@@ -318,15 +318,11 @@ class ValidLeftHandSideSentinel: public Expression {
  public:
   virtual bool IsValidLeftHandSide() { return true; }
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
-  static ValidLeftHandSideSentinel* instance() { return &instance_; }
 
   virtual bool IsPrimitive() {
     UNREACHABLE();
     return false;
   }
-
- private:
-  static ValidLeftHandSideSentinel instance_;
 };
 
 
@@ -1120,10 +1116,6 @@ class VariableProxy: public Expression {
 class VariableProxySentinel: public VariableProxy {
  public:
   virtual bool IsValidLeftHandSide() { return !is_this(); }
-  static VariableProxySentinel* this_proxy() { return &this_proxy_; }
-  static VariableProxySentinel* identifier_proxy() {
-    return &identifier_proxy_;
-  }
 
   virtual bool IsPrimitive() {
     UNREACHABLE();
@@ -1132,8 +1124,8 @@ class VariableProxySentinel: public VariableProxy {
 
  private:
   explicit VariableProxySentinel(bool is_this) : VariableProxy(is_this) { }
-  static VariableProxySentinel this_proxy_;
-  static VariableProxySentinel identifier_proxy_;
+
+  friend class AstSentinels;
 };
 
 
@@ -1220,18 +1212,11 @@ class Property: public Expression {
   int position() const { return pos_; }
   bool is_synthetic() const { return type_ == SYNTHETIC; }
 
-  // Returns a property singleton property access on 'this'.  Used
-  // during preparsing.
-  static Property* this_property() { return &this_property_; }
-
  private:
   Expression* obj_;
   Expression* key_;
   int pos_;
   Type type_;
-
-  // Dummy property used during preparsing.
-  static Property this_property_;
 };
 
 
@@ -1252,16 +1237,42 @@ class Call: public Expression {
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
-  int position() { return pos_; }
-
-  static Call* sentinel() { return &sentinel_; }
+  int position() const { return pos_; }
 
  private:
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
   int pos_;
+};
 
-  static Call sentinel_;
+
+class AstSentinels {
+ public:
+  ~AstSentinels() { }
+
+  // Returns a property singleton property access on 'this'.  Used
+  // during preparsing.
+  Property* this_property() { return &this_property_; }
+  VariableProxySentinel* this_proxy() { return &this_proxy_; }
+  VariableProxySentinel* identifier_proxy() { return &identifier_proxy_; }
+  ValidLeftHandSideSentinel* valid_left_hand_side_sentinel() {
+    return &valid_left_hand_side_sentinel_;
+  }
+  Call* call_sentinel() { return &call_sentinel_; }
+  EmptyStatement* empty_statement() { return &empty_statement_; }
+
+ private:
+  AstSentinels();
+  VariableProxySentinel this_proxy_;
+  VariableProxySentinel identifier_proxy_;
+  ValidLeftHandSideSentinel valid_left_hand_side_sentinel_;
+  Property this_property_;
+  Call call_sentinel_;
+  EmptyStatement empty_statement_;
+
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(AstSentinels);
 };
 
 
@@ -1292,7 +1303,7 @@ class CallNew: public Expression {
 class CallRuntime: public Expression {
  public:
   CallRuntime(Handle<String> name,
-              Runtime::Function* function,
+              const Runtime::Function* function,
               ZoneList<Expression*>* arguments)
       : name_(name), function_(function), arguments_(arguments) { }
 
@@ -1301,13 +1312,13 @@ class CallRuntime: public Expression {
   virtual bool IsPrimitive();
 
   Handle<String> name() const { return name_; }
-  Runtime::Function* function() const { return function_; }
+  const Runtime::Function* function() const { return function_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
   bool is_jsruntime() const { return function_ == NULL; }
 
  private:
   Handle<String> name_;
-  Runtime::Function* function_;
+  const Runtime::Function* function_;
   ZoneList<Expression*>* arguments_;
 };
 

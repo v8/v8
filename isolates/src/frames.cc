@@ -503,7 +503,8 @@ Code* JavaScriptFrame::code() const {
 
 
 Code* ArgumentsAdaptorFrame::code() const {
-  return Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline);
+  return Isolate::Current()->builtins()->builtin(
+      Builtins::ArgumentsAdaptorTrampoline);
 }
 
 

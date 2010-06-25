@@ -817,17 +817,18 @@ class ParserFactory BASE_EMBEDDED {
   }
 
   virtual Expression* NewProperty(Expression* obj, Expression* key, int pos) {
-    if (obj == VariableProxySentinel::this_proxy()) {
-      return Property::this_property();
+    Isolate* isolate = Isolate::Current();
+    if (obj == isolate->ast_sentinels()->this_proxy()) {
+      return isolate->ast_sentinels()->this_property();
     } else {
-      return ValidLeftHandSideSentinel::instance();
+      return isolate->ast_sentinels()->valid_left_hand_side_sentinel();
     }
   }
 
   virtual Expression* NewCall(Expression* expression,
                               ZoneList<Expression*>* arguments,
                               int pos) {
-    return Call::sentinel();
+    return Isolate::Current()->ast_sentinels()->call_sentinel();
   }
 
   virtual Statement* EmptyStatement() {
@@ -880,7 +881,9 @@ class AstBuildingParserFactory : public ParserFactory {
     return new Call(expression, arguments, pos);
   }
 
-  virtual Statement* EmptyStatement();
+  virtual Statement* EmptyStatement() {
+    return Isolate::Current()->ast_sentinels()->empty_statement();
+  }
 };
 
 
@@ -1070,14 +1073,6 @@ Scope* AstBuildingParserFactory::NewScope(Scope* parent, Scope::Type type,
   Scope* result = new Scope(parent, type);
   result->Initialize(inside_with);
   return result;
-}
-
-
-Statement* AstBuildingParserFactory::EmptyStatement() {
-  // Use a statically allocated empty statement singleton to avoid
-  // allocating lots and lots of empty statements.
-  static v8::internal::EmptyStatement empty;
-  return &empty;
 }
 
 
@@ -2043,6 +2038,7 @@ Block* Parser::ParseVariableStatement(bool* ok) {
 Block* Parser::ParseVariableDeclarations(bool accept_IN,
                                          Expression** var,
                                          bool* ok) {
+  Isolate* isolate = Isolate::Current();
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
 
@@ -2212,7 +2208,7 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     if (is_pre_parsing_) {
       // If we're preparsing then we need to set the var to something
       // in order for for-in loops to parse correctly.
-      *var = ValidLeftHandSideSentinel::instance();
+      *var = isolate->ast_sentinels()->valid_left_hand_side_sentinel();
     } else {
       ASSERT(last_var != NULL);
       *var = last_var;
@@ -3264,6 +3260,7 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
 
 
 Expression* Parser::ParsePrimaryExpression(bool* ok) {
+  Isolate* isolate = Isolate::Current();
   // PrimaryExpression ::
   //   'this'
   //   'null'
@@ -3282,7 +3279,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::THIS: {
       Consume(Token::THIS);
       if (is_pre_parsing_) {
-        result = VariableProxySentinel::this_proxy();
+        result = isolate->ast_sentinels()->this_proxy();
       } else {
         VariableProxy* recv = top_scope_->receiver();
         result = recv;
@@ -3308,7 +3305,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::IDENTIFIER: {
       Handle<String> name = ParseIdentifier(CHECK_OK);
       if (is_pre_parsing_) {
-        result = VariableProxySentinel::identifier_proxy();
+        result = isolate->ast_sentinels()->identifier_proxy();
       } else {
         result = top_scope_->NewUnresolved(name, inside_with());
       }
@@ -3868,7 +3865,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 
   Expect(Token::MOD, CHECK_OK);
   Handle<String> name = ParseIdentifier(CHECK_OK);
-  Runtime::Function* function =
+  const Runtime::Function* function =
       Runtime::FunctionForName(scanner_.literal_string());
   ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
   if (function == NULL && extension_ != NULL) {
@@ -4667,30 +4664,6 @@ RegExpTree* RegExpParser::ParseDisjunction() {
   }
 }
 
-class SourceCharacter {
- public:
-  static bool Is(uc32 c) {
-    switch (c) {
-      // case ']': case '}':
-      // In spidermonkey and jsc these are treated as source characters
-      // so we do too.
-      case '^': case '$': case '\\': case '.': case '*': case '+':
-      case '?': case '(': case ')': case '[': case '{': case '|':
-      case RegExpParser::kEndMarker:
-        return false;
-      default:
-        return true;
-    }
-  }
-};
-
-
-static unibrow::Predicate<SourceCharacter> source_character;
-
-
-static inline bool IsSourceCharacter(uc32 c) {
-  return source_character.get(c);
-}
 
 #ifdef DEBUG
 // Currently only used in an ASSERT.
@@ -5060,8 +5033,6 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
 // MakeAST() is just a wrapper for the corresponding Parser calls
 // so we don't have to expose the entire Parser class in the .h file.
 
-static bool always_allow_natives_syntax = false;
-
 
 ParserMessage::~ParserMessage() {
   for (int i = 0; i < args().length(); i++)
@@ -5095,7 +5066,7 @@ ScriptDataImpl* PreParse(Handle<String> source,
                          v8::Extension* extension) {
   Handle<Script> no_script;
   bool allow_natives_syntax =
-      always_allow_natives_syntax ||
+      Isolate::Current()->always_allow_natives_syntax() ||
       FLAG_allow_natives_syntax ||
       Isolate::Current()->bootstrapper()->IsActive();
   PreParser parser(no_script, allow_natives_syntax, extension);
@@ -5136,7 +5107,7 @@ FunctionLiteral* MakeAST(bool compile_in_global_context,
                          ScriptDataImpl* pre_data,
                          bool is_json) {
   bool allow_natives_syntax =
-      always_allow_natives_syntax ||
+      Isolate::Current()->always_allow_natives_syntax() ||
       FLAG_allow_natives_syntax ||
       Isolate::Current()->bootstrapper()->IsActive();
   AstBuildingParser parser(script, allow_natives_syntax, extension, pre_data);
@@ -5169,10 +5140,12 @@ FunctionLiteral* MakeLazyAST(Handle<Script> script,
                              int start_position,
                              int end_position,
                              bool is_expression) {
-  bool allow_natives_syntax_before = always_allow_natives_syntax;
-  always_allow_natives_syntax = true;
+  bool allow_natives_syntax_before =
+      Isolate::Current()->always_allow_natives_syntax();
+  Isolate::Current()->set_always_allow_natives_syntax(true);
   AstBuildingParser parser(script, true, NULL, NULL);  // always allow
-  always_allow_natives_syntax = allow_natives_syntax_before;
+  Isolate::Current()->set_always_allow_natives_syntax(
+      allow_natives_syntax_before);
   // Parse the function by pointing to the function source in the script source.
   Handle<String> script_source(String::cast(script->source()));
   FunctionLiteral* result =

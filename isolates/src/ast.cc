@@ -39,11 +39,13 @@ namespace v8 {
 namespace internal {
 
 
-VariableProxySentinel VariableProxySentinel::this_proxy_(true);
-VariableProxySentinel VariableProxySentinel::identifier_proxy_(false);
-ValidLeftHandSideSentinel ValidLeftHandSideSentinel::instance_;
-Property Property::this_property_(VariableProxySentinel::this_proxy(), NULL, 0);
-Call Call::sentinel_(NULL, NULL, 0);
+AstSentinels::AstSentinels()
+    : this_proxy_(true),
+      identifier_proxy_(false),
+      valid_left_hand_side_sentinel_(),
+      this_property_(&this_proxy_, NULL, 0),
+      call_sentinel_(NULL, NULL, 0) {
+}
 
 
 // ----------------------------------------------------------------------------
@@ -773,7 +775,8 @@ Statement::Statement(Statement* other)
 Expression::Expression(Expression* other)
     : AstNode(other),
       bitfields_(other->bitfields_),
-      type_(other->type_) {}
+      type_(other->type_) {
+}
 
 
 BreakableStatement::BreakableStatement(BreakableStatement* other)

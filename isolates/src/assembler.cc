@@ -541,14 +541,14 @@ ExternalReference::ExternalReference(ApiFunction* fun)
 
 
 ExternalReference::ExternalReference(Builtins::Name name)
-  : address_(Builtins::builtin_address(name)) {}
+  : address_(Isolate::Current()->builtins()->builtin_address(name)) {}
 
 
 ExternalReference::ExternalReference(Runtime::FunctionId id)
   : address_(Redirect(Runtime::FunctionForId(id)->entry)) {}
 
 
-ExternalReference::ExternalReference(Runtime::Function* f)
+ExternalReference::ExternalReference(const Runtime::Function* f)
   : address_(Redirect(f->entry)) {}
 
 
@@ -788,9 +788,6 @@ ExternalReference ExternalReference::compare_doubles() {
   return ExternalReference(Redirect(FUNCTION_ADDR(native_compare_doubles),
                                     false));
 }
-
-
-ExternalReferenceRedirector* ExternalReference::redirector_ = NULL;
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

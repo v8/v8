@@ -162,7 +162,9 @@ Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info) {
 #endif
 
 
-static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
+static Handle<SharedFunctionInfo> MakeFunctionInfo(
+    Isolate* isolate,
+    bool is_global,
     bool is_eval,
     Compiler::ValidationState validate,
     Handle<Script> script,
@@ -173,8 +175,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 
   PostponeInterruptsScope postpone;
 
-  ASSERT(!i::Isolate::Current()->global_context().is_null());
-  script->set_context_data((*i::Isolate::Current()->global_context())->data());
+  ASSERT(!isolate->global_context().is_null());
+  script->set_context_data((*isolate->global_context())->data());
 
   bool is_json = (validate == Compiler::VALIDATE_JSON);
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -197,7 +199,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   }
 
   // Notify debugger
-  Isolate::Current()->debugger()->OnBeforeCompile(script);
+  isolate->debugger()->OnBeforeCompile(script);
 #endif
 
   // Only allow non-global compiles for eval.
@@ -207,11 +209,11 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   FunctionLiteral* lit =
       MakeAST(is_global, script, extension, pre_data, is_json);
 
-  LiveEditFunctionTracker live_edit_tracker(lit);
+  LiveEditFunctionTracker live_edit_tracker(isolate, lit);
 
   // Check for parse errors.
   if (lit == NULL) {
-    ASSERT(Isolate::Current()->has_pending_exception());
+    ASSERT(isolate->has_pending_exception());
     return Handle<SharedFunctionInfo>::null();
   }
 
@@ -229,7 +231,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
-    Isolate::Current()->StackOverflow();
+    isolate->StackOverflow();
     return Handle<SharedFunctionInfo>::null();
   }
 
@@ -267,7 +269,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
-  Isolate::Current()->debugger()->OnAfterCompile(
+  isolate->debugger()->OnAfterCompile(
       script, Debugger::NO_AFTER_COMPILE_FLAGS);
 #endif
 
@@ -275,9 +277,6 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 
   return result;
 }
-
-
-static StaticResource<SafeStringInputBuffer> safe_string_input_buffer;
 
 
 Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
@@ -288,6 +287,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              ScriptDataImpl* input_pre_data,
                                              Handle<Object> script_data,
                                              NativesFlag natives) {
+  Isolate* isolate = Isolate::Current();
   int source_length = source->length();
   Counters::total_load_size.Increment(source_length);
   Counters::total_compile_size.Increment(source_length);
@@ -295,7 +295,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
 
-  CompilationCache* compilation_cache = Isolate::Current()->compilation_cache();
+  CompilationCache* compilation_cache = isolate->compilation_cache();
 
   // Do a lookup in the compilation cache but not for extensions.
   Handle<SharedFunctionInfo> result;
@@ -310,7 +310,8 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     // No cache entry found. Do pre-parsing and compile the script.
     ScriptDataImpl* pre_data = input_pre_data;
     if (pre_data == NULL && source_length >= FLAG_min_preparse_length) {
-      Access<SafeStringInputBuffer> buf(&safe_string_input_buffer);
+      Access<SafeStringInputBuffer> buf(
+          isolate->compiler_safe_string_input_buffer());
       buf->Reset(source.location());
       pre_data = PreParse(source, buf.value(), extension);
     }
@@ -330,7 +331,8 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                            : *script_data);
 
     // Compile the function and add it to the cache.
-    result = MakeFunctionInfo(true,
+    result = MakeFunctionInfo(isolate,
+                              true,
                               false,
                               DONT_VALIDATE_JSON,
                               script,
@@ -347,7 +349,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     }
   }
 
-  if (result.is_null()) Isolate::Current()->ReportPendingMessages();
+  if (result.is_null()) isolate->ReportPendingMessages();
   return result;
 }
 
@@ -356,6 +358,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
                                                  Handle<Context> context,
                                                  bool is_global,
                                                  ValidationState validate) {
+  Isolate* isolate = Isolate::Current();
   // Note that if validation is required then no path through this
   // function is allowed to return a value without validating that
   // the input is legal json.
@@ -367,7 +370,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
 
-  CompilationCache* compilation_cache = Isolate::Current()->compilation_cache();
+  CompilationCache* compilation_cache = isolate->compilation_cache();
 
   // Do a lookup in the compilation cache; if the entry is not there,
   // invoke the compiler and add the result to the cache.  If we're
@@ -380,7 +383,8 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
-    result = MakeFunctionInfo(is_global,
+    result = MakeFunctionInfo(isolate,
+                              is_global,
                               true,
                               validate,
                               script,
@@ -472,7 +476,8 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                                                        Handle<Script> script,
                                                        AstVisitor* caller) {
-  LiveEditFunctionTracker live_edit_tracker(literal);
+  Isolate* isolate = Isolate::Current();
+  LiveEditFunctionTracker live_edit_tracker(isolate, literal);
 #ifdef DEBUG
   // We should not try to compile the same function literal more than
   // once.
@@ -485,7 +490,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // since we have to know if a function uses the special natives
   // syntax, which is something the parser records.
   bool allow_lazy = literal->AllowsLazyCompilation() &&
-      !LiveEditFunctionTracker::IsActive();
+      !LiveEditFunctionTracker::IsActive(isolate);
 
   // Generate code
   Handle<Code> code;

@@ -683,11 +683,11 @@ void Debug::Setup(bool create_heap_objects) {
   if (create_heap_objects) {
     // Get code to handle debug break on return.
     debug_break_return_ =
-        Builtins::builtin(Builtins::Return_DebugBreak);
+        Isolate::Current()->builtins()->builtin(Builtins::Return_DebugBreak);
     ASSERT(debug_break_return_->IsCode());
     // Get code to handle debug break in debug break slots.
     debug_break_slot_ =
-        Builtins::builtin(Builtins::Slot_DebugBreak);
+        Isolate::Current()->builtins()->builtin(Builtins::Slot_DebugBreak);
     ASSERT(debug_break_slot_->IsCode());
   }
 }
@@ -956,7 +956,8 @@ Object* Debug::Break(Arguments args) {
 
   if (thread_local_.frames_are_dropped_) {
     // We must have been calling IC stub. Do not return there anymore.
-    Code* plain_return = Builtins::builtin(Builtins::PlainReturn_LiveEdit);
+    Code* plain_return =
+        Isolate::Current()->builtins()->builtin(Builtins::PlainReturn_LiveEdit);
     thread_local_.after_break_target_ = plain_return->entry();
   } else {
     SetAfterBreakTarget(frame);
@@ -1022,8 +1023,7 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
     reinterpret_cast<Object**>(break_point_object.location())
   };
   Handle<Object> result = Execution::TryCall(check_break_point,
-                                             Isolate::Current()->builtins(),
-                                             argc, argv, &caught_exception);
+      Isolate::Current()->js_builtins_object(), argc, argv, &caught_exception);
 
   // If exception or non boolean result handle as not triggered
   if (caught_exception || !result->IsBoolean()) {
@@ -1426,18 +1426,22 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
         return ComputeCallDebugBreak(code->arguments_count(), code->kind());
 
       case Code::LOAD_IC:
-        return Handle<Code>(Builtins::builtin(Builtins::LoadIC_DebugBreak));
+        return Handle<Code>(Isolate::Current()->builtins()->builtin(
+            Builtins::LoadIC_DebugBreak));
 
       case Code::STORE_IC:
-        return Handle<Code>(Builtins::builtin(Builtins::StoreIC_DebugBreak));
+        return Handle<Code>(Isolate::Current()->builtins()->builtin(
+            Builtins::StoreIC_DebugBreak));
 
       case Code::KEYED_LOAD_IC:
         return Handle<Code>(
-            Builtins::builtin(Builtins::KeyedLoadIC_DebugBreak));
+            Isolate::Current()->builtins()->builtin(
+                Builtins::KeyedLoadIC_DebugBreak));
 
       case Code::KEYED_STORE_IC:
         return Handle<Code>(
-            Builtins::builtin(Builtins::KeyedStoreIC_DebugBreak));
+            Isolate::Current()->builtins()->builtin(
+                Builtins::KeyedStoreIC_DebugBreak));
 
       default:
         UNREACHABLE();
@@ -1445,14 +1449,16 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   }
   if (RelocInfo::IsConstructCall(mode)) {
     Handle<Code> result =
-        Handle<Code>(Builtins::builtin(Builtins::ConstructCall_DebugBreak));
+        Handle<Code>(Isolate::Current()->builtins()->builtin(
+            Builtins::ConstructCall_DebugBreak));
     return result;
   }
   if (code->kind() == Code::STUB) {
     ASSERT(code->major_key() == CodeStub::CallFunction ||
            code->major_key() == CodeStub::StackCheck);
     Handle<Code> result =
-        Handle<Code>(Builtins::builtin(Builtins::StubNoRegisters_DebugBreak));
+        Handle<Code>(Isolate::Current()->builtins()->builtin(
+            Builtins::StubNoRegisters_DebugBreak));
     return result;
   }
 
@@ -1520,9 +1526,9 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
     // Don't allow step into functions in the native context.
     if (!function->IsBuiltin()) {
       if (function->shared()->code() ==
-          Builtins::builtin(Builtins::FunctionApply) ||
+          Isolate::Current()->builtins()->builtin(Builtins::FunctionApply) ||
           function->shared()->code() ==
-          Builtins::builtin(Builtins::FunctionCall)) {
+          Isolate::Current()->builtins()->builtin(Builtins::FunctionCall)) {
         // Handle function.apply and function.call separately to flood the
         // function to be called and not the code for Builtins::FunctionApply or
         // Builtins::FunctionCall. The receiver of call/apply is the target
@@ -2160,7 +2166,7 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   Object** argv[argc] = { reinterpret_cast<Object**>(wrapper.location()) };
   Handle<Object> result = Execution::TryCall(
       Handle<JSFunction>::cast(update_script_break_points),
-      Isolate::Current()->builtins(), argc, argv,
+      Isolate::Current()->js_builtins_object(), argc, argv,
       &caught_exception);
   if (caught_exception) {
     return;

@@ -337,25 +337,15 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
 }
 
 
-// List of special runtime calls which are generated inline. For some of these
-// functions the code will be generated inline, and for others a call to a code
-// stub will be inlined.
-
-#define INLINE_RUNTIME_ENTRY(Name, argc, ressize)                             \
-    {&CodeGenerator::Generate##Name,  "_" #Name, argc},                       \
-
-CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
-  INLINE_RUNTIME_FUNCTION_LIST(INLINE_RUNTIME_ENTRY)
-};
-
-#undef INLINE_RUNTIME_ENTRY
-
-CodeGenerator::InlineRuntimeLUT* CodeGenerator::FindInlineRuntimeLUT(
+InlineRuntimeFunctionsTable::Entry* CodeGenerator::FindInlineRuntimeLUT(
     Handle<String> name) {
-  const int entries_count =
-      sizeof(kInlineRuntimeLUT) / sizeof(InlineRuntimeLUT);
-  for (int i = 0; i < entries_count; i++) {
-    InlineRuntimeLUT* entry = &kInlineRuntimeLUT[i];
+  Isolate* isolate = Isolate::Current();
+  InlineRuntimeFunctionsTable::Entry* entries =
+      isolate->inline_runtime_functions_table()->entries();
+  for (int i = 0;
+       i < InlineRuntimeFunctionsTable::kInlineRuntimeFunctionsTableSize;
+       ++i) {
+    InlineRuntimeFunctionsTable::Entry* entry = &entries[i];
     if (name->IsEqualTo(CStrVector(entry->name))) {
       return entry;
     }
@@ -368,7 +358,7 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
   ZoneList<Expression*>* args = node->arguments();
   Handle<String> name = node->name();
   if (name->length() > 0 && name->Get(0) == '_') {
-    InlineRuntimeLUT* entry = FindInlineRuntimeLUT(name);
+    InlineRuntimeFunctionsTable::Entry* entry = FindInlineRuntimeLUT(name);
     if (entry != NULL) {
       ((*this).*(entry->method))(args);
       return true;
@@ -379,9 +369,9 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
 
 
 bool CodeGenerator::PatchInlineRuntimeEntry(Handle<String> name,
-    const CodeGenerator::InlineRuntimeLUT& new_entry,
-    CodeGenerator::InlineRuntimeLUT* old_entry) {
-  InlineRuntimeLUT* entry = FindInlineRuntimeLUT(name);
+    const InlineRuntimeFunctionsTable::Entry& new_entry,
+    InlineRuntimeFunctionsTable::Entry* old_entry) {
+  InlineRuntimeFunctionsTable::Entry* entry = FindInlineRuntimeLUT(name);
   if (entry == NULL) return false;
   if (old_entry != NULL) {
     old_entry->name = entry->name;
@@ -394,7 +384,7 @@ bool CodeGenerator::PatchInlineRuntimeEntry(Handle<String> name,
 
 
 int CodeGenerator::InlineRuntimeCallArgumentsCount(Handle<String> name) {
-  CodeGenerator::InlineRuntimeLUT* f =
+  InlineRuntimeFunctionsTable::Entry* f =
       CodeGenerator::FindInlineRuntimeLUT(name);
   if (f != NULL) return f->nargs;
   return -1;

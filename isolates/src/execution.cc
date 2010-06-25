@@ -431,7 +431,7 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
     Object** args[argc] = argv;                                                \
     ASSERT(has_pending_exception != NULL);                                     \
     return Call(Isolate::Current()->name##_fun(),                              \
-                Isolate::Current()->builtins(), argc, args,                    \
+                Isolate::Current()->js_builtins_object(), argc, args,          \
                 has_pending_exception);                                        \
   } while (false)
 
@@ -504,7 +504,8 @@ Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
   }
 
   Handle<Object> char_at =
-      GetProperty(Isolate::Current()->builtins(), Factory::char_at_symbol());
+      GetProperty(Isolate::Current()->js_builtins_object(),
+                  Factory::char_at_symbol());
   if (!char_at->IsJSFunction()) {
     return Factory::undefined_value();
   }
@@ -536,7 +537,7 @@ Handle<JSFunction> Execution::InstantiateFunction(
   Object** args[1] = { Handle<Object>::cast(data).location() };
   Handle<Object> result =
       Call(Isolate::Current()->instantiate_fun(),
-           Isolate::Current()->builtins(), 1, args, exc);
+           Isolate::Current()->js_builtins_object(), 1, args, exc);
   if (*exc) return Handle<JSFunction>::null();
   return Handle<JSFunction>::cast(result);
 }
@@ -565,7 +566,7 @@ Handle<JSObject> Execution::InstantiateObject(Handle<ObjectTemplateInfo> data,
     Object** args[1] = { Handle<Object>::cast(data).location() };
     Handle<Object> result =
         Call(Isolate::Current()->instantiate_fun(),
-             Isolate::Current()->builtins(), 1, args, exc);
+             Isolate::Current()->js_builtins_object(), 1, args, exc);
     if (*exc) return Handle<JSObject>::null();
     return Handle<JSObject>::cast(result);
   }
@@ -577,7 +578,7 @@ void Execution::ConfigureInstance(Handle<Object> instance,
                                   bool* exc) {
   Object** args[2] = { instance.location(), instance_template.location() };
   Execution::Call(Isolate::Current()->configure_instance_fun(),
-                  Isolate::Current()->builtins(), 2, args, exc);
+                  Isolate::Current()->js_builtins_object(), 2, args, exc);
 }
 
 
@@ -593,7 +594,8 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
   bool caught_exception = false;
   Handle<Object> result =
       TryCall(Isolate::Current()->get_stack_trace_line_fun(),
-              Isolate::Current()->builtins(), argc, args, &caught_exception);
+              Isolate::Current()->js_builtins_object(), argc, args,
+              &caught_exception);
   if (caught_exception || !result->IsString()) return Factory::empty_symbol();
   return Handle<String>::cast(result);
 }

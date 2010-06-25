@@ -82,7 +82,7 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
 
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
-  if (hit != Builtins::builtin(Builtins::Illegal)) {
+  if (hit != Isolate::Current()->builtins()->builtin(Builtins::Illegal)) {
     Code::Flags primary_flags = Code::RemoveTypeFromFlags(hit->flags());
     int secondary_offset =
         SecondaryOffset(primary->key, primary_flags, primary_offset);
@@ -203,7 +203,7 @@ Object* StubCache::ComputeLoadInterceptor(String* name,
 
 
 Object* StubCache::ComputeLoadNormal(String* name, JSObject* receiver) {
-  return Builtins::builtin(Builtins::LoadIC_Normal);
+  return Isolate::Current()->builtins()->builtin(Builtins::LoadIC_Normal);
 }
 
 
@@ -773,11 +773,13 @@ Object* StubCache::ComputeLazyCompile(int argc) {
 void StubCache::Clear() {
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = HEAP->empty_string();
-    primary_[i].value = Builtins::builtin(Builtins::Illegal);
+    primary_[i].value = Isolate::Current()->builtins()->builtin(
+        Builtins::Illegal);
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
     secondary_[j].key = HEAP->empty_string();
-    secondary_[j].value = Builtins::builtin(Builtins::Illegal);
+    secondary_[j].value = Isolate::Current()->builtins()->builtin(
+        Builtins::Illegal);
   }
 }
 

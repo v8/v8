@@ -298,8 +298,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_zero, &function);
     __ xor_(rbx, rbx);
     __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
-    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
-            RelocInfo::CODE_TARGET);
+    __ Jump(Handle<Code>(Isolate::Current()->builtins()->builtin(
+        ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
     __ bind(&function);
   }
 
@@ -314,8 +314,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
   __ cmpq(rax, rbx);
   __ j(not_equal,
-       Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
-       RelocInfo::CODE_TARGET);
+       Handle<Code>(Isolate::Current()->builtins()->builtin(
+           ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
 
   ParameterCount expected(0);
   __ InvokeCode(rdx, expected, expected, JUMP_FUNCTION);
@@ -421,7 +421,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ movq(rdx, Operand(rbp, kArgumentsOffset));  // load arguments
 
   // Use inline caching to speed up access to arguments.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   // It is important that we do not have a test instruction after the
   // call.  A test instruction after the call is used to indicate that
@@ -833,7 +834,8 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   // Jump to the generic array code in case the specialized code cannot handle
   // the construction.
   __ bind(&generic_array_code);
-  Code* code = Builtins::builtin(Builtins::ArrayCodeGeneric);
+  Code* code = Isolate::Current()->builtins()->builtin(
+      Builtins::ArrayCodeGeneric);
   Handle<Code> array_code(code);
   __ Jump(array_code, RelocInfo::CODE_TARGET);
 }
@@ -870,7 +872,8 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   // Jump to the generic construct code in case the specialized code cannot
   // handle the construction.
   __ bind(&generic_constructor);
-  Code* code = Builtins::builtin(Builtins::JSConstructStubGeneric);
+  Code* code = Isolate::Current()->builtins()->builtin(
+      Builtins::JSConstructStubGeneric);
   Handle<Code> generic_construct_stub(code);
   __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
 }
@@ -905,8 +908,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Set expected number of arguments to zero (not changing rax).
   __ movq(rbx, Immediate(0));
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
-  __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
-          RelocInfo::CODE_TARGET);
+  __ Jump(Handle<Code>(Isolate::Current()->builtins()->builtin(
+      ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
 }
 
 
@@ -1118,7 +1121,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   if (is_api_function) {
     __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
     Handle<Code> code = Handle<Code>(
-        Builtins::builtin(Builtins::HandleApiCallConstruct));
+        Isolate::Current()->builtins()->builtin(
+            Builtins::HandleApiCallConstruct));
     ParameterCount expected(0);
     __ InvokeCode(code, expected, expected,
                   RelocInfo::CODE_TARGET, CALL_FUNCTION);
@@ -1269,8 +1273,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Invoke the code.
   if (is_construct) {
     // Expects rdi to hold function pointer.
-    __ Call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
-            RelocInfo::CODE_TARGET);
+    __ Call(Handle<Code>(Isolate::Current()->builtins()->builtin(
+        Builtins::JSConstructCall)), RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(rax);
     // Function must be in rdi.

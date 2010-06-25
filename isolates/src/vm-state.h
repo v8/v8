@@ -28,6 +28,8 @@
 #ifndef V8_VM_STATE_H_
 #define V8_VM_STATE_H_
 
+#include "isolate.h"
+
 namespace v8 {
 namespace internal {
 
@@ -44,15 +46,17 @@ class VMState BASE_EMBEDDED {
 
   // Used for debug asserts.
   static bool is_outermost_external() {
-    return current_state_ == NULL;
+    return Isolate::Current()->vm_state() == NULL;
   }
 
   static StateTag current_state() {
-    return current_state_ ? current_state_->state() : EXTERNAL;
+    VMState* state = Isolate::Current()->vm_state();
+    return state ? state->state() : EXTERNAL;
   }
 
   static Address external_callback() {
-    return current_state_ ? current_state_->external_callback_ : NULL;
+    VMState* state = Isolate::Current()->vm_state();
+    return state ? state->external_callback_ : NULL;
   }
 
  private:
@@ -60,9 +64,7 @@ class VMState BASE_EMBEDDED {
   StateTag state_;
   VMState* previous_;
   Address external_callback_;
-
-  // A stack of VM states.
-  static VMState* current_state_;
+  Isolate* isolate_;
 #else
  public:
   explicit VMState(StateTag state) {}

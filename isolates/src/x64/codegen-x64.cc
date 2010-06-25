@@ -685,7 +685,8 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // it in the IC initialization code and patch the movq instruction.
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the __
@@ -774,7 +775,8 @@ void DeferredReferenceSetKeyedValue::Generate() {
   }
 
   // Call the IC stub.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instructions (initial movq)
   // to the test instruction.  We use masm_-> directly here instead of the
@@ -876,7 +878,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ CmpObjectType(rax, JS_FUNCTION_TYPE, rcx);
       __ j(not_equal, &build_args);
       __ movq(rax, FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset));
-      Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
+      Handle<Code> apply_code(Isolate::Current()->builtins()->builtin(
+          Builtins::FunctionApply));
       __ Cmp(FieldOperand(rax, SharedFunctionInfo::kCodeOffset), apply_code);
       __ j(not_equal, &build_args);
 
@@ -3188,7 +3191,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   ZoneList<Expression*>* args = node->arguments();
   Comment cmnt(masm_, "[ CallRuntime");
-  Runtime::Function* function = node->function();
+  const Runtime::Function* function = node->function();
 
   if (function == NULL) {
     // Push the builtins object found in the current global object.
@@ -6801,7 +6804,8 @@ void DeferredReferenceGetNamedValue::Generate() {
     __ movq(rax, receiver_);
   }
   __ Move(rcx, name_);
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::LoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   // The call must be followed by a test rax instruction to indicate
   // that the inobject property case was inlined.
@@ -9761,7 +9765,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ Set(rax, argc_);
   __ Set(rbx, 0);
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
-  Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
+  Handle<Code> adaptor(Isolate::Current()->builtins()->builtin(
+      Builtins::ArgumentsAdaptorTrampoline));
   __ Jump(adaptor, RelocInfo::CODE_TARGET);
 }
 

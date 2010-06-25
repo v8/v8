@@ -29,7 +29,9 @@
 
 #include "v8.h"
 
+#include "ast.h"
 #include "bootstrapper.h"
+#include "codegen.h"
 #include "compilation-cache.h"
 #include "debug.h"
 #include "heap-profiler.h"
@@ -249,6 +251,7 @@ Isolate::Isolate()
       global_handles_(NULL),
       context_switcher_(NULL),
       thread_manager_(NULL),
+      ast_sentinels_(NULL),
       string_tracker_(NULL) {
   memset(isolate_addresses_, 0,
       sizeof(isolate_addresses_[0]) * (k_isolate_address_count + 1));
@@ -295,7 +298,7 @@ Isolate::~Isolate() {
       v8::Locker locker;
       v8::Locker::StopPreemption();
     }
-    Builtins::TearDown();
+    builtins_.TearDown();
     bootstrapper_->TearDown();
 
     // Remove the external reference to the preallocated stack memory.
@@ -311,6 +314,8 @@ Isolate::~Isolate() {
   delete scanner_character_classes_;
   scanner_character_classes_ = NULL;
 
+  delete ast_sentinels_;
+  ast_sentinels_ = NULL;
   delete descriptor_lookup_cache_;
   descriptor_lookup_cache_ = NULL;
   delete context_slot_cache_;
@@ -404,6 +409,7 @@ bool Isolate::PreInit() {
   cpu_features_ = new CpuFeatures();
   handle_scope_implementer_ = new HandleScopeImplementer();
   stub_cache_ = new StubCache();
+  ast_sentinels_ = new AstSentinels();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   debugger_ = new Debugger();
@@ -466,7 +472,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   bootstrapper_->Initialize(create_heap_objects);
-  Builtins::Setup(create_heap_objects);
+  builtins_.Setup(create_heap_objects);
 
   InitializeThreadLocal();
 

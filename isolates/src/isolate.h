@@ -32,6 +32,7 @@
 
 #include "allocation.h"
 #include "apiutils.h"
+#include "builtins.h"
 #include "contexts.h"
 #include "execution.h"
 #include "frames-inl.h"
@@ -39,12 +40,14 @@
 #include "global-handles.h"
 #include "handles.h"
 #include "heap.h"
+#include "runtime.h"
 #include "zone.h"
 #include "../include/v8-debug.h"
 
 namespace v8 {
 namespace internal {
 
+class AstSentinels;
 class Bootstrapper;
 class CompilationCache;
 class ContextSlotCache;
@@ -52,6 +55,8 @@ class ContextSwitcher;
 class CodeRange;
 class CpuFeatures;
 class Deserializer;
+class EmptyStatement;
+class FunctionInfoListener;
 class HandleScopeImplementer;
 class NoAllocationStringAllocator;
 class PreallocatedMemoryThread;
@@ -62,6 +67,9 @@ class StringTracker;
 class ScannerCharacterClasses;
 class ThreadVisitor;  // Defined in v8threads.h
 class ThreadManager;
+class VMState;
+
+typedef void* ExternalReferenceRedirector(void* original, bool fp_return);
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -195,6 +203,12 @@ class ThreadLocalTop BASE_EMBEDDED {
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the global context. */                                  \
   V(int, next_serial_number, 0)                                                \
+  V(ExternalReferenceRedirector*, external_reference_redirector, NULL)         \
+  V(bool, always_allow_natives_syntax, false)                                  \
+  /* A stack of VM states. */                                                  \
+  V(VMState*, vm_state, NULL)                                                  \
+  /* Part of the state of liveedit. */                                         \
+  V(FunctionInfoListener*, active_function_info_listener, NULL)                \
   /* State for Relocatable. */                                                 \
   V(Relocatable*, relocatable_top, NULL)                                       \
   /* State for CodeEntry in profile-generator. */                              \
@@ -354,7 +368,7 @@ class Isolate {
     return context()->global_proxy();
   }
 
-  Handle<JSBuiltinsObject> builtins() {
+  Handle<JSBuiltinsObject> js_builtins_object() {
     return Handle<JSBuiltinsObject>(thread_local_top_.context_->builtins());
   }
 
@@ -554,6 +568,28 @@ class Isolate {
     return &objects_string_input_buffer_;
   }
 
+  AstSentinels* ast_sentinels() { return ast_sentinels_; }
+
+  InlineRuntimeFunctionsTable* inline_runtime_functions_table() {
+    return &inline_runtime_functions_table_;
+  }
+
+  RuntimeState* runtime_state() { return &runtime_state_; }
+
+  StringInputBuffer* liveedit_compare_substrings_buf1() {
+    return &liveedit_compare_substrings_buf1_;
+  }
+
+  StringInputBuffer* liveedit_compare_substrings_buf2() {
+    return &liveedit_compare_substrings_buf2_;
+  }
+
+  StaticResource<SafeStringInputBuffer>* compiler_safe_string_input_buffer() {
+    return &compiler_safe_string_input_buffer_;
+  }
+
+  Builtins* builtins() { return &builtins_; }
+
   void* PreallocatedStorageNew(size_t size);
   void PreallocatedStorageDelete(void* p);
   void PreallocatedStorageInit(size_t size);
@@ -655,6 +691,13 @@ class Isolate {
   GlobalHandles* global_handles_;
   ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
+  AstSentinels* ast_sentinels_;
+  InlineRuntimeFunctionsTable inline_runtime_functions_table_;
+  RuntimeState runtime_state_;
+  StringInputBuffer liveedit_compare_substrings_buf1_;
+  StringInputBuffer liveedit_compare_substrings_buf2_;
+  StaticResource<SafeStringInputBuffer> compiler_safe_string_input_buffer_;
+  Builtins builtins_;
   StringTracker* string_tracker_;
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;

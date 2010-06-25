@@ -284,13 +284,16 @@ class LoadIC: public IC {
 
   // Stub accessors.
   static Code* megamorphic_stub() {
-    return Builtins::builtin(Builtins::LoadIC_Megamorphic);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::LoadIC_Megamorphic);
   }
   static Code* initialize_stub() {
-    return Builtins::builtin(Builtins::LoadIC_Initialize);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::LoadIC_Initialize);
   }
   static Code* pre_monomorphic_stub() {
-    return Builtins::builtin(Builtins::LoadIC_PreMonomorphic);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::LoadIC_PreMonomorphic);
   }
 
   static void Clear(Address address, Code* target);
@@ -344,24 +347,30 @@ class KeyedLoadIC: public IC {
 
   // Stub accessors.
   static Code* initialize_stub() {
-    return Builtins::builtin(Builtins::KeyedLoadIC_Initialize);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedLoadIC_Initialize);
   }
   static Code* megamorphic_stub() {
-    return Builtins::builtin(Builtins::KeyedLoadIC_Generic);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedLoadIC_Generic);
   }
   static Code* generic_stub() {
-    return Builtins::builtin(Builtins::KeyedLoadIC_Generic);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedLoadIC_Generic);
   }
   static Code* pre_monomorphic_stub() {
-    return Builtins::builtin(Builtins::KeyedLoadIC_PreMonomorphic);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedLoadIC_PreMonomorphic);
   }
   static Code* string_stub() {
-    return Builtins::builtin(Builtins::KeyedLoadIC_String);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedLoadIC_String);
   }
   static Code* external_array_stub(JSObject::ElementsKind elements_kind);
 
   static Code* indexed_interceptor_stub() {
-    return Builtins::builtin(Builtins::KeyedLoadIC_IndexedInterceptor);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedLoadIC_IndexedInterceptor);
   }
 
   static void Clear(Address address, Code* target);
@@ -399,10 +408,12 @@ class StoreIC: public IC {
 
   // Stub accessors.
   static Code* megamorphic_stub() {
-    return Builtins::builtin(Builtins::StoreIC_Megamorphic);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::StoreIC_Megamorphic);
   }
   static Code* initialize_stub() {
-    return Builtins::builtin(Builtins::StoreIC_Initialize);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::StoreIC_Initialize);
   }
 
   static void Clear(Address address, Code* target);
@@ -448,13 +459,16 @@ class KeyedStoreIC: public IC {
 
   // Stub accessors.
   static Code* initialize_stub() {
-    return Builtins::builtin(Builtins::KeyedStoreIC_Initialize);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedStoreIC_Initialize);
   }
   static Code* megamorphic_stub() {
-    return Builtins::builtin(Builtins::KeyedStoreIC_Generic);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedStoreIC_Generic);
   }
   static Code* generic_stub() {
-    return Builtins::builtin(Builtins::KeyedStoreIC_Generic);
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedStoreIC_Generic);
   }
   static Code* external_array_stub(JSObject::ElementsKind elements_kind);
 
