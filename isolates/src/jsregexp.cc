@@ -1248,16 +1248,14 @@ void ChoiceNode::GenerateGuard(RegExpMacroAssembler* macro_assembler,
 }
 
 
-static unibrow::Mapping<unibrow::Ecma262UnCanonicalize> uncanonicalize;
-static unibrow::Mapping<unibrow::CanonicalizationRange> canonrange;
-
-
 // Returns the number of characters in the equivalence class, omitting those
 // that cannot occur in the source string because it is ASCII.
-static int GetCaseIndependentLetters(uc16 character,
+static int GetCaseIndependentLetters(Isolate* isolate,
+                                     uc16 character,
                                      bool ascii_subject,
                                      unibrow::uchar* letters) {
-  int length = uncanonicalize.get(character, '\0', letters);
+  int length =
+      isolate->jsregexp_uncanonicalize()->get(character, '\0', letters);
   // Unibrow returns 0 or 1 for characters where case independependence is
   // trivial.
   if (length == 0) {
@@ -1273,7 +1271,8 @@ static int GetCaseIndependentLetters(uc16 character,
 }
 
 
-static inline bool EmitSimpleCharacter(RegExpCompiler* compiler,
+static inline bool EmitSimpleCharacter(Isolate* isolate,
+                                       RegExpCompiler* compiler,
                                        uc16 c,
                                        Label* on_failure,
                                        int cp_offset,
@@ -1295,7 +1294,8 @@ static inline bool EmitSimpleCharacter(RegExpCompiler* compiler,
 
 // Only emits non-letters (things that don't have case).  Only used for case
 // independent matches.
-static inline bool EmitAtomNonLetter(RegExpCompiler* compiler,
+static inline bool EmitAtomNonLetter(Isolate* isolate,
+                                     RegExpCompiler* compiler,
                                      uc16 c,
                                      Label* on_failure,
                                      int cp_offset,
@@ -1304,7 +1304,7 @@ static inline bool EmitAtomNonLetter(RegExpCompiler* compiler,
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   bool ascii = compiler->ascii();
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  int length = GetCaseIndependentLetters(c, ascii, chars);
+  int length = GetCaseIndependentLetters(isolate, c, ascii, chars);
   if (length < 1) {
     // This can't match.  Must be an ASCII subject and a non-ASCII character.
     // We do not need to do anything since the ASCII pass already handled this.
@@ -1366,7 +1366,8 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
 }
 
 
-typedef bool EmitCharacterFunction(RegExpCompiler* compiler,
+typedef bool EmitCharacterFunction(Isolate* isolate,
+                                   RegExpCompiler* compiler,
                                    uc16 c,
                                    Label* on_failure,
                                    int cp_offset,
@@ -1375,7 +1376,8 @@ typedef bool EmitCharacterFunction(RegExpCompiler* compiler,
 
 // Only emits letters (things that have case).  Only used for case independent
 // matches.
-static inline bool EmitAtomLetter(RegExpCompiler* compiler,
+static inline bool EmitAtomLetter(Isolate* isolate,
+                                  RegExpCompiler* compiler,
                                   uc16 c,
                                   Label* on_failure,
                                   int cp_offset,
@@ -1384,7 +1386,7 @@ static inline bool EmitAtomLetter(RegExpCompiler* compiler,
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   bool ascii = compiler->ascii();
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  int length = GetCaseIndependentLetters(c, ascii, chars);
+  int length = GetCaseIndependentLetters(isolate, c, ascii, chars);
   if (length <= 1) return false;
   // We may not need to check against the end of the input string
   // if this character lies before a character that matched.
@@ -1785,6 +1787,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start) {
+  Isolate* isolate = Isolate::Current();
   ASSERT(characters_filled_in < details->characters());
   int characters = details->characters();
   int char_mask;
@@ -1815,7 +1818,8 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         }
         if (compiler->ignore_case()) {
           unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-          int length = GetCaseIndependentLetters(c, compiler->ascii(), chars);
+          int length = GetCaseIndependentLetters(isolate, c, compiler->ascii(),
+                                                 chars);
           ASSERT(length != 0);  // Can only happen if c > char_mask (see above).
           if (length == 1) {
             // This letter has no case equivalents, so it's nice and simple
@@ -2315,6 +2319,7 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
                             Trace* trace,
                             bool first_element_checked,
                             int* checked_up_to) {
+  Isolate* isolate = Isolate::Current();
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   bool ascii = compiler->ascii();
   Label* backtrack = trace->backtrack();
@@ -2350,7 +2355,8 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
             break;
         }
         if (emit_function != NULL) {
-          bool bound_checked = emit_function(compiler,
+          bool bound_checked = emit_function(isolate,
+                                             compiler,
                                              quarks[j],
                                              backtrack,
                                              cp_offset + j,
@@ -3987,13 +3993,15 @@ void CharacterRange::Split(ZoneList<CharacterRange>* base,
 }
 
 
-static void AddUncanonicals(ZoneList<CharacterRange>* ranges,
+static void AddUncanonicals(Isolate* isolate,
+                            ZoneList<CharacterRange>* ranges,
                             int bottom,
                             int top);
 
 
 void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
                                         bool is_ascii) {
+  Isolate* isolate = Isolate::Current();
   uc16 bottom = from();
   uc16 top = to();
   if (is_ascii) {
@@ -4003,7 +4011,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
   if (top == bottom) {
     // If this is a singleton we just expand the one character.
-    int length = uncanonicalize.get(bottom, '\0', chars);
+    int length = isolate->jsregexp_uncanonicalize()->get(bottom, '\0', chars);
     for (int i = 0; i < length; i++) {
       uc32 chr = chars[i];
       if (chr != bottom) {
@@ -4031,7 +4039,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
     // covered by the range.
     unibrow::uchar range[unibrow::Ecma262UnCanonicalize::kMaxWidth];
     // First, look up the block that contains the 'bottom' character.
-    int length = canonrange.get(bottom, '\0', range);
+    int length = isolate->jsregexp_canonrange()->get(bottom, '\0', range);
     if (length == 0) {
       range[0] = bottom;
     } else {
@@ -4052,7 +4060,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
     // position to be after the last block each time.  The position
     // always points to the start of a block.
     while (pos < top) {
-      length = canonrange.get(start, '\0', range);
+      length = isolate->jsregexp_canonrange()->get(start, '\0', range);
       if (length == 0) {
         range[0] = start;
       } else {
@@ -4063,7 +4071,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
       // of the range.
       int block_end = start + (range[0] & kPayloadMask) - 1;
       int end = (block_end > top) ? top : block_end;
-      length = uncanonicalize.get(start, '\0', range);
+      length = isolate->jsregexp_uncanonicalize()->get(start, '\0', range);
       for (int i = 0; i < length; i++) {
         uc32 c = range[i];
         uc16 range_from = c + (pos - start);
@@ -4077,7 +4085,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
   } else {
     // Unibrow ranges don't work for high characters due to the "2^11 bug".
     // Therefore we do something dumber for these ranges.
-    AddUncanonicals(ranges, bottom, top);
+    AddUncanonicals(isolate, ranges, bottom, top);
   }
 }
 
@@ -4177,7 +4185,8 @@ SetRelation CharacterRange::WordCharacterRelation(
 }
 
 
-static void AddUncanonicals(ZoneList<CharacterRange>* ranges,
+static void AddUncanonicals(Isolate* isolate,
+                            ZoneList<CharacterRange>* ranges,
                             int bottom,
                             int top) {
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
@@ -4215,8 +4224,8 @@ static void AddUncanonicals(ZoneList<CharacterRange>* ranges,
   // case mappings.
   for (int i = 0; i < boundary_count; i++) {
     if (bottom < boundaries[i] && top >= boundaries[i]) {
-      AddUncanonicals(ranges, bottom, boundaries[i] - 1);
-      AddUncanonicals(ranges, boundaries[i], top);
+      AddUncanonicals(isolate, ranges, bottom, boundaries[i] - 1);
+      AddUncanonicals(isolate, ranges, boundaries[i], top);
       return;
     }
   }
@@ -4228,7 +4237,8 @@ static void AddUncanonicals(ZoneList<CharacterRange>* ranges,
 #ifdef DEBUG
       for (int j = bottom; j <= top; j++) {
         unsigned current_char = j;
-        int length = uncanonicalize.get(current_char, '\0', chars);
+        int length = isolate->jsregexp_uncanonicalize()->get(current_char,
+                                                             '\0', chars);
         for (int k = 0; k < length; k++) {
           ASSERT(chars[k] == current_char);
         }
@@ -4241,7 +4251,7 @@ static void AddUncanonicals(ZoneList<CharacterRange>* ranges,
   // Step through the range finding equivalent characters.
   ZoneList<unibrow::uchar> *characters = new ZoneList<unibrow::uchar>(100);
   for (int i = bottom; i <= top; i++) {
-    int length = uncanonicalize.get(i, '\0', chars);
+    int length = isolate->jsregexp_uncanonicalize()->get(i, '\0', chars);
     for (int j = 0; j < length; j++) {
       uc32 chr = chars[j];
       if (chr != i && (chr < bottom || chr > top)) {
@@ -5260,8 +5270,5 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
                            pattern);
 }
 
-
-int OffsetsVector::static_offsets_vector_[
-    OffsetsVector::kStaticOffsetsVectorSize];
 
 }}  // namespace v8::internal

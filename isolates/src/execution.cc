@@ -370,13 +370,9 @@ char* StackGuard::RestoreStackGuard(char* from) {
 }
 
 
-static internal::Thread::LocalStorageKey stack_limit_key =
-    internal::Thread::CreateThreadLocalKey();
-
-
 void StackGuard::FreeThreadResources() {
   Thread::SetThreadLocal(
-      stack_limit_key,
+      stack_limit_key_,
       reinterpret_cast<void*>(thread_local_.real_climit_));
 }
 
@@ -420,7 +416,7 @@ void StackGuard::ClearThread(const ExecutionAccess& lock) {
 
 void StackGuard::InitThread(const ExecutionAccess& lock) {
   if (thread_local_.Initialize()) isolate_->heap()->SetStackLimits();
-  void* stored_limit = Thread::GetThreadLocal(stack_limit_key);
+  void* stored_limit = Thread::GetThreadLocal(stack_limit_key_);
   // You should hold the ExecutionAccess lock when you call this.
   if (stored_limit != NULL) {
     StackGuard::SetStackLimit(reinterpret_cast<intptr_t>(stored_limit));

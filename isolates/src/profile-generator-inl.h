@@ -52,13 +52,15 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
                      const char* resource_name,
                      int line_number,
                      int security_token_id)
-    : call_uid_(next_call_uid_++),
-      tag_(tag),
+    : tag_(tag),
       name_prefix_(name_prefix),
       name_(name),
       resource_name_(resource_name),
       line_number_(line_number),
       security_token_id_(security_token_id) {
+  Isolate* isolate = Isolate::Current();
+  call_uid_ = isolate->code_entry_next_call_uid();
+  isolate->set_code_entry_next_call_uid(call_uid_ + 1);
 }
 
 

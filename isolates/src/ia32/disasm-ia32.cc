@@ -242,7 +242,6 @@ void InstructionTable::AddJumpConditionalShort() {
 }
 
 
-// TODO(isolates): This appears to act morally as a constant. Is it safe?
 static InstructionTable instruction_table;
 
 

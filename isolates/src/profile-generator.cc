@@ -121,7 +121,6 @@ const char* StringsStorage::GetName(String* name) {
 
 
 const char* CodeEntry::kEmptyNamePrefix = "";
-unsigned CodeEntry::next_call_uid_ = 1;
 
 
 void CodeEntry::CopyData(const CodeEntry& source) {

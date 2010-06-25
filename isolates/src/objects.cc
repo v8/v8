@@ -3789,9 +3789,6 @@ bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
 #endif
 
 
-static StaticResource<StringInputBuffer> string_input_buffer;
-
-
 bool String::LooksValid() {
   if (!HEAP->Contains(this)) return false;
   return true;
@@ -3805,7 +3802,8 @@ int String::Utf8Length() {
   // the string will be accessed later (for example by WriteUtf8)
   // so it's still a good idea.
   TryFlatten();
-  Access<StringInputBuffer> buffer(&string_input_buffer);
+  Access<StringInputBuffer> buffer(
+      Isolate::Current()->objects_string_input_buffer());
   buffer->Reset(0, this);
   int result = 0;
   while (buffer->has_more())
@@ -3880,7 +3878,8 @@ SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
   if (length < 0) length = kMaxInt - offset;
 
   // Compute the size of the UTF-8 string. Start at the specified offset.
-  Access<StringInputBuffer> buffer(&string_input_buffer);
+  Access<StringInputBuffer> buffer(
+      Isolate::Current()->objects_string_input_buffer());
   buffer->Reset(offset, this);
   int character_position = offset;
   int utf8_bytes = 0;
@@ -3955,7 +3954,8 @@ SmartPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
     return SmartPointer<uc16>();
   }
 
-  Access<StringInputBuffer> buffer(&string_input_buffer);
+  Access<StringInputBuffer> buffer(
+      Isolate::Current()->objects_string_input_buffer());
   buffer->Reset(this);
 
   uc16* result = NewArray<uc16>(length() + 1);
@@ -4238,11 +4238,9 @@ const unibrow::byte* String::ReadBlock(String* input,
 }
 
 
-Relocatable* Relocatable::top_ = NULL;
-
-
 void Relocatable::PostGarbageCollectionProcessing() {
-  Relocatable* current = top_;
+  Isolate* isolate = Isolate::Current();
+  Relocatable* current = isolate->relocatable_top();
   while (current != NULL) {
     current->PostGarbageCollection();
     current = current->prev_;
@@ -4252,21 +4250,23 @@ void Relocatable::PostGarbageCollectionProcessing() {
 
 // Reserve space for statics needing saving and restoring.
 int Relocatable::ArchiveSpacePerThread() {
-  return sizeof(top_);
+  return sizeof(Isolate::Current()->relocatable_top());
 }
 
 
 // Archive statics that are thread local.
 char* Relocatable::ArchiveState(char* to) {
-  *reinterpret_cast<Relocatable**>(to) = top_;
-  top_ = NULL;
+  Isolate* isolate = Isolate::Current();
+  *reinterpret_cast<Relocatable**>(to) = isolate->relocatable_top();
+  isolate->set_relocatable_top(NULL);
   return to + ArchiveSpacePerThread();
 }
 
 
 // Restore statics that are thread local.
 char* Relocatable::RestoreState(char* from) {
-  top_ = *reinterpret_cast<Relocatable**>(from);
+  Isolate* isolate = Isolate::Current();
+  isolate->set_relocatable_top(*reinterpret_cast<Relocatable**>(from));
   return from + ArchiveSpacePerThread();
 }
 
@@ -4279,7 +4279,8 @@ char* Relocatable::Iterate(ObjectVisitor* v, char* thread_storage) {
 
 
 void Relocatable::Iterate(ObjectVisitor* v) {
-  Iterate(v, top_);
+  Isolate* isolate = Isolate::Current();
+  Iterate(v, isolate->relocatable_top());
 }
 
 
@@ -4658,11 +4659,10 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
 }
 
 
-static StringInputBuffer string_compare_buffer_b;
-
-
 template <typename IteratorA>
-static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
+static inline bool CompareStringContentsPartial(Isolate* isolate,
+                                                IteratorA* ia,
+                                                String* b) {
   if (b->IsFlat()) {
     if (b->IsAsciiRepresentation()) {
       VectorIterator<char> ib(b->ToAsciiVector());
@@ -4672,13 +4672,11 @@ static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
       return CompareStringContents(ia, &ib);
     }
   } else {
-    string_compare_buffer_b.Reset(0, b);
-    return CompareStringContents(ia, &string_compare_buffer_b);
+    isolate->objects_string_compare_buffer_b()->Reset(0, b);
+    return CompareStringContents(ia,
+                                 isolate->objects_string_compare_buffer_b());
   }
 }
-
-
-static StringInputBuffer string_compare_buffer_a;
 
 
 bool String::SlowEquals(String* other) {
@@ -4708,6 +4706,7 @@ bool String::SlowEquals(String* other) {
                                     Vector<const char>(str2, len));
   }
 
+  Isolate* isolate = Isolate::Current();
   if (lhs->IsFlat()) {
     if (IsAsciiRepresentation()) {
       Vector<const char> vec1 = lhs->ToAsciiVector();
@@ -4722,8 +4721,9 @@ bool String::SlowEquals(String* other) {
         }
       } else {
         VectorIterator<char> buf1(vec1);
-        string_compare_buffer_b.Reset(0, rhs);
-        return CompareStringContents(&buf1, &string_compare_buffer_b);
+        isolate->objects_string_compare_buffer_b()->Reset(0, rhs);
+        return CompareStringContents(&buf1,
+            isolate->objects_string_compare_buffer_b());
       }
     } else {
       Vector<const uc16> vec1 = lhs->ToUC16Vector();
@@ -4738,13 +4738,15 @@ bool String::SlowEquals(String* other) {
         }
       } else {
         VectorIterator<uc16> buf1(vec1);
-        string_compare_buffer_b.Reset(0, rhs);
-        return CompareStringContents(&buf1, &string_compare_buffer_b);
+        isolate->objects_string_compare_buffer_b()->Reset(0, rhs);
+        return CompareStringContents(&buf1,
+            isolate->objects_string_compare_buffer_b());
       }
     }
   } else {
-    string_compare_buffer_a.Reset(0, lhs);
-    return CompareStringContentsPartial(&string_compare_buffer_a, rhs);
+    isolate->objects_string_compare_buffer_a()->Reset(0, lhs);
+    return CompareStringContentsPartial(isolate,
+        isolate->objects_string_compare_buffer_a(), rhs);
   }
 }
 

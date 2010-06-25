@@ -116,8 +116,6 @@ class CodeEntry {
   int line_number_;
   int security_token_id_;
 
-  static unsigned next_call_uid_;
-
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
 };
 

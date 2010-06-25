@@ -177,7 +177,8 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #define ISOLATE_INIT_ARRAY_LIST(V)                                             \
   /* SerializerDeserializer state. */                                          \
-  V(Object*, serialize_partial_snapshot_cache, kPartialSnapshotCacheCapacity)
+  V(Object*, serialize_partial_snapshot_cache, kPartialSnapshotCacheCapacity)  \
+  V(int, jsregexp_static_offsets_vector, kJSRegexpStaticOffsetsVectorSize)
 
 #define ISOLATE_INIT_LIST(V)                                                   \
   /* AssertNoZoneAllocation state. */                                          \
@@ -194,6 +195,10 @@ class ThreadLocalTop BASE_EMBEDDED {
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the global context. */                                  \
   V(int, next_serial_number, 0)                                                \
+  /* State for Relocatable. */                                                 \
+  V(Relocatable*, relocatable_top, NULL)                                       \
+  /* State for CodeEntry in profile-generator. */                              \
+  V(unsigned, code_entry_next_call_uid, NULL)                                  \
   ISOLATE_PLATFORM_INIT_LIST(V)
 
 class Isolate {
@@ -529,6 +534,26 @@ class Isolate {
 
   StringTracker* string_tracker() { return string_tracker_; }
 
+  unibrow::Mapping<unibrow::Ecma262UnCanonicalize>* jsregexp_uncanonicalize() {
+    return &jsregexp_uncanonicalize_;
+  }
+
+  unibrow::Mapping<unibrow::CanonicalizationRange>* jsregexp_canonrange() {
+    return &jsregexp_canonrange_;
+  }
+
+  StringInputBuffer* objects_string_compare_buffer_a() {
+    return &objects_string_compare_buffer_a_;
+  }
+
+  StringInputBuffer* objects_string_compare_buffer_b() {
+    return &objects_string_compare_buffer_b_;
+  }
+
+  StaticResource<StringInputBuffer>* objects_string_input_buffer() {
+    return &objects_string_input_buffer_;
+  }
+
   void* PreallocatedStorageNew(size_t size);
   void PreallocatedStorageDelete(void* p);
   void PreallocatedStorageInit(size_t size);
@@ -551,6 +576,8 @@ class Isolate {
 
   // SerializerDeserializer state.
   static const int kPartialSnapshotCacheCapacity = 1300;
+
+  static const int kJSRegexpStaticOffsetsVectorSize = 50;
 
   static int number_of_isolates() { return number_of_isolates_; }
 
@@ -629,6 +656,11 @@ class Isolate {
   ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
   StringTracker* string_tracker_;
+  unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
+  unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;
+  StringInputBuffer objects_string_compare_buffer_a_;
+  StringInputBuffer objects_string_compare_buffer_b_;
+  StaticResource<StringInputBuffer> objects_string_input_buffer_;
 
 #ifdef DEBUG
   // A static array of histogram info for each type.

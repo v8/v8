@@ -4593,11 +4593,8 @@ class ExternalTwoByteString: public ExternalString {
 // iterating or updating after gc.
 class Relocatable BASE_EMBEDDED {
  public:
-  inline Relocatable() : prev_(top_) { top_ = this; }
-  virtual ~Relocatable() {
-    ASSERT_EQ(top_, this);
-    top_ = prev_;
-  }
+  inline Relocatable();
+  inline virtual ~Relocatable();
   virtual void IterateInstance(ObjectVisitor* v) { }
   virtual void PostGarbageCollection() { }
 
@@ -4609,7 +4606,6 @@ class Relocatable BASE_EMBEDDED {
   static void Iterate(ObjectVisitor* v, Relocatable* top);
   static char* Iterate(ObjectVisitor* v, char* t);
  private:
-  static Relocatable* top_;
   Relocatable* prev_;
 };
 

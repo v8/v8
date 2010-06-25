@@ -1428,14 +1428,14 @@ class OffsetsVector {
  public:
   inline OffsetsVector(int num_registers)
       : offsets_vector_length_(num_registers) {
-    if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
+    if (offsets_vector_length_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
       vector_ = NewArray<int>(offsets_vector_length_);
     } else {
-      vector_ = static_offsets_vector_;
+      vector_ = Isolate::Current()->jsregexp_static_offsets_vector();
     }
   }
   inline ~OffsetsVector() {
-    if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
+    if (offsets_vector_length_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
       DeleteArray(vector_);
       vector_ = NULL;
     }
@@ -1443,16 +1443,13 @@ class OffsetsVector {
   inline int* vector() { return vector_; }
   inline int length() { return offsets_vector_length_; }
 
-  static const int kStaticOffsetsVectorSize = 50;
-
  private:
-  static Address static_offsets_vector_address() {
-    return reinterpret_cast<Address>(&static_offsets_vector_);
+  static Address static_offsets_vector_address(Isolate* isolate) {
+    return reinterpret_cast<Address>(isolate->jsregexp_static_offsets_vector());
   }
 
   int* vector_;
   int offsets_vector_length_;
-  static int static_offsets_vector_[kStaticOffsetsVectorSize];
 
   friend class ExternalReference;
 };

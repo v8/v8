@@ -3214,6 +3214,20 @@ Object* FixedArray::Copy() {
 }
 
 
+Relocatable::Relocatable() {
+  Isolate* isolate = Isolate::Current();
+  prev_ = isolate->relocatable_top();
+  isolate->set_relocatable_top(this);
+}
+
+
+Relocatable::~Relocatable() {
+  Isolate* isolate = Isolate::Current();
+  ASSERT_EQ(isolate->relocatable_top(), this);
+  isolate->set_relocatable_top(prev_);
+}
+
+
 #undef CAST_ACCESSOR
 #undef INT_ACCESSORS
 #undef SMI_ACCESSORS

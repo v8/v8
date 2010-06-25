@@ -8563,7 +8563,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rdx, 1);
   __ addq(rdx, Immediate(2));  // rdx was number_of_captures * 2.
   // Check that the static offsets vector buffer is large enough.
-  __ cmpq(rdx, Immediate(OffsetsVector::kStaticOffsetsVectorSize));
+  __ cmpq(rdx, Immediate(Isolate::kJSRegexpStaticOffsetsVectorSize));
   __ j(above, &runtime);
 
   // rcx: RegExp data (FixedArray)

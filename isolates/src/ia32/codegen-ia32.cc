@@ -11274,7 +11274,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
   __ add(Operand(edx), Immediate(2));  // edx was a smi.
   // Check that the static offsets vector buffer is large enough.
-  __ cmp(edx, OffsetsVector::kStaticOffsetsVectorSize);
+  __ cmp(edx, Isolate::kJSRegexpStaticOffsetsVectorSize);
   __ j(above, &runtime);
 
   // ecx: RegExp data (FixedArray)

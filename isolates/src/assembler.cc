@@ -710,7 +710,8 @@ ExternalReference ExternalReference::re_word_character_map() {
 }
 
 ExternalReference ExternalReference::address_of_static_offsets_vector() {
-  return ExternalReference(OffsetsVector::static_offsets_vector_address());
+  return ExternalReference(OffsetsVector::static_offsets_vector_address(
+      Isolate::Current()));
 }
 
 ExternalReference ExternalReference::address_of_regexp_stack_memory_address() {
