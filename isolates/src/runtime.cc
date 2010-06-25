@@ -10373,7 +10373,7 @@ static Object* Runtime_Log(Arguments args) {
   CONVERT_CHECKED(String, format, args[0]);
   CONVERT_CHECKED(JSArray, elms, args[1]);
   Vector<const char> chars = format->ToAsciiVector();
-  Logger::LogRuntime(chars, elms);
+  LOGGER->LogRuntime(chars, elms);
   return HEAP->undefined_value();
 }
 

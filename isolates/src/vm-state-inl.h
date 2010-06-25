@@ -60,7 +60,7 @@ VMState::VMState(StateTag state)
       state_(OTHER),
       external_callback_(NULL) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Logger::is_logging() && !CpuProfiler::is_profiling()) {
+  if (!LOGGER->is_logging() && !CpuProfiler::is_profiling()) {
     return;
   }
 #endif

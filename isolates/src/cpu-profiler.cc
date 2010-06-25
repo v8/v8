@@ -456,20 +456,20 @@ void CpuProfiler::StartCollectingProfile(String* title) {
 void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_ == NULL) {
     // Disable logging when using the new implementation.
-    saved_logging_nesting_ = Logger::logging_nesting_;
-    Logger::logging_nesting_ = 0;
+    saved_logging_nesting_ = LOGGER->logging_nesting_;
+    LOGGER->logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
     processor_ = new ProfilerEventsProcessor(generator_);
     processor_->Start();
     // Enumerate stuff we already have in the heap.
     if (HEAP->HasBeenSetup()) {
-      Logger::LogCodeObjects();
-      Logger::LogCompiledFunctions();
-      Logger::LogFunctionObjects();
-      Logger::LogAccessorCallbacks();
+      LOGGER->LogCodeObjects();
+      LOGGER->LogCompiledFunctions();
+      LOGGER->LogFunctionObjects();
+      LOGGER->LogAccessorCallbacks();
     }
     // Enable stack sampling.
-    reinterpret_cast<Sampler*>(Logger::ticker_)->Start();
+    reinterpret_cast<Sampler*>(LOGGER->ticker_)->Start();
   }
 }
 
@@ -499,14 +499,14 @@ CpuProfile* CpuProfiler::StopCollectingProfile(Object* security_token,
 
 void CpuProfiler::StopProcessorIfLastProfile() {
   if (profiles_->is_last_profile()) {
-    reinterpret_cast<Sampler*>(Logger::ticker_)->Stop();
+    reinterpret_cast<Sampler*>(LOGGER->ticker_)->Stop();
     processor_->Stop();
     processor_->Join();
     delete processor_;
     delete generator_;
     processor_ = NULL;
     generator_ = NULL;
-    Logger::logging_nesting_ = saved_logging_nesting_;
+    LOGGER->logging_nesting_ = saved_logging_nesting_;
   }
 }
 

@@ -620,7 +620,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   // Log the code generation. If source information is available
   // include script name and line number. Check explicitly whether
   // logging is enabled as finding the line number is not free.
-  if (Logger::is_logging()
+  if (LOGGER->is_logging()
       || OProfileAgent::is_enabled()
       || CpuProfiler::is_profiling()) {
     Handle<String> func_name(name->length() > 0 ? *name : *inferred_name);

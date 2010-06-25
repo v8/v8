@@ -2393,7 +2393,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
 
     // Get the command from the queue.
     CommandMessage command = command_queue_.Get();
-    Logger::DebugTag("Got request from command queue, in interactive loop.");
+    LOGGER->DebugTag("Got request from command queue, in interactive loop.");
     if (!Debugger::IsDebuggerActive()) {
       // Delete command text and user data.
       command.Dispose();
@@ -2575,7 +2575,7 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command,
       Vector<uint16_t>(const_cast<uint16_t*>(command.start()),
                        command.length()),
       client_data);
-  Logger::DebugTag("Put command on command_queue.");
+  LOGGER->DebugTag("Put command on command_queue.");
   command_queue_.Put(message);
   command_received_->Signal();
 
@@ -2938,7 +2938,7 @@ bool LockingCommandMessageQueue::IsEmpty() const {
 CommandMessage LockingCommandMessageQueue::Get() {
   ScopedLock sl(lock_);
   CommandMessage result = queue_.Get();
-  Logger::DebugEvent("Get", result.text());
+  LOGGER->DebugEvent("Get", result.text());
   return result;
 }
 
@@ -2946,7 +2946,7 @@ CommandMessage LockingCommandMessageQueue::Get() {
 void LockingCommandMessageQueue::Put(const CommandMessage& message) {
   ScopedLock sl(lock_);
   queue_.Put(message);
-  Logger::DebugEvent("Put", message.text());
+  LOGGER->DebugEvent("Put", message.text());
 }
 
 

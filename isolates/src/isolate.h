@@ -475,6 +475,7 @@ class Isolate {
   CpuFeatures* cpu_features() { return cpu_features_; }
   CodeRange* code_range() { return code_range_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
+  Logger* logger() { return logger_; }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
   StatsTable* stats_table() { return stats_table_; }
@@ -546,6 +547,8 @@ class Isolate {
   int* code_kind_statistics() { return code_kind_statistics_; }
 #endif
 
+  bool IsDefaultIsolate() { return this == global_isolate_; }
+
   // SerializerDeserializer state.
   static const int kPartialSnapshotCacheCapacity = 1300;
 
@@ -604,6 +607,7 @@ class Isolate {
   CodeRange* code_range_;
   Mutex* break_access_;
   Heap heap_;
+  Logger* logger_;
   StackGuard stack_guard_;
   StatsTable* stats_table_;
   StubCache* stub_cache_;
@@ -762,6 +766,7 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 // when reformatting code would become burdensome.
 #define HEAP (v8::internal::Isolate::Current()->heap())
 #define ZONE (v8::internal::Isolate::Current()->zone())
+#define LOGGER (v8::internal::Isolate::Current()->logger())
 
 
 // Tells whether the global context is marked with out of memory.

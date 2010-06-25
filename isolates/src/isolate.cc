@@ -232,6 +232,7 @@ Isolate::Isolate()
       cpu_features_(NULL),
       code_range_(NULL),
       break_access_(OS::CreateMutex()),
+      logger_(new Logger()),
       stats_table_(new StatsTable()),
       stub_cache_(NULL),
       transcendental_cache_(NULL),
@@ -305,7 +306,7 @@ Isolate::~Isolate() {
     HeapProfiler::TearDown();
     CpuProfiler::TearDown();
     heap_.TearDown();
-    Logger::TearDown();
+    logger_->TearDown();
   }
   delete scanner_character_classes_;
   scanner_character_classes_ = NULL;
@@ -323,6 +324,9 @@ Isolate::~Isolate() {
   stub_cache_ = NULL;
   delete stats_table_;
   stats_table_ = NULL;
+
+  delete logger_;
+  logger_ = NULL;
 
   delete cpu_features_;
   cpu_features_ = NULL;
@@ -433,7 +437,7 @@ bool Isolate::Init(Deserializer* des) {
   if (state_ == UNINITIALIZED && !PreInit()) return false;
 
   // Enable logging before setting up the heap
-  Logger::Setup();
+  logger_->Setup();
 
   CpuProfiler::Setup();
   HeapProfiler::Setup();

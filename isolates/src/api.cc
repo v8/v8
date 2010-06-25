@@ -3749,7 +3749,7 @@ void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {
 
 void V8::EnableSlidingStateWindow() {
   if (IsDeadCheck("v8::V8::EnableSlidingStateWindow()")) return;
-  i::Logger::EnableSlidingStateWindow();
+  LOGGER->EnableSlidingStateWindow();
 }
 
 
@@ -3826,7 +3826,7 @@ void V8::ResumeProfiler() {
 
 bool V8::IsProfilerPaused() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  return i::Logger::GetActiveProfilerModules() & PROFILER_MODULE_CPU;
+  return LOGGER->GetActiveProfilerModules() & PROFILER_MODULE_CPU;
 #else
   return true;
 #endif
@@ -3844,12 +3844,12 @@ void V8::ResumeProfilerEx(int flags, int tag) {
     HEAP->CollectAllGarbage(false);
     // Reset snapshot flag and CPU module flags.
     flags &= ~(PROFILER_MODULE_HEAP_SNAPSHOT | PROFILER_MODULE_CPU);
-    const int current_flags = i::Logger::GetActiveProfilerModules();
-    i::Logger::ResumeProfiler(flags, tag);
+    const int current_flags = LOGGER->GetActiveProfilerModules();
+    LOGGER->ResumeProfiler(flags, tag);
     HEAP->CollectAllGarbage(false);
-    i::Logger::PauseProfiler(~current_flags & flags, tag);
+    LOGGER->PauseProfiler(~current_flags & flags, tag);
   } else {
-    i::Logger::ResumeProfiler(flags, tag);
+    LOGGER->ResumeProfiler(flags, tag);
   }
 #endif
 }
@@ -3857,14 +3857,14 @@ void V8::ResumeProfilerEx(int flags, int tag) {
 
 void V8::PauseProfilerEx(int flags, int tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Logger::PauseProfiler(flags, tag);
+  LOGGER->PauseProfiler(flags, tag);
 #endif
 }
 
 
 int V8::GetActiveProfilerModules() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  return i::Logger::GetActiveProfilerModules();
+  return LOGGER->GetActiveProfilerModules();
 #else
   return PROFILER_MODULE_NONE;
 #endif
@@ -3874,7 +3874,7 @@ int V8::GetActiveProfilerModules() {
 int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   ASSERT(max_size >= kMinimumSizeForLogLinesBuffer);
-  return i::Logger::GetLogLines(from_pos, dest_buf, max_size);
+  return LOGGER->GetLogLines(from_pos, dest_buf, max_size);
 #endif
   return 0;
 }

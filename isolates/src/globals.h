@@ -620,11 +620,11 @@ F FUNCTION_CAST(Address addr) {
 #define TRACK_MEMORY(name) \
   void* operator new(size_t size) { \
     void* result = ::operator new(size); \
-    Logger::NewEvent(name, result, size); \
+    Logger::NewEventStatic(name, result, size); \
     return result; \
   } \
   void operator delete(void* object) { \
-    Logger::DeleteEvent(name, object); \
+    Logger::DeleteEventStatic(name, object); \
     ::operator delete(object); \
   }
 #else
