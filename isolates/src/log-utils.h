@@ -94,7 +94,7 @@ class LogDynamicBuffer {
 class Log {
  public:
 
-  // Performs process-wide initialization. 
+  // Performs process-wide initialization.
   void Initialize();
 
   // Disables logging, but preserves acquired resources.
@@ -115,7 +115,7 @@ class Log {
   static const int kMessageBufferSize = v8::V8::kMinimumSizeForLogLinesBuffer;
 
  private:
-  Log(Logger* logger);
+  explicit Log(Logger* logger);
 
   // Opens stdout for logging.
   void OpenStdout();
@@ -229,7 +229,7 @@ class LogMessageBuilder BASE_EMBEDDED {
  public:
   // Create a message builder starting from position 0. This acquires the mutex
   // in the log as well.
-  LogMessageBuilder(Logger* logger);
+  explicit LogMessageBuilder(Logger* logger);
   ~LogMessageBuilder() { }
 
   // Append string data to the log message.

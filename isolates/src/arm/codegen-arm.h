@@ -276,7 +276,9 @@ class CodeGenerator: public AstVisitor {
   static int InlineRuntimeCallArgumentsCount(Handle<String> name);
 
   // Constants related to patching of inlined load/store.
-  static const int kInlinedKeyedLoadInstructionsAfterPatch = 17;
+  static int GetInlinedKeyedLoadInstructionsAfterPatch() {
+    return FLAG_debug_code ? 27 : 13;
+  }
   static const int kInlinedKeyedStoreInstructionsAfterPatch = 5;
 
  private:
@@ -664,7 +666,9 @@ class GenericBinaryOpStub : public CodeStub {
   }
 
   void Generate(MacroAssembler* masm);
-  void HandleNonSmiBitwiseOp(MacroAssembler* masm, Register lhs, Register rhs);
+  void HandleNonSmiBitwiseOp(MacroAssembler* masm,
+                             Register lhs,
+                             Register rhs);
   void HandleBinaryOpSlowCases(MacroAssembler* masm,
                                Label* not_smi,
                                Register lhs,

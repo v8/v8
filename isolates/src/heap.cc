@@ -118,6 +118,11 @@ Heap::Heap()
       global_gc_prologue_callback_(NULL),
       global_gc_epilogue_callback_(NULL),
       tracer_(NULL),
+      young_survivors_after_last_gc_(0),
+      high_survival_rate_period_length_(0),
+      survival_rate_(0),
+      previous_survival_rate_trend_(Heap::STABLE),
+      survival_rate_trend_(Heap::STABLE),
       max_gc_pause_(0),
       max_alive_after_gc_(0),
       min_in_mutator_(kMaxInt),
@@ -571,6 +576,29 @@ static void VerifyPageWatermarkValidity(PagedSpace* space,
 }
 #endif
 
+void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
+  double survival_rate =
+      (static_cast<double>(young_survivors_after_last_gc_) * 100) /
+      start_new_space_size;
+
+  if (survival_rate > kYoungSurvivalRateThreshold) {
+    high_survival_rate_period_length_++;
+  } else {
+    high_survival_rate_period_length_ = 0;
+  }
+
+  double survival_rate_diff = survival_rate_ - survival_rate;
+
+  if (survival_rate_diff > kYoungSurvivalRateAllowedDeviation) {
+    set_survival_rate_trend(DECREASING);
+  } else if (survival_rate_diff < -kYoungSurvivalRateAllowedDeviation) {
+    set_survival_rate_trend(INCREASING);
+  } else {
+    set_survival_rate_trend(STABLE);
+  }
+
+  survival_rate_ = survival_rate;
+}
 
 void Heap::PerformGarbageCollection(AllocationSpace space,
                                     GarbageCollector collector,
@@ -593,6 +621,8 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
   EnsureFromSpaceIsCommitted();
 
+  int start_new_space_size = Heap::new_space()->Size();
+
   if (collector == MARK_COMPACTOR) {
     if (FLAG_flush_code) {
       // Flush all potentially unused code.
@@ -602,16 +632,36 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     // Perform mark-sweep with optional compaction.
     MarkCompact(tracer);
 
+    bool high_survival_rate_during_scavenges = IsHighSurvivalRate() &&
+        IsStableOrIncreasingSurvivalTrend();
+
+    UpdateSurvivalRateTrend(start_new_space_size);
+
     int old_gen_size = PromotedSpaceSize();
     old_gen_promotion_limit_ =
         old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
     old_gen_allocation_limit_ =
         old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
+
+    if (high_survival_rate_during_scavenges &&
+        IsStableOrIncreasingSurvivalTrend()) {
+      // Stable high survival rates of young objects both during partial and
+      // full collection indicate that mutator is either building or modifying
+      // a structure with a long lifetime.
+      // In this case we aggressively raise old generation memory limits to
+      // postpone subsequent mark-sweep collection and thus trade memory
+      // space for the mutation speed.
+      old_gen_promotion_limit_ *= 2;
+      old_gen_allocation_limit_ *= 2;
+    }
+
     old_gen_exhausted_ = false;
   } else {
     tracer_ = tracer;
     Scavenge();
     tracer_ = NULL;
+
+    UpdateSurvivalRateTrend(start_new_space_size);
   }
 
   Counters::objs_since_last_young.Set(0);
@@ -1205,7 +1255,7 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_code_cache(THIS->empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
-  map->set_bit_field2(1 << Map::kIsExtensible);
+  map->set_bit_field2((1 << Map::kIsExtensible) | (1 << Map::kHasFastElements));
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
   if (Map::kPadStart < Map::kSize) {
@@ -1921,6 +1971,18 @@ Object* Heap::AllocateConsString(String* first, String* second) {
     return Failure::OutOfMemoryException();
   }
 
+  bool is_ascii_data_in_two_byte_string = false;
+  if (!is_ascii) {
+    // At least one of the strings uses two-byte representation so we
+    // can't use the fast case code for short ascii strings below, but
+    // we can try to save memory if all chars actually fit in ascii.
+    is_ascii_data_in_two_byte_string =
+        first->HasOnlyAsciiChars() && second->HasOnlyAsciiChars();
+    if (is_ascii_data_in_two_byte_string) {
+      Counters::string_add_runtime_ext_to_ascii.Increment();
+    }
+  }
+
   // If the resulting string is small make a flat string.
   if (length < String::kMinNonFlatLength) {
     ASSERT(first->IsFlat());
@@ -1947,22 +2009,13 @@ Object* Heap::AllocateConsString(String* first, String* second) {
       for (int i = 0; i < second_length; i++) *dest++ = src[i];
       return result;
     } else {
-      // For short external two-byte strings we check whether they can
-      // be represented using ascii.
-      if (!first_is_ascii) {
-        first_is_ascii = first->IsExternalTwoByteStringWithAsciiChars();
-      }
-      if (first_is_ascii && !second_is_ascii) {
-        second_is_ascii = second->IsExternalTwoByteStringWithAsciiChars();
-      }
-      if (first_is_ascii && second_is_ascii) {
+      if (is_ascii_data_in_two_byte_string) {
         Object* result = AllocateRawAsciiString(length);
         if (result->IsFailure()) return result;
         // Copy the characters into the new object.
         char* dest = SeqAsciiString::cast(result)->GetChars();
         String::WriteToFlat(first, dest, 0, first_length);
         String::WriteToFlat(second, dest + first_length, 0, second_length);
-        Counters::string_add_runtime_ext_to_ascii.Increment();
         return result;
       }
 
@@ -1976,7 +2029,8 @@ Object* Heap::AllocateConsString(String* first, String* second) {
     }
   }
 
-  Map* map = is_ascii ? THIS->cons_ascii_string_map() : THIS->cons_string_map();
+  Map* map = (is_ascii || is_ascii_data_in_two_byte_string) ?
+      THIS->cons_ascii_string_map() : THIS->cons_string_map();
 
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
@@ -2061,7 +2115,23 @@ Object* Heap::AllocateExternalStringFromTwoByte(
     return Failure::OutOfMemoryException();
   }
 
-  Map* map = HEAP->external_string_map();
+  // For small strings we check whether the resource contains only
+  // ascii characters.  If yes, we use a different string map.
+  bool is_ascii = true;
+  if (length >= static_cast<size_t>(String::kMinNonFlatLength)) {
+    is_ascii = false;
+  } else {
+    const uc16* data = resource->data();
+    for (size_t i = 0; i < length; i++) {
+      if (data[i] > String::kMaxAsciiCharCode) {
+        is_ascii = false;
+        break;
+      }
+    }
+  }
+
+  Map* map = is_ascii ?
+      external_string_with_ascii_data_map() : external_string_map();
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
 
@@ -2235,6 +2305,12 @@ static void FlushCodeForFunction(SharedFunctionInfo* function_info) {
   FlushingStackVisitor threadvisitor(function_info->code());
   Isolate::Current()->thread_manager()->IterateArchivedThreads(&threadvisitor);
   if (threadvisitor.FoundCode()) return;
+
+  // Check that there are heap allocated locals in the scopeinfo. If
+  // there is, we are potentially using eval and need the scopeinfo
+  // for variable resolution.
+  if (ScopeInfo<>::HasHeapAllocatedLocals(function_info->code()))
+    return;
 
   HandleScope scope;
   // Compute the lazy compilable version of the code.
@@ -2514,6 +2590,7 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
   map->set_inobject_properties(in_object_properties);
   map->set_unused_property_fields(in_object_properties);
   map->set_prototype(prototype);
+  ASSERT(map->has_fast_elements());
 
   // If the function has only simple this property assignments add
   // field descriptors for these to the initial map as the object
@@ -2567,8 +2644,8 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   // properly initialized.
   ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
 
-  // Both types of globla objects should be allocated using
-  // AllocateGloblaObject to be properly initialized.
+  // Both types of global objects should be allocated using
+  // AllocateGlobalObject to be properly initialized.
   ASSERT(map->instance_type() != JS_GLOBAL_OBJECT_TYPE);
   ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
@@ -2592,6 +2669,7 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   InitializeJSObjectFromMap(JSObject::cast(obj),
                             FixedArray::cast(properties),
                             map);
+  ASSERT(JSObject::cast(obj)->HasFastElements());
   return obj;
 }
 
@@ -2860,6 +2938,9 @@ Map* Heap::SymbolMapForString(String* string) {
   }
   if (map == THIS->external_ascii_string_map()) {
     return THIS->external_ascii_symbol_map();
+  }
+  if (map == external_string_with_ascii_data_map()) {
+    return external_symbol_with_ascii_data_map();
   }
 
   // No match found.

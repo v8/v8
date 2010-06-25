@@ -115,25 +115,45 @@ void VirtualFrame::AllocateStackSlots() {
     Handle<Object> undefined = Factory::undefined_value();
     FrameElement initial_value =
         FrameElement::ConstantElement(undefined, FrameElement::SYNCED);
-    if (count == 1) {
-      __ Push(undefined);
-    } else if (count < kLocalVarBound) {
-      // For less locals the unrolled loop is more compact.
-      __ movq(kScratchRegister, undefined, RelocInfo::EMBEDDED_OBJECT);
+    if (count < kLocalVarBound) {
+      // For fewer locals the unrolled loop is more compact.
+
+      // Hope for one of the first eight registers, where the push operation
+      // takes only one byte (kScratchRegister needs the REX.W bit).
+      Result tmp = cgen()->allocator()->Allocate();
+      ASSERT(tmp.is_valid());
+      __ movq(tmp.reg(), undefined, RelocInfo::EMBEDDED_OBJECT);
       for (int i = 0; i < count; i++) {
-        __ push(kScratchRegister);
+        __ push(tmp.reg());
       }
     } else {
       // For more locals a loop in generated code is more compact.
       Label alloc_locals_loop;
       Result cnt = cgen()->allocator()->Allocate();
       ASSERT(cnt.is_valid());
-      __ movq(cnt.reg(), Immediate(count));
       __ movq(kScratchRegister, undefined, RelocInfo::EMBEDDED_OBJECT);
+#ifdef DEBUG
+      Label loop_size;
+      __ bind(&loop_size);
+#endif
+      if (is_uint8(count)) {
+        // Loading imm8 is shorter than loading imm32.
+        // Loading only partial byte register, and using decb below.
+        __ movb(cnt.reg(), Immediate(count));
+      } else {
+        __ movl(cnt.reg(), Immediate(count));
+      }
       __ bind(&alloc_locals_loop);
       __ push(kScratchRegister);
-      __ decl(cnt.reg());
+      if (is_uint8(count)) {
+        __ decb(cnt.reg());
+      } else {
+        __ decl(cnt.reg());
+      }
       __ j(not_zero, &alloc_locals_loop);
+#ifdef DEBUG
+      CHECK(masm()->SizeOfCodeGeneratedSince(&loop_size) < kLocalVarBound);
+#endif
     }
     for (int i = 0; i < count; i++) {
       elements_.Add(initial_value);
@@ -961,16 +981,18 @@ void VirtualFrame::SyncRange(int begin, int end) {
   // Sync elements below the range if they have not been materialized
   // on the stack.
   int start = Min(begin, stack_pointer_ + 1);
+  int end_or_stack_pointer = Min(stack_pointer_, end);
+  // Emit normal push instructions for elements above stack pointer
+  // and use mov instructions if we are below stack pointer.
+  int i = start;
 
-  // If positive we have to adjust the stack pointer.
-  int delta = end - stack_pointer_;
-  if (delta > 0) {
-    stack_pointer_ = end;
-    __ subq(rsp, Immediate(delta * kPointerSize));
-  }
-
-  for (int i = start; i <= end; i++) {
+  while (i <= end_or_stack_pointer) {
     if (!elements_[i].is_synced()) SyncElementBelowStackPointer(i);
+    i++;
+  }
+  while (i <= end) {
+    SyncElementByPushing(i);
+    i++;
   }
 }
 

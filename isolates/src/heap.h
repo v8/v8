@@ -76,10 +76,12 @@ class ZoneScopeInfo;
   V(Map, cons_symbol_map, ConsSymbolMap)                                       \
   V(Map, cons_ascii_symbol_map, ConsAsciiSymbolMap)                            \
   V(Map, external_symbol_map, ExternalSymbolMap)                               \
+  V(Map, external_symbol_with_ascii_data_map, ExternalSymbolWithAsciiDataMap)  \
   V(Map, external_ascii_symbol_map, ExternalAsciiSymbolMap)                    \
   V(Map, cons_string_map, ConsStringMap)                                       \
   V(Map, cons_ascii_string_map, ConsAsciiStringMap)                            \
   V(Map, external_string_map, ExternalStringMap)                               \
+  V(Map, external_string_with_ascii_data_map, ExternalStringWithAsciiDataMap)  \
   V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
   V(Map, undetectable_ascii_string_map, UndetectableAsciiStringMap)            \
@@ -1011,6 +1013,7 @@ class Heap {
   void CheckNewSpaceExpansionCriteria();
 
   inline void IncrementYoungSurvivorsCounter(int survived) {
+    young_survivors_after_last_gc_ = survived;
     survived_since_last_expansion_ += survived;
   }
 
@@ -1294,6 +1297,55 @@ class Heap {
   // Flush code from functions we do not expect to use again. The code will
   // be replaced with a lazy compilable version.
   void FlushCode();
+
+  void UpdateSurvivalRateTrend(int start_new_space_size);
+
+  enum SurvivalRateTrend { INCREASING, STABLE, DECREASING, FLUCTUATING };
+
+  static const int kYoungSurvivalRateThreshold = 90;
+  static const int kYoungSurvivalRateAllowedDeviation = 15;
+
+  int young_survivors_after_last_gc_;
+  int high_survival_rate_period_length_;
+  double survival_rate_;
+  SurvivalRateTrend previous_survival_rate_trend_;
+  SurvivalRateTrend survival_rate_trend_;
+
+  void set_survival_rate_trend(SurvivalRateTrend survival_rate_trend) {
+    ASSERT(survival_rate_trend != FLUCTUATING);
+    previous_survival_rate_trend_ = survival_rate_trend_;
+    survival_rate_trend_ = survival_rate_trend;
+  }
+
+  SurvivalRateTrend survival_rate_trend() {
+    if (survival_rate_trend_ == STABLE) {
+      return STABLE;
+    } else if (previous_survival_rate_trend_ == STABLE) {
+      return survival_rate_trend_;
+    } else if (survival_rate_trend_ != previous_survival_rate_trend_) {
+      return FLUCTUATING;
+    } else {
+      return survival_rate_trend_;
+    }
+  }
+
+  bool IsStableOrIncreasingSurvivalTrend() {
+    switch (survival_rate_trend()) {
+      case STABLE:
+      case INCREASING:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  bool IsIncreasingSurvivalTrend() {
+    return survival_rate_trend() == INCREASING;
+  }
+
+  bool IsHighSurvivalRate() {
+    return high_survival_rate_period_length_ > 0;
+  }
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;

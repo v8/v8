@@ -4930,16 +4930,6 @@ static Object* ConvertCaseHelper(RuntimeState* state,
 }
 
 
-static inline SeqAsciiString* TryGetSeqAsciiString(String* s) {
-  if (!s->IsFlat() || !s->IsAsciiRepresentation()) return NULL;
-  if (s->IsConsString()) {
-    ASSERT(ConsString::cast(s)->second()->length() == 0);
-    return SeqAsciiString::cast(ConsString::cast(s)->first());
-  }
-  return SeqAsciiString::cast(s);
-}
-
-
 namespace {
 
 struct ToLowerTraits {
@@ -4986,7 +4976,7 @@ static Object* ConvertCase(
     unibrow::Mapping<typename ConvertTraits::UnibrowConverter, 128>* mapping) {
   NoHandleAllocation ha;
   CONVERT_CHECKED(String, s, args[0]);
-  s->TryFlatten();
+  s = s->TryFlattenGetString();
 
   const int length = s->length();
   // Assume that the string is not empty; we need this assumption later
@@ -4998,13 +4988,12 @@ static Object* ConvertCase(
   // character is also ascii.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  SeqAsciiString* seq_ascii = TryGetSeqAsciiString(s);
-  if (seq_ascii != NULL) {
+  if (s->IsSeqAsciiString()) {
     Object* o = HEAP->AllocateRawAsciiString(length);
     if (o->IsFailure()) return o;
     SeqAsciiString* result = SeqAsciiString::cast(o);
     bool has_changed_character = ConvertTraits::ConvertAscii(
-        result->GetChars(), seq_ascii->GetChars(), length);
+        result->GetChars(), SeqAsciiString::cast(s)->GetChars(), length);
     return has_changed_character ? result : s;
   }
 
@@ -5559,7 +5548,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = special->IsAsciiRepresentation();
+  bool ascii = special->HasOnlyAsciiChars();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
@@ -5600,7 +5589,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
       String* element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
-      if (ascii && !element->IsAsciiRepresentation()) {
+      if (ascii && !element->HasOnlyAsciiChars()) {
         ascii = false;
       }
     } else {
@@ -7474,7 +7463,7 @@ class ArrayConcatVisitor {
   uint32_t index_limit_;
   // Index after last seen index. Always less than or equal to index_limit_.
   uint32_t index_offset_;
-  bool fast_elements_;
+  const bool fast_elements_;
 };
 
 
@@ -7791,13 +7780,14 @@ static Object* Runtime_ArrayConcat(Arguments args) {
     // The backing storage array must have non-existing elements to
     // preserve holes across concat operations.
     storage = Factory::NewFixedArrayWithHoles(result_length);
-
+    result->set_map(*Factory::GetFastElementsMap(Handle<Map>(result->map())));
   } else {
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
                   Factory::NewNumberDictionary(at_least_space_for));
+    result->set_map(*Factory::GetSlowElementsMap(Handle<Map>(result->map())));
   }
 
   Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
@@ -7847,9 +7837,19 @@ static Object* Runtime_MoveArrayContents(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, from, args[0]);
   CONVERT_CHECKED(JSArray, to, args[1]);
-  to->SetContent(FixedArray::cast(from->elements()));
+  HeapObject* new_elements = from->elements();
+  Object* new_map;
+  if (new_elements->map() == HEAP->fixed_array_map()) {
+    new_map = to->map()->GetFastElementsMap();
+  } else {
+    new_map = to->map()->GetSlowElementsMap();
+  }
+  if (new_map->IsFailure()) return new_map;
+  to->set_map(Map::cast(new_map));
+  to->set_elements(new_elements);
   to->set_length(from->length());
-  from->SetContent(HEAP->empty_fixed_array());
+  Object* obj = from->ResetElements();
+  if (obj->IsFailure()) return obj;
   from->set_length(Smi::FromInt(0));
   return to;
 }
@@ -9102,8 +9102,6 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
   // The current candidate for the source position:
   int target_start_position = RelocInfo::kNoPosition;
   Handle<SharedFunctionInfo> target;
-  // The current candidate for the last function in script:
-  Handle<SharedFunctionInfo> last;
   while (!done) {
     HeapIterator iterator;
     for (HeapObject* obj = iterator.next();
@@ -9144,25 +9142,12 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
               }
             }
           }
-
-          // Keep track of the last function in the script.
-          if (last.is_null() ||
-              shared->end_position() > last->start_position()) {
-            last = shared;
-          }
         }
       }
     }
 
-    // Make sure some candidate is selected.
     if (target.is_null()) {
-      if (!last.is_null()) {
-        // Position after the last function - use last.
-        target = last;
-      } else {
-        // Unable to find function - possibly script without any function.
-        return HEAP->undefined_value();
-      }
+      return HEAP->undefined_value();
     }
 
     // If the candidate found is compiled we are done. NOTE: when lazy

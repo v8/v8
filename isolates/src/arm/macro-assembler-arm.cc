@@ -271,6 +271,17 @@ void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width,
 }
 
 
+void MacroAssembler::Bfc(Register dst, int lsb, int width, Condition cond) {
+  ASSERT(lsb < 32);
+  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+    int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
+    bic(dst, dst, Operand(mask));
+  } else {
+    bfc(dst, lsb, width, cond);
+  }
+}
+
+
 void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
   // Empty the const pool.
   CheckConstPool(true, true);
@@ -300,31 +311,32 @@ void MacroAssembler::StoreRoot(Register source,
 
 
 void MacroAssembler::RecordWriteHelper(Register object,
-                                       Register offset,
-                                       Register scratch) {
+                                       Operand offset,
+                                       Register scratch0,
+                                       Register scratch1) {
   if (FLAG_debug_code) {
     // Check that the object is not in new space.
     Label not_in_new_space;
-    InNewSpace(object, scratch, ne, &not_in_new_space);
+    InNewSpace(object, scratch1, ne, &not_in_new_space);
     Abort("new-space object passed to RecordWriteHelper");
     bind(&not_in_new_space);
   }
 
-  mov(ip, Operand(Page::kPageAlignmentMask));  // Load mask only once.
-
-  // Calculate region number.
-  add(offset, object, Operand(offset));  // Add offset into the object.
-  and_(offset, offset, Operand(ip));  // Offset into page of the object.
-  mov(offset, Operand(offset, LSR, Page::kRegionSizeLog2));
+  // Add offset into the object.
+  add(scratch0, object, offset);
 
   // Calculate page address.
-  bic(object, object, Operand(ip));
+  Bfc(object, 0, kPageSizeBits);
+
+  // Calculate region number.
+  Ubfx(scratch0, scratch0, Page::kRegionSizeLog2,
+       kPageSizeBits - Page::kRegionSizeLog2);
 
   // Mark region dirty.
-  ldr(scratch, MemOperand(object, Page::kDirtyFlagOffset));
+  ldr(scratch1, MemOperand(object, Page::kDirtyFlagOffset));
   mov(ip, Operand(1));
-  orr(scratch, scratch, Operand(ip, LSL, offset));
-  str(scratch, MemOperand(object, Page::kDirtyFlagOffset));
+  orr(scratch1, scratch1, Operand(ip, LSL, scratch0));
+  str(scratch1, MemOperand(object, Page::kDirtyFlagOffset));
 }
 
 
@@ -342,21 +354,23 @@ void MacroAssembler::InNewSpace(Register object,
 // Will clobber 4 registers: object, offset, scratch, ip.  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
-void MacroAssembler::RecordWrite(Register object, Register offset,
-                                 Register scratch) {
+void MacroAssembler::RecordWrite(Register object,
+                                 Operand offset,
+                                 Register scratch0,
+                                 Register scratch1) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are cp.
-  ASSERT(!object.is(cp) && !offset.is(cp) && !scratch.is(cp));
+  ASSERT(!object.is(cp) && !scratch0.is(cp) && !scratch1.is(cp));
 
   Label done;
 
   // First, test that the object is not in the new space.  We cannot set
   // region marks for new space pages.
-  InNewSpace(object, scratch, eq, &done);
+  InNewSpace(object, scratch0, eq, &done);
 
   // Record the actual write.
-  RecordWriteHelper(object, offset, scratch);
+  RecordWriteHelper(object, offset, scratch0, scratch1);
 
   bind(&done);
 
@@ -364,8 +378,8 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
   // turned on to provoke errors.
   if (FLAG_debug_code) {
     mov(object, Operand(BitCast<int32_t>(kZapValue)));
-    mov(offset, Operand(BitCast<int32_t>(kZapValue)));
-    mov(scratch, Operand(BitCast<int32_t>(kZapValue)));
+    mov(scratch0, Operand(BitCast<int32_t>(kZapValue)));
+    mov(scratch1, Operand(BitCast<int32_t>(kZapValue)));
   }
 }
 
@@ -1517,6 +1531,16 @@ void MacroAssembler::Assert(Condition cc, const char* msg) {
 }
 
 
+void MacroAssembler::AssertRegisterIsRoot(Register reg,
+                                          Heap::RootListIndex index) {
+  if (FLAG_debug_code) {
+    LoadRoot(ip, index);
+    cmp(reg, ip);
+    Check(eq, "Register did not match expected root");
+  }
+}
+
+
 void MacroAssembler::Check(Condition cc, const char* msg) {
   Label L;
   b(cc, &L);
@@ -1527,6 +1551,8 @@ void MacroAssembler::Check(Condition cc, const char* msg) {
 
 
 void MacroAssembler::Abort(const char* msg) {
+  Label abort_start;
+  bind(&abort_start);
   // We want to pass the msg string like a smi to avoid GC
   // problems, however msg is not guaranteed to be aligned
   // properly. Instead, we pass an aligned pointer that is
@@ -1550,6 +1576,17 @@ void MacroAssembler::Abort(const char* msg) {
   push(r0);
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
+  if (is_const_pool_blocked()) {
+    // If the calling code cares about the exact number of
+    // instructions generated, we insert padding here to keep the size
+    // of the Abort macro constant.
+    static const int kExpectedAbortInstructions = 10;
+    int abort_instructions = InstructionsGeneratedSince(&abort_start);
+    ASSERT(abort_instructions <= kExpectedAbortInstructions);
+    while (abort_instructions++ < kExpectedAbortInstructions) {
+      nop();
+    }
+  }
 }
 
 
@@ -1635,6 +1672,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
 void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch1,
                                         Register scratch2,
+                                        Register heap_number_map,
                                         Label* gc_required) {
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
@@ -1645,9 +1683,9 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                      gc_required,
                      TAG_OBJECT);
 
-  // Get heap number map and store it in the allocated object.
-  LoadRoot(scratch1, Heap::kHeapNumberMapRootIndex);
-  str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
+  // Store heap number map in the allocated object.
+  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
 }
 
 

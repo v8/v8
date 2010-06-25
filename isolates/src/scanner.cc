@@ -188,6 +188,7 @@ void ExternalStringUTF16Buffer<StringType, CharType>::SeekForward(int pos) {
 
 // ----------------------------------------------------------------------------
 // Keyword Matcher
+
 const KeywordMatcher::FirstState KeywordMatcher::first_states_[] = {
   { "break",  KEYWORD_PREFIX, Token::BREAK },
   { NULL,     C,              Token::ILLEGAL },
@@ -323,9 +324,10 @@ void KeywordMatcher::Step(uc32 input) {
 // Scanner
 
 Scanner::Scanner(ParserMode pre)
-    : stack_overflow_(false), is_pre_parsing_(pre == PREPARSE),
-      character_classes_(Isolate::Current()->
-        scanner_character_classes()) { }
+  : character_classes_(Isolate::Current()->scanner_character_classes()),
+    is_pre_parsing_(pre == PREPARSE),
+    stack_overflow_(false) {
+}
 
 
 void Scanner::Initialize(Handle<String> source,

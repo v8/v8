@@ -25,57 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Flags: --expose_gc
 
-#include "ast.h"
+// This test makes sure that we do flush code with heap allocated locals.
+// This can be a problem if eval is used within the scope.
+// See: http://code.google.com/p/v8/issues/detail?id=747
 
-namespace v8 {
-namespace internal {
+(function() {
+  var x = 42;
+  this.callEval = function() {eval('x');};
+})();
 
-BreakableStatement::BreakableStatement(ZoneStringList* labels, Type type)
-    : labels_(labels), type_(type) {
-  ASSERT(labels == NULL || labels->length() > 0);
-}
+try {
+  callEval();
+} catch (e) {
+  assertUnreachable();
+} 
 
+gc();
+gc();
+gc();
+gc();
+gc();
+gc();
 
-SwitchStatement::SwitchStatement(ZoneStringList* labels)
-    : BreakableStatement(labels, TARGET_FOR_ANONYMOUS),
-      tag_(NULL), cases_(NULL) {
-}
-
-
-IterationStatement::IterationStatement(ZoneStringList* labels)
-    : BreakableStatement(labels, TARGET_FOR_ANONYMOUS),
-      body_(NULL),
-      continue_target_(JumpTarget::BIDIRECTIONAL) {
-}
-
-
-Block::Block(ZoneStringList* labels, int capacity, bool is_initializer_block)
-    : BreakableStatement(labels, TARGET_FOR_NAMED_ONLY),
-      statements_(capacity),
-      is_initializer_block_(is_initializer_block) {
-}
-
-
-ForStatement::ForStatement(ZoneStringList* labels)
-    : IterationStatement(labels),
-      init_(NULL),
-      cond_(NULL),
-      next_(NULL),
-      may_have_function_literal_(true),
-      loop_variable_(NULL),
-      peel_this_loop_(false) {
-}
-
-
-ForInStatement::ForInStatement(ZoneStringList* labels)
-    : IterationStatement(labels), each_(NULL), enumerable_(NULL) {
-}
-
-
-DoWhileStatement::DoWhileStatement(ZoneStringList* labels)
-    : IterationStatement(labels), cond_(NULL), condition_position_(-1) {
-}
-
-} }  // namespace v8::internal
+try {
+  callEval();
+} catch (e) {
+  assertUnreachable();
+} 

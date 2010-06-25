@@ -759,6 +759,28 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       if (PatchInlinedLoad(address(), map, offset)) {
         set_target(megamorphic_stub());
         return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
+#ifdef DEBUG
+        if (FLAG_trace_ic) {
+          PrintF("[LoadIC : inline patch %s]\n", *name->ToCString());
+        }
+      } else {
+        if (FLAG_trace_ic) {
+          PrintF("[LoadIC : no inline patch %s (patching failed)]\n",
+                 *name->ToCString());
+        }
+      }
+    } else {
+      if (FLAG_trace_ic) {
+        PrintF("[LoadIC : no inline patch %s (not inobject)]\n",
+               *name->ToCString());
+      }
+    }
+  } else {
+    if (FLAG_use_ic && state == PREMONOMORPHIC) {
+      if (FLAG_trace_ic) {
+        PrintF("[LoadIC : no inline patch %s (not inlinable)]\n",
+               *name->ToCString());
+#endif
       }
     }
   }
@@ -1017,12 +1039,14 @@ Object* KeyedLoadIC::Load(State state,
       }
     }
     set_target(stub);
-    // For JSObjects that are not value wrappers and that do not have
-    // indexed interceptors, we initialize the inlined fast case (if
-    // present) by patching the inlined map check.
+    // For JSObjects with fast elements that are not value wrappers
+    // and that do not have indexed interceptors, we initialize the
+    // inlined fast case (if present) by patching the inlined map
+    // check.
     if (object->IsJSObject() &&
         !object->IsJSValue() &&
-        !JSObject::cast(*object)->HasIndexedInterceptor()) {
+        !JSObject::cast(*object)->HasIndexedInterceptor() &&
+        JSObject::cast(*object)->HasFastElements()) {
       Map* map = JSObject::cast(*object)->map();
       PatchInlinedLoad(address(), map);
     }

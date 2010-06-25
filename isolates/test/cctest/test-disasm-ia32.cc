@@ -277,9 +277,11 @@ TEST(DisasmIa320) {
 
   __ jmp(&L1);
   __ jmp(Operand(ebx, ecx, times_4, 10000));
+#ifdef ENABLE_DEBUGGER_SUPPORT
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget());
   __ jmp(Operand::StaticVariable(after_break_target));
+#endif  // ENABLE_DEBUGGER_SUPPORT
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
 

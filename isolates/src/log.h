@@ -194,7 +194,7 @@ class Logger {
   void ApiNamedSecurityCheck(Object* key);
   void ApiIndexedSecurityCheck(uint32_t index);
   void ApiNamedPropertyAccess(const char* tag, JSObject* holder, Object* name);
-  void ApiIndexedPropertyAccess(const char* tag, 
+  void ApiIndexedPropertyAccess(const char* tag,
                                 JSObject* holder,
                                 uint32_t index);
   void ApiObjectAccess(const char* tag, JSObject* obj);

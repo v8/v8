@@ -378,6 +378,11 @@ void Assembler::Align(int m) {
 }
 
 
+void Assembler::CodeTargetAlign() {
+  Align(16);  // Preferred alignment of jump targets on ia32.
+}
+
+
 void Assembler::cpuid() {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(CPUID));
   EnsureSpace ensure_space(this);

@@ -46,23 +46,23 @@ namespace internal {
 
 // Test whether a 64-bit value is in a specific range.
 static inline bool is_uint32(int64_t x) {
-  static const int64_t kUInt32Mask = V8_INT64_C(0xffffffff);
-  return x == (x & kUInt32Mask);
+  static const uint64_t kMaxUInt32 = V8_UINT64_C(0xffffffff);
+  return static_cast<uint64_t>(x) <= kMaxUInt32;
 }
 
 static inline bool is_int32(int64_t x) {
-  static const int64_t kMinIntValue = V8_INT64_C(-0x80000000);
-  return is_uint32(x - kMinIntValue);
+  static const int64_t kMinInt32 = -V8_INT64_C(0x80000000);
+  return is_uint32(x - kMinInt32);
 }
 
 static inline bool uint_is_int32(uint64_t x) {
-  static const uint64_t kMaxIntValue = V8_UINT64_C(0x80000000);
-  return x < kMaxIntValue;
+  static const uint64_t kMaxInt32 = V8_UINT64_C(0x7fffffff);
+  return x <= kMaxInt32;
 }
 
 static inline bool is_uint32(uint64_t x) {
-  static const uint64_t kMaxUIntValue = V8_UINT64_C(0x100000000);
-  return x < kMaxUIntValue;
+  static const uint64_t kMaxUInt32 = V8_UINT64_C(0xffffffff);
+  return x <= kMaxUInt32;
 }
 
 // CPU Registers.
@@ -215,7 +215,10 @@ enum Condition {
 // Negation of the default no_condition (-1) results in a non-default
 // no_condition value (-2). As long as tests for no_condition check
 // for condition < 0, this will work as expected.
-inline Condition NegateCondition(Condition cc);
+inline Condition NegateCondition(Condition cc) {
+  return static_cast<Condition>(cc ^ 1);
+}
+
 
 // Corresponds to transposing the operands of a comparison.
 inline Condition ReverseCondition(Condition cc) {
@@ -240,6 +243,7 @@ inline Condition ReverseCondition(Condition cc) {
       return cc;
   };
 }
+
 
 enum Hint {
   no_hint = 0,
@@ -512,6 +516,8 @@ class Assembler : public Malloced {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2.
   void Align(int m);
+  // Aligns code to something that's optimal for a jump target for the platform.
+  void CodeTargetAlign();
 
   // Stack
   void pushfq();
@@ -778,6 +784,7 @@ class Assembler : public Malloced {
 
   void incq(Register dst);
   void incq(const Operand& dst);
+  void incl(Register dst);
   void incl(const Operand& dst);
 
   void lea(Register dst, const Operand& src);
@@ -1120,6 +1127,9 @@ class Assembler : public Malloced {
   void movsd(XMMRegister dst, XMMRegister src);
   void movsd(XMMRegister dst, const Operand& src);
 
+  void movss(XMMRegister dst, const Operand& src);
+  void movss(const Operand& dst, XMMRegister src);
+
   void cvttss2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, const Operand& src);
   void cvttsd2siq(Register dst, XMMRegister src);
@@ -1129,7 +1139,14 @@ class Assembler : public Malloced {
   void cvtqsi2sd(XMMRegister dst, const Operand& src);
   void cvtqsi2sd(XMMRegister dst, Register src);
 
+  void cvtlsi2ss(XMMRegister dst, Register src);
+
   void cvtss2sd(XMMRegister dst, XMMRegister src);
+  void cvtss2sd(XMMRegister dst, const Operand& src);
+  void cvtsd2ss(XMMRegister dst, XMMRegister src);
+
+  void cvtsd2si(Register dst, XMMRegister src);
+  void cvtsd2siq(Register dst, XMMRegister src);
 
   void addsd(XMMRegister dst, XMMRegister src);
   void subsd(XMMRegister dst, XMMRegister src);
@@ -1140,6 +1157,7 @@ class Assembler : public Malloced {
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void ucomisd(XMMRegister dst, XMMRegister src);
+  void ucomisd(XMMRegister dst, const Operand& src);
 
   // The first argument is the reg field, the second argument is the r/m field.
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
