@@ -11574,7 +11574,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotBothPositiveSmi(rcx, rdx, &runtime);
 
   __ SmiSub(rcx, rcx, rdx, NULL);  // Overflow doesn't happen.
-  __ j(negative, &runtime);
+  __ cmpq(FieldOperand(rax, String::kLengthOffset), rcx);
+  Label return_rax;
+  __ j(equal, &return_rax);
   // Special handling of sub-strings of length 1 and 2. One character strings
   // are handled in the runtime system (looked up in the single character
   // cache). Two character strings are looked for in the symbol cache.
@@ -11677,6 +11679,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // rsi: character of sub string start
   StringHelper::GenerateCopyCharactersREP(masm, rdi, rsi, rcx, false);
   __ movq(rsi, rdx);  // Restore esi.
+
+  __ bind(&return_rax);
   __ IncrementCounter(&Counters::sub_string_native, 1);
   __ ret(kArgumentsSize);
 

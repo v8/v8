@@ -13295,6 +13295,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ test(edx, Immediate(kSmiTagMask));
   __ j(not_zero, &runtime);
   __ sub(ecx, Operand(edx));
+  __ cmp(ecx, FieldOperand(eax, String::kLengthOffset));
+  Label return_eax;
+  __ j(equal, &return_eax);
   // Special handling of sub-strings of length 1 and 2. One character strings
   // are handled in the runtime system (looked up in the single character
   // cache). Two character strings are looked for in the symbol cache.
@@ -13399,12 +13402,15 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // esi: character of sub string start
   StringHelper::GenerateCopyCharactersREP(masm, edi, esi, ecx, ebx, false);
   __ mov(esi, edx);  // Restore esi.
+
+  __ bind(&return_eax);
   __ IncrementCounter(&Counters::sub_string_native, 1);
   __ ret(3 * kPointerSize);
 
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kSubString, 3, 1);
+
 }
 
 
