@@ -1285,7 +1285,6 @@ class Heap : public AllStatic {
   static double survival_rate_;
   static SurvivalRateTrend previous_survival_rate_trend_;
   static SurvivalRateTrend survival_rate_trend_;
-  static bool bumped_old_gen_limits_;
 
   static void set_survival_rate_trend(SurvivalRateTrend survival_rate_trend) {
     ASSERT(survival_rate_trend != FLUCTUATING);

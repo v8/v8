@@ -131,7 +131,6 @@ int Heap::high_survival_rate_period_length_ = 0;
 double Heap::survival_rate_ = 0;
 Heap::SurvivalRateTrend Heap::previous_survival_rate_trend_ = Heap::STABLE;
 Heap::SurvivalRateTrend Heap::survival_rate_trend_ = Heap::STABLE;
-bool Heap::bumped_old_gen_limits_ = false;
 
 #ifdef DEBUG
 bool Heap::allocation_allowed_ = true;
@@ -666,7 +665,6 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
       // space for the mutation speed.
       old_gen_promotion_limit_ *= 2;
       old_gen_allocation_limit_ *= 2;
-      bumped_old_gen_limits_ = true;
     }
 
     old_gen_exhausted_ = false;
@@ -676,19 +674,6 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     tracer_ = NULL;
 
     UpdateSurvivalRateTrend(start_new_space_size);
-
-    if (bumped_old_gen_limits_ &&
-        !IsHighSurvivalRate() &&
-        !IsIncreasingSurvivalTrend()) {
-      // We previously observed high survival rates in young space and decided
-      // to bump old space allocation limits to trade the space for the speed
-      // but now survival rates are dropping which indicates that mutator
-      // finished updating tenured data structure. So we can decrease old space
-      // limits to guarantee an early full GC cycle and reduce memory footprint.
-      old_gen_promotion_limit_ /= 2;
-      old_gen_allocation_limit_ /= 2;
-      bumped_old_gen_limits_ = false;
-    }
   }
 
   Counters::objs_since_last_young.Set(0);
