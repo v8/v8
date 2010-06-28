@@ -5049,7 +5049,7 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
   obj_template->Set(v8_str("x"), v8::Integer::New(42));
   obj_template->SetNamedPropertyHandler(NULL, NULL, NULL, NULL,
                                         NamedPropertyEnumerator);
-  
+
   LocalContext context;
   v8::Handle<v8::Object> global = context->Global();
   global->Set(v8_str("object"), obj_template->NewInstance());

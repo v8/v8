@@ -682,7 +682,10 @@ function ObjectGetOwnPropertyNames(obj) {
   var j = 0;
   for (var i = 0; i < propertyNames.length; ++i) {
     var name = ToString(propertyNames[i]);
-    if (name in propertySet)
+    // We need to check for the exact property value since for intrinsic
+    // properties like toString if(propertySet["toString"]) will always
+    // succeed.
+    if (propertySet[name] === true)
       continue;
     propertySet[name] = true;
     propertyNames[j++] = name;
