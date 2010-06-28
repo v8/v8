@@ -58,6 +58,7 @@ class Deserializer;
 class EmptyStatement;
 class FunctionInfoListener;
 class HandleScopeImplementer;
+class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
 class PreallocatedMemoryThread;
 class SaveContext;
@@ -571,7 +572,7 @@ class Isolate {
   AstSentinels* ast_sentinels() { return ast_sentinels_; }
 
   InlineRuntimeFunctionsTable* inline_runtime_functions_table() {
-    return &inline_runtime_functions_table_;
+    return inline_runtime_functions_table_;
   }
 
   RuntimeState* runtime_state() { return &runtime_state_; }
@@ -692,7 +693,7 @@ class Isolate {
   ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
   AstSentinels* ast_sentinels_;
-  InlineRuntimeFunctionsTable inline_runtime_functions_table_;
+  InlineRuntimeFunctionsTable* inline_runtime_functions_table_;
   RuntimeState runtime_state_;
   StringInputBuffer liveedit_compare_substrings_buf1_;
   StringInputBuffer liveedit_compare_substrings_buf2_;

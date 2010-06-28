@@ -252,6 +252,7 @@ Isolate::Isolate()
       context_switcher_(NULL),
       thread_manager_(NULL),
       ast_sentinels_(NULL),
+      inline_runtime_functions_table_(NULL),
       string_tracker_(NULL) {
   memset(isolate_addresses_, 0,
       sizeof(isolate_addresses_[0]) * (k_isolate_address_count + 1));
@@ -313,6 +314,9 @@ Isolate::~Isolate() {
   }
   delete scanner_character_classes_;
   scanner_character_classes_ = NULL;
+
+  delete inline_runtime_functions_table_;
+  inline_runtime_functions_table_ = NULL;
 
   delete ast_sentinels_;
   ast_sentinels_ = NULL;
@@ -410,6 +414,7 @@ bool Isolate::PreInit() {
   handle_scope_implementer_ = new HandleScopeImplementer();
   stub_cache_ = new StubCache();
   ast_sentinels_ = new AstSentinels();
+  inline_runtime_functions_table_ = new InlineRuntimeFunctionsTable();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   debugger_ = new Debugger();
