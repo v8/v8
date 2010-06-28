@@ -677,9 +677,17 @@ function ObjectGetOwnPropertyNames(obj) {
     }
   }
 
-  // Property names are expected to be strings.
-  for (var i = 0; i < propertyNames.length; ++i)
-    propertyNames[i] = ToString(propertyNames[i]);
+  // Property names are expected to be unique strings.
+  var propertySet = {};
+  var j = 0;
+  for (var i = 0; i < propertyNames.length; ++i) {
+    var name = ToString(propertyNames[i]);
+    if (name in propertySet)
+      continue;
+    propertySet[name] = true;
+    propertyNames[j++] = name;
+  }
+  propertyNames.length = j;
 
   return propertyNames;
 }
