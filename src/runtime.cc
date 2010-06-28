@@ -9063,7 +9063,7 @@ static Object* Runtime_SetFunctionBreakPoint(Arguments args) {
   // Set break point.
   Debug::SetBreakPoint(shared, break_point_object_arg, &source_position);
 
-  return Heap::undefined_value();
+  return Smi::FromInt(source_position);
 }
 
 
