@@ -1686,14 +1686,19 @@ void MacroAssembler::AllocateHeapNumber(Register result,
 }
 
 
-void MacroAssembler::CountLeadingZeros(Register source,
-                                       Register scratch,
-                                       Register zeros) {
+void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
+                                       Register source,  // Input.
+                                       Register scratch) {
+  ASSERT(!zeros.is(source) || !source.is(zeros));
+  ASSERT(!zeros.is(scratch));
+  ASSERT(!scratch.is(ip));
+  ASSERT(!source.is(ip));
+  ASSERT(!zeros.is(ip));
 #ifdef CAN_USE_ARMV5_INSTRUCTIONS
   clz(zeros, source);  // This instruction is only supported after ARM5.
 #else
   mov(zeros, Operand(0));
-  mov(scratch, source);
+  Move(scratch, source);
   // Top 16.
   tst(scratch, Operand(0xffff0000));
   add(zeros, zeros, Operand(16), LeaveCC, eq);

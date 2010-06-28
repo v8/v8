@@ -471,10 +471,12 @@ class MacroAssembler: public Assembler {
 
   // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
   // instruction.  On pre-ARM5 hardware this routine gives the wrong answer
-  // for 0 (31 instead of 32).
-  void CountLeadingZeros(Register source,
-                         Register scratch,
-                         Register zeros);
+  // for 0 (31 instead of 32).  Source and scratch can be the same in which case
+  // the source is clobbered.  Source and zeros can also be the same in which
+  // case scratch should be a different register.
+  void CountLeadingZeros(Register zeros,
+                         Register source,
+                         Register scratch);
 
   // ---------------------------------------------------------------------------
   // Runtime calls
