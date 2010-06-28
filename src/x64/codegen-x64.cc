@@ -6519,7 +6519,7 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 void DeferredInlineBinaryOperation::Generate() {
   Label done;
   if ((op_ == Token::ADD)
-      || (op_ ==Token::SUB)
+      || (op_ == Token::SUB)
       || (op_ == Token::MUL)
       || (op_ == Token::DIV)) {
     Label call_runtime;
@@ -10031,20 +10031,15 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
 // Input: rdx, rax are the left and right objects of a bit op.
 // Output: rax, rcx are left and right integers for a bit op.
 void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
-  if (FLAG_debug_code) {
-    // Both arguments can not be smis. That case is handled by smi-only code.
-    Label ok;
-    __ JumpIfNotBothSmi(rax, rdx, &ok);
-    __ Abort("Both arguments smi but not handled by smi-code.");
-    __ bind(&ok);
-  }
   // Check float operands.
   Label done;
+  Label rax_is_smi;
   Label rax_is_object;
   Label rdx_is_object;
 
   __ JumpIfNotSmi(rdx, &rdx_is_object);
   __ SmiToInteger32(rdx, rdx);
+  __ JumpIfSmi(rax, &rax_is_smi);
 
   __ bind(&rax_is_object);
   IntegerConvert(masm, rcx, rax);  // Uses rdi, rcx and rbx.
@@ -10053,6 +10048,7 @@ void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
   __ bind(&rdx_is_object);
   IntegerConvert(masm, rdx, rdx);  // Uses rdi, rcx and rbx.
   __ JumpIfNotSmi(rax, &rax_is_object);
+  __ bind(&rax_is_smi);
   __ SmiToInteger32(rcx, rax);
 
   __ bind(&done);
@@ -10437,7 +10433,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         Label not_floats;
         // rax: y
         // rdx: x
-        ASSERT(!static_operands_type_.IsSmi());
         if (static_operands_type_.IsNumber()) {
           if (FLAG_debug_code) {
             // Assert at runtime that inputs are only numbers.
