@@ -8959,23 +8959,32 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
     // so we do the second best thing - test it ourselves.
     // Note: if cc_ != equal, never_nan_nan_ is not used.
-    __ Set(rax, EQUAL);
+    // We cannot set rax to EQUAL until just before return because
+    // rax must be unchanged on jump to not_identical.
+
     if (never_nan_nan_ && (cc_ == equal)) {
+      __ Set(rax, EQUAL);
       __ ret(0);
     } else {
       Label heap_number;
-      // If it's not a heap number, then return equal.
+      // If it's not a heap number, then return equal for (in)equality operator.
       __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
              Factory::heap_number_map());
-      __ j(equal, &heap_number);
-      __ ret(0);
+      if (cc_ == equal) {
+        __ j(equal, &heap_number);
+        __ Set(rax, EQUAL);
+        __ ret(0);
+      } else {
+        // Identical objects must still be converted to primitive for < and >.
+        __ j(not_equal, &not_identical);
+      }
 
       __ bind(&heap_number);
       // It is a heap number, so return  equal if it's not NaN.
       // For NaN, return 1 for every condition except greater and
       // greater-equal.  Return -1 for them, so the comparison yields
       // false for all conditions except not-equal.
-
+      __ Set(rax, EQUAL);
       __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
       __ ucomisd(xmm0, xmm0);
       __ setcc(parity_even, rax);
