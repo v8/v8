@@ -207,10 +207,10 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   // Byte map of ASCII characters with a 0xff if the character is a word
   // character (digit, letter or underscore) and 0x00 otherwise.
   // Used by generated RegExp code.
-  static byte word_character_map[128];
+  static const byte word_character_map[128];
 
   static Address word_character_map_address() {
-    return &word_character_map[0];
+    return const_cast<Address>(&word_character_map[0]);
   }
 
   static Result Execute(Code* code,
