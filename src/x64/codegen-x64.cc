@@ -5342,13 +5342,18 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
     }
     // Smi => false iff zero.
     __ SmiCompare(value.reg(), Smi::FromInt(0));
-    dest->false_target()->Branch(equal);
-    Condition is_smi = masm_->CheckSmi(value.reg());
-    dest->true_target()->Branch(is_smi);
-    __ xorpd(xmm0, xmm0);
-    __ ucomisd(xmm0, FieldOperand(value.reg(), HeapNumber::kValueOffset));
-    value.Unuse();
-    dest->Split(not_zero);
+    if (value.is_smi()) {
+      value.Unuse();
+      dest->Split(not_zero);
+    } else {
+      dest->false_target()->Branch(equal);
+      Condition is_smi = masm_->CheckSmi(value.reg());
+      dest->true_target()->Branch(is_smi);
+      __ xorpd(xmm0, xmm0);
+      __ ucomisd(xmm0, FieldOperand(value.reg(), HeapNumber::kValueOffset));
+      value.Unuse();
+      dest->Split(not_zero);
+    }
   } else {
     // Fast case checks.
     // 'false' => false.
