@@ -39,9 +39,10 @@ chapter10/10.4/10.4.2/10.4.2-2-c-1: FAIL_OK
 # We are compatible with Safari and Firefox.
 chapter11/11.1/11.1.5: UNIMPLEMENTED
 
-# Issue 759, see http://code.google.com/p/v8/issues/detail?id=759
-chapter11/11.4/11.4.1//11.4.1-4.a-5: FAIL_OK
-chapter11/11.4/11.4.1//11.4.1-4.a-7: FAIL_OK
+# Delete returns true in eval even when it should return false.
+# Please see http://code.google.com/p/v8/issues/detail?id=759
+chapter11/11.4/11.4.1//11.4.1-4.a-5: FAIL
+chapter11/11.4/11.4.1//11.4.1-4.a-7: FAIL
 
 
 # We do not have a global object called 'global' as required by tests.
@@ -61,31 +62,31 @@ chapter15/15.2/15.2.3/15.2.3.12: UNIMPLEMENTED
 chapter15/15.2/15.2.3/15.2.3.13: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: seal
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-20: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-20: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: freeze
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-21: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-21: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: preventExtensions
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-22: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-22: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: isSealed
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-23: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-23: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: isFrozen
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-24: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-24: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: isExtensible
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-25: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-25: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: bind
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-38: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-38: UNIMPLEMENTED
 
-# NaN is writable.
+# NaN is writable. We are compatible with JSC.
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-178: FAIL_OK
-# Infinity is writable.
+# Infinity is writable. We are compatible with JSC.
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-179: FAIL_OK
-# undefined is writable.
+# undefined is writable. We are compatible with JSC.
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-180: FAIL_OK
 
 # Our Function object has an "arguments" property which is used as a
@@ -101,16 +102,16 @@ chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-184: FAIL_OK
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-188: FAIL_OK
 
 # NOT IMPLEMENTED: RegExp.prototype.source
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-212: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-212: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: RegExp.prototype.global
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-213: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-213: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: RegExp.prototype.ignoreCase
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-214: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-214: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: RegExp.prototype.multiline
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-215: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-215: UNIMPLEMENTED
 
 # All of the tests below marked SUBSETFAIL (in 15.2.3.4) fail because 
 # the tests assumes that objects can not have more properties
@@ -150,28 +151,28 @@ chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-9: FAIL_OK
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-11: FAIL_OK
 
 # We do not implement all methods on RegExp.
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-13: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-13: FAIL
 
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-14: FAIL_OK
 
 # EvalError.prototype does not have message property.
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-15: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-15: FAIL
 
 # Rangeerror.prototype does not have message property.
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-16: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-16: FAIL
 
 # ReferenceError.prototype does not have message property.
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-17: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-17: FAIL
 
 # SyntaxError.prototype does not have message property.
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-18: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-18: FAIL
 
 # TypeError.prototype does not have message property.
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-19: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-19: FAIL
 
 # URIError.prototype does not have message property.
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-20: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-20: FAIL
 
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-22: FAIL_OK
@@ -216,57 +217,48 @@ chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-34: FAIL_OK
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-35: FAIL_OK
 
 # NOT IMPLEMENTED: bind on Function.prototype.
-chapter15/15.3/15.3.4/15.3.4.5/15.3.4.5-0-1: FAIL_OK
+chapter15/15.3/15.3.4/15.3.4.5/15.3.4.5-0-1: UNIMPLEMENTED
 
-# Wrong test - the spec does not say anything about throwing errors
+# Bad test - the spec does not say anything about throwing errors
 # on calling Array.prototype.indexOf with undefined as argument.
 chapter15/15.4/15.4.4/15.4.4.14/15.4.4.14-1-1: FAIL_OK
 
-# Wrong test - the spec does not say anything about throwing errors
+# Bad test - the spec does not say anything about throwing errors
 # on calling Array.prototype.indexOf with null as argument.
 chapter15/15.4/15.4.4/15.4.4.14/15.4.4.14-1-2: FAIL_OK
 
-# Wrong assumption - according to spec some returns a Boolean, not a number.
-chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-4-9: FAIL_OK
-
-# Same as 15.4.4.16-7-7
-chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-7-7: FAIL_OK
-
-# Same as 15.4.4.16-10-8
+# Bad test - the test at the end should be "i === true".
 chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-8-10: FAIL_OK
 
-# Same as 15.4.4.16-7-7
-chapter15/15.4/15.4.4/15.4.4.18/15.4.4.18-7-6: FAIL_OK
+# Bad test - according to spec some returns a Boolean, not a number.
+chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-4-9: FAIL_OK
 
-# Same as 15.4.4.16-7-7
-chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-8-7: FAIL_OK
-
-# Wrong test - uses unitialized variable a in precondition check.
+# Bad test - uses unitialized variable a in precondition check.
 chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-9-3: FAIL_OK
 
 # We do not implement Array mapping functions correctly if array
 # entries are added for nonexistent entries smaller than length by
-# the callback function.
+# the callback function. We are compatible with JSC.
 # See http://code.google.com/p/v8/issues/detail?id=755
 chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-1: FAIL_OK
 
-# Wrong tests, path in test file is wrong. This will crash the test
-# script so we mark it unimplemented.
-chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-c-ii-4: UNIMPLEMENTED
-chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-c-ii-4-s: UNIMPLEMENTED
+# Bad tests, path in test file is wrong. This will crash the test
+# script so we mark it SKIP.
+chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-c-ii-4: SKIP
+chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-c-ii-4-s: SKIP
 
-# Wrong test - deleting the property on o in callbackfn will
+# Bad test - deleting the property on o in callbackfn will
 # have no effect on the actual array on which reduceRight is called.
 chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-7: FAIL_OK
 
 # We do not implement trim correctly on null and undefined.
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-1-1: FAIL_OK
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-1-2: FAIL_OK
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-1-1: FAIL
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-1-2: FAIL
 
 # We do not correctly recognize \uFEFF as whitespace
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-10: FAIL_OK
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-18: FAIL_OK
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-34: FAIL_OK
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-10: FAIL
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-18: FAIL
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-34: FAIL
 
 # RegExp.prototype is not of type RegExp - we are bug compatible with JSC.
 chapter15/15.10/15.10.6/15.10.6: FAIL_OK
