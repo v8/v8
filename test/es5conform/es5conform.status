@@ -284,11 +284,6 @@ chapter15/15.10/15.10.7/15.10.7.4/15.10.7.4-2: FAIL_OK
 chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-1: FAIL_OK
 chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-2: FAIL_OK
 
-# JSON.stringify does not correctly truncate the space parameter.
-# See http://code.google.com/p/v8/issues/detail?id=753
-chapter15/15.12/15.12.3/15.12.3-6-a-2: FAIL_OK
-chapter15/15.12/15.12.3/15.12.3-6-b-1: FAIL_OK
-
 [ $arch == mips ]
 
 # Skip all tests on MIPS.
