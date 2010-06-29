@@ -37,6 +37,8 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // A Zone allocator for use with LocalsMap.
 
+// TODO(isolates): It is probably worth it to change the Allocator class to
+//                 take a pointer to an isolate.
 class ZoneAllocator: public Allocator {
  public:
   /* nothing to do */

@@ -184,10 +184,25 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #endif
 
+
+#ifdef DEBUG
+
+#define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)                                       \
+  V(CommentStatistic, paged_space_comments_statistics,                         \
+      CommentStatistic::kMaxComments + 1)
+#else
+
+#define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
+
+#endif
+
 #define ISOLATE_INIT_ARRAY_LIST(V)                                             \
   /* SerializerDeserializer state. */                                          \
   V(Object*, serialize_partial_snapshot_cache, kPartialSnapshotCacheCapacity)  \
-  V(int, jsregexp_static_offsets_vector, kJSRegexpStaticOffsetsVectorSize)
+  V(int, jsregexp_static_offsets_vector, kJSRegexpStaticOffsetsVectorSize)     \
+  ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
+
+typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
 
 #define ISOLATE_INIT_LIST(V)                                                   \
   /* AssertNoZoneAllocation state. */                                          \
@@ -214,6 +229,8 @@ class ThreadLocalTop BASE_EMBEDDED {
   V(Relocatable*, relocatable_top, NULL)                                       \
   /* State for CodeEntry in profile-generator. */                              \
   V(unsigned, code_entry_next_call_uid, NULL)                                  \
+  V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \
+  V(Object*, string_stream_current_security_token, NULL)                       \
   ISOLATE_PLATFORM_INIT_LIST(V)
 
 class Isolate {
@@ -591,6 +608,11 @@ class Isolate {
 
   Builtins* builtins() { return &builtins_; }
 
+  unibrow::Mapping<unibrow::Ecma262Canonicalize>*
+      regexp_macro_assembler_canonicalize() {
+    return &regexp_macro_assembler_canonicalize_;
+  }
+
   void* PreallocatedStorageNew(size_t size);
   void PreallocatedStorageDelete(void* p);
   void PreallocatedStorageInit(size_t size);
@@ -705,6 +727,8 @@ class Isolate {
   StringInputBuffer objects_string_compare_buffer_a_;
   StringInputBuffer objects_string_compare_buffer_b_;
   StaticResource<StringInputBuffer> objects_string_input_buffer_;
+  unibrow::Mapping<unibrow::Ecma262Canonicalize>
+      regexp_macro_assembler_canonicalize_;
 
 #ifdef DEBUG
   // A static array of histogram info for each type.

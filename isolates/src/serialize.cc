@@ -159,6 +159,8 @@ void ExternalReferenceTable::Add(Address address,
 
 
 void ExternalReferenceTable::PopulateTable() {
+  Isolate* isolate = Isolate::Current();
+
   for (int type_code = 0; type_code < kTypeCodeCount; type_code++) {
     max_id_[type_code] = 0;
   }
@@ -292,7 +294,7 @@ void ExternalReferenceTable::PopulateTable() {
         Vector<char>::New(top_format_length + StrLength(address_name) + 1);
     const char* chars = name.start();
     OS::SNPrintF(name, top_address_format, address_name);
-    Add(Isolate::Current()->get_address_from_id((Isolate::AddressId)i),
+    Add(isolate->get_address_from_id((Isolate::AddressId)i),
         TOP_ADDRESS, i, chars);
   }
 
@@ -310,20 +312,22 @@ void ExternalReferenceTable::PopulateTable() {
   ACCESSOR_DESCRIPTOR_LIST(ACCESSOR_DESCRIPTOR_DECLARATION)
 #undef ACCESSOR_DESCRIPTOR_DECLARATION
 
+  StubCache* stub_cache = isolate->stub_cache();
+
   // Stub cache tables
-  Add(SCTableReference::keyReference(StubCache::kPrimary).address(),
+  Add(stub_cache->key_reference(StubCache::kPrimary).address(),
       STUB_CACHE_TABLE,
       1,
       "StubCache::primary_->key");
-  Add(SCTableReference::valueReference(StubCache::kPrimary).address(),
+  Add(stub_cache->value_reference(StubCache::kPrimary).address(),
       STUB_CACHE_TABLE,
       2,
       "StubCache::primary_->value");
-  Add(SCTableReference::keyReference(StubCache::kSecondary).address(),
+  Add(stub_cache->key_reference(StubCache::kSecondary).address(),
       STUB_CACHE_TABLE,
       3,
       "StubCache::secondary_->key");
-  Add(SCTableReference::valueReference(StubCache::kSecondary).address(),
+  Add(stub_cache->value_reference(StubCache::kSecondary).address(),
       STUB_CACHE_TABLE,
       4,
       "StubCache::secondary_->value");

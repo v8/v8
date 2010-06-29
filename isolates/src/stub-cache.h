@@ -42,7 +42,20 @@ namespace internal {
 // invalidate the cache whenever a prototype map is changed.  The stub
 // validates the map chain as in the mono-morphic case.
 
-class SCTableReference;
+class StubCache;
+
+class SCTableReference {
+ public:
+  Address address() const { return address_; }
+
+ private:
+  explicit SCTableReference(Address address) : address_(address) {}
+
+  Address address_;
+
+  friend class StubCache;
+};
+
 
 class StubCache {
  public:
@@ -50,7 +63,6 @@ class StubCache {
     String* key;
     Code* value;
   };
-
 
   void Initialize(bool create_heap_objects);
 
@@ -231,6 +243,29 @@ class StubCache {
     kSecondary
   };
 
+
+  SCTableReference key_reference(StubCache::Table table) {
+    return SCTableReference(
+        reinterpret_cast<Address>(&first_entry(table)->key));
+  }
+
+
+  SCTableReference value_reference(StubCache::Table table) {
+    return SCTableReference(
+        reinterpret_cast<Address>(&first_entry(table)->value));
+  }
+
+
+  StubCache::Entry* first_entry(StubCache::Table table) {
+    switch (table) {
+      case StubCache::kPrimary: return StubCache::primary_;
+      case StubCache::kSecondary: return StubCache::secondary_;
+    }
+    UNREACHABLE();
+    return NULL;
+  }
+
+
  private:
   StubCache();
 
@@ -238,8 +273,8 @@ class StubCache {
   friend class SCTableReference;
   static const int kPrimaryTableSize = 2048;
   static const int kSecondaryTableSize = 512;
-  static Entry primary_[];
-  static Entry secondary_[];
+  Entry primary_[kPrimaryTableSize];
+  Entry secondary_[kSecondaryTableSize];
 
   // Computes the hashed offsets for primary and secondary caches.
   RLYSTC int PrimaryOffset(String* name, Code::Flags flags, Map* map) {
@@ -291,36 +326,6 @@ class StubCache {
   DISALLOW_COPY_AND_ASSIGN(StubCache);
 };
 
-
-class SCTableReference {
- public:
-  static SCTableReference keyReference(StubCache::Table table) {
-    return SCTableReference(
-        reinterpret_cast<Address>(&first_entry(table)->key));
-  }
-
-
-  static SCTableReference valueReference(StubCache::Table table) {
-    return SCTableReference(
-        reinterpret_cast<Address>(&first_entry(table)->value));
-  }
-
-  Address address() const { return address_; }
-
- private:
-  explicit SCTableReference(Address address) : address_(address) {}
-
-  static StubCache::Entry* first_entry(StubCache::Table table) {
-    switch (table) {
-      case StubCache::kPrimary: return StubCache::primary_;
-      case StubCache::kSecondary: return StubCache::secondary_;
-    }
-    UNREACHABLE();
-    return NULL;
-  }
-
-  Address address_;
-};
 
 // ------------------------------------------------------------------------
 

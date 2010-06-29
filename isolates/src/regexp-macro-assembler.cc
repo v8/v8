@@ -185,10 +185,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
 }
 
 
-static unibrow::Mapping<unibrow::Ecma262Canonicalize> canonicalize;
-
-
-byte NativeRegExpMacroAssembler::word_character_map[] = {
+const byte NativeRegExpMacroAssembler::word_character_map[] = {
     0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
     0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
     0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
@@ -215,6 +212,8 @@ int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
     Address byte_offset1,
     Address byte_offset2,
     size_t byte_length) {
+  unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
+      Isolate::Current()->regexp_macro_assembler_canonicalize();
   // This function is not allowed to cause a garbage collection.
   // A GC might move the calling generated code and invalidate the
   // return address on the stack.
@@ -228,10 +227,10 @@ int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
     unibrow::uchar c2 = substring2[i];
     if (c1 != c2) {
       unibrow::uchar s1[1] = { c1 };
-      canonicalize.get(c1, '\0', s1);
+      canonicalize->get(c1, '\0', s1);
       if (s1[0] != c2) {
         unibrow::uchar s2[1] = { c2 };
-        canonicalize.get(c2, '\0', s2);
+        canonicalize->get(c2, '\0', s2);
         if (s1[0] != s2[0]) {
           return 0;
         }

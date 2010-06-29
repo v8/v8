@@ -39,10 +39,9 @@ namespace internal {
 // StubCache implementation.
 
 
-StubCache::Entry StubCache::primary_[StubCache::kPrimaryTableSize];
-StubCache::Entry StubCache::secondary_[StubCache::kSecondaryTableSize];
-
 StubCache::StubCache() {
+  memset(primary_, 0, sizeof(primary_[0]) * StubCache::kPrimaryTableSize);
+  memset(secondary_, 0, sizeof(secondary_[0]) * StubCache::kSecondaryTableSize);
 }
 
 

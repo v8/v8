@@ -2198,28 +2198,14 @@ HeapObject* OldSpace::AllocateInNextPage(Page* current_page,
 
 
 #ifdef DEBUG
-struct CommentStatistic {
-  const char* comment;
-  int size;
-  int count;
-  void Clear() {
-    comment = NULL;
-    size = 0;
-    count = 0;
-  }
-};
-
-
-// must be small, since an iteration is used for lookup
-const int kMaxComments = 64;
-static CommentStatistic comments_statistics[kMaxComments+1];
-
-
 void PagedSpace::ReportCodeStatistics() {
+  Isolate* isolate = Isolate::Current();
+  CommentStatistic* comments_statistics =
+      isolate->paged_space_comments_statistics();
   ReportCodeKindStatistics();
   PrintF("Code comment statistics (\"   [ comment-txt   :    size/   "
          "count  (average)\"):\n");
-  for (int i = 0; i <= kMaxComments; i++) {
+  for (int i = 0; i <= CommentStatistic::kMaxComments; i++) {
     const CommentStatistic& cs = comments_statistics[i];
     if (cs.size > 0) {
       PrintF("   %-30s: %10d/%6d     (%d)\n", cs.comment, cs.size, cs.count,
@@ -2231,23 +2217,30 @@ void PagedSpace::ReportCodeStatistics() {
 
 
 void PagedSpace::ResetCodeStatistics() {
+  Isolate* isolate = Isolate::Current();
+  CommentStatistic* comments_statistics =
+      isolate->paged_space_comments_statistics();
   ClearCodeKindStatistics();
-  for (int i = 0; i < kMaxComments; i++) comments_statistics[i].Clear();
-  comments_statistics[kMaxComments].comment = "Unknown";
-  comments_statistics[kMaxComments].size = 0;
-  comments_statistics[kMaxComments].count = 0;
+  for (int i = 0; i < CommentStatistic::kMaxComments; i++) {
+    comments_statistics[i].Clear();
+  }
+  comments_statistics[CommentStatistic::kMaxComments].comment = "Unknown";
+  comments_statistics[CommentStatistic::kMaxComments].size = 0;
+  comments_statistics[CommentStatistic::kMaxComments].count = 0;
 }
 
 
-// Adds comment to 'comment_statistics' table. Performance OK sa long as
+// Adds comment to 'comment_statistics' table. Performance OK as long as
 // 'kMaxComments' is small
-static void EnterComment(const char* comment, int delta) {
+static void EnterComment(Isolate* isolate, const char* comment, int delta) {
+  CommentStatistic* comments_statistics =
+      isolate->paged_space_comments_statistics();
   // Do not count empty comments
   if (delta <= 0) return;
-  CommentStatistic* cs = &comments_statistics[kMaxComments];
+  CommentStatistic* cs = &comments_statistics[CommentStatistic::kMaxComments];
   // Search for a free or matching entry in 'comments_statistics': 'cs'
   // points to result.
-  for (int i = 0; i < kMaxComments; i++) {
+  for (int i = 0; i < CommentStatistic::kMaxComments; i++) {
     if (comments_statistics[i].comment == NULL) {
       cs = &comments_statistics[i];
       cs->comment = comment;
@@ -2265,7 +2258,7 @@ static void EnterComment(const char* comment, int delta) {
 
 // Call for each nested comment start (start marked with '[ xxx', end marked
 // with ']'.  RelocIterator 'it' must point to a comment reloc info.
-static void CollectCommentStatistics(RelocIterator* it) {
+static void CollectCommentStatistics(Isolate* isolate, RelocIterator* it) {
   ASSERT(!it->done());
   ASSERT(it->rinfo()->rmode() == RelocInfo::COMMENT);
   const char* tmp = reinterpret_cast<const char*>(it->rinfo()->data());
@@ -2290,13 +2283,13 @@ static void CollectCommentStatistics(RelocIterator* it) {
       flat_delta += static_cast<int>(it->rinfo()->pc() - prev_pc);
       if (txt[0] == ']') break;  // End of nested  comment
       // A new comment
-      CollectCommentStatistics(it);
+      CollectCommentStatistics(isolate, it);
       // Skip code that was covered with previous comment
       prev_pc = it->rinfo()->pc();
     }
     it->next();
   }
-  EnterComment(comment_txt, flat_delta);
+  EnterComment(isolate, comment_txt, flat_delta);
 }
 
 
@@ -2316,7 +2309,7 @@ void PagedSpace::CollectCodeStatistics() {
       while (!it.done()) {
         if (it.rinfo()->rmode() == RelocInfo::COMMENT) {
           delta += static_cast<int>(it.rinfo()->pc() - prev_pc);
-          CollectCommentStatistics(&it);
+          CollectCommentStatistics(isolate, &it);
           prev_pc = it.rinfo()->pc();
         }
         it.next();
@@ -2325,7 +2318,7 @@ void PagedSpace::CollectCodeStatistics() {
       ASSERT(code->instruction_start() <= prev_pc &&
              prev_pc <= code->relocation_start());
       delta += static_cast<int>(code->relocation_start() - prev_pc);
-      EnterComment("NoComment", delta);
+      EnterComment(isolate, "NoComment", delta);
     }
   }
 }

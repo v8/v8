@@ -34,9 +34,6 @@ namespace v8 {
 namespace internal {
 
 static const int kMentionedObjectCacheMaxSize = 256;
-static List<HeapObject*, PreallocatedStorage>* debug_object_cache = NULL;
-static Object* current_security_token = NULL;
-
 
 char* HeapStringAllocator::allocate(unsigned bytes) {
   space_ = NewArray<char>(bytes);
@@ -195,6 +192,8 @@ void StringStream::PrintObject(Object* o) {
     return;
   }
   if (o->IsHeapObject()) {
+    DebugObjectCache* debug_object_cache = Isolate::Current()->
+        string_stream_debug_object_cache();
     for (int i = 0; i < debug_object_cache->length(); i++) {
       if ((*debug_object_cache)[i] == o) {
         Add("#%d#", i);
@@ -286,17 +285,20 @@ Handle<String> StringStream::ToString() {
 
 
 void StringStream::ClearMentionedObjectCache() {
-  current_security_token = NULL;
-  if (debug_object_cache == NULL) {
-    debug_object_cache = new List<HeapObject*, PreallocatedStorage>(0);
+  Isolate* isolate = Isolate::Current();
+  isolate->set_string_stream_current_security_token(NULL);
+  if (isolate->string_stream_debug_object_cache() == NULL) {
+    isolate->set_string_stream_debug_object_cache(
+        new List<HeapObject*, PreallocatedStorage>(0));
   }
-  debug_object_cache->Clear();
+  isolate->string_stream_debug_object_cache()->Clear();
 }
 
 
 #ifdef DEBUG
 bool StringStream::IsMentionedObjectCacheClear() {
-  return (debug_object_cache->length() == 0);
+  return (
+      Isolate::Current()->string_stream_debug_object_cache()->length() == 0);
 }
 #endif
 
@@ -412,6 +414,8 @@ void StringStream::PrintByteArray(ByteArray* byte_array) {
 
 
 void StringStream::PrintMentionedObjectCache() {
+  DebugObjectCache* debug_object_cache =
+      Isolate::Current()->string_stream_debug_object_cache();
   Add("==== Key         ============================================\n\n");
   for (int i = 0; i < debug_object_cache->length(); i++) {
     HeapObject* printee = (*debug_object_cache)[i];
@@ -444,12 +448,14 @@ void StringStream::PrintMentionedObjectCache() {
 
 
 void StringStream::PrintSecurityTokenIfChanged(Object* f) {
-  if (!f->IsHeapObject() || !HEAP->Contains(HeapObject::cast(f))) {
+  Isolate* isolate = Isolate::Current();
+  Heap* heap = isolate->heap();
+  if (!f->IsHeapObject() || !heap->Contains(HeapObject::cast(f))) {
     return;
   }
   Map* map = HeapObject::cast(f)->map();
   if (!map->IsHeapObject() ||
-      !HEAP->Contains(map) ||
+      !heap->Contains(map) ||
       !map->IsMap() ||
       !f->IsJSFunction()) {
     return;
@@ -458,17 +464,17 @@ void StringStream::PrintSecurityTokenIfChanged(Object* f) {
   JSFunction* fun = JSFunction::cast(f);
   Object* perhaps_context = fun->unchecked_context();
   if (perhaps_context->IsHeapObject() &&
-      HEAP->Contains(HeapObject::cast(perhaps_context)) &&
+      heap->Contains(HeapObject::cast(perhaps_context)) &&
       perhaps_context->IsContext()) {
     Context* context = fun->context();
-    if (!HEAP->Contains(context)) {
+    if (!heap->Contains(context)) {
       Add("(Function context is outside heap)\n");
       return;
     }
     Object* token = context->global_context()->security_token();
-    if (token != current_security_token) {
+    if (token != isolate->string_stream_current_security_token()) {
       Add("Security context: %o\n", token);
-      current_security_token = token;
+      isolate->set_string_stream_current_security_token(token);
     }
   } else {
     Add("(Function context is corrupt)\n");

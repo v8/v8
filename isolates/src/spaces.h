@@ -2203,6 +2203,22 @@ class LargeObjectIterator: public ObjectIterator {
 };
 
 
+#ifdef DEBUG
+struct CommentStatistic {
+  const char* comment;
+  int size;
+  int count;
+  void Clear() {
+    comment = NULL;
+    size = 0;
+    count = 0;
+  }
+  // Must be small, since an iteration is used for lookup.
+  static const int kMaxComments = 64;
+};
+#endif
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_SPACES_H_

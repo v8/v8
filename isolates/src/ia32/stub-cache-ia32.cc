@@ -39,14 +39,15 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 
-static void ProbeTable(MacroAssembler* masm,
+static void ProbeTable(Isolate* isolate,
+                       MacroAssembler* masm,
                        Code::Flags flags,
                        StubCache::Table table,
                        Register name,
                        Register offset,
                        Register extra) {
-  ExternalReference key_offset(SCTableReference::keyReference(table));
-  ExternalReference value_offset(SCTableReference::valueReference(table));
+  ExternalReference key_offset(isolate->stub_cache()->key_reference(table));
+  ExternalReference value_offset(isolate->stub_cache()->value_reference(table));
 
   Label miss;
 
@@ -107,6 +108,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
                               Register name,
                               Register scratch,
                               Register extra) {
+  Isolate* isolate = Isolate::Current();
   Label miss;
 
   // Make sure that code is valid. The shifting code relies on the
@@ -134,7 +136,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ and_(scratch, (kPrimaryTableSize - 1) << kHeapObjectTagSize);
 
   // Probe the primary table.
-  ProbeTable(masm, flags, kPrimary, name, scratch, extra);
+  ProbeTable(isolate, masm, flags, kPrimary, name, scratch, extra);
 
   // Primary miss: Compute hash for secondary probe.
   __ mov(scratch, FieldOperand(name, String::kHashFieldOffset));
@@ -146,7 +148,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ and_(scratch, (kSecondaryTableSize - 1) << kHeapObjectTagSize);
 
   // Probe the secondary table.
-  ProbeTable(masm, flags, kSecondary, name, scratch, extra);
+  ProbeTable(isolate, masm, flags, kSecondary, name, scratch, extra);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.
