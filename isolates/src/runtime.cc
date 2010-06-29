@@ -6621,9 +6621,10 @@ static Object* Runtime_NewObject(Arguments args) {
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
+  Debug* debug = Isolate::Current()->debug();
   // Handle stepping into constructors if step into is active.
-  if (Debug::StepInActive()) {
-    Debug::HandleStepIn(function, Handle<Object>::null(), 0, true);
+  if (debug->StepInActive()) {
+    debug->HandleStepIn(function, Handle<Object>::null(), 0, true);
   }
 #endif
 
@@ -8075,6 +8076,7 @@ static Object* DebugLookupResultValue(Object* receiver, String* name,
 // defined through __defineGetter__ and/or __defineSetter__.
 static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   HandleScope scope;
+  Isolate* isolate = Isolate::Current();
 
   ASSERT(args.length() == 2);
 
@@ -8088,8 +8090,8 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   // could have the assumption that its own global context is the current
   // context and not some internal debugger context.
   SaveContext save;
-  if (Debug::InDebugger()) {
-    Isolate::Current()->set_context(*Debug::debugger_entry()->GetContext());
+  if (isolate->debug()->InDebugger()) {
+    isolate->set_context(*isolate->debug()->debugger_entry()->GetContext());
   }
 
   // Skip the global proxy as it has no properties and always delegates to the
@@ -8241,12 +8243,14 @@ static Object* Runtime_DebugIndexedInterceptorElementValue(Arguments args) {
 static Object* Runtime_CheckExecutionState(Arguments args) {
   ASSERT(args.length() >= 1);
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  Isolate* isolate = Isolate::Current();
   // Check that the break id is valid.
-  if (Debug::break_id() == 0 || break_id != Debug::break_id()) {
-    return Isolate::Current()->Throw(HEAP->illegal_execution_state_symbol());
+  if (isolate->debug()->break_id() == 0 ||
+      break_id != isolate->debug()->break_id()) {
+    return isolate->Throw(isolate->heap()->illegal_execution_state_symbol());
   }
 
-  return HEAP->true_value();
+  return isolate->heap()->true_value();
 }
 
 
@@ -8260,7 +8264,7 @@ static Object* Runtime_GetFrameCount(Arguments args) {
 
   // Count all frames which are relevant to debugging stack trace.
   int n = 0;
-  StackFrame::Id id = Debug::break_frame_id();
+  StackFrame::Id id = Isolate::Current()->debug()->break_frame_id();
   if (id == StackFrame::NO_ID) {
     // If there is no JavaScript stack frame count is 0.
     return Smi::FromInt(0);
@@ -8306,12 +8310,14 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   Object* check = Runtime_CheckExecutionState(args);
   if (check->IsFailure()) return check;
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
+  Isolate* isolate = Isolate::Current();
+  Heap* heap = isolate->heap();
 
   // Find the relevant frame with the requested index.
-  StackFrame::Id id = Debug::break_frame_id();
+  StackFrame::Id id = isolate->debug()->break_frame_id();
   if (id == StackFrame::NO_ID) {
     // If there are no JavaScript stack frames return undefined.
-    return HEAP->undefined_value();
+    return heap->undefined_value();
   }
   int count = 0;
   JavaScriptFrameIterator it(id);
@@ -8319,7 +8325,7 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
     if (count == index) break;
     count++;
   }
-  if (it.done()) return HEAP->undefined_value();
+  if (it.done()) return heap->undefined_value();
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -8374,7 +8380,8 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   }
 
   // Check whether this frame is positioned at return.
-  int at_return = (index == 0) ? Debug::IsBreakAtReturn(it.frame()) : false;
+  int at_return = (index == 0) ?
+      isolate->debug()->IsBreakAtReturn(it.frame()) : false;
 
   // If positioned just before return find the value to be returned and add it
   // to the frame information.
@@ -8443,18 +8450,19 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   if (position != RelocInfo::kNoPosition) {
     details->set(kFrameDetailsSourcePositionIndex, Smi::FromInt(position));
   } else {
-    details->set(kFrameDetailsSourcePositionIndex, HEAP->undefined_value());
+    details->set(kFrameDetailsSourcePositionIndex, heap->undefined_value());
   }
 
   // Add the constructor information.
-  details->set(kFrameDetailsConstructCallIndex, HEAP->ToBoolean(constructor));
+  details->set(kFrameDetailsConstructCallIndex, heap->ToBoolean(constructor));
 
   // Add the at return information.
-  details->set(kFrameDetailsAtReturnIndex, HEAP->ToBoolean(at_return));
+  details->set(kFrameDetailsAtReturnIndex, heap->ToBoolean(at_return));
 
   // Add information on whether this frame is invoked in the debugger context.
   details->set(kFrameDetailsDebuggerFrameIndex,
-               HEAP->ToBoolean(*save->context() == *Debug::debug_context()));
+               heap->ToBoolean(*save->context() ==
+                   *isolate->debug()->debug_context()));
 
   // Fill the dynamic part.
   int details_index = kFrameDetailsFirstDynamicIndex;
@@ -8465,14 +8473,14 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
     if (i < info.number_of_parameters()) {
       details->set(details_index++, *info.parameter_name(i));
     } else {
-      details->set(details_index++, HEAP->undefined_value());
+      details->set(details_index++, heap->undefined_value());
     }
 
     // Parameter value.
     if (i < it.frame()->GetProvidedParametersCount()) {
       details->set(details_index++, it.frame()->GetParameter(i));
     } else {
-      details->set(details_index++, HEAP->undefined_value());
+      details->set(details_index++, heap->undefined_value());
     }
   }
 
@@ -9082,7 +9090,8 @@ static Object* Runtime_SetFunctionBreakPoint(Arguments args) {
   Handle<Object> break_point_object_arg = args.at<Object>(2);
 
   // Set break point.
-  Debug::SetBreakPoint(shared, break_point_object_arg, &source_position);
+  Isolate::Current()->debug()->SetBreakPoint(shared, break_point_object_arg,
+                                             &source_position);
 
   return HEAP->undefined_value();
 }
@@ -9195,7 +9204,8 @@ static Object* Runtime_SetScriptBreakPoint(Arguments args) {
     } else {
       position = source_position - shared->start_position();
     }
-    Debug::SetBreakPoint(shared, break_point_object_arg, &position);
+    Isolate::Current()->debug()->SetBreakPoint(shared, break_point_object_arg,
+                                               &position);
     position += shared->start_position();
     return Smi::FromInt(position);
   }
@@ -9211,7 +9221,7 @@ static Object* Runtime_ClearBreakPoint(Arguments args) {
   Handle<Object> break_point_object_arg = args.at<Object>(0);
 
   // Clear break point.
-  Debug::ClearBreakPoint(break_point_object_arg);
+  Isolate::Current()->debug()->ClearBreakPoint(break_point_object_arg);
 
   return HEAP->undefined_value();
 }
@@ -9230,7 +9240,7 @@ static Object* Runtime_ChangeBreakOnException(Arguments args) {
   ExceptionBreakType type =
       static_cast<ExceptionBreakType>(NumberToUint32(args[0]));
   bool enable = args[1]->ToBoolean()->IsTrue();
-  Debug::ChangeBreakOnException(type, enable);
+  Isolate::Current()->debug()->ChangeBreakOnException(type, enable);
   return HEAP->undefined_value();
 }
 
@@ -9241,13 +9251,14 @@ static Object* Runtime_ChangeBreakOnException(Arguments args) {
 // args[2]: number of times to perform the step, for step out it is the number
 //          of frames to step down.
 static Object* Runtime_PrepareStep(Arguments args) {
+  Isolate* isolate = Isolate::Current();
   HandleScope scope;
   ASSERT(args.length() == 3);
   // Check arguments.
   Object* check = Runtime_CheckExecutionState(args);
   if (check->IsFailure()) return check;
   if (!args[1]->IsNumber() || !args[2]->IsNumber()) {
-    return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
+    return isolate->Throw(isolate->heap()->illegal_argument_symbol());
   }
 
   // Get the step action and check validity.
@@ -9257,21 +9268,22 @@ static Object* Runtime_PrepareStep(Arguments args) {
       step_action != StepOut &&
       step_action != StepInMin &&
       step_action != StepMin) {
-    return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
+    return isolate->Throw(isolate->heap()->illegal_argument_symbol());
   }
 
   // Get the number of steps.
   int step_count = NumberToInt32(args[2]);
   if (step_count < 1) {
-    return Isolate::Current()->Throw(HEAP->illegal_argument_symbol());
+    return isolate->Throw(isolate->heap()->illegal_argument_symbol());
   }
 
   // Clear all current stepping setup.
-  Debug::ClearStepping();
+  isolate->debug()->ClearStepping();
 
   // Prepare step.
-  Debug::PrepareStep(static_cast<StepAction>(step_action), step_count);
-  return HEAP->undefined_value();
+  isolate->debug()->PrepareStep(static_cast<StepAction>(step_action),
+                                step_count);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -9279,7 +9291,7 @@ static Object* Runtime_PrepareStep(Arguments args) {
 static Object* Runtime_ClearStepping(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 0);
-  Debug::ClearStepping();
+  Isolate::Current()->debug()->ClearStepping();
   return HEAP->undefined_value();
 }
 
@@ -9483,19 +9495,21 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
   // Handle the processing of break.
   DisableBreak disable_break_save(disable_break);
 
+  Isolate* isolate = Isolate::Current();
+
   // Enter the top context from before the debugger was invoked.
   SaveContext save;
   SaveContext* top = &save;
-  while (top != NULL && *top->context() == *Debug::debug_context()) {
+  while (top != NULL && *top->context() == *isolate->debug()->debug_context()) {
     top = top->prev();
   }
   if (top != NULL) {
-    Isolate::Current()->set_context(*top->context());
+    isolate->set_context(*top->context());
   }
 
   // Get the global context now set to the top context from before the
   // debugger was invoked.
-  Handle<Context> context = Isolate::Current()->global_context();
+  Handle<Context> context = isolate->global_context();
 
   // Compile the source to be evaluated.
   Handle<SharedFunctionInfo> shared =
@@ -9524,7 +9538,8 @@ static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
   ASSERT(args.length() == 0);
 
   // Fill the script objects.
-  Handle<FixedArray> instances = Debug::GetLoadedScripts();
+  Handle<FixedArray> instances =
+      Isolate::Current()->debug()->GetLoadedScripts();
 
   // Convert the script objects to proper JS objects.
   for (int i = 0; i < instances->length(); i++) {

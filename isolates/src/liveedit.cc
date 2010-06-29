@@ -1256,7 +1256,7 @@ static bool IsDropableFrame(StackFrame* frame) {
 // removing all listed function if possible and if do_drop is true.
 static const char* DropActivationsInActiveThread(
     Handle<JSArray> shared_info_array, Handle<JSArray> result, bool do_drop) {
-
+  Debug* debug = Isolate::Current()->debug();
   ZoneScope scope(DELETE_ON_EXIT);
   Vector<StackFrame*> frames = CreateStackMap();
 
@@ -1266,7 +1266,7 @@ static const char* DropActivationsInActiveThread(
   int frame_index = 0;
   for (; frame_index < frames.length(); frame_index++) {
     StackFrame* frame = frames[frame_index];
-    if (frame->id() == Debug::break_frame_id()) {
+    if (frame->id() == debug->break_frame_id()) {
       top_frame_index = frame_index;
       break;
     }
@@ -1340,7 +1340,7 @@ static const char* DropActivationsInActiveThread(
       break;
     }
   }
-  Debug::FramesHaveBeenDropped(new_id);
+  debug->FramesHaveBeenDropped(new_id);
 
   // Replace "blocked on active" with "replaced on active" status.
   for (int i = 0; i < array_len; i++) {

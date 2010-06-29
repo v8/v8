@@ -220,32 +220,32 @@ class DebugInfoListNode {
 // DebugInfo.
 class Debug {
  public:
-  static void Setup(bool create_heap_objects);
-  static bool Load();
-  static void Unload();
-  static bool IsLoaded() { return !debug_context_.is_null(); }
-  static bool InDebugger() { return thread_local_.debugger_entry_ != NULL; }
-  static void PreemptionWhileInDebugger();
-  static void Iterate(ObjectVisitor* v);
+  void Setup(bool create_heap_objects);
+  bool Load();
+  void Unload();
+  bool IsLoaded() { return !debug_context_.is_null(); }
+  bool InDebugger() { return thread_local_.debugger_entry_ != NULL; }
+  void PreemptionWhileInDebugger();
+  void Iterate(ObjectVisitor* v);
 
   static Object* Break(Arguments args);
-  static void SetBreakPoint(Handle<SharedFunctionInfo> shared,
-                            Handle<Object> break_point_object,
-                            int* source_position);
-  static void ClearBreakPoint(Handle<Object> break_point_object);
-  static void ClearAllBreakPoints();
-  static void FloodWithOneShot(Handle<SharedFunctionInfo> shared);
-  static void FloodHandlerWithOneShot();
-  static void ChangeBreakOnException(ExceptionBreakType type, bool enable);
-  static void PrepareStep(StepAction step_action, int step_count);
-  static void ClearStepping();
-  static bool StepNextContinue(BreakLocationIterator* break_location_iterator,
-                               JavaScriptFrame* frame);
+  void SetBreakPoint(Handle<SharedFunctionInfo> shared,
+                     Handle<Object> break_point_object,
+                     int* source_position);
+  void ClearBreakPoint(Handle<Object> break_point_object);
+  void ClearAllBreakPoints();
+  void FloodWithOneShot(Handle<SharedFunctionInfo> shared);
+  void FloodHandlerWithOneShot();
+  void ChangeBreakOnException(ExceptionBreakType type, bool enable);
+  void PrepareStep(StepAction step_action, int step_count);
+  void ClearStepping();
+  bool StepNextContinue(BreakLocationIterator* break_location_iterator,
+                        JavaScriptFrame* frame);
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
   static bool HasDebugInfo(Handle<SharedFunctionInfo> shared);
 
   // Returns whether the operation succeeded.
-  static bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
+  bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
 
   // Returns true if the current stub call is patched to call the debugger.
   static bool IsDebugBreak(Address addr);
@@ -265,66 +265,66 @@ class Debug {
       Handle<SharedFunctionInfo> shared);
 
   // Getter for the debug_context.
-  inline static Handle<Context> debug_context() { return debug_context_; }
+  inline Handle<Context> debug_context() { return debug_context_; }
 
   // Check whether a global object is the debug global object.
-  static bool IsDebugGlobal(GlobalObject* global);
+  bool IsDebugGlobal(GlobalObject* global);
 
   // Check whether this frame is just about to return.
-  static bool IsBreakAtReturn(JavaScriptFrame* frame);
+  bool IsBreakAtReturn(JavaScriptFrame* frame);
 
   // Fast check to see if any break points are active.
-  inline static bool has_break_points() { return has_break_points_; }
+  inline bool has_break_points() { return has_break_points_; }
 
-  static void NewBreak(StackFrame::Id break_frame_id);
-  static void SetBreak(StackFrame::Id break_frame_id, int break_id);
-  static StackFrame::Id break_frame_id() {
+  void NewBreak(StackFrame::Id break_frame_id);
+  void SetBreak(StackFrame::Id break_frame_id, int break_id);
+  StackFrame::Id break_frame_id() {
     return thread_local_.break_frame_id_;
   }
-  static int break_id() { return thread_local_.break_id_; }
+  int break_id() { return thread_local_.break_id_; }
 
-  static bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
-  static void HandleStepIn(Handle<JSFunction> function,
-                           Handle<Object> holder,
-                           Address fp,
-                           bool is_constructor);
-  static Address step_in_fp() { return thread_local_.step_into_fp_; }
-  static Address* step_in_fp_addr() { return &thread_local_.step_into_fp_; }
+  bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
+  void HandleStepIn(Handle<JSFunction> function,
+                    Handle<Object> holder,
+                    Address fp,
+                    bool is_constructor);
+  Address step_in_fp() { return thread_local_.step_into_fp_; }
+  Address* step_in_fp_addr() { return &thread_local_.step_into_fp_; }
 
-  static bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
-  static Address step_out_fp() { return thread_local_.step_out_fp_; }
+  bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
+  Address step_out_fp() { return thread_local_.step_out_fp_; }
 
-  static EnterDebugger* debugger_entry() {
+  EnterDebugger* debugger_entry() {
     return thread_local_.debugger_entry_;
   }
-  static void set_debugger_entry(EnterDebugger* entry) {
+  void set_debugger_entry(EnterDebugger* entry) {
     thread_local_.debugger_entry_ = entry;
   }
 
   // Check whether any of the specified interrupts are pending.
-  static bool is_interrupt_pending(InterruptFlag what) {
+  bool is_interrupt_pending(InterruptFlag what) {
     return (thread_local_.pending_interrupts_ & what) != 0;
   }
 
   // Set specified interrupts as pending.
-  static void set_interrupts_pending(InterruptFlag what) {
+  void set_interrupts_pending(InterruptFlag what) {
     thread_local_.pending_interrupts_ |= what;
   }
 
   // Clear specified interrupts from pending.
-  static void clear_interrupt_pending(InterruptFlag what) {
+  void clear_interrupt_pending(InterruptFlag what) {
     thread_local_.pending_interrupts_ &= ~static_cast<int>(what);
   }
 
   // Getter and setter for the disable break state.
-  static bool disable_break() { return disable_break_; }
-  static void set_disable_break(bool disable_break) {
+  bool disable_break() { return disable_break_; }
+  void set_disable_break(bool disable_break) {
     disable_break_ = disable_break;
   }
 
   // Getters for the current exception break state.
-  static bool break_on_exception() { return break_on_exception_; }
-  static bool break_on_uncaught_exception() {
+  bool break_on_exception() { return break_on_exception_; }
+  bool break_on_uncaught_exception() {
     return break_on_uncaught_exception_;
   }
 
@@ -336,30 +336,31 @@ class Debug {
   };
 
   // Support for setting the address to jump to when returning from break point.
-  static Address* after_break_target_address() {
+  Address* after_break_target_address() {
     return reinterpret_cast<Address*>(&thread_local_.after_break_target_);
   }
 
   // Support for saving/restoring registers when handling debug break calls.
-  static Object** register_address(int r) {
+  Object** register_address(int r) {
     return &registers_[r];
   }
 
   // Access to the debug break on return code.
-  static Code* debug_break_return() { return debug_break_return_; }
-  static Code** debug_break_return_address() {
+  Code* debug_break_return() { return debug_break_return_; }
+  Code** debug_break_return_address() {
     return &debug_break_return_;
   }
 
   // Access to the debug break in debug break slot code.
-  static Code* debug_break_slot() { return debug_break_slot_; }
-  static Code** debug_break_slot_address() {
+  Code* debug_break_slot() { return debug_break_slot_; }
+  Code** debug_break_slot_address() {
     return &debug_break_slot_;
   }
 
   static const int kEstimatedNofDebugInfoEntries = 16;
   static const int kEstimatedNofBreakPointsInFunction = 16;
 
+  // Passed to MakeWeak.
   static void HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data);
 
   friend class Debugger;
@@ -367,22 +368,22 @@ class Debug {
   friend void CheckDebuggerUnloaded(bool check_functions);  // In test-debug.cc
 
   // Threading support.
-  static char* ArchiveDebug(char* to);
-  static char* RestoreDebug(char* from);
+  char* ArchiveDebug(char* to);
+  char* RestoreDebug(char* from);
   static int ArchiveSpacePerThread();
-  static void FreeThreadResources() { }
+  void FreeThreadResources() { }
 
   // Mirror cache handling.
-  static void ClearMirrorCache();
+  void ClearMirrorCache();
 
   // Script cache handling.
-  static void CreateScriptCache();
-  static void DestroyScriptCache();
-  static void AddScriptToScriptCache(Handle<Script> script);
-  static Handle<FixedArray> GetLoadedScripts();
+  void CreateScriptCache();
+  void DestroyScriptCache();
+  void AddScriptToScriptCache(Handle<Script> script);
+  Handle<FixedArray> GetLoadedScripts();
 
   // Garbage collection notifications.
-  static void AfterGarbageCollection();
+  void AfterGarbageCollection();
 
   // Code generator routines.
   static void GenerateSlot(MacroAssembler* masm);
@@ -400,42 +401,45 @@ class Debug {
   // Called from stub-cache.cc.
   static void GenerateCallICDebugBreak(MacroAssembler* masm);
 
-  static void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id);
+  void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id);
 
   static void SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
                                      Handle<Code> code);
   static const int kFrameDropperFrameSize;
 
  private:
+  explicit Debug(Isolate* isolate);
+  ~Debug();
+
   static bool CompileDebuggerScript(int index);
-  static void ClearOneShot();
-  static void ActivateStepIn(StackFrame* frame);
-  static void ClearStepIn();
-  static void ActivateStepOut(StackFrame* frame);
-  static void ClearStepOut();
-  static void ClearStepNext();
+  void ClearOneShot();
+  void ActivateStepIn(StackFrame* frame);
+  void ClearStepIn();
+  void ActivateStepOut(StackFrame* frame);
+  void ClearStepOut();
+  void ClearStepNext();
   // Returns whether the compile succeeded.
-  static void RemoveDebugInfo(Handle<DebugInfo> debug_info);
-  static void SetAfterBreakTarget(JavaScriptFrame* frame);
-  static Handle<Object> CheckBreakPoints(Handle<Object> break_point);
-  static bool CheckBreakPoint(Handle<Object> break_point_object);
+  void RemoveDebugInfo(Handle<DebugInfo> debug_info);
+  void SetAfterBreakTarget(JavaScriptFrame* frame);
+  Handle<Object> CheckBreakPoints(Handle<Object> break_point);
+  bool CheckBreakPoint(Handle<Object> break_point_object);
 
   // Global handle to debug context where all the debugger JavaScript code is
   // loaded.
-  static Handle<Context> debug_context_;
+  Handle<Context> debug_context_;
 
   // Boolean state indicating whether any break points are set.
-  static bool has_break_points_;
+  bool has_break_points_;
 
   // Cache of all scripts in the heap.
-  static ScriptCache* script_cache_;
+  ScriptCache* script_cache_;
 
   // List of active debug info objects.
-  static DebugInfoListNode* debug_info_list_;
+  DebugInfoListNode* debug_info_list_;
 
-  static bool disable_break_;
-  static bool break_on_exception_;
-  static bool break_on_uncaught_exception_;
+  bool disable_break_;
+  bool break_on_exception_;
+  bool break_on_uncaught_exception_;
 
   // Per-thread data.
   class ThreadLocal {
@@ -482,15 +486,19 @@ class Debug {
   };
 
   // Storage location for registers when handling debug break calls
-  static JSCallerSavedBuffer registers_;
-  static ThreadLocal thread_local_;
-  static void ThreadInit();
+  JSCallerSavedBuffer registers_;
+  ThreadLocal thread_local_;
+  void ThreadInit();
 
   // Code to call for handling debug break on return.
-  static Code* debug_break_return_;
+  Code* debug_break_return_;
 
   // Code to call for handling debug break in debug break slots.
-  static Code* debug_break_slot_;
+  Code* debug_break_slot_;
+
+  Isolate* isolate_;
+
+  friend class Isolate;
 
   DISALLOW_COPY_AND_ASSIGN(Debug);
 };
@@ -720,7 +728,7 @@ class Debugger {
 
     // Check whether the message handler was been cleared.
     if (debugger_unload_pending_) {
-      if (Debug::debugger_entry() == NULL) {
+      if (isolate_->debug()->debugger_entry() == NULL) {
         UnloadDebugger();
       }
     }
@@ -779,42 +787,43 @@ class Debugger {
 class EnterDebugger BASE_EMBEDDED {
  public:
   EnterDebugger()
-      : prev_(Debug::debugger_entry()),
+      : isolate_(Isolate::Current()),
+        prev_(isolate_->debug()->debugger_entry()),
         has_js_frames_(!it_.done()) {
-    ASSERT(prev_ != NULL || !Debug::is_interrupt_pending(PREEMPT));
-    ASSERT(prev_ != NULL || !Debug::is_interrupt_pending(DEBUGBREAK));
+    Debug* debug = isolate_->debug();
+    ASSERT(prev_ != NULL || !debug->is_interrupt_pending(PREEMPT));
+    ASSERT(prev_ != NULL || !debug->is_interrupt_pending(DEBUGBREAK));
 
     // Link recursive debugger entry.
-    Debug::set_debugger_entry(this);
+    debug->set_debugger_entry(this);
 
     // Store the previous break id and frame id.
-    break_id_ = Debug::break_id();
-    break_frame_id_ = Debug::break_frame_id();
+    break_id_ = debug->break_id();
+    break_frame_id_ = debug->break_frame_id();
 
     // Create the new break info. If there is no JavaScript frames there is no
     // break frame id.
     if (has_js_frames_) {
-      Debug::NewBreak(it_.frame()->id());
+      debug->NewBreak(it_.frame()->id());
     } else {
-      Debug::NewBreak(StackFrame::NO_ID);
+      debug->NewBreak(StackFrame::NO_ID);
     }
 
     // Make sure that debugger is loaded and enter the debugger context.
-    load_failed_ = !Debug::Load();
+    load_failed_ = !debug->Load();
     if (!load_failed_) {
       // NOTE the member variable save which saves the previous context before
       // this change.
-      Isolate::Current()->set_context(*Debug::debug_context());
+      isolate_->set_context(*debug->debug_context());
     }
   }
 
   ~EnterDebugger() {
-    // TODO(isolates): Check to see if this is the same isolate as in the
-    //                 constructor.
-    Isolate* isolate = Isolate::Current();
+    ASSERT(Isolate::Current() == isolate_);
+    Debug* debug = isolate_->debug();
 
     // Restore to the previous break state.
-    Debug::SetBreak(break_frame_id_, break_id_);
+    debug->SetBreak(break_frame_id_, break_id_);
 
     // Check for leaving the debugger.
     if (prev_ == NULL) {
@@ -822,43 +831,43 @@ class EnterDebugger BASE_EMBEDDED {
       // pending exception as clearing the mirror cache calls back into
       // JavaScript. This can happen if the v8::Debug::Call is used in which
       // case the exception should end up in the calling code.
-      if (!isolate->has_pending_exception()) {
+      if (!isolate_->has_pending_exception()) {
         // Try to avoid any pending debug break breaking in the clear mirror
         // cache JavaScript code.
-        if (isolate->stack_guard()->IsDebugBreak()) {
-          Debug::set_interrupts_pending(DEBUGBREAK);
-          isolate->stack_guard()->Continue(DEBUGBREAK);
+        if (isolate_->stack_guard()->IsDebugBreak()) {
+          debug->set_interrupts_pending(DEBUGBREAK);
+          isolate_->stack_guard()->Continue(DEBUGBREAK);
         }
-        Debug::ClearMirrorCache();
+        debug->ClearMirrorCache();
       }
 
       // Request preemption and debug break when leaving the last debugger entry
       // if any of these where recorded while debugging.
-      if (Debug::is_interrupt_pending(PREEMPT)) {
+      if (debug->is_interrupt_pending(PREEMPT)) {
         // This re-scheduling of preemption is to avoid starvation in some
         // debugging scenarios.
-        Debug::clear_interrupt_pending(PREEMPT);
-        isolate->stack_guard()->Preempt();
+        debug->clear_interrupt_pending(PREEMPT);
+        isolate_->stack_guard()->Preempt();
       }
-      if (Debug::is_interrupt_pending(DEBUGBREAK)) {
-        Debug::clear_interrupt_pending(DEBUGBREAK);
-        isolate->stack_guard()->DebugBreak();
+      if (debug->is_interrupt_pending(DEBUGBREAK)) {
+        debug->clear_interrupt_pending(DEBUGBREAK);
+        isolate_->stack_guard()->DebugBreak();
       }
 
       // If there are commands in the queue when leaving the debugger request
       // that these commands are processed.
-      if (isolate->debugger()->HasCommands()) {
-        isolate->stack_guard()->DebugCommand();
+      if (isolate_->debugger()->HasCommands()) {
+        isolate_->stack_guard()->DebugCommand();
       }
 
       // If leaving the debugger with the debugger no longer active unload it.
-      if (!isolate->debugger()->IsDebuggerActive()) {
-        isolate->debugger()->UnloadDebugger();
+      if (!isolate_->debugger()->IsDebuggerActive()) {
+        isolate_->debugger()->UnloadDebugger();
       }
     }
 
     // Leaving this debugger entry.
-    Debug::set_debugger_entry(prev_);
+    debug->set_debugger_entry(prev_);
   }
 
   // Check whether the debugger could be entered.
@@ -871,6 +880,7 @@ class EnterDebugger BASE_EMBEDDED {
   inline Handle<Context> GetContext() { return save_.context(); }
 
  private:
+  Isolate* isolate_;
   EnterDebugger* prev_;  // Previous debugger entry if entered recursively.
   JavaScriptFrameIterator it_;
   const bool has_js_frames_;  // Were there any JavaScript frames?
@@ -886,15 +896,17 @@ class DisableBreak BASE_EMBEDDED {
  public:
   // Enter the debugger by storing the previous top context and setting the
   // current top context to the debugger context.
-  explicit DisableBreak(bool disable_break)  {
-    prev_disable_break_ = Debug::disable_break();
-    Debug::set_disable_break(disable_break);
+  explicit DisableBreak(bool disable_break) : isolate_(Isolate::Current()) {
+    prev_disable_break_ = isolate_->debug()->disable_break();
+    isolate_->debug()->set_disable_break(disable_break);
   }
   ~DisableBreak() {
-    Debug::set_disable_break(prev_disable_break_);
+    ASSERT(Isolate::Current() == isolate_);
+    isolate_->debug()->set_disable_break(prev_disable_break_);
   }
 
  private:
+  Isolate* isolate_;
   // The previous state of the disable break used to restore the value when this
   // object is destructed.
   bool prev_disable_break_;
@@ -922,16 +934,17 @@ class Debug_Address {
     return Debug_Address(Debug::k_register_address, reg);
   }
 
-  Address address() const {
+  Address address(Isolate* isolate) const {
+    Debug* debug = isolate->debug();
     switch (id_) {
       case Debug::k_after_break_target_address:
-        return reinterpret_cast<Address>(Debug::after_break_target_address());
+        return reinterpret_cast<Address>(debug->after_break_target_address());
       case Debug::k_debug_break_return_address:
-        return reinterpret_cast<Address>(Debug::debug_break_return_address());
+        return reinterpret_cast<Address>(debug->debug_break_return_address());
       case Debug::k_debug_break_slot_address:
-        return reinterpret_cast<Address>(Debug::debug_break_slot_address());
+        return reinterpret_cast<Address>(debug->debug_break_slot_address());
       case Debug::k_register_address:
-        return reinterpret_cast<Address>(Debug::register_address(reg_));
+        return reinterpret_cast<Address>(debug->register_address(reg_));
       default:
         UNREACHABLE();
         return NULL;

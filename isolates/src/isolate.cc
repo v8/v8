@@ -267,6 +267,11 @@ Isolate::Isolate()
          sizeof(code_kind_statistics_[0]) * Code::NUMBER_OF_KINDS);
 #endif
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  debug_ = NULL;
+  debugger_ = NULL;
+#endif
+
   handle_scope_data_.Initialize();
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value)                        \
@@ -364,6 +369,8 @@ Isolate::~Isolate() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   delete debugger_;
   debugger_ = NULL;
+  delete debug_;
+  debug_ = NULL;
 #endif
 
   if (state_ == INITIALIZED) --number_of_isolates_;
@@ -373,6 +380,12 @@ Isolate::~Isolate() {
 bool Isolate::PreInit() {
   if (state_ != UNINITIALIZED) return true;
   ASSERT(global_isolate_ == this);
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  debug_ = new Debug(this);
+  debugger_ = new Debugger();
+  debugger_->isolate_ = this;
+#endif
 
   memory_allocator_ = new MemoryAllocator();
   memory_allocator_->isolate_ = this;
@@ -415,11 +428,6 @@ bool Isolate::PreInit() {
   stub_cache_ = new StubCache();
   ast_sentinels_ = new AstSentinels();
   inline_runtime_functions_table_ = new InlineRuntimeFunctionsTable();
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  debugger_ = new Debugger();
-  debugger_->isolate_ = this;
-#endif
 
   state_ = PREINITIALIZED;
   return true;
@@ -498,7 +506,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Debug::Setup(create_heap_objects);
+  debug_->Setup(create_heap_objects);
 #endif
   stub_cache_->Initialize(create_heap_objects);
 

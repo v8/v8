@@ -610,10 +610,10 @@ static Object* RuntimePreempt() {
   ContextSwitcher::PreemptionReceived();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (Debug::InDebugger()) {
+  if (isolate->debug()->InDebugger()) {
     // If currently in the debugger don't do any actual preemption but record
     // that preemption occoured while in the debugger.
-    Debug::PreemptionWhileInDebugger();
+    isolate->debug()->PreemptionWhileInDebugger();
   } else {
     // Perform preemption.
     v8::Unlocker unlocker;
@@ -636,7 +636,7 @@ Object* Execution::DebugBreakHelper() {
   Isolate* isolate = Isolate::Current();
 
   // Just continue if breaks are disabled.
-  if (Debug::disable_break()) {
+  if (isolate->debug()->disable_break()) {
     return isolate->heap()->undefined_value();
   }
 
@@ -656,7 +656,7 @@ Object* Execution::DebugBreakHelper() {
       }
       GlobalObject* global = JSFunction::cast(fun)->context()->global();
       // Don't stop in debugger functions.
-      if (Debug::IsDebugGlobal(global)) {
+      if (isolate->debug()->IsDebugGlobal(global)) {
         return isolate->heap()->undefined_value();
       }
     }

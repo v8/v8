@@ -861,11 +861,11 @@ Handle<Context> Isolate::global_context() {
 Handle<Context> Isolate::GetCallingGlobalContext() {
   JavaScriptFrameIterator it;
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (Debug::InDebugger()) {
+  if (debug_->InDebugger()) {
     while (!it.done()) {
       JavaScriptFrame* frame = it.frame();
       Context* context = Context::cast(frame->context());
-      if (context->global_context() == *Debug::debug_context()) {
+      if (context->global_context() == *debug_->debug_context()) {
         it.Advance();
       } else {
         break;

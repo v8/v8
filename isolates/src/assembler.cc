@@ -557,7 +557,7 @@ ExternalReference::ExternalReference(const IC_Utility& ic_utility)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 ExternalReference::ExternalReference(const Debug_Address& debug_address)
-  : address_(debug_address.address()) {}
+  : address_(debug_address.address(Isolate::Current())) {}
 #endif
 
 ExternalReference::ExternalReference(StatsCounter* counter)
@@ -797,7 +797,7 @@ ExternalReference ExternalReference::debug_break() {
 
 
 ExternalReference ExternalReference::debug_step_in_fp_address() {
-  return ExternalReference(Debug::step_in_fp_addr());
+  return ExternalReference(Isolate::Current()->debug()->step_in_fp_addr());
 }
 #endif
 

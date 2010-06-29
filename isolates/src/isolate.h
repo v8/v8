@@ -74,6 +74,7 @@ typedef void* ExternalReferenceRedirector(void* original, bool fp_return);
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
+class Debug;
 class Debugger;
 #endif
 
@@ -184,6 +185,16 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #endif
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+
+#define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
+  V(v8::Debug::EventCallback, debug_event_callback, NULL)
+
+#else
+
+#define ISOLATE_DEBUGGER_INIT_LIST(V)
+
+#endif
 
 #ifdef DEBUG
 
@@ -231,7 +242,8 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   V(unsigned, code_entry_next_call_uid, NULL)                                  \
   V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \
   V(Object*, string_stream_current_security_token, NULL)                       \
-  ISOLATE_PLATFORM_INIT_LIST(V)
+  ISOLATE_PLATFORM_INIT_LIST(V)                                                \
+  ISOLATE_DEBUGGER_INIT_LIST(V)
 
 class Isolate {
  public:
@@ -619,6 +631,7 @@ class Isolate {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger* debugger() { return debugger_; }
+  Debug* debug() { return debug_; }
 #endif
 
 #ifdef DEBUG
@@ -739,6 +752,7 @@ class Isolate {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger* debugger_;
+  Debug* debug_;
 #endif
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \

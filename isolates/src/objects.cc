@@ -199,9 +199,10 @@ Object* Object::GetPropertyWithDefinedGetter(Object* receiver,
   Handle<JSFunction> fun(JSFunction::cast(getter));
   Handle<Object> self(receiver);
 #ifdef ENABLE_DEBUGGER_SUPPORT
+  Debug* debug = Isolate::Current()->debug();
   // Handle stepping into a getter if step into is active.
-  if (Debug::StepInActive()) {
-    Debug::HandleStepIn(fun, Handle<Object>::null(), 0, false);
+  if (debug->StepInActive()) {
+    debug->HandleStepIn(fun, Handle<Object>::null(), 0, false);
   }
 #endif
   bool has_pending_exception;
@@ -1637,9 +1638,10 @@ Object* JSObject::SetPropertyWithDefinedSetter(JSFunction* setter,
   Handle<JSFunction> fun(JSFunction::cast(setter));
   Handle<JSObject> self(this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
+  Debug* debug = Isolate::Current()->debug();
   // Handle stepping into a setter if step into is active.
-  if (Debug::StepInActive()) {
-    Debug::HandleStepIn(fun, Handle<Object>::null(), 0, false);
+  if (debug->StepInActive()) {
+    debug->HandleStepIn(fun, Handle<Object>::null(), 0, false);
   }
 #endif
   bool has_pending_exception;

@@ -4079,14 +4079,13 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
-static v8::Debug::EventCallback event_callback = NULL;
-
 static void EventCallbackWrapper(const v8::Debug::EventDetails& event_details) {
-  if (event_callback) {
-    event_callback(event_details.GetEvent(),
-                   event_details.GetExecutionState(),
-                   event_details.GetEventData(),
-                   event_details.GetCallbackData());
+  i::Isolate* isolate = i::Isolate::Current();
+  if (isolate->debug_event_callback() != NULL) {
+    isolate->debug_event_callback()(event_details.GetEvent(),
+                                    event_details.GetExecutionState(),
+                                    event_details.GetEventData(),
+                                    event_details.GetCallbackData());
   }
 }
 
@@ -4096,15 +4095,16 @@ bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
   ENTER_V8;
 
-  event_callback = that;
+  i::Isolate* isolate = i::Isolate::Current();
+
+  isolate->set_debug_event_callback(that);
 
   HandleScope scope;
   i::Handle<i::Object> proxy = i::Factory::undefined_value();
   if (that != NULL) {
     proxy = i::Factory::NewProxy(FUNCTION_ADDR(EventCallbackWrapper));
   }
-  i::Isolate::Current()->debugger()->SetEventListener(proxy,
-                                                      Utils::OpenHandle(*data));
+  isolate->debugger()->SetEventListener(proxy, Utils::OpenHandle(*data));
   return true;
 }
 
@@ -4227,8 +4227,9 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   ON_BAILOUT("v8::Debug::GetMirror()", return Local<Value>());
   ENTER_V8;
   v8::HandleScope scope;
-  i::Debug::Load();
-  i::Handle<i::JSObject> debug(i::Debug::debug_context()->global());
+  i::Debug* isolate_debug = i::Isolate::Current()->debug();
+  isolate_debug->Load();
+  i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global());
   i::Handle<i::String> name = i::Factory::LookupAsciiSymbol("MakeMirror");
   i::Handle<i::Object> fun_obj = i::GetProperty(debug, name);
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);

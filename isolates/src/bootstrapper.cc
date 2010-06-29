@@ -1444,19 +1444,20 @@ void Genesis::InstallSpecialObjects(Handle<Context> global_context) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
+    Debug* debug = Isolate::Current()->debug();
     // If loading fails we just bail out without installing the
     // debugger but without tanking the whole context.
-    if (!Debug::Load()) return;
+    if (!debug->Load()) return;
     // Set the security token for the debugger context to the same as
     // the shell global context to allow calling between these (otherwise
     // exposing debug global object doesn't make much sense).
-    Debug::debug_context()->set_security_token(
+    debug->debug_context()->set_security_token(
         global_context->security_token());
 
     Handle<String> debug_string =
         Factory::LookupAsciiSymbol(FLAG_expose_debug_as);
     SetProperty(js_global, debug_string,
-        Handle<Object>(Debug::debug_context()->global_proxy()), DONT_ENUM);
+        Handle<Object>(debug->debug_context()->global_proxy()), DONT_ENUM);
   }
 #endif
 }

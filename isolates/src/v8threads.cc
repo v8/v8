@@ -160,7 +160,7 @@ bool ThreadManager::RestoreThread() {
   from = isolate_->RestoreThread(from);
   from = Relocatable::RestoreState(from);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  from = Debug::RestoreDebug(from);
+  from = isolate_->debug()->RestoreDebug(from);
 #endif
   from = isolate_->stack_guard()->RestoreStackGuard(from);
   from = RegExpStack::RestoreStack(from);
@@ -304,7 +304,7 @@ void ThreadManager::EagerlyArchiveThread() {
   to = isolate_->ArchiveThread(to);
   to = Relocatable::ArchiveState(to);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  to = Debug::ArchiveDebug(to);
+  to = isolate_->debug()->ArchiveDebug(to);
 #endif
   to = isolate_->stack_guard()->ArchiveStackGuard(to);
   to = RegExpStack::ArchiveStack(to);
@@ -318,7 +318,7 @@ void ThreadManager::FreeThreadResources() {
   isolate_->handle_scope_implementer()->FreeThreadResources();
   isolate_->FreeThreadResources();
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Debug::FreeThreadResources();
+  isolate_->debug()->FreeThreadResources();
 #endif
   isolate_->stack_guard()->FreeThreadResources();
   RegExpStack::FreeThreadResources();

@@ -479,12 +479,13 @@ Object* CallICBase::LoadFunction(State state,
   if (result->IsJSFunction()) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
     // Handle stepping into a function if step into is active.
-    if (Debug::StepInActive()) {
+    Debug* debug = Isolate::Current()->debug();
+    if (debug->StepInActive()) {
       // Protect the result in a handle as the debugger can allocate and might
       // cause GC.
       HandleScope scope;
       Handle<JSFunction> function(JSFunction::cast(result));
-      Debug::HandleStepIn(function, object, fp(), false);
+      debug->HandleStepIn(function, object, fp(), false);
       return *function;
     }
 #endif

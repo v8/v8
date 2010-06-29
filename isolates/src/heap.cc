@@ -360,7 +360,7 @@ void Heap::GarbageCollectionEpilogue() {
   ReportStatisticsAfterGC();
 #endif
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Debug::AfterGarbageCollection();
+  isolate_->debug()->AfterGarbageCollection();
 #endif
 }
 
@@ -2321,7 +2321,8 @@ static void FlushCodeForFunction(SharedFunctionInfo* function_info) {
 void Heap::FlushCode() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Do not flush code if the debugger is loaded or there are breakpoints.
-  if (Debug::IsLoaded() || Debug::has_break_points()) return;
+  if (isolate_->debug()->IsLoaded() ||
+      isolate_->debug()->has_break_points()) return;
 #endif
   HeapObjectIterator it(old_pointer_space());
   for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
@@ -3860,7 +3861,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->Synchronize("relocatable");
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Debug::Iterate(v);
+  isolate_->debug()->Iterate(v);
 #endif
   v->Synchronize("debug");
   isolate_->compilation_cache()->Iterate(v);

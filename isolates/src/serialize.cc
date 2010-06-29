@@ -226,15 +226,15 @@ void ExternalReferenceTable::PopulateTable() {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Debug addresses
-  Add(Debug_Address(Debug::k_after_break_target_address).address(),
+  Add(Debug_Address(Debug::k_after_break_target_address).address(isolate),
       DEBUG_ADDRESS,
       Debug::k_after_break_target_address << kDebugIdShift,
       "Debug::after_break_target_address()");
-  Add(Debug_Address(Debug::k_debug_break_slot_address).address(),
+  Add(Debug_Address(Debug::k_debug_break_slot_address).address(isolate),
       DEBUG_ADDRESS,
       Debug::k_debug_break_slot_address << kDebugIdShift,
       "Debug::debug_break_slot_address()");
-  Add(Debug_Address(Debug::k_debug_break_return_address).address(),
+  Add(Debug_Address(Debug::k_debug_break_return_address).address(isolate),
       DEBUG_ADDRESS,
       Debug::k_debug_break_return_address << kDebugIdShift,
       "Debug::debug_break_return_address()");
@@ -243,7 +243,7 @@ void ExternalReferenceTable::PopulateTable() {
   for (int i = 0; i < kNumJSCallerSaved; ++i) {
     Vector<char> name = Vector<char>::New(dr_format_length + 1);
     OS::SNPrintF(name, debug_register_format, i);
-    Add(Debug_Address(Debug::k_register_address, i).address(),
+    Add(Debug_Address(Debug::k_register_address, i).address(isolate),
         DEBUG_ADDRESS,
         Debug::k_register_address << kDebugIdShift | i,
         name.start());
