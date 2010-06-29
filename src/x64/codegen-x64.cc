@@ -856,7 +856,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(equal, &adapted);
 
       // No arguments adaptor frame. Copy fixed number of arguments.
-      __ movq(rax, Immediate(scope()->num_parameters()));
+      __ Set(rax, scope()->num_parameters());
       for (int i = 0; i < scope()->num_parameters(); i++) {
         __ push(frame_->ParameterAt(i));
       }
@@ -9067,16 +9067,16 @@ void CompareStub::Generate(MacroAssembler* masm) {
     Label non_number_comparison;
     Label unordered;
     FloatingPointHelper::LoadSSE2UnknownOperands(masm, &non_number_comparison);
+    __ xorl(rax, rax);
+    __ xorl(rcx, rcx);
     __ ucomisd(xmm0, xmm1);
 
     // Don't base result on EFLAGS when a NaN is involved.
     __ j(parity_even, &unordered);
     // Return a result of -1, 0, or 1, based on EFLAGS.
-    __ movq(rax, Immediate(0));  // equal
-    __ movq(rcx, Immediate(1));
-    __ cmovq(above, rax, rcx);
-    __ movq(rcx, Immediate(-1));
-    __ cmovq(below, rax, rcx);
+    __ setcc(above, rax);
+    __ setcc(below, rcx);
+    __ subq(rax, rcx);
     __ ret(2 * kPointerSize);  // rax, rdx were pushed
 
     // If one of the numbers was NaN, then the result is always false.
