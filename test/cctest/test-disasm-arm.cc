@@ -401,3 +401,16 @@ TEST(Type3) {
   VERIFY_RUN();
 }
 
+
+
+TEST(Vfp) {
+  SETUP();
+
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+    COMPARE(vsqrt(d0, d0),
+            "eeb10bc0       vsqrt.f64 d0, d0");
+  }
+
+  VERIFY_RUN();
+}

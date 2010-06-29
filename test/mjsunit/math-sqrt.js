@@ -27,18 +27,23 @@
 
 // Tests the special cases specified by ES 15.8.2.17
 
+function test(expected_sqrt, value) {
+  assertEquals(expected_sqrt, Math.sqrt(value));
+  if (isFinite(value)) { 
+    assertEquals(expected_sqrt, Math.pow(value, 0.5));
+  }
+}
+
 // Simple sanity check
-assertEquals(2, Math.sqrt(4));
-assertEquals(0.1, Math.sqrt(0.01));
+test(2, 4);
+test(0.1, 0.01);
 
 // Spec tests
-assertEquals(NaN, Math.sqrt(NaN));
-assertEquals(NaN, Math.sqrt(-1));
-assertEquals(+0, Math.sqrt(+0));
-assertEquals(-0, Math.sqrt(-0));
-assertEquals(Infinity, Math.sqrt(Infinity));
+test(NaN, NaN);
+test(NaN, -1);
+test(+0, +0);
+test(-0, -0);
+test(Infinity, Infinity);
 // -Infinity is smaller than 0 so it should return NaN
-assertEquals(NaN, Math.sqrt(-Infinity));
-
-
+test(NaN, -Infinity);
 

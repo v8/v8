@@ -4279,22 +4279,147 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 }
 
 
-// Generates the Math.pow method - currently just calls runtime.
+// Generates the Math.pow method.
 void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   Load(args->at(0));
   Load(args->at(1));
-  frame_->CallRuntime(Runtime::kMath_pow, 2);
-  frame_->EmitPush(r0);
+
+  if (!CpuFeatures::IsSupported(VFP3)) {
+    frame_->CallRuntime(Runtime::kMath_pow, 2);
+    frame_->EmitPush(r0);
+  } else {
+    CpuFeatures::Scope scope(VFP3);
+    JumpTarget runtime, done;
+    Label not_minus_half, allocate_return;
+
+    Register scratch1 = VirtualFrame::scratch0();
+    Register scratch2 = VirtualFrame::scratch1();
+
+    // Get base and exponent to registers.
+    Register exponent = frame_->PopToRegister();
+    Register base = frame_->PopToRegister(exponent);
+
+    // Set the frame for the runtime jump target. The code below jumps to the
+    // jump target label so the frame needs to be established before that.
+    ASSERT(runtime.entry_frame() == NULL);
+    runtime.set_entry_frame(frame_);
+
+    __ BranchOnSmi(exponent, runtime.entry_label());
+
+    // Special handling of raising to the power of -0.5 and 0.5. First check
+    // that the value is a heap number and that the lower bits (which for both
+    // values are zero).
+    Register heap_number_map = r6;
+    __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+    __ ldr(scratch1, FieldMemOperand(exponent, HeapObject::kMapOffset));
+    __ ldr(scratch2, FieldMemOperand(exponent, HeapNumber::kMantissaOffset));
+    __ cmp(scratch1, heap_number_map);
+    runtime.Branch(ne);
+    __ tst(scratch2, scratch2);
+    runtime.Branch(ne);
+
+    // Load the e
+    __ ldr(scratch1, FieldMemOperand(exponent, HeapNumber::kExponentOffset));
+
+    // Compare exponent with -0.5.
+    __ cmp(scratch1, Operand(0xbfe00000));
+    __ b(ne, &not_minus_half);
+
+    // Get the double value from the base into vfp register d0.
+    __ ObjectToDoubleVFPRegister(base, d0,
+                                 scratch1, scratch2, heap_number_map, s0,
+                                 runtime.entry_label(),
+                                 AVOID_NANS_AND_INFINITIES);
+
+    // Load 1.0 into d2.
+    __ mov(scratch2, Operand(0x3ff00000));
+    __ mov(scratch1, Operand(0));
+    __ vmov(d2, scratch1, scratch2);
+
+    // Calculate the reciprocal of the square root. 1/sqrt(x) = sqrt(1/x).
+    __ vdiv(d0, d2, d0);
+    __ vsqrt(d0, d0);
+
+    __ b(&allocate_return);
+
+    __ bind(&not_minus_half);
+    // Compare exponent with 0.5.
+    __ cmp(scratch1, Operand(0x3fe00000));
+    runtime.Branch(ne);
+
+      // Get the double value from the base into vfp register d0.
+    __ ObjectToDoubleVFPRegister(base, d0,
+                                 scratch1, scratch2, heap_number_map, s0,
+                                 runtime.entry_label(),
+                                 AVOID_NANS_AND_INFINITIES);
+    __ vsqrt(d0, d0);
+
+    __ bind(&allocate_return);
+    __ AllocateHeapNumberWithValue(
+        base, d0, scratch1, scratch2, heap_number_map, runtime.entry_label());
+    done.Jump();
+
+    runtime.Bind();
+
+    // Push back the arguments again for the runtime call.
+    frame_->EmitPush(base);
+    frame_->EmitPush(exponent);
+    frame_->CallRuntime(Runtime::kMath_pow, 2);
+    __ Move(base, r0);
+
+    done.Bind();
+    frame_->EmitPush(base);
+  }
 }
 
 
-// Generates the Math.sqrt method - currently just calls runtime.
+// Generates the Math.sqrt method.
 void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
-  frame_->CallRuntime(Runtime::kMath_sqrt, 1);
-  frame_->EmitPush(r0);
+
+  if (!CpuFeatures::IsSupported(VFP3)) {
+    frame_->CallRuntime(Runtime::kMath_sqrt, 1);
+    frame_->EmitPush(r0);
+  } else {
+    CpuFeatures::Scope scope(VFP3);
+    JumpTarget runtime, done;
+
+    Register scratch1 = VirtualFrame::scratch0();
+    Register scratch2 = VirtualFrame::scratch1();
+
+    // Get the value from the frame.
+    Register tos = frame_->PopToRegister();
+
+    // Set the frame for the runtime jump target. The code below jumps to the
+    // jump target label so the frame needs to be established before that.
+    ASSERT(runtime.entry_frame() == NULL);
+    runtime.set_entry_frame(frame_);
+
+    Register heap_number_map = r6;
+    __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+
+    // Get the double value from the heap number into vfp register d0.
+    __ ObjectToDoubleVFPRegister(tos, d0,
+                                 scratch1, scratch2, heap_number_map, s0,
+                                 runtime.entry_label());
+
+    // Calculate the square root of d0 and place result in a heap number object.
+    __ vsqrt(d0, d0);
+    __ AllocateHeapNumberWithValue(
+        tos, d0, scratch1, scratch2, heap_number_map, runtime.entry_label());
+    done.Jump();
+
+    runtime.Bind();
+    // Push back the argument again for the runtime call.
+    frame_->EmitPush(tos);
+    frame_->CallRuntime(Runtime::kMath_sqrt, 1);
+    __ Move(tos, r0);
+
+    done.Bind();
+    frame_->EmitPush(tos);
+  }
 }
 
 
