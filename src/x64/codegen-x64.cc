@@ -8938,7 +8938,7 @@ static int NegativeComparisonResult(Condition cc) {
 
 
 void CompareStub::Generate(MacroAssembler* masm) {
-  Label call_builtin, done;
+  Label check_unequal_objects, done;
   // The compare stub returns a positive, negative, or zero 64-bit integer
   // value in rax, corresponding to result of comparing the two inputs.
   // NOTICE! This code is only reached after a smi-fast-case check, so
@@ -9113,7 +9113,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   __ bind(&check_for_strings);
 
-  __ JumpIfNotBothSequentialAsciiStrings(rdx, rax, rcx, rbx, &call_builtin);
+  __ JumpIfNotBothSequentialAsciiStrings(rdx, rax, rcx, rbx, &check_unequal_objects);
 
   // Inline comparison of ascii strings.
   StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
@@ -9128,7 +9128,40 @@ void CompareStub::Generate(MacroAssembler* masm) {
   __ Abort("Unexpected fall-through from string comparison");
 #endif
 
-  __ bind(&call_builtin);
+  __ bind(&check_unequal_objects);
+  if (cc_ == equal && !strict_) {
+    // Not strict equality.  Objects are unequal if
+    // they are both JSObjects and not undetectable,
+    // and their pointers are different.
+    Label not_both_objects, return_unequal;
+    // At most one is a smi, so we can test for smi by adding the two.
+    // A smi plus a heap object has the low bit set, a heap object plus
+    // a heap object has the low bit clear.
+    ASSERT_EQ(0, kSmiTag);
+    ASSERT_EQ(V8_UINT64_C(1), kSmiTagMask);
+    __ lea(rcx, Operand(rax, rdx, times_1, 0));
+    __ testb(rcx, Immediate(kSmiTagMask));
+    __ j(not_zero, &not_both_objects);
+    __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rbx);
+    __ j(below, &not_both_objects);
+    __ CmpObjectType(rdx, FIRST_JS_OBJECT_TYPE, rcx);
+    __ j(below, &not_both_objects);
+    __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
+             Immediate(1 << Map::kIsUndetectable));
+    __ j(zero, &return_unequal);
+    __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
+             Immediate(1 << Map::kIsUndetectable));
+    __ j(zero, &return_unequal);
+    // The objects are both undetectable, so they both compare as the value
+    // undefined, and are equal.
+    __ Set(rax, EQUAL);
+    __ bind(&return_unequal);
+    // Return non-equal by returning the non-zero object pointer in eax,
+    // or return equal if we fell through to here.
+    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ bind(&not_both_objects);
+  }
+
   // must swap argument order
   __ pop(rcx);
   __ pop(rdx);

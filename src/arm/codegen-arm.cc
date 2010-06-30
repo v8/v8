@@ -7216,21 +7216,41 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 
 
 // Fast negative check for symbol-to-symbol equality.
-static void EmitCheckForSymbols(MacroAssembler* masm, Label* slow) {
+static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
+                                         Label* possible_strings,
+                                         Label* not_both_strings) {
   // r2 is object type of r0.
   // Ensure that no non-strings have the symbol bit set.
-  ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+  Label object_test;
   ASSERT(kSymbolTag != 0);
+  __ tst(r2, Operand(kIsNotStringMask));
+  __ b(ne, &object_test);
   __ tst(r2, Operand(kIsSymbolMask));
-  __ b(eq, slow);
-  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
+  __ b(eq, possible_strings);
+  __ CompareObjectType(r1, r3, r3, FIRST_NONSTRING_TYPE);
+  __ b(ge, not_both_strings);
   __ tst(r3, Operand(kIsSymbolMask));
-  __ b(eq, slow);
+  __ b(eq, possible_strings);
 
   // Both are symbols.  We already checked they weren't the same pointer
   // so they are not equal.
   __ mov(r0, Operand(1));   // Non-zero indicates not equal.
+  __ mov(pc, Operand(lr));  // Return.
+
+  __ bind(&object_test);
+  __ cmp(r2, Operand(FIRST_JS_OBJECT_TYPE));
+  __ b(lt, not_both_strings);
+  __ CompareObjectType(r1, r2, r3, FIRST_JS_OBJECT_TYPE);
+  __ b(lt, not_both_strings);
+  // If both objects are undetectable, they are equal.  Otherwise, they
+  // are not equal, since they are different objects and an object is not
+  // equal to undefined.
+  __ ldr(r3, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ ldrb(r2, FieldMemOperand(r2, Map::kBitFieldOffset));
+  __ ldrb(r3, FieldMemOperand(r3, Map::kBitFieldOffset));
+  __ and_(r0, r2, Operand(r3));
+  __ and_(r0, r0, Operand(1 << Map::kIsUndetectable));
+  __ eor(r0, r0, Operand(1 << Map::kIsUndetectable));
   __ mov(pc, Operand(lr));  // Return.
 }
 
@@ -7445,9 +7465,10 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // In the strict case the EmitStrictTwoHeapObjectCompare already took care of
   // symbols.
   if (cc_ == eq && !strict_) {
-    // Either jumps to slow or returns the answer.  Assumes that r2 is the type
-    // of r0 on entry.
-    EmitCheckForSymbols(masm, &flat_string_check);
+    // Returns an answer for two symbols or two detectable objects.
+    // Otherwise jumps to string case or not both strings case.
+    // Assumes that r2 is the type of r0 on entry.
+    EmitCheckForSymbolsOrObjects(masm, &flat_string_check, &slow);
   }
 
   // Check for both being sequential ASCII strings, and inline if that is the

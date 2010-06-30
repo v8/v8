@@ -11656,7 +11656,7 @@ static int NegativeComparisonResult(Condition cc) {
 
 
 void CompareStub::Generate(MacroAssembler* masm) {
-  Label call_builtin, done;
+  Label check_unequal_objects, done;
 
   // NOTICE! This code is only reached after a smi-fast-case check, so
   // it is certain that at least one operand isn't a smi.
@@ -11734,79 +11734,75 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&not_identical);
   }
 
-  if (cc_ == equal) {  // Both strict and non-strict.
+  // Strict equality can quickly decide whether objects are equal.
+  // Non-strict object equality is slower, so it is handled later in the stub.
+  if (cc_ == equal && strict_) {
     Label slow;  // Fallthrough label.
-
+    Label not_smis;
     // If we're doing a strict equality comparison, we don't have to do
     // type conversion, so we generate code to do fast comparison for objects
     // and oddballs. Non-smi numbers and strings still go through the usual
     // slow-case code.
-    if (strict_) {
-      // If either is a Smi (we know that not both are), then they can only
-      // be equal if the other is a HeapNumber. If so, use the slow case.
-      {
-        Label not_smis;
-        ASSERT_EQ(0, kSmiTag);
-        ASSERT_EQ(0, Smi::FromInt(0));
-        __ mov(ecx, Immediate(kSmiTagMask));
-        __ and_(ecx, Operand(eax));
-        __ test(ecx, Operand(edx));
-        __ j(not_zero, &not_smis);
-        // One operand is a smi.
+    // If either is a Smi (we know that not both are), then they can only
+    // be equal if the other is a HeapNumber. If so, use the slow case.
+    ASSERT_EQ(0, kSmiTag);
+    ASSERT_EQ(0, Smi::FromInt(0));
+    __ mov(ecx, Immediate(kSmiTagMask));
+    __ and_(ecx, Operand(eax));
+    __ test(ecx, Operand(edx));
+    __ j(not_zero, &not_smis);
+    // One operand is a smi.
 
-        // Check whether the non-smi is a heap number.
-        ASSERT_EQ(1, kSmiTagMask);
-        // ecx still holds eax & kSmiTag, which is either zero or one.
-        __ sub(Operand(ecx), Immediate(0x01));
-        __ mov(ebx, edx);
-        __ xor_(ebx, Operand(eax));
-        __ and_(ebx, Operand(ecx));  // ebx holds either 0 or eax ^ edx.
-        __ xor_(ebx, Operand(eax));
-        // if eax was smi, ebx is now edx, else eax.
+    // Check whether the non-smi is a heap number.
+    ASSERT_EQ(1, kSmiTagMask);
+    // ecx still holds eax & kSmiTag, which is either zero or one.
+    __ sub(Operand(ecx), Immediate(0x01));
+    __ mov(ebx, edx);
+    __ xor_(ebx, Operand(eax));
+    __ and_(ebx, Operand(ecx));  // ebx holds either 0 or eax ^ edx.
+    __ xor_(ebx, Operand(eax));
+    // if eax was smi, ebx is now edx, else eax.
 
-        // Check if the non-smi operand is a heap number.
-        __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
-               Immediate(Factory::heap_number_map()));
-        // If heap number, handle it in the slow case.
-        __ j(equal, &slow);
-        // Return non-equal (ebx is not zero)
-        __ mov(eax, ebx);
-        __ ret(0);
+    // Check if the non-smi operand is a heap number.
+    __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
+           Immediate(Factory::heap_number_map()));
+    // If heap number, handle it in the slow case.
+    __ j(equal, &slow);
+    // Return non-equal (ebx is not zero)
+    __ mov(eax, ebx);
+    __ ret(0);
 
-        __ bind(&not_smis);
-      }
+    __ bind(&not_smis);
+    // If either operand is a JSObject or an oddball value, then they are not
+    // equal since their pointers are different
+    // There is no test for undetectability in strict equality.
 
-      // If either operand is a JSObject or an oddball value, then they are not
-      // equal since their pointers are different
-      // There is no test for undetectability in strict equality.
+    // Get the type of the first operand.
+    // If the first object is a JS object, we have done pointer comparison.
+    Label first_non_object;
+    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+    __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
+    __ j(below, &first_non_object);
 
-      // Get the type of the first operand.
-      // If the first object is a JS object, we have done pointer comparison.
-      Label first_non_object;
-      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-      __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
-      __ j(below, &first_non_object);
+    // Return non-zero (eax is not zero)
+    Label return_not_equal;
+    ASSERT(kHeapObjectTag != 0);
+    __ bind(&return_not_equal);
+    __ ret(0);
 
-      // Return non-zero (eax is not zero)
-      Label return_not_equal;
-      ASSERT(kHeapObjectTag != 0);
-      __ bind(&return_not_equal);
-      __ ret(0);
+    __ bind(&first_non_object);
+    // Check for oddballs: true, false, null, undefined.
+    __ CmpInstanceType(ecx, ODDBALL_TYPE);
+    __ j(equal, &return_not_equal);
 
-      __ bind(&first_non_object);
-      // Check for oddballs: true, false, null, undefined.
-      __ CmpInstanceType(ecx, ODDBALL_TYPE);
-      __ j(equal, &return_not_equal);
+    __ CmpObjectType(edx, FIRST_JS_OBJECT_TYPE, ecx);
+    __ j(above_equal, &return_not_equal);
 
-      __ CmpObjectType(edx, FIRST_JS_OBJECT_TYPE, ecx);
-      __ j(above_equal, &return_not_equal);
+    // Check for oddballs: true, false, null, undefined.
+    __ CmpInstanceType(ecx, ODDBALL_TYPE);
+    __ j(equal, &return_not_equal);
 
-      // Check for oddballs: true, false, null, undefined.
-      __ CmpInstanceType(ecx, ODDBALL_TYPE);
-      __ j(equal, &return_not_equal);
-
-      // Fall through to the general case.
-    }
+    // Fall through to the general case.
     __ bind(&slow);
   }
 
@@ -11893,7 +11889,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   __ bind(&check_for_strings);
 
-  __ JumpIfNotBothSequentialAsciiStrings(edx, eax, ecx, ebx, &call_builtin);
+  __ JumpIfNotBothSequentialAsciiStrings(edx, eax, ecx, ebx,
+                                         &check_unequal_objects);
 
   // Inline comparison of ascii strings.
   StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
@@ -11906,7 +11903,44 @@ void CompareStub::Generate(MacroAssembler* masm) {
   __ Abort("Unexpected fall-through from string comparison");
 #endif
 
-  __ bind(&call_builtin);
+  __ bind(&check_unequal_objects);
+  if (cc_ == equal && !strict_) {
+    // Non-strict equality.  Objects are unequal if
+    // they are both JSObjects and not undetectable,
+    // and their pointers are different.
+    Label not_both_objects;
+    Label return_unequal;
+    // At most one is a smi, so we can test for smi by adding the two.
+    // A smi plus a heap object has the low bit set, a heap object plus
+    // a heap object has the low bit clear.
+    ASSERT_EQ(0, kSmiTag);
+    ASSERT_EQ(1, kSmiTagMask);
+    __ lea(ecx, Operand(eax, edx, times_1, 0));
+    __ test(ecx, Immediate(kSmiTagMask));
+    __ j(not_zero, &not_both_objects);
+    __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
+    __ j(below, &not_both_objects);
+    __ CmpObjectType(edx, FIRST_JS_OBJECT_TYPE, ebx);
+    __ j(below, &not_both_objects);
+    // We do not bail out after this point.  Both are JSObjects, and
+    // they are equal if and only if both are undetectable.
+    // The and of the undetectable flags is 1 if and only if they are equal.
+    __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+              1 << Map::kIsUndetectable);
+    __ j(zero, &return_unequal);
+    __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
+              1 << Map::kIsUndetectable);
+    __ j(zero, &return_unequal);
+    // The objects are both undetectable, so they both compare as the value
+    // undefined, and are equal.
+    __ Set(eax, Immediate(EQUAL));
+    __ bind(&return_unequal);
+    // Return non-equal by returning the non-zero object pointer in eax,
+    // or return equal if we fell through to here.
+    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ bind(&not_both_objects);
+  }
+
   // must swap argument order
   __ pop(ecx);
   __ pop(edx);
