@@ -314,8 +314,6 @@ void RetainerTreeAggregator::Call(const JSObjectsCluster& cluster,
 }  // namespace
 
 
-HeapProfiler* HeapProfiler::singleton_ = NULL;
-
 HeapProfiler::HeapProfiler()
     : snapshots_(new HeapSnapshotsCollection()),
       next_snapshot_uid_(1) {
@@ -330,8 +328,9 @@ HeapProfiler::~HeapProfiler() {
 
 void HeapProfiler::Setup() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (singleton_ == NULL) {
-    singleton_ = new HeapProfiler();
+  Isolate* isolate = Isolate::Current();
+  if (isolate->heap_profiler() == NULL) {
+    isolate->set_heap_profiler(new HeapProfiler());
   }
 #endif
 }
@@ -339,8 +338,9 @@ void HeapProfiler::Setup() {
 
 void HeapProfiler::TearDown() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  delete singleton_;
-  singleton_ = NULL;
+  Isolate* isolate = Isolate::Current();
+  delete isolate->heap_profiler();
+  isolate->set_heap_profiler(NULL);
 #endif
 }
 
@@ -348,14 +348,16 @@ void HeapProfiler::TearDown() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(const char* name) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->TakeSnapshotImpl(name);
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  return profiler->TakeSnapshotImpl(name);
 }
 
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(String* name) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->TakeSnapshotImpl(name);
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  return profiler->TakeSnapshotImpl(name);
 }
 
 
@@ -374,20 +376,23 @@ HeapSnapshot* HeapProfiler::TakeSnapshotImpl(String* name) {
 
 
 int HeapProfiler::GetSnapshotsCount() {
-  ASSERT(singleton_ != NULL);
-  return singleton_->snapshots_->snapshots()->length();
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  return profiler->snapshots_->snapshots()->length();
 }
 
 
 HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->snapshots_->snapshots()->at(index);
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  return profiler->snapshots_->snapshots()->at(index);
 }
 
 
 HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->snapshots_->GetSnapshot(uid);
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  return profiler->snapshots_->GetSnapshot(uid);
 }
 
 
@@ -739,14 +744,11 @@ void HeapProfiler::WriteSample() {
 }
 
 
-bool ProducerHeapProfile::can_log_ = false;
-
 void ProducerHeapProfile::Setup() {
   can_log_ = true;
 }
 
 void ProducerHeapProfile::DoRecordJSObjectAllocation(Object* obj) {
-  Isolate* isolate = Isolate::Current();
   ASSERT(FLAG_log_producers);
   if (!can_log_) return;
   int framesCount = 0;
@@ -761,10 +763,10 @@ void ProducerHeapProfile::DoRecordJSObjectAllocation(Object* obj) {
     stack[i++] = it.frame()->pc();
   }
   stack[i] = NULL;
-  Handle<Object> handle = isolate->global_handles()->Create(obj);
-  isolate->global_handles()->MakeWeak(handle.location(),
-                                      static_cast<void*>(stack.start()),
-                                      StackWeakReferenceCallback);
+  Handle<Object> handle = isolate_->global_handles()->Create(obj);
+  isolate_->global_handles()->MakeWeak(handle.location(),
+                                       static_cast<void*>(stack.start()),
+                                       StackWeakReferenceCallback);
 }
 
 

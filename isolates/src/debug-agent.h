@@ -49,11 +49,11 @@ class DebuggerAgent: public Thread {
         session_access_(OS::CreateMutex()), session_(NULL),
         terminate_now_(OS::CreateSemaphore(0)),
         listening_(OS::CreateSemaphore(0)) {
-    ASSERT(instance_ == NULL);
-    instance_ = this;
+    ASSERT(Isolate::Current()->debugger_agent_instance() == NULL);
+    Isolate::Current()->set_debugger_agent_instance(this);
   }
   ~DebuggerAgent() {
-     instance_ = NULL;
+     Isolate::Current()->set_debugger_agent_instance(NULL);
      delete server_;
   }
 
@@ -75,8 +75,6 @@ class DebuggerAgent: public Thread {
   DebuggerAgentSession* session_;  // Current active session if any.
   Semaphore* terminate_now_;  // Semaphore to signal termination.
   Semaphore* listening_;
-
-  static DebuggerAgent* instance_;
 
   friend class DebuggerAgentSession;
   friend void DebuggerAgentMessageHandler(const v8::Debug::Message& message);

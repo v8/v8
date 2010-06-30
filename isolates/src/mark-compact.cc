@@ -148,7 +148,7 @@ void MarkCompactCollector::Finish() {
   // objects (empty string, illegal builtin).
   Isolate::Current()->stub_cache()->Clear();
 
-  ExternalStringTable::CleanUp();
+  heap_->external_string_table_.CleanUp();
 
   // If we've just compacted old space there's no reason to check the
   // fragmentation limit. Just return.
@@ -723,8 +723,8 @@ void MarkCompactCollector::MarkLiveObjects() {
   SymbolTableCleaner v;
   symbol_table->IterateElements(&v);
   symbol_table->ElementsRemoved(v.PointersRemoved());
-  ExternalStringTable::Iterate(&v);
-  ExternalStringTable::CleanUp();
+  heap_->external_string_table_.Iterate(&v);
+  heap_->external_string_table_.CleanUp();
 
   // Remove object groups after marking phase.
   heap_->isolate_->global_handles()->RemoveObjectGroups();

@@ -274,6 +274,10 @@ Isolate::Isolate()
   debugger_ = NULL;
 #endif
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  producer_heap_profile_ = NULL;
+#endif
+
   handle_scope_data_.Initialize();
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value)                        \
@@ -322,6 +326,12 @@ Isolate::~Isolate() {
     heap_.TearDown();
     logger_->TearDown();
   }
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  delete producer_heap_profile_;
+  producer_heap_profile_ = NULL;
+#endif
+
   delete scanner_character_classes_;
   scanner_character_classes_ = NULL;
 
@@ -436,6 +446,16 @@ bool Isolate::PreInit() {
   stub_cache_ = new StubCache();
   ast_sentinels_ = new AstSentinels();
   inline_runtime_functions_table_ = new InlineRuntimeFunctionsTable();
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  debugger_ = new Debugger();
+  debugger_->isolate_ = this;
+#endif
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  producer_heap_profile_ = new ProducerHeapProfile();
+  producer_heap_profile_->isolate_ = this;
+#endif
 
   state_ = PREINITIALIZED;
   return true;

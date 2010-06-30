@@ -128,9 +128,14 @@ Heap::Heap()
       min_in_mutator_(kMaxInt),
       alive_after_last_gc_(0),
       last_gc_end_timestamp_(0.0),
-      page_watermark_invalidated_mark_(Page::WATERMARK_INVALIDATED) {
+      page_watermark_invalidated_mark_(Page::WATERMARK_INVALIDATED),
+      number_idle_notifications_(0),
+      last_idle_notification_gc_count_(0),
+      last_idle_notification_gc_count_init_(false),
+      configured_(false) {
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   mark_compact_collector_.heap_ = this;
+  external_string_table_.heap_ = this;
 }
 
 
@@ -790,41 +795,6 @@ class ScavengeVisitor: public ObjectVisitor {
 };
 
 
-// A queue of pointers and maps of to-be-promoted objects during a
-// scavenge collection.
-class PromotionQueue {
- public:
-  void Initialize(Address start_address) {
-    front_ = rear_ = reinterpret_cast<HeapObject**>(start_address);
-  }
-
-  bool is_empty() { return front_ <= rear_; }
-
-  void insert(HeapObject* object, Map* map) {
-    *(--rear_) = object;
-    *(--rear_) = map;
-    // Assert no overflow into live objects.
-    ASSERT(reinterpret_cast<Address>(rear_) >= HEAP->new_space()->top());
-  }
-
-  void remove(HeapObject** object, Map** map) {
-    *object = *(--front_);
-    *map = Map::cast(*(--front_));
-    // Assert no underflow.
-    ASSERT(front_ >= rear_);
-  }
-
- private:
-  // The front of the queue is higher in memory than the rear.
-  HeapObject** front_;
-  HeapObject** rear_;
-};
-
-
-// Shared state read by the scavenge collector and set by ScavengeObject.
-static PromotionQueue promotion_queue;
-
-
 #ifdef DEBUG
 // Visitor class to verify pointers in code or data space do not point into
 // new space.
@@ -923,7 +893,7 @@ void Heap::Scavenge() {
   // frees up its size in bytes from the top of the new space, and
   // objects are at least one pointer in size.
   Address new_space_front = new_space_.ToSpaceLow();
-  promotion_queue.Initialize(new_space_.ToSpaceHigh());
+  promotion_queue_.Initialize(new_space_.ToSpaceHigh());
 
   ScavengeVisitor scavenge_visitor;
   // Copy roots.
@@ -991,12 +961,12 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Object** p) {
 
 void Heap::UpdateNewSpaceReferencesInExternalStringTable(
     ExternalStringTableUpdaterCallback updater_func) {
-  ExternalStringTable::Verify();
+  external_string_table_.Verify();
 
-  if (ExternalStringTable::new_space_strings_.is_empty()) return;
+  if (external_string_table_.new_space_strings_.is_empty()) return;
 
-  Object** start = &ExternalStringTable::new_space_strings_[0];
-  Object** end = start + ExternalStringTable::new_space_strings_.length();
+  Object** start = &external_string_table_.new_space_strings_[0];
+  Object** end = start + external_string_table_.new_space_strings_.length();
   Object** last = start;
 
   for (Object** p = start; p < end; ++p) {
@@ -1013,12 +983,12 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
       ++last;
     } else {
       // String got promoted.  Move it to the old string list.
-      ExternalStringTable::AddOldString(target);
+      external_string_table_.AddOldString(target);
     }
   }
 
   ASSERT(last <= end);
-  ExternalStringTable::ShrinkNewStrings(static_cast<int>(last - start));
+  external_string_table_.ShrinkNewStrings(static_cast<int>(last - start));
 }
 
 
@@ -1037,10 +1007,10 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
     }
 
     // Promote and process all the to-be-promoted objects.
-    while (!promotion_queue.is_empty()) {
+    while (!promotion_queue_.is_empty()) {
       HeapObject* source;
       Map* map;
-      promotion_queue.remove(&source, &map);
+      promotion_queue_.remove(&source, &map);
       // Copy the from-space object to its new location (given by the
       // forwarding address) and fix its map.
       HeapObject* target = source->map_word().ToForwardingAddress();
@@ -1154,7 +1124,7 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
           // top of the to space to be swept and copied later.  Write the
           // forwarding address over the map word of the from-space
           // object.
-          promotion_queue.insert(object, first_word.ToMap());
+          promotion_queue_.insert(object, first_word.ToMap());
           object->set_map_word(MapWord::FromForwardingAddress(target));
 
           // Give the space allocated for the result a proper map by
@@ -1186,7 +1156,7 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
           // top of the to space to be swept and copied later.  Write the
           // forwarding address over the map word of the from-space
           // object.
-          promotion_queue.insert(object, first_word.ToMap());
+          promotion_queue_.insert(object, first_word.ToMap());
           object->set_map_word(MapWord::FromForwardingAddress(target));
 
           // Give the space allocated for the result a proper map by
@@ -1840,15 +1810,14 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
   }
 }
 
+// We need to distinguish the minus zero value and this cannot be
+// done after conversion to int. Doing this by comparing bit
+// patterns is faster than using fpclassify() et al.
+static const DoubleRepresentation kMinusZero(-0.0);
 
 Object* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
-  // We need to distinguish the minus zero value and this cannot be
-  // done after conversion to int. Doing this by comparing bit
-  // patterns is faster than using fpclassify() et al.
-  static const DoubleRepresentation minus_zero(-0.0);
-
   DoubleRepresentation rep(value);
-  if (rep.bits == minus_zero.bits) {
+  if (rep.bits == kMinusZero.bits) {
     return AllocateHeapNumber(-0.0, pretenure);
   }
 
@@ -2480,7 +2449,7 @@ Object* Heap::Allocate(Map* map, AllocationSpace space) {
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(map);
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  ProducerHeapProfile::RecordJSObjectAllocation(result);
+  isolate_->producer_heap_profile()->RecordJSObjectAllocation(result);
 #endif
   return result;
 }
@@ -2814,7 +2783,7 @@ Object* Heap::CopyJSObject(JSObject* source) {
   }
   // Return the new clone.
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  ProducerHeapProfile::RecordJSObjectAllocation(clone);
+  isolate_->producer_heap_profile()->RecordJSObjectAllocation(clone);
 #endif
   return clone;
 }
@@ -3289,20 +3258,22 @@ bool Heap::IdleNotification() {
   static const int kIdlesBeforeScavenge = 4;
   static const int kIdlesBeforeMarkSweep = 7;
   static const int kIdlesBeforeMarkCompact = 8;
-  static int number_idle_notifications = 0;
-  static int last_gc_count = gc_count_;
+  if (!last_idle_notification_gc_count_init_) {
+    last_idle_notification_gc_count_ = gc_count_;
+    last_idle_notification_gc_count_init_ = true;
+  }
 
   bool uncommit = true;
   bool finished = false;
 
-  if (last_gc_count == gc_count_) {
-    number_idle_notifications++;
+  if (last_idle_notification_gc_count_ == gc_count_) {
+    number_idle_notifications_++;
   } else {
-    number_idle_notifications = 0;
-    last_gc_count = gc_count_;
+    number_idle_notifications_ = 0;
+    last_idle_notification_gc_count_ = gc_count_;
   }
 
-  if (number_idle_notifications == kIdlesBeforeScavenge) {
+  if (number_idle_notifications_ == kIdlesBeforeScavenge) {
     if (contexts_disposed_ > 0) {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
       CollectAllGarbage(false);
@@ -3310,9 +3281,9 @@ bool Heap::IdleNotification() {
       CollectGarbage(0, NEW_SPACE);
     }
     new_space_.Shrink();
-    last_gc_count = gc_count_;
+    last_idle_notification_gc_count_ = gc_count_;
 
-  } else if (number_idle_notifications == kIdlesBeforeMarkSweep) {
+  } else if (number_idle_notifications_ == kIdlesBeforeMarkSweep) {
     // Before doing the mark-sweep collections we clear the
     // compilation cache to avoid hanging on to source code and
     // generated code for cached functions.
@@ -3320,13 +3291,13 @@ bool Heap::IdleNotification() {
 
     CollectAllGarbage(false);
     new_space_.Shrink();
-    last_gc_count = gc_count_;
+    last_idle_notification_gc_count_ = gc_count_;
 
-  } else if (number_idle_notifications == kIdlesBeforeMarkCompact) {
+  } else if (number_idle_notifications_ == kIdlesBeforeMarkCompact) {
     CollectAllGarbage(true);
     new_space_.Shrink();
-    last_gc_count = gc_count_;
-    number_idle_notifications = 0;
+    last_idle_notification_gc_count_ = gc_count_;
+    number_idle_notifications_ = 0;
     finished = true;
 
   } else if (contexts_disposed_ > 0) {
@@ -3335,14 +3306,14 @@ bool Heap::IdleNotification() {
     } else {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
       CollectAllGarbage(false);
-      last_gc_count = gc_count_;
+      last_idle_notification_gc_count_ = gc_count_;
     }
     // If this is the first idle notification, we reset the
     // notification count to avoid letting idle notifications for
     // context disposal garbage collections start a potentially too
     // aggressive idle GC cycle.
-    if (number_idle_notifications <= 1) {
-      number_idle_notifications = 0;
+    if (number_idle_notifications_ <= 1) {
+      number_idle_notifications_ = 0;
       uncommit = false;
     }
   }
@@ -3845,7 +3816,7 @@ void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
   v->Synchronize("symbol_table");
   if (mode != VISIT_ALL_IN_SCAVENGE) {
     // Scavenge collections have special processing for this.
-    ExternalStringTable::Iterate(v);
+    external_string_table_.Iterate(v);
   }
   v->Synchronize("external_string_table");
 }
@@ -3912,10 +3883,6 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 }
 
 
-// Flag is set when the heap has been configured.  The heap can be repeatedly
-// configured through the API until it is setup.
-static bool heap_configured = false;
-
 // TODO(1236194): Since the heap size is configurable on the command line
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
@@ -3951,7 +3918,7 @@ bool Heap::ConfigureHeap(int max_semispace_size, int max_old_gen_size) {
   // The old generation is paged.
   max_old_generation_size_ = RoundUp(max_old_generation_size_, Page::kPageSize);
 
-  heap_configured = true;
+  configured_ = true;
   return true;
 }
 
@@ -4482,7 +4449,7 @@ bool Heap::Setup(bool create_heap_objects) {
   // Configuration is based on the flags new-space-size (really the semispace
   // size) and old-space-size if set or the initial values of semispace_size_
   // and old_generation_size_ otherwise.
-  if (!heap_configured) {
+  if (!configured_) {
     if (!ConfigureHeapDefault()) return false;
   }
 
@@ -4566,7 +4533,7 @@ bool Heap::Setup(bool create_heap_objects) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // This should be called only after initial objects have been created.
-  ProducerHeapProfile::Setup();
+  isolate_->producer_heap_profile()->Setup();
 #endif
 
   return true;
@@ -4587,7 +4554,7 @@ void Heap::TearDown() {
 
   isolate_->global_handles()->TearDown();
 
-  ExternalStringTable::TearDown();
+  external_string_table_.TearDown();
 
   new_space_.TearDown();
 
@@ -4868,8 +4835,5 @@ void ExternalStringTable::TearDown() {
   old_space_strings_.Free();
 }
 
-
-List<Object*> ExternalStringTable::new_space_strings_;
-List<Object*> ExternalStringTable::old_space_strings_;
 
 } }  // namespace v8::internal

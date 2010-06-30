@@ -3507,7 +3507,7 @@ Local<String> v8::String::NewExternal(
   LOG_API("String::NewExternal");
   ENTER_V8;
   i::Handle<i::String> result = NewExternalStringHandle(resource);
-  i::ExternalStringTable::AddString(*result);
+  HEAP->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
 }
 
@@ -3522,7 +3522,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   }
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
-    i::ExternalStringTable::AddString(*obj);
+    HEAP->external_string_table()->AddString(*obj);
   }
   return result;
 }
@@ -3534,7 +3534,7 @@ Local<String> v8::String::NewExternal(
   LOG_API("String::NewExternal");
   ENTER_V8;
   i::Handle<i::String> result = NewExternalAsciiStringHandle(resource);
-  i::ExternalStringTable::AddString(*result);
+  HEAP->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
 }
 
@@ -3550,7 +3550,7 @@ bool v8::String::MakeExternal(
   }
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
-    i::ExternalStringTable::AddString(*obj);
+    HEAP->external_string_table()->AddString(*obj);
   }
   return result;
 }

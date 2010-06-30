@@ -249,7 +249,9 @@ class CpuProfiler {
   static void SetterCallbackEvent(String* name, Address entry_point);
 
   static INLINE(bool is_profiling()) {
-    return singleton_ != NULL && singleton_->processor_ != NULL;
+    Isolate* isolate = Isolate::Current();
+    return isolate->cpu_profiler() != NULL &&
+           isolate->cpu_profiler()->processor_ != NULL;
   }
 
  private:
@@ -268,8 +270,6 @@ class CpuProfiler {
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   int saved_logging_nesting_;
-
-  static CpuProfiler* singleton_;
 
 #else
   static INLINE(bool is_profiling()) { return false; }

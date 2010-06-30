@@ -72,7 +72,6 @@ class HeapProfiler {
   HeapSnapshotsCollection* snapshots_;
   unsigned next_snapshot_uid_;
 
-  static HeapProfiler* singleton_;
 #endif  // ENABLE_LOGGING_AND_PROFILING
 };
 
@@ -291,16 +290,23 @@ class RetainerHeapProfile BASE_EMBEDDED {
 };
 
 
-class ProducerHeapProfile : public AllStatic {
+class ProducerHeapProfile {
  public:
-  static void Setup();
-  static void RecordJSObjectAllocation(Object* obj) {
+  void Setup();
+  void RecordJSObjectAllocation(Object* obj) {
     if (FLAG_log_producers) DoRecordJSObjectAllocation(obj);
   }
 
  private:
-  static void DoRecordJSObjectAllocation(Object* obj);
-  static bool can_log_;
+  ProducerHeapProfile() : can_log_(false) { }
+
+  void DoRecordJSObjectAllocation(Object* obj);
+  Isolate* isolate_;
+  bool can_log_;
+
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(ProducerHeapProfile);
 };
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

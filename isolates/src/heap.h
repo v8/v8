@@ -228,6 +228,77 @@ typedef bool (*DirtyRegionCallback)(Address start,
 class HeapDebugUtils;
 #endif
 
+
+// A queue of pointers and maps of to-be-promoted objects during a
+// scavenge collection.
+class PromotionQueue {
+ public:
+  PromotionQueue() : front_(NULL), rear_(NULL) { }
+
+  void Initialize(Address start_address) {
+    front_ = rear_ = reinterpret_cast<HeapObject**>(start_address);
+  }
+
+  bool is_empty() { return front_ <= rear_; }
+
+  inline void insert(HeapObject* object, Map* map);
+
+  void remove(HeapObject** object, Map** map) {
+    *object = *(--front_);
+    *map = Map::cast(*(--front_));
+    // Assert no underflow.
+    ASSERT(front_ >= rear_);
+  }
+
+ private:
+  // The front of the queue is higher in memory than the rear.
+  HeapObject** front_;
+  HeapObject** rear_;
+
+  DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
+};
+
+
+// External strings table is a place where all external strings are
+// registered.  We need to keep track of such strings to properly
+// finalize them.
+class ExternalStringTable {
+ public:
+  // Registers an external string.
+  inline void AddString(String* string);
+
+  inline void Iterate(ObjectVisitor* v);
+
+  // Restores internal invariant and gets rid of collected strings.
+  // Must be called after each Iterate() that modified the strings.
+  void CleanUp();
+
+  // Destroys all allocated memory.
+  void TearDown();
+
+ private:
+  ExternalStringTable() { }
+
+  friend class Heap;
+
+  inline void Verify();
+
+  inline void AddOldString(String* string);
+
+  // Notifies the table that only a prefix of the new list is valid.
+  inline void ShrinkNewStrings(int position);
+
+  // To speed up scavenge collections new space string are kept
+  // separate from old space strings.
+  List<Object*> new_space_strings_;
+  List<Object*> old_space_strings_;
+
+  Heap* heap_;
+
+  DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
+};
+
+
 class Heap {
  public:
   // Configure heap size before setup. Return false if the heap has been
@@ -1045,6 +1116,10 @@ class Heap {
     return &mark_compact_collector_;
   }
 
+  ExternalStringTable* external_string_table() {
+    return &external_string_table_;
+  }
+
  private:
   Heap();
 
@@ -1370,6 +1445,19 @@ class Heap {
   // Instead of clearing this flag from all pages we just flip
   // its meaning at the beginning of a scavenge.
   intptr_t page_watermark_invalidated_mark_;
+
+  int number_idle_notifications_;
+  int last_idle_notification_gc_count_;
+  bool last_idle_notification_gc_count_init_;
+
+  // Shared state read by the scavenge collector and set by ScavengeObject.
+  PromotionQueue promotion_queue_;
+
+  // Flag is set when the heap has been configured.  The heap can be repeatedly
+  // configured through the API until it is setup.
+  bool configured_;
+
+  ExternalStringTable external_string_table_;
 
   friend class Factory;
   friend class GCTracer;
@@ -1957,39 +2045,6 @@ class TranscendentalCache {
   DISALLOW_COPY_AND_ASSIGN(TranscendentalCache);
 };
 
-
-// External strings table is a place where all external strings are
-// registered.  We need to keep track of such strings to properly
-// finalize them.
-class ExternalStringTable : public AllStatic {
- public:
-  // Registers an external string.
-  inline static void AddString(String* string);
-
-  inline static void Iterate(ObjectVisitor* v);
-
-  // Restores internal invariant and gets rid of collected strings.
-  // Must be called after each Iterate() that modified the strings.
-  static void CleanUp();
-
-  // Destroys all allocated memory.
-  static void TearDown();
-
- private:
-  friend class Heap;
-
-  inline static void Verify();
-
-  inline static void AddOldString(String* string);
-
-  // Notifies the table that only a prefix of the new list is valid.
-  inline static void ShrinkNewStrings(int position);
-
-  // To speed up scavenge collections new space string are kept
-  // separate from old space strings.
-  static List<Object*> new_space_strings_;
-  static List<Object*> old_space_strings_;
-};
 
 } }  // namespace v8::internal
 

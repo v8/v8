@@ -40,6 +40,7 @@
 #include "global-handles.h"
 #include "handles.h"
 #include "heap.h"
+#include "regexp-stack.h"
 #include "runtime.h"
 #include "zone.h"
 #include "../include/v8-debug.h"
@@ -55,13 +56,16 @@ class ContextSwitcher;
 class CodeRange;
 class Counters;
 class CpuFeatures;
+class CpuProfiler;
 class Deserializer;
 class EmptyStatement;
 class FunctionInfoListener;
 class HandleScopeImplementer;
+class HeapProfiler;
 class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
 class PreallocatedMemoryThread;
+class ProducerHeapProfile;
 class SaveContext;
 class StubCache;
 class StringInputBuffer;
@@ -77,6 +81,7 @@ typedef void* ExternalReferenceRedirector(void* original, bool fp_return);
 #ifdef ENABLE_DEBUGGER_SUPPORT
 class Debug;
 class Debugger;
+class DebuggerAgent;
 #endif
 
 #define RETURN_IF_SCHEDULED_EXCEPTION()              \
@@ -189,8 +194,8 @@ class ThreadLocalTop BASE_EMBEDDED {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
-  V(v8::Debug::EventCallback, debug_event_callback, NULL)
-
+  V(v8::Debug::EventCallback, debug_event_callback, NULL)                      \
+  V(DebuggerAgent*, debugger_agent_instance, NULL)
 #else
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)
@@ -205,6 +210,18 @@ class ThreadLocalTop BASE_EMBEDDED {
 #else
 
 #define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
+
+#endif
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+
+#define ISOLATE_LOGGING_INIT_LIST(V)                                           \
+  V(CpuProfiler*, cpu_profiler, NULL)                                          \
+  V(HeapProfiler*, heap_profiler, NULL)
+
+#else
+
+#define ISOLATE_LOGGING_INIT_LIST(V)
 
 #endif
 
@@ -243,7 +260,10 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   V(unsigned, code_entry_next_call_uid, NULL)                                  \
   V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \
   V(Object*, string_stream_current_security_token, NULL)                       \
+  /* TODO(isolates): Release this on destruction? */                           \
+  V(int*, irregexp_interpreter_backtrack_stack_cache, NULL)                    \
   ISOLATE_PLATFORM_INIT_LIST(V)                                                \
+  ISOLATE_LOGGING_INIT_LIST(V)                                                 \
   ISOLATE_DEBUGGER_INIT_LIST(V)
 
 class Isolate {
@@ -630,6 +650,11 @@ class Isolate {
     return &regexp_macro_assembler_canonicalize_;
   }
 
+  unibrow::Mapping<unibrow::Ecma262Canonicalize>*
+      interp_canonicalize_mapping() {
+    return &interp_canonicalize_mapping_;
+  }
+
   void* PreallocatedStorageNew(size_t size);
   void PreallocatedStorageDelete(void* p);
   void PreallocatedStorageInit(size_t size);
@@ -637,6 +662,12 @@ class Isolate {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger* debugger() { return debugger_; }
   Debug* debug() { return debug_; }
+#endif
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  ProducerHeapProfile* producer_heap_profile() {
+    return producer_heap_profile_;
+  }
 #endif
 
 #ifdef DEBUG
@@ -748,6 +779,7 @@ class Isolate {
   StaticResource<StringInputBuffer> objects_string_input_buffer_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
+  unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
 
 #ifdef DEBUG
   // A static array of histogram info for each type.
@@ -759,6 +791,10 @@ class Isolate {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger* debugger_;
   Debug* debug_;
+#endif
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  ProducerHeapProfile* producer_heap_profile_;
 #endif
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \

@@ -1689,7 +1689,7 @@ Object* BinaryOp_Patch(Arguments args) {
 }
 
 
-static Address IC_utilities[] = {
+static const Address IC_utilities[] = {
 #define ADDR(name) FUNCTION_ADDR(name),
     IC_UTIL_LIST(ADDR)
     NULL

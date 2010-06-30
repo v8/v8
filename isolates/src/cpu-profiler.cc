@@ -266,56 +266,58 @@ void ProfilerEventsProcessor::Run() {
 }
 
 
-CpuProfiler* CpuProfiler::singleton_ = NULL;
-
 void CpuProfiler::StartProfiling(const char* title) {
-  ASSERT(singleton_ != NULL);
-  singleton_->StartCollectingProfile(title);
+  ASSERT(Isolate::Current()->cpu_profiler() != NULL);
+  Isolate::Current()->cpu_profiler()->StartCollectingProfile(title);
 }
 
 
 void CpuProfiler::StartProfiling(String* title) {
-  ASSERT(singleton_ != NULL);
-  singleton_->StartCollectingProfile(title);
+  ASSERT(Isolate::Current()->cpu_profiler() != NULL);
+  Isolate::Current()->cpu_profiler()->StartCollectingProfile(title);
 }
 
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
-  return is_profiling() ? singleton_->StopCollectingProfile(title) : NULL;
+  return is_profiling() ?
+      Isolate::Current()->cpu_profiler()->StopCollectingProfile(title) : NULL;
 }
 
 
 CpuProfile* CpuProfiler::StopProfiling(Object* security_token, String* title) {
   return is_profiling() ?
-      singleton_->StopCollectingProfile(security_token, title) : NULL;
+      Isolate::Current()->cpu_profiler()->StopCollectingProfile(
+          security_token, title) : NULL;
 }
 
 
 int CpuProfiler::GetProfilesCount() {
-  ASSERT(singleton_ != NULL);
+  ASSERT(Isolate::Current()->cpu_profiler() != NULL);
   // The count of profiles doesn't depend on a security token.
-  return singleton_->profiles_->Profiles(
+  return Isolate::Current()->cpu_profiler()->profiles_->Profiles(
       TokenEnumerator::kNoSecurityToken)->length();
 }
 
 
 CpuProfile* CpuProfiler::GetProfile(Object* security_token, int index) {
-  ASSERT(singleton_ != NULL);
-  const int token = singleton_->token_enumerator_->GetTokenId(security_token);
-  return singleton_->profiles_->Profiles(token)->at(index);
+  ASSERT(Isolate::Current()->cpu_profiler() != NULL);
+  CpuProfiler* profiler = Isolate::Current()->cpu_profiler();
+  const int token = profiler->token_enumerator_->GetTokenId(security_token);
+  return profiler->profiles_->Profiles(token)->at(index);
 }
 
 
 CpuProfile* CpuProfiler::FindProfile(Object* security_token, unsigned uid) {
-  ASSERT(singleton_ != NULL);
-  const int token = singleton_->token_enumerator_->GetTokenId(security_token);
-  return singleton_->profiles_->GetProfile(token, uid);
+  ASSERT(Isolate::Current()->cpu_profiler() != NULL);
+  CpuProfiler* profiler = Isolate::Current()->cpu_profiler();
+  const int token = profiler->token_enumerator_->GetTokenId(security_token);
+  return profiler->profiles_->GetProfile(token, uid);
 }
 
 
 TickSample* CpuProfiler::TickSampleEvent() {
   if (CpuProfiler::is_profiling()) {
-    return singleton_->processor_->TickSampleEvent();
+    return Isolate::Current()->cpu_profiler()->processor_->TickSampleEvent();
   } else {
     return NULL;
   }
@@ -323,21 +325,21 @@ TickSample* CpuProfiler::TickSampleEvent() {
 
 
 void CpuProfiler::CallbackEvent(String* name, Address entry_point) {
-  singleton_->processor_->CallbackCreateEvent(
+  Isolate::Current()->cpu_profiler()->processor_->CallbackCreateEvent(
       Logger::CALLBACK_TAG, CodeEntry::kEmptyNamePrefix, name, entry_point);
 }
 
 
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                            Code* code, const char* comment) {
-  singleton_->processor_->CodeCreateEvent(
+  Isolate::Current()->cpu_profiler()->processor_->CodeCreateEvent(
       tag, comment, code->address(), code->ExecutableSize());
 }
 
 
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                            Code* code, String* name) {
-  singleton_->processor_->CodeCreateEvent(
+  Isolate::Current()->cpu_profiler()->processor_->CodeCreateEvent(
       tag,
       name,
       HEAP->empty_string(),
@@ -350,7 +352,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                            Code* code, String* name,
                            String* source, int line) {
-  singleton_->processor_->CodeCreateEvent(
+  Isolate::Current()->cpu_profiler()->processor_->CodeCreateEvent(
       tag,
       name,
       source,
@@ -362,7 +364,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
 
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                            Code* code, int args_count) {
-  singleton_->processor_->CodeCreateEvent(
+  Isolate::Current()->cpu_profiler()->processor_->CodeCreateEvent(
       tag,
       args_count,
       code->address(),
@@ -371,22 +373,23 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
 
 
 void CpuProfiler::CodeMoveEvent(Address from, Address to) {
-  singleton_->processor_->CodeMoveEvent(from, to);
+  Isolate::Current()->cpu_profiler()->processor_->CodeMoveEvent(from, to);
 }
 
 
 void CpuProfiler::CodeDeleteEvent(Address from) {
-  singleton_->processor_->CodeDeleteEvent(from);
+  Isolate::Current()->cpu_profiler()->processor_->CodeDeleteEvent(from);
 }
 
 
 void CpuProfiler::FunctionCreateEvent(JSFunction* function) {
+  CpuProfiler* profiler = Isolate::Current()->cpu_profiler();
   int security_token_id = TokenEnumerator::kNoSecurityToken;
   if (function->unchecked_context()->IsContext()) {
-    security_token_id = singleton_->token_enumerator_->GetTokenId(
+    security_token_id = profiler->token_enumerator_->GetTokenId(
         function->context()->global_context()->security_token());
   }
-  singleton_->processor_->FunctionCreateEvent(
+  profiler->processor_->FunctionCreateEvent(
       function->address(),
       function->code()->address(),
       security_token_id);
@@ -394,23 +397,23 @@ void CpuProfiler::FunctionCreateEvent(JSFunction* function) {
 
 
 void CpuProfiler::FunctionMoveEvent(Address from, Address to) {
-  singleton_->processor_->FunctionMoveEvent(from, to);
+  Isolate::Current()->cpu_profiler()->processor_->FunctionMoveEvent(from, to);
 }
 
 
 void CpuProfiler::FunctionDeleteEvent(Address from) {
-  singleton_->processor_->FunctionDeleteEvent(from);
+  Isolate::Current()->cpu_profiler()->processor_->FunctionDeleteEvent(from);
 }
 
 
 void CpuProfiler::GetterCallbackEvent(String* name, Address entry_point) {
-  singleton_->processor_->CallbackCreateEvent(
+  Isolate::Current()->cpu_profiler()->processor_->CallbackCreateEvent(
       Logger::CALLBACK_TAG, "get ", name, entry_point);
 }
 
 
 void CpuProfiler::RegExpCodeCreateEvent(Code* code, String* source) {
-  singleton_->processor_->RegExpCodeCreateEvent(
+  Isolate::Current()->cpu_profiler()->processor_->RegExpCodeCreateEvent(
       Logger::REG_EXP_TAG,
       "RegExp: ",
       source,
@@ -420,7 +423,7 @@ void CpuProfiler::RegExpCodeCreateEvent(Code* code, String* source) {
 
 
 void CpuProfiler::SetterCallbackEvent(String* name, Address entry_point) {
-  singleton_->processor_->CallbackCreateEvent(
+  Isolate::Current()->cpu_profiler()->processor_->CallbackCreateEvent(
       Logger::CALLBACK_TAG, "set ", name, entry_point);
 }
 
@@ -519,8 +522,9 @@ namespace internal {
 
 void CpuProfiler::Setup() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (singleton_ == NULL) {
-    singleton_ = new CpuProfiler();
+  Isolate* isolate = Isolate::Current();
+  if (isolate->cpu_profiler() == NULL) {
+    isolate->set_cpu_profiler(new CpuProfiler());
   }
 #endif
 }
@@ -528,10 +532,11 @@ void CpuProfiler::Setup() {
 
 void CpuProfiler::TearDown() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (singleton_ != NULL) {
-    delete singleton_;
+  Isolate* isolate = Isolate::Current();
+  if (isolate->cpu_profiler() != NULL) {
+    delete isolate->cpu_profiler();
   }
-  singleton_ = NULL;
+  isolate->set_cpu_profiler(NULL);
 #endif
 }
 
