@@ -342,7 +342,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 #endif
 
   // New scope to get automatic timing calculation.
-  { HistogramTimerScope codegen_timer(&Counters::code_generation);
+  { HistogramTimerScope codegen_timer(COUNTERS->code_generation());
     CodeGenState state(this);
 
     // Entry:
@@ -532,7 +532,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 
   // Process any deferred code using the register allocator.
   if (!HasStackOverflow()) {
-    HistogramTimerScope deferred_timer(&Counters::deferred_code_generation);
+    HistogramTimerScope deferred_timer(COUNTERS->deferred_code_generation());
     JumpTarget::set_compiling_deferred_code(true);
     ProcessDeferred();
     JumpTarget::set_compiling_deferred_code(false);
@@ -660,7 +660,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // 7-byte NOP with non-zero immediate (0f 1f 80 xxxxxxxx) which won't
   // be generated normally.
   masm_->testl(rax, Immediate(-delta_to_patch_site));
-  __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
+  __ IncrementCounter(COUNTERS->keyed_load_inline_miss(), 1);
 
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
@@ -688,7 +688,7 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
 
 
 void DeferredReferenceSetKeyedValue::Generate() {
-  __ IncrementCounter(&Counters::keyed_store_inline_miss, 1);
+  __ IncrementCounter(COUNTERS->keyed_store_inline_miss(), 1);
   // Move value, receiver, and key to registers rax, rdx, and rcx, as
   // the IC stub expects.
   // Move value to rax, using xchg if the receiver or key is in rax.
@@ -6785,7 +6785,7 @@ void DeferredReferenceGetNamedValue::Generate() {
   // Here we use masm_-> instead of the __ macro because this is the
   // instruction that gets patched and coverage code gets in the way.
   masm_->testl(rax, Immediate(-delta_to_patch_site));
-  __ IncrementCounter(&Counters::named_load_inline_miss, 1);
+  __ IncrementCounter(COUNTERS->named_load_inline_miss(), 1);
 
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
@@ -7480,7 +7480,7 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     int offset = kMaxInt;
     masm()->movq(result.reg(), FieldOperand(receiver.reg(), offset));
 
-    __ IncrementCounter(&Counters::named_load_inline, 1);
+    __ IncrementCounter(COUNTERS->named_load_inline(), 1);
     deferred->BindExit();
   }
   ASSERT(frame()->height() == original_height - 1);
@@ -7570,7 +7570,7 @@ Result CodeGenerator::EmitKeyedLoad() {
     result = elements;
     __ CompareRoot(result.reg(), Heap::kTheHoleValueRootIndex);
     deferred->Branch(equal);
-    __ IncrementCounter(&Counters::keyed_load_inline, 1);
+    __ IncrementCounter(COUNTERS->keyed_load_inline(), 1);
 
     deferred->BindExit();
   } else {
@@ -7820,7 +7820,7 @@ void Reference::SetValue(InitState init_state) {
                              index.scale,
                              FixedArray::kHeaderSize),
                 value.reg());
-        __ IncrementCounter(&Counters::keyed_store_inline, 1);
+        __ IncrementCounter(COUNTERS->keyed_store_inline(), 1);
 
         deferred->BindExit();
 
@@ -8651,7 +8651,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // rdi: encoding of subject string (1 if ascii 0 if two_byte);
   // r12: code
   // All checks done. Now push arguments for native regexp code.
-  __ IncrementCounter(&Counters::regexp_entry_native, 1);
+  __ IncrementCounter(COUNTERS->regexp_entry_native(), 1);
 
   // rsi is caller save on Windows and used to pass parameter on Linux.
   __ push(rsi);
@@ -8905,7 +8905,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                        index,
                        times_1,
                        FixedArray::kHeaderSize + kPointerSize));
-  __ IncrementCounter(&Counters::number_to_string_native, 1);
+  __ IncrementCounter(COUNTERS->number_to_string_native(), 1);
 }
 
 
@@ -10146,7 +10146,7 @@ void GenericBinaryOpStub::GenerateCall(
 
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
-    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
+    __ IncrementCounter(COUNTERS->generic_binary_stub_calls_regs(), 1);
   }
 
   // Call the stub.
@@ -10182,7 +10182,7 @@ void GenericBinaryOpStub::GenerateCall(
 
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
-    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
+    __ IncrementCounter(COUNTERS->generic_binary_stub_calls_regs(), 1);
   }
 
   // Call the stub.
@@ -10217,7 +10217,7 @@ void GenericBinaryOpStub::GenerateCall(
     }
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
-    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
+    __ IncrementCounter(COUNTERS->generic_binary_stub_calls_regs(), 1);
   }
 
   // Call the stub.
@@ -11089,7 +11089,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ SmiTest(rcx);
   __ j(not_zero, &second_not_zero_length);
   // Second string is empty, result is first string which is already in rax.
-  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ IncrementCounter(COUNTERS->string_add_native(), 1);
   __ ret(2 * kPointerSize);
   __ bind(&second_not_zero_length);
   __ movq(rbx, FieldOperand(rax, String::kLengthOffset));
@@ -11097,7 +11097,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(not_zero, &both_not_zero_length);
   // First string is empty, result is second string which is in rdx.
   __ movq(rax, rdx);
-  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ IncrementCounter(COUNTERS->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
   // Both strings are non-empty.
@@ -11141,7 +11141,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   Label make_two_character_string, make_flat_ascii_string;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
       masm, rbx, rcx, r14, r12, rdi, r15, &make_two_character_string);
-  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ IncrementCounter(COUNTERS->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
   __ bind(&make_two_character_string);
@@ -11181,7 +11181,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movq(FieldOperand(rcx, ConsString::kFirstOffset), rax);
   __ movq(FieldOperand(rcx, ConsString::kSecondOffset), rdx);
   __ movq(rax, rcx);
-  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ IncrementCounter(COUNTERS->string_add_native(), 1);
   __ ret(2 * kPointerSize);
   __ bind(&non_ascii);
   // At least one of the strings is two-byte. Check whether it happens
@@ -11255,7 +11255,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rdi: length of second argument
   StringHelper::GenerateCopyCharacters(masm, rcx, rdx, rdi, true);
   __ movq(rax, rbx);
-  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ IncrementCounter(COUNTERS->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
   // Handle creating a flat two byte result.
@@ -11292,7 +11292,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rdi: length of second argument
   StringHelper::GenerateCopyCharacters(masm, rcx, rdx, rdi, false);
   __ movq(rax, rbx);
-  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ IncrementCounter(COUNTERS->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
   // Just jump to runtime to add the two strings.
@@ -11653,7 +11653,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // rsi: character of sub string start
   StringHelper::GenerateCopyCharactersREP(masm, rdi, rsi, rcx, true);
   __ movq(rsi, rdx);  // Restore rsi.
-  __ IncrementCounter(&Counters::sub_string_native, 1);
+  __ IncrementCounter(COUNTERS->sub_string_native(), 1);
   __ ret(kArgumentsSize);
 
   __ bind(&non_ascii_flat);
@@ -11690,7 +11690,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ movq(rsi, rdx);  // Restore esi.
 
   __ bind(&return_rax);
-  __ IncrementCounter(&Counters::sub_string_native, 1);
+  __ IncrementCounter(COUNTERS->sub_string_native(), 1);
   __ ret(kArgumentsSize);
 
   // Just jump to runtime to create the sub string.
@@ -11805,7 +11805,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ cmpq(rdx, rax);
   __ j(not_equal, &not_same);
   __ Move(rax, Smi::FromInt(EQUAL));
-  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ IncrementCounter(COUNTERS->string_compare_native(), 1);
   __ ret(2 * kPointerSize);
 
   __ bind(&not_same);
@@ -11814,7 +11814,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotBothSequentialAsciiStrings(rdx, rax, rcx, rbx, &runtime);
 
   // Inline comparison of ascii strings.
-  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ IncrementCounter(COUNTERS->string_compare_native(), 1);
   GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi, r8);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)

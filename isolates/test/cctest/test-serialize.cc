@@ -120,7 +120,7 @@ TEST(ExternalReferenceEncoder) {
            Encode(encoder, Debug_Address(Debug::k_register_address, 3)));
 #endif  // ENABLE_DEBUGGER_SUPPORT
   ExternalReference keyed_load_function_prototype =
-      ExternalReference(&Counters::keyed_load_function_prototype);
+      ExternalReference(COUNTERS->keyed_load_function_prototype());
   CHECK_EQ(make_code(STATS_COUNTER, Counters::k_keyed_load_function_prototype),
            encoder.Encode(keyed_load_function_prototype.address()));
   ExternalReference the_hole_value_location =
@@ -161,7 +161,7 @@ TEST(ExternalReferenceDecoder) {
            decoder.Decode(make_code(DEBUG_ADDRESS, register_code(3))));
 #endif  // ENABLE_DEBUGGER_SUPPORT
   ExternalReference keyed_load_function =
-      ExternalReference(&Counters::keyed_load_function_prototype);
+      ExternalReference(COUNTERS->keyed_load_function_prototype());
   CHECK_EQ(keyed_load_function.address(),
            decoder.Decode(
                make_code(STATS_COUNTER,

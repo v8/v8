@@ -60,12 +60,12 @@ class SlidingStateWindow {
 
 
   void IncrementStateCounter(StateTag state) {
-    Counters::state_counters[state].Increment();
+    COUNTERS->state_counters(state)->Increment();
   }
 
 
   void DecrementStateCounter(StateTag state) {
-    Counters::state_counters[state].Decrement();
+    COUNTERS->state_counters(state)->Decrement();
   }
 };
 

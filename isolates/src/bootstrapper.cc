@@ -1755,7 +1755,7 @@ Genesis::Genesis(Handle<Object> global_object,
     global_context_ =
       Handle<Context>::cast(isolate->global_handles()->Create(*new_context));
     isolate->set_context(*global_context_);
-    i::Counters::contexts_created_by_snapshot.Increment();
+    isolate->counters()->contexts_created_by_snapshot()->Increment();
     result_ = global_context_;
     JSFunction* empty_function =
         JSFunction::cast(result_->function_map()->prototype());
@@ -1785,7 +1785,7 @@ Genesis::Genesis(Handle<Object> global_object,
     MakeFunctionInstancePrototypeWritable();
 
     if (!ConfigureGlobalObjects(global_template)) return;
-    i::Counters::contexts_created_from_scratch.Increment();
+    isolate->counters()->contexts_created_from_scratch()->Increment();
   }
 
   result_ = global_context_;

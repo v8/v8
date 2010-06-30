@@ -583,11 +583,11 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                             (depth2 != kInvalidProtoDepth);
     }
 
-    __ IncrementCounter(&Counters::call_const_interceptor, 1,
+    __ IncrementCounter(COUNTERS->call_const_interceptor(), 1,
                       scratch1, scratch2);
 
     if (can_do_fast_api_call) {
-      __ IncrementCounter(&Counters::call_const_interceptor_fast_api, 1,
+      __ IncrementCounter(COUNTERS->call_const_interceptor_fast_api(), 1,
                           scratch1, scratch2);
       ReserveSpaceForFastApiCall(masm, scratch1);
     }
@@ -1235,7 +1235,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
   switch (check) {
     case RECEIVER_MAP_CHECK:
-      __ IncrementCounter(&Counters::call_const, 1, r0, r3);
+      __ IncrementCounter(COUNTERS->call_const(), 1, r0, r3);
 
       if (optimization.is_simple_api_call() && !object->IsGlobalObject()) {
         depth = optimization.GetPrototypeDepthOfExpectedType(
@@ -1243,7 +1243,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       }
 
       if (depth != kInvalidProtoDepth) {
-        __ IncrementCounter(&Counters::call_const_fast_api, 1, r0, r3);
+        __ IncrementCounter(COUNTERS->call_const_fast_api(), 1, r0, r3);
         ReserveSpaceForFastApiCall(masm(), r0);
       }
 
@@ -1459,7 +1459,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).
-  __ IncrementCounter(&Counters::call_global_inline, 1, r3, r4);
+  __ IncrementCounter(COUNTERS->call_global_inline(), 1, r3, r4);
   ASSERT(function->is_compiled());
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
@@ -1468,7 +1468,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  __ IncrementCounter(&Counters::call_global_inline_miss, 1, r1, r3);
+  __ IncrementCounter(COUNTERS->call_global_inline_miss(), 1, r1, r3);
   GenerateMissBranch();
 
   // Return the generated code.
@@ -1619,12 +1619,12 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ mov(r2, Operand(Handle<JSGlobalPropertyCell>(cell)));
   __ str(r0, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
 
-  __ IncrementCounter(&Counters::named_store_global_inline, 1, r4, r3);
+  __ IncrementCounter(COUNTERS->named_store_global_inline(), 1, r4, r3);
   __ Ret();
 
   // Handle store cache miss.
   __ bind(&miss);
-  __ IncrementCounter(&Counters::named_store_global_inline_miss, 1, r4, r3);
+  __ IncrementCounter(COUNTERS->named_store_global_inline_miss(), 1, r4, r3);
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
       Builtins::StoreIC_Miss));
   __ Jump(ic, RelocInfo::CODE_TARGET);
@@ -1802,11 +1802,11 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   }
 
   __ mov(r0, r4);
-  __ IncrementCounter(&Counters::named_load_global_inline, 1, r1, r3);
+  __ IncrementCounter(COUNTERS->named_load_global_inline(), 1, r1, r3);
   __ Ret();
 
   __ bind(&miss);
-  __ IncrementCounter(&Counters::named_load_global_inline_miss, 1, r1, r3);
+  __ IncrementCounter(COUNTERS->named_load_global_inline_miss(), 1, r1, r3);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
@@ -1947,7 +1947,7 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   //  -- r1    : receiver
   // -----------------------------------
   Label miss;
-  __ IncrementCounter(&Counters::keyed_load_string_length, 1, r1, r3);
+  __ IncrementCounter(COUNTERS->keyed_load_string_length(), 1, r1, r3);
 
   // Check the key is the cached one.
   __ cmp(r0, Operand(Handle<String>(name)));
@@ -1955,7 +1955,7 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
 
   GenerateLoadStringLength(masm(), r1, r2, r3, &miss);
   __ bind(&miss);
-  __ DecrementCounter(&Counters::keyed_load_string_length, 1, r1, r3);
+  __ DecrementCounter(COUNTERS->keyed_load_string_length(), 1, r1, r3);
 
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
@@ -1988,7 +1988,7 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  __ IncrementCounter(&Counters::keyed_store_field, 1, r3, r4);
+  __ IncrementCounter(COUNTERS->keyed_store_field(), 1, r3, r4);
 
   // Check that the name has not changed.
   __ cmp(r1, Operand(Handle<String>(name)));
@@ -2004,7 +2004,7 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                      &miss);
   __ bind(&miss);
 
-  __ DecrementCounter(&Counters::keyed_store_field, 1, r3, r4);
+  __ DecrementCounter(COUNTERS->keyed_store_field(), 1, r3, r4);
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
       Builtins::KeyedStoreIC_Miss));
 
@@ -2142,8 +2142,8 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // Remove caller arguments and receiver from the stack and return.
   __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2));
   __ add(sp, sp, Operand(kPointerSize));
-  __ IncrementCounter(&Counters::constructed_objects, 1, r1, r2);
-  __ IncrementCounter(&Counters::constructed_objects_stub, 1, r1, r2);
+  __ IncrementCounter(COUNTERS->constructed_objects(), 1, r1, r2);
+  __ IncrementCounter(COUNTERS->constructed_objects_stub(), 1, r1, r2);
   __ Jump(lr);
 
   // Jump to the generic stub in case the specialized code cannot handle the

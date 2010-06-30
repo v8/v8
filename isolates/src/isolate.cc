@@ -231,6 +231,7 @@ Isolate::Isolate()
       preallocated_message_space_(NULL),
       bootstrapper_(NULL),
       compilation_cache_(NULL),
+      counters_(new Counters()),
       cpu_features_(NULL),
       code_range_(NULL),
       break_access_(OS::CreateMutex()),
@@ -258,6 +259,7 @@ Isolate::Isolate()
       sizeof(isolate_addresses_[0]) * (k_isolate_address_count + 1));
 
   heap_.isolate_ = this;
+  zone_.isolate_ = this;
   stack_guard_.isolate_ = this;
 
 #ifdef DEBUG
@@ -345,8 +347,11 @@ Isolate::~Isolate() {
   delete logger_;
   logger_ = NULL;
 
+  delete counters_;
+  counters_ = NULL;
   delete cpu_features_;
   cpu_features_ = NULL;
+
   delete compilation_cache_;
   compilation_cache_ = NULL;
   delete bootstrapper_;

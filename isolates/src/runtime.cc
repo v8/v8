@@ -1283,7 +1283,7 @@ static Object* Runtime_RegExpExec(Arguments args) {
   RUNTIME_ASSERT(last_match_info->HasFastElements());
   RUNTIME_ASSERT(index >= 0);
   RUNTIME_ASSERT(index <= subject->length());
-  Counters::regexp_entry_runtime.Increment();
+  COUNTERS->regexp_entry_runtime()->Increment();
   Handle<Object> result = RegExpImpl::Exec(regexp,
                                            subject,
                                            index,
@@ -2991,7 +2991,7 @@ static Object* Runtime_SubString(Arguments args) {
   RUNTIME_ASSERT(end >= start);
   RUNTIME_ASSERT(start >= 0);
   RUNTIME_ASSERT(end <= value->length());
-  Counters::sub_string_runtime.Increment();
+  COUNTERS->sub_string_runtime()->Increment();
   return value->SubString(start, end);
 }
 
@@ -5474,7 +5474,7 @@ static Object* Runtime_StringAdd(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, str1, args[0]);
   CONVERT_CHECKED(String, str2, args[1]);
-  Counters::string_add_runtime.Increment();
+  COUNTERS->string_add_runtime()->Increment();
   return HEAP->AllocateConsString(str1, str2);
 }
 
@@ -5877,7 +5877,7 @@ static Object* Runtime_StringCompare(Arguments args) {
   CONVERT_CHECKED(String, x, args[0]);
   CONVERT_CHECKED(String, y, args[1]);
 
-  Counters::string_compare_runtime.Increment();
+  COUNTERS->string_compare_runtime()->Increment();
 
   // A few fast case tests before we flatten.
   if (x == y) return Smi::FromInt(EQUAL);
@@ -5905,7 +5905,7 @@ static Object* Runtime_StringCompare(Arguments args) {
 static Object* Runtime_Math_acos(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_acos.Increment();
+  COUNTERS->math_acos()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   Isolate* const isolate = Isolate::Current();
@@ -5916,7 +5916,7 @@ static Object* Runtime_Math_acos(Arguments args) {
 static Object* Runtime_Math_asin(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_asin.Increment();
+  COUNTERS->math_asin()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   Isolate* const isolate = Isolate::Current();
@@ -5927,7 +5927,7 @@ static Object* Runtime_Math_asin(Arguments args) {
 static Object* Runtime_Math_atan(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_atan.Increment();
+  COUNTERS->math_atan()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   Isolate* const isolate = Isolate::Current();
@@ -5941,7 +5941,7 @@ static const double kPiDividedBy4 = 0.78539816339744830962;
 static Object* Runtime_Math_atan2(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
-  Counters::math_atan2.Increment();
+  COUNTERS->math_atan2()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
@@ -5964,7 +5964,7 @@ static Object* Runtime_Math_atan2(Arguments args) {
 static Object* Runtime_Math_ceil(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_ceil.Increment();
+  COUNTERS->math_ceil()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return HEAP->NumberFromDouble(ceiling(x));
@@ -5974,7 +5974,7 @@ static Object* Runtime_Math_ceil(Arguments args) {
 static Object* Runtime_Math_cos(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_cos.Increment();
+  COUNTERS->math_cos()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   Isolate* const isolate = Isolate::Current();
@@ -5985,7 +5985,7 @@ static Object* Runtime_Math_cos(Arguments args) {
 static Object* Runtime_Math_exp(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_exp.Increment();
+  COUNTERS->math_exp()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   Isolate* const isolate = Isolate::Current();
@@ -5996,7 +5996,7 @@ static Object* Runtime_Math_exp(Arguments args) {
 static Object* Runtime_Math_floor(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_floor.Increment();
+  COUNTERS->math_floor()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return HEAP->NumberFromDouble(floor(x));
@@ -6006,7 +6006,7 @@ static Object* Runtime_Math_floor(Arguments args) {
 static Object* Runtime_Math_log(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_log.Increment();
+  COUNTERS->math_log()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   Isolate* const isolate = Isolate::Current();
@@ -6048,7 +6048,7 @@ static double powi(double x, int y) {
 static Object* Runtime_Math_pow(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
-  Counters::math_pow.Increment();
+  COUNTERS->math_pow()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
 
@@ -6103,7 +6103,7 @@ static Object* Runtime_Math_pow_cfunction(Arguments args) {
 static Object* Runtime_RoundNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_round.Increment();
+  COUNTERS->math_round()->Increment();
 
   if (!args[0]->IsHeapNumber()) {
     // Must be smi. Return the argument unchanged for all the other types
@@ -6139,7 +6139,7 @@ static Object* Runtime_RoundNumber(Arguments args) {
 static Object* Runtime_Math_sin(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_sin.Increment();
+  COUNTERS->math_sin()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   Isolate* const isolate = Isolate::Current();
@@ -6150,7 +6150,7 @@ static Object* Runtime_Math_sin(Arguments args) {
 static Object* Runtime_Math_sqrt(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_sqrt.Increment();
+  COUNTERS->math_sqrt()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return HEAP->AllocateHeapNumber(sqrt(x));
@@ -6160,7 +6160,7 @@ static Object* Runtime_Math_sqrt(Arguments args) {
 static Object* Runtime_Math_tan(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Counters::math_tan.Increment();
+  COUNTERS->math_tan()->Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   Isolate* const isolate = Isolate::Current();
@@ -6657,8 +6657,8 @@ static Object* Runtime_NewObject(Arguments args) {
     shared->set_construct_stub(*stub);
   }
 
-  Counters::constructed_objects.Increment();
-  Counters::constructed_objects_runtime.Increment();
+  COUNTERS->constructed_objects()->Increment();
+  COUNTERS->constructed_objects_runtime()->Increment();
 
   return *result;
 }
@@ -10421,7 +10421,7 @@ void Runtime::PerformGC(Object* result) {
   } else {
     // Handle last resort GC and make sure to allow future allocations
     // to grow the heap without causing GCs (if possible).
-    Counters::gc_last_resort_from_js.Increment();
+    COUNTERS->gc_last_resort_from_js()->Increment();
     HEAP->CollectAllGarbage(false);
   }
 }

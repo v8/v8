@@ -208,7 +208,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
 #ifdef DEBUG
   byte* begin_pos = pos_;
 #endif
-  Counters::reloc_info_count.Increment();
+  COUNTERS->reloc_info_count()->Increment();
   ASSERT(rinfo->pc() - last_pc_ >= 0);
   ASSERT(RelocInfo::NUMBER_OF_MODES < kMaxRelocModes);
   // Use unsigned delta-encoding for pc.

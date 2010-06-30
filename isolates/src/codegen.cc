@@ -193,7 +193,7 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
 #endif  // ENABLE_DISASSEMBLER
 
   if (!code.is_null()) {
-    Counters::total_compiled_code_size.Increment(code->instruction_size());
+    COUNTERS->total_compiled_code_size()->Increment(code->instruction_size());
   }
   return code;
 }
@@ -206,7 +206,7 @@ Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
-    Counters::total_old_codegen_source_size.Increment(len);
+    COUNTERS->total_old_codegen_source_size()->Increment(len);
   }
   MakeCodePrologue(info);
   // Generate code.

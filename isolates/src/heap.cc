@@ -184,19 +184,20 @@ bool Heap::HasBeenSetup() {
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   // Is global GC requested?
   if (space != NEW_SPACE || FLAG_gc_global) {
-    Counters::gc_compactor_caused_by_request.Increment();
+    isolate_->counters()->gc_compactor_caused_by_request()->Increment();
     return MARK_COMPACTOR;
   }
 
   // Is enough data promoted to justify a global GC?
   if (OldGenerationPromotionLimitReached()) {
-    Counters::gc_compactor_caused_by_promoted_data.Increment();
+    isolate_->counters()->gc_compactor_caused_by_promoted_data()->Increment();
     return MARK_COMPACTOR;
   }
 
   // Have allocation in OLD and LO failed?
   if (old_gen_exhausted_) {
-    Counters::gc_compactor_caused_by_oldspace_exhaustion.Increment();
+    isolate_->counters()->
+        gc_compactor_caused_by_oldspace_exhaustion()->Increment();
     return MARK_COMPACTOR;
   }
 
@@ -210,7 +211,8 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   // space.  Undercounting is safe---we may get an unrequested full GC when
   // a scavenge would have succeeded.
   if (isolate_->memory_allocator()->MaxAvailable() <= new_space_.Size()) {
-    Counters::gc_compactor_caused_by_oldspace_exhaustion.Increment();
+    isolate_->counters()->
+        gc_compactor_caused_by_oldspace_exhaustion()->Increment();
     return MARK_COMPACTOR;
   }
 
@@ -352,10 +354,12 @@ void Heap::GarbageCollectionEpilogue() {
   if (FLAG_code_stats) ReportCodeStatistics("After GC");
 #endif
 
-  Counters::alive_after_last_gc.Set(SizeOfObjects());
+  isolate_->counters()->alive_after_last_gc()->Set(SizeOfObjects());
 
-  Counters::symbol_table_capacity.Set(THIS->symbol_table()->Capacity());
-  Counters::number_of_symbols.Set(THIS->symbol_table()->NumberOfElements());
+  isolate_->counters()->symbol_table_capacity()->Set(
+      THIS->symbol_table()->Capacity());
+  isolate_->counters()->number_of_symbols()->Set(
+      THIS->symbol_table()->NumberOfElements());
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   ReportStatisticsAfterGC();
 #endif
@@ -399,8 +403,8 @@ bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
     tracer.set_collector(collector);
 
     HistogramTimer* rate = (collector == SCAVENGER)
-        ? &Counters::gc_scavenger
-        : &Counters::gc_compactor;
+        ? isolate_->counters()->gc_scavenger()
+        : isolate_->counters()->gc_compactor();
     rate->Start();
     PerformGarbageCollection(space, collector, &tracer);
     rate->Stop();
@@ -664,7 +668,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     UpdateSurvivalRateTrend(start_new_space_size);
   }
 
-  Counters::objs_since_last_young.Set(0);
+  isolate_->counters()->objs_since_last_young()->Set(0);
 
   if (collector == MARK_COMPACTOR) {
     DisableAssertNoAllocation allow_allocation;
@@ -726,7 +730,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
   Shrink();
 
-  Counters::objs_since_last_full.Set(0);
+  isolate_->counters()->objs_since_last_full()->Set(0);
 
   contexts_disposed_ = 0;
 }
@@ -1781,7 +1785,7 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
 
 
 Object* Heap::NumberToString(Object* number, bool check_number_string_cache) {
-  Counters::number_to_string_runtime.Increment();
+  isolate_->counters()->number_to_string_runtime()->Increment();
   if (check_number_string_cache) {
     Object* cached = GetNumberStringCache(number);
     if (cached != THIS->undefined_value()) {
@@ -1979,7 +1983,7 @@ Object* Heap::AllocateConsString(String* first, String* second) {
     is_ascii_data_in_two_byte_string =
         first->HasOnlyAsciiChars() && second->HasOnlyAsciiChars();
     if (is_ascii_data_in_two_byte_string) {
-      Counters::string_add_runtime_ext_to_ascii.Increment();
+      isolate_->counters()->string_add_runtime_ext_to_ascii()->Increment();
     }
   }
 
@@ -2016,6 +2020,7 @@ Object* Heap::AllocateConsString(String* first, String* second) {
         char* dest = SeqAsciiString::cast(result)->GetChars();
         String::WriteToFlat(first, dest, 0, first_length);
         String::WriteToFlat(second, dest + first_length, 0, second_length);
+        isolate_->counters()->string_add_runtime_ext_to_ascii()->Increment();
         return result;
       }
 
@@ -3299,7 +3304,7 @@ bool Heap::IdleNotification() {
 
   if (number_idle_notifications == kIdlesBeforeScavenge) {
     if (contexts_disposed_ > 0) {
-      HistogramTimerScope scope(&Counters::gc_context);
+      HistogramTimerScope scope(isolate_->counters()->gc_context());
       CollectAllGarbage(false);
     } else {
       CollectGarbage(0, NEW_SPACE);
@@ -3328,7 +3333,7 @@ bool Heap::IdleNotification() {
     if (FLAG_expose_gc) {
       contexts_disposed_ = 0;
     } else {
-      HistogramTimerScope scope(&Counters::gc_context);
+      HistogramTimerScope scope(isolate_->counters()->gc_context());
       CollectAllGarbage(false);
       last_gc_count = gc_count_;
     }
@@ -4815,7 +4820,7 @@ bool Heap::GarbageCollectionGreedyCheck() {
 
 TranscendentalCache::SubCache::SubCache(Type t)
   : type_(t),
-    heap_(HEAP) {
+    isolate_(Isolate::Current()) {
   uint32_t in0 = 0xffffffffu;  // Bit-pattern for a NaN that isn't
   uint32_t in1 = 0xffffffffu;  // generated by the FPU.
   for (int i = 0; i < kCacheSize; i++) {

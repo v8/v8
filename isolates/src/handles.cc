@@ -432,7 +432,7 @@ static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
   ASSERT(proxy->proxy() == reinterpret_cast<Address>(cache.location()));
   proxy->set_proxy(0);
   Isolate::Current()->global_handles()->Destroy(cache.location());
-  Counters::script_wrappers.Decrement();
+  COUNTERS->script_wrappers()->Decrement();
 }
 
 
@@ -445,7 +445,7 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   }
 
   // Construct a new script wrapper.
-  Counters::script_wrappers.Increment();
+  isolate->counters()->script_wrappers()->Increment();
   Handle<JSFunction> constructor = isolate->script_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(Factory::NewJSObject(constructor));
@@ -694,7 +694,7 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
 
 
 Handle<JSArray> GetKeysFor(Handle<JSObject> object) {
-  Counters::for_in.Increment();
+  COUNTERS->for_in()->Increment();
   Handle<FixedArray> elements = GetKeysInFixedArrayFor(object,
                                                        INCLUDE_PROTOS);
   return Factory::NewJSArrayWithElements(elements);
@@ -706,11 +706,11 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
   int index = 0;
   if (object->HasFastProperties()) {
     if (object->map()->instance_descriptors()->HasEnumCache()) {
-      Counters::enum_cache_hits.Increment();
+      COUNTERS->enum_cache_hits()->Increment();
       DescriptorArray* desc = object->map()->instance_descriptors();
       return Handle<FixedArray>(FixedArray::cast(desc->GetEnumCache()));
     }
-    Counters::enum_cache_misses.Increment();
+    COUNTERS->enum_cache_misses()->Increment();
     int num_enum = object->NumberOfEnumProperties();
     Handle<FixedArray> storage = Factory::NewFixedArray(num_enum);
     Handle<FixedArray> sort_array = Factory::NewFixedArray(num_enum);

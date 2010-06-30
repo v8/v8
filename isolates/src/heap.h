@@ -1884,27 +1884,7 @@ class TranscendentalCache {
 
     explicit SubCache(Type t);
 
-    inline Object* Get(double input) {
-      Converter c;
-      c.dbl = input;
-      int hash = Hash(c);
-      Element e = elements_[hash];
-      if (e.in[0] == c.integers[0] &&
-          e.in[1] == c.integers[1]) {
-        ASSERT(e.output != NULL);
-        Counters::transcendental_cache_hit.Increment();
-        return e.output;
-      }
-      double answer = Calculate(input);
-      Object* heap_number = heap_->AllocateHeapNumber(answer);
-      if (!heap_number->IsFailure()) {
-        elements_[hash].in[0] = c.integers[0];
-        elements_[hash].in[1] = c.integers[1];
-        elements_[hash].output = heap_number;
-      }
-      Counters::transcendental_cache_miss.Increment();
-      return heap_number;
-    }
+    inline Object* Get(double input);
 
     inline double Calculate(double input) {
       switch (type_) {
@@ -1954,7 +1934,7 @@ class TranscendentalCache {
 
     Element elements_[kCacheSize];
     Type type_;
-    Heap* heap_;
+    Isolate* isolate_;
 
     DISALLOW_COPY_AND_ASSIGN(SubCache);
   };

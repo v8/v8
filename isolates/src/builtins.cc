@@ -180,7 +180,7 @@ BUILTIN(EmptyFunction) {
 
 
 BUILTIN(ArrayCodeGeneric) {
-  Counters::array_function_runtime.Increment();
+  COUNTERS->array_function_runtime()->Increment();
 
   JSArray* array;
   if (CalledAsConstructor()) {

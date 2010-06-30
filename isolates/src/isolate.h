@@ -53,6 +53,7 @@ class CompilationCache;
 class ContextSlotCache;
 class ContextSwitcher;
 class CodeRange;
+class Counters;
 class CpuFeatures;
 class Deserializer;
 class EmptyStatement;
@@ -524,6 +525,7 @@ class Isolate {
 #undef GLOBAL_CONTEXT_FIELD_ACCESSOR
 
   Bootstrapper* bootstrapper() { return bootstrapper_; }
+  Counters* counters() { return counters_; }
   CpuFeatures* cpu_features() { return cpu_features_; }
   CodeRange* code_range() { return code_range_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
@@ -705,6 +707,7 @@ class Isolate {
 
   Bootstrapper* bootstrapper_;
   CompilationCache* compilation_cache_;
+  Counters* counters_;
   CpuFeatures* cpu_features_;
   CodeRange* code_range_;
   Mutex* break_access_;

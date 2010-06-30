@@ -926,7 +926,7 @@ void Processor::VisitThisFunction(ThisFunction* node) {
 
 
 bool Rewriter::Process(FunctionLiteral* function) {
-  HistogramTimerScope timer(&Counters::rewriting);
+  HistogramTimerScope timer(COUNTERS->rewriting());
   Scope* scope = function->scope();
   if (scope->is_function_scope()) return true;
 
@@ -947,7 +947,7 @@ bool Rewriter::Optimize(FunctionLiteral* function) {
   ZoneList<Statement*>* body = function->body();
 
   if (FLAG_optimize_ast && !body->is_empty()) {
-    HistogramTimerScope timer(&Counters::ast_optimization);
+    HistogramTimerScope timer(COUNTERS->ast_optimization());
     AstOptimizer optimizer(function->name());
     optimizer.Optimize(body);
     if (optimizer.HasStackOverflow()) {

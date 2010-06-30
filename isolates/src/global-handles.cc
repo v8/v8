@@ -285,7 +285,7 @@ GlobalHandles::~GlobalHandles() {
 
 
 Handle<Object> GlobalHandles::Create(Object* value) {
-  Counters::global_handles.Increment();
+  COUNTERS->global_handles()->Increment();
   Node* result;
   if (first_free()) {
     // Take the first node in the free list.
@@ -309,7 +309,7 @@ Handle<Object> GlobalHandles::Create(Object* value) {
 
 
 void GlobalHandles::Destroy(Object** location) {
-  Counters::global_handles.Decrement();
+  COUNTERS->global_handles()->Decrement();
   if (location == NULL) return;
   Node* node = Node::FromLocation(location);
   node->Destroy(this);

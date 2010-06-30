@@ -257,9 +257,9 @@ void ExternalReferenceTable::PopulateTable() {
     const char* name;
   };
 
-  static const StatsRefTableEntry stats_ref_table[] = {
+  const StatsRefTableEntry stats_ref_table[] = {
 #define COUNTER_ENTRY(name, caption) \
-  { &Counters::name, \
+  { COUNTERS->name(), \
     Counters::k_##name, \
     "Counters::" #name },
 

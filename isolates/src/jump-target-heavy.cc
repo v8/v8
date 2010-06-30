@@ -143,7 +143,7 @@ void JumpTarget::ComputeEntryFrame() {
   // the directionality of the block.  Compute: an entry frame for the
   // block.
 
-  Counters::compute_entry_frame.Increment();
+  COUNTERS->compute_entry_frame()->Increment();
 #ifdef DEBUG
   if (compiling_deferred_code_) {
     ASSERT(reaching_frames_.length() > 1);

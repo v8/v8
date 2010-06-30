@@ -63,8 +63,8 @@ Object* Heap::AllocateRaw(int size_in_bytes,
       Heap::allocation_timeout_-- <= 0) {
     return Failure::RetryAfterGC(size_in_bytes, space);
   }
-  Counters::objs_since_last_full.Increment();
-  Counters::objs_since_last_young.Increment();
+  isolate_->counters()->objs_since_last_full()->Increment();
+  isolate_->counters()->objs_since_last_young()->Increment();
 #endif
   Object* result;
   if (NEW_SPACE == space) {
@@ -131,8 +131,8 @@ void Heap::FinalizeExternalString(String* string) {
 
 Object* Heap::AllocateRawMap() {
 #ifdef DEBUG
-  Counters::objs_since_last_full.Increment();
-  Counters::objs_since_last_young.Increment();
+  isolate_->counters()->objs_since_last_full()->Increment();
+  isolate_->counters()->objs_since_last_young()->Increment();
 #endif
   Object* result = map_space_->AllocateRaw(Map::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
@@ -149,8 +149,8 @@ Object* Heap::AllocateRawMap() {
 
 Object* Heap::AllocateRawCell() {
 #ifdef DEBUG
-  Counters::objs_since_last_full.Increment();
-  Counters::objs_since_last_young.Increment();
+  isolate_->counters()->objs_since_last_full()->Increment();
+  isolate_->counters()->objs_since_last_young()->Increment();
 #endif
   Object* result = cell_space_->AllocateRaw(JSGlobalPropertyCell::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
@@ -402,7 +402,7 @@ void Heap::SetLastScriptId(Object* last_script_id) {
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_1");      \
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
-    Counters::gc_last_resort_from_handles.Increment();                    \
+    COUNTERS->gc_last_resort_from_handles()->Increment();                 \
     HEAP->CollectAllGarbage(false);                                       \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
@@ -519,6 +519,29 @@ Object* TranscendentalCache::Get(Type type, double input) {
 
 Address TranscendentalCache::cache_array_address() {
   return reinterpret_cast<Address>(caches_);
+}
+
+
+Object* TranscendentalCache::SubCache::Get(double input) {
+  Converter c;
+  c.dbl = input;
+  int hash = Hash(c);
+  Element e = elements_[hash];
+  if (e.in[0] == c.integers[0] &&
+      e.in[1] == c.integers[1]) {
+    ASSERT(e.output != NULL);
+    isolate_->counters()->transcendental_cache_hit()->Increment();
+    return e.output;
+  }
+  double answer = Calculate(input);
+  Object* heap_number = isolate_->heap()->AllocateHeapNumber(answer);
+  if (!heap_number->IsFailure()) {
+    elements_[hash].in[0] = c.integers[0];
+    elements_[hash].in[1] = c.integers[1];
+    elements_[hash].output = heap_number;
+  }
+  isolate_->counters()->transcendental_cache_miss()->Increment();
+  return heap_number;
 }
 
 

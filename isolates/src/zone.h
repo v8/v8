@@ -121,6 +121,7 @@ class Zone {
   int scope_nesting_;
 
   Segment* segment_head_;
+  Isolate* isolate_;
 };
 
 

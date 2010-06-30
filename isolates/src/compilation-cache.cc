@@ -185,8 +185,9 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
     }
   }
 
+  Isolate* isolate = Isolate::Current();
   if (!script_histogram_initialized_) {
-    script_histogram_ = Isolate::Current()->stats_table()->CreateHistogram(
+    script_histogram_ = isolate->stats_table()->CreateHistogram(
         "V8.ScriptCache",
         0,
         kScriptGenerations,
@@ -196,8 +197,7 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
 
   if (script_histogram_ != NULL) {
     // The level NUMBER_OF_SCRIPT_GENERATIONS is equivalent to a cache miss.
-    Isolate::Current()->stats_table()->AddHistogramSample(
-        script_histogram_, generation);
+    isolate->stats_table()->AddHistogramSample(script_histogram_, generation);
   }
 
   // Once outside the manacles of the handle scope, we need to recheck
@@ -209,10 +209,10 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
     // If the script was found in a later generation, we promote it to
     // the first generation to let it survive longer in the cache.
     if (generation != 0) Put(source, shared);
-    Counters::compilation_cache_hits.Increment();
+    isolate->counters()->compilation_cache_hits()->Increment();
     return shared;
   } else {
-    Counters::compilation_cache_misses.Increment();
+    isolate->counters()->compilation_cache_misses()->Increment();
     return Handle<SharedFunctionInfo>::null();
   }
 }
@@ -255,10 +255,10 @@ Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
     if (generation != 0) {
       Put(source, context, function_info);
     }
-    Counters::compilation_cache_hits.Increment();
+    COUNTERS->compilation_cache_hits()->Increment();
     return function_info;
   } else {
-    Counters::compilation_cache_misses.Increment();
+    COUNTERS->compilation_cache_misses()->Increment();
     return Handle<SharedFunctionInfo>::null();
   }
 }
@@ -304,10 +304,10 @@ Handle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
     if (generation != 0) {
       Put(source, flags, data);
     }
-    Counters::compilation_cache_hits.Increment();
+    COUNTERS->compilation_cache_hits()->Increment();
     return data;
   } else {
-    Counters::compilation_cache_misses.Increment();
+    COUNTERS->compilation_cache_misses()->Increment();
     return Handle<FixedArray>::null();
   }
 }

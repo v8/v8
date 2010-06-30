@@ -1006,7 +1006,7 @@ Object* StubCompiler::CompileCallInitialize(Code::Flags flags) {
   }
   Object* result = GetCodeWithFlags(flags, "CompileCallInitialize");
   if (!result->IsFailure()) {
-    Counters::call_initialize_stubs.Increment();
+    COUNTERS->call_initialize_stubs()->Increment();
     Code* code = Code::cast(result);
     USE(code);
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_INITIALIZE_TAG),
@@ -1029,7 +1029,7 @@ Object* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
   }
   Object* result = GetCodeWithFlags(flags, "CompileCallPreMonomorphic");
   if (!result->IsFailure()) {
-    Counters::call_premonomorphic_stubs.Increment();
+    COUNTERS->call_premonomorphic_stubs()->Increment();
     Code* code = Code::cast(result);
     USE(code);
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_PRE_MONOMORPHIC_TAG),
@@ -1050,7 +1050,7 @@ Object* StubCompiler::CompileCallNormal(Code::Flags flags) {
   }
   Object* result = GetCodeWithFlags(flags, "CompileCallNormal");
   if (!result->IsFailure()) {
-    Counters::call_normal_stubs.Increment();
+    COUNTERS->call_normal_stubs()->Increment();
     Code* code = Code::cast(result);
     USE(code);
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_NORMAL_TAG),
@@ -1072,7 +1072,7 @@ Object* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
 
   Object* result = GetCodeWithFlags(flags, "CompileCallMegamorphic");
   if (!result->IsFailure()) {
-    Counters::call_megamorphic_stubs.Increment();
+    COUNTERS->call_megamorphic_stubs()->Increment();
     Code* code = Code::cast(result);
     USE(code);
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MEGAMORPHIC_TAG),
@@ -1093,7 +1093,7 @@ Object* StubCompiler::CompileCallMiss(Code::Flags flags) {
   }
   Object* result = GetCodeWithFlags(flags, "CompileCallMiss");
   if (!result->IsFailure()) {
-    Counters::call_megamorphic_stubs.Increment();
+    COUNTERS->call_megamorphic_stubs()->Increment();
     Code* code = Code::cast(result);
     USE(code);
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MISS_TAG),

@@ -5850,8 +5850,9 @@ void DeferredReferenceGetNamedValue::Generate() {
   Register scratch1 = VirtualFrame::scratch0();
   Register scratch2 = VirtualFrame::scratch1();
   ASSERT(!receiver_.is(scratch1) && !receiver_.is(scratch2));
-  __ DecrementCounter(&Counters::named_load_inline, 1, scratch1, scratch2);
-  __ IncrementCounter(&Counters::named_load_inline_miss, 1, scratch1, scratch2);
+  __ DecrementCounter(COUNTERS->named_load_inline(), 1, scratch1, scratch2);
+  __ IncrementCounter(COUNTERS->named_load_inline_miss(), 1,
+      scratch1, scratch2);
 
   // Ensure receiver in r0 and name in r2 to match load ic calling convention.
   __ Move(r0, receiver_);
@@ -5912,8 +5913,9 @@ void DeferredReferenceGetKeyedValue::Generate() {
 
   Register scratch1 = VirtualFrame::scratch0();
   Register scratch2 = VirtualFrame::scratch1();
-  __ DecrementCounter(&Counters::keyed_load_inline, 1, scratch1, scratch2);
-  __ IncrementCounter(&Counters::keyed_load_inline_miss, 1, scratch1, scratch2);
+  __ DecrementCounter(COUNTERS->keyed_load_inline(), 1, scratch1, scratch2);
+  __ IncrementCounter(COUNTERS->keyed_load_inline_miss(),
+      1, scratch1, scratch2);
 
   // Ensure key in r0 and receiver in r1 to match keyed load ic calling
   // convention.
@@ -5967,9 +5969,9 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
 void DeferredReferenceSetKeyedValue::Generate() {
   Register scratch1 = VirtualFrame::scratch0();
   Register scratch2 = VirtualFrame::scratch1();
-  __ DecrementCounter(&Counters::keyed_store_inline, 1, scratch1, scratch2);
-  __ IncrementCounter(
-      &Counters::keyed_store_inline_miss, 1, scratch1, scratch2);
+  __ DecrementCounter(COUNTERS->keyed_store_inline(), 1, scratch1, scratch2);
+  __ IncrementCounter(COUNTERS->keyed_store_inline_miss(),
+                      1, scratch1, scratch2);
 
   // Ensure value in r0, key in r1 and receiver in r2 to match keyed store ic
   // calling convention.
@@ -6013,7 +6015,7 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 
     // Counter will be decremented in the deferred code. Placed here to avoid
     // having it in the instruction stream below where patching will occur.
-    __ IncrementCounter(&Counters::named_load_inline, 1,
+    __ IncrementCounter(COUNTERS->named_load_inline(), 1,
                         frame_->scratch0(), frame_->scratch1());
 
     // The following instructions are the inlined load of an in-object property.
@@ -6085,7 +6087,7 @@ void CodeGenerator::EmitKeyedLoad() {
 
     // Counter will be decremented in the deferred code. Placed here to avoid
     // having it in the instruction stream below where patching will occur.
-    __ IncrementCounter(&Counters::keyed_load_inline, 1,
+    __ IncrementCounter(COUNTERS->keyed_load_inline(), 1,
                         frame_->scratch0(), frame_->scratch1());
 
     // Load the key and receiver from the stack.
@@ -6177,7 +6179,7 @@ void CodeGenerator::EmitKeyedStore(StaticType* key_type) {
 
     // Counter will be decremented in the deferred code. Placed here to avoid
     // having it in the instruction stream below where patching will occur.
-    __ IncrementCounter(&Counters::keyed_store_inline, 1,
+    __ IncrementCounter(COUNTERS->keyed_store_inline(), 1,
                         scratch1, scratch2);
 
     // Load the value, key and receiver from the stack.
@@ -7159,7 +7161,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   __ bind(&load_result_from_cache);
   __ ldr(result,
          FieldMemOperand(scratch, FixedArray::kHeaderSize + kPointerSize));
-  __ IncrementCounter(&Counters::number_to_string_native,
+  __ IncrementCounter(COUNTERS->number_to_string_native(),
                       1,
                       scratch1,
                       scratch2);
@@ -7291,7 +7293,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   __ JumpIfNonSmisNotBothSequentialAsciiStrings(r0, r1, r2, r3, &slow);
 
-  __ IncrementCounter(&Counters::string_compare_native, 1, r2, r3);
+  __ IncrementCounter(COUNTERS->string_compare_native(), 1, r2, r3);
   StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
                                                      r1,
                                                      r0,
@@ -9367,7 +9369,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // subject: Subject string
   // regexp_data: RegExp data (FixedArray)
   // All checks done. Now push arguments for native regexp code.
-  __ IncrementCounter(&Counters::regexp_entry_native, 1, r0, r2);
+  __ IncrementCounter(COUNTERS->regexp_entry_native(), 1, r0, r2);
 
   static const int kRegExpExecuteArguments = 7;
   __ push(lr);
@@ -10274,7 +10276,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   Label make_two_character_string;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
       masm, r3, r4, r1, r5, r6, r7, r9, &make_two_character_string);
-  __ IncrementCounter(&Counters::sub_string_native, 1, r3, r4);
+  __ IncrementCounter(COUNTERS->sub_string_native(), 1, r3, r4);
   __ add(sp, sp, Operand(3 * kPointerSize));
   __ Ret();
 
@@ -10283,7 +10285,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ bind(&make_two_character_string);
   __ AllocateAsciiString(r0, r2, r4, r5, r9, &runtime);
   __ strh(r3, FieldMemOperand(r0, SeqAsciiString::kHeaderSize));
-  __ IncrementCounter(&Counters::sub_string_native, 1, r3, r4);
+  __ IncrementCounter(COUNTERS->sub_string_native(), 1, r3, r4);
   __ add(sp, sp, Operand(3 * kPointerSize));
   __ Ret();
 
@@ -10309,7 +10311,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   ASSERT_EQ(0, SeqAsciiString::kHeaderSize & kObjectAlignmentMask);
   StringHelper::GenerateCopyCharactersLong(masm, r1, r5, r2, r3, r4, r6, r7, r9,
                                            COPY_ASCII | DEST_ALWAYS_ALIGNED);
-  __ IncrementCounter(&Counters::sub_string_native, 1, r3, r4);
+  __ IncrementCounter(COUNTERS->sub_string_native(), 1, r3, r4);
   __ add(sp, sp, Operand(3 * kPointerSize));
   __ Ret();
 
@@ -10340,7 +10342,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   ASSERT_EQ(0, SeqTwoByteString::kHeaderSize & kObjectAlignmentMask);
   StringHelper::GenerateCopyCharactersLong(masm, r1, r5, r2, r3, r4, r6, r7, r9,
                                            DEST_ALWAYS_ALIGNED);
-  __ IncrementCounter(&Counters::sub_string_native, 1, r3, r4);
+  __ IncrementCounter(COUNTERS->sub_string_native(), 1, r3, r4);
   __ add(sp, sp, Operand(3 * kPointerSize));
   __ Ret();
 
@@ -10424,7 +10426,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   ASSERT_EQ(0, EQUAL);
   ASSERT_EQ(0, kSmiTag);
   __ mov(r0, Operand(Smi::FromInt(EQUAL)));
-  __ IncrementCounter(&Counters::string_compare_native, 1, r1, r2);
+  __ IncrementCounter(COUNTERS->string_compare_native(), 1, r1, r2);
   __ add(sp, sp, Operand(2 * kPointerSize));
   __ Ret();
 
@@ -10434,7 +10436,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotBothSequentialAsciiStrings(r0, r1, r2, r3, &runtime);
 
   // Compare flat ascii strings natively. Remove arguments from stack first.
-  __ IncrementCounter(&Counters::string_compare_native, 1, r2, r3);
+  __ IncrementCounter(COUNTERS->string_compare_native(), 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
   GenerateCompareFlatAsciiStrings(masm, r0, r1, r2, r3, r4, r5);
 
@@ -10489,7 +10491,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ cmp(r3, Operand(Smi::FromInt(0)), ne);
     __ b(ne, &strings_not_empty);  // If either string was empty, return r0.
 
-    __ IncrementCounter(&Counters::string_add_native, 1, r2, r3);
+    __ IncrementCounter(COUNTERS->string_add_native(), 1, r2, r3);
     __ add(sp, sp, Operand(2 * kPointerSize));
     __ Ret();
 
@@ -10534,7 +10536,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   Label make_two_character_string;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
       masm, r2, r3, r6, r7, r4, r5, r9, &make_two_character_string);
-  __ IncrementCounter(&Counters::string_add_native, 1, r2, r3);
+  __ IncrementCounter(COUNTERS->string_add_native(), 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
   __ Ret();
 
@@ -10547,7 +10549,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ mov(r6, Operand(2));
   __ AllocateAsciiString(r0, r6, r4, r5, r9, &string_add_runtime);
   __ strh(r2, FieldMemOperand(r0, SeqAsciiString::kHeaderSize));
-  __ IncrementCounter(&Counters::string_add_native, 1, r2, r3);
+  __ IncrementCounter(COUNTERS->string_add_native(), 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
   __ Ret();
 
@@ -10584,7 +10586,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ str(r0, FieldMemOperand(r7, ConsString::kFirstOffset));
   __ str(r1, FieldMemOperand(r7, ConsString::kSecondOffset));
   __ mov(r0, Operand(r7));
-  __ IncrementCounter(&Counters::string_add_native, 1, r2, r3);
+  __ IncrementCounter(COUNTERS->string_add_native(), 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
   __ Ret();
 
@@ -10666,7 +10668,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // r7: result string.
   StringHelper::GenerateCopyCharacters(masm, r6, r1, r3, r4, true);
   __ mov(r0, Operand(r7));
-  __ IncrementCounter(&Counters::string_add_native, 1, r2, r3);
+  __ IncrementCounter(COUNTERS->string_add_native(), 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
   __ Ret();
 
@@ -10707,7 +10709,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   StringHelper::GenerateCopyCharacters(masm, r6, r1, r3, r4, false);
 
   __ mov(r0, Operand(r7));
-  __ IncrementCounter(&Counters::string_add_native, 1, r2, r3);
+  __ IncrementCounter(COUNTERS->string_add_native(), 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
   __ Ret();
 

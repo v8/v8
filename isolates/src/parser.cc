@@ -1211,7 +1211,7 @@ Parser::Parser(Handle<Script> script,
 
 bool Parser::PreParseProgram(Handle<String> source,
                              unibrow::CharacterStream* stream) {
-  HistogramTimerScope timer(&Counters::pre_parse);
+  HistogramTimerScope timer(COUNTERS->pre_parse());
   AssertNoZoneAllocation assert_no_zone_allocation;
   AssertNoAllocation assert_no_allocation;
   NoHandleAllocation no_handle_allocation;
@@ -1232,8 +1232,8 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
                                       bool in_global_context) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
 
-  HistogramTimerScope timer(&Counters::parse);
-  Counters::total_parse_size.Increment(source->length());
+  HistogramTimerScope timer(COUNTERS->parse());
+  COUNTERS->total_parse_size()->Increment(source->length());
 
   // Initialize parser state.
   source->TryFlatten();
@@ -1291,8 +1291,8 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    int end_position,
                                    bool is_expression) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
-  HistogramTimerScope timer(&Counters::parse_lazy);
-  Counters::total_parse_size.Increment(source->length());
+  HistogramTimerScope timer(COUNTERS->parse_lazy());
+  COUNTERS->total_parse_size()->Increment(source->length());
 
   // Initialize parser state.
   source->TryFlatten();
@@ -1335,8 +1335,8 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
 FunctionLiteral* Parser::ParseJson(Handle<String> source) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
 
-  HistogramTimerScope timer(&Counters::parse);
-  Counters::total_parse_size.Increment(source->length());
+  HistogramTimerScope timer(COUNTERS->parse());
+  COUNTERS->total_parse_size()->Increment(source->length());
 
   // Initialize parser state.
   source->TryFlatten(TENURED);
@@ -3808,7 +3808,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     if (is_lazily_compiled && pre_data() != NULL) {
       FunctionEntry entry = pre_data()->GetFunctionEnd(start_pos);
       int end_pos = entry.end_pos();
-      Counters::total_preparse_skipped.Increment(end_pos - start_pos);
+      COUNTERS->total_preparse_skipped()->Increment(end_pos - start_pos);
       scanner_.SeekForward(end_pos);
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();

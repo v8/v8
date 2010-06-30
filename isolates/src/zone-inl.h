@@ -76,7 +76,7 @@ bool Zone::excess_allocation() {
 
 void Zone::adjust_segment_bytes_allocated(int delta) {
   segment_bytes_allocated_ += delta;
-  Counters::zone_segment_bytes.Set(segment_bytes_allocated_);
+  isolate_->counters()->zone_segment_bytes()->Set(segment_bytes_allocated_);
 }
 
 

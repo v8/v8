@@ -72,7 +72,7 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
     // Compute top scope and allocate variables. For lazy compilation
     // the top scope only contains the single lazily compiled function,
     // so this doesn't re-allocate variables repeatedly.
-    HistogramTimerScope timer(&Counters::variable_allocation);
+    HistogramTimerScope timer(COUNTERS->variable_allocation());
     Scope* top = info->scope();
     while (top->outer_scope() != NULL) top = top->outer_scope();
     top->AllocateVariables(context);
@@ -221,8 +221,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(
   // rest of the function into account to avoid overlap with the
   // parsing statistics.
   HistogramTimer* rate = is_eval
-      ? &Counters::compile_eval
-      : &Counters::compile;
+      ? COUNTERS->compile_eval()
+      : COUNTERS->compile();
   HistogramTimerScope timer(rate);
 
   // Compile the code.
@@ -289,8 +289,8 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              NativesFlag natives) {
   Isolate* isolate = Isolate::Current();
   int source_length = source->length();
-  Counters::total_load_size.Increment(source_length);
-  Counters::total_compile_size.Increment(source_length);
+  COUNTERS->total_load_size()->Increment(source_length);
+  COUNTERS->total_compile_size()->Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
@@ -364,8 +364,8 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
   // the input is legal json.
 
   int source_length = source->length();
-  Counters::total_eval_size.Increment(source_length);
-  Counters::total_compile_size.Increment(source_length);
+  COUNTERS->total_eval_size()->Increment(source_length);
+  COUNTERS->total_compile_size()->Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
@@ -417,7 +417,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   int start_position = shared->start_position();
   int end_position = shared->end_position();
   bool is_expression = shared->is_expression();
-  Counters::total_compile_size.Increment(end_position - start_position);
+  COUNTERS->total_compile_size()->Increment(end_position - start_position);
 
   // Generate the AST for the lazily compiled function. The AST may be
   // NULL in case of parser stack overflow.
@@ -437,7 +437,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   // Measure how long it takes to do the lazy compilation; only take
   // the rest of the function into account to avoid overlap with the
   // lazy parsing statistics.
-  HistogramTimerScope timer(&Counters::compile_lazy);
+  HistogramTimerScope timer(COUNTERS->compile_lazy());
 
   // Compile the code.
   Handle<Code> code = MakeCode(Handle<Context>::null(), info);

@@ -323,7 +323,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                        r5,
                        JSArray::kPreallocatedArrayElements,
                        call_generic_code);
-  __ IncrementCounter(&Counters::array_function_native, 1, r3, r4);
+  __ IncrementCounter(COUNTERS->array_function_native(), 1, r3, r4);
   // Setup return value, remove receiver from stack and return.
   __ mov(r0, r2);
   __ add(sp, sp, Operand(kPointerSize));
@@ -359,7 +359,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                   r7,
                   true,
                   call_generic_code);
-  __ IncrementCounter(&Counters::array_function_native, 1, r2, r4);
+  __ IncrementCounter(COUNTERS->array_function_native(), 1, r2, r4);
   // Setup return value, remove receiver and argument from stack and return.
   __ mov(r0, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
@@ -383,7 +383,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                   r7,
                   false,
                   call_generic_code);
-  __ IncrementCounter(&Counters::array_function_native, 1, r2, r6);
+  __ IncrementCounter(COUNTERS->array_function_native(), 1, r2, r6);
 
   // Fill arguments as array elements. Copy from the top of the stack (last
   // element) to the array backing store filling it backwards. Note:
@@ -817,7 +817,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   __ LeaveConstructFrame();
   __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2 - 1));
   __ add(sp, sp, Operand(kPointerSize));
-  __ IncrementCounter(&Counters::constructed_objects, 1, r1, r2);
+  __ IncrementCounter(COUNTERS->constructed_objects(), 1, r1, r2);
   __ Jump(lr);
 }
 

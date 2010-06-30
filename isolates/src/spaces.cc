@@ -359,7 +359,7 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
 #ifdef DEBUG
   ZapBlock(reinterpret_cast<Address>(mem), alloced);
 #endif
-  Counters::memory_allocated.Increment(alloced);
+  COUNTERS->memory_allocated()->Increment(alloced);
   return mem;
 }
 
@@ -373,7 +373,7 @@ void MemoryAllocator::FreeRawMemory(void* mem, size_t length) {
   } else {
     OS::Free(mem, length);
   }
-  Counters::memory_allocated.Decrement(static_cast<int>(length));
+  COUNTERS->memory_allocated()->Decrement(static_cast<int>(length));
   size_ -= static_cast<int>(length);
   ASSERT(size_ >= 0);
 }
@@ -454,7 +454,7 @@ Page* MemoryAllocator::CommitPages(Address start, size_t size,
 #ifdef DEBUG
   ZapBlock(start, size);
 #endif
-  Counters::memory_allocated.Increment(static_cast<int>(size));
+  COUNTERS->memory_allocated()->Increment(static_cast<int>(size));
 
   // So long as we correctly overestimated the number of chunks we should not
   // run out of chunk ids.
@@ -478,7 +478,7 @@ bool MemoryAllocator::CommitBlock(Address start,
 #ifdef DEBUG
   ZapBlock(start, size);
 #endif
-  Counters::memory_allocated.Increment(static_cast<int>(size));
+  COUNTERS->memory_allocated()->Increment(static_cast<int>(size));
   return true;
 }
 
@@ -491,7 +491,7 @@ bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
   ASSERT(InInitialChunk(start + size - 1));
 
   if (!initial_chunk_->Uncommit(start, size)) return false;
-  Counters::memory_allocated.Decrement(static_cast<int>(size));
+  COUNTERS->memory_allocated()->Decrement(static_cast<int>(size));
   return true;
 }
 
@@ -591,7 +591,7 @@ void MemoryAllocator::DeleteChunk(int chunk_id) {
     // TODO(1240712): VirtualMemory::Uncommit has a return value which
     // is ignored here.
     initial_chunk_->Uncommit(c.address(), c.size());
-    Counters::memory_allocated.Decrement(static_cast<int>(c.size()));
+    COUNTERS->memory_allocated()->Decrement(static_cast<int>(c.size()));
   } else {
     LOG(DeleteEvent("PagedChunk", c.address()));
     FreeRawMemory(c.address(), c.size());

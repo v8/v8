@@ -2210,7 +2210,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 
   set_properties(dictionary);
 
-  Counters::props_to_dictionary.Increment();
+  COUNTERS->props_to_dictionary()->Increment();
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {
@@ -2265,7 +2265,7 @@ Object* JSObject::NormalizeElements() {
   set_map(new_map);
   set_elements(dictionary);
 
-  Counters::elements_to_dictionary.Increment();
+  COUNTERS->elements_to_dictionary()->Increment();
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {
