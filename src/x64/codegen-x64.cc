@@ -9113,7 +9113,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   __ bind(&check_for_strings);
 
-  __ JumpIfNotBothSequentialAsciiStrings(rdx, rax, rcx, rbx, &check_unequal_objects);
+  __ JumpIfNotBothSequentialAsciiStrings(
+      rdx, rax, rcx, rbx, &check_unequal_objects);
 
   // Inline comparison of ascii strings.
   StringCompareStub::GenerateCompareFlatAsciiStrings(masm,

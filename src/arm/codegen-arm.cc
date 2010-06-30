@@ -4402,8 +4402,10 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ vsqrt(d0, d0);
 
     __ bind(&allocate_return);
-    __ AllocateHeapNumberWithValue(
-        base, d0, scratch1, scratch2, heap_number_map, runtime.entry_label());
+    Register scratch3 = r5;
+    __ AllocateHeapNumberWithValue(scratch3, d0, scratch1, scratch2,
+                                   heap_number_map, runtime.entry_label());
+    __ mov(base, scratch3);
     done.Jump();
 
     runtime.Bind();
