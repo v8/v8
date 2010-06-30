@@ -854,7 +854,7 @@ Object* Debug::Break(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 0);
 
-  thread_local_.frames_are_dropped_ = false;
+  thread_local_.frame_drop_mode_ = FRAMES_UNTOUCHED;
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it;
@@ -932,12 +932,22 @@ Object* Debug::Break(Arguments args) {
     PrepareStep(step_action, step_count);
   }
 
-  if (thread_local_.frames_are_dropped_) {
-    // We must have been calling IC stub. Do not return there anymore.
+  if (thread_local_.frame_drop_mode_ == FRAMES_UNTOUCHED) {
+    SetAfterBreakTarget(frame);
+  } else if (thread_local_.frame_drop_mode_ == FRAME_DROPPED_IN_IC_CALL) {
+    // We must have been calling IC stub. Do not go there anymore.
     Code* plain_return = Builtins::builtin(Builtins::PlainReturn_LiveEdit);
     thread_local_.after_break_target_ = plain_return->entry();
+  } else if (thread_local_.frame_drop_mode_ ==
+      FRAME_DROPPED_IN_DEBUG_SLOT_CALL) {
+    // Debug break slot stub does not return normally, instead it manually
+    // cleans the stack and jumps. We should patch the jump address.
+    Code* plain_return = Builtins::builtin(Builtins::FrameDropper_LiveEdit);
+    thread_local_.after_break_target_ = plain_return->entry();
+  } else if (thread_local_.frame_drop_mode_ == FRAME_DROPPED_IN_DIRECT_CALL) {
+    // Nothing to do, after_break_target is not used here.
   } else {
-    SetAfterBreakTarget(frame);
+    UNREACHABLE();
   }
 
   return Heap::undefined_value();
@@ -1749,8 +1759,9 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 }
 
 
-void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id) {
-  thread_local_.frames_are_dropped_ = true;
+void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
+                                  FrameDropMode mode) {
+  thread_local_.frame_drop_mode_ = mode;
   thread_local_.break_frame_id_ = new_break_frame_id;
 }
 
