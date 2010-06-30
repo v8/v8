@@ -122,3 +122,8 @@ assertEquals(NaN, Math.pow(-2, 1.1));
 assertEquals(NaN, Math.pow(-2, -1.1));
 assertEquals(NaN, Math.pow(-1000, 1.1));
 assertEquals(NaN, Math.pow(-1000, -1.1));
+
+// Tests from Sputnik S8.5_A13_T1.
+assertTrue((1*((Math.pow(2,53))-1)*(Math.pow(2,-1074))) === 4.4501477170144023e-308);
+assertTrue((1*(Math.pow(2,52))*(Math.pow(2,-1074))) === 2.2250738585072014e-308);
+assertTrue((-1*(Math.pow(2,52))*(Math.pow(2,-1074))) === -2.2250738585072014e-308);

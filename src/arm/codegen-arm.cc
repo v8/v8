@@ -4346,10 +4346,20 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ vmul(d1, d1, d1, ne);  // Don't bother calculating next d1 if done.
     __ b(ne, &more_bits);
 
-    // If exponent is negative result is 1/result (d2 already holds 1.0 in that
-    // case).
+    // If exponent is positive we are done.
     __ cmp(exponent, Operand(0));
-    __ vdiv(d0, d2, d0, mi);
+    __ b(ge, &allocate_return);
+
+    // If exponent is negative result is 1/result (d2 already holds 1.0 in that
+    // case). However if d0 has reached infinity this will not provide the
+    // correct result, so call runtime if that is the case.
+    __ mov(scratch2, Operand(0x7FF00000));
+    __ mov(scratch1, Operand(0));
+    __ vmov(d1, scratch1, scratch2);  // Load infinity into d1.
+    __ vcmp(d0, d1);
+    __ vmrs(pc);
+    runtime.Branch(eq);  // d0 reached infinity.
+    __ vdiv(d0, d2, d0);
     __ b(&allocate_return);
 
     __ bind(&exponent_nonsmi);
