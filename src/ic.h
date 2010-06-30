@@ -384,6 +384,7 @@ class StoreIC: public IC {
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateArrayLength(MacroAssembler* masm);
+  static void GenerateNormal(MacroAssembler* masm);
 
  private:
   // Update the inline cache and the global stub cache based on the

@@ -836,7 +836,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
           // property must be found in the receiver for the stub to be
           // applicable.
           if (lookup->holder() != *receiver) return;
-          code = StubCache::ComputeLoadNormal(*name, *receiver);
+          code = StubCache::ComputeLoadNormal();
         }
         break;
       }
@@ -1198,16 +1198,18 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       break;
     }
     case NORMAL: {
-      if (!receiver->IsGlobalObject()) {
-        return;
+      if (receiver->IsGlobalObject()) {
+        // The stub generated for the global object picks the value directly
+        // from the property cell. So the property must be directly on the
+        // global object.
+        Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
+        JSGlobalPropertyCell* cell =
+            JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
+        code = StubCache::ComputeStoreGlobal(*name, *global, cell);
+      } else {
+        if (lookup->holder() != *receiver) return;
+        code = StubCache::ComputeStoreNormal();
       }
-      // The stub generated for the global object picks the value directly
-      // from the property cell. So the property must be directly on the
-      // global object.
-      Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
-      JSGlobalPropertyCell* cell =
-          JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-      code = StubCache::ComputeStoreGlobal(*name, *global, cell);
       break;
     }
     case CALLBACKS: {

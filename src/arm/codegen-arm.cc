@@ -7347,7 +7347,8 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 
 
 void RecordWriteStub::Generate(MacroAssembler* masm) {
-  __ RecordWriteHelper(object_, Operand(offset_), offset_, scratch_);
+  __ add(offset_, object_, Operand(offset_));
+  __ RecordWriteHelper(object_, offset_, scratch_);
   __ Ret();
 }
 

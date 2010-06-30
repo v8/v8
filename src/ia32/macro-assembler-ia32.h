@@ -73,15 +73,26 @@ class MacroAssembler: public Assembler {
                   Condition cc,  // equal for new space, not_equal otherwise.
                   Label* branch);
 
-  // For page containing |object| mark region covering [object+offset] dirty.
-  // object is the object being stored into, value is the object being stored.
-  // If offset is zero, then the scratch register contains the array index into
-  // the elements array represented as a Smi.
-  // All registers are clobbered by the operation.
+  // For page containing |object| mark region covering [object+offset]
+  // dirty. |object| is the object being stored into, |value| is the
+  // object being stored. If offset is zero, then the scratch register
+  // contains the array index into the elements array represented as a
+  // Smi. All registers are clobbered by the operation. RecordWrite
+  // filters out smis so it does not update the write barrier if the
+  // value is a smi.
   void RecordWrite(Register object,
                    int offset,
                    Register value,
                    Register scratch);
+
+  // For page containing |object| mark region covering |address|
+  // dirty. |object| is the object being stored into, |value| is the
+  // object being stored. All registers are clobbered by the
+  // operation. RecordWrite filters out smis so it does not update the
+  // write barrier if the value is a smi.
+  void RecordWrite(Register object,
+                   Register address,
+                   Register value);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------

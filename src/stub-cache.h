@@ -77,7 +77,7 @@ class StubCache : public AllStatic {
                                         JSObject* receiver,
                                         JSObject* holder);
 
-  static Object* ComputeLoadNormal(String* name, JSObject* receiver);
+  static Object* ComputeLoadNormal();
 
 
   static Object* ComputeLoadGlobal(String* name,
@@ -120,6 +120,8 @@ class StubCache : public AllStatic {
                                    JSObject* receiver,
                                    int field_index,
                                    Map* transition = NULL);
+
+  static Object* ComputeStoreNormal();
 
   static Object* ComputeStoreGlobal(String* name,
                                     GlobalObject* receiver,

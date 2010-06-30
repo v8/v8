@@ -198,7 +198,7 @@ Object* StubCache::ComputeLoadInterceptor(String* name,
 }
 
 
-Object* StubCache::ComputeLoadNormal(String* name, JSObject* receiver) {
+Object* StubCache::ComputeLoadNormal() {
   return Builtins::builtin(Builtins::LoadIC_Normal);
 }
 
@@ -368,6 +368,11 @@ Object* StubCache::ComputeStoreField(String* name,
     if (result->IsFailure()) return result;
   }
   return code;
+}
+
+
+Object* StubCache::ComputeStoreNormal() {
+  return Builtins::builtin(Builtins::StoreIC_Normal);
 }
 
 
