@@ -4291,7 +4291,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   } else {
     CpuFeatures::Scope scope(VFP3);
     JumpTarget runtime, done;
-    Label not_minus_half, allocate_return;
+    Label exponent_nonsmi, base_nonsmi, powi, not_minus_half, allocate_return;
 
     Register scratch1 = VirtualFrame::scratch0();
     Register scratch2 = VirtualFrame::scratch1();
@@ -4299,18 +4299,64 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     // Get base and exponent to registers.
     Register exponent = frame_->PopToRegister();
     Register base = frame_->PopToRegister(exponent);
+    Register heap_number_map = no_reg;
 
     // Set the frame for the runtime jump target. The code below jumps to the
     // jump target label so the frame needs to be established before that.
     ASSERT(runtime.entry_frame() == NULL);
     runtime.set_entry_frame(frame_);
 
-    __ BranchOnSmi(exponent, runtime.entry_label());
+    __ BranchOnNotSmi(exponent, &exponent_nonsmi);
+    __ BranchOnNotSmi(base, &base_nonsmi);
 
+    heap_number_map = r6;
+    __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+
+    // Exponent is a smi and base is a smi. Get the smi value into vfp register
+    // d1.
+    __ SmiToDoubleVFPRegister(base, d1, scratch1, s0);
+    __ b(&powi);
+
+    __ bind(&base_nonsmi);
+    // Exponent is smi and base is non smi. Get the double value from the base
+    // into vfp register d1.
+    __ ObjectToDoubleVFPRegister(base, d1,
+                                 scratch1, scratch2, heap_number_map, s0,
+                                 runtime.entry_label());
+
+    __ bind(&powi);
+
+    // Load 1.0 into d0.
+    __ mov(scratch2, Operand(0x3ff00000));
+    __ mov(scratch1, Operand(0));
+    __ vmov(d0, scratch1, scratch2);
+
+    // Get the absolute untagged value of the exponent and use that for the
+    // calculation.
+    __ mov(scratch1, Operand(exponent, ASR, kSmiTagSize), SetCC);
+    __ rsb(scratch1, scratch1, Operand(0), LeaveCC, mi);  // Negate if negative.
+    __ vmov(d2, d0, mi);  // 1.0 needed in d2 later if exponent is negative.
+
+    // Run through all the bits in the exponent. The result is calculated in d0
+    // and d1 holds base^(bit^2).
+    Label more_bits;
+    __ bind(&more_bits);
+    __ mov(scratch1, Operand(scratch1, LSR, 1), SetCC);
+    __ vmul(d0, d0, d1, cs);  // Multiply with base^(bit^2) if bit is set.
+    __ vmul(d1, d1, d1, ne);  // Don't bother calculating next d1 if done.
+    __ b(ne, &more_bits);
+
+    // If exponent is negative result is 1/result (d2 already holds 1.0 in that
+    // case).
+    __ cmp(exponent, Operand(0));
+    __ vdiv(d0, d2, d0, mi);
+    __ b(&allocate_return);
+
+    __ bind(&exponent_nonsmi);
     // Special handling of raising to the power of -0.5 and 0.5. First check
     // that the value is a heap number and that the lower bits (which for both
     // values are zero).
-    Register heap_number_map = r6;
+    heap_number_map = r6;
     __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
     __ ldr(scratch1, FieldMemOperand(exponent, HeapObject::kMapOffset));
     __ ldr(scratch2, FieldMemOperand(exponent, HeapNumber::kMantissaOffset));
@@ -4319,7 +4365,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ tst(scratch2, scratch2);
     runtime.Branch(ne);
 
-    // Load the e
+    // Load the higher bits (which contains the floating point exponent).
     __ ldr(scratch1, FieldMemOperand(exponent, HeapNumber::kExponentOffset));
 
     // Compare exponent with -0.5.
