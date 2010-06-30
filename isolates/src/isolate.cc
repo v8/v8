@@ -285,12 +285,15 @@ Isolate::Isolate()
 #undef ISOLATE_INIT_ARRAY_EXECUTE
 }
 
-
-void Isolate::TearDownAndRecreateGlobalIsolate() {
+void Isolate::TearDown() {
   if (global_isolate_ != NULL) {
     delete global_isolate_;
     global_isolate_ = NULL;
   }
+}
+
+void Isolate::TearDownAndRecreateGlobalIsolate() {
+  TearDown();
 
   global_isolate_ = new Isolate();
   global_isolate_->PreInit();

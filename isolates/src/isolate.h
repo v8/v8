@@ -277,6 +277,9 @@ class Isolate {
   static Isolate* InitThreadForGlobalIsolate();
 #endif
 
+  // Destroy the global isolate.
+  static void TearDown();
+
   // Destroy the global isolate and create a new one in its place.
   static void TearDownAndRecreateGlobalIsolate();
 

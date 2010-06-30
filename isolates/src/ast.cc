@@ -89,7 +89,8 @@ VariableProxy::VariableProxy(Handle<String> name,
 
 
 VariableProxy::VariableProxy(bool is_this)
-  : is_this_(is_this),
+  : var_(NULL),
+    is_this_(is_this),
     reaching_definitions_(NULL),
     is_primitive_(false) {
 }

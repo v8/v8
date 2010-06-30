@@ -1379,7 +1379,7 @@ static void Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
 #endif
 
 
-Builtins::Builtins() {
+Builtins::Builtins() : initialized_(false) {
   memset(builtins_, 0, sizeof(builtins_[0]) * builtin_count);
   memset(names_, 0, sizeof(names_[0]) * builtin_count);
 }

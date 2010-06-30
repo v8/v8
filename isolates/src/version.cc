@@ -36,14 +36,16 @@
 #define MINOR_VERSION     2
 #define BUILD_NUMBER      20
 #define PATCH_LEVEL       0
-#define CANDIDATE_VERSION true
+// Use 1 for candidates and 0 otherwise.
+// (Boolean macro values are not supported by all preprocessors.)
+#define IS_CANDIDATE_VERSION 0
 
 // Define SONAME to have the SCons build the put a specific SONAME into the
 // shared library instead the generic SONAME generated from the V8 version
 // number. This define is mainly used by the SCons build script.
 #define SONAME            ""
 
-#if CANDIDATE_VERSION == true
+#if IS_CANDIDATE_VERSION
 #define CANDIDATE_STRING " (candidate)"
 #else
 #define CANDIDATE_STRING ""
@@ -69,7 +71,7 @@ int Version::major_ = MAJOR_VERSION;
 int Version::minor_ = MINOR_VERSION;
 int Version::build_ = BUILD_NUMBER;
 int Version::patch_ = PATCH_LEVEL;
-bool Version::candidate_ = CANDIDATE_VERSION;
+bool Version::candidate_ = (IS_CANDIDATE_VERSION != 0);
 const char* Version::soname_ = SONAME;
 const char* Version::version_string_ = VERSION_STRING;
 

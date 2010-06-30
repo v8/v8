@@ -67,7 +67,7 @@ void V8::SetFatalError() {
 void V8::TearDown() {
   if (!has_been_setup_ || has_been_disposed_) return;
 
-  Isolate::TearDownAndRecreateGlobalIsolate();
+  Isolate::TearDown();
 
   is_running_ = false;
   has_been_disposed_ = true;
