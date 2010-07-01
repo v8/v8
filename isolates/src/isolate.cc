@@ -37,6 +37,7 @@
 #include "heap-profiler.h"
 #include "isolate.h"
 #include "log.h"
+#include "regexp-stack.h"
 #include "serialize.h"
 #include "scanner.h"
 #include "scopeinfo.h"
@@ -253,7 +254,9 @@ Isolate::Isolate()
       context_switcher_(NULL),
       thread_manager_(NULL),
       ast_sentinels_(NULL),
+      inline_runtime_functions_table_(NULL),
       string_tracker_(NULL),
+      regexp_stack_(NULL),
       frame_element_constant_list_(0),
       result_constant_list_(0) {
   memset(isolate_addresses_, 0,
@@ -335,6 +338,9 @@ Isolate::~Isolate() {
 
   delete scanner_character_classes_;
   scanner_character_classes_ = NULL;
+
+  delete regexp_stack_;
+  regexp_stack_ = NULL;
 
   delete inline_runtime_functions_table_;
   inline_runtime_functions_table_ = NULL;
@@ -448,6 +454,8 @@ bool Isolate::PreInit() {
   stub_cache_ = new StubCache();
   ast_sentinels_ = new AstSentinels();
   inline_runtime_functions_table_ = new InlineRuntimeFunctionsTable();
+  regexp_stack_ = new RegExpStack();
+  regexp_stack_->isolate_ = this;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   debugger_ = new Debugger();

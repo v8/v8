@@ -629,7 +629,8 @@ ExternalReference ExternalReference::address_of_real_stack_limit() {
 
 
 ExternalReference ExternalReference::address_of_regexp_stack_limit() {
-  return ExternalReference(RegExpStack::limit_address());
+  return ExternalReference(
+      Isolate::Current()->regexp_stack()->limit_address());
 }
 
 
@@ -715,11 +716,13 @@ ExternalReference ExternalReference::address_of_static_offsets_vector() {
 }
 
 ExternalReference ExternalReference::address_of_regexp_stack_memory_address() {
-  return ExternalReference(RegExpStack::memory_address());
+  return ExternalReference(
+      Isolate::Current()->regexp_stack()->memory_address());
 }
 
 ExternalReference ExternalReference::address_of_regexp_stack_memory_size() {
-  return ExternalReference(RegExpStack::memory_size_address());
+  return ExternalReference(
+      Isolate::Current()->regexp_stack()->memory_size_address());
 }
 
 #endif  // V8_INTERPRETED_REGEXP

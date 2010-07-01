@@ -156,13 +156,14 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
     const byte* input_start,
     const byte* input_end,
     int* output) {
+  Isolate* isolate = Isolate::Current();
   typedef int (*matcher)(String*, int, const byte*,
                          const byte*, int*, Address, int);
   matcher matcher_func = FUNCTION_CAST<matcher>(code->entry());
 
   // Ensure that the minimum stack has been allocated.
-  RegExpStack stack;
-  Address stack_base = RegExpStack::stack_base();
+  RegExpStackScope stack_scope(isolate);
+  Address stack_base = stack_scope.stack()->stack_base();
 
   int direct_call = 0;
   int result = CALL_GENERATED_REGEXP_CODE(matcher_func,
@@ -176,10 +177,10 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
   ASSERT(result <= SUCCESS);
   ASSERT(result >= RETRY);
 
-  if (result == EXCEPTION && !Isolate::Current()->has_pending_exception()) {
+  if (result == EXCEPTION && !isolate->has_pending_exception()) {
     // We detected a stack overflow (on the backtrack stack) in RegExp code,
     // but haven't created the exception yet.
-    Isolate::Current()->StackOverflow();
+    isolate->StackOverflow();
   }
   return static_cast<Result>(result);
 }
@@ -243,12 +244,13 @@ int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
 
 Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,
                                               Address* stack_base) {
-  size_t size = RegExpStack::stack_capacity();
-  Address old_stack_base = RegExpStack::stack_base();
+  RegExpStack* regexp_stack = Isolate::Current()->regexp_stack();
+  size_t size = regexp_stack->stack_capacity();
+  Address old_stack_base = regexp_stack->stack_base();
   ASSERT(old_stack_base == *stack_base);
   ASSERT(stack_pointer <= old_stack_base);
   ASSERT(static_cast<size_t>(old_stack_base - stack_pointer) <= size);
-  Address new_stack_base = RegExpStack::EnsureCapacity(size * 2);
+  Address new_stack_base = regexp_stack->EnsureCapacity(size * 2);
   if (new_stack_base == NULL) {
     return NULL;
   }

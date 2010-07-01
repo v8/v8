@@ -185,6 +185,7 @@ class Block {
 
 TEST(CodeRange) {
   const int code_range_size = 16*MB;
+  OS::Setup();
   Isolate::Current()->code_range()->Setup(code_range_size);
   int current_allocated = 0;
   int total_allocated = 0;

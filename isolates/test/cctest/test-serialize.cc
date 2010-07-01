@@ -106,6 +106,7 @@ static int register_code(int reg) {
 
 
 TEST(ExternalReferenceEncoder) {
+  OS::Setup();
   i::Isolate::Current()->stats_table()->SetCounterFunction(counter_function);
   HEAP->Setup(false);
   ExternalReferenceEncoder encoder;
@@ -147,6 +148,7 @@ TEST(ExternalReferenceEncoder) {
 
 
 TEST(ExternalReferenceDecoder) {
+  OS::Setup();
   i::Isolate::Current()->stats_table()->SetCounterFunction(counter_function);
   HEAP->Setup(false);
   ExternalReferenceDecoder decoder;

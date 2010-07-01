@@ -163,7 +163,7 @@ bool ThreadManager::RestoreThread() {
   from = isolate_->debug()->RestoreDebug(from);
 #endif
   from = isolate_->stack_guard()->RestoreStackGuard(from);
-  from = RegExpStack::RestoreStack(from);
+  from = isolate_->regexp_stack()->RestoreStack(from);
   from = isolate_->bootstrapper()->RestoreState(from);
   Thread::SetThreadLocal(thread_state_key_, NULL);
   if (state->terminate_on_restore()) {
@@ -307,7 +307,7 @@ void ThreadManager::EagerlyArchiveThread() {
   to = isolate_->debug()->ArchiveDebug(to);
 #endif
   to = isolate_->stack_guard()->ArchiveStackGuard(to);
-  to = RegExpStack::ArchiveStack(to);
+  to = isolate_->regexp_stack()->ArchiveStack(to);
   to = isolate_->bootstrapper()->ArchiveState(to);
   lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
   lazily_archived_thread_state_ = NULL;
@@ -321,7 +321,7 @@ void ThreadManager::FreeThreadResources() {
   isolate_->debug()->FreeThreadResources();
 #endif
   isolate_->stack_guard()->FreeThreadResources();
-  RegExpStack::FreeThreadResources();
+  isolate_->regexp_stack()->FreeThreadResources();
   isolate_->bootstrapper()->FreeThreadResources();
 }
 

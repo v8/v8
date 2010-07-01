@@ -67,6 +67,7 @@ class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
 class PreallocatedMemoryThread;
 class ProducerHeapProfile;
+class RegExpStack;
 class SaveContext;
 class StubCache;
 class StringInputBuffer;
@@ -663,6 +664,8 @@ class Isolate {
     return &regexp_macro_assembler_canonicalize_;
   }
 
+  RegExpStack* regexp_stack() { return regexp_stack_; }
+
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
       interp_canonicalize_mapping() {
     return &interp_canonicalize_mapping_;
@@ -800,6 +803,7 @@ class Isolate {
   StaticResource<StringInputBuffer> objects_string_input_buffer_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
+  RegExpStack* regexp_stack_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   ZoneObjectList frame_element_constant_list_;
   ZoneObjectList result_constant_list_;

@@ -90,6 +90,7 @@ TEST(Page) {
 
 
 TEST(MemoryAllocator) {
+  OS::Setup();
   Isolate* isolate = Isolate::Current();
 
   CHECK(isolate->heap()->ConfigureHeapDefault());
@@ -151,6 +152,7 @@ TEST(MemoryAllocator) {
 
 
 TEST(NewSpace) {
+  OS::Setup();
   CHECK(HEAP->ConfigureHeapDefault());
   CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved()));
 
@@ -177,6 +179,7 @@ TEST(NewSpace) {
 
 
 TEST(OldSpace) {
+  OS::Setup();
   CHECK(HEAP->ConfigureHeapDefault());
   CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved()));
 
@@ -206,6 +209,7 @@ TEST(OldSpace) {
 
 
 TEST(LargeObjectSpace) {
+  OS::Setup();
   CHECK(HEAP->Setup(false));
 
   LargeObjectSpace* lo = HEAP->lo_space();
