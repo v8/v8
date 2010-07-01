@@ -684,6 +684,12 @@ void Debug::Setup(bool create_heap_objects) {
 
 void Debug::HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data) {
   DebugInfoListNode* node = reinterpret_cast<DebugInfoListNode*>(data);
+  // We need to clear all breakpoints associated with the function to restore
+  // original code and avoid patching the code twice later because
+  // the function will live in the heap until next gc, and can be found by
+  // Runtime::FindSharedFunctionInfoInScript.
+  BreakLocationIterator it(node->debug_info(), ALL_BREAK_LOCATIONS);
+  it.ClearAllDebugBreak();
   RemoveDebugInfo(node->debug_info());
 #ifdef DEBUG
   node = Debug::debug_info_list_;
