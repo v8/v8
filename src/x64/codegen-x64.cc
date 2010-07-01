@@ -1645,6 +1645,9 @@ void CodeGenerator::GenerateFastSmiLoop(ForStatement* node) {
   Visit(node->init());
 
   JumpTarget loop(JumpTarget::BIDIRECTIONAL);
+  // Set type and stack height of BreakTargets.
+  node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   IncrementLoopNesting();
   loop.Bind();
