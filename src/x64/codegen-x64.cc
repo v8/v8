@@ -9077,14 +9077,14 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // If it's not a heap number, then return equal for (in)equality operator.
       __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
              Factory::heap_number_map());
-      if (cc_ == equal) {
-        __ j(equal, &heap_number);
-        __ Set(rax, EQUAL);
-        __ ret(0);
-      } else {
-        // Identical objects must still be converted to primitive for < and >.
-        __ j(not_equal, &not_identical);
+      __ j(equal, &heap_number);
+      if (cc_ != equal) {
+        // Call runtime on identical JSObjects.  Otherwise return equal.
+        __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
+        __ j(above_equal, &not_identical);
       }
+      __ Set(rax, EQUAL);
+      __ ret(0);
 
       __ bind(&heap_number);
       // It is a heap number, so return  equal if it's not NaN.

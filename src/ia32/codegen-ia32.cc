@@ -11689,15 +11689,15 @@ void CompareStub::Generate(MacroAssembler* masm) {
       Label heap_number;
       __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
              Immediate(Factory::heap_number_map()));
-      if (cc_ == equal) {
-        __ j(equal, &heap_number);
-        // Identical objects are equal for operators ==, !=, and ===.
-        __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
-        __ ret(0);
-      } else {
-        // Identical objects must call ToPrimitive for <, <=, >, and >=.
-        __ j(not_equal, &not_identical);
+      __ j(equal, &heap_number);
+      if (cc_ != equal) {
+        // Call runtime on identical JSObjects.  Otherwise return equal.
+        __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
+        __ j(above_equal, &not_identical);
       }
+      __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
+      __ ret(0);
+
       __ bind(&heap_number);
       // It is a heap number, so return non-equal if it's NaN and equal if
       // it's not NaN.
