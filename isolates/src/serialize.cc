@@ -933,7 +933,8 @@ void Deserializer::ReadChunk(Object** current,
         int index = source_->Get();
         Vector<const char> source_vector = Natives::GetScriptSource(index);
         NativesExternalStringResource* resource =
-            new NativesExternalStringResource(source_vector.start());
+            new NativesExternalStringResource(
+                Isolate::Current()->bootstrapper(), source_vector.start());
         *current++ = reinterpret_cast<Object*>(resource);
         break;
       }

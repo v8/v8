@@ -42,77 +42,26 @@
 namespace v8 {
 namespace internal {
 
-// A SourceCodeCache uses a FixedArray to store pairs of
-// (AsciiString*, JSFunction*), mapping names of native code files
-// (runtime.js, etc.) to precompiled functions. Instead of mapping
-// names to functions it might make sense to let the JS2C tool
-// generate an index for each native JS file.
-class SourceCodeCache BASE_EMBEDDED {
- public:
-  explicit SourceCodeCache(Script::Type type): type_(type), cache_(NULL) { }
 
-  void Initialize(bool create_heap_objects) {
-    cache_ = create_heap_objects ? HEAP->empty_fixed_array() : NULL;
-  }
-
-  void Iterate(ObjectVisitor* v) {
-    v->VisitPointer(BitCast<Object**, FixedArray**>(&cache_));
-  }
-
-
-  bool Lookup(Vector<const char> name, Handle<SharedFunctionInfo>* handle) {
-    for (int i = 0; i < cache_->length(); i+=2) {
-      SeqAsciiString* str = SeqAsciiString::cast(cache_->get(i));
-      if (str->IsEqualTo(name)) {
-        *handle = Handle<SharedFunctionInfo>(
-            SharedFunctionInfo::cast(cache_->get(i + 1)));
-        return true;
-      }
-    }
-    return false;
-  }
-
-
-  void Add(Vector<const char> name, Handle<SharedFunctionInfo> shared) {
-    HandleScope scope;
-    int length = cache_->length();
-    Handle<FixedArray> new_array =
-        Factory::NewFixedArray(length + 2, TENURED);
-    cache_->CopyTo(0, *new_array, 0, cache_->length());
-    cache_ = *new_array;
-    Handle<String> str = Factory::NewStringFromAscii(name, TENURED);
-    cache_->set(length, *str);
-    cache_->set(length + 1, *shared);
-    Script::cast(shared->script())->set_type(Smi::FromInt(type_));
-  }
-
- private:
-  Script::Type type_;
-  FixedArray* cache_;
-  DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
-};
-
-static SourceCodeCache extensions_cache(Script::TYPE_EXTENSION);
-// This is for delete, not delete[].
-static List<char*>* delete_these_non_arrays_on_tear_down = NULL;
-// This is for delete[]
-static List<char*>* delete_these_arrays_on_tear_down = NULL;
-
-
-NativesExternalStringResource::NativesExternalStringResource(const char* source)
+NativesExternalStringResource::NativesExternalStringResource(
+    Bootstrapper* bootstrapper,
+    const char* source)
     : data_(source), length_(StrLength(source)) {
-  if (delete_these_non_arrays_on_tear_down == NULL) {
-    delete_these_non_arrays_on_tear_down = new List<char*>(2);
+  if (bootstrapper->delete_these_non_arrays_on_tear_down_ == NULL) {
+    bootstrapper->delete_these_non_arrays_on_tear_down_ = new List<char*>(2);
   }
   // The resources are small objects and we only make a fixed number of
   // them, but let's clean them up on exit for neatness.
-  delete_these_non_arrays_on_tear_down->
+  bootstrapper->delete_these_non_arrays_on_tear_down_->
       Add(reinterpret_cast<char*>(this));
 }
 
 
 Bootstrapper::Bootstrapper()
-    : nesting_(0) {
+    : nesting_(0),
+      extensions_cache_(Script::TYPE_EXTENSION),
+      delete_these_non_arrays_on_tear_down_(NULL),
+      delete_these_arrays_on_tear_down_(NULL) {
 }
 
 
@@ -122,7 +71,7 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
     if (!Snapshot::IsEnabled() || FLAG_new_snapshot) {
       // We can use external strings for the natives.
       NativesExternalStringResource* resource =
-          new NativesExternalStringResource(
+          new NativesExternalStringResource(this,
               Natives::GetScriptSource(index).start());
       Handle<String> source_code =
           Factory::NewExternalStringFromAscii(resource);
@@ -140,46 +89,46 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
 
 
 void Bootstrapper::Initialize(bool create_heap_objects) {
-  extensions_cache.Initialize(create_heap_objects);
+  extensions_cache_.Initialize(create_heap_objects);
 }
 
 
 char* Bootstrapper::AllocateAutoDeletedArray(int bytes) {
   char* memory = new char[bytes];
   if (memory != NULL) {
-    if (delete_these_arrays_on_tear_down == NULL) {
-      delete_these_arrays_on_tear_down = new List<char*>(2);
+    if (delete_these_arrays_on_tear_down_ == NULL) {
+      delete_these_arrays_on_tear_down_ = new List<char*>(2);
     }
-    delete_these_arrays_on_tear_down->Add(memory);
+    delete_these_arrays_on_tear_down_->Add(memory);
   }
   return memory;
 }
 
 
 void Bootstrapper::TearDown() {
-  if (delete_these_non_arrays_on_tear_down != NULL) {
-    int len = delete_these_non_arrays_on_tear_down->length();
+  if (delete_these_non_arrays_on_tear_down_ != NULL) {
+    int len = delete_these_non_arrays_on_tear_down_->length();
     ASSERT(len < 20);  // Don't use this mechanism for unbounded allocations.
     for (int i = 0; i < len; i++) {
-      delete delete_these_non_arrays_on_tear_down->at(i);
-      delete_these_non_arrays_on_tear_down->at(i) = NULL;
+      delete delete_these_non_arrays_on_tear_down_->at(i);
+      delete_these_non_arrays_on_tear_down_->at(i) = NULL;
     }
-    delete delete_these_non_arrays_on_tear_down;
-    delete_these_non_arrays_on_tear_down = NULL;
+    delete delete_these_non_arrays_on_tear_down_;
+    delete_these_non_arrays_on_tear_down_ = NULL;
   }
 
-  if (delete_these_arrays_on_tear_down != NULL) {
-    int len = delete_these_arrays_on_tear_down->length();
+  if (delete_these_arrays_on_tear_down_ != NULL) {
+    int len = delete_these_arrays_on_tear_down_->length();
     ASSERT(len < 1000);  // Don't use this mechanism for unbounded allocations.
     for (int i = 0; i < len; i++) {
-      delete[] delete_these_arrays_on_tear_down->at(i);
-      delete_these_arrays_on_tear_down->at(i) = NULL;
+      delete[] delete_these_arrays_on_tear_down_->at(i);
+      delete_these_arrays_on_tear_down_->at(i) = NULL;
     }
-    delete delete_these_arrays_on_tear_down;
-    delete_these_arrays_on_tear_down = NULL;
+    delete delete_these_arrays_on_tear_down_;
+    delete_these_arrays_on_tear_down_ = NULL;
   }
 
-  extensions_cache.Initialize(false);  // Yes, symmetrical
+  extensions_cache_.Initialize(false);  // Yes, symmetrical
 }
 
 
@@ -281,7 +230,7 @@ class Genesis BASE_EMBEDDED {
 
 
 void Bootstrapper::Iterate(ObjectVisitor* v) {
-  extensions_cache.Iterate(v);
+  extensions_cache_.Iterate(v);
   v->Synchronize("Extensions");
 }
 
@@ -942,7 +891,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
 bool Genesis::CompileBuiltin(int index) {
   Vector<const char> name = Natives::GetScriptName(index);
-  Handle<String> source_code = Bootstrapper::NativesSourceLookup(index);
+  Handle<String> source_code =
+      Isolate::Current()->bootstrapper()->NativesSourceLookup(index);
   return CompileNative(name, source_code);
 }
 
@@ -1540,7 +1490,8 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
   Handle<String> source_code = Factory::NewStringFromAscii(source);
   bool result = CompileScriptCached(CStrVector(extension->name()),
                                     source_code,
-                                    &extensions_cache,
+                                    Isolate::Current()->bootstrapper()->
+                                        extensions_cache(),
                                     extension,
                                     Handle<Context>(
                                         Isolate::Current()->context()),

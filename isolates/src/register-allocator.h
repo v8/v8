@@ -69,12 +69,13 @@ class Result BASE_EMBEDDED {
 
   // Construct a Result whose value is a compile-time constant.
   explicit Result(Handle<Object> value) {
+    ZoneObjectList* constant_list = Isolate::Current()->result_constant_list();
     TypeInfo info = TypeInfo::TypeFromValue(value);
     value_ = TypeField::encode(CONSTANT)
         | TypeInfoField::encode(info.ToInt())
         | IsUntaggedInt32Field::encode(false)
-        | DataField::encode(ConstantList()->length());
-    ConstantList()->Add(value);
+        | DataField::encode(constant_list->length());
+    constant_list->Add(value);
   }
 
   // The copy constructor and assignment operators could each create a new
@@ -84,18 +85,6 @@ class Result BASE_EMBEDDED {
   inline Result& operator=(const Result& other);
 
   inline ~Result();
-
-  // Static indirection table for handles to constants.  If a Result
-  // represents a constant, the data contains an index into this table
-  // of handles to the actual constants.
-  typedef ZoneList<Handle<Object> > ZoneObjectList;
-
-  static ZoneObjectList* ConstantList();
-
-  // Clear the constants indirection table.
-  static void ClearConstantList() {
-    ConstantList()->Clear();
-  }
 
   inline void Unuse();
 
@@ -137,7 +126,8 @@ class Result BASE_EMBEDDED {
 
   Handle<Object> handle() const {
     ASSERT(type() == CONSTANT);
-    return ConstantList()->at(DataField::decode(value_));
+    return Isolate::Current()->result_constant_list()->
+        at(DataField::decode(value_));
   }
 
   // Move this result to an arbitrary register.  The register is not

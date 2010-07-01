@@ -157,23 +157,24 @@ class Comment BASE_EMBEDDED {
 // of active code generators.
 class CodeGeneratorScope BASE_EMBEDDED {
  public:
-  explicit CodeGeneratorScope(CodeGenerator* cgen) {
-    previous_ = top_;
-    top_ = cgen;
+  explicit CodeGeneratorScope(Isolate* isolate, CodeGenerator* cgen)
+      : isolate_(isolate) {
+    previous_ = isolate->current_code_generator();
+    isolate->set_current_code_generator(cgen);
   }
 
   ~CodeGeneratorScope() {
-    top_ = previous_;
+    isolate_->set_current_code_generator(previous_);
   }
 
-  static CodeGenerator* Current() {
-    ASSERT(top_ != NULL);
-    return top_;
+  static CodeGenerator* Current(Isolate* isolate) {
+    ASSERT(isolate->current_code_generator() != NULL);
+    return isolate->current_code_generator();
   }
 
  private:
-  static CodeGenerator* top_;
   CodeGenerator* previous_;
+  Isolate* isolate_;
 };
 
 

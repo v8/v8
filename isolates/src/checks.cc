@@ -31,6 +31,7 @@
 
 #include "platform.h"
 
+// TODO(isolates): is it necessary to lift this?
 static int fatal_error_handler_nesting_depth = 0;
 
 // Contains protection against recursive calls (faults while handling faults).

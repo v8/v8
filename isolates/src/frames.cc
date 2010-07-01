@@ -771,11 +771,8 @@ int NumRegs(RegList reglist) {
 }
 
 
-int JSCallerSavedCode(int n) {
-  static int reg_code[kNumJSCallerSaved];
-  static bool initialized = false;
-  if (!initialized) {
-    initialized = true;
+struct JSCallerSavedCodeData {
+  JSCallerSavedCodeData() {
     int i = 0;
     for (int r = 0; r < kNumRegs; r++)
       if ((kJSCallerSaved & (1 << r)) != 0)
@@ -783,8 +780,16 @@ int JSCallerSavedCode(int n) {
 
     ASSERT(i == kNumJSCallerSaved);
   }
+  int reg_code[kNumJSCallerSaved];
+};
+
+
+static const JSCallerSavedCodeData kCallerSavedCodeData;
+
+
+int JSCallerSavedCode(int n) {
   ASSERT(0 <= n && n < kNumJSCallerSaved);
-  return reg_code[n];
+  return kCallerSavedCodeData.reg_code[n];
 }
 
 

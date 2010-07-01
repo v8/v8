@@ -135,10 +135,6 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // after the call is the same as the frame before the call.
   void Call();
 
-  static void set_compiling_deferred_code(bool flag) {
-    compiling_deferred_code_ = flag;
-  }
-
  protected:
   // Directionality flag set at initialization time.
   Directionality direction_;
@@ -164,8 +160,6 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   void DoBind();
 
  private:
-  static bool compiling_deferred_code_;
-
   // Add a virtual frame reaching this labeled block via a forward jump,
   // and a corresponding merge code label.
   void AddReachingFrame(VirtualFrame* frame);

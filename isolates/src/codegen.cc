@@ -62,9 +62,6 @@ Comment::~Comment() {
 #undef __
 
 
-CodeGenerator* CodeGeneratorScope::top_ = NULL;
-
-
 void CodeGenerator::ProcessDeferred() {
   while (!deferred_.is_empty()) {
     DeferredCode* code = deferred_.RemoveLast();
@@ -213,7 +210,7 @@ Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
   CodeGenerator cgen(&masm);
-  CodeGeneratorScope scope(&cgen);
+  CodeGeneratorScope scope(Isolate::Current(), &cgen);
   cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Isolate::Current()->has_pending_exception());
@@ -228,12 +225,15 @@ Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+
+static Vector<const char> kRegexp = CStrVector("regexp");
+
+
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   ASSERT(type != NULL);
   if (!LOGGER->is_logging() && !CpuProfiler::is_profiling()) return false;
   Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
   if (FLAG_log_regexp) {
-    static Vector<const char> kRegexp = CStrVector("regexp");
     if (name->IsEqualTo(kRegexp))
       return true;
   }

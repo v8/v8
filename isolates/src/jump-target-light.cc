@@ -35,14 +35,14 @@ namespace internal {
 
 
 DeferredCode::DeferredCode()
-    : masm_(CodeGeneratorScope::Current()->masm()),
+    : masm_(CodeGeneratorScope::Current(Isolate::Current())->masm()),
       statement_position_(masm_->current_statement_position()),
       position_(masm_->current_position()),
-      frame_state_(*CodeGeneratorScope::Current()->frame()) {
+      frame_state_(*CodeGeneratorScope::Current(Isolate::Current())->frame()) {
   ASSERT(statement_position_ != RelocInfo::kNoPosition);
   ASSERT(position_ != RelocInfo::kNoPosition);
 
-  CodeGeneratorScope::Current()->AddDeferred(this);
+  CodeGeneratorScope::Current(Isolate::Current())->AddDeferred(this);
 
 #ifdef DEBUG
   comment_ = "";

@@ -107,7 +107,7 @@ VirtualFrame::RegisterAllocationScope::~RegisterAllocationScope() {
 
 
 CodeGenerator* VirtualFrame::cgen() const {
-  return CodeGeneratorScope::Current();
+  return CodeGeneratorScope::Current(Isolate::Current());
 }
 
 

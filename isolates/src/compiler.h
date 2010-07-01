@@ -287,8 +287,9 @@ class CompilationZoneScope : public ZoneScope {
   explicit CompilationZoneScope(ZoneScopeMode mode) : ZoneScope(mode) { }
   virtual ~CompilationZoneScope() {
     if (ShouldDeleteOnExit()) {
-      FrameElement::ClearConstantList();
-      Result::ClearConstantList();
+      Isolate* isolate = Isolate::Current();
+      isolate->frame_element_constant_list()->Clear();
+      isolate->result_constant_list()->Clear();
     }
   }
 };

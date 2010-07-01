@@ -454,7 +454,7 @@ Handle<Code> FastCodeGenerator::MakeCode(CompilationInfo* info) {
   // Generate the full code for the function in bailout mode, using the same
   // macro assembler.
   CodeGenerator cgen(&masm);
-  CodeGeneratorScope scope(&cgen);
+  CodeGeneratorScope scope(Isolate::Current(), &cgen);
   info->set_mode(CompilationInfo::SECONDARY);
   cgen.Generate(info);
   if (cgen.HasStackOverflow()) {

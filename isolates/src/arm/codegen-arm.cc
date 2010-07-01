@@ -7954,7 +7954,7 @@ static void MultiplyByKnownInt2(
 const char* GenericBinaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int len = 100;
-  name_ = Bootstrapper::AllocateAutoDeletedArray(len);
+  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(len);
   if (name_ == NULL) return "OOM";
   const char* op_name = Token::Name(op_);
   const char* overwrite_name;
@@ -9571,7 +9571,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 const char* CompareStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
-  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  name_ = Isolate::Current()->bootstrapper()->
+      AllocateAutoDeletedArray(kMaxNameLength);
   if (name_ == NULL) return "OOM";
 
   const char* cc_name;

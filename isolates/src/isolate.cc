@@ -253,8 +253,9 @@ Isolate::Isolate()
       context_switcher_(NULL),
       thread_manager_(NULL),
       ast_sentinels_(NULL),
-      inline_runtime_functions_table_(NULL),
-      string_tracker_(NULL) {
+      string_tracker_(NULL),
+      frame_element_constant_list_(0),
+      result_constant_list_(0) {
   memset(isolate_addresses_, 0,
       sizeof(isolate_addresses_[0]) * (k_isolate_address_count + 1));
 
@@ -340,6 +341,7 @@ Isolate::~Isolate() {
 
   delete ast_sentinels_;
   ast_sentinels_ = NULL;
+
   delete descriptor_lookup_cache_;
   descriptor_lookup_cache_ = NULL;
   delete context_slot_cache_;

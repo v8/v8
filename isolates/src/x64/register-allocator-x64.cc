@@ -42,9 +42,11 @@ namespace internal {
 void Result::ToRegister() {
   ASSERT(is_valid());
   if (is_constant()) {
-    Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate();
+    CodeGenerator* code_generator =
+        CodeGeneratorScope::Current(Isolate::Current());
+    Result fresh = code_generator->allocator()->Allocate();
     ASSERT(fresh.is_valid());
-    CodeGeneratorScope::Current()->masm()->Move(fresh.reg(), handle());
+    code_generator->masm()->Move(fresh.reg(), handle());
     // This result becomes a copy of the fresh one.
     fresh.set_type_info(type_info());
     *this = fresh;
@@ -55,21 +57,23 @@ void Result::ToRegister() {
 
 void Result::ToRegister(Register target) {
   ASSERT(is_valid());
+  CodeGenerator* code_generator =
+      CodeGeneratorScope::Current(Isolate::Current());
   if (!is_register() || !reg().is(target)) {
-    Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate(target);
+    Result fresh = code_generator->allocator()->Allocate(target);
     ASSERT(fresh.is_valid());
     if (is_register()) {
-      CodeGeneratorScope::Current()->masm()->movq(fresh.reg(), reg());
+      code_generator->masm()->movq(fresh.reg(), reg());
     } else {
       ASSERT(is_constant());
-      CodeGeneratorScope::Current()->masm()->Move(fresh.reg(), handle());
+      code_generator->masm()->Move(fresh.reg(), handle());
     }
     fresh.set_type_info(type_info());
     *this = fresh;
   } else if (is_register() && reg().is(target)) {
-    ASSERT(CodeGeneratorScope::Current()->has_valid_frame());
-    CodeGeneratorScope::Current()->frame()->Spill(target);
-    ASSERT(CodeGeneratorScope::Current()->allocator()->count(target) == 1);
+    ASSERT(code_generator->has_valid_frame());
+    code_generator->frame()->Spill(target);
+    ASSERT(code_generator->allocator()->count(target) == 1);
   }
   ASSERT(is_register());
   ASSERT(reg().is(target));

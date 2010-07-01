@@ -370,7 +370,7 @@ TEST(PartialSerialization) {
   // Make sure all builtin scripts are cached.
   { HandleScope scope;
     for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-      Bootstrapper::NativesSourceLookup(i);
+      Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
     }
   }
   HEAP->CollectAllGarbage(true);
@@ -488,7 +488,7 @@ TEST(ContextSerialization) {
   // Make sure all builtin scripts are cached.
   { HandleScope scope;
     for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-      Bootstrapper::NativesSourceLookup(i);
+      Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
     }
   }
   // If we don't do this then we end up with a stray root pointing at the

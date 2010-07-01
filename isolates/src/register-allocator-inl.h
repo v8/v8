@@ -63,14 +63,14 @@ Result& Result::operator=(const Result& other) {
 
 Result::~Result() {
   if (is_register()) {
-    CodeGeneratorScope::Current()->allocator()->Unuse(reg());
+    CodeGeneratorScope::Current(Isolate::Current())->allocator()->Unuse(reg());
   }
 }
 
 
 void Result::Unuse() {
   if (is_register()) {
-    CodeGeneratorScope::Current()->allocator()->Unuse(reg());
+    CodeGeneratorScope::Current(Isolate::Current())->allocator()->Unuse(reg());
   }
   invalidate();
 }
@@ -79,7 +79,7 @@ void Result::Unuse() {
 void Result::CopyTo(Result* destination) const {
   destination->value_ = value_;
   if (is_register()) {
-    CodeGeneratorScope::Current()->allocator()->Use(reg());
+    CodeGeneratorScope::Current(Isolate::Current())->allocator()->Use(reg());
   }
 }
 

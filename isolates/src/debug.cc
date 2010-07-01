@@ -735,7 +735,8 @@ bool Debug::CompileDebuggerScript(int index) {
   }
 
   // Find source and name for the requested script.
-  Handle<String> source_code = Bootstrapper::NativesSourceLookup(index);
+  Handle<String> source_code =
+      Isolate::Current()->bootstrapper()->NativesSourceLookup(index);
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> script_name = Factory::NewStringFromAscii(name);
 

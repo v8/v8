@@ -50,6 +50,7 @@ namespace internal {
 
 class AstSentinels;
 class Bootstrapper;
+class CodeGenerator;
 class CompilationCache;
 class ContextSlotCache;
 class ContextSwitcher;
@@ -83,6 +84,16 @@ class Debug;
 class Debugger;
 class DebuggerAgent;
 #endif
+
+
+// Static indirection table for handles to constants.  If a frame
+// element represents a constant, the data contains an index into
+// this table of handles to the actual constants.
+// Static indirection table for handles to constants.  If a Result
+// represents a constant, the data contains an index into this table
+// of handles to the actual constants.
+typedef ZoneList<Handle<Object> > ZoneObjectList;
+
 
 #define RETURN_IF_SCHEDULED_EXCEPTION()              \
   if (Isolate::Current()->has_scheduled_exception()) \
@@ -258,6 +269,8 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   V(Relocatable*, relocatable_top, NULL)                                       \
   /* State for CodeEntry in profile-generator. */                              \
   V(unsigned, code_entry_next_call_uid, NULL)                                  \
+  V(CodeGenerator*, current_code_generator, NULL)                              \
+  V(bool, jump_target_compiling_deferred_code, false)                          \
   V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \
   V(Object*, string_stream_current_security_token, NULL)                       \
   /* TODO(isolates): Release this on destruction? */                           \
@@ -655,6 +668,14 @@ class Isolate {
     return &interp_canonicalize_mapping_;
   }
 
+  ZoneObjectList* frame_element_constant_list() {
+    return &frame_element_constant_list_;
+  }
+
+  ZoneObjectList* result_constant_list() {
+    return &result_constant_list_;
+  }
+
   void* PreallocatedStorageNew(size_t size);
   void PreallocatedStorageDelete(void* p);
   void PreallocatedStorageInit(size_t size);
@@ -780,6 +801,9 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
+  ZoneObjectList frame_element_constant_list_;
+  ZoneObjectList result_constant_list_;
+
 
 #ifdef DEBUG
   // A static array of histogram info for each type.
@@ -953,6 +977,9 @@ inline void Context::mark_out_of_memory() {
 
 } }  // namespace v8::internal
 
+// TODO(isolates): Get rid of these -inl.h includes and place them only where
+//                 they're needed.
 #include "allocation-inl.h"
+#include "zone-inl.h"
 
 #endif  // V8_ISOLATE_H_

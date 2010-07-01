@@ -184,7 +184,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   ASSERT_EQ(0, loop_nesting_);
   loop_nesting_ = info->loop_nesting();
 
-  JumpTarget::set_compiling_deferred_code(false);
+  Isolate::Current()->set_jump_target_compiling_deferred_code(false);
 
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
@@ -387,9 +387,9 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   // Process any deferred code using the register allocator.
   if (!HasStackOverflow()) {
     HistogramTimerScope deferred_timer(COUNTERS->deferred_code_generation());
-    JumpTarget::set_compiling_deferred_code(true);
+    Isolate::Current()->set_jump_target_compiling_deferred_code(true);
     ProcessDeferred();
-    JumpTarget::set_compiling_deferred_code(false);
+    Isolate::Current()->set_jump_target_compiling_deferred_code(false);
   }
 
   // There is no need to delete the register allocator, it is a
@@ -1020,7 +1020,8 @@ class FloatingPointHelper : public AllStatic {
 const char* GenericBinaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
-  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  name_ = Isolate::Current()->bootstrapper()->
+      AllocateAutoDeletedArray(kMaxNameLength);
   if (name_ == NULL) return "OOM";
   const char* op_name = Token::Name(op_);
   const char* overwrite_name;
@@ -12540,7 +12541,8 @@ int CompareStub::MinorKey() {
 const char* CompareStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
-  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  name_ = Isolate::Current()->bootstrapper()->
+      AllocateAutoDeletedArray(kMaxNameLength);
   if (name_ == NULL) return "OOM";
 
   const char* cc_name;
