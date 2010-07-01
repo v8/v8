@@ -1600,10 +1600,129 @@ void CodeGenerator::SetTypeForStackSlot(Slot* slot, TypeInfo info) {
 }
 
 
+void CodeGenerator::GenerateFastSmiLoop(ForStatement* node) {
+  // A fast smi loop is a for loop with an initializer
+  // that is a simple assignment of a smi to a stack variable,
+  // a test that is a simple test of that variable against a smi constant,
+  // and a step that is a increment/decrement of the variable, and
+  // where the variable isn't modified in the loop body.
+  // This guarantees that the variable is always a smi.
+
+  Variable* loop_var = node->loop_variable();
+  Smi* initial_value = *Handle<Smi>::cast(node->init()
+      ->StatementAsSimpleAssignment()->value()->AsLiteral()->handle());
+  Smi* limit_value = *Handle<Smi>::cast(
+      node->cond()->AsCompareOperation()->right()->AsLiteral()->handle());
+  Token::Value compare_op =
+      node->cond()->AsCompareOperation()->op();
+  bool increments =
+      node->next()->StatementAsCountOperation()->op() == Token::INC;
+
+  // Check that the condition isn't initially false.
+  bool initially_false = false;
+  int initial_int_value = initial_value->value();
+  int limit_int_value = limit_value->value();
+  switch (compare_op) {
+    case Token::LT:
+      initially_false = initial_int_value >= limit_int_value;
+      break;
+    case Token::LTE:
+      initially_false = initial_int_value > limit_int_value;
+      break;
+    case Token::GT:
+      initially_false = initial_int_value <= limit_int_value;
+      break;
+    case Token::GTE:
+      initially_false = initial_int_value < limit_int_value;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  if (initially_false) return;
+
+  // Only check loop condition at the end.
+
+  Visit(node->init());
+
+  JumpTarget loop(JumpTarget::BIDIRECTIONAL);
+
+  IncrementLoopNesting();
+  loop.Bind();
+
+  // Set number type of the loop variable to smi.
+  CheckStack();  // TODO(1222600): ignore if body contains calls.
+
+  SetTypeForStackSlot(loop_var->slot(), TypeInfo::Smi());
+  Visit(node->body());
+
+  if (node->continue_target()->is_linked()) {
+    node->continue_target()->Bind();
+  }
+
+  if (has_valid_frame()) {
+    CodeForStatementPosition(node);
+    Slot* loop_var_slot = loop_var->slot();
+    if (loop_var_slot->type() == Slot::LOCAL) {
+      frame_->PushLocalAt(loop_var_slot->index());
+    } else {
+      ASSERT(loop_var_slot->type() == Slot::PARAMETER);
+      frame_->PushParameterAt(loop_var_slot->index());
+    }
+    Result loop_var_result = frame_->Pop();
+    if (!loop_var_result.is_register()) {
+      loop_var_result.ToRegister();
+    }
+
+    if (increments) {
+      __ SmiAddConstant(loop_var_result.reg(),
+                        loop_var_result.reg(),
+                        Smi::FromInt(1));
+    } else {
+      __ SmiSubConstant(loop_var_result.reg(),
+                        loop_var_result.reg(),
+                        Smi::FromInt(1));
+    }
+
+    {
+      __ SmiCompare(loop_var_result.reg(), limit_value);
+      Condition condition;
+      switch (compare_op) {
+        case Token::LT:
+          condition = less;
+          break;
+        case Token::LTE:
+          condition = less_equal;
+          break;
+        case Token::GT:
+          condition = greater;
+          break;
+        case Token::GTE:
+          condition = greater_equal;
+          break;
+        default:
+          condition = never;
+          UNREACHABLE();
+      }
+      loop.Branch(condition);
+    }
+    loop_var_result.Unuse();
+  }
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
+  DecrementLoopNesting();
+}
+
+
 void CodeGenerator::VisitForStatement(ForStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ ForStatement");
   CodeForStatementPosition(node);
+
+  if (node->is_fast_smi_loop()) {
+    GenerateFastSmiLoop(node);
+    return;
+  }
 
   // Compile the init expression if present.
   if (node->init() != NULL) {
@@ -1694,16 +1813,6 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
 
   CheckStack();  // TODO(1222600): ignore if body contains calls.
 
-  // We know that the loop index is a smi if it is not modified in the
-  // loop body and it is checked against a constant limit in the loop
-  // condition.  In this case, we reset the static type information of the
-  // loop index to smi before compiling the body, the update expression, and
-  // the bottom check of the loop condition.
-  if (node->is_fast_smi_loop()) {
-    // Set number type of the loop variable to smi.
-    SetTypeForStackSlot(node->loop_variable()->slot(), TypeInfo::Smi());
-  }
-
   Visit(node->body());
 
   // If there is an update expression, compile it if necessary.
@@ -1721,13 +1830,6 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
       CodeForStatementPosition(node);
       Visit(node->next());
     }
-  }
-
-  // Set the type of the loop variable to smi before compiling the test
-  // expression if we are in a fast smi loop condition.
-  if (node->is_fast_smi_loop() && has_valid_frame()) {
-    // Set number type of the loop variable to smi.
-    SetTypeForStackSlot(node->loop_variable()->slot(), TypeInfo::Smi());
   }
 
   // Based on the condition analysis, compile the backward jump as
