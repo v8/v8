@@ -67,9 +67,14 @@ static int* GetInternalPointer(StatsCounter* counter) {
 // hashmaps in ExternalReferenceEncoder and ExternalReferenceDecoder.
 class ExternalReferenceTable {
  public:
-  static ExternalReferenceTable* instance() {
-    if (!instance_) instance_ = new ExternalReferenceTable();
-    return instance_;
+  static ExternalReferenceTable* instance(Isolate* isolate) {
+    ExternalReferenceTable* external_reference_table =
+        isolate->external_reference_table();
+    if (external_reference_table == NULL) {
+      external_reference_table = new ExternalReferenceTable(isolate);
+      isolate->set_external_reference_table(external_reference_table);
+    }
+    return external_reference_table;
   }
 
   int size() const { return refs_.length(); }
@@ -83,9 +88,9 @@ class ExternalReferenceTable {
   int max_id(int code) { return max_id_[code]; }
 
  private:
-  static ExternalReferenceTable* instance_;
-
-  ExternalReferenceTable() : refs_(64) { PopulateTable(); }
+  explicit ExternalReferenceTable(Isolate* isolate) : refs_(64) {
+      PopulateTable(isolate);
+  }
   ~ExternalReferenceTable() { }
 
   struct ExternalReferenceEntry {
@@ -94,7 +99,7 @@ class ExternalReferenceTable {
     const char* name;
   };
 
-  void PopulateTable();
+  void PopulateTable(Isolate* isolate);
 
   // For a few types of references, we can get their address from their id.
   void AddFromId(TypeCode type, uint16_t id, const char* name);
@@ -105,9 +110,6 @@ class ExternalReferenceTable {
   List<ExternalReferenceEntry> refs_;
   int max_id_[kTypeCodeCount];
 };
-
-
-ExternalReferenceTable* ExternalReferenceTable::instance_ = NULL;
 
 
 void ExternalReferenceTable::AddFromId(TypeCode type,
@@ -158,9 +160,7 @@ void ExternalReferenceTable::Add(Address address,
 }
 
 
-void ExternalReferenceTable::PopulateTable() {
-  Isolate* isolate = Isolate::Current();
-
+void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   for (int type_code = 0; type_code < kTypeCodeCount; type_code++) {
     max_id_[type_code] = 0;
   }
@@ -469,9 +469,10 @@ void ExternalReferenceTable::PopulateTable() {
 
 
 ExternalReferenceEncoder::ExternalReferenceEncoder()
-    : encodings_(Match) {
+    : encodings_(Match),
+      isolate_(Isolate::Current()) {
   ExternalReferenceTable* external_references =
-      ExternalReferenceTable::instance();
+      ExternalReferenceTable::instance(isolate_);
   for (int i = 0; i < external_references->size(); ++i) {
     Put(external_references->address(i), i);
   }
@@ -480,20 +481,22 @@ ExternalReferenceEncoder::ExternalReferenceEncoder()
 
 uint32_t ExternalReferenceEncoder::Encode(Address key) const {
   int index = IndexOf(key);
-  return index >=0 ? ExternalReferenceTable::instance()->code(index) : 0;
+  return index >= 0 ?
+      ExternalReferenceTable::instance(isolate_)->code(index) : 0;
 }
 
 
 const char* ExternalReferenceEncoder::NameOfAddress(Address key) const {
   int index = IndexOf(key);
-  return index >=0 ? ExternalReferenceTable::instance()->name(index) : NULL;
+  return index >= 0 ?
+      ExternalReferenceTable::instance(isolate_)->name(index) : NULL;
 }
 
 
 int ExternalReferenceEncoder::IndexOf(Address key) const {
   if (key == NULL) return -1;
   HashMap::Entry* entry =
-      const_cast<HashMap &>(encodings_).Lookup(key, Hash(key), false);
+      const_cast<HashMap&>(encodings_).Lookup(key, Hash(key), false);
   return entry == NULL
       ? -1
       : static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
@@ -507,9 +510,10 @@ void ExternalReferenceEncoder::Put(Address key, int index) {
 
 
 ExternalReferenceDecoder::ExternalReferenceDecoder()
-  : encodings_(NewArray<Address*>(kTypeCodeCount)) {
+  : encodings_(NewArray<Address*>(kTypeCodeCount)),
+    isolate_(Isolate::Current()) {
   ExternalReferenceTable* external_references =
-      ExternalReferenceTable::instance();
+      ExternalReferenceTable::instance(isolate_);
   for (int type = kFirstTypeCode; type < kTypeCodeCount; ++type) {
     int max = external_references->max_id(type) + 1;
     encodings_[type] = NewArray<Address>(max + 1);

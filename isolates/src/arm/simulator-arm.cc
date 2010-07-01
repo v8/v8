@@ -47,6 +47,7 @@ using ::v8::internal::PrintF;
 using ::v8::internal::OS;
 using ::v8::internal::ReadLine;
 using ::v8::internal::DeleteArray;
+using ::v8::internal::Isolate;
 
 // This macro provides a platform independent use of sscanf. The reason for
 // SScanF not being implemented in a platform independent way through
@@ -495,7 +496,9 @@ static bool AllOnOnePage(uintptr_t start, int size) {
 }
 
 
-void Simulator::FlushICache(void* start_addr, size_t size) {
+void Simulator::FlushICache(v8::internal::HashMap* i_cache,
+                            void* start_addr,
+                            size_t size) {
   intptr_t start = reinterpret_cast<intptr_t>(start_addr);
   int intra_line = (start & CachePage::kLineMask);
   start -= intra_line;
@@ -504,22 +507,22 @@ void Simulator::FlushICache(void* start_addr, size_t size) {
   int offset = (start & CachePage::kPageMask);
   while (!AllOnOnePage(start, size - 1)) {
     int bytes_to_flush = CachePage::kPageSize - offset;
-    FlushOnePage(start, bytes_to_flush);
+    FlushOnePage(i_cache, start, bytes_to_flush);
     start += bytes_to_flush;
     size -= bytes_to_flush;
     ASSERT_EQ(0, start & CachePage::kPageMask);
     offset = 0;
   }
   if (size != 0) {
-    FlushOnePage(start, size);
+    FlushOnePage(i_cache, start, size);
   }
 }
 
 
-CachePage* Simulator::GetCachePage(void* page) {
-  v8::internal::HashMap::Entry* entry = i_cache_->Lookup(page,
-                                                         ICacheHash(page),
-                                                         true);
+CachePage* Simulator::GetCachePage(v8::internal::HashMap* i_cache, void* page) {
+  v8::internal::HashMap::Entry* entry = i_cache->Lookup(page,
+                                                        ICacheHash(page),
+                                                        true);
   if (entry->value == NULL) {
     CachePage* new_page = new CachePage();
     entry->value = new_page;
@@ -529,25 +532,27 @@ CachePage* Simulator::GetCachePage(void* page) {
 
 
 // Flush from start up to and not including start + size.
-void Simulator::FlushOnePage(intptr_t start, int size) {
+void Simulator::FlushOnePage(v8::internal::HashMap* i_cache,
+                             intptr_t start,
+                             int size) {
   ASSERT(size <= CachePage::kPageSize);
   ASSERT(AllOnOnePage(start, size - 1));
   ASSERT((start & CachePage::kLineMask) == 0);
   ASSERT((size & CachePage::kLineMask) == 0);
   void* page = reinterpret_cast<void*>(start & (~CachePage::kPageMask));
   int offset = (start & CachePage::kPageMask);
-  CachePage* cache_page = GetCachePage(page);
+  CachePage* cache_page = GetCachePage(i_cache, page);
   char* valid_bytemap = cache_page->ValidityByte(offset);
   memset(valid_bytemap, CachePage::LINE_INVALID, size >> CachePage::kLineShift);
 }
 
 
-void Simulator::CheckICache(Instr* instr) {
+void Simulator::CheckICache(v8::internal::HashMap* i_cache, Instr* instr) {
   intptr_t address = reinterpret_cast<intptr_t>(instr);
   void* page = reinterpret_cast<void*>(address & (~CachePage::kPageMask));
   void* line = reinterpret_cast<void*>(address & (~CachePage::kLineMask));
   int offset = (address & CachePage::kPageMask);
-  CachePage* cache_page = GetCachePage(page);
+  CachePage* cache_page = GetCachePage(i_cache, page);
   char* cache_valid_byte = cache_page->ValidityByte(offset);
   bool cache_hit = (*cache_valid_byte == CachePage::LINE_VALID);
   char* cached_line = cache_page->CachedData(offset & ~CachePage::kLineMask);
@@ -564,27 +569,18 @@ void Simulator::CheckICache(Instr* instr) {
 }
 
 
-// Create one simulator per thread and keep it in thread local storage.
-static v8::internal::Thread::LocalStorageKey simulator_key;
-
-
-bool Simulator::initialized_ = false;
-
-
 void Simulator::Initialize() {
-  if (initialized_) return;
-  simulator_key = v8::internal::Thread::CreateThreadLocalKey();
-  initialized_ = true;
+  if (Isolate::Current()->simulator_initialized()) return;
+  Isolate::Current()->set_simulator_initialized(true);
   ::v8::internal::ExternalReference::set_redirector(&RedirectExternalReference);
 }
 
 
-v8::internal::HashMap* Simulator::i_cache_ = NULL;
-
-
-Simulator::Simulator() {
+Simulator::Simulator() : isolate_(Isolate::Current()) {
+  i_cache_ = isolate_->simulator_i_cache();
   if (i_cache_ == NULL) {
     i_cache_ = new v8::internal::HashMap(&ICacheMatch);
+    isolate_->set_simulator_i_cache(i_cache_);
   }
   Initialize();
   // Setup simulator support first. Some of this information is needed to
@@ -649,11 +645,13 @@ class Redirection {
       : external_function_(external_function),
         swi_instruction_((AL << 28) | (0xf << 24) | call_rt_redirected),
         fp_return_(fp_return),
-        next_(list_) {
-    Simulator::current()->
-        FlushICache(reinterpret_cast<void*>(&swi_instruction_),
-                      Instr::kInstrSize);
-    list_ = this;
+        next_(NULL) {
+    v8::internal::Isolate* isolate = Isolate::Current();
+    next_ = isolate->simulator_redirection();
+    Simulator::FlushICache(isolate->simulator_i_cache(),
+                           reinterpret_cast<void*>(&swi_instruction_),
+                           Instr::kInstrSize);
+    isolate->set_simulator_redirection(this);
   }
 
   void* address_of_swi_instruction() {
@@ -664,8 +662,9 @@ class Redirection {
   bool fp_return() { return fp_return_; }
 
   static Redirection* Get(void* external_function, bool fp_return) {
-    Redirection* current;
-    for (current = list_; current != NULL; current = current->next_) {
+    Isolate* isolate = Isolate::Current();
+    Redirection* current = isolate->simulator_redirection();
+    for (; current != NULL; current = current->next_) {
       if (current->external_function_ == external_function) return current;
     }
     return new Redirection(external_function, fp_return);
@@ -683,11 +682,7 @@ class Redirection {
   uint32_t swi_instruction_;
   bool fp_return_;
   Redirection* next_;
-  static Redirection* list_;
 };
-
-
-Redirection* Redirection::list_ = NULL;
 
 
 void* Simulator::RedirectExternalReference(void* external_function,
@@ -698,14 +693,16 @@ void* Simulator::RedirectExternalReference(void* external_function,
 
 
 // Get the active Simulator for the current thread.
-Simulator* Simulator::current() {
+Simulator* Simulator::current(Isolate* isolate) {
+  v8::internal::Thread::LocalStorageKey* simulator_key =
+      Isolate::Current()->simulator_key();
   Initialize();
   Simulator* sim = reinterpret_cast<Simulator*>(
-      v8::internal::Thread::GetThreadLocal(simulator_key));
+      v8::internal::Thread::GetThreadLocal(*simulator_key));
   if (sim == NULL) {
     // TODO(146): delete the simulator object when a thread goes away.
     sim = new Simulator();
-    v8::internal::Thread::SetThreadLocal(simulator_key, sim);
+    v8::internal::Thread::SetThreadLocal(*simulator_key, sim);
   }
   return sim;
 }
@@ -2568,7 +2565,7 @@ void Simulator::DecodeType6CoprocessorIns(Instr* instr) {
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instr* instr) {
   if (v8::internal::FLAG_check_icache) {
-    CheckICache(instr);
+    CheckICache(isolate_->simulator_i_cache(), instr);
   }
   pc_modified_ = false;
   if (::v8::internal::FLAG_trace_sim) {

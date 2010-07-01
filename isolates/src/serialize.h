@@ -79,6 +79,8 @@ class ExternalReferenceEncoder {
   static bool Match(void* key1, void* key2) { return key1 == key2; }
 
   void Put(Address key, int index);
+
+  Isolate* isolate_;
 };
 
 
@@ -105,6 +107,8 @@ class ExternalReferenceDecoder {
   void Put(uint32_t key, Address value) {
     *Lookup(key) = value;
   }
+
+  Isolate* isolate_;
 };
 
 

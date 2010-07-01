@@ -74,17 +74,17 @@ class SimulatorStack : public v8::internal::AllStatic {
 
 // When running with the simulator transition into simulated execution at this
 // point.
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  reinterpret_cast<Object*>( \
-      assembler::arm::Simulator::current()->Call(FUNCTION_ADDR(entry), 5, \
-                                                 p0, p1, p2, p3, p4))
+#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4)                         \
+  reinterpret_cast<Object*>(                                                   \
+      assembler::arm::Simulator::current(Isolate::Current())->                 \
+          Call(FUNCTION_ADDR(entry), 5, p0, p1, p2, p3, p4))
 
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
-  assembler::arm::Simulator::current()->Call( \
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6)          \
+  assembler::arm::Simulator::current(Isolate::Current())->Call(                \
     FUNCTION_ADDR(entry), 7, p0, p1, p2, p3, p4, p5, p6)
 
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  try_catch_address == NULL ? \
+#define TRY_CATCH_FROM_ADDRESS(try_catch_address)                              \
+  try_catch_address == NULL ?                                                  \
       NULL : *(reinterpret_cast<TryCatch**>(try_catch_address))
 
 
@@ -152,7 +152,7 @@ class Simulator {
 
   // The currently executing Simulator instance. Potentially there can be one
   // for each native thread.
-  static Simulator* current();
+  static Simulator* current(v8::internal::Isolate* isolate);
 
   // Accessors for register state. Reading the pc value adheres to the ARM
   // architecture specification and is off by a 8 from the currently executing
@@ -196,7 +196,8 @@ class Simulator {
   uintptr_t PopAddress();
 
   // ICache checking.
-  static void FlushICache(void* start, size_t size);
+  static void FlushICache(v8::internal::HashMap* i_cache, void* start,
+                          size_t size);
 
  private:
   enum special_values {
@@ -279,9 +280,10 @@ class Simulator {
   void InstructionDecode(Instr* instr);
 
   // ICache.
-  static void CheckICache(Instr* instr);
-  static void FlushOnePage(intptr_t start, int size);
-  static CachePage* GetCachePage(void* page);
+  static void CheckICache(v8::internal::HashMap* i_cache, Instr* instr);
+  static void FlushOnePage(v8::internal::HashMap* i_cache, intptr_t start,
+                           int size);
+  static CachePage* GetCachePage(v8::internal::HashMap* i_cache, void* page);
 
   // Runtime call support.
   static void* RedirectExternalReference(void* external_function,
@@ -318,14 +320,15 @@ class Simulator {
   char* stack_;
   bool pc_modified_;
   int icount_;
-  static bool initialized_;
 
   // Icache simulation
-  static v8::internal::HashMap* i_cache_;
+  v8::internal::HashMap* i_cache_;
 
   // Registered breakpoints.
   Instr* break_pc_;
   instr_t break_instr_;
+
+  v8::internal::Isolate* isolate_;
 };
 
 } }  // namespace assembler::arm
@@ -339,16 +342,19 @@ class Simulator {
 class SimulatorStack : public v8::internal::AllStatic {
  public:
   static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
-    return assembler::arm::Simulator::current()->StackLimit();
+    return assembler::arm::Simulator::current(
+        v8::internal::Isolate::Current())->StackLimit();
   }
 
   static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
-    assembler::arm::Simulator* sim = assembler::arm::Simulator::current();
+    assembler::arm::Simulator* sim =
+        assembler::arm::Simulator::current(v8::internal::Isolate::Current());
     return sim->PushAddress(try_catch_address);
   }
 
   static inline void UnregisterCTryCatch() {
-    assembler::arm::Simulator::current()->PopAddress();
+    assembler::arm::Simulator::current(v8::internal::Isolate::Current())->
+        PopAddress();
   }
 };
 

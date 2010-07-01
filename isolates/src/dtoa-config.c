@@ -85,6 +85,10 @@
 #define Long int
 #endif /* V8_TARGET_ARCH_X64 */
 
+/* Definitions for dtoa's ACQUIRE_DTOA_LOCK and FREE_DTOA_LOCK are in
+ * conversions.cc. */
+#define MULTIPLE_THREADS
+
 /* Make sure we use the David M. Gay version of strtod(). On Linux, we
  * cannot use the same name (maybe the function does not have weak
  * linkage?). */

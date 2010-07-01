@@ -45,6 +45,16 @@
 #include "zone.h"
 #include "../include/v8-debug.h"
 
+
+#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
+namespace assembler {
+namespace arm {
+class Redirection;
+}
+}
+#endif
+
+
 namespace v8 {
 namespace internal {
 
@@ -60,6 +70,7 @@ class CpuFeatures;
 class CpuProfiler;
 class Deserializer;
 class EmptyStatement;
+class ExternalReferenceTable;
 class FunctionInfoListener;
 class HandleScopeImplementer;
 class HeapProfiler;
@@ -197,6 +208,10 @@ class ThreadLocalTop BASE_EMBEDDED {
   /* VirtualFrame::SpilledScope state */                                       \
   V(bool, is_virtual_frame_in_spilled_scope, false)
 
+#if !defined(__arm__)
+class HashMap;
+#endif
+
 #else
 
 #define ISOLATE_PLATFORM_INIT_LIST(V)
@@ -276,6 +291,8 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   V(Object*, string_stream_current_security_token, NULL)                       \
   /* TODO(isolates): Release this on destruction? */                           \
   V(int*, irregexp_interpreter_backtrack_stack_cache, NULL)                    \
+  /* Serializer state. */                                                      \
+  V(ExternalReferenceTable*, external_reference_table, NULL)                   \
   ISOLATE_PLATFORM_INIT_LIST(V)                                                \
   ISOLATE_LOGGING_INIT_LIST(V)                                                 \
   ISOLATE_DEBUGGER_INIT_LIST(V)
@@ -704,6 +721,29 @@ class Isolate {
   int* code_kind_statistics() { return code_kind_statistics_; }
 #endif
 
+#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
+  v8::internal::Thread::LocalStorageKey* simulator_key() {
+    return &simulator_key_;
+  }
+
+  bool simulator_initialized() { return simulator_initialized_; }
+  void set_simulator_initialized(bool initialized) {
+    simulator_initialized_ = initialized;
+  }
+
+  HashMap* simulator_i_cache() { return simulator_i_cache_; }
+  void set_simulator_i_cache(HashMap* hash_map) {
+    simulator_i_cache_ = hash_map;
+  }
+
+  assembler::arm::Redirection* simulator_redirection() {
+    return simulator_redirection_;
+  }
+  void set_simulator_redirection(assembler::arm::Redirection* redirection) {
+    simulator_redirection_ = redirection;
+  }
+#endif
+
   bool IsDefaultIsolate() { return this == global_isolate_; }
 
   // SerializerDeserializer state.
@@ -808,6 +848,13 @@ class Isolate {
   ZoneObjectList frame_element_constant_list_;
   ZoneObjectList result_constant_list_;
 
+#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
+  // Create one simulator per thread and keep it in thread local storage.
+  v8::internal::Thread::LocalStorageKey simulator_key_;
+  bool simulator_initialized_;
+  HashMap* simulator_i_cache_;
+  assembler::arm::Redirection* simulator_redirection_;
+#endif
 
 #ifdef DEBUG
   // A static array of histogram info for each type.

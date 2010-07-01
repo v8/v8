@@ -266,6 +266,13 @@ Isolate::Isolate()
   zone_.isolate_ = this;
   stack_guard_.isolate_ = this;
 
+#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
+  simulator_initialized_ = false;
+  simulator_i_cache_ = NULL;
+  simulator_key_ = Thread::CreateThreadLocalKey();
+  simulator_redirection_ = NULL;
+#endif
+
 #ifdef DEBUG
   // heap_histograms_ initializes itself.
   memset(&js_spill_information_, 0, sizeof(js_spill_information_));
@@ -397,6 +404,10 @@ Isolate::~Isolate() {
   debugger_ = NULL;
   delete debug_;
   debug_ = NULL;
+#endif
+
+#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
+  Thread::DeleteThreadLocalKey(simulator_key_);
 #endif
 
   if (state_ == INITIALIZED) --number_of_isolates_;
