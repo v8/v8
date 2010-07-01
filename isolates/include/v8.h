@@ -2417,6 +2417,89 @@ class V8EXPORT HeapStatistics {
 
 
 /**
+ * Isolate represents an isolated instance of the V8 engine.  V8
+ * isolates have completely separate states.  Objects from one isolate
+ * must not be used in other isolates.  When V8 is initialized a
+ * default isolate is implicitly created and entered.  The embedder
+ * can create additional isolates and use them in parallel in multiple
+ * threads.  An isolate can be entered by at most one thread at any
+ * given time.  The Locker/Unlocker API can be used to synchronize.
+ */
+class V8EXPORT Isolate {
+ public:
+  /**
+   * Stack-allocated class which sets the isolate for all operations
+   * executed within a local scope.
+   */
+  class V8EXPORT Scope {
+   public:
+    explicit Scope(Isolate* isolate) : isolate_(isolate) {
+      isolate->Enter();
+    }
+
+    ~Scope() { isolate_->Exit(); }
+
+   private:
+    Isolate* const isolate_;
+
+    Scope(const Scope&);
+    Scope& operator=(const Scope&);
+  };
+
+  /**
+   * Creates a new isolate.  Does not change the currently entered
+   * isolate.
+   *
+   * When an isolate is no longer used its resources should be freed
+   * by calling Dispose().  Using the delete operator is not allowed.
+   */
+  static Isolate* New();
+
+  /**
+   * Returns the entered isolate for the current thread or NULL in
+   * case there is no current isolate.
+   */
+  static Isolate* GetCurrent();
+
+  /**
+   * Methods below this point require holding a lock (using Locker) in
+   * a multi-threaded environment.
+   */
+
+  /**
+   * Sets this isolate as the entered one for the current thread.
+   * Saves the previously entered one (if any), so that it can be
+   * restored when exiting.  Re-entering an isolate is allowed.
+   */
+  void Enter();
+
+  /**
+   * Exits this isolate by restoring the previously entered one in the
+   * current thread.  The isolate may still stay the same, if it was
+   * entered more than once.
+   *
+   * Requires: this == Isolate::GetCurrent().
+   */
+  void Exit();
+
+  /**
+   * Disposes the isolate.  The isolate must not be entered by any
+   * thread to be disposable.
+   */
+  void Dispose();
+
+ private:
+
+  Isolate();
+  Isolate(const Isolate&);
+  ~Isolate();
+  Isolate& operator=(const Isolate&);
+  void* operator new(size_t size);
+  void operator delete(void*, size_t);
+};
+
+
+/**
  * Container class for static utility functions.
  */
 class V8EXPORT V8 {
