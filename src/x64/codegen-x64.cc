@@ -592,7 +592,6 @@ bool CodeGenerator::HasValidEntryRegisters() {
       && (allocator()->count(r9) == (frame()->is_used(r9) ? 1 : 0))
       && (allocator()->count(r11) == (frame()->is_used(r11) ? 1 : 0))
       && (allocator()->count(r14) == (frame()->is_used(r14) ? 1 : 0))
-      && (allocator()->count(r15) == (frame()->is_used(r15) ? 1 : 0))
       && (allocator()->count(r12) == (frame()->is_used(r12) ? 1 : 0));
 }
 #endif
@@ -3606,17 +3605,16 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       __ JumpIfNotSmi(new_value.reg(), deferred->entry_label());
     }
     if (is_increment) {
-      __ SmiAddConstant(kScratchRegister,
+      __ SmiAddConstant(new_value.reg(),
                         new_value.reg(),
                         Smi::FromInt(1),
                         deferred->entry_label());
     } else {
-      __ SmiSubConstant(kScratchRegister,
+      __ SmiSubConstant(new_value.reg(),
                         new_value.reg(),
                         Smi::FromInt(1),
                         deferred->entry_label());
     }
-    __ movq(new_value.reg(), kScratchRegister);
     deferred->BindExit();
 
     // Postfix count operations return their input converted to
@@ -8727,26 +8725,26 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ bind(&seq_ascii_string);
   // rax: subject string (sequential ascii)
   // rcx: RegExp data (FixedArray)
-  __ movq(r12, FieldOperand(rcx, JSRegExp::kDataAsciiCodeOffset));
+  __ movq(r11, FieldOperand(rcx, JSRegExp::kDataAsciiCodeOffset));
   __ Set(rdi, 1);  // Type is ascii.
   __ jmp(&check_code);
 
   __ bind(&seq_two_byte_string);
   // rax: subject string (flat two-byte)
   // rcx: RegExp data (FixedArray)
-  __ movq(r12, FieldOperand(rcx, JSRegExp::kDataUC16CodeOffset));
+  __ movq(r11, FieldOperand(rcx, JSRegExp::kDataUC16CodeOffset));
   __ Set(rdi, 0);  // Type is two byte.
 
   __ bind(&check_code);
   // Check that the irregexp code has been generated for the actual string
   // encoding. If it has, the field contains a code object otherwise it contains
   // the hole.
-  __ CmpObjectType(r12, CODE_TYPE, kScratchRegister);
+  __ CmpObjectType(r11, CODE_TYPE, kScratchRegister);
   __ j(not_equal, &runtime);
 
   // rax: subject string
   // rdi: encoding of subject string (1 if ascii, 0 if two_byte);
-  // r12: code
+  // r11: code
   // Load used arguments before starting to push arguments for call to native
   // RegExp code to avoid handling changing stack height.
   __ SmiToInteger64(rbx, Operand(rsp, kPreviousIndexOffset));
@@ -8754,7 +8752,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // rax: subject string
   // rbx: previous index
   // rdi: encoding of subject string (1 if ascii 0 if two_byte);
-  // r12: code
+  // r11: code
   // All checks done. Now push arguments for native regexp code.
   __ IncrementCounter(&Counters::regexp_entry_native, 1);
 
@@ -8804,7 +8802,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // rax: subject string
   // rbx: previous index
   // rdi: encoding of subject string (1 if ascii 0 if two_byte);
-  // r12: code
+  // r11: code
 
   // Argument 4: End of string data
   // Argument 3: Start of string data
@@ -8828,8 +8826,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movq(arg1, rax);
 
   // Locate the code entry and call it.
-  __ addq(r12, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ CallCFunction(r12, kRegExpExecuteArguments);
+  __ addq(r11, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ CallCFunction(r11, kRegExpExecuteArguments);
 
   // rsi is caller save, as it is used to pass parameter.
   __ pop(rsi);
@@ -9627,7 +9625,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // rbp: frame pointer  (restored after C call).
   // rsp: stack pointer  (restored after C call).
   // r14: number of arguments including receiver (C callee-saved).
-  // r15: pointer to the first argument (C callee-saved).
+  // r12: pointer to the first argument (C callee-saved).
   //      This pointer is reused in LeaveExitFrame(), so it is stored in a
   //      callee-saved register.
 
@@ -9668,7 +9666,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9
   // Store Arguments object on stack, below the 4 WIN64 ABI parameter slots.
   __ movq(Operand(rsp, 4 * kPointerSize), r14);  // argc.
-  __ movq(Operand(rsp, 5 * kPointerSize), r15);  // argv.
+  __ movq(Operand(rsp, 5 * kPointerSize), r12);  // argv.
   if (result_size_ < 2) {
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax).
@@ -9684,7 +9682,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 #else  // _WIN64
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
   __ movq(rdi, r14);  // argc.
-  __ movq(rsi, r15);  // argv.
+  __ movq(rsi, r12);  // argv.
 #endif
   __ call(rbx);
   // Result is in rax - do not destroy this register!
@@ -9886,7 +9884,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // rbp: frame pointer of exit frame  (restored after C call).
   // rsp: stack pointer (restored after C call).
   // r14: number of arguments including receiver (C callee-saved).
-  // r15: argv pointer (C callee-saved).
+  // r12: argv pointer (C callee-saved).
 
   Label throw_normal_exception;
   Label throw_termination_exception;
@@ -9946,23 +9944,37 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Push the stack frame type marker twice.
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
-  __ Push(Smi::FromInt(marker));  // context slot
-  __ Push(Smi::FromInt(marker));  // function slot
-  // Save callee-saved registers (X64 calling conventions).
+  // Scratch register is neither callee-save, nor an argument register on any
+  // platform. It's free to use at this point.
+  // Cannot use smi-register for loading yet.
+  __ movq(kScratchRegister,
+          reinterpret_cast<uint64_t>(Smi::FromInt(marker)),
+          RelocInfo::NONE);
+  __ push(kScratchRegister);  // context slot
+  __ push(kScratchRegister);  // function slot
+  // Save callee-saved registers (X64/Win64 calling conventions).
   __ push(r12);
   __ push(r13);
   __ push(r14);
   __ push(r15);
-  __ push(rdi);
-  __ push(rsi);
+#ifdef _WIN64
+  __ push(rdi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+  __ push(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+#endif
   __ push(rbx);
-  // TODO(X64): Push XMM6-XMM15 (low 64 bits) as well, or make them
-  // callee-save in JS code as well.
+  // TODO(X64): On Win64, if we ever use XMM6-XMM15, the low low 64 bits are
+  // callee save as well.
 
   // Save copies of the top frame descriptor on the stack.
   ExternalReference c_entry_fp(Top::k_c_entry_fp_address);
   __ load_rax(c_entry_fp);
   __ push(rax);
+
+  // Set up the roots and smi constant registers.
+  // Needs to be done before any further smi loads.
+  ExternalReference roots_address = ExternalReference::roots_address();
+  __ movq(kRootRegister, roots_address);
+  __ InitializeSmiConstantRegister();
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // If this is the outermost JS call, set js_entry_sp value.
@@ -10034,8 +10046,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Restore callee-saved registers (X64 conventions).
   __ pop(rbx);
+#ifdef _WIN64
+  // Callee save on in Win64 ABI, arguments/volatile in AMD64 ABI.
   __ pop(rsi);
   __ pop(rdi);
+#endif
   __ pop(r15);
   __ pop(r14);
   __ pop(r13);
@@ -11269,7 +11284,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Check that both strings are non-external ascii strings.
   __ JumpIfBothInstanceTypesAreNotSequentialAscii(r8, r9, rbx, rcx,
-                                                 &string_add_runtime);
+                                                  &string_add_runtime);
 
   // Get the two characters forming the sub string.
   __ movzxbq(rbx, FieldOperand(rax, SeqAsciiString::kHeaderSize));
@@ -11279,7 +11294,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // just allocate a new one.
   Label make_two_character_string, make_flat_ascii_string;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, rbx, rcx, r14, r12, rdi, r15, &make_two_character_string);
+      masm, rbx, rcx, r14, r11, rdi, r12, &make_two_character_string);
   __ IncrementCounter(&Counters::string_add_native, 1);
   __ ret(2 * kPointerSize);
 
@@ -11371,7 +11386,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   __ bind(&make_flat_ascii_string);
   // Both strings are ascii strings. As they are short they are both flat.
-  __ AllocateAsciiString(rcx, rbx, rdi, r14, r15, &string_add_runtime);
+  __ AllocateAsciiString(rcx, rbx, rdi, r14, r11, &string_add_runtime);
   // rcx: result string
   __ movq(rbx, rcx);
   // Locate first character of result.
@@ -11408,7 +11423,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(not_zero, &string_add_runtime);
   // Both strings are two byte strings. As they are short they are both
   // flat.
-  __ AllocateTwoByteString(rcx, rbx, rdi, r14, r15, &string_add_runtime);
+  __ AllocateTwoByteString(rcx, rbx, rdi, r14, r11, &string_add_runtime);
   // rcx: result string
   __ movq(rbx, rcx);
   // Locate first character of result.
