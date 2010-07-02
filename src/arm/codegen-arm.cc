@@ -748,37 +748,43 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target,
                               JumpTarget* false_target) {
   // Note: The generated code snippet does not change stack variables.
   //       Only the condition code should be set.
+  bool known_smi = frame_->KnownSmiAt(0);
   Register tos = frame_->PopToRegister();
 
   // Fast case checks
 
   // Check if the value is 'false'.
-  __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-  __ cmp(tos, ip);
-  false_target->Branch(eq);
+  if (!known_smi) {
+    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+    __ cmp(tos, ip);
+    false_target->Branch(eq);
 
-  // Check if the value is 'true'.
-  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-  __ cmp(tos, ip);
-  true_target->Branch(eq);
+    // Check if the value is 'true'.
+    __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+    __ cmp(tos, ip);
+    true_target->Branch(eq);
 
-  // Check if the value is 'undefined'.
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(tos, ip);
-  false_target->Branch(eq);
+    // Check if the value is 'undefined'.
+    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ cmp(tos, ip);
+    false_target->Branch(eq);
+  }
 
   // Check if the value is a smi.
   __ cmp(tos, Operand(Smi::FromInt(0)));
-  false_target->Branch(eq);
-  __ tst(tos, Operand(kSmiTagMask));
-  true_target->Branch(eq);
 
-  // Slow case: call the runtime.
-  frame_->EmitPush(tos);
-  frame_->CallRuntime(Runtime::kToBool, 1);
-  // Convert the result (r0) to a condition code.
-  __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-  __ cmp(r0, ip);
+  if (!known_smi) {
+    false_target->Branch(eq);
+    __ tst(tos, Operand(kSmiTagMask));
+    true_target->Branch(eq);
+
+    // Slow case: call the runtime.
+    frame_->EmitPush(tos);
+    frame_->CallRuntime(Runtime::kToBool, 1);
+    // Convert the result (r0) to a condition code.
+    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+    __ cmp(r0, ip);
+  }
 
   cc_reg_ = ne;
 }
