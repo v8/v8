@@ -1276,7 +1276,7 @@ Object* JSObject::AddFastProperty(String* name,
   }
 
   if (map()->unused_property_fields() == 0) {
-    if (properties()->length() > kMaxFastProperties) {
+    if (properties()->length() > MaxFastProperties()) {
       Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
       if (obj->IsFailure()) return obj;
       return AddSlowProperty(name, value, attributes);
@@ -1474,7 +1474,7 @@ Object* JSObject::ConvertDescriptorToField(String* name,
                                            Object* new_value,
                                            PropertyAttributes attributes) {
   if (map()->unused_property_fields() == 0 &&
-      properties()->length() > kMaxFastProperties) {
+      properties()->length() > MaxFastProperties()) {
     Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
     if (obj->IsFailure()) return obj;
     return ReplaceSlowProperty(name, new_value, attributes);

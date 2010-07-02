@@ -1367,6 +1367,7 @@ class JSObject: public HeapObject {
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
   Object* GetElementWithReceiver(JSObject* receiver, uint32_t index);
+  Object* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
 
   Object* SetFastElementsCapacityAndLength(int capacity, int length);
   Object* SetSlowElements(Object* length);
@@ -1547,6 +1548,11 @@ class JSObject: public HeapObject {
 #endif
   Object* SlowReverseLookup(Object* value);
 
+  // Maximal number of fast properties for the JSObject. Used to
+  // restrict the number of map transitions to avoid an explosion in
+  // the number of maps for objects used as dictionaries.
+  inline int MaxFastProperties();
+
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
   static const uint32_t kMaxElementCount = 0xffffffffu;
@@ -1567,8 +1573,6 @@ class JSObject: public HeapObject {
   static const int kHeaderSize = kElementsOffset + kPointerSize;
 
   STATIC_CHECK(kHeaderSize == Internals::kJSObjectHeaderSize);
-
-  Object* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
 
  private:
   Object* GetElementWithCallback(Object* receiver,

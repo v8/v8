@@ -1335,16 +1335,26 @@ void JSObject::InitializeBody(int object_size) {
 }
 
 
+bool JSObject::HasFastProperties() {
+  return !properties()->IsDictionary();
+}
+
+
+int JSObject::MaxFastProperties() {
+  // Allow extra fast properties if the object has more than
+  // kMaxFastProperties in-object properties. When this is the case,
+  // it is very unlikely that the object is being used as a dictionary
+  // and there is a good chance that allowing more map transitions
+  // will be worth it.
+  return Max(map()->inobject_properties(), kMaxFastProperties);
+}
+
+
 void Struct::InitializeBody(int object_size) {
   Object* value = Heap::undefined_value();
   for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
     WRITE_FIELD(this, offset, value);
   }
-}
-
-
-bool JSObject::HasFastProperties() {
-  return !properties()->IsDictionary();
 }
 
 
