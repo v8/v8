@@ -5368,9 +5368,6 @@ static Object* Runtime_NumberToInteger(Arguments args) {
 }
 
 
-
-
-
 static Object* Runtime_NumberToIntegerMapMinusZero(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
