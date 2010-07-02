@@ -8043,7 +8043,11 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
       // The code below for writing into heap numbers isn't capable of writing
       // the register as an unsigned int so we go to slow case if we hit this
       // case.
-      __ b(mi, &slow);
+      if (CpuFeatures::IsSupported(VFP3)) {
+        __ b(mi, &result_not_a_smi);
+      } else {
+        __ b(mi, &slow);
+      }
       break;
     case Token::SHL:
       // Use only the 5 least significant bits of the shift count.
@@ -8087,10 +8091,24 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
   // result.
   __ mov(r0, Operand(r5));
 
-  // Tail call that writes the int32 in r2 to the heap number in r0, using
-  // r3 as scratch.  r0 is preserved and returned.
-  WriteInt32ToHeapNumberStub stub(r2, r0, r3);
-  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    // Convert the int32 in r2 to the heap number in r0. r3 is corrupted.
+    CpuFeatures::Scope scope(VFP3);
+    __ vmov(s0, r2);
+    if (op_ == Token::SHR) {
+      __ vcvt_f64_u32(d0, s0);
+    } else {
+      __ vcvt_f64_s32(d0, s0);
+    }
+    __ sub(r3, r0, Operand(kHeapObjectTag));
+    __ vstr(d0, r3, HeapNumber::kValueOffset);
+    __ Ret();
+  } else {
+    // Tail call that writes the int32 in r2 to the heap number in r0, using
+    // r3 as scratch.  r0 is preserved and returned.
+    WriteInt32ToHeapNumberStub stub(r2, r0, r3);
+    __ TailCallStub(&stub);
+  }
 
   if (mode_ != NO_OVERWRITE) {
     __ bind(&have_to_allocate);
@@ -8939,12 +8957,21 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ mov(r0, Operand(r2));
     }
 
-    // WriteInt32ToHeapNumberStub does not trigger GC, so we do not
-    // have to set up a frame.
-    WriteInt32ToHeapNumberStub stub(r1, r0, r2);
-    __ push(lr);
-    __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
-    __ pop(lr);
+    if (CpuFeatures::IsSupported(VFP3)) {
+      // Convert the int32 in r1 to the heap number in r0. r2 is corrupted.
+      CpuFeatures::Scope scope(VFP3);
+      __ vmov(s0, r1);
+      __ vcvt_f64_s32(d0, s0);
+      __ sub(r2, r0, Operand(kHeapObjectTag));
+      __ vstr(d0, r2, HeapNumber::kValueOffset);
+    } else {
+      // WriteInt32ToHeapNumberStub does not trigger GC, so we do not
+      // have to set up a frame.
+      WriteInt32ToHeapNumberStub stub(r1, r0, r2);
+      __ push(lr);
+      __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+      __ pop(lr);
+    }
   } else {
     UNIMPLEMENTED();
   }
