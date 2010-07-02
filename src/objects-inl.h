@@ -2199,6 +2199,20 @@ bool Map::is_access_check_needed() {
 }
 
 
+void Map::set_is_extensible(bool value) {
+  if (value) {
+    set_bit_field2(bit_field2() | (1 << kIsExtensible));
+  } else {
+    set_bit_field2(bit_field2() & ~(1 << kIsExtensible));
+  }
+}
+
+bool Map::is_extensible() {
+  return ((1 << kIsExtensible) & bit_field2()) != 0;
+}
+
+
+
 Code::Flags Code::flags() {
   return static_cast<Flags>(READ_INT_FIELD(this, kFlagsOffset));
 }

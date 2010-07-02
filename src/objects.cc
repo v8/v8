@@ -1386,6 +1386,11 @@ Object* JSObject::AddProperty(String* name,
                               Object* value,
                               PropertyAttributes attributes) {
   ASSERT(!IsJSGlobalProxy());
+  if (!map()->is_extensible()) {
+    Handle<Object> args[1] = {Handle<String>(name)};
+    return Top::Throw(*Factory::NewTypeError("object_not_extensible",
+                                               HandleVector(args, 1)));
+  }
   if (HasFastProperties()) {
     // Ensure the descriptor array does not get too big.
     if (map()->instance_descriptors()->number_of_descriptors() <
@@ -2574,6 +2579,25 @@ bool JSObject::ReferencesObject(Object* obj) {
 }
 
 
+Object* JSObject::PreventExtensions() {
+  // If there are fast elements we normalize.
+  if (HasFastElements()) {
+    NormalizeElements();
+  }
+  // Make sure that we never go back to fast case.
+  element_dictionary()->set_requires_slow_elements();
+
+  // Do a map transition, other objects with this map may still
+  // be extensible.
+  Object* new_map = map()->CopyDropTransitions();
+  if (new_map->IsFailure()) return new_map;
+  Map::cast(new_map)->set_is_extensible(false);
+  set_map(Map::cast(new_map));
+  ASSERT(!map()->is_extensible());
+  return new_map;
+}
+
+
 // Tests for the fast common case for property enumeration:
 // - This object and all prototypes has an enum cache (which means that it has
 //   no interceptors and needs no access checks).
@@ -3074,7 +3098,7 @@ Object* Map::CopyDropTransitions() {
   Object* descriptors = instance_descriptors()->RemoveTransitions();
   if (descriptors->IsFailure()) return descriptors;
   cast(new_map)->set_instance_descriptors(DescriptorArray::cast(descriptors));
-  return cast(new_map);
+  return new_map;
 }
 
 
@@ -6206,6 +6230,15 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
           if (SetElementWithCallbackSetterInPrototypes(index, value)) {
             return value;
           }
+        }
+        // When we set the is_extensible flag to false we always force
+        // the element into dictionary mode (and force them to stay there).
+        if (!map()->is_extensible()) {
+          Handle<Object> number(Heap::NumberFromUint32(index));
+          Handle<String> index_string(Factory::NumberToString(number));
+          Handle<Object> args[1] = { index_string };
+          return Top::Throw(*Factory::NewTypeError("object_not_extensible",
+                                                   HandleVector(args, 1)));
         }
         Object* result = dictionary->AtNumberPut(index, value);
         if (result->IsFailure()) return result;

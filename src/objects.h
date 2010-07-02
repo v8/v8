@@ -1517,6 +1517,10 @@ class JSObject: public HeapObject {
   // Casting.
   static inline JSObject* cast(Object* obj);
 
+  // Disalow further properties to be added to the object.
+  Object* PreventExtensions();
+
+
   // Dispatched behavior.
   void JSObjectIterateBody(int object_size, ObjectVisitor* v);
   void JSObjectShortPrint(StringStream* accumulator);
@@ -2989,13 +2993,8 @@ class Map: public HeapObject {
     return ((1 << kHasInstanceCallHandler) & bit_field()) != 0;
   }
 
-  inline void set_is_extensible() {
-    set_bit_field2(bit_field2() | (1 << kIsExtensible));
-  }
-
-  inline bool is_extensible() {
-    return ((1 << kIsExtensible) & bit_field2()) != 0;
-  }
+  inline void set_is_extensible(bool value);
+  inline bool is_extensible();
 
   // Tells whether the instance has fast elements.
   void set_has_fast_elements(bool value) {

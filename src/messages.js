@@ -196,6 +196,7 @@ function FormatMessage(message) {
       circular_structure:           "Converting circular structure to JSON",
       obj_ctor_property_non_object: "Object.%0 called on non-object",
       array_indexof_not_defined:    "Array.getIndexOf: Argument undefined",
+      object_not_extensible:        "Can't add property %0, object is not extensible",
       illegal_access:               "illegal access"
     };
   }
