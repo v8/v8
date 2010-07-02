@@ -134,13 +134,45 @@ Address IC::OriginalCodeAddress() {
 }
 #endif
 
+
+static bool HasNormalObjectsInPrototypeChain(LookupResult* lookup,
+                                             Object* receiver) {
+  Object* end = lookup->IsProperty() ? lookup->holder() : Heap::null_value();
+  for (Object* current = receiver;
+       current != end;
+       current = current->GetPrototype()) {
+    if (current->IsJSObject() &&
+        !JSObject::cast(current)->HasFastProperties() &&
+        !current->IsJSGlobalProxy() &&
+        !current->IsJSGlobalObject()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 IC::State IC::StateFrom(Code* target, Object* receiver, Object* name) {
   IC::State state = target->ic_state();
 
   if (state != MONOMORPHIC) return state;
   if (receiver->IsUndefined() || receiver->IsNull()) return state;
 
-  Map* map = GetCodeCacheMapForObject(receiver);
+  InlineCacheHolderFlag cache_holder =
+      Code::ExtractCacheHolderFromFlags(target->flags());
+
+
+  if (cache_holder == OWN_MAP && !receiver->IsJSObject()) {
+    // The stub was generated for JSObject but called for non-JSObject.
+    // IC::GetCodeCacheMap is not applicable.
+    return MONOMORPHIC;
+  } else if (cache_holder == PROTOTYPE_MAP &&
+             receiver->GetPrototype()->IsNull()) {
+    // IC::GetCodeCacheMap is not applicable.
+    return MONOMORPHIC;
+  }
+  Map* map = IC::GetCodeCacheMap(receiver, cache_holder);
 
   // Decide whether the inline cache failed because of changes to the
   // receiver itself or changes to one of its prototypes.
@@ -487,11 +519,23 @@ Object* CallICBase::LoadFunction(State state,
 
 
 void CallICBase::UpdateCaches(LookupResult* lookup,
-                          State state,
-                          Handle<Object> object,
-                          Handle<String> name) {
+                              State state,
+                              Handle<Object> object,
+                              Handle<String> name) {
   // Bail out if we didn't find a result.
   if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
+
+#ifndef V8_TARGET_ARCH_IA32
+  // Normal objects only implemented for IA32 by now.
+  if (HasNormalObjectsInPrototypeChain(lookup, *object)) return;
+#else
+  if (lookup->holder() != *object &&
+      HasNormalObjectsInPrototypeChain(lookup, object->GetPrototype())) {
+    // Suppress optimization for prototype chains with slow properties objects
+    // in the middle.
+    return;
+  }
+#endif
 
   // Compute the number of arguments.
   int argc = target()->arguments_count();
@@ -590,8 +634,13 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
       state == MONOMORPHIC_PROTOTYPE_FAILURE) {
     set_target(Code::cast(code));
   } else if (state == MEGAMORPHIC) {
+    // Cache code holding map should be consistent with
+    // GenerateMonomorphicCacheProbe. It is not the map which holds the stub.
+    Map* map = JSObject::cast(object->IsJSObject() ? *object :
+                              object->GetPrototype())->map();
+
     // Update the stub cache.
-    StubCache::Set(*name, GetCodeCacheMapForObject(*object), Code::cast(code));
+    StubCache::Set(*name, map, Code::cast(code));
   }
 
 #ifdef DEBUG
@@ -795,6 +844,8 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
   if (!object->IsJSObject()) return;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
+  if (HasNormalObjectsInPrototypeChain(lookup, *object)) return;
+
   // Compute the code stub for this load.
   Object* code = NULL;
   if (state == UNINITIALIZED) {
@@ -871,8 +922,12 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
   } else if (state == MONOMORPHIC) {
     set_target(megamorphic_stub());
   } else if (state == MEGAMORPHIC) {
-    // Update the stub cache.
-    StubCache::Set(*name, GetCodeCacheMapForObject(*object), Code::cast(code));
+    // Cache code holding map should be consistent with
+    // GenerateMonomorphicCacheProbe.
+    Map* map = JSObject::cast(object->IsJSObject() ? *object :
+                              object->GetPrototype())->map();
+
+    StubCache::Set(*name, map, Code::cast(code));
   }
 
 #ifdef DEBUG
@@ -1017,6 +1072,8 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
 
   if (!object->IsJSObject()) return;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+
+  if (HasNormalObjectsInPrototypeChain(lookup, *object)) return;
 
   // Compute the code stub for this load.
   Object* code = NULL;

@@ -2769,11 +2769,13 @@ class Code: public HeapObject {
                                    InLoopFlag in_loop = NOT_IN_LOOP,
                                    InlineCacheState ic_state = UNINITIALIZED,
                                    PropertyType type = NORMAL,
-                                   int argc = -1);
+                                   int argc = -1,
+                                   InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
       PropertyType type,
+      InlineCacheHolderFlag holder = OWN_MAP,
       InLoopFlag in_loop = NOT_IN_LOOP,
       int argc = -1);
 
@@ -2782,6 +2784,7 @@ class Code: public HeapObject {
   static inline InLoopFlag ExtractICInLoopFromFlags(Flags flags);
   static inline PropertyType ExtractTypeFromFlags(Flags flags);
   static inline int ExtractArgumentsCountFromFlags(Flags flags);
+  static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline Flags RemoveTypeFromFlags(Flags flags);
 
   // Convert a target address into a code object.
@@ -2868,16 +2871,18 @@ class Code: public HeapObject {
   static const int kFlagsICInLoopShift       = 3;
   static const int kFlagsTypeShift           = 4;
   static const int kFlagsKindShift           = 7;
-  static const int kFlagsArgumentsCountShift = 11;
+  static const int kFlagsICHolderShift       = 11;
+  static const int kFlagsArgumentsCountShift = 12;
 
   static const int kFlagsICStateMask        = 0x00000007;  // 00000000111
   static const int kFlagsICInLoopMask       = 0x00000008;  // 00000001000
   static const int kFlagsTypeMask           = 0x00000070;  // 00001110000
   static const int kFlagsKindMask           = 0x00000780;  // 11110000000
-  static const int kFlagsArgumentsCountMask = 0xFFFFF800;
+  static const int kFlagsCacheInPrototypeMapMask = 0x00000800;
+  static const int kFlagsArgumentsCountMask = 0xFFFFF000;
 
   static const int kFlagsNotUsedInLookup =
-      (kFlagsICInLoopMask | kFlagsTypeMask);
+      (kFlagsICInLoopMask | kFlagsTypeMask | kFlagsCacheInPrototypeMapMask);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);

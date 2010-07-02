@@ -1746,8 +1746,6 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
       result->DictionaryResult(this, entry);
       return;
     }
-    // Slow case object skipped during lookup. Do not use inline caching.
-    if (!IsGlobalObject()) result->DisallowCaching();
   }
   result->NotFound();
 }

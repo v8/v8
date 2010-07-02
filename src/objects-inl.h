@@ -2273,13 +2273,15 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                InLoopFlag in_loop,
                                InlineCacheState ic_state,
                                PropertyType type,
-                               int argc) {
+                               int argc,
+                               InlineCacheHolderFlag holder) {
   // Compute the bit mask.
   int bits = kind << kFlagsKindShift;
   if (in_loop) bits |= kFlagsICInLoopMask;
   bits |= ic_state << kFlagsICStateShift;
   bits |= type << kFlagsTypeShift;
   bits |= argc << kFlagsArgumentsCountShift;
+  if (holder == PROTOTYPE_MAP) bits |= kFlagsCacheInPrototypeMapMask;
   // Cast to flags and validate result before returning it.
   Flags result = static_cast<Flags>(bits);
   ASSERT(ExtractKindFromFlags(result) == kind);
@@ -2293,9 +2295,10 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           PropertyType type,
+                                          InlineCacheHolderFlag holder,
                                           InLoopFlag in_loop,
                                           int argc) {
-  return ComputeFlags(kind, in_loop, MONOMORPHIC, type, argc);
+  return ComputeFlags(kind, in_loop, MONOMORPHIC, type, argc, holder);
 }
 
 
@@ -2325,6 +2328,12 @@ PropertyType Code::ExtractTypeFromFlags(Flags flags) {
 
 int Code::ExtractArgumentsCountFromFlags(Flags flags) {
   return (flags & kFlagsArgumentsCountMask) >> kFlagsArgumentsCountShift;
+}
+
+
+InlineCacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
+  int bits = (flags & kFlagsCacheInPrototypeMapMask);
+  return bits != 0 ? PROTOTYPE_MAP : OWN_MAP;
 }
 
 

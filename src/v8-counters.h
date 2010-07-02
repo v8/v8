@@ -168,6 +168,8 @@ namespace internal {
   SC(constructed_objects, V8.ConstructedObjects)                      \
   SC(constructed_objects_runtime, V8.ConstructedObjectsRuntime)       \
   SC(constructed_objects_stub, V8.ConstructedObjectsStub)             \
+  SC(negative_lookups, V8.NegativeLookups)                            \
+  SC(negative_lookups_miss, V8.NegativeLookupsMiss)                  \
   SC(array_function_runtime, V8.ArrayFunctionRuntime)                 \
   SC(array_function_native, V8.ArrayFunctionNative)                   \
   SC(for_in, V8.ForIn)                                                \
