@@ -137,21 +137,31 @@ class MacroAssembler: public Assembler {
                   Label* branch);
 
 
-  // For the page containing |object| mark the region covering [object+offset]
+  // For the page containing |object| mark the region covering [address]
   // dirty. The object address must be in the first 8K of an allocated page.
   void RecordWriteHelper(Register object,
-                         Operand offset,
-                         Register scratch0,
-                         Register scratch1);
+                         Register address,
+                         Register scratch);
 
-  // For the page containing |object| mark the region covering [object+offset]
-  // dirty. The object address must be in the first 8K of an allocated page.
-  // The 'scratch' registers are used in the implementation and all 3 registers
-  // are clobbered by the operation, as well as the ip register.
+  // For the page containing |object| mark the region covering
+  // [object+offset] dirty. The object address must be in the first 8K
+  // of an allocated page.  The 'scratch' registers are used in the
+  // implementation and all 3 registers are clobbered by the
+  // operation, as well as the ip register. RecordWrite updates the
+  // write barrier even when storing smis.
   void RecordWrite(Register object,
                    Operand offset,
                    Register scratch0,
                    Register scratch1);
+
+  // For the page containing |object| mark the region covering
+  // [address] dirty. The object address must be in the first 8K of an
+  // allocated page.  All 3 registers are clobbered by the operation,
+  // as well as the ip register. RecordWrite updates the write barrier
+  // even when storing smis.
+  void RecordWrite(Register object,
+                   Register address,
+                   Register scratch);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {

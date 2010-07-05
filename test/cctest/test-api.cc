@@ -3335,6 +3335,42 @@ THREADED_TEST(UndetectableObject) {
 }
 
 
+
+THREADED_TEST(ExtensibleOnUndetectable) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> desc =
+      v8::FunctionTemplate::New(0, v8::Handle<Value>());
+  desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+
+  Local<v8::Object> obj = desc->GetFunction()->NewInstance();
+  env->Global()->Set(v8_str("undetectable"), obj);
+
+  Local<String> source = v8_str("undetectable.x = 42;"
+                                "undetectable.x");
+
+  Local<Script> script = Script::Compile(source);
+
+  CHECK_EQ(v8::Integer::New(42), script->Run());
+
+  ExpectBoolean("Object.isExtensible(undetectable)", true);
+
+  source = v8_str("Object.preventExtensions(undetectable);");
+  script = Script::Compile(source);
+  script->Run();
+  ExpectBoolean("Object.isExtensible(undetectable)", false);
+
+  source = v8_str("undetectable.y = 2000;");
+  script = Script::Compile(source);
+  v8::TryCatch try_catch;
+  Local<Value> result = script->Run();
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+}
+
+
+
 THREADED_TEST(UndetectableString) {
   v8::HandleScope scope;
   LocalContext env;

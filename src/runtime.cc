@@ -678,6 +678,12 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
 }
 
 
+static Object* Runtime_PreventExtensions(Arguments args) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSObject, obj, args[0]);
+  return obj->PreventExtensions();
+}
+
 static Object* Runtime_IsExtensible(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSObject, obj, args[0]);
@@ -5360,9 +5366,6 @@ static Object* Runtime_NumberToInteger(Arguments args) {
   }
   return Heap::NumberFromDouble(DoubleToInteger(number));
 }
-
-
-
 
 
 static Object* Runtime_NumberToIntegerMapMinusZero(Arguments args) {
