@@ -7583,9 +7583,12 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       frame_->Push(&value);
     } else {
       Load(node->expression());
-      bool overwrite =
+      bool can_overwrite =
           (node->expression()->AsBinaryOperation() != NULL &&
            node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      UnaryOverwriteMode overwrite =
+          can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
+      bool no_negative_zero = node->expression()->no_negative_zero();
       switch (op) {
         case Token::NOT:
         case Token::DELETE:
@@ -7594,7 +7597,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
           break;
 
         case Token::SUB: {
-          GenericUnaryOpStub stub(Token::SUB, overwrite);
+          GenericUnaryOpStub stub(
+              Token::SUB,
+              overwrite,
+              no_negative_zero ? kIgnoreNegativeZero : kStrictNegativeZero);
           Result operand = frame_->Pop();
           Result answer = frame_->CallStub(&stub, &operand);
           answer.set_type_info(TypeInfo::Number());
@@ -10934,10 +10940,12 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ test(eax, Immediate(kSmiTagMask));
     __ j(not_zero, &try_float, not_taken);
 
-    // Go slow case if the value of the expression is zero
-    // to make sure that we switch between 0 and -0.
-    __ test(eax, Operand(eax));
-    __ j(zero, &slow, not_taken);
+    if (negative_zero_ == kStrictNegativeZero) {
+      // Go slow case if the value of the expression is zero
+      // to make sure that we switch between 0 and -0.
+      __ test(eax, Operand(eax));
+      __ j(zero, &slow, not_taken);
+    }
 
     // The value of the expression is a smi that is not zero.  Try
     // optimistic subtraction '0 - value'.
@@ -10945,11 +10953,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ mov(edx, Operand(eax));
     __ Set(eax, Immediate(0));
     __ sub(eax, Operand(edx));
-    __ j(overflow, &undo, not_taken);
-
-    // If result is a smi we are done.
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, &done, taken);
+    __ j(no_overflow, &done, taken);
 
     // Restore eax and go slow case.
     __ bind(&undo);
@@ -10961,7 +10965,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
     __ cmp(edx, Factory::heap_number_map());
     __ j(not_equal, &slow);
-    if (overwrite_) {
+    if (overwrite_ == UNARY_OVERWRITE) {
       __ mov(edx, FieldOperand(eax, HeapNumber::kExponentOffset));
       __ xor_(edx, HeapNumber::kSignMask);  // Flip sign.
       __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), edx);
@@ -11002,7 +11006,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 
     // Try to store the result in a heap number.
     __ bind(&try_float);
-    if (!overwrite_) {
+    if (overwrite_ == UNARY_NO_OVERWRITE) {
       // Allocate a fresh heap number, but don't overwrite eax until
       // we're sure we can do it without going through the slow case
       // that needs the value in eax.

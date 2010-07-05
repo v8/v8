@@ -3373,9 +3373,12 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     }
 
   } else {
-    bool overwrite =
+    bool can_overwrite =
       (node->expression()->AsBinaryOperation() != NULL &&
        node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+    UnaryOverwriteMode overwrite =
+        can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
+    bool no_negative_zero = node->expression()->no_negative_zero();
     Load(node->expression());
     switch (op) {
       case Token::NOT:
@@ -3385,7 +3388,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         break;
 
       case Token::SUB: {
-        GenericUnaryOpStub stub(Token::SUB, overwrite);
+        GenericUnaryOpStub stub(
+            Token::SUB,
+            overwrite,
+            no_negative_zero ? kIgnoreNegativeZero : kStrictNegativeZero);
         Result operand = frame_->Pop();
         Result answer = frame_->CallStub(&stub, &operand);
         answer.set_type_info(TypeInfo::Number());
@@ -8506,6 +8512,11 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     Label try_float;
     __ JumpIfNotSmi(rax, &try_float);
 
+    if (negative_zero_ == kIgnoreNegativeZero) {
+      __ SmiCompare(rax, Smi::FromInt(0));
+      __ j(equal, &done);
+    }
+
     // Enter runtime system if the value of the smi is zero
     // to make sure that we switch between 0 and -0.
     // Also enter it if the value of the smi is Smi::kMinValue.
@@ -8513,10 +8524,14 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 
     // Either zero or Smi::kMinValue, neither of which become a smi when
     // negated.
-    __ SmiCompare(rax, Smi::FromInt(0));
-    __ j(not_equal, &slow);
-    __ Move(rax, Factory::minus_zero_value());
-    __ jmp(&done);
+    if (negative_zero_ == kStrictNegativeZero) {
+      __ SmiCompare(rax, Smi::FromInt(0));
+      __ j(not_equal, &slow);
+      __ Move(rax, Factory::minus_zero_value());
+      __ jmp(&done);
+    } else  {
+      __ jmp(&slow);
+    }
 
     // Try floating point case.
     __ bind(&try_float);
@@ -8529,7 +8544,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ shl(kScratchRegister, Immediate(63));
     __ xor_(rdx, kScratchRegister);  // Flip sign.
     // rdx is value to store.
-    if (overwrite_) {
+    if (overwrite_ == UNARY_OVERWRITE) {
       __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rdx);
     } else {
       __ AllocateHeapNumber(rcx, rbx, &slow);

@@ -5423,9 +5423,13 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     frame_->EmitPush(r0);  // r0 has result
 
   } else {
-    bool overwrite =
+    bool can_overwrite =
         (node->expression()->AsBinaryOperation() != NULL &&
          node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+    UnaryOverwriteMode overwrite =
+        can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
+
+    bool no_negative_zero = node->expression()->no_negative_zero();
     Load(node->expression());
     switch (op) {
       case Token::NOT:
@@ -5436,7 +5440,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::SUB: {
         frame_->PopToR0();
-        GenericUnaryOpStub stub(Token::SUB, overwrite);
+        GenericUnaryOpStub stub(
+            Token::SUB,
+            overwrite,
+            no_negative_zero ? kIgnoreNegativeZero : kStrictNegativeZero);
         frame_->CallStub(&stub, 0);
         frame_->EmitPush(r0);  // r0 has result
         break;
@@ -8899,16 +8906,23 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 
     // Go slow case if the value of the expression is zero
     // to make sure that we switch between 0 and -0.
-    __ cmp(r0, Operand(0));
-    __ b(eq, &slow);
-
-    // The value of the expression is a smi that is not zero.  Try
-    // optimistic subtraction '0 - value'.
-    __ rsb(r1, r0, Operand(0), SetCC);
-    __ b(vs, &slow);
-
-    __ mov(r0, Operand(r1));  // Set r0 to result.
-    __ b(&done);
+    if (negative_zero_ == kStrictNegativeZero) {
+      // If we have to check for zero, then we can check for the max negative
+      // smi while we are at it.
+      __ bic(ip, r0, Operand(0x80000000), SetCC);
+      __ b(eq, &slow);
+      __ rsb(r0, r0, Operand(0));
+      __ StubReturn(1);
+    } else {
+      // The value of the expression is a smi and 0 is OK for -0.  Try
+      // optimistic subtraction '0 - value'.
+      __ rsb(r0, r0, Operand(0), SetCC);
+      __ StubReturn(1, vc);
+      // We don't have to reverse the optimistic neg since the only case
+      // where we fall through is the minimum negative Smi, which is the case
+      // where the neg leaves the register unchanged.
+      __ jmp(&slow);  // Go slow on max negative Smi.
+    }
 
     __ bind(&try_float);
     __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -8916,7 +8930,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ cmp(r1, heap_number_map);
     __ b(ne, &slow);
     // r0 is a heap number.  Get a new heap number in r1.
-    if (overwrite_) {
+    if (overwrite_ == UNARY_OVERWRITE) {
       __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
       __ eor(r2, r2, Operand(HeapNumber::kSignMask));  // Flip sign.
       __ str(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
@@ -8949,7 +8963,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ b(&done);
 
     __ bind(&try_float);
-    if (!overwrite_) {
+    if (!overwrite_ == UNARY_OVERWRITE) {
       // Allocate a fresh heap number, but don't overwrite r0 until
       // we're sure we can do it without going through the slow case
       // that needs the value in r0.
