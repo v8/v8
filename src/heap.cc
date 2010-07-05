@@ -2352,7 +2352,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
                          Code::Flags flags,
                          Handle<Object> self_reference) {
   // Compute size
-  int body_size = RoundUp(desc.instr_size + desc.reloc_size, kObjectAlignment);
+  int body_size = RoundUp(desc.instr_size, kObjectAlignment);
   int sinfo_size = 0;
   if (sinfo != NULL) sinfo_size = sinfo->Serialize(NULL);
   int obj_size = Code::SizeFor(body_size, sinfo_size);
@@ -2366,12 +2366,15 @@ Object* Heap::CreateCode(const CodeDesc& desc,
 
   if (result->IsFailure()) return result;
 
+  Object* reloc_info = AllocateByteArray(desc.reloc_size, TENURED);
+  if (reloc_info->IsFailure()) return reloc_info;
+
   // Initialize the object
   HeapObject::cast(result)->set_map(code_map());
   Code* code = Code::cast(result);
   ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
   code->set_instruction_size(desc.instr_size);
-  code->set_relocation_size(desc.reloc_size);
+  code->set_relocation_info(ByteArray::cast(reloc_info));
   code->set_sinfo_size(sinfo_size);
   code->set_flags(flags);
   // Allow self references to created code object by patching the handle to
@@ -2419,8 +2422,7 @@ Object* Heap::CopyCode(Code* code) {
 
 
 Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
-  int new_body_size = RoundUp(code->instruction_size() + reloc_info.length(),
-                              kObjectAlignment);
+  int new_body_size = RoundUp(code->instruction_size(), kObjectAlignment);
 
   int sinfo_size = code->sinfo_size();
 
@@ -2429,7 +2431,7 @@ Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   Address old_addr = code->address();
 
   size_t relocation_offset =
-      static_cast<size_t>(code->relocation_start() - old_addr);
+      static_cast<size_t>(code->instruction_end() - old_addr);
 
   Object* result;
   if (new_obj_size > MaxObjectSizeInPagedSpace()) {
@@ -2440,20 +2442,20 @@ Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 
   if (result->IsFailure()) return result;
 
+  Object* reloc_info_array = AllocateByteArray(reloc_info.length(), TENURED);
+  if (reloc_info_array->IsFailure()) return reloc_info_array;
+
   // Copy code object.
   Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
 
   // Copy header and instructions.
   memcpy(new_addr, old_addr, relocation_offset);
 
-  // Copy patched rinfo.
-  memcpy(new_addr + relocation_offset,
-         reloc_info.start(),
-             reloc_info.length());
-
   Code* new_code = Code::cast(result);
-  new_code->set_relocation_size(reloc_info.length());
+  new_code->set_relocation_info(ByteArray::cast(reloc_info_array));
 
+  // Copy patched rinfo.
+  memcpy(new_code->relocation_start(), reloc_info.start(), reloc_info.length());
   // Copy sinfo.
   memcpy(new_code->sinfo_start(), code->sinfo_start(), code->sinfo_size());
 

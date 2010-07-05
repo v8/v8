@@ -2736,9 +2736,13 @@ class Code: public HeapObject {
   inline int instruction_size();
   inline void set_instruction_size(int value);
 
-  // [relocation_size]: Size of relocation information.
+  // [relocation_info]: Code relocation information
+  DECL_ACCESSORS(relocation_info, ByteArray)
+
+  // Unchecked accessor to be used during GC.
+  inline ByteArray* unchecked_relocation_info();
+
   inline int relocation_size();
-  inline void set_relocation_size(int value);
 
   // [sinfo_size]: Size of scope information.
   inline int sinfo_size();
@@ -2796,6 +2800,9 @@ class Code: public HeapObject {
 
   // Returns the address of the first instruction.
   inline byte* instruction_start();
+
+  // Returns the address right after the last instruction.
+  inline byte* instruction_end();
 
   // Returns the size of the instructions, padding, and relocation information.
   inline int body_size();
@@ -2857,8 +2864,8 @@ class Code: public HeapObject {
 
   // Layout description.
   static const int kInstructionSizeOffset = HeapObject::kHeaderSize;
-  static const int kRelocationSizeOffset = kInstructionSizeOffset + kIntSize;
-  static const int kSInfoSizeOffset = kRelocationSizeOffset + kIntSize;
+  static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
+  static const int kSInfoSizeOffset = kRelocationInfoOffset + kPointerSize;
   static const int kFlagsOffset = kSInfoSizeOffset + kIntSize;
   static const int kKindSpecificFlagsOffset  = kFlagsOffset + kIntSize;
   // Add padding to align the instruction start following right after
