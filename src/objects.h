@@ -4413,6 +4413,8 @@ class SeqString: public String {
 // Each character in the AsciiString is an ascii character.
 class SeqAsciiString: public SeqString {
  public:
+  static const bool kHasAsciiEncoding = true;
+
   // Dispatched behavior.
   inline uint16_t SeqAsciiStringGet(int index);
   inline void SeqAsciiStringSet(int index, uint16_t value);
@@ -4462,6 +4464,8 @@ class SeqAsciiString: public SeqString {
 // Each character in the TwoByteString is a two-byte uint16_t.
 class SeqTwoByteString: public SeqString {
  public:
+  static const bool kHasAsciiEncoding = false;
+
   // Dispatched behavior.
   inline uint16_t SeqTwoByteStringGet(int index);
   inline void SeqTwoByteStringSet(int index, uint16_t value);
@@ -4594,6 +4598,8 @@ class ExternalString: public String {
 // ASCII string.
 class ExternalAsciiString: public ExternalString {
  public:
+  static const bool kHasAsciiEncoding = true;
+
   typedef v8::String::ExternalAsciiStringResource Resource;
 
   // The underlying resource.
@@ -4626,6 +4632,8 @@ class ExternalAsciiString: public ExternalString {
 // encoded string.
 class ExternalTwoByteString: public ExternalString {
  public:
+  static const bool kHasAsciiEncoding = false;
+
   typedef v8::String::ExternalStringResource Resource;
 
   // The underlying string resource.

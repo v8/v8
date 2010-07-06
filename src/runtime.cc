@@ -2284,8 +2284,9 @@ static Object* StringReplaceRegExpWithString(String* subject,
   return *(builder.ToString());
 }
 
+
 template <typename ResultSeqString>
-static Object* StringReplaceRegExpWithEmptyString(ResultSeqString* subject,
+static Object* StringReplaceRegExpWithEmptyString(String* subject,
                                                   JSRegExp* regexp,
                                                   JSArray* last_match_info) {
   ASSERT(subject->IsFlat());
@@ -2320,9 +2321,8 @@ static Object* StringReplaceRegExpWithEmptyString(ResultSeqString* subject,
   if (new_length == 0) {
     return Heap::empty_string();
   }
-  // TODO(sandholm) try to use types statically to determine this.
   Handle<ResultSeqString> answer;
-  if (subject_handle->IsAsciiRepresentation()) {
+  if (ResultSeqString::kHasAsciiEncoding) {
     answer =
         Handle<ResultSeqString>::cast(Factory::NewRawAsciiString(new_length));
   } else {
@@ -2440,14 +2440,12 @@ static Object* Runtime_StringReplaceRegExpWithString(Arguments args) {
   ASSERT(last_match_info->HasFastElements());
 
   if (replacement->length() == 0) {
-    if (subject->IsAsciiRepresentation()) {
-      return StringReplaceRegExpWithEmptyString(SeqAsciiString::cast(subject),
-                                                regexp,
-                                                last_match_info);
+    if (subject->HasOnlyAsciiChars()) {
+      return StringReplaceRegExpWithEmptyString<SeqAsciiString>(
+          subject, regexp, last_match_info);
     } else {
-      return StringReplaceRegExpWithEmptyString(SeqTwoByteString::cast(subject),
-                                                regexp,
-                                                last_match_info);
+      return StringReplaceRegExpWithEmptyString<SeqTwoByteString>(
+          subject, regexp, last_match_info);
     }
   }
 
