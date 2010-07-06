@@ -2351,6 +2351,11 @@ Object* Heap::CreateCode(const CodeDesc& desc,
                          ZoneScopeInfo* sinfo,
                          Code::Flags flags,
                          Handle<Object> self_reference) {
+  // Allocate ByteArray before the Code object, so that we do not risk
+  // leaving uninitialized Code object (and breaking the heap).
+  Object* reloc_info = AllocateByteArray(desc.reloc_size, TENURED);
+  if (reloc_info->IsFailure()) return reloc_info;
+
   // Compute size
   int body_size = RoundUp(desc.instr_size, kObjectAlignment);
   int sinfo_size = 0;
@@ -2365,9 +2370,6 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   }
 
   if (result->IsFailure()) return result;
-
-  Object* reloc_info = AllocateByteArray(desc.reloc_size, TENURED);
-  if (reloc_info->IsFailure()) return reloc_info;
 
   // Initialize the object
   HeapObject::cast(result)->set_map(code_map());
@@ -2422,6 +2424,11 @@ Object* Heap::CopyCode(Code* code) {
 
 
 Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
+  // Allocate ByteArray before the Code object, so that we do not risk
+  // leaving uninitialized Code object (and breaking the heap).
+  Object* reloc_info_array = AllocateByteArray(reloc_info.length(), TENURED);
+  if (reloc_info_array->IsFailure()) return reloc_info_array;
+
   int new_body_size = RoundUp(code->instruction_size(), kObjectAlignment);
 
   int sinfo_size = code->sinfo_size();
@@ -2441,9 +2448,6 @@ Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   }
 
   if (result->IsFailure()) return result;
-
-  Object* reloc_info_array = AllocateByteArray(reloc_info.length(), TENURED);
-  if (reloc_info_array->IsFailure()) return reloc_info_array;
 
   // Copy code object.
   Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
