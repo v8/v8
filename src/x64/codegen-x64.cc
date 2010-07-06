@@ -10611,6 +10611,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           // the four basic operations. The stub stays in the DEFAULT state
           // forever for all other operations (also if smi code is skipped).
           GenerateTypeTransition(masm);
+          break;
         }
 
         Label not_floats;
@@ -10928,31 +10929,13 @@ void GenericBinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
 void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   Label get_result;
 
-  // Keep a copy of operands on the stack and make sure they are also in
-  // rdx, rax.
+  // Ensure the operands are on the stack.
   if (HasArgsInRegisters()) {
     GenerateRegisterArgsPush(masm);
-  } else {
-    GenerateLoadArguments(masm);
   }
-
-  // Internal frame is necessary to handle exceptions properly.
-  __ EnterInternalFrame();
-
-  // Push arguments on stack if the stub expects them there.
-  if (!HasArgsInRegisters()) {
-    __ push(rdx);
-    __ push(rax);
-  }
-  // Call the stub proper to get the result in rax.
-  __ call(&get_result);
-  __ LeaveInternalFrame();
 
   // Left and right arguments are already on stack.
-  __ pop(rcx);
-  // Push the operation result. The tail call to BinaryOp_Patch will
-  // return it to the original caller..
-  __ push(rax);
+  __ pop(rcx);  // Save the return address.
 
   // Push this stub's key.
   __ Push(Smi::FromInt(MinorKey()));
@@ -10963,17 +10946,13 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
 
   __ Push(Smi::FromInt(runtime_operands_type_));
 
-  __ push(rcx);
+  __ push(rcx);  // The return address.
 
   // Perform patching to an appropriate fast case and return the result.
   __ TailCallExternalReference(
       ExternalReference(IC_Utility(IC::kBinaryOp_Patch)),
-      6,
+      5,
       1);
-
-  // The entry point for the result calculation is assumed to be immediately
-  // after this sequence.
-  __ bind(&get_result);
 }
 
 

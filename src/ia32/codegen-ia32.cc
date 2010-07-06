@@ -9866,6 +9866,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           // the four basic operations. The stub stays in the DEFAULT state
           // forever for all other operations (also if smi code is skipped).
           GenerateTypeTransition(masm);
+          break;
         }
 
         Label not_floats;
@@ -10213,51 +10214,28 @@ void GenericBinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
 
 
 void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
-  Label get_result;
-
-  // Keep a copy of operands on the stack and make sure they are also in
-  // edx, eax.
+  // Ensure the operands are on the stack.
   if (HasArgsInRegisters()) {
     GenerateRegisterArgsPush(masm);
-  } else {
-    GenerateLoadArguments(masm);
   }
 
-  // Internal frame is necessary to handle exceptions properly.
-  __ EnterInternalFrame();
+  __ pop(ecx);  // Save return address.
 
-  // Push arguments on stack if the stub expects them there.
-  if (!HasArgsInRegisters()) {
-    __ push(edx);
-    __ push(eax);
-  }
-  // Call the stub proper to get the result in eax.
-  __ call(&get_result);
-  __ LeaveInternalFrame();
-
-  __ pop(ecx);  // Return address.
   // Left and right arguments are now on top.
-  // Push the operation result. The tail call to BinaryOp_Patch will
-  // return it to the original caller.
-  __ push(eax);
   // Push this stub's key. Although the operation and the type info are
   // encoded into the key, the encoding is opaque, so push them too.
   __ push(Immediate(Smi::FromInt(MinorKey())));
   __ push(Immediate(Smi::FromInt(op_)));
   __ push(Immediate(Smi::FromInt(runtime_operands_type_)));
 
-  __ push(ecx);  // Return address.
+  __ push(ecx);  // Push return address.
 
-  // Patch the caller to an appropriate specialized stub
-  // and return the operation result.
+  // Patch the caller to an appropriate specialized stub and return the
+  // operation result to the caller of the stub.
   __ TailCallExternalReference(
       ExternalReference(IC_Utility(IC::kBinaryOp_Patch)),
-      6,
+      5,
       1);
-
-  // The entry point for the result calculation is assumed to be immediately
-  // after this sequence.
-  __ bind(&get_result);
 }
 
 

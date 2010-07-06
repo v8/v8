@@ -5575,7 +5575,7 @@ static Object* Runtime_NumberAdd(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::AllocateHeapNumber(x + y);
+  return Heap::NumberFromDouble(x + y);
 }
 
 
@@ -5585,7 +5585,7 @@ static Object* Runtime_NumberSub(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::AllocateHeapNumber(x - y);
+  return Heap::NumberFromDouble(x - y);
 }
 
 
@@ -5595,7 +5595,7 @@ static Object* Runtime_NumberMul(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::AllocateHeapNumber(x * y);
+  return Heap::NumberFromDouble(x * y);
 }
 
 
@@ -5604,7 +5604,7 @@ static Object* Runtime_NumberUnaryMinus(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(-x);
+  return Heap::NumberFromDouble(-x);
 }
 
 
@@ -6206,7 +6206,7 @@ static Object* Runtime_Math_pow(Arguments args) {
   // custom powi() function than the generic pow().
   if (args[1]->IsSmi()) {
     int y = Smi::cast(args[1])->value();
-    return Heap::AllocateHeapNumber(powi(x, y));
+    return Heap::NumberFromDouble(powi(x, y));
   }
 
   CONVERT_DOUBLE_CHECKED(y, args[1]);
