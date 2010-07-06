@@ -2868,6 +2868,8 @@ Object* Heap::AllocateStringFromAscii(Vector<const char> string,
 
 Object* Heap::AllocateStringFromUtf8(Vector<const char> string,
                                      PretenureFlag pretenure) {
+  // V8 only supports characters in the Basic Multilingual Plane.
+  const uc32 kMaxSupportedChar = 0xFFFF;
   // Count the number of characters in the UTF-8 string and check if
   // it is an ASCII string.
   Access<Scanner::Utf8Decoder> decoder(Scanner::utf8_decoder());
@@ -2892,6 +2894,7 @@ Object* Heap::AllocateStringFromUtf8(Vector<const char> string,
   decoder->Reset(string.start(), string.length());
   for (int i = 0; i < chars; i++) {
     uc32 r = decoder->GetNext();
+    if (r > kMaxSupportedChar) { r = unibrow::Utf8::kBadChar; }
     string_result->Set(i, r);
   }
   return result;
