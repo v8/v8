@@ -8557,6 +8557,43 @@ TEST(PreCompileDeserializationError) {
 }
 
 
+// Attempts to deserialize bad data.
+TEST(PreCompileInvalidPreparseDataError) {
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+  LocalContext context;
+
+  const char* script = "function foo(){ return 5;}\n"
+      "function bar(){ return 6 + 7;}  foo();";
+  v8::ScriptData* sd =
+      v8::ScriptData::PreCompile(script, i::StrLength(script));
+  CHECK(!sd->HasError());
+  // ScriptDataImpl private implementation details
+  const int kUnsignedSize = sizeof(unsigned);
+  const int kHeaderSize = 4;
+  const int kFunctionEntrySize = 4;
+  const int kFunctionEntryStartOffset = 0;
+  const int kFunctionEntryEndOffset = 1;
+  unsigned* sd_data =
+      reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
+  CHECK_EQ(sd->Length(),
+           (kHeaderSize + 2 * kFunctionEntrySize) * kUnsignedSize);
+
+  // Overwrite function bar's end position with 0.
+  sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryEndOffset] = 0;
+  Local<String> source = String::New(script);
+  Local<Script> compiled_script = Script::New(source, NULL, sd);
+
+  // Overwrite function bar's start position with 200.  The function entry
+  // will not be found when searching for it by position.
+  sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
+      200;
+  compiled_script = Script::New(source, NULL, sd);
+
+  delete sd;
+}
+
+
 // Verifies that the Handle<String> and const char* versions of the API produce
 // the same results (at least for one trivial case).
 TEST(PreCompileAPIVariationsAreSame) {

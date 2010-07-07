@@ -197,7 +197,8 @@ function FormatMessage(message) {
       obj_ctor_property_non_object: "Object.%0 called on non-object",
       array_indexof_not_defined:    "Array.getIndexOf: Argument undefined",
       object_not_extensible:        "Can't add property %0, object is not extensible",
-      illegal_access:               "illegal access"
+      illegal_access:               "Illegal access",
+      invalid_preparser_data:       "Invalid preparser data for function %0"
     };
   }
   var format = kMessages[message.type];
