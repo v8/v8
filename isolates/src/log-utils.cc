@@ -338,9 +338,8 @@ void LogMessageBuilder::Append(String* str) {
 
 
 void LogMessageBuilder::AppendAddress(Address addr) {
-  static Address last_address_ = NULL;
-  AppendAddress(addr, last_address_);
-  last_address_ = addr;
+  AppendAddress(addr, log_->logger_->last_address_);
+  log_->logger_->last_address_ = addr;
 }
 
 

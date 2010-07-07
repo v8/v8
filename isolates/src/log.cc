@@ -331,7 +331,12 @@ Logger::Logger()
     cpu_profiler_nesting_(0),
     heap_profiler_nesting_(0),
     log_(new Log(this)),
-    is_initialized_(false) {
+    is_initialized_(false),
+    last_address_(NULL),
+    prev_sp_(NULL),
+    prev_function_(NULL),
+    prev_to_(NULL),
+    prev_code_(NULL) {
 }
 
 #define DECLARE_LONG_EVENT(ignore1, long_name, ignore2) long_name,
@@ -882,14 +887,13 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
 
 void Logger::FunctionCreateEvent(JSFunction* function) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  static Address prev_code = NULL;
   if (!log_->IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg(this);
   msg.Append("%s,", log_events_[FUNCTION_CREATION_EVENT]);
   msg.AppendAddress(function->address());
   msg.Append(',');
-  msg.AppendAddress(function->code()->address(), prev_code);
-  prev_code = function->code()->address();
+  msg.AppendAddress(function->code()->address(), prev_code_);
+  prev_code_ = function->code()->address();
   if (FLAG_compress_log) {
     ASSERT(compression_helper_ != NULL);
     if (!compression_helper_->HandleMessage(&msg)) return;
@@ -918,7 +922,6 @@ void Logger::FunctionDeleteEvent(Address from) {
 void Logger::MoveEventInternal(LogEventsAndTags event,
                                Address from,
                                Address to) {
-  static Address prev_to_ = NULL;
   if (!log_->IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg(this);
   msg.Append("%s,", log_events_[event]);
@@ -1044,25 +1047,25 @@ void Logger::HeapSampleJSConstructorEvent(const char* constructor,
 #endif
 }
 
+// Event starts with comma, so we don't have it in the format string.
+static const char kEventText[] = "heap-js-ret-item,%s";
+// We take placeholder strings into account, but it's OK to be conservative.
+static const int kEventTextLen = sizeof(kEventText)/sizeof(kEventText[0]);
 
 void Logger::HeapSampleJSRetainersEvent(
     const char* constructor, const char* event) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!log_->IsEnabled() || !FLAG_log_gc) return;
-  // Event starts with comma, so we don't have it in the format string.
-  static const char* event_text = "heap-js-ret-item,%s";
-  // We take placeholder strings into account, but it's OK to be conservative.
-  static const int event_text_len = StrLength(event_text);
   const int cons_len = StrLength(constructor);
   const int event_len = StrLength(event);
   int pos = 0;
   // Retainer lists can be long. We may need to split them into multiple events.
   do {
     LogMessageBuilder msg(this);
-    msg.Append(event_text, constructor);
+    msg.Append(kEventText, constructor);
     int to_write = event_len - pos;
-    if (to_write > Log::kMessageBufferSize - (cons_len + event_text_len)) {
-      int cut_pos = pos + Log::kMessageBufferSize - (cons_len + event_text_len);
+    if (to_write > Log::kMessageBufferSize - (cons_len + kEventTextLen)) {
+      int cut_pos = pos + Log::kMessageBufferSize - (cons_len + kEventTextLen);
       ASSERT(cut_pos < event_len);
       while (cut_pos > pos && event[cut_pos] != ',') --cut_pos;
       if (event[cut_pos] != ',') {
@@ -1132,18 +1135,16 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (!log_->IsEnabled() || !FLAG_prof) return;
-  static Address prev_sp = NULL;
-  static Address prev_function = NULL;
   LogMessageBuilder msg(this);
   msg.Append("%s,", log_events_[TICK_EVENT]);
   Address prev_addr = sample->pc;
   msg.AppendAddress(prev_addr);
   msg.Append(',');
-  msg.AppendAddress(sample->sp, prev_sp);
-  prev_sp = sample->sp;
+  msg.AppendAddress(sample->sp, prev_sp_);
+  prev_sp_ = sample->sp;
   msg.Append(',');
-  msg.AppendAddress(sample->function, prev_function);
-  prev_function = sample->function;
+  msg.AppendAddress(sample->function, prev_function_);
+  prev_function_ = sample->function;
   msg.Append(",%d", static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");
