@@ -5314,7 +5314,15 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
                   RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
-  for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
+  // Use the relocation info pointer before it is visited by
+  // the heap compaction in the next statement.
+  RelocIterator it(this, mode_mask);
+
+  IteratePointers(v,
+                  kRelocationInfoOffset,
+                  kRelocationInfoOffset + kPointerSize);
+
+  for (; !it.done(); it.next()) {
     it.rinfo()->Visit(v);
   }
 
@@ -5333,14 +5341,6 @@ void Code::Relocate(intptr_t delta) {
 void Code::CopyFrom(const CodeDesc& desc) {
   // copy code
   memmove(instruction_start(), desc.buffer, desc.instr_size);
-
-  // fill gap with zero bytes
-  { byte* p = instruction_start() + desc.instr_size;
-    byte* q = relocation_start();
-    while (p < q) {
-      *p++ = 0;
-    }
-  }
 
   // copy reloc info
   memmove(relocation_start(),

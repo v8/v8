@@ -3373,9 +3373,12 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     }
 
   } else {
-    bool overwrite =
+    bool can_overwrite =
       (node->expression()->AsBinaryOperation() != NULL &&
        node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+    UnaryOverwriteMode overwrite =
+        can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
+    bool no_negative_zero = node->expression()->no_negative_zero();
     Load(node->expression());
     switch (op) {
       case Token::NOT:
@@ -3385,7 +3388,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         break;
 
       case Token::SUB: {
-        GenericUnaryOpStub stub(Token::SUB, overwrite);
+        GenericUnaryOpStub stub(
+            Token::SUB,
+            overwrite,
+            no_negative_zero ? kIgnoreNegativeZero : kStrictNegativeZero);
         Result operand = frame_->Pop();
         Result answer = frame_->CallStub(&stub, &operand);
         answer.set_type_info(TypeInfo::Number());
@@ -8506,6 +8512,11 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     Label try_float;
     __ JumpIfNotSmi(rax, &try_float);
 
+    if (negative_zero_ == kIgnoreNegativeZero) {
+      __ SmiCompare(rax, Smi::FromInt(0));
+      __ j(equal, &done);
+    }
+
     // Enter runtime system if the value of the smi is zero
     // to make sure that we switch between 0 and -0.
     // Also enter it if the value of the smi is Smi::kMinValue.
@@ -8513,10 +8524,14 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 
     // Either zero or Smi::kMinValue, neither of which become a smi when
     // negated.
-    __ SmiCompare(rax, Smi::FromInt(0));
-    __ j(not_equal, &slow);
-    __ Move(rax, Factory::minus_zero_value());
-    __ jmp(&done);
+    if (negative_zero_ == kStrictNegativeZero) {
+      __ SmiCompare(rax, Smi::FromInt(0));
+      __ j(not_equal, &slow);
+      __ Move(rax, Factory::minus_zero_value());
+      __ jmp(&done);
+    } else  {
+      __ jmp(&slow);
+    }
 
     // Try floating point case.
     __ bind(&try_float);
@@ -8529,7 +8544,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ shl(kScratchRegister, Immediate(63));
     __ xor_(rdx, kScratchRegister);  // Flip sign.
     // rdx is value to store.
-    if (overwrite_) {
+    if (overwrite_ == UNARY_OVERWRITE) {
       __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rdx);
     } else {
       __ AllocateHeapNumber(rcx, rbx, &slow);
@@ -10596,6 +10611,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           // the four basic operations. The stub stays in the DEFAULT state
           // forever for all other operations (also if smi code is skipped).
           GenerateTypeTransition(masm);
+          break;
         }
 
         Label not_floats;
@@ -10913,31 +10929,13 @@ void GenericBinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
 void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   Label get_result;
 
-  // Keep a copy of operands on the stack and make sure they are also in
-  // rdx, rax.
+  // Ensure the operands are on the stack.
   if (HasArgsInRegisters()) {
     GenerateRegisterArgsPush(masm);
-  } else {
-    GenerateLoadArguments(masm);
   }
-
-  // Internal frame is necessary to handle exceptions properly.
-  __ EnterInternalFrame();
-
-  // Push arguments on stack if the stub expects them there.
-  if (!HasArgsInRegisters()) {
-    __ push(rdx);
-    __ push(rax);
-  }
-  // Call the stub proper to get the result in rax.
-  __ call(&get_result);
-  __ LeaveInternalFrame();
 
   // Left and right arguments are already on stack.
-  __ pop(rcx);
-  // Push the operation result. The tail call to BinaryOp_Patch will
-  // return it to the original caller..
-  __ push(rax);
+  __ pop(rcx);  // Save the return address.
 
   // Push this stub's key.
   __ Push(Smi::FromInt(MinorKey()));
@@ -10948,17 +10946,13 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
 
   __ Push(Smi::FromInt(runtime_operands_type_));
 
-  __ push(rcx);
+  __ push(rcx);  // The return address.
 
   // Perform patching to an appropriate fast case and return the result.
   __ TailCallExternalReference(
       ExternalReference(IC_Utility(IC::kBinaryOp_Patch)),
-      6,
+      5,
       1);
-
-  // The entry point for the result calculation is assumed to be immediately
-  // after this sequence.
-  __ bind(&get_result);
 }
 
 

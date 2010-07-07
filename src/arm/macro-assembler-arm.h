@@ -537,7 +537,7 @@ class MacroAssembler: public Assembler {
   void TailCallStub(CodeStub* stub, Condition cond = al);
 
   // Return from a code stub after popping its arguments.
-  void StubReturn(int argc);
+  void StubReturn(int argc, Condition cond = al);
 
   // Call a runtime routine.
   void CallRuntime(Runtime::Function* f, int num_arguments);

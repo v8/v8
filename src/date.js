@@ -453,111 +453,6 @@ var Date_cache = {
 });
 
 
-// Helper functions.
-function GetTimeFrom(aDate) {
-  return DATE_VALUE(aDate);
-}
-
-function GetMillisecondsFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return MS_FROM_TIME(LocalTimeNoCheck(t));
-}
-
-
-function GetUTCMillisecondsFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return MS_FROM_TIME(t);
-}
-
-
-function GetSecondsFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return SEC_FROM_TIME(LocalTimeNoCheck(t));
-}
-
-
-function GetUTCSecondsFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return SEC_FROM_TIME(t);
-}
-
-
-function GetMinutesFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return MIN_FROM_TIME(LocalTimeNoCheck(t));
-}
-
-
-function GetUTCMinutesFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return MIN_FROM_TIME(t);
-}
-
-
-function GetHoursFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return HOUR_FROM_TIME(LocalTimeNoCheck(t));
-}
-
-
-function GetUTCHoursFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return HOUR_FROM_TIME(t);
-}
-
-
-function GetFullYearFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  var cache = Date_cache;
-  if (cache.time === t) return cache.year;
-  return YEAR_FROM_TIME(LocalTimeNoCheck(t));
-}
-
-
-function GetUTCFullYearFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return YEAR_FROM_TIME(t);
-}
-
-
-function GetMonthFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return MONTH_FROM_TIME(LocalTimeNoCheck(t));
-}
-
-
-function GetUTCMonthFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return MONTH_FROM_TIME(t);
-}
-
-
-function GetDateFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return DATE_FROM_TIME(LocalTimeNoCheck(t));
-}
-
-
-function GetUTCDateFrom(aDate) {
-  var t = DATE_VALUE(aDate);
-  if (NUMBER_IS_NAN(t)) return t;
-  return DATE_FROM_TIME(t);
-}
-
-
 %FunctionSetPrototype($Date, new $Date($NaN));
 
 
@@ -737,37 +632,50 @@ function DateGetTime() {
 
 // ECMA 262 - 15.9.5.10
 function DateGetFullYear() {
-  return GetFullYearFrom(this)
+  var t = DATE_VALUE(this);
+  if (NUMBER_IS_NAN(t)) return t;
+  var cache = Date_cache;
+  if (cache.time === t) return cache.year;
+  return YEAR_FROM_TIME(LocalTimeNoCheck(t));
 }
 
 
 // ECMA 262 - 15.9.5.11
 function DateGetUTCFullYear() {
-  return GetUTCFullYearFrom(this)
+  var t = DATE_VALUE(this);
+  if (NUMBER_IS_NAN(t)) return t;
+  return YEAR_FROM_TIME(t);
 }
 
 
 // ECMA 262 - 15.9.5.12
 function DateGetMonth() {
-  return GetMonthFrom(this);
+  var t = DATE_VALUE(this);
+  if (NUMBER_IS_NAN(t)) return t;
+  return MONTH_FROM_TIME(LocalTimeNoCheck(t));
 }
 
 
 // ECMA 262 - 15.9.5.13
 function DateGetUTCMonth() {
-  return GetUTCMonthFrom(this);
+  var t = DATE_VALUE(this);
+  if (NUMBER_IS_NAN(t)) return t;
+  return MONTH_FROM_TIME(t);
 }
 
 
 // ECMA 262 - 15.9.5.14
 function DateGetDate() {
-  return GetDateFrom(this);
+  var t = DATE_VALUE(this);
+  if (NUMBER_IS_NAN(t)) return t;
+  return DATE_FROM_TIME(LocalTimeNoCheck(t));
 }
 
 
 // ECMA 262 - 15.9.5.15
 function DateGetUTCDate() {
-  return GetUTCDateFrom(this);
+  var t = DATE_VALUE(this);
+  return NAN_OR_DATE_FROM_TIME(t);
 }
 
 
@@ -789,49 +697,62 @@ function DateGetUTCDay() {
 
 // ECMA 262 - 15.9.5.18
 function DateGetHours() {
-  return GetHoursFrom(this);
+  var t = DATE_VALUE(this);
+  if (NUMBER_IS_NAN(t)) return t;
+  return HOUR_FROM_TIME(LocalTimeNoCheck(t));
 }
 
 
 // ECMA 262 - 15.9.5.19
 function DateGetUTCHours() {
-  return GetUTCHoursFrom(this);
+  var t = DATE_VALUE(this);
+  if (NUMBER_IS_NAN(t)) return t;
+  return HOUR_FROM_TIME(t);
 }
 
 
 // ECMA 262 - 15.9.5.20
 function DateGetMinutes() {
-  return GetMinutesFrom(this);
+  var t = DATE_VALUE(this);
+  if (NUMBER_IS_NAN(t)) return t;
+  return MIN_FROM_TIME(LocalTimeNoCheck(t));
 }
 
 
 // ECMA 262 - 15.9.5.21
 function DateGetUTCMinutes() {
-  return GetUTCMinutesFrom(this);
+  var t = DATE_VALUE(this);
+  return NAN_OR_MIN_FROM_TIME(t);
 }
 
 
 // ECMA 262 - 15.9.5.22
 function DateGetSeconds() {
-  return GetSecondsFrom(this);
+  var t = DATE_VALUE(this);
+  if (NUMBER_IS_NAN(t)) return t;
+  return SEC_FROM_TIME(LocalTimeNoCheck(t));
 }
 
 
 // ECMA 262 - 15.9.5.23
 function DateGetUTCSeconds() {
-  return GetUTCSecondsFrom(this);
+  var t = DATE_VALUE(this);
+  return NAN_OR_SEC_FROM_TIME(t);
 }
 
 
 // ECMA 262 - 15.9.5.24
 function DateGetMilliseconds() {
-  return GetMillisecondsFrom(this);
+  var t = DATE_VALUE(this);
+  if (NUMBER_IS_NAN(t)) return t;
+  return MS_FROM_TIME(LocalTimeNoCheck(t));
 }
 
 
 // ECMA 262 - 15.9.5.25
 function DateGetUTCMilliseconds() {
-  return GetUTCMillisecondsFrom(this);
+  var t = DATE_VALUE(this);
+  return NAN_OR_MS_FROM_TIME(t);
 }
 
 
@@ -872,7 +793,7 @@ function DateSetUTCMilliseconds(ms) {
 function DateSetSeconds(sec, ms) {
   var t = LocalTime(DATE_VALUE(this));
   sec = ToNumber(sec);
-  ms = %_ArgumentsLength() < 2 ? GetMillisecondsFrom(this) : ToNumber(ms);
+  ms = %_ArgumentsLength() < 2 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(HOUR_FROM_TIME(t), MIN_FROM_TIME(t), sec, ms);
   return %_SetValueOf(this, TimeClip(UTC(MakeDate(DAY(t), time))));
 }
@@ -882,7 +803,7 @@ function DateSetSeconds(sec, ms) {
 function DateSetUTCSeconds(sec, ms) {
   var t = DATE_VALUE(this);
   sec = ToNumber(sec);
-  ms = %_ArgumentsLength() < 2 ? GetUTCMillisecondsFrom(this) : ToNumber(ms);
+  ms = %_ArgumentsLength() < 2 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(HOUR_FROM_TIME(t), MIN_FROM_TIME(t), sec, ms);
   return %_SetValueOf(this, TimeClip(MakeDate(DAY(t), time)));
 }
@@ -893,8 +814,8 @@ function DateSetMinutes(min, sec, ms) {
   var t = LocalTime(DATE_VALUE(this));
   min = ToNumber(min);
   var argc = %_ArgumentsLength();
-  sec = argc < 2 ? GetSecondsFrom(this) : ToNumber(sec);
-  ms = argc < 3 ? GetMillisecondsFrom(this) : ToNumber(ms);
+  sec = argc < 2 ? NAN_OR_SEC_FROM_TIME(t) : ToNumber(sec);
+  ms = argc < 3 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(HOUR_FROM_TIME(t), min, sec, ms);
   return %_SetValueOf(this, TimeClip(UTC(MakeDate(DAY(t), time))));
 }
@@ -905,8 +826,8 @@ function DateSetUTCMinutes(min, sec, ms) {
   var t = DATE_VALUE(this);
   min = ToNumber(min);
   var argc = %_ArgumentsLength();
-  sec = argc < 2 ? GetUTCSecondsFrom(this) : ToNumber(sec);
-  ms = argc < 3 ? GetUTCMillisecondsFrom(this) : ToNumber(ms);
+  sec = argc < 2 ? NAN_OR_SEC_FROM_TIME(t) : ToNumber(sec);
+  ms = argc < 3 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(HOUR_FROM_TIME(t), min, sec, ms);
   return %_SetValueOf(this, TimeClip(MakeDate(DAY(t), time)));
 }
@@ -917,9 +838,9 @@ function DateSetHours(hour, min, sec, ms) {
   var t = LocalTime(DATE_VALUE(this));
   hour = ToNumber(hour);
   var argc = %_ArgumentsLength();
-  min = argc < 2 ? GetMinutesFrom(this) : ToNumber(min);
-  sec = argc < 3 ? GetSecondsFrom(this) : ToNumber(sec);
-  ms = argc < 4 ? GetMillisecondsFrom(this) : ToNumber(ms);
+  min = argc < 2 ? NAN_OR_MIN_FROM_TIME(t) : ToNumber(min);
+  sec = argc < 3 ? NAN_OR_SEC_FROM_TIME(t) : ToNumber(sec);
+  ms = argc < 4 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(hour, min, sec, ms);
   return %_SetValueOf(this, TimeClip(UTC(MakeDate(DAY(t), time))));
 }
@@ -930,9 +851,9 @@ function DateSetUTCHours(hour, min, sec, ms) {
   var t = DATE_VALUE(this);
   hour = ToNumber(hour);
   var argc = %_ArgumentsLength();
-  min = argc < 2 ? GetUTCMinutesFrom(this) : ToNumber(min);
-  sec = argc < 3 ? GetUTCSecondsFrom(this) : ToNumber(sec);
-  ms = argc < 4 ? GetUTCMillisecondsFrom(this) : ToNumber(ms);
+  min = argc < 2 ? NAN_OR_MIN_FROM_TIME(t) : ToNumber(min);
+  sec = argc < 3 ? NAN_OR_SEC_FROM_TIME(t) : ToNumber(sec);
+  ms = argc < 4 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(hour, min, sec, ms);
   return %_SetValueOf(this, TimeClip(MakeDate(DAY(t), time)));
 }
@@ -960,7 +881,7 @@ function DateSetUTCDate(date) {
 function DateSetMonth(month, date) {
   var t = LocalTime(DATE_VALUE(this));
   month = ToNumber(month);
-  date = %_ArgumentsLength() < 2 ? GetDateFrom(this) : ToNumber(date);
+  date = %_ArgumentsLength() < 2 ? NAN_OR_DATE_FROM_TIME(t) : ToNumber(date);
   var day = MakeDay(YEAR_FROM_TIME(t), month, date);
   return %_SetValueOf(this, TimeClip(UTC(MakeDate(day, TimeWithinDay(t)))));
 }
@@ -970,7 +891,7 @@ function DateSetMonth(month, date) {
 function DateSetUTCMonth(month, date) {
   var t = DATE_VALUE(this);
   month = ToNumber(month);
-  date = %_ArgumentsLength() < 2 ? GetUTCDateFrom(this) : ToNumber(date);
+  date = %_ArgumentsLength() < 2 ? NAN_OR_DATE_FROM_TIME(t) : ToNumber(date);
   var day = MakeDay(YEAR_FROM_TIME(t), month, date);
   return %_SetValueOf(this, TimeClip(MakeDate(day, TimeWithinDay(t))));
 }

@@ -472,8 +472,9 @@ void BreakLocationIterator::ClearDebugBreakAtIC() {
 
   RelocInfo::Mode mode = rmode();
   if (RelocInfo::IsCodeTarget(mode)) {
+    AssertNoAllocation nogc;
     Address target = original_rinfo()->target_address();
-    Handle<Code> code(Code::GetCodeFromTargetAddress(target));
+    Code* code = Code::GetCodeFromTargetAddress(target);
 
     // Restore the inlined version of keyed stores to get back to the
     // fast case.  We need to patch back the keyed store because no

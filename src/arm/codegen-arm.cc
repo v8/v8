@@ -5423,9 +5423,13 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     frame_->EmitPush(r0);  // r0 has result
 
   } else {
-    bool overwrite =
+    bool can_overwrite =
         (node->expression()->AsBinaryOperation() != NULL &&
          node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+    UnaryOverwriteMode overwrite =
+        can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
+
+    bool no_negative_zero = node->expression()->no_negative_zero();
     Load(node->expression());
     switch (op) {
       case Token::NOT:
@@ -5436,7 +5440,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::SUB: {
         frame_->PopToR0();
-        GenericUnaryOpStub stub(Token::SUB, overwrite);
+        GenericUnaryOpStub stub(
+            Token::SUB,
+            overwrite,
+            no_negative_zero ? kIgnoreNegativeZero : kStrictNegativeZero);
         frame_->CallStub(&stub, 0);
         frame_->EmitPush(r0);  // r0 has result
         break;
@@ -7641,187 +7648,195 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     __ Swap(r0, r1, ip);
   }
 
-  if (ShouldGenerateFPCode()) {
-    Label r0_is_smi, r1_is_smi, finished_loading_r0, finished_loading_r1;
+  // The type transition also calculates the answer.
+  bool generate_code_to_calculate_answer = true;
 
+  if (ShouldGenerateFPCode()) {
     if (runtime_operands_type_ == BinaryOpIC::DEFAULT) {
       switch (op_) {
         case Token::ADD:
         case Token::SUB:
         case Token::MUL:
         case Token::DIV:
-          GenerateTypeTransition(masm);
+          GenerateTypeTransition(masm);  // Tail call.
+          generate_code_to_calculate_answer = false;
           break;
 
         default:
           break;
       }
-      // Restore heap number map register.
-      __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
     }
 
-    if (mode_ == NO_OVERWRITE) {
-      // In the case where there is no chance of an overwritable float we may as
-      // well do the allocation immediately while r0 and r1 are untouched.
-      __ AllocateHeapNumber(r5, r3, r7, heap_number_map, &slow);
-    }
-
-    // Move r0 to a double in r2-r3.
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, &r0_is_smi);  // It's a Smi so don't check it's a heap number.
-    __ ldr(r4, FieldMemOperand(r0, HeapObject::kMapOffset));
-    __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-    __ cmp(r4, heap_number_map);
-    __ b(ne, &slow);
-    if (mode_ == OVERWRITE_RIGHT) {
-      __ mov(r5, Operand(r0));  // Overwrite this heap number.
-    }
-    if (use_fp_registers) {
-      CpuFeatures::Scope scope(VFP3);
-      // Load the double from tagged HeapNumber r0 to d7.
-      __ sub(r7, r0, Operand(kHeapObjectTag));
-      __ vldr(d7, r7, HeapNumber::kValueOffset);
-    } else {
-      // Calling convention says that second double is in r2 and r3.
-      __ Ldrd(r2, r3, FieldMemOperand(r0, HeapNumber::kValueOffset));
-    }
-    __ jmp(&finished_loading_r0);
-    __ bind(&r0_is_smi);
-    if (mode_ == OVERWRITE_RIGHT) {
-      // We can't overwrite a Smi so get address of new heap number into r5.
-    __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
-    }
-
-    if (CpuFeatures::IsSupported(VFP3)) {
-      CpuFeatures::Scope scope(VFP3);
-      // Convert smi in r0 to double in d7.
-      __ mov(r7, Operand(r0, ASR, kSmiTagSize));
-      __ vmov(s15, r7);
-      __ vcvt_f64_s32(d7, s15);
-      if (!use_fp_registers) {
-        __ vmov(r2, r3, d7);
+    if (generate_code_to_calculate_answer) {
+      Label r0_is_smi, r1_is_smi, finished_loading_r0, finished_loading_r1;
+      if (mode_ == NO_OVERWRITE) {
+        // In the case where there is no chance of an overwritable float we may
+        // as well do the allocation immediately while r0 and r1 are untouched.
+        __ AllocateHeapNumber(r5, r3, r7, heap_number_map, &slow);
       }
-    } else {
-      // Write Smi from r0 to r3 and r2 in double format.
-      __ mov(r7, Operand(r0));
-      ConvertToDoubleStub stub3(r3, r2, r7, r4);
-      __ push(lr);
-      __ Call(stub3.GetCode(), RelocInfo::CODE_TARGET);
-      __ pop(lr);
-    }
 
-    // HEAP_NUMBERS stub is slower than GENERIC on a pair of smis.
-    // r0 is known to be a smi. If r1 is also a smi then switch to GENERIC.
-    Label r1_is_not_smi;
-    if (runtime_operands_type_ == BinaryOpIC::HEAP_NUMBERS) {
-      __ tst(r1, Operand(kSmiTagMask));
-      __ b(ne, &r1_is_not_smi);
-      GenerateTypeTransition(masm);
-      // Restore heap number map register.
-      __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-      __ jmp(&r1_is_smi);
-    }
-
-    __ bind(&finished_loading_r0);
-
-    // Move r1 to a double in r0-r1.
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(eq, &r1_is_smi);  // It's a Smi so don't check it's a heap number.
-    __ bind(&r1_is_not_smi);
-    __ ldr(r4, FieldMemOperand(r1, HeapNumber::kMapOffset));
-    __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-    __ cmp(r4, heap_number_map);
-    __ b(ne, &slow);
-    if (mode_ == OVERWRITE_LEFT) {
-      __ mov(r5, Operand(r1));  // Overwrite this heap number.
-    }
-    if (use_fp_registers) {
-      CpuFeatures::Scope scope(VFP3);
-      // Load the double from tagged HeapNumber r1 to d6.
-      __ sub(r7, r1, Operand(kHeapObjectTag));
-      __ vldr(d6, r7, HeapNumber::kValueOffset);
-    } else {
-      // Calling convention says that first double is in r0 and r1.
-      __ Ldrd(r0, r1, FieldMemOperand(r1, HeapNumber::kValueOffset));
-    }
-    __ jmp(&finished_loading_r1);
-    __ bind(&r1_is_smi);
-    if (mode_ == OVERWRITE_LEFT) {
-      // We can't overwrite a Smi so get address of new heap number into r5.
-    __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
-    }
-
-    if (CpuFeatures::IsSupported(VFP3)) {
-      CpuFeatures::Scope scope(VFP3);
-      // Convert smi in r1 to double in d6.
-      __ mov(r7, Operand(r1, ASR, kSmiTagSize));
-      __ vmov(s13, r7);
-      __ vcvt_f64_s32(d6, s13);
-      if (!use_fp_registers) {
-        __ vmov(r0, r1, d6);
+      // Move r0 to a double in r2-r3.
+      __ tst(r0, Operand(kSmiTagMask));
+      __ b(eq, &r0_is_smi);  // It's a Smi so don't check it's a heap number.
+      __ ldr(r4, FieldMemOperand(r0, HeapObject::kMapOffset));
+      __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+      __ cmp(r4, heap_number_map);
+      __ b(ne, &slow);
+      if (mode_ == OVERWRITE_RIGHT) {
+        __ mov(r5, Operand(r0));  // Overwrite this heap number.
       }
-    } else {
-      // Write Smi from r1 to r1 and r0 in double format.
-      __ mov(r7, Operand(r1));
-      ConvertToDoubleStub stub4(r1, r0, r7, r9);
-      __ push(lr);
-      __ Call(stub4.GetCode(), RelocInfo::CODE_TARGET);
-      __ pop(lr);
-    }
-
-    __ bind(&finished_loading_r1);
-
-    __ bind(&do_the_call);
-    // If we are inlining the operation using VFP3 instructions for
-    // add, subtract, multiply, or divide, the arguments are in d6 and d7.
-    if (use_fp_registers) {
-      CpuFeatures::Scope scope(VFP3);
-      // ARMv7 VFP3 instructions to implement
-      // double precision, add, subtract, multiply, divide.
-
-      if (Token::MUL == op_) {
-        __ vmul(d5, d6, d7);
-      } else if (Token::DIV == op_) {
-        __ vdiv(d5, d6, d7);
-      } else if (Token::ADD == op_) {
-        __ vadd(d5, d6, d7);
-      } else if (Token::SUB == op_) {
-        __ vsub(d5, d6, d7);
+      if (use_fp_registers) {
+        CpuFeatures::Scope scope(VFP3);
+        // Load the double from tagged HeapNumber r0 to d7.
+        __ sub(r7, r0, Operand(kHeapObjectTag));
+        __ vldr(d7, r7, HeapNumber::kValueOffset);
       } else {
-        UNREACHABLE();
+        // Calling convention says that second double is in r2 and r3.
+        __ Ldrd(r2, r3, FieldMemOperand(r0, HeapNumber::kValueOffset));
       }
-      __ sub(r0, r5, Operand(kHeapObjectTag));
-      __ vstr(d5, r0, HeapNumber::kValueOffset);
-      __ add(r0, r0, Operand(kHeapObjectTag));
-      __ mov(pc, lr);
-    } else {
-      // If we did not inline the operation, then the arguments are in:
-      // r0: Left value (least significant part of mantissa).
-      // r1: Left value (sign, exponent, top of mantissa).
-      // r2: Right value (least significant part of mantissa).
-      // r3: Right value (sign, exponent, top of mantissa).
-      // r5: Address of heap number for result.
+      __ jmp(&finished_loading_r0);
+      __ bind(&r0_is_smi);
+      if (mode_ == OVERWRITE_RIGHT) {
+        // We can't overwrite a Smi so get address of new heap number into r5.
+      __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
+      }
 
-      __ push(lr);   // For later.
-      __ PrepareCallCFunction(4, r4);  // Two doubles count as 4 arguments.
-      // Call C routine that may not cause GC or other trouble. r5 is callee
-      // save.
-      __ CallCFunction(ExternalReference::double_fp_operation(op_), 4);
-      // Store answer in the overwritable heap number.
-  #if !defined(USE_ARM_EABI)
-      // Double returned in fp coprocessor register 0 and 1, encoded as register
-      // cr8.  Offsets must be divisible by 4 for coprocessor so we need to
-      // substract the tag from r5.
-      __ sub(r4, r5, Operand(kHeapObjectTag));
-      __ stc(p1, cr8, MemOperand(r4, HeapNumber::kValueOffset));
-  #else
-      // Double returned in registers 0 and 1.
-      __ Strd(r0, r1, FieldMemOperand(r5, HeapNumber::kValueOffset));
-  #endif
-      __ mov(r0, Operand(r5));
-      // And we are done.
-      __ pop(pc);
+      if (CpuFeatures::IsSupported(VFP3)) {
+        CpuFeatures::Scope scope(VFP3);
+        // Convert smi in r0 to double in d7.
+        __ mov(r7, Operand(r0, ASR, kSmiTagSize));
+        __ vmov(s15, r7);
+        __ vcvt_f64_s32(d7, s15);
+        if (!use_fp_registers) {
+          __ vmov(r2, r3, d7);
+        }
+      } else {
+        // Write Smi from r0 to r3 and r2 in double format.
+        __ mov(r7, Operand(r0));
+        ConvertToDoubleStub stub3(r3, r2, r7, r4);
+        __ push(lr);
+        __ Call(stub3.GetCode(), RelocInfo::CODE_TARGET);
+        __ pop(lr);
+      }
+
+      // HEAP_NUMBERS stub is slower than GENERIC on a pair of smis.
+      // r0 is known to be a smi. If r1 is also a smi then switch to GENERIC.
+      Label r1_is_not_smi;
+      if (runtime_operands_type_ == BinaryOpIC::HEAP_NUMBERS) {
+        __ tst(r1, Operand(kSmiTagMask));
+        __ b(ne, &r1_is_not_smi);
+        GenerateTypeTransition(masm);  // Tail call.
+      }
+
+      __ bind(&finished_loading_r0);
+
+      // Move r1 to a double in r0-r1.
+      __ tst(r1, Operand(kSmiTagMask));
+      __ b(eq, &r1_is_smi);  // It's a Smi so don't check it's a heap number.
+      __ bind(&r1_is_not_smi);
+      __ ldr(r4, FieldMemOperand(r1, HeapNumber::kMapOffset));
+      __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+      __ cmp(r4, heap_number_map);
+      __ b(ne, &slow);
+      if (mode_ == OVERWRITE_LEFT) {
+        __ mov(r5, Operand(r1));  // Overwrite this heap number.
+      }
+      if (use_fp_registers) {
+        CpuFeatures::Scope scope(VFP3);
+        // Load the double from tagged HeapNumber r1 to d6.
+        __ sub(r7, r1, Operand(kHeapObjectTag));
+        __ vldr(d6, r7, HeapNumber::kValueOffset);
+      } else {
+        // Calling convention says that first double is in r0 and r1.
+        __ Ldrd(r0, r1, FieldMemOperand(r1, HeapNumber::kValueOffset));
+      }
+      __ jmp(&finished_loading_r1);
+      __ bind(&r1_is_smi);
+      if (mode_ == OVERWRITE_LEFT) {
+        // We can't overwrite a Smi so get address of new heap number into r5.
+      __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
+      }
+
+      if (CpuFeatures::IsSupported(VFP3)) {
+        CpuFeatures::Scope scope(VFP3);
+        // Convert smi in r1 to double in d6.
+        __ mov(r7, Operand(r1, ASR, kSmiTagSize));
+        __ vmov(s13, r7);
+        __ vcvt_f64_s32(d6, s13);
+        if (!use_fp_registers) {
+          __ vmov(r0, r1, d6);
+        }
+      } else {
+        // Write Smi from r1 to r1 and r0 in double format.
+        __ mov(r7, Operand(r1));
+        ConvertToDoubleStub stub4(r1, r0, r7, r9);
+        __ push(lr);
+        __ Call(stub4.GetCode(), RelocInfo::CODE_TARGET);
+        __ pop(lr);
+      }
+
+      __ bind(&finished_loading_r1);
     }
+
+    if (generate_code_to_calculate_answer || do_the_call.is_linked()) {
+      __ bind(&do_the_call);
+      // If we are inlining the operation using VFP3 instructions for
+      // add, subtract, multiply, or divide, the arguments are in d6 and d7.
+      if (use_fp_registers) {
+        CpuFeatures::Scope scope(VFP3);
+        // ARMv7 VFP3 instructions to implement
+        // double precision, add, subtract, multiply, divide.
+
+        if (Token::MUL == op_) {
+          __ vmul(d5, d6, d7);
+        } else if (Token::DIV == op_) {
+          __ vdiv(d5, d6, d7);
+        } else if (Token::ADD == op_) {
+          __ vadd(d5, d6, d7);
+        } else if (Token::SUB == op_) {
+          __ vsub(d5, d6, d7);
+        } else {
+          UNREACHABLE();
+        }
+        __ sub(r0, r5, Operand(kHeapObjectTag));
+        __ vstr(d5, r0, HeapNumber::kValueOffset);
+        __ add(r0, r0, Operand(kHeapObjectTag));
+        __ mov(pc, lr);
+      } else {
+        // If we did not inline the operation, then the arguments are in:
+        // r0: Left value (least significant part of mantissa).
+        // r1: Left value (sign, exponent, top of mantissa).
+        // r2: Right value (least significant part of mantissa).
+        // r3: Right value (sign, exponent, top of mantissa).
+        // r5: Address of heap number for result.
+
+        __ push(lr);   // For later.
+        __ PrepareCallCFunction(4, r4);  // Two doubles count as 4 arguments.
+        // Call C routine that may not cause GC or other trouble. r5 is callee
+        // save.
+        __ CallCFunction(ExternalReference::double_fp_operation(op_), 4);
+        // Store answer in the overwritable heap number.
+    #if !defined(USE_ARM_EABI)
+        // Double returned in fp coprocessor register 0 and 1, encoded as
+        // register cr8.  Offsets must be divisible by 4 for coprocessor so we
+        // need to substract the tag from r5.
+        __ sub(r4, r5, Operand(kHeapObjectTag));
+        __ stc(p1, cr8, MemOperand(r4, HeapNumber::kValueOffset));
+    #else
+        // Double returned in registers 0 and 1.
+        __ Strd(r0, r1, FieldMemOperand(r5, HeapNumber::kValueOffset));
+    #endif
+        __ mov(r0, Operand(r5));
+        // And we are done.
+        __ pop(pc);
+      }
+    }
+  }
+
+  if (!generate_code_to_calculate_answer &&
+      !slow_reverse.is_linked() &&
+      !slow.is_linked()) {
+    return;
   }
 
   if (lhs.is(r0)) {
@@ -8745,29 +8760,15 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
 
   __ Push(r1, r0);
 
-  // Internal frame is necessary to handle exceptions properly.
-  __ EnterInternalFrame();
-  // Call the stub proper to get the result in r0.
-  __ Call(&get_result);
-  __ LeaveInternalFrame();
-
-  __ push(r0);
-
-  __ mov(r0, Operand(Smi::FromInt(MinorKey())));
-  __ push(r0);
-  __ mov(r0, Operand(Smi::FromInt(op_)));
-  __ push(r0);
+  __ mov(r2, Operand(Smi::FromInt(MinorKey())));
+  __ mov(r1, Operand(Smi::FromInt(op_)));
   __ mov(r0, Operand(Smi::FromInt(runtime_operands_type_)));
-  __ push(r0);
+  __ Push(r2, r1, r0);
 
   __ TailCallExternalReference(
       ExternalReference(IC_Utility(IC::kBinaryOp_Patch)),
-      6,
+      5,
       1);
-
-  // The entry point for the result calculation is assumed to be immediately
-  // after this sequence.
-  __ bind(&get_result);
 }
 
 
@@ -8899,16 +8900,23 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 
     // Go slow case if the value of the expression is zero
     // to make sure that we switch between 0 and -0.
-    __ cmp(r0, Operand(0));
-    __ b(eq, &slow);
-
-    // The value of the expression is a smi that is not zero.  Try
-    // optimistic subtraction '0 - value'.
-    __ rsb(r1, r0, Operand(0), SetCC);
-    __ b(vs, &slow);
-
-    __ mov(r0, Operand(r1));  // Set r0 to result.
-    __ b(&done);
+    if (negative_zero_ == kStrictNegativeZero) {
+      // If we have to check for zero, then we can check for the max negative
+      // smi while we are at it.
+      __ bic(ip, r0, Operand(0x80000000), SetCC);
+      __ b(eq, &slow);
+      __ rsb(r0, r0, Operand(0));
+      __ StubReturn(1);
+    } else {
+      // The value of the expression is a smi and 0 is OK for -0.  Try
+      // optimistic subtraction '0 - value'.
+      __ rsb(r0, r0, Operand(0), SetCC);
+      __ StubReturn(1, vc);
+      // We don't have to reverse the optimistic neg since the only case
+      // where we fall through is the minimum negative Smi, which is the case
+      // where the neg leaves the register unchanged.
+      __ jmp(&slow);  // Go slow on max negative Smi.
+    }
 
     __ bind(&try_float);
     __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -8916,7 +8924,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ cmp(r1, heap_number_map);
     __ b(ne, &slow);
     // r0 is a heap number.  Get a new heap number in r1.
-    if (overwrite_) {
+    if (overwrite_ == UNARY_OVERWRITE) {
       __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
       __ eor(r2, r2, Operand(HeapNumber::kSignMask));  // Flip sign.
       __ str(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
@@ -8949,7 +8957,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ b(&done);
 
     __ bind(&try_float);
-    if (!overwrite_) {
+    if (!overwrite_ == UNARY_OVERWRITE) {
       // Allocate a fresh heap number, but don't overwrite r0 until
       // we're sure we can do it without going through the slow case
       // that needs the value in r0.

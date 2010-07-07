@@ -1639,16 +1639,15 @@ Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info);
 
 
 Object* BinaryOp_Patch(Arguments args) {
-  ASSERT(args.length() == 6);
+  ASSERT(args.length() == 5);
 
   Handle<Object> left = args.at<Object>(0);
   Handle<Object> right = args.at<Object>(1);
-  Handle<Object> result = args.at<Object>(2);
-  int key = Smi::cast(args[3])->value();
+  int key = Smi::cast(args[2])->value();
+  Token::Value op = static_cast<Token::Value>(Smi::cast(args[3])->value());
 #ifdef DEBUG
-  Token::Value op = static_cast<Token::Value>(Smi::cast(args[4])->value());
   BinaryOpIC::TypeInfo prev_type_info =
-      static_cast<BinaryOpIC::TypeInfo>(Smi::cast(args[5])->value());
+      static_cast<BinaryOpIC::TypeInfo>(Smi::cast(args[4])->value());
 #endif  // DEBUG
   { HandleScope scope;
     BinaryOpIC::TypeInfo type_info = BinaryOpIC::GetTypeInfo(*left, *right);
@@ -1667,6 +1666,61 @@ Object* BinaryOp_Patch(Arguments args) {
     }
   }
 
+  HandleScope scope;
+  Handle<JSBuiltinsObject> builtins = Top::builtins();
+
+  Object* builtin = NULL;  // Initialization calms down the compiler.
+
+  switch (op) {
+    case Token::ADD:
+      builtin = builtins->javascript_builtin(Builtins::ADD);
+      break;
+    case Token::SUB:
+      builtin = builtins->javascript_builtin(Builtins::SUB);
+      break;
+    case Token::MUL:
+      builtin = builtins->javascript_builtin(Builtins::MUL);
+      break;
+    case Token::DIV:
+      builtin = builtins->javascript_builtin(Builtins::DIV);
+      break;
+    case Token::MOD:
+      builtin = builtins->javascript_builtin(Builtins::MOD);
+      break;
+    case Token::BIT_AND:
+      builtin = builtins->javascript_builtin(Builtins::BIT_AND);
+      break;
+    case Token::BIT_OR:
+      builtin = builtins->javascript_builtin(Builtins::BIT_OR);
+      break;
+    case Token::BIT_XOR:
+      builtin = builtins->javascript_builtin(Builtins::BIT_XOR);
+      break;
+    case Token::SHR:
+      builtin = builtins->javascript_builtin(Builtins::SHR);
+      break;
+    case Token::SAR:
+      builtin = builtins->javascript_builtin(Builtins::SAR);
+      break;
+    case Token::SHL:
+      builtin = builtins->javascript_builtin(Builtins::SHL);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  Handle<JSFunction> builtin_function(JSFunction::cast(builtin));
+
+  bool caught_exception;
+  Object** builtin_args[] = { right.location() };
+  Handle<Object> result = Execution::Call(builtin_function,
+                                          left,
+                                          ARRAY_SIZE(builtin_args),
+                                          builtin_args,
+                                          &caught_exception);
+  if (caught_exception) {
+    return Failure::Exception();
+  }
   return *result;
 }
 

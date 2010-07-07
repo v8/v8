@@ -2807,7 +2807,7 @@ JSValue* JSValue::cast(Object* obj) {
 
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
-INT_ACCESSORS(Code, relocation_size, kRelocationSizeOffset)
+ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 INT_ACCESSORS(Code, sinfo_size, kSInfoSizeOffset)
 
 
@@ -2816,13 +2816,28 @@ byte* Code::instruction_start()  {
 }
 
 
+byte* Code::instruction_end()  {
+  return instruction_start() + instruction_size();
+}
+
+
 int Code::body_size() {
-  return RoundUp(instruction_size() + relocation_size(), kObjectAlignment);
+  return RoundUp(instruction_size(), kObjectAlignment);
+}
+
+
+ByteArray* Code::unchecked_relocation_info() {
+  return reinterpret_cast<ByteArray*>(READ_FIELD(this, kRelocationInfoOffset));
 }
 
 
 byte* Code::relocation_start() {
-  return FIELD_ADDR(this, kHeaderSize + instruction_size());
+  return unchecked_relocation_info()->GetDataStartAddress();
+}
+
+
+int Code::relocation_size() {
+  return unchecked_relocation_info()->length();
 }
 
 

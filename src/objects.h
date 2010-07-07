@@ -2736,9 +2736,13 @@ class Code: public HeapObject {
   inline int instruction_size();
   inline void set_instruction_size(int value);
 
-  // [relocation_size]: Size of relocation information.
+  // [relocation_info]: Code relocation information
+  DECL_ACCESSORS(relocation_info, ByteArray)
+
+  // Unchecked accessor to be used during GC.
+  inline ByteArray* unchecked_relocation_info();
+
   inline int relocation_size();
-  inline void set_relocation_size(int value);
 
   // [sinfo_size]: Size of scope information.
   inline int sinfo_size();
@@ -2796,6 +2800,9 @@ class Code: public HeapObject {
 
   // Returns the address of the first instruction.
   inline byte* instruction_start();
+
+  // Returns the address right after the last instruction.
+  inline byte* instruction_end();
 
   // Returns the size of the instructions, padding, and relocation information.
   inline int body_size();
@@ -2857,8 +2864,8 @@ class Code: public HeapObject {
 
   // Layout description.
   static const int kInstructionSizeOffset = HeapObject::kHeaderSize;
-  static const int kRelocationSizeOffset = kInstructionSizeOffset + kIntSize;
-  static const int kSInfoSizeOffset = kRelocationSizeOffset + kIntSize;
+  static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
+  static const int kSInfoSizeOffset = kRelocationInfoOffset + kPointerSize;
   static const int kFlagsOffset = kSInfoSizeOffset + kIntSize;
   static const int kKindSpecificFlagsOffset  = kFlagsOffset + kIntSize;
   // Add padding to align the instruction start following right after
@@ -4406,6 +4413,8 @@ class SeqString: public String {
 // Each character in the AsciiString is an ascii character.
 class SeqAsciiString: public SeqString {
  public:
+  static const bool kHasAsciiEncoding = true;
+
   // Dispatched behavior.
   inline uint16_t SeqAsciiStringGet(int index);
   inline void SeqAsciiStringSet(int index, uint16_t value);
@@ -4455,6 +4464,8 @@ class SeqAsciiString: public SeqString {
 // Each character in the TwoByteString is a two-byte uint16_t.
 class SeqTwoByteString: public SeqString {
  public:
+  static const bool kHasAsciiEncoding = false;
+
   // Dispatched behavior.
   inline uint16_t SeqTwoByteStringGet(int index);
   inline void SeqTwoByteStringSet(int index, uint16_t value);
@@ -4587,6 +4598,8 @@ class ExternalString: public String {
 // ASCII string.
 class ExternalAsciiString: public ExternalString {
  public:
+  static const bool kHasAsciiEncoding = true;
+
   typedef v8::String::ExternalAsciiStringResource Resource;
 
   // The underlying resource.
@@ -4619,6 +4632,8 @@ class ExternalAsciiString: public ExternalString {
 // encoded string.
 class ExternalTwoByteString: public ExternalString {
  public:
+  static const bool kHasAsciiEncoding = false;
+
   typedef v8::String::ExternalStringResource Resource;
 
   // The underlying string resource.
