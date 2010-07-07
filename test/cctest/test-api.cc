@@ -8581,14 +8581,25 @@ TEST(PreCompileInvalidPreparseDataError) {
 
   // Overwrite function bar's end position with 0.
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryEndOffset] = 0;
+  v8::TryCatch try_catch;
+
   Local<String> source = String::New(script);
   Local<Script> compiled_script = Script::New(source, NULL, sd);
+  CHECK(try_catch.HasCaught());
+  String::AsciiValue exception_value(try_catch.Message()->Get());
+  CHECK_EQ("Uncaught SyntaxError: Invalid preparser data for function bar",
+           *exception_value);
 
+  try_catch.Reset();
   // Overwrite function bar's start position with 200.  The function entry
   // will not be found when searching for it by position.
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
       200;
   compiled_script = Script::New(source, NULL, sd);
+  CHECK(try_catch.HasCaught());
+  String::AsciiValue second_exception_value(try_catch.Message()->Get());
+  CHECK_EQ("Uncaught SyntaxError: Invalid preparser data for function bar",
+           *second_exception_value);
 
   delete sd;
 }
