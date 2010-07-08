@@ -5608,6 +5608,14 @@ static Object* Runtime_NumberUnaryMinus(Arguments args) {
 }
 
 
+static Object* Runtime_NumberAlloc(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 0);
+
+  return Heap::NumberFromDouble(9876543210.0);
+}
+
+
 static Object* Runtime_NumberDiv(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
