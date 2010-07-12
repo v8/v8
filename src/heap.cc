@@ -818,7 +818,7 @@ class PromotionQueue {
 
   void remove(HeapObject** target, int* size) {
     *target = reinterpret_cast<HeapObject*>(*(--front_));
-    *size = *(--front_);
+    *size = static_cast<int>(*(--front_));
     // Assert no underflow.
     ASSERT(front_ >= rear_);
   }
