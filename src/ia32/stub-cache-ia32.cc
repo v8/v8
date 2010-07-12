@@ -121,11 +121,13 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
 
   const int kInterceptorOrAccessCheckNeededMask =
       (1 << Map::kHasNamedInterceptor) | (1 << Map::kIsAccessCheckNeeded);
+
   // Bail out if the receiver has a named interceptor or requires access checks.
-  __ test(FieldOperand(r0, Map::kBitFieldOffset),
-          Immediate(kInterceptorOrAccessCheckNeededMask));
+  __ test_b(FieldOperand(r0, Map::kBitFieldOffset),
+            kInterceptorOrAccessCheckNeededMask);
   __ j(not_zero, miss_label, not_taken);
 
+  // Check that receiver is a JSObject.
   __ CmpInstanceType(r0, FIRST_JS_OBJECT_TYPE);
   __ j(below, miss_label, not_taken);
 
