@@ -181,7 +181,6 @@ function FormatMessage(message) {
       // RangeError
       invalid_array_length:         "Invalid array length",
       stack_overflow:               "Maximum call stack size exceeded",
-      apply_overflow:               "Function.prototype.apply cannot support %0 arguments",
       // SyntaxError
       unable_to_parse:              "Parse error",
       duplicate_regexp_flag:        "Duplicate RegExp flag %0",
