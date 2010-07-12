@@ -601,18 +601,22 @@ function GetPositionInLine(message) {
 }
 
 
-function ErrorMessage(type, args, startPos, endPos, script, stackTrace) {
+function ErrorMessage(type, args, startPos, endPos, script, stackTrace,
+                      stackFrames) {
   this.startPos = startPos;
   this.endPos = endPos;
   this.type = type;
   this.args = args;
   this.script = script;
   this.stackTrace = stackTrace;
+  this.stackFrames = stackFrames;
 }
 
 
-function MakeMessage(type, args, startPos, endPos, script, stackTrace) {
-  return new ErrorMessage(type, args, startPos, endPos, script, stackTrace);
+function MakeMessage(type, args, startPos, endPos, script, stackTrace,
+                     stackFrames) {
+  return new ErrorMessage(type, args, startPos, endPos, script, stackTrace,
+                          stackFrames);
 }
 
 

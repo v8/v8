@@ -10350,6 +10350,40 @@ THREADED_TEST(CaptureStackTrace) {
 }
 
 
+static void StackTraceForUncaughtExceptionListener(
+    v8::Handle<v8::Message> message,
+    v8::Handle<Value>) {
+  v8::Handle<v8::StackTrace> stack_trace = message->GetStackTrace();
+  CHECK_EQ(2, stack_trace->GetFrameCount());
+  checkStackFrame("origin", "foo", 2, 3, false, false,
+                  stack_trace->GetFrame(0));
+  checkStackFrame("origin", "bar", 5, 3, false, false,
+                  stack_trace->GetFrame(1));
+}
+
+TEST(CaptureStackTraceForUncaughtException) {
+  report_count = 0;
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::V8::AddMessageListener(StackTraceForUncaughtExceptionListener);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true);
+
+  Script::Compile(v8_str("function foo() {\n"
+                         "  throw 1;\n"
+                         "};\n"
+                         "function bar() {\n"
+                         "  foo();\n"
+                         "};"),
+                  v8_str("origin"))->Run();
+  v8::Local<v8::Object> global = env->Global();
+  Local<Value> trouble = global->Get(v8_str("bar"));
+  CHECK(trouble->IsFunction());
+  Function::Cast(*trouble)->Call(global, 0, NULL);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
+  v8::V8::RemoveMessageListeners(StackTraceForUncaughtExceptionListener);
+}
+
+
 // Test that idle notification can be handled and eventually returns true.
 THREADED_TEST(IdleNotification) {
   bool rv = false;
