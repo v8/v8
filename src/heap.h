@@ -774,12 +774,11 @@ class Heap : public AllStatic {
                                       DirtyRegionCallback visit_dirty_region,
                                       ObjectSlotCallback callback);
 
-  // Iterate pointers to from semispace of new space found in memory interval
-  // from start to end.
+  // Iterate pointers to new space found in memory interval from start to end.
   // Update dirty marks for page containing start address.
-  static void IterateAndMarkPointersToFromSpace(Address start,
-                                                Address end,
-                                                ObjectSlotCallback callback);
+  static void IterateAndMarkPointersToNewSpace(Address start,
+                                               Address end,
+                                               ObjectSlotCallback callback);
 
   // Iterate pointers to new space found in memory interval from start to end.
   // Return true if pointers to new space was found.
@@ -985,8 +984,6 @@ class Heap : public AllStatic {
       ExternalArrayType array_type);
 
   static void RecordStats(HeapStats* stats);
-
-  static Scavenger GetScavenger(int instance_type, int instance_size);
 
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
@@ -1235,7 +1232,17 @@ class Heap : public AllStatic {
     set_instanceof_cache_function(the_hole_value());
   }
 
+  // Helper function used by CopyObject to copy a source object to an
+  // allocated target object and update the forwarding pointer in the source
+  // object.  Returns the target object.
+  static inline HeapObject* MigrateObject(HeapObject* source,
+                                          HeapObject* target,
+                                          int size);
+
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
+  // Record the copy of an object in the NewSpace's statistics.
+  static void RecordCopiedObject(HeapObject* obj);
+
   // Record statistics before and after garbage collection.
   static void ReportStatisticsBeforeGC();
   static void ReportStatisticsAfterGC();

@@ -799,34 +799,34 @@ class ScavengeVisitor: public ObjectVisitor {
 };
 
 
-// A queue of objects promoted during scavenge. Each object is accompanied
-// by it's size to avoid dereferencing a map pointer for scanning.
+// A queue of pointers and maps of to-be-promoted objects during a
+// scavenge collection.
 class PromotionQueue {
  public:
   void Initialize(Address start_address) {
-    front_ = rear_ = reinterpret_cast<intptr_t*>(start_address);
+    front_ = rear_ = reinterpret_cast<HeapObject**>(start_address);
   }
 
   bool is_empty() { return front_ <= rear_; }
 
-  void insert(HeapObject* target, int size) {
-    *(--rear_) = reinterpret_cast<intptr_t>(target);
-    *(--rear_) = size;
+  void insert(HeapObject* object, Map* map) {
+    *(--rear_) = object;
+    *(--rear_) = map;
     // Assert no overflow into live objects.
     ASSERT(reinterpret_cast<Address>(rear_) >= Heap::new_space()->top());
   }
 
-  void remove(HeapObject** target, int* size) {
-    *target = reinterpret_cast<HeapObject*>(*(--front_));
-    *size = static_cast<int>(*(--front_));
+  void remove(HeapObject** object, Map** map) {
+    *object = *(--front_);
+    *map = Map::cast(*(--front_));
     // Assert no underflow.
     ASSERT(front_ >= rear_);
   }
 
  private:
   // The front of the queue is higher in memory than the rear.
-  intptr_t* front_;
-  intptr_t* rear_;
+  HeapObject** front_;
+  HeapObject** rear_;
 };
 
 
@@ -1041,26 +1041,31 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
     // queue is empty.
     while (new_space_front < new_space_.top()) {
       HeapObject* object = HeapObject::FromAddress(new_space_front);
-      Map* map = object->map();
-      int size = object->SizeFromMap(map);
-      object->IterateBody(map->instance_type(), size, scavenge_visitor);
-      new_space_front += size;
+      object->Iterate(scavenge_visitor);
+      new_space_front += object->Size();
     }
 
     // Promote and process all the to-be-promoted objects.
     while (!promotion_queue.is_empty()) {
-      HeapObject* target;
-      int size;
-      promotion_queue.remove(&target, &size);
+      HeapObject* source;
+      Map* map;
+      promotion_queue.remove(&source, &map);
+      // Copy the from-space object to its new location (given by the
+      // forwarding address) and fix its map.
+      HeapObject* target = source->map_word().ToForwardingAddress();
+      int size = source->SizeFromMap(map);
+      CopyBlock(target->address(), source->address(), size);
+      target->set_map(map);
 
-      // Promoted object might be already partially visited
-      // during dirty regions iteration. Thus we search specificly
-      // for pointers to from semispace instead of looking for pointers
-      // to new space.
+#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
+      // Update NewSpace stats if necessary.
+      RecordCopiedObject(target);
+#endif
+      // Visit the newly copied object for pointers to new space.
       ASSERT(!target->IsMap());
-      IterateAndMarkPointersToFromSpace(target->address(),
-                                        target->address() + size,
-                                        &ScavengePointer);
+      IterateAndMarkPointersToNewSpace(target->address(),
+                                       target->address() + size,
+                                       &ScavengePointer);
     }
 
     // Take another spin if there are now unswept objects in new space
@@ -1072,7 +1077,7 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 
 
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
-static void RecordCopiedObject(HeapObject* obj) {
+void Heap::RecordCopiedObject(HeapObject* obj) {
   bool should_record = false;
 #ifdef DEBUG
   should_record = FLAG_heap_stats;
@@ -1081,24 +1086,22 @@ static void RecordCopiedObject(HeapObject* obj) {
   should_record = should_record || FLAG_log_gc;
 #endif
   if (should_record) {
-    if (Heap::new_space()->Contains(obj)) {
-      Heap::new_space()->RecordAllocation(obj);
+    if (new_space_.Contains(obj)) {
+      new_space_.RecordAllocation(obj);
     } else {
-      Heap::new_space()->RecordPromotion(obj);
+      new_space_.RecordPromotion(obj);
     }
   }
 }
 #endif  // defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 
 
-// Helper function used by CopyObject to copy a source object to an
-// allocated target object and update the forwarding pointer in the source
-// object.  Returns the target object.
-inline static HeapObject* MigrateObject(HeapObject* source,
-                                        HeapObject* target,
-                                        int size) {
+
+HeapObject* Heap::MigrateObject(HeapObject* source,
+                                HeapObject* target,
+                                int size) {
   // Copy the content of source to target.
-  Heap::CopyBlock(target->address(), source->address(), size);
+  CopyBlock(target->address(), source->address(), size);
 
   // Set the forwarding address.
   source->set_map_word(MapWord::FromForwardingAddress(target));
@@ -1112,272 +1115,13 @@ inline static HeapObject* MigrateObject(HeapObject* source,
 }
 
 
-enum ObjectContents  { DATA_OBJECT, POINTER_OBJECT };
-enum SizeRestriction { SMALL, UNKNOWN_SIZE };
-
-
-template<ObjectContents object_contents, SizeRestriction size_restriction>
-static inline void EvacuateObject(Map* map,
-                                  HeapObject** slot,
-                                  HeapObject* object,
-                                  int object_size) {
-  ASSERT((size_restriction != SMALL) ||
-         (object_size <= Page::kMaxHeapObjectSize));
-  ASSERT(object->Size() == object_size);
-
-  if (Heap::ShouldBePromoted(object->address(), object_size)) {
-    Object* result;
-
-    if ((size_restriction != SMALL) &&
-        (object_size > Page::kMaxHeapObjectSize)) {
-      result = Heap::lo_space()->AllocateRawFixedArray(object_size);
-    } else {
-      if (object_contents == DATA_OBJECT) {
-        result = Heap::old_data_space()->AllocateRaw(object_size);
-      } else {
-        result = Heap::old_pointer_space()->AllocateRaw(object_size);
-      }
-    }
-
-    if (!result->IsFailure()) {
-      HeapObject* target = HeapObject::cast(result);
-      *slot = MigrateObject(object, target, object_size);
-
-      if (object_contents == POINTER_OBJECT) {
-        promotion_queue.insert(target, object_size);
-      }
-
-      Heap::tracer()->increment_promoted_objects_size(object_size);
-      return;
-    }
-  }
-  Object* result = Heap::new_space()->AllocateRaw(object_size);
-  ASSERT(!result->IsFailure());
-  *slot = MigrateObject(object, HeapObject::cast(result), object_size);
-  return;
-}
-
-
-template<int object_size_in_words, ObjectContents object_contents>
-static inline void EvacuateObjectOfFixedSize(Map* map,
-                                             HeapObject** slot,
-                                             HeapObject* object) {
-  const int object_size = object_size_in_words << kPointerSizeLog2;
-  EvacuateObject<object_contents, SMALL>(map, slot, object, object_size);
-}
-
-
-template<ObjectContents object_contents>
-static inline void EvacuateObjectOfFixedSize(Map* map,
-                                             HeapObject** slot,
-                                             HeapObject* object) {
-  int object_size = map->instance_size();
-  EvacuateObject<object_contents, SMALL>(map, slot, object, object_size);
-}
-
-
-static inline void EvacuateFixedArray(Map* map,
-                                      HeapObject** slot,
-                                      HeapObject* object) {
-  int object_size = FixedArray::cast(object)->FixedArraySize();
-  EvacuateObject<POINTER_OBJECT, UNKNOWN_SIZE>(map, slot, object, object_size);
-}
-
-
-static inline void EvacuateByteArray(Map* map,
-                                     HeapObject** slot,
-                                     HeapObject* object) {
-  int object_size = ByteArray::cast(object)->ByteArraySize();
-  EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE>(map, slot, object, object_size);
-}
-
-
-static Scavenger GetScavengerForSize(int object_size,
-                                     ObjectContents object_contents) {
-  ASSERT(IsAligned(object_size, kPointerSize));
-  ASSERT(object_size < Page::kMaxHeapObjectSize);
-
-  switch (object_size >> kPointerSizeLog2) {
-#define CASE(n)                                           \
-    case n:                                               \
-      if (object_contents == DATA_OBJECT) {               \
-        return static_cast<Scavenger>(                    \
-          &EvacuateObjectOfFixedSize<n, DATA_OBJECT>);    \
-      } else {                                            \
-        return static_cast<Scavenger>(                    \
-          &EvacuateObjectOfFixedSize<n, POINTER_OBJECT>); \
-      }
-
-    CASE(1);
-    CASE(2);
-    CASE(3);
-    CASE(4);
-    CASE(5);
-    CASE(6);
-    CASE(7);
-    CASE(8);
-    CASE(9);
-    CASE(10);
-    CASE(11);
-    CASE(12);
-    CASE(13);
-    CASE(14);
-    CASE(15);
-    CASE(16);
-    default:
-      if (object_contents == DATA_OBJECT) {
-        return static_cast<Scavenger>(&EvacuateObjectOfFixedSize<DATA_OBJECT>);
-      } else {
-        return static_cast<Scavenger>(
-            &EvacuateObjectOfFixedSize<POINTER_OBJECT>);
-      }
-
-#undef CASE
-  }
-}
-
-
-static inline void EvacuateSeqAsciiString(Map* map,
-                                          HeapObject** slot,
-                                          HeapObject* object) {
-  int object_size = SeqAsciiString::cast(object)->
-      SeqAsciiStringSize(map->instance_type());
-  EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE>(map, slot, object, object_size);
-}
-
-
-static inline void EvacuateSeqTwoByteString(Map* map,
-                                            HeapObject** slot,
-                                            HeapObject* object) {
-  int object_size = SeqTwoByteString::cast(object)->
-      SeqTwoByteStringSize(map->instance_type());
-  EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE>(map, slot, object, object_size);
-}
-
-
-static inline bool IsShortcutCandidate(int type) {
-  return ((type & kShortcutTypeMask) == kShortcutTypeTag);
-}
-
-
-static inline void EvacuateShortcutCandidate(Map* map,
-                                             HeapObject** slot,
-                                             HeapObject* object) {
-  ASSERT(IsShortcutCandidate(map->instance_type()));
-
-  if (ConsString::cast(object)->unchecked_second() == Heap::empty_string()) {
-    HeapObject* first =
-        HeapObject::cast(ConsString::cast(object)->unchecked_first());
-
-    *slot = first;
-
-    if (!Heap::InNewSpace(first)) {
-      object->set_map_word(MapWord::FromForwardingAddress(first));
-      return;
-    }
-
-    MapWord first_word = first->map_word();
-    if (first_word.IsForwardingAddress()) {
-      HeapObject* target = first_word.ToForwardingAddress();
-
-      *slot = target;
-      object->set_map_word(MapWord::FromForwardingAddress(target));
-      return;
-    }
-
-    first->map()->Scavenge(slot, first);
-    object->set_map_word(MapWord::FromForwardingAddress(*slot));
-    return;
-  }
-
-  int object_size = ConsString::kSize;
-  EvacuateObject<POINTER_OBJECT, SMALL>(map, slot, object, object_size);
-}
-
-
-Scavenger Heap::GetScavenger(int instance_type, int instance_size) {
-  if (instance_type < FIRST_NONSTRING_TYPE) {
-    switch (instance_type & kStringRepresentationMask) {
-      case kSeqStringTag:
-        if ((instance_type & kStringEncodingMask) == kAsciiStringTag) {
-          return &EvacuateSeqAsciiString;
-        } else {
-          return &EvacuateSeqTwoByteString;
-        }
-
-      case kConsStringTag:
-        if (IsShortcutCandidate(instance_type)) {
-          return &EvacuateShortcutCandidate;
-        } else {
-          ASSERT(instance_size == ConsString::kSize);
-          return GetScavengerForSize(ConsString::kSize, POINTER_OBJECT);
-        }
-
-      case kExternalStringTag:
-        ASSERT(instance_size == ExternalString::kSize);
-        return GetScavengerForSize(ExternalString::kSize, DATA_OBJECT);
-    }
-    UNREACHABLE();
-  }
-
-  switch (instance_type) {
-    case BYTE_ARRAY_TYPE:
-      return reinterpret_cast<Scavenger>(&EvacuateByteArray);
-
-    case FIXED_ARRAY_TYPE:
-      return reinterpret_cast<Scavenger>(&EvacuateFixedArray);
-
-    case JS_OBJECT_TYPE:
-    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_VALUE_TYPE:
-    case JS_ARRAY_TYPE:
-    case JS_REGEXP_TYPE:
-    case JS_FUNCTION_TYPE:
-    case JS_GLOBAL_PROXY_TYPE:
-    case JS_GLOBAL_OBJECT_TYPE:
-    case JS_BUILTINS_OBJECT_TYPE:
-      return GetScavengerForSize(instance_size, POINTER_OBJECT);
-
-    case ODDBALL_TYPE:
-      return NULL;
-
-    case PROXY_TYPE:
-      return GetScavengerForSize(Proxy::kSize, DATA_OBJECT);
-
-    case MAP_TYPE:
-      return NULL;
-
-    case CODE_TYPE:
-      return NULL;
-
-    case JS_GLOBAL_PROPERTY_CELL_TYPE:
-      return NULL;
-
-    case HEAP_NUMBER_TYPE:
-    case FILLER_TYPE:
-    case PIXEL_ARRAY_TYPE:
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-    case EXTERNAL_INT_ARRAY_TYPE:
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-    case EXTERNAL_FLOAT_ARRAY_TYPE:
-      return GetScavengerForSize(instance_size, DATA_OBJECT);
-
-    case SHARED_FUNCTION_INFO_TYPE:
-      return GetScavengerForSize(SharedFunctionInfo::kAlignedSize,
-                                 POINTER_OBJECT);
-
-#define MAKE_STRUCT_CASE(NAME, Name, name) \
-        case NAME##_TYPE:
-      STRUCT_LIST(MAKE_STRUCT_CASE)
-#undef MAKE_STRUCT_CASE
-          return GetScavengerForSize(instance_size, POINTER_OBJECT);
-    default:
-      UNREACHABLE();
-      return NULL;
-  }
+static inline bool IsShortcutCandidate(HeapObject* object, Map* map) {
+  STATIC_ASSERT(kNotStringTag != 0 && kSymbolTag != 0);
+  ASSERT(object->map() == map);
+  InstanceType type = map->instance_type();
+  if ((type & kShortcutTypeMask) != kShortcutTypeTag) return false;
+  ASSERT(object->IsString() && !object->IsSymbol());
+  return ConsString::cast(object)->unchecked_second() == Heap::empty_string();
 }
 
 
@@ -1385,8 +1129,103 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
   ASSERT(InFromSpace(object));
   MapWord first_word = object->map_word();
   ASSERT(!first_word.IsForwardingAddress());
-  Map* map = first_word.ToMap();
-  map->Scavenge(p, object);
+
+  // Optimization: Bypass flattened ConsString objects.
+  if (IsShortcutCandidate(object, first_word.ToMap())) {
+    object = HeapObject::cast(ConsString::cast(object)->unchecked_first());
+    *p = object;
+    // After patching *p we have to repeat the checks that object is in the
+    // active semispace of the young generation and not already copied.
+    if (!InNewSpace(object)) return;
+    first_word = object->map_word();
+    if (first_word.IsForwardingAddress()) {
+      *p = first_word.ToForwardingAddress();
+      return;
+    }
+  }
+
+  int object_size = object->SizeFromMap(first_word.ToMap());
+  // We rely on live objects in new space to be at least two pointers,
+  // so we can store the from-space address and map pointer of promoted
+  // objects in the to space.
+  ASSERT(object_size >= 2 * kPointerSize);
+
+  // If the object should be promoted, we try to copy it to old space.
+  if (ShouldBePromoted(object->address(), object_size)) {
+    Object* result;
+    if (object_size > MaxObjectSizeInPagedSpace()) {
+      result = lo_space_->AllocateRawFixedArray(object_size);
+      if (!result->IsFailure()) {
+        HeapObject* target = HeapObject::cast(result);
+
+        if (object->IsFixedArray()) {
+          // Save the from-space object pointer and its map pointer at the
+          // top of the to space to be swept and copied later.  Write the
+          // forwarding address over the map word of the from-space
+          // object.
+          promotion_queue.insert(object, first_word.ToMap());
+          object->set_map_word(MapWord::FromForwardingAddress(target));
+
+          // Give the space allocated for the result a proper map by
+          // treating it as a free list node (not linked into the free
+          // list).
+          FreeListNode* node = FreeListNode::FromAddress(target->address());
+          node->set_size(object_size);
+
+          *p = target;
+        } else {
+          // In large object space only fixed arrays might possibly contain
+          // intergenerational references.
+          // All other objects can be copied immediately and not revisited.
+          *p = MigrateObject(object, target, object_size);
+        }
+
+        tracer()->increment_promoted_objects_size(object_size);
+        return;
+      }
+    } else {
+      OldSpace* target_space = Heap::TargetSpace(object);
+      ASSERT(target_space == Heap::old_pointer_space_ ||
+             target_space == Heap::old_data_space_);
+      result = target_space->AllocateRaw(object_size);
+      if (!result->IsFailure()) {
+        HeapObject* target = HeapObject::cast(result);
+        if (target_space == Heap::old_pointer_space_) {
+          // Save the from-space object pointer and its map pointer at the
+          // top of the to space to be swept and copied later.  Write the
+          // forwarding address over the map word of the from-space
+          // object.
+          promotion_queue.insert(object, first_word.ToMap());
+          object->set_map_word(MapWord::FromForwardingAddress(target));
+
+          // Give the space allocated for the result a proper map by
+          // treating it as a free list node (not linked into the free
+          // list).
+          FreeListNode* node = FreeListNode::FromAddress(target->address());
+          node->set_size(object_size);
+
+          *p = target;
+        } else {
+          // Objects promoted to the data space can be copied immediately
+          // and not revisited---we will never sweep that space for
+          // pointers and the copied objects do not contain pointers to
+          // new space objects.
+          *p = MigrateObject(object, target, object_size);
+#ifdef DEBUG
+          VerifyNonPointerSpacePointersVisitor v;
+          (*p)->Iterate(&v);
+#endif
+        }
+        tracer()->increment_promoted_objects_size(object_size);
+        return;
+      }
+    }
+  }
+  // The object should remain in new space or the old space allocation failed.
+  Object* result = new_space_.AllocateRaw(object_size);
+  // Failed allocation at this point is utterly unexpected.
+  ASSERT(!result->IsFailure());
+  *p = MigrateObject(object, HeapObject::cast(result), object_size);
 }
 
 
@@ -1404,8 +1243,6 @@ Object* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_map(raw_unchecked_meta_map());
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
-  reinterpret_cast<Map*>(result)->
-      set_scavenger(GetScavenger(instance_type, instance_size));
   reinterpret_cast<Map*>(result)->set_inobject_properties(0);
   reinterpret_cast<Map*>(result)->set_pre_allocated_property_fields(0);
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
@@ -1422,7 +1259,6 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   Map* map = reinterpret_cast<Map*>(result);
   map->set_map(meta_map());
   map->set_instance_type(instance_type);
-  map->set_scavenger(GetScavenger(instance_type, instance_size));
   map->set_prototype(null_value());
   map->set_constructor(null_value());
   map->set_instance_size(instance_size);
@@ -3855,9 +3691,9 @@ bool Heap::IteratePointersInDirtyMapsRegion(
 }
 
 
-void Heap::IterateAndMarkPointersToFromSpace(Address start,
-                                             Address end,
-                                             ObjectSlotCallback callback) {
+void Heap::IterateAndMarkPointersToNewSpace(Address start,
+                                            Address end,
+                                            ObjectSlotCallback callback) {
   Address slot_address = start;
   Page* page = Page::FromAddress(start);
 
@@ -3865,7 +3701,7 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
 
   while (slot_address < end) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
-    if (Heap::InFromSpace(*slot)) {
+    if (Heap::InNewSpace(*slot)) {
       ASSERT((*slot)->IsHeapObject());
       callback(reinterpret_cast<HeapObject**>(slot));
       if (Heap::InNewSpace(*slot)) {

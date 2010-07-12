@@ -277,8 +277,6 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
   copy->set_inobject_properties(inobject_properties);
   copy->set_unused_property_fields(inobject_properties);
   copy->set_instance_size(copy->instance_size() + instance_size_delta);
-  copy->set_scavenger(Heap::GetScavenger(copy->instance_type(),
-                                         copy->instance_size()));
   return copy;
 }
 
