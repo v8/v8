@@ -2899,6 +2899,7 @@ class Code: public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
 };
 
+typedef void (*Scavenger)(Map* map, HeapObject** slot, HeapObject* object);
 
 // All heap objects have a Map that describes their structure.
 //  A Map contains information about:
@@ -3100,6 +3101,13 @@ class Map: public HeapObject {
   void MapVerify();
 #endif
 
+  inline Scavenger scavenger();
+  inline void set_scavenger(Scavenger callback);
+
+  inline void Scavenge(HeapObject** slot, HeapObject* obj) {
+    scavenger()(this, slot, obj);
+  }
+
   static const int kMaxPreAllocatedPropertyFields = 255;
 
   // Layout description.
@@ -3110,7 +3118,8 @@ class Map: public HeapObject {
   static const int kInstanceDescriptorsOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
-  static const int kPadStart = kCodeCacheOffset + kPointerSize;
+  static const int kScavengerCallbackOffset = kCodeCacheOffset + kPointerSize;
+  static const int kPadStart = kScavengerCallbackOffset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them

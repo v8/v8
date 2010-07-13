@@ -2060,6 +2060,21 @@ void ExternalFloatArray::set(int index, float value) {
   ptr[index] = value;
 }
 
+inline Scavenger Map::scavenger() {
+  Scavenger callback = reinterpret_cast<Scavenger>(
+      READ_INTPTR_FIELD(this, kScavengerCallbackOffset));
+
+  ASSERT(callback == Heap::GetScavenger(instance_type(),
+                                        instance_size()));
+
+  return callback;
+}
+
+inline void Map::set_scavenger(Scavenger callback) {
+  WRITE_INTPTR_FIELD(this,
+                     kScavengerCallbackOffset,
+                     reinterpret_cast<intptr_t>(callback));
+}
 
 int Map::instance_size() {
   return READ_BYTE_FIELD(this, kInstanceSizeOffset) << kPointerSizeLog2;
