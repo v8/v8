@@ -10295,7 +10295,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // A smi plus a heap object has the low bit set, a heap object plus
     // a heap object has the low bit clear.
     ASSERT_EQ(0, kSmiTag);
-    ASSERT_EQ(V8_UINT64_C(1), kSmiTagMask);
+    ASSERT_EQ(static_cast<int64_t>(1), kSmiTagMask);
     __ lea(rcx, Operand(rax, rdx, times_1, 0));
     __ testb(rcx, Immediate(kSmiTagMask));
     __ j(not_zero, &not_both_objects);
