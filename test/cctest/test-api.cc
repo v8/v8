@@ -470,7 +470,10 @@ TEST(MakingExternalStringConditions) {
   i::Heap::CollectGarbage(0, i::NEW_SPACE);
   i::Heap::CollectGarbage(0, i::NEW_SPACE);
 
-  Local<String> small_string = String::New(AsciiToTwoByteString("small"));
+  uint16_t* two_byte_string = AsciiToTwoByteString("small");
+  Local<String> small_string = String::New(two_byte_string);
+  i::DeleteArray(two_byte_string);
+
   // We should refuse to externalize newly created small string.
   CHECK(!small_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
@@ -479,7 +482,10 @@ TEST(MakingExternalStringConditions) {
   // Old space strings should be accepted.
   CHECK(small_string->CanMakeExternal());
 
-  small_string = String::New(AsciiToTwoByteString("small 2"));
+  two_byte_string = AsciiToTwoByteString("small 2");
+  small_string = String::New(two_byte_string);
+  i::DeleteArray(two_byte_string);
+
   // We should refuse externalizing newly created small string.
   CHECK(!small_string->CanMakeExternal());
   for (int i = 0; i < 100; i++) {
@@ -492,8 +498,11 @@ TEST(MakingExternalStringConditions) {
   char* buf = i::NewArray<char>(buf_size);
   memset(buf, 'a', buf_size);
   buf[buf_size - 1] = '\0';
-  Local<String> large_string = String::New(AsciiToTwoByteString(buf));
+  
+  two_byte_string = AsciiToTwoByteString(buf);
+  Local<String> large_string = String::New(two_byte_string);
   i::DeleteArray(buf);
+  i::DeleteArray(two_byte_string);
   // Large strings should be immediately accepted.
   CHECK(large_string->CanMakeExternal());
 }
@@ -688,7 +697,11 @@ THREADED_TEST(StringConcat) {
     const char* two_byte_string_2 = "a_times_two_plus_b(4, 8) + ";
     const char* two_byte_extern_2 = "a_times_two_plus_b(1, 2);";
     Local<String> left = v8_str(one_byte_string_1);
-    Local<String> right = String::New(AsciiToTwoByteString(two_byte_string_1));
+    
+    uint16_t* two_byte_source = AsciiToTwoByteString(two_byte_string_1);
+    Local<String> right = String::New(two_byte_source);
+    i::DeleteArray(two_byte_source);
+    
     Local<String> source = String::Concat(left, right);
     right = String::NewExternal(
         new TestAsciiResource(i::StrDup(one_byte_extern_1)));
@@ -698,7 +711,11 @@ THREADED_TEST(StringConcat) {
     source = String::Concat(source, right);
     right = v8_str(one_byte_string_2);
     source = String::Concat(source, right);
-    right = String::New(AsciiToTwoByteString(two_byte_string_2));
+
+    two_byte_source = AsciiToTwoByteString(two_byte_string_2);
+    right = String::New(two_byte_source);
+    i::DeleteArray(two_byte_source);
+
     source = String::Concat(source, right);
     right = String::NewExternal(
         new TestResource(AsciiToTwoByteString(two_byte_extern_2)));
@@ -3821,9 +3838,10 @@ v8::Handle<Value> WhammyPropertyGetter(Local<String> name,
 THREADED_TEST(WeakReference) {
   v8::HandleScope handle_scope;
   v8::Handle<v8::ObjectTemplate> templ= v8::ObjectTemplate::New();
+  Whammy* whammy = new Whammy();
   templ->SetNamedPropertyHandler(WhammyPropertyGetter,
                                  0, 0, 0, 0,
-                                 v8::External::New(new Whammy()));
+                                 v8::External::New(whammy));
   const char* extension_list[] = { "v8/gc" };
   v8::ExtensionConfiguration extensions(1, extension_list);
   v8::Persistent<Context> context = Context::New(&extensions);
@@ -3842,7 +3860,7 @@ THREADED_TEST(WeakReference) {
       "4";
   v8::Handle<Value> result = CompileRun(code);
   CHECK_EQ(4.0, result->NumberValue());
-
+  delete whammy;
   context.Dispose();
 }
 
@@ -9060,6 +9078,7 @@ THREADED_TEST(MorphCompositeStringTest) {
     CHECK_EQ(String::New(expected_slice_on_cons),
              env->Global()->Get(v8_str("slice_on_cons")));
   }
+  i::DeleteArray(two_byte_string);
 }
 
 
@@ -9084,6 +9103,7 @@ TEST(CompileExternalTwoByteSource) {
                                   i::StrLength(ascii_sources[i])));
     v8::Local<v8::String> source = v8::String::NewExternal(&uc16_resource);
     v8::Script::Compile(source);
+    i::DeleteArray(two_byte_string);
   }
 }
 
