@@ -275,9 +275,6 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 }
 
 
-static StaticResource<SafeStringInputBuffer> safe_string_input_buffer;
-
-
 Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              Handle<Object> script_name,
                                              int line_offset,
@@ -306,9 +303,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     // No cache entry found. Do pre-parsing and compile the script.
     ScriptDataImpl* pre_data = input_pre_data;
     if (pre_data == NULL && source_length >= FLAG_min_preparse_length) {
-      Access<SafeStringInputBuffer> buf(&safe_string_input_buffer);
-      buf->Reset(source.location());
-      pre_data = PreParse(source, buf.value(), extension);
+      pre_data = PreParse(source, NULL, extension);
     }
 
     // Create a script object describing the script to be compiled.

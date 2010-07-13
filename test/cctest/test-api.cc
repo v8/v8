@@ -8612,20 +8612,31 @@ TEST(PreCompileAPIVariationsAreSame) {
   v8::HandleScope scope;
 
   const char* cstring = "function foo(a) { return a+1; }";
+
   v8::ScriptData* sd_from_cstring =
       v8::ScriptData::PreCompile(cstring, i::StrLength(cstring));
 
   TestAsciiResource* resource = new TestAsciiResource(cstring);
-  v8::ScriptData* sd_from_istring = v8::ScriptData::PreCompile(
+  v8::ScriptData* sd_from_external_string = v8::ScriptData::PreCompile(
       v8::String::NewExternal(resource));
 
-  CHECK_EQ(sd_from_cstring->Length(), sd_from_istring->Length());
+  v8::ScriptData* sd_from_string = v8::ScriptData::PreCompile(
+      v8::String::New(cstring));
+
+  CHECK_EQ(sd_from_cstring->Length(), sd_from_external_string->Length());
   CHECK_EQ(0, memcmp(sd_from_cstring->Data(),
-                     sd_from_istring->Data(),
+                     sd_from_external_string->Data(),
                      sd_from_cstring->Length()));
 
+  CHECK_EQ(sd_from_cstring->Length(), sd_from_string->Length());
+  CHECK_EQ(0, memcmp(sd_from_cstring->Data(),
+                     sd_from_string->Data(),
+                     sd_from_cstring->Length()));
+
+
   delete sd_from_cstring;
-  delete sd_from_istring;
+  delete sd_from_external_string;
+  delete sd_from_string;
 }
 
 
