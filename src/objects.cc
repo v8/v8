@@ -5327,8 +5327,6 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   for (; !it.done(); it.next()) {
     it.rinfo()->Visit(v);
   }
-
-  ScopeInfo<>::IterateScopeInfo(this, v);
 }
 
 

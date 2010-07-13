@@ -543,10 +543,9 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
 
 
 Handle<Code> Factory::NewCode(const CodeDesc& desc,
-                              ZoneScopeInfo* sinfo,
                               Code::Flags flags,
                               Handle<Object> self_ref) {
-  CALL_HEAP_FUNCTION(Heap::CreateCode(desc, sinfo, flags, self_ref), Code);
+  CALL_HEAP_FUNCTION(Heap::CreateCode(desc, flags, self_ref), Code);
 }
 
 
@@ -682,9 +681,13 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArray> elements,
 
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    Handle<String> name, int number_of_literals, Handle<Code> code) {
+    Handle<String> name,
+    int number_of_literals,
+    Handle<Code> code,
+    Handle<Object> scope_info) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name);
   shared->set_code(*code);
+  shared->set_scope_info(*scope_info);
   int literals_array_size = number_of_literals;
   // If the function contains object, regexp or array literals,
   // allocate extra space for a literals array prefix containing the

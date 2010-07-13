@@ -40,6 +40,7 @@
 #include "oprofile-agent.h"
 #include "rewriter.h"
 #include "scopes.h"
+#include "scopeinfo.h"
 
 namespace v8 {
 namespace internal {
@@ -156,7 +157,12 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info) {
   Handle<Context> context = Handle<Context>::null();
-  return MakeCode(context, info);
+  Handle<Code> code = MakeCode(context, info);
+  if (!info->shared_info().is_null()) {
+    info->shared_info()->set_scope_info(
+        *ScopeInfo<>::CreateHeapObject(info->scope()));
+  }
+  return code;
 }
 #endif
 
@@ -252,9 +258,11 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 
   // Allocate function.
   Handle<SharedFunctionInfo> result =
-      Factory::NewSharedFunctionInfo(lit->name(),
-                                     lit->materialized_literal_count(),
-                                     code);
+      Factory::NewSharedFunctionInfo(
+          lit->name(),
+          lit->materialized_literal_count(),
+          code,
+          ScopeInfo<>::CreateHeapObject(info.scope()));
 
   ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
   Compiler::SetFunctionInfo(result, lit, true, script);
@@ -440,8 +448,9 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
                             info->script(),
                             code);
 
-  // Update the shared function info with the compiled code.
+  // Update the shared function info with the compiled code and the scope info.
   shared->set_code(*code);
+  shared->set_scope_info(*ScopeInfo<>::CreateHeapObject(info->scope()));
 
   // Set the expected number of properties for instances.
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
@@ -475,6 +484,8 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // syntax, which is something the parser records.
   bool allow_lazy = literal->AllowsLazyCompilation() &&
       !LiveEditFunctionTracker::IsActive();
+
+  Handle<Object> scope_info(ScopeInfo<>::EmptyHeapObject());
 
   // Generate code
   Handle<Code> code;
@@ -557,13 +568,15 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                               literal->start_position(),
                               script,
                               code);
+    scope_info = ScopeInfo<>::CreateHeapObject(info.scope());
   }
 
   // Create a shared function info object.
   Handle<SharedFunctionInfo> result =
       Factory::NewSharedFunctionInfo(literal->name(),
                                      literal->materialized_literal_count(),
-                                     code);
+                                     code,
+                                     scope_info);
   SetFunctionInfo(result, literal, false, script);
 
   // Set the expected number of properties for instances and return

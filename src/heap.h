@@ -36,8 +36,6 @@
 namespace v8 {
 namespace internal {
 
-// Forward declarations.
-class ZoneScopeInfo;
 
 // Defines all the roots in Heap.
 #define UNCONDITIONAL_STRONG_ROOT_LIST(V)                                      \
@@ -626,7 +624,6 @@ class Heap : public AllStatic {
   // object by containing this pointer.
   // Please note this function does not perform a garbage collection.
   static Object* CreateCode(const CodeDesc& desc,
-                            ZoneScopeInfo* sinfo,
                             Code::Flags flags,
                             Handle<Object> self_reference);
 

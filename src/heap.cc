@@ -2055,6 +2055,7 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_name(name);
   Code* illegal = Builtins::builtin(Builtins::Illegal);
   share->set_code(illegal);
+  share->set_scope_info(ScopeInfo<>::EmptyHeapObject());
   Code* construct_stub = Builtins::builtin(Builtins::JSConstructStubGeneric);
   share->set_construct_stub(construct_stub);
   share->set_expected_nof_properties(0);
@@ -2482,12 +2483,13 @@ static void FlushCodeForFunction(SharedFunctionInfo* function_info) {
   // Check that there are heap allocated locals in the scopeinfo. If
   // there is, we are potentially using eval and need the scopeinfo
   // for variable resolution.
-  if (ScopeInfo<>::HasHeapAllocatedLocals(function_info->code()))
+  if (ScopeInfo<>::HasHeapAllocatedLocals(function_info->scope_info()))
     return;
 
   HandleScope scope;
-  // Compute the lazy compilable version of the code.
+  // Compute the lazy compilable version of the code, clear the scope info.
   function_info->set_code(*ComputeLazyCompile(function_info->length()));
+  function_info->set_scope_info(ScopeInfo<>::EmptyHeapObject());
 }
 
 
@@ -2512,7 +2514,6 @@ void Heap::FlushCode() {
 
 
 Object* Heap::CreateCode(const CodeDesc& desc,
-                         ZoneScopeInfo* sinfo,
                          Code::Flags flags,
                          Handle<Object> self_reference) {
   // Allocate ByteArray before the Code object, so that we do not risk
@@ -2522,9 +2523,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
 
   // Compute size
   int body_size = RoundUp(desc.instr_size, kObjectAlignment);
-  int sinfo_size = 0;
-  if (sinfo != NULL) sinfo_size = sinfo->Serialize(NULL);
-  int obj_size = Code::SizeFor(body_size, sinfo_size);
+  int obj_size = Code::SizeFor(body_size);
   ASSERT(IsAligned(obj_size, Code::kCodeAlignment));
   Object* result;
   if (obj_size > MaxObjectSizeInPagedSpace()) {
@@ -2541,7 +2540,6 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(ByteArray::cast(reloc_info));
-  code->set_sinfo_size(sinfo_size);
   code->set_flags(flags);
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
@@ -2554,7 +2552,6 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   // objects. These pointers can include references to the code object itself,
   // through the self_reference parameter.
   code->CopyFrom(desc);
-  if (sinfo != NULL) sinfo->Serialize(code);  // write scope info
 
 #ifdef DEBUG
   code->Verify();
@@ -2595,9 +2592,7 @@ Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 
   int new_body_size = RoundUp(code->instruction_size(), kObjectAlignment);
 
-  int sinfo_size = code->sinfo_size();
-
-  int new_obj_size = Code::SizeFor(new_body_size, sinfo_size);
+  int new_obj_size = Code::SizeFor(new_body_size);
 
   Address old_addr = code->address();
 
@@ -2624,8 +2619,6 @@ Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 
   // Copy patched rinfo.
   memcpy(new_code->relocation_start(), reloc_info.start(), reloc_info.length());
-  // Copy sinfo.
-  memcpy(new_code->sinfo_start(), code->sinfo_start(), code->sinfo_size());
 
   // Relocate the copy.
   ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
