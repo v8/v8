@@ -338,9 +338,10 @@ function DateFromTime(t) {
 function MakeDay(year, month, date) {
   if (!$isFinite(year) || !$isFinite(month) || !$isFinite(date)) return $NaN;
 
-  year = TO_INTEGER(year);
-  month = TO_INTEGER(month);
-  date = TO_INTEGER(date);
+  // Convert to integer and map -0 to 0.
+  year = TO_INTEGER_MAP_MINUS_ZERO(year);
+  month = TO_INTEGER_MAP_MINUS_ZERO(month);
+  date = TO_INTEGER_MAP_MINUS_ZERO(date);
 
   if (year < kMinYear || year > kMaxYear ||
       month < kMinMonth || month > kMaxMonth ||

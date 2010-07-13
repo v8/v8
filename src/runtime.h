@@ -100,6 +100,7 @@ namespace internal {
   \
   F(NumberToString, 1, 1) \
   F(NumberToInteger, 1, 1) \
+  F(NumberToIntegerMapMinusZero, 1, 1) \
   F(NumberToJSUint32, 1, 1) \
   F(NumberToJSInt32, 1, 1) \
   F(NumberToSmi, 1, 1) \

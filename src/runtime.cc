@@ -5189,6 +5189,25 @@ static Object* Runtime_NumberToInteger(Arguments args) {
 }
 
 
+static Object* Runtime_NumberToIntegerMapMinusZero(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  CONVERT_DOUBLE_CHECKED(number, args[0]);
+
+  // We do not include 0 so that we don't have to treat +0 / -0 cases.
+  if (number > 0 && number <= Smi::kMaxValue) {
+    return Smi::FromInt(static_cast<int>(number));
+  }
+
+  double double_value = DoubleToInteger(number);
+  // Map both -0 and +0 to +0.
+  if (double_value == 0) double_value = 0;
+
+  return Heap::NumberFromDouble(double_value);
+}
+
+
 static Object* Runtime_NumberToJSUint32(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
