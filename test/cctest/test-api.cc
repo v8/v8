@@ -498,7 +498,7 @@ TEST(MakingExternalStringConditions) {
   char* buf = i::NewArray<char>(buf_size);
   memset(buf, 'a', buf_size);
   buf[buf_size - 1] = '\0';
-  
+
   two_byte_string = AsciiToTwoByteString(buf);
   Local<String> large_string = String::New(two_byte_string);
   i::DeleteArray(buf);
@@ -697,11 +697,11 @@ THREADED_TEST(StringConcat) {
     const char* two_byte_string_2 = "a_times_two_plus_b(4, 8) + ";
     const char* two_byte_extern_2 = "a_times_two_plus_b(1, 2);";
     Local<String> left = v8_str(one_byte_string_1);
-    
+
     uint16_t* two_byte_source = AsciiToTwoByteString(two_byte_string_1);
     Local<String> right = String::New(two_byte_source);
     i::DeleteArray(two_byte_source);
-    
+
     Local<String> source = String::Concat(left, right);
     right = String::NewExternal(
         new TestAsciiResource(i::StrDup(one_byte_extern_1)));
