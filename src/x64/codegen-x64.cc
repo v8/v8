@@ -3428,49 +3428,56 @@ void CodeGenerator::GenerateFastSmiLoop(ForStatement* node) {
     CodeForStatementPosition(node);
     Slot* loop_var_slot = loop_var->slot();
     if (loop_var_slot->type() == Slot::LOCAL) {
-      frame_->PushLocalAt(loop_var_slot->index());
+      frame_->TakeLocalAt(loop_var_slot->index());
     } else {
       ASSERT(loop_var_slot->type() == Slot::PARAMETER);
-      frame_->PushParameterAt(loop_var_slot->index());
+      frame_->TakeParameterAt(loop_var_slot->index());
     }
     Result loop_var_result = frame_->Pop();
     if (!loop_var_result.is_register()) {
       loop_var_result.ToRegister();
     }
-
+    Register loop_var_reg = loop_var_result.reg();
+    frame_->Spill(loop_var_reg);
     if (increments) {
-      __ SmiAddConstant(loop_var_result.reg(),
-                        loop_var_result.reg(),
+      __ SmiAddConstant(loop_var_reg,
+                        loop_var_reg,
                         Smi::FromInt(1));
     } else {
-      __ SmiSubConstant(loop_var_result.reg(),
-                        loop_var_result.reg(),
+      __ SmiSubConstant(loop_var_reg,
+                        loop_var_reg,
                         Smi::FromInt(1));
     }
 
-    {
-      __ SmiCompare(loop_var_result.reg(), limit_value);
-      Condition condition;
-      switch (compare_op) {
-        case Token::LT:
-          condition = less;
-          break;
-        case Token::LTE:
-          condition = less_equal;
-          break;
-        case Token::GT:
-          condition = greater;
-          break;
-        case Token::GTE:
-          condition = greater_equal;
-          break;
-        default:
-          condition = never;
-          UNREACHABLE();
-      }
-      loop.Branch(condition);
+    frame_->Push(&loop_var_result);
+    if (loop_var_slot->type() == Slot::LOCAL) {
+      frame_->StoreToLocalAt(loop_var_slot->index());
+    } else {
+      ASSERT(loop_var_slot->type() == Slot::PARAMETER);
+      frame_->StoreToParameterAt(loop_var_slot->index());
     }
-    loop_var_result.Unuse();
+    frame_->Drop();
+
+    __ SmiCompare(loop_var_reg, limit_value);
+    Condition condition;
+    switch (compare_op) {
+      case Token::LT:
+        condition = less;
+        break;
+      case Token::LTE:
+        condition = less_equal;
+        break;
+      case Token::GT:
+        condition = greater;
+        break;
+      case Token::GTE:
+        condition = greater_equal;
+        break;
+      default:
+        condition = never;
+        UNREACHABLE();
+    }
+    loop.Branch(condition);
   }
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
