@@ -2055,7 +2055,7 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_name(name);
   Code* illegal = Builtins::builtin(Builtins::Illegal);
   share->set_code(illegal);
-  share->set_scope_info(ScopeInfo<>::EmptyHeapObject());
+  share->set_scope_info(SerializedScopeInfo::Empty());
   Code* construct_stub = Builtins::builtin(Builtins::JSConstructStubGeneric);
   share->set_construct_stub(construct_stub);
   share->set_expected_nof_properties(0);
