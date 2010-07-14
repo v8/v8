@@ -172,3 +172,22 @@ Object.defineProperty(obj3, 'y', {configurable: false, writable: false});
 Object.preventExtensions(obj3);
 
 assertTrue(Object.isFrozen(obj3));
+
+
+// Make sure that an object that has only non-configurable, but one
+// writable property, is not classified as frozen.
+var obj4 = {};
+Object.defineProperty(obj4, 'x', {configurable: false, writable: true});
+Object.defineProperty(obj4, 'y', {configurable: false, writable: false});
+Object.preventExtensions(obj4);
+
+assertFalse(Object.isFrozen(obj4));
+
+// Make sure that an object that has only non-writable, but one
+// configurable property, is not classified as frozen.
+var obj5 = {};
+Object.defineProperty(obj5, 'x', {configurable: true, writable: false});
+Object.defineProperty(obj5, 'y', {configurable: false, writable: false});
+Object.preventExtensions(obj5);
+
+assertFalse(Object.isFrozen(obj5));

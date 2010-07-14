@@ -784,8 +784,8 @@ function ObjectIsFrozen(obj) {
   for (var key in names) {
     var name = names[key];
     var desc = GetOwnProperty(obj, name);
-    if (IsDataDescriptor(desc) && desc.writable) return false;
-    if (desc.configurable) return false;
+    if (IsDataDescriptor(desc) && desc.isWritable()) return false;
+    if (desc.isConfigurable()) return false;
   }
   if (!ObjectIsExtensible(obj)) {
     return true;
