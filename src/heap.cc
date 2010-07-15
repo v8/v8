@@ -1107,6 +1107,7 @@ inline static HeapObject* MigrateObject(HeapObject* source,
   // Update NewSpace stats if necessary.
   RecordCopiedObject(target);
 #endif
+  HEAP_PROFILE(ObjectMoveEvent(source->address(), target->address()));
 
   return target;
 }
