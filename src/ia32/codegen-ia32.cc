@@ -34,12 +34,9 @@
 #include "compiler.h"
 #include "debug.h"
 #include "ic-inl.h"
-#include "jsregexp.h"
 #include "parser.h"
 #include "regexp-macro-assembler.h"
-#include "regexp-stack.h"
 #include "register-allocator-inl.h"
-#include "runtime.h"
 #include "scopes.h"
 #include "virtual-frame-inl.h"
 
@@ -143,7 +140,7 @@ CodeGenState::~CodeGenState() {
 
 
 // -------------------------------------------------------------------------
-// CodeGenerator implementation
+// CodeGenerator implementation.
 
 CodeGenerator::CodeGenerator(MacroAssembler* masm)
     : deferred_(8),
@@ -374,12 +371,11 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   }
 
   // Adjust for function-level loop nesting.
-  ASSERT_EQ(info->loop_nesting(), loop_nesting_);
+  ASSERT_EQ(loop_nesting_, info->loop_nesting());
   loop_nesting_ = 0;
 
   // Code generation state must be reset.
   ASSERT(state_ == NULL);
-  ASSERT(loop_nesting() == 0);
   ASSERT(!function_return_is_shadowed_);
   function_return_.Unuse();
   DeleteFrame();
@@ -646,7 +642,6 @@ void CodeGenerator::Load(Expression* expr) {
   } else {
     JumpTarget true_target;
     JumpTarget false_target;
-
     ControlDestination dest(&true_target, &false_target, true);
     LoadCondition(expr, &dest, false);
 
@@ -784,9 +779,9 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
   JumpTarget done;
   bool skip_arguments = false;
   if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
-    // We have to skip storing into the arguments slot if it has already
-    // been written to. This can happen if the a function has a local
-    // variable named 'arguments'.
+    // We have to skip storing into the arguments slot if it has
+    // already been written to. This can happen if the a function
+    // has a local variable named 'arguments'.
     LoadFromSlot(arguments->slot(), NOT_INSIDE_TYPEOF);
     Result probe = frame_->Pop();
     if (probe.is_constant()) {
@@ -1434,8 +1429,8 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
         } else {
           unsigned_left >>= shift_amount;
         }
-        ASSERT(Smi::IsValid(unsigned_left));  // Converted to signed.
-        answer_object = Smi::FromInt(unsigned_left);  // Converted to signed.
+        ASSERT(Smi::IsValid(static_cast<int32_t>(unsigned_left)));
+        answer_object = Smi::FromInt(static_cast<int32_t>(unsigned_left));
         break;
       }
     default:
@@ -1919,12 +1914,12 @@ class DeferredInlineSmiOperationReversed: public DeferredCode {
 
 
 void DeferredInlineSmiOperationReversed::Generate() {
-  GenericBinaryOpStub igostub(
+  GenericBinaryOpStub stub(
       op_,
       overwrite_mode_,
       NO_SMI_CODE_IN_STUB,
       TypeInfo::Combine(TypeInfo::Smi(), type_info_));
-  igostub.GenerateCall(masm_, value_, src_);
+  stub.GenerateCall(masm_, value_, src_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
@@ -2424,6 +2419,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
         break;
       }
       // Fall through if we did not find a power of 2 on the right hand side!
+      // The next case must be the default.
 
     default: {
       Result constant_operand(value);
@@ -2676,13 +2672,14 @@ void CodeGenerator::Comparison(AstNode* node,
     }
   } else {
     // Neither side is a constant Smi, constant 1-char string or constant null.
-    // If either side is a non-smi constant, or known to be a heap number skip
-    // the smi check.
+    // If either side is a non-smi constant, or known to be a heap number,
+    // skip the smi check.
     bool known_non_smi =
         (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
         (right_side.is_constant() && !right_side.handle()->IsSmi()) ||
         left_side.type_info().IsDouble() ||
         right_side.type_info().IsDouble();
+
     NaNInformation nan_info =
         (CouldBeNaN(left_side) && CouldBeNaN(right_side)) ?
         kBothCouldBeNaN :
@@ -2707,14 +2704,15 @@ void CodeGenerator::Comparison(AstNode* node,
     right_side.ToRegister();
 
     if (known_non_smi) {
-      // Inline the equality check if both operands can't be a NaN. If both
-      // objects are the same they are equal.
+      // Inlined equality check:
+      // If at least one of the objects is not NaN, then if the objects
+      // are identical, they are equal.
       if (nan_info == kCantBothBeNaN && cc == equal) {
         __ cmp(left_side.reg(), Operand(right_side.reg()));
         dest->true_target()->Branch(equal);
       }
 
-      // Inline number comparison.
+      // Inlined number comparison:
       if (inline_number_compare) {
         GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
       }
@@ -2752,7 +2750,7 @@ void CodeGenerator::Comparison(AstNode* node,
         dest->true_target()->Branch(equal);
       }
 
-      // Inline number comparison.
+      // Inlined number comparison:
       if (inline_number_compare) {
         GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
       }
@@ -2970,19 +2968,19 @@ static void LoadComparisonOperand(MacroAssembler* masm_,
 // target passing the left and right result if the operand is not a number.
 static void LoadComparisonOperandSSE2(MacroAssembler* masm_,
                                       Result* operand,
-                                      XMMRegister reg,
+                                      XMMRegister xmm_reg,
                                       Result* left_side,
                                       Result* right_side,
                                       JumpTarget* not_numbers) {
   Label done;
   if (operand->type_info().IsDouble()) {
     // Operand is known to be a heap number, just load it.
-    __ movdbl(reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
+    __ movdbl(xmm_reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
   } else if (operand->type_info().IsSmi()) {
     // Operand is known to be a smi. Convert it to double and keep the original
     // smi.
     __ SmiUntag(operand->reg());
-    __ cvtsi2sd(reg, Operand(operand->reg()));
+    __ cvtsi2sd(xmm_reg, Operand(operand->reg()));
     __ SmiTag(operand->reg());
   } else {
     // Operand type not known, check for smi or heap number.
@@ -2994,13 +2992,13 @@ static void LoadComparisonOperandSSE2(MacroAssembler* masm_,
              Immediate(Factory::heap_number_map()));
       not_numbers->Branch(not_equal, left_side, right_side, taken);
     }
-    __ movdbl(reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
+    __ movdbl(xmm_reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
     __ jmp(&done);
 
     __ bind(&smi);
     // Comvert smi to float and keep the original smi.
     __ SmiUntag(operand->reg());
-    __ cvtsi2sd(reg, Operand(operand->reg()));
+    __ cvtsi2sd(xmm_reg, Operand(operand->reg()));
     __ SmiTag(operand->reg());
     __ jmp(&done);
   }
@@ -3597,8 +3595,10 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   return_value->ToRegister(eax);
 
   // Add a label for checking the size of the code used for returning.
+#ifdef DEBUG
   Label check_exit_codesize;
   masm_->bind(&check_exit_codesize);
+#endif
 
   // Leave the frame and return popping the arguments and the
   // receiver.
@@ -3719,7 +3719,6 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     }
   }
 
-
   // The last instruction emitted was a jump, either to the default
   // clause or the break target, or else to a case body from the loop
   // that compiles the tests.
@@ -3807,8 +3806,8 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
   // Compile the test.
   switch (info) {
     case ALWAYS_TRUE:
-      // If control flow can fall off the end of the body, jump back to
-      // the top and bind the break target at the exit.
+      // If control flow can fall off the end of the body, jump back
+      // to the top and bind the break target at the exit.
       if (has_valid_frame()) {
         node->continue_target()->Jump();
       }
@@ -3844,6 +3843,8 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
   }
 
   DecrementLoopNesting();
+  node->continue_target()->Unuse();
+  node->break_target()->Unuse();
 }
 
 
@@ -3928,8 +3929,8 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
       break;
     case DONT_KNOW:
       if (test_at_bottom) {
-        // If we have chosen to recompile the test at the bottom, then
-        // it is the continue target.
+        // If we have chosen to recompile the test at the bottom,
+        // then it is the continue target.
         if (node->continue_target()->is_linked()) {
           node->continue_target()->Bind();
         }
@@ -4045,6 +4046,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
         node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
         loop.Bind();
       }
+
       // Compile the test with the body as the true target and preferred
       // fall-through and with the break target as the false target.
       ControlDestination dest(&body, node->break_target(), true);
@@ -4154,8 +4156,8 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
       break;
   }
 
-  // The break target may be already bound (by the condition), or
-  // there may not be a valid frame.  Bind it only if needed.
+  // The break target may be already bound (by the condition), or there
+  // may not be a valid frame.  Bind it only if needed.
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
