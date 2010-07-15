@@ -49,3 +49,18 @@ for (var i = 1; i < 100; i++) {
   }
   assertEquals(i < 50 || i >= 70 ? 1 : 2, h.m());
 }
+
+
+var nonsymbol = 'wwwww '.split(' ')[0];
+Hash.prototype.wwwww = Hash.prototype.m;
+
+for (var i = 1; i < 100; i++) {
+  if (i == 50) {
+    h[nonsymbol] = function() {
+      return 2;
+    };
+  } else if (i == 70) {
+    delete h[nonsymbol];
+  }
+  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.wwwww());
+}
