@@ -1533,12 +1533,14 @@ uint64_t HeapObjectsMap::FindObject(Address addr) {
 
 
 void HeapObjectsMap::MoveObject(Address from, Address to) {
+  if (from == to) return;
   HashMap::Entry* entry = entries_map_.Lookup(from, AddressHash(from), false);
   if (entry != NULL) {
     void* value = entry->value;
     entries_map_.Remove(from, AddressHash(from));
     entry = entries_map_.Lookup(to, AddressHash(to), true);
-    ASSERT(entry->value == NULL);
+    // We can have an entry at the new location, it is OK, as GC can overwrite
+    // dead objects with alive objects being moved.
     entry->value = value;
   }
 }
