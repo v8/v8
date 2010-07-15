@@ -629,6 +629,12 @@ TEST(HeapSnapshotCodeObjects) {
 }
 
 
+// Trying to introduce a check helper for uint64_t causes many
+// overloading ambiguities, so it seems easier just to cast
+// them to a signed type.
+#define CHECK_EQ_UINT64_T(a, b) \
+  CHECK_EQ(static_cast<int64_t>(a), static_cast<int64_t>(b))
+
 TEST(HeapEntryIdsAndGC) {
   v8::HandleScope scope;
   LocalContext env;
@@ -648,32 +654,32 @@ TEST(HeapEntryIdsAndGC) {
 
   const v8::HeapGraphNode* global1 = GetGlobalObject(snapshot1);
   const v8::HeapGraphNode* global2 = GetGlobalObject(snapshot2);
-  CHECK_NE(0, global1->GetId());
-  CHECK_EQ(global1->GetId(), global2->GetId());
+  CHECK(global1->GetId() != 0);
+  CHECK_EQ_UINT64_T(global1->GetId(), global2->GetId());
   const v8::HeapGraphNode* A1 =
       GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "A");
   const v8::HeapGraphNode* A2 =
       GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "A");
-  CHECK_NE(0, A1->GetId());
-  CHECK_EQ(A1->GetId(), A2->GetId());
+  CHECK(A1->GetId() != 0);
+  CHECK_EQ_UINT64_T(A1->GetId(), A2->GetId());
   const v8::HeapGraphNode* B1 =
       GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "B");
   const v8::HeapGraphNode* B2 =
       GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "B");
-  CHECK_NE(0, B1->GetId());
-  CHECK_EQ(B1->GetId(), B2->GetId());
+  CHECK(B1->GetId() != 0);
+  CHECK_EQ_UINT64_T(B1->GetId(), B2->GetId());
   const v8::HeapGraphNode* a1 =
       GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "a");
   const v8::HeapGraphNode* a2 =
       GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "a");
-  CHECK_NE(0, a1->GetId());
-  CHECK_EQ(a1->GetId(), a2->GetId());
+  CHECK(a1->GetId() != 0);
+  CHECK_EQ_UINT64_T(a1->GetId(), a2->GetId());
   const v8::HeapGraphNode* b1 =
       GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "b");
   const v8::HeapGraphNode* b2 =
       GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "b");
-  CHECK_NE(0, b1->GetId());
-  CHECK_EQ(b1->GetId(), b2->GetId());
+  CHECK(b1->GetId() != 0);
+  CHECK_EQ_UINT64_T(b1->GetId(), b2->GetId());
 }
 
 
@@ -741,7 +747,7 @@ TEST(HeapSnapshotsDiff) {
     }
   }
   CHECK(found_A_del);
-  CHECK_NE(0, s1_A_id);
+  CHECK(s1_A_id != 0);
   CHECK(s1_A_id != s2_A_id);
 }
 

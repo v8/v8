@@ -496,7 +496,7 @@ class HeapEntry {
   HeapEntry(HeapSnapshot* snapshot,
             Type type,
             const char* name,
-            int id,
+            uint64_t id,
             int self_size,
             int security_token_id)
       : snapshot_(snapshot),
