@@ -745,6 +745,23 @@ function ObjectDefineProperties(obj, properties) {
 }
 
 
+// ES5 section 15.2.3.8.
+function ObjectSeal(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["seal"]);
+  }
+  var names = ObjectGetOwnPropertyNames(obj);
+  for (var key in names) {
+    var name = names[key];
+    var desc = GetOwnProperty(obj, name);
+    if (desc.isConfigurable()) desc.setConfigurable(false);
+    DefineOwnProperty(obj, name, desc, true);
+  }  
+  ObjectPreventExtension(obj);
+}
+
+
 // ES5 section 15.2.3.9.
 function ObjectFreeze(obj) {
   if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
@@ -771,6 +788,25 @@ function ObjectPreventExtension(obj) {
   }
   %PreventExtensions(obj);
   return obj;
+}
+
+
+// ES5 section 15.2.3.11
+function ObjectIsSealed(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["isSealed"]);
+  }
+  var names = ObjectGetOwnPropertyNames(obj);
+  for (var key in names) {
+    var name = names[key];
+    var desc = GetOwnProperty(obj, name);
+    if (desc.isConfigurable()) return false;
+  }
+  if (!ObjectIsExtensible(obj)) {
+    return true;
+  }
+  return false;
 }
 
 
@@ -843,7 +879,9 @@ function SetupObject() {
     "getOwnPropertyNames", ObjectGetOwnPropertyNames,
     "isExtensible", ObjectIsExtensible,
     "isFrozen", ObjectIsFrozen,
-    "preventExtensions", ObjectPreventExtension
+    "isSealed", ObjectIsSealed,
+    "preventExtensions", ObjectPreventExtension,
+    "seal", ObjectSeal
   ));
 }
 
