@@ -2002,106 +2002,11 @@ void CodeGenerator::Comparison(AstNode* node,
   }
 
   if (left_side_constant_smi || right_side_constant_smi) {
-    if (left_side_constant_smi && right_side_constant_smi) {
-      // Trivial case, comparing two constants.
-      int left_value = Smi::cast(*left_side.handle())->value();
-      int right_value = Smi::cast(*right_side.handle())->value();
-      switch (cc) {
-        case less:
-          dest->Goto(left_value < right_value);
-          break;
-        case equal:
-          dest->Goto(left_value == right_value);
-          break;
-        case greater_equal:
-          dest->Goto(left_value >= right_value);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    } else {
-      // Only one side is a constant Smi.
-      // If left side is a constant Smi, reverse the operands.
-      // Since one side is a constant Smi, conversion order does not matter.
-      if (left_side_constant_smi) {
-        Result temp = left_side;
-        left_side = right_side;
-        right_side = temp;
-        cc = ReverseCondition(cc);
-        // This may re-introduce greater or less_equal as the value of cc.
-        // CompareStub and the inline code both support all values of cc.
-      }
-      // Implement comparison against a constant Smi, inlining the case
-      // where both sides are Smis.
-      left_side.ToRegister();
-      Register left_reg = left_side.reg();
-      Handle<Object> right_val = right_side.handle();
-
-      // Here we split control flow to the stub call and inlined cases
-      // before finally splitting it to the control destination.  We use
-      // a jump target and branching to duplicate the virtual frame at
-      // the first split.  We manually handle the off-frame references
-      // by reconstituting them on the non-fall-through path.
-      JumpTarget is_smi;
-
-      if (left_side.is_smi()) {
-        if (FLAG_debug_code) {
-          __ AbortIfNotSmi(left_side.reg());
-        }
-      } else {
-        Condition left_is_smi = masm_->CheckSmi(left_side.reg());
-        is_smi.Branch(left_is_smi);
-
-        bool is_loop_condition = (node->AsExpression() != NULL) &&
-            node->AsExpression()->is_loop_condition();
-        if (!is_loop_condition && right_val->IsSmi()) {
-          // Right side is a constant smi and left side has been checked
-          // not to be a smi.
-          JumpTarget not_number;
-          __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
-                 Factory::heap_number_map());
-          not_number.Branch(not_equal, &left_side);
-          __ movsd(xmm1,
-              FieldOperand(left_reg, HeapNumber::kValueOffset));
-          int value = Smi::cast(*right_val)->value();
-          if (value == 0) {
-            __ xorpd(xmm0, xmm0);
-          } else {
-            Result temp = allocator()->Allocate();
-            __ movl(temp.reg(), Immediate(value));
-            __ cvtlsi2sd(xmm0, temp.reg());
-            temp.Unuse();
-          }
-          __ ucomisd(xmm1, xmm0);
-          // Jump to builtin for NaN.
-          not_number.Branch(parity_even, &left_side);
-          left_side.Unuse();
-          dest->true_target()->Branch(DoubleCondition(cc));
-          dest->false_target()->Jump();
-          not_number.Bind(&left_side);
-        }
-
-        // Setup and call the compare stub.
-        CompareStub stub(cc, strict, kCantBothBeNaN);
-        Result result = frame_->CallStub(&stub, &left_side, &right_side);
-        result.ToRegister();
-        __ testq(result.reg(), result.reg());
-        result.Unuse();
-        dest->true_target()->Branch(cc);
-        dest->false_target()->Jump();
-
-        is_smi.Bind();
-      }
-
-      left_side = Result(left_reg);
-      right_side = Result(right_val);
-      // Test smi equality and comparison by signed int comparison.
-      // Both sides are smis, so we can use an Immediate.
-      __ SmiCompare(left_side.reg(), Smi::cast(*right_side.handle()));
-      left_side.Unuse();
-      right_side.Unuse();
-      dest->Split(cc);
-    }
+    bool is_loop_condition = (node->AsExpression() != NULL) &&
+        node->AsExpression()->is_loop_condition();
+    ConstantSmiComparison(cc, strict, dest, &left_side, &right_side,
+                          left_side_constant_smi, right_side_constant_smi,
+                          is_loop_condition);
   } else if (cc == equal &&
              (left_side_constant_null || right_side_constant_null)) {
     // To make null checks efficient, we check if either the left side or
@@ -2361,6 +2266,128 @@ void CodeGenerator::Comparison(AstNode* node,
       right_side.Unuse();
       left_side.Unuse();
       dest->Split(cc);
+    }
+  }
+}
+
+
+void CodeGenerator::ConstantSmiComparison(Condition cc,
+                                          bool strict,
+                                          ControlDestination* dest,
+                                          Result* left_side,
+                                          Result* right_side,
+                                          bool left_side_constant_smi,
+                                          bool right_side_constant_smi,
+                                          bool is_loop_condition) {
+  if (left_side_constant_smi && right_side_constant_smi) {
+    // Trivial case, comparing two constants.
+    int left_value = Smi::cast(*left_side->handle())->value();
+    int right_value = Smi::cast(*right_side->handle())->value();
+    switch (cc) {
+      case less:
+        dest->Goto(left_value < right_value);
+        break;
+      case equal:
+        dest->Goto(left_value == right_value);
+        break;
+      case greater_equal:
+        dest->Goto(left_value >= right_value);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    // Only one side is a constant Smi.
+    // If left side is a constant Smi, reverse the operands.
+    // Since one side is a constant Smi, conversion order does not matter.
+    if (left_side_constant_smi) {
+      Result* temp = left_side;
+      left_side = right_side;
+      right_side = temp;
+      cc = ReverseCondition(cc);
+      // This may re-introduce greater or less_equal as the value of cc.
+      // CompareStub and the inline code both support all values of cc.
+    }
+    // Implement comparison against a constant Smi, inlining the case
+    // where both sides are Smis.
+    left_side->ToRegister();
+    Register left_reg = left_side->reg();
+    Smi* constant_smi = Smi::cast(*right_side->handle());
+
+    if (left_side->is_smi()) {
+      if (FLAG_debug_code) {
+        __ AbortIfNotSmi(left_reg);
+      }
+      // Test smi equality and comparison by signed int comparison.
+      // Both sides are smis, so we can use an Immediate.
+      __ SmiCompare(left_reg, constant_smi);
+      left_side->Unuse();
+      right_side->Unuse();
+      dest->Split(cc);
+    } else {
+      // Only the case where the left side could possibly be a non-smi is left.
+      JumpTarget is_smi;
+      if (cc == equal) {
+        // We can do the equality comparison before the smi check.
+        __ SmiCompare(left_reg, constant_smi);
+        dest->true_target()->Branch(equal);
+        Condition left_is_smi = masm_->CheckSmi(left_reg);
+        dest->false_target()->Branch(left_is_smi);
+      } else {
+        // Do the smi check, then the comparison.
+        Condition left_is_smi = masm_->CheckSmi(left_reg);
+        is_smi.Branch(left_is_smi, left_side, right_side);
+      }
+
+      // Jump or fall through to here if we are comparing a non-smi to a
+      // constant smi.  If the non-smi is a heap number and this is not
+      // a loop condition, inline the floating point code.
+      if (!is_loop_condition) {
+        // Right side is a constant smi and left side has been checked
+        // not to be a smi.
+        JumpTarget not_number;
+        __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
+               Factory::heap_number_map());
+        not_number.Branch(not_equal, left_side);
+        __ movsd(xmm1,
+                 FieldOperand(left_reg, HeapNumber::kValueOffset));
+        int value = constant_smi->value();
+        if (value == 0) {
+          __ xorpd(xmm0, xmm0);
+        } else {
+          Result temp = allocator()->Allocate();
+          __ movl(temp.reg(), Immediate(value));
+          __ cvtlsi2sd(xmm0, temp.reg());
+          temp.Unuse();
+        }
+        __ ucomisd(xmm1, xmm0);
+        // Jump to builtin for NaN.
+        not_number.Branch(parity_even, left_side);
+        left_side->Unuse();
+        dest->true_target()->Branch(DoubleCondition(cc));
+        dest->false_target()->Jump();
+        not_number.Bind(left_side);
+      }
+
+      // Setup and call the compare stub.
+      CompareStub stub(cc, strict, kCantBothBeNaN);
+      Result result = frame_->CallStub(&stub, left_side, right_side);
+      result.ToRegister();
+      __ testq(result.reg(), result.reg());
+      result.Unuse();
+      if (cc == equal) {
+        dest->Split(cc);
+      } else {
+        dest->true_target()->Branch(cc);
+        dest->false_target()->Jump();
+
+        // It is important for performance for this case to be at the end.
+        is_smi.Bind(left_side, right_side);
+        __ SmiCompare(left_reg, constant_smi);
+        left_side->Unuse();
+        right_side->Unuse();
+        dest->Split(cc);
+      }
     }
   }
 }

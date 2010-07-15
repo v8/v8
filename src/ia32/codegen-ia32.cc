@@ -2487,8 +2487,7 @@ void CodeGenerator::Comparison(AstNode* node,
   }
   ASSERT(cc == less || cc == equal || cc == greater_equal);
 
-  // If either side is a constant of some sort, we can probably optimize the
-  // comparison.
+  // If either side is a constant smi, optimize the comparison.
   bool left_side_constant_smi = false;
   bool left_side_constant_null = false;
   bool left_side_constant_1_char_string = false;
@@ -2513,114 +2512,11 @@ void CodeGenerator::Comparison(AstNode* node,
   }
 
   if (left_side_constant_smi || right_side_constant_smi) {
-    if (left_side_constant_smi && right_side_constant_smi) {
-      // Trivial case, comparing two constants.
-      int left_value = Smi::cast(*left_side.handle())->value();
-      int right_value = Smi::cast(*right_side.handle())->value();
-      switch (cc) {
-        case less:
-          dest->Goto(left_value < right_value);
-          break;
-        case equal:
-          dest->Goto(left_value == right_value);
-          break;
-        case greater_equal:
-          dest->Goto(left_value >= right_value);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    } else {
-      // Only one side is a constant Smi.
-      // If left side is a constant Smi, reverse the operands.
-      // Since one side is a constant Smi, conversion order does not matter.
-      if (left_side_constant_smi) {
-        Result temp = left_side;
-        left_side = right_side;
-        right_side = temp;
-        cc = ReverseCondition(cc);
-        // This may re-introduce greater or less_equal as the value of cc.
-        // CompareStub and the inline code both support all values of cc.
-      }
-      // Implement comparison against a constant Smi, inlining the case
-      // where both sides are Smis.
-      left_side.ToRegister();
-      Register left_reg = left_side.reg();
-      Handle<Object> right_val = right_side.handle();
-
-      // Here we split control flow to the stub call and inlined cases
-      // before finally splitting it to the control destination.  We use
-      // a jump target and branching to duplicate the virtual frame at
-      // the first split.  We manually handle the off-frame references
-      // by reconstituting them on the non-fall-through path.
-
-      if (left_side.is_smi()) {
-        if (FLAG_debug_code) {
-          __ AbortIfNotSmi(left_side.reg());
-        }
-      } else {
-        JumpTarget is_smi;
-        __ test(left_side.reg(), Immediate(kSmiTagMask));
-        is_smi.Branch(zero, taken);
-
-        bool is_loop_condition = (node->AsExpression() != NULL) &&
-            node->AsExpression()->is_loop_condition();
-        if (!is_loop_condition &&
-            CpuFeatures::IsSupported(SSE2) &&
-            right_val->IsSmi()) {
-          // Right side is a constant smi and left side has been checked
-          // not to be a smi.
-          CpuFeatures::Scope use_sse2(SSE2);
-          JumpTarget not_number;
-          __ cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
-                 Immediate(Factory::heap_number_map()));
-          not_number.Branch(not_equal, &left_side);
-          __ movdbl(xmm1,
-                    FieldOperand(left_reg, HeapNumber::kValueOffset));
-          int value = Smi::cast(*right_val)->value();
-          if (value == 0) {
-            __ xorpd(xmm0, xmm0);
-          } else {
-            Result temp = allocator()->Allocate();
-            __ mov(temp.reg(), Immediate(value));
-            __ cvtsi2sd(xmm0, Operand(temp.reg()));
-            temp.Unuse();
-          }
-          __ ucomisd(xmm1, xmm0);
-          // Jump to builtin for NaN.
-          not_number.Branch(parity_even, &left_side);
-          left_side.Unuse();
-          dest->true_target()->Branch(DoubleCondition(cc));
-          dest->false_target()->Jump();
-          not_number.Bind(&left_side);
-        }
-
-        // Setup and call the compare stub.
-        CompareStub stub(cc, strict, kCantBothBeNaN);
-        Result result = frame_->CallStub(&stub, &left_side, &right_side);
-        result.ToRegister();
-        __ cmp(result.reg(), 0);
-        result.Unuse();
-        dest->true_target()->Branch(cc);
-        dest->false_target()->Jump();
-
-        is_smi.Bind();
-      }
-
-      left_side = Result(left_reg);
-      right_side = Result(right_val);
-      // Test smi equality and comparison by signed int comparison.
-      if (IsUnsafeSmi(right_side.handle())) {
-        right_side.ToRegister();
-        __ cmp(left_side.reg(), Operand(right_side.reg()));
-      } else {
-        __ cmp(Operand(left_side.reg()), Immediate(right_side.handle()));
-      }
-      left_side.Unuse();
-      right_side.Unuse();
-      dest->Split(cc);
-    }
-
+    bool is_loop_condition = (node->AsExpression() != NULL) &&
+        node->AsExpression()->is_loop_condition();
+    ConstantSmiComparison(cc, strict, dest, &left_side, &right_side,
+                          left_side_constant_smi, right_side_constant_smi,
+                          is_loop_condition);
   } else if (cc == equal &&
              (left_side_constant_null || right_side_constant_null)) {
     // To make null checks efficient, we check if either the left side or
@@ -2877,6 +2773,139 @@ void CodeGenerator::Comparison(AstNode* node,
       right_side.Unuse();
       left_side.Unuse();
       dest->Split(cc);
+    }
+  }
+}
+
+
+void CodeGenerator::ConstantSmiComparison(Condition cc,
+                                          bool strict,
+                                          ControlDestination* dest,
+                                          Result* left_side,
+                                          Result* right_side,
+                                          bool left_side_constant_smi,
+                                          bool right_side_constant_smi,
+                                          bool is_loop_condition) {
+  if (left_side_constant_smi && right_side_constant_smi) {
+    // Trivial case, comparing two constants.
+    int left_value = Smi::cast(*left_side->handle())->value();
+    int right_value = Smi::cast(*right_side->handle())->value();
+    switch (cc) {
+      case less:
+        dest->Goto(left_value < right_value);
+        break;
+      case equal:
+        dest->Goto(left_value == right_value);
+        break;
+      case greater_equal:
+        dest->Goto(left_value >= right_value);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    // Only one side is a constant Smi.
+    // If left side is a constant Smi, reverse the operands.
+    // Since one side is a constant Smi, conversion order does not matter.
+    if (left_side_constant_smi) {
+      Result* temp = left_side;
+      left_side = right_side;
+      right_side = temp;
+      cc = ReverseCondition(cc);
+      // This may re-introduce greater or less_equal as the value of cc.
+      // CompareStub and the inline code both support all values of cc.
+    }
+    // Implement comparison against a constant Smi, inlining the case
+    // where both sides are Smis.
+    left_side->ToRegister();
+    Register left_reg = left_side->reg();
+    Handle<Object> right_val = right_side->handle();
+
+    if (left_side->is_smi()) {
+      if (FLAG_debug_code) {
+        __ AbortIfNotSmi(left_reg);
+      }
+      // Test smi equality and comparison by signed int comparison.
+      if (IsUnsafeSmi(right_side->handle())) {
+        right_side->ToRegister();
+        __ cmp(left_reg, Operand(right_side->reg()));
+      } else {
+        __ cmp(Operand(left_reg), Immediate(right_side->handle()));
+      }
+      left_side->Unuse();
+      right_side->Unuse();
+      dest->Split(cc);
+    } else {
+      // Only the case where the left side could possibly be a non-smi is left.
+      JumpTarget is_smi;
+      if (cc == equal) {
+        // We can do the equality comparison before the smi check.
+        __ cmp(Operand(left_reg), Immediate(right_side->handle()));
+        dest->true_target()->Branch(equal);
+        __ test(left_reg, Immediate(kSmiTagMask));
+        dest->false_target()->Branch(zero);
+      } else {
+        // Do the smi check, then the comparison.
+        JumpTarget is_not_smi;
+        __ test(left_reg, Immediate(kSmiTagMask));
+        is_smi.Branch(zero, left_side, right_side);
+      }
+
+      // Jump or fall through to here if we are comparing a non-smi to a
+      // constant smi.  If the non-smi is a heap number and this is not
+      // a loop condition, inline the floating point code.
+      if (!is_loop_condition && CpuFeatures::IsSupported(SSE2)) {
+        // Right side is a constant smi and left side has been checked
+        // not to be a smi.
+        CpuFeatures::Scope use_sse2(SSE2);
+        JumpTarget not_number;
+        __ cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
+               Immediate(Factory::heap_number_map()));
+        not_number.Branch(not_equal, left_side);
+        __ movdbl(xmm1,
+                  FieldOperand(left_reg, HeapNumber::kValueOffset));
+        int value = Smi::cast(*right_val)->value();
+        if (value == 0) {
+          __ xorpd(xmm0, xmm0);
+        } else {
+          Result temp = allocator()->Allocate();
+          __ mov(temp.reg(), Immediate(value));
+          __ cvtsi2sd(xmm0, Operand(temp.reg()));
+          temp.Unuse();
+        }
+        __ ucomisd(xmm1, xmm0);
+        // Jump to builtin for NaN.
+        not_number.Branch(parity_even, left_side);
+        left_side->Unuse();
+        dest->true_target()->Branch(DoubleCondition(cc));
+        dest->false_target()->Jump();
+        not_number.Bind(left_side);
+      }
+
+      // Setup and call the compare stub.
+      CompareStub stub(cc, strict, kCantBothBeNaN);
+      Result result = frame_->CallStub(&stub, left_side, right_side);
+      result.ToRegister();
+      __ test(result.reg(), Operand(result.reg()));
+      result.Unuse();
+      if (cc == equal) {
+        dest->Split(cc);
+      } else {
+        dest->true_target()->Branch(cc);
+        dest->false_target()->Jump();
+
+        // It is important for performance for this case to be at the end.
+        is_smi.Bind(left_side, right_side);
+        if (IsUnsafeSmi(right_side->handle())) {
+          right_side->ToRegister();
+          __ cmp(left_reg, Operand(right_side->reg()));
+        } else {
+          __ cmp(Operand(left_reg), Immediate(right_side->handle()));
+        }
+        left_side->Unuse();
+        right_side->Unuse();
+        dest->Split(cc);
+      }
     }
   }
 }
