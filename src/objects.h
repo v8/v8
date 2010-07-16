@@ -2012,7 +2012,7 @@ class HashTable: public FixedArray {
   static const int kMaxCapacity =
       (FixedArray::kMaxLength - kElementsStartOffset) / kEntrySize;
 
-  // Find entry for key otherwise return -1.
+  // Find entry for key otherwise return kNotFound.
   int FindEntry(Key key);
 
  protected:
@@ -2294,6 +2294,10 @@ class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
   // For transforming properties of a JSObject.
   Object* TransformPropertiesToFastFor(JSObject* obj,
                                        int unused_property_fields);
+
+  // Find entry for key otherwise return kNotFound. Optimzed version of
+  // HashTable::FindEntry.
+  int FindEntry(String* key);
 };
 
 
