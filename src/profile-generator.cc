@@ -1557,7 +1557,8 @@ void HeapObjectsMap::AddEntry(Address addr, uint64_t id) {
 uint64_t HeapObjectsMap::FindEntry(Address addr) {
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), false);
   if (entry != NULL) {
-    int entry_index = reinterpret_cast<intptr_t>(entry->value);
+    int entry_index =
+        static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
     EntryInfo& entry_info = entries_->at(entry_index);
     entry_info.accessed = true;
     return entry_info.id;
@@ -1572,7 +1573,8 @@ void HeapObjectsMap::RemoveDeadEntries() {
   for (HashMap::Entry* entry = entries_map_.Start();
        entry != NULL;
        entry = entries_map_.Next(entry)) {
-    int entry_index = reinterpret_cast<intptr_t>(entry->value);
+    int entry_index =
+        static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
     EntryInfo& entry_info = entries_->at(entry_index);
     if (entry_info.accessed) {
       entry->value = reinterpret_cast<void*>(new_entries->length());

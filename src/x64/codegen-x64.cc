@@ -438,7 +438,7 @@ Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
 
     default:
       UNREACHABLE();
-      return Operand(rax);
+      return Operand(rsp, 0);
   }
 }
 
@@ -11526,7 +11526,7 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
 
   // Make count the number of bytes to copy.
   if (!ascii) {
-    ASSERT_EQ(2, sizeof(uc16));  // NOLINT
+    ASSERT_EQ(2, static_cast<int>(sizeof(uc16)));  // NOLINT
     __ addl(count, count);
   }
 
