@@ -311,32 +311,28 @@ void MacroAssembler::StoreRoot(Register source,
 
 
 void MacroAssembler::RecordWriteHelper(Register object,
-                                       Operand offset,
-                                       Register scratch0,
-                                       Register scratch1) {
+                                       Register address,
+                                       Register scratch) {
   if (FLAG_debug_code) {
     // Check that the object is not in new space.
     Label not_in_new_space;
-    InNewSpace(object, scratch1, ne, &not_in_new_space);
+    InNewSpace(object, scratch, ne, &not_in_new_space);
     Abort("new-space object passed to RecordWriteHelper");
     bind(&not_in_new_space);
   }
-
-  // Add offset into the object.
-  add(scratch0, object, offset);
 
   // Calculate page address.
   Bfc(object, 0, kPageSizeBits);
 
   // Calculate region number.
-  Ubfx(scratch0, scratch0, Page::kRegionSizeLog2,
+  Ubfx(address, address, Page::kRegionSizeLog2,
        kPageSizeBits - Page::kRegionSizeLog2);
 
   // Mark region dirty.
-  ldr(scratch1, MemOperand(object, Page::kDirtyFlagOffset));
+  ldr(scratch, MemOperand(object, Page::kDirtyFlagOffset));
   mov(ip, Operand(1));
-  orr(scratch1, scratch1, Operand(ip, LSL, scratch0));
-  str(scratch1, MemOperand(object, Page::kDirtyFlagOffset));
+  orr(scratch, scratch, Operand(ip, LSL, address));
+  str(scratch, MemOperand(object, Page::kDirtyFlagOffset));
 }
 
 
@@ -369,8 +365,11 @@ void MacroAssembler::RecordWrite(Register object,
   // region marks for new space pages.
   InNewSpace(object, scratch0, eq, &done);
 
+  // Add offset into the object.
+  add(scratch0, object, offset);
+
   // Record the actual write.
-  RecordWriteHelper(object, offset, scratch0, scratch1);
+  RecordWriteHelper(object, scratch0, scratch1);
 
   bind(&done);
 
@@ -380,6 +379,38 @@ void MacroAssembler::RecordWrite(Register object,
     mov(object, Operand(BitCast<int32_t>(kZapValue)));
     mov(scratch0, Operand(BitCast<int32_t>(kZapValue)));
     mov(scratch1, Operand(BitCast<int32_t>(kZapValue)));
+  }
+}
+
+
+// Will clobber 4 registers: object, address, scratch, ip.  The
+// register 'object' contains a heap object pointer.  The heap object
+// tag is shifted away.
+void MacroAssembler::RecordWrite(Register object,
+                                 Register address,
+                                 Register scratch) {
+  // The compiled code assumes that record write doesn't change the
+  // context register, so we check that none of the clobbered
+  // registers are cp.
+  ASSERT(!object.is(cp) && !address.is(cp) && !scratch.is(cp));
+
+  Label done;
+
+  // First, test that the object is not in the new space.  We cannot set
+  // region marks for new space pages.
+  InNewSpace(object, scratch, eq, &done);
+
+  // Record the actual write.
+  RecordWriteHelper(object, address, scratch);
+
+  bind(&done);
+
+  // Clobber all input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (FLAG_debug_code) {
+    mov(object, Operand(BitCast<int32_t>(kZapValue)));
+    mov(address, Operand(BitCast<int32_t>(kZapValue)));
+    mov(scratch, Operand(BitCast<int32_t>(kZapValue)));
   }
 }
 
@@ -844,88 +875,6 @@ void MacroAssembler::PopTryHandler() {
 }
 
 
-Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
-                                   JSObject* holder, Register holder_reg,
-                                   Register scratch,
-                                   int save_at_depth,
-                                   Label* miss) {
-  // Make sure there's no overlap between scratch and the other
-  // registers.
-  ASSERT(!scratch.is(object_reg) && !scratch.is(holder_reg));
-
-  // Keep track of the current object in register reg.
-  Register reg = object_reg;
-  int depth = 0;
-
-  if (save_at_depth == depth) {
-    str(reg, MemOperand(sp));
-  }
-
-  // Check the maps in the prototype chain.
-  // Traverse the prototype chain from the object and do map checks.
-  while (object != holder) {
-    depth++;
-
-    // Only global objects and objects that do not require access
-    // checks are allowed in stubs.
-    ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
-
-    // Get the map of the current object.
-    ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
-    cmp(scratch, Operand(Handle<Map>(object->map())));
-
-    // Branch on the result of the map check.
-    b(ne, miss);
-
-    // Check access rights to the global object.  This has to happen
-    // after the map check so that we know that the object is
-    // actually a global object.
-    if (object->IsJSGlobalProxy()) {
-      CheckAccessGlobalProxy(reg, scratch, miss);
-      // Restore scratch register to be the map of the object.  In the
-      // new space case below, we load the prototype from the map in
-      // the scratch register.
-      ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
-    }
-
-    reg = holder_reg;  // from now the object is in holder_reg
-    JSObject* prototype = JSObject::cast(object->GetPrototype());
-    if (HEAP->InNewSpace(prototype)) {
-      // The prototype is in new space; we cannot store a reference
-      // to it in the code. Load it from the map.
-      ldr(reg, FieldMemOperand(scratch, Map::kPrototypeOffset));
-    } else {
-      // The prototype is in old space; load it directly.
-      mov(reg, Operand(Handle<JSObject>(prototype)));
-    }
-
-    if (save_at_depth == depth) {
-      str(reg, MemOperand(sp));
-    }
-
-    // Go to the next object in the prototype chain.
-    object = prototype;
-  }
-
-  // Check the holder map.
-  ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
-  cmp(scratch, Operand(Handle<Map>(object->map())));
-  b(ne, miss);
-
-  // Log the check depth.
-  LOG(IntEvent("check-maps-depth", depth + 1));
-
-  // Perform security check for access to the global object and return
-  // the holder register.
-  ASSERT(object == holder);
-  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
-  if (object->IsJSGlobalProxy()) {
-    CheckAccessGlobalProxy(reg, scratch, miss);
-  }
-  return reg;
-}
-
-
 void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
                                             Register scratch,
                                             Label* miss) {
@@ -1343,12 +1292,12 @@ void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
 }
 
 
-void MacroAssembler::StubReturn(int argc) {
+void MacroAssembler::StubReturn(int argc, Condition cond) {
   ASSERT(argc >= 1 && generating_stub());
   if (argc > 1) {
-    add(sp, sp, Operand((argc - 1) * kPointerSize));
+    add(sp, sp, Operand((argc - 1) * kPointerSize), LeaveCC, cond);
   }
-  Ret();
+  Ret(cond);
 }
 
 
@@ -1368,6 +1317,56 @@ void MacroAssembler::IntegerToDoubleConversionWithVFP3(Register inReg,
   vmov(s15, r7);
   vcvt_f64_s32(d7, s15);
   vmov(outLowReg, outHighReg, d7);
+}
+
+
+void MacroAssembler::ObjectToDoubleVFPRegister(Register object,
+                                               DwVfpRegister result,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Register heap_number_map,
+                                               SwVfpRegister scratch3,
+                                               Label* not_number,
+                                               ObjectToDoubleFlags flags) {
+  Label done;
+  if ((flags & OBJECT_NOT_SMI) == 0) {
+    Label not_smi;
+    BranchOnNotSmi(object, &not_smi);
+    // Remove smi tag and convert to double.
+    mov(scratch1, Operand(object, ASR, kSmiTagSize));
+    vmov(scratch3, scratch1);
+    vcvt_f64_s32(result, scratch3);
+    b(&done);
+    bind(&not_smi);
+  }
+  // Check for heap number and load double value from it.
+  ldr(scratch1, FieldMemOperand(object, HeapObject::kMapOffset));
+  sub(scratch2, object, Operand(kHeapObjectTag));
+  cmp(scratch1, heap_number_map);
+  b(ne, not_number);
+  if ((flags & AVOID_NANS_AND_INFINITIES) != 0) {
+    // If exponent is all ones the number is either a NaN or +/-Infinity.
+    ldr(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
+    Sbfx(scratch1,
+         scratch1,
+         HeapNumber::kExponentShift,
+         HeapNumber::kExponentBits);
+    // All-one value sign extend to -1.
+    cmp(scratch1, Operand(-1));
+    b(eq, not_number);
+  }
+  vldr(result, scratch2, HeapNumber::kValueOffset);
+  bind(&done);
+}
+
+
+void MacroAssembler::SmiToDoubleVFPRegister(Register smi,
+                                            DwVfpRegister value,
+                                            Register scratch1,
+                                            SwVfpRegister scratch2) {
+  mov(scratch1, Operand(smi, ASR, kSmiTagSize));
+  vmov(scratch2, scratch1);
+  vcvt_f64_s32(value, scratch2);
 }
 
 
@@ -1689,14 +1688,31 @@ void MacroAssembler::AllocateHeapNumber(Register result,
 }
 
 
-void MacroAssembler::CountLeadingZeros(Register source,
-                                       Register scratch,
-                                       Register zeros) {
+void MacroAssembler::AllocateHeapNumberWithValue(Register result,
+                                                 DwVfpRegister value,
+                                                 Register scratch1,
+                                                 Register scratch2,
+                                                 Register heap_number_map,
+                                                 Label* gc_required) {
+  AllocateHeapNumber(result, scratch1, scratch2, heap_number_map, gc_required);
+  sub(scratch1, result, Operand(kHeapObjectTag));
+  vstr(value, scratch1, HeapNumber::kValueOffset);
+}
+
+
+void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
+                                       Register source,  // Input.
+                                       Register scratch) {
+  ASSERT(!zeros.is(source) || !source.is(zeros));
+  ASSERT(!zeros.is(scratch));
+  ASSERT(!scratch.is(ip));
+  ASSERT(!source.is(ip));
+  ASSERT(!zeros.is(ip));
 #ifdef CAN_USE_ARMV5_INSTRUCTIONS
   clz(zeros, source);  // This instruction is only supported after ARM5.
 #else
   mov(zeros, Operand(0));
-  mov(scratch, source);
+  Move(scratch, source);
   // Top 16.
   tst(scratch, Operand(0xffff0000));
   add(zeros, zeros, Operand(16), LeaveCC, eq);

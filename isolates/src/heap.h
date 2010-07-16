@@ -42,9 +42,6 @@ namespace internal {
 class Heap;
 inline Heap* _inline_get_heap_();
 
-// Forward declarations.
-class MapCompact;
-class ZoneScopeInfo;
 
 // Defines all the roots in Heap.
 #define UNCONDITIONAL_STRONG_ROOT_LIST(V)                                      \
@@ -229,31 +226,31 @@ class HeapDebugUtils;
 #endif
 
 
-// A queue of pointers and maps of to-be-promoted objects during a
-// scavenge collection.
+// A queue of objects promoted during scavenge. Each object is accompanied
+// by it's size to avoid dereferencing a map pointer for scanning.
 class PromotionQueue {
  public:
   PromotionQueue() : front_(NULL), rear_(NULL) { }
 
   void Initialize(Address start_address) {
-    front_ = rear_ = reinterpret_cast<HeapObject**>(start_address);
+    front_ = rear_ = reinterpret_cast<intptr_t*>(start_address);
   }
 
   bool is_empty() { return front_ <= rear_; }
 
-  inline void insert(HeapObject* object, Map* map);
+  inline void insert(HeapObject* target, int size);
 
-  void remove(HeapObject** object, Map** map) {
-    *object = *(--front_);
-    *map = Map::cast(*(--front_));
+  void remove(HeapObject** target, int* size) {
+    *target = reinterpret_cast<HeapObject*>(*(--front_));
+    *size = static_cast<int>(*(--front_));
     // Assert no underflow.
     ASSERT(front_ >= rear_);
   }
 
  private:
   // The front of the queue is higher in memory than the rear.
-  HeapObject** front_;
-  HeapObject** rear_;
+  intptr_t* front_;
+  intptr_t* rear_;
 
   DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
 };
@@ -707,7 +704,6 @@ class Heap {
   // object by containing this pointer.
   // Please note this function does not perform a garbage collection.
   Object* CreateCode(const CodeDesc& desc,
-                     ZoneScopeInfo* sinfo,
                      Code::Flags flags,
                      Handle<Object> self_reference);
 
@@ -765,6 +761,8 @@ class Heap {
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
   void PerformScavenge();
+
+  PromotionQueue* promotion_queue() { return &promotion_queue_; }
 
 #ifdef DEBUG
   // Utility used with flag gc-greedy.
@@ -853,11 +851,12 @@ class Heap {
                                DirtyRegionCallback visit_dirty_region,
                                ObjectSlotCallback callback);
 
-  // Iterate pointers to new space found in memory interval from start to end.
+  // Iterate pointers to from semispace of new space found in memory interval
+  // from start to end.
   // Update dirty marks for page containing start address.
-  void IterateAndMarkPointersToNewSpace(Address start,
-                                        Address end,
-                                        ObjectSlotCallback callback);
+  void IterateAndMarkPointersToFromSpace(Address start,
+                                         Address end,
+                                         ObjectSlotCallback callback);
 
   // Iterate pointers to new space found in memory interval from start to end.
   // Return true if pointers to new space was found.
@@ -1063,6 +1062,8 @@ class Heap {
       ExternalArrayType array_type);
 
   void RecordStats(HeapStats* stats);
+
+  static Scavenger GetScavenger(int instance_type, int instance_size);
 
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
@@ -1332,17 +1333,7 @@ class Heap {
   // around a GC).
   inline void CompletelyClearInstanceofCache();
 
-  // Helper function used by CopyObject to copy a source object to an
-  // allocated target object and update the forwarding pointer in the source
-  // object.  Returns the target object.
-  inline HeapObject* MigrateObject(HeapObject* source,
-                                   HeapObject* target,
-                                   int size);
-
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
-  // Record the copy of an object in the NewSpace's statistics.
-  void RecordCopiedObject(HeapObject* obj);
-
   // Record statistics before and after garbage collection.
   void ReportStatisticsBeforeGC();
   void ReportStatisticsAfterGC();

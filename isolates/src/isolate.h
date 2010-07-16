@@ -277,8 +277,6 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   V(int, next_serial_number, 0)                                                \
   V(ExternalReferenceRedirector*, external_reference_redirector, NULL)         \
   V(bool, always_allow_natives_syntax, false)                                  \
-  /* A stack of VM states. */                                                  \
-  V(VMState*, vm_state, NULL)                                                  \
   /* Part of the state of liveedit. */                                         \
   V(FunctionInfoListener*, active_function_info_listener, NULL)                \
   /* State for Relocatable. */                                                 \
@@ -466,6 +464,10 @@ class Isolate {
   // JavaScript code.  If an exception is scheduled true is returned.
   bool OptionalRescheduleException(bool is_bottom_call);
 
+  void SetCaptureStackTraceForUncaughtExceptions(
+      bool capture,
+      int frame_limit,
+      StackTrace::StackTraceOptions options);
 
   // Tells whether the current context has experienced an out of memory
   // exception.
@@ -483,7 +485,7 @@ class Isolate {
   void PrintStack(StringStream* accumulator);
   void PrintStack();
   Handle<String> StackTraceString();
-  Local<StackTrace> CaptureCurrentStackTrace(
+  Handle<JSArray> CaptureCurrentStackTrace(
       int frame_limit,
       StackTrace::StackTraceOptions options);
 
@@ -518,9 +520,6 @@ class Isolate {
                const char* message);
   bool ShouldReturnException(bool* is_caught_externally,
                              bool catchable_by_javascript);
-  void ReportUncaughtException(Handle<Object> exception,
-                               MessageLocation* location,
-                               Handle<String> stack_trace);
 
   // Attempts to compute the current source location, storing the
   // result in the target out parameter.
@@ -744,6 +743,9 @@ class Isolate {
   }
 #endif
 
+  /* A stack of VM states. */
+  AtomicWord* vm_state() { return &vm_state_; }
+
   bool IsDefaultIsolate() { return this == global_isolate_; }
 
   // SerializerDeserializer state.
@@ -812,6 +814,9 @@ class Isolate {
   StatsTable* stats_table_;
   StubCache* stub_cache_;
   ThreadLocalTop thread_local_top_;
+  bool capture_stack_trace_for_uncaught_exceptions_;
+  int stack_trace_for_uncaught_exceptions_frame_limit_;
+  StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_;
   TranscendentalCache* transcendental_cache_;
   MemoryAllocator* memory_allocator_;
   KeyedLookupCache* keyed_lookup_cache_;
@@ -847,6 +852,7 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   ZoneObjectList frame_element_constant_list_;
   ZoneObjectList result_constant_list_;
+  AtomicWord vm_state_; 
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
   // Create one simulator per thread and keep it in thread local storage.

@@ -57,7 +57,7 @@ using ::v8::Function;
 using ::v8::AccessorInfo;
 using ::v8::Extension;
 
-namespace i = ::v8::internal;
+namespace i = ::i;
 
 
 static void ExpectString(const char* code, const char* expected) {
@@ -404,7 +404,7 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
     HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  v8::internal::Isolate::Current()->compilation_cache()->Clear();
+  i::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
@@ -429,7 +429,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestResource::dispose_count);
   }
-  v8::internal::Isolate::Current()->compilation_cache()->Clear();
+  i::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestResource::dispose_count);
 }
@@ -455,7 +455,7 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  v8::internal::Isolate::Current()->compilation_cache()->Clear();
+  i::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
@@ -469,7 +469,10 @@ TEST(MakingExternalStringConditions) {
   HEAP->CollectGarbage(0, i::NEW_SPACE);
   HEAP->CollectGarbage(0, i::NEW_SPACE);
 
-  Local<String> small_string = String::New(AsciiToTwoByteString("small"));
+  uint16_t* two_byte_string = AsciiToTwoByteString("small");
+  Local<String> small_string = String::New(two_byte_string);
+  i::DeleteArray(two_byte_string);
+
   // We should refuse to externalize newly created small string.
   CHECK(!small_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
@@ -478,7 +481,10 @@ TEST(MakingExternalStringConditions) {
   // Old space strings should be accepted.
   CHECK(small_string->CanMakeExternal());
 
-  small_string = String::New(AsciiToTwoByteString("small 2"));
+  two_byte_string = AsciiToTwoByteString("small 2");
+  small_string = String::New(two_byte_string);
+  i::DeleteArray(two_byte_string);
+
   // We should refuse externalizing newly created small string.
   CHECK(!small_string->CanMakeExternal());
   for (int i = 0; i < 100; i++) {
@@ -491,8 +497,11 @@ TEST(MakingExternalStringConditions) {
   char* buf = i::NewArray<char>(buf_size);
   memset(buf, 'a', buf_size);
   buf[buf_size - 1] = '\0';
-  Local<String> large_string = String::New(AsciiToTwoByteString(buf));
+
+  two_byte_string = AsciiToTwoByteString(buf);
+  Local<String> large_string = String::New(two_byte_string);
   i::DeleteArray(buf);
+  i::DeleteArray(two_byte_string);
   // Large strings should be immediately accepted.
   CHECK(large_string->CanMakeExternal());
 }
@@ -647,7 +656,7 @@ TEST(ExternalStringWithDisposeHandling) {
     HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  v8::internal::Isolate::Current()->compilation_cache()->Clear();
+  i::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(0, TestAsciiResource::dispose_count);
@@ -668,7 +677,7 @@ TEST(ExternalStringWithDisposeHandling) {
     HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  v8::internal::Isolate::Current()->compilation_cache()->Clear();
+  i::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
@@ -687,7 +696,11 @@ THREADED_TEST(StringConcat) {
     const char* two_byte_string_2 = "a_times_two_plus_b(4, 8) + ";
     const char* two_byte_extern_2 = "a_times_two_plus_b(1, 2);";
     Local<String> left = v8_str(one_byte_string_1);
-    Local<String> right = String::New(AsciiToTwoByteString(two_byte_string_1));
+
+    uint16_t* two_byte_source = AsciiToTwoByteString(two_byte_string_1);
+    Local<String> right = String::New(two_byte_source);
+    i::DeleteArray(two_byte_source);
+
     Local<String> source = String::Concat(left, right);
     right = String::NewExternal(
         new TestAsciiResource(i::StrDup(one_byte_extern_1)));
@@ -697,7 +710,11 @@ THREADED_TEST(StringConcat) {
     source = String::Concat(source, right);
     right = v8_str(one_byte_string_2);
     source = String::Concat(source, right);
-    right = String::New(AsciiToTwoByteString(two_byte_string_2));
+
+    two_byte_source = AsciiToTwoByteString(two_byte_string_2);
+    right = String::New(two_byte_source);
+    i::DeleteArray(two_byte_source);
+
     source = String::Concat(source, right);
     right = String::NewExternal(
         new TestResource(AsciiToTwoByteString(two_byte_extern_2)));
@@ -707,7 +724,7 @@ THREADED_TEST(StringConcat) {
     CHECK(value->IsNumber());
     CHECK_EQ(68, value->Int32Value());
   }
-  v8::internal::Isolate::Current()->compilation_cache()->Clear();
+  i::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllGarbage(false);
   HEAP->CollectAllGarbage(false);
 }
@@ -1880,7 +1897,7 @@ static const char* js_code_causing_out_of_memory =
 // that come after them so they cannot run in parallel.
 TEST(OutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
-  if (v8::internal::Snapshot::IsEnabled()) return;
+  if (i::Snapshot::IsEnabled()) return;
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
@@ -1921,7 +1938,7 @@ v8::Handle<Value> ProvokeOutOfMemory(const v8::Arguments& args) {
 
 TEST(OutOfMemoryNested) {
   // It's not possible to read a snapshot into a heap with different dimensions.
-  if (v8::internal::Snapshot::IsEnabled()) return;
+  if (i::Snapshot::IsEnabled()) return;
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
@@ -1950,7 +1967,7 @@ TEST(OutOfMemoryNested) {
 
 TEST(HugeConsStringOutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
-  if (v8::internal::Snapshot::IsEnabled()) return;
+  if (i::Snapshot::IsEnabled()) return;
   v8::HandleScope scope;
   LocalContext context;
   // Set heap limits.
@@ -3334,6 +3351,42 @@ THREADED_TEST(UndetectableObject) {
 }
 
 
+
+THREADED_TEST(ExtensibleOnUndetectable) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> desc =
+      v8::FunctionTemplate::New(0, v8::Handle<Value>());
+  desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+
+  Local<v8::Object> obj = desc->GetFunction()->NewInstance();
+  env->Global()->Set(v8_str("undetectable"), obj);
+
+  Local<String> source = v8_str("undetectable.x = 42;"
+                                "undetectable.x");
+
+  Local<Script> script = Script::Compile(source);
+
+  CHECK_EQ(v8::Integer::New(42), script->Run());
+
+  ExpectBoolean("Object.isExtensible(undetectable)", true);
+
+  source = v8_str("Object.preventExtensions(undetectable);");
+  script = Script::Compile(source);
+  script->Run();
+  ExpectBoolean("Object.isExtensible(undetectable)", false);
+
+  source = v8_str("undetectable.y = 2000;");
+  script = Script::Compile(source);
+  v8::TryCatch try_catch;
+  Local<Value> result = script->Run();
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+}
+
+
+
 THREADED_TEST(UndetectableString) {
   v8::HandleScope scope;
   LocalContext env;
@@ -3784,9 +3837,10 @@ v8::Handle<Value> WhammyPropertyGetter(Local<String> name,
 THREADED_TEST(WeakReference) {
   v8::HandleScope handle_scope;
   v8::Handle<v8::ObjectTemplate> templ= v8::ObjectTemplate::New();
+  Whammy* whammy = new Whammy();
   templ->SetNamedPropertyHandler(WhammyPropertyGetter,
                                  0, 0, 0, 0,
-                                 v8::External::New(new Whammy()));
+                                 v8::External::New(whammy));
   const char* extension_list[] = { "v8/gc" };
   v8::ExtensionConfiguration extensions(1, extension_list);
   v8::Persistent<Context> context = Context::New(&extensions);
@@ -3805,7 +3859,7 @@ THREADED_TEST(WeakReference) {
       "4";
   v8::Handle<Value> result = CompileRun(code);
   CHECK_EQ(4.0, result->NumberValue());
-
+  delete whammy;
   context.Dispose();
 }
 
@@ -5031,6 +5085,31 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
   context0->Exit();
   context1.Dispose();
   context0.Dispose();
+}
+
+
+static v8::Handle<v8::Array> NamedPropertyEnumerator(const AccessorInfo& info) {
+  v8::Handle<v8::Array> result = v8::Array::New(1);
+  result->Set(0, v8_str("x"));
+  return result;
+}
+
+
+THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
+  v8::HandleScope handle_scope;
+  v8::Handle<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New();
+
+  obj_template->Set(v8_str("x"), v8::Integer::New(42));
+  obj_template->SetNamedPropertyHandler(NULL, NULL, NULL, NULL,
+                                        NamedPropertyEnumerator);
+
+  LocalContext context;
+  v8::Handle<v8::Object> global = context->Global();
+  global->Set(v8_str("object"), obj_template->NewInstance());
+
+  v8::Handle<Value> value =
+      CompileRun("Object.getOwnPropertyNames(object).join(',')");
+  CHECK_EQ(v8_str("x"), value);
 }
 
 
@@ -7594,8 +7673,8 @@ THREADED_TEST(ObjectProtoToString) {
 
 
 bool ApiTestFuzzer::fuzzing_ = false;
-v8::internal::Semaphore* ApiTestFuzzer::all_tests_done_=
-  v8::internal::OS::CreateSemaphore(0);
+i::Semaphore* ApiTestFuzzer::all_tests_done_=
+  i::OS::CreateSemaphore(0);
 int ApiTestFuzzer::active_tests_;
 int ApiTestFuzzer::tests_being_run_;
 int ApiTestFuzzer::current_;
@@ -7873,7 +7952,7 @@ THREADED_TEST(LockUnlockLock) {
 
 static int GetGlobalObjectsCount() {
   int count = 0;
-  v8::internal::HeapIterator it;
+  i::HeapIterator it;
   for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
     if (object->IsJSGlobalObject()) count++;
   return count;
@@ -8495,6 +8574,54 @@ TEST(PreCompileDeserializationError) {
 }
 
 
+// Attempts to deserialize bad data.
+TEST(PreCompileInvalidPreparseDataError) {
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+  LocalContext context;
+
+  const char* script = "function foo(){ return 5;}\n"
+      "function bar(){ return 6 + 7;}  foo();";
+  v8::ScriptData* sd =
+      v8::ScriptData::PreCompile(script, i::StrLength(script));
+  CHECK(!sd->HasError());
+  // ScriptDataImpl private implementation details
+  const int kUnsignedSize = sizeof(unsigned);
+  const int kHeaderSize = 4;
+  const int kFunctionEntrySize = 4;
+  const int kFunctionEntryStartOffset = 0;
+  const int kFunctionEntryEndOffset = 1;
+  unsigned* sd_data =
+      reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
+  CHECK_EQ(sd->Length(),
+           (kHeaderSize + 2 * kFunctionEntrySize) * kUnsignedSize);
+
+  // Overwrite function bar's end position with 0.
+  sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryEndOffset] = 0;
+  v8::TryCatch try_catch;
+
+  Local<String> source = String::New(script);
+  Local<Script> compiled_script = Script::New(source, NULL, sd);
+  CHECK(try_catch.HasCaught());
+  String::AsciiValue exception_value(try_catch.Message()->Get());
+  CHECK_EQ("Uncaught SyntaxError: Invalid preparser data for function bar",
+           *exception_value);
+
+  try_catch.Reset();
+  // Overwrite function bar's start position with 200.  The function entry
+  // will not be found when searching for it by position.
+  sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
+      200;
+  compiled_script = Script::New(source, NULL, sd);
+  CHECK(try_catch.HasCaught());
+  String::AsciiValue second_exception_value(try_catch.Message()->Get());
+  CHECK_EQ("Uncaught SyntaxError: Invalid preparser data for function bar",
+           *second_exception_value);
+
+  delete sd;
+}
+
+
 // Verifies that the Handle<String> and const char* versions of the API produce
 // the same results (at least for one trivial case).
 TEST(PreCompileAPIVariationsAreSame) {
@@ -8502,20 +8629,31 @@ TEST(PreCompileAPIVariationsAreSame) {
   v8::HandleScope scope;
 
   const char* cstring = "function foo(a) { return a+1; }";
+
   v8::ScriptData* sd_from_cstring =
       v8::ScriptData::PreCompile(cstring, i::StrLength(cstring));
 
   TestAsciiResource* resource = new TestAsciiResource(cstring);
-  v8::ScriptData* sd_from_istring = v8::ScriptData::PreCompile(
+  v8::ScriptData* sd_from_external_string = v8::ScriptData::PreCompile(
       v8::String::NewExternal(resource));
 
-  CHECK_EQ(sd_from_cstring->Length(), sd_from_istring->Length());
+  v8::ScriptData* sd_from_string = v8::ScriptData::PreCompile(
+      v8::String::New(cstring));
+
+  CHECK_EQ(sd_from_cstring->Length(), sd_from_external_string->Length());
   CHECK_EQ(0, memcmp(sd_from_cstring->Data(),
-                     sd_from_istring->Data(),
+                     sd_from_external_string->Data(),
                      sd_from_cstring->Length()));
 
+  CHECK_EQ(sd_from_cstring->Length(), sd_from_string->Length());
+  CHECK_EQ(0, memcmp(sd_from_cstring->Data(),
+                     sd_from_string->Data(),
+                     sd_from_cstring->Length()));
+
+
   delete sd_from_cstring;
-  delete sd_from_istring;
+  delete sd_from_external_string;
+  delete sd_from_string;
 }
 
 
@@ -8939,6 +9077,7 @@ THREADED_TEST(MorphCompositeStringTest) {
     CHECK_EQ(String::New(expected_slice_on_cons),
              env->Global()->Get(v8_str("slice_on_cons")));
   }
+  i::DeleteArray(two_byte_string);
 }
 
 
@@ -8963,6 +9102,7 @@ TEST(CompileExternalTwoByteSource) {
                                   i::StrLength(ascii_sources[i])));
     v8::Local<v8::String> source = v8::String::NewExternal(&uc16_resource);
     v8::Script::Compile(source);
+    i::DeleteArray(two_byte_string);
   }
 }
 
@@ -9996,7 +10136,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
 
 
 THREADED_TEST(ExternalByteArray) {
-  ExternalArrayTestHelper<v8::internal::ExternalByteArray, int8_t>(
+  ExternalArrayTestHelper<i::ExternalByteArray, int8_t>(
       v8::kExternalByteArray,
       -128,
       127);
@@ -10004,7 +10144,7 @@ THREADED_TEST(ExternalByteArray) {
 
 
 THREADED_TEST(ExternalUnsignedByteArray) {
-  ExternalArrayTestHelper<v8::internal::ExternalUnsignedByteArray, uint8_t>(
+  ExternalArrayTestHelper<i::ExternalUnsignedByteArray, uint8_t>(
       v8::kExternalUnsignedByteArray,
       0,
       255);
@@ -10012,7 +10152,7 @@ THREADED_TEST(ExternalUnsignedByteArray) {
 
 
 THREADED_TEST(ExternalShortArray) {
-  ExternalArrayTestHelper<v8::internal::ExternalShortArray, int16_t>(
+  ExternalArrayTestHelper<i::ExternalShortArray, int16_t>(
       v8::kExternalShortArray,
       -32768,
       32767);
@@ -10020,7 +10160,7 @@ THREADED_TEST(ExternalShortArray) {
 
 
 THREADED_TEST(ExternalUnsignedShortArray) {
-  ExternalArrayTestHelper<v8::internal::ExternalUnsignedShortArray, uint16_t>(
+  ExternalArrayTestHelper<i::ExternalUnsignedShortArray, uint16_t>(
       v8::kExternalUnsignedShortArray,
       0,
       65535);
@@ -10028,7 +10168,7 @@ THREADED_TEST(ExternalUnsignedShortArray) {
 
 
 THREADED_TEST(ExternalIntArray) {
-  ExternalArrayTestHelper<v8::internal::ExternalIntArray, int32_t>(
+  ExternalArrayTestHelper<i::ExternalIntArray, int32_t>(
       v8::kExternalIntArray,
       INT_MIN,   // -2147483648
       INT_MAX);  //  2147483647
@@ -10036,7 +10176,7 @@ THREADED_TEST(ExternalIntArray) {
 
 
 THREADED_TEST(ExternalUnsignedIntArray) {
-  ExternalArrayTestHelper<v8::internal::ExternalUnsignedIntArray, uint32_t>(
+  ExternalArrayTestHelper<i::ExternalUnsignedIntArray, uint32_t>(
       v8::kExternalUnsignedIntArray,
       0,
       UINT_MAX);  // 4294967295
@@ -10044,7 +10184,7 @@ THREADED_TEST(ExternalUnsignedIntArray) {
 
 
 THREADED_TEST(ExternalFloatArray) {
-  ExternalArrayTestHelper<v8::internal::ExternalFloatArray, float>(
+  ExternalArrayTestHelper<i::ExternalFloatArray, float>(
       v8::kExternalFloatArray,
       -500,
       500);
@@ -10238,6 +10378,40 @@ THREADED_TEST(CaptureStackTrace) {
   v8::Handle<Value> detailed_result = detailed_script->Run();
   ASSERT(!detailed_result.IsEmpty());
   ASSERT(detailed_result->IsObject());
+}
+
+
+static void StackTraceForUncaughtExceptionListener(
+    v8::Handle<v8::Message> message,
+    v8::Handle<Value>) {
+  v8::Handle<v8::StackTrace> stack_trace = message->GetStackTrace();
+  CHECK_EQ(2, stack_trace->GetFrameCount());
+  checkStackFrame("origin", "foo", 2, 3, false, false,
+                  stack_trace->GetFrame(0));
+  checkStackFrame("origin", "bar", 5, 3, false, false,
+                  stack_trace->GetFrame(1));
+}
+
+TEST(CaptureStackTraceForUncaughtException) {
+  report_count = 0;
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::V8::AddMessageListener(StackTraceForUncaughtExceptionListener);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true);
+
+  Script::Compile(v8_str("function foo() {\n"
+                         "  throw 1;\n"
+                         "};\n"
+                         "function bar() {\n"
+                         "  foo();\n"
+                         "};"),
+                  v8_str("origin"))->Run();
+  v8::Local<v8::Object> global = env->Global();
+  Local<Value> trouble = global->Get(v8_str("bar"));
+  CHECK(trouble->IsFunction());
+  Function::Cast(*trouble)->Call(global, 0, NULL);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
+  v8::V8::RemoveMessageListeners(StackTraceForUncaughtExceptionListener);
 }
 
 
@@ -10929,4 +11103,85 @@ THREADED_TEST(TestEviction) {
       "})()";
   HEAP->ClearJSFunctionResultCaches();
   ExpectString(code, "PASSED");
+}
+
+
+THREADED_TEST(TwoByteStringInAsciiCons) {
+  // See Chromium issue 47824.
+  v8::HandleScope scope;
+
+  LocalContext context;
+  const char* init_code =
+      "var str1 = 'abelspendabel';"
+      "var str2 = str1 + str1 + str1;"
+      "str2;";
+  Local<Value> result = CompileRun(init_code);
+
+  CHECK(result->IsString());
+  i::Handle<i::String> string = v8::Utils::OpenHandle(String::Cast(*result));
+  int length = string->length();
+  CHECK(string->IsAsciiRepresentation());
+
+  FlattenString(string);
+  i::Handle<i::String> flat_string = FlattenGetString(string);
+
+  CHECK(string->IsAsciiRepresentation());
+  CHECK(flat_string->IsAsciiRepresentation());
+
+  // Create external resource.
+  uint16_t* uc16_buffer = new uint16_t[length + 1];
+
+  i::String::WriteToFlat(*flat_string, uc16_buffer, 0, length);
+  uc16_buffer[length] = 0;
+
+  TestResource resource(uc16_buffer);
+
+  flat_string->MakeExternal(&resource);
+
+  CHECK(flat_string->IsTwoByteRepresentation());
+
+  // At this point, we should have a Cons string which is flat and ASCII,
+  // with a first half that is a two-byte string (although it only contains
+  // ASCII characters). This is a valid sequence of steps, and it can happen
+  // in real pages.
+
+  CHECK(string->IsAsciiRepresentation());
+  i::ConsString* cons = i::ConsString::cast(*string);
+  CHECK_EQ(0, cons->second()->length());
+  CHECK(cons->first()->IsTwoByteRepresentation());
+
+  // Check that some string operations work.
+
+  // Atom RegExp.
+  Local<Value> reresult = CompileRun("str2.match(/abel/g).length;");
+  CHECK_EQ(6, reresult->Int32Value());
+
+  // Nonatom RegExp.
+  reresult = CompileRun("str2.match(/abe./g).length;");
+  CHECK_EQ(6, reresult->Int32Value());
+
+  reresult = CompileRun("str2.search(/bel/g);");
+  CHECK_EQ(1, reresult->Int32Value());
+
+  reresult = CompileRun("str2.search(/be./g);");
+  CHECK_EQ(1, reresult->Int32Value());
+
+  ExpectTrue("/bel/g.test(str2);");
+
+  ExpectTrue("/be./g.test(str2);");
+
+  reresult = CompileRun("/bel/g.exec(str2);");
+  CHECK(!reresult->IsNull());
+
+  reresult = CompileRun("/be./g.exec(str2);");
+  CHECK(!reresult->IsNull());
+
+  ExpectString("str2.substring(2, 10);", "elspenda");
+
+  ExpectString("str2.substring(2, 20);", "elspendabelabelspe");
+
+  ExpectString("str2.charAt(2);", "e");
+
+  reresult = CompileRun("str2.charCodeAt(2);");
+  CHECK_EQ(static_cast<int32_t>('e'), reresult->Int32Value());
 }

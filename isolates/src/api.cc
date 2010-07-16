@@ -1441,6 +1441,22 @@ v8::Handle<Value> Message::GetScriptData() const {
 }
 
 
+v8::Handle<v8::StackTrace> Message::GetStackTrace() const {
+  if (IsDeadCheck("v8::Message::GetStackTrace()")) {
+    return Local<v8::StackTrace>();
+  }
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::JSObject> obj =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::Object> stackFramesObj = GetProperty(obj, "stackFrames");
+  if (!stackFramesObj->IsJSArray()) return v8::Handle<v8::StackTrace>();
+  i::Handle<i::JSArray> stackTrace =
+      i::Handle<i::JSArray>::cast(stackFramesObj);
+  return scope.Close(Utils::StackTraceToLocal(stackTrace));
+}
+
+
 static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                i::Handle<i::Object> recv,
                                                int argc,
@@ -1587,7 +1603,9 @@ Local<StackTrace> StackTrace::CurrentStackTrace(int frame_limit,
     StackTraceOptions options) {
   if (IsDeadCheck("v8::StackTrace::CurrentStackTrace()")) Local<StackTrace>();
   ENTER_V8;
-  return i::Isolate::Current()->CaptureCurrentStackTrace(frame_limit, options);
+  i::Handle<i::JSArray> stackTrace =
+      i::Isolate::Current()->CaptureCurrentStackTrace(frame_limit, options);
+  return Utils::StackTraceToLocal(stackTrace);
 }
 
 
@@ -3732,6 +3750,17 @@ void V8::RemoveMessageListeners(MessageCallback that) {
 }
 
 
+void V8::SetCaptureStackTraceForUncaughtExceptions(
+      bool capture,
+      int frame_limit,
+      StackTrace::StackTraceOptions options) {
+  i::Isolate::Current()->SetCaptureStackTraceForUncaughtExceptions(
+      capture,
+      frame_limit,
+      options);
+}
+
+
 void V8::SetCounterFunction(CounterLookupCallback callback) {
   if (IsDeadCheck("v8::V8::SetCounterFunction()")) return;
   i::Isolate::Current()->stats_table()->SetCounterFunction(callback);
@@ -4140,6 +4169,12 @@ void Debug::DebugBreak() {
 }
 
 
+void Debug::DebugBreakForCommand(ClientData* data) {
+  if (!i::V8::IsRunning()) return;
+  i::Isolate::Current()->debugger()->EnqueueDebugCommand(data);
+}
+
+
 static void MessageHandlerWrapper(const v8::Debug::Message& message) {
   i::Isolate* isolate = i::Isolate::Current();
   if (isolate->message_handler()) {
@@ -4486,6 +4521,12 @@ Handle<String> HeapGraphNode::GetName() const {
 }
 
 
+uint64_t HeapGraphNode::GetId() const {
+  IsDeadCheck("v8::HeapGraphNode::GetId");
+  return reinterpret_cast<const i::HeapEntry*>(this)->id();
+}
+
+
 int HeapGraphNode::GetSelfSize() const {
   IsDeadCheck("v8::HeapGraphNode::GetSelfSize");
   return reinterpret_cast<const i::HeapEntry*>(this)->self_size();
@@ -4549,6 +4590,22 @@ const HeapGraphPath* HeapGraphNode::GetRetainingPath(int index) const {
 }
 
 
+const HeapGraphNode* HeapSnapshotsDiff::GetAdditionsRoot() const {
+  IsDeadCheck("v8::HeapSnapshotsDiff::GetAdditionsRoot");
+  const i::HeapSnapshotsDiff* diff =
+      reinterpret_cast<const i::HeapSnapshotsDiff*>(this);
+  return reinterpret_cast<const HeapGraphNode*>(diff->additions_root());
+}
+
+
+const HeapGraphNode* HeapSnapshotsDiff::GetDeletionsRoot() const {
+  IsDeadCheck("v8::HeapSnapshotsDiff::GetDeletionsRoot");
+  const i::HeapSnapshotsDiff* diff =
+      reinterpret_cast<const i::HeapSnapshotsDiff*>(this);
+  return reinterpret_cast<const HeapGraphNode*>(diff->deletions_root());
+}
+
+
 unsigned HeapSnapshot::GetUid() const {
   IsDeadCheck("v8::HeapSnapshot::GetUid");
   return reinterpret_cast<const i::HeapSnapshot*>(this)->uid();
@@ -4564,11 +4621,23 @@ Handle<String> HeapSnapshot::GetTitle() const {
 }
 
 
-const HeapGraphNode* HeapSnapshot::GetHead() const {
+const HeapGraphNode* HeapSnapshot::GetRoot() const {
   IsDeadCheck("v8::HeapSnapshot::GetHead");
   const i::HeapSnapshot* snapshot =
       reinterpret_cast<const i::HeapSnapshot*>(this);
   return reinterpret_cast<const HeapGraphNode*>(snapshot->const_root());
+}
+
+
+const HeapSnapshotsDiff* HeapSnapshot::CompareWith(
+    const HeapSnapshot* snapshot) const {
+  IsDeadCheck("v8::HeapSnapshot::CompareWith");
+  i::HeapSnapshot* snapshot1 = const_cast<i::HeapSnapshot*>(
+      reinterpret_cast<const i::HeapSnapshot*>(this));
+  i::HeapSnapshot* snapshot2 = const_cast<i::HeapSnapshot*>(
+      reinterpret_cast<const i::HeapSnapshot*>(snapshot));
+  return reinterpret_cast<const HeapSnapshotsDiff*>(
+      snapshot1->CompareWith(snapshot2));
 }
 
 

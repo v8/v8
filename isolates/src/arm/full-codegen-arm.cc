@@ -823,8 +823,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // the smi vs. smi case to be handled before it is called.
     Label slow_case;
     __ ldr(r1, MemOperand(sp, 0));  // Switch value.
-    __ mov(r2, r1);
-    __ orr(r2, r2, r0);
+    __ orr(r2, r1, r0);
     __ tst(r2, Operand(kSmiTagMask));
     __ b(ne, &slow_case);
     __ cmp(r1, r0);
@@ -833,9 +832,9 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     __ b(clause->body_target()->entry_label());
 
     __ bind(&slow_case);
-    CompareStub stub(eq, true);
+    CompareStub stub(eq, true, kBothCouldBeNaN, true, r1, r0);
     __ CallStub(&stub);
-    __ tst(r0, r0);
+    __ cmp(r0, Operand(0));
     __ b(ne, &next_test);
     __ Drop(1);  // Switch value is no longer needed.
     __ b(clause->body_target()->entry_label());
@@ -2174,12 +2173,8 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   __ jmp(&heapnumber_allocated);
 
   __ bind(&slow_allocate_heapnumber);
-  // To allocate a heap number, and ensure that it is not a smi, we
-  // call the runtime function FUnaryMinus on 0, returning the double
-  // -0.0. A new, distinct heap number is returned each time.
-  __ mov(r0, Operand(Smi::FromInt(0)));
-  __ push(r0);
-  __ CallRuntime(Runtime::kNumberUnaryMinus, 1);
+  // Allocate a heap number.
+  __ CallRuntime(Runtime::kNumberAlloc, 0);
   __ mov(r4, Operand(r0));
 
   __ bind(&heapnumber_allocated);
@@ -2750,9 +2745,11 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::SUB: {
       Comment cmt(masm_, "[ UnaryOperation (SUB)");
-      bool overwrite =
+      bool can_overwrite =
           (expr->expression()->AsBinaryOperation() != NULL &&
            expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      UnaryOverwriteMode overwrite =
+          can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
       GenericUnaryOpStub stub(Token::SUB, overwrite);
       // GenericUnaryOpStub expects the argument to be in the
       // accumulator register r0.
@@ -2764,9 +2761,11 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::BIT_NOT: {
       Comment cmt(masm_, "[ UnaryOperation (BIT_NOT)");
-      bool overwrite =
+      bool can_overwrite =
           (expr->expression()->AsBinaryOperation() != NULL &&
            expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      UnaryOverwriteMode overwrite =
+          can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
       GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
       // GenericUnaryOpStub expects the argument to be in the
       // accumulator register r0.
@@ -3104,7 +3103,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       __ jmp(if_false);
 
       __ bind(&slow_case);
-      CompareStub stub(cc, strict);
+      CompareStub stub(cc, strict, kBothCouldBeNaN, true, r1, r0);
       __ CallStub(&stub);
       __ cmp(r0, Operand(0));
       __ b(cc, if_true);

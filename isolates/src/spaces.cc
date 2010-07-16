@@ -2316,8 +2316,8 @@ void PagedSpace::CollectCodeStatistics() {
       }
 
       ASSERT(code->instruction_start() <= prev_pc &&
-             prev_pc <= code->relocation_start());
-      delta += static_cast<int>(code->relocation_start() - prev_pc);
+             prev_pc <= code->instruction_end());
+      delta += static_cast<int>(code->instruction_end() - prev_pc);
       EnterComment(isolate, "NoComment", delta);
     }
   }

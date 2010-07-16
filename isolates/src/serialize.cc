@@ -364,6 +364,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       5,
       "StackGuard::address_of_real_jslimit()");
+#ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::address_of_regexp_stack_limit().address(),
       UNCLASSIFIED,
       6,
@@ -380,6 +381,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       9,
       "OffsetsVector::static_offsets_vector");
+#endif  // V8_INTERPRETED_REGEXP
   Add(ExternalReference::new_space_start().address(),
       UNCLASSIFIED,
       10,
@@ -684,6 +686,14 @@ void Deserializer::ReadObject(int space_number,
     LOG(SnapshotPositionEvent(address, source_->position()));
   }
   ReadChunk(current, limit, space_number, address);
+
+  if (space == HEAP->map_space()) {
+    ASSERT(size == Map::kSize);
+    HeapObject* obj = HeapObject::FromAddress(address);
+    Map* map = reinterpret_cast<Map*>(obj);
+    map->set_scavenger(Heap::GetScavenger(map->instance_type(),
+                                          map->instance_size()));
+  }
 }
 
 

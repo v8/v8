@@ -536,8 +536,11 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(function, receiver, &code);
 
+  Handle<SerializedScopeInfo> scope_info(SerializedScopeInfo::Empty());
+
   if (function->IsJSFunction()) {
     Handle<SharedFunctionInfo> shared(JSFunction::cast(function)->shared());
+    scope_info = Handle<SerializedScopeInfo>(shared->scope_info());
     Object* script_obj = shared->script();
     if (script_obj->IsScript()) {
       Handle<Script> script(Script::cast(script_obj));
@@ -546,7 +549,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
 
       Address pc = this->pc();
       if (code != NULL && code->kind() == Code::FUNCTION &&
-          pc >= code->instruction_start() && pc < code->relocation_start()) {
+          pc >= code->instruction_start() && pc < code->instruction_end()) {
         int source_pos = code->SourcePosition(pc);
         int line = GetScriptLineNumberSafe(script, source_pos) + 1;
         accumulator->Add(":%d", line);
@@ -565,7 +568,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   // Get scope information for nicer output, if possible. If code is
   // NULL, or doesn't contain scope info, info will return 0 for the
   // number of parameters, stack slots, or context slots.
-  ScopeInfo<PreallocatedStorage> info(code);
+  ScopeInfo<PreallocatedStorage> info(*scope_info);
 
   // Print the parameters.
   int parameters_count = ComputeParametersCount();

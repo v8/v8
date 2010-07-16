@@ -239,6 +239,9 @@ Isolate::Isolate()
       logger_(new Logger()),
       stats_table_(new StatsTable()),
       stub_cache_(NULL),
+      capture_stack_trace_for_uncaught_exceptions_(false),
+      stack_trace_for_uncaught_exceptions_frame_limit_(0),
+      stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
       transcendental_cache_(NULL),
       memory_allocator_(NULL),
       keyed_lookup_cache_(NULL),
@@ -258,7 +261,8 @@ Isolate::Isolate()
       string_tracker_(NULL),
       regexp_stack_(NULL),
       frame_element_constant_list_(0),
-      result_constant_list_(0) {
+      result_constant_list_(0),
+      vm_state_(0) {
   memset(isolate_addresses_, 0,
       sizeof(isolate_addresses_[0]) * (k_isolate_address_count + 1));
 

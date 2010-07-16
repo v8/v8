@@ -77,7 +77,6 @@ static void CheckFindCodeObject() {
   CodeDesc desc;
   assm.GetCode(&desc);
   Object* code = HEAP->CreateCode(desc,
-                                  NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(HEAP->undefined_value()));
   CHECK(code->IsCode());
@@ -91,7 +90,6 @@ static void CheckFindCodeObject() {
   }
 
   Object* copy = HEAP->CreateCode(desc,
-                                  NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(HEAP->undefined_value()));
   CHECK(copy->IsCode());

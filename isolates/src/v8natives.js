@@ -677,9 +677,20 @@ function ObjectGetOwnPropertyNames(obj) {
     }
   }
 
-  // Property names are expected to be strings.
-  for (var i = 0; i < propertyNames.length; ++i)
-    propertyNames[i] = ToString(propertyNames[i]);
+  // Property names are expected to be unique strings.
+  var propertySet = {};
+  var j = 0;
+  for (var i = 0; i < propertyNames.length; ++i) {
+    var name = ToString(propertyNames[i]);
+    // We need to check for the exact property value since for intrinsic
+    // properties like toString if(propertySet["toString"]) will always
+    // succeed.
+    if (propertySet[name] === true)
+      continue;
+    propertySet[name] = true;
+    propertyNames[j++] = name;
+  }
+  propertyNames.length = j;
 
   return propertyNames;
 }
@@ -712,7 +723,7 @@ function ObjectDefineProperty(obj, p, attributes) {
 
 // ES5 section 15.2.3.7.
 function ObjectDefineProperties(obj, properties) {
- if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
      !IS_UNDETECTABLE(obj))
     throw MakeTypeError("obj_ctor_property_non_object", ["defineProperties"]);
   var props = ToObject(properties);
@@ -731,6 +742,101 @@ function ObjectDefineProperties(obj, properties) {
     DefineOwnProperty(obj, key, desc, true);
   }
   return obj;
+}
+
+
+// ES5 section 15.2.3.8.
+function ObjectSeal(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["seal"]);
+  }
+  var names = ObjectGetOwnPropertyNames(obj);
+  for (var key in names) {
+    var name = names[key];
+    var desc = GetOwnProperty(obj, name);
+    if (desc.isConfigurable()) desc.setConfigurable(false);
+    DefineOwnProperty(obj, name, desc, true);
+  }  
+  ObjectPreventExtension(obj);
+}
+
+
+// ES5 section 15.2.3.9.
+function ObjectFreeze(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["freeze"]);
+  }
+  var names = ObjectGetOwnPropertyNames(obj);
+  for (var key in names) {
+    var name = names[key];
+    var desc = GetOwnProperty(obj, name);
+    if (IsDataDescriptor(desc)) desc.setWritable(false);
+    if (desc.isConfigurable()) desc.setConfigurable(false);
+    DefineOwnProperty(obj, name, desc, true);
+  }  
+  ObjectPreventExtension(obj);
+}
+
+
+// ES5 section 15.2.3.10
+function ObjectPreventExtension(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["preventExtension"]);
+  }
+  %PreventExtensions(obj);
+  return obj;
+}
+
+
+// ES5 section 15.2.3.11
+function ObjectIsSealed(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["isSealed"]);
+  }
+  var names = ObjectGetOwnPropertyNames(obj);
+  for (var key in names) {
+    var name = names[key];
+    var desc = GetOwnProperty(obj, name);
+    if (desc.isConfigurable()) return false;
+  }
+  if (!ObjectIsExtensible(obj)) {
+    return true;
+  }
+  return false;
+}
+
+
+// ES5 section 15.2.3.12
+function ObjectIsFrozen(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["isFrozen"]);
+  }
+  var names = ObjectGetOwnPropertyNames(obj);
+  for (var key in names) {
+    var name = names[key];
+    var desc = GetOwnProperty(obj, name);
+    if (IsDataDescriptor(desc) && desc.isWritable()) return false;
+    if (desc.isConfigurable()) return false;
+  }
+  if (!ObjectIsExtensible(obj)) {
+    return true;
+  }
+  return false;
+}
+
+
+// ES5 section 15.2.3.13
+function ObjectIsExtensible(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["preventExtension"]);
+  }
+  return %IsExtensible(obj);
 }
 
 
@@ -767,9 +873,15 @@ function SetupObject() {
     "create", ObjectCreate,
     "defineProperty", ObjectDefineProperty,
     "defineProperties", ObjectDefineProperties,
+    "freeze", ObjectFreeze,
     "getPrototypeOf", ObjectGetPrototypeOf,
     "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
-    "getOwnPropertyNames", ObjectGetOwnPropertyNames
+    "getOwnPropertyNames", ObjectGetOwnPropertyNames,
+    "isExtensible", ObjectIsExtensible,
+    "isFrozen", ObjectIsFrozen,
+    "isSealed", ObjectIsSealed,
+    "preventExtensions", ObjectPreventExtension,
+    "seal", ObjectSeal
   ));
 }
 

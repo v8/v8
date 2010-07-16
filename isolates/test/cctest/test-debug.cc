@@ -2100,6 +2100,39 @@ TEST(ScriptBreakPointLineTopLevel) {
 }
 
 
+// Test that it is possible to add and remove break points in a top level
+// function which has no references but has not been collected yet.
+TEST(ScriptBreakPointTopLevelCrash) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
+                                   v8::Undefined());
+
+  v8::Local<v8::String> script_source = v8::String::New(
+    "function f() {\n"
+    "  return 0;\n"
+    "}\n"
+    "f()");
+
+  int sbp1 = SetScriptBreakPointByNameFromJS("test.html", 3, -1);
+  {
+    v8::HandleScope scope;
+    break_point_hit_count = 0;
+    v8::Script::Compile(script_source, v8::String::New("test.html"))->Run();
+    CHECK_EQ(1, break_point_hit_count);
+  }
+
+  int sbp2 = SetScriptBreakPointByNameFromJS("test.html", 3, -1);
+  ClearBreakPointFromJS(sbp1);
+  ClearBreakPointFromJS(sbp2);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
 // Test that it is possible to remove the last break point for a function
 // inside the break handling of that break point.
 TEST(RemoveBreakPointInBreak) {
@@ -2154,7 +2187,7 @@ TEST(DebuggerStatement) {
 }
 
 
-// Test setting a breakpoint on the  debugger statement.
+// Test setting a breakpoint on the debugger statement.
 TEST(DebuggerStatementBreakpoint) {
     break_point_hit_count = 0;
     v8::HandleScope scope;
@@ -6644,6 +6677,71 @@ TEST(DebugEventContext) {
   expected_context.Clear();
   v8::Debug::SetDebugEventListener(NULL);
   expected_context_data = v8::Handle<v8::Value>();
+  CheckDebuggerUnloaded();
+}
+
+
+static void* expected_break_data;
+static bool was_debug_break_called;
+static bool was_debug_event_called;
+static void DebugEventBreakDataChecker(const v8::Debug::EventDetails& details) {
+  if (details.GetEvent() == v8::BreakForCommand) {
+    CHECK_EQ(expected_break_data, details.GetClientData());
+    was_debug_event_called = true;
+  } else if (details.GetEvent() == v8::Break) {
+    was_debug_break_called = true;
+  }
+}
+
+// Check that event details contain context where debug event occured.
+TEST(DebugEventBreakData) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  v8::Debug::SetDebugEventListener2(DebugEventBreakDataChecker);
+
+  TestClientData::constructor_call_counter = 0;
+  TestClientData::destructor_call_counter = 0;
+
+  expected_break_data = NULL;
+  was_debug_event_called = false;
+  was_debug_break_called = false;
+  v8::Debug::DebugBreakForCommand();
+  v8::Script::Compile(v8::String::New("(function(x){return x;})(1);"))->Run();
+  CHECK(was_debug_event_called);
+  CHECK(!was_debug_break_called);
+
+  TestClientData* data1 = new TestClientData();
+  expected_break_data = data1;
+  was_debug_event_called = false;
+  was_debug_break_called = false;
+  v8::Debug::DebugBreakForCommand(data1);
+  v8::Script::Compile(v8::String::New("(function(x){return x+1;})(1);"))->Run();
+  CHECK(was_debug_event_called);
+  CHECK(!was_debug_break_called);
+
+  expected_break_data = NULL;
+  was_debug_event_called = false;
+  was_debug_break_called = false;
+  v8::Debug::DebugBreak();
+  v8::Script::Compile(v8::String::New("(function(x){return x+2;})(1);"))->Run();
+  CHECK(!was_debug_event_called);
+  CHECK(was_debug_break_called);
+
+  TestClientData* data2 = new TestClientData();
+  expected_break_data = data2;
+  was_debug_event_called = false;
+  was_debug_break_called = false;
+  v8::Debug::DebugBreak();
+  v8::Debug::DebugBreakForCommand(data2);
+  v8::Script::Compile(v8::String::New("(function(x){return x+3;})(1);"))->Run();
+  CHECK(was_debug_event_called);
+  CHECK(was_debug_break_called);
+
+  CHECK_EQ(2, TestClientData::constructor_call_counter);
+  CHECK_EQ(TestClientData::constructor_call_counter,
+           TestClientData::destructor_call_counter);
+
+  v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
 }
 

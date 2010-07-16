@@ -57,10 +57,9 @@ using v8::internal::rsp;
 using v8::internal::r8;
 using v8::internal::r9;
 using v8::internal::r11;
-using v8::internal::r12;  // Remember: r12..r15 are callee save!
+using v8::internal::r12;
 using v8::internal::r13;
 using v8::internal::r14;
-using v8::internal::r15;
 using v8::internal::times_pointer_size;
 using v8::internal::FUNCTION_CAST;
 using v8::internal::CodeDesc;
@@ -91,6 +90,24 @@ using v8::internal::kIntSize;
 typedef int (*F0)();
 
 #define __ masm->
+
+
+static void EntryCode(MacroAssembler* masm) {
+  // Smi constant register is callee save.
+  __ push(v8::internal::kSmiConstantRegister);
+  __ InitializeSmiConstantRegister();
+}
+
+
+static void ExitCode(MacroAssembler* masm) {
+  // Return -1 if kSmiConstantRegister was clobbered during the test.
+  __ Move(rdx, Smi::FromInt(1));
+  __ cmpq(rdx, v8::internal::kSmiConstantRegister);
+  __ movq(rdx, Immediate(-1));
+  __ cmovq(not_equal, rax, rdx);
+  __ pop(v8::internal::kSmiConstantRegister);
+}
+
 
 TEST(Smi) {
   // Check that C++ Smi operations work as expected.
@@ -140,6 +157,7 @@ TEST(SmiMove) {
   MacroAssembler assembler(buffer, static_cast<int>(actual_size));
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestMoveSmi(masm, &exit, 1, Smi::FromInt(0));
@@ -157,6 +175,7 @@ TEST(SmiMove) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -227,6 +246,7 @@ TEST(SmiCompare) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestSmiCompare(masm, &exit, 0x10, 0, 0);
@@ -251,6 +271,7 @@ TEST(SmiCompare) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -275,6 +296,7 @@ TEST(Integer32ToSmi) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   __ movq(rax, Immediate(1));  // Test number.
@@ -352,6 +374,7 @@ TEST(Integer32ToSmi) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -401,6 +424,7 @@ TEST(Integer64PlusConstantToSmi) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   int64_t twice_max = static_cast<int64_t>(Smi::kMaxValue) * 2;
@@ -420,6 +444,7 @@ TEST(Integer64PlusConstantToSmi) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -443,6 +468,7 @@ TEST(SmiCheck) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
   Condition cond;
 
@@ -618,6 +644,7 @@ TEST(SmiCheck) {
   __ xor_(rax, rax);
 
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -689,6 +716,7 @@ TEST(SmiNeg) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestSmiNeg(masm, &exit, 0x10, 0);
@@ -702,6 +730,7 @@ TEST(SmiNeg) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -775,6 +804,7 @@ TEST(SmiAdd) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   // No-overflow tests.
@@ -789,6 +819,7 @@ TEST(SmiAdd) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -963,6 +994,7 @@ TEST(SmiSub) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   SmiSubTest(masm, &exit, 0x10, 1, 2);
@@ -985,6 +1017,7 @@ TEST(SmiSub) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1051,6 +1084,7 @@ TEST(SmiMul) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestSmiMul(masm, &exit, 0x10, 0, 0);
@@ -1070,6 +1104,7 @@ TEST(SmiMul) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1090,51 +1125,51 @@ void TestSmiDiv(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 #endif
   bool fraction = !division_by_zero && !overflow && (x % y != 0);
   __ Move(r11, Smi::FromInt(x));
-  __ Move(r12, Smi::FromInt(y));
+  __ Move(r14, Smi::FromInt(y));
   if (!fraction && !overflow && !negative_zero && !division_by_zero) {
     // Division succeeds
     __ movq(rcx, r11);
-    __ movq(r15, Immediate(id));
+    __ movq(r12, Immediate(id));
     int result = x / y;
     __ Move(r8, Smi::FromInt(result));
-    __ SmiDiv(r9, rcx, r12, exit);
-    // Might have destroyed rcx and r12.
-    __ incq(r15);
+    __ SmiDiv(r9, rcx, r14, exit);
+    // Might have destroyed rcx and r14.
+    __ incq(r12);
     __ SmiCompare(r9, r8);
     __ j(not_equal, exit);
 
-    __ incq(r15);
+    __ incq(r12);
     __ movq(rcx, r11);
-    __ Move(r12, Smi::FromInt(y));
+    __ Move(r14, Smi::FromInt(y));
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r15);
-    __ SmiDiv(rcx, rcx, r12, exit);
+    __ incq(r12);
+    __ SmiDiv(rcx, rcx, r14, exit);
 
-    __ incq(r15);
+    __ incq(r12);
     __ SmiCompare(rcx, r8);
     __ j(not_equal, exit);
   } else {
     // Division fails.
-    __ movq(r15, Immediate(id + 8));
+    __ movq(r12, Immediate(id + 8));
 
     Label fail_ok, fail_ok2;
     __ movq(rcx, r11);
-    __ SmiDiv(r9, rcx, r12, &fail_ok);
+    __ SmiDiv(r9, rcx, r14, &fail_ok);
     __ jmp(exit);
     __ bind(&fail_ok);
 
-    __ incq(r15);
+    __ incq(r12);
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r15);
-    __ SmiDiv(rcx, rcx, r12, &fail_ok2);
+    __ incq(r12);
+    __ SmiDiv(rcx, rcx, r14, &fail_ok2);
     __ jmp(exit);
     __ bind(&fail_ok2);
 
-    __ incq(r15);
+    __ incq(r12);
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
   }
@@ -1155,10 +1190,11 @@ TEST(SmiDiv) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
+  __ push(r14);
   __ push(r12);
-  __ push(r15);
   TestSmiDiv(masm, &exit, 0x10, 1, 1);
   TestSmiDiv(masm, &exit, 0x20, 1, 0);
   TestSmiDiv(masm, &exit, 0x30, -1, 0);
@@ -1180,11 +1216,12 @@ TEST(SmiDiv) {
   TestSmiDiv(masm, &exit, 0x130, Smi::kMinValue, Smi::kMinValue);
   TestSmiDiv(masm, &exit, 0x140, Smi::kMinValue, -1);
 
-  __ xor_(r15, r15);  // Success.
+  __ xor_(r12, r12);  // Success.
   __ bind(&exit);
-  __ movq(rax, r15);
-  __ pop(r15);
+  __ movq(rax, r12);
   __ pop(r12);
+  __ pop(r14);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1202,47 +1239,47 @@ void TestSmiMod(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   bool negative_zero = (!fraction && x < 0);
   __ Move(rcx, Smi::FromInt(x));
   __ movq(r11, rcx);
-  __ Move(r12, Smi::FromInt(y));
+  __ Move(r14, Smi::FromInt(y));
   if (!division_overflow && !negative_zero && !division_by_zero) {
     // Modulo succeeds
-    __ movq(r15, Immediate(id));
+    __ movq(r12, Immediate(id));
     int result = x % y;
     __ Move(r8, Smi::FromInt(result));
-    __ SmiMod(r9, rcx, r12, exit);
+    __ SmiMod(r9, rcx, r14, exit);
 
-    __ incq(r15);
+    __ incq(r12);
     __ SmiCompare(r9, r8);
     __ j(not_equal, exit);
 
-    __ incq(r15);
+    __ incq(r12);
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r15);
-    __ SmiMod(rcx, rcx, r12, exit);
+    __ incq(r12);
+    __ SmiMod(rcx, rcx, r14, exit);
 
-    __ incq(r15);
+    __ incq(r12);
     __ SmiCompare(rcx, r8);
     __ j(not_equal, exit);
   } else {
     // Modulo fails.
-    __ movq(r15, Immediate(id + 8));
+    __ movq(r12, Immediate(id + 8));
 
     Label fail_ok, fail_ok2;
-    __ SmiMod(r9, rcx, r12, &fail_ok);
+    __ SmiMod(r9, rcx, r14, &fail_ok);
     __ jmp(exit);
     __ bind(&fail_ok);
 
-    __ incq(r15);
+    __ incq(r12);
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r15);
-    __ SmiMod(rcx, rcx, r12, &fail_ok2);
+    __ incq(r12);
+    __ SmiMod(rcx, rcx, r14, &fail_ok2);
     __ jmp(exit);
     __ bind(&fail_ok2);
 
-    __ incq(r15);
+    __ incq(r12);
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
   }
@@ -1263,10 +1300,11 @@ TEST(SmiMod) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
+  __ push(r14);
   __ push(r12);
-  __ push(r15);
   TestSmiMod(masm, &exit, 0x10, 1, 1);
   TestSmiMod(masm, &exit, 0x20, 1, 0);
   TestSmiMod(masm, &exit, 0x30, -1, 0);
@@ -1288,11 +1326,12 @@ TEST(SmiMod) {
   TestSmiMod(masm, &exit, 0x130, Smi::kMinValue, Smi::kMinValue);
   TestSmiMod(masm, &exit, 0x140, Smi::kMinValue, -1);
 
-  __ xor_(r15, r15);  // Success.
+  __ xor_(r12, r12);  // Success.
   __ bind(&exit);
-  __ movq(rax, r15);
-  __ pop(r15);
+  __ movq(rax, r12);
   __ pop(r12);
+  __ pop(r14);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1348,7 +1387,7 @@ TEST(SmiIndex) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 3,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -1357,6 +1396,7 @@ TEST(SmiIndex) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestSmiIndex(masm, &exit, 0x10, 0);
@@ -1367,6 +1407,7 @@ TEST(SmiIndex) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1424,6 +1465,7 @@ TEST(SmiSelectNonSmi) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);  // Avoid inline checks.
+  EntryCode(masm);
   Label exit;
 
   TestSelectNonSmi(masm, &exit, 0x10, 0, 0);
@@ -1438,6 +1480,7 @@ TEST(SmiSelectNonSmi) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1501,6 +1544,7 @@ TEST(SmiAnd) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestSmiAnd(masm, &exit, 0x10, 0, 0);
@@ -1517,6 +1561,7 @@ TEST(SmiAnd) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1580,6 +1625,7 @@ TEST(SmiOr) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestSmiOr(masm, &exit, 0x10, 0, 0);
@@ -1598,6 +1644,7 @@ TEST(SmiOr) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1661,6 +1708,7 @@ TEST(SmiXor) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestSmiXor(masm, &exit, 0x10, 0, 0);
@@ -1679,6 +1727,7 @@ TEST(SmiXor) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1726,6 +1775,7 @@ TEST(SmiNot) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestSmiNot(masm, &exit, 0x10, 0);
@@ -1739,6 +1789,7 @@ TEST(SmiNot) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1811,7 +1862,7 @@ TEST(SmiShiftLeft) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 3,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 4,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -1820,6 +1871,7 @@ TEST(SmiShiftLeft) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestSmiShiftLeft(masm, &exit, 0x10, 0);
@@ -1832,6 +1884,7 @@ TEST(SmiShiftLeft) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1915,7 +1968,7 @@ TEST(SmiShiftLogicalRight) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 3,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -1924,6 +1977,7 @@ TEST(SmiShiftLogicalRight) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestSmiShiftLogicalRight(masm, &exit, 0x10, 0);
@@ -1936,6 +1990,7 @@ TEST(SmiShiftLogicalRight) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -1991,6 +2046,7 @@ TEST(SmiShiftArithmeticRight) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestSmiShiftArithmeticRight(masm, &exit, 0x10, 0);
@@ -2003,6 +2059,7 @@ TEST(SmiShiftArithmeticRight) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -2053,6 +2110,7 @@ TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
 
   MacroAssembler* masm = &assembler;
   masm->set_allow_stub_calls(false);
+  EntryCode(masm);
   Label exit;
 
   TestPositiveSmiPowerUp(masm, &exit, 0x20, 0);
@@ -2067,6 +2125,7 @@ TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
 
   __ xor_(rax, rax);  // Success.
   __ bind(&exit);
+  ExitCode(masm);
   __ ret(0);
 
   CodeDesc desc;
@@ -2096,8 +2155,9 @@ TEST(OperandOffset) {
   masm->set_allow_stub_calls(false);
   Label exit;
 
-  __ push(r12);
+  EntryCode(masm);
   __ push(r13);
+  __ push(r14);
   __ push(rbx);
   __ push(rbp);
   __ push(Immediate(0x100));  // <-- rbp
@@ -2115,7 +2175,7 @@ TEST(OperandOffset) {
   // r12 = rsp[3]
   // rbx = rsp[5]
   // r13 = rsp[7]
-  __ lea(r12, Operand(rsp, 3 * kPointerSize));
+  __ lea(r14, Operand(rsp, 3 * kPointerSize));
   __ lea(r13, Operand(rbp, -3 * kPointerSize));
   __ lea(rbx, Operand(rbp, -5 * kPointerSize));
   __ movl(rcx, Immediate(2));
@@ -2418,8 +2478,9 @@ TEST(OperandOffset) {
   __ lea(rsp, Operand(rbp, kPointerSize));
   __ pop(rbp);
   __ pop(rbx);
+  __ pop(r14);
   __ pop(r13);
-  __ pop(r12);
+  ExitCode(masm);
   __ ret(0);
 
 

@@ -326,6 +326,7 @@ class RegExpCompiler;
 class RegExpVisitor;
 class Scope;
 template<class Allocator = FreeStoreAllocationPolicy> class ScopeInfo;
+class SerializedScopeInfo;
 class Script;
 class Slot;
 class Smi;
@@ -345,7 +346,6 @@ class ObjectGroup;
 class TickSample;
 class VirtualMemory;
 class Mutex;
-class ZoneScopeInfo;
 
 typedef bool (*WeakSlotCallback)(Object** pointer);
 
@@ -460,6 +460,12 @@ enum InLoopFlag {
 enum CallFunctionFlags {
   NO_CALL_FUNCTION_FLAGS = 0,
   RECEIVER_MIGHT_BE_VALUE = 1 << 0  // Receiver might not be a JSObject.
+};
+
+
+enum InlineCacheHolderFlag {
+  OWN_MAP,  // For fast properties objects.
+  PROTOTYPE_MAP  // For slow properties objects (except GlobalObjects).
 };
 
 

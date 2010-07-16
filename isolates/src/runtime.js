@@ -112,7 +112,7 @@ function STRICT_EQUALS(x) {
 // the result when either (or both) the operands are NaN.
 function COMPARE(x, ncr) {
   var left;
-
+  var right;
   // Fast cases for string, numbers and undefined compares.
   if (IS_STRING(this)) {
     if (IS_STRING(x)) return %_StringCompare(this, x);
@@ -123,14 +123,18 @@ function COMPARE(x, ncr) {
     if (IS_UNDEFINED(x)) return ncr;
     left = this;
   } else if (IS_UNDEFINED(this)) {
+    if (!IS_UNDEFINED(x)) {
+      %ToPrimitive(x, NUMBER_HINT);
+    }
+    return ncr;
+  } else if (IS_UNDEFINED(x)) {
+    %ToPrimitive(this, NUMBER_HINT);
     return ncr;
   } else {
-    if (IS_UNDEFINED(x)) return ncr;
     left = %ToPrimitive(this, NUMBER_HINT);
   }
 
-  // Default implementation.
-  var right = %ToPrimitive(x, NUMBER_HINT);
+  right = %ToPrimitive(x, NUMBER_HINT);
   if (IS_STRING(left) && IS_STRING(right)) {
     return %_StringCompare(left, right);
   } else {
@@ -427,7 +431,7 @@ function APPLY_PREPARE(args) {
   // big enough, but sanity check the value to avoid overflow when
   // multiplying with pointer size.
   if (length > 0x800000) {
-    throw %MakeRangeError('apply_overflow', [length]);
+    throw %MakeRangeError('stack_overflow', []);
   }
 
   if (!IS_FUNCTION(this)) {
@@ -446,7 +450,7 @@ function APPLY_PREPARE(args) {
 
 
 function APPLY_OVERFLOW(length) {
-  throw %MakeRangeError('apply_overflow', [length]);
+  throw %MakeRangeError('stack_overflow', []);
 }
 
 

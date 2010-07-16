@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "execution.h"
+#include "heap-profiler.h"
 #include "global-handles.h"
 #include "ic-inl.h"
 #include "mark-compact.h"
@@ -427,8 +428,10 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
   // Since the descriptor array has been marked already, it is fine
   // that one of these fields contains a pointer to it.
   MarkingVisitor visitor;  // Has no state or contents.
-  visitor.VisitPointers(HeapObject::RawField(map, Map::kPrototypeOffset),
-                        HeapObject::RawField(map, Map::kSize));
+  visitor.VisitPointers(HeapObject::RawField(map,
+                                             Map::kPointerFieldsBeginOffset),
+                        HeapObject::RawField(map,
+                                             Map::kPointerFieldsEndOffset));
 }
 
 
@@ -2237,6 +2240,7 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
   if (copied_to->IsJSFunction()) {
     PROFILE(FunctionMoveEvent(old_addr, new_addr));
   }
+  HEAP_PROFILE(ObjectMoveEvent(old_addr, new_addr));
 
   return obj_size;
 }
@@ -2289,6 +2293,7 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
     // Notify the logger that compiled code has moved.
     PROFILE(CodeMoveEvent(old_addr, new_addr));
   }
+  HEAP_PROFILE(ObjectMoveEvent(old_addr, new_addr));
 
   return obj_size;
 }
@@ -2333,6 +2338,7 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
   if (copied_to->IsJSFunction()) {
     PROFILE(FunctionMoveEvent(old_addr, new_addr));
   }
+  HEAP_PROFILE(ObjectMoveEvent(old_addr, new_addr));
 
   return obj_size;
 }

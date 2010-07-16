@@ -1336,16 +1336,26 @@ void JSObject::InitializeBody(int object_size) {
 }
 
 
+bool JSObject::HasFastProperties() {
+  return !properties()->IsDictionary();
+}
+
+
+int JSObject::MaxFastProperties() {
+  // Allow extra fast properties if the object has more than
+  // kMaxFastProperties in-object properties. When this is the case,
+  // it is very unlikely that the object is being used as a dictionary
+  // and there is a good chance that allowing more map transitions
+  // will be worth it.
+  return Max(map()->inobject_properties(), kMaxFastProperties);
+}
+
+
 void Struct::InitializeBody(int object_size) {
   Object* value = HEAP->undefined_value();
   for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
     WRITE_FIELD(this, offset, value);
   }
-}
-
-
-bool JSObject::HasFastProperties() {
-  return !properties()->IsDictionary();
 }
 
 
@@ -2051,6 +2061,21 @@ void ExternalFloatArray::set(int index, float value) {
   ptr[index] = value;
 }
 
+inline Scavenger Map::scavenger() {
+  Scavenger callback = reinterpret_cast<Scavenger>(
+      READ_INTPTR_FIELD(this, kScavengerCallbackOffset));
+
+  ASSERT(callback == Heap::GetScavenger(instance_type(),
+                                        instance_size()));
+
+  return callback;
+}
+
+inline void Map::set_scavenger(Scavenger callback) {
+  WRITE_INTPTR_FIELD(this,
+                     kScavengerCallbackOffset,
+                     reinterpret_cast<intptr_t>(callback));
+}
 
 int Map::instance_size() {
   return READ_BYTE_FIELD(this, kInstanceSizeOffset) << kPointerSizeLog2;
@@ -2190,6 +2215,20 @@ bool Map::is_access_check_needed() {
 }
 
 
+void Map::set_is_extensible(bool value) {
+  if (value) {
+    set_bit_field2(bit_field2() | (1 << kIsExtensible));
+  } else {
+    set_bit_field2(bit_field2() & ~(1 << kIsExtensible));
+  }
+}
+
+bool Map::is_extensible() {
+  return ((1 << kIsExtensible) & bit_field2()) != 0;
+}
+
+
+
 Code::Flags Code::flags() {
   return static_cast<Flags>(READ_INT_FIELD(this, kFlagsOffset));
 }
@@ -2264,13 +2303,15 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                InLoopFlag in_loop,
                                InlineCacheState ic_state,
                                PropertyType type,
-                               int argc) {
+                               int argc,
+                               InlineCacheHolderFlag holder) {
   // Compute the bit mask.
   int bits = kind << kFlagsKindShift;
   if (in_loop) bits |= kFlagsICInLoopMask;
   bits |= ic_state << kFlagsICStateShift;
   bits |= type << kFlagsTypeShift;
   bits |= argc << kFlagsArgumentsCountShift;
+  if (holder == PROTOTYPE_MAP) bits |= kFlagsCacheInPrototypeMapMask;
   // Cast to flags and validate result before returning it.
   Flags result = static_cast<Flags>(bits);
   ASSERT(ExtractKindFromFlags(result) == kind);
@@ -2284,9 +2325,10 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           PropertyType type,
+                                          InlineCacheHolderFlag holder,
                                           InLoopFlag in_loop,
                                           int argc) {
-  return ComputeFlags(kind, in_loop, MONOMORPHIC, type, argc);
+  return ComputeFlags(kind, in_loop, MONOMORPHIC, type, argc, holder);
 }
 
 
@@ -2316,6 +2358,12 @@ PropertyType Code::ExtractTypeFromFlags(Flags flags) {
 
 int Code::ExtractArgumentsCountFromFlags(Flags flags) {
   return (flags & kFlagsArgumentsCountMask) >> kFlagsArgumentsCountShift;
+}
+
+
+InlineCacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
+  int bits = (flags & kFlagsCacheInPrototypeMapMask);
+  return bits != 0 ? PROTOTYPE_MAP : OWN_MAP;
 }
 
 
@@ -2600,6 +2648,19 @@ void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
 }
 
 
+SerializedScopeInfo* SharedFunctionInfo::scope_info() {
+  return reinterpret_cast<SerializedScopeInfo*>(
+      READ_FIELD(this, kScopeInfoOffset));
+}
+
+
+void SharedFunctionInfo::set_scope_info(SerializedScopeInfo* value,
+                                        WriteBarrierMode mode) {
+  WRITE_FIELD(this, kScopeInfoOffset, reinterpret_cast<Object*>(value));
+  CONDITIONAL_WRITE_BARRIER(this, kScopeInfoOffset, mode);
+}
+
+
 bool SharedFunctionInfo::is_compiled() {
   // TODO(1242782): Create a code kind for uncompiled code.
   return code()->kind() != Code::STUB;
@@ -2775,8 +2836,7 @@ JSValue* JSValue::cast(Object* obj) {
 
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
-INT_ACCESSORS(Code, relocation_size, kRelocationSizeOffset)
-INT_ACCESSORS(Code, sinfo_size, kSInfoSizeOffset)
+ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 
 
 byte* Code::instruction_start()  {
@@ -2784,13 +2844,28 @@ byte* Code::instruction_start()  {
 }
 
 
+byte* Code::instruction_end()  {
+  return instruction_start() + instruction_size();
+}
+
+
 int Code::body_size() {
-  return RoundUp(instruction_size() + relocation_size(), kObjectAlignment);
+  return RoundUp(instruction_size(), kObjectAlignment);
+}
+
+
+ByteArray* Code::unchecked_relocation_info() {
+  return reinterpret_cast<ByteArray*>(READ_FIELD(this, kRelocationInfoOffset));
 }
 
 
 byte* Code::relocation_start() {
-  return FIELD_ADDR(this, kHeaderSize + instruction_size());
+  return unchecked_relocation_info()->GetDataStartAddress();
+}
+
+
+int Code::relocation_size() {
+  return unchecked_relocation_info()->length();
 }
 
 
@@ -2802,11 +2877,6 @@ byte* Code::entry() {
 bool Code::contains(byte* pc) {
   return (instruction_start() <= pc) &&
       (pc < instruction_start() + instruction_size());
-}
-
-
-byte* Code::sinfo_start() {
-  return FIELD_ADDR(this, kHeaderSize + body_size());
 }
 
 

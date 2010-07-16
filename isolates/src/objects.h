@@ -1367,6 +1367,7 @@ class JSObject: public HeapObject {
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
   Object* GetElementWithReceiver(JSObject* receiver, uint32_t index);
+  Object* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
 
   Object* SetFastElementsCapacityAndLength(int capacity, int length);
   Object* SetSlowElements(Object* length);
@@ -1516,6 +1517,10 @@ class JSObject: public HeapObject {
   // Casting.
   static inline JSObject* cast(Object* obj);
 
+  // Disalow further properties to be added to the object.
+  Object* PreventExtensions();
+
+
   // Dispatched behavior.
   void JSObjectIterateBody(int object_size, ObjectVisitor* v);
   void JSObjectShortPrint(StringStream* accumulator);
@@ -1547,6 +1552,11 @@ class JSObject: public HeapObject {
 #endif
   Object* SlowReverseLookup(Object* value);
 
+  // Maximal number of fast properties for the JSObject. Used to
+  // restrict the number of map transitions to avoid an explosion in
+  // the number of maps for objects used as dictionaries.
+  inline int MaxFastProperties();
+
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
   static const uint32_t kMaxElementCount = 0xffffffffu;
@@ -1567,8 +1577,6 @@ class JSObject: public HeapObject {
   static const int kHeaderSize = kElementsOffset + kPointerSize;
 
   STATIC_CHECK(kHeaderSize == Internals::kJSObjectHeaderSize);
-
-  Object* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
 
  private:
   Object* GetElementWithCallback(Object* receiver,
@@ -2728,13 +2736,13 @@ class Code: public HeapObject {
   inline int instruction_size();
   inline void set_instruction_size(int value);
 
-  // [relocation_size]: Size of relocation information.
-  inline int relocation_size();
-  inline void set_relocation_size(int value);
+  // [relocation_info]: Code relocation information
+  DECL_ACCESSORS(relocation_info, ByteArray)
 
-  // [sinfo_size]: Size of scope information.
-  inline int sinfo_size();
-  inline void set_sinfo_size(int value);
+  // Unchecked accessor to be used during GC.
+  inline ByteArray* unchecked_relocation_info();
+
+  inline int relocation_size();
 
   // [flags]: Various code flags.
   inline Flags flags();
@@ -2765,11 +2773,13 @@ class Code: public HeapObject {
                                    InLoopFlag in_loop = NOT_IN_LOOP,
                                    InlineCacheState ic_state = UNINITIALIZED,
                                    PropertyType type = NORMAL,
-                                   int argc = -1);
+                                   int argc = -1,
+                                   InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
       PropertyType type,
+      InlineCacheHolderFlag holder = OWN_MAP,
       InLoopFlag in_loop = NOT_IN_LOOP,
       int argc = -1);
 
@@ -2778,6 +2788,7 @@ class Code: public HeapObject {
   static inline InLoopFlag ExtractICInLoopFromFlags(Flags flags);
   static inline PropertyType ExtractTypeFromFlags(Flags flags);
   static inline int ExtractArgumentsCountFromFlags(Flags flags);
+  static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline Flags RemoveTypeFromFlags(Flags flags);
 
   // Convert a target address into a code object.
@@ -2785,6 +2796,9 @@ class Code: public HeapObject {
 
   // Returns the address of the first instruction.
   inline byte* instruction_start();
+
+  // Returns the address right after the last instruction.
+  inline byte* instruction_end();
 
   // Returns the size of the instructions, padding, and relocation information.
   inline int body_size();
@@ -2798,9 +2812,6 @@ class Code: public HeapObject {
   // Returns true if pc is inside this object's instructions.
   inline bool contains(byte* pc);
 
-  // Returns the address of the scope information.
-  inline byte* sinfo_start();
-
   // Relocate the code by delta bytes. Called to signal that this code
   // object has been moved by delta bytes.
   void Relocate(intptr_t delta);
@@ -2808,12 +2819,10 @@ class Code: public HeapObject {
   // Migrate code described by desc.
   void CopyFrom(const CodeDesc& desc);
 
-  // Returns the object size for a given body and sinfo size (Used for
-  // allocation).
-  static int SizeFor(int body_size, int sinfo_size) {
+  // Returns the object size for a given body (used for allocation).
+  static int SizeFor(int body_size) {
     ASSERT_SIZE_TAG_ALIGNED(body_size);
-    ASSERT_SIZE_TAG_ALIGNED(sinfo_size);
-    return RoundUp(kHeaderSize + body_size + sinfo_size, kCodeAlignment);
+    return RoundUp(kHeaderSize + body_size, kCodeAlignment);
   }
 
   // Calculate the size of the code object to report for log events. This takes
@@ -2833,7 +2842,7 @@ class Code: public HeapObject {
   static inline Code* cast(Object* obj);
 
   // Dispatched behavior.
-  int CodeSize() { return SizeFor(body_size(), sinfo_size()); }
+  int CodeSize() { return SizeFor(body_size()); }
   void CodeIterateBody(ObjectVisitor* v);
 #ifdef DEBUG
   void CodePrint();
@@ -2846,9 +2855,8 @@ class Code: public HeapObject {
 
   // Layout description.
   static const int kInstructionSizeOffset = HeapObject::kHeaderSize;
-  static const int kRelocationSizeOffset = kInstructionSizeOffset + kIntSize;
-  static const int kSInfoSizeOffset = kRelocationSizeOffset + kIntSize;
-  static const int kFlagsOffset = kSInfoSizeOffset + kIntSize;
+  static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
+  static const int kFlagsOffset = kRelocationInfoOffset + kPointerSize;
   static const int kKindSpecificFlagsOffset  = kFlagsOffset + kIntSize;
   // Add padding to align the instruction start following right after
   // the Code object header.
@@ -2864,21 +2872,24 @@ class Code: public HeapObject {
   static const int kFlagsICInLoopShift       = 3;
   static const int kFlagsTypeShift           = 4;
   static const int kFlagsKindShift           = 7;
-  static const int kFlagsArgumentsCountShift = 11;
+  static const int kFlagsICHolderShift       = 11;
+  static const int kFlagsArgumentsCountShift = 12;
 
   static const int kFlagsICStateMask        = 0x00000007;  // 00000000111
   static const int kFlagsICInLoopMask       = 0x00000008;  // 00000001000
   static const int kFlagsTypeMask           = 0x00000070;  // 00001110000
   static const int kFlagsKindMask           = 0x00000780;  // 11110000000
-  static const int kFlagsArgumentsCountMask = 0xFFFFF800;
+  static const int kFlagsCacheInPrototypeMapMask = 0x00000800;
+  static const int kFlagsArgumentsCountMask = 0xFFFFF000;
 
   static const int kFlagsNotUsedInLookup =
-      (kFlagsICInLoopMask | kFlagsTypeMask);
+      (kFlagsICInLoopMask | kFlagsTypeMask | kFlagsCacheInPrototypeMapMask);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
 };
 
+typedef void (*Scavenger)(Map* map, HeapObject** slot, HeapObject* object);
 
 // All heap objects have a Map that describes their structure.
 //  A Map contains information about:
@@ -2980,13 +2991,8 @@ class Map: public HeapObject {
     return ((1 << kHasInstanceCallHandler) & bit_field()) != 0;
   }
 
-  inline void set_is_extensible() {
-    set_bit_field2(bit_field2() | (1 << kIsExtensible));
-  }
-
-  inline bool is_extensible() {
-    return ((1 << kIsExtensible) & bit_field2()) != 0;
-  }
+  inline void set_is_extensible(bool value);
+  inline bool is_extensible();
 
   // Tells whether the instance has fast elements.
   void set_has_fast_elements(bool value) {
@@ -3085,6 +3091,13 @@ class Map: public HeapObject {
   void MapVerify();
 #endif
 
+  inline Scavenger scavenger();
+  inline void set_scavenger(Scavenger callback);
+
+  inline void Scavenge(HeapObject** slot, HeapObject* obj) {
+    scavenger()(this, slot, obj);
+  }
+
   static const int kMaxPreAllocatedPropertyFields = 255;
 
   // Layout description.
@@ -3095,7 +3108,8 @@ class Map: public HeapObject {
   static const int kInstanceDescriptorsOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
-  static const int kPadStart = kCodeCacheOffset + kPointerSize;
+  static const int kScavengerCallbackOffset = kCodeCacheOffset + kPointerSize;
+  static const int kPadStart = kScavengerCallbackOffset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
@@ -3258,6 +3272,9 @@ class SharedFunctionInfo: public HeapObject {
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
 
+  // [scope_info]: Scope info.
+  DECL_ACCESSORS(scope_info, SerializedScopeInfo)
+
   // [construct stub]: Code stub for constructing instances of this function.
   DECL_ACCESSORS(construct_stub, Code)
 
@@ -3411,7 +3428,8 @@ class SharedFunctionInfo: public HeapObject {
   // Pointer fields.
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kCodeOffset = kNameOffset + kPointerSize;
-  static const int kConstructStubOffset = kCodeOffset + kPointerSize;
+  static const int kScopeInfoOffset = kCodeOffset + kPointerSize;
+  static const int kConstructStubOffset = kScopeInfoOffset + kPointerSize;
   static const int kInstanceClassNameOffset =
       kConstructStubOffset + kPointerSize;
   static const int kFunctionDataOffset =
@@ -4398,6 +4416,8 @@ class SeqString: public String {
 // Each character in the AsciiString is an ascii character.
 class SeqAsciiString: public SeqString {
  public:
+  static const bool kHasAsciiEncoding = true;
+
   // Dispatched behavior.
   inline uint16_t SeqAsciiStringGet(int index);
   inline void SeqAsciiStringSet(int index, uint16_t value);
@@ -4447,6 +4467,8 @@ class SeqAsciiString: public SeqString {
 // Each character in the TwoByteString is a two-byte uint16_t.
 class SeqTwoByteString: public SeqString {
  public:
+  static const bool kHasAsciiEncoding = false;
+
   // Dispatched behavior.
   inline uint16_t SeqTwoByteStringGet(int index);
   inline void SeqTwoByteStringSet(int index, uint16_t value);
@@ -4579,6 +4601,8 @@ class ExternalString: public String {
 // ASCII string.
 class ExternalAsciiString: public ExternalString {
  public:
+  static const bool kHasAsciiEncoding = true;
+
   typedef v8::String::ExternalAsciiStringResource Resource;
 
   // The underlying resource.
@@ -4611,6 +4635,8 @@ class ExternalAsciiString: public ExternalString {
 // encoded string.
 class ExternalTwoByteString: public ExternalString {
  public:
+  static const bool kHasAsciiEncoding = false;
+
   typedef v8::String::ExternalStringResource Resource;
 
   // The underlying string resource.

@@ -393,6 +393,9 @@ class CodeGenerator: public AstVisitor {
   // target (which can not be done more than once).
   void GenerateReturnSequence(Result* return_value);
 
+  // Generate code for a fast smi loop.
+  void GenerateFastSmiLoop(ForStatement* node);
+
   // Returns the arguments allocation mode.
   ArgumentsAllocationMode ArgumentsMode();
 
@@ -518,6 +521,17 @@ class CodeGenerator: public AstVisitor {
                   Condition cc,
                   bool strict,
                   ControlDestination* destination);
+
+  // If at least one of the sides is a constant smi, generate optimized code.
+  void ConstantSmiComparison(Condition cc,
+                             bool strict,
+                             ControlDestination* destination,
+                             Result* left_side,
+                             Result* right_side,
+                             bool left_side_constant_smi,
+                             bool right_side_constant_smi,
+                             bool is_loop_condition);
+
   void GenerateInlineNumberComparison(Result* left_side,
                                       Result* right_side,
                                       Condition cc,

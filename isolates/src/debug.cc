@@ -63,7 +63,6 @@ Debug::Debug(Isolate* isolate)
       debug_break_slot_(NULL),
       isolate_(isolate) {
   memset(registers_, 0, sizeof(JSCallerSavedBuffer));
-  thread_local_.frames_are_dropped_ = false;
 }
 
 
@@ -498,8 +497,9 @@ void BreakLocationIterator::ClearDebugBreakAtIC() {
 
   RelocInfo::Mode mode = rmode();
   if (RelocInfo::IsCodeTarget(mode)) {
+    AssertNoAllocation nogc;
     Address target = original_rinfo()->target_address();
-    Handle<Code> code(Code::GetCodeFromTargetAddress(target));
+    Code* code = Code::GetCodeFromTargetAddress(target);
 
     // Restore the inlined version of keyed stores to get back to the
     // fast case.  We need to patch back the keyed store because no
@@ -697,6 +697,12 @@ void Debug::Setup(bool create_heap_objects) {
 void Debug::HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data) {
   Debug* debug = Isolate::Current()->debug();
   DebugInfoListNode* node = reinterpret_cast<DebugInfoListNode*>(data);
+  // We need to clear all breakpoints associated with the function to restore
+  // original code and avoid patching the code twice later because
+  // the function will live in the heap until next gc, and can be found by
+  // Runtime::FindSharedFunctionInfoInScript.
+  BreakLocationIterator it(node->debug_info(), ALL_BREAK_LOCATIONS);
+  it.ClearAllDebugBreak();
   debug->RemoveDebugInfo(node->debug_info());
 #ifdef DEBUG
   node = debug->debug_info_list_;
@@ -771,7 +777,7 @@ bool Debug::CompileDebuggerScript(int index) {
   if (caught_exception) {
     Handle<Object> message = MessageHandler::MakeMessageObject(
         "error_loading_debugger", NULL, Vector<Handle<Object> >::empty(),
-        Handle<String>());
+        Handle<String>(), Handle<JSArray>());
     MessageHandler::ReportMessage(NULL, message);
     return false;
   }
@@ -883,7 +889,7 @@ Object* Debug::Break(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 0);
 
-  debug->thread_local_.frames_are_dropped_ = false;
+  debug->thread_local_.frame_drop_mode_ = FRAMES_UNTOUCHED;
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it;
@@ -961,13 +967,24 @@ Object* Debug::Break(Arguments args) {
     debug->PrepareStep(step_action, step_count);
   }
 
-  if (debug->thread_local_.frames_are_dropped_) {
-    // We must have been calling IC stub. Do not return there anymore.
+  if (debug->thread_local_.frame_drop_mode_ == FRAMES_UNTOUCHED) {
+    debug->SetAfterBreakTarget(frame);
+  } else if (debug->thread_local_.frame_drop_mode_ == FRAME_DROPPED_IN_IC_CALL) {
+    // We must have been calling IC stub. Do not go there anymore.
     Code* plain_return =
         Isolate::Current()->builtins()->builtin(Builtins::PlainReturn_LiveEdit);
     debug->thread_local_.after_break_target_ = plain_return->entry();
+  } else if (debug->thread_local_.frame_drop_mode_ ==
+      FRAME_DROPPED_IN_DEBUG_SLOT_CALL) {
+    // Debug break slot stub does not return normally, instead it manually
+    // cleans the stack and jumps. We should patch the jump address.
+    Code* plain_return = Isolate::Current()->builtins()->builtin(
+        Builtins::FrameDropper_LiveEdit);
+    debug->thread_local_.after_break_target_ = plain_return->entry();
+  } else if (debug->thread_local_.frame_drop_mode_ == FRAME_DROPPED_IN_DIRECT_CALL) {
+    // Nothing to do, after_break_target is not used here.
   } else {
-    debug->SetAfterBreakTarget(frame);
+    UNREACHABLE();
   }
 
   return heap->undefined_value();
@@ -1784,8 +1801,9 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 }
 
 
-void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id) {
-  thread_local_.frames_are_dropped_ = true;
+void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
+                                  FrameDropMode mode) {
+  thread_local_.frame_drop_mode_ = mode;
   thread_local_.break_frame_id_ = new_break_frame_id;
 }
 
@@ -1898,7 +1916,8 @@ Debugger::Debugger()
       host_dispatch_micros_(100 * 1000),
       agent_(NULL),
       command_queue_(kQueueInitialSize),
-      command_received_(OS::CreateSemaphore(0)) {
+      command_received_(OS::CreateSemaphore(0)),
+      event_command_queue_(kQueueInitialSize) {
 }
 
 
@@ -2250,37 +2269,73 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
                          event_data,
                          auto_continue);
   }
-  // Notify registered debug event listener. This can be either a C or a
-  // JavaScript function.
-  if (!event_listener_.is_null()) {
-    if (event_listener_->IsProxy()) {
-      // C debug event listener.
-      Handle<Proxy> callback_obj(Handle<Proxy>::cast(event_listener_));
-      v8::Debug::EventCallback2 callback =
-            FUNCTION_CAST<v8::Debug::EventCallback2>(callback_obj->proxy());
-      EventDetailsImpl event_details(
-          event,
-          Handle<JSObject>::cast(exec_state),
-          event_data,
-          event_listener_data_);
-      callback(event_details);
-    } else {
-      // JavaScript debug event listener.
-      ASSERT(event_listener_->IsJSFunction());
-      Handle<JSFunction> fun(Handle<JSFunction>::cast(event_listener_));
-
-      // Invoke the JavaScript debug event listener.
-      const int argc = 4;
-      Object** argv[argc] = { Handle<Object>(Smi::FromInt(event)).location(),
-                              exec_state.location(),
-                              Handle<Object>::cast(event_data).location(),
-                              event_listener_data_.location() };
-      Handle<Object> result = Execution::TryCall(fun,
-                                                 Isolate::Current()->global(),
-                                                 argc, argv, &caught_exception);
-      // Silently ignore exceptions from debug event listeners.
+  // Notify registered debug event listener. This can be either a C or
+  // a JavaScript function. Don't call event listener for v8::Break
+  // here, if it's only a debug command -- they will be processed later.
+  if ((event != v8::Break || !auto_continue) && !event_listener_.is_null()) {
+    CallEventCallback(event, exec_state, event_data, NULL);
+  }
+  // Process pending debug commands.
+  if (event == v8::Break) {
+    while (!event_command_queue_.IsEmpty()) {
+      CommandMessage command = event_command_queue_.Get();
+      if (!event_listener_.is_null()) {
+        CallEventCallback(v8::BreakForCommand,
+                          exec_state,
+                          event_data,
+                          command.client_data());
+      }
+      command.Dispose();
     }
   }
+}
+
+
+void Debugger::CallEventCallback(v8::DebugEvent event,
+                                 Handle<Object> exec_state,
+                                 Handle<Object> event_data,
+                                 v8::Debug::ClientData* client_data) {
+  if (event_listener_->IsProxy()) {
+    CallCEventCallback(event, exec_state, event_data, client_data);
+  } else {
+    CallJSEventCallback(event, exec_state, event_data);
+  }
+}
+
+
+void Debugger::CallCEventCallback(v8::DebugEvent event,
+                                  Handle<Object> exec_state,
+                                  Handle<Object> event_data,
+                                  v8::Debug::ClientData* client_data) {
+  Handle<Proxy> callback_obj(Handle<Proxy>::cast(event_listener_));
+  v8::Debug::EventCallback2 callback =
+      FUNCTION_CAST<v8::Debug::EventCallback2>(callback_obj->proxy());
+  EventDetailsImpl event_details(
+      event,
+      Handle<JSObject>::cast(exec_state),
+      Handle<JSObject>::cast(event_data),
+      event_listener_data_,
+      client_data);
+  callback(event_details);
+}
+
+
+void Debugger::CallJSEventCallback(v8::DebugEvent event,
+                                   Handle<Object> exec_state,
+                                   Handle<Object> event_data) {
+  ASSERT(event_listener_->IsJSFunction());
+  ASSERT(Isolate::Current() == isolate_);
+  Handle<JSFunction> fun(Handle<JSFunction>::cast(event_listener_));
+
+  // Invoke the JavaScript debug event listener.
+  const int argc = 4;
+  Object** argv[argc] = { Handle<Object>(Smi::FromInt(event)).location(),
+                          exec_state.location(),
+                          Handle<Object>::cast(event_data).location(),
+                          event_listener_data_.location() };
+  bool caught_exception = false;
+  Execution::TryCall(fun, isolate_->global(), argc, argv, &caught_exception);
+  // Silently ignore exceptions from debug event listeners.
 }
 
 
@@ -2321,6 +2376,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
   bool sendEventMessage = false;
   switch (event) {
     case v8::Break:
+    case v8::BreakForCommand:
       sendEventMessage = !auto_continue;
       break;
     case v8::Exception:
@@ -2618,6 +2674,18 @@ bool Debugger::HasCommands() {
 }
 
 
+void Debugger::EnqueueDebugCommand(v8::Debug::ClientData* client_data) {
+  ASSERT(Isolate::Current() == isolate_);
+  CommandMessage message = CommandMessage::New(Vector<uint16_t>(), client_data);
+  event_command_queue_.Put(message);
+
+  // Set the debug command break flag to have the command processed.
+  if (!isolate_->debug()->InDebugger()) {
+    isolate_->stack_guard()->DebugCommand();
+  }
+}
+
+
 bool Debugger::IsDebuggerActive() {
   ASSERT(Isolate::Current() == isolate_);
   ScopedLock with(debugger_access_);
@@ -2826,11 +2894,13 @@ v8::Debug::ClientData* MessageImpl::GetClientData() const {
 EventDetailsImpl::EventDetailsImpl(DebugEvent event,
                                    Handle<JSObject> exec_state,
                                    Handle<JSObject> event_data,
-                                   Handle<Object> callback_data)
+                                   Handle<Object> callback_data,
+                                   v8::Debug::ClientData* client_data)
     : event_(event),
       exec_state_(exec_state),
       event_data_(event_data),
-      callback_data_(callback_data) {}
+      callback_data_(callback_data),
+      client_data_(client_data) {}
 
 
 DebugEvent EventDetailsImpl::GetEvent() const {
@@ -2855,6 +2925,11 @@ v8::Handle<v8::Context> EventDetailsImpl::GetEventContext() const {
 
 v8::Handle<v8::Value> EventDetailsImpl::GetCallbackData() const {
   return v8::Utils::ToLocal(callback_data_);
+}
+
+
+v8::Debug::ClientData* EventDetailsImpl::GetClientData() const {
+  return client_data_;
 }
 
 

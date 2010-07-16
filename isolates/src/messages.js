@@ -181,7 +181,6 @@ function FormatMessage(message) {
       // RangeError
       invalid_array_length:         "Invalid array length",
       stack_overflow:               "Maximum call stack size exceeded",
-      apply_overflow:               "Function.prototype.apply cannot support %0 arguments",
       // SyntaxError
       unable_to_parse:              "Parse error",
       duplicate_regexp_flag:        "Duplicate RegExp flag %0",
@@ -196,7 +195,9 @@ function FormatMessage(message) {
       circular_structure:           "Converting circular structure to JSON",
       obj_ctor_property_non_object: "Object.%0 called on non-object",
       array_indexof_not_defined:    "Array.getIndexOf: Argument undefined",
-      illegal_access:               "illegal access"
+      object_not_extensible:        "Can't add property %0, object is not extensible",
+      illegal_access:               "Illegal access",
+      invalid_preparser_data:       "Invalid preparser data for function %0"
     };
   }
   var format = kMessages[message.type];
@@ -599,18 +600,22 @@ function GetPositionInLine(message) {
 }
 
 
-function ErrorMessage(type, args, startPos, endPos, script, stackTrace) {
+function ErrorMessage(type, args, startPos, endPos, script, stackTrace,
+                      stackFrames) {
   this.startPos = startPos;
   this.endPos = endPos;
   this.type = type;
   this.args = args;
   this.script = script;
   this.stackTrace = stackTrace;
+  this.stackFrames = stackFrames;
 }
 
 
-function MakeMessage(type, args, startPos, endPos, script, stackTrace) {
-  return new ErrorMessage(type, args, startPos, endPos, script, stackTrace);
+function MakeMessage(type, args, startPos, endPos, script, stackTrace,
+                     stackFrames) {
+  return new ErrorMessage(type, args, startPos, endPos, script, stackTrace,
+                          stackFrames);
 }
 
 

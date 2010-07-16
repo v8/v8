@@ -36,6 +36,7 @@
 #include "parser.h"
 #include "platform.h"
 #include "runtime.h"
+#include "scopeinfo.h"
 #include "scopes.h"
 #include "string-stream.h"
 
@@ -134,6 +135,7 @@ class Parser {
 
   // Report syntax error
   void ReportUnexpectedToken(Token::Value token);
+  void ReportInvalidPreparseData(Handle<String> name, bool* ok);
 
   Handle<Script> script_;
   Scanner scanner_;
@@ -1963,7 +1965,8 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<SharedFunctionInfo> shared =
-      Factory::NewSharedFunctionInfo(name, literals, code);
+      Factory::NewSharedFunctionInfo(name, literals, code,
+          Handle<SerializedScopeInfo>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the shared function info.
@@ -3259,6 +3262,15 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
 }
 
 
+void Parser::ReportInvalidPreparseData(Handle<String> name, bool* ok) {
+  SmartPointer<char> name_string = name->ToCString(DISALLOW_NULLS);
+  const char* element[1] = { *name_string };
+  ReportMessage("invalid_preparser_data",
+                Vector<const char*>(element, 1));
+  *ok = false;
+}
+
+
 Expression* Parser::ParsePrimaryExpression(bool* ok) {
   Isolate* isolate = Isolate::Current();
   // PrimaryExpression ::
@@ -3807,7 +3819,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     Handle<FixedArray> this_property_assignments;
     if (is_lazily_compiled && pre_data() != NULL) {
       FunctionEntry entry = pre_data()->GetFunctionEnd(start_pos);
+      if (!entry.is_valid()) {
+        ReportInvalidPreparseData(name, CHECK_OK);
+      }
       int end_pos = entry.end_pos();
+      if (end_pos <= start_pos) {
+        // End position greater than end of stream is safe, and hard to check.
+        ReportInvalidPreparseData(name, CHECK_OK);
+      }
       COUNTERS->total_preparse_skipped()->Increment(end_pos - start_pos);
       scanner_.SeekForward(end_pos);
       materialized_literal_count = entry.literal_count();

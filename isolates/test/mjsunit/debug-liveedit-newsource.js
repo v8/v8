@@ -57,7 +57,8 @@ var new_source = new_source.replace("17", "18");
 print("new source: " + new_source);
 
 var change_log = new Array();
-Debug.LiveEdit.SetScriptSource(script, new_source, change_log);
+var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
+print("Result: " + JSON.stringify(result) + "\n");
 print("Change log: " + JSON.stringify(change_log) + "\n");
 
 assertEquals("Capybara", ChooseAnimal());

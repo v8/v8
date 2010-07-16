@@ -96,6 +96,12 @@ Handle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
 }
 
 
+Handle<String> Factory::NewRawAsciiString(int length,
+                                          PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(HEAP->AllocateRawAsciiString(length, pretenure), String);
+}
+
+
 Handle<String> Factory::NewRawTwoByteString(int length,
                                             PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(HEAP->AllocateRawTwoByteString(length, pretenure), String);
@@ -271,6 +277,8 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
   copy->set_inobject_properties(inobject_properties);
   copy->set_unused_property_fields(inobject_properties);
   copy->set_instance_size(copy->instance_size() + instance_size_delta);
+  copy->set_scavenger(HEAP->GetScavenger(copy->instance_type(),
+                                         copy->instance_size()));
   return copy;
 }
 
@@ -530,10 +538,9 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
 
 
 Handle<Code> Factory::NewCode(const CodeDesc& desc,
-                              ZoneScopeInfo* sinfo,
                               Code::Flags flags,
                               Handle<Object> self_ref) {
-  CALL_HEAP_FUNCTION(HEAP->CreateCode(desc, sinfo, flags, self_ref), Code);
+  CALL_HEAP_FUNCTION(HEAP->CreateCode(desc, flags, self_ref), Code);
 }
 
 
@@ -671,9 +678,13 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArray> elements,
 
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    Handle<String> name, int number_of_literals, Handle<Code> code) {
+    Handle<String> name,
+    int number_of_literals,
+    Handle<Code> code,
+    Handle<SerializedScopeInfo> scope_info) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name);
   shared->set_code(*code);
+  shared->set_scope_info(*scope_info);
   int literals_array_size = number_of_literals;
   // If the function contains object, regexp or array literals,
   // allocate extra space for a literals array prefix containing the

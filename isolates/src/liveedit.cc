@@ -1194,7 +1194,12 @@ static bool FixTryCatchHandler(StackFrame* top_frame,
 // Returns error message or NULL.
 static const char* DropFrames(Vector<StackFrame*> frames,
                               int top_frame_index,
-                              int bottom_js_frame_index) {
+                              int bottom_js_frame_index,
+                              Debug::FrameDropMode* mode) {
+  if (Debug::kFrameDropperFrameSize < 0) {
+    return "Stack manipulations are not supported in this architecture.";
+  }
+
   StackFrame* pre_top_frame = frames[top_frame_index - 1];
   StackFrame* top_frame = frames[top_frame_index];
   StackFrame* bottom_js_frame = frames[bottom_js_frame_index];
@@ -1205,13 +1210,20 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   if (pre_top_frame->code()->is_inline_cache_stub() &&
       pre_top_frame->code()->ic_state() == DEBUG_BREAK) {
     // OK, we can drop inline cache calls.
+    *mode = Debug::FRAME_DROPPED_IN_IC_CALL;
+  } else if (pre_top_frame->code() ==
+             Isolate::Current()->debug()->debug_break_slot()) {
+    // OK, we can drop debug break slot.
+    *mode = Debug::FRAME_DROPPED_IN_DEBUG_SLOT_CALL;
   } else if (pre_top_frame->code() ==
       Isolate::Current()->builtins()->builtin(
           Builtins::FrameDropper_LiveEdit)) {
     // OK, we can drop our own code.
+    *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
   } else if (pre_top_frame->code()->kind() == Code::STUB &&
       pre_top_frame->code()->major_key()) {
-    // Unit Test entry, it's fine, we support this case.
+    // Entry from our unit tests, it's fine, we support this case.
+    *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
   } else {
     return "Unknown structure of stack above changing function";
   }
@@ -1325,8 +1337,9 @@ static const char* DropActivationsInActiveThread(
     return NULL;
   }
 
+  Debug::FrameDropMode drop_mode = Debug::FRAMES_UNTOUCHED;
   const char* error_message = DropFrames(frames, top_frame_index,
-                                         bottom_js_frame_index);
+                                         bottom_js_frame_index, &drop_mode);
 
   if (error_message != NULL) {
     return error_message;
@@ -1340,7 +1353,7 @@ static const char* DropActivationsInActiveThread(
       break;
     }
   }
-  debug->FramesHaveBeenDropped(new_id);
+  debug->FramesHaveBeenDropped(new_id, drop_mode);
 
   // Replace "blocked on active" with "replaced on active" status.
   for (int i = 0; i < array_len; i++) {

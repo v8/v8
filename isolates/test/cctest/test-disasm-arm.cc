@@ -401,3 +401,48 @@ TEST(Type3) {
   VERIFY_RUN();
 }
 
+
+
+TEST(Vfp) {
+  SETUP();
+
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+    COMPARE(vmov(d0, d1),
+            "eeb00b41       vmov.f64 d0, d1");
+    COMPARE(vmov(d3, d3, eq),
+            "0eb03b43       vmov.f64eq d3, d3");
+
+    COMPARE(vadd(d0, d1, d2),
+            "ee310b02       vadd.f64 d0, d1, d2");
+    COMPARE(vadd(d3, d4, d5, mi),
+            "4e343b05       vadd.f64mi d3, d4, d5");
+
+    COMPARE(vsub(d0, d1, d2),
+            "ee310b42       vsub.f64 d0, d1, d2");
+    COMPARE(vsub(d3, d4, d5, ne),
+            "1e343b45       vsub.f64ne d3, d4, d5");
+
+    COMPARE(vmul(d2, d1, d0),
+            "ee212b00       vmul.f64 d2, d1, d0");
+    COMPARE(vmul(d6, d4, d5, cc),
+            "3e246b05       vmul.f64cc d6, d4, d5");
+
+    COMPARE(vdiv(d2, d2, d2),
+            "ee822b02       vdiv.f64 d2, d2, d2");
+    COMPARE(vdiv(d6, d7, d7, hi),
+            "8e876b07       vdiv.f64hi d6, d7, d7");
+
+    COMPARE(vsqrt(d0, d0),
+            "eeb10bc0       vsqrt.f64 d0, d0");
+    COMPARE(vsqrt(d2, d3, ne),
+            "1eb12bc3       vsqrt.f64ne d2, d3");
+
+    COMPARE(vmov(d0, 1.0),
+            "eeb70b00       vmov.f64 d0, #1");
+    COMPARE(vmov(d2, -13.0),
+            "eeba2b0a       vmov.f64 d2, #-13");
+  }
+
+  VERIFY_RUN();
+}

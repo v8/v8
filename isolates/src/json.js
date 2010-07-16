@@ -29,7 +29,7 @@ var $JSON = global.JSON;
 
 function ParseJSONUnfiltered(text) {
   var s = $String(text);
-  var f = %CompileString(text, true);
+  var f = %CompileString(s, true);
   return f();
 }
 
@@ -241,7 +241,7 @@ function JSONStringify(value, replacer, space) {
   }
   var gap;
   if (IS_NUMBER(space)) {
-    space = $Math.min(space, 10);
+    space = $Math.min(ToInteger(space), 10);
     gap = "";
     for (var i = 0; i < space; i++) {
       gap += " ";

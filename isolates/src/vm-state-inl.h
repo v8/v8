@@ -75,8 +75,10 @@ VMState::VMState(StateTag state)
   if (state == EXTERNAL) state = OTHER;
 #endif
   state_ = state;
-  previous_ = isolate_->vm_state();   // Save the previous state.
-  isolate_->set_vm_state(this);       // Install the new state.
+  // Save the previous state.
+  previous_ = reinterpret_cast<VMState*>(*isolate_->vm_state());
+  // Install the new state.
+  OS::ReleaseStore(isolate_->vm_state(), reinterpret_cast<AtomicWord>(this));
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
@@ -105,7 +107,8 @@ VMState::VMState(StateTag state)
 VMState::~VMState() {
   ASSERT(isolate_ == Isolate::Current());
   if (disabled_) return;
-  isolate_->set_vm_state(previous_);  // Return to the previous state.
+  // Return to the previous state.
+  OS::ReleaseStore(isolate_->vm_state(), reinterpret_cast<AtomicWord>(previous_));
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {

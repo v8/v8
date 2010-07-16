@@ -366,6 +366,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name) {
   HeapSnapshot* result = snapshots_->NewSnapshot(name, next_snapshot_uid_++);
   HeapSnapshotGenerator generator(result);
   generator.GenerateSnapshot();
+  snapshots_->SnapshotGenerationFinished();
   return result;
 }
 
@@ -393,6 +394,13 @@ HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
   HeapProfiler* profiler = Isolate::Current()->heap_profiler();
   ASSERT(profiler != NULL);
   return profiler->snapshots_->GetSnapshot(uid);
+}
+
+
+void HeapProfiler::ObjectMoveEvent(Address from, Address to) {
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  profiler->snapshots_->ObjectMoveEvent(from, to);
 }
 
 

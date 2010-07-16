@@ -332,8 +332,7 @@ Scanner::Scanner(ParserMode pre)
 
 void Scanner::Initialize(Handle<String> source,
                          ParserLanguage language) {
-  safe_string_input_buffer_.Reset(source.location());
-  Init(source, &safe_string_input_buffer_, 0, source->length(), language);
+  Init(source, NULL, 0, source->length(), language);
 }
 
 
@@ -348,9 +347,7 @@ void Scanner::Initialize(Handle<String> source,
                          int start_position,
                          int end_position,
                          ParserLanguage language) {
-  safe_string_input_buffer_.Reset(source.location());
-  Init(source, &safe_string_input_buffer_,
-       start_position, end_position, language);
+  Init(source, NULL, start_position, end_position, language);
 }
 
 
@@ -359,6 +356,10 @@ void Scanner::Init(Handle<String> source,
                    int start_position,
                    int end_position,
                    ParserLanguage language) {
+  // Either initialize the scanner from a character stream or from a
+  // string.
+  ASSERT(source.is_null() || stream == NULL);
+
   // Initialize the source buffer.
   if (!source.is_null() && StringShape(*source).IsExternalTwoByte()) {
     two_byte_string_buffer_.Initialize(
@@ -373,6 +374,10 @@ void Scanner::Init(Handle<String> source,
         end_position);
     source_ = &ascii_string_buffer_;
   } else {
+    if (!source.is_null()) {
+      safe_string_input_buffer_.Reset(source.location());
+      stream = &safe_string_input_buffer_;
+    }
     char_stream_buffer_.Initialize(source,
                                    stream,
                                    start_position,

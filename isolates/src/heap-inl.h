@@ -35,9 +35,9 @@
 namespace v8 {
 namespace internal {
 
-void PromotionQueue::insert(HeapObject* object, Map* map) {
-  *(--rear_) = object;
-  *(--rear_) = map;
+void PromotionQueue::insert(HeapObject* target, int size) {
+  *(--rear_) = reinterpret_cast<intptr_t>(target);
+  *(--rear_) = size;
   // Assert no overflow into live objects.
   ASSERT(reinterpret_cast<Address>(rear_) >= HEAP->new_space()->top());
 }
