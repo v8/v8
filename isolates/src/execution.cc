@@ -41,8 +41,7 @@ namespace internal {
 
 
 StackGuard::StackGuard()
-    : isolate_(NULL),
-      stack_limit_key_(Thread::CreateThreadLocalKey()) {
+    : isolate_(NULL) {
 }
 
 
@@ -371,9 +370,8 @@ char* StackGuard::RestoreStackGuard(char* from) {
 
 
 void StackGuard::FreeThreadResources() {
-  Thread::SetThreadLocal(
-      stack_limit_key_,
-      reinterpret_cast<void*>(thread_local_.real_climit_));
+  Isolate::CurrentPerIsolateThreadData()->set_stack_limit(
+      thread_local_.real_climit_);
 }
 
 
@@ -416,10 +414,11 @@ void StackGuard::ClearThread(const ExecutionAccess& lock) {
 
 void StackGuard::InitThread(const ExecutionAccess& lock) {
   if (thread_local_.Initialize()) isolate_->heap()->SetStackLimits();
-  void* stored_limit = Thread::GetThreadLocal(stack_limit_key_);
+  uintptr_t stored_limit =
+      Isolate::CurrentPerIsolateThreadData()->stack_limit();
   // You should hold the ExecutionAccess lock when you call this.
-  if (stored_limit != NULL) {
-    StackGuard::SetStackLimit(reinterpret_cast<intptr_t>(stored_limit));
+  if (stored_limit != 0) {
+    StackGuard::SetStackLimit(stored_limit);
   }
 }
 

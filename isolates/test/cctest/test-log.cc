@@ -344,8 +344,8 @@ namespace {
 
 class LoopingThread : public v8::internal::Thread {
  public:
-  LoopingThread()
-      : v8::internal::Thread(),
+  explicit LoopingThread(v8::internal::Isolate* isolate)
+      : v8::internal::Thread(isolate),
         semaphore_(v8::internal::OS::CreateSemaphore(0)),
         run_(true) {
   }
@@ -384,8 +384,11 @@ class LoopingThread : public v8::internal::Thread {
 
 class LoopingJsThread : public LoopingThread {
  public:
+  explicit LoopingJsThread(v8::internal::Isolate* isolate)
+      : LoopingThread(isolate) { }
   void RunLoop() {
     v8::Locker locker;
+    CHECK(i::Isolate::Current() != NULL);
     CHECK(i::Isolate::Current()->thread_manager()->HasId());
     SetV8ThreadId();
     while (IsRunning()) {
@@ -407,10 +410,13 @@ class LoopingJsThread : public LoopingThread {
 
 class LoopingNonJsThread : public LoopingThread {
  public:
+  explicit LoopingNonJsThread(v8::internal::Isolate* isolate)
+      : LoopingThread(isolate) { }
   void RunLoop() {
     v8::Locker locker;
     v8::Unlocker unlocker;
     // Now thread has V8's id, but will not run VM code.
+    CHECK(i::Isolate::Current() != NULL);
     CHECK(i::Isolate::Current()->thread_manager()->HasId());
     double i = 10;
     SignalRunning();
@@ -424,8 +430,8 @@ class LoopingNonJsThread : public LoopingThread {
 
 class TestSampler : public v8::internal::Sampler {
  public:
-  TestSampler()
-      : Sampler(0, true),
+  explicit TestSampler(v8::internal::Isolate* isolate)
+      : Sampler(isolate, 0, true),
         semaphore_(v8::internal::OS::CreateSemaphore(0)),
         was_sample_stack_called_(false) {
   }
@@ -453,12 +459,12 @@ class TestSampler : public v8::internal::Sampler {
 }  // namespace
 
 TEST(ProfMultipleThreads) {
-  LoopingJsThread jsThread;
+  LoopingJsThread jsThread(v8::internal::Isolate::Current());
   jsThread.Start();
-  LoopingNonJsThread nonJsThread;
+  LoopingNonJsThread nonJsThread(v8::internal::Isolate::Current());
   nonJsThread.Start();
 
-  TestSampler sampler;
+  TestSampler sampler(v8::internal::Isolate::Current());
   sampler.Start();
   CHECK(!sampler.WasSampleStackCalled());
   jsThread.WaitForRunning();

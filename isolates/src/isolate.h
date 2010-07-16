@@ -28,8 +28,6 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
-#define V8_USE_TLS_FOR_GLOBAL_ISOLATE
-
 #include "allocation.h"
 #include "apiutils.h"
 #include "builtins.h"
@@ -86,6 +84,7 @@ class StringTracker;
 class ScannerCharacterClasses;
 class ThreadVisitor;  // Defined in v8threads.h
 class ThreadManager;
+class ThreadState;
 class VMState;
 
 typedef void* ExternalReferenceRedirector(void* original, bool fp_return);
@@ -299,6 +298,45 @@ class Isolate {
  public:
   ~Isolate();
 
+  typedef int ThreadId;
+
+  // A thread has a PerIsolateThreadData instance for each isolate that it has
+  // entered. That instance is allocated when the isolate is initially entered
+  // and reused on subsequent entries.
+  class PerIsolateThreadData {
+   public:
+    PerIsolateThreadData(Isolate* isolate, ThreadId thread_id)
+        : isolate_(isolate),
+          thread_id_(thread_id),
+          stack_limit_(0),
+          thread_state_(NULL),
+          next_(NULL),
+          prev_(NULL) { }
+    Isolate* isolate() const { return isolate_; }
+    ThreadId thread_id() const { return thread_id_; }
+    void set_stack_limit(uintptr_t value) { stack_limit_ = value; }
+    uintptr_t stack_limit() const { return stack_limit_; }
+    ThreadState* thread_state() const { return thread_state_; }
+    void set_thread_state(ThreadState* value) { thread_state_ = value; }
+    bool Matches(Isolate* isolate, ThreadId thread_id) const {
+      return isolate_ == isolate && thread_id_ == thread_id;
+    }
+
+   private:
+    Isolate* isolate_;
+    ThreadId thread_id_;
+    uintptr_t stack_limit_;
+    ThreadState* thread_state_;
+
+    PerIsolateThreadData* next_;
+    PerIsolateThreadData* prev_;
+
+    friend class Isolate;
+    friend class ThreadDataTable;
+
+    DISALLOW_COPY_AND_ASSIGN(PerIsolateThreadData);
+  };
+
   enum AddressId {
 #define C(name) k_##name,
     ISOLATE_ADDRESS_LIST(C)
@@ -307,25 +345,24 @@ class Isolate {
     k_isolate_address_count
   };
 
-  // Returns the single global isolate.
-  static Isolate* Current() {
-#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
-    Isolate* isolate = reinterpret_cast<Isolate*>(
-        Thread::GetThreadLocal(global_isolate_key_));
-    if (isolate == NULL) {
-      isolate = InitThreadForGlobalIsolate();
-      ASSERT(isolate != NULL);
-    }
-    return isolate;
-#else
-    ASSERT(global_isolate_ != NULL);
-    return global_isolate_;
-#endif
+  // Returns the PerIsolateThreadData for the current thread (or NULL if one is
+  // not currently set).
+  static PerIsolateThreadData* CurrentPerIsolateThreadData() {
+    return reinterpret_cast<PerIsolateThreadData*>(
+        Thread::GetThreadLocal(per_isolate_thread_data_key_));
   }
 
-#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
-  static Isolate* InitThreadForGlobalIsolate();
-#endif
+  // Returns the isolate inside which the current thread is running.
+  static Isolate* Current() {
+    Isolate* tls_isolate = reinterpret_cast<Isolate*>(
+        Thread::GetThreadLocal(isolate_key_));
+    ASSERT(tls_isolate != NULL);
+    return tls_isolate;
+  }
+
+  static Isolate* UncheckedCurrent() {
+    return reinterpret_cast<Isolate*>(Thread::GetThreadLocal(isolate_key_));
+  }
 
   // Destroy the global isolate.
   static void TearDown();
@@ -333,9 +370,40 @@ class Isolate {
   // Destroy the global isolate and create a new one in its place.
   static void TearDownAndRecreateGlobalIsolate();
 
-  // Creates a new isolate (perhaps using a deserializer). Returns null
-  // on failure.
-  static Isolate* Create(Deserializer* des);
+  // Initializes the default isolate (perhaps using a deserializer). Returns
+  // false on failure.
+  static bool InitializeDefaultIsolate(Deserializer* des);
+
+  static Isolate* default_isolate() { return default_isolate_; }
+
+  bool IsDefaultIsolate() const { return this == default_isolate_; }
+
+  // Ensures that process-wide resources have been allocated. It is only
+  // necessary to call this method if you are using V8 from within the body
+  // of a static initializer.
+  static bool EnsureDefaultIsolateAllocated();
+
+  // Returns the key used to store the pointer to the current isolate.
+  // Used internally for V8 threads that do not execute JavaScript but still
+  // are part of the domain of an isolate (like the context switcher).
+  static Thread::LocalStorageKey isolate_key() {
+    return isolate_key_;
+  }
+
+  // Returns the key used to store process-wide thread IDs.
+  static Thread::LocalStorageKey thread_id_key() {
+    return thread_id_key_;
+  }
+
+  // Atomically allocates a new thread ID.
+  static ThreadId AllocateThreadId();
+
+  // If a client attempts to create a Locker without specifying an isolate,
+  // we assume that the client is using legacy behavior. Set up the current
+  // thread to be inside the implicit isolate (or fail a check if we have
+  // switched to non-legacy behavior). Returns a pointer to the default
+  // isolate.
+  static Isolate* EnterDefaultIsolate();
 
   // Debug.
   // Mutex for serializing access to break control structures.
@@ -746,30 +814,41 @@ class Isolate {
   /* A stack of VM states. */
   AtomicWord* vm_state() { return &vm_state_; }
 
-  bool IsDefaultIsolate() { return this == global_isolate_; }
-
   // SerializerDeserializer state.
   static const int kPartialSnapshotCacheCapacity = 1300;
 
   static const int kJSRegexpStaticOffsetsVectorSize = 50;
 
-  static int number_of_isolates() { return number_of_isolates_; }
-
-  // Initialize process-wide state. Generally called from a static initializer,
-  // but may be called manually if necessary. Not thread-safe; should ideally
-  // be called by the same thread responsible for static initialization.
-  static void InitOnce();
 
  private:
   Isolate();
 
-#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
-  static Thread::LocalStorageKey global_isolate_key_;
-#endif
-  static Isolate* global_isolate_;
+  // The per-process lock should be acquired before the ThreadDataTable is
+  // modified.
+  class ThreadDataTable {
+   public:
+    ThreadDataTable();
+    ~ThreadDataTable();
 
-  // TODO(isolates): Access to this global counter should be serialized.
-  static int number_of_isolates_;
+    PerIsolateThreadData* Lookup(Isolate* isolate, ThreadId thread_id);
+    void Insert(PerIsolateThreadData* data);
+    void Remove(Isolate* isolate, ThreadId thread_id);
+    void Remove(PerIsolateThreadData* data);
+
+   private:
+    PerIsolateThreadData* list_;
+  };
+
+  // This mutex protects highest_thread_id_, thread_data_table_ and
+  // default_isolate_.
+  static Mutex* process_wide_mutex_;
+
+  static Thread::LocalStorageKey per_isolate_thread_data_key_;
+  static Thread::LocalStorageKey isolate_key_;
+  static Thread::LocalStorageKey thread_id_key_;
+  static Isolate* default_isolate_;
+  static ThreadDataTable* thread_data_table_;
+  static ThreadId highest_thread_id_;
 
   bool PreInit();
 
@@ -782,6 +861,17 @@ class Isolate {
   };
 
   State state_;
+
+  // Allocate and insert PerIsolateThreadData into the ThreadDataTable
+  // (regardless of whether such data already exists).
+  PerIsolateThreadData* AllocatePerIsolateThreadData(ThreadId thread_id);
+
+  // Find the PerThread for this particular (isolate, thread) combination.
+  // If one does not yet exist, allocate a new one.
+  PerIsolateThreadData* FindOrAllocatePerThreadDataForThisThread();
+
+  // Ensures that the default isolate exists. Safe to call multiple times.
+  static void EnsureDefaultIsolate();
 
   void PreallocatedMemoryThreadStart();
   void PreallocatedMemoryThreadStop();
@@ -852,7 +942,7 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   ZoneObjectList frame_element_constant_list_;
   ZoneObjectList result_constant_list_;
-  AtomicWord vm_state_; 
+  AtomicWord vm_state_;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
   // Create one simulator per thread and keep it in thread local storage.

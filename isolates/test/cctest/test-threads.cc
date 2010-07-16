@@ -64,6 +64,7 @@ static Turn turn = FILL_CACHE;
 
 class ThreadA: public v8::internal::Thread {
  public:
+  explicit ThreadA(i::Isolate* isolate) : Thread(isolate) { }
   void Run() {
     v8::Locker locker;
     v8::HandleScope scope;
@@ -99,6 +100,7 @@ class ThreadA: public v8::internal::Thread {
 
 class ThreadB: public v8::internal::Thread {
  public:
+  explicit ThreadB(i::Isolate* isolate) : Thread(isolate) { }
   void Run() {
     do {
       {
@@ -123,8 +125,8 @@ class ThreadB: public v8::internal::Thread {
 TEST(JSFunctionResultCachesInTwoThreads) {
   v8::V8::Initialize();
 
-  ThreadA threadA;
-  ThreadB threadB;
+  ThreadA threadA(i::Isolate::Current());
+  ThreadB threadB(i::Isolate::Current());
 
   threadA.Start();
   threadB.Start();

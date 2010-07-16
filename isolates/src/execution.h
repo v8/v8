@@ -268,7 +268,6 @@ class StackGuard {
   //                 pointer to StackGuard.
   Isolate* isolate_;
   ThreadLocal thread_local_;
-  Thread::LocalStorageKey stack_limit_key_;
 
   friend class Isolate;
   friend class StackLimitCheck;

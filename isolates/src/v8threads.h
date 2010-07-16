@@ -118,7 +118,6 @@ class ThreadManager {
 
   void EagerlyArchiveThread();
 
-  int last_id_;  // V8 threads are identified through an integer.
   Mutex* mutex_;
   ThreadHandle mutex_owner_;
   ThreadHandle lazily_archived_thread_;
@@ -131,10 +130,6 @@ class ThreadManager {
   ThreadState* free_anchor_;
   // Head of linked list of states in use.
   ThreadState* in_use_anchor_;
-
-  // TODO(isolates): Move all LocalStorageKeys under one such key per isolate.
-  Thread::LocalStorageKey thread_state_key_;
-  Thread::LocalStorageKey thread_id_key_;
 
   Isolate* isolate_;
 
@@ -160,7 +155,7 @@ class ContextSwitcher: public Thread {
   static void PreemptionReceived();
 
  private:
-  explicit ContextSwitcher(int every_n_ms);
+  explicit ContextSwitcher(Isolate* isolate, int every_n_ms);
 
   void Run();
 

@@ -121,8 +121,9 @@ class PreallocatedMemoryThread: public Thread {
 
 
  private:
-  PreallocatedMemoryThread()
-      : keep_running_(true),
+  explicit PreallocatedMemoryThread(Isolate* isolate)
+      : Thread(isolate),
+        keep_running_(true),
         wait_for_ever_semaphore_(OS::CreateSemaphore(0)),
         data_ready_semaphore_(OS::CreateSemaphore(0)),
         data_(NULL),
@@ -149,7 +150,7 @@ class PreallocatedMemoryThread: public Thread {
 
 void Isolate::PreallocatedMemoryThreadStart() {
   if (preallocated_memory_thread_ != NULL) return;
-  preallocated_memory_thread_ = new PreallocatedMemoryThread();
+  preallocated_memory_thread_ = new PreallocatedMemoryThread(this);
   preallocated_memory_thread_->Start();
 }
 
@@ -162,64 +163,153 @@ void Isolate::PreallocatedMemoryThreadStop() {
   preallocated_memory_thread_ = NULL;
 }
 
-#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
-Thread::LocalStorageKey Isolate::global_isolate_key_;
 
-
-Isolate* Isolate::InitThreadForGlobalIsolate() {
-  ASSERT(global_isolate_ != NULL);
-  Thread::SetThreadLocal(global_isolate_key_, global_isolate_);
-  return global_isolate_;
-}
-#endif
-
-
-Isolate* Isolate::global_isolate_ = NULL;
-int Isolate::number_of_isolates_ = 0;
-
+Isolate* Isolate::default_isolate_ = NULL;
+Thread::LocalStorageKey Isolate::isolate_key_;
+Thread::LocalStorageKey Isolate::thread_id_key_;
+Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
+Mutex* Isolate::process_wide_mutex_ = NULL;
+Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
+Isolate::ThreadId Isolate::highest_thread_id_ = 0;
 
 class IsolateInitializer {
  public:
   IsolateInitializer() {
-    Isolate::InitOnce();
+    Isolate::isolate_key_ = Thread::CreateThreadLocalKey();
+    Isolate::thread_id_key_ = Thread::CreateThreadLocalKey();
+    Isolate::per_isolate_thread_data_key_ = Thread::CreateThreadLocalKey();
+    Isolate::process_wide_mutex_ = OS::CreateMutex();
+    Isolate::thread_data_table_ = new Isolate::ThreadDataTable();
+    Isolate::EnterDefaultIsolate();
   }
 };
 
-static IsolateInitializer isolate_initializer;
+bool Isolate::EnsureDefaultIsolateAllocated() {
+  // TODO(isolates): Use the system threading API to do this once?
+  static IsolateInitializer static_initializer;
+  USE(static_initializer);
+  return true;
+}
+
+static bool static_initialized = Isolate::EnsureDefaultIsolateAllocated();
 
 
-void Isolate::InitOnce() {
-  if (global_isolate_ == NULL) {
-#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
-    global_isolate_key_ = Thread::CreateThreadLocalKey();
-#endif
-    global_isolate_ = new Isolate();
-    CHECK(global_isolate_->PreInit());
+Isolate::ThreadId Isolate::AllocateThreadId() {
+  ThreadId new_id;
+  {
+    ScopedLock lock(process_wide_mutex_);
+    new_id = ++highest_thread_id_;
+  }
+  return new_id;
+}
+
+
+Isolate::PerIsolateThreadData* Isolate::AllocatePerIsolateThreadData(
+    ThreadId thread_id) {
+  ASSERT(thread_id != 0);
+  ASSERT(Thread::GetThreadLocalInt(thread_id_key_) == thread_id);
+  PerIsolateThreadData* per_thread = new PerIsolateThreadData(this, thread_id);
+  {
+    ScopedLock lock(process_wide_mutex_);
+    ASSERT(thread_data_table_->Lookup(this, thread_id) == NULL);
+    thread_data_table_->Insert(per_thread);
+    ASSERT(thread_data_table_->Lookup(this, thread_id) == per_thread);
+  }
+  return per_thread;
+}
+
+
+Isolate::PerIsolateThreadData*
+    Isolate::FindOrAllocatePerThreadDataForThisThread() {
+  ThreadId thread_id = Thread::GetThreadLocalInt(thread_id_key_);
+  if (thread_id == 0) {
+    thread_id = AllocateThreadId();
+    Thread::SetThreadLocalInt(thread_id_key_, thread_id);
+  }
+  PerIsolateThreadData* per_thread = NULL;
+  {
+    ScopedLock lock(process_wide_mutex_);
+    per_thread = thread_data_table_->Lookup(this, thread_id);
+    if (per_thread == NULL) {
+      per_thread = AllocatePerIsolateThreadData(thread_id);
+    }
+  }
+  return per_thread;
+}
+
+
+bool Isolate::InitializeDefaultIsolate(Deserializer* des) {
+  ASSERT(default_isolate_ != NULL);
+  ASSERT(default_isolate_->state_ != INITIALIZED);
+  CHECK(default_isolate_->Init(des));
+  return true;
+}
+
+
+void Isolate::EnsureDefaultIsolate() {
+  ScopedLock lock(process_wide_mutex_);
+  if (default_isolate_ == NULL) {
+    USE(static_initialized);
+    Isolate* new_default_isolate = new Isolate();
+    CHECK(new_default_isolate->PreInit());
+    default_isolate_ = new_default_isolate;
   }
 }
 
 
-Isolate* Isolate::Create(Deserializer* des) {
-  // While we're still building out support for isolates, only support
-  // one single global isolate.
+Isolate* Isolate::EnterDefaultIsolate() {
+  // TODO(isolates): Check that we're not in multiple-isolate mode.
+  EnsureDefaultIsolate();
 
-  if (global_isolate_ != NULL) {
-    // Allow for two-phase initialization.
-    ASSERT(global_isolate_->state_ != INITIALIZED);
-  } else {
-    global_isolate_ = new Isolate();
+  ASSERT(default_isolate_ != NULL);
+  PerIsolateThreadData* per_thread = CurrentPerIsolateThreadData();
+  if (per_thread != NULL) {
+    ASSERT(per_thread->isolate_ == default_isolate_);
+    ASSERT(Current() != NULL);
+    return default_isolate_;
   }
+  PerIsolateThreadData* new_per_thread =
+      default_isolate_->FindOrAllocatePerThreadDataForThisThread();
+  ASSERT(new_per_thread != NULL);
+  ASSERT(new_per_thread->isolate_ == default_isolate_);
+  Thread::SetThreadLocal(per_isolate_thread_data_key_, new_per_thread);
+  Thread::SetThreadLocal(isolate_key_, default_isolate_);
+  return default_isolate_;
+}
 
-  if (global_isolate_->Init(des)) {
-    ++number_of_isolates_;
-    return global_isolate_;
-  } else {
-    delete global_isolate_;
-    global_isolate_ = NULL;
-#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
-    Thread::SetThreadLocal(global_isolate_key_, NULL);
-#endif
-    return NULL;
+
+Isolate::ThreadDataTable::ThreadDataTable()
+    : list_(NULL) {
+}
+
+
+Isolate::PerIsolateThreadData*
+    Isolate::ThreadDataTable::Lookup(Isolate* isolate, ThreadId thread_id) {
+  for (PerIsolateThreadData* data = list_; data != NULL; data = data->next_) {
+    if (data->Matches(isolate, thread_id)) return data;
+  }
+  return NULL;
+}
+
+
+void Isolate::ThreadDataTable::Insert(Isolate::PerIsolateThreadData* data) {
+  if (list_ != NULL) list_->prev_ = data;
+  data->next_ = list_;
+  list_ = data;
+}
+
+
+void Isolate::ThreadDataTable::Remove(PerIsolateThreadData* data) {
+  if (list_ == data) list_ = data->next_;
+  if (data->next_ != NULL) data->next_->prev_ = data->prev_;
+  if (data->prev_ != NULL) data->prev_->next_ = data->next_;
+}
+
+
+void Isolate::ThreadDataTable::Remove(Isolate* isolate, ThreadId thread_id) {
+  PerIsolateThreadData* data = Lookup(isolate, thread_id);
+  if (data != NULL) {
+    Remove(data);
   }
 }
 
@@ -307,17 +397,18 @@ Isolate::Isolate()
 }
 
 void Isolate::TearDown() {
-  if (global_isolate_ != NULL) {
-    delete global_isolate_;
-    global_isolate_ = NULL;
+  if (default_isolate_ != NULL) {
+    delete default_isolate_;
+    default_isolate_ = NULL;
   }
 }
 
+// TODO(isolates): This is unlikely to be correct.
 void Isolate::TearDownAndRecreateGlobalIsolate() {
   TearDown();
 
-  global_isolate_ = new Isolate();
-  global_isolate_->PreInit();
+  default_isolate_ = new Isolate();
+  default_isolate_->PreInit();
 }
 
 
@@ -413,14 +504,23 @@ Isolate::~Isolate() {
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
   Thread::DeleteThreadLocalKey(simulator_key_);
 #endif
-
-  if (state_ == INITIALIZED) --number_of_isolates_;
 }
 
 
 bool Isolate::PreInit() {
   if (state_ != UNINITIALIZED) return true;
-  ASSERT(global_isolate_ == this);
+  ASSERT(default_isolate_ == NULL);
+
+  // TODO(isolates): Use the entry/exit stack properly here.
+  PerIsolateThreadData* per_thread = CurrentPerIsolateThreadData();
+  // This thread has no business being in an isolate if the global isolate
+  // hasn't yet been initialized!
+  ASSERT_EQ(NULL, per_thread);
+  per_thread = FindOrAllocatePerThreadDataForThisThread();
+  ASSERT(per_thread != NULL);
+  ASSERT(per_thread->isolate_ == this);
+  Thread::SetThreadLocal(per_isolate_thread_data_key_, per_thread);
+  Thread::SetThreadLocal(isolate_key_, this);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   debug_ = new Debug(this);
@@ -432,10 +532,6 @@ bool Isolate::PreInit() {
   memory_allocator_->isolate_ = this;
   code_range_ = new CodeRange();
   code_range_->isolate_ = this;
-
-#ifdef V8_USE_TLS_FOR_GLOBAL_ISOLATE
-  InitThreadForGlobalIsolate();
-#endif
 
   // Safe after setting Heap::isolate_, initializing StackGuard and
   // ensuring that Isolate::Current() == this.
@@ -496,7 +592,7 @@ void Isolate::InitializeThreadLocal() {
 
 
 bool Isolate::Init(Deserializer* des) {
-  ASSERT(global_isolate_ == this);
+  ASSERT(default_isolate_ == this);
   ASSERT(state_ != INITIALIZED);
 
   bool create_heap_objects = des == NULL;

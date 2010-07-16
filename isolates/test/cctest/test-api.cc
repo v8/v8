@@ -7743,7 +7743,8 @@ void ApiTestFuzzer::Setup(PartOfTest part) {
       : RegisterThreadedTest::count();
   active_tests_ = tests_being_run_ = end - start;
   for (int i = 0; i < tests_being_run_; i++) {
-    RegisterThreadedTest::nth(i)->fuzzer_ = new ApiTestFuzzer(i + start);
+    RegisterThreadedTest::nth(i)->fuzzer_ = new ApiTestFuzzer(
+        i::Isolate::Current(), i + start);
   }
   for (int i = 0; i < active_tests_; i++) {
     RegisterThreadedTest::nth(i)->fuzzer_->Start();
@@ -8724,7 +8725,7 @@ class RegExpInterruptTest {
     gc_during_regexp_ = 0;
     regexp_success_ = false;
     gc_success_ = false;
-    GCThread gc_thread(this);
+    GCThread gc_thread(i::Isolate::Current(), this);
     gc_thread.Start();
     v8::Locker::StartPreemption(1);
 
@@ -8743,8 +8744,8 @@ class RegExpInterruptTest {
 
   class GCThread : public i::Thread {
    public:
-    explicit GCThread(RegExpInterruptTest* test)
-        : test_(test) {}
+    explicit GCThread(i::Isolate* isolate, RegExpInterruptTest* test)
+        : Thread(isolate), test_(test) {}
     virtual void Run() {
       test_->CollectGarbage();
     }
@@ -8846,7 +8847,7 @@ class ApplyInterruptTest {
     gc_during_apply_ = 0;
     apply_success_ = false;
     gc_success_ = false;
-    GCThread gc_thread(this);
+    GCThread gc_thread(i::Isolate::Current(), this);
     gc_thread.Start();
     v8::Locker::StartPreemption(1);
 
@@ -8865,8 +8866,8 @@ class ApplyInterruptTest {
 
   class GCThread : public i::Thread {
    public:
-    explicit GCThread(ApplyInterruptTest* test)
-        : test_(test) {}
+    explicit GCThread(i::Isolate* isolate, ApplyInterruptTest* test)
+        : Thread(isolate), test_(test) {}
     virtual void Run() {
       test_->CollectGarbage();
     }
@@ -9138,7 +9139,7 @@ class RegExpStringModificationTest {
         SetProperty(*input_name, *input_, NONE);
 
 
-    MorphThread morph_thread(this);
+    MorphThread morph_thread(i::Isolate::Current(), this);
     morph_thread.Start();
     v8::Locker::StartPreemption(1);
     LongRunningRegExp();
@@ -9158,8 +9159,9 @@ class RegExpStringModificationTest {
 
   class MorphThread : public i::Thread {
    public:
-    explicit MorphThread(RegExpStringModificationTest* test)
-        : test_(test) {}
+    explicit MorphThread(i::Isolate* isolate,
+                         RegExpStringModificationTest* test)
+        : Thread(isolate), test_(test) {}
     virtual void Run() {
       test_->MorphString();
     }

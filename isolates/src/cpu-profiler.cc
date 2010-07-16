@@ -44,8 +44,10 @@ static const int kTickSamplesBufferChunkSize = 64*KB;
 static const int kTickSamplesBufferChunksCount = 16;
 
 
-ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
-    : generator_(generator),
+ProfilerEventsProcessor::ProfilerEventsProcessor(Isolate* isolate,
+                                                 ProfileGenerator* generator)
+    : Thread(isolate),
+      generator_(generator),
       running_(false),
       ticks_buffer_(sizeof(TickSampleEventRecord),
                     kTickSamplesBufferChunkSize,
@@ -462,7 +464,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     saved_logging_nesting_ = LOGGER->logging_nesting_;
     LOGGER->logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
-    processor_ = new ProfilerEventsProcessor(generator_);
+    processor_ = new ProfilerEventsProcessor(Isolate::Current(), generator_);
     processor_->Start();
     // Enumerate stuff we already have in the heap.
     if (HEAP->HasBeenSetup()) {

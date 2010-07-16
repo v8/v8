@@ -2936,15 +2936,27 @@ int Runtime::StringMatch(Handle<String> sub,
   if (seq_pat->IsAsciiRepresentation()) {
     Vector<const char> pat_vector = seq_pat->ToAsciiVector();
     if (seq_sub->IsAsciiRepresentation()) {
-      return StringSearch(isolate->runtime_state(), seq_sub->ToAsciiVector(), pat_vector, start_index);
+      return StringSearch(isolate->runtime_state(),
+                          seq_sub->ToAsciiVector(),
+                          pat_vector,
+                          start_index);
     }
-    return StringSearch(isolate->runtime_state(), seq_sub->ToUC16Vector(), pat_vector, start_index);
+    return StringSearch(isolate->runtime_state(),
+                        seq_sub->ToUC16Vector(),
+                        pat_vector,
+                        start_index);
   }
   Vector<const uc16> pat_vector = seq_pat->ToUC16Vector();
   if (seq_sub->IsAsciiRepresentation()) {
-    return StringSearch(isolate->runtime_state(), seq_sub->ToAsciiVector(), pat_vector, start_index);
+    return StringSearch(isolate->runtime_state(),
+                        seq_sub->ToAsciiVector(),
+                        pat_vector,
+                        start_index);
   }
-  return StringSearch(isolate->runtime_state(), seq_sub->ToUC16Vector(), pat_vector, start_index);
+  return StringSearch(isolate->runtime_state(),
+                      seq_sub->ToUC16Vector(),
+                      pat_vector,
+                      start_index);
 }
 
 

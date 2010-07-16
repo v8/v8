@@ -22,7 +22,7 @@ using i::TokenEnumerator;
 TEST(StartStop) {
   CpuProfilesCollection profiles;
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(&generator);
+  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
   while (!processor.running()) {
     i::Thread::YieldCPU();
@@ -86,7 +86,7 @@ TEST(CodeEvents) {
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(&generator);
+  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
   while (!processor.running()) {
     i::Thread::YieldCPU();
@@ -154,7 +154,7 @@ TEST(TickEvents) {
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(&generator);
+  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
   while (!processor.running()) {
     i::Thread::YieldCPU();

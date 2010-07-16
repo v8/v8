@@ -1015,7 +1015,7 @@ Serializer::Serializer(SnapshotByteSink* sink)
       large_object_total_(0) {
   // The serializer is meant to be used only to generate initial heap images
   // from a context in which there is only one isolate.
-  ASSERT(Isolate::number_of_isolates() == 1);
+  ASSERT(Isolate::Current()->IsDefaultIsolate());
   for (int i = 0; i <= LAST_SPACE; i++) {
     fullness_[i] = 0;
   }

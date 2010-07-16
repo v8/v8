@@ -84,11 +84,13 @@ class ProducerThread: public i::Thread {
  public:
   typedef SamplingCircularQueue::Cell Record;
 
-  ProducerThread(SamplingCircularQueue* scq,
+  ProducerThread(i::Isolate* isolate,
+                 SamplingCircularQueue* scq,
                  int records_per_chunk,
                  Record value,
                  i::Semaphore* finished)
-      : scq_(scq),
+      : Thread(isolate),
+        scq_(scq),
         records_per_chunk_(records_per_chunk),
         value_(value),
         finished_(finished) { }
@@ -131,9 +133,10 @@ TEST(SamplingCircularQueueMultithreading) {
   // Check that we are using non-reserved values.
   CHECK_NE(SamplingCircularQueue::kClear, 1);
   CHECK_NE(SamplingCircularQueue::kEnd, 1);
-  ProducerThread producer1(&scq, kRecordsPerChunk, 1, semaphore);
-  ProducerThread producer2(&scq, kRecordsPerChunk, 10, semaphore);
-  ProducerThread producer3(&scq, kRecordsPerChunk, 20, semaphore);
+  i::Isolate* isolate = i::Isolate::Current();
+  ProducerThread producer1(isolate, &scq, kRecordsPerChunk, 1, semaphore);
+  ProducerThread producer2(isolate, &scq, kRecordsPerChunk, 10, semaphore);
+  ProducerThread producer3(isolate, &scq, kRecordsPerChunk, 20, semaphore);
 
   CHECK_EQ(NULL, scq.StartDequeue());
   producer1.Start();

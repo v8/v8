@@ -362,8 +362,8 @@ class Thread: public ThreadHandle {
   // Opaque data type for thread-local storage keys.
   enum LocalStorageKey {};
 
-  // Create new thread.
-  Thread();
+  // Create new thread (with a value for storing in the TLS isolate field).
+  explicit Thread(Isolate* isolate);
   virtual ~Thread();
 
   // Start new thread by calling the Run() method in the new thread.
@@ -393,9 +393,12 @@ class Thread: public ThreadHandle {
   // A hint to the scheduler to let another thread run.
   static void YieldCPU();
 
+  Isolate* isolate() const { return isolate_; }
+
  private:
   class PlatformData;
   PlatformData* data_;
+  Isolate* isolate_;
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };
 
@@ -540,7 +543,7 @@ class TickSample {
 class Sampler {
  public:
   // Initialize sampler.
-  explicit Sampler(int interval, bool profiling);
+  explicit Sampler(Isolate* isolate, int interval, bool profiling);
   virtual ~Sampler();
 
   // Performs stack sampling.
@@ -560,9 +563,12 @@ class Sampler {
   // Whether the sampler is running (that is, consumes resources).
   inline bool IsActive() { return active_; }
 
+  Isolate* isolate() { return isolate_; }
+
   class PlatformData;
 
  private:
+  Isolate* isolate_;
   const int interval_;
   const bool profiling_;
   bool active_;

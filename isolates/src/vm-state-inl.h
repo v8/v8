@@ -108,7 +108,8 @@ VMState::~VMState() {
   ASSERT(isolate_ == Isolate::Current());
   if (disabled_) return;
   // Return to the previous state.
-  OS::ReleaseStore(isolate_->vm_state(), reinterpret_cast<AtomicWord>(previous_));
+  OS::ReleaseStore(isolate_->vm_state(),
+                   reinterpret_cast<AtomicWord>(previous_));
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {

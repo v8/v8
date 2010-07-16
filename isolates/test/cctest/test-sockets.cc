@@ -10,9 +10,9 @@ using namespace ::v8::internal;
 
 class SocketListenerThread : public Thread {
  public:
-  explicit SocketListenerThread(int port, int data_size)
-      : port_(port), data_size_(data_size), server_(NULL), client_(NULL),
-        listening_(OS::CreateSemaphore(0)) {
+  explicit SocketListenerThread(Isolate* isolate, int port, int data_size)
+      : Thread(isolate), port_(port), data_size_(data_size), server_(NULL),
+        client_(NULL), listening_(OS::CreateSemaphore(0)) {
     data_ = new char[data_size_];
   }
   ~SocketListenerThread() {
@@ -88,7 +88,8 @@ static void SendAndReceive(int port, char *data, int len) {
   OS::SNPrintF(Vector<char>(port_str, kPortBuferLen), "%d", port);
 
   // Create a socket listener.
-  SocketListenerThread* listener = new SocketListenerThread(port, len);
+  SocketListenerThread* listener = new SocketListenerThread(Isolate::Current(),
+      port, len);
   listener->Start();
   listener->WaitForListening();
 

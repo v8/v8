@@ -995,7 +995,7 @@ class Debug_Address {
 // to do this via v8::Debug::HostDispatchHandler
 class MessageDispatchHelperThread: public Thread {
  public:
-  MessageDispatchHelperThread();
+  explicit MessageDispatchHelperThread(Isolate* isolate);
   ~MessageDispatchHelperThread();
 
   void Schedule();

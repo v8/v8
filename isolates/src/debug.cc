@@ -969,7 +969,8 @@ Object* Debug::Break(Arguments args) {
 
   if (debug->thread_local_.frame_drop_mode_ == FRAMES_UNTOUCHED) {
     debug->SetAfterBreakTarget(frame);
-  } else if (debug->thread_local_.frame_drop_mode_ == FRAME_DROPPED_IN_IC_CALL) {
+  } else if (debug->thread_local_.frame_drop_mode_ ==
+      FRAME_DROPPED_IN_IC_CALL) {
     // We must have been calling IC stub. Do not go there anymore.
     Code* plain_return =
         Isolate::Current()->builtins()->builtin(Builtins::PlainReturn_LiveEdit);
@@ -981,7 +982,8 @@ Object* Debug::Break(Arguments args) {
     Code* plain_return = Isolate::Current()->builtins()->builtin(
         Builtins::FrameDropper_LiveEdit);
     debug->thread_local_.after_break_target_ = plain_return->entry();
-  } else if (debug->thread_local_.frame_drop_mode_ == FRAME_DROPPED_IN_DIRECT_CALL) {
+  } else if (debug->thread_local_.frame_drop_mode_ ==
+      FRAME_DROPPED_IN_DIRECT_CALL) {
     // Nothing to do, after_break_target is not used here.
   } else {
     UNREACHABLE();
@@ -2615,7 +2617,7 @@ void Debugger::SetDebugMessageDispatchHandler(
   debug_message_dispatch_handler_ = handler;
 
   if (provide_locker && message_dispatch_helper_thread_ == NULL) {
-    message_dispatch_helper_thread_ = new MessageDispatchHelperThread;
+    message_dispatch_helper_thread_ = new MessageDispatchHelperThread(isolate_);
     message_dispatch_helper_thread_->Start();
   }
 }
@@ -2746,7 +2748,7 @@ bool Debugger::StartAgent(const char* name, int port,
   }
 
   if (Socket::Setup()) {
-    agent_ = new DebuggerAgent(name, port);
+    agent_ = new DebuggerAgent(isolate_, name, port);
     agent_->Start();
     return true;
   }
@@ -3046,8 +3048,8 @@ void LockingCommandMessageQueue::Clear() {
 }
 
 
-MessageDispatchHelperThread::MessageDispatchHelperThread()
-    : sem_(OS::CreateSemaphore(0)), mutex_(OS::CreateMutex()),
+MessageDispatchHelperThread::MessageDispatchHelperThread(Isolate* isolate)
+    : Thread(isolate), sem_(OS::CreateSemaphore(0)), mutex_(OS::CreateMutex()),
       already_signalled_(false) {
 }
 

@@ -4465,6 +4465,8 @@ Barriers message_queue_barriers;
 // placing JSON debugger commands in the queue.
 class MessageQueueDebuggerThread : public v8::internal::Thread {
  public:
+  explicit MessageQueueDebuggerThread(v8::internal::Isolate* isolate)
+      : Thread(isolate) { }
   void Run();
 };
 
@@ -4564,10 +4566,12 @@ void MessageQueueDebuggerThread::Run() {
   // Main thread continues running source_3 to end, waits for this thread.
 }
 
-MessageQueueDebuggerThread message_queue_debugger_thread;
 
 // This thread runs the v8 engine.
 TEST(MessageQueues) {
+  MessageQueueDebuggerThread message_queue_debugger_thread(
+      i::Isolate::Current());
+
   // Create a V8 environment
   v8::HandleScope scope;
   DebugLocalContext env;
@@ -4713,11 +4717,13 @@ Barriers threaded_debugging_barriers;
 
 class V8Thread : public v8::internal::Thread {
  public:
+  explicit V8Thread(v8::internal::Isolate* isolate) : Thread(isolate) { }
   void Run();
 };
 
 class DebuggerThread : public v8::internal::Thread {
  public:
+  explicit DebuggerThread(v8::internal::Isolate* isolate) : Thread(isolate) { }
   void Run();
 };
 
@@ -4789,10 +4795,11 @@ void DebuggerThread::Run() {
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer));
 }
 
-DebuggerThread debugger_thread;
-V8Thread v8_thread;
 
 TEST(ThreadedDebugging) {
+  DebuggerThread debugger_thread(i::Isolate::Current());
+  V8Thread v8_thread(i::Isolate::Current());
+
   // Create a V8 environment
   threaded_debugging_barriers.Initialize();
 
@@ -4812,13 +4819,16 @@ TEST(ThreadedDebugging) {
 
 class BreakpointsV8Thread : public v8::internal::Thread {
  public:
+  explicit BreakpointsV8Thread(v8::internal::Isolate* isolate)
+      : Thread(isolate) { }
   void Run();
 };
 
 class BreakpointsDebuggerThread : public v8::internal::Thread {
  public:
-  explicit BreakpointsDebuggerThread(bool global_evaluate)
-      : global_evaluate_(global_evaluate) {}
+  explicit BreakpointsDebuggerThread(v8::internal::Isolate* isolate,
+                                     bool global_evaluate)
+      : Thread(isolate), global_evaluate_(global_evaluate) {}
   void Run();
 
  private:
@@ -4994,8 +5004,9 @@ void BreakpointsDebuggerThread::Run() {
 void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
   i::FLAG_debugger_auto_break = true;
 
-  BreakpointsDebuggerThread breakpoints_debugger_thread(global_evaluate);
-  BreakpointsV8Thread breakpoints_v8_thread;
+  BreakpointsDebuggerThread breakpoints_debugger_thread(i::Isolate::Current(),
+      global_evaluate);
+  BreakpointsV8Thread breakpoints_v8_thread(i::Isolate::Current());
 
   // Create a V8 environment
   Barriers stack_allocated_breakpoints_barriers;
@@ -5377,11 +5388,15 @@ TEST(DebuggerClearMessageHandlerWhileActive) {
 
 class HostDispatchV8Thread : public v8::internal::Thread {
  public:
+  explicit HostDispatchV8Thread(v8::internal::Isolate* isolate)
+      : Thread(isolate) { }
   void Run();
 };
 
 class HostDispatchDebuggerThread : public v8::internal::Thread {
  public:
+  explicit HostDispatchDebuggerThread(v8::internal::Isolate* isolate)
+      : Thread(isolate) { }
   void Run();
 };
 
@@ -5451,11 +5466,11 @@ void HostDispatchDebuggerThread::Run() {
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer));
 }
 
-HostDispatchDebuggerThread host_dispatch_debugger_thread;
-HostDispatchV8Thread host_dispatch_v8_thread;
-
 
 TEST(DebuggerHostDispatch) {
+  HostDispatchDebuggerThread host_dispatch_debugger_thread(
+      i::Isolate::Current());
+  HostDispatchV8Thread host_dispatch_v8_thread(i::Isolate::Current());
   i::FLAG_debugger_auto_break = true;
 
   // Create a V8 environment
@@ -5479,11 +5494,15 @@ TEST(DebuggerHostDispatch) {
 
 class DebugMessageDispatchV8Thread : public v8::internal::Thread {
  public:
+  explicit DebugMessageDispatchV8Thread(v8::internal::Isolate* isolate)
+      : Thread(isolate) { }
   void Run();
 };
 
 class DebugMessageDispatchDebuggerThread : public v8::internal::Thread {
  public:
+  explicit DebugMessageDispatchDebuggerThread(v8::internal::Isolate* isolate)
+      : Thread(isolate) { }
   void Run();
 };
 
@@ -5515,11 +5534,13 @@ void DebugMessageDispatchDebuggerThread::Run() {
   debug_message_dispatch_barriers->barrier_2.Wait();
 }
 
-DebugMessageDispatchDebuggerThread debug_message_dispatch_debugger_thread;
-DebugMessageDispatchV8Thread debug_message_dispatch_v8_thread;
-
 
 TEST(DebuggerDebugMessageDispatch) {
+  DebugMessageDispatchDebuggerThread debug_message_dispatch_debugger_thread(
+      i::Isolate::Current());
+  DebugMessageDispatchV8Thread debug_message_dispatch_v8_thread(
+      i::Isolate::Current());
+
   i::FLAG_debugger_auto_break = true;
 
   // Create a V8 environment
@@ -5583,8 +5604,8 @@ TEST(DebuggerAgent) {
 
 class DebuggerAgentProtocolServerThread : public i::Thread {
  public:
-  explicit DebuggerAgentProtocolServerThread(int port)
-      : port_(port), server_(NULL), client_(NULL),
+  explicit DebuggerAgentProtocolServerThread(i::Isolate* isolate, int port)
+      : Thread(isolate), port_(port), server_(NULL), client_(NULL),
         listening_(OS::CreateSemaphore(0)) {
   }
   ~DebuggerAgentProtocolServerThread() {
@@ -5646,7 +5667,7 @@ TEST(DebuggerAgentProtocolOverflowHeader) {
 
   // Create a socket server to receive a debugger agent message.
   DebuggerAgentProtocolServerThread* server =
-      new DebuggerAgentProtocolServerThread(kPort);
+      new DebuggerAgentProtocolServerThread(i::Isolate::Current(), kPort);
   server->Start();
   server->WaitForListening();
 

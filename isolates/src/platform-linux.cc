@@ -521,7 +521,9 @@ bool ThreadHandle::IsValid() const {
 }
 
 
-Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
+Thread::Thread(Isolate* isolate)
+    : ThreadHandle(ThreadHandle::INVALID),
+      isolate_(isolate) {
 }
 
 
@@ -536,6 +538,7 @@ static void* ThreadEntry(void* arg) {
   // one) so we initialize it here too.
   thread->thread_handle_data()->thread_ = pthread_self();
   ASSERT(thread->IsValid());
+  Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return NULL;
 }
@@ -739,7 +742,10 @@ static inline bool IsVmThread() {
   // we check Top's data. Having that ThreadManager::RestoreThread first
   // restores ThreadLocalTop from TLS, and only then erases the TLS value,
   // reading Isolate::thread_id() should not be affected by races.
-  Isolate* isolate = Isolate::Current();
+
+  Isolate* isolate = Isolate::UncheckedCurrent();
+  if (isolate == NULL) return false;
+
   ThreadManager* thread_manager = isolate->thread_manager();
   if (thread_manager->HasId() && !thread_manager->IsArchived() &&
       thread_manager->CurrentId() == isolate->thread_id()) {
@@ -811,8 +817,11 @@ class Sampler::PlatformData : public Malloced {
 };
 
 
-Sampler::Sampler(int interval, bool profiling)
-    : interval_(interval), profiling_(profiling), active_(false) {
+Sampler::Sampler(Isolate* isolate, int interval, bool profiling)
+    : isolate_(isolate),
+      interval_(interval),
+      profiling_(profiling),
+      active_(false) {
   data_ = new PlatformData();
 }
 

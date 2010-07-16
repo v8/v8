@@ -78,7 +78,7 @@ class SlidingStateWindow {
 //
 class Profiler: public Thread {
  public:
-  Profiler();
+  explicit Profiler(Isolate* isolate);
   void Engage();
   void Disengage();
 
@@ -182,8 +182,8 @@ void StackTracer::Trace(TickSample* sample) {
 //
 class Ticker: public Sampler {
  public:
-  explicit Ticker(int interval):
-      Sampler(interval, FLAG_prof), window_(NULL), profiler_(NULL) {}
+  explicit Ticker(Isolate* isolate, int interval):
+      Sampler(isolate, interval, FLAG_prof), window_(NULL), profiler_(NULL) {}
 
   ~Ticker() { if (IsActive()) Stop(); }
 
@@ -254,8 +254,9 @@ void SlidingStateWindow::AddState(StateTag state) {
 //
 // Profiler implementation.
 //
-Profiler::Profiler()
-    : head_(0),
+Profiler::Profiler(Isolate* isolate)
+    : Thread(isolate),
+      head_(0),
       tail_(0),
       overflow_(false),
       buffer_semaphore_(OS::CreateSemaphore(0)),
@@ -1424,7 +1425,7 @@ bool Logger::Setup() {
 
   log_->Initialize();
 
-  ticker_ = new Ticker(kSamplingIntervalMs);
+  ticker_ = new Ticker(Isolate::Current(), kSamplingIntervalMs);
 
   if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
     sliding_state_window_ = new SlidingStateWindow();
@@ -1445,7 +1446,7 @@ bool Logger::Setup() {
   }
 
   if (FLAG_prof) {
-    profiler_ = new Profiler();
+    profiler_ = new Profiler(Isolate::Current());
     if (!FLAG_prof_auto) {
       profiler_->pause();
     } else {

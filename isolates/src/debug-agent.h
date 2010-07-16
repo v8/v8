@@ -43,8 +43,8 @@ class DebuggerAgentSession;
 // handles connection from a remote debugger.
 class DebuggerAgent: public Thread {
  public:
-  explicit DebuggerAgent(const char* name, int port)
-      : name_(StrDup(name)), port_(port),
+  explicit DebuggerAgent(Isolate* isolate, const char* name, int port)
+      : Thread(isolate), name_(StrDup(name)), port_(port),
         server_(OS::CreateSocket()), terminate_(false),
         session_access_(OS::CreateMutex()), session_(NULL),
         terminate_now_(OS::CreateSemaphore(0)),
@@ -87,8 +87,8 @@ class DebuggerAgent: public Thread {
 // debugger and sends debugger events/responses to the remote debugger.
 class DebuggerAgentSession: public Thread {
  public:
-  DebuggerAgentSession(DebuggerAgent* agent, Socket* client)
-      : agent_(agent), client_(client) {}
+  DebuggerAgentSession(Isolate* isolate, DebuggerAgent* agent, Socket* client)
+      : Thread(isolate), agent_(agent), client_(client) {}
 
   void DebuggerMessage(Vector<uint16_t> message);
   void Shutdown();

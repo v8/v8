@@ -3104,6 +3104,11 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
 bool v8::V8::Initialize() {
   if (i::V8::IsRunning()) return true;
   ENTER_V8;
+  if (i::Isolate::CurrentPerIsolateThreadData() == NULL) {
+    // We might be calling Initialize on a thread other than the thread that
+    // we ran the initial static initializers on.
+    i::Isolate::EnterDefaultIsolate();
+  }
   if (i::Snapshot::Initialize()) return true;
   return i::V8::Initialize(NULL);
 }
@@ -3945,6 +3950,33 @@ bool V8::IsExecutionTerminating() {
         HEAP->termination_exception();
   }
   return false;
+}
+
+
+Isolate::Isolate* New() {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Isolate::Isolate* GetCurrent() {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+void Isolate::Enter() {
+  UNIMPLEMENTED();
+}
+
+
+void Isolate::Exit() {
+  UNIMPLEMENTED();
+}
+
+
+void Isolate::Dispose() {
+  UNIMPLEMENTED();
 }
 
 
