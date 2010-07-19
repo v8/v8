@@ -10288,12 +10288,6 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&slow);
   }
 
-  // Push arguments below the return address to prepare jump to builtin.
-  __ pop(rcx);
-  __ push(rax);
-  __ push(rdx);
-  __ push(rcx);
-
   // Generate the number comparison code.
   if (include_number_compare_) {
     Label non_number_comparison;
@@ -10309,7 +10303,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ setcc(above, rax);
     __ setcc(below, rcx);
     __ subq(rax, rcx);
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ ret(0);
 
     // If one of the numbers was NaN, then the result is always false.
     // The cc is never not-equal.
@@ -10320,7 +10314,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     } else {
       __ Set(rax, -1);
     }
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ ret(0);
 
     // The number comparison code did not provide a valid result.
     __ bind(&non_number_comparison);
@@ -10335,7 +10329,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // We've already checked for object identity, so if both operands
     // are symbols they aren't equal. Register eax (not rax) already holds a
     // non-zero value, which indicates not equal, so just return.
-    __ ret(2 * kPointerSize);
+    __ ret(0);
   }
 
   __ bind(&check_for_strings);
@@ -10386,14 +10380,12 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&return_unequal);
     // Return non-equal by returning the non-zero object pointer in eax,
     // or return equal if we fell through to here.
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ ret(0);
     __ bind(&not_both_objects);
   }
 
-  // must swap argument order
+  // Push arguments below the return address to prepare jump to builtin.
   __ pop(rcx);
-  __ pop(rdx);
-  __ pop(rax);
   __ push(rdx);
   __ push(rax);
 
@@ -11970,7 +11962,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
 
   // Result is EQUAL.
   __ Move(rax, Smi::FromInt(EQUAL));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 
   Label result_greater;
   __ bind(&result_not_equal);
@@ -11979,12 +11971,12 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
 
   // Result is LESS.
   __ Move(rax, Smi::FromInt(LESS));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 
   // Result is GREATER.
   __ bind(&result_greater);
   __ Move(rax, Smi::FromInt(GREATER));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 }
 
 
@@ -12014,6 +12006,10 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
   // Inline comparison of ascii strings.
   __ IncrementCounter(&Counters::string_compare_native, 1);
+  // Drop arguments from the stack
+  __ pop(rcx);
+  __ addq(rsp, Immediate(2 * kPointerSize));
+  __ push(rcx);
   GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi, r8);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)

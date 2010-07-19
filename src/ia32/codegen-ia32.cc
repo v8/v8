@@ -11839,12 +11839,6 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&slow);
   }
 
-  // Push arguments below the return address.
-  __ pop(ecx);
-  __ push(eax);
-  __ push(edx);
-  __ push(ecx);
-
   // Generate the number comparison code.
   if (include_number_compare_) {
     Label non_number_comparison;
@@ -11864,7 +11858,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ cmov(above, eax, Operand(ecx));
       __ mov(ecx, Immediate(Smi::FromInt(-1)));
       __ cmov(below, eax, Operand(ecx));
-      __ ret(2 * kPointerSize);
+      __ ret(0);
     } else {
       FloatingPointHelper::CheckFloatOperands(
           masm, &non_number_comparison, ebx);
@@ -11875,22 +11869,20 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ j(parity_even, &unordered, not_taken);
 
       Label below_label, above_label;
-      // Return a result of -1, 0, or 1, based on EFLAGS. In all cases remove
-      // two arguments from the stack as they have been pushed in preparation
-      // of a possible runtime call.
+      // Return a result of -1, 0, or 1, based on EFLAGS.
       __ j(below, &below_label, not_taken);
       __ j(above, &above_label, not_taken);
 
       __ xor_(eax, Operand(eax));
-      __ ret(2 * kPointerSize);
+      __ ret(0);
 
       __ bind(&below_label);
       __ mov(eax, Immediate(Smi::FromInt(-1)));
-      __ ret(2 * kPointerSize);
+      __ ret(0);
 
       __ bind(&above_label);
       __ mov(eax, Immediate(Smi::FromInt(1)));
-      __ ret(2 * kPointerSize);
+      __ ret(0);
     }
 
     // If one of the numbers was NaN, then the result is always false.
@@ -11902,7 +11894,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     } else {
       __ mov(eax, Immediate(Smi::FromInt(-1)));
     }
-    __ ret(2 * kPointerSize);  // eax, edx were pushed
+    __ ret(0);
 
     // The number comparison code did not provide a valid result.
     __ bind(&non_number_comparison);
@@ -11917,7 +11909,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // We've already checked for object identity, so if both operands
     // are symbols they aren't equal. Register eax already holds a
     // non-zero value, which indicates not equal, so just return.
-    __ ret(2 * kPointerSize);
+    __ ret(0);
   }
 
   __ bind(&check_for_strings);
@@ -11970,14 +11962,12 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&return_unequal);
     // Return non-equal by returning the non-zero object pointer in eax,
     // or return equal if we fell through to here.
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ ret(0);  // rax, rdx were pushed
     __ bind(&not_both_objects);
   }
 
-  // must swap argument order
+  // Push arguments below the return address.
   __ pop(ecx);
-  __ pop(edx);
-  __ pop(eax);
   __ push(edx);
   __ push(eax);
 
@@ -13554,19 +13544,19 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   ASSERT_EQ(0, EQUAL);
   ASSERT_EQ(0, kSmiTag);
   __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 
   __ bind(&result_not_equal);
   __ j(greater, &result_greater);
 
   // Result is LESS.
   __ Set(eax, Immediate(Smi::FromInt(LESS)));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 
   // Result is GREATER.
   __ bind(&result_greater);
   __ Set(eax, Immediate(Smi::FromInt(GREATER)));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 }
 
 
@@ -13596,6 +13586,10 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotBothSequentialAsciiStrings(edx, eax, ecx, ebx, &runtime);
 
   // Compare flat ascii strings.
+  // Drop arguments from the stack.
+  __ pop(ecx);
+  __ add(Operand(esp), Immediate(2 * kPointerSize));
+  __ push(ecx);
   GenerateCompareFlatAsciiStrings(masm, edx, eax, ecx, ebx, edi);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
