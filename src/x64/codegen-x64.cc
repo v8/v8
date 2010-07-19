@@ -139,7 +139,7 @@ CodeGenState::~CodeGenState() {
 }
 
 
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // CodeGenerator implementation.
 
 CodeGenerator::CodeGenerator(MacroAssembler* masm)
@@ -154,6 +154,12 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm)
       in_spilled_code_(false) {
 }
 
+
+// Calling conventions:
+// rbp: caller's frame pointer
+// rsp: stack pointer
+// rdi: called JS function
+// rsi: callee's context
 
 void CodeGenerator::Generate(CompilationInfo* info) {
   // Record the position for debugging purposes.
@@ -171,7 +177,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 
   // Adjust for function-level loop nesting.
   ASSERT_EQ(0, loop_nesting_);
-  loop_nesting_ += info->loop_nesting();
+  loop_nesting_ = info->loop_nesting();
 
   JumpTarget::set_compiling_deferred_code(false);
 
@@ -469,14 +475,14 @@ Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
 // frame. If the expression is boolean-valued it may be compiled (or
 // partially compiled) into control flow to the control destination.
 // If force_control is true, control flow is forced.
-void CodeGenerator::LoadCondition(Expression* x,
+void CodeGenerator::LoadCondition(Expression* expr,
                                   ControlDestination* dest,
                                   bool force_control) {
   ASSERT(!in_spilled_code());
   int original_height = frame_->height();
 
   { CodeGenState new_state(this, dest);
-    Visit(x);
+    Visit(expr);
 
     // If we hit a stack overflow, we may not have actually visited
     // the expression.  In that case, we ensure that we have a
@@ -496,7 +502,6 @@ void CodeGenerator::LoadCondition(Expression* x,
 
   if (force_control && !dest->is_used()) {
     // Convert the TOS value into flow to the control destination.
-    // TODO(X64): Make control flow to control destinations work.
     ToBoolean(dest);
   }
 
@@ -506,7 +511,6 @@ void CodeGenerator::LoadCondition(Expression* x,
 
 
 void CodeGenerator::LoadAndSpill(Expression* expression) {
-  // TODO(x64): No architecture specific code. Move to shared location.
   ASSERT(in_spilled_code());
   set_in_spilled_code(false);
   Load(expression);
@@ -652,7 +656,6 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     frame_->Push(&result);
   }
 
-
   Variable* arguments = scope()->arguments()->var();
   Variable* shadow = scope()->arguments_shadow()->var();
   ASSERT(arguments != NULL && arguments->slot() != NULL);
@@ -663,11 +666,11 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     // We have to skip storing into the arguments slot if it has
     // already been written to. This can happen if the a function
     // has a local variable named 'arguments'.
-    LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+    LoadFromSlot(arguments->slot(), NOT_INSIDE_TYPEOF);
     Result probe = frame_->Pop();
     if (probe.is_constant()) {
-      // We have to skip updating the arguments object if it has been
-      // assigned a proper value.
+      // We have to skip updating the arguments object if it has
+      // been assigned a proper value.
       skip_arguments = !probe.handle()->IsTheHole();
     } else {
       __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
@@ -682,9 +685,6 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
   StoreToSlot(shadow->slot(), NOT_CONST_INIT);
   return frame_->Pop();
 }
-
-//------------------------------------------------------------------------------
-// CodeGenerator implementation of variables, lookups, and stores.
 
 //------------------------------------------------------------------------------
 // CodeGenerator implementation of variables, lookups, and stores.
@@ -845,8 +845,8 @@ class FloatingPointHelper : public AllStatic {
 
 const char* GenericBinaryOpStub::GetName() {
   if (name_ != NULL) return name_;
-  const int len = 100;
-  name_ = Bootstrapper::AllocateAutoDeletedArray(len);
+  const int kMaxNameLength = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
   if (name_ == NULL) return "OOM";
   const char* op_name = Token::Name(op_);
   const char* overwrite_name;
@@ -857,7 +857,7 @@ const char* GenericBinaryOpStub::GetName() {
     default: overwrite_name = "UnknownOverwrite"; break;
   }
 
-  OS::SNPrintF(Vector<char>(name_, len),
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
                "GenericBinaryOpStub_%s_%s%s_%s%s_%s_%s",
                op_name,
                overwrite_name,
@@ -1138,7 +1138,7 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
         if (answer >= Smi::kMinValue && answer <= Smi::kMaxValue) {
           // If the product is zero and the non-zero factor is negative,
           // the spec requires us to return floating point negative zero.
-          if (answer != 0 || (left + right) >= 0) {
+          if (answer != 0 || (left >= 0 && right >= 0)) {
             answer_object = Smi::FromInt(static_cast<int>(answer));
           }
         }
@@ -1645,7 +1645,6 @@ class DeferredInlineSmiSub: public DeferredCode {
 };
 
 
-
 void DeferredInlineSmiSub::Generate() {
   GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, NO_SMI_CODE_IN_STUB);
   igostub.GenerateCall(masm_, dst_, value_);
@@ -1710,6 +1709,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
       } else {
         operand->ToRegister();
         frame_->Spill(operand->reg());
+        answer = *operand;
         DeferredCode* deferred = new DeferredInlineSmiSub(operand->reg(),
                                                           smi_value,
                                                           overwrite_mode);
@@ -1721,7 +1721,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                           smi_value,
                           deferred->entry_label());
         deferred->BindExit();
-        answer = *operand;
+        operand->Unuse();
       }
       break;
     }
@@ -1932,6 +1932,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
   return answer;
 }
 
+
 static bool CouldBeNaN(const Result& result) {
   if (result.type_info().IsSmi()) return false;
   if (result.type_info().IsInteger32()) return false;
@@ -2002,106 +2003,11 @@ void CodeGenerator::Comparison(AstNode* node,
   }
 
   if (left_side_constant_smi || right_side_constant_smi) {
-    if (left_side_constant_smi && right_side_constant_smi) {
-      // Trivial case, comparing two constants.
-      int left_value = Smi::cast(*left_side.handle())->value();
-      int right_value = Smi::cast(*right_side.handle())->value();
-      switch (cc) {
-        case less:
-          dest->Goto(left_value < right_value);
-          break;
-        case equal:
-          dest->Goto(left_value == right_value);
-          break;
-        case greater_equal:
-          dest->Goto(left_value >= right_value);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    } else {
-      // Only one side is a constant Smi.
-      // If left side is a constant Smi, reverse the operands.
-      // Since one side is a constant Smi, conversion order does not matter.
-      if (left_side_constant_smi) {
-        Result temp = left_side;
-        left_side = right_side;
-        right_side = temp;
-        cc = ReverseCondition(cc);
-        // This may re-introduce greater or less_equal as the value of cc.
-        // CompareStub and the inline code both support all values of cc.
-      }
-      // Implement comparison against a constant Smi, inlining the case
-      // where both sides are Smis.
-      left_side.ToRegister();
-      Register left_reg = left_side.reg();
-      Handle<Object> right_val = right_side.handle();
-
-      // Here we split control flow to the stub call and inlined cases
-      // before finally splitting it to the control destination.  We use
-      // a jump target and branching to duplicate the virtual frame at
-      // the first split.  We manually handle the off-frame references
-      // by reconstituting them on the non-fall-through path.
-      JumpTarget is_smi;
-
-      if (left_side.is_smi()) {
-        if (FLAG_debug_code) {
-          __ AbortIfNotSmi(left_side.reg());
-        }
-      } else {
-        Condition left_is_smi = masm_->CheckSmi(left_side.reg());
-        is_smi.Branch(left_is_smi);
-
-        bool is_loop_condition = (node->AsExpression() != NULL) &&
-            node->AsExpression()->is_loop_condition();
-        if (!is_loop_condition && right_val->IsSmi()) {
-          // Right side is a constant smi and left side has been checked
-          // not to be a smi.
-          JumpTarget not_number;
-          __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
-                 Factory::heap_number_map());
-          not_number.Branch(not_equal, &left_side);
-          __ movsd(xmm1,
-              FieldOperand(left_reg, HeapNumber::kValueOffset));
-          int value = Smi::cast(*right_val)->value();
-          if (value == 0) {
-            __ xorpd(xmm0, xmm0);
-          } else {
-            Result temp = allocator()->Allocate();
-            __ movl(temp.reg(), Immediate(value));
-            __ cvtlsi2sd(xmm0, temp.reg());
-            temp.Unuse();
-          }
-          __ ucomisd(xmm1, xmm0);
-          // Jump to builtin for NaN.
-          not_number.Branch(parity_even, &left_side);
-          left_side.Unuse();
-          dest->true_target()->Branch(DoubleCondition(cc));
-          dest->false_target()->Jump();
-          not_number.Bind(&left_side);
-        }
-
-        // Setup and call the compare stub.
-        CompareStub stub(cc, strict, kCantBothBeNaN);
-        Result result = frame_->CallStub(&stub, &left_side, &right_side);
-        result.ToRegister();
-        __ testq(result.reg(), result.reg());
-        result.Unuse();
-        dest->true_target()->Branch(cc);
-        dest->false_target()->Jump();
-
-        is_smi.Bind();
-      }
-
-      left_side = Result(left_reg);
-      right_side = Result(right_val);
-      // Test smi equality and comparison by signed int comparison.
-      // Both sides are smis, so we can use an Immediate.
-      __ SmiCompare(left_side.reg(), Smi::cast(*right_side.handle()));
-      left_side.Unuse();
-      right_side.Unuse();
-      dest->Split(cc);
-    }
+    bool is_loop_condition = (node->AsExpression() != NULL) &&
+        node->AsExpression()->is_loop_condition();
+    ConstantSmiComparison(cc, strict, dest, &left_side, &right_side,
+                          left_side_constant_smi, right_side_constant_smi,
+                          is_loop_condition);
   } else if (cc == equal &&
              (left_side_constant_null || right_side_constant_null)) {
     // To make null checks efficient, we check if either the left side or
@@ -2274,7 +2180,8 @@ void CodeGenerator::Comparison(AstNode* node,
     }
   } else {
     // Neither side is a constant Smi, constant 1-char string, or constant null.
-    // If either side is a non-smi constant, skip the smi check.
+    // If either side is a non-smi constant, or known to be a heap number,
+    // skip the smi check.
     bool known_non_smi =
         (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
         (right_side.is_constant() && !right_side.handle()->IsSmi()) ||
@@ -2300,6 +2207,7 @@ void CodeGenerator::Comparison(AstNode* node,
     bool inline_number_compare =
         loop_nesting() > 0 && cc != equal && !is_loop_condition;
 
+    // Left and right needed in registers for the following code.
     left_side.ToRegister();
     right_side.ToRegister();
 
@@ -2317,6 +2225,8 @@ void CodeGenerator::Comparison(AstNode* node,
         GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
       }
 
+      // End of in-line compare, call out to the compare stub. Don't include
+      // number comparison in the stub if it was inlined.
       CompareStub stub(cc, strict, nan_info, !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flag.
@@ -2347,6 +2257,8 @@ void CodeGenerator::Comparison(AstNode* node,
         GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
       }
 
+      // End of in-line compare, call out to the compare stub. Don't include
+      // number comparison in the stub if it was inlined.
       CompareStub stub(cc, strict, nan_info, !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flags.
@@ -2361,6 +2273,128 @@ void CodeGenerator::Comparison(AstNode* node,
       right_side.Unuse();
       left_side.Unuse();
       dest->Split(cc);
+    }
+  }
+}
+
+
+void CodeGenerator::ConstantSmiComparison(Condition cc,
+                                          bool strict,
+                                          ControlDestination* dest,
+                                          Result* left_side,
+                                          Result* right_side,
+                                          bool left_side_constant_smi,
+                                          bool right_side_constant_smi,
+                                          bool is_loop_condition) {
+  if (left_side_constant_smi && right_side_constant_smi) {
+    // Trivial case, comparing two constants.
+    int left_value = Smi::cast(*left_side->handle())->value();
+    int right_value = Smi::cast(*right_side->handle())->value();
+    switch (cc) {
+      case less:
+        dest->Goto(left_value < right_value);
+        break;
+      case equal:
+        dest->Goto(left_value == right_value);
+        break;
+      case greater_equal:
+        dest->Goto(left_value >= right_value);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    // Only one side is a constant Smi.
+    // If left side is a constant Smi, reverse the operands.
+    // Since one side is a constant Smi, conversion order does not matter.
+    if (left_side_constant_smi) {
+      Result* temp = left_side;
+      left_side = right_side;
+      right_side = temp;
+      cc = ReverseCondition(cc);
+      // This may re-introduce greater or less_equal as the value of cc.
+      // CompareStub and the inline code both support all values of cc.
+    }
+    // Implement comparison against a constant Smi, inlining the case
+    // where both sides are Smis.
+    left_side->ToRegister();
+    Register left_reg = left_side->reg();
+    Smi* constant_smi = Smi::cast(*right_side->handle());
+
+    if (left_side->is_smi()) {
+      if (FLAG_debug_code) {
+        __ AbortIfNotSmi(left_reg);
+      }
+      // Test smi equality and comparison by signed int comparison.
+      // Both sides are smis, so we can use an Immediate.
+      __ SmiCompare(left_reg, constant_smi);
+      left_side->Unuse();
+      right_side->Unuse();
+      dest->Split(cc);
+    } else {
+      // Only the case where the left side could possibly be a non-smi is left.
+      JumpTarget is_smi;
+      if (cc == equal) {
+        // We can do the equality comparison before the smi check.
+        __ SmiCompare(left_reg, constant_smi);
+        dest->true_target()->Branch(equal);
+        Condition left_is_smi = masm_->CheckSmi(left_reg);
+        dest->false_target()->Branch(left_is_smi);
+      } else {
+        // Do the smi check, then the comparison.
+        Condition left_is_smi = masm_->CheckSmi(left_reg);
+        is_smi.Branch(left_is_smi, left_side, right_side);
+      }
+
+      // Jump or fall through to here if we are comparing a non-smi to a
+      // constant smi.  If the non-smi is a heap number and this is not
+      // a loop condition, inline the floating point code.
+      if (!is_loop_condition) {
+        // Right side is a constant smi and left side has been checked
+        // not to be a smi.
+        JumpTarget not_number;
+        __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
+               Factory::heap_number_map());
+        not_number.Branch(not_equal, left_side);
+        __ movsd(xmm1,
+                 FieldOperand(left_reg, HeapNumber::kValueOffset));
+        int value = constant_smi->value();
+        if (value == 0) {
+          __ xorpd(xmm0, xmm0);
+        } else {
+          Result temp = allocator()->Allocate();
+          __ movl(temp.reg(), Immediate(value));
+          __ cvtlsi2sd(xmm0, temp.reg());
+          temp.Unuse();
+        }
+        __ ucomisd(xmm1, xmm0);
+        // Jump to builtin for NaN.
+        not_number.Branch(parity_even, left_side);
+        left_side->Unuse();
+        dest->true_target()->Branch(DoubleCondition(cc));
+        dest->false_target()->Jump();
+        not_number.Bind(left_side);
+      }
+
+      // Setup and call the compare stub.
+      CompareStub stub(cc, strict, kCantBothBeNaN);
+      Result result = frame_->CallStub(&stub, left_side, right_side);
+      result.ToRegister();
+      __ testq(result.reg(), result.reg());
+      result.Unuse();
+      if (cc == equal) {
+        dest->Split(cc);
+      } else {
+        dest->true_target()->Branch(cc);
+        dest->false_target()->Jump();
+
+        // It is important for performance for this case to be at the end.
+        is_smi.Bind(left_side, right_side);
+        __ SmiCompare(left_reg, constant_smi);
+        left_side->Unuse();
+        right_side->Unuse();
+        dest->Split(cc);
+      }
     }
   }
 }
@@ -2677,7 +2711,6 @@ void CodeGenerator::CheckStack() {
 
 
 void CodeGenerator::VisitAndSpill(Statement* statement) {
-  // TODO(X64): No architecture specific code. Move to shared location.
   ASSERT(in_spilled_code());
   set_in_spilled_code(false);
   Visit(statement);
@@ -2689,6 +2722,9 @@ void CodeGenerator::VisitAndSpill(Statement* statement) {
 
 
 void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(in_spilled_code());
   set_in_spilled_code(false);
   VisitStatements(statements);
@@ -2696,14 +2732,20 @@ void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
     frame_->SpillAll();
   }
   set_in_spilled_code(true);
+
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(!in_spilled_code());
   for (int i = 0; has_valid_frame() && i < statements->length(); i++) {
     Visit(statements->at(i));
   }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
@@ -2939,6 +2981,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   CodeForStatementPosition(node);
   Load(node->expression());
   Result return_value = frame_->Pop();
+  masm()->WriteRecordedPositions();
   if (function_return_is_shadowed_) {
     function_return_.Jump(&return_value);
   } else {
@@ -2976,6 +3019,8 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // receiver.
   frame_->Exit();
   masm_->ret((scope()->num_parameters() + 1) * kPointerSize);
+  DeleteFrame();
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Add padding that will be overwritten by a debugger breakpoint.
   // frame_->Exit() generates "movq rsp, rbp; pop rbp; ret k"
@@ -2989,7 +3034,6 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   ASSERT_EQ(Assembler::kJSReturnSequenceLength,
             masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
-  DeleteFrame();
 }
 
 
@@ -3028,8 +3072,6 @@ void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
 
 
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
-  // TODO(X64): This code is completely generic and should be moved somewhere
-  // where it can be shared between architectures.
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ SwitchStatement");
   CodeForStatementPosition(node);
@@ -3321,8 +3363,8 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
           LoadCondition(node->cond(), &dest, true);
         }
       } else {
-        // If we have chosen not to recompile the test at the
-        // bottom, jump back to the one at the top.
+        // If we have chosen not to recompile the test at the bottom,
+        // jump back to the one at the top.
         if (has_valid_frame()) {
           node->continue_target()->Jump();
         }
@@ -3883,6 +3925,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   node->continue_target()->Unuse();
   node->break_target()->Unuse();
 }
+
 
 void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   ASSERT(!in_spilled_code());
@@ -5677,6 +5720,25 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   __ cmpq(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
   obj.Unuse();
   destination()->Split(below_equal);
+}
+
+
+void CodeGenerator::GenerateIsSpecObject(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp' ||
+  // typeof(arg) == function).
+  // It includes undetectable objects (as opposed to IsObject).
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  Condition is_smi = masm_->CheckSmi(value.reg());
+  destination()->false_target()->Branch(is_smi);
+  // Check that this is an object.
+  __ CmpObjectType(value.reg(), FIRST_JS_OBJECT_TYPE, kScratchRegister);
+  value.Unuse();
+  destination()->Split(above_equal);
 }
 
 
@@ -11483,7 +11545,7 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
 
   // Make count the number of bytes to copy.
   if (!ascii) {
-    ASSERT_EQ(2, sizeof(uc16));  // NOLINT
+    ASSERT_EQ(2, static_cast<int>(sizeof(uc16)));  // NOLINT
     __ addl(count, count);
   }
 
