@@ -2725,7 +2725,7 @@ class Code: public HeapObject {
   };
 
   enum {
-    NUMBER_OF_KINDS = KEYED_STORE_IC + 1
+    NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };
 
 #ifdef ENABLE_DISASSEMBLER
