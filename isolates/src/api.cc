@@ -3953,13 +3953,13 @@ bool V8::IsExecutionTerminating() {
 }
 
 
-Isolate::Isolate* New() {
+Isolate* Isolate::New() {
   UNIMPLEMENTED();
   return NULL;
 }
 
 
-Isolate::Isolate* GetCurrent() {
+Isolate* Isolate::GetCurrent() {
   UNIMPLEMENTED();
   return NULL;
 }

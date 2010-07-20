@@ -406,11 +406,6 @@ void ThreadManager::TerminateExecution(int thread_id) {
 }
 
 
-// This is the ContextSwitcher singleton. There is at most a single thread
-// running which delivers preemption events to V8 threads.
-ContextSwitcher* ContextSwitcher::singleton_ = NULL;
-
-
 ContextSwitcher::ContextSwitcher(Isolate* isolate, int every_n_ms)
   : Thread(isolate),
     keep_going_(true),

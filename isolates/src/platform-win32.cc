@@ -1423,6 +1423,7 @@ static unsigned int __stdcall ThreadEntry(void* arg) {
   // don't know which thread will run first (the original thread or the new
   // one) so we initialize it here too.
   thread->thread_handle_data()->tid_ = GetCurrentThreadId();
+  Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return 0;
 }
@@ -1466,7 +1467,9 @@ class Thread::PlatformData : public Malloced {
 // Initialize a Win32 thread object. The thread has an invalid thread
 // handle until it is started.
 
-Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
+Thread::Thread(Isolate* isolate)
+    : ThreadHandle(ThreadHandle::INVALID),
+      isolate_(isolate) {
   data_ = new PlatformData(kNoThread);
 }
 
@@ -1853,14 +1856,18 @@ class Sampler::PlatformData : public Malloced {
 static unsigned int __stdcall SamplerEntry(void* arg) {
   Sampler::PlatformData* data =
       reinterpret_cast<Sampler::PlatformData*>(arg);
+  Thread::SetThreadLocal(Isolate::isolate_key(), data->sampler_->isolate());
   data->Runner();
   return 0;
 }
 
 
 // Initialize a profile sampler.
-Sampler::Sampler(int interval, bool profiling)
-    : interval_(interval), profiling_(profiling), active_(false) {
+Sampler::Sampler(Isolate* isolate, int interval, bool profiling)
+    : isolate_(isolate),
+      interval_(interval),
+      profiling_(profiling),
+      active_(false) {
   data_ = new PlatformData(this);
 }
 

@@ -161,9 +161,6 @@ class ContextSwitcher: public Thread {
 
   bool keep_going_;
   int sleep_ms_;
-  Isolate* isolate_;
-
-  static ContextSwitcher* singleton_;
 };
 
 } }  // namespace v8::internal

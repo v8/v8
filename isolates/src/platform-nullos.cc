@@ -309,7 +309,9 @@ bool ThreadHandle::IsValid() const {
 }
 
 
-Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
+Thread::Thread(Isolate* isolate)
+    : ThreadHandle(ThreadHandle::INVALID),
+      isolate_(isolate) {
   UNIMPLEMENTED();
 }
 

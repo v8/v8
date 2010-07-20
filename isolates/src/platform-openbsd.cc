@@ -380,7 +380,9 @@ bool ThreadHandle::IsValid() const {
 }
 
 
-Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
+Thread::Thread(Isolate* isolate)
+    : ThreadHandle(ThreadHandle::INVALID),
+      isolate_(isolate) {
 }
 
 
@@ -395,6 +397,7 @@ static void* ThreadEntry(void* arg) {
   // one) so we initialize it here too.
   thread->thread_handle_data()->thread_ = pthread_self();
   ASSERT(thread->IsValid());
+  Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return NULL;
 }
@@ -566,8 +569,11 @@ class Sampler::PlatformData : public Malloced {
 };
 
 
-Sampler::Sampler(int interval, bool profiling)
-    : interval_(interval), profiling_(profiling), active_(false) {
+Sampler::Sampler(Isolate* isolate, int interval, bool profiling)
+    : isolate_(isolate),
+      interval_(interval),
+      profiling_(profiling),
+      active_(false) {
   data_ = new PlatformData();
 }
 
