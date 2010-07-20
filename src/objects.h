@@ -39,7 +39,7 @@
 #endif
 
 //
-// All object types in the V8 JavaScript are described in this file.
+// Most object types in the V8 JavaScript are described in this file.
 //
 // Inheritance hierarchy:
 //   - Object
@@ -74,8 +74,8 @@
 //           - CodeCacheHashTable
 //           - MapCache
 //         - Context
-//         - GlobalContext
 //         - JSFunctionResultCache
+//         - SerializedScopeInfo
 //       - String
 //         - SeqString
 //           - SeqAsciiString
