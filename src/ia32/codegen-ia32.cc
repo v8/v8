@@ -5340,6 +5340,11 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           frame_->Dup();
           Load(property->value());
           Result dummy = frame_->CallStoreIC(Handle<String>::cast(key), false);
+          // A test eax instruction following the store IC call would
+          // indicate the presence of an inlined version of the
+          // store. Add a nop to indicate that there is no such
+          // inlined version.
+          __ nop();
           dummy.Unuse();
           break;
         }
@@ -8861,7 +8866,97 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 #ifdef DEBUG
   int expected_height = frame()->height() - (is_contextual ? 1 : 2);
 #endif
-  Result result = frame()->CallStoreIC(name, is_contextual);
+
+  Result result;
+  if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
+    result = frame()->CallStoreIC(name, is_contextual);
+    // A test eax instruction following the call signals that the inobject
+    // property case was inlined.  Ensure that there is not a test eax
+    // instruction here.
+    __ nop();
+  } else {
+    // Inline the in-object property case.
+    JumpTarget slow, done;
+    Label patch_site;
+
+    // Get the value and receiver from the stack.
+    Result value = frame()->Pop();
+    value.ToRegister();
+    Result receiver = frame()->Pop();
+    receiver.ToRegister();
+
+    // Allocate result register.
+    result = allocator()->Allocate();
+    ASSERT(result.is_valid() && receiver.is_valid() && value.is_valid());
+
+    // Check that the receiver is a heap object.
+    __ test(receiver.reg(), Immediate(kSmiTagMask));
+    slow.Branch(zero, &value, &receiver);
+
+    // This is the map check instruction that will be patched (so we can't
+    // use the double underscore macro that may insert instructions).
+    // Initially use an invalid map to force a failure.
+    __ bind(&patch_site);
+    masm()->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+                Immediate(Factory::null_value()));
+    // This branch is always a forwards branch so it's always a fixed size
+    // which allows the assert below to succeed and patching to work.
+    slow.Branch(not_equal, &value, &receiver);
+
+    // The delta from the patch label to the store offset must be
+    // statically known.
+    ASSERT(masm()->SizeOfCodeGeneratedSince(&patch_site) ==
+           StoreIC::kOffsetToStoreInstruction);
+
+    // The initial (invalid) offset has to be large enough to force a 32-bit
+    // instruction encoding to allow patching with an arbitrary offset.  Use
+    // kMaxInt (minus kHeapObjectTag).
+    int offset = kMaxInt;
+    __ mov(FieldOperand(receiver.reg(), offset), value.reg());
+    __ mov(result.reg(), Operand(value.reg()));
+
+    // Allocate scratch register for write barrier.
+    Result scratch = allocator()->Allocate();
+    ASSERT(scratch.is_valid() &&
+           result.is_valid() &&
+           receiver.is_valid() &&
+           value.is_valid());
+
+    // The write barrier clobbers all input registers, so spill the
+    // receiver and the value.
+    frame_->Spill(receiver.reg());
+    frame_->Spill(value.reg());
+
+    // Update the write barrier. To save instructions in the inlined
+    // version we do not filter smis.
+    Label skip_write_barrier;
+    __ InNewSpace(receiver.reg(), value.reg(), equal, &skip_write_barrier);
+    int delta_to_record_write = masm_->SizeOfCodeGeneratedSince(&patch_site);
+    __ lea(scratch.reg(), Operand(receiver.reg(), offset));
+    __ RecordWriteHelper(receiver.reg(), scratch.reg(), value.reg());
+    if (FLAG_debug_code) {
+      __ mov(receiver.reg(), Immediate(BitCast<int32_t>(kZapValue)));
+      __ mov(value.reg(), Immediate(BitCast<int32_t>(kZapValue)));
+      __ mov(scratch.reg(), Immediate(BitCast<int32_t>(kZapValue)));
+    }
+    __ bind(&skip_write_barrier);
+    value.Unuse();
+    scratch.Unuse();
+    receiver.Unuse();
+    done.Jump(&result);
+
+    slow.Bind(&value, &receiver);
+    frame()->Push(&receiver);
+    frame()->Push(&value);
+    result = frame()->CallStoreIC(name, is_contextual);
+    // Encode the offset to the map check instruction and the offset
+    // to the write barrier store address computation in a test eax
+    // instruction.
+    int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(&patch_site);
+    __ test(eax,
+            Immediate((delta_to_record_write << 16) | delta_to_patch_site));
+    done.Bind(&result);
+  }
 
   ASSERT_EQ(expected_height, frame()->height());
   return result;
