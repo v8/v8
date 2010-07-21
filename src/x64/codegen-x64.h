@@ -454,6 +454,9 @@ class CodeGenerator: public AstVisitor {
   // value in place.
   void StoreToSlot(Slot* slot, InitState init_state);
 
+  // Support for compiling assignment expressions.
+  void EmitSlotAssignment(Assignment* node);
+
   // Receiver is passed on the frame and not consumed.
   Result EmitNamedLoad(Handle<String> name, bool is_contextual);
 
