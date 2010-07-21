@@ -5133,6 +5133,98 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
 }
 
 
+void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Comment cmnt(masm_, "[ Keyed Property Assignment");
+  Property* prop = node->target()->AsProperty();
+  ASSERT_NOT_NULL(prop);
+
+  // Evaluate the receiver subexpression.
+  Load(prop->obj());
+
+  // Change to slow case in the beginning of an initialization block to
+  // avoid the quadratic behavior of repeatedly adding fast properties.
+  if (node->starts_initialization_block()) {
+    frame_->Dup();
+    Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
+  // Change to fast case at the end of an initialization block. To prepare for
+  // that add an extra copy of the receiver to the frame, so that it can be
+  // converted back to fast case after the assignment.
+  if (node->ends_initialization_block()) {
+    frame_->Dup();
+  }
+
+  // Evaluate the key subexpression.
+  Load(prop->key());
+
+  // Stack layout:
+  // [tos]   : key
+  // [tos+1] : receiver
+  // [tos+2] : receiver if at the end of an initialization block
+
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
+    // Duplicate receiver and key for loading the current property value.
+    frame()->PushElementAt(1);
+    frame()->PushElementAt(1);
+    Result value = EmitKeyedLoad();
+    frame()->Push(&value);
+    Load(node->value());
+
+    // Perform the binary operation.
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    BinaryOperation expr(node, node->binary_op(), node->target(),
+                         node->value());
+    GenericBinaryOperation(&expr,
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+  } else {
+    // For non-compound assignment just load the right-hand side.
+    Load(node->value());
+  }
+
+  // Stack layout:
+  // [tos]   : value
+  // [tos+1] : key
+  // [tos+2] : receiver
+  // [tos+3] : receiver if at the end of an initialization block
+
+  // Perform the assignment.  It is safe to ignore constants here.
+  ASSERT(node->op() != Token::INIT_CONST);
+  CodeForSourcePosition(node->position());
+  Result answer = EmitKeyedStore(prop->key()->type());
+  frame()->Push(&answer);
+
+  // Stack layout:
+  // [tos]   : result
+  // [tos+1] : receiver if at the end of an initialization block
+
+  // Change to fast case at the end of an initialization block.
+  if (node->ends_initialization_block()) {
+    // The argument to the runtime call is the extra copy of the receiver,
+    // which is below the value of the assignment.  Swap the receiver and
+    // the value of the assignment expression.
+    Result result = frame()->Pop();
+    Result receiver = frame()->Pop();
+    frame()->Push(&result);
+    frame()->Push(&receiver);
+    Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+  }
+
+  // Stack layout:
+  // [tos]   : result
+
+  ASSERT(frame()->height() == original_height + 1);
+}
+
+
 void CodeGenerator::VisitAssignment(Assignment* node) {
 #ifdef DEBUG
   int original_height = frame()->height();
@@ -5150,105 +5242,19 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     // global 'this' because it is not a valid left-hand side.
     EmitNamedPropertyAssignment(node);
 
+  } else if (prop != NULL) {
+    // Other properties (including rewritten parameters for a function that
+    // uses arguments) are keyed property assignments.
+    EmitKeyedPropertyAssignment(node);
+
   } else {
-    Comment cmnt(masm_, "[ Assignment");
-
-    { Reference target(this, node->target(), node->is_compound());
-      if (target.is_illegal()) {
-        // Fool the virtual frame into thinking that we left the assignment's
-        // value on the frame.
-        frame_->Push(Smi::FromInt(0));
-        return;
-      }
-
-      if (node->starts_initialization_block()) {
-        ASSERT(target.type() == Reference::NAMED ||
-               target.type() == Reference::KEYED);
-        // Change to slow case in the beginning of an initialization
-        // block to avoid the quadratic behavior of repeatedly adding
-        // fast properties.
-
-        // The receiver is the argument to the runtime call.  It is the
-        // first value pushed when the reference was loaded to the
-        // frame.
-        frame_->PushElementAt(target.size() - 1);
-        Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
-      }
-      if (node->ends_initialization_block()) {
-        // Add an extra copy of the receiver to the frame, so that it can be
-        // converted back to fast case after the assignment.
-        ASSERT(target.type() == Reference::NAMED ||
-               target.type() == Reference::KEYED);
-        if (target.type() == Reference::NAMED) {
-          frame_->Dup();
-          // Dup target receiver on stack.
-        } else {
-          ASSERT(target.type() == Reference::KEYED);
-          Result temp = frame_->Pop();
-          frame_->Dup();
-          frame_->Push(&temp);
-        }
-      }
-      if (node->op() == Token::ASSIGN ||
-          node->op() == Token::INIT_VAR ||
-          node->op() == Token::INIT_CONST) {
-        Load(node->value());
-
-      } else {  // Assignment is a compound assignment.
-        Literal* literal = node->value()->AsLiteral();
-        bool overwrite_value =
-            (node->value()->AsBinaryOperation() != NULL &&
-             node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-        Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
-        // There are two cases where the target is not read in the right hand
-        // side, that are easy to test for: the right hand side is a literal,
-        // or the right hand side is a different variable.  TakeValue
-        // invalidates the target, with an implicit promise that it will be
-        // written to again
-        // before it is read.
-        if (literal != NULL || (right_var != NULL && right_var != var)) {
-          target.TakeValue();
-        } else {
-          target.GetValue();
-        }
-        Load(node->value());
-        BinaryOperation expr(node, node->binary_op(), node->target(),
-                             node->value());
-        GenericBinaryOperation(
-            &expr, overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
-      }
-      if (var != NULL &&
-          var->mode() == Variable::CONST &&
-          node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
-        // Assignment ignored - leave the value on the stack.
-        UnloadReference(&target);
-      } else {
-        CodeForSourcePosition(node->position());
-        if (node->op() == Token::INIT_CONST) {
-          // Dynamic constant initializations must use the function context
-          // and initialize the actual constant declared. Dynamic variable
-          // initializations are simply assignments and use SetValue.
-          target.SetValue(CONST_INIT);
-        } else {
-          target.SetValue(NOT_CONST_INIT);
-        }
-        if (node->ends_initialization_block()) {
-          ASSERT(target.type() == Reference::UNLOADED);
-          // End of initialization block. Revert to fast case.  The
-          // argument to the runtime call is the extra copy of the receiver,
-          // which is below the value of the assignment.
-          // Swap the receiver and the value of the assignment expression.
-          Result lhs = frame_->Pop();
-          Result receiver = frame_->Pop();
-          frame_->Push(&lhs);
-          frame_->Push(&receiver);
-          Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
-        }
-      }
-    }
+    // Invalid left-hand side.
+    Load(node->target());
+    Result result = frame()->CallRuntime(Runtime::kThrowReferenceError, 1);
+    // The runtime call doesn't actually return but the code generator will
+    // still generate code and expects a certain frame height.
+    frame()->Push(&result);
   }
-  // Stack layout:
-  // [tos]   : result
 
   ASSERT(frame()->height() == original_height + 1);
 }
@@ -8097,6 +8103,112 @@ Result CodeGenerator::EmitKeyedLoad() {
 }
 
 
+Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Result result;
+  // Generate inlined version of the keyed store if the code is in a loop
+  // and the key is likely to be a smi.
+  if (loop_nesting() > 0 && key_type->IsLikelySmi()) {
+    Comment cmnt(masm(), "[ Inlined store to keyed Property");
+
+    // Get the receiver, key and value into registers.
+    result = frame()->Pop();
+    Result key = frame()->Pop();
+    Result receiver = frame()->Pop();
+
+    Result tmp = allocator_->Allocate();
+    ASSERT(tmp.is_valid());
+    Result tmp2 = allocator_->Allocate();
+    ASSERT(tmp2.is_valid());
+
+    // Determine whether the value is a constant before putting it in a
+    // register.
+    bool value_is_constant = result.is_constant();
+
+    // Make sure that value, key and receiver are in registers.
+    result.ToRegister();
+    key.ToRegister();
+    receiver.ToRegister();
+
+    DeferredReferenceSetKeyedValue* deferred =
+        new DeferredReferenceSetKeyedValue(result.reg(),
+                                           key.reg(),
+                                           receiver.reg());
+
+    // Check that the receiver is not a smi.
+    __ JumpIfSmi(receiver.reg(), deferred->entry_label());
+
+    // Check that the key is a smi.
+    if (!key.is_smi()) {
+      __ JumpIfNotSmi(key.reg(), deferred->entry_label());
+    } else if (FLAG_debug_code) {
+      __ AbortIfNotSmi(key.reg());
+    }
+
+    // Check that the receiver is a JSArray.
+    __ CmpObjectType(receiver.reg(), JS_ARRAY_TYPE, kScratchRegister);
+    deferred->Branch(not_equal);
+
+    // Check that the key is within bounds.  Both the key and the length of
+    // the JSArray are smis. Use unsigned comparison to handle negative keys.
+    __ SmiCompare(FieldOperand(receiver.reg(), JSArray::kLengthOffset),
+                  key.reg());
+    deferred->Branch(below_equal);
+
+    // Get the elements array from the receiver and check that it is not a
+    // dictionary.
+    __ movq(tmp.reg(),
+            FieldOperand(receiver.reg(), JSArray::kElementsOffset));
+
+    // Check whether it is possible to omit the write barrier. If the elements
+    // array is in new space or the value written is a smi we can safely update
+    // the elements array without write barrier.
+    Label in_new_space;
+    __ InNewSpace(tmp.reg(), tmp2.reg(), equal, &in_new_space);
+    if (!value_is_constant) {
+      __ JumpIfNotSmi(result.reg(), deferred->entry_label());
+    }
+
+    __ bind(&in_new_space);
+    // Bind the deferred code patch site to be able to locate the fixed
+    // array map comparison.  When debugging, we patch this comparison to
+    // always fail so that we will hit the IC call in the deferred code
+    // which will allow the debugger to break for fast case stores.
+    __ bind(deferred->patch_site());
+    // Avoid using __ to ensure the distance from patch_site
+    // to the map address is always the same.
+    masm()->movq(kScratchRegister, Factory::fixed_array_map(),
+               RelocInfo::EMBEDDED_OBJECT);
+    __ cmpq(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
+            kScratchRegister);
+    deferred->Branch(not_equal);
+
+    // Store the value.
+    SmiIndex index =
+        masm()->SmiToIndex(kScratchRegister, key.reg(), kPointerSizeLog2);
+    __ movq(FieldOperand(tmp.reg(),
+                         index.reg,
+                         index.scale,
+                         FixedArray::kHeaderSize),
+            result.reg());
+    __ IncrementCounter(&Counters::keyed_store_inline, 1);
+
+    deferred->BindExit();
+  } else {
+    result = frame()->CallKeyedStoreIC();
+    // Make sure that we do not have a test instruction after the
+    // call.  A test instruction after the call is used to
+    // indicate that we have generated an inline version of the
+    // keyed store.
+    __ nop();
+  }
+  ASSERT(frame()->height() == original_height - 3);
+  return result;
+}
+
+
 #undef __
 #define __ ACCESS_MASM(masm)
 
@@ -8222,14 +8334,13 @@ void Reference::SetValue(InitState init_state) {
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       cgen_->StoreToSlot(slot, init_state);
-      cgen_->UnloadReference(this);
+      set_unloaded();
       break;
     }
 
     case NAMED: {
       Comment cmnt(masm, "[ Store to named Property");
-      cgen_->frame()->Push(GetName());
-      Result answer = cgen_->frame()->CallStoreIC();
+      Result answer = cgen_->EmitNamedStore(GetName(), false);
       cgen_->frame()->Push(&answer);
       set_unloaded();
       break;
@@ -8237,117 +8348,17 @@ void Reference::SetValue(InitState init_state) {
 
     case KEYED: {
       Comment cmnt(masm, "[ Store to keyed Property");
-
-      // Generate inlined version of the keyed store if the code is in
-      // a loop and the key is likely to be a smi.
       Property* property = expression()->AsProperty();
       ASSERT(property != NULL);
-      StaticType* key_smi_analysis = property->key()->type();
 
-      if (cgen_->loop_nesting() > 0 && key_smi_analysis->IsLikelySmi()) {
-        Comment cmnt(masm, "[ Inlined store to keyed Property");
-
-        // Get the receiver, key and value into registers.
-        Result value = cgen_->frame()->Pop();
-        Result key = cgen_->frame()->Pop();
-        Result receiver = cgen_->frame()->Pop();
-
-        Result tmp = cgen_->allocator_->Allocate();
-        ASSERT(tmp.is_valid());
-        Result tmp2 = cgen_->allocator_->Allocate();
-        ASSERT(tmp2.is_valid());
-
-        // Determine whether the value is a constant before putting it
-        // in a register.
-        bool value_is_constant = value.is_constant();
-
-        // Make sure that value, key and receiver are in registers.
-        value.ToRegister();
-        key.ToRegister();
-        receiver.ToRegister();
-
-        DeferredReferenceSetKeyedValue* deferred =
-            new DeferredReferenceSetKeyedValue(value.reg(),
-                                               key.reg(),
-                                               receiver.reg());
-
-        // Check that the receiver is not a smi.
-        __ JumpIfSmi(receiver.reg(), deferred->entry_label());
-
-        // Check that the key is a smi.
-        if (!key.is_smi()) {
-          __ JumpIfNotSmi(key.reg(), deferred->entry_label());
-        } else if (FLAG_debug_code) {
-          __ AbortIfNotSmi(key.reg());
-        }
-
-        // Check that the receiver is a JSArray.
-        __ CmpObjectType(receiver.reg(), JS_ARRAY_TYPE, kScratchRegister);
-        deferred->Branch(not_equal);
-
-        // Check that the key is within bounds.  Both the key and the
-        // length of the JSArray are smis. Use unsigned comparison to handle
-        // negative keys.
-        __ SmiCompare(FieldOperand(receiver.reg(), JSArray::kLengthOffset),
-                      key.reg());
-        deferred->Branch(below_equal);
-
-        // Get the elements array from the receiver and check that it
-        // is a flat array (not a dictionary).
-        __ movq(tmp.reg(),
-                FieldOperand(receiver.reg(), JSObject::kElementsOffset));
-
-        // Check whether it is possible to omit the write barrier. If the
-        // elements array is in new space or the value written is a smi we can
-        // safely update the elements array without write barrier.
-        Label in_new_space;
-        __ InNewSpace(tmp.reg(), tmp2.reg(), equal, &in_new_space);
-        if (!value_is_constant) {
-          __ JumpIfNotSmi(value.reg(), deferred->entry_label());
-        }
-
-        __ bind(&in_new_space);
-        // Bind the deferred code patch site to be able to locate the
-        // fixed array map comparison.  When debugging, we patch this
-        // comparison to always fail so that we will hit the IC call
-        // in the deferred code which will allow the debugger to
-        // break for fast case stores.
-        __ bind(deferred->patch_site());
-        // Avoid using __ to ensure the distance from patch_site
-        // to the map address is always the same.
-        masm->movq(kScratchRegister, Factory::fixed_array_map(),
-                   RelocInfo::EMBEDDED_OBJECT);
-        __ cmpq(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
-                kScratchRegister);
-        deferred->Branch(not_equal);
-
-        // Store the value.
-        SmiIndex index =
-            masm->SmiToIndex(kScratchRegister, key.reg(), kPointerSizeLog2);
-        __ movq(FieldOperand(tmp.reg(),
-                             index.reg,
-                             index.scale,
-                             FixedArray::kHeaderSize),
-                value.reg());
-        __ IncrementCounter(&Counters::keyed_store_inline, 1);
-
-        deferred->BindExit();
-
-        cgen_->frame()->Push(&value);
-      } else {
-        Result answer = cgen_->frame()->CallKeyedStoreIC();
-        // Make sure that we do not have a test instruction after the
-        // call.  A test instruction after the call is used to
-        // indicate that we have generated an inline version of the
-        // keyed store.
-        masm->nop();
-        cgen_->frame()->Push(&answer);
-      }
+      Result answer = cgen_->EmitKeyedStore(property->key()->type());
+      cgen_->frame()->Push(&answer);
       set_unloaded();
       break;
     }
 
-    default:
+    case UNLOADED:
+    case ILLEGAL:
       UNREACHABLE();
   }
 }
