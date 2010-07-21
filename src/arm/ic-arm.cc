@@ -1674,14 +1674,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(r4, Operand(ip));
   __ b(hs, &slow);
   __ mov(r5, Operand(value, ASR, kSmiTagSize));  // Untag the value.
-  {  // Clamp the value to [0..255].
-    Label done;
-    __ tst(r5, Operand(0xFFFFFF00));
-    __ b(eq, &done);
-    __ mov(r5, Operand(0), LeaveCC, mi);  // 0 if negative.
-    __ mov(r5, Operand(255), LeaveCC, pl);  // 255 if positive.
-    __ bind(&done);
-  }
+  __ Usat(r5, 8, Operand(r5));  // Clamp the value to [0..255].
+
   // Get the pointer to the external array. This clobbers elements.
   __ ldr(elements,
          FieldMemOperand(elements, PixelArray::kExternalPointerOffset));
