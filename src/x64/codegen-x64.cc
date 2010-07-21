@@ -5006,15 +5006,149 @@ void CodeGenerator::EmitSlotAssignment(Assignment* node) {
 }
 
 
+void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Comment cmnt(masm(), "[ Named Property Assignment");
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  Property* prop = node->target()->AsProperty();
+  ASSERT(var == NULL || (prop == NULL && var->is_global()));
+
+  // Initialize name and evaluate the receiver sub-expression if necessary. If
+  // the receiver is trivial it is not placed on the stack at this point, but
+  // loaded whenever actually needed.
+  Handle<String> name;
+  bool is_trivial_receiver = false;
+  if (var != NULL) {
+    name = var->name();
+  } else {
+    Literal* lit = prop->key()->AsLiteral();
+    ASSERT_NOT_NULL(lit);
+    name = Handle<String>::cast(lit->handle());
+    // Do not materialize the receiver on the frame if it is trivial.
+    is_trivial_receiver = prop->obj()->IsTrivial();
+    if (!is_trivial_receiver) Load(prop->obj());
+  }
+
+  // Change to slow case in the beginning of an initialization block to
+  // avoid the quadratic behavior of repeatedly adding fast properties.
+  if (node->starts_initialization_block()) {
+    // Initialization block consists of assignments of the form expr.x = ..., so
+    // this will never be an assignment to a variable, so there must be a
+    // receiver object.
+    ASSERT_EQ(NULL, var);
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else {
+      frame()->Dup();
+    }
+    Result ignored = frame()->CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
+  // Change to fast case at the end of an initialization block. To prepare for
+  // that add an extra copy of the receiver to the frame, so that it can be
+  // converted back to fast case after the assignment.
+  if (node->ends_initialization_block() && !is_trivial_receiver) {
+    frame()->Dup();
+  }
+
+  // Stack layout:
+  // [tos]   : receiver (only materialized if non-trivial)
+  // [tos+1] : receiver if at the end of an initialization block
+
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else if (var != NULL) {
+      // The LoadIC stub expects the object in rax.
+      // Freeing rax causes the code generator to load the global into it.
+      frame_->Spill(rax);
+      LoadGlobal();
+    } else {
+      frame()->Dup();
+    }
+    Result value = EmitNamedLoad(name, var != NULL);
+    frame()->Push(&value);
+    Load(node->value());
+
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    // Construct the implicit binary operation.
+    BinaryOperation expr(node, node->binary_op(), node->target(),
+                         node->value());
+    GenericBinaryOperation(&expr,
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+  } else {
+    // For non-compound assignment just load the right-hand side.
+    Load(node->value());
+  }
+
+  // Stack layout:
+  // [tos]   : value
+  // [tos+1] : receiver (only materialized if non-trivial)
+  // [tos+2] : receiver if at the end of an initialization block
+
+  // Perform the assignment.  It is safe to ignore constants here.
+  ASSERT(var == NULL || var->mode() != Variable::CONST);
+  ASSERT_NE(Token::INIT_CONST, node->op());
+  if (is_trivial_receiver) {
+    Result value = frame()->Pop();
+    frame()->Push(prop->obj());
+    frame()->Push(&value);
+  }
+  CodeForSourcePosition(node->position());
+  bool is_contextual = (var != NULL);
+  Result answer = EmitNamedStore(name, is_contextual);
+  frame()->Push(&answer);
+
+  // Stack layout:
+  // [tos]   : result
+  // [tos+1] : receiver if at the end of an initialization block
+
+  if (node->ends_initialization_block()) {
+    ASSERT_EQ(NULL, var);
+    // The argument to the runtime call is the receiver.
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else {
+      // A copy of the receiver is below the value of the assignment.  Swap
+      // the receiver and the value of the assignment expression.
+      Result result = frame()->Pop();
+      Result receiver = frame()->Pop();
+      frame()->Push(&result);
+      frame()->Push(&receiver);
+    }
+    Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+  }
+
+  // Stack layout:
+  // [tos]   : result
+
+  ASSERT_EQ(frame()->height(), original_height + 1);
+}
+
+
 void CodeGenerator::VisitAssignment(Assignment* node) {
 #ifdef DEBUG
   int original_height = frame()->height();
 #endif
   Variable* var = node->target()->AsVariableProxy()->AsVariable();
-  // Property* prop = node->target()->AsProperty();
+  Property* prop = node->target()->AsProperty();
 
   if (var != NULL && !var->is_global()) {
     EmitSlotAssignment(node);
+
+  } else if ((prop != NULL && prop->key()->IsPropertyName()) ||
+             (var != NULL && var->is_global())) {
+    // Properties whose keys are property names and global variables are
+    // treated as named property references.  We do not need to consider
+    // global 'this' because it is not a valid left-hand side.
+    EmitNamedPropertyAssignment(node);
 
   } else {
     Comment cmnt(masm_, "[ Assignment");
@@ -7843,6 +7977,22 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     deferred->BindExit();
   }
   ASSERT(frame()->height() == original_height - 1);
+  return result;
+}
+
+
+Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
+#ifdef DEBUG
+  int expected_height = frame()->height() - (is_contextual ? 1 : 2);
+#endif
+
+  Result result = frame()->CallStoreIC(name, is_contextual);
+  // A test rax instruction following the call signals that the inobject
+  // property case was inlined.  Ensure that there is not a test rax
+  // instruction here.
+  __ nop();
+
+  ASSERT_EQ(expected_height, frame()->height());
   return result;
 }
 

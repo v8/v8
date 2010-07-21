@@ -456,9 +456,14 @@ class CodeGenerator: public AstVisitor {
 
   // Support for compiling assignment expressions.
   void EmitSlotAssignment(Assignment* node);
+  void EmitNamedPropertyAssignment(Assignment* node);
 
   // Receiver is passed on the frame and not consumed.
   Result EmitNamedLoad(Handle<String> name, bool is_contextual);
+
+  // If the store is contextual, value is passed on the frame and consumed.
+  // Otherwise, receiver and value are passed on the frame and consumed.
+  Result EmitNamedStore(Handle<String> name, bool is_contextual);
 
   // Load a property of an object, returning it in a Result.
   // The object and the property name are passed on the stack, and
