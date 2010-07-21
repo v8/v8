@@ -4840,8 +4840,13 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           // Duplicate the object as the IC receiver.
           frame_->Dup();
           Load(property->value());
-          frame_->Push(key);
-          Result ignored = frame_->CallStoreIC();
+          Result dummy = frame_->CallStoreIC(Handle<String>::cast(key), false);
+          // A test eax instruction following the store IC call would
+          // indicate the presence of an inlined version of the
+          // store. Add a nop to indicate that there is no such
+          // inlined version.
+          __ nop();
+          dummy.Unuse();
           break;
         }
         // Fall through
