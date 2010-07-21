@@ -4965,103 +4965,292 @@ void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
 }
 
 
-void CodeGenerator::VisitAssignment(Assignment* node) {
-  Comment cmnt(masm_, "[ Assignment");
+void CodeGenerator::EmitSlotAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Comment cmnt(masm(), "[ Variable Assignment");
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  ASSERT(var != NULL);
+  Slot* slot = var->slot();
+  ASSERT(slot != NULL);
 
-  { Reference target(this, node->target(), node->is_compound());
-    if (target.is_illegal()) {
-      // Fool the virtual frame into thinking that we left the assignment's
-      // value on the frame.
-      frame_->Push(Smi::FromInt(0));
-      return;
-    }
-    Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
+    LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
+    Load(node->value());
 
-    if (node->starts_initialization_block()) {
-      ASSERT(target.type() == Reference::NAMED ||
-             target.type() == Reference::KEYED);
-      // Change to slow case in the beginning of an initialization
-      // block to avoid the quadratic behavior of repeatedly adding
-      // fast properties.
+    // Perform the binary operation.
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    // Construct the implicit binary operation.
+    BinaryOperation expr(node, node->binary_op(), node->target(),
+                         node->value());
+    GenericBinaryOperation(&expr,
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+  } else {
+    // For non-compound assignment just load the right-hand side.
+    Load(node->value());
+  }
 
-      // The receiver is the argument to the runtime call.  It is the
-      // first value pushed when the reference was loaded to the
-      // frame.
-      frame_->PushElementAt(target.size() - 1);
-      Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
-    }
-    if (node->ends_initialization_block()) {
-      // Add an extra copy of the receiver to the frame, so that it can be
-      // converted back to fast case after the assignment.
-      ASSERT(target.type() == Reference::NAMED ||
-             target.type() == Reference::KEYED);
-      if (target.type() == Reference::NAMED) {
-        frame_->Dup();
-        // Dup target receiver on stack.
-      } else {
-        ASSERT(target.type() == Reference::KEYED);
-        Result temp = frame_->Pop();
-        frame_->Dup();
-        frame_->Push(&temp);
-      }
-    }
-    if (node->op() == Token::ASSIGN ||
-        node->op() == Token::INIT_VAR ||
-        node->op() == Token::INIT_CONST) {
-      Load(node->value());
+  // Perform the assignment.
+  if (var->mode() != Variable::CONST || node->op() == Token::INIT_CONST) {
+    CodeForSourcePosition(node->position());
+    StoreToSlot(slot,
+                node->op() == Token::INIT_CONST ? CONST_INIT : NOT_CONST_INIT);
+  }
+  ASSERT(frame()->height() == original_height + 1);
+}
 
-    } else {  // Assignment is a compound assignment.
-      Literal* literal = node->value()->AsLiteral();
-      bool overwrite_value =
-          (node->value()->AsBinaryOperation() != NULL &&
-           node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-      Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
-      // There are two cases where the target is not read in the right hand
-      // side, that are easy to test for: the right hand side is a literal,
-      // or the right hand side is a different variable.  TakeValue invalidates
-      // the target, with an implicit promise that it will be written to again
-      // before it is read.
-      if (literal != NULL || (right_var != NULL && right_var != var)) {
-        target.TakeValue();
-      } else {
-        target.GetValue();
-      }
-      Load(node->value());
-      BinaryOperation expr(node, node->binary_op(), node->target(),
-                           node->value());
-      GenericBinaryOperation(&expr,
-                             overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
-    }
 
-    if (var != NULL &&
-        var->mode() == Variable::CONST &&
-        node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
-      // Assignment ignored - leave the value on the stack.
-      UnloadReference(&target);
+void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Comment cmnt(masm(), "[ Named Property Assignment");
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  Property* prop = node->target()->AsProperty();
+  ASSERT(var == NULL || (prop == NULL && var->is_global()));
+
+  // Initialize name and evaluate the receiver sub-expression if necessary. If
+  // the receiver is trivial it is not placed on the stack at this point, but
+  // loaded whenever actually needed.
+  Handle<String> name;
+  bool is_trivial_receiver = false;
+  if (var != NULL) {
+    name = var->name();
+  } else {
+    Literal* lit = prop->key()->AsLiteral();
+    ASSERT_NOT_NULL(lit);
+    name = Handle<String>::cast(lit->handle());
+    // Do not materialize the receiver on the frame if it is trivial.
+    is_trivial_receiver = prop->obj()->IsTrivial();
+    if (!is_trivial_receiver) Load(prop->obj());
+  }
+
+  // Change to slow case in the beginning of an initialization block to
+  // avoid the quadratic behavior of repeatedly adding fast properties.
+  if (node->starts_initialization_block()) {
+    // Initialization block consists of assignments of the form expr.x = ..., so
+    // this will never be an assignment to a variable, so there must be a
+    // receiver object.
+    ASSERT_EQ(NULL, var);
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
     } else {
-      CodeForSourcePosition(node->position());
-      if (node->op() == Token::INIT_CONST) {
-        // Dynamic constant initializations must use the function context
-        // and initialize the actual constant declared. Dynamic variable
-        // initializations are simply assignments and use SetValue.
-        target.SetValue(CONST_INIT);
-      } else {
-        target.SetValue(NOT_CONST_INIT);
+      frame()->Dup();
+    }
+    Result ignored = frame()->CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
+  // Change to fast case at the end of an initialization block. To prepare for
+  // that add an extra copy of the receiver to the frame, so that it can be
+  // converted back to fast case after the assignment.
+  if (node->ends_initialization_block() && !is_trivial_receiver) {
+    frame()->Dup();
+  }
+
+  // Stack layout:
+  // [tos]   : receiver (only materialized if non-trivial)
+  // [tos+1] : receiver if at the end of an initialization block
+
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else if (var != NULL) {
+      // The LoadIC stub expects the object in rax.
+      // Freeing rax causes the code generator to load the global into it.
+      frame_->Spill(rax);
+      LoadGlobal();
+    } else {
+      frame()->Dup();
+    }
+    Result value = EmitNamedLoad(name, var != NULL);
+    frame()->Push(&value);
+    Load(node->value());
+
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    // Construct the implicit binary operation.
+    BinaryOperation expr(node, node->binary_op(), node->target(),
+                         node->value());
+    GenericBinaryOperation(&expr,
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+  } else {
+    // For non-compound assignment just load the right-hand side.
+    Load(node->value());
+  }
+
+  // Stack layout:
+  // [tos]   : value
+  // [tos+1] : receiver (only materialized if non-trivial)
+  // [tos+2] : receiver if at the end of an initialization block
+
+  // Perform the assignment.  It is safe to ignore constants here.
+  ASSERT(var == NULL || var->mode() != Variable::CONST);
+  ASSERT_NE(Token::INIT_CONST, node->op());
+  if (is_trivial_receiver) {
+    Result value = frame()->Pop();
+    frame()->Push(prop->obj());
+    frame()->Push(&value);
+  }
+  CodeForSourcePosition(node->position());
+  bool is_contextual = (var != NULL);
+  Result answer = EmitNamedStore(name, is_contextual);
+  frame()->Push(&answer);
+
+  // Stack layout:
+  // [tos]   : result
+  // [tos+1] : receiver if at the end of an initialization block
+
+  if (node->ends_initialization_block()) {
+    ASSERT_EQ(NULL, var);
+    // The argument to the runtime call is the receiver.
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else {
+      // A copy of the receiver is below the value of the assignment.  Swap
+      // the receiver and the value of the assignment expression.
+      Result result = frame()->Pop();
+      Result receiver = frame()->Pop();
+      frame()->Push(&result);
+      frame()->Push(&receiver);
+    }
+    Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+  }
+
+  // Stack layout:
+  // [tos]   : result
+
+  ASSERT_EQ(frame()->height(), original_height + 1);
+}
+
+
+void CodeGenerator::VisitAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  Property* prop = node->target()->AsProperty();
+
+  if (var != NULL && !var->is_global()) {
+    EmitSlotAssignment(node);
+
+  } else if ((prop != NULL && prop->key()->IsPropertyName()) ||
+             (var != NULL && var->is_global())) {
+    // Properties whose keys are property names and global variables are
+    // treated as named property references.  We do not need to consider
+    // global 'this' because it is not a valid left-hand side.
+    EmitNamedPropertyAssignment(node);
+
+  } else {
+    Comment cmnt(masm_, "[ Assignment");
+
+    { Reference target(this, node->target(), node->is_compound());
+      if (target.is_illegal()) {
+        // Fool the virtual frame into thinking that we left the assignment's
+        // value on the frame.
+        frame_->Push(Smi::FromInt(0));
+        return;
+      }
+
+      if (node->starts_initialization_block()) {
+        ASSERT(target.type() == Reference::NAMED ||
+               target.type() == Reference::KEYED);
+        // Change to slow case in the beginning of an initialization
+        // block to avoid the quadratic behavior of repeatedly adding
+        // fast properties.
+
+        // The receiver is the argument to the runtime call.  It is the
+        // first value pushed when the reference was loaded to the
+        // frame.
+        frame_->PushElementAt(target.size() - 1);
+        Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
       }
       if (node->ends_initialization_block()) {
-        ASSERT(target.type() == Reference::UNLOADED);
-        // End of initialization block. Revert to fast case.  The
-        // argument to the runtime call is the extra copy of the receiver,
-        // which is below the value of the assignment.
-        // Swap the receiver and the value of the assignment expression.
-        Result lhs = frame_->Pop();
-        Result receiver = frame_->Pop();
-        frame_->Push(&lhs);
-        frame_->Push(&receiver);
-        Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+        // Add an extra copy of the receiver to the frame, so that it can be
+        // converted back to fast case after the assignment.
+        ASSERT(target.type() == Reference::NAMED ||
+               target.type() == Reference::KEYED);
+        if (target.type() == Reference::NAMED) {
+          frame_->Dup();
+          // Dup target receiver on stack.
+        } else {
+          ASSERT(target.type() == Reference::KEYED);
+          Result temp = frame_->Pop();
+          frame_->Dup();
+          frame_->Push(&temp);
+        }
+      }
+      if (node->op() == Token::ASSIGN ||
+          node->op() == Token::INIT_VAR ||
+          node->op() == Token::INIT_CONST) {
+        Load(node->value());
+
+      } else {  // Assignment is a compound assignment.
+        Literal* literal = node->value()->AsLiteral();
+        bool overwrite_value =
+            (node->value()->AsBinaryOperation() != NULL &&
+             node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+        Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
+        // There are two cases where the target is not read in the right hand
+        // side, that are easy to test for: the right hand side is a literal,
+        // or the right hand side is a different variable.  TakeValue
+        // invalidates the target, with an implicit promise that it will be
+        // written to again
+        // before it is read.
+        if (literal != NULL || (right_var != NULL && right_var != var)) {
+          target.TakeValue();
+        } else {
+          target.GetValue();
+        }
+        Load(node->value());
+        BinaryOperation expr(node, node->binary_op(), node->target(),
+                             node->value());
+        GenericBinaryOperation(
+            &expr, overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+      }
+      if (var != NULL &&
+          var->mode() == Variable::CONST &&
+          node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
+        // Assignment ignored - leave the value on the stack.
+        UnloadReference(&target);
+      } else {
+        CodeForSourcePosition(node->position());
+        if (node->op() == Token::INIT_CONST) {
+          // Dynamic constant initializations must use the function context
+          // and initialize the actual constant declared. Dynamic variable
+          // initializations are simply assignments and use SetValue.
+          target.SetValue(CONST_INIT);
+        } else {
+          target.SetValue(NOT_CONST_INIT);
+        }
+        if (node->ends_initialization_block()) {
+          ASSERT(target.type() == Reference::UNLOADED);
+          // End of initialization block. Revert to fast case.  The
+          // argument to the runtime call is the extra copy of the receiver,
+          // which is below the value of the assignment.
+          // Swap the receiver and the value of the assignment expression.
+          Result lhs = frame_->Pop();
+          Result receiver = frame_->Pop();
+          frame_->Push(&lhs);
+          frame_->Push(&receiver);
+          Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+        }
       }
     }
   }
+  // Stack layout:
+  // [tos]   : result
+
+  ASSERT(frame()->height() == original_height + 1);
 }
 
 
@@ -7792,6 +7981,22 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 }
 
 
+Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
+#ifdef DEBUG
+  int expected_height = frame()->height() - (is_contextual ? 1 : 2);
+#endif
+
+  Result result = frame()->CallStoreIC(name, is_contextual);
+  // A test rax instruction following the call signals that the inobject
+  // property case was inlined.  Ensure that there is not a test rax
+  // instruction here.
+  __ nop();
+
+  ASSERT_EQ(expected_height, frame()->height());
+  return result;
+}
+
+
 Result CodeGenerator::EmitKeyedLoad() {
 #ifdef DEBUG
   int original_height = frame()->height();
@@ -10288,12 +10493,6 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&slow);
   }
 
-  // Push arguments below the return address to prepare jump to builtin.
-  __ pop(rcx);
-  __ push(rax);
-  __ push(rdx);
-  __ push(rcx);
-
   // Generate the number comparison code.
   if (include_number_compare_) {
     Label non_number_comparison;
@@ -10309,7 +10508,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ setcc(above, rax);
     __ setcc(below, rcx);
     __ subq(rax, rcx);
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ ret(0);
 
     // If one of the numbers was NaN, then the result is always false.
     // The cc is never not-equal.
@@ -10320,7 +10519,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     } else {
       __ Set(rax, -1);
     }
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ ret(0);
 
     // The number comparison code did not provide a valid result.
     __ bind(&non_number_comparison);
@@ -10335,7 +10534,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // We've already checked for object identity, so if both operands
     // are symbols they aren't equal. Register eax (not rax) already holds a
     // non-zero value, which indicates not equal, so just return.
-    __ ret(2 * kPointerSize);
+    __ ret(0);
   }
 
   __ bind(&check_for_strings);
@@ -10386,14 +10585,12 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&return_unequal);
     // Return non-equal by returning the non-zero object pointer in eax,
     // or return equal if we fell through to here.
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ ret(0);
     __ bind(&not_both_objects);
   }
 
-  // must swap argument order
+  // Push arguments below the return address to prepare jump to builtin.
   __ pop(rcx);
-  __ pop(rdx);
-  __ pop(rax);
   __ push(rdx);
   __ push(rax);
 
@@ -11970,7 +12167,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
 
   // Result is EQUAL.
   __ Move(rax, Smi::FromInt(EQUAL));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 
   Label result_greater;
   __ bind(&result_not_equal);
@@ -11979,12 +12176,12 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
 
   // Result is LESS.
   __ Move(rax, Smi::FromInt(LESS));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 
   // Result is GREATER.
   __ bind(&result_greater);
   __ Move(rax, Smi::FromInt(GREATER));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 }
 
 
@@ -12014,6 +12211,10 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
   // Inline comparison of ascii strings.
   __ IncrementCounter(&Counters::string_compare_native, 1);
+  // Drop arguments from the stack
+  __ pop(rcx);
+  __ addq(rsp, Immediate(2 * kPointerSize));
+  __ push(rcx);
   GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi, r8);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
