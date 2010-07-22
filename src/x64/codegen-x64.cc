@@ -4840,13 +4840,13 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           // Duplicate the object as the IC receiver.
           frame_->Dup();
           Load(property->value());
-          Result dummy = frame_->CallStoreIC(Handle<String>::cast(key), false);
-          // A test eax instruction following the store IC call would
+          Result ignored =
+              frame_->CallStoreIC(Handle<String>::cast(key), false);
+          // A test rax instruction following the store IC call would
           // indicate the presence of an inlined version of the
           // store. Add a nop to indicate that there is no such
           // inlined version.
           __ nop();
-          dummy.Unuse();
           break;
         }
         // Fall through
@@ -7997,11 +7997,100 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
   int expected_height = frame()->height() - (is_contextual ? 1 : 2);
 #endif
 
-  Result result = frame()->CallStoreIC(name, is_contextual);
-  // A test rax instruction following the call signals that the inobject
-  // property case was inlined.  Ensure that there is not a test rax
-  // instruction here.
-  __ nop();
+  Result result;
+  if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
+      result = frame()->CallStoreIC(name, is_contextual);
+      // A test rax instruction following the call signals that the inobject
+      // property case was inlined.  Ensure that there is not a test rax
+      // instruction here.
+      __ nop();
+  } else {
+    // Inline the in-object property case.
+    JumpTarget slow, done;
+    Label patch_site;
+
+    // Get the value and receiver from the stack.
+    Result value = frame()->Pop();
+    value.ToRegister();
+    Result receiver = frame()->Pop();
+    receiver.ToRegister();
+
+    // Allocate result register.
+    result = allocator()->Allocate();
+    ASSERT(result.is_valid() && receiver.is_valid() && value.is_valid());
+
+    // Check that the receiver is a heap object.
+    Condition is_smi = __ CheckSmi(receiver.reg());
+    slow.Branch(is_smi, &value, &receiver);
+
+    // This is the map check instruction that will be patched.
+    // Initially use an invalid map to force a failure. The exact
+    // instruction sequence is important because we use the
+    // kOffsetToStoreInstruction constant for patching. We avoid using
+    // the __ macro for the following two instructions because it
+    // might introduce extra instructions.
+    __ bind(&patch_site);
+    masm()->Move(kScratchRegister, Factory::null_value());
+    masm()->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+                 kScratchRegister);
+    // This branch is always a forwards branch so it's always a fixed size
+    // which allows the assert below to succeed and patching to work.
+    slow.Branch(not_equal, &value, &receiver);
+
+    // The delta from the patch label to the store offset must be
+    // statically known.
+    ASSERT(masm()->SizeOfCodeGeneratedSince(&patch_site) ==
+           StoreIC::kOffsetToStoreInstruction);
+
+    // The initial (invalid) offset has to be large enough to force a 32-bit
+    // instruction encoding to allow patching with an arbitrary offset.  Use
+    // kMaxInt (minus kHeapObjectTag).
+    int offset = kMaxInt;
+    __ movq(FieldOperand(receiver.reg(), offset), value.reg());
+    __ movq(result.reg(), value.reg());
+
+    // Allocate scratch register for write barrier.
+    Result scratch = allocator()->Allocate();
+    ASSERT(scratch.is_valid() &&
+           result.is_valid() &&
+           receiver.is_valid() &&
+           value.is_valid());
+
+    // The write barrier clobbers all input registers, so spill the
+    // receiver and the value.
+    frame_->Spill(receiver.reg());
+    frame_->Spill(value.reg());
+
+    // Update the write barrier. To save instructions in the inlined
+    // version we do not filter smis.
+    Label skip_write_barrier;
+    __ InNewSpace(receiver.reg(), value.reg(), equal, &skip_write_barrier);
+    int delta_to_record_write = masm_->SizeOfCodeGeneratedSince(&patch_site);
+    __ lea(scratch.reg(), Operand(receiver.reg(), offset));
+    __ RecordWriteHelper(receiver.reg(), scratch.reg(), value.reg());
+    if (FLAG_debug_code) {
+      __ movq(receiver.reg(), Immediate(BitCast<int64_t>(kZapValue)));
+      __ movq(value.reg(), Immediate(BitCast<int64_t>(kZapValue)));
+      __ movq(scratch.reg(), Immediate(BitCast<int64_t>(kZapValue)));
+    }
+    __ bind(&skip_write_barrier);
+    value.Unuse();
+    scratch.Unuse();
+    receiver.Unuse();
+    done.Jump(&result);
+
+    slow.Bind(&value, &receiver);
+    frame()->Push(&receiver);
+    frame()->Push(&value);
+    result = frame()->CallStoreIC(name, is_contextual);
+    // Encode the offset to the map check instruction and the offset
+    // to the write barrier store address computation in a test rax
+    // instruction.
+    int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(&patch_site);
+    __ testl(rax,
+             Immediate((delta_to_record_write << 16) | delta_to_patch_site));
+    done.Bind(&result);
+  }
 
   ASSERT_EQ(expected_height, frame()->height());
   return result;
@@ -9603,7 +9692,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ bind(&arg2_is_object);
   __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg2);
-  // Get the untagged integer version of the eax heap number in ecx.
+  // Get the untagged integer version of the rax heap number in rcx.
   IntegerConvert(masm, rcx, rax);
   __ bind(&done);
   __ movl(rax, rdx);
@@ -10059,8 +10148,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movq(rax, FieldOperand(rax, ConsString::kFirstOffset));
   __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
   // String is a cons string with empty second part.
-  // eax: first part of cons string.
-  // ebx: map of first part of cons string.
+  // rax: first part of cons string.
+  // rbx: map of first part of cons string.
   // Is first part a flat two byte string?
   __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
            Immediate(kStringRepresentationMask | kStringEncodingMask));
