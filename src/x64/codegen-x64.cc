@@ -8069,9 +8069,9 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     __ lea(scratch.reg(), Operand(receiver.reg(), offset));
     __ RecordWriteHelper(receiver.reg(), scratch.reg(), value.reg());
     if (FLAG_debug_code) {
-      __ movq(receiver.reg(), Immediate(BitCast<int64_t>(kZapValue)));
-      __ movq(value.reg(), Immediate(BitCast<int64_t>(kZapValue)));
-      __ movq(scratch.reg(), Immediate(BitCast<int64_t>(kZapValue)));
+      __ movq(receiver.reg(), BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+      __ movq(value.reg(), BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+      __ movq(scratch.reg(), BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     }
     __ bind(&skip_write_barrier);
     value.Unuse();
