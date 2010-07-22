@@ -212,23 +212,42 @@ static Handle<Map> ComputeObjectLiteralMap(
     Handle<Context> context,
     Handle<FixedArray> constant_properties,
     bool* is_result_from_cache) {
-  int number_of_properties = constant_properties->length() / 2;
+  int properties_length = constant_properties->length();
+  int number_of_properties = properties_length / 2;
   if (FLAG_canonicalize_object_literal_maps) {
-    // First find prefix of consecutive symbol keys.
+    // Check that there are only symbols and array indices among keys.
     int number_of_symbol_keys = 0;
-    while ((number_of_symbol_keys < number_of_properties) &&
-           (constant_properties->get(number_of_symbol_keys*2)->IsSymbol())) {
-      number_of_symbol_keys++;
+    for (int p = 0; p != properties_length; p += 2) {
+      Object* key = constant_properties->get(p);
+      uint32_t element_index = 0;
+      if (key->IsSymbol()) {
+        number_of_symbol_keys++;
+      } else if (key->ToArrayIndex(&element_index)) {
+        // An index key does not require space in the property backing store.
+        number_of_properties--;
+      } else {
+        // Bail out as a non-symbol non-index key makes caching impossible.
+        // ASSERT to make sure that the if condition after the loop is false.
+        ASSERT(number_of_symbol_keys != number_of_properties);
+        break;
+      }
     }
-    // Based on the number of prefix symbols key we decide whether
-    // to use the map cache in the global context.
+    // If we only have symbols and array indices among keys then we can
+    // use the map cache in the global context.
     const int kMaxKeys = 10;
     if ((number_of_symbol_keys == number_of_properties) &&
         (number_of_symbol_keys < kMaxKeys)) {
       // Create the fixed array with the key.
       Handle<FixedArray> keys = Factory::NewFixedArray(number_of_symbol_keys);
-      for (int i = 0; i < number_of_symbol_keys; i++) {
-        keys->set(i, constant_properties->get(i*2));
+      if (number_of_symbol_keys > 0) {
+        int index = 0;
+        for (int p = 0; p < properties_length; p += 2) {
+          Object* key = constant_properties->get(p);
+          if (key->IsSymbol()) {
+            keys->set(index++, key);
+          }
+        }
+        ASSERT(index == number_of_symbol_keys);
       }
       *is_result_from_cache = true;
       return Factory::ObjectLiteralMapFromCache(context, keys);
