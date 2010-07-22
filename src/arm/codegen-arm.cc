@@ -6207,6 +6207,48 @@ void DeferredReferenceSetKeyedValue::Generate() {
 }
 
 
+class DeferredReferenceSetNamedValue: public DeferredCode {
+ public:
+  DeferredReferenceSetNamedValue(Register value,
+                                 Register receiver,
+                                 Handle<String> name)
+      : value_(value), receiver_(receiver), name_(name) {
+    set_comment("[ DeferredReferenceSetNamedValue");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register value_;
+  Register receiver_;
+  Handle<String> name_;
+};
+
+
+void DeferredReferenceSetNamedValue::Generate() {
+  // Ensure value in r0, receiver in r1 to match store ic calling
+  // convention.
+  ASSERT(value_.is(r0) && receiver_.is(r1));
+  __ mov(r2, Operand(name_));
+
+  // The rest of the instructions in the deferred code must be together.
+  { Assembler::BlockConstPoolScope block_const_pool(masm_);
+    // Call keyed store IC. It has the arguments value, key and receiver in r0,
+    // r1 and r2.
+    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // The call must be followed by a nop instruction to indicate that the
+    // named store has been inlined.
+    __ nop(PROPERTY_ACCESS_INLINED);
+
+    // Block the constant pool for one more instruction after leaving this
+    // constant pool block scope to include the branch instruction ending the
+    // deferred code.
+    __ BlockConstPoolFor(1);
+  }
+}
+
+
 // Consumes the top of stack (the receiver) and pushes the result instead.
 void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
   if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
@@ -6277,11 +6319,61 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 
 void CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 #ifdef DEBUG
-  int expected_height = frame_->height() - (is_contextual ? 1 : 2);
+  int expected_height = frame()->height() - (is_contextual ? 1 : 2);
 #endif
-  frame_->CallStoreIC(name, is_contextual);
 
-  ASSERT_EQ(expected_height, frame_->height());
+  Result result;
+  if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
+    frame()->CallStoreIC(name, is_contextual);
+  } else {
+    // Inline the in-object property case.
+    JumpTarget slow, done;
+
+    // Get the value and receiver from the stack.
+    frame()->PopToR0();
+    Register value = r0;
+    frame()->PopToR1();
+    Register receiver = r1;
+
+    DeferredReferenceSetNamedValue* deferred =
+        new DeferredReferenceSetNamedValue(value, receiver, name);
+
+    // Check that the receiver is a heap object.
+    __ tst(receiver, Operand(kSmiTagMask));
+    deferred->Branch(eq);
+
+    // The following instructions are the part of the inlined
+    // in-object property store code which can be patched. Therefore
+    // the exact number of instructions generated must be fixed, so
+    // the constant pool is blocked while generating this code.
+    { Assembler::BlockConstPoolScope block_const_pool(masm_);
+      Register scratch0 = VirtualFrame::scratch0();
+      Register scratch1 = VirtualFrame::scratch1();
+
+      // Check the map. Initially use an invalid map to force a
+      // failure. The map check will be patched in the runtime system.
+      __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
+
+#ifdef DEBUG
+      Label check_inlined_codesize;
+      masm_->bind(&check_inlined_codesize);
+#endif
+      __ mov(scratch0, Operand(Factory::null_value()));
+      __ cmp(scratch0, scratch1);
+      deferred->Branch(ne);
+
+      int offset = 0;
+      __ str(value, MemOperand(receiver, offset));
+
+      // Update the write barrier.
+      __ RecordWrite(receiver, Operand(offset), scratch0, scratch1);
+      // Make sure that the expected number of instructions are generated.
+      ASSERT_EQ(GetInlinedNamedStoreInstructionsAfterPatch(),
+                masm_->InstructionsGeneratedSince(&check_inlined_codesize));
+    }
+    deferred->BindExit();
+  }
+  ASSERT_EQ(expected_height, frame()->height());
 }
 
 
