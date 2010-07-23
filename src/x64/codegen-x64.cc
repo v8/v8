@@ -1201,40 +1201,44 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 }
 
 
-void CodeGenerator::JumpIfBothSmiUsingTypeInfo(Register left,
-                                               Register right,
-                                               TypeInfo left_info,
-                                               TypeInfo right_info,
+void CodeGenerator::JumpIfBothSmiUsingTypeInfo(Result* left,
+                                               Result* right,
                                                JumpTarget* both_smi) {
+  TypeInfo left_info = left->type_info();
+  TypeInfo right_info = right->type_info();
   if (left_info.IsDouble() || left_info.IsString() ||
       right_info.IsDouble() || right_info.IsString()) {
     // We know that left and right are not both smi.  Don't do any tests.
     return;
   }
 
-  if (left.is(right)) {
+  if (left->reg().is(right->reg())) {
     if (!left_info.IsSmi()) {
-      Condition is_smi = masm()->CheckSmi(left);
+      Condition is_smi = masm()->CheckSmi(left->reg());
       both_smi->Branch(is_smi);
     } else {
-      if (FLAG_debug_code) __ AbortIfNotSmi(left);
+      if (FLAG_debug_code) __ AbortIfNotSmi(left->reg());
+      left->Unuse();
+      right->Unuse();
       both_smi->Jump();
     }
   } else if (!left_info.IsSmi()) {
     if (!right_info.IsSmi()) {
-      Condition is_smi = masm()->CheckBothSmi(left, right);
+      Condition is_smi = masm()->CheckBothSmi(left->reg(), right->reg());
       both_smi->Branch(is_smi);
     } else {
-      Condition is_smi = masm()->CheckSmi(left);
+      Condition is_smi = masm()->CheckSmi(left->reg());
       both_smi->Branch(is_smi);
     }
   } else {
-    if (FLAG_debug_code) __ AbortIfNotSmi(left);
+    if (FLAG_debug_code) __ AbortIfNotSmi(left->reg());
     if (!right_info.IsSmi()) {
-      Condition is_smi = masm()->CheckSmi(right);
+      Condition is_smi = masm()->CheckSmi(right->reg());
       both_smi->Branch(is_smi);
     } else {
-      if (FLAG_debug_code) __ AbortIfNotSmi(right);
+      if (FLAG_debug_code) __ AbortIfNotSmi(right->reg());
+      left->Unuse();
+      right->Unuse();
       both_smi->Jump();
     }
   }
@@ -2283,9 +2287,7 @@ void CodeGenerator::Comparison(AstNode* node,
       Register right_reg = right_side.reg();
 
       // In-line check for comparing two smis.
-      JumpIfBothSmiUsingTypeInfo(left_side.reg(), right_side.reg(),
-                                 left_side.type_info(), right_side.type_info(),
-                                 &is_smi);
+      JumpIfBothSmiUsingTypeInfo(&left_side, &right_side, &is_smi);
 
       if (has_valid_frame()) {
         // Inline the equality check if both operands can't be a NaN. If both

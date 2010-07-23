@@ -524,10 +524,8 @@ class CodeGenerator: public AstVisitor {
   // advantage of TypeInfo to skip unneeded checks.
   // Allocates a temporary register, possibly spilling from the frame,
   // if it needs to check both left and right.
-  void JumpIfBothSmiUsingTypeInfo(Register left,
-                                  Register right,
-                                  TypeInfo left_info,
-                                  TypeInfo right_info,
+  void JumpIfBothSmiUsingTypeInfo(Result* left,
+                                  Result* right,
                                   JumpTarget* both_smi);
 
   // Emits code sequence that jumps to deferred code if the inputs
