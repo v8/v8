@@ -1016,7 +1016,7 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
     // Patch the offset in the add instruction that is part of the
     // write barrier.
     Address add_offset_instr_address =
-        str_property_instr_address + 4 * Assembler::kInstrSize;
+        str_property_instr_address + Assembler::kInstrSize;
     Instr add_offset_instr = Assembler::instr_at(add_offset_instr_address);
     ASSERT(Assembler::IsAddRegisterImmediate(add_offset_instr));
     add_offset_instr = Assembler::SetAddRegisterImmediateOffset(
@@ -1024,7 +1024,7 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
     Assembler::instr_at_put(add_offset_instr_address, add_offset_instr);
 
     // Indicate that code has changed.
-    CPU::FlushICache(str_property_instr_address, 5 * Assembler::kInstrSize);
+    CPU::FlushICache(str_property_instr_address, 2 * Assembler::kInstrSize);
   }
 
   // Patch the map check.

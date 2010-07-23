@@ -827,9 +827,10 @@ void Assembler::addrmod1(Instr instr,
     instr |= x.rs_.code()*B8 | x.shift_op_ | B4 | x.rm_.code();
   }
   emit(instr | rn.code()*B16 | rd.code()*B12);
-  if (rn.is(pc) || x.rm_.is(pc))
+  if (rn.is(pc) || x.rm_.is(pc)) {
     // Block constant pool emission for one instruction after reading pc.
     BlockConstPoolBefore(pc_offset() + kInstrSize);
+  }
 }
 
 
