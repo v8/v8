@@ -6752,24 +6752,23 @@ static Object* Runtime_NewClosure(Arguments args) {
 }
 
 static Object* Runtime_NewObjectFromBound(Arguments args) {
-   HandleScope scope;
-   ASSERT(args.length() == 2);
-   CONVERT_ARG_CHECKED(JSFunction, function, 0);
-   CONVERT_ARG_CHECKED(JSArray, params, 1);
+  HandleScope scope;
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_ARG_CHECKED(JSArray, params, 1);
 
-   FixedArray* fixed = FixedArray::cast(params->elements());
+  FixedArray* fixed = FixedArray::cast(params->elements());
 
-   bool exception = false;
-   Object*** param_data = NewArray<Object**>(fixed->length());
-   for (int i = 0; i < fixed->length();  i++) {
-     Handle<Object> val = Handle<Object>(fixed->get(i));
-     param_data[i] = val.location();
-   }
+  bool exception = false;
+  Object*** param_data = NewArray<Object**>(fixed->length());
+  for (int i = 0; i < fixed->length();  i++) {
+    Handle<Object> val = Handle<Object>(fixed->get(i));
+    param_data[i] = val.location();
+  }
 
-   Handle<Object> result = Execution::New(
-       function, fixed->length(), param_data, &exception);
-   return *result;
-
+  Handle<Object> result = Execution::New(
+      function, fixed->length(), param_data, &exception);
+  return *result;
 }
 
 
