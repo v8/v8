@@ -8103,15 +8103,20 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 
     // Allocate scratch register for write barrier.
     Result scratch = allocator()->Allocate();
-    ASSERT(scratch.is_valid() &&
-           result.is_valid() &&
-           receiver.is_valid() &&
-           value.is_valid());
+    ASSERT(scratch.is_valid());
 
     // The write barrier clobbers all input registers, so spill the
     // receiver and the value.
     frame_->Spill(receiver.reg());
     frame_->Spill(value.reg());
+
+    // If the receiver and the value share a register allocate a new
+    // register for the receiver.
+    if (receiver.reg().is(value.reg())) {
+      receiver = allocator()->Allocate();
+      ASSERT(receiver.is_valid());
+      __ movq(receiver.reg(), value.reg());
+    }
 
     // Update the write barrier. To save instructions in the inlined
     // version we do not filter smis.
