@@ -1201,6 +1201,46 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 }
 
 
+void CodeGenerator::JumpIfBothSmiUsingTypeInfo(Register left,
+                                               Register right,
+                                               TypeInfo left_info,
+                                               TypeInfo right_info,
+                                               JumpTarget* both_smi) {
+  if (left_info.IsDouble() || left_info.IsString() ||
+      right_info.IsDouble() || right_info.IsString()) {
+    // We know that left and right are not both smi.  Don't do any tests.
+    return;
+  }
+
+  if (left.is(right)) {
+    if (!left_info.IsSmi()) {
+      Condition is_smi = masm()->CheckSmi(left);
+      both_smi->Branch(is_smi);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(left);
+      both_smi->Jump();
+    }
+  } else if (!left_info.IsSmi()) {
+    if (!right_info.IsSmi()) {
+      Condition is_smi = masm()->CheckBothSmi(left, right);
+      both_smi->Branch(is_smi);
+    } else {
+      Condition is_smi = masm()->CheckSmi(left);
+      both_smi->Branch(is_smi);
+    }
+  } else {
+    if (FLAG_debug_code) __ AbortIfNotSmi(left);
+    if (!right_info.IsSmi()) {
+      Condition is_smi = masm()->CheckSmi(right);
+      both_smi->Branch(is_smi);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(right);
+      both_smi->Jump();
+    }
+  }
+}
+
+
 void CodeGenerator::JumpIfNotSmiUsingTypeInfo(Register reg,
                                               TypeInfo type,
                                               DeferredCode* deferred) {
@@ -2242,37 +2282,47 @@ void CodeGenerator::Comparison(AstNode* node,
       Register left_reg = left_side.reg();
       Register right_reg = right_side.reg();
 
-      Condition both_smi = masm_->CheckBothSmi(left_reg, right_reg);
-      is_smi.Branch(both_smi);
+      // In-line check for comparing two smis.
+      JumpIfBothSmiUsingTypeInfo(left_side.reg(), right_side.reg(),
+                                 left_side.type_info(), right_side.type_info(),
+                                 &is_smi);
 
-      // Inline the equality check if both operands can't be a NaN. If both
-      // objects are the same they are equal.
-      if (nan_info == kCantBothBeNaN && cc == equal) {
-        __ cmpq(left_side.reg(), right_side.reg());
-        dest->true_target()->Branch(equal);
+      if (has_valid_frame()) {
+        // Inline the equality check if both operands can't be a NaN. If both
+        // objects are the same they are equal.
+        if (nan_info == kCantBothBeNaN && cc == equal) {
+          __ cmpq(left_side.reg(), right_side.reg());
+          dest->true_target()->Branch(equal);
+        }
+
+        // Inlined number comparison:
+        if (inline_number_compare) {
+          GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
+        }
+
+        // End of in-line compare, call out to the compare stub. Don't include
+        // number comparison in the stub if it was inlined.
+        CompareStub stub(cc, strict, nan_info, !inline_number_compare);
+        Result answer = frame_->CallStub(&stub, &left_side, &right_side);
+        __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flags.
+        answer.Unuse();
+        if (is_smi.is_linked()) {
+          dest->true_target()->Branch(cc);
+          dest->false_target()->Jump();
+        } else {
+          dest->Split(cc);
+        }
       }
 
-      // Inlined number comparison:
-      if (inline_number_compare) {
-        GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
+      if (is_smi.is_linked()) {
+        is_smi.Bind();
+        left_side = Result(left_reg);
+        right_side = Result(right_reg);
+        __ SmiCompare(left_side.reg(), right_side.reg());
+        right_side.Unuse();
+        left_side.Unuse();
+        dest->Split(cc);
       }
-
-      // End of in-line compare, call out to the compare stub. Don't include
-      // number comparison in the stub if it was inlined.
-      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
-      Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flags.
-      answer.Unuse();
-      dest->true_target()->Branch(cc);
-      dest->false_target()->Jump();
-
-      is_smi.Bind();
-      left_side = Result(left_reg);
-      right_side = Result(right_reg);
-      __ SmiCompare(left_side.reg(), right_side.reg());
-      right_side.Unuse();
-      left_side.Unuse();
-      dest->Split(cc);
     }
   }
 }

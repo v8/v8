@@ -1445,6 +1445,51 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 }
 
 
+void CodeGenerator::JumpIfBothSmiUsingTypeInfo(Register left,
+                                               Register right,
+                                               TypeInfo left_info,
+                                               TypeInfo right_info,
+                                               JumpTarget* both_smi) {
+  if (left_info.IsDouble() || left_info.IsString() ||
+      right_info.IsDouble() || right_info.IsString()) {
+    // We know that left and right are not both smi.  Don't do any tests.
+    return;
+  }
+
+  if (left.is(right)) {
+    if (!left_info.IsSmi()) {
+      __ test(left, Immediate(kSmiTagMask));
+      both_smi->Branch(zero);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(left);
+      both_smi->Jump();
+    }
+  } else if (!left_info.IsSmi()) {
+    if (!right_info.IsSmi()) {
+      Result temp = allocator_->Allocate();
+      ASSERT(temp.is_valid());
+      __ mov(temp.reg(), left);
+      __ or_(temp.reg(), Operand(right));
+      __ test(temp.reg(), Immediate(kSmiTagMask));
+      temp.Unuse();
+      both_smi->Branch(zero);
+    } else {
+      __ test(left, Immediate(kSmiTagMask));
+      both_smi->Branch(zero);
+    }
+  } else {
+    if (FLAG_debug_code) __ AbortIfNotSmi(left);
+    if (!right_info.IsSmi()) {
+      __ test(right, Immediate(kSmiTagMask));
+      both_smi->Branch(zero);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(right);
+      both_smi->Jump();
+    }
+  }
+}
+
+
 void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
                                                   Register right,
                                                   Register scratch,
@@ -2735,42 +2780,46 @@ void CodeGenerator::Comparison(AstNode* node,
       Register right_reg = right_side.reg();
 
       // In-line check for comparing two smis.
-      Result temp = allocator_->Allocate();
-      ASSERT(temp.is_valid());
-      __ mov(temp.reg(), left_side.reg());
-      __ or_(temp.reg(), Operand(right_side.reg()));
-      __ test(temp.reg(), Immediate(kSmiTagMask));
-      temp.Unuse();
-      is_smi.Branch(zero, taken);
+      JumpIfBothSmiUsingTypeInfo(left_side.reg(), right_side.reg(),
+                                 left_side.type_info(), right_side.type_info(),
+                                 &is_smi);
 
-      // Inline the equality check if both operands can't be a NaN. If both
-      // objects are the same they are equal.
-      if (nan_info == kCantBothBeNaN && cc == equal) {
+      if (has_valid_frame()) {
+        // Inline the equality check if both operands can't be a NaN. If both
+        // objects are the same they are equal.
+        if (nan_info == kCantBothBeNaN && cc == equal) {
+          __ cmp(left_side.reg(), Operand(right_side.reg()));
+          dest->true_target()->Branch(equal);
+        }
+
+        // Inlined number comparison:
+        if (inline_number_compare) {
+          GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
+        }
+
+        // End of in-line compare, call out to the compare stub. Don't include
+        // number comparison in the stub if it was inlined.
+        CompareStub stub(cc, strict, nan_info, !inline_number_compare);
+        Result answer = frame_->CallStub(&stub, &left_side, &right_side);
+        __ test(answer.reg(), Operand(answer.reg()));
+        answer.Unuse();
+        if (is_smi.is_linked()) {
+          dest->true_target()->Branch(cc);
+          dest->false_target()->Jump();
+        } else {
+          dest->Split(cc);
+        }
+      }
+
+      if (is_smi.is_linked()) {
+        is_smi.Bind();
+        left_side = Result(left_reg);
+        right_side = Result(right_reg);
         __ cmp(left_side.reg(), Operand(right_side.reg()));
-        dest->true_target()->Branch(equal);
+        right_side.Unuse();
+        left_side.Unuse();
+        dest->Split(cc);
       }
-
-      // Inlined number comparison:
-      if (inline_number_compare) {
-        GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
-      }
-
-      // End of in-line compare, call out to the compare stub. Don't include
-      // number comparison in the stub if it was inlined.
-      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
-      Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      __ test(answer.reg(), Operand(answer.reg()));
-      answer.Unuse();
-      dest->true_target()->Branch(cc);
-      dest->false_target()->Jump();
-
-      is_smi.Bind();
-      left_side = Result(left_reg);
-      right_side = Result(right_reg);
-      __ cmp(left_side.reg(), Operand(right_side.reg()));
-      right_side.Unuse();
-      left_side.Unuse();
-      dest->Split(cc);
     }
   }
 }
