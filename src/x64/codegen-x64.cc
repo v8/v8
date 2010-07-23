@@ -2100,9 +2100,9 @@ void CodeGenerator::Comparison(AstNode* node,
       // side (which is always a symbol).
       if (cc == equal) {
         Label not_a_symbol;
-        ASSERT(kSymbolTag != 0);
+        STATIC_ASSERT(kSymbolTag != 0);
         // Ensure that no non-strings have the symbol bit set.
-        ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+        STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsSymbolMask);
         __ testb(temp.reg(), Immediate(kIsSymbolMask));  // Test the symbol bit.
         __ j(zero, &not_a_symbol);
         // They are symbols, so do identity compare.
@@ -2567,8 +2567,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       // JS_FUNCTION_TYPE is the last instance type and it is right
       // after LAST_JS_OBJECT_TYPE, we do not have to check the upper
       // bound.
-      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-      ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+      STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      STATIC_ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
       __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
       __ j(below, &build_args);
 
@@ -4011,7 +4011,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
     // The next handler address is on top of the frame.  Unlink from
     // the handler list and drop the rest of this handler from the
     // frame.
-    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
     __ movq(kScratchRegister, handler_address);
     frame_->EmitPop(Operand(kScratchRegister, 0));
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
@@ -4044,7 +4044,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
       __ movq(rsp, Operand(kScratchRegister, 0));
       frame_->Forget(frame_->height() - handler_height);
 
-      ASSERT(StackHandlerConstants::kNextOffset == 0);
+      STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
       __ movq(kScratchRegister, handler_address);
       frame_->EmitPop(Operand(kScratchRegister, 0));
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
@@ -4131,7 +4131,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
   // chain and set the state on the frame to FALLING.
   if (has_valid_frame()) {
     // The next handler address is on top of the frame.
-    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
     __ movq(kScratchRegister, handler_address);
     frame_->EmitPop(Operand(kScratchRegister, 0));
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
@@ -4172,7 +4172,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
       frame_->Forget(frame_->height() - handler_height);
 
       // Unlink this handler and drop it from the frame.
-      ASSERT(StackHandlerConstants::kNextOffset == 0);
+      STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
       __ movq(kScratchRegister, handler_address);
       frame_->EmitPop(Operand(kScratchRegister, 0));
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
@@ -6192,7 +6192,7 @@ void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   // RBP value is aligned, so it should be tagged as a smi (without necesarily
   // being padded as a smi, so it should not be treated as a smi.).
-  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   Result rbp_as_smi = allocator_->Allocate();
   ASSERT(rbp_as_smi.is_valid());
   __ movq(rbp_as_smi.reg(), rbp);
@@ -10111,7 +10111,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &runtime);
   // Check that the last match info has space for the capture registers and the
   // additional information. Ensure no overflow in add.
-  ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
+  STATIC_ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
   __ SmiToInteger32(rax, FieldOperand(rbx, FixedArray::kLengthOffset));
   __ addl(rdx, Immediate(RegExpImpl::kLastMatchOverhead));
   __ cmpl(rdx, rax);
@@ -10126,7 +10126,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // First check for flat two byte string.
   __ andb(rbx, Immediate(
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask));
-  ASSERT_EQ(0, kStringTag | kSeqStringTag | kTwoByteStringTag);
+  STATIC_ASSERT((kStringTag | kSeqStringTag | kTwoByteStringTag) == 0);
   __ j(zero, &seq_two_byte_string);
   // Any other flat string must be a flat ascii string.
   __ testb(rbx, Immediate(kIsNotStringMask | kStringRepresentationMask));
@@ -10137,8 +10137,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  ASSERT(kExternalStringTag !=0);
-  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
+  STATIC_ASSERT(kExternalStringTag !=0);
+  STATIC_ASSERT((kConsStringTag & kExternalStringTag) == 0);
   __ testb(rbx, Immediate(kIsNotStringMask | kExternalStringTag));
   __ j(not_zero, &runtime);
   // String is a cons string.
@@ -10153,7 +10153,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Is first part a flat two byte string?
   __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
            Immediate(kStringRepresentationMask | kStringEncodingMask));
-  ASSERT_EQ(0, kSeqStringTag | kTwoByteStringTag);
+  STATIC_ASSERT((kSeqStringTag | kTwoByteStringTag) == 0);
   __ j(zero, &seq_two_byte_string);
   // Any other flat string must be ascii.
   __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
@@ -10390,7 +10390,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
     __ JumpIfSmi(object, &is_smi);
     __ CheckMap(object, Factory::heap_number_map(), not_found, true);
 
-    ASSERT_EQ(8, kDoubleSize);
+    STATIC_ASSERT(8 == kDoubleSize);
     __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
     __ xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset));
     GenerateConvertHashCodeToIndex(masm, scratch, mask);
@@ -10571,13 +10571,13 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // There is no test for undetectability in strict equality.
 
       // If the first object is a JS object, we have done pointer comparison.
-      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
       Label first_non_object;
       __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
       __ j(below, &first_non_object);
       // Return non-zero (eax (not rax) is not zero)
       Label return_not_equal;
-      ASSERT(kHeapObjectTag != 0);
+      STATIC_ASSERT(kHeapObjectTag != 0);
       __ bind(&return_not_equal);
       __ ret(0);
 
@@ -10669,8 +10669,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // At most one is a smi, so we can test for smi by adding the two.
     // A smi plus a heap object has the low bit set, a heap object plus
     // a heap object has the low bit clear.
-    ASSERT_EQ(0, kSmiTag);
-    ASSERT_EQ(static_cast<int64_t>(1), kSmiTagMask);
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagMask == 1);
     __ lea(rcx, Operand(rax, rdx, times_1, 0));
     __ testb(rcx, Immediate(kSmiTagMask));
     __ j(not_zero, &not_both_objects);
@@ -10726,8 +10726,8 @@ void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
   __ movzxbq(scratch,
              FieldOperand(scratch, Map::kInstanceTypeOffset));
   // Ensure that no non-strings have the symbol bit set.
-  ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
-  ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsSymbolMask);
+  STATIC_ASSERT(kSymbolTag != 0);
   __ testb(scratch, Immediate(kIsSymbolMask));
   __ j(zero, label);
 }
@@ -10806,9 +10806,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Check that stack should contain next handler, frame pointer, state and
   // return address in that order.
-  ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset + kPointerSize ==
             StackHandlerConstants::kStateOffset);
-  ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset + kPointerSize ==
             StackHandlerConstants::kPCOffset);
 
   ExternalReference handler_address(Top::k_handler_address);
@@ -10918,7 +10918,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Check for failure result.
   Label failure_returned;
-  ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
+  STATIC_ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
 #ifdef _WIN64
   // If return value is on the stack, pop it to registers.
   if (result_size_ > 1) {
@@ -10944,7 +10944,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   Label retry;
   // If the returned exception is RETRY_AFTER_GC continue at retry label
-  ASSERT(Failure::RETRY_AFTER_GC == 0);
+  STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
   __ testl(rax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
   __ j(zero, &retry);
 
@@ -11014,14 +11014,14 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
   __ xor_(rsi, rsi);
 
   // Restore registers from handler.
-  ASSERT_EQ(StackHandlerConstants::kNextOffset + kPointerSize,
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset + kPointerSize ==
             StackHandlerConstants::kFPOffset);
   __ pop(rbp);  // FP
-  ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset + kPointerSize ==
             StackHandlerConstants::kStateOffset);
   __ pop(rdx);  // State
 
-  ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset + kPointerSize ==
             StackHandlerConstants::kPCOffset);
   __ ret(0);
 }
@@ -11296,7 +11296,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ bind(&is_instance);
   __ xorl(rax, rax);
   // Store bitwise zero in the cache.  This is a Smi in GC terms.
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
   __ ret(2 * kPointerSize);
 
@@ -11401,7 +11401,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ j(above_equal, index_out_of_range_);
 
   // We need special handling for non-flat strings.
-  ASSERT(kSeqStringTag == 0);
+  STATIC_ASSERT(kSeqStringTag == 0);
   __ testb(result_, Immediate(kStringRepresentationMask));
   __ j(zero, &flat_string);
 
@@ -11422,13 +11422,13 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ movq(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
   // If the first cons component is also non-flat, then go to runtime.
-  ASSERT(kSeqStringTag == 0);
+  STATIC_ASSERT(kSeqStringTag == 0);
   __ testb(result_, Immediate(kStringRepresentationMask));
   __ j(not_zero, &call_runtime_);
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
-  ASSERT(kAsciiStringTag != 0);
+  STATIC_ASSERT(kAsciiStringTag != 0);
   __ testb(result_, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string);
 
@@ -11622,7 +11622,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movzxbl(r9, FieldOperand(r9, Map::kInstanceTypeOffset));
 
   // Look at the length of the result of adding the two strings.
-  ASSERT(String::kMaxLength <= Smi::kMaxValue / 2);
+  STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue / 2);
   __ SmiAdd(rbx, rbx, rcx, NULL);
   // Use the runtime system when adding two one character strings, as it
   // contains optimizations for this specific case using the symbol table.
@@ -11654,7 +11654,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ SmiCompare(rbx, Smi::FromInt(String::kMinNonFlatLength));
   __ j(below, &string_add_flat_result);
   // Handle exceptionally long strings in the runtime system.
-  ASSERT((String::kMaxLength & 0x80000000) == 0);
+  STATIC_ASSERT((String::kMaxLength & 0x80000000) == 0);
   __ SmiCompare(rbx, Smi::FromInt(String::kMaxLength));
   __ j(above, &string_add_runtime);
 
@@ -11668,7 +11668,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   Label non_ascii, allocated, ascii_data;
   __ movl(rcx, r8);
   __ and_(rcx, r9);
-  ASSERT(kStringEncodingMask == kAsciiStringTag);
+  STATIC_ASSERT(kStringEncodingMask == kAsciiStringTag);
   __ testl(rcx, Immediate(kAsciiStringTag));
   __ j(zero, &non_ascii);
   __ bind(&ascii_data);
@@ -11693,7 +11693,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ testb(rcx, Immediate(kAsciiDataHintMask));
   __ j(not_zero, &ascii_data);
   __ xor_(r8, r9);
-  ASSERT(kAsciiStringTag != 0 && kAsciiDataHintTag != 0);
+  STATIC_ASSERT(kAsciiStringTag != 0 && kAsciiDataHintTag != 0);
   __ andb(r8, Immediate(kAsciiStringTag | kAsciiDataHintTag));
   __ cmpb(r8, Immediate(kAsciiStringTag | kAsciiDataHintTag));
   __ j(equal, &ascii_data);
@@ -11725,7 +11725,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // r8: instance type of first string
   // r9: instance type of second string
   Label non_ascii_string_add_flat_result;
-  ASSERT(kStringEncodingMask == kAsciiStringTag);
+  STATIC_ASSERT(kStringEncodingMask == kAsciiStringTag);
   __ testl(r8, Immediate(kAsciiStringTag));
   __ j(zero, &non_ascii_string_add_flat_result);
   __ testl(r9, Immediate(kAsciiStringTag));
@@ -11847,7 +11847,7 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
 
   // Make count the number of bytes to copy.
   if (!ascii) {
-    ASSERT_EQ(2, static_cast<int>(sizeof(uc16)));  // NOLINT
+    STATIC_ASSERT(2 == sizeof(uc16));
     __ addl(count, count);
   }
 
@@ -11954,7 +11954,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
     // Load the entry from the symble table.
     Register candidate = scratch;  // Scratch register contains candidate.
-    ASSERT_EQ(1, SymbolTable::kEntrySize);
+    STATIC_ASSERT(SymbolTable::kEntrySize == 1);
     __ movq(candidate,
             FieldOperand(symbol_table,
                          scratch,
@@ -12069,7 +12069,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Make sure first argument is a string.
   __ movq(rax, Operand(rsp, kStringOffset));
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   __ testl(rax, Immediate(kSmiTagMask));
   __ j(zero, &runtime);
   Condition is_string = masm->IsObjectStringType(rax, rbx, rbx);
@@ -12209,7 +12209,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                                         Register scratch4) {
   // Ensure that you can always subtract a string length from a non-negative
   // number (e.g. another length).
-  ASSERT(String::kMaxLength < 0x7fffffff);
+  STATIC_ASSERT(String::kMaxLength < 0x7fffffff);
 
   // Find minimum length and length difference.
   __ movq(scratch1, FieldOperand(left, String::kLengthOffset));
