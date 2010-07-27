@@ -9344,6 +9344,13 @@ static Object* Runtime_SetScriptBreakPoint(Arguments args) {
     }
     Debug::SetBreakPoint(shared, break_point_object_arg, &position);
     position += shared->start_position();
+
+    // The result position may become beyond script source end.
+    // This is expected when the function is toplevel. This may become
+    // a problem later when actual position gets converted into line/column.
+    if (shared->is_toplevel() && position == shared->end_position()) {
+      position = shared->end_position() - 1;
+    }
     return Smi::FromInt(position);
   }
   return  Heap::undefined_value();
