@@ -6757,17 +6757,23 @@ static Object* Runtime_NewObjectFromBound(Arguments args) {
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
   CONVERT_ARG_CHECKED(JSArray, params, 1);
 
+  RUNTIME_ASSERT(params->HasFastElements());
   FixedArray* fixed = FixedArray::cast(params->elements());
 
-  bool exception = false;
-  Object*** param_data = NewArray<Object**>(fixed->length());
-  for (int i = 0; i < fixed->length();  i++) {
+  int fixed_length = Smi::cast(params->length())->value();
+  SmartPointer<Object**> param_data(NewArray<Object**>(fixed_length));
+  for (int i = 0; i < fixed_length; i++) {
     Handle<Object> val = Handle<Object>(fixed->get(i));
     param_data[i] = val.location();
   }
 
+  bool exception = false;
   Handle<Object> result = Execution::New(
-      function, fixed->length(), param_data, &exception);
+      function, fixed_length, *param_data, &exception);
+  if (exception) {
+      return Failure::Exception();
+  }
+  ASSERT(!result.is_null());
   return *result;
 }
 
