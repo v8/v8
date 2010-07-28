@@ -646,6 +646,16 @@ void Map::MapVerify() {
 }
 
 
+void Map::NormalizedMapVerify() {
+  MapVerify();
+  ASSERT(instance_descriptors() == Heap::empty_descriptor_array());
+  ASSERT(code_cache() == Heap::empty_fixed_array());
+  ASSERT(pre_allocated_property_fields() == 0);
+  ASSERT(unused_property_fields() == 0);
+  ASSERT(scavenger() == Heap::GetScavenger(instance_type(), instance_size()));
+}
+
+
 void CodeCache::CodeCachePrint() {
   HeapObject::PrintHeader("CodeCache");
   PrintF("\n - default_cache: ");
@@ -1356,6 +1366,21 @@ void JSFunctionResultCache::JSFunctionResultCacheVerify() {
     for (int i = size; i < length(); i++) {
       ASSERT(get(i)->IsTheHole());
       get(i)->Verify();
+    }
+  }
+}
+
+
+void NormalizedMapCache::NormalizedMapCacheVerify() {
+  FixedArray::cast(this)->Verify();
+  if (FLAG_enable_slow_asserts) {
+    for (int i = 0; i < length(); i++) {
+      Object* e = get(i);
+      if (e->IsMap()) {
+        Map::cast(e)->NormalizedMapVerify();
+      } else {
+        ASSERT(e->IsUndefined());
+      }
     }
   }
 }

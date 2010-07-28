@@ -2114,6 +2114,81 @@ PropertyAttributes JSObject::GetLocalPropertyAttribute(String* name) {
 }
 
 
+Object* NormalizedMapCache::Get(Map* fast, PropertyNormalizationMode mode) {
+  int index = Hash(fast) % kEntries;
+  Object* obj = get(index);
+
+  if (obj->IsMap() && CheckHit(Map::cast(obj), fast, mode)) {
+#ifdef DEBUG
+    if (FLAG_enable_slow_asserts) {
+      // The cached map should match freshly created normalized map bit-by-bit.
+      Object* fresh = fast->CopyNormalized(mode);
+      if (!fresh->IsFailure()) {
+        // Copy the unused byte so that the assertion below works.
+        Map::cast(fresh)->address()[Map::kUnusedOffset] =
+            Map::cast(obj)->address()[Map::kUnusedOffset];
+        ASSERT(memcmp(Map::cast(fresh)->address(),
+                      Map::cast(obj)->address(),
+                      Map::kSize) == 0);
+      }
+    }
+#endif
+    return obj;
+  }
+
+  obj = fast->CopyNormalized(mode);
+  if (obj->IsFailure()) return obj;
+  set(index, obj);
+  Counters::normalized_maps.Increment();
+
+  return obj;
+}
+
+
+void NormalizedMapCache::Clear() {
+  int entries = length();
+  for (int i = 0; i != entries; i++) {
+    set_undefined(i);
+  }
+}
+
+
+int NormalizedMapCache::Hash(Map* fast) {
+  // For performance reasons we only hash the 3 most variable fields of a map:
+  // constructor, prototype and bit_field2.
+
+  // Shift away the tag.
+  int hash = (static_cast<uint32_t>(
+        reinterpret_cast<uintptr_t>(fast->constructor())) >> 2);
+
+  // XOR-ing the prototype and constructor directly yields too many zero bits
+  // when the two pointers are close (which is fairly common).
+  // To avoid this we shift the prototype 4 bits relatively to the constructor.
+  hash ^= (static_cast<uint32_t>(
+        reinterpret_cast<uintptr_t>(fast->prototype())) << 2);
+
+  return hash ^ (hash >> 16) ^ fast->bit_field2();
+}
+
+
+bool NormalizedMapCache::CheckHit(Map* slow,
+                                  Map* fast,
+                                  PropertyNormalizationMode mode) {
+#ifdef DEBUG
+  slow->NormalizedMapVerify();
+#endif
+  return
+    slow->constructor() == fast->constructor() &&
+    slow->prototype() == fast->prototype() &&
+    slow->inobject_properties() == ((mode == CLEAR_INOBJECT_PROPERTIES) ?
+                                    0 :
+                                    fast->inobject_properties()) &&
+    slow->instance_type() == fast->instance_type() &&
+    slow->bit_field() == fast->bit_field() &&
+    slow->bit_field2() == fast->bit_field2();
+}
+
+
 Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
                                       int expected_additional_properties) {
   if (!HasFastProperties()) return this;
@@ -2178,29 +2253,22 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   int index = map()->instance_descriptors()->NextEnumerationIndex();
   dictionary->SetNextEnumerationIndex(index);
 
-  // Allocate new map.
-  obj = map()->CopyDropDescriptors();
+  obj = Top::context()->global_context()->
+      normalized_map_cache()->Get(map(), mode);
   if (obj->IsFailure()) return obj;
   Map* new_map = Map::cast(obj);
 
-  // Clear inobject properties if needed by adjusting the instance size and
-  // putting in a filler object instead of the inobject properties.
-  if (mode == CLEAR_INOBJECT_PROPERTIES && map()->inobject_properties() > 0) {
-    int instance_size_delta = map()->inobject_properties() * kPointerSize;
-    int new_instance_size = map()->instance_size() - instance_size_delta;
-    new_map->set_inobject_properties(0);
-    new_map->set_instance_size(new_instance_size);
-    new_map->set_scavenger(Heap::GetScavenger(new_map->instance_type(),
-                                              new_map->instance_size()));
-    Heap::CreateFillerObjectAt(this->address() + new_instance_size,
-                               instance_size_delta);
-  }
-  new_map->set_unused_property_fields(0);
-
   // We have now successfully allocated all the necessary objects.
   // Changes can now be made with the guarantee that all of them take effect.
+
+  // Resize the object in the heap if necessary.
+  int new_instance_size = new_map->instance_size();
+  int instance_size_delta = map()->instance_size() - new_instance_size;
+  ASSERT(instance_size_delta >= 0);
+  Heap::CreateFillerObjectAt(this->address() + new_instance_size,
+                             instance_size_delta);
+
   set_map(new_map);
-  map()->set_instance_descriptors(Heap::empty_descriptor_array());
 
   set_properties(dictionary);
 
@@ -3092,6 +3160,33 @@ Object* Map::CopyDropDescriptors() {
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
   Map::cast(result)->ClearCodeCache();
+  return result;
+}
+
+
+Object* Map::CopyNormalized(PropertyNormalizationMode mode) {
+  int new_instance_size = instance_size();
+  if (mode == CLEAR_INOBJECT_PROPERTIES) {
+    new_instance_size -= inobject_properties() * kPointerSize;
+  }
+
+  Object* result = Heap::AllocateMap(instance_type(), new_instance_size);
+  if (result->IsFailure()) return result;
+
+  if (mode != CLEAR_INOBJECT_PROPERTIES) {
+    Map::cast(result)->set_inobject_properties(inobject_properties());
+  }
+
+  Map::cast(result)->set_prototype(prototype());
+  Map::cast(result)->set_constructor(constructor());
+
+  Map::cast(result)->set_bit_field(bit_field());
+  Map::cast(result)->set_bit_field2(bit_field2());
+
+#ifdef DEBUG
+  Map::cast(result)->NormalizedMapVerify();
+#endif
+
   return result;
 }
 
