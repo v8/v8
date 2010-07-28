@@ -10890,7 +10890,48 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 
 
 void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
-  UNREACHABLE();
+  Label empty_result;
+  Label prologue;
+  Label promote_scheduled_exception;
+  __ EnterApiExitFrame(ExitFrame::MODE_NORMAL, kStackSpace, 0);
+  ASSERT_EQ(kArgc, 4);
+#ifdef _WIN64
+  // All the parameters should be set up by a caller.
+#else
+  // Set 1st parameter register with property name.
+  __ movq(rsi, rdx);
+  // Second parameter register rdi should be set with pointer to AccessorInfo
+  // by a caller.
+#endif
+  // Call the api function!
+  __ movq(rax,
+          reinterpret_cast<int64_t>(fun()->address()),
+          RelocInfo::RUNTIME_ENTRY);
+  __ call(rax);
+  // Check if the function scheduled an exception.
+  ExternalReference scheduled_exception_address =
+      ExternalReference::scheduled_exception_address();
+  __ movq(rsi, scheduled_exception_address);
+  __ Cmp(Operand(rsi, 0), Factory::the_hole_value());
+  __ j(not_equal, &promote_scheduled_exception);
+#ifdef _WIN64
+  // rax keeps a pointer to v8::Handle, unpack it.
+  __ movq(rax, Operand(rax, 0));
+#endif
+  // Check if the result handle holds 0.
+  __ testq(rax, rax);
+  __ j(zero, &empty_result);
+  // It was non-zero.  Dereference to get the result value.
+  __ movq(rax, Operand(rax, 0));
+  __ bind(&prologue);
+  __ LeaveExitFrame(ExitFrame::MODE_NORMAL);
+  __ ret(0);
+  __ bind(&promote_scheduled_exception);
+  __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  __ bind(&empty_result);
+  // It was zero; the result is undefined.
+  __ Move(rax, Factory::undefined_value());
+  __ jmp(&prologue);
 }
 
 
