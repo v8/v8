@@ -9243,6 +9243,17 @@ static Object* Runtime_GetThreadDetails(Arguments args) {
 }
 
 
+// Sets the disable break state
+// args[0]: disable break state
+static Object* Runtime_SetDisableBreak(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  CONVERT_BOOLEAN_CHECKED(disable_break, args[0]);
+  Debug::set_disable_break(disable_break);
+  return  Heap::undefined_value();
+}
+
+
 static Object* Runtime_GetBreakLocations(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);

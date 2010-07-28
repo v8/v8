@@ -906,8 +906,6 @@ class EnterDebugger BASE_EMBEDDED {
 // Stack allocated class for disabling break.
 class DisableBreak BASE_EMBEDDED {
  public:
-  // Enter the debugger by storing the previous top context and setting the
-  // current top context to the debugger context.
   explicit DisableBreak(bool disable_break)  {
     prev_disable_break_ = Debug::disable_break();
     Debug::set_disable_break(disable_break);
