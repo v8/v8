@@ -170,7 +170,7 @@ void BreakLocationIterator::Next() {
       // Set the positions to the end of the function.
       if (debug_info_->shared()->HasSourceCode()) {
         position_ = debug_info_->shared()->end_position() -
-                    debug_info_->shared()->start_position();
+                    debug_info_->shared()->start_position() - 1;
       } else {
         position_ = 0;
       }
