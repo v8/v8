@@ -2115,10 +2115,6 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
   var result_description = Debug.LiveEdit.SetScriptSource(the_script,
       new_source, preview_only, change_log);
   response.body = {change_log: change_log, result: result_description};
-  
-  if (!preview_only && !this.running_ && result_description.stack_modified) {
-    response.body.stepin_recommended = true;
-  }
 };
 
 
