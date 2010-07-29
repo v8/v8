@@ -265,10 +265,9 @@ void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
 //   -- context
 //   -- frame base
 void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  // Temporary disabled for failing test investigation.
-  //ExternalReference restarter_frame_function_slot =
-  //    ExternalReference(Debug_Address::RestarterFrameFunctionPointer());
-  //__ mov(Operand::StaticVariable(restarter_frame_function_slot), Immediate(0));
+  ExternalReference restarter_frame_function_slot =
+      ExternalReference(Debug_Address::RestarterFrameFunctionPointer());
+  __ mov(Operand::StaticVariable(restarter_frame_function_slot), Immediate(0));
 
   // We do not know our frame height, but set esp based on ebp.
   __ lea(esp, Operand(ebp, -4 * kPointerSize));
