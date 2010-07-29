@@ -1787,7 +1787,9 @@ void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
   thread_local_.frame_drop_mode_ = mode;
   thread_local_.break_frame_id_ = new_break_frame_id;
   thread_local_.restarter_frame_function_pointer_ =
-      restarter_frame_function_pointer;
+  // Temporary disabled for failing test investigation.
+  //    restarter_frame_function_pointer;
+      NULL;
 }
 
 
