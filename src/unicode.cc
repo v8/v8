@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// This file was generated at 2010-07-29 14:28:54.987073
+// This file was generated at 2010-07-30 14:07:24.988557
 
 #include "unicode-inl.h"
 #include <stdlib.h>
@@ -34,7 +34,7 @@
 namespace unibrow {
 
 static const int kStartBit = (1 << 30);
-static const int kChunkBits = (1 << 15);
+static const int kChunkBits = (1 << 13);
 
 /**
  * \file
@@ -102,7 +102,6 @@ static bool LookupPredicate(const int32_t* table, uint16_t size, uchar chr) {
 
 template <int kW>
 struct MultiCharacterSpecialCase {
-  uint16_t length;
   uchar chars[kW];
 };
 
@@ -114,7 +113,10 @@ struct MultiCharacterSpecialCase {
 // if the allow_caching_ptr is non-null then false will be stored in
 // it if the result contains multiple characters or depends on the
 // context.
-template <int kW>
+// If ranges are linear, a match between a start and end point is
+// offset by the distance between the match and the start. Otherwise
+// the result is the same as for the start point on the entire range.
+template <bool ranges_are_linear, int kW>
 static int LookupMapping(const int32_t* table,
                          uint16_t size,
                          const MultiCharacterSpecialCase<kW>* multi_chars,
@@ -123,7 +125,8 @@ static int LookupMapping(const int32_t* table,
                          uchar* result,
                          bool* allow_caching_ptr) {
   static const int kEntryDist = 2;
-  uint16_t value = chr & (kChunkBits - 1);
+  uint16_t key = chr & (kChunkBits - 1);
+  uint16_t chunk_start = chr - key;
   unsigned int low = 0;
   unsigned int high = size - 1;
   while (high != low) {
@@ -131,14 +134,14 @@ static int LookupMapping(const int32_t* table,
     uchar current_value = GetEntry(TableGet<kEntryDist>(table, mid));
     // If we've found an entry less than or equal to this one, and the next one
     // is not also less than this one, we've arrived.
-    if ((current_value <= value) &&
+    if ((current_value <= key) &&
         (mid + 1 == size ||
-         GetEntry(TableGet<kEntryDist>(table, mid + 1)) > value)) {
+         GetEntry(TableGet<kEntryDist>(table, mid + 1)) > key)) {
       low = mid;
       break;
-    } else if (current_value < value) {
+    } else if (current_value < key) {
       low = mid + 1;
-    } else if (current_value > value) {
+    } else if (current_value > key) {
       // If we've just checked the bottom-most value and it's not
       // the one we're looking for, we're done.
       if (mid == 0) break;
@@ -148,7 +151,7 @@ static int LookupMapping(const int32_t* table,
   int32_t field = TableGet<kEntryDist>(table, low);
   uchar entry = GetEntry(field);
   bool is_start = IsStart(field);
-  bool found = (entry == value) || (entry < value && is_start);
+  bool found = (entry == key) || (entry < key && is_start);
   if (found) {
     int32_t value = table[2 * low + 1];
     if (value == 0) {
@@ -156,15 +159,27 @@ static int LookupMapping(const int32_t* table,
       return 0;
     } else if ((value & 3) == 0) {
       // Low bits 0 means a constant offset from the given character.
-      result[0] = chr + (value >> 2);
+      if (ranges_are_linear) {
+        result[0] = chr + (value >> 2);
+      } else {
+        result[0] = entry + chunk_start + (value >> 2);
+      }
       return 1;
     } else if ((value & 3) == 1) {
       // Low bits 1 means a special case mapping
       if (allow_caching_ptr) *allow_caching_ptr = false;
       const MultiCharacterSpecialCase<kW>& mapping = multi_chars[value >> 2];
-      for (int i = 0; i < mapping.length; i++)
-        result[i] = mapping.chars[i];
-      return mapping.length;
+      int length = 0;
+      for (length = 0; length < kW; length++) {
+        uchar mapped = mapping.chars[length];
+        if (mapped == static_cast<uchar>(-1)) break;
+        if (ranges_are_linear) {
+          result[length] = mapped + (key - entry);
+        } else {
+          result[length] = mapped;
+        }
+      }
+      return length;
     } else {
       // Low bits 2 means a really really special case
       if (allow_caching_ptr) *allow_caching_ptr = false;
@@ -330,8 +345,8 @@ void CharacterStream::Seek(unsigned position) {
 
 // Uppercase:            point.category == 'Lu'
 
-static const uint16_t kUppercaseTable0Size = 509;
-static const int32_t kUppercaseTable0[509] = {
+static const uint16_t kUppercaseTable0Size = 430;
+static const int32_t kUppercaseTable0[430] = {
   1073741889, 90, 1073742016, 214, 1073742040, 222, 256, 258,  // NOLINT
   260, 262, 264, 266, 268, 270, 272, 274,  // NOLINT
   276, 278, 280, 282, 284, 286, 288, 290,  // NOLINT
@@ -385,22 +400,24 @@ static const int32_t kUppercaseTable0[509] = {
   7922, 7924, 7926, 7928, 1073749768, 7951, 1073749784, 7965,  // NOLINT
   1073749800, 7983, 1073749816, 7999, 1073749832, 8013, 8025, 8027,  // NOLINT
   8029, 8031, 1073749864, 8047, 1073749944, 8123, 1073749960, 8139,  // NOLINT
-  1073749976, 8155, 1073749992, 8172, 1073750008, 8187, 8450, 8455,  // NOLINT
-  1073750283, 8461, 1073750288, 8466, 8469, 1073750297, 8477, 8484,  // NOLINT
-  8486, 8488, 1073750314, 8493, 1073750320, 8499, 1073750334, 8511,  // NOLINT
-  8517, 8579, 1073753088, 11310, 11360, 1073753186, 11364, 11367,  // NOLINT
-  11369, 11371, 11381, 11392, 11394, 11396, 11398, 11400,  // NOLINT
-  11402, 11404, 11406, 11408, 11410, 11412, 11414, 11416,  // NOLINT
-  11418, 11420, 11422, 11424, 11426, 11428, 11430, 11432,  // NOLINT
-  11434, 11436, 11438, 11440, 11442, 11444, 11446, 11448,  // NOLINT
-  11450, 11452, 11454, 11456, 11458, 11460, 11462, 11464,  // NOLINT
-  11466, 11468, 11470, 11472, 11474, 11476, 11478, 11480,  // NOLINT
-  11482, 11484, 11486, 11488, 11490 };  // NOLINT
-static const uint16_t kUppercaseTable1Size = 2;
-static const int32_t kUppercaseTable1[2] = {
-  1073774369, 32570 };  // NOLINT
+  1073749976, 8155, 1073749992, 8172, 1073750008, 8187 };  // NOLINT
+static const uint16_t kUppercaseTable1Size = 79;
+static const int32_t kUppercaseTable1[79] = {
+  258, 263, 1073742091, 269, 1073742096, 274, 277, 1073742105,  // NOLINT
+  285, 292, 294, 296, 1073742122, 301, 1073742128, 307,  // NOLINT
+  1073742142, 319, 325, 387, 1073744896, 3118, 3168, 1073744994,  // NOLINT
+  3172, 3175, 3177, 3179, 3189, 3200, 3202, 3204,  // NOLINT
+  3206, 3208, 3210, 3212, 3214, 3216, 3218, 3220,  // NOLINT
+  3222, 3224, 3226, 3228, 3230, 3232, 3234, 3236,  // NOLINT
+  3238, 3240, 3242, 3244, 3246, 3248, 3250, 3252,  // NOLINT
+  3254, 3256, 3258, 3260, 3262, 3264, 3266, 3268,  // NOLINT
+  3270, 3272, 3274, 3276, 3278, 3280, 3282, 3284,  // NOLINT
+  3286, 3288, 3290, 3292, 3294, 3296, 3298 };  // NOLINT
+static const uint16_t kUppercaseTable7Size = 2;
+static const int32_t kUppercaseTable7[2] = {
+  1073749793, 7994 };  // NOLINT
 bool Uppercase::Is(uchar c) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
     case 0: return LookupPredicate(kUppercaseTable0,
                                        kUppercaseTable0Size,
@@ -408,14 +425,17 @@ bool Uppercase::Is(uchar c) {
     case 1: return LookupPredicate(kUppercaseTable1,
                                        kUppercaseTable1Size,
                                        c);
+    case 7: return LookupPredicate(kUppercaseTable7,
+                                       kUppercaseTable7Size,
+                                       c);
     default: return false;
   }
 }
 
 // Lowercase:            point.category == 'Ll'
 
-static const uint16_t kLowercaseTable0Size = 528;
-static const int32_t kLowercaseTable0[528] = {
+static const uint16_t kLowercaseTable0Size = 449;
+static const int32_t kLowercaseTable0[449] = {
   1073741921, 122, 170, 181, 186, 1073742047, 246, 1073742072,  // NOLINT
   255, 257, 259, 261, 263, 265, 267, 269,  // NOLINT
   271, 273, 275, 277, 279, 281, 283, 285,  // NOLINT
@@ -472,21 +492,24 @@ static const int32_t kLowercaseTable0[528] = {
   1073749888, 8071, 1073749904, 8087, 1073749920, 8103, 1073749936, 8116,  // NOLINT
   1073749942, 8119, 8126, 1073749954, 8132, 1073749958, 8135, 1073749968,  // NOLINT
   8147, 1073749974, 8151, 1073749984, 8167, 1073750002, 8180, 1073750006,  // NOLINT
-  8183, 8305, 8319, 8458, 1073750286, 8463, 8467, 8495,  // NOLINT
-  8500, 8505, 1073750332, 8509, 1073750342, 8521, 8526, 8580,  // NOLINT
-  1073753136, 11358, 11361, 1073753189, 11366, 11368, 11370, 11372,  // NOLINT
-  11380, 1073753206, 11383, 11393, 11395, 11397, 11399, 11401,  // NOLINT
-  11403, 11405, 11407, 11409, 11411, 11413, 11415, 11417,  // NOLINT
-  11419, 11421, 11423, 11425, 11427, 11429, 11431, 11433,  // NOLINT
-  11435, 11437, 11439, 11441, 11443, 11445, 11447, 11449,  // NOLINT
-  11451, 11453, 11455, 11457, 11459, 11461, 11463, 11465,  // NOLINT
-  11467, 11469, 11471, 11473, 11475, 11477, 11479, 11481,  // NOLINT
-  11483, 11485, 11487, 11489, 1073753315, 11492, 1073753344, 11557 };  // NOLINT
-static const uint16_t kLowercaseTable1Size = 6;
-static const int32_t kLowercaseTable1[6] = {
-  1073773312, 31494, 1073773331, 31511, 1073774401, 32602 };  // NOLINT
+  8183 };  // NOLINT
+static const uint16_t kLowercaseTable1Size = 79;
+static const int32_t kLowercaseTable1[79] = {
+  113, 127, 266, 1073742094, 271, 275, 303, 308,  // NOLINT
+  313, 1073742140, 317, 1073742150, 329, 334, 388, 1073744944,  // NOLINT
+  3166, 3169, 1073744997, 3174, 3176, 3178, 3180, 3188,  // NOLINT
+  1073745014, 3191, 3201, 3203, 3205, 3207, 3209, 3211,  // NOLINT
+  3213, 3215, 3217, 3219, 3221, 3223, 3225, 3227,  // NOLINT
+  3229, 3231, 3233, 3235, 3237, 3239, 3241, 3243,  // NOLINT
+  3245, 3247, 3249, 3251, 3253, 3255, 3257, 3259,  // NOLINT
+  3261, 3263, 3265, 3267, 3269, 3271, 3273, 3275,  // NOLINT
+  3277, 3279, 3281, 3283, 3285, 3287, 3289, 3291,  // NOLINT
+  3293, 3295, 3297, 1073745123, 3300, 1073745152, 3365 };  // NOLINT
+static const uint16_t kLowercaseTable7Size = 6;
+static const int32_t kLowercaseTable7[6] = {
+  1073748736, 6918, 1073748755, 6935, 1073749825, 8026 };  // NOLINT
 bool Lowercase::Is(uchar c) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
     case 0: return LookupPredicate(kLowercaseTable0,
                                        kLowercaseTable0Size,
@@ -494,14 +517,17 @@ bool Lowercase::Is(uchar c) {
     case 1: return LookupPredicate(kLowercaseTable1,
                                        kLowercaseTable1Size,
                                        c);
+    case 7: return LookupPredicate(kLowercaseTable7,
+                                       kLowercaseTable7Size,
+                                       c);
     default: return false;
   }
 }
 
 // Letter:               point.category in ['Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Nl' ]
 
-static const uint16_t kLetterTable0Size = 480;
-static const int32_t kLetterTable0[480] = {
+static const uint16_t kLetterTable0Size = 394;
+static const int32_t kLetterTable0[394] = {
   1073741889, 90, 1073741921, 122, 170, 181, 186, 1073742016,  // NOLINT
   214, 1073742040, 246, 1073742072, 705, 1073742534, 721, 1073742560,  // NOLINT
   740, 750, 1073742714, 893, 902, 1073742728, 906, 908,  // NOLINT
@@ -551,30 +577,47 @@ static const int32_t kLetterTable0[480] = {
   1073749840, 8023, 8025, 8027, 8029, 1073749855, 8061, 1073749888,  // NOLINT
   8116, 1073749942, 8124, 8126, 1073749954, 8132, 1073749958, 8140,  // NOLINT
   1073749968, 8147, 1073749974, 8155, 1073749984, 8172, 1073750002, 8180,  // NOLINT
-  1073750006, 8188, 8305, 8319, 1073750160, 8340, 8450, 8455,  // NOLINT
-  1073750282, 8467, 8469, 1073750297, 8477, 8484, 8486, 8488,  // NOLINT
-  1073750314, 8493, 1073750319, 8505, 1073750332, 8511, 1073750341, 8521,  // NOLINT
-  8526, 1073750368, 8580, 1073753088, 11310, 1073753136, 11358, 1073753184,  // NOLINT
-  11372, 1073753204, 11383, 1073753216, 11492, 1073753344, 11557, 1073753392,  // NOLINT
-  11621, 11631, 1073753472, 11670, 1073753504, 11686, 1073753512, 11694,  // NOLINT
-  1073753520, 11702, 1073753528, 11710, 1073753536, 11718, 1073753544, 11726,  // NOLINT
-  1073753552, 11734, 1073753560, 11742, 1073754117, 12295, 1073754145, 12329,  // NOLINT
-  1073754161, 12341, 1073754168, 12348, 1073754177, 12438, 1073754269, 12447,  // NOLINT
-  1073754273, 12538, 1073754364, 12543, 1073754373, 12588, 1073754417, 12686,  // NOLINT
-  1073754528, 12727, 1073754608, 12799, 1073755136, 19893, 1073761792, 32767 };  // NOLINT
-static const uint16_t kLetterTable1Size = 68;
-static const int32_t kLetterTable1[68] = {
-  1073741824, 8123, 1073750016, 9356, 1073751831, 10010, 1073752064, 10241,  // NOLINT
-  1073752067, 10245, 1073752071, 10250, 1073752076, 10274, 1073752128, 10355,  // NOLINT
-  1073753088, 22435, 1073772800, 31277, 1073773104, 31338, 1073773168, 31449,  // NOLINT
-  1073773312, 31494, 1073773331, 31511, 31517, 1073773343, 31528, 1073773354,  // NOLINT
-  31542, 1073773368, 31548, 31550, 1073773376, 31553, 1073773379, 31556,  // NOLINT
-  1073773382, 31665, 1073773523, 32061, 1073773904, 32143, 1073773970, 32199,  // NOLINT
-  1073774064, 32251, 1073774192, 32372, 1073774198, 32508, 1073774369, 32570,  // NOLINT
-  1073774401, 32602, 1073774438, 32702, 1073774530, 32711, 1073774538, 32719,  // NOLINT
-  1073774546, 32727, 1073774554, 32732 };  // NOLINT
+  1073750006, 8188 };  // NOLINT
+static const uint16_t kLetterTable1Size = 84;
+static const int32_t kLetterTable1[84] = {
+  113, 127, 1073741968, 148, 258, 263, 1073742090, 275,  // NOLINT
+  277, 1073742105, 285, 292, 294, 296, 1073742122, 301,  // NOLINT
+  1073742127, 313, 1073742140, 319, 1073742149, 329, 334, 1073742176,  // NOLINT
+  388, 1073744896, 3118, 1073744944, 3166, 1073744992, 3180, 1073745012,  // NOLINT
+  3191, 1073745024, 3300, 1073745152, 3365, 1073745200, 3429, 3439,  // NOLINT
+  1073745280, 3478, 1073745312, 3494, 1073745320, 3502, 1073745328, 3510,  // NOLINT
+  1073745336, 3518, 1073745344, 3526, 1073745352, 3534, 1073745360, 3542,  // NOLINT
+  1073745368, 3550, 1073745925, 4103, 1073745953, 4137, 1073745969, 4149,  // NOLINT
+  1073745976, 4156, 1073745985, 4246, 1073746077, 4255, 1073746081, 4346,  // NOLINT
+  1073746172, 4351, 1073746181, 4396, 1073746225, 4494, 1073746336, 4535,  // NOLINT
+  1073746416, 4607, 1073746944, 8191 };  // NOLINT
+static const uint16_t kLetterTable2Size = 4;
+static const int32_t kLetterTable2[4] = {
+  1073741824, 3509, 1073745408, 8191 };  // NOLINT
+static const uint16_t kLetterTable3Size = 2;
+static const int32_t kLetterTable3[2] = {
+  1073741824, 8191 };  // NOLINT
+static const uint16_t kLetterTable4Size = 2;
+static const int32_t kLetterTable4[2] = {
+  1073741824, 8123 };  // NOLINT
+static const uint16_t kLetterTable5Size = 16;
+static const int32_t kLetterTable5[16] = {
+  1073741824, 1164, 1073743639, 1818, 1073743872, 2049, 1073743875, 2053,  // NOLINT
+  1073743879, 2058, 1073743884, 2082, 1073743936, 2163, 1073744896, 8191 };  // NOLINT
+static const uint16_t kLetterTable6Size = 2;
+static const int32_t kLetterTable6[2] = {
+  1073741824, 6051 };  // NOLINT
+static const uint16_t kLetterTable7Size = 50;
+static const int32_t kLetterTable7[50] = {
+  1073748224, 6701, 1073748528, 6762, 1073748592, 6873, 1073748736, 6918,  // NOLINT
+  1073748755, 6935, 6941, 1073748767, 6952, 1073748778, 6966, 1073748792,  // NOLINT
+  6972, 6974, 1073748800, 6977, 1073748803, 6980, 1073748806, 7089,  // NOLINT
+  1073748947, 7485, 1073749328, 7567, 1073749394, 7623, 1073749488, 7675,  // NOLINT
+  1073749616, 7796, 1073749622, 7932, 1073749793, 7994, 1073749825, 8026,  // NOLINT
+  1073749862, 8126, 1073749954, 8135, 1073749962, 8143, 1073749970, 8151,  // NOLINT
+  1073749978, 8156 };  // NOLINT
 bool Letter::Is(uchar c) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
     case 0: return LookupPredicate(kLetterTable0,
                                        kLetterTable0Size,
@@ -582,21 +625,44 @@ bool Letter::Is(uchar c) {
     case 1: return LookupPredicate(kLetterTable1,
                                        kLetterTable1Size,
                                        c);
+    case 2: return LookupPredicate(kLetterTable2,
+                                       kLetterTable2Size,
+                                       c);
+    case 3: return LookupPredicate(kLetterTable3,
+                                       kLetterTable3Size,
+                                       c);
+    case 4: return LookupPredicate(kLetterTable4,
+                                       kLetterTable4Size,
+                                       c);
+    case 5: return LookupPredicate(kLetterTable5,
+                                       kLetterTable5Size,
+                                       c);
+    case 6: return LookupPredicate(kLetterTable6,
+                                       kLetterTable6Size,
+                                       c);
+    case 7: return LookupPredicate(kLetterTable7,
+                                       kLetterTable7Size,
+                                       c);
     default: return false;
   }
 }
 
 // Space:                point.category == 'Zs'
 
-static const uint16_t kSpaceTable0Size = 9;
-static const int32_t kSpaceTable0[9] = {
-  32, 160, 5760, 6158, 1073750016, 8202, 8239, 8287,  // NOLINT
-  12288 };  // NOLINT
+static const uint16_t kSpaceTable0Size = 4;
+static const int32_t kSpaceTable0[4] = {
+  32, 160, 5760, 6158 };  // NOLINT
+static const uint16_t kSpaceTable1Size = 5;
+static const int32_t kSpaceTable1[5] = {
+  1073741824, 10, 47, 95, 4096 };  // NOLINT
 bool Space::Is(uchar c) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
     case 0: return LookupPredicate(kSpaceTable0,
                                        kSpaceTable0Size,
+                                       c);
+    case 1: return LookupPredicate(kSpaceTable1,
+                                       kSpaceTable1Size,
                                        c);
     default: return false;
   }
@@ -612,17 +678,17 @@ static const int32_t kNumberTable0[44] = {
   1073745254, 3439, 1073745488, 3673, 1073745616, 3801, 1073745696, 3881,  // NOLINT
   1073745984, 4169, 1073747936, 6121, 1073747984, 6169, 1073748294, 6479,  // NOLINT
   1073748432, 6617, 1073748816, 7001 };  // NOLINT
-static const uint16_t kNumberTable1Size = 2;
-static const int32_t kNumberTable1[2] = {
-  1073774352, 32537 };  // NOLINT
+static const uint16_t kNumberTable7Size = 2;
+static const int32_t kNumberTable7[2] = {
+  1073749776, 7961 };  // NOLINT
 bool Number::Is(uchar c) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
     case 0: return LookupPredicate(kNumberTable0,
                                        kNumberTable0Size,
                                        c);
-    case 1: return LookupPredicate(kNumberTable1,
-                                       kNumberTable1Size,
+    case 7: return LookupPredicate(kNumberTable7,
+                                       kNumberTable7Size,
                                        c);
     default: return false;
   }
@@ -630,15 +696,20 @@ bool Number::Is(uchar c) {
 
 // WhiteSpace:           'Ws' in point.properties
 
-static const uint16_t kWhiteSpaceTable0Size = 14;
-static const int32_t kWhiteSpaceTable0[14] = {
-  1073741833, 13, 32, 133, 160, 5760, 6158, 1073750016,  // NOLINT
-  8202, 1073750056, 8233, 8239, 8287, 12288 };  // NOLINT
+static const uint16_t kWhiteSpaceTable0Size = 7;
+static const int32_t kWhiteSpaceTable0[7] = {
+  1073741833, 13, 32, 133, 160, 5760, 6158 };  // NOLINT
+static const uint16_t kWhiteSpaceTable1Size = 7;
+static const int32_t kWhiteSpaceTable1[7] = {
+  1073741824, 10, 1073741864, 41, 47, 95, 4096 };  // NOLINT
 bool WhiteSpace::Is(uchar c) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
     case 0: return LookupPredicate(kWhiteSpaceTable0,
                                        kWhiteSpaceTable0Size,
+                                       c);
+    case 1: return LookupPredicate(kWhiteSpaceTable1,
+                                       kWhiteSpaceTable1Size,
                                        c);
     default: return false;
   }
@@ -646,14 +717,20 @@ bool WhiteSpace::Is(uchar c) {
 
 // LineTerminator:       'Lt' in point.properties
 
-static const uint16_t kLineTerminatorTable0Size = 4;
-static const int32_t kLineTerminatorTable0[4] = {
-  10, 13, 1073750056, 8233 };  // NOLINT
+static const uint16_t kLineTerminatorTable0Size = 2;
+static const int32_t kLineTerminatorTable0[2] = {
+  10, 13 };  // NOLINT
+static const uint16_t kLineTerminatorTable1Size = 2;
+static const int32_t kLineTerminatorTable1[2] = {
+  1073741864, 41 };  // NOLINT
 bool LineTerminator::Is(uchar c) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
     case 0: return LookupPredicate(kLineTerminatorTable0,
                                        kLineTerminatorTable0Size,
+                                       c);
+    case 1: return LookupPredicate(kLineTerminatorTable1,
+                                       kLineTerminatorTable1Size,
                                        c);
     default: return false;
   }
@@ -661,8 +738,8 @@ bool LineTerminator::Is(uchar c) {
 
 // CombiningMark:        point.category in ['Mn', 'Mc']
 
-static const uint16_t kCombiningMarkTable0Size = 214;
-static const int32_t kCombiningMarkTable0[214] = {
+static const uint16_t kCombiningMarkTable0Size = 205;
+static const int32_t kCombiningMarkTable0[205] = {
   1073742592, 879, 1073742979, 1158, 1073743249, 1469, 1471, 1073743297,  // NOLINT
   1474, 1073743300, 1477, 1479, 1073743376, 1557, 1073743435, 1630,  // NOLINT
   1648, 1073743574, 1756, 1073743583, 1764, 1073743591, 1768, 1073743594,  // NOLINT
@@ -688,14 +765,19 @@ static const int32_t kCombiningMarkTable0[214] = {
   5971, 1073747826, 6003, 1073747894, 6099, 6109, 1073747979, 6157,  // NOLINT
   6313, 1073748256, 6443, 1073748272, 6459, 1073748400, 6592, 1073748424,  // NOLINT
   6601, 1073748503, 6683, 1073748736, 6916, 1073748788, 6980, 1073748843,  // NOLINT
-  7027, 1073749440, 7626, 1073749502, 7679, 1073750224, 8412, 8417,  // NOLINT
-  1073750245, 8431, 1073754154, 12335, 1073754265, 12442 };  // NOLINT
-static const uint16_t kCombiningMarkTable1Size = 10;
-static const int32_t kCombiningMarkTable1[10] = {
-  10242, 10246, 10251, 1073752099, 10279, 31518, 1073774080, 32271,  // NOLINT
-  1073774112, 32291 };  // NOLINT
+  7027, 1073749440, 7626, 1073749502, 7679 };  // NOLINT
+static const uint16_t kCombiningMarkTable1Size = 9;
+static const int32_t kCombiningMarkTable1[9] = {
+  1073742032, 220, 225, 1073742053, 239, 1073745962, 4143, 1073746073,  // NOLINT
+  4250 };  // NOLINT
+static const uint16_t kCombiningMarkTable5Size = 5;
+static const int32_t kCombiningMarkTable5[5] = {
+  2050, 2054, 2059, 1073743907, 2087 };  // NOLINT
+static const uint16_t kCombiningMarkTable7Size = 5;
+static const int32_t kCombiningMarkTable7[5] = {
+  6942, 1073749504, 7695, 1073749536, 7715 };  // NOLINT
 bool CombiningMark::Is(uchar c) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
     case 0: return LookupPredicate(kCombiningMarkTable0,
                                        kCombiningMarkTable0Size,
@@ -703,20 +785,29 @@ bool CombiningMark::Is(uchar c) {
     case 1: return LookupPredicate(kCombiningMarkTable1,
                                        kCombiningMarkTable1Size,
                                        c);
+    case 5: return LookupPredicate(kCombiningMarkTable5,
+                                       kCombiningMarkTable5Size,
+                                       c);
+    case 7: return LookupPredicate(kCombiningMarkTable7,
+                                       kCombiningMarkTable7Size,
+                                       c);
     default: return false;
   }
 }
 
 // ConnectorPunctuation: point.category == 'Pc'
 
-static const uint16_t kConnectorPunctuationTable0Size = 4;
-static const int32_t kConnectorPunctuationTable0[4] = {
-  95, 1073750079, 8256, 8276 };  // NOLINT
-static const uint16_t kConnectorPunctuationTable1Size = 5;
-static const int32_t kConnectorPunctuationTable1[5] = {
-  1073774131, 32308, 1073774157, 32335, 32575 };  // NOLINT
+static const uint16_t kConnectorPunctuationTable0Size = 1;
+static const int32_t kConnectorPunctuationTable0[1] = {
+  95 };  // NOLINT
+static const uint16_t kConnectorPunctuationTable1Size = 3;
+static const int32_t kConnectorPunctuationTable1[3] = {
+  1073741887, 64, 84 };  // NOLINT
+static const uint16_t kConnectorPunctuationTable7Size = 5;
+static const int32_t kConnectorPunctuationTable7[5] = {
+  1073749555, 7732, 1073749581, 7759, 7999 };  // NOLINT
 bool ConnectorPunctuation::Is(uchar c) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
     case 0: return LookupPredicate(kConnectorPunctuationTable0,
                                        kConnectorPunctuationTable0Size,
@@ -724,14 +815,17 @@ bool ConnectorPunctuation::Is(uchar c) {
     case 1: return LookupPredicate(kConnectorPunctuationTable1,
                                        kConnectorPunctuationTable1Size,
                                        c);
+    case 7: return LookupPredicate(kConnectorPunctuationTable7,
+                                       kConnectorPunctuationTable7Size,
+                                       c);
     default: return false;
   }
 }
 
-static const MultiCharacterSpecialCase<3> kToLowercaseMultiStrings0[] = {  // NOLINT
-  {2, {105, 775}}, {0, {0}} }; // NOLINT
-static const uint16_t kToLowercaseTable0Size = 531;
-static const int32_t kToLowercaseTable0[1062] = {
+static const MultiCharacterSpecialCase<2> kToLowercaseMultiStrings0[2] = {  // NOLINT
+  {{105, 775}}, {{-1}} }; // NOLINT
+static const uint16_t kToLowercaseTable0Size = 463;  // NOLINT
+static const int32_t kToLowercaseTable0[926] = {
   1073741889, 128, 90, 128, 1073742016, 128, 214, 128, 1073742040, 128, 222, 128, 256, 4, 258, 4,  // NOLINT
   260, 4, 262, 4, 264, 4, 266, 4, 268, 4, 270, 4, 272, 4, 274, 4,  // NOLINT
   276, 4, 278, 4, 280, 4, 282, 4, 284, 4, 286, 4, 288, 4, 290, 4,  // NOLINT
@@ -755,98 +849,112 @@ static const int32_t kToLowercaseTable0[1062] = {
   558, 4, 560, 4, 562, 4, 570, 43180, 571, 4, 573, -652, 574, 43168, 577, 4,  // NOLINT
   579, -780, 580, 276, 581, 284, 582, 4, 584, 4, 586, 4, 588, 4, 590, 4,  // NOLINT
   902, 152, 1073742728, 148, 906, 148, 908, 256, 1073742734, 252, 911, 252, 1073742737, 128, 929, 128,  // NOLINT
-  1073742755, 6, 939, 128, 984, 4, 986, 4, 988, 4, 990, 4, 992, 4, 994, 4,  // NOLINT
-  996, 4, 998, 4, 1000, 4, 1002, 4, 1004, 4, 1006, 4, 1012, -240, 1015, 4,  // NOLINT
-  1017, -28, 1018, 4, 1073742845, -520, 1023, -520, 1073742848, 320, 1039, 320, 1073742864, 128, 1071, 128,  // NOLINT
-  1120, 4, 1122, 4, 1124, 4, 1126, 4, 1128, 4, 1130, 4, 1132, 4, 1134, 4,  // NOLINT
-  1136, 4, 1138, 4, 1140, 4, 1142, 4, 1144, 4, 1146, 4, 1148, 4, 1150, 4,  // NOLINT
-  1152, 4, 1162, 4, 1164, 4, 1166, 4, 1168, 4, 1170, 4, 1172, 4, 1174, 4,  // NOLINT
-  1176, 4, 1178, 4, 1180, 4, 1182, 4, 1184, 4, 1186, 4, 1188, 4, 1190, 4,  // NOLINT
-  1192, 4, 1194, 4, 1196, 4, 1198, 4, 1200, 4, 1202, 4, 1204, 4, 1206, 4,  // NOLINT
-  1208, 4, 1210, 4, 1212, 4, 1214, 4, 1216, 60, 1217, 4, 1219, 4, 1221, 4,  // NOLINT
-  1223, 4, 1225, 4, 1227, 4, 1229, 4, 1232, 4, 1234, 4, 1236, 4, 1238, 4,  // NOLINT
-  1240, 4, 1242, 4, 1244, 4, 1246, 4, 1248, 4, 1250, 4, 1252, 4, 1254, 4,  // NOLINT
-  1256, 4, 1258, 4, 1260, 4, 1262, 4, 1264, 4, 1266, 4, 1268, 4, 1270, 4,  // NOLINT
-  1272, 4, 1274, 4, 1276, 4, 1278, 4, 1280, 4, 1282, 4, 1284, 4, 1286, 4,  // NOLINT
-  1288, 4, 1290, 4, 1292, 4, 1294, 4, 1296, 4, 1298, 4, 1073743153, 192, 1366, 192,  // NOLINT
-  1073746080, 29056, 4293, 29056, 7680, 4, 7682, 4, 7684, 4, 7686, 4, 7688, 4, 7690, 4,  // NOLINT
-  7692, 4, 7694, 4, 7696, 4, 7698, 4, 7700, 4, 7702, 4, 7704, 4, 7706, 4,  // NOLINT
-  7708, 4, 7710, 4, 7712, 4, 7714, 4, 7716, 4, 7718, 4, 7720, 4, 7722, 4,  // NOLINT
-  7724, 4, 7726, 4, 7728, 4, 7730, 4, 7732, 4, 7734, 4, 7736, 4, 7738, 4,  // NOLINT
-  7740, 4, 7742, 4, 7744, 4, 7746, 4, 7748, 4, 7750, 4, 7752, 4, 7754, 4,  // NOLINT
-  7756, 4, 7758, 4, 7760, 4, 7762, 4, 7764, 4, 7766, 4, 7768, 4, 7770, 4,  // NOLINT
-  7772, 4, 7774, 4, 7776, 4, 7778, 4, 7780, 4, 7782, 4, 7784, 4, 7786, 4,  // NOLINT
-  7788, 4, 7790, 4, 7792, 4, 7794, 4, 7796, 4, 7798, 4, 7800, 4, 7802, 4,  // NOLINT
-  7804, 4, 7806, 4, 7808, 4, 7810, 4, 7812, 4, 7814, 4, 7816, 4, 7818, 4,  // NOLINT
-  7820, 4, 7822, 4, 7824, 4, 7826, 4, 7828, 4, 7840, 4, 7842, 4, 7844, 4,  // NOLINT
-  7846, 4, 7848, 4, 7850, 4, 7852, 4, 7854, 4, 7856, 4, 7858, 4, 7860, 4,  // NOLINT
-  7862, 4, 7864, 4, 7866, 4, 7868, 4, 7870, 4, 7872, 4, 7874, 4, 7876, 4,  // NOLINT
-  7878, 4, 7880, 4, 7882, 4, 7884, 4, 7886, 4, 7888, 4, 7890, 4, 7892, 4,  // NOLINT
-  7894, 4, 7896, 4, 7898, 4, 7900, 4, 7902, 4, 7904, 4, 7906, 4, 7908, 4,  // NOLINT
-  7910, 4, 7912, 4, 7914, 4, 7916, 4, 7918, 4, 7920, 4, 7922, 4, 7924, 4,  // NOLINT
-  7926, 4, 7928, 4, 1073749768, -32, 7951, -32, 1073749784, -32, 7965, -32, 1073749800, -32, 7983, -32,  // NOLINT
-  1073749816, -32, 7999, -32, 1073749832, -32, 8013, -32, 8025, -32, 8027, -32, 8029, -32, 8031, -32,  // NOLINT
-  1073749864, -32, 8047, -32, 1073749896, -32, 8079, -32, 1073749912, -32, 8095, -32, 1073749928, -32, 8111, -32,  // NOLINT
-  1073749944, -32, 8121, -32, 1073749946, -296, 8123, -296, 8124, -36, 1073749960, -344, 8139, -344, 8140, -36,  // NOLINT
-  1073749976, -32, 8153, -32, 1073749978, -400, 8155, -400, 1073749992, -32, 8169, -32, 1073749994, -448, 8171, -448,  // NOLINT
-  8172, -28, 1073750008, -512, 8185, -512, 1073750010, -504, 8187, -504, 8188, -36, 8486, -30068, 8490, -33532,  // NOLINT
-  8491, -33048, 8498, 112, 1073750368, 64, 8559, 64, 8579, 4, 1073751222, 104, 9423, 104, 1073753088, 192,  // NOLINT
-  11310, 192, 11360, 4, 11362, -42972, 11363, -15256, 11364, -42908, 11367, 4, 11369, 4, 11371, 4,  // NOLINT
-  11381, 4, 11392, 4, 11394, 4, 11396, 4, 11398, 4, 11400, 4, 11402, 4, 11404, 4,  // NOLINT
-  11406, 4, 11408, 4, 11410, 4, 11412, 4, 11414, 4, 11416, 4, 11418, 4, 11420, 4,  // NOLINT
-  11422, 4, 11424, 4, 11426, 4, 11428, 4, 11430, 4, 11432, 4, 11434, 4, 11436, 4,  // NOLINT
-  11438, 4, 11440, 4, 11442, 4, 11444, 4, 11446, 4, 11448, 4, 11450, 4, 11452, 4,  // NOLINT
-  11454, 4, 11456, 4, 11458, 4, 11460, 4, 11462, 4, 11464, 4, 11466, 4, 11468, 4,  // NOLINT
-  11470, 4, 11472, 4, 11474, 4, 11476, 4, 11478, 4, 11480, 4, 11482, 4, 11484, 4,  // NOLINT
-  11486, 4, 11488, 4, 11490, 4 };  // NOLINT
-static const MultiCharacterSpecialCase<3> kToLowercaseMultiStrings1[] = {  // NOLINT
-  {0, {0}} }; // NOLINT
-static const uint16_t kToLowercaseTable1Size = 2;
-static const int32_t kToLowercaseTable1[4] = {
-  1073774369, 128, 32570, 128 };  // NOLINT
+  931, 6, 1073742756, 128, 939, 128, 984, 4, 986, 4, 988, 4, 990, 4, 992, 4,  // NOLINT
+  994, 4, 996, 4, 998, 4, 1000, 4, 1002, 4, 1004, 4, 1006, 4, 1012, -240,  // NOLINT
+  1015, 4, 1017, -28, 1018, 4, 1073742845, -520, 1023, -520, 1073742848, 320, 1039, 320, 1073742864, 128,  // NOLINT
+  1071, 128, 1120, 4, 1122, 4, 1124, 4, 1126, 4, 1128, 4, 1130, 4, 1132, 4,  // NOLINT
+  1134, 4, 1136, 4, 1138, 4, 1140, 4, 1142, 4, 1144, 4, 1146, 4, 1148, 4,  // NOLINT
+  1150, 4, 1152, 4, 1162, 4, 1164, 4, 1166, 4, 1168, 4, 1170, 4, 1172, 4,  // NOLINT
+  1174, 4, 1176, 4, 1178, 4, 1180, 4, 1182, 4, 1184, 4, 1186, 4, 1188, 4,  // NOLINT
+  1190, 4, 1192, 4, 1194, 4, 1196, 4, 1198, 4, 1200, 4, 1202, 4, 1204, 4,  // NOLINT
+  1206, 4, 1208, 4, 1210, 4, 1212, 4, 1214, 4, 1216, 60, 1217, 4, 1219, 4,  // NOLINT
+  1221, 4, 1223, 4, 1225, 4, 1227, 4, 1229, 4, 1232, 4, 1234, 4, 1236, 4,  // NOLINT
+  1238, 4, 1240, 4, 1242, 4, 1244, 4, 1246, 4, 1248, 4, 1250, 4, 1252, 4,  // NOLINT
+  1254, 4, 1256, 4, 1258, 4, 1260, 4, 1262, 4, 1264, 4, 1266, 4, 1268, 4,  // NOLINT
+  1270, 4, 1272, 4, 1274, 4, 1276, 4, 1278, 4, 1280, 4, 1282, 4, 1284, 4,  // NOLINT
+  1286, 4, 1288, 4, 1290, 4, 1292, 4, 1294, 4, 1296, 4, 1298, 4, 1073743153, 192,  // NOLINT
+  1366, 192, 1073746080, 29056, 4293, 29056, 7680, 4, 7682, 4, 7684, 4, 7686, 4, 7688, 4,  // NOLINT
+  7690, 4, 7692, 4, 7694, 4, 7696, 4, 7698, 4, 7700, 4, 7702, 4, 7704, 4,  // NOLINT
+  7706, 4, 7708, 4, 7710, 4, 7712, 4, 7714, 4, 7716, 4, 7718, 4, 7720, 4,  // NOLINT
+  7722, 4, 7724, 4, 7726, 4, 7728, 4, 7730, 4, 7732, 4, 7734, 4, 7736, 4,  // NOLINT
+  7738, 4, 7740, 4, 7742, 4, 7744, 4, 7746, 4, 7748, 4, 7750, 4, 7752, 4,  // NOLINT
+  7754, 4, 7756, 4, 7758, 4, 7760, 4, 7762, 4, 7764, 4, 7766, 4, 7768, 4,  // NOLINT
+  7770, 4, 7772, 4, 7774, 4, 7776, 4, 7778, 4, 7780, 4, 7782, 4, 7784, 4,  // NOLINT
+  7786, 4, 7788, 4, 7790, 4, 7792, 4, 7794, 4, 7796, 4, 7798, 4, 7800, 4,  // NOLINT
+  7802, 4, 7804, 4, 7806, 4, 7808, 4, 7810, 4, 7812, 4, 7814, 4, 7816, 4,  // NOLINT
+  7818, 4, 7820, 4, 7822, 4, 7824, 4, 7826, 4, 7828, 4, 7840, 4, 7842, 4,  // NOLINT
+  7844, 4, 7846, 4, 7848, 4, 7850, 4, 7852, 4, 7854, 4, 7856, 4, 7858, 4,  // NOLINT
+  7860, 4, 7862, 4, 7864, 4, 7866, 4, 7868, 4, 7870, 4, 7872, 4, 7874, 4,  // NOLINT
+  7876, 4, 7878, 4, 7880, 4, 7882, 4, 7884, 4, 7886, 4, 7888, 4, 7890, 4,  // NOLINT
+  7892, 4, 7894, 4, 7896, 4, 7898, 4, 7900, 4, 7902, 4, 7904, 4, 7906, 4,  // NOLINT
+  7908, 4, 7910, 4, 7912, 4, 7914, 4, 7916, 4, 7918, 4, 7920, 4, 7922, 4,  // NOLINT
+  7924, 4, 7926, 4, 7928, 4, 1073749768, -32, 7951, -32, 1073749784, -32, 7965, -32, 1073749800, -32,  // NOLINT
+  7983, -32, 1073749816, -32, 7999, -32, 1073749832, -32, 8013, -32, 8025, -32, 8027, -32, 8029, -32,  // NOLINT
+  8031, -32, 1073749864, -32, 8047, -32, 1073749896, -32, 8079, -32, 1073749912, -32, 8095, -32, 1073749928, -32,  // NOLINT
+  8111, -32, 1073749944, -32, 8121, -32, 1073749946, -296, 8123, -296, 8124, -36, 1073749960, -344, 8139, -344,  // NOLINT
+  8140, -36, 1073749976, -32, 8153, -32, 1073749978, -400, 8155, -400, 1073749992, -32, 8169, -32, 1073749994, -448,  // NOLINT
+  8171, -448, 8172, -28, 1073750008, -512, 8185, -512, 1073750010, -504, 8187, -504, 8188, -36 };  // NOLINT
+static const uint16_t kToLowercaseMultiStrings0Size = 2;  // NOLINT
+static const MultiCharacterSpecialCase<1> kToLowercaseMultiStrings1[1] = {  // NOLINT
+  {{-1}} }; // NOLINT
+static const uint16_t kToLowercaseTable1Size = 69;  // NOLINT
+static const int32_t kToLowercaseTable1[138] = {
+  294, -30068, 298, -33532, 299, -33048, 306, 112, 1073742176, 64, 367, 64, 387, 4, 1073743030, 104,  // NOLINT
+  1231, 104, 1073744896, 192, 3118, 192, 3168, 4, 3170, -42972, 3171, -15256, 3172, -42908, 3175, 4,  // NOLINT
+  3177, 4, 3179, 4, 3189, 4, 3200, 4, 3202, 4, 3204, 4, 3206, 4, 3208, 4,  // NOLINT
+  3210, 4, 3212, 4, 3214, 4, 3216, 4, 3218, 4, 3220, 4, 3222, 4, 3224, 4,  // NOLINT
+  3226, 4, 3228, 4, 3230, 4, 3232, 4, 3234, 4, 3236, 4, 3238, 4, 3240, 4,  // NOLINT
+  3242, 4, 3244, 4, 3246, 4, 3248, 4, 3250, 4, 3252, 4, 3254, 4, 3256, 4,  // NOLINT
+  3258, 4, 3260, 4, 3262, 4, 3264, 4, 3266, 4, 3268, 4, 3270, 4, 3272, 4,  // NOLINT
+  3274, 4, 3276, 4, 3278, 4, 3280, 4, 3282, 4, 3284, 4, 3286, 4, 3288, 4,  // NOLINT
+  3290, 4, 3292, 4, 3294, 4, 3296, 4, 3298, 4 };  // NOLINT
+static const uint16_t kToLowercaseMultiStrings1Size = 1;  // NOLINT
+static const MultiCharacterSpecialCase<1> kToLowercaseMultiStrings7[1] = {  // NOLINT
+  {{-1}} }; // NOLINT
+static const uint16_t kToLowercaseTable7Size = 2;  // NOLINT
+static const int32_t kToLowercaseTable7[4] = {
+  1073749793, 128, 7994, 128 };  // NOLINT
+static const uint16_t kToLowercaseMultiStrings7Size = 1;  // NOLINT
 int ToLowercase::Convert(uchar c,
                       uchar n,
                       uchar* result,
                       bool* allow_caching_ptr) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupMapping(kToLowercaseTable0,
-                                     kToLowercaseTable0Size,
-                                     kToLowercaseMultiStrings0,
-                                     c,
-                                     n,
-                                     result,
-                                     allow_caching_ptr);
-    case 1: return LookupMapping(kToLowercaseTable1,
-                                     kToLowercaseTable1Size,
-                                     kToLowercaseMultiStrings1,
-                                     c,
-                                     n,
-                                     result,
-                                     allow_caching_ptr);
+    case 0: return LookupMapping<true>(kToLowercaseTable0,
+                                           kToLowercaseTable0Size,
+                                           kToLowercaseMultiStrings0,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
+    case 1: return LookupMapping<true>(kToLowercaseTable1,
+                                           kToLowercaseTable1Size,
+                                           kToLowercaseMultiStrings1,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
+    case 7: return LookupMapping<true>(kToLowercaseTable7,
+                                           kToLowercaseTable7Size,
+                                           kToLowercaseMultiStrings7,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
     default: return 0;
   }
 }
 
-static const MultiCharacterSpecialCase<3> kToUppercaseMultiStrings0[] = {  // NOLINT
-  {2, {83, 83}}, {2, {700, 78}}, {2, {74, 780}}, {3, {921, 776, 769}},  // NOLINT
-  {3, {933, 776, 769}}, {2, {1333, 1362}}, {2, {72, 817}}, {2, {84, 776}},  // NOLINT
-  {2, {87, 778}}, {2, {89, 778}}, {2, {65, 702}}, {2, {933, 787}},  // NOLINT
-  {3, {933, 787, 768}}, {3, {933, 787, 769}}, {3, {933, 787, 834}}, {2, {7944, 921}},  // NOLINT
-  {2, {7945, 921}}, {2, {7946, 921}}, {2, {7947, 921}}, {2, {7948, 921}},  // NOLINT
-  {2, {7949, 921}}, {2, {7950, 921}}, {2, {7951, 921}}, {2, {7976, 921}},  // NOLINT
-  {2, {7977, 921}}, {2, {7978, 921}}, {2, {7979, 921}}, {2, {7980, 921}},  // NOLINT
-  {2, {7981, 921}}, {2, {7982, 921}}, {2, {7983, 921}}, {2, {8040, 921}},  // NOLINT
-  {2, {8041, 921}}, {2, {8042, 921}}, {2, {8043, 921}}, {2, {8044, 921}},  // NOLINT
-  {2, {8045, 921}}, {2, {8046, 921}}, {2, {8047, 921}}, {2, {8122, 921}},  // NOLINT
-  {2, {913, 921}}, {2, {902, 921}}, {2, {913, 834}}, {3, {913, 834, 921}},  // NOLINT
-  {2, {8138, 921}}, {2, {919, 921}}, {2, {905, 921}}, {2, {919, 834}},  // NOLINT
-  {3, {919, 834, 921}}, {3, {921, 776, 768}}, {2, {921, 834}}, {3, {921, 776, 834}},  // NOLINT
-  {3, {933, 776, 768}}, {2, {929, 787}}, {2, {933, 834}}, {3, {933, 776, 834}},  // NOLINT
-  {2, {8186, 921}}, {2, {937, 921}}, {2, {911, 921}}, {2, {937, 834}},  // NOLINT
-  {3, {937, 834, 921}}, {0, {0}} }; // NOLINT
-static const uint16_t kToUppercaseTable0Size = 621;
-static const int32_t kToUppercaseTable0[1242] = {
+static const MultiCharacterSpecialCase<3> kToUppercaseMultiStrings0[62] = {  // NOLINT
+  {{83, 83, -1}}, {{700, 78, -1}}, {{74, 780, -1}}, {{921, 776, 769}},  // NOLINT
+  {{933, 776, 769}}, {{1333, 1362, -1}}, {{72, 817, -1}}, {{84, 776, -1}},  // NOLINT
+  {{87, 778, -1}}, {{89, 778, -1}}, {{65, 702, -1}}, {{933, 787, -1}},  // NOLINT
+  {{933, 787, 768}}, {{933, 787, 769}}, {{933, 787, 834}}, {{7944, 921, -1}},  // NOLINT
+  {{7945, 921, -1}}, {{7946, 921, -1}}, {{7947, 921, -1}}, {{7948, 921, -1}},  // NOLINT
+  {{7949, 921, -1}}, {{7950, 921, -1}}, {{7951, 921, -1}}, {{7976, 921, -1}},  // NOLINT
+  {{7977, 921, -1}}, {{7978, 921, -1}}, {{7979, 921, -1}}, {{7980, 921, -1}},  // NOLINT
+  {{7981, 921, -1}}, {{7982, 921, -1}}, {{7983, 921, -1}}, {{8040, 921, -1}},  // NOLINT
+  {{8041, 921, -1}}, {{8042, 921, -1}}, {{8043, 921, -1}}, {{8044, 921, -1}},  // NOLINT
+  {{8045, 921, -1}}, {{8046, 921, -1}}, {{8047, 921, -1}}, {{8122, 921, -1}},  // NOLINT
+  {{913, 921, -1}}, {{902, 921, -1}}, {{913, 834, -1}}, {{913, 834, 921}},  // NOLINT
+  {{8138, 921, -1}}, {{919, 921, -1}}, {{905, 921, -1}}, {{919, 834, -1}},  // NOLINT
+  {{919, 834, 921}}, {{921, 776, 768}}, {{921, 834, -1}}, {{921, 776, 834}},  // NOLINT
+  {{933, 776, 768}}, {{929, 787, -1}}, {{933, 834, -1}}, {{933, 776, 834}},  // NOLINT
+  {{8186, 921, -1}}, {{937, 921, -1}}, {{911, 921, -1}}, {{937, 834, -1}},  // NOLINT
+  {{937, 834, 921}}, {{-1}} }; // NOLINT
+static const uint16_t kToUppercaseTable0Size = 554;  // NOLINT
+static const int32_t kToUppercaseTable0[1108] = {
   1073741921, -128, 122, -128, 181, 2972, 223, 1, 1073742048, -128, 246, -128, 1073742072, -128, 254, -128,  // NOLINT
   255, 484, 257, -4, 259, -4, 261, -4, 263, -4, 265, -4, 267, -4, 269, -4,  // NOLINT
   271, -4, 273, -4, 275, -4, 277, -4, 279, -4, 281, -4, 283, -4, 285, -4,  // NOLINT
@@ -916,51 +1024,66 @@ static const int32_t kToUppercaseTable0[1242] = {
   8130, 177, 8131, 181, 8132, 185, 8134, 189, 8135, 193, 8140, 181, 1073749968, 32, 8145, 32,  // NOLINT
   8146, 197, 8147, 13, 8150, 201, 8151, 205, 1073749984, 32, 8161, 32, 8162, 209, 8163, 17,  // NOLINT
   8164, 213, 8165, 28, 8166, 217, 8167, 221, 8178, 225, 8179, 229, 8180, 233, 8182, 237,  // NOLINT
-  8183, 241, 8188, 229, 8526, -112, 1073750384, -64, 8575, -64, 8580, -4, 1073751248, -104, 9449, -104,  // NOLINT
-  1073753136, -192, 11358, -192, 11361, -4, 11365, -43180, 11366, -43168, 11368, -4, 11370, -4, 11372, -4,  // NOLINT
-  11382, -4, 11393, -4, 11395, -4, 11397, -4, 11399, -4, 11401, -4, 11403, -4, 11405, -4,  // NOLINT
-  11407, -4, 11409, -4, 11411, -4, 11413, -4, 11415, -4, 11417, -4, 11419, -4, 11421, -4,  // NOLINT
-  11423, -4, 11425, -4, 11427, -4, 11429, -4, 11431, -4, 11433, -4, 11435, -4, 11437, -4,  // NOLINT
-  11439, -4, 11441, -4, 11443, -4, 11445, -4, 11447, -4, 11449, -4, 11451, -4, 11453, -4,  // NOLINT
-  11455, -4, 11457, -4, 11459, -4, 11461, -4, 11463, -4, 11465, -4, 11467, -4, 11469, -4,  // NOLINT
-  11471, -4, 11473, -4, 11475, -4, 11477, -4, 11479, -4, 11481, -4, 11483, -4, 11485, -4,  // NOLINT
-  11487, -4, 11489, -4, 11491, -4, 1073753344, -29056, 11557, -29056 };  // NOLINT
-static const MultiCharacterSpecialCase<3> kToUppercaseMultiStrings1[] = {  // NOLINT
-  {2, {70, 70}}, {2, {70, 73}}, {2, {70, 76}}, {3, {70, 70, 73}},  // NOLINT
-  {3, {70, 70, 76}}, {2, {83, 84}}, {2, {1348, 1350}}, {2, {1348, 1333}},  // NOLINT
-  {2, {1348, 1339}}, {2, {1358, 1350}}, {2, {1348, 1341}}, {0, {0}} }; // NOLINT
-static const uint16_t kToUppercaseTable1Size = 14;
-static const int32_t kToUppercaseTable1[28] = {
-  31488, 1, 31489, 5, 31490, 9, 31491, 13, 31492, 17, 31493, 21, 31494, 21, 31507, 25,  // NOLINT
-  31508, 29, 31509, 33, 31510, 37, 31511, 41, 1073774401, -128, 32602, -128 };  // NOLINT
+  8183, 241, 8188, 229 };  // NOLINT
+static const uint16_t kToUppercaseMultiStrings0Size = 62;  // NOLINT
+static const MultiCharacterSpecialCase<1> kToUppercaseMultiStrings1[1] = {  // NOLINT
+  {{-1}} }; // NOLINT
+static const uint16_t kToUppercaseTable1Size = 67;  // NOLINT
+static const int32_t kToUppercaseTable1[134] = {
+  334, -112, 1073742192, -64, 383, -64, 388, -4, 1073743056, -104, 1257, -104, 1073744944, -192, 3166, -192,  // NOLINT
+  3169, -4, 3173, -43180, 3174, -43168, 3176, -4, 3178, -4, 3180, -4, 3190, -4, 3201, -4,  // NOLINT
+  3203, -4, 3205, -4, 3207, -4, 3209, -4, 3211, -4, 3213, -4, 3215, -4, 3217, -4,  // NOLINT
+  3219, -4, 3221, -4, 3223, -4, 3225, -4, 3227, -4, 3229, -4, 3231, -4, 3233, -4,  // NOLINT
+  3235, -4, 3237, -4, 3239, -4, 3241, -4, 3243, -4, 3245, -4, 3247, -4, 3249, -4,  // NOLINT
+  3251, -4, 3253, -4, 3255, -4, 3257, -4, 3259, -4, 3261, -4, 3263, -4, 3265, -4,  // NOLINT
+  3267, -4, 3269, -4, 3271, -4, 3273, -4, 3275, -4, 3277, -4, 3279, -4, 3281, -4,  // NOLINT
+  3283, -4, 3285, -4, 3287, -4, 3289, -4, 3291, -4, 3293, -4, 3295, -4, 3297, -4,  // NOLINT
+  3299, -4, 1073745152, -29056, 3365, -29056 };  // NOLINT
+static const uint16_t kToUppercaseMultiStrings1Size = 1;  // NOLINT
+static const MultiCharacterSpecialCase<3> kToUppercaseMultiStrings7[12] = {  // NOLINT
+  {{70, 70, -1}}, {{70, 73, -1}}, {{70, 76, -1}}, {{70, 70, 73}},  // NOLINT
+  {{70, 70, 76}}, {{83, 84, -1}}, {{1348, 1350, -1}}, {{1348, 1333, -1}},  // NOLINT
+  {{1348, 1339, -1}}, {{1358, 1350, -1}}, {{1348, 1341, -1}}, {{-1}} }; // NOLINT
+static const uint16_t kToUppercaseTable7Size = 14;  // NOLINT
+static const int32_t kToUppercaseTable7[28] = {
+  6912, 1, 6913, 5, 6914, 9, 6915, 13, 6916, 17, 6917, 21, 6918, 21, 6931, 25,  // NOLINT
+  6932, 29, 6933, 33, 6934, 37, 6935, 41, 1073749825, -128, 8026, -128 };  // NOLINT
+static const uint16_t kToUppercaseMultiStrings7Size = 12;  // NOLINT
 int ToUppercase::Convert(uchar c,
                       uchar n,
                       uchar* result,
                       bool* allow_caching_ptr) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupMapping(kToUppercaseTable0,
-                                     kToUppercaseTable0Size,
-                                     kToUppercaseMultiStrings0,
-                                     c,
-                                     n,
-                                     result,
-                                     allow_caching_ptr);
-    case 1: return LookupMapping(kToUppercaseTable1,
-                                     kToUppercaseTable1Size,
-                                     kToUppercaseMultiStrings1,
-                                     c,
-                                     n,
-                                     result,
-                                     allow_caching_ptr);
+    case 0: return LookupMapping<true>(kToUppercaseTable0,
+                                           kToUppercaseTable0Size,
+                                           kToUppercaseMultiStrings0,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
+    case 1: return LookupMapping<true>(kToUppercaseTable1,
+                                           kToUppercaseTable1Size,
+                                           kToUppercaseMultiStrings1,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
+    case 7: return LookupMapping<true>(kToUppercaseTable7,
+                                           kToUppercaseTable7Size,
+                                           kToUppercaseMultiStrings7,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
     default: return 0;
   }
 }
 
-static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings0[] = {  // NOLINT
-  {0, {0}} }; // NOLINT
-static const uint16_t kEcma262CanonicalizeTable0Size = 529;
-static const int32_t kEcma262CanonicalizeTable0[1058] = {
+static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings0[1] = {  // NOLINT
+  {{-1}} }; // NOLINT
+static const uint16_t kEcma262CanonicalizeTable0Size = 462;  // NOLINT
+static const int32_t kEcma262CanonicalizeTable0[924] = {
   1073741921, -128, 122, -128, 181, 2972, 1073742048, -128, 246, -128, 1073742072, -128, 254, -128, 255, 484,  // NOLINT
   257, -4, 259, -4, 261, -4, 263, -4, 265, -4, 267, -4, 269, -4, 271, -4,  // NOLINT
   273, -4, 275, -4, 277, -4, 279, -4, 281, -4, 283, -4, 285, -4, 287, -4,  // NOLINT
@@ -1018,627 +1141,430 @@ static const int32_t kEcma262CanonicalizeTable0[1058] = {
   1073749808, 32, 7991, 32, 1073749824, 32, 8005, 32, 8017, 32, 8019, 32, 8021, 32, 8023, 32,  // NOLINT
   1073749856, 32, 8039, 32, 1073749872, 296, 8049, 296, 1073749874, 344, 8053, 344, 1073749878, 400, 8055, 400,  // NOLINT
   1073749880, 512, 8057, 512, 1073749882, 448, 8059, 448, 1073749884, 504, 8061, 504, 1073749936, 32, 8113, 32,  // NOLINT
-  8126, -28820, 1073749968, 32, 8145, 32, 1073749984, 32, 8161, 32, 8165, 28, 8526, -112, 1073750384, -64,  // NOLINT
-  8575, -64, 8580, -4, 1073751248, -104, 9449, -104, 1073753136, -192, 11358, -192, 11361, -4, 11365, -43180,  // NOLINT
-  11366, -43168, 11368, -4, 11370, -4, 11372, -4, 11382, -4, 11393, -4, 11395, -4, 11397, -4,  // NOLINT
-  11399, -4, 11401, -4, 11403, -4, 11405, -4, 11407, -4, 11409, -4, 11411, -4, 11413, -4,  // NOLINT
-  11415, -4, 11417, -4, 11419, -4, 11421, -4, 11423, -4, 11425, -4, 11427, -4, 11429, -4,  // NOLINT
-  11431, -4, 11433, -4, 11435, -4, 11437, -4, 11439, -4, 11441, -4, 11443, -4, 11445, -4,  // NOLINT
-  11447, -4, 11449, -4, 11451, -4, 11453, -4, 11455, -4, 11457, -4, 11459, -4, 11461, -4,  // NOLINT
-  11463, -4, 11465, -4, 11467, -4, 11469, -4, 11471, -4, 11473, -4, 11475, -4, 11477, -4,  // NOLINT
-  11479, -4, 11481, -4, 11483, -4, 11485, -4, 11487, -4, 11489, -4, 11491, -4, 1073753344, -29056,  // NOLINT
-  11557, -29056 };  // NOLINT
-static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings1[] = {  // NOLINT
-  {0, {0}} }; // NOLINT
-static const uint16_t kEcma262CanonicalizeTable1Size = 2;
-static const int32_t kEcma262CanonicalizeTable1[4] = {
-  1073774401, -128, 32602, -128 };  // NOLINT
+  8126, -28820, 1073749968, 32, 8145, 32, 1073749984, 32, 8161, 32, 8165, 28 };  // NOLINT
+static const uint16_t kEcma262CanonicalizeMultiStrings0Size = 1;  // NOLINT
+static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings1[1] = {  // NOLINT
+  {{-1}} }; // NOLINT
+static const uint16_t kEcma262CanonicalizeTable1Size = 67;  // NOLINT
+static const int32_t kEcma262CanonicalizeTable1[134] = {
+  334, -112, 1073742192, -64, 383, -64, 388, -4, 1073743056, -104, 1257, -104, 1073744944, -192, 3166, -192,  // NOLINT
+  3169, -4, 3173, -43180, 3174, -43168, 3176, -4, 3178, -4, 3180, -4, 3190, -4, 3201, -4,  // NOLINT
+  3203, -4, 3205, -4, 3207, -4, 3209, -4, 3211, -4, 3213, -4, 3215, -4, 3217, -4,  // NOLINT
+  3219, -4, 3221, -4, 3223, -4, 3225, -4, 3227, -4, 3229, -4, 3231, -4, 3233, -4,  // NOLINT
+  3235, -4, 3237, -4, 3239, -4, 3241, -4, 3243, -4, 3245, -4, 3247, -4, 3249, -4,  // NOLINT
+  3251, -4, 3253, -4, 3255, -4, 3257, -4, 3259, -4, 3261, -4, 3263, -4, 3265, -4,  // NOLINT
+  3267, -4, 3269, -4, 3271, -4, 3273, -4, 3275, -4, 3277, -4, 3279, -4, 3281, -4,  // NOLINT
+  3283, -4, 3285, -4, 3287, -4, 3289, -4, 3291, -4, 3293, -4, 3295, -4, 3297, -4,  // NOLINT
+  3299, -4, 1073745152, -29056, 3365, -29056 };  // NOLINT
+static const uint16_t kEcma262CanonicalizeMultiStrings1Size = 1;  // NOLINT
+static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings7[1] = {  // NOLINT
+  {{-1}} }; // NOLINT
+static const uint16_t kEcma262CanonicalizeTable7Size = 2;  // NOLINT
+static const int32_t kEcma262CanonicalizeTable7[4] = {
+  1073749825, -128, 8026, -128 };  // NOLINT
+static const uint16_t kEcma262CanonicalizeMultiStrings7Size = 1;  // NOLINT
 int Ecma262Canonicalize::Convert(uchar c,
                       uchar n,
                       uchar* result,
                       bool* allow_caching_ptr) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupMapping(kEcma262CanonicalizeTable0,
-                                     kEcma262CanonicalizeTable0Size,
-                                     kEcma262CanonicalizeMultiStrings0,
-                                     c,
-                                     n,
-                                     result,
-                                     allow_caching_ptr);
-    case 1: return LookupMapping(kEcma262CanonicalizeTable1,
-                                     kEcma262CanonicalizeTable1Size,
-                                     kEcma262CanonicalizeMultiStrings1,
-                                     c,
-                                     n,
-                                     result,
-                                     allow_caching_ptr);
+    case 0: return LookupMapping<true>(kEcma262CanonicalizeTable0,
+                                           kEcma262CanonicalizeTable0Size,
+                                           kEcma262CanonicalizeMultiStrings0,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
+    case 1: return LookupMapping<true>(kEcma262CanonicalizeTable1,
+                                           kEcma262CanonicalizeTable1Size,
+                                           kEcma262CanonicalizeMultiStrings1,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
+    case 7: return LookupMapping<true>(kEcma262CanonicalizeTable7,
+                                           kEcma262CanonicalizeTable7Size,
+                                           kEcma262CanonicalizeMultiStrings7,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
     default: return 0;
   }
 }
 
-static const MultiCharacterSpecialCase<4> kEcma262UnCanonicalizeMultiStrings0[] = {  // NOLINT
-  {2, {65, 97}}, {2, {66, 98}}, {2, {67, 99}}, {2, {68, 100}},  // NOLINT
-  {2, {69, 101}}, {2, {70, 102}}, {2, {71, 103}}, {2, {72, 104}},  // NOLINT
-  {2, {73, 105}}, {2, {74, 106}}, {2, {75, 107}}, {2, {76, 108}},  // NOLINT
-  {2, {77, 109}}, {2, {78, 110}}, {2, {79, 111}}, {2, {80, 112}},  // NOLINT
-  {2, {81, 113}}, {2, {82, 114}}, {2, {83, 115}}, {2, {84, 116}},  // NOLINT
-  {2, {85, 117}}, {2, {86, 118}}, {2, {87, 119}}, {2, {88, 120}},  // NOLINT
-  {2, {89, 121}}, {2, {90, 122}}, {3, {181, 924, 956}}, {2, {192, 224}},  // NOLINT
-  {2, {193, 225}}, {2, {194, 226}}, {2, {195, 227}}, {2, {196, 228}},  // NOLINT
-  {2, {197, 229}}, {2, {198, 230}}, {2, {199, 231}}, {2, {200, 232}},  // NOLINT
-  {2, {201, 233}}, {2, {202, 234}}, {2, {203, 235}}, {2, {204, 236}},  // NOLINT
-  {2, {205, 237}}, {2, {206, 238}}, {2, {207, 239}}, {2, {208, 240}},  // NOLINT
-  {2, {209, 241}}, {2, {210, 242}}, {2, {211, 243}}, {2, {212, 244}},  // NOLINT
-  {2, {213, 245}}, {2, {214, 246}}, {2, {216, 248}}, {2, {217, 249}},  // NOLINT
-  {2, {218, 250}}, {2, {219, 251}}, {2, {220, 252}}, {2, {221, 253}},  // NOLINT
-  {2, {222, 254}}, {2, {255, 376}}, {2, {256, 257}}, {2, {258, 259}},  // NOLINT
-  {2, {260, 261}}, {2, {262, 263}}, {2, {264, 265}}, {2, {266, 267}},  // NOLINT
-  {2, {268, 269}}, {2, {270, 271}}, {2, {272, 273}}, {2, {274, 275}},  // NOLINT
-  {2, {276, 277}}, {2, {278, 279}}, {2, {280, 281}}, {2, {282, 283}},  // NOLINT
-  {2, {284, 285}}, {2, {286, 287}}, {2, {288, 289}}, {2, {290, 291}},  // NOLINT
-  {2, {292, 293}}, {2, {294, 295}}, {2, {296, 297}}, {2, {298, 299}},  // NOLINT
-  {2, {300, 301}}, {2, {302, 303}}, {2, {306, 307}}, {2, {308, 309}},  // NOLINT
-  {2, {310, 311}}, {2, {313, 314}}, {2, {315, 316}}, {2, {317, 318}},  // NOLINT
-  {2, {319, 320}}, {2, {321, 322}}, {2, {323, 324}}, {2, {325, 326}},  // NOLINT
-  {2, {327, 328}}, {2, {330, 331}}, {2, {332, 333}}, {2, {334, 335}},  // NOLINT
-  {2, {336, 337}}, {2, {338, 339}}, {2, {340, 341}}, {2, {342, 343}},  // NOLINT
-  {2, {344, 345}}, {2, {346, 347}}, {2, {348, 349}}, {2, {350, 351}},  // NOLINT
-  {2, {352, 353}}, {2, {354, 355}}, {2, {356, 357}}, {2, {358, 359}},  // NOLINT
-  {2, {360, 361}}, {2, {362, 363}}, {2, {364, 365}}, {2, {366, 367}},  // NOLINT
-  {2, {368, 369}}, {2, {370, 371}}, {2, {372, 373}}, {2, {374, 375}},  // NOLINT
-  {2, {377, 378}}, {2, {379, 380}}, {2, {381, 382}}, {2, {384, 579}},  // NOLINT
-  {2, {385, 595}}, {2, {386, 387}}, {2, {388, 389}}, {2, {390, 596}},  // NOLINT
-  {2, {391, 392}}, {2, {393, 598}}, {2, {394, 599}}, {2, {395, 396}},  // NOLINT
-  {2, {398, 477}}, {2, {399, 601}}, {2, {400, 603}}, {2, {401, 402}},  // NOLINT
-  {2, {403, 608}}, {2, {404, 611}}, {2, {405, 502}}, {2, {406, 617}},  // NOLINT
-  {2, {407, 616}}, {2, {408, 409}}, {2, {410, 573}}, {2, {412, 623}},  // NOLINT
-  {2, {413, 626}}, {2, {414, 544}}, {2, {415, 629}}, {2, {416, 417}},  // NOLINT
-  {2, {418, 419}}, {2, {420, 421}}, {2, {422, 640}}, {2, {423, 424}},  // NOLINT
-  {2, {425, 643}}, {2, {428, 429}}, {2, {430, 648}}, {2, {431, 432}},  // NOLINT
-  {2, {433, 650}}, {2, {434, 651}}, {2, {435, 436}}, {2, {437, 438}},  // NOLINT
-  {2, {439, 658}}, {2, {440, 441}}, {2, {444, 445}}, {2, {447, 503}},  // NOLINT
-  {3, {452, 453, 454}}, {3, {455, 456, 457}}, {3, {458, 459, 460}}, {2, {461, 462}},  // NOLINT
-  {2, {463, 464}}, {2, {465, 466}}, {2, {467, 468}}, {2, {469, 470}},  // NOLINT
-  {2, {471, 472}}, {2, {473, 474}}, {2, {475, 476}}, {2, {478, 479}},  // NOLINT
-  {2, {480, 481}}, {2, {482, 483}}, {2, {484, 485}}, {2, {486, 487}},  // NOLINT
-  {2, {488, 489}}, {2, {490, 491}}, {2, {492, 493}}, {2, {494, 495}},  // NOLINT
-  {3, {497, 498, 499}}, {2, {500, 501}}, {2, {504, 505}}, {2, {506, 507}},  // NOLINT
-  {2, {508, 509}}, {2, {510, 511}}, {2, {512, 513}}, {2, {514, 515}},  // NOLINT
-  {2, {516, 517}}, {2, {518, 519}}, {2, {520, 521}}, {2, {522, 523}},  // NOLINT
-  {2, {524, 525}}, {2, {526, 527}}, {2, {528, 529}}, {2, {530, 531}},  // NOLINT
-  {2, {532, 533}}, {2, {534, 535}}, {2, {536, 537}}, {2, {538, 539}},  // NOLINT
-  {2, {540, 541}}, {2, {542, 543}}, {2, {546, 547}}, {2, {548, 549}},  // NOLINT
-  {2, {550, 551}}, {2, {552, 553}}, {2, {554, 555}}, {2, {556, 557}},  // NOLINT
-  {2, {558, 559}}, {2, {560, 561}}, {2, {562, 563}}, {2, {570, 11365}},  // NOLINT
-  {2, {571, 572}}, {2, {574, 11366}}, {2, {577, 578}}, {2, {580, 649}},  // NOLINT
-  {2, {581, 652}}, {2, {582, 583}}, {2, {584, 585}}, {2, {586, 587}},  // NOLINT
-  {2, {588, 589}}, {2, {590, 591}}, {2, {619, 11362}}, {2, {637, 11364}},  // NOLINT
-  {4, {837, 921, 953, 8126}}, {2, {891, 1021}}, {2, {892, 1022}}, {2, {893, 1023}},  // NOLINT
-  {2, {902, 940}}, {2, {904, 941}}, {2, {905, 942}}, {2, {906, 943}},  // NOLINT
-  {2, {908, 972}}, {2, {910, 973}}, {2, {911, 974}}, {2, {913, 945}},  // NOLINT
-  {3, {914, 946, 976}}, {2, {915, 947}}, {2, {916, 948}}, {3, {917, 949, 1013}},  // NOLINT
-  {2, {918, 950}}, {2, {919, 951}}, {3, {920, 952, 977}}, {3, {922, 954, 1008}},  // NOLINT
-  {2, {923, 955}}, {2, {925, 957}}, {2, {926, 958}}, {2, {927, 959}},  // NOLINT
-  {3, {928, 960, 982}}, {3, {929, 961, 1009}}, {3, {931, 962, 963}}, {2, {932, 964}},  // NOLINT
-  {2, {933, 965}}, {3, {934, 966, 981}}, {2, {935, 967}}, {2, {936, 968}},  // NOLINT
-  {2, {937, 969}}, {2, {938, 970}}, {2, {939, 971}}, {2, {984, 985}},  // NOLINT
-  {2, {986, 987}}, {2, {988, 989}}, {2, {990, 991}}, {2, {992, 993}},  // NOLINT
-  {2, {994, 995}}, {2, {996, 997}}, {2, {998, 999}}, {2, {1000, 1001}},  // NOLINT
-  {2, {1002, 1003}}, {2, {1004, 1005}}, {2, {1006, 1007}}, {2, {1010, 1017}},  // NOLINT
-  {2, {1015, 1016}}, {2, {1018, 1019}}, {2, {1024, 1104}}, {2, {1025, 1105}},  // NOLINT
-  {2, {1026, 1106}}, {2, {1027, 1107}}, {2, {1028, 1108}}, {2, {1029, 1109}},  // NOLINT
-  {2, {1030, 1110}}, {2, {1031, 1111}}, {2, {1032, 1112}}, {2, {1033, 1113}},  // NOLINT
-  {2, {1034, 1114}}, {2, {1035, 1115}}, {2, {1036, 1116}}, {2, {1037, 1117}},  // NOLINT
-  {2, {1038, 1118}}, {2, {1039, 1119}}, {2, {1040, 1072}}, {2, {1041, 1073}},  // NOLINT
-  {2, {1042, 1074}}, {2, {1043, 1075}}, {2, {1044, 1076}}, {2, {1045, 1077}},  // NOLINT
-  {2, {1046, 1078}}, {2, {1047, 1079}}, {2, {1048, 1080}}, {2, {1049, 1081}},  // NOLINT
-  {2, {1050, 1082}}, {2, {1051, 1083}}, {2, {1052, 1084}}, {2, {1053, 1085}},  // NOLINT
-  {2, {1054, 1086}}, {2, {1055, 1087}}, {2, {1056, 1088}}, {2, {1057, 1089}},  // NOLINT
-  {2, {1058, 1090}}, {2, {1059, 1091}}, {2, {1060, 1092}}, {2, {1061, 1093}},  // NOLINT
-  {2, {1062, 1094}}, {2, {1063, 1095}}, {2, {1064, 1096}}, {2, {1065, 1097}},  // NOLINT
-  {2, {1066, 1098}}, {2, {1067, 1099}}, {2, {1068, 1100}}, {2, {1069, 1101}},  // NOLINT
-  {2, {1070, 1102}}, {2, {1071, 1103}}, {2, {1120, 1121}}, {2, {1122, 1123}},  // NOLINT
-  {2, {1124, 1125}}, {2, {1126, 1127}}, {2, {1128, 1129}}, {2, {1130, 1131}},  // NOLINT
-  {2, {1132, 1133}}, {2, {1134, 1135}}, {2, {1136, 1137}}, {2, {1138, 1139}},  // NOLINT
-  {2, {1140, 1141}}, {2, {1142, 1143}}, {2, {1144, 1145}}, {2, {1146, 1147}},  // NOLINT
-  {2, {1148, 1149}}, {2, {1150, 1151}}, {2, {1152, 1153}}, {2, {1162, 1163}},  // NOLINT
-  {2, {1164, 1165}}, {2, {1166, 1167}}, {2, {1168, 1169}}, {2, {1170, 1171}},  // NOLINT
-  {2, {1172, 1173}}, {2, {1174, 1175}}, {2, {1176, 1177}}, {2, {1178, 1179}},  // NOLINT
-  {2, {1180, 1181}}, {2, {1182, 1183}}, {2, {1184, 1185}}, {2, {1186, 1187}},  // NOLINT
-  {2, {1188, 1189}}, {2, {1190, 1191}}, {2, {1192, 1193}}, {2, {1194, 1195}},  // NOLINT
-  {2, {1196, 1197}}, {2, {1198, 1199}}, {2, {1200, 1201}}, {2, {1202, 1203}},  // NOLINT
-  {2, {1204, 1205}}, {2, {1206, 1207}}, {2, {1208, 1209}}, {2, {1210, 1211}},  // NOLINT
-  {2, {1212, 1213}}, {2, {1214, 1215}}, {2, {1216, 1231}}, {2, {1217, 1218}},  // NOLINT
-  {2, {1219, 1220}}, {2, {1221, 1222}}, {2, {1223, 1224}}, {2, {1225, 1226}},  // NOLINT
-  {2, {1227, 1228}}, {2, {1229, 1230}}, {2, {1232, 1233}}, {2, {1234, 1235}},  // NOLINT
-  {2, {1236, 1237}}, {2, {1238, 1239}}, {2, {1240, 1241}}, {2, {1242, 1243}},  // NOLINT
-  {2, {1244, 1245}}, {2, {1246, 1247}}, {2, {1248, 1249}}, {2, {1250, 1251}},  // NOLINT
-  {2, {1252, 1253}}, {2, {1254, 1255}}, {2, {1256, 1257}}, {2, {1258, 1259}},  // NOLINT
-  {2, {1260, 1261}}, {2, {1262, 1263}}, {2, {1264, 1265}}, {2, {1266, 1267}},  // NOLINT
-  {2, {1268, 1269}}, {2, {1270, 1271}}, {2, {1272, 1273}}, {2, {1274, 1275}},  // NOLINT
-  {2, {1276, 1277}}, {2, {1278, 1279}}, {2, {1280, 1281}}, {2, {1282, 1283}},  // NOLINT
-  {2, {1284, 1285}}, {2, {1286, 1287}}, {2, {1288, 1289}}, {2, {1290, 1291}},  // NOLINT
-  {2, {1292, 1293}}, {2, {1294, 1295}}, {2, {1296, 1297}}, {2, {1298, 1299}},  // NOLINT
-  {2, {1329, 1377}}, {2, {1330, 1378}}, {2, {1331, 1379}}, {2, {1332, 1380}},  // NOLINT
-  {2, {1333, 1381}}, {2, {1334, 1382}}, {2, {1335, 1383}}, {2, {1336, 1384}},  // NOLINT
-  {2, {1337, 1385}}, {2, {1338, 1386}}, {2, {1339, 1387}}, {2, {1340, 1388}},  // NOLINT
-  {2, {1341, 1389}}, {2, {1342, 1390}}, {2, {1343, 1391}}, {2, {1344, 1392}},  // NOLINT
-  {2, {1345, 1393}}, {2, {1346, 1394}}, {2, {1347, 1395}}, {2, {1348, 1396}},  // NOLINT
-  {2, {1349, 1397}}, {2, {1350, 1398}}, {2, {1351, 1399}}, {2, {1352, 1400}},  // NOLINT
-  {2, {1353, 1401}}, {2, {1354, 1402}}, {2, {1355, 1403}}, {2, {1356, 1404}},  // NOLINT
-  {2, {1357, 1405}}, {2, {1358, 1406}}, {2, {1359, 1407}}, {2, {1360, 1408}},  // NOLINT
-  {2, {1361, 1409}}, {2, {1362, 1410}}, {2, {1363, 1411}}, {2, {1364, 1412}},  // NOLINT
-  {2, {1365, 1413}}, {2, {1366, 1414}}, {2, {4256, 11520}}, {2, {4257, 11521}},  // NOLINT
-  {2, {4258, 11522}}, {2, {4259, 11523}}, {2, {4260, 11524}}, {2, {4261, 11525}},  // NOLINT
-  {2, {4262, 11526}}, {2, {4263, 11527}}, {2, {4264, 11528}}, {2, {4265, 11529}},  // NOLINT
-  {2, {4266, 11530}}, {2, {4267, 11531}}, {2, {4268, 11532}}, {2, {4269, 11533}},  // NOLINT
-  {2, {4270, 11534}}, {2, {4271, 11535}}, {2, {4272, 11536}}, {2, {4273, 11537}},  // NOLINT
-  {2, {4274, 11538}}, {2, {4275, 11539}}, {2, {4276, 11540}}, {2, {4277, 11541}},  // NOLINT
-  {2, {4278, 11542}}, {2, {4279, 11543}}, {2, {4280, 11544}}, {2, {4281, 11545}},  // NOLINT
-  {2, {4282, 11546}}, {2, {4283, 11547}}, {2, {4284, 11548}}, {2, {4285, 11549}},  // NOLINT
-  {2, {4286, 11550}}, {2, {4287, 11551}}, {2, {4288, 11552}}, {2, {4289, 11553}},  // NOLINT
-  {2, {4290, 11554}}, {2, {4291, 11555}}, {2, {4292, 11556}}, {2, {4293, 11557}},  // NOLINT
-  {2, {7549, 11363}}, {2, {7680, 7681}}, {2, {7682, 7683}}, {2, {7684, 7685}},  // NOLINT
-  {2, {7686, 7687}}, {2, {7688, 7689}}, {2, {7690, 7691}}, {2, {7692, 7693}},  // NOLINT
-  {2, {7694, 7695}}, {2, {7696, 7697}}, {2, {7698, 7699}}, {2, {7700, 7701}},  // NOLINT
-  {2, {7702, 7703}}, {2, {7704, 7705}}, {2, {7706, 7707}}, {2, {7708, 7709}},  // NOLINT
-  {2, {7710, 7711}}, {2, {7712, 7713}}, {2, {7714, 7715}}, {2, {7716, 7717}},  // NOLINT
-  {2, {7718, 7719}}, {2, {7720, 7721}}, {2, {7722, 7723}}, {2, {7724, 7725}},  // NOLINT
-  {2, {7726, 7727}}, {2, {7728, 7729}}, {2, {7730, 7731}}, {2, {7732, 7733}},  // NOLINT
-  {2, {7734, 7735}}, {2, {7736, 7737}}, {2, {7738, 7739}}, {2, {7740, 7741}},  // NOLINT
-  {2, {7742, 7743}}, {2, {7744, 7745}}, {2, {7746, 7747}}, {2, {7748, 7749}},  // NOLINT
-  {2, {7750, 7751}}, {2, {7752, 7753}}, {2, {7754, 7755}}, {2, {7756, 7757}},  // NOLINT
-  {2, {7758, 7759}}, {2, {7760, 7761}}, {2, {7762, 7763}}, {2, {7764, 7765}},  // NOLINT
-  {2, {7766, 7767}}, {2, {7768, 7769}}, {2, {7770, 7771}}, {2, {7772, 7773}},  // NOLINT
-  {2, {7774, 7775}}, {3, {7776, 7777, 7835}}, {2, {7778, 7779}}, {2, {7780, 7781}},  // NOLINT
-  {2, {7782, 7783}}, {2, {7784, 7785}}, {2, {7786, 7787}}, {2, {7788, 7789}},  // NOLINT
-  {2, {7790, 7791}}, {2, {7792, 7793}}, {2, {7794, 7795}}, {2, {7796, 7797}},  // NOLINT
-  {2, {7798, 7799}}, {2, {7800, 7801}}, {2, {7802, 7803}}, {2, {7804, 7805}},  // NOLINT
-  {2, {7806, 7807}}, {2, {7808, 7809}}, {2, {7810, 7811}}, {2, {7812, 7813}},  // NOLINT
-  {2, {7814, 7815}}, {2, {7816, 7817}}, {2, {7818, 7819}}, {2, {7820, 7821}},  // NOLINT
-  {2, {7822, 7823}}, {2, {7824, 7825}}, {2, {7826, 7827}}, {2, {7828, 7829}},  // NOLINT
-  {2, {7840, 7841}}, {2, {7842, 7843}}, {2, {7844, 7845}}, {2, {7846, 7847}},  // NOLINT
-  {2, {7848, 7849}}, {2, {7850, 7851}}, {2, {7852, 7853}}, {2, {7854, 7855}},  // NOLINT
-  {2, {7856, 7857}}, {2, {7858, 7859}}, {2, {7860, 7861}}, {2, {7862, 7863}},  // NOLINT
-  {2, {7864, 7865}}, {2, {7866, 7867}}, {2, {7868, 7869}}, {2, {7870, 7871}},  // NOLINT
-  {2, {7872, 7873}}, {2, {7874, 7875}}, {2, {7876, 7877}}, {2, {7878, 7879}},  // NOLINT
-  {2, {7880, 7881}}, {2, {7882, 7883}}, {2, {7884, 7885}}, {2, {7886, 7887}},  // NOLINT
-  {2, {7888, 7889}}, {2, {7890, 7891}}, {2, {7892, 7893}}, {2, {7894, 7895}},  // NOLINT
-  {2, {7896, 7897}}, {2, {7898, 7899}}, {2, {7900, 7901}}, {2, {7902, 7903}},  // NOLINT
-  {2, {7904, 7905}}, {2, {7906, 7907}}, {2, {7908, 7909}}, {2, {7910, 7911}},  // NOLINT
-  {2, {7912, 7913}}, {2, {7914, 7915}}, {2, {7916, 7917}}, {2, {7918, 7919}},  // NOLINT
-  {2, {7920, 7921}}, {2, {7922, 7923}}, {2, {7924, 7925}}, {2, {7926, 7927}},  // NOLINT
-  {2, {7928, 7929}}, {2, {7936, 7944}}, {2, {7937, 7945}}, {2, {7938, 7946}},  // NOLINT
-  {2, {7939, 7947}}, {2, {7940, 7948}}, {2, {7941, 7949}}, {2, {7942, 7950}},  // NOLINT
-  {2, {7943, 7951}}, {2, {7952, 7960}}, {2, {7953, 7961}}, {2, {7954, 7962}},  // NOLINT
-  {2, {7955, 7963}}, {2, {7956, 7964}}, {2, {7957, 7965}}, {2, {7968, 7976}},  // NOLINT
-  {2, {7969, 7977}}, {2, {7970, 7978}}, {2, {7971, 7979}}, {2, {7972, 7980}},  // NOLINT
-  {2, {7973, 7981}}, {2, {7974, 7982}}, {2, {7975, 7983}}, {2, {7984, 7992}},  // NOLINT
-  {2, {7985, 7993}}, {2, {7986, 7994}}, {2, {7987, 7995}}, {2, {7988, 7996}},  // NOLINT
-  {2, {7989, 7997}}, {2, {7990, 7998}}, {2, {7991, 7999}}, {2, {8000, 8008}},  // NOLINT
-  {2, {8001, 8009}}, {2, {8002, 8010}}, {2, {8003, 8011}}, {2, {8004, 8012}},  // NOLINT
-  {2, {8005, 8013}}, {2, {8017, 8025}}, {2, {8019, 8027}}, {2, {8021, 8029}},  // NOLINT
-  {2, {8023, 8031}}, {2, {8032, 8040}}, {2, {8033, 8041}}, {2, {8034, 8042}},  // NOLINT
-  {2, {8035, 8043}}, {2, {8036, 8044}}, {2, {8037, 8045}}, {2, {8038, 8046}},  // NOLINT
-  {2, {8039, 8047}}, {2, {8048, 8122}}, {2, {8049, 8123}}, {2, {8050, 8136}},  // NOLINT
-  {2, {8051, 8137}}, {2, {8052, 8138}}, {2, {8053, 8139}}, {2, {8054, 8154}},  // NOLINT
-  {2, {8055, 8155}}, {2, {8056, 8184}}, {2, {8057, 8185}}, {2, {8058, 8170}},  // NOLINT
-  {2, {8059, 8171}}, {2, {8060, 8186}}, {2, {8061, 8187}}, {2, {8112, 8120}},  // NOLINT
-  {2, {8113, 8121}}, {2, {8144, 8152}}, {2, {8145, 8153}}, {2, {8160, 8168}},  // NOLINT
-  {2, {8161, 8169}}, {2, {8165, 8172}}, {2, {8498, 8526}}, {2, {8544, 8560}},  // NOLINT
-  {2, {8545, 8561}}, {2, {8546, 8562}}, {2, {8547, 8563}}, {2, {8548, 8564}},  // NOLINT
-  {2, {8549, 8565}}, {2, {8550, 8566}}, {2, {8551, 8567}}, {2, {8552, 8568}},  // NOLINT
-  {2, {8553, 8569}}, {2, {8554, 8570}}, {2, {8555, 8571}}, {2, {8556, 8572}},  // NOLINT
-  {2, {8557, 8573}}, {2, {8558, 8574}}, {2, {8559, 8575}}, {2, {8579, 8580}},  // NOLINT
-  {2, {9398, 9424}}, {2, {9399, 9425}}, {2, {9400, 9426}}, {2, {9401, 9427}},  // NOLINT
-  {2, {9402, 9428}}, {2, {9403, 9429}}, {2, {9404, 9430}}, {2, {9405, 9431}},  // NOLINT
-  {2, {9406, 9432}}, {2, {9407, 9433}}, {2, {9408, 9434}}, {2, {9409, 9435}},  // NOLINT
-  {2, {9410, 9436}}, {2, {9411, 9437}}, {2, {9412, 9438}}, {2, {9413, 9439}},  // NOLINT
-  {2, {9414, 9440}}, {2, {9415, 9441}}, {2, {9416, 9442}}, {2, {9417, 9443}},  // NOLINT
-  {2, {9418, 9444}}, {2, {9419, 9445}}, {2, {9420, 9446}}, {2, {9421, 9447}},  // NOLINT
-  {2, {9422, 9448}}, {2, {9423, 9449}}, {2, {11264, 11312}}, {2, {11265, 11313}},  // NOLINT
-  {2, {11266, 11314}}, {2, {11267, 11315}}, {2, {11268, 11316}}, {2, {11269, 11317}},  // NOLINT
-  {2, {11270, 11318}}, {2, {11271, 11319}}, {2, {11272, 11320}}, {2, {11273, 11321}},  // NOLINT
-  {2, {11274, 11322}}, {2, {11275, 11323}}, {2, {11276, 11324}}, {2, {11277, 11325}},  // NOLINT
-  {2, {11278, 11326}}, {2, {11279, 11327}}, {2, {11280, 11328}}, {2, {11281, 11329}},  // NOLINT
-  {2, {11282, 11330}}, {2, {11283, 11331}}, {2, {11284, 11332}}, {2, {11285, 11333}},  // NOLINT
-  {2, {11286, 11334}}, {2, {11287, 11335}}, {2, {11288, 11336}}, {2, {11289, 11337}},  // NOLINT
-  {2, {11290, 11338}}, {2, {11291, 11339}}, {2, {11292, 11340}}, {2, {11293, 11341}},  // NOLINT
-  {2, {11294, 11342}}, {2, {11295, 11343}}, {2, {11296, 11344}}, {2, {11297, 11345}},  // NOLINT
-  {2, {11298, 11346}}, {2, {11299, 11347}}, {2, {11300, 11348}}, {2, {11301, 11349}},  // NOLINT
-  {2, {11302, 11350}}, {2, {11303, 11351}}, {2, {11304, 11352}}, {2, {11305, 11353}},  // NOLINT
-  {2, {11306, 11354}}, {2, {11307, 11355}}, {2, {11308, 11356}}, {2, {11309, 11357}},  // NOLINT
-  {2, {11310, 11358}}, {2, {11360, 11361}}, {2, {11367, 11368}}, {2, {11369, 11370}},  // NOLINT
-  {2, {11371, 11372}}, {2, {11381, 11382}}, {2, {11392, 11393}}, {2, {11394, 11395}},  // NOLINT
-  {2, {11396, 11397}}, {2, {11398, 11399}}, {2, {11400, 11401}}, {2, {11402, 11403}},  // NOLINT
-  {2, {11404, 11405}}, {2, {11406, 11407}}, {2, {11408, 11409}}, {2, {11410, 11411}},  // NOLINT
-  {2, {11412, 11413}}, {2, {11414, 11415}}, {2, {11416, 11417}}, {2, {11418, 11419}},  // NOLINT
-  {2, {11420, 11421}}, {2, {11422, 11423}}, {2, {11424, 11425}}, {2, {11426, 11427}},  // NOLINT
-  {2, {11428, 11429}}, {2, {11430, 11431}}, {2, {11432, 11433}}, {2, {11434, 11435}},  // NOLINT
-  {2, {11436, 11437}}, {2, {11438, 11439}}, {2, {11440, 11441}}, {2, {11442, 11443}},  // NOLINT
-  {2, {11444, 11445}}, {2, {11446, 11447}}, {2, {11448, 11449}}, {2, {11450, 11451}},  // NOLINT
-  {2, {11452, 11453}}, {2, {11454, 11455}}, {2, {11456, 11457}}, {2, {11458, 11459}},  // NOLINT
-  {2, {11460, 11461}}, {2, {11462, 11463}}, {2, {11464, 11465}}, {2, {11466, 11467}},  // NOLINT
-  {2, {11468, 11469}}, {2, {11470, 11471}}, {2, {11472, 11473}}, {2, {11474, 11475}},  // NOLINT
-  {2, {11476, 11477}}, {2, {11478, 11479}}, {2, {11480, 11481}}, {2, {11482, 11483}},  // NOLINT
-  {2, {11484, 11485}}, {2, {11486, 11487}}, {2, {11488, 11489}}, {2, {11490, 11491}},  // NOLINT
-  {0, {0}} }; // NOLINT
-static const uint16_t kEcma262UnCanonicalizeTable0Size = 1656;
-static const int32_t kEcma262UnCanonicalizeTable0[3312] = {
-  65, 1, 66, 5, 67, 9, 68, 13, 69, 17, 70, 21, 71, 25, 72, 29,  // NOLINT
-  73, 33, 74, 37, 75, 41, 76, 45, 77, 49, 78, 53, 79, 57, 80, 61,  // NOLINT
-  81, 65, 82, 69, 83, 73, 84, 77, 85, 81, 86, 85, 87, 89, 88, 93,  // NOLINT
-  89, 97, 90, 101, 97, 1, 98, 5, 99, 9, 100, 13, 101, 17, 102, 21,  // NOLINT
-  103, 25, 104, 29, 105, 33, 106, 37, 107, 41, 108, 45, 109, 49, 110, 53,  // NOLINT
-  111, 57, 112, 61, 113, 65, 114, 69, 115, 73, 116, 77, 117, 81, 118, 85,  // NOLINT
-  119, 89, 120, 93, 121, 97, 122, 101, 181, 105, 192, 109, 193, 113, 194, 117,  // NOLINT
-  195, 121, 196, 125, 197, 129, 198, 133, 199, 137, 200, 141, 201, 145, 202, 149,  // NOLINT
-  203, 153, 204, 157, 205, 161, 206, 165, 207, 169, 208, 173, 209, 177, 210, 181,  // NOLINT
-  211, 185, 212, 189, 213, 193, 214, 197, 216, 201, 217, 205, 218, 209, 219, 213,  // NOLINT
-  220, 217, 221, 221, 222, 225, 224, 109, 225, 113, 226, 117, 227, 121, 228, 125,  // NOLINT
-  229, 129, 230, 133, 231, 137, 232, 141, 233, 145, 234, 149, 235, 153, 236, 157,  // NOLINT
-  237, 161, 238, 165, 239, 169, 240, 173, 241, 177, 242, 181, 243, 185, 244, 189,  // NOLINT
-  245, 193, 246, 197, 248, 201, 249, 205, 250, 209, 251, 213, 252, 217, 253, 221,  // NOLINT
-  254, 225, 255, 229, 256, 233, 257, 233, 258, 237, 259, 237, 260, 241, 261, 241,  // NOLINT
-  262, 245, 263, 245, 264, 249, 265, 249, 266, 253, 267, 253, 268, 257, 269, 257,  // NOLINT
-  270, 261, 271, 261, 272, 265, 273, 265, 274, 269, 275, 269, 276, 273, 277, 273,  // NOLINT
-  278, 277, 279, 277, 280, 281, 281, 281, 282, 285, 283, 285, 284, 289, 285, 289,  // NOLINT
-  286, 293, 287, 293, 288, 297, 289, 297, 290, 301, 291, 301, 292, 305, 293, 305,  // NOLINT
-  294, 309, 295, 309, 296, 313, 297, 313, 298, 317, 299, 317, 300, 321, 301, 321,  // NOLINT
-  302, 325, 303, 325, 306, 329, 307, 329, 308, 333, 309, 333, 310, 337, 311, 337,  // NOLINT
-  313, 341, 314, 341, 315, 345, 316, 345, 317, 349, 318, 349, 319, 353, 320, 353,  // NOLINT
-  321, 357, 322, 357, 323, 361, 324, 361, 325, 365, 326, 365, 327, 369, 328, 369,  // NOLINT
-  330, 373, 331, 373, 332, 377, 333, 377, 334, 381, 335, 381, 336, 385, 337, 385,  // NOLINT
-  338, 389, 339, 389, 340, 393, 341, 393, 342, 397, 343, 397, 344, 401, 345, 401,  // NOLINT
-  346, 405, 347, 405, 348, 409, 349, 409, 350, 413, 351, 413, 352, 417, 353, 417,  // NOLINT
-  354, 421, 355, 421, 356, 425, 357, 425, 358, 429, 359, 429, 360, 433, 361, 433,  // NOLINT
-  362, 437, 363, 437, 364, 441, 365, 441, 366, 445, 367, 445, 368, 449, 369, 449,  // NOLINT
-  370, 453, 371, 453, 372, 457, 373, 457, 374, 461, 375, 461, 376, 229, 377, 465,  // NOLINT
-  378, 465, 379, 469, 380, 469, 381, 473, 382, 473, 384, 477, 385, 481, 386, 485,  // NOLINT
-  387, 485, 388, 489, 389, 489, 390, 493, 391, 497, 392, 497, 393, 501, 394, 505,  // NOLINT
-  395, 509, 396, 509, 398, 513, 399, 517, 400, 521, 401, 525, 402, 525, 403, 529,  // NOLINT
-  404, 533, 405, 537, 406, 541, 407, 545, 408, 549, 409, 549, 410, 553, 412, 557,  // NOLINT
-  413, 561, 414, 565, 415, 569, 416, 573, 417, 573, 418, 577, 419, 577, 420, 581,  // NOLINT
-  421, 581, 422, 585, 423, 589, 424, 589, 425, 593, 428, 597, 429, 597, 430, 601,  // NOLINT
-  431, 605, 432, 605, 433, 609, 434, 613, 435, 617, 436, 617, 437, 621, 438, 621,  // NOLINT
-  439, 625, 440, 629, 441, 629, 444, 633, 445, 633, 447, 637, 452, 641, 453, 641,  // NOLINT
-  454, 641, 455, 645, 456, 645, 457, 645, 458, 649, 459, 649, 460, 649, 461, 653,  // NOLINT
-  462, 653, 463, 657, 464, 657, 465, 661, 466, 661, 467, 665, 468, 665, 469, 669,  // NOLINT
-  470, 669, 471, 673, 472, 673, 473, 677, 474, 677, 475, 681, 476, 681, 477, 513,  // NOLINT
-  478, 685, 479, 685, 480, 689, 481, 689, 482, 693, 483, 693, 484, 697, 485, 697,  // NOLINT
-  486, 701, 487, 701, 488, 705, 489, 705, 490, 709, 491, 709, 492, 713, 493, 713,  // NOLINT
-  494, 717, 495, 717, 497, 721, 498, 721, 499, 721, 500, 725, 501, 725, 502, 537,  // NOLINT
-  503, 637, 504, 729, 505, 729, 506, 733, 507, 733, 508, 737, 509, 737, 510, 741,  // NOLINT
-  511, 741, 512, 745, 513, 745, 514, 749, 515, 749, 516, 753, 517, 753, 518, 757,  // NOLINT
-  519, 757, 520, 761, 521, 761, 522, 765, 523, 765, 524, 769, 525, 769, 526, 773,  // NOLINT
-  527, 773, 528, 777, 529, 777, 530, 781, 531, 781, 532, 785, 533, 785, 534, 789,  // NOLINT
-  535, 789, 536, 793, 537, 793, 538, 797, 539, 797, 540, 801, 541, 801, 542, 805,  // NOLINT
-  543, 805, 544, 565, 546, 809, 547, 809, 548, 813, 549, 813, 550, 817, 551, 817,  // NOLINT
-  552, 821, 553, 821, 554, 825, 555, 825, 556, 829, 557, 829, 558, 833, 559, 833,  // NOLINT
-  560, 837, 561, 837, 562, 841, 563, 841, 570, 845, 571, 849, 572, 849, 573, 553,  // NOLINT
-  574, 853, 577, 857, 578, 857, 579, 477, 580, 861, 581, 865, 582, 869, 583, 869,  // NOLINT
-  584, 873, 585, 873, 586, 877, 587, 877, 588, 881, 589, 881, 590, 885, 591, 885,  // NOLINT
-  595, 481, 596, 493, 598, 501, 599, 505, 601, 517, 603, 521, 608, 529, 611, 533,  // NOLINT
-  616, 545, 617, 541, 619, 889, 623, 557, 626, 561, 629, 569, 637, 893, 640, 585,  // NOLINT
-  643, 593, 648, 601, 649, 861, 650, 609, 651, 613, 652, 865, 658, 625, 837, 897,  // NOLINT
-  891, 901, 892, 905, 893, 909, 902, 913, 904, 917, 905, 921, 906, 925, 908, 929,  // NOLINT
-  910, 933, 911, 937, 913, 941, 914, 945, 915, 949, 916, 953, 917, 957, 918, 961,  // NOLINT
-  919, 965, 920, 969, 921, 897, 922, 973, 923, 977, 924, 105, 925, 981, 926, 985,  // NOLINT
-  927, 989, 928, 993, 929, 997, 931, 1001, 932, 1005, 933, 1009, 934, 1013, 935, 1017,  // NOLINT
-  936, 1021, 937, 1025, 938, 1029, 939, 1033, 940, 913, 941, 917, 942, 921, 943, 925,  // NOLINT
-  945, 941, 946, 945, 947, 949, 948, 953, 949, 957, 950, 961, 951, 965, 952, 969,  // NOLINT
-  953, 897, 954, 973, 955, 977, 956, 105, 957, 981, 958, 985, 959, 989, 960, 993,  // NOLINT
-  961, 997, 962, 1001, 963, 1001, 964, 1005, 965, 1009, 966, 1013, 967, 1017, 968, 1021,  // NOLINT
-  969, 1025, 970, 1029, 971, 1033, 972, 929, 973, 933, 974, 937, 976, 945, 977, 969,  // NOLINT
-  981, 1013, 982, 993, 984, 1037, 985, 1037, 986, 1041, 987, 1041, 988, 1045, 989, 1045,  // NOLINT
-  990, 1049, 991, 1049, 992, 1053, 993, 1053, 994, 1057, 995, 1057, 996, 1061, 997, 1061,  // NOLINT
-  998, 1065, 999, 1065, 1000, 1069, 1001, 1069, 1002, 1073, 1003, 1073, 1004, 1077, 1005, 1077,  // NOLINT
-  1006, 1081, 1007, 1081, 1008, 973, 1009, 997, 1010, 1085, 1013, 957, 1015, 1089, 1016, 1089,  // NOLINT
-  1017, 1085, 1018, 1093, 1019, 1093, 1021, 901, 1022, 905, 1023, 909, 1024, 1097, 1025, 1101,  // NOLINT
-  1026, 1105, 1027, 1109, 1028, 1113, 1029, 1117, 1030, 1121, 1031, 1125, 1032, 1129, 1033, 1133,  // NOLINT
-  1034, 1137, 1035, 1141, 1036, 1145, 1037, 1149, 1038, 1153, 1039, 1157, 1040, 1161, 1041, 1165,  // NOLINT
-  1042, 1169, 1043, 1173, 1044, 1177, 1045, 1181, 1046, 1185, 1047, 1189, 1048, 1193, 1049, 1197,  // NOLINT
-  1050, 1201, 1051, 1205, 1052, 1209, 1053, 1213, 1054, 1217, 1055, 1221, 1056, 1225, 1057, 1229,  // NOLINT
-  1058, 1233, 1059, 1237, 1060, 1241, 1061, 1245, 1062, 1249, 1063, 1253, 1064, 1257, 1065, 1261,  // NOLINT
-  1066, 1265, 1067, 1269, 1068, 1273, 1069, 1277, 1070, 1281, 1071, 1285, 1072, 1161, 1073, 1165,  // NOLINT
-  1074, 1169, 1075, 1173, 1076, 1177, 1077, 1181, 1078, 1185, 1079, 1189, 1080, 1193, 1081, 1197,  // NOLINT
-  1082, 1201, 1083, 1205, 1084, 1209, 1085, 1213, 1086, 1217, 1087, 1221, 1088, 1225, 1089, 1229,  // NOLINT
-  1090, 1233, 1091, 1237, 1092, 1241, 1093, 1245, 1094, 1249, 1095, 1253, 1096, 1257, 1097, 1261,  // NOLINT
-  1098, 1265, 1099, 1269, 1100, 1273, 1101, 1277, 1102, 1281, 1103, 1285, 1104, 1097, 1105, 1101,  // NOLINT
-  1106, 1105, 1107, 1109, 1108, 1113, 1109, 1117, 1110, 1121, 1111, 1125, 1112, 1129, 1113, 1133,  // NOLINT
-  1114, 1137, 1115, 1141, 1116, 1145, 1117, 1149, 1118, 1153, 1119, 1157, 1120, 1289, 1121, 1289,  // NOLINT
-  1122, 1293, 1123, 1293, 1124, 1297, 1125, 1297, 1126, 1301, 1127, 1301, 1128, 1305, 1129, 1305,  // NOLINT
-  1130, 1309, 1131, 1309, 1132, 1313, 1133, 1313, 1134, 1317, 1135, 1317, 1136, 1321, 1137, 1321,  // NOLINT
-  1138, 1325, 1139, 1325, 1140, 1329, 1141, 1329, 1142, 1333, 1143, 1333, 1144, 1337, 1145, 1337,  // NOLINT
-  1146, 1341, 1147, 1341, 1148, 1345, 1149, 1345, 1150, 1349, 1151, 1349, 1152, 1353, 1153, 1353,  // NOLINT
-  1162, 1357, 1163, 1357, 1164, 1361, 1165, 1361, 1166, 1365, 1167, 1365, 1168, 1369, 1169, 1369,  // NOLINT
-  1170, 1373, 1171, 1373, 1172, 1377, 1173, 1377, 1174, 1381, 1175, 1381, 1176, 1385, 1177, 1385,  // NOLINT
-  1178, 1389, 1179, 1389, 1180, 1393, 1181, 1393, 1182, 1397, 1183, 1397, 1184, 1401, 1185, 1401,  // NOLINT
-  1186, 1405, 1187, 1405, 1188, 1409, 1189, 1409, 1190, 1413, 1191, 1413, 1192, 1417, 1193, 1417,  // NOLINT
-  1194, 1421, 1195, 1421, 1196, 1425, 1197, 1425, 1198, 1429, 1199, 1429, 1200, 1433, 1201, 1433,  // NOLINT
-  1202, 1437, 1203, 1437, 1204, 1441, 1205, 1441, 1206, 1445, 1207, 1445, 1208, 1449, 1209, 1449,  // NOLINT
-  1210, 1453, 1211, 1453, 1212, 1457, 1213, 1457, 1214, 1461, 1215, 1461, 1216, 1465, 1217, 1469,  // NOLINT
-  1218, 1469, 1219, 1473, 1220, 1473, 1221, 1477, 1222, 1477, 1223, 1481, 1224, 1481, 1225, 1485,  // NOLINT
-  1226, 1485, 1227, 1489, 1228, 1489, 1229, 1493, 1230, 1493, 1231, 1465, 1232, 1497, 1233, 1497,  // NOLINT
-  1234, 1501, 1235, 1501, 1236, 1505, 1237, 1505, 1238, 1509, 1239, 1509, 1240, 1513, 1241, 1513,  // NOLINT
-  1242, 1517, 1243, 1517, 1244, 1521, 1245, 1521, 1246, 1525, 1247, 1525, 1248, 1529, 1249, 1529,  // NOLINT
-  1250, 1533, 1251, 1533, 1252, 1537, 1253, 1537, 1254, 1541, 1255, 1541, 1256, 1545, 1257, 1545,  // NOLINT
-  1258, 1549, 1259, 1549, 1260, 1553, 1261, 1553, 1262, 1557, 1263, 1557, 1264, 1561, 1265, 1561,  // NOLINT
-  1266, 1565, 1267, 1565, 1268, 1569, 1269, 1569, 1270, 1573, 1271, 1573, 1272, 1577, 1273, 1577,  // NOLINT
-  1274, 1581, 1275, 1581, 1276, 1585, 1277, 1585, 1278, 1589, 1279, 1589, 1280, 1593, 1281, 1593,  // NOLINT
-  1282, 1597, 1283, 1597, 1284, 1601, 1285, 1601, 1286, 1605, 1287, 1605, 1288, 1609, 1289, 1609,  // NOLINT
-  1290, 1613, 1291, 1613, 1292, 1617, 1293, 1617, 1294, 1621, 1295, 1621, 1296, 1625, 1297, 1625,  // NOLINT
-  1298, 1629, 1299, 1629, 1329, 1633, 1330, 1637, 1331, 1641, 1332, 1645, 1333, 1649, 1334, 1653,  // NOLINT
-  1335, 1657, 1336, 1661, 1337, 1665, 1338, 1669, 1339, 1673, 1340, 1677, 1341, 1681, 1342, 1685,  // NOLINT
-  1343, 1689, 1344, 1693, 1345, 1697, 1346, 1701, 1347, 1705, 1348, 1709, 1349, 1713, 1350, 1717,  // NOLINT
-  1351, 1721, 1352, 1725, 1353, 1729, 1354, 1733, 1355, 1737, 1356, 1741, 1357, 1745, 1358, 1749,  // NOLINT
-  1359, 1753, 1360, 1757, 1361, 1761, 1362, 1765, 1363, 1769, 1364, 1773, 1365, 1777, 1366, 1781,  // NOLINT
-  1377, 1633, 1378, 1637, 1379, 1641, 1380, 1645, 1381, 1649, 1382, 1653, 1383, 1657, 1384, 1661,  // NOLINT
-  1385, 1665, 1386, 1669, 1387, 1673, 1388, 1677, 1389, 1681, 1390, 1685, 1391, 1689, 1392, 1693,  // NOLINT
-  1393, 1697, 1394, 1701, 1395, 1705, 1396, 1709, 1397, 1713, 1398, 1717, 1399, 1721, 1400, 1725,  // NOLINT
-  1401, 1729, 1402, 1733, 1403, 1737, 1404, 1741, 1405, 1745, 1406, 1749, 1407, 1753, 1408, 1757,  // NOLINT
-  1409, 1761, 1410, 1765, 1411, 1769, 1412, 1773, 1413, 1777, 1414, 1781, 4256, 1785, 4257, 1789,  // NOLINT
-  4258, 1793, 4259, 1797, 4260, 1801, 4261, 1805, 4262, 1809, 4263, 1813, 4264, 1817, 4265, 1821,  // NOLINT
-  4266, 1825, 4267, 1829, 4268, 1833, 4269, 1837, 4270, 1841, 4271, 1845, 4272, 1849, 4273, 1853,  // NOLINT
-  4274, 1857, 4275, 1861, 4276, 1865, 4277, 1869, 4278, 1873, 4279, 1877, 4280, 1881, 4281, 1885,  // NOLINT
-  4282, 1889, 4283, 1893, 4284, 1897, 4285, 1901, 4286, 1905, 4287, 1909, 4288, 1913, 4289, 1917,  // NOLINT
-  4290, 1921, 4291, 1925, 4292, 1929, 4293, 1933, 7549, 1937, 7680, 1941, 7681, 1941, 7682, 1945,  // NOLINT
-  7683, 1945, 7684, 1949, 7685, 1949, 7686, 1953, 7687, 1953, 7688, 1957, 7689, 1957, 7690, 1961,  // NOLINT
-  7691, 1961, 7692, 1965, 7693, 1965, 7694, 1969, 7695, 1969, 7696, 1973, 7697, 1973, 7698, 1977,  // NOLINT
-  7699, 1977, 7700, 1981, 7701, 1981, 7702, 1985, 7703, 1985, 7704, 1989, 7705, 1989, 7706, 1993,  // NOLINT
-  7707, 1993, 7708, 1997, 7709, 1997, 7710, 2001, 7711, 2001, 7712, 2005, 7713, 2005, 7714, 2009,  // NOLINT
-  7715, 2009, 7716, 2013, 7717, 2013, 7718, 2017, 7719, 2017, 7720, 2021, 7721, 2021, 7722, 2025,  // NOLINT
-  7723, 2025, 7724, 2029, 7725, 2029, 7726, 2033, 7727, 2033, 7728, 2037, 7729, 2037, 7730, 2041,  // NOLINT
-  7731, 2041, 7732, 2045, 7733, 2045, 7734, 2049, 7735, 2049, 7736, 2053, 7737, 2053, 7738, 2057,  // NOLINT
-  7739, 2057, 7740, 2061, 7741, 2061, 7742, 2065, 7743, 2065, 7744, 2069, 7745, 2069, 7746, 2073,  // NOLINT
-  7747, 2073, 7748, 2077, 7749, 2077, 7750, 2081, 7751, 2081, 7752, 2085, 7753, 2085, 7754, 2089,  // NOLINT
-  7755, 2089, 7756, 2093, 7757, 2093, 7758, 2097, 7759, 2097, 7760, 2101, 7761, 2101, 7762, 2105,  // NOLINT
-  7763, 2105, 7764, 2109, 7765, 2109, 7766, 2113, 7767, 2113, 7768, 2117, 7769, 2117, 7770, 2121,  // NOLINT
-  7771, 2121, 7772, 2125, 7773, 2125, 7774, 2129, 7775, 2129, 7776, 2133, 7777, 2133, 7778, 2137,  // NOLINT
-  7779, 2137, 7780, 2141, 7781, 2141, 7782, 2145, 7783, 2145, 7784, 2149, 7785, 2149, 7786, 2153,  // NOLINT
-  7787, 2153, 7788, 2157, 7789, 2157, 7790, 2161, 7791, 2161, 7792, 2165, 7793, 2165, 7794, 2169,  // NOLINT
-  7795, 2169, 7796, 2173, 7797, 2173, 7798, 2177, 7799, 2177, 7800, 2181, 7801, 2181, 7802, 2185,  // NOLINT
-  7803, 2185, 7804, 2189, 7805, 2189, 7806, 2193, 7807, 2193, 7808, 2197, 7809, 2197, 7810, 2201,  // NOLINT
-  7811, 2201, 7812, 2205, 7813, 2205, 7814, 2209, 7815, 2209, 7816, 2213, 7817, 2213, 7818, 2217,  // NOLINT
-  7819, 2217, 7820, 2221, 7821, 2221, 7822, 2225, 7823, 2225, 7824, 2229, 7825, 2229, 7826, 2233,  // NOLINT
-  7827, 2233, 7828, 2237, 7829, 2237, 7835, 2133, 7840, 2241, 7841, 2241, 7842, 2245, 7843, 2245,  // NOLINT
-  7844, 2249, 7845, 2249, 7846, 2253, 7847, 2253, 7848, 2257, 7849, 2257, 7850, 2261, 7851, 2261,  // NOLINT
-  7852, 2265, 7853, 2265, 7854, 2269, 7855, 2269, 7856, 2273, 7857, 2273, 7858, 2277, 7859, 2277,  // NOLINT
-  7860, 2281, 7861, 2281, 7862, 2285, 7863, 2285, 7864, 2289, 7865, 2289, 7866, 2293, 7867, 2293,  // NOLINT
-  7868, 2297, 7869, 2297, 7870, 2301, 7871, 2301, 7872, 2305, 7873, 2305, 7874, 2309, 7875, 2309,  // NOLINT
-  7876, 2313, 7877, 2313, 7878, 2317, 7879, 2317, 7880, 2321, 7881, 2321, 7882, 2325, 7883, 2325,  // NOLINT
-  7884, 2329, 7885, 2329, 7886, 2333, 7887, 2333, 7888, 2337, 7889, 2337, 7890, 2341, 7891, 2341,  // NOLINT
-  7892, 2345, 7893, 2345, 7894, 2349, 7895, 2349, 7896, 2353, 7897, 2353, 7898, 2357, 7899, 2357,  // NOLINT
-  7900, 2361, 7901, 2361, 7902, 2365, 7903, 2365, 7904, 2369, 7905, 2369, 7906, 2373, 7907, 2373,  // NOLINT
-  7908, 2377, 7909, 2377, 7910, 2381, 7911, 2381, 7912, 2385, 7913, 2385, 7914, 2389, 7915, 2389,  // NOLINT
-  7916, 2393, 7917, 2393, 7918, 2397, 7919, 2397, 7920, 2401, 7921, 2401, 7922, 2405, 7923, 2405,  // NOLINT
-  7924, 2409, 7925, 2409, 7926, 2413, 7927, 2413, 7928, 2417, 7929, 2417, 7936, 2421, 7937, 2425,  // NOLINT
-  7938, 2429, 7939, 2433, 7940, 2437, 7941, 2441, 7942, 2445, 7943, 2449, 7944, 2421, 7945, 2425,  // NOLINT
-  7946, 2429, 7947, 2433, 7948, 2437, 7949, 2441, 7950, 2445, 7951, 2449, 7952, 2453, 7953, 2457,  // NOLINT
-  7954, 2461, 7955, 2465, 7956, 2469, 7957, 2473, 7960, 2453, 7961, 2457, 7962, 2461, 7963, 2465,  // NOLINT
-  7964, 2469, 7965, 2473, 7968, 2477, 7969, 2481, 7970, 2485, 7971, 2489, 7972, 2493, 7973, 2497,  // NOLINT
-  7974, 2501, 7975, 2505, 7976, 2477, 7977, 2481, 7978, 2485, 7979, 2489, 7980, 2493, 7981, 2497,  // NOLINT
-  7982, 2501, 7983, 2505, 7984, 2509, 7985, 2513, 7986, 2517, 7987, 2521, 7988, 2525, 7989, 2529,  // NOLINT
-  7990, 2533, 7991, 2537, 7992, 2509, 7993, 2513, 7994, 2517, 7995, 2521, 7996, 2525, 7997, 2529,  // NOLINT
-  7998, 2533, 7999, 2537, 8000, 2541, 8001, 2545, 8002, 2549, 8003, 2553, 8004, 2557, 8005, 2561,  // NOLINT
-  8008, 2541, 8009, 2545, 8010, 2549, 8011, 2553, 8012, 2557, 8013, 2561, 8017, 2565, 8019, 2569,  // NOLINT
-  8021, 2573, 8023, 2577, 8025, 2565, 8027, 2569, 8029, 2573, 8031, 2577, 8032, 2581, 8033, 2585,  // NOLINT
-  8034, 2589, 8035, 2593, 8036, 2597, 8037, 2601, 8038, 2605, 8039, 2609, 8040, 2581, 8041, 2585,  // NOLINT
-  8042, 2589, 8043, 2593, 8044, 2597, 8045, 2601, 8046, 2605, 8047, 2609, 8048, 2613, 8049, 2617,  // NOLINT
-  8050, 2621, 8051, 2625, 8052, 2629, 8053, 2633, 8054, 2637, 8055, 2641, 8056, 2645, 8057, 2649,  // NOLINT
-  8058, 2653, 8059, 2657, 8060, 2661, 8061, 2665, 8112, 2669, 8113, 2673, 8120, 2669, 8121, 2673,  // NOLINT
-  8122, 2613, 8123, 2617, 8126, 897, 8136, 2621, 8137, 2625, 8138, 2629, 8139, 2633, 8144, 2677,  // NOLINT
-  8145, 2681, 8152, 2677, 8153, 2681, 8154, 2637, 8155, 2641, 8160, 2685, 8161, 2689, 8165, 2693,  // NOLINT
-  8168, 2685, 8169, 2689, 8170, 2653, 8171, 2657, 8172, 2693, 8184, 2645, 8185, 2649, 8186, 2661,  // NOLINT
-  8187, 2665, 8498, 2697, 8526, 2697, 8544, 2701, 8545, 2705, 8546, 2709, 8547, 2713, 8548, 2717,  // NOLINT
-  8549, 2721, 8550, 2725, 8551, 2729, 8552, 2733, 8553, 2737, 8554, 2741, 8555, 2745, 8556, 2749,  // NOLINT
-  8557, 2753, 8558, 2757, 8559, 2761, 8560, 2701, 8561, 2705, 8562, 2709, 8563, 2713, 8564, 2717,  // NOLINT
-  8565, 2721, 8566, 2725, 8567, 2729, 8568, 2733, 8569, 2737, 8570, 2741, 8571, 2745, 8572, 2749,  // NOLINT
-  8573, 2753, 8574, 2757, 8575, 2761, 8579, 2765, 8580, 2765, 9398, 2769, 9399, 2773, 9400, 2777,  // NOLINT
-  9401, 2781, 9402, 2785, 9403, 2789, 9404, 2793, 9405, 2797, 9406, 2801, 9407, 2805, 9408, 2809,  // NOLINT
-  9409, 2813, 9410, 2817, 9411, 2821, 9412, 2825, 9413, 2829, 9414, 2833, 9415, 2837, 9416, 2841,  // NOLINT
-  9417, 2845, 9418, 2849, 9419, 2853, 9420, 2857, 9421, 2861, 9422, 2865, 9423, 2869, 9424, 2769,  // NOLINT
-  9425, 2773, 9426, 2777, 9427, 2781, 9428, 2785, 9429, 2789, 9430, 2793, 9431, 2797, 9432, 2801,  // NOLINT
-  9433, 2805, 9434, 2809, 9435, 2813, 9436, 2817, 9437, 2821, 9438, 2825, 9439, 2829, 9440, 2833,  // NOLINT
-  9441, 2837, 9442, 2841, 9443, 2845, 9444, 2849, 9445, 2853, 9446, 2857, 9447, 2861, 9448, 2865,  // NOLINT
-  9449, 2869, 11264, 2873, 11265, 2877, 11266, 2881, 11267, 2885, 11268, 2889, 11269, 2893, 11270, 2897,  // NOLINT
-  11271, 2901, 11272, 2905, 11273, 2909, 11274, 2913, 11275, 2917, 11276, 2921, 11277, 2925, 11278, 2929,  // NOLINT
-  11279, 2933, 11280, 2937, 11281, 2941, 11282, 2945, 11283, 2949, 11284, 2953, 11285, 2957, 11286, 2961,  // NOLINT
-  11287, 2965, 11288, 2969, 11289, 2973, 11290, 2977, 11291, 2981, 11292, 2985, 11293, 2989, 11294, 2993,  // NOLINT
-  11295, 2997, 11296, 3001, 11297, 3005, 11298, 3009, 11299, 3013, 11300, 3017, 11301, 3021, 11302, 3025,  // NOLINT
-  11303, 3029, 11304, 3033, 11305, 3037, 11306, 3041, 11307, 3045, 11308, 3049, 11309, 3053, 11310, 3057,  // NOLINT
-  11312, 2873, 11313, 2877, 11314, 2881, 11315, 2885, 11316, 2889, 11317, 2893, 11318, 2897, 11319, 2901,  // NOLINT
-  11320, 2905, 11321, 2909, 11322, 2913, 11323, 2917, 11324, 2921, 11325, 2925, 11326, 2929, 11327, 2933,  // NOLINT
-  11328, 2937, 11329, 2941, 11330, 2945, 11331, 2949, 11332, 2953, 11333, 2957, 11334, 2961, 11335, 2965,  // NOLINT
-  11336, 2969, 11337, 2973, 11338, 2977, 11339, 2981, 11340, 2985, 11341, 2989, 11342, 2993, 11343, 2997,  // NOLINT
-  11344, 3001, 11345, 3005, 11346, 3009, 11347, 3013, 11348, 3017, 11349, 3021, 11350, 3025, 11351, 3029,  // NOLINT
-  11352, 3033, 11353, 3037, 11354, 3041, 11355, 3045, 11356, 3049, 11357, 3053, 11358, 3057, 11360, 3061,  // NOLINT
-  11361, 3061, 11362, 889, 11363, 1937, 11364, 893, 11365, 845, 11366, 853, 11367, 3065, 11368, 3065,  // NOLINT
-  11369, 3069, 11370, 3069, 11371, 3073, 11372, 3073, 11381, 3077, 11382, 3077, 11392, 3081, 11393, 3081,  // NOLINT
-  11394, 3085, 11395, 3085, 11396, 3089, 11397, 3089, 11398, 3093, 11399, 3093, 11400, 3097, 11401, 3097,  // NOLINT
-  11402, 3101, 11403, 3101, 11404, 3105, 11405, 3105, 11406, 3109, 11407, 3109, 11408, 3113, 11409, 3113,  // NOLINT
-  11410, 3117, 11411, 3117, 11412, 3121, 11413, 3121, 11414, 3125, 11415, 3125, 11416, 3129, 11417, 3129,  // NOLINT
-  11418, 3133, 11419, 3133, 11420, 3137, 11421, 3137, 11422, 3141, 11423, 3141, 11424, 3145, 11425, 3145,  // NOLINT
-  11426, 3149, 11427, 3149, 11428, 3153, 11429, 3153, 11430, 3157, 11431, 3157, 11432, 3161, 11433, 3161,  // NOLINT
-  11434, 3165, 11435, 3165, 11436, 3169, 11437, 3169, 11438, 3173, 11439, 3173, 11440, 3177, 11441, 3177,  // NOLINT
-  11442, 3181, 11443, 3181, 11444, 3185, 11445, 3185, 11446, 3189, 11447, 3189, 11448, 3193, 11449, 3193,  // NOLINT
-  11450, 3197, 11451, 3197, 11452, 3201, 11453, 3201, 11454, 3205, 11455, 3205, 11456, 3209, 11457, 3209,  // NOLINT
-  11458, 3213, 11459, 3213, 11460, 3217, 11461, 3217, 11462, 3221, 11463, 3221, 11464, 3225, 11465, 3225,  // NOLINT
-  11466, 3229, 11467, 3229, 11468, 3233, 11469, 3233, 11470, 3237, 11471, 3237, 11472, 3241, 11473, 3241,  // NOLINT
-  11474, 3245, 11475, 3245, 11476, 3249, 11477, 3249, 11478, 3253, 11479, 3253, 11480, 3257, 11481, 3257,  // NOLINT
-  11482, 3261, 11483, 3261, 11484, 3265, 11485, 3265, 11486, 3269, 11487, 3269, 11488, 3273, 11489, 3273,  // NOLINT
-  11490, 3277, 11491, 3277, 11520, 1785, 11521, 1789, 11522, 1793, 11523, 1797, 11524, 1801, 11525, 1805,  // NOLINT
-  11526, 1809, 11527, 1813, 11528, 1817, 11529, 1821, 11530, 1825, 11531, 1829, 11532, 1833, 11533, 1837,  // NOLINT
-  11534, 1841, 11535, 1845, 11536, 1849, 11537, 1853, 11538, 1857, 11539, 1861, 11540, 1865, 11541, 1869,  // NOLINT
-  11542, 1873, 11543, 1877, 11544, 1881, 11545, 1885, 11546, 1889, 11547, 1893, 11548, 1897, 11549, 1901,  // NOLINT
-  11550, 1905, 11551, 1909, 11552, 1913, 11553, 1917, 11554, 1921, 11555, 1925, 11556, 1929, 11557, 1933 };  // NOLINT
-static const MultiCharacterSpecialCase<4> kEcma262UnCanonicalizeMultiStrings1[] = {  // NOLINT
-  {2, {65313, 65345}}, {2, {65314, 65346}}, {2, {65315, 65347}}, {2, {65316, 65348}},  // NOLINT
-  {2, {65317, 65349}}, {2, {65318, 65350}}, {2, {65319, 65351}}, {2, {65320, 65352}},  // NOLINT
-  {2, {65321, 65353}}, {2, {65322, 65354}}, {2, {65323, 65355}}, {2, {65324, 65356}},  // NOLINT
-  {2, {65325, 65357}}, {2, {65326, 65358}}, {2, {65327, 65359}}, {2, {65328, 65360}},  // NOLINT
-  {2, {65329, 65361}}, {2, {65330, 65362}}, {2, {65331, 65363}}, {2, {65332, 65364}},  // NOLINT
-  {2, {65333, 65365}}, {2, {65334, 65366}}, {2, {65335, 65367}}, {2, {65336, 65368}},  // NOLINT
-  {2, {65337, 65369}}, {2, {65338, 65370}}, {0, {0}} }; // NOLINT
-static const uint16_t kEcma262UnCanonicalizeTable1Size = 52;
-static const int32_t kEcma262UnCanonicalizeTable1[104] = {
-  32545, 1, 32546, 5, 32547, 9, 32548, 13, 32549, 17, 32550, 21, 32551, 25, 32552, 29,  // NOLINT
-  32553, 33, 32554, 37, 32555, 41, 32556, 45, 32557, 49, 32558, 53, 32559, 57, 32560, 61,  // NOLINT
-  32561, 65, 32562, 69, 32563, 73, 32564, 77, 32565, 81, 32566, 85, 32567, 89, 32568, 93,  // NOLINT
-  32569, 97, 32570, 101, 32577, 1, 32578, 5, 32579, 9, 32580, 13, 32581, 17, 32582, 21,  // NOLINT
-  32583, 25, 32584, 29, 32585, 33, 32586, 37, 32587, 41, 32588, 45, 32589, 49, 32590, 53,  // NOLINT
-  32591, 57, 32592, 61, 32593, 65, 32594, 69, 32595, 73, 32596, 77, 32597, 81, 32598, 85,  // NOLINT
-  32599, 89, 32600, 93, 32601, 97, 32602, 101 };  // NOLINT
+static const MultiCharacterSpecialCase<4> kEcma262UnCanonicalizeMultiStrings0[469] = {  // NOLINT
+  {{65, 97, -1}}, {{90, 122, -1}}, {{181, 924, 956, -1}}, {{192, 224, -1}},  // NOLINT
+  {{214, 246, -1}}, {{216, 248, -1}}, {{222, 254, -1}}, {{255, 376, -1}},  // NOLINT
+  {{256, 257, -1}}, {{258, 259, -1}}, {{260, 261, -1}}, {{262, 263, -1}},  // NOLINT
+  {{264, 265, -1}}, {{266, 267, -1}}, {{268, 269, -1}}, {{270, 271, -1}},  // NOLINT
+  {{272, 273, -1}}, {{274, 275, -1}}, {{276, 277, -1}}, {{278, 279, -1}},  // NOLINT
+  {{280, 281, -1}}, {{282, 283, -1}}, {{284, 285, -1}}, {{286, 287, -1}},  // NOLINT
+  {{288, 289, -1}}, {{290, 291, -1}}, {{292, 293, -1}}, {{294, 295, -1}},  // NOLINT
+  {{296, 297, -1}}, {{298, 299, -1}}, {{300, 301, -1}}, {{302, 303, -1}},  // NOLINT
+  {{306, 307, -1}}, {{308, 309, -1}}, {{310, 311, -1}}, {{313, 314, -1}},  // NOLINT
+  {{315, 316, -1}}, {{317, 318, -1}}, {{319, 320, -1}}, {{321, 322, -1}},  // NOLINT
+  {{323, 324, -1}}, {{325, 326, -1}}, {{327, 328, -1}}, {{330, 331, -1}},  // NOLINT
+  {{332, 333, -1}}, {{334, 335, -1}}, {{336, 337, -1}}, {{338, 339, -1}},  // NOLINT
+  {{340, 341, -1}}, {{342, 343, -1}}, {{344, 345, -1}}, {{346, 347, -1}},  // NOLINT
+  {{348, 349, -1}}, {{350, 351, -1}}, {{352, 353, -1}}, {{354, 355, -1}},  // NOLINT
+  {{356, 357, -1}}, {{358, 359, -1}}, {{360, 361, -1}}, {{362, 363, -1}},  // NOLINT
+  {{364, 365, -1}}, {{366, 367, -1}}, {{368, 369, -1}}, {{370, 371, -1}},  // NOLINT
+  {{372, 373, -1}}, {{374, 375, -1}}, {{377, 378, -1}}, {{379, 380, -1}},  // NOLINT
+  {{381, 382, -1}}, {{384, 579, -1}}, {{385, 595, -1}}, {{386, 387, -1}},  // NOLINT
+  {{388, 389, -1}}, {{390, 596, -1}}, {{391, 392, -1}}, {{393, 598, -1}},  // NOLINT
+  {{394, 599, -1}}, {{395, 396, -1}}, {{398, 477, -1}}, {{399, 601, -1}},  // NOLINT
+  {{400, 603, -1}}, {{401, 402, -1}}, {{403, 608, -1}}, {{404, 611, -1}},  // NOLINT
+  {{405, 502, -1}}, {{406, 617, -1}}, {{407, 616, -1}}, {{408, 409, -1}},  // NOLINT
+  {{410, 573, -1}}, {{412, 623, -1}}, {{413, 626, -1}}, {{414, 544, -1}},  // NOLINT
+  {{415, 629, -1}}, {{416, 417, -1}}, {{418, 419, -1}}, {{420, 421, -1}},  // NOLINT
+  {{422, 640, -1}}, {{423, 424, -1}}, {{425, 643, -1}}, {{428, 429, -1}},  // NOLINT
+  {{430, 648, -1}}, {{431, 432, -1}}, {{433, 650, -1}}, {{434, 651, -1}},  // NOLINT
+  {{435, 436, -1}}, {{437, 438, -1}}, {{439, 658, -1}}, {{440, 441, -1}},  // NOLINT
+  {{444, 445, -1}}, {{447, 503, -1}}, {{452, 453, 454, -1}}, {{455, 456, 457, -1}},  // NOLINT
+  {{458, 459, 460, -1}}, {{461, 462, -1}}, {{463, 464, -1}}, {{465, 466, -1}},  // NOLINT
+  {{467, 468, -1}}, {{469, 470, -1}}, {{471, 472, -1}}, {{473, 474, -1}},  // NOLINT
+  {{475, 476, -1}}, {{478, 479, -1}}, {{480, 481, -1}}, {{482, 483, -1}},  // NOLINT
+  {{484, 485, -1}}, {{486, 487, -1}}, {{488, 489, -1}}, {{490, 491, -1}},  // NOLINT
+  {{492, 493, -1}}, {{494, 495, -1}}, {{497, 498, 499, -1}}, {{500, 501, -1}},  // NOLINT
+  {{504, 505, -1}}, {{506, 507, -1}}, {{508, 509, -1}}, {{510, 511, -1}},  // NOLINT
+  {{512, 513, -1}}, {{514, 515, -1}}, {{516, 517, -1}}, {{518, 519, -1}},  // NOLINT
+  {{520, 521, -1}}, {{522, 523, -1}}, {{524, 525, -1}}, {{526, 527, -1}},  // NOLINT
+  {{528, 529, -1}}, {{530, 531, -1}}, {{532, 533, -1}}, {{534, 535, -1}},  // NOLINT
+  {{536, 537, -1}}, {{538, 539, -1}}, {{540, 541, -1}}, {{542, 543, -1}},  // NOLINT
+  {{546, 547, -1}}, {{548, 549, -1}}, {{550, 551, -1}}, {{552, 553, -1}},  // NOLINT
+  {{554, 555, -1}}, {{556, 557, -1}}, {{558, 559, -1}}, {{560, 561, -1}},  // NOLINT
+  {{562, 563, -1}}, {{570, 11365, -1}}, {{571, 572, -1}}, {{574, 11366, -1}},  // NOLINT
+  {{577, 578, -1}}, {{580, 649, -1}}, {{581, 652, -1}}, {{582, 583, -1}},  // NOLINT
+  {{584, 585, -1}}, {{586, 587, -1}}, {{588, 589, -1}}, {{590, 591, -1}},  // NOLINT
+  {{619, 11362, -1}}, {{637, 11364, -1}}, {{837, 921, 953, 8126}}, {{891, 1021, -1}},  // NOLINT
+  {{893, 1023, -1}}, {{902, 940, -1}}, {{904, 941, -1}}, {{906, 943, -1}},  // NOLINT
+  {{908, 972, -1}}, {{910, 973, -1}}, {{911, 974, -1}}, {{913, 945, -1}},  // NOLINT
+  {{914, 946, 976, -1}}, {{915, 947, -1}}, {{916, 948, -1}}, {{917, 949, 1013, -1}},  // NOLINT
+  {{918, 950, -1}}, {{919, 951, -1}}, {{920, 952, 977, -1}}, {{922, 954, 1008, -1}},  // NOLINT
+  {{923, 955, -1}}, {{925, 957, -1}}, {{927, 959, -1}}, {{928, 960, 982, -1}},  // NOLINT
+  {{929, 961, 1009, -1}}, {{931, 962, 963, -1}}, {{932, 964, -1}}, {{933, 965, -1}},  // NOLINT
+  {{934, 966, 981, -1}}, {{935, 967, -1}}, {{939, 971, -1}}, {{984, 985, -1}},  // NOLINT
+  {{986, 987, -1}}, {{988, 989, -1}}, {{990, 991, -1}}, {{992, 993, -1}},  // NOLINT
+  {{994, 995, -1}}, {{996, 997, -1}}, {{998, 999, -1}}, {{1000, 1001, -1}},  // NOLINT
+  {{1002, 1003, -1}}, {{1004, 1005, -1}}, {{1006, 1007, -1}}, {{1010, 1017, -1}},  // NOLINT
+  {{1015, 1016, -1}}, {{1018, 1019, -1}}, {{1024, 1104, -1}}, {{1039, 1119, -1}},  // NOLINT
+  {{1040, 1072, -1}}, {{1071, 1103, -1}}, {{1120, 1121, -1}}, {{1122, 1123, -1}},  // NOLINT
+  {{1124, 1125, -1}}, {{1126, 1127, -1}}, {{1128, 1129, -1}}, {{1130, 1131, -1}},  // NOLINT
+  {{1132, 1133, -1}}, {{1134, 1135, -1}}, {{1136, 1137, -1}}, {{1138, 1139, -1}},  // NOLINT
+  {{1140, 1141, -1}}, {{1142, 1143, -1}}, {{1144, 1145, -1}}, {{1146, 1147, -1}},  // NOLINT
+  {{1148, 1149, -1}}, {{1150, 1151, -1}}, {{1152, 1153, -1}}, {{1162, 1163, -1}},  // NOLINT
+  {{1164, 1165, -1}}, {{1166, 1167, -1}}, {{1168, 1169, -1}}, {{1170, 1171, -1}},  // NOLINT
+  {{1172, 1173, -1}}, {{1174, 1175, -1}}, {{1176, 1177, -1}}, {{1178, 1179, -1}},  // NOLINT
+  {{1180, 1181, -1}}, {{1182, 1183, -1}}, {{1184, 1185, -1}}, {{1186, 1187, -1}},  // NOLINT
+  {{1188, 1189, -1}}, {{1190, 1191, -1}}, {{1192, 1193, -1}}, {{1194, 1195, -1}},  // NOLINT
+  {{1196, 1197, -1}}, {{1198, 1199, -1}}, {{1200, 1201, -1}}, {{1202, 1203, -1}},  // NOLINT
+  {{1204, 1205, -1}}, {{1206, 1207, -1}}, {{1208, 1209, -1}}, {{1210, 1211, -1}},  // NOLINT
+  {{1212, 1213, -1}}, {{1214, 1215, -1}}, {{1216, 1231, -1}}, {{1217, 1218, -1}},  // NOLINT
+  {{1219, 1220, -1}}, {{1221, 1222, -1}}, {{1223, 1224, -1}}, {{1225, 1226, -1}},  // NOLINT
+  {{1227, 1228, -1}}, {{1229, 1230, -1}}, {{1232, 1233, -1}}, {{1234, 1235, -1}},  // NOLINT
+  {{1236, 1237, -1}}, {{1238, 1239, -1}}, {{1240, 1241, -1}}, {{1242, 1243, -1}},  // NOLINT
+  {{1244, 1245, -1}}, {{1246, 1247, -1}}, {{1248, 1249, -1}}, {{1250, 1251, -1}},  // NOLINT
+  {{1252, 1253, -1}}, {{1254, 1255, -1}}, {{1256, 1257, -1}}, {{1258, 1259, -1}},  // NOLINT
+  {{1260, 1261, -1}}, {{1262, 1263, -1}}, {{1264, 1265, -1}}, {{1266, 1267, -1}},  // NOLINT
+  {{1268, 1269, -1}}, {{1270, 1271, -1}}, {{1272, 1273, -1}}, {{1274, 1275, -1}},  // NOLINT
+  {{1276, 1277, -1}}, {{1278, 1279, -1}}, {{1280, 1281, -1}}, {{1282, 1283, -1}},  // NOLINT
+  {{1284, 1285, -1}}, {{1286, 1287, -1}}, {{1288, 1289, -1}}, {{1290, 1291, -1}},  // NOLINT
+  {{1292, 1293, -1}}, {{1294, 1295, -1}}, {{1296, 1297, -1}}, {{1298, 1299, -1}},  // NOLINT
+  {{1329, 1377, -1}}, {{1366, 1414, -1}}, {{4256, 11520, -1}}, {{4293, 11557, -1}},  // NOLINT
+  {{7549, 11363, -1}}, {{7680, 7681, -1}}, {{7682, 7683, -1}}, {{7684, 7685, -1}},  // NOLINT
+  {{7686, 7687, -1}}, {{7688, 7689, -1}}, {{7690, 7691, -1}}, {{7692, 7693, -1}},  // NOLINT
+  {{7694, 7695, -1}}, {{7696, 7697, -1}}, {{7698, 7699, -1}}, {{7700, 7701, -1}},  // NOLINT
+  {{7702, 7703, -1}}, {{7704, 7705, -1}}, {{7706, 7707, -1}}, {{7708, 7709, -1}},  // NOLINT
+  {{7710, 7711, -1}}, {{7712, 7713, -1}}, {{7714, 7715, -1}}, {{7716, 7717, -1}},  // NOLINT
+  {{7718, 7719, -1}}, {{7720, 7721, -1}}, {{7722, 7723, -1}}, {{7724, 7725, -1}},  // NOLINT
+  {{7726, 7727, -1}}, {{7728, 7729, -1}}, {{7730, 7731, -1}}, {{7732, 7733, -1}},  // NOLINT
+  {{7734, 7735, -1}}, {{7736, 7737, -1}}, {{7738, 7739, -1}}, {{7740, 7741, -1}},  // NOLINT
+  {{7742, 7743, -1}}, {{7744, 7745, -1}}, {{7746, 7747, -1}}, {{7748, 7749, -1}},  // NOLINT
+  {{7750, 7751, -1}}, {{7752, 7753, -1}}, {{7754, 7755, -1}}, {{7756, 7757, -1}},  // NOLINT
+  {{7758, 7759, -1}}, {{7760, 7761, -1}}, {{7762, 7763, -1}}, {{7764, 7765, -1}},  // NOLINT
+  {{7766, 7767, -1}}, {{7768, 7769, -1}}, {{7770, 7771, -1}}, {{7772, 7773, -1}},  // NOLINT
+  {{7774, 7775, -1}}, {{7776, 7777, 7835, -1}}, {{7778, 7779, -1}}, {{7780, 7781, -1}},  // NOLINT
+  {{7782, 7783, -1}}, {{7784, 7785, -1}}, {{7786, 7787, -1}}, {{7788, 7789, -1}},  // NOLINT
+  {{7790, 7791, -1}}, {{7792, 7793, -1}}, {{7794, 7795, -1}}, {{7796, 7797, -1}},  // NOLINT
+  {{7798, 7799, -1}}, {{7800, 7801, -1}}, {{7802, 7803, -1}}, {{7804, 7805, -1}},  // NOLINT
+  {{7806, 7807, -1}}, {{7808, 7809, -1}}, {{7810, 7811, -1}}, {{7812, 7813, -1}},  // NOLINT
+  {{7814, 7815, -1}}, {{7816, 7817, -1}}, {{7818, 7819, -1}}, {{7820, 7821, -1}},  // NOLINT
+  {{7822, 7823, -1}}, {{7824, 7825, -1}}, {{7826, 7827, -1}}, {{7828, 7829, -1}},  // NOLINT
+  {{7840, 7841, -1}}, {{7842, 7843, -1}}, {{7844, 7845, -1}}, {{7846, 7847, -1}},  // NOLINT
+  {{7848, 7849, -1}}, {{7850, 7851, -1}}, {{7852, 7853, -1}}, {{7854, 7855, -1}},  // NOLINT
+  {{7856, 7857, -1}}, {{7858, 7859, -1}}, {{7860, 7861, -1}}, {{7862, 7863, -1}},  // NOLINT
+  {{7864, 7865, -1}}, {{7866, 7867, -1}}, {{7868, 7869, -1}}, {{7870, 7871, -1}},  // NOLINT
+  {{7872, 7873, -1}}, {{7874, 7875, -1}}, {{7876, 7877, -1}}, {{7878, 7879, -1}},  // NOLINT
+  {{7880, 7881, -1}}, {{7882, 7883, -1}}, {{7884, 7885, -1}}, {{7886, 7887, -1}},  // NOLINT
+  {{7888, 7889, -1}}, {{7890, 7891, -1}}, {{7892, 7893, -1}}, {{7894, 7895, -1}},  // NOLINT
+  {{7896, 7897, -1}}, {{7898, 7899, -1}}, {{7900, 7901, -1}}, {{7902, 7903, -1}},  // NOLINT
+  {{7904, 7905, -1}}, {{7906, 7907, -1}}, {{7908, 7909, -1}}, {{7910, 7911, -1}},  // NOLINT
+  {{7912, 7913, -1}}, {{7914, 7915, -1}}, {{7916, 7917, -1}}, {{7918, 7919, -1}},  // NOLINT
+  {{7920, 7921, -1}}, {{7922, 7923, -1}}, {{7924, 7925, -1}}, {{7926, 7927, -1}},  // NOLINT
+  {{7928, 7929, -1}}, {{7936, 7944, -1}}, {{7943, 7951, -1}}, {{7952, 7960, -1}},  // NOLINT
+  {{7957, 7965, -1}}, {{7968, 7976, -1}}, {{7975, 7983, -1}}, {{7984, 7992, -1}},  // NOLINT
+  {{7991, 7999, -1}}, {{8000, 8008, -1}}, {{8005, 8013, -1}}, {{8017, 8025, -1}},  // NOLINT
+  {{8019, 8027, -1}}, {{8021, 8029, -1}}, {{8023, 8031, -1}}, {{8032, 8040, -1}},  // NOLINT
+  {{8039, 8047, -1}}, {{8048, 8122, -1}}, {{8049, 8123, -1}}, {{8050, 8136, -1}},  // NOLINT
+  {{8053, 8139, -1}}, {{8054, 8154, -1}}, {{8055, 8155, -1}}, {{8056, 8184, -1}},  // NOLINT
+  {{8057, 8185, -1}}, {{8058, 8170, -1}}, {{8059, 8171, -1}}, {{8060, 8186, -1}},  // NOLINT
+  {{8061, 8187, -1}}, {{8112, 8120, -1}}, {{8113, 8121, -1}}, {{8144, 8152, -1}},  // NOLINT
+  {{8145, 8153, -1}}, {{8160, 8168, -1}}, {{8161, 8169, -1}}, {{8165, 8172, -1}},  // NOLINT
+  {{-1}} }; // NOLINT
+static const uint16_t kEcma262UnCanonicalizeTable0Size = 945;  // NOLINT
+static const int32_t kEcma262UnCanonicalizeTable0[1890] = {
+  1073741889, 1, 90, 5, 1073741921, 1, 122, 5, 181, 9, 1073742016, 13, 214, 17, 1073742040, 21,  // NOLINT
+  222, 25, 1073742048, 13, 246, 17, 1073742072, 21, 254, 25, 255, 29, 256, 33, 257, 33,  // NOLINT
+  258, 37, 259, 37, 260, 41, 261, 41, 262, 45, 263, 45, 264, 49, 265, 49,  // NOLINT
+  266, 53, 267, 53, 268, 57, 269, 57, 270, 61, 271, 61, 272, 65, 273, 65,  // NOLINT
+  274, 69, 275, 69, 276, 73, 277, 73, 278, 77, 279, 77, 280, 81, 281, 81,  // NOLINT
+  282, 85, 283, 85, 284, 89, 285, 89, 286, 93, 287, 93, 288, 97, 289, 97,  // NOLINT
+  290, 101, 291, 101, 292, 105, 293, 105, 294, 109, 295, 109, 296, 113, 297, 113,  // NOLINT
+  298, 117, 299, 117, 300, 121, 301, 121, 302, 125, 303, 125, 306, 129, 307, 129,  // NOLINT
+  308, 133, 309, 133, 310, 137, 311, 137, 313, 141, 314, 141, 315, 145, 316, 145,  // NOLINT
+  317, 149, 318, 149, 319, 153, 320, 153, 321, 157, 322, 157, 323, 161, 324, 161,  // NOLINT
+  325, 165, 326, 165, 327, 169, 328, 169, 330, 173, 331, 173, 332, 177, 333, 177,  // NOLINT
+  334, 181, 335, 181, 336, 185, 337, 185, 338, 189, 339, 189, 340, 193, 341, 193,  // NOLINT
+  342, 197, 343, 197, 344, 201, 345, 201, 346, 205, 347, 205, 348, 209, 349, 209,  // NOLINT
+  350, 213, 351, 213, 352, 217, 353, 217, 354, 221, 355, 221, 356, 225, 357, 225,  // NOLINT
+  358, 229, 359, 229, 360, 233, 361, 233, 362, 237, 363, 237, 364, 241, 365, 241,  // NOLINT
+  366, 245, 367, 245, 368, 249, 369, 249, 370, 253, 371, 253, 372, 257, 373, 257,  // NOLINT
+  374, 261, 375, 261, 376, 29, 377, 265, 378, 265, 379, 269, 380, 269, 381, 273,  // NOLINT
+  382, 273, 384, 277, 385, 281, 386, 285, 387, 285, 388, 289, 389, 289, 390, 293,  // NOLINT
+  391, 297, 392, 297, 1073742217, 301, 394, 305, 395, 309, 396, 309, 398, 313, 399, 317,  // NOLINT
+  400, 321, 401, 325, 402, 325, 403, 329, 404, 333, 405, 337, 406, 341, 407, 345,  // NOLINT
+  408, 349, 409, 349, 410, 353, 412, 357, 413, 361, 414, 365, 415, 369, 416, 373,  // NOLINT
+  417, 373, 418, 377, 419, 377, 420, 381, 421, 381, 422, 385, 423, 389, 424, 389,  // NOLINT
+  425, 393, 428, 397, 429, 397, 430, 401, 431, 405, 432, 405, 1073742257, 409, 434, 413,  // NOLINT
+  435, 417, 436, 417, 437, 421, 438, 421, 439, 425, 440, 429, 441, 429, 444, 433,  // NOLINT
+  445, 433, 447, 437, 452, 441, 453, 441, 454, 441, 455, 445, 456, 445, 457, 445,  // NOLINT
+  458, 449, 459, 449, 460, 449, 461, 453, 462, 453, 463, 457, 464, 457, 465, 461,  // NOLINT
+  466, 461, 467, 465, 468, 465, 469, 469, 470, 469, 471, 473, 472, 473, 473, 477,  // NOLINT
+  474, 477, 475, 481, 476, 481, 477, 313, 478, 485, 479, 485, 480, 489, 481, 489,  // NOLINT
+  482, 493, 483, 493, 484, 497, 485, 497, 486, 501, 487, 501, 488, 505, 489, 505,  // NOLINT
+  490, 509, 491, 509, 492, 513, 493, 513, 494, 517, 495, 517, 497, 521, 498, 521,  // NOLINT
+  499, 521, 500, 525, 501, 525, 502, 337, 503, 437, 504, 529, 505, 529, 506, 533,  // NOLINT
+  507, 533, 508, 537, 509, 537, 510, 541, 511, 541, 512, 545, 513, 545, 514, 549,  // NOLINT
+  515, 549, 516, 553, 517, 553, 518, 557, 519, 557, 520, 561, 521, 561, 522, 565,  // NOLINT
+  523, 565, 524, 569, 525, 569, 526, 573, 527, 573, 528, 577, 529, 577, 530, 581,  // NOLINT
+  531, 581, 532, 585, 533, 585, 534, 589, 535, 589, 536, 593, 537, 593, 538, 597,  // NOLINT
+  539, 597, 540, 601, 541, 601, 542, 605, 543, 605, 544, 365, 546, 609, 547, 609,  // NOLINT
+  548, 613, 549, 613, 550, 617, 551, 617, 552, 621, 553, 621, 554, 625, 555, 625,  // NOLINT
+  556, 629, 557, 629, 558, 633, 559, 633, 560, 637, 561, 637, 562, 641, 563, 641,  // NOLINT
+  570, 645, 571, 649, 572, 649, 573, 353, 574, 653, 577, 657, 578, 657, 579, 277,  // NOLINT
+  580, 661, 581, 665, 582, 669, 583, 669, 584, 673, 585, 673, 586, 677, 587, 677,  // NOLINT
+  588, 681, 589, 681, 590, 685, 591, 685, 595, 281, 596, 293, 1073742422, 301, 599, 305,  // NOLINT
+  601, 317, 603, 321, 608, 329, 611, 333, 616, 345, 617, 341, 619, 689, 623, 357,  // NOLINT
+  626, 361, 629, 369, 637, 693, 640, 385, 643, 393, 648, 401, 649, 661, 1073742474, 409,  // NOLINT
+  651, 413, 652, 665, 658, 425, 837, 697, 1073742715, 701, 893, 705, 902, 709, 1073742728, 713,  // NOLINT
+  906, 717, 908, 721, 1073742734, 725, 911, 729, 913, 733, 914, 737, 1073742739, 741, 916, 745,  // NOLINT
+  917, 749, 1073742742, 753, 919, 757, 920, 761, 921, 697, 922, 765, 923, 769, 924, 9,  // NOLINT
+  1073742749, 773, 927, 777, 928, 781, 929, 785, 931, 789, 1073742756, 793, 933, 797, 934, 801,  // NOLINT
+  1073742759, 805, 939, 809, 940, 709, 1073742765, 713, 943, 717, 945, 733, 946, 737, 1073742771, 741,  // NOLINT
+  948, 745, 949, 749, 1073742774, 753, 951, 757, 952, 761, 953, 697, 954, 765, 955, 769,  // NOLINT
+  956, 9, 1073742781, 773, 959, 777, 960, 781, 961, 785, 962, 789, 963, 789, 1073742788, 793,  // NOLINT
+  965, 797, 966, 801, 1073742791, 805, 971, 809, 972, 721, 1073742797, 725, 974, 729, 976, 737,  // NOLINT
+  977, 761, 981, 801, 982, 781, 984, 813, 985, 813, 986, 817, 987, 817, 988, 821,  // NOLINT
+  989, 821, 990, 825, 991, 825, 992, 829, 993, 829, 994, 833, 995, 833, 996, 837,  // NOLINT
+  997, 837, 998, 841, 999, 841, 1000, 845, 1001, 845, 1002, 849, 1003, 849, 1004, 853,  // NOLINT
+  1005, 853, 1006, 857, 1007, 857, 1008, 765, 1009, 785, 1010, 861, 1013, 749, 1015, 865,  // NOLINT
+  1016, 865, 1017, 861, 1018, 869, 1019, 869, 1073742845, 701, 1023, 705, 1073742848, 873, 1039, 877,  // NOLINT
+  1073742864, 881, 1071, 885, 1073742896, 881, 1103, 885, 1073742928, 873, 1119, 877, 1120, 889, 1121, 889,  // NOLINT
+  1122, 893, 1123, 893, 1124, 897, 1125, 897, 1126, 901, 1127, 901, 1128, 905, 1129, 905,  // NOLINT
+  1130, 909, 1131, 909, 1132, 913, 1133, 913, 1134, 917, 1135, 917, 1136, 921, 1137, 921,  // NOLINT
+  1138, 925, 1139, 925, 1140, 929, 1141, 929, 1142, 933, 1143, 933, 1144, 937, 1145, 937,  // NOLINT
+  1146, 941, 1147, 941, 1148, 945, 1149, 945, 1150, 949, 1151, 949, 1152, 953, 1153, 953,  // NOLINT
+  1162, 957, 1163, 957, 1164, 961, 1165, 961, 1166, 965, 1167, 965, 1168, 969, 1169, 969,  // NOLINT
+  1170, 973, 1171, 973, 1172, 977, 1173, 977, 1174, 981, 1175, 981, 1176, 985, 1177, 985,  // NOLINT
+  1178, 989, 1179, 989, 1180, 993, 1181, 993, 1182, 997, 1183, 997, 1184, 1001, 1185, 1001,  // NOLINT
+  1186, 1005, 1187, 1005, 1188, 1009, 1189, 1009, 1190, 1013, 1191, 1013, 1192, 1017, 1193, 1017,  // NOLINT
+  1194, 1021, 1195, 1021, 1196, 1025, 1197, 1025, 1198, 1029, 1199, 1029, 1200, 1033, 1201, 1033,  // NOLINT
+  1202, 1037, 1203, 1037, 1204, 1041, 1205, 1041, 1206, 1045, 1207, 1045, 1208, 1049, 1209, 1049,  // NOLINT
+  1210, 1053, 1211, 1053, 1212, 1057, 1213, 1057, 1214, 1061, 1215, 1061, 1216, 1065, 1217, 1069,  // NOLINT
+  1218, 1069, 1219, 1073, 1220, 1073, 1221, 1077, 1222, 1077, 1223, 1081, 1224, 1081, 1225, 1085,  // NOLINT
+  1226, 1085, 1227, 1089, 1228, 1089, 1229, 1093, 1230, 1093, 1231, 1065, 1232, 1097, 1233, 1097,  // NOLINT
+  1234, 1101, 1235, 1101, 1236, 1105, 1237, 1105, 1238, 1109, 1239, 1109, 1240, 1113, 1241, 1113,  // NOLINT
+  1242, 1117, 1243, 1117, 1244, 1121, 1245, 1121, 1246, 1125, 1247, 1125, 1248, 1129, 1249, 1129,  // NOLINT
+  1250, 1133, 1251, 1133, 1252, 1137, 1253, 1137, 1254, 1141, 1255, 1141, 1256, 1145, 1257, 1145,  // NOLINT
+  1258, 1149, 1259, 1149, 1260, 1153, 1261, 1153, 1262, 1157, 1263, 1157, 1264, 1161, 1265, 1161,  // NOLINT
+  1266, 1165, 1267, 1165, 1268, 1169, 1269, 1169, 1270, 1173, 1271, 1173, 1272, 1177, 1273, 1177,  // NOLINT
+  1274, 1181, 1275, 1181, 1276, 1185, 1277, 1185, 1278, 1189, 1279, 1189, 1280, 1193, 1281, 1193,  // NOLINT
+  1282, 1197, 1283, 1197, 1284, 1201, 1285, 1201, 1286, 1205, 1287, 1205, 1288, 1209, 1289, 1209,  // NOLINT
+  1290, 1213, 1291, 1213, 1292, 1217, 1293, 1217, 1294, 1221, 1295, 1221, 1296, 1225, 1297, 1225,  // NOLINT
+  1298, 1229, 1299, 1229, 1073743153, 1233, 1366, 1237, 1073743201, 1233, 1414, 1237, 1073746080, 1241, 4293, 1245,  // NOLINT
+  7549, 1249, 7680, 1253, 7681, 1253, 7682, 1257, 7683, 1257, 7684, 1261, 7685, 1261, 7686, 1265,  // NOLINT
+  7687, 1265, 7688, 1269, 7689, 1269, 7690, 1273, 7691, 1273, 7692, 1277, 7693, 1277, 7694, 1281,  // NOLINT
+  7695, 1281, 7696, 1285, 7697, 1285, 7698, 1289, 7699, 1289, 7700, 1293, 7701, 1293, 7702, 1297,  // NOLINT
+  7703, 1297, 7704, 1301, 7705, 1301, 7706, 1305, 7707, 1305, 7708, 1309, 7709, 1309, 7710, 1313,  // NOLINT
+  7711, 1313, 7712, 1317, 7713, 1317, 7714, 1321, 7715, 1321, 7716, 1325, 7717, 1325, 7718, 1329,  // NOLINT
+  7719, 1329, 7720, 1333, 7721, 1333, 7722, 1337, 7723, 1337, 7724, 1341, 7725, 1341, 7726, 1345,  // NOLINT
+  7727, 1345, 7728, 1349, 7729, 1349, 7730, 1353, 7731, 1353, 7732, 1357, 7733, 1357, 7734, 1361,  // NOLINT
+  7735, 1361, 7736, 1365, 7737, 1365, 7738, 1369, 7739, 1369, 7740, 1373, 7741, 1373, 7742, 1377,  // NOLINT
+  7743, 1377, 7744, 1381, 7745, 1381, 7746, 1385, 7747, 1385, 7748, 1389, 7749, 1389, 7750, 1393,  // NOLINT
+  7751, 1393, 7752, 1397, 7753, 1397, 7754, 1401, 7755, 1401, 7756, 1405, 7757, 1405, 7758, 1409,  // NOLINT
+  7759, 1409, 7760, 1413, 7761, 1413, 7762, 1417, 7763, 1417, 7764, 1421, 7765, 1421, 7766, 1425,  // NOLINT
+  7767, 1425, 7768, 1429, 7769, 1429, 7770, 1433, 7771, 1433, 7772, 1437, 7773, 1437, 7774, 1441,  // NOLINT
+  7775, 1441, 7776, 1445, 7777, 1445, 7778, 1449, 7779, 1449, 7780, 1453, 7781, 1453, 7782, 1457,  // NOLINT
+  7783, 1457, 7784, 1461, 7785, 1461, 7786, 1465, 7787, 1465, 7788, 1469, 7789, 1469, 7790, 1473,  // NOLINT
+  7791, 1473, 7792, 1477, 7793, 1477, 7794, 1481, 7795, 1481, 7796, 1485, 7797, 1485, 7798, 1489,  // NOLINT
+  7799, 1489, 7800, 1493, 7801, 1493, 7802, 1497, 7803, 1497, 7804, 1501, 7805, 1501, 7806, 1505,  // NOLINT
+  7807, 1505, 7808, 1509, 7809, 1509, 7810, 1513, 7811, 1513, 7812, 1517, 7813, 1517, 7814, 1521,  // NOLINT
+  7815, 1521, 7816, 1525, 7817, 1525, 7818, 1529, 7819, 1529, 7820, 1533, 7821, 1533, 7822, 1537,  // NOLINT
+  7823, 1537, 7824, 1541, 7825, 1541, 7826, 1545, 7827, 1545, 7828, 1549, 7829, 1549, 7835, 1445,  // NOLINT
+  7840, 1553, 7841, 1553, 7842, 1557, 7843, 1557, 7844, 1561, 7845, 1561, 7846, 1565, 7847, 1565,  // NOLINT
+  7848, 1569, 7849, 1569, 7850, 1573, 7851, 1573, 7852, 1577, 7853, 1577, 7854, 1581, 7855, 1581,  // NOLINT
+  7856, 1585, 7857, 1585, 7858, 1589, 7859, 1589, 7860, 1593, 7861, 1593, 7862, 1597, 7863, 1597,  // NOLINT
+  7864, 1601, 7865, 1601, 7866, 1605, 7867, 1605, 7868, 1609, 7869, 1609, 7870, 1613, 7871, 1613,  // NOLINT
+  7872, 1617, 7873, 1617, 7874, 1621, 7875, 1621, 7876, 1625, 7877, 1625, 7878, 1629, 7879, 1629,  // NOLINT
+  7880, 1633, 7881, 1633, 7882, 1637, 7883, 1637, 7884, 1641, 7885, 1641, 7886, 1645, 7887, 1645,  // NOLINT
+  7888, 1649, 7889, 1649, 7890, 1653, 7891, 1653, 7892, 1657, 7893, 1657, 7894, 1661, 7895, 1661,  // NOLINT
+  7896, 1665, 7897, 1665, 7898, 1669, 7899, 1669, 7900, 1673, 7901, 1673, 7902, 1677, 7903, 1677,  // NOLINT
+  7904, 1681, 7905, 1681, 7906, 1685, 7907, 1685, 7908, 1689, 7909, 1689, 7910, 1693, 7911, 1693,  // NOLINT
+  7912, 1697, 7913, 1697, 7914, 1701, 7915, 1701, 7916, 1705, 7917, 1705, 7918, 1709, 7919, 1709,  // NOLINT
+  7920, 1713, 7921, 1713, 7922, 1717, 7923, 1717, 7924, 1721, 7925, 1721, 7926, 1725, 7927, 1725,  // NOLINT
+  7928, 1729, 7929, 1729, 1073749760, 1733, 7943, 1737, 1073749768, 1733, 7951, 1737, 1073749776, 1741, 7957, 1745,  // NOLINT
+  1073749784, 1741, 7965, 1745, 1073749792, 1749, 7975, 1753, 1073749800, 1749, 7983, 1753, 1073749808, 1757, 7991, 1761,  // NOLINT
+  1073749816, 1757, 7999, 1761, 1073749824, 1765, 8005, 1769, 1073749832, 1765, 8013, 1769, 8017, 1773, 8019, 1777,  // NOLINT
+  8021, 1781, 8023, 1785, 8025, 1773, 8027, 1777, 8029, 1781, 8031, 1785, 1073749856, 1789, 8039, 1793,  // NOLINT
+  1073749864, 1789, 8047, 1793, 1073749872, 1797, 8049, 1801, 1073749874, 1805, 8053, 1809, 1073749878, 1813, 8055, 1817,  // NOLINT
+  1073749880, 1821, 8057, 1825, 1073749882, 1829, 8059, 1833, 1073749884, 1837, 8061, 1841, 1073749936, 1845, 8113, 1849,  // NOLINT
+  1073749944, 1845, 8121, 1849, 1073749946, 1797, 8123, 1801, 8126, 697, 1073749960, 1805, 8139, 1809, 1073749968, 1853,  // NOLINT
+  8145, 1857, 1073749976, 1853, 8153, 1857, 1073749978, 1813, 8155, 1817, 1073749984, 1861, 8161, 1865, 8165, 1869,  // NOLINT
+  1073749992, 1861, 8169, 1865, 1073749994, 1829, 8171, 1833, 8172, 1869, 1073750008, 1821, 8185, 1825, 1073750010, 1837,  // NOLINT
+  8187, 1841 };  // NOLINT
+static const uint16_t kEcma262UnCanonicalizeMultiStrings0Size = 469;  // NOLINT
+static const MultiCharacterSpecialCase<2> kEcma262UnCanonicalizeMultiStrings1[71] = {  // NOLINT
+  {{8498, 8526}}, {{8544, 8560}}, {{8559, 8575}}, {{8579, 8580}},  // NOLINT
+  {{9398, 9424}}, {{9423, 9449}}, {{11264, 11312}}, {{11310, 11358}},  // NOLINT
+  {{11360, 11361}}, {{619, 11362}}, {{7549, 11363}}, {{637, 11364}},  // NOLINT
+  {{570, 11365}}, {{574, 11366}}, {{11367, 11368}}, {{11369, 11370}},  // NOLINT
+  {{11371, 11372}}, {{11381, 11382}}, {{11392, 11393}}, {{11394, 11395}},  // NOLINT
+  {{11396, 11397}}, {{11398, 11399}}, {{11400, 11401}}, {{11402, 11403}},  // NOLINT
+  {{11404, 11405}}, {{11406, 11407}}, {{11408, 11409}}, {{11410, 11411}},  // NOLINT
+  {{11412, 11413}}, {{11414, 11415}}, {{11416, 11417}}, {{11418, 11419}},  // NOLINT
+  {{11420, 11421}}, {{11422, 11423}}, {{11424, 11425}}, {{11426, 11427}},  // NOLINT
+  {{11428, 11429}}, {{11430, 11431}}, {{11432, 11433}}, {{11434, 11435}},  // NOLINT
+  {{11436, 11437}}, {{11438, 11439}}, {{11440, 11441}}, {{11442, 11443}},  // NOLINT
+  {{11444, 11445}}, {{11446, 11447}}, {{11448, 11449}}, {{11450, 11451}},  // NOLINT
+  {{11452, 11453}}, {{11454, 11455}}, {{11456, 11457}}, {{11458, 11459}},  // NOLINT
+  {{11460, 11461}}, {{11462, 11463}}, {{11464, 11465}}, {{11466, 11467}},  // NOLINT
+  {{11468, 11469}}, {{11470, 11471}}, {{11472, 11473}}, {{11474, 11475}},  // NOLINT
+  {{11476, 11477}}, {{11478, 11479}}, {{11480, 11481}}, {{11482, 11483}},  // NOLINT
+  {{11484, 11485}}, {{11486, 11487}}, {{11488, 11489}}, {{11490, 11491}},  // NOLINT
+  {{4256, 11520}}, {{4293, 11557}}, {{-1}} }; // NOLINT
+static const uint16_t kEcma262UnCanonicalizeTable1Size = 133;  // NOLINT
+static const int32_t kEcma262UnCanonicalizeTable1[266] = {
+  306, 1, 334, 1, 1073742176, 5, 367, 9, 1073742192, 5, 383, 9, 387, 13, 388, 13,  // NOLINT
+  1073743030, 17, 1231, 21, 1073743056, 17, 1257, 21, 1073744896, 25, 3118, 29, 1073744944, 25, 3166, 29,  // NOLINT
+  3168, 33, 3169, 33, 3170, 37, 3171, 41, 3172, 45, 3173, 49, 3174, 53, 3175, 57,  // NOLINT
+  3176, 57, 3177, 61, 3178, 61, 3179, 65, 3180, 65, 3189, 69, 3190, 69, 3200, 73,  // NOLINT
+  3201, 73, 3202, 77, 3203, 77, 3204, 81, 3205, 81, 3206, 85, 3207, 85, 3208, 89,  // NOLINT
+  3209, 89, 3210, 93, 3211, 93, 3212, 97, 3213, 97, 3214, 101, 3215, 101, 3216, 105,  // NOLINT
+  3217, 105, 3218, 109, 3219, 109, 3220, 113, 3221, 113, 3222, 117, 3223, 117, 3224, 121,  // NOLINT
+  3225, 121, 3226, 125, 3227, 125, 3228, 129, 3229, 129, 3230, 133, 3231, 133, 3232, 137,  // NOLINT
+  3233, 137, 3234, 141, 3235, 141, 3236, 145, 3237, 145, 3238, 149, 3239, 149, 3240, 153,  // NOLINT
+  3241, 153, 3242, 157, 3243, 157, 3244, 161, 3245, 161, 3246, 165, 3247, 165, 3248, 169,  // NOLINT
+  3249, 169, 3250, 173, 3251, 173, 3252, 177, 3253, 177, 3254, 181, 3255, 181, 3256, 185,  // NOLINT
+  3257, 185, 3258, 189, 3259, 189, 3260, 193, 3261, 193, 3262, 197, 3263, 197, 3264, 201,  // NOLINT
+  3265, 201, 3266, 205, 3267, 205, 3268, 209, 3269, 209, 3270, 213, 3271, 213, 3272, 217,  // NOLINT
+  3273, 217, 3274, 221, 3275, 221, 3276, 225, 3277, 225, 3278, 229, 3279, 229, 3280, 233,  // NOLINT
+  3281, 233, 3282, 237, 3283, 237, 3284, 241, 3285, 241, 3286, 245, 3287, 245, 3288, 249,  // NOLINT
+  3289, 249, 3290, 253, 3291, 253, 3292, 257, 3293, 257, 3294, 261, 3295, 261, 3296, 265,  // NOLINT
+  3297, 265, 3298, 269, 3299, 269, 1073745152, 273, 3365, 277 };  // NOLINT
+static const uint16_t kEcma262UnCanonicalizeMultiStrings1Size = 71;  // NOLINT
+static const MultiCharacterSpecialCase<2> kEcma262UnCanonicalizeMultiStrings7[3] = {  // NOLINT
+  {{65313, 65345}}, {{65338, 65370}}, {{-1}} }; // NOLINT
+static const uint16_t kEcma262UnCanonicalizeTable7Size = 4;  // NOLINT
+static const int32_t kEcma262UnCanonicalizeTable7[8] = {
+  1073749793, 1, 7994, 5, 1073749825, 1, 8026, 5 };  // NOLINT
+static const uint16_t kEcma262UnCanonicalizeMultiStrings7Size = 3;  // NOLINT
 int Ecma262UnCanonicalize::Convert(uchar c,
                       uchar n,
                       uchar* result,
                       bool* allow_caching_ptr) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupMapping(kEcma262UnCanonicalizeTable0,
-                                     kEcma262UnCanonicalizeTable0Size,
-                                     kEcma262UnCanonicalizeMultiStrings0,
-                                     c,
-                                     n,
-                                     result,
-                                     allow_caching_ptr);
-    case 1: return LookupMapping(kEcma262UnCanonicalizeTable1,
-                                     kEcma262UnCanonicalizeTable1Size,
-                                     kEcma262UnCanonicalizeMultiStrings1,
-                                     c,
-                                     n,
-                                     result,
-                                     allow_caching_ptr);
+    case 0: return LookupMapping<true>(kEcma262UnCanonicalizeTable0,
+                                           kEcma262UnCanonicalizeTable0Size,
+                                           kEcma262UnCanonicalizeMultiStrings0,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
+    case 1: return LookupMapping<true>(kEcma262UnCanonicalizeTable1,
+                                           kEcma262UnCanonicalizeTable1Size,
+                                           kEcma262UnCanonicalizeMultiStrings1,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
+    case 7: return LookupMapping<true>(kEcma262UnCanonicalizeTable7,
+                                           kEcma262UnCanonicalizeTable7Size,
+                                           kEcma262UnCanonicalizeMultiStrings7,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
     default: return 0;
   }
 }
 
-static const MultiCharacterSpecialCase<1> kCanonicalizationRangeMultiStrings0[] = {  // NOLINT
-  {0, {0}} }; // NOLINT
-static const uint16_t kCanonicalizationRangeTable0Size = 720;
-static const int32_t kCanonicalizationRangeTable0[1440] = {
-  65, 100, 66, 96, 67, 92, 68, 88, 69, 84, 70, 80, 71, 76, 72, 72,  // NOLINT
-  73, 68, 74, 64, 75, 60, 76, 56, 77, 52, 78, 48, 79, 44, 80, 40,  // NOLINT
-  81, 36, 82, 32, 83, 28, 84, 24, 85, 20, 86, 16, 87, 12, 88, 8,  // NOLINT
-  89, 4, 90, 0, 97, 100, 98, 96, 99, 92, 100, 88, 101, 84, 102, 80,  // NOLINT
-  103, 76, 104, 72, 105, 68, 106, 64, 107, 60, 108, 56, 109, 52, 110, 48,  // NOLINT
-  111, 44, 112, 40, 113, 36, 114, 32, 115, 28, 116, 24, 117, 20, 118, 16,  // NOLINT
-  119, 12, 120, 8, 121, 4, 122, 0, 192, 88, 193, 84, 194, 80, 195, 76,  // NOLINT
-  196, 72, 197, 68, 198, 64, 199, 60, 200, 56, 201, 52, 202, 48, 203, 44,  // NOLINT
-  204, 40, 205, 36, 206, 32, 207, 28, 208, 24, 209, 20, 210, 16, 211, 12,  // NOLINT
-  212, 8, 213, 4, 214, 0, 216, 24, 217, 20, 218, 16, 219, 12, 220, 8,  // NOLINT
-  221, 4, 222, 0, 224, 88, 225, 84, 226, 80, 227, 76, 228, 72, 229, 68,  // NOLINT
-  230, 64, 231, 60, 232, 56, 233, 52, 234, 48, 235, 44, 236, 40, 237, 36,  // NOLINT
-  238, 32, 239, 28, 240, 24, 241, 20, 242, 16, 243, 12, 244, 8, 245, 4,  // NOLINT
-  246, 0, 248, 24, 249, 20, 250, 16, 251, 12, 252, 8, 253, 4, 254, 0,  // NOLINT
-  393, 4, 394, 0, 433, 4, 434, 0, 598, 4, 599, 0, 650, 4, 651, 0,  // NOLINT
-  891, 8, 892, 4, 893, 0, 904, 8, 905, 4, 906, 0, 910, 4, 911, 0,  // NOLINT
-  915, 4, 916, 0, 918, 4, 919, 0, 925, 8, 926, 4, 927, 0, 932, 4,  // NOLINT
-  933, 0, 935, 16, 936, 12, 937, 8, 938, 4, 939, 0, 941, 8, 942, 4,  // NOLINT
-  943, 0, 947, 4, 948, 0, 950, 4, 951, 0, 957, 8, 958, 4, 959, 0,  // NOLINT
-  964, 4, 965, 0, 967, 16, 968, 12, 969, 8, 970, 4, 971, 0, 973, 4,  // NOLINT
-  974, 0, 1021, 8, 1022, 4, 1023, 0, 1024, 60, 1025, 56, 1026, 52, 1027, 48,  // NOLINT
-  1028, 44, 1029, 40, 1030, 36, 1031, 32, 1032, 28, 1033, 24, 1034, 20, 1035, 16,  // NOLINT
-  1036, 12, 1037, 8, 1038, 4, 1039, 0, 1040, 124, 1041, 120, 1042, 116, 1043, 112,  // NOLINT
-  1044, 108, 1045, 104, 1046, 100, 1047, 96, 1048, 92, 1049, 88, 1050, 84, 1051, 80,  // NOLINT
-  1052, 76, 1053, 72, 1054, 68, 1055, 64, 1056, 60, 1057, 56, 1058, 52, 1059, 48,  // NOLINT
-  1060, 44, 1061, 40, 1062, 36, 1063, 32, 1064, 28, 1065, 24, 1066, 20, 1067, 16,  // NOLINT
-  1068, 12, 1069, 8, 1070, 4, 1071, 0, 1072, 124, 1073, 120, 1074, 116, 1075, 112,  // NOLINT
-  1076, 108, 1077, 104, 1078, 100, 1079, 96, 1080, 92, 1081, 88, 1082, 84, 1083, 80,  // NOLINT
-  1084, 76, 1085, 72, 1086, 68, 1087, 64, 1088, 60, 1089, 56, 1090, 52, 1091, 48,  // NOLINT
-  1092, 44, 1093, 40, 1094, 36, 1095, 32, 1096, 28, 1097, 24, 1098, 20, 1099, 16,  // NOLINT
-  1100, 12, 1101, 8, 1102, 4, 1103, 0, 1104, 60, 1105, 56, 1106, 52, 1107, 48,  // NOLINT
-  1108, 44, 1109, 40, 1110, 36, 1111, 32, 1112, 28, 1113, 24, 1114, 20, 1115, 16,  // NOLINT
-  1116, 12, 1117, 8, 1118, 4, 1119, 0, 1329, 148, 1330, 144, 1331, 140, 1332, 136,  // NOLINT
-  1333, 132, 1334, 128, 1335, 124, 1336, 120, 1337, 116, 1338, 112, 1339, 108, 1340, 104,  // NOLINT
-  1341, 100, 1342, 96, 1343, 92, 1344, 88, 1345, 84, 1346, 80, 1347, 76, 1348, 72,  // NOLINT
-  1349, 68, 1350, 64, 1351, 60, 1352, 56, 1353, 52, 1354, 48, 1355, 44, 1356, 40,  // NOLINT
-  1357, 36, 1358, 32, 1359, 28, 1360, 24, 1361, 20, 1362, 16, 1363, 12, 1364, 8,  // NOLINT
-  1365, 4, 1366, 0, 1377, 148, 1378, 144, 1379, 140, 1380, 136, 1381, 132, 1382, 128,  // NOLINT
-  1383, 124, 1384, 120, 1385, 116, 1386, 112, 1387, 108, 1388, 104, 1389, 100, 1390, 96,  // NOLINT
-  1391, 92, 1392, 88, 1393, 84, 1394, 80, 1395, 76, 1396, 72, 1397, 68, 1398, 64,  // NOLINT
-  1399, 60, 1400, 56, 1401, 52, 1402, 48, 1403, 44, 1404, 40, 1405, 36, 1406, 32,  // NOLINT
-  1407, 28, 1408, 24, 1409, 20, 1410, 16, 1411, 12, 1412, 8, 1413, 4, 1414, 0,  // NOLINT
-  4256, 148, 4257, 144, 4258, 140, 4259, 136, 4260, 132, 4261, 128, 4262, 124, 4263, 120,  // NOLINT
-  4264, 116, 4265, 112, 4266, 108, 4267, 104, 4268, 100, 4269, 96, 4270, 92, 4271, 88,  // NOLINT
-  4272, 84, 4273, 80, 4274, 76, 4275, 72, 4276, 68, 4277, 64, 4278, 60, 4279, 56,  // NOLINT
-  4280, 52, 4281, 48, 4282, 44, 4283, 40, 4284, 36, 4285, 32, 4286, 28, 4287, 24,  // NOLINT
-  4288, 20, 4289, 16, 4290, 12, 4291, 8, 4292, 4, 4293, 0, 7936, 28, 7937, 24,  // NOLINT
-  7938, 20, 7939, 16, 7940, 12, 7941, 8, 7942, 4, 7943, 0, 7944, 28, 7945, 24,  // NOLINT
-  7946, 20, 7947, 16, 7948, 12, 7949, 8, 7950, 4, 7951, 0, 7952, 20, 7953, 16,  // NOLINT
-  7954, 12, 7955, 8, 7956, 4, 7957, 0, 7960, 20, 7961, 16, 7962, 12, 7963, 8,  // NOLINT
-  7964, 4, 7965, 0, 7968, 28, 7969, 24, 7970, 20, 7971, 16, 7972, 12, 7973, 8,  // NOLINT
-  7974, 4, 7975, 0, 7976, 28, 7977, 24, 7978, 20, 7979, 16, 7980, 12, 7981, 8,  // NOLINT
-  7982, 4, 7983, 0, 7984, 28, 7985, 24, 7986, 20, 7987, 16, 7988, 12, 7989, 8,  // NOLINT
-  7990, 4, 7991, 0, 7992, 28, 7993, 24, 7994, 20, 7995, 16, 7996, 12, 7997, 8,  // NOLINT
-  7998, 4, 7999, 0, 8000, 20, 8001, 16, 8002, 12, 8003, 8, 8004, 4, 8005, 0,  // NOLINT
-  8008, 20, 8009, 16, 8010, 12, 8011, 8, 8012, 4, 8013, 0, 8032, 28, 8033, 24,  // NOLINT
-  8034, 20, 8035, 16, 8036, 12, 8037, 8, 8038, 4, 8039, 0, 8040, 28, 8041, 24,  // NOLINT
-  8042, 20, 8043, 16, 8044, 12, 8045, 8, 8046, 4, 8047, 0, 8048, 4, 8049, 0,  // NOLINT
-  8050, 12, 8051, 8, 8052, 4, 8053, 0, 8054, 4, 8055, 0, 8056, 4, 8057, 0,  // NOLINT
-  8058, 4, 8059, 0, 8060, 4, 8061, 0, 8112, 4, 8113, 0, 8120, 4, 8121, 0,  // NOLINT
-  8122, 4, 8123, 0, 8136, 12, 8137, 8, 8138, 4, 8139, 0, 8144, 4, 8145, 0,  // NOLINT
-  8152, 4, 8153, 0, 8154, 4, 8155, 0, 8160, 4, 8161, 0, 8168, 4, 8169, 0,  // NOLINT
-  8170, 4, 8171, 0, 8184, 4, 8185, 0, 8186, 4, 8187, 0, 8490, 4, 8491, 0,  // NOLINT
-  8544, 60, 8545, 56, 8546, 52, 8547, 48, 8548, 44, 8549, 40, 8550, 36, 8551, 32,  // NOLINT
-  8552, 28, 8553, 24, 8554, 20, 8555, 16, 8556, 12, 8557, 8, 8558, 4, 8559, 0,  // NOLINT
-  8560, 60, 8561, 56, 8562, 52, 8563, 48, 8564, 44, 8565, 40, 8566, 36, 8567, 32,  // NOLINT
-  8568, 28, 8569, 24, 8570, 20, 8571, 16, 8572, 12, 8573, 8, 8574, 4, 8575, 0,  // NOLINT
-  9398, 100, 9399, 96, 9400, 92, 9401, 88, 9402, 84, 9403, 80, 9404, 76, 9405, 72,  // NOLINT
-  9406, 68, 9407, 64, 9408, 60, 9409, 56, 9410, 52, 9411, 48, 9412, 44, 9413, 40,  // NOLINT
-  9414, 36, 9415, 32, 9416, 28, 9417, 24, 9418, 20, 9419, 16, 9420, 12, 9421, 8,  // NOLINT
-  9422, 4, 9423, 0, 9424, 100, 9425, 96, 9426, 92, 9427, 88, 9428, 84, 9429, 80,  // NOLINT
-  9430, 76, 9431, 72, 9432, 68, 9433, 64, 9434, 60, 9435, 56, 9436, 52, 9437, 48,  // NOLINT
-  9438, 44, 9439, 40, 9440, 36, 9441, 32, 9442, 28, 9443, 24, 9444, 20, 9445, 16,  // NOLINT
-  9446, 12, 9447, 8, 9448, 4, 9449, 0, 11264, 184, 11265, 180, 11266, 176, 11267, 172,  // NOLINT
-  11268, 168, 11269, 164, 11270, 160, 11271, 156, 11272, 152, 11273, 148, 11274, 144, 11275, 140,  // NOLINT
-  11276, 136, 11277, 132, 11278, 128, 11279, 124, 11280, 120, 11281, 116, 11282, 112, 11283, 108,  // NOLINT
-  11284, 104, 11285, 100, 11286, 96, 11287, 92, 11288, 88, 11289, 84, 11290, 80, 11291, 76,  // NOLINT
-  11292, 72, 11293, 68, 11294, 64, 11295, 60, 11296, 56, 11297, 52, 11298, 48, 11299, 44,  // NOLINT
-  11300, 40, 11301, 36, 11302, 32, 11303, 28, 11304, 24, 11305, 20, 11306, 16, 11307, 12,  // NOLINT
-  11308, 8, 11309, 4, 11310, 0, 11312, 184, 11313, 180, 11314, 176, 11315, 172, 11316, 168,  // NOLINT
-  11317, 164, 11318, 160, 11319, 156, 11320, 152, 11321, 148, 11322, 144, 11323, 140, 11324, 136,  // NOLINT
-  11325, 132, 11326, 128, 11327, 124, 11328, 120, 11329, 116, 11330, 112, 11331, 108, 11332, 104,  // NOLINT
-  11333, 100, 11334, 96, 11335, 92, 11336, 88, 11337, 84, 11338, 80, 11339, 76, 11340, 72,  // NOLINT
-  11341, 68, 11342, 64, 11343, 60, 11344, 56, 11345, 52, 11346, 48, 11347, 44, 11348, 40,  // NOLINT
-  11349, 36, 11350, 32, 11351, 28, 11352, 24, 11353, 20, 11354, 16, 11355, 12, 11356, 8,  // NOLINT
-  11357, 4, 11358, 0, 11520, 148, 11521, 144, 11522, 140, 11523, 136, 11524, 132, 11525, 128,  // NOLINT
-  11526, 124, 11527, 120, 11528, 116, 11529, 112, 11530, 108, 11531, 104, 11532, 100, 11533, 96,  // NOLINT
-  11534, 92, 11535, 88, 11536, 84, 11537, 80, 11538, 76, 11539, 72, 11540, 68, 11541, 64,  // NOLINT
-  11542, 60, 11543, 56, 11544, 52, 11545, 48, 11546, 44, 11547, 40, 11548, 36, 11549, 32,  // NOLINT
-  11550, 28, 11551, 24, 11552, 20, 11553, 16, 11554, 12, 11555, 8, 11556, 4, 11557, 0 };  // NOLINT
-static const MultiCharacterSpecialCase<1> kCanonicalizationRangeMultiStrings1[] = {  // NOLINT
-  {0, {0}} }; // NOLINT
-static const uint16_t kCanonicalizationRangeTable1Size = 52;
-static const int32_t kCanonicalizationRangeTable1[104] = {
-  32545, 100, 32546, 96, 32547, 92, 32548, 88, 32549, 84, 32550, 80, 32551, 76, 32552, 72,  // NOLINT
-  32553, 68, 32554, 64, 32555, 60, 32556, 56, 32557, 52, 32558, 48, 32559, 44, 32560, 40,  // NOLINT
-  32561, 36, 32562, 32, 32563, 28, 32564, 24, 32565, 20, 32566, 16, 32567, 12, 32568, 8,  // NOLINT
-  32569, 4, 32570, 0, 32577, 100, 32578, 96, 32579, 92, 32580, 88, 32581, 84, 32582, 80,  // NOLINT
-  32583, 76, 32584, 72, 32585, 68, 32586, 64, 32587, 60, 32588, 56, 32589, 52, 32590, 48,  // NOLINT
-  32591, 44, 32592, 40, 32593, 36, 32594, 32, 32595, 28, 32596, 24, 32597, 20, 32598, 16,  // NOLINT
-  32599, 12, 32600, 8, 32601, 4, 32602, 0 };  // NOLINT
+static const MultiCharacterSpecialCase<1> kCanonicalizationRangeMultiStrings0[1] = {  // NOLINT
+  {{-1}} }; // NOLINT
+static const uint16_t kCanonicalizationRangeTable0Size = 70;  // NOLINT
+static const int32_t kCanonicalizationRangeTable0[140] = {
+  1073741889, 100, 90, 0, 1073741921, 100, 122, 0, 1073742016, 88, 214, 0, 1073742040, 24, 222, 0,  // NOLINT
+  1073742048, 88, 246, 0, 1073742072, 24, 254, 0, 1073742715, 8, 893, 0, 1073742728, 8, 906, 0,  // NOLINT
+  1073742749, 8, 927, 0, 1073742759, 16, 939, 0, 1073742765, 8, 943, 0, 1073742781, 8, 959, 0,  // NOLINT
+  1073742791, 16, 971, 0, 1073742845, 8, 1023, 0, 1073742848, 60, 1039, 0, 1073742864, 124, 1071, 0,  // NOLINT
+  1073742896, 124, 1103, 0, 1073742928, 60, 1119, 0, 1073743153, 148, 1366, 0, 1073743201, 148, 1414, 0,  // NOLINT
+  1073746080, 148, 4293, 0, 1073749760, 28, 7943, 0, 1073749768, 28, 7951, 0, 1073749776, 20, 7957, 0,  // NOLINT
+  1073749784, 20, 7965, 0, 1073749792, 28, 7975, 0, 1073749800, 28, 7983, 0, 1073749808, 28, 7991, 0,  // NOLINT
+  1073749816, 28, 7999, 0, 1073749824, 20, 8005, 0, 1073749832, 20, 8013, 0, 1073749856, 28, 8039, 0,  // NOLINT
+  1073749864, 28, 8047, 0, 1073749874, 12, 8053, 0, 1073749960, 12, 8139, 0 };  // NOLINT
+static const uint16_t kCanonicalizationRangeMultiStrings0Size = 1;  // NOLINT
+static const MultiCharacterSpecialCase<1> kCanonicalizationRangeMultiStrings1[1] = {  // NOLINT
+  {{-1}} }; // NOLINT
+static const uint16_t kCanonicalizationRangeTable1Size = 14;  // NOLINT
+static const int32_t kCanonicalizationRangeTable1[28] = {
+  1073742176, 60, 367, 0, 1073742192, 60, 383, 0, 1073743030, 100, 1231, 0, 1073743056, 100, 1257, 0,  // NOLINT
+  1073744896, 184, 3118, 0, 1073744944, 184, 3166, 0, 1073745152, 148, 3365, 0 };  // NOLINT
+static const uint16_t kCanonicalizationRangeMultiStrings1Size = 1;  // NOLINT
+static const MultiCharacterSpecialCase<1> kCanonicalizationRangeMultiStrings7[1] = {  // NOLINT
+  {{-1}} }; // NOLINT
+static const uint16_t kCanonicalizationRangeTable7Size = 4;  // NOLINT
+static const int32_t kCanonicalizationRangeTable7[8] = {
+  1073749793, 100, 7994, 0, 1073749825, 100, 8026, 0 };  // NOLINT
+static const uint16_t kCanonicalizationRangeMultiStrings7Size = 1;  // NOLINT
 int CanonicalizationRange::Convert(uchar c,
                       uchar n,
                       uchar* result,
                       bool* allow_caching_ptr) {
-  int chunk_index = c >> 15;
+  int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupMapping(kCanonicalizationRangeTable0,
-                                     kCanonicalizationRangeTable0Size,
-                                     kCanonicalizationRangeMultiStrings0,
-                                     c,
-                                     n,
-                                     result,
-                                     allow_caching_ptr);
-    case 1: return LookupMapping(kCanonicalizationRangeTable1,
-                                     kCanonicalizationRangeTable1Size,
-                                     kCanonicalizationRangeMultiStrings1,
-                                     c,
-                                     n,
-                                     result,
-                                     allow_caching_ptr);
+    case 0: return LookupMapping<false>(kCanonicalizationRangeTable0,
+                                           kCanonicalizationRangeTable0Size,
+                                           kCanonicalizationRangeMultiStrings0,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
+    case 1: return LookupMapping<false>(kCanonicalizationRangeTable1,
+                                           kCanonicalizationRangeTable1Size,
+                                           kCanonicalizationRangeMultiStrings1,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
+    case 7: return LookupMapping<false>(kCanonicalizationRangeTable7,
+                                           kCanonicalizationRangeTable7Size,
+                                           kCanonicalizationRangeMultiStrings7,
+                                           c,
+                                           n,
+                                           result,
+                                           allow_caching_ptr);
     default: return 0;
   }
 }
@@ -1647,7 +1573,50 @@ int CanonicalizationRange::Convert(uchar c,
 uchar UnicodeData::kMaxCodePoint = 65533;
 
 int UnicodeData::GetByteCount() {
-  return 0 + (sizeof(int32_t) * kUppercaseTable0Size) + (sizeof(int32_t) * kUppercaseTable1Size) + (sizeof(int32_t) * kLowercaseTable0Size) + (sizeof(int32_t) * kLowercaseTable1Size) + (sizeof(int32_t) * kLetterTable0Size) + (sizeof(int32_t) * kLetterTable1Size) + (sizeof(int32_t) * kSpaceTable0Size) + (sizeof(int32_t) * kNumberTable0Size) + (sizeof(int32_t) * kNumberTable1Size) + (sizeof(int32_t) * kWhiteSpaceTable0Size) + (sizeof(int32_t) * kLineTerminatorTable0Size) + (sizeof(int32_t) * kCombiningMarkTable0Size) + (sizeof(int32_t) * kCombiningMarkTable1Size) + (sizeof(int32_t) * kConnectorPunctuationTable0Size) + (sizeof(int32_t) * kConnectorPunctuationTable1Size) + (sizeof(int32_t) * kToLowercaseTable0Size) + (sizeof(int32_t) * kToLowercaseTable1Size) + (sizeof(int32_t) * kToUppercaseTable0Size) + (sizeof(int32_t) * kToUppercaseTable1Size) + (sizeof(int32_t) * kEcma262CanonicalizeTable0Size) + (sizeof(int32_t) * kEcma262CanonicalizeTable1Size) + (sizeof(int32_t) * kEcma262UnCanonicalizeTable0Size) + (sizeof(int32_t) * kEcma262UnCanonicalizeTable1Size) + (sizeof(int32_t) * kCanonicalizationRangeTable0Size) + (sizeof(int32_t) * kCanonicalizationRangeTable1Size); // NOLINT
+  return kUppercaseTable0Size * sizeof(int32_t)  // NOLINT
+      + kUppercaseTable1Size * sizeof(int32_t)  // NOLINT
+      + kUppercaseTable7Size * sizeof(int32_t)  // NOLINT
+      + kLowercaseTable0Size * sizeof(int32_t)  // NOLINT
+      + kLowercaseTable1Size * sizeof(int32_t)  // NOLINT
+      + kLowercaseTable7Size * sizeof(int32_t)  // NOLINT
+      + kLetterTable0Size * sizeof(int32_t)  // NOLINT
+      + kLetterTable1Size * sizeof(int32_t)  // NOLINT
+      + kLetterTable2Size * sizeof(int32_t)  // NOLINT
+      + kLetterTable3Size * sizeof(int32_t)  // NOLINT
+      + kLetterTable4Size * sizeof(int32_t)  // NOLINT
+      + kLetterTable5Size * sizeof(int32_t)  // NOLINT
+      + kLetterTable6Size * sizeof(int32_t)  // NOLINT
+      + kLetterTable7Size * sizeof(int32_t)  // NOLINT
+      + kSpaceTable0Size * sizeof(int32_t)  // NOLINT
+      + kSpaceTable1Size * sizeof(int32_t)  // NOLINT
+      + kNumberTable0Size * sizeof(int32_t)  // NOLINT
+      + kNumberTable7Size * sizeof(int32_t)  // NOLINT
+      + kWhiteSpaceTable0Size * sizeof(int32_t)  // NOLINT
+      + kWhiteSpaceTable1Size * sizeof(int32_t)  // NOLINT
+      + kLineTerminatorTable0Size * sizeof(int32_t)  // NOLINT
+      + kLineTerminatorTable1Size * sizeof(int32_t)  // NOLINT
+      + kCombiningMarkTable0Size * sizeof(int32_t)  // NOLINT
+      + kCombiningMarkTable1Size * sizeof(int32_t)  // NOLINT
+      + kCombiningMarkTable5Size * sizeof(int32_t)  // NOLINT
+      + kCombiningMarkTable7Size * sizeof(int32_t)  // NOLINT
+      + kConnectorPunctuationTable0Size * sizeof(int32_t)  // NOLINT
+      + kConnectorPunctuationTable1Size * sizeof(int32_t)  // NOLINT
+      + kConnectorPunctuationTable7Size * sizeof(int32_t)  // NOLINT
+      + kToLowercaseMultiStrings0Size * sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
+      + kToLowercaseMultiStrings1Size * sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+      + kToLowercaseMultiStrings7Size * sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+      + kToUppercaseMultiStrings0Size * sizeof(MultiCharacterSpecialCase<3>)  // NOLINT
+      + kToUppercaseMultiStrings1Size * sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+      + kToUppercaseMultiStrings7Size * sizeof(MultiCharacterSpecialCase<3>)  // NOLINT
+      + kEcma262CanonicalizeMultiStrings0Size * sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+      + kEcma262CanonicalizeMultiStrings1Size * sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+      + kEcma262CanonicalizeMultiStrings7Size * sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+      + kEcma262UnCanonicalizeMultiStrings0Size * sizeof(MultiCharacterSpecialCase<4>)  // NOLINT
+      + kEcma262UnCanonicalizeMultiStrings1Size * sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
+      + kEcma262UnCanonicalizeMultiStrings7Size * sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
+      + kCanonicalizationRangeMultiStrings0Size * sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+      + kCanonicalizationRangeMultiStrings1Size * sizeof(MultiCharacterSpecialCase<1>)  // NOLINT
+      + kCanonicalizationRangeMultiStrings7Size * sizeof(MultiCharacterSpecialCase<1>); // NOLINT
 }
 
 }  // namespace unicode
