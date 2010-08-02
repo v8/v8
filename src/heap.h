@@ -1022,6 +1022,8 @@ class Heap : public AllStatic {
 
   static void ClearJSFunctionResultCaches();
 
+  static void ClearNormalizedMapCaches();
+
   static GCTracer* tracer() { return tracer_; }
 
  private:
