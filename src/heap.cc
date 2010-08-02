@@ -570,22 +570,6 @@ void Heap::ClearJSFunctionResultCaches() {
 }
 
 
-class ClearThreadNormalizedMapCachesVisitor: public ThreadVisitor {
-  virtual void VisitThread(ThreadLocalTop* top) {
-    Context* context = top->context_;
-    if (context == NULL) return;
-    context->global()->global_context()->normalized_map_cache()->Clear();
-  }
-};
-
-
-void Heap::ClearNormalizedMapCaches() {
-  if (Bootstrapper::IsActive()) return;
-  ClearThreadNormalizedMapCachesVisitor visitor;
-  ThreadManager::IterateArchivedThreads(&visitor);
-}
-
-
 #ifdef DEBUG
 
 enum PageWatermarkValidity {
@@ -776,8 +760,6 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   CompletelyClearInstanceofCache();
 
   if (is_compacting) FlushNumberStringCache();
-
-  ClearNormalizedMapCaches();
 }
 
 
