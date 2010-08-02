@@ -67,7 +67,6 @@ namespace internal {
   SC(pcre_mallocs, V8.PcreMallocCount)                                \
   /* OS Memory allocated */                                           \
   SC(memory_allocated, V8.OsMemoryAllocated)                          \
-  SC(normalized_maps, V8.NormalizedMaps)                              \
   SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)            \
   SC(elements_to_dictionary, V8.ObjectElementsToDictionary)           \
   SC(alive_after_last_gc, V8.AliveAfterLastGC)                        \
