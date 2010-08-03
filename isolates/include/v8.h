@@ -2449,6 +2449,7 @@ class V8EXPORT Isolate {
    private:
     Isolate* const isolate_;
 
+    // Prevent copying of Scope objects.
     Scope(const Scope&);
     Scope& operator=(const Scope&);
   };
@@ -3120,15 +3121,26 @@ class V8EXPORT Context {
 
 /**
  * Multiple threads in V8 are allowed, but only one thread at a time
- * is allowed to use V8.  The definition of 'using V8' includes
- * accessing handles or holding onto object pointers obtained from V8
- * handles.  It is up to the user of V8 to ensure (perhaps with
- * locking) that this constraint is not violated.
+ * is allowed to use any given V8 isolate. See Isolate class
+ * comments. The definition of 'using V8 isolate' includes
+ * accessing handles or holding onto object pointers obtained
+ * from V8 handles while in the particular V8 isolate.  It is up
+ * to the user of V8 to ensure (perhaps with locking) that this
+ * constraint is not violated.
  *
- * If you wish to start using V8 in a thread you can do this by constructing
- * a v8::Locker object.  After the code using V8 has completed for the
- * current thread you can call the destructor.  This can be combined
- * with C++ scope-based construction as follows:
+ * More then one thread and multiple V8 isolates can be used
+ * without any locking if each isolate is created and accessed
+ * by a single thread only. For example, one thread can use
+ * multiple isolates or multiple threads can each create and run
+ * their own isolate.
+ *
+ * If you wish to start using V8 isolate in more then one thread
+ * you can do this by constructing a v8::Locker object to guard
+ * access to the isolate. After the code using V8 has completed
+ * for the current thread you can call the destructor.  This can
+ * be combined with C++ scope-based construction as follows
+ * (assumes the default isolate that is used if not specified as
+ * a parameter for the Locker):
  *
  * \code
  * ...

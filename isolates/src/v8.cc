@@ -46,15 +46,34 @@ bool V8::has_been_disposed_ = false;
 bool V8::has_fatal_error_ = false;
 
 bool V8::Initialize(Deserializer* des) {
-  if (has_been_disposed_ || has_fatal_error_) return false;
-  if (IsRunning()) return true;
+  // The current thread may not yet had entered an isolate to run.
+  // Note the Isolate::Current() may be non-null because for various
+  // initialization purposes an initializing thread may be assigned an isolate
+  // but not actually enter it.
+  if (i::Isolate::CurrentPerIsolateThreadData() == NULL) {
+    i::Isolate::EnterDefaultIsolate();
+  }
 
-  is_running_ = true;
-  has_been_setup_ = true;
-  has_fatal_error_ = false;
-  has_been_disposed_ = false;
+  ASSERT(i::Isolate::CurrentPerIsolateThreadData() != NULL);
+  ASSERT(i::Isolate::CurrentPerIsolateThreadData()->thread_id() ==
+         i::Thread::GetThreadLocalInt(i::Isolate::thread_id_key()));
+  ASSERT(i::Isolate::CurrentPerIsolateThreadData()->isolate() ==
+         i::Isolate::Current());
 
-  return (Isolate::InitializeDefaultIsolate(des) != false);
+  Isolate* isolate = Isolate::Current();
+  if (isolate->IsDefaultIsolate()) {
+    if (has_been_disposed_ || has_fatal_error_) return false;
+    if (IsRunning()) return true;
+
+    is_running_ = true;
+    has_been_setup_ = true;
+    has_fatal_error_ = false;
+    has_been_disposed_ = false;
+  } else {
+    if (isolate->IsInitialized()) return true;
+  }
+
+  return isolate->Init(des);
 }
 
 
@@ -65,9 +84,11 @@ void V8::SetFatalError() {
 
 
 void V8::TearDown() {
-  if (!has_been_setup_ || has_been_disposed_) return;
+  Isolate* isolate = Isolate::Current();
+  ASSERT(isolate->IsDefaultIsolate());
 
-  Isolate::TearDown();
+  if (!has_been_setup_ || has_been_disposed_) return;
+  isolate->TearDown();
 
   is_running_ = false;
   has_been_disposed_ = true;

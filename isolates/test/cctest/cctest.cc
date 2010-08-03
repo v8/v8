@@ -38,7 +38,7 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
     : callback_(callback), name_(name), dependency_(dependency), prev_(last_) {
   // Make sure that the global isolate has had a chance to complete its
   // static initialization. (We need this so that things like StrDup work.)
-  v8::internal::Isolate::EnsureDefaultIsolateAllocated();
+  v8::internal::Isolate::EnsureDefaultIsolate();
   CHECK(v8::internal::Isolate::Current() != NULL);
 
   // Find the base name of this test (const_cast required on Windows).

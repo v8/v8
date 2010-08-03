@@ -250,14 +250,29 @@ static inline bool EmptyCheck(const char* location, const v8::Data* obj) {
 // --- S t a t i c s ---
 
 
+static bool InitializeHelper() {
+  if (i::Snapshot::Initialize()) return true;
+  return i::V8::Initialize(NULL);
+}
+
+
 static inline bool EnsureInitialized(const char* location) {
-  if (i::V8::IsRunning()) {
-    return true;
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  if (isolate != NULL) {
+    if (isolate->IsDefaultIsolate()) {
+      if (i::V8::IsRunning()) {
+        return true;
+      }
+      if (IsDeadCheck(location)) {
+        return false;
+      }
+    } else {
+      if (isolate->IsInitialized()) {
+        return true;
+      }
+    }
   }
-  if (IsDeadCheck(location)) {
-    return false;
-  }
-  return ApiCheck(v8::V8::Initialize(), location, "Error initializing V8");
+  return ApiCheck(InitializeHelper(), location, "Error initializing V8");
 }
 
 
@@ -3101,20 +3116,24 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
 
 // --- E n v i r o n m e n t ---
 
+
 bool v8::V8::Initialize() {
-  if (i::V8::IsRunning()) return true;
-  ENTER_V8;
-  if (i::Isolate::CurrentPerIsolateThreadData() == NULL) {
-    // We might be calling Initialize on a thread other than the thread that
-    // we ran the initial static initializers on.
-    i::Isolate::EnterDefaultIsolate();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  if (isolate != NULL && isolate->IsDefaultIsolate() && i::V8::IsRunning()) {
+    return true;
   }
-  if (i::Snapshot::Initialize()) return true;
-  return i::V8::Initialize(NULL);
+  ENTER_V8;
+  return InitializeHelper();
 }
 
 
 bool v8::V8::Dispose() {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!ApiCheck(isolate != NULL && isolate->IsDefaultIsolate(),
+                "v8::V8::Dispose()",
+                "Use v8::Isolate::Dispose() for a non-default isolate.")) {
+    return false;
+  }
   i::V8::TearDown();
   return true;
 }
@@ -3953,33 +3972,41 @@ bool V8::IsExecutionTerminating() {
 }
 
 
-Isolate* Isolate::New() {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
 Isolate* Isolate::GetCurrent() {
-  UNIMPLEMENTED();
-  return NULL;
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  return reinterpret_cast<Isolate*>(isolate);
 }
-
-
-void Isolate::Enter() {
-  UNIMPLEMENTED();
+ 
+ 
+Isolate* Isolate::New() {
+  i::Isolate* isolate = new i::Isolate();
+  return reinterpret_cast<Isolate*>(isolate);
 }
-
-
-void Isolate::Exit() {
-  UNIMPLEMENTED();
-}
-
-
+ 
+ 
 void Isolate::Dispose() {
-  UNIMPLEMENTED();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  if (!ApiCheck(!isolate->IsInUse(),
+                "v8::Isolate::Dispose()",
+                "Disposing the isolate that is entered by a thread.")) {
+    return;
+  }
+  isolate->TearDown();
 }
-
-
+ 
+ 
+void Isolate::Enter() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->Enter();
+}
+ 
+ 
+void Isolate::Exit() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->Exit();
+}
+ 
+ 
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");
   if (obj.IsEmpty()) {

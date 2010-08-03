@@ -45,14 +45,32 @@ bool Locker::active_ = false;
 // Constructor for the Locker object.  Once the Locker is constructed the
 // current thread will be guaranteed to have the big V8 lock.
 Locker::Locker() : has_lock_(false), top_level_(true) {
-  internal::Isolate* isolate =
-      internal::Isolate::EnterDefaultIsolate();
+  // TODO(isolates): When Locker has Isolate parameter and it is provided, grab
+  // that one instead of using the current one.
+  // We pull default isolate for Locker constructor w/o p[arameter.
+  // A thread should not enter an isolate before acquiring a lock,
+  // in cases which mandate using Lockers.
+  // So getting a lock is the first thing threads do in a scenario where
+  // multple threads share an isolate. Hence, we need to access
+  // 'locking isolate' before we can actually enter into default isolate.
+  internal::Isolate* isolate = internal::Isolate::GetDefaultIsolateForLocking();
+  ASSERT(isolate != NULL);
+
   // Record that the Locker has been used at least once.
   active_ = true;
   // Get the big lock if necessary.
   if (!isolate->thread_manager()->IsLockedByCurrentThread()) {
     isolate->thread_manager()->Lock();
     has_lock_ = true;
+
+    if (isolate->IsDefaultIsolate()) {
+      // This only enters if not yet entered.
+      internal::Isolate::EnterDefaultIsolate();
+    }
+
+    ASSERT(internal::Thread::HasThreadLocal(
+        internal::Isolate::thread_id_key()));
+
     // Make sure that V8 is initialized.  Archiving of threads interferes
     // with deserialization by adding additional root pointers, so we must
     // initialize here, before anyone can call ~Locker() or Unlocker().
@@ -70,9 +88,6 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
     }
   }
   ASSERT(isolate->thread_manager()->IsLockedByCurrentThread());
-
-  // Make sure this thread is assigned a thread id.
-  isolate->thread_manager()->AssignId();
 }
 
 
@@ -378,20 +393,6 @@ void ThreadManager::MarkCompactEpilogue(bool is_compacting) {
 
 int ThreadManager::CurrentId() {
   return Thread::GetThreadLocalInt(Isolate::thread_id_key());
-}
-
-
-void ThreadManager::AssignId() {
-  if (!HasId()) {
-    int new_id = Isolate::AllocateThreadId();
-    ASSERT(new_id > 0);
-    Thread::SetThreadLocalInt(Isolate::thread_id_key(), new_id);
-  }
-}
-
-
-bool ThreadManager::HasId() {
-  return Thread::HasThreadLocal(Isolate::thread_id_key());
 }
 
 

@@ -102,8 +102,6 @@ class ThreadManager {
   bool IsLockedByCurrentThread() { return mutex_owner_.IsSelf(); }
 
   int CurrentId();
-  void AssignId();
-  bool HasId();
 
   void TerminateExecution(int thread_id);
 

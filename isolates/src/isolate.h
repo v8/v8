@@ -333,9 +333,11 @@ class Isolate {
 
     friend class Isolate;
     friend class ThreadDataTable;
+    friend class EntryStackItem;
 
     DISALLOW_COPY_AND_ASSIGN(PerIsolateThreadData);
   };
+
 
   enum AddressId {
 #define C(name) k_##name,
@@ -364,24 +366,25 @@ class Isolate {
     return reinterpret_cast<Isolate*>(Thread::GetThreadLocal(isolate_key_));
   }
 
-  // Destroy the global isolate.
-  static void TearDown();
+  bool Init(Deserializer* des);
 
-  // Destroy the global isolate and create a new one in its place.
-  static void TearDownAndRecreateGlobalIsolate();
+  bool IsInitialized() { return state_ == INITIALIZED; }
 
-  // Initializes the default isolate (perhaps using a deserializer). Returns
-  // false on failure.
-  static bool InitializeDefaultIsolate(Deserializer* des);
+  // True if at least one thread Enter'ed this isolate.
+  bool IsInUse() { return entry_stack_ != NULL; }
 
-  static Isolate* default_isolate() { return default_isolate_; }
+  // Destroys the non-default isolates.
+  // Sets default isolate into "has_been_disposed" state rather then destroying,
+  // for legacy API reasons.
+  void TearDown();
 
   bool IsDefaultIsolate() const { return this == default_isolate_; }
 
-  // Ensures that process-wide resources have been allocated. It is only
-  // necessary to call this method if you are using V8 from within the body
-  // of a static initializer.
-  static bool EnsureDefaultIsolateAllocated();
+  // Ensures that process-wide resources and the default isolate have been
+  // allocated. It is only necessary to call this method in rare casses, for
+  // example if you are using V8 from within the body of a static initializer.
+  // Safe to call multiple times.
+  static void EnsureDefaultIsolate();
 
   // Returns the key used to store the pointer to the current isolate.
   // Used internally for V8 threads that do not execute JavaScript but still
@@ -401,9 +404,8 @@ class Isolate {
   // If a client attempts to create a Locker without specifying an isolate,
   // we assume that the client is using legacy behavior. Set up the current
   // thread to be inside the implicit isolate (or fail a check if we have
-  // switched to non-legacy behavior). Returns a pointer to the default
-  // isolate.
-  static Isolate* EnterDefaultIsolate();
+  // switched to non-legacy behavior).
+  static void EnterDefaultIsolate();
 
   // Debug.
   // Mutex for serializing access to break control structures.
@@ -789,7 +791,7 @@ class Isolate {
 #endif
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
-  v8::internal::Thread::LocalStorageKey* simulator_key() {
+  static v8::internal::Thread::LocalStorageKey* simulator_key() {
     return &simulator_key_;
   }
 
@@ -839,6 +841,30 @@ class Isolate {
     PerIsolateThreadData* list_;
   };
 
+  // These items form a stack synchronously with threads Enter'ing and Exit'ing
+  // the Isolate. The top of the stack points to a thread which is currently
+  // running the Isolate. When the stack is empty, the Isolate is considered
+  // not entered by any thread and can be Disposed.
+  // If the same thread enters the Isolate more then once, the entry_count_
+  // is incremented rather then a new item pushed to the stack.
+  struct EntryStackItem {
+   public:
+    EntryStackItem(PerIsolateThreadData* previous_thread_data,
+                   Isolate* previous_isolate,
+                   EntryStackItem* previous_item)
+        : entry_count(1),
+          previous_thread_data(previous_thread_data),
+          previous_isolate(previous_isolate),
+          previous_item(previous_item) { }
+
+    int entry_count;
+    PerIsolateThreadData* previous_thread_data;
+    Isolate* previous_isolate;
+    EntryStackItem* previous_item;
+
+    DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
+  };
+
   // This mutex protects highest_thread_id_, thread_data_table_ and
   // default_isolate_.
   static Mutex* process_wide_mutex_;
@@ -852,7 +878,7 @@ class Isolate {
 
   bool PreInit();
 
-  bool Init(Deserializer* des);
+  void Deinit();
 
   enum State {
     UNINITIALIZED,    // Some components may not have been allocated.
@@ -861,6 +887,7 @@ class Isolate {
   };
 
   State state_;
+  EntryStackItem* entry_stack_;
 
   // Allocate and insert PerIsolateThreadData into the ThreadDataTable
   // (regardless of whether such data already exists).
@@ -870,8 +897,20 @@ class Isolate {
   // If one does not yet exist, allocate a new one.
   PerIsolateThreadData* FindOrAllocatePerThreadDataForThisThread();
 
-  // Ensures that the default isolate exists. Safe to call multiple times.
-  static void EnsureDefaultIsolate();
+  // PreInits and returns a default isolate. Needed when a new thread tries
+  // to create a Locker for the first time (the lock itself is in the isolate).
+  static Isolate* GetDefaultIsolateForLocking();
+
+  // Initializes the current thread to run this Isolate.
+  // Not thread-safe. Multiple threads should not Enter/Exit the same isolate
+  // at the same time, this should be prevented using external locking.
+  void Enter();
+
+  // Exits the current thread. The previosuly entered Isolate is restored
+  // for the thread.
+  // Not thread-safe. Multiple threads should not Enter/Exit the same isolate
+  // at the same time, this should be prevented using external locking.
+  void Exit();
 
   void PreallocatedMemoryThreadStart();
   void PreallocatedMemoryThreadStop();
@@ -946,7 +985,7 @@ class Isolate {
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
   // Create one simulator per thread and keep it in thread local storage.
-  v8::internal::Thread::LocalStorageKey simulator_key_;
+  static v8::internal::Thread::LocalStorageKey simulator_key_;
   bool simulator_initialized_;
   HashMap* simulator_i_cache_;
   assembler::arm::Redirection* simulator_redirection_;
@@ -979,6 +1018,8 @@ class Isolate {
 #undef GLOBAL_ARRAY_BACKING_STORE
 
   friend class IsolateInitializer;
+  friend class v8::Isolate;
+  friend class v8::Locker;
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };

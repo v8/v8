@@ -11187,3 +11187,248 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
   reresult = CompileRun("str2.charCodeAt(2);");
   CHECK_EQ(static_cast<int32_t>('e'), reresult->Int32Value());
 }
+
+TEST(DefaultIsolateGetCurrent) {
+  CHECK(v8::Isolate::GetCurrent() != NULL);
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK(reinterpret_cast<i::Isolate*>(isolate)->IsDefaultIsolate());
+  printf("*** %s\n", "DefaultIsolateGetCurrent success");
+}
+
+TEST(IsolateNewDispose) {
+  v8::Isolate* current_isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = v8::Isolate::New();
+  CHECK(isolate != NULL);
+  CHECK(!reinterpret_cast<i::Isolate*>(isolate)->IsDefaultIsolate());
+  CHECK(current_isolate != isolate);
+  CHECK(current_isolate == v8::Isolate::GetCurrent());
+
+  v8::V8::SetFatalErrorHandler(StoringErrorCallback);
+  last_location = last_message = NULL;
+  isolate->Dispose();
+  CHECK_EQ(last_location, NULL);
+  CHECK_EQ(last_message, NULL);
+}
+
+TEST(IsolateEnterExitDefault) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Isolate* current_isolate = v8::Isolate::GetCurrent();
+  CHECK(current_isolate != NULL); // Default isolate.
+  ExpectString("'hello'", "hello");
+  current_isolate->Enter();
+  ExpectString("'still working'", "still working");
+  current_isolate->Exit();
+  ExpectString("'still working 2'", "still working 2");
+  current_isolate->Exit();
+  // Default isolate is always, well, 'default current'.
+  CHECK_EQ(v8::Isolate::GetCurrent(), current_isolate);
+  // Still working since default isolate is auto-entering any thread
+  // that has no isolate and attempts to execute V8 APIs.
+  ExpectString("'still working 3'", "still working 3");
+}
+
+TEST(DisposeDefaultIsolate) {
+  v8::V8::SetFatalErrorHandler(StoringErrorCallback);
+
+  // Run some V8 code to trigger default isolate to become 'current'.
+  v8::HandleScope scope;
+  LocalContext context;
+  ExpectString("'run some V8'", "run some V8");
+
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK(reinterpret_cast<i::Isolate*>(isolate)->IsDefaultIsolate());
+  last_location = last_message = NULL;
+  isolate->Dispose();
+  // It is not possible to dispose default isolate via Isolate API.
+  CHECK_NE(last_location, NULL);
+  CHECK_NE(last_message, NULL);
+}
+
+TEST(RunDefaultAndAnotherIsolate) {
+  v8::HandleScope scope;
+  LocalContext context;
+
+  // Enter new isolate.
+  v8::Isolate* isolate = v8::Isolate::New();
+  CHECK(isolate);
+  isolate->Enter();
+  v8::HandleScope scope_new;
+  LocalContext context_new;
+
+  // Run something in new isolate.
+  CompileRun("var foo = 153;");
+  ExpectTrue("function f() { return foo == 153; }; f()");
+  isolate->Exit();
+
+  // This runs automatically in default isolate.
+  // Variables in another isolate should be not available.
+  ExpectTrue("function f() {"
+             "  try {"
+             "    foo;"
+             "    return false;"
+             "  } catch(e) {"
+             "    return true;"
+             "  }"
+             "};"
+             "var bar = 371;"
+             "f()");
+
+  v8::V8::SetFatalErrorHandler(StoringErrorCallback);
+  last_location = last_message = NULL;
+  isolate->Dispose();
+  CHECK_EQ(last_location, NULL);
+  CHECK_EQ(last_message, NULL);
+
+  // Check that default isolate still runs.
+  ExpectTrue("function f() { return bar == 371; }; f()");
+}
+
+TEST(DisposeIsolateWhenInUse) {
+  v8::Isolate* isolate = v8::Isolate::New();
+  CHECK(isolate);
+  isolate->Enter();
+  v8::HandleScope scope;
+  LocalContext context;
+  // Run something in this isolate.
+  ExpectTrue("true");
+  v8::V8::SetFatalErrorHandler(StoringErrorCallback);
+  last_location = last_message = NULL;
+  // Still entered, should fail.
+  isolate->Dispose();
+  CHECK_NE(last_location, NULL);
+  CHECK_NE(last_message, NULL);
+}
+
+TEST(RunTwoIsolatesOnSingleThread) {
+  // Run isolate 1.
+  v8::Isolate* isolate1 = v8::Isolate::New();
+  isolate1->Enter();
+  v8::HandleScope scope1;
+  LocalContext context1;
+
+  // Run something in new isolate.
+  CompileRun("var foo = 'isolate 1';");
+  ExpectString("function f() { return foo; }; f()", "isolate 1");
+
+  // Run isolate 2.
+  v8::Isolate* isolate2 = v8::Isolate::New();
+  isolate2->Enter();
+  v8::HandleScope scope2;
+  LocalContext context2;
+
+  // Run something in new isolate.
+  CompileRun("var foo = 'isolate 2';");
+  ExpectString("function f() { return foo; }; f()", "isolate 2");
+
+  isolate2->Exit();
+
+  // Now again in isolate 1
+
+  ExpectString("function f() { return foo; }; f()", "isolate 1");
+
+  isolate1->Exit();
+
+  // Run some stuff in default isolate.
+  v8::HandleScope scope_default;
+  LocalContext context_default;
+
+  // Variables in other isolates should be not available, verify there
+  // is an exception.
+  ExpectTrue("function f() {"
+             "  try {"
+             "    foo;"
+             "    return false;"
+             "  } catch(e) {"
+             "    return true;"
+             "  }"
+             "};"
+             "var isDefaultIsolate = true;"
+             "f()");
+
+  isolate1->Enter();
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate2);
+    ExpectString("function f() { return foo; }; f()", "isolate 2");
+  }
+
+  ExpectString("function f() { return foo; }; f()", "isolate 1");
+  isolate1->Exit();
+
+  v8::V8::SetFatalErrorHandler(StoringErrorCallback);
+  last_location = last_message = NULL;
+
+  isolate1->Dispose();
+  CHECK_EQ(last_location, NULL);
+  CHECK_EQ(last_message, NULL);
+
+  isolate2->Dispose();
+  CHECK_EQ(last_location, NULL);
+  CHECK_EQ(last_message, NULL);
+
+  // Check that default isolate still runs.
+  ExpectTrue("function f() { return isDefaultIsolate; }; f()");
+}
+
+static int CalcFibonacci(v8::Isolate* isolate, int limit) {
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope scope;
+  LocalContext context;
+  i::ScopedVector<char> code(1024);
+  i::OS::SNPrintF(code, "function fib(n) {"
+                        "  if (n <= 2) return 1;"
+                        "  return fib(n-1) + fib(n-2);"
+                        "}"
+                        "fib(%d)", limit);
+  Local<Value> value = CompileRun(code.start());
+  CHECK(value->IsNumber());
+  return static_cast<int>(value->NumberValue());
+}
+
+class IsolateThread : public v8::internal::Thread {
+ public:
+  explicit IsolateThread(v8::Isolate* isolate, int fib_limit)
+    : Thread(NULL),
+      isolate_(isolate),
+      fib_limit_(fib_limit),
+      result_(0) { }
+
+  void Run() {
+    result_ = CalcFibonacci(isolate_, fib_limit_);
+  }
+
+  int result() { return result_; }
+
+ private:
+  v8::Isolate* isolate_;
+  int fib_limit_;
+  int result_;
+};
+
+TEST(MultipleIsolatesOnIndividualThreads) {
+  v8::Isolate* isolate1 = v8::Isolate::New();
+  v8::Isolate* isolate2 = v8::Isolate::New();
+
+  IsolateThread thread1(isolate1, 21);
+  IsolateThread thread2(isolate2, 12);
+
+  // Compute some fibonacci numbers on 3 threads in 3 isolates.
+  thread1.Start();
+  thread2.Start();
+
+  int result1 = CalcFibonacci(v8::Isolate::GetCurrent(), 21);
+  int result2 = CalcFibonacci(v8::Isolate::GetCurrent(), 12);
+
+  thread1.Join();
+  thread2.Join();
+
+  // Compare results.
+  CHECK(result1 == thread1.result());
+  CHECK(result2 == thread2.result());
+
+  isolate1->Dispose();
+  isolate2->Dispose();
+}
+
+
