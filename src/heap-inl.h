@@ -435,6 +435,12 @@ inline bool Heap::allow_allocation(bool new_state) {
   return old;
 }
 
+inline bool Heap::allow_gc(bool new_state) {
+  bool old = gc_allowed_;
+  gc_allowed_ = new_state;
+  return old;
+}
+
 #endif
 
 

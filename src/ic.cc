@@ -501,20 +501,24 @@ Object* CallICBase::LoadFunction(State state,
 
   // Lookup the property in the object.
   LookupResult lookup;
-  LookupForRead(*object, *name, &lookup);
+  {
+    AssertNoGC nogc;  // GC could invalidate the pointers held in lookup.
 
-  if (!lookup.IsProperty()) {
-    // If the object does not have the requested property, check which
-    // exception we need to throw.
-    if (IsContextual(object)) {
-      return ReferenceError("not_defined", name);
+    LookupForRead(*object, *name, &lookup);
+
+    if (!lookup.IsProperty()) {
+      // If the object does not have the requested property, check which
+      // exception we need to throw.
+      if (IsContextual(object)) {
+        return ReferenceError("not_defined", name);
+      }
+      return TypeError("undefined_method", object, name);
     }
-    return TypeError("undefined_method", object, name);
-  }
 
-  // Lookup is valid: Update inline cache and stub cache.
-  if (FLAG_use_ic) {
-    UpdateCaches(&lookup, state, object, name);
+    // Lookup is valid: Update inline cache and stub cache.
+    if (FLAG_use_ic) {
+      UpdateCaches(&lookup, state, object, name);
+    }
   }
 
   // Get the property.
@@ -787,67 +791,71 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 
   // Named lookup in the object.
   LookupResult lookup;
-  LookupForRead(*object, *name, &lookup);
+  {
+    AssertNoGC nogc;  // GC could invalidate the pointers held in lookup.
 
-  // If we did not find a property, check if we need to throw an exception.
-  if (!lookup.IsProperty()) {
-    if (FLAG_strict || IsContextual(object)) {
-      return ReferenceError("not_defined", name);
+    LookupForRead(*object, *name, &lookup);
+
+    // If we did not find a property, check if we need to throw an exception.
+    if (!lookup.IsProperty()) {
+      if (FLAG_strict || IsContextual(object)) {
+        return ReferenceError("not_defined", name);
+      }
+      LOG(SuspectReadEvent(*name, *object));
     }
-    LOG(SuspectReadEvent(*name, *object));
-  }
 
-  bool can_be_inlined =
-      FLAG_use_ic &&
-      state == PREMONOMORPHIC &&
-      lookup.IsProperty() &&
-      lookup.IsCacheable() &&
-      lookup.holder() == *object &&
-      lookup.type() == FIELD &&
-      !object->IsAccessCheckNeeded();
+    bool can_be_inlined =
+        FLAG_use_ic &&
+        state == PREMONOMORPHIC &&
+        lookup.IsProperty() &&
+        lookup.IsCacheable() &&
+        lookup.holder() == *object &&
+        lookup.type() == FIELD &&
+        !object->IsAccessCheckNeeded();
 
-  if (can_be_inlined) {
-    Map* map = lookup.holder()->map();
-    // Property's index in the properties array.  If negative we have
-    // an inobject property.
-    int index = lookup.GetFieldIndex() - map->inobject_properties();
-    if (index < 0) {
-      // Index is an offset from the end of the object.
-      int offset = map->instance_size() + (index * kPointerSize);
-      if (PatchInlinedLoad(address(), map, offset)) {
-        set_target(megamorphic_stub());
-#ifdef DEBUG
-        if (FLAG_trace_ic) {
-          PrintF("[LoadIC : inline patch %s]\n", *name->ToCString());
+    if (can_be_inlined) {
+      Map* map = lookup.holder()->map();
+      // Property's index in the properties array.  If negative we have
+      // an inobject property.
+      int index = lookup.GetFieldIndex() - map->inobject_properties();
+      if (index < 0) {
+        // Index is an offset from the end of the object.
+        int offset = map->instance_size() + (index * kPointerSize);
+        if (PatchInlinedLoad(address(), map, offset)) {
+          set_target(megamorphic_stub());
+  #ifdef DEBUG
+          if (FLAG_trace_ic) {
+            PrintF("[LoadIC : inline patch %s]\n", *name->ToCString());
+          }
+  #endif
+          return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
+  #ifdef DEBUG
+        } else {
+          if (FLAG_trace_ic) {
+            PrintF("[LoadIC : no inline patch %s (patching failed)]\n",
+                   *name->ToCString());
+          }
         }
-#endif
-        return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
-#ifdef DEBUG
       } else {
         if (FLAG_trace_ic) {
-          PrintF("[LoadIC : no inline patch %s (patching failed)]\n",
+          PrintF("[LoadIC : no inline patch %s (not inobject)]\n",
                  *name->ToCString());
         }
       }
     } else {
-      if (FLAG_trace_ic) {
-        PrintF("[LoadIC : no inline patch %s (not inobject)]\n",
-               *name->ToCString());
+      if (FLAG_use_ic && state == PREMONOMORPHIC) {
+        if (FLAG_trace_ic) {
+          PrintF("[LoadIC : no inline patch %s (not inlinable)]\n",
+                 *name->ToCString());
+  #endif
+        }
       }
     }
-  } else {
-    if (FLAG_use_ic && state == PREMONOMORPHIC) {
-      if (FLAG_trace_ic) {
-        PrintF("[LoadIC : no inline patch %s (not inlinable)]\n",
-               *name->ToCString());
-#endif
-      }
-    }
-  }
 
-  // Update inline cache and stub cache.
-  if (FLAG_use_ic) {
-    UpdateCaches(&lookup, state, object, name);
+    // Update inline cache and stub cache.
+    if (FLAG_use_ic) {
+      UpdateCaches(&lookup, state, object, name);
+    }
   }
 
   PropertyAttributes attr;
@@ -1037,17 +1045,21 @@ Object* KeyedLoadIC::Load(State state,
 
     // Named lookup.
     LookupResult lookup;
-    LookupForRead(*object, *name, &lookup);
+    {
+      AssertNoGC nogc;  // GC could invalidate the pointers held in lookup.
 
-    // If we did not find a property, check if we need to throw an exception.
-    if (!lookup.IsProperty()) {
-      if (FLAG_strict || IsContextual(object)) {
-        return ReferenceError("not_defined", name);
+      LookupForRead(*object, *name, &lookup);
+
+      // If we did not find a property, check if we need to throw an exception.
+      if (!lookup.IsProperty()) {
+        if (FLAG_strict || IsContextual(object)) {
+          return ReferenceError("not_defined", name);
+        }
       }
-    }
 
-    if (FLAG_use_ic) {
-      UpdateCaches(&lookup, state, object, name);
+      if (FLAG_use_ic) {
+        UpdateCaches(&lookup, state, object, name);
+      }
     }
 
     PropertyAttributes attr;
@@ -1245,6 +1257,8 @@ Object* StoreIC::Store(State state,
 
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
+    AssertNoGC nogc;  // GC could invalidate the pointers held in lookup.
+
     LookupResult lookup;
 
     if (LookupForWrite(*receiver, *name, &lookup)) {
@@ -1418,13 +1432,17 @@ Object* KeyedStoreIC::Store(State state,
       return *value;
     }
 
-    // Lookup the property locally in the receiver.
-    LookupResult lookup;
-    receiver->LocalLookup(*name, &lookup);
+    {
+      AssertNoGC nogc;  // GC could invalidate the pointers held in lookup.
 
-    // Update inline cache and stub cache.
-    if (FLAG_use_ic) {
-      UpdateCaches(&lookup, state, receiver, name, value);
+      // Lookup the property locally in the receiver.
+      LookupResult lookup;
+      receiver->LocalLookup(*name, &lookup);
+
+      // Update inline cache and stub cache.
+      if (FLAG_use_ic) {
+        UpdateCaches(&lookup, state, receiver, name, value);
+      }
     }
 
     // Set the property.
