@@ -220,10 +220,6 @@ class Token {
   }
 
   // Predicates
-  static bool IsKeyword(Value tok) {
-    return token_type[tok] == 'K';
-  }
-
   static bool IsAssignmentOp(Value tok) {
     return INIT_VAR <= tok && tok <= ASSIGN_MOD;
   }
@@ -267,7 +263,6 @@ class Token {
   static const char* name_[NUM_TOKENS];
   static const char* string_[NUM_TOKENS];
   static int8_t precedence_[NUM_TOKENS];
-  static const char token_type[NUM_TOKENS];
 };
 
 } }  // namespace v8::internal
