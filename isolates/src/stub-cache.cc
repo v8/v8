@@ -107,7 +107,8 @@ Object* StubCache::ComputeLoadNonexistent(String* name, JSObject* receiver) {
   String* cache_name = HEAP->empty_string();
   if (receiver->IsGlobalObject()) cache_name = name;
   JSObject* last = receiver;
-  while (last->GetPrototype() != HEAP->null_value()) {
+  Heap* heap = HEAP;
+  while (last->GetPrototype() != heap->null_value()) {
     last = JSObject::cast(last->GetPrototype());
     if (last->IsGlobalObject()) cache_name = name;
   }
@@ -663,16 +664,17 @@ static Object* GetProbeValue(Code::Flags flags) {
 
 
 static Object* ProbeCache(Code::Flags flags) {
+  Heap* heap = HEAP;
   Object* probe = GetProbeValue(flags);
-  if (probe != HEAP->undefined_value()) return probe;
+  if (probe != heap->undefined_value()) return probe;
   // Seed the cache with an undefined value to make sure that any
   // generated code object can always be inserted into the cache
   // without causing  allocation failures.
   Object* result =
-      HEAP->non_monomorphic_cache()->AtNumberPut(flags,
-                                                 HEAP->undefined_value());
+      heap->non_monomorphic_cache()->AtNumberPut(flags,
+                                                 heap->undefined_value());
   if (result->IsFailure()) return result;
-  HEAP->public_set_non_monomorphic_cache(NumberDictionary::cast(result));
+  heap->public_set_non_monomorphic_cache(NumberDictionary::cast(result));
   return probe;
 }
 
@@ -1218,7 +1220,7 @@ void StubCompiler::LookupPostInterceptor(JSObject* holder,
   if (!lookup->IsProperty()) {
     lookup->NotFound();
     Object* proto = holder->GetPrototype();
-    if (proto != HEAP->null_value()) {
+    if (!proto->IsNull()) {
       proto->Lookup(name, lookup);
     }
   }

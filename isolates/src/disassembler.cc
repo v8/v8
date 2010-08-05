@@ -111,6 +111,7 @@ static int DecodeIt(FILE* f,
   NoHandleAllocation ha;
   AssertNoAllocation no_alloc;
   ExternalReferenceEncoder ref_encoder;
+  Heap* heap = HEAP;
 
   v8::internal::EmbeddedVector<char, 128> decode_buffer;
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
@@ -252,8 +253,8 @@ static int DecodeIt(FILE* f,
         } else if (kind == Code::STUB) {
           // Reverse lookup required as the minor key cannot be retrieved
           // from the code object.
-          Object* obj = HEAP->code_stubs()->SlowReverseLookup(code);
-          if (obj != HEAP->undefined_value()) {
+          Object* obj = heap->code_stubs()->SlowReverseLookup(code);
+          if (obj != heap->undefined_value()) {
             ASSERT(obj->IsSmi());
             // Get the STUB key and extract major and minor key.
             uint32_t key = Smi::cast(obj)->value();

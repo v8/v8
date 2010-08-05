@@ -4756,6 +4756,9 @@ class Oddball: public HeapObject {
   // [to_number]: Cached to_number computed at startup.
   DECL_ACCESSORS(to_number, Object)
 
+  inline byte kind();
+  inline void set_kind(byte kind);
+
   // Casting.
   static inline Oddball* cast(Object* obj);
 
@@ -4766,12 +4769,21 @@ class Oddball: public HeapObject {
 #endif
 
   // Initialize the fields.
-  Object* Initialize(const char* to_string, Object* to_number);
+  Object* Initialize(const char* to_string, Object* to_number, byte kind);
 
   // Layout description.
   static const int kToStringOffset = HeapObject::kHeaderSize;
   static const int kToNumberOffset = kToStringOffset + kPointerSize;
-  static const int kSize = kToNumberOffset + kPointerSize;
+  static const int kKindOffset = kToNumberOffset + kPointerSize;
+  static const int kSize = kKindOffset + kPointerSize;
+
+  static const byte kFalse = 0;
+  static const byte kTrue = 1;
+  static const byte kNotBooleanMask = ~1;
+  static const byte kTheHole = 2;
+  static const byte kNull = 3;
+  static const byte kUndefined = 4;
+  static const byte kOther = 5;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Oddball);

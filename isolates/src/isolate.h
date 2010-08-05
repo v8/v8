@@ -1139,7 +1139,7 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 
 // Tells whether the global context is marked with out of memory.
 inline bool Context::has_out_of_memory() {
-  return global_context()->out_of_memory() == HEAP->true_value();
+  return global_context()->out_of_memory()->IsTrue();
 }
 
 

@@ -867,10 +867,17 @@ class Literal: public Expression {
   virtual bool IsCritical();
 
   // Identity testers.
-  bool IsNull() const { return handle_.is_identical_to(Factory::null_value()); }
-  bool IsTrue() const { return handle_.is_identical_to(Factory::true_value()); }
+  bool IsNull() const {
+    ASSERT(!handle_.is_null());
+    return handle_->IsNull();
+  }
+  bool IsTrue() const {
+    ASSERT(!handle_.is_null());
+    return handle_->IsTrue();
+  }
   bool IsFalse() const {
-    return handle_.is_identical_to(Factory::false_value());
+    ASSERT(!handle_.is_null());
+    return handle_->IsFalse();
   }
 
   Handle<Object> handle() const { return handle_; }

@@ -1194,7 +1194,7 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
       UNREACHABLE();
       break;
   }
-  if (answer_object == HEAP->undefined_value()) {
+  if (answer_object->IsUndefined()) {
     return false;
   }
   frame_->Push(Handle<Object>(answer_object));

@@ -1660,8 +1660,9 @@ Object* JSObject::SetPropertyWithDefinedSetter(JSFunction* setter,
 
 void JSObject::LookupCallbackSetterInPrototypes(String* name,
                                                 LookupResult* result) {
+  Heap* heap = HEAP;
   for (Object* pt = GetPrototype();
-       pt != HEAP->null_value();
+       pt != heap->null_value();
        pt = pt->GetPrototype()) {
     JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
     if (result->IsProperty()) {
@@ -1680,8 +1681,9 @@ void JSObject::LookupCallbackSetterInPrototypes(String* name,
 
 bool JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
                                                         Object* value) {
+  Heap* heap = HEAP;
   for (Object* pt = GetPrototype();
-       pt != HEAP->null_value();
+       pt != heap->null_value();
        pt = pt->GetPrototype()) {
     if (!JSObject::cast(pt)->HasDictionaryElements()) {
         continue;
@@ -1777,8 +1779,9 @@ void JSObject::LookupRealNamedProperty(String* name, LookupResult* result) {
 
 void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
                                                    LookupResult* result) {
+  Heap* heap = HEAP;
   for (Object* pt = GetPrototype();
-       pt != HEAP->null_value();
+       pt != heap->null_value();
        pt = JSObject::cast(pt)->GetPrototype()) {
     JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
     if (result->IsProperty() && (result->type() != INTERCEPTOR)) return;
@@ -2010,7 +2013,7 @@ PropertyAttributes JSObject::GetPropertyAttributePostInterceptor(
   if (continue_search) {
     // Continue searching via the prototype chain.
     Object* pt = GetPrototype();
-    if (pt != HEAP->null_value()) {
+    if (!pt->IsNull()) {
       return JSObject::cast(pt)->
         GetPropertyAttributeWithReceiver(receiver, name);
     }
@@ -2509,7 +2512,7 @@ bool JSObject::ReferencesObject(Object* obj) {
 
   // Check if the object is among the named properties.
   Object* key = SlowReverseLookup(obj);
-  if (key != HEAP->undefined_value()) {
+  if (!key->IsUndefined()) {
     return true;
   }
 
@@ -2540,7 +2543,7 @@ bool JSObject::ReferencesObject(Object* obj) {
     }
     case DICTIONARY_ELEMENTS: {
       key = element_dictionary()->SlowReverseLookup(obj);
-      if (key != HEAP->undefined_value()) {
+      if (!key->IsUndefined()) {
         return true;
       }
       break;
@@ -2618,8 +2621,9 @@ Object* JSObject::PreventExtensions() {
 // - This object has no elements.
 // - No prototype has enumerable properties/elements.
 bool JSObject::IsSimpleEnum() {
+  Heap* heap = HEAP;
   for (Object* o = this;
-       o != HEAP->null_value();
+       o != heap->null_value();
        o = JSObject::cast(o)->GetPrototype()) {
     JSObject* curr = JSObject::cast(o);
     if (!curr->map()->instance_descriptors()->HasEnumCache()) return false;
@@ -2719,8 +2723,9 @@ void JSObject::LocalLookup(String* name, LookupResult* result) {
 
 void JSObject::Lookup(String* name, LookupResult* result) {
   // Ecma-262 3rd 8.6.2.4
+  Heap* heap = HEAP;
   for (Object* current = this;
-       current != HEAP->null_value();
+       current != heap->null_value();
        current = JSObject::cast(current)->GetPrototype()) {
     JSObject::cast(current)->LocalLookup(name, result);
     if (result->IsProperty()) return;
@@ -2731,8 +2736,9 @@ void JSObject::Lookup(String* name, LookupResult* result) {
 
 // Search object and it's prototype chain for callback properties.
 void JSObject::LookupCallback(String* name, LookupResult* result) {
+  Heap* heap = HEAP;
   for (Object* current = this;
-       current != HEAP->null_value();
+       current != heap->null_value();
        current = JSObject::cast(current)->GetPrototype()) {
     JSObject::cast(current)->LocalLookupRealNamedProperty(name, result);
     if (result->IsProperty() && result->type() == CALLBACKS) return;
@@ -3013,9 +3019,10 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
   // Make the lookup and include prototypes.
   int accessor_index = is_getter ? kGetterIndex : kSetterIndex;
   uint32_t index = 0;
+  Heap* heap = HEAP;
   if (name->AsArrayIndex(&index)) {
     for (Object* obj = this;
-         obj != HEAP->null_value();
+         obj != heap->null_value();
          obj = JSObject::cast(obj)->GetPrototype()) {
       JSObject* js_object = JSObject::cast(obj);
       if (js_object->HasDictionaryElements()) {
@@ -3034,7 +3041,7 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
     }
   } else {
     for (Object* obj = this;
-         obj != HEAP->null_value();
+         obj != heap->null_value();
          obj = JSObject::cast(obj)->GetPrototype()) {
       LookupResult result;
       JSObject::cast(obj)->LocalLookup(name, &result);
@@ -5127,11 +5134,14 @@ void Oddball::OddballIterateBody(ObjectVisitor* v) {
 }
 
 
-Object* Oddball::Initialize(const char* to_string, Object* to_number) {
+Object* Oddball::Initialize(const char* to_string,
+                            Object* to_number,
+                            byte kind) {
   Object* symbol = HEAP->LookupAsciiSymbol(to_string);
   if (symbol->IsFailure()) return symbol;
   set_to_string(String::cast(symbol));
   set_to_number(to_number);
+  set_kind(kind);
   return this;
 }
 
@@ -5184,8 +5194,9 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
 
   // Traverse the proposed prototype chain looking for setters for properties of
   // the same names as are set by the inline constructor.
+  Heap* heap = HEAP;
   for (Object* obj = prototype;
-       obj != HEAP->null_value();
+       obj != heap->null_value();
        obj = obj->GetPrototype()) {
     JSObject* js_object = JSObject::cast(obj);
     for (int i = 0; i < this_property_assignments_count(); i++) {
@@ -5740,7 +5751,8 @@ Object* JSObject::SetPrototype(Object* value,
   // prototype cycles are prevented.
   // It is sufficient to validate that the receiver is not in the new prototype
   // chain.
-  for (Object* pt = value; pt != HEAP->null_value(); pt = pt->GetPrototype()) {
+  Heap* heap = HEAP;
+  for (Object* pt = value; pt != heap->null_value(); pt = pt->GetPrototype()) {
     if (JSObject::cast(pt) == this) {
       // Cycle detected.
       HandleScope scope;
@@ -5825,7 +5837,7 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
   if (this->IsStringObjectWithCharacterAt(index)) return true;
 
   Object* pt = GetPrototype();
-  if (pt == HEAP->null_value()) return false;
+  if (pt->IsNull()) return false;
   return JSObject::cast(pt)->HasElementWithReceiver(receiver, index);
 }
 
@@ -5978,7 +5990,7 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
   if (this->IsStringObjectWithCharacterAt(index)) return true;
 
   Object* pt = GetPrototype();
-  if (pt == HEAP->null_value()) return false;
+  if (pt->IsNull()) return false;
   return JSObject::cast(pt)->HasElementWithReceiver(receiver, index);
 }
 
@@ -6375,7 +6387,7 @@ Object* JSObject::GetElementPostInterceptor(JSObject* receiver,
 
   // Continue searching via the prototype chain.
   Object* pt = GetPrototype();
-  if (pt == HEAP->null_value()) return HEAP->undefined_value();
+  if (pt->IsNull()) return HEAP->undefined_value();
   return pt->GetElementWithReceiver(receiver, index);
 }
 
@@ -6522,7 +6534,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
   }
 
   Object* pt = GetPrototype();
-  if (pt == HEAP->null_value()) return HEAP->undefined_value();
+  if (pt->IsNull()) return HEAP->undefined_value();
   return pt->GetElementWithReceiver(receiver, index);
 }
 
@@ -6676,7 +6688,7 @@ Object* JSObject::GetPropertyPostInterceptor(JSObject* receiver,
   // Continue searching via the prototype chain.
   Object* pt = GetPrototype();
   *attributes = ABSENT;
-  if (pt == HEAP->null_value()) return HEAP->undefined_value();
+  if (pt->IsNull()) return HEAP->undefined_value();
   return pt->GetPropertyWithReceiver(receiver, name, attributes);
 }
 

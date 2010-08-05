@@ -1238,8 +1238,9 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       int holes = 0;
       FixedArray* e = FixedArray::cast(elements());
       int len = e->length();
+      Heap* heap = HEAP;
       for (int i = 0; i < len; i++) {
-        if (e->get(i) == HEAP->the_hole_value()) holes++;
+        if (e->get(i) == heap->the_hole_value()) holes++;
       }
       info->number_of_fast_used_elements_   += len - holes;
       info->number_of_fast_unused_elements_ += holes;

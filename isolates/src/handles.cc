@@ -642,9 +642,10 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
       Handle<JSFunction>(
           JSFunction::cast(arguments_boilerplate->map()->constructor()));
 
+  Heap* heap = HEAP;
   // Only collect keys if access is permitted.
   for (Handle<Object> p = object;
-       *p != HEAP->null_value();
+       *p != heap->null_value();
        p = Handle<Object>(p->GetPrototype())) {
     Handle<JSObject> current(JSObject::cast(*p));
 

@@ -506,13 +506,13 @@ void Heap::ClearInstanceofCache() {
 
 
 Object* Heap::ToBoolean(bool condition) {
-  return condition ? HEAP->true_value() : HEAP->false_value();
+  return condition ? true_value() : false_value();
 }
 
 
 void Heap::CompletelyClearInstanceofCache() {
-  set_instanceof_cache_map(HEAP->the_hole_value());
-  set_instanceof_cache_function(HEAP->the_hole_value());
+  set_instanceof_cache_map(the_hole_value());
+  set_instanceof_cache_function(the_hole_value());
 }
 
 

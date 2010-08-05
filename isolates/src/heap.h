@@ -1309,7 +1309,7 @@ class Heap {
 
   void CreateFixedStubs();
 
-  Object* CreateOddball(const char* to_string, Object* to_number);
+  Object* CreateOddball(const char* to_string, Object* to_number, byte kind);
 
   // Allocate empty fixed array.
   Object* AllocateEmptyFixedArray();

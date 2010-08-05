@@ -878,14 +878,15 @@ static inline Object* TypeCheck(int argc,
   // If necessary, check the receiver
   Object* recv_type = sig->receiver();
 
+  Heap* heap = HEAP;
   Object* holder = recv;
   if (!recv_type->IsUndefined()) {
-    for (; holder != HEAP->null_value(); holder = holder->GetPrototype()) {
+    for (; holder != heap->null_value(); holder = holder->GetPrototype()) {
       if (holder->IsInstanceOf(FunctionTemplateInfo::cast(recv_type))) {
         break;
       }
     }
-    if (holder == HEAP->null_value()) return holder;
+    if (holder == heap->null_value()) return holder;
   }
   Object* args_obj = sig->args();
   // If there is no argument signature we're done
@@ -898,13 +899,13 @@ static inline Object* TypeCheck(int argc,
     if (argtype->IsUndefined()) continue;
     Object** arg = &argv[-1 - i];
     Object* current = *arg;
-    for (; current != HEAP->null_value(); current = current->GetPrototype()) {
+    for (; current != heap->null_value(); current = current->GetPrototype()) {
       if (current->IsInstanceOf(FunctionTemplateInfo::cast(argtype))) {
         *arg = current;
         break;
       }
     }
-    if (current == HEAP->null_value()) *arg = HEAP->undefined_value();
+    if (current == heap->null_value()) *arg = heap->undefined_value();
   }
   return holder;
 }

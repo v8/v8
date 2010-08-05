@@ -522,7 +522,8 @@ bool Object::IsProxy() {
 
 
 bool Object::IsBoolean() {
-  return IsTrue() || IsFalse();
+  return IsOddball() &&
+      ((Oddball::cast(this)->kind() & Oddball::kNotBooleanMask) == 0);
 }
 
 
@@ -660,27 +661,27 @@ bool Object::IsStruct() {
 
 
 bool Object::IsUndefined() {
-  return this == HEAP->undefined_value();
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kUndefined;
 }
 
 
 bool Object::IsTheHole() {
-  return this == HEAP->the_hole_value();
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kTheHole;
 }
 
 
 bool Object::IsNull() {
-  return this == HEAP->null_value();
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kNull;
 }
 
 
 bool Object::IsTrue() {
-  return this == HEAP->true_value();
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kTrue;
 }
 
 
 bool Object::IsFalse() {
-  return this == HEAP->false_value();
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kFalse;
 }
 
 
@@ -690,7 +691,6 @@ double Object::Number() {
     ? static_cast<double>(reinterpret_cast<Smi*>(this)->value())
     : reinterpret_cast<HeapNumber*>(this)->value();
 }
-
 
 
 Object* Object::ToSmi() {
@@ -1201,6 +1201,16 @@ Object* JSObject::ResetElements() {
 
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
+
+
+byte Oddball::kind() {
+  return READ_BYTE_FIELD(this, kKindOffset);
+}
+
+
+void Oddball::set_kind(byte value) {
+  WRITE_BYTE_FIELD(this, kKindOffset, value);
+}
 
 
 Object* JSGlobalPropertyCell::value() {
@@ -2715,7 +2725,7 @@ Object* JSFunction::unchecked_context() {
 
 
 void JSFunction::set_context(Object* value) {
-  ASSERT(value == HEAP->undefined_value() || value->IsContext());
+  ASSERT(value->IsUndefined() || value->IsContext());
   WRITE_FIELD(this, kContextOffset, value);
   WRITE_BARRIER(this, kContextOffset);
 }

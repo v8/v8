@@ -1057,7 +1057,8 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   }
 
   // Return whether the break point is triggered.
-  return *result == HEAP->true_value();
+  ASSERT(!result.is_null());
+  return (*result)->IsTrue();
 }
 
 
@@ -1333,7 +1334,8 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
       // from the code object.
       Handle<Object> obj(
           HEAP->code_stubs()->SlowReverseLookup(*call_function_stub));
-      ASSERT(*obj != HEAP->undefined_value());
+      ASSERT(!obj.is_null());
+      ASSERT(!(*obj)->IsUndefined());
       ASSERT(obj->IsSmi());
       // Get the STUB key and extract major and minor key.
       uint32_t key = Smi::cast(*obj)->value();

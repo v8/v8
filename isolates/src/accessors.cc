@@ -39,8 +39,9 @@ namespace internal {
 template <class C>
 static C* FindInPrototypeChain(Object* obj, bool* found_it) {
   ASSERT(!*found_it);
+  Heap* heap = HEAP;
   while (!Is<C>(obj)) {
-    if (obj == HEAP->null_value()) return NULL;
+    if (obj == heap->null_value()) return NULL;
     obj = obj->GetPrototype();
   }
   *found_it = true;
