@@ -1277,24 +1277,52 @@ static void TestBreakPointSurviveGC(bool force_compaction) {
   v8::Local<v8::Function> foo;
 
   // Test IC store break point with garbage collection.
-  foo = CompileFunction(&env, "function foo(){bar=0;}", "foo");
-  SetBreakPoint(foo, 0);
+  {
+    v8::Local<v8::Function> bar =
+        CompileFunction(&env, "function foo(){}", "foo");
+    foo = CompileFunction(&env, "function foo(){bar=0;}", "foo");
+    SetBreakPoint(foo, 0);
+  }
   CallAndGC(env->Global(), foo, force_compaction);
 
   // Test IC load break point with garbage collection.
-  foo = CompileFunction(&env, "bar=1;function foo(){var x=bar;}", "foo");
-  SetBreakPoint(foo, 0);
+  {
+    v8::Local<v8::Function> bar =
+        CompileFunction(&env, "function foo(){}", "foo");
+    foo = CompileFunction(&env, "bar=1;function foo(){var x=bar;}", "foo");
+    SetBreakPoint(foo, 0);
+  }
   CallAndGC(env->Global(), foo, force_compaction);
 
   // Test IC call break point with garbage collection.
-  foo = CompileFunction(&env, "function bar(){};function foo(){bar();}", "foo");
-  SetBreakPoint(foo, 0);
+  {
+    v8::Local<v8::Function> bar =
+        CompileFunction(&env, "function foo(){}", "foo");
+    foo = CompileFunction(&env,
+                          "function bar(){};function foo(){bar();}",
+                          "foo");
+    SetBreakPoint(foo, 0);
+  }
   CallAndGC(env->Global(), foo, force_compaction);
 
   // Test return break point with garbage collection.
-  foo = CompileFunction(&env, "function foo(){}", "foo");
-  SetBreakPoint(foo, 0);
+  {
+    v8::Local<v8::Function> bar =
+        CompileFunction(&env, "function foo(){}", "foo");
+    foo = CompileFunction(&env, "function foo(){}", "foo");
+    SetBreakPoint(foo, 0);
+  }
   CallAndGC(env->Global(), foo, force_compaction);
+
+  // Test non IC break point with garbage collection.
+  {
+    v8::Local<v8::Function> bar =
+        CompileFunction(&env, "function foo(){}", "foo");
+    foo = CompileFunction(&env, "function foo(){var bar=0;}", "foo");
+    SetBreakPoint(foo, 0);
+  }
+  CallAndGC(env->Global(), foo, force_compaction);
+
 
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
