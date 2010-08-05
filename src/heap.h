@@ -877,8 +877,6 @@ class Heap : public AllStatic {
 #ifdef DEBUG
   static bool IsAllocationAllowed() { return allocation_allowed_; }
   static inline bool allow_allocation(bool enable);
-  static bool IsGCAllowed() { return gc_allowed_; }
-  static inline bool allow_gc(bool enable);
 
   static bool disallow_allocation_failure() {
     return disallow_allocation_failure_;
@@ -1080,7 +1078,6 @@ class Heap : public AllStatic {
 
 #ifdef DEBUG
   static bool allocation_allowed_;
-  static bool gc_allowed_;
 
   // If the --gc-interval flag is set to a positive value, this
   // variable holds the value indicating the number of allocations
@@ -1683,20 +1680,6 @@ class AssertNoAllocation {
   bool old_state_;
 };
 
-class AssertNoGC {
- public:
-  AssertNoGC() {
-    old_state_ = Heap::allow_gc(false);
-  }
-
-  ~AssertNoGC() {
-    Heap::allow_gc(old_state_);
-  }
-
- private:
-  bool old_state_;
-};
-
 class DisableAssertNoAllocation {
  public:
   DisableAssertNoAllocation() {
@@ -1717,12 +1700,6 @@ class AssertNoAllocation {
  public:
   AssertNoAllocation() { }
   ~AssertNoAllocation() { }
-};
-
-class AssertNoGC {
- public:
-  AssertNoGC() { }
-  ~AssertNoGC() { }
 };
 
 class DisableAssertNoAllocation {

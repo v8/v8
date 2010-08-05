@@ -134,7 +134,6 @@ Heap::SurvivalRateTrend Heap::survival_rate_trend_ = Heap::STABLE;
 
 #ifdef DEBUG
 bool Heap::allocation_allowed_ = true;
-bool Heap::gc_allowed_ = true;
 
 int Heap::allocation_timeout_ = 0;
 bool Heap::disallow_allocation_failure_ = false;
@@ -320,9 +319,6 @@ void Heap::ReportStatisticsAfterGC() {
 
 
 void Heap::GarbageCollectionPrologue() {
-#ifdef DEBUG
-  ASSERT(gc_allowed_);
-#endif
   TranscendentalCache::Clear();
   ClearJSFunctionResultCaches();
   gc_count_++;

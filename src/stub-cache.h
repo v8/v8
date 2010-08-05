@@ -336,6 +336,10 @@ Object* CallInterceptorProperty(Arguments args);
 Object* KeyedLoadPropertyWithInterceptor(Arguments args);
 
 
+// Support function for computing call IC miss stubs.
+Handle<Code> ComputeCallMiss(int argc, Code::Kind kind);
+
+
 // The stub compiler compiles stubs for the stub cache.
 class StubCompiler BASE_EMBEDDED {
  public:
@@ -684,9 +688,7 @@ class CallStubCompiler: public StubCompiler {
 
   void GenerateNameCheck(String* name, Label* miss);
 
-  // Generates a jump to CallIC miss stub. Returns Failure if the jump cannot
-  // be generated.
-  Object* GenerateMissBranch();
+  void GenerateMissBranch();
 };
 
 

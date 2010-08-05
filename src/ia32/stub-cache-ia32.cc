@@ -1287,11 +1287,9 @@ void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
 }
 
 
-Object* CallStubCompiler::GenerateMissBranch() {
-  Object* obj = StubCache::ComputeCallMiss(arguments().immediate(), kind_);
-  if (obj->IsFailure()) return obj;
-  __ jmp(Handle<Code>(Code::cast(obj)), RelocInfo::CODE_TARGET);
-  return obj;
+void CallStubCompiler::GenerateMissBranch() {
+  Handle<Code> ic = ComputeCallMiss(arguments().immediate(), kind_);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
 }
 
 
@@ -1342,8 +1340,7 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(FIELD, name);
@@ -1490,8 +1487,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   }
 
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1574,8 +1570,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
                                1);
 
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1638,8 +1633,8 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1705,8 +1700,9 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  // Restore function name in ecx.
+
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1860,8 +1856,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
     FreeSpaceForFastApiCall(masm(), eax);
   }
   __ bind(&miss_in_smi_check);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1925,8 +1920,7 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   // Handle load cache miss.
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(INTERCEPTOR, name);
@@ -2011,8 +2005,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // Handle call cache miss.
   __ bind(&miss);
   __ IncrementCounter(&Counters::call_global_inline_miss, 1);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(NORMAL, name);
