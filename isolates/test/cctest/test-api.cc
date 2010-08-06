@@ -11423,7 +11423,10 @@ TEST(MultipleIsolatesOnIndividualThreads) {
   thread1.Join();
   thread2.Join();
 
-  // Compare results.
+  // Compare results. The actual fibonacci numbers for 12 and 21 are taken
+  // (I'm lazy!) from http://en.wikipedia.org/wiki/Fibonacci_number
+  CHECK(result1 == 10946);
+  CHECK(result2 == 144);
   CHECK(result1 == thread1.result());
   CHECK(result2 == thread2.result());
 
