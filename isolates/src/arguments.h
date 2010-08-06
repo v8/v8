@@ -65,7 +65,6 @@ class Arguments BASE_EMBEDDED {
   int length() const { return length_; }
 
   Object** arguments() { return arguments_; }
-
  private:
   int length_;
   Object** arguments_;
@@ -90,6 +89,8 @@ class CustomArguments : public Relocatable {
   Object* values_[3];
 };
 
+#define RUNTIME_CALLING_CONVENTION Arguments args, Isolate* isolate
+#define RUNTIME_GET_ISOLATE ASSERT(isolate == Isolate::Current())
 
 } }  // namespace v8::internal
 

@@ -406,6 +406,9 @@ class ExternalReference BASE_EMBEDDED {
 
   explicit ExternalReference(const Runtime::Function* f);
 
+  // Isolate::Current() as an external reference.
+  static ExternalReference isolate_address();
+
   explicit ExternalReference(const IC_Utility& ic_utility);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

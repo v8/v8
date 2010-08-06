@@ -242,8 +242,9 @@ Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes) {
+  Heap* heap = HEAP;
   CALL_HEAP_FUNCTION(
-      Runtime::SetObjectProperty(object, key, value, attributes), Object);
+      Runtime::SetObjectProperty(heap, object, key, value, attributes), Object);
 }
 
 
@@ -267,7 +268,9 @@ Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
 
 Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
                                    Handle<Object> key) {
-  CALL_HEAP_FUNCTION(Runtime::ForceDeleteObjectProperty(object, key), Object);
+  Heap* heap = HEAP;
+  CALL_HEAP_FUNCTION(Runtime::ForceDeleteObjectProperty(heap, object, key),
+                     Object);
 }
 
 
@@ -301,7 +304,8 @@ Handle<Object> GetProperty(Handle<JSObject> obj,
 
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key) {
-  CALL_HEAP_FUNCTION(Runtime::GetObjectProperty(obj, key), Object);
+  Heap* heap = HEAP;
+  CALL_HEAP_FUNCTION(Runtime::GetObjectProperty(heap, obj, key), Object);
 }
 
 
@@ -501,8 +505,9 @@ Handle<FixedArray> CalculateLineEnds(Handle<String> src,
   // Pass 1: Identify line count.
   int line_count = 0;
   int position = 0;
+  RuntimeState* runtime_state = Isolate::Current()->runtime_state();
   while (position != -1 && position < src_len) {
-    position = Runtime::StringMatch(src, new_line, position);
+    position = Runtime::StringMatch(runtime_state, src, new_line, position);
     if (position != -1) {
       position++;
     }
@@ -519,7 +524,7 @@ Handle<FixedArray> CalculateLineEnds(Handle<String> src,
   int array_index = 0;
   position = 0;
   while (position != -1 && position < src_len) {
-    position = Runtime::StringMatch(src, new_line, position);
+    position = Runtime::StringMatch(runtime_state, src, new_line, position);
     if (position != -1) {
       array->set(array_index++, Smi::FromInt(position++));
     } else if (with_imaginary_last_new_line) {

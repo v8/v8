@@ -12219,6 +12219,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Call C function.
   __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
   __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
+  __ mov(Operand(esp, 2 * kPointerSize),
+         Immediate(ExternalReference::isolate_address()));
   __ call(Operand(ebx));
   // Result is in eax or edx:eax - do not destroy these registers!
 

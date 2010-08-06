@@ -455,7 +455,8 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
   mov(edi, Operand(eax));
   lea(esi, Operand(ebp, eax, times_4, offset));
 
-  EnterExitFrameEpilogue(mode, 2);
+  // Reserve space for argc, argv, and isolate.
+  EnterExitFrameEpilogue(mode, 3);
 }
 
 

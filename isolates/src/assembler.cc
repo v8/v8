@@ -552,6 +552,11 @@ ExternalReference::ExternalReference(const Runtime::Function* f)
   : address_(Redirect(f->entry)) {}
 
 
+ExternalReference ExternalReference::isolate_address() {
+  return ExternalReference(Isolate::Current());
+}
+
+
 ExternalReference::ExternalReference(const IC_Utility& ic_utility)
   : address_(Redirect(ic_utility.address())) {}
 

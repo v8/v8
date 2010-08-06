@@ -38,7 +38,8 @@ void FuncNameInferrer::PushEnclosingName(Handle<String> name) {
   // Enclosing name is a name of a constructor function. To check
   // that it is really a constructor, we check that it is not empty
   // and starts with a capital letter.
-  if (name->length() > 0 && Runtime::IsUpperCaseChar(name->Get(0))) {
+  if (name->length() > 0 && Runtime::IsUpperCaseChar(
+      Isolate::Current()->runtime_state(), name->Get(0))) {
     names_stack_.Add(name);
   }
 }

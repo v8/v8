@@ -1124,8 +1124,8 @@ class Heap {
  private:
   Heap();
 
-  // TODO(isolates): Technically this can be calculated directly from
-  //                 any pointer to Heap.
+  // This can be calculated directly from a pointer to the heap; however, it is
+  // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_;
 
   int reserved_semispace_size_;

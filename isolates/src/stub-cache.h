@@ -28,6 +28,7 @@
 #ifndef V8_STUB_CACHE_H_
 #define V8_STUB_CACHE_H_
 
+#include "arguments.h"
 #include "macro-assembler.h"
 
 namespace v8 {
@@ -333,17 +334,17 @@ class StubCache {
 
 
 // Support functions for IC stubs for callbacks.
-Object* LoadCallbackProperty(Arguments args);
-Object* StoreCallbackProperty(Arguments args);
+Object* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION);
+Object* StoreCallbackProperty(RUNTIME_CALLING_CONVENTION);
 
 
 // Support functions for IC stubs for interceptors.
-Object* LoadPropertyWithInterceptorOnly(Arguments args);
-Object* LoadPropertyWithInterceptorForLoad(Arguments args);
-Object* LoadPropertyWithInterceptorForCall(Arguments args);
-Object* StoreInterceptorProperty(Arguments args);
-Object* CallInterceptorProperty(Arguments args);
-Object* KeyedLoadPropertyWithInterceptor(Arguments args);
+Object* LoadPropertyWithInterceptorOnly(RUNTIME_CALLING_CONVENTION);
+Object* LoadPropertyWithInterceptorForLoad(RUNTIME_CALLING_CONVENTION);
+Object* LoadPropertyWithInterceptorForCall(RUNTIME_CALLING_CONVENTION);
+Object* StoreInterceptorProperty(RUNTIME_CALLING_CONVENTION);
+Object* CallInterceptorProperty(RUNTIME_CALLING_CONVENTION);
+Object* KeyedLoadPropertyWithInterceptor(RUNTIME_CALLING_CONVENTION);
 
 
 // Support function for computing call IC miss stubs.

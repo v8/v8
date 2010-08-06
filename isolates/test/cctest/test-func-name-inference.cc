@@ -36,6 +36,7 @@ using ::v8::internal::CStrVector;
 using ::v8::internal::Factory;
 using ::v8::internal::Handle;
 using ::v8::internal::Heap;
+using ::v8::internal::Isolate;
 using ::v8::internal::JSFunction;
 using ::v8::internal::Object;
 using ::v8::internal::Runtime;
@@ -78,13 +79,16 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
   // Find the position of a given func source substring in the source.
   Handle<String> func_pos_str =
       Factory::NewStringFromAscii(CStrVector(func_pos_src));
-  int func_pos = Runtime::StringMatch(script_src, func_pos_str, 0);
+  int func_pos = Runtime::StringMatch(Isolate::Current()->runtime_state(),
+                                      script_src,
+                                      func_pos_str,
+                                      0);
   CHECK_NE(0, func_pos);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Obtain SharedFunctionInfo for the function.
   Object* shared_func_info_ptr =
-      Runtime::FindSharedFunctionInfoInScript(i_script, func_pos);
+      Runtime::FindSharedFunctionInfoInScript(HEAP, i_script, func_pos);
   CHECK(shared_func_info_ptr != HEAP->undefined_value());
   Handle<SharedFunctionInfo> shared_func_info(
       SharedFunctionInfo::cast(shared_func_info_ptr));

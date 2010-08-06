@@ -10582,19 +10582,23 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax).
     __ lea(rcx, Operand(rsp, 4 * kPointerSize));
+    __ movq(rdx, ExternalReference::isolate_address());
   } else {
     ASSERT_EQ(2, result_size_);
     // Pass a pointer to the result location as the first argument.
     __ lea(rcx, Operand(rsp, 6 * kPointerSize));
     // Pass a pointer to the Arguments object as the second argument.
     __ lea(rdx, Operand(rsp, 4 * kPointerSize));
+    __ movq(r8, ExternalReference::isolate_address());
   }
 
 #else  // _WIN64
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
   __ movq(rdi, r14);  // argc.
   __ movq(rsi, r12);  // argv.
+  __ movq(rdx, ExternalReference::isolate_address());
 #endif
+
   __ call(rbx);
   // Result is in rax - do not destroy this register!
 

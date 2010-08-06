@@ -1035,6 +1035,12 @@ class Isolate {
 };
 
 
+#define ISOLATE_FROM_HEAP(heap_pointer) ((Isolate*)(  \
+  (uint8_t*)(heap_pointer) -                          \
+  (size_t)((Isolate*)sizeof(Isolate))->heap() +       \
+  sizeof(Isolate)))
+
+
 // If the GCC version is 4.1.x or 4.2.x an additional field is added to the
 // class as a work around for a bug in the generated code found with these
 // versions of GCC. See V8 issue 122 for details.

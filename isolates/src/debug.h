@@ -28,6 +28,7 @@
 #ifndef V8_DEBUG_H_
 #define V8_DEBUG_H_
 
+#include "arguments.h"
 #include "assembler.h"
 #include "code-stubs.h"
 #include "debug-agent.h"
@@ -210,7 +211,6 @@ class DebugInfoListNode {
   DebugInfoListNode* next_;
 };
 
-
 // This class contains the debugger support. The main purpose is to handle
 // setting break points in the code.
 //
@@ -228,7 +228,7 @@ class Debug {
   void PreemptionWhileInDebugger();
   void Iterate(ObjectVisitor* v);
 
-  static Object* Break(Arguments args);
+  static Object* Break(RUNTIME_CALLING_CONVENTION);
   void SetBreakPoint(Handle<SharedFunctionInfo> shared,
                      Handle<Object> break_point_object,
                      int* source_position);

@@ -838,7 +838,8 @@ Handle<Code> ComputeCallMiss(int argc, Code::Kind kind) {
 
 
 
-Object* LoadCallbackProperty(Arguments args) {
+Object* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   ASSERT(args[0]->IsJSObject());
   ASSERT(args[1]->IsJSObject());
   AccessorInfo* callback = AccessorInfo::cast(args[2]);
@@ -865,7 +866,8 @@ Object* LoadCallbackProperty(Arguments args) {
 }
 
 
-Object* StoreCallbackProperty(Arguments args) {
+Object* StoreCallbackProperty(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   JSObject* recv = JSObject::cast(args[0]);
   AccessorInfo* callback = AccessorInfo::cast(args[1]);
   Address setter_address = v8::ToCData<Address>(callback->setter());
@@ -900,7 +902,8 @@ static const int kAccessorInfoOffsetInInterceptorArgs = 2;
  * Returns |Heap::no_interceptor_result_sentinel()| if interceptor doesn't
  * provide any value for the given name.
  */
-Object* LoadPropertyWithInterceptorOnly(Arguments args) {
+Object* LoadPropertyWithInterceptorOnly(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   Handle<String> name_handle = args.at<String>(0);
   Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(1);
   ASSERT(kAccessorInfoOffsetInInterceptorArgs == 2);
@@ -997,7 +1000,8 @@ static Object* LoadWithInterceptor(Arguments* args,
  * Loads a property with an interceptor performing post interceptor
  * lookup if interceptor failed.
  */
-Object* LoadPropertyWithInterceptorForLoad(Arguments args) {
+Object* LoadPropertyWithInterceptorForLoad(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   PropertyAttributes attr = NONE;
   Object* result = LoadWithInterceptor(&args, &attr);
   if (result->IsFailure()) return result;
@@ -1008,7 +1012,8 @@ Object* LoadPropertyWithInterceptorForLoad(Arguments args) {
 }
 
 
-Object* LoadPropertyWithInterceptorForCall(Arguments args) {
+Object* LoadPropertyWithInterceptorForCall(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   PropertyAttributes attr;
   Object* result = LoadWithInterceptor(&args, &attr);
   RETURN_IF_SCHEDULED_EXCEPTION();
@@ -1019,7 +1024,8 @@ Object* LoadPropertyWithInterceptorForCall(Arguments args) {
 }
 
 
-Object* StoreInterceptorProperty(Arguments args) {
+Object* StoreInterceptorProperty(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   JSObject* recv = JSObject::cast(args[0]);
   String* name = String::cast(args[1]);
   Object* value = args[2];
@@ -1030,7 +1036,8 @@ Object* StoreInterceptorProperty(Arguments args) {
 }
 
 
-Object* KeyedLoadPropertyWithInterceptor(Arguments args) {
+Object* KeyedLoadPropertyWithInterceptor(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   JSObject* receiver = JSObject::cast(args[0]);
   uint32_t index = Smi::cast(args[1])->value();
   return receiver->GetElementWithInterceptor(receiver, index);

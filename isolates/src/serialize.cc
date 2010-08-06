@@ -467,6 +467,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       29,
       "TranscendentalCache::caches()");
+  Add(ExternalReference::isolate_address().address(),
+      UNCLASSIFIED,
+      30,
+      "isolate");
 }
 
 

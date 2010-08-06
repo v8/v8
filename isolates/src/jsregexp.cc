@@ -209,11 +209,13 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                     Handle<String> subject,
                                     int index,
                                     Handle<JSArray> last_match_info) {
+  RuntimeState* runtime_state = Isolate::Current()->runtime_state();
+
   Handle<String> needle(String::cast(re->DataAt(JSRegExp::kAtomPatternIndex)));
 
   uint32_t start_index = index;
 
-  int value = Runtime::StringMatch(subject, needle, start_index);
+  int value = Runtime::StringMatch(runtime_state, subject, needle, start_index);
   if (value == -1) return Factory::null_value();
   ASSERT(last_match_info->HasFastElements());
 

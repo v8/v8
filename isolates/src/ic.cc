@@ -694,7 +694,8 @@ Object* KeyedCallIC::LoadFunction(State state,
 #endif
     }
   }
-  Object* result = Runtime::GetObjectProperty(object, key);
+  Heap* heap = HEAP;
+  Object* result = Runtime::GetObjectProperty(heap, object, key);
   if (result->IsJSFunction()) return result;
   result = TryCallAsFunction(result);
   return result->IsJSFunction() ?
@@ -1034,7 +1035,7 @@ Object* KeyedLoadIC::Load(State state,
       HandleScope scope;
       // Rewrite to the generic keyed load stub.
       if (FLAG_use_ic) set_target(generic_stub());
-      return Runtime::GetElementOrCharAt(object, index);
+      return Runtime::GetElementOrCharAt(HEAP, object, index);
     }
 
     // Named lookup.
@@ -1099,7 +1100,7 @@ Object* KeyedLoadIC::Load(State state,
   }
 
   // Get the property.
-  return Runtime::GetObjectProperty(object, key);
+  return Runtime::GetObjectProperty(HEAP, object, key);
 }
 
 
@@ -1424,7 +1425,7 @@ Object* KeyedStoreIC::Store(State state,
   }
 
   // Set the property.
-  return Runtime::SetObjectProperty(object, key, value, NONE);
+  return Runtime::SetObjectProperty(HEAP, object, key, value, NONE);
 }
 
 
@@ -1523,7 +1524,8 @@ static Object* CompileFunction(Object* result,
 
 
 // Used from ic-<arch>.cc.
-Object* CallIC_Miss(Arguments args) {
+Object* CallIC_Miss(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   CallIC ic;
@@ -1546,7 +1548,8 @@ Object* CallIC_Miss(Arguments args) {
 
 
 // Used from ic-<arch>.cc.
-Object* KeyedCallIC_Miss(Arguments args) {
+Object* KeyedCallIC_Miss(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   KeyedCallIC ic;
@@ -1562,7 +1565,8 @@ Object* KeyedCallIC_Miss(Arguments args) {
 
 
 // Used from ic-<arch>.cc.
-Object* LoadIC_Miss(Arguments args) {
+Object* LoadIC_Miss(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   LoadIC ic;
@@ -1572,7 +1576,8 @@ Object* LoadIC_Miss(Arguments args) {
 
 
 // Used from ic-<arch>.cc
-Object* KeyedLoadIC_Miss(Arguments args) {
+Object* KeyedLoadIC_Miss(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   KeyedLoadIC ic;
@@ -1582,7 +1587,8 @@ Object* KeyedLoadIC_Miss(Arguments args) {
 
 
 // Used from ic-<arch>.cc.
-Object* StoreIC_Miss(Arguments args) {
+Object* StoreIC_Miss(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
   StoreIC ic;
@@ -1592,7 +1598,8 @@ Object* StoreIC_Miss(Arguments args) {
 }
 
 
-Object* StoreIC_ArrayLength(Arguments args) {
+Object* StoreIC_ArrayLength(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   NoHandleAllocation nha;
 
   ASSERT(args.length() == 2);
@@ -1608,7 +1615,8 @@ Object* StoreIC_ArrayLength(Arguments args) {
 // Extend storage is called in a store inline cache when
 // it is necessary to extend the properties array of a
 // JSObject.
-Object* SharedStoreIC_ExtendStorage(Arguments args) {
+Object* SharedStoreIC_ExtendStorage(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
 
@@ -1640,7 +1648,8 @@ Object* SharedStoreIC_ExtendStorage(Arguments args) {
 
 
 // Used from ic-<arch>.cc.
-Object* KeyedStoreIC_Miss(Arguments args) {
+Object* KeyedStoreIC_Miss(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
   KeyedStoreIC ic;
@@ -1705,7 +1714,8 @@ BinaryOpIC::TypeInfo BinaryOpIC::GetTypeInfo(Object* left,
 Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info);
 
 
-Object* BinaryOp_Patch(Arguments args) {
+Object* BinaryOp_Patch(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   ASSERT(args.length() == 5);
 
   Handle<Object> left = args.at<Object>(0);

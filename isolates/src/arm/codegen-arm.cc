@@ -9201,6 +9201,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     }
   }
 
+  __ mov(r2, Operand(ExternalReference::isolate_address()));
+
   // TODO(1242173): To let the GC traverse the return address of the exit
   // frames, we need to know where the return address is. Right now,
   // we push it on the stack to be able to find it again, but we never

@@ -882,8 +882,9 @@ void Debug::Iterate(ObjectVisitor* v) {
 
 
 // This remains a static method so that generated code can call it.
-Object* Debug::Break(Arguments args) {
-  Isolate* isolate = Isolate::Current();
+Object* Debug::Break(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+
   Debug* debug = isolate->debug();
   Heap* heap = isolate->heap();
   HandleScope scope;

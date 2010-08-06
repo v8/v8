@@ -420,6 +420,8 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // Runtime provides access to all C++ runtime functions.
 
+class RuntimeState;
+
 class Runtime : public AllStatic {
  public:
   enum FunctionId {
@@ -452,19 +454,25 @@ class Runtime : public AllStatic {
   // Get the runtime function with the given name.
   static const Function* FunctionForName(const char* name);
 
-  static int StringMatch(Handle<String> sub, Handle<String> pat, int index);
+  static int StringMatch(RuntimeState* runtime_state,
+                         Handle<String> sub,
+                         Handle<String> pat,
+                         int index);
 
-  static bool IsUpperCaseChar(uint16_t ch);
+  static bool IsUpperCaseChar(RuntimeState* runtime_state, uint16_t ch);
 
   // TODO(1240886): The following three methods are *not* handle safe,
   // but accept handle arguments. This seems fragile.
 
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
-  static Object* GetElementOrCharAt(Handle<Object> object, uint32_t index);
+  static Object* GetElementOrCharAt(Heap* heap,
+                                    Handle<Object> object,
+                                    uint32_t index);
   static Object* GetElement(Handle<Object> object, uint32_t index);
 
-  static Object* SetObjectProperty(Handle<Object> object,
+  static Object* SetObjectProperty(Heap* heap,
+                                   Handle<Object> object,
                                    Handle<Object> key,
                                    Handle<Object> value,
                                    PropertyAttributes attr);
@@ -474,13 +482,17 @@ class Runtime : public AllStatic {
                                         Handle<Object> value,
                                         PropertyAttributes attr);
 
-  static Object* ForceDeleteObjectProperty(Handle<JSObject> object,
+  static Object* ForceDeleteObjectProperty(Heap* heap,
+                                           Handle<JSObject> object,
                                            Handle<Object> key);
 
-  static Object* GetObjectProperty(Handle<Object> object, Handle<Object> key);
+  static Object* GetObjectProperty(Heap* heap,
+                                   Handle<Object> object,
+                                   Handle<Object> key);
 
   // This function is used in FunctionNameUsing* tests.
-  static Object* FindSharedFunctionInfoInScript(Handle<Script> script,
+  static Object* FindSharedFunctionInfoInScript(Heap* heap,
+                                                Handle<Script> script,
                                                 int position);
 
   // Helper functions used stubs.
