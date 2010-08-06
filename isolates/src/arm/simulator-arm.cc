@@ -695,15 +695,19 @@ void* Simulator::RedirectExternalReference(void* external_function,
 
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
-  v8::internal::Thread::LocalStorageKey* simulator_key =
-      Isolate::Current()->simulator_key();
-  Initialize();
-  Simulator* sim = reinterpret_cast<Simulator*>(
-      v8::internal::Thread::GetThreadLocal(*simulator_key));
+  v8::internal::Isolate::PerIsolateThreadData* isolate_data =
+      Isolate::CurrentPerIsolateThreadData();
+  if (isolate_data == NULL) {
+    Isolate::EnterDefaultIsolate();
+    isolate_data = Isolate::CurrentPerIsolateThreadData();
+  }
+  ASSERT(isolate_data != NULL);
+
+  Simulator* sim = isolate_data->simulator();
   if (sim == NULL) {
-    // TODO(146): delete the simulator object when a thread goes away.
+    // TODO(146): delete the simulator object when a thread/isolate goes away.
     sim = new Simulator();
-    v8::internal::Thread::SetThreadLocal(*simulator_key, sim);
+    isolate_data->set_simulator(sim);
   }
   return sim;
 }

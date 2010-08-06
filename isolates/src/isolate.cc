@@ -168,9 +168,6 @@ Isolate* Isolate::default_isolate_ = NULL;
 Thread::LocalStorageKey Isolate::isolate_key_;
 Thread::LocalStorageKey Isolate::thread_id_key_;
 Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
-Thread::LocalStorageKey Isolate::simulator_key_;
-#endif
 Mutex* Isolate::process_wide_mutex_ = NULL;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 Isolate::ThreadId Isolate::highest_thread_id_ = 0;
@@ -247,9 +244,6 @@ void Isolate::EnsureDefaultIsolate() {
     isolate_key_ = Thread::CreateThreadLocalKey();
     thread_id_key_ = Thread::CreateThreadLocalKey();
     per_isolate_thread_data_key_ = Thread::CreateThreadLocalKey();
-#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
-    simulator_key_ = Thread::CreateThreadLocalKey();
-#endif
     thread_data_table_ = new Isolate::ThreadDataTable();
     default_isolate_ = new Isolate();
   }

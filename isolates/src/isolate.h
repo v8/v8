@@ -48,6 +48,7 @@
 namespace assembler {
 namespace arm {
 class Redirection;
+class Simulator;
 }
 }
 #endif
@@ -310,6 +311,9 @@ class Isolate {
           thread_id_(thread_id),
           stack_limit_(0),
           thread_state_(NULL),
+#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
+          simulator_(NULL),
+#endif
           next_(NULL),
           prev_(NULL) { }
     Isolate* isolate() const { return isolate_; }
@@ -318,6 +322,14 @@ class Isolate {
     uintptr_t stack_limit() const { return stack_limit_; }
     ThreadState* thread_state() const { return thread_state_; }
     void set_thread_state(ThreadState* value) { thread_state_ = value; }
+
+#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
+    assembler::arm::Simulator* simulator() const { return simulator_; }
+    void set_simulator(assembler::arm::Simulator* simulator) {
+      simulator_ = simulator;
+    }
+#endif
+
     bool Matches(Isolate* isolate, ThreadId thread_id) const {
       return isolate_ == isolate && thread_id_ == thread_id;
     }
@@ -327,6 +339,10 @@ class Isolate {
     ThreadId thread_id_;
     uintptr_t stack_limit_;
     ThreadState* thread_state_;
+
+#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
+    assembler::arm::Simulator* simulator_;
+#endif
 
     PerIsolateThreadData* next_;
     PerIsolateThreadData* prev_;
@@ -791,10 +807,6 @@ class Isolate {
 #endif
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
-  static v8::internal::Thread::LocalStorageKey* simulator_key() {
-    return &simulator_key_;
-  }
-
   bool simulator_initialized() { return simulator_initialized_; }
   void set_simulator_initialized(bool initialized) {
     simulator_initialized_ = initialized;
@@ -984,8 +996,6 @@ class Isolate {
   AtomicWord vm_state_;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
-  // Create one simulator per thread and keep it in thread local storage.
-  static v8::internal::Thread::LocalStorageKey simulator_key_;
   bool simulator_initialized_;
   HashMap* simulator_i_cache_;
   assembler::arm::Redirection* simulator_redirection_;
