@@ -245,7 +245,7 @@ BUILTIN(ArrayCodeGeneric) {
 
 static Object* AllocateJSArray(Heap* heap) {
   JSFunction* array_function =
-      ISOLATE_FROM_HEAP(heap)->context()->global_context()->array_function();
+      heap->isolate()->context()->global_context()->array_function();
   Object* result = heap->AllocateJSObject(array_function);
   if (result->IsFailure()) return result;
   return result;
@@ -378,7 +378,7 @@ static bool IsFastElementMovingAllowed(Heap* heap,
   if (!IsJSArrayWithFastElements(heap, receiver, elements)) return false;
 
   Context* global_context =
-      ISOLATE_FROM_HEAP(heap)->context()->global_context();
+      heap->isolate()->context()->global_context();
   JSObject* array_proto =
       JSObject::cast(global_context->array_function()->prototype());
   if (JSArray::cast(receiver)->GetPrototype() != array_proto) return false;

@@ -103,7 +103,7 @@ RuntimeState::RuntimeState()
 
 static Object* DeepCopyBoilerplate(Heap* heap, JSObject* boilerplate) {
   StackLimitCheck check;
-  if (check.HasOverflowed()) return ISOLATE_FROM_HEAP(heap)->StackOverflow();
+  if (check.HasOverflowed()) return heap->isolate()->StackOverflow();
 
   Object* result = heap->CopyJSObject(boilerplate);
   if (result->IsFailure()) return result;
@@ -3937,7 +3937,7 @@ Object* Runtime::GetObjectProperty(Heap* heap,
     Handle<Object> error =
         Factory::NewTypeError("non_object_property_load",
                               HandleVector(args, 2));
-    return ISOLATE_FROM_HEAP(heap)->Throw(*error);
+    return heap->isolate()->Throw(*error);
   }
 
   // Check if the given key is an array index.
@@ -4147,7 +4147,7 @@ Object* Runtime::SetObjectProperty(Heap* heap,
     Handle<Object> error =
         Factory::NewTypeError("non_object_property_store",
                               HandleVector(args, 2));
-    return ISOLATE_FROM_HEAP(heap)->Throw(*error);
+    return heap->isolate()->Throw(*error);
   }
 
   // If the object isn't a JavaScript object, we ignore the store.
@@ -5201,7 +5201,7 @@ static Object* ConvertCaseHelper(Heap* heap,
         if (char_length == 0) char_length = 1;
         current_length += char_length;
         if (current_length > Smi::kMaxValue) {
-          ISOLATE_FROM_HEAP(heap)->context()->mark_out_of_memory();
+          heap->isolate()->context()->mark_out_of_memory();
           return Failure::OutOfMemoryException();
         }
       }
@@ -7090,18 +7090,18 @@ static Object* PushContextHelper(Heap* heap,
       Handle<Object> handle(object);
       Handle<Object> result =
           Factory::NewTypeError("with_expression", HandleVector(&handle, 1));
-      return ISOLATE_FROM_HEAP(heap)->Throw(*result);
+      return heap->isolate()->Throw(*result);
     }
   }
 
   Object* result =
-      heap->AllocateWithContext(ISOLATE_FROM_HEAP(heap)->context(),
+      heap->AllocateWithContext(heap->isolate()->context(),
                                 JSObject::cast(js_object),
                                 is_catch_context);
   if (result->IsFailure()) return result;
 
   Context* context = Context::cast(result);
-  ISOLATE_FROM_HEAP(heap)->set_context(context);
+  heap->isolate()->set_context(context);
 
   return result;
 }
@@ -8442,8 +8442,8 @@ static Object* DebugLookupResultValue(Heap* heap,
         value = receiver->GetPropertyWithCallback(
             receiver, structure, name, result->holder());
         if (value->IsException()) {
-          value = ISOLATE_FROM_HEAP(heap)->pending_exception();
-          ISOLATE_FROM_HEAP(heap)->clear_pending_exception();
+          value = heap->isolate()->pending_exception();
+          heap->isolate()->clear_pending_exception();
           if (caught_exception != NULL) {
             *caught_exception = true;
           }
@@ -8969,7 +8969,7 @@ static Handle<JSObject> MaterializeLocalScope(Heap* heap,
   // Allocate and initialize a JSObject with all the arguments, stack locals
   // heap locals and extension properties of the debugged function.
   Handle<JSObject> local_scope =
-      Factory::NewJSObject(ISOLATE_FROM_HEAP(heap)->object_function());
+      Factory::NewJSObject(heap->isolate()->object_function());
 
   // First fill all parameters.
   for (int i = 0; i < scope_info.number_of_parameters(); ++i) {
@@ -9023,7 +9023,7 @@ static Handle<JSObject> MaterializeClosure(Heap* heap,
   // Allocate and initialize a JSObject with all the content of theis function
   // closure.
   Handle<JSObject> closure_scope =
-      Factory::NewJSObject(ISOLATE_FROM_HEAP(heap)->object_function());
+      Factory::NewJSObject(heap->isolate()->object_function());
 
   // Check whether the arguments shadow object exists.
   int arguments_shadow_index =
