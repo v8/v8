@@ -3082,7 +3082,7 @@ Object* JSObject::SlowReverseLookup(Object* value) {
 
 
 Object* Map::CopyDropDescriptors() {
-  Object* result = HEAP->AllocateMap(instance_type(), instance_size());
+  Object* result = GetHeap()->AllocateMap(instance_type(), instance_size());
   if (result->IsFailure()) return result;
   Map::cast(result)->set_prototype(prototype());
   Map::cast(result)->set_constructor(constructor());
@@ -3091,7 +3091,8 @@ Object* Map::CopyDropDescriptors() {
   // pointing to the same transition which is bad because the garbage
   // collector relies on being able to reverse pointers from transitions
   // to maps.  If properties need to be retained use CopyDropTransitions.
-  Map::cast(result)->set_instance_descriptors(HEAP->empty_descriptor_array());
+  Map::cast(result)->set_instance_descriptors(
+      GetHeap()->empty_descriptor_array());
   // Please note instance_type and instance_size are set when allocated.
   Map::cast(result)->set_inobject_properties(inobject_properties());
   Map::cast(result)->set_unused_property_fields(unused_property_fields());
@@ -3111,7 +3112,7 @@ Object* Map::CopyDropDescriptors() {
   }
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
-  Map::cast(result)->ClearCodeCache();
+  Map::cast(result)->ClearCodeCache(GetHeap());
   return result;
 }
 
@@ -5023,12 +5024,12 @@ void Map::CreateBackPointers() {
 }
 
 
-void Map::ClearNonLiveTransitions(Object* real_prototype) {
+void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
   // Live DescriptorArray objects will be marked, so we must use
   // low-level accessors to get and modify their data.
   DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
       *RawField(this, Map::kInstanceDescriptorsOffset));
-  if (d == HEAP->raw_unchecked_empty_descriptor_array()) return;
+  if (d == heap->raw_unchecked_empty_descriptor_array()) return;
   Smi* NullDescriptorDetails =
     PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
   FixedArray* contents = reinterpret_cast<FixedArray*>(
@@ -5047,7 +5048,7 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
       if (!target->IsMarked()) {
         ASSERT(target->IsMap());
         contents->set(i + 1, NullDescriptorDetails);
-        contents->set_null(i);
+        contents->set_null(heap, i);
         ASSERT(target->prototype() == this ||
                target->prototype() == real_prototype);
         // Getter prototype() is read-only, set_prototype() has side effects.

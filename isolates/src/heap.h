@@ -1121,6 +1121,8 @@ class Heap {
     return &external_string_table_;
   }
 
+  inline Isolate* isolate();
+
  private:
   Heap();
 

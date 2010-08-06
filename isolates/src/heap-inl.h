@@ -381,6 +381,10 @@ void Heap::SetLastScriptId(Object* last_script_id) {
   roots_[kLastScriptIdRootIndex] = last_script_id;
 }
 
+Isolate* Heap::isolate() {
+  return reinterpret_cast<Isolate*>(reinterpret_cast<intptr_t>(this) -
+      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(4)->heap()) + 4);
+}
 
 #define GC_GREEDY_CHECK() \
   ASSERT(!FLAG_gc_greedy || HEAP->GarbageCollectionGreedyCheck())

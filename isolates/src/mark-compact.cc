@@ -403,7 +403,7 @@ void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
   if (object->IsMap()) {
     Map* map = Map::cast(object);
     if (FLAG_cleanup_caches_in_maps_at_gc) {
-      map->ClearCodeCache();
+      map->ClearCodeCache(heap_);
     }
     SetMark(map);
     if (FLAG_collect_maps &&
@@ -829,7 +829,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
       // This test will always be false on the first iteration.
       if (on_dead_path && current->IsMarked()) {
         on_dead_path = false;
-        current->ClearNonLiveTransitions(real_prototype);
+        current->ClearNonLiveTransitions(heap_, real_prototype);
       }
       *HeapObject::RawField(current, Map::kPrototypeOffset) =
           real_prototype;

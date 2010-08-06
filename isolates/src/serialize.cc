@@ -695,8 +695,14 @@ void Deserializer::ReadObject(int space_number,
     ASSERT(size == Map::kSize);
     HeapObject* obj = HeapObject::FromAddress(address);
     Map* map = reinterpret_cast<Map*>(obj);
-    map->set_scavenger(Heap::GetScavenger(map->instance_type(),
-                                          map->instance_size()));
+    if (map->instance_type() == MAP_TYPE) {
+      // Meta map has Heap pointer instead of scavenger.
+      ASSERT(map == map->map());
+      map->set_heap(HEAP);
+    } else {
+      map->set_scavenger(Heap::GetScavenger(map->instance_type(),
+                                            map->instance_size()));
+    }
   }
 }
 

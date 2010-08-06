@@ -1000,6 +1000,10 @@ class HeapObject: public Object {
   inline MapWord map_word();
   inline void set_map_word(MapWord map_word);
 
+  // The Heap the object was allocated in. Used also to access Isolate.
+  // This method can not be used during GC, it ASSERTs this.
+  inline Heap* GetHeap();
+
   // Converts an address to a HeapObject pointer.
   static inline HeapObject* FromAddress(Address address);
 
@@ -1651,7 +1655,11 @@ class FixedArray: public HeapObject {
 
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
+  // TODO(isolates): duplicate.
+  inline void set_undefined(Heap* heap, int index);
   inline void set_null(int index);
+  // TODO(isolates): duplicate.
+  inline void set_null(Heap* heap, int index);
   inline void set_the_hole(int index);
 
   // Gives access to raw memory which stores the array's data.
@@ -1737,7 +1745,9 @@ class DescriptorArray: public FixedArray {
 
   // Returns the number of descriptors in the array.
   int number_of_descriptors() {
-    return IsEmpty() ? 0 : length() - kFirstIndex;
+    ASSERT(length() > kFirstIndex || IsEmpty());
+    int len = length();
+    return len <= kFirstIndex ? 0 : len - kFirstIndex;
   }
 
   int NextEnumerationIndex() {
@@ -3058,7 +3068,7 @@ class Map: public HeapObject {
   // Code cache operations.
 
   // Clears the code cache.
-  inline void ClearCodeCache();
+  inline void ClearCodeCache(Heap* heap);
 
   // Update code cache.
   Object* UpdateCodeCache(String* name, Code* code);
@@ -3082,7 +3092,7 @@ class Map: public HeapObject {
   // Also, restore the original prototype on the targets of these
   // transitions, so that we do not process this map again while
   // following back pointers.
-  void ClearNonLiveTransitions(Object* real_prototype);
+  void ClearNonLiveTransitions(Heap* heap, Object* real_prototype);
 
   // Dispatched behavior.
   void MapIterateBody(ObjectVisitor* v);
@@ -3093,6 +3103,10 @@ class Map: public HeapObject {
 
   inline Scavenger scavenger();
   inline void set_scavenger(Scavenger callback);
+
+  // Meta map has a heap pointer for fast access to Heap and Isolate.
+  inline Heap* heap();
+  inline void set_heap(Heap* heap);
 
   inline void Scavenge(HeapObject** slot, HeapObject* obj) {
     scavenger()(this, slot, obj);

@@ -1360,8 +1360,12 @@ Object* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_map(raw_unchecked_meta_map());
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
-  reinterpret_cast<Map*>(result)->
-      set_scavenger(GetScavenger(instance_type, instance_size));
+  if (instance_type == MAP_TYPE) {
+    reinterpret_cast<Map*>(result)->set_heap(this);
+  } else {
+    reinterpret_cast<Map*>(result)->set_scavenger(GetScavenger(instance_type,
+                                                               instance_size));
+  }
   reinterpret_cast<Map*>(result)->set_inobject_properties(0);
   reinterpret_cast<Map*>(result)->set_pre_allocated_property_fields(0);
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
@@ -1872,7 +1876,7 @@ void Heap::FlushNumberStringCache() {
   // Flush the number to string cache.
   int len = number_string_cache()->length();
   for (int i = 0; i < len; i++) {
-    number_string_cache()->set_undefined(i);
+    number_string_cache()->set_undefined(this, i);
   }
 }
 
