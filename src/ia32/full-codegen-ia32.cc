@@ -2696,9 +2696,7 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
   __ and_(Operand(tmp), right);
   __ test(Operand(tmp), Immediate(kSmiTagMask));
   __ j(zero, &fail);
-  __ mov(tmp, FieldOperand(left, HeapObject::kMapOffset));
-  __ cmpb(FieldOperand(tmp, Map::kInstanceTypeOffset),
-          static_cast<int8_t>(JS_REGEXP_TYPE));
+  __ CmpObjectType(left, JS_REGEXP_TYPE, tmp);
   __ j(not_equal, &fail);
   __ cmp(tmp, FieldOperand(right, HeapObject::kMapOffset));
   __ j(not_equal, &fail);
