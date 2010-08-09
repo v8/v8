@@ -238,6 +238,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       DEBUG_ADDRESS,
       Debug::k_debug_break_return_address << kDebugIdShift,
       "Debug::debug_break_return_address()");
+  Add(Debug_Address(Debug::k_restarter_frame_function_pointer).address(isolate),
+      DEBUG_ADDRESS,
+      Debug::k_restarter_frame_function_pointer << kDebugIdShift,
+      "Debug::restarter_frame_function_pointer_address()");
   const char* debug_register_format = "Debug::register_address(%i)";
   int dr_format_length = StrLength(debug_register_format);
   for (int i = 0; i < kNumJSCallerSaved; ++i) {
@@ -487,8 +491,8 @@ ExternalReferenceEncoder::ExternalReferenceEncoder()
 
 uint32_t ExternalReferenceEncoder::Encode(Address key) const {
   int index = IndexOf(key);
-  return index >= 0 ?
-      ExternalReferenceTable::instance(isolate_)->code(index) : 0;
+  ASSERT(key == NULL || index >= 0);
+  return index >=0 ? ExternalReferenceTable::instance(isolate_)->code(index) : 0;
 }
 
 

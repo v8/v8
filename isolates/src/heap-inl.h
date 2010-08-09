@@ -403,7 +403,7 @@ Isolate* Heap::isolate() {
     Object* __object__ = FUNCTION_CALL;                                   \
     if (!__object__->IsFailure()) RETURN_VALUE;                           \
     if (__object__->IsOutOfMemoryFailure()) {                             \
-      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0");      \
+      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0", true);\
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
     HEAP->CollectGarbage(Failure::cast(__object__)->requested(),          \
@@ -411,7 +411,7 @@ Isolate* Heap::isolate() {
     __object__ = FUNCTION_CALL;                                           \
     if (!__object__->IsFailure()) RETURN_VALUE;                           \
     if (__object__->IsOutOfMemoryFailure()) {                             \
-      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_1");      \
+      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_1", true);\
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
     COUNTERS->gc_last_resort_from_handles()->Increment();                 \
@@ -424,7 +424,7 @@ Isolate* Heap::isolate() {
     if (__object__->IsOutOfMemoryFailure() ||                             \
         __object__->IsRetryAfterGC()) {                                   \
       /* TODO(1181417): Fix this. */                                      \
-      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_2");      \
+      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_2", true);\
     }                                                                     \
     RETURN_EMPTY;                                                         \
   } while (false)

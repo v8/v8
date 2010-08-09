@@ -402,6 +402,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitIsSmi(ZoneList<Expression*>* arguments);
   void EmitIsNonNegativeSmi(ZoneList<Expression*>* arguments);
   void EmitIsObject(ZoneList<Expression*>* arguments);
+  void EmitIsSpecObject(ZoneList<Expression*>* arguments);
   void EmitIsUndetectableObject(ZoneList<Expression*>* arguments);
   void EmitIsFunction(ZoneList<Expression*>* arguments);
   void EmitIsArray(ZoneList<Expression*>* arguments);
@@ -431,6 +432,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitRegExpConstructResult(ZoneList<Expression*>* arguments);
   void EmitSwapElements(ZoneList<Expression*>* arguments);
   void EmitGetFromCache(ZoneList<Expression*>* arguments);
+  void EmitIsRegExpEquivalent(ZoneList<Expression*>* arguments);
 
   // Platform-specific code for loading variables.
   void EmitVariableLoad(Variable* expr, Expression::Context context);

@@ -829,15 +829,6 @@ void StubCache::Clear() {
 // StubCompiler implementation.
 
 
-// Support function for computing call IC miss stubs.
-Handle<Code> ComputeCallMiss(int argc, Code::Kind kind) {
-  CALL_HEAP_FUNCTION(
-      Isolate::Current()->stub_cache()->ComputeCallMiss(argc, kind),
-      Code);
-}
-
-
-
 Object* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   ASSERT(args[0]->IsJSObject());

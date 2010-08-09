@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,40 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Test that CallApplyLazy, generating optimized code for apply calls of the
+// form x.apply(y, arguments), does not leave an extra copy of the result
+// on the stack.
 
-#include "token.h"
+// See http://code.google.com/p/v8/issues/detail?id=784
 
-namespace v8 {
-namespace internal {
+A = {x:{y:function(i){return i;}}};
+B = function(x){return 17;};
 
-#define T(name, string, precedence) #name,
-const char* Token::name_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
+foo = function () {
+  A.x.y(B.apply(this, arguments));
 };
-#undef T
 
-
-#define T(name, string, precedence) string,
-const char* Token::string_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define T(name, string, precedence) precedence,
-int8_t Token::precedence_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define KT(a, b, c) 'T',
-#define KK(a, b, c) 'K',
-const char Token::token_type[] = {
-  TOKEN_LIST(KT, KK, IGNORE_TOKEN)
-};
-#undef KT
-#undef KK
-
-} }  // namespace v8::internal
+foo();
+foo("Hello", "There");

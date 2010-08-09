@@ -1061,7 +1061,7 @@ class Heap {
   RootListIndex RootIndexForExternalArrayType(
       ExternalArrayType array_type);
 
-  void RecordStats(HeapStats* stats);
+  void RecordStats(HeapStats* stats, bool take_snapshot = false);
 
   static Scavenger GetScavenger(int instance_type, int instance_size);
 
@@ -1302,12 +1302,12 @@ class Heap {
   bool CreateInitialMaps();
   bool CreateInitialObjects();
 
-  // These four Create*EntryStub functions are here because of a gcc-4.4 bug
-  // that assigns wrong vtable entries.
-  void CreateCEntryStub();
-  void CreateJSEntryStub();
-  void CreateJSConstructEntryStub();
-  void CreateRegExpCEntryStub();
+  // These four Create*EntryStub functions are here and forced to not be inlined
+  // because of a gcc-4.4 bug that assigns wrong vtable entries.
+  NO_INLINE(void CreateCEntryStub());
+  NO_INLINE(void CreateJSEntryStub());
+  NO_INLINE(void CreateJSConstructEntryStub());
+  NO_INLINE(void CreateRegExpCEntryStub());
 
   void CreateFixedStubs();
 
@@ -1468,26 +1468,30 @@ class Heap {
 
 class HeapStats {
  public:
-  int* start_marker;
-  int* new_space_size;
-  int* new_space_capacity;
-  int* old_pointer_space_size;
-  int* old_pointer_space_capacity;
-  int* old_data_space_size;
-  int* old_data_space_capacity;
-  int* code_space_size;
-  int* code_space_capacity;
-  int* map_space_size;
-  int* map_space_capacity;
-  int* cell_space_size;
-  int* cell_space_capacity;
-  int* lo_space_size;
-  int* global_handle_count;
-  int* weak_global_handle_count;
-  int* pending_global_handle_count;
-  int* near_death_global_handle_count;
-  int* destroyed_global_handle_count;
-  int* end_marker;
+  int* start_marker;                    //  0
+  int* new_space_size;                  //  1
+  int* new_space_capacity;              //  2
+  int* old_pointer_space_size;          //  3
+  int* old_pointer_space_capacity;      //  4
+  int* old_data_space_size;             //  5
+  int* old_data_space_capacity;         //  6
+  int* code_space_size;                 //  7
+  int* code_space_capacity;             //  8
+  int* map_space_size;                  //  9
+  int* map_space_capacity;              // 10
+  int* cell_space_size;                 // 11
+  int* cell_space_capacity;             // 12
+  int* lo_space_size;                   // 13
+  int* global_handle_count;             // 14
+  int* weak_global_handle_count;        // 15
+  int* pending_global_handle_count;     // 16
+  int* near_death_global_handle_count;  // 17
+  int* destroyed_global_handle_count;   // 18
+  int* memory_allocator_size;           // 19
+  int* memory_allocator_capacity;       // 20
+  int* objects_per_type;                // 21
+  int* size_per_type;                   // 22
+  int* end_marker;                      // 23
 };
 
 
@@ -1842,6 +1846,7 @@ class GCTracer BASE_EMBEDDED {
       MC_MARK,
       MC_SWEEP,
       MC_COMPACT,
+      MC_FLUSH_CODE,
       kNumberOfScopes
     };
 

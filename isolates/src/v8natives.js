@@ -225,16 +225,14 @@ function ObjectHasOwnProperty(V) {
 
 // ECMA-262 - 15.2.4.6
 function ObjectIsPrototypeOf(V) {
-  if (!IS_SPEC_OBJECT_OR_NULL(V) && !IS_UNDETECTABLE(V)) return false;
+  if (!IS_SPEC_OBJECT(V)) return false;
   return %IsInPrototypeChain(this, V);
 }
 
 
 // ECMA-262 - 15.2.4.6
 function ObjectPropertyIsEnumerable(V) {
-  if (this == null) return false;
-  if (!IS_SPEC_OBJECT_OR_NULL(this)) return false;
-  return %IsPropertyEnumerable(this, ToString(V));
+  return %IsPropertyEnumerable(ToObject(this), ToString(V));
 }
 
 
@@ -279,8 +277,7 @@ function ObjectLookupSetter(name) {
 
 
 function ObjectKeys(obj) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj))
+  if (!IS_SPEC_OBJECT(obj))
     throw MakeTypeError("obj_ctor_property_non_object", ["keys"]);
   return %LocalKeys(obj);
 }
@@ -329,7 +326,7 @@ function FromPropertyDescriptor(desc) {
 
 // ES5 8.10.5.
 function ToPropertyDescriptor(obj) {
-  if (!IS_SPEC_OBJECT_OR_NULL(obj)) {
+  if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("property_desc_object", [obj]);
   }
   var desc = new PropertyDescriptor();
@@ -542,21 +539,21 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     throw MakeTypeError("define_disallowed", ["defineProperty"]);
 
   if (!IS_UNDEFINED(current) && !current.isConfigurable()) {
-      // Step 5 and 6
-     if ((!desc.hasEnumerable() || 
-          SameValue(desc.isEnumerable() && current.isEnumerable())) &&
-         (!desc.hasConfigurable() || 
-          SameValue(desc.isConfigurable(), current.isConfigurable())) &&
-         (!desc.hasWritable() || 
-          SameValue(desc.isWritable(), current.isWritable())) &&
-         (!desc.hasValue() ||
-          SameValue(desc.getValue(), current.getValue())) &&
-         (!desc.hasGetter() ||
-          SameValue(desc.getGet(), current.getGet())) &&
-         (!desc.hasSetter() ||
-          SameValue(desc.getSet(), current.getSet()))) {
-       return true;
-     }
+    // Step 5 and 6
+    if ((!desc.hasEnumerable() || 
+         SameValue(desc.isEnumerable() && current.isEnumerable())) &&
+        (!desc.hasConfigurable() || 
+         SameValue(desc.isConfigurable(), current.isConfigurable())) &&
+        (!desc.hasWritable() || 
+         SameValue(desc.isWritable(), current.isWritable())) &&
+        (!desc.hasValue() ||
+         SameValue(desc.getValue(), current.getValue())) &&
+        (!desc.hasGetter() ||
+         SameValue(desc.getGet(), current.getGet())) &&
+        (!desc.hasSetter() ||
+         SameValue(desc.getSet(), current.getSet()))) {
+      return true;
+    }
 
     // Step 7
     if (desc.isConfigurable() ||  desc.isEnumerable() != current.isEnumerable())
@@ -626,8 +623,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
 
 // ES5 section 15.2.3.2.
 function ObjectGetPrototypeOf(obj) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj))
+  if (!IS_SPEC_OBJECT(obj))
     throw MakeTypeError("obj_ctor_property_non_object", ["getPrototypeOf"]);
   return obj.__proto__;
 }
@@ -635,8 +631,7 @@ function ObjectGetPrototypeOf(obj) {
 
 // ES5 section 15.2.3.3
 function ObjectGetOwnPropertyDescriptor(obj, p) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj))
+  if (!IS_SPEC_OBJECT(obj))
     throw MakeTypeError("obj_ctor_property_non_object", ["getOwnPropertyDescriptor"]);
   var desc = GetOwnProperty(obj, p);
   return FromPropertyDescriptor(desc);
@@ -645,8 +640,7 @@ function ObjectGetOwnPropertyDescriptor(obj, p) {
 
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj))
+  if (!IS_SPEC_OBJECT(obj))
     throw MakeTypeError("obj_ctor_property_non_object", ["getOwnPropertyNames"]);
 
   // Find all the indexed properties.
@@ -698,7 +692,7 @@ function ObjectGetOwnPropertyNames(obj) {
 
 // ES5 section 15.2.3.5.
 function ObjectCreate(proto, properties) {
-  if (!IS_SPEC_OBJECT_OR_NULL(proto)) {
+  if (!IS_SPEC_OBJECT(proto) && proto !== null) {
     throw MakeTypeError("proto_object_or_null", [proto]);
   }
   var obj = new $Object();
@@ -710,8 +704,7 @@ function ObjectCreate(proto, properties) {
 
 // ES5 section 15.2.3.6.
 function ObjectDefineProperty(obj, p, attributes) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj)) {
+  if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["defineProperty"]);
   }
   var name = ToString(p);
@@ -723,8 +716,7 @@ function ObjectDefineProperty(obj, p, attributes) {
 
 // ES5 section 15.2.3.7.
 function ObjectDefineProperties(obj, properties) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-     !IS_UNDETECTABLE(obj))
+  if (!IS_SPEC_OBJECT(obj))
     throw MakeTypeError("obj_ctor_property_non_object", ["defineProperties"]);
   var props = ToObject(properties);
   var key_values = [];
@@ -747,8 +739,7 @@ function ObjectDefineProperties(obj, properties) {
 
 // ES5 section 15.2.3.8.
 function ObjectSeal(obj) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj)) {
+  if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["seal"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
@@ -758,14 +749,13 @@ function ObjectSeal(obj) {
     if (desc.isConfigurable()) desc.setConfigurable(false);
     DefineOwnProperty(obj, name, desc, true);
   }  
-  ObjectPreventExtension(obj);
+  return ObjectPreventExtension(obj);
 }
 
 
 // ES5 section 15.2.3.9.
 function ObjectFreeze(obj) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj)) {
+  if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["freeze"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
@@ -776,14 +766,13 @@ function ObjectFreeze(obj) {
     if (desc.isConfigurable()) desc.setConfigurable(false);
     DefineOwnProperty(obj, name, desc, true);
   }  
-  ObjectPreventExtension(obj);
+  return ObjectPreventExtension(obj);
 }
 
 
 // ES5 section 15.2.3.10
 function ObjectPreventExtension(obj) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj)) {
+  if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["preventExtension"]);
   }
   %PreventExtensions(obj);
@@ -793,8 +782,7 @@ function ObjectPreventExtension(obj) {
 
 // ES5 section 15.2.3.11
 function ObjectIsSealed(obj) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj)) {
+  if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["isSealed"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
@@ -812,8 +800,7 @@ function ObjectIsSealed(obj) {
 
 // ES5 section 15.2.3.12
 function ObjectIsFrozen(obj) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj)) {
+  if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["isFrozen"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
@@ -832,8 +819,7 @@ function ObjectIsFrozen(obj) {
 
 // ES5 section 15.2.3.13
 function ObjectIsExtensible(obj) {
-  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj)) {
+  if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["preventExtension"]);
   }
   return %IsExtensible(obj);
@@ -1113,6 +1099,56 @@ function FunctionToString() {
 }
 
 
+// ES5 15.3.4.5
+function FunctionBind(this_arg) { // Length is 1.
+  if (!IS_FUNCTION(this)) {
+      throw new $TypeError('Bind must be called on a function');
+  }
+  // this_arg is not an argument that should be bound.
+  var argc_bound = (%_ArgumentsLength() || 1) - 1;
+  if (argc_bound > 0) {
+    var bound_args = new $Array(argc_bound);
+    for(var i = 0; i < argc_bound; i++) {
+      bound_args[i] = %_Arguments(i+1);
+    }  
+  }
+  var fn = this;
+  var result = function() {
+    // Combine the args we got from the bind call with the args
+    // given as argument to the invocation. 
+    var argc = %_ArgumentsLength();
+    var args = new $Array(argc + argc_bound);
+    // Add bound arguments.
+    for (var i = 0; i < argc_bound; i++) {
+      args[i] = bound_args[i];
+    }
+    // Add arguments from call.
+    for (var i = 0; i < argc; i++) {
+      args[argc_bound + i] = %_Arguments(i); 
+    }
+    // If this is a construct call we use a special runtime method
+    // to generate the actual object using the bound function.
+    if (%_IsConstructCall()) {
+      return %NewObjectFromBound(fn, args);
+    }
+    return fn.apply(this_arg, args);
+  };
+
+  // We already have caller and arguments properties on functions,
+  // which are non-configurable. It therefore makes no sence to
+  // try to redefine these as defined by the spec. The spec says
+  // that bind should make these throw a TypeError if get or set
+  // is called and make them non-enumerable and non-configurable.
+  // To be consistent with our normal functions we leave this as it is. 
+
+  // Set the correct length.
+  var length = (this.length - argc_bound) > 0 ? this.length - argc_bound : 0;
+  %FunctionSetLength(result, length);
+
+  return result;
+}
+
+
 function NewFunction(arg1) {  // length == 1
   var n = %_ArgumentsLength();
   var p = '';
@@ -1144,6 +1180,7 @@ function NewFunction(arg1) {  // length == 1
 
 function SetupFunction() {
   InstallFunctions($Function.prototype, DONT_ENUM, $Array(
+    "bind", FunctionBind,
     "toString", FunctionToString
   ));
 }

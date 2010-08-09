@@ -1310,7 +1310,7 @@ class CallNew: public Expression {
 class CallRuntime: public Expression {
  public:
   CallRuntime(Handle<String> name,
-              const Runtime::Function* function,
+              Runtime::Function* function,
               ZoneList<Expression*>* arguments)
       : name_(name), function_(function), arguments_(arguments) { }
 
@@ -1319,13 +1319,13 @@ class CallRuntime: public Expression {
   virtual bool IsPrimitive();
 
   Handle<String> name() const { return name_; }
-  const Runtime::Function* function() const { return function_; }
+  Runtime::Function* function() const { return function_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
   bool is_jsruntime() const { return function_ == NULL; }
 
  private:
   Handle<String> name_;
-  const Runtime::Function* function_;
+  Runtime::Function* function_;
   ZoneList<Expression*>* arguments_;
 };
 

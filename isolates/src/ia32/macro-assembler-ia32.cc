@@ -98,8 +98,10 @@ void MacroAssembler::InNewSpace(Register object,
 }
 
 
-void MacroAssembler::RecordWrite(Register object, int offset,
-                                 Register value, Register scratch) {
+void MacroAssembler::RecordWrite(Register object,
+                                 int offset,
+                                 Register value,
+                                 Register scratch) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are esi.
@@ -672,20 +674,33 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, result_end, scratch, flags);
 
+  Register top_reg = result_end.is_valid() ? result_end : result;
+
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
       ExternalReference::new_space_allocation_limit_address();
-  lea(result_end, Operand(result, object_size));
-  cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
+
+  if (top_reg.is(result)) {
+    add(Operand(top_reg), Immediate(object_size));
+  } else {
+    lea(top_reg, Operand(result, object_size));
+  }
+  cmp(top_reg, Operand::StaticVariable(new_space_allocation_limit));
   j(above, gc_required, not_taken);
 
-  // Tag result if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    lea(result, Operand(result, kHeapObjectTag));
-  }
-
   // Update allocation top.
-  UpdateAllocationTopHelper(result_end, scratch);
+  UpdateAllocationTopHelper(top_reg, scratch);
+
+  // Tag result if requested.
+  if (top_reg.is(result)) {
+    if ((flags & TAG_OBJECT) != 0) {
+      sub(Operand(result), Immediate(object_size - kHeapObjectTag));
+    } else {
+      sub(Operand(result), Immediate(object_size));
+    }
+  } else if ((flags & TAG_OBJECT) != 0) {
+    add(Operand(result), Immediate(kHeapObjectTag));
+  }
 }
 
 
@@ -1053,16 +1068,6 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
 }
 
 
-void MacroAssembler::CallExternalReference(ExternalReference ref,
-                                           int num_arguments) {
-  mov(eax, Immediate(num_arguments));
-  mov(ebx, Immediate(ref));
-
-  CEntryStub stub(1);
-  CallStub(&stub);
-}
-
-
 Object* MacroAssembler::TryCallRuntime(const Runtime::Function* f,
                                        int num_arguments) {
   if (f->nargs >= 0 && f->nargs != num_arguments) {
@@ -1080,6 +1085,16 @@ Object* MacroAssembler::TryCallRuntime(const Runtime::Function* f,
   mov(ebx, Immediate(ExternalReference(f)));
   CEntryStub ces(1);
   return TryCallStub(&ces);
+}
+
+
+void MacroAssembler::CallExternalReference(ExternalReference ref,
+                                           int num_arguments) {
+  mov(eax, Immediate(num_arguments));
+  mov(ebx, Immediate(ref));
+
+  CEntryStub stub(1);
+  CallStub(&stub);
 }
 
 
@@ -1107,8 +1122,7 @@ void MacroAssembler::PushHandleScope(Register scratch) {
   ExternalReference extensions_address =
       ExternalReference::handle_scope_extensions_address();
   mov(scratch, Operand::StaticVariable(extensions_address));
-  ASSERT_EQ(0, kSmiTag);
-  shl(scratch, kSmiTagSize);
+  SmiTag(scratch);
   push(scratch);
   mov(Operand::StaticVariable(extensions_address), Immediate(0));
   // Push next and limit pointers which will be wordsize aligned and
@@ -1132,16 +1146,14 @@ Object* MacroAssembler::PopHandleScopeHelper(Register saved,
   mov(scratch, Operand::StaticVariable(extensions_address));
   cmp(Operand(scratch), Immediate(0));
   j(equal, &write_back);
-  // Calling a runtime function messes with registers so we save and
-  // restore any one we're asked not to change
-  if (saved.is_valid()) push(saved);
+  push(saved);
   if (gc_allowed) {
     CallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
   } else {
     result = TryCallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
     if (result->IsFailure()) return result;
   }
-  if (saved.is_valid()) pop(saved);
+  pop(saved);
 
   bind(&write_back);
   ExternalReference limit_address =
@@ -1151,7 +1163,7 @@ Object* MacroAssembler::PopHandleScopeHelper(Register saved,
         ExternalReference::handle_scope_next_address();
   pop(Operand::StaticVariable(next_address));
   pop(scratch);
-  shr(scratch, kSmiTagSize);
+  SmiUntag(scratch);
   mov(Operand::StaticVariable(extensions_address), scratch);
 
   return result;

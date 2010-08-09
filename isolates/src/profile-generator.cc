@@ -76,6 +76,7 @@ void TokenEnumerator::TokenRemovedCallback(v8::Persistent<v8::Value> handle,
                                            void* parameter) {
   reinterpret_cast<TokenEnumerator*>(parameter)->TokenRemoved(
       Utils::OpenHandle(*handle).location());
+  handle.Dispose();
 }
 
 

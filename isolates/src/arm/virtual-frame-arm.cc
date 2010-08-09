@@ -566,8 +566,8 @@ Register VirtualFrame::Peek2() {
       return r0;
     default:
       UNREACHABLE();
+      return no_reg;
   }
-  return no_reg;
 }
 
 

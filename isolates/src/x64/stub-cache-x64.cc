@@ -824,9 +824,12 @@ void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
 }
 
 
-void CallStubCompiler::GenerateMissBranch() {
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate(), kind_);
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+Object* CallStubCompiler::GenerateMissBranch() {
+  Object* obj = Isolate::Current()->stub_cache()->
+      ComputeCallMiss(arguments().immediate(), kind_);
+  if (obj->IsFailure()) return obj;
+  __ Jump(Handle<Code>(Code::cast(obj)), RelocInfo::CODE_TARGET);
+  return obj;
 }
 
 
@@ -979,7 +982,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
   // Handle call cache miss.
   __ bind(&miss_in_smi_check);
-  GenerateMissBranch();
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
 
   // Return the generated code.
   return GetCode(function);
@@ -1033,7 +1037,8 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  GenerateMissBranch();
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
 
   // Return the generated code.
   return GetCode(FIELD, name);
@@ -1190,8 +1195,8 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   }
 
   __ bind(&miss);
-
-  GenerateMissBranch();
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
 
   // Return the generated code.
   return GetCode(function);
@@ -1274,8 +1279,8 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
                                argc + 1,
                                1);
   __ bind(&miss);
-
-  GenerateMissBranch();
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
 
   // Return the generated code.
   return GetCode(function);
@@ -1361,7 +1366,8 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   // Handle load cache miss.
   __ bind(&miss);
-  GenerateMissBranch();
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
 
   // Return the generated code.
   return GetCode(INTERCEPTOR, name);
@@ -1446,7 +1452,8 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // Handle call cache miss.
   __ bind(&miss);
   __ IncrementCounter(COUNTERS->call_global_inline_miss(), 1);
-  GenerateMissBranch();
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
 
   // Return the generated code.
   return GetCode(NORMAL, name);
@@ -2220,23 +2227,80 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
 
   // Check that the maps haven't changed.
   Register reg =
-      CheckPrototypes(object, receiver, holder,
-                      scratch1, scratch2, scratch3, name, miss);
+      CheckPrototypes(object, receiver, holder, scratch1,
+                      scratch2, scratch3, name, miss);
 
-  // Push the arguments on the JS stack of the caller.
-  __ pop(scratch2);  // remove return address
+  Handle<AccessorInfo> callback_handle(callback);
+
+  __ EnterInternalFrame();
+  __ PushHandleScope(scratch2);
+  // Push the stack address where the list of arguments ends.
+  __ movq(scratch2, rsp);
+  __ subq(scratch2, Immediate(2 * kPointerSize));
+  __ push(scratch2);
   __ push(receiver);  // receiver
   __ push(reg);  // holder
-  __ Move(reg, Handle<AccessorInfo>(callback));  // callback data
-  __ push(reg);
-  __ push(FieldOperand(reg, AccessorInfo::kDataOffset));
+  if (object->GetHeap()->InNewSpace(callback_handle->data())) {
+    __ Move(scratch2, callback_handle);
+    __ push(FieldOperand(scratch2, AccessorInfo::kDataOffset));  // data
+  } else {
+    __ Push(Handle<Object>(callback_handle->data()));
+  }
   __ push(name_reg);  // name
-  __ push(scratch2);  // restore return address
+  // Save a pointer to where we pushed the arguments pointer.
+  // This will be passed as the const AccessorInfo& to the C++ callback.
 
-  // Do tail-call to the runtime system.
-  ExternalReference load_callback_property =
-      ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-  __ TailCallExternalReference(load_callback_property, 5, 1);
+#ifdef _WIN64
+  // Win64 uses first register--rcx--for returned value.
+  Register accessor_info_arg = r8;
+  Register name_arg = rdx;
+#else
+  Register accessor_info_arg = rdx;  // temporary, copied to rsi by the stub.
+  Register name_arg = rdi;
+#endif
+
+  __ movq(accessor_info_arg, rsp);
+  __ addq(accessor_info_arg, Immediate(4 * kPointerSize));
+  __ movq(name_arg, rsp);
+
+  // Do call through the api.
+  ASSERT_EQ(5, ApiGetterEntryStub::kStackSpace);
+  Address getter_address = v8::ToCData<Address>(callback->getter());
+  ApiFunction fun(getter_address);
+  ApiGetterEntryStub stub(callback_handle, &fun);
+#ifdef _WIN64
+  // We need to prepare a slot for result handle on stack and put
+  // a pointer to it into 1st arg register.
+  __ push(Immediate(0));
+  __ movq(rcx, rsp);
+#endif
+  // Emitting a stub call may try to allocate (if the code is not
+  // already generated).  Do not allow the assembler to perform a
+  // garbage collection but instead return the allocation failure
+  // object.
+  Object* result = masm()->TryCallStub(&stub);
+  if (result->IsFailure()) {
+    *failure = Failure::cast(result);
+    return false;
+  }
+#ifdef _WIN64
+  // Discard allocated slot.
+  __ addq(rsp, Immediate(kPointerSize));
+#endif
+
+  // We need to avoid using rax since that now holds the result.
+  Register tmp = scratch2.is(rax) ? reg : scratch2;
+  // Emitting PopHandleScope may try to allocate.  Do not allow the
+  // assembler to perform a garbage collection but instead return a
+  // failure object.
+  result = masm()->TryPopHandleScope(rax, tmp);
+  if (result->IsFailure()) {
+    *failure = Failure::cast(result);
+    return false;
+  }
+  __ LeaveInternalFrame();
+
+  __ ret(0);
 
   return true;
 }

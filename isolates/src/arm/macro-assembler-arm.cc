@@ -282,6 +282,37 @@ void MacroAssembler::Bfc(Register dst, int lsb, int width, Condition cond) {
 }
 
 
+void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
+                          Condition cond) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+    ASSERT(!dst.is(pc) && !src.rm().is(pc));
+    ASSERT((satpos >= 0) && (satpos <= 31));
+
+    // These asserts are required to ensure compatibility with the ARMv7
+    // implementation.
+    ASSERT((src.shift_op() == ASR) || (src.shift_op() == LSL));
+    ASSERT(src.rs().is(no_reg));
+
+    Label done;
+    int satval = (1 << satpos) - 1;
+
+    if (cond != al) {
+      b(NegateCondition(cond), &done);  // Skip saturate if !condition.
+    }
+    if (!(src.is_reg() && dst.is(src.rm()))) {
+      mov(dst, src);
+    }
+    tst(dst, Operand(~satval));
+    b(eq, &done);
+    mov(dst, Operand(0), LeaveCC, mi);  // 0 if negative.
+    mov(dst, Operand(satval), LeaveCC, pl);  // satval if positive.
+    bind(&done);
+  } else {
+    usat(dst, satpos, src, cond);
+  }
+}
+
+
 void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
   // Empty the const pool.
   CheckConstPool(true, true);
@@ -1697,6 +1728,34 @@ void MacroAssembler::AllocateHeapNumberWithValue(Register result,
   AllocateHeapNumber(result, scratch1, scratch2, heap_number_map, gc_required);
   sub(scratch1, result, Operand(kHeapObjectTag));
   vstr(value, scratch1, HeapNumber::kValueOffset);
+}
+
+
+// Copies a fixed number of fields of heap objects from src to dst.
+void MacroAssembler::CopyFields(Register dst,
+                                Register src,
+                                RegList temps,
+                                int field_count) {
+  // At least one bit set in the first 15 registers.
+  ASSERT((temps & ((1 << 15) - 1)) != 0);
+  ASSERT((temps & dst.bit()) == 0);
+  ASSERT((temps & src.bit()) == 0);
+  // Primitive implementation using only one temporary register.
+
+  Register tmp = no_reg;
+  // Find a temp register in temps list.
+  for (int i = 0; i < 15; i++) {
+    if ((temps & (1 << i)) != 0) {
+      tmp.set_code(i);
+      break;
+    }
+  }
+  ASSERT(!tmp.is(no_reg));
+
+  for (int i = 0; i < field_count; i++) {
+    ldr(tmp, FieldMemOperand(src, i * kPointerSize));
+    str(tmp, FieldMemOperand(dst, i * kPointerSize));
+  }
 }
 
 

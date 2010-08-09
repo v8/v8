@@ -112,6 +112,8 @@ class MacroAssembler: public Assembler {
   void Sbfx(Register dst, Register src, int lsb, int width,
             Condition cond = al);
   void Bfc(Register dst, int lsb, int width, Condition cond = al);
+  void Usat(Register dst, int satpos, const Operand& src,
+            Condition cond = al);
 
   void Call(Label* target);
   void Move(Register dst, Handle<Object> value);
@@ -391,6 +393,8 @@ class MacroAssembler: public Assembler {
                                    Register heap_number_map,
                                    Label* gc_required);
 
+  // Copies a fixed number of fields of heap objects from src to dst.
+  void CopyFields(Register dst, Register src, RegList temps, int field_count);
 
   // ---------------------------------------------------------------------------
   // Support functions.

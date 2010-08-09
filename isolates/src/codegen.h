@@ -80,35 +80,34 @@ enum UnaryOverwriteMode { UNARY_OVERWRITE, UNARY_NO_OVERWRITE };
 // Types of uncatchable exceptions.
 enum UncatchableExceptionType { OUT_OF_MEMORY, TERMINATION };
 
-
 namespace v8 {
-namespace internal {
+ namespace internal {
 
-class InlineRuntimeFunctionsTable {
- public:
-  enum {
-#define LUT_ENTRY(name, argc, resize) __##name,
-    INLINE_RUNTIME_FUNCTION_LIST(LUT_ENTRY)
-    kInlineRuntimeFunctionsTableSize
-#undef LUT_ENTRY
-  };
+ class InlineRuntimeFunctionsTable {
+  public:
+   enum {
+ #define LUT_ENTRY(name, argc, resize) __##name,
+     INLINE_RUNTIME_FUNCTION_LIST(LUT_ENTRY)
+     kInlineRuntimeFunctionsTableSize
+ #undef LUT_ENTRY
+   };
 
-  struct Entry {
-    void (CodeGenerator::*method)(ZoneList<Expression*>*);
-    const char* name;
-    int nargs;
-  };
+   struct Entry {
+     void (CodeGenerator::*method)(ZoneList<Expression*>*);
+     const char* name;
+     int nargs;
+   };
 
-  Entry* entries() { return entries_; }
+   Entry* entries() { return entries_; }
 
- private:
-  InlineRuntimeFunctionsTable();
+  private:
+   InlineRuntimeFunctionsTable();
 
-  Entry entries_[kInlineRuntimeFunctionsTableSize];
+   Entry entries_[kInlineRuntimeFunctionsTableSize];
 
-  friend class Isolate;
+   friend class Isolate;
 
-  DISALLOW_COPY_AND_ASSIGN(InlineRuntimeFunctionsTable);
+   DISALLOW_COPY_AND_ASSIGN(InlineRuntimeFunctionsTable);
 };
 
 }  // namespace internal
@@ -177,7 +176,6 @@ class CodeGeneratorScope BASE_EMBEDDED {
   CodeGenerator* previous_;
   Isolate* isolate_;
 };
-
 
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 

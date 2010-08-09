@@ -332,12 +332,17 @@ class Debug {
     k_after_break_target_address,
     k_debug_break_return_address,
     k_debug_break_slot_address,
+    k_restarter_frame_function_pointer,
     k_register_address
   };
 
   // Support for setting the address to jump to when returning from break point.
   Address* after_break_target_address() {
     return reinterpret_cast<Address*>(&thread_local_.after_break_target_);
+  }
+  Address* restarter_frame_function_pointer_address() {
+    Object*** address = &thread_local_.restarter_frame_function_pointer_;
+    return reinterpret_cast<Address*>(address);
   }
 
   // Support for saving/restoring registers when handling debug break calls.
@@ -416,10 +421,22 @@ class Debug {
   };
 
   void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
-                             FrameDropMode mode);
+                                    FrameDropMode mode,
+                                    Object** restarter_frame_function_pointer);
 
-  static void SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
-                                     Handle<Code> code);
+  // Initializes an artificial stack frame. The data it contains is used for:
+  //  a. successful work of frame dropper code which eventually gets control,
+  //  b. being compatible with regular stack structure for various stack
+  //     iterators.
+  // Returns address of stack allocated pointer to restarted function,
+  // the value that is called 'restarter_frame_function_pointer'. The value
+  // at this address (possibly updated by GC) may be used later when preparing
+  // 'step in' operation.
+  // The implementation is architecture-specific.
+  // TODO(LiveEdit): consider reviewing it as architecture-independent.
+  static Object** SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
+                                         Handle<Code> code);
+
   static const int kFrameDropperFrameSize;
 
  private:
@@ -499,6 +516,11 @@ class Debug {
 
     // Pending interrupts scheduled while debugging.
     int pending_interrupts_;
+
+    // When restarter frame is on stack, stores the address
+    // of the pointer to function being restarted. Otherwise (most of the time)
+    // stores NULL. This pointer is used with 'step in' implementation.
+    Object** restarter_frame_function_pointer_;
   };
 
   // Storage location for registers when handling debug break calls
@@ -928,8 +950,6 @@ class EnterDebugger BASE_EMBEDDED {
 // Stack allocated class for disabling break.
 class DisableBreak BASE_EMBEDDED {
  public:
-  // Enter the debugger by storing the previous top context and setting the
-  // current top context to the debugger context.
   explicit DisableBreak(bool disable_break) : isolate_(Isolate::Current()) {
     prev_disable_break_ = isolate_->debug()->disable_break();
     isolate_->debug()->set_disable_break(disable_break);
@@ -964,6 +984,10 @@ class Debug_Address {
     return Debug_Address(Debug::k_debug_break_return_address);
   }
 
+  static Debug_Address RestarterFrameFunctionPointer() {
+    return Debug_Address(Debug::k_restarter_frame_function_pointer);
+  }
+
   static Debug_Address Register(int reg) {
     return Debug_Address(Debug::k_register_address, reg);
   }
@@ -977,6 +1001,9 @@ class Debug_Address {
         return reinterpret_cast<Address>(debug->debug_break_return_address());
       case Debug::k_debug_break_slot_address:
         return reinterpret_cast<Address>(debug->debug_break_slot_address());
+      case Debug::k_restarter_frame_function_pointer:
+        return reinterpret_cast<Address>(
+            debug->restarter_frame_function_pointer_address());
       case Debug::k_register_address:
         return reinterpret_cast<Address>(debug->register_address(reg_));
       default:

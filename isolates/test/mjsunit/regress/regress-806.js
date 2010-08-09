@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,40 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Test that we do no use r12 as a receiver in inlined NamedStores on x64.
 
-#include "token.h"
+// See: http://code.google.com/p/v8/issues/detail?id=806
 
-namespace v8 {
-namespace internal {
+function foo(a) {
+  for (var o = 1; o < 2; o++) {
+    for (var n = 1; n < 2; n++) {
+      for (var m = 1; m < 2; m++) {
+        for (var l = 1; l < 2; l++) {
+          for (var i = 1; i < 2; i++) {
+            for (var j = 1; j < 2; j++) {
+              for (var k = 1; k < 2; k++) {
+                var z = a.foo;
+                z.foo = i * j * k * m * n * o;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
-#define T(name, string, precedence) #name,
-const char* Token::name_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define T(name, string, precedence) string,
-const char* Token::string_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define T(name, string, precedence) precedence,
-int8_t Token::precedence_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define KT(a, b, c) 'T',
-#define KK(a, b, c) 'K',
-const char Token::token_type[] = {
-  TOKEN_LIST(KT, KK, IGNORE_TOKEN)
-};
-#undef KT
-#undef KK
-
-} }  // namespace v8::internal
+foo({foo: {foo: 1}});
