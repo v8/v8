@@ -1366,8 +1366,8 @@ void DeferredInlineBinaryOperation::GenerateAnswerOutOfRange() {
     __ movdbl(FieldOperand(left_, HeapNumber::kValueOffset), xmm0);
   } else {
     if (op_ == Token::SHR) {
-      __ push(dst_);
       __ push(Immediate(0));  // High word of unsigned value.
+      __ push(dst_);
       __ fild_d(Operand(esp, 0));
       __ Drop(2);
     } else {
