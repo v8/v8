@@ -1465,6 +1465,7 @@ uint64_t HeapObjectsMap::FindEntry(Address addr) {
 
 void HeapObjectsMap::RemoveDeadEntries() {
   List<EntryInfo>* new_entries = new List<EntryInfo>();
+  List<void*> dead_entries;
   for (HashMap::Entry* entry = entries_map_.Start();
        entry != NULL;
        entry = entries_map_.Next(entry)) {
@@ -1474,7 +1475,14 @@ void HeapObjectsMap::RemoveDeadEntries() {
     if (entry_info.accessed) {
       entry->value = reinterpret_cast<void*>(new_entries->length());
       new_entries->Add(EntryInfo(entry_info.id, false));
+    } else {
+      dead_entries.Add(entry->key);
     }
+  }
+  for (int i = 0; i < dead_entries.length(); ++i) {
+    void* raw_entry = dead_entries[i];
+    entries_map_.Remove(
+        raw_entry, AddressHash(reinterpret_cast<Address>(raw_entry)));
   }
   delete entries_;
   entries_ = new_entries;

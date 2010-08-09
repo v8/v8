@@ -438,7 +438,7 @@ class HeapGraphEdge BASE_EMBEDDED {
   void Init(int child_index, Type type, const char* name, HeapEntry* to);
   void Init(int child_index, int index, HeapEntry* to);
 
-  Type type() { return type_; }
+  Type type() { return static_cast<Type>(type_); }
   int index() {
     ASSERT(type_ == kElement);
     return index_;
@@ -455,7 +455,7 @@ class HeapGraphEdge BASE_EMBEDDED {
 
  private:
   int child_index_ : 30;
-  Type type_ : 2;
+  unsigned type_ : 2;
   union {
     int index_;
     const char* name_;
@@ -511,7 +511,7 @@ class HeapEntry BASE_EMBEDDED {
             int retainers_count);
 
   HeapSnapshot* snapshot() { return snapshot_; }
-  Type type() { return type_; }
+  Type type() { return static_cast<Type>(type_); }
   const char* name() { return name_; }
   uint64_t id() { return id_; }
   int self_size() { return self_size_; }
@@ -566,17 +566,17 @@ class HeapEntry BASE_EMBEDDED {
   }
   const char* TypeAsString();
 
-  HeapSnapshot* snapshot_;
   unsigned painted_: 2;
-  Type type_: 3;
+  unsigned type_: 3;
   // The calculated data is stored in HeapSnapshot in HeapEntryCalculatedData
   // entries. See AddCalculatedData and GetCalculatedData.
   int calculated_data_index_: 27;
-  const char* name_;
-  uint64_t id_;
   int self_size_;
   int children_count_;
   int retainers_count_;
+  HeapSnapshot* snapshot_;
+  const char* name_;
+  uint64_t id_;
 
   static const unsigned kUnpainted = 0;
   static const unsigned kPainted = 1;
