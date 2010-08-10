@@ -1218,10 +1218,10 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       entries_sorted_(false) {
   STATIC_ASSERT(
       sizeof(HeapGraphEdge) ==
-      SnapshotSizeConstants<sizeof(void*)>::kExpectedHeapGraphEdgeSize);
+      SnapshotSizeConstants<sizeof(void*)>::kExpectedHeapGraphEdgeSize);  // NOLINT
   STATIC_ASSERT(
       sizeof(HeapEntry) ==
-      SnapshotSizeConstants<sizeof(void*)>::kExpectedHeapEntrySize);
+      SnapshotSizeConstants<sizeof(void*)>::kExpectedHeapEntrySize);  // NOLINT
 }
 
 
