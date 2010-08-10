@@ -1188,6 +1188,25 @@ void HeapGraphPath::Print() {
 HeapObject *const HeapSnapshot::kInternalRootObject =
     reinterpret_cast<HeapObject*>(1);
 
+
+// It is very important to keep objects that form a heap snapshot
+// as small as possible.
+namespace {  // Avoid littering the global namespace.
+
+template <size_t ptr_size> struct SnapshotSizeConstants;
+
+template <> struct SnapshotSizeConstants<4> {
+  static const int kExpectedHeapGraphEdgeSize = 12;
+  static const int kExpectedHeapEntrySize = 32;
+};
+
+template <> struct SnapshotSizeConstants<8> {
+  static const int kExpectedHeapGraphEdgeSize = 24;
+  static const int kExpectedHeapEntrySize = 40;
+};
+
+}  // namespace
+
 HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
                            const char* title,
                            unsigned uid)
@@ -1197,6 +1216,12 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       root_entry_index_(-1),
       raw_entries_(NULL),
       entries_sorted_(false) {
+  STATIC_ASSERT(
+      sizeof(HeapGraphEdge) ==
+      SnapshotSizeConstants<sizeof(void*)>::kExpectedHeapGraphEdgeSize);
+  STATIC_ASSERT(
+      sizeof(HeapEntry) ==
+      SnapshotSizeConstants<sizeof(void*)>::kExpectedHeapEntrySize);
 }
 
 
