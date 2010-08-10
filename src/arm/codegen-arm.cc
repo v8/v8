@@ -4176,21 +4176,21 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 
 
 void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
-  ASSERT(args->length() == 1);
   JumpTarget leave, null, function, non_function_constructor;
+  Register scratch = VirtualFrame::scratch0();
 
-  // Load the object into r0.
+  // Load the object into register.
+  ASSERT(args->length() == 1);
   Load(args->at(0));
-  frame_->EmitPop(r0);
+  Register tos = frame_->PopToRegister();
 
   // If the object is a smi, we return null.
-  __ tst(r0, Operand(kSmiTagMask));
+  __ tst(tos, Operand(kSmiTagMask));
   null.Branch(eq);
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  __ CompareObjectType(r0, r0, r1, FIRST_JS_OBJECT_TYPE);
+  __ CompareObjectType(tos, tos, scratch, FIRST_JS_OBJECT_TYPE);
   null.Branch(lt);
 
   // As long as JS_FUNCTION_TYPE is the last instance type and it is
@@ -4198,37 +4198,38 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
   // LAST_JS_OBJECT_TYPE.
   STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
   STATIC_ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-  __ cmp(r1, Operand(JS_FUNCTION_TYPE));
+  __ cmp(scratch, Operand(JS_FUNCTION_TYPE));
   function.Branch(eq);
 
   // Check if the constructor in the map is a function.
-  __ ldr(r0, FieldMemOperand(r0, Map::kConstructorOffset));
-  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE);
+  __ ldr(tos, FieldMemOperand(tos, Map::kConstructorOffset));
+  __ CompareObjectType(tos, scratch, scratch, JS_FUNCTION_TYPE);
   non_function_constructor.Branch(ne);
 
-  // The r0 register now contains the constructor function. Grab the
+  // The tos register now contains the constructor function. Grab the
   // instance class name from there.
-  __ ldr(r0, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r0, FieldMemOperand(r0, SharedFunctionInfo::kInstanceClassNameOffset));
-  frame_->EmitPush(r0);
+  __ ldr(tos, FieldMemOperand(tos, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(tos,
+         FieldMemOperand(tos, SharedFunctionInfo::kInstanceClassNameOffset));
+  frame_->EmitPush(tos);
   leave.Jump();
 
   // Functions have class 'Function'.
   function.Bind();
-  __ mov(r0, Operand(Factory::function_class_symbol()));
-  frame_->EmitPush(r0);
+  __ mov(tos, Operand(Factory::function_class_symbol()));
+  frame_->EmitPush(tos);
   leave.Jump();
 
   // Objects with a non-function constructor have class 'Object'.
   non_function_constructor.Bind();
-  __ mov(r0, Operand(Factory::Object_symbol()));
-  frame_->EmitPush(r0);
+  __ mov(tos, Operand(Factory::Object_symbol()));
+  frame_->EmitPush(tos);
   leave.Jump();
 
   // Non-JS objects have class null.
   null.Bind();
-  __ LoadRoot(r0, Heap::kNullValueRootIndex);
-  frame_->EmitPush(r0);
+  __ LoadRoot(tos, Heap::kNullValueRootIndex);
+  frame_->EmitPush(tos);
 
   // All done.
   leave.Bind();
@@ -4236,45 +4237,51 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
-  ASSERT(args->length() == 1);
+  Register scratch = VirtualFrame::scratch0();
   JumpTarget leave;
+
+  ASSERT(args->length() == 1);
   Load(args->at(0));
-  frame_->EmitPop(r0);  // r0 contains object.
+  Register tos = frame_->PopToRegister();  // tos contains object.
   // if (object->IsSmi()) return the object.
-  __ tst(r0, Operand(kSmiTagMask));
+  __ tst(tos, Operand(kSmiTagMask));
   leave.Branch(eq);
   // It is a heap object - get map. If (!object->IsJSValue()) return the object.
-  __ CompareObjectType(r0, r1, r1, JS_VALUE_TYPE);
+  __ CompareObjectType(tos, scratch, scratch, JS_VALUE_TYPE);
   leave.Branch(ne);
   // Load the value.
-  __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
+  __ ldr(tos, FieldMemOperand(tos, JSValue::kValueOffset));
   leave.Bind();
-  frame_->EmitPush(r0);
+  frame_->EmitPush(tos);
 }
 
 
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
-  ASSERT(args->length() == 2);
+  Register scratch1 = VirtualFrame::scratch0();
+  Register scratch2 = VirtualFrame::scratch1();
   JumpTarget leave;
+
+  ASSERT(args->length() == 2);
   Load(args->at(0));    // Load the object.
   Load(args->at(1));    // Load the value.
-  frame_->EmitPop(r0);  // r0 contains value
-  frame_->EmitPop(r1);  // r1 contains object
+  Register value = frame_->PopToRegister();
+  Register object = frame_->PopToRegister(value);
   // if (object->IsSmi()) return object.
-  __ tst(r1, Operand(kSmiTagMask));
+  __ tst(object, Operand(kSmiTagMask));
   leave.Branch(eq);
   // It is a heap object - get map. If (!object->IsJSValue()) return the object.
-  __ CompareObjectType(r1, r2, r2, JS_VALUE_TYPE);
+  __ CompareObjectType(object, scratch1, scratch1, JS_VALUE_TYPE);
   leave.Branch(ne);
   // Store the value.
-  __ str(r0, FieldMemOperand(r1, JSValue::kValueOffset));
+  __ str(value, FieldMemOperand(object, JSValue::kValueOffset));
   // Update the write barrier.
-  __ RecordWrite(r1, Operand(JSValue::kValueOffset - kHeapObjectTag), r2, r3);
+  __ RecordWrite(object,
+                 Operand(JSValue::kValueOffset - kHeapObjectTag),
+                 scratch1,
+                 scratch2);
   // Leave.
   leave.Bind();
-  frame_->EmitPush(r0);
+  frame_->EmitPush(value);
 }
 
 
