@@ -542,13 +542,6 @@ CpuProfile* CpuProfilesCollection::StopProfiling(int security_token_id,
 }
 
 
-CpuProfile* CpuProfilesCollection::StopProfiling(int security_token_id,
-                                                 String* title,
-                                                 double actual_sampling_rate) {
-  return StopProfiling(security_token_id, GetName(title), actual_sampling_rate);
-}
-
-
 CpuProfile* CpuProfilesCollection::GetProfile(int security_token_id,
                                               unsigned uid) {
   HashMap::Entry* entry = profiles_uids_.Lookup(reinterpret_cast<void*>(uid),
@@ -571,6 +564,15 @@ CpuProfile* CpuProfilesCollection::GetProfile(int security_token_id,
           unabridged_list->at(index)->FilteredClone(security_token_id);
   }
   return list->at(index);
+}
+
+
+bool CpuProfilesCollection::IsLastProfile(const char* title) {
+  // Called from VM thread, and only it can mutate the list,
+  // so no locking is needed here.
+  if (current_profiles_.length() != 1) return false;
+  return StrLength(title) == 0
+      || strcmp(current_profiles_[0]->title(), title) == 0;
 }
 
 

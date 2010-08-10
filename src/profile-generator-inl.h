@@ -97,13 +97,6 @@ void CodeMap::DeleteCode(Address addr) {
 }
 
 
-bool CpuProfilesCollection::is_last_profile() {
-  // Called from VM thread, and only it can mutate the list,
-  // so no locking is needed here.
-  return current_profiles_.length() == 1;
-}
-
-
 const char* CpuProfilesCollection::GetFunctionName(String* name) {
   return GetFunctionName(GetName(name));
 }

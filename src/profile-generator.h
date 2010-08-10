@@ -279,15 +279,12 @@ class CpuProfilesCollection {
   CpuProfile* StopProfiling(int security_token_id,
                             const char* title,
                             double actual_sampling_rate);
-  CpuProfile* StopProfiling(int security_token_id,
-                            String* title,
-                            double actual_sampling_rate);
   List<CpuProfile*>* Profiles(int security_token_id);
   const char* GetName(String* name) {
     return function_and_resource_names_.GetName(name);
   }
   CpuProfile* GetProfile(int security_token_id, unsigned uid);
-  inline bool is_last_profile();
+  bool IsLastProfile(const char* title);
 
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
                           String* name, String* resource_name, int line_number);
