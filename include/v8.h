@@ -919,6 +919,11 @@ class Value : public Data {
    */
   V8EXPORT bool IsDate() const;
 
+  /**
+   * Returns true if this value is a RegExp.
+   */
+  V8EXPORT bool IsRegExp() const;
+
   V8EXPORT Local<Boolean> ToBoolean() const;
   V8EXPORT Local<Number> ToNumber() const;
   V8EXPORT Local<String> ToString() const;

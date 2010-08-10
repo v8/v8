@@ -1792,6 +1792,13 @@ bool Value::IsDate() const {
 }
 
 
+bool Value::IsRegExp() const {
+  if (IsDeadCheck("v8::Value::IsRegExp()")) return false;
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return obj->IsJSRegExp();
+}
+
+
 Local<String> Value::ToString() const {
   if (IsDeadCheck("v8::Value::ToString()")) return Local<String>();
   LOG_API("ToString");
