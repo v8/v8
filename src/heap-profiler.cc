@@ -360,7 +360,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(String* name) {
 
 
 HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name) {
-  Heap::CollectAllGarbage(false);
+  Heap::CollectAllGarbage(true);
   HeapSnapshot* result = snapshots_->NewSnapshot(name, next_snapshot_uid_++);
   HeapSnapshotGenerator generator(result);
   generator.GenerateSnapshot();
