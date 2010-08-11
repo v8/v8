@@ -372,7 +372,7 @@ void Code::CodeIterateBody() {
       reinterpret_cast<Object**>(this->address() + kRelocationInfoOffset));
 
   for (; !it.done(); it.next()) {
-    it.rinfo()->Visit<StaticVisitor>();
+    it.rinfo()->template Visit<StaticVisitor>();
   }
 }
 
