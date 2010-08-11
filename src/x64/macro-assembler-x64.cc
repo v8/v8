@@ -782,8 +782,8 @@ void MacroAssembler::SmiCompare(Register dst, Smi* src) {
   if (src->value() == 0) {
     testq(dst, dst);
   } else {
-    Move(kScratchRegister, src);
-    cmpq(dst, kScratchRegister);
+    Register constant_reg = GetSmiConstant(src);
+    cmpq(dst, constant_reg);
   }
 }
 
