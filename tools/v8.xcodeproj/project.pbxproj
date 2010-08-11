@@ -249,6 +249,8 @@
 		C2BD4BDB120165A70046BF9F /* fixed-dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */; };
 		C2BD4BE4120166180046BF9F /* fixed-dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */; };
 		C2BD4BE51201661F0046BF9F /* dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD5120165460046BF9F /* dtoa.cc */; };
+		C2D1E9731212F2BC00187A52 /* objects-visiting.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2D1E9711212F27B00187A52 /* objects-visiting.cc */; };
+		C2D1E9741212F2CF00187A52 /* objects-visiting.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2D1E9711212F27B00187A52 /* objects-visiting.cc */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -632,6 +634,8 @@
 		C2BD4BD6120165460046BF9F /* dtoa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dtoa.h; sourceTree = "<group>"; };
 		C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "fixed-dtoa.cc"; sourceTree = "<group>"; };
 		C2BD4BDA120165A70046BF9F /* fixed-dtoa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "fixed-dtoa.h"; sourceTree = "<group>"; };
+		C2D1E9711212F27B00187A52 /* objects-visiting.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "objects-visiting.cc"; sourceTree = "<group>"; };
+		C2D1E9721212F27B00187A52 /* objects-visiting.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "objects-visiting.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -726,6 +730,8 @@
 				897FF0F80E719B8F00D62E90 /* allocation.cc */,
 				897FF0F90E719B8F00D62E90 /* allocation.h */,
 				897FF0FA0E719B8F00D62E90 /* api.cc */,
+				C2D1E9711212F27B00187A52 /* objects-visiting.cc */,
+				C2D1E9721212F27B00187A52 /* objects-visiting.h */,
 				897FF0FB0E719B8F00D62E90 /* api.h */,
 				893986D40F29020C007D5254 /* apiutils.h */,
 				897FF0FC0E719B8F00D62E90 /* arguments.h */,
@@ -1268,6 +1274,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C2D1E9731212F2BC00187A52 /* objects-visiting.cc in Sources */,
 				89A88DEC0E71A5FF0043BA31 /* accessors.cc in Sources */,
 				89A88DED0E71A6000043BA31 /* allocation.cc in Sources */,
 				89A88DEE0E71A6010043BA31 /* api.cc in Sources */,
@@ -1391,6 +1398,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C2D1E9741212F2CF00187A52 /* objects-visiting.cc in Sources */,
 				89F23C3F0E78D5B2006B2466 /* accessors.cc in Sources */,
 				89F23C400E78D5B2006B2466 /* allocation.cc in Sources */,
 				89F23C410E78D5B2006B2466 /* api.cc in Sources */,

@@ -396,6 +396,8 @@
         '../../src/natives.h',
         '../../src/objects-debug.cc',
         '../../src/objects-inl.h',
+        '../../src/objects-visiting.cc',
+        '../../src/objects-visiting.h',
         '../../src/objects.cc',
         '../../src/objects.h',
         '../../src/oprofile-agent.h',

@@ -706,6 +706,13 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\objects-visiting.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\objects-visiting.h"
+				>
+			<File
 				RelativePath="..\..\src\objects.cc"
 				>
 			</File>
