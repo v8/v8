@@ -2661,8 +2661,7 @@ void SharedFunctionInfo::set_scope_info(SerializedScopeInfo* value,
 
 
 bool SharedFunctionInfo::is_compiled() {
-  // TODO(1242782): Create a code kind for uncompiled code.
-  return code()->kind() != Code::STUB;
+  return code() != Builtins::builtin(Builtins::LazyCompile);
 }
 
 
@@ -2773,7 +2772,7 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code()->kind() != Code::STUB;
+  return code() != Builtins::builtin(Builtins::LazyCompile);
 }
 
 

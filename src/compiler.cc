@@ -494,7 +494,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // Generate code
   Handle<Code> code;
   if (FLAG_lazy && allow_lazy) {
-    code = ComputeLazyCompile(literal->num_parameters());
+    code = Handle<Code>(Builtins::builtin(Builtins::LazyCompile));
   } else {
     // The bodies of function literals have not yet been visited by
     // the AST optimizer/analyzer.

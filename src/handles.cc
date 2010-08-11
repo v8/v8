@@ -819,11 +819,6 @@ OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
 }
 
 
-Handle<Code> ComputeLazyCompile(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeLazyCompile(argc), Code);
-}
-
-
 OptimizedObjectForAddingMultipleProperties::
 ~OptimizedObjectForAddingMultipleProperties() {
   // Reoptimize the object to allow fast property access.

@@ -2504,8 +2504,7 @@ static void FlushCodeForFunction(JSFunction* function) {
   if (CodeIsActive(shared_info->code())) return;
 
   // Compute the lazy compilable version of the code.
-  HandleScope scope;
-  Code* code = *ComputeLazyCompile(shared_info->length());
+  Code* code = Builtins::builtin(Builtins::LazyCompile);
   shared_info->set_code(code);
   function->set_code(code);
 }
