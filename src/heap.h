@@ -983,8 +983,6 @@ class Heap : public AllStatic {
 
   static void RecordStats(HeapStats* stats, bool take_snapshot = false);
 
-  static Scavenger GetScavenger(int instance_type, int instance_size);
-
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
@@ -1725,6 +1723,7 @@ class GCTracer BASE_EMBEDDED {
       EXTERNAL,
       MC_MARK,
       MC_SWEEP,
+      MC_SWEEP_NEWSPACE,
       MC_COMPACT,
       MC_FLUSH_CODE,
       kNumberOfScopes

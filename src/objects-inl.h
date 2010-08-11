@@ -2060,21 +2060,8 @@ void ExternalFloatArray::set(int index, float value) {
   ptr[index] = value;
 }
 
-inline Scavenger Map::scavenger() {
-  Scavenger callback = reinterpret_cast<Scavenger>(
-      READ_INTPTR_FIELD(this, kScavengerCallbackOffset));
 
-  ASSERT(callback == Heap::GetScavenger(instance_type(),
-                                        instance_size()));
-
-  return callback;
-}
-
-inline void Map::set_scavenger(Scavenger callback) {
-  WRITE_INTPTR_FIELD(this,
-                     kScavengerCallbackOffset,
-                     reinterpret_cast<intptr_t>(callback));
-}
+INT_ACCESSORS(Map, visitor_id, kScavengerCallbackOffset)
 
 int Map::instance_size() {
   return READ_BYTE_FIELD(this, kInstanceSizeOffset) << kPointerSizeLog2;
@@ -2099,7 +2086,7 @@ int HeapObject::SizeFromMap(Map* map) {
       (kStringTag | kConsStringTag) ||
       instance_type == JS_ARRAY_TYPE) return map->instance_size();
   if (instance_type == FIXED_ARRAY_TYPE) {
-    return reinterpret_cast<FixedArray*>(this)->FixedArraySize();
+    return FixedArray::BodyDescriptor::SizeOf(map, this);
   }
   if (instance_type == BYTE_ARRAY_TYPE) {
     return reinterpret_cast<ByteArray*>(this)->ByteArraySize();
@@ -2819,12 +2806,6 @@ void Proxy::set_proxy(Address value) {
 }
 
 
-void Proxy::ProxyIterateBody(ObjectVisitor* visitor) {
-  visitor->VisitExternalReference(
-      reinterpret_cast<Address *>(FIELD_ADDR(this, kProxyOffset)));
-}
-
-
 ACCESSORS(JSValue, value, Object, kValueOffset)
 
 
@@ -3306,6 +3287,74 @@ Object* FixedArray::Copy() {
   if (length() == 0) return this;
   return Heap::CopyFixedArray(this);
 }
+
+
+int JSObject::BodyDescriptor::SizeOf(Map* map, HeapObject* object) {
+  return map->instance_size();
+}
+
+
+void Proxy::ProxyIterateBody(ObjectVisitor* v) {
+  v->VisitExternalReference(
+      reinterpret_cast<Address *>(FIELD_ADDR(this, kProxyOffset)));
+}
+
+
+template<typename StaticVisitor>
+void Proxy::ProxyIterateBody() {
+  StaticVisitor::VisitExternalReference(
+      reinterpret_cast<Address *>(FIELD_ADDR(this, kProxyOffset)));
+}
+
+
+void ExternalAsciiString::ExternalAsciiStringIterateBody(ObjectVisitor* v) {
+  typedef v8::String::ExternalAsciiStringResource Resource;
+  v->VisitExternalAsciiString(
+      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
+}
+
+
+template<typename StaticVisitor>
+void ExternalAsciiString::ExternalAsciiStringIterateBody() {
+  typedef v8::String::ExternalAsciiStringResource Resource;
+  StaticVisitor::VisitExternalAsciiString(
+      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
+}
+
+
+void ExternalTwoByteString::ExternalTwoByteStringIterateBody(ObjectVisitor* v) {
+  typedef v8::String::ExternalStringResource Resource;
+  v->VisitExternalTwoByteString(
+      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
+}
+
+
+template<typename StaticVisitor>
+void ExternalTwoByteString::ExternalTwoByteStringIterateBody() {
+  typedef v8::String::ExternalStringResource Resource;
+  StaticVisitor::VisitExternalTwoByteString(
+      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
+}
+
+#define SLOT_ADDR(obj, offset) \
+  reinterpret_cast<Object**>((obj)->address() + offset)
+
+template<int start_offset, int end_offset, int size>
+void FixedBodyDescriptor<start_offset, end_offset, size>::IterateBody(
+    HeapObject* obj,
+    ObjectVisitor* v) {
+    v->VisitPointers(SLOT_ADDR(obj, start_offset), SLOT_ADDR(obj, end_offset));
+}
+
+
+template<int start_offset>
+void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
+                                                       int object_size,
+                                                       ObjectVisitor* v) {
+  v->VisitPointers(SLOT_ADDR(obj, start_offset), SLOT_ADDR(obj, object_size));
+}
+
+#undef SLOT_ADDR
 
 
 #undef CAST_ACCESSOR

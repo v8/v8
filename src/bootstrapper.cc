@@ -36,6 +36,7 @@
 #include "global-handles.h"
 #include "macro-assembler.h"
 #include "natives.h"
+#include "objects-visiting.h"
 #include "snapshot.h"
 #include "stub-cache.h"
 
@@ -813,9 +814,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     initial_map->set_instance_size(
         initial_map->instance_size() + 5 * kPointerSize);
     initial_map->set_instance_descriptors(*descriptors);
-    initial_map->set_scavenger(
-        Heap::GetScavenger(initial_map->instance_type(),
-                           initial_map->instance_size()));
+    initial_map->set_visitor_id(StaticVisitorBase::GetVisitorId(*initial_map));
   }
 
   {  // -- J S O N

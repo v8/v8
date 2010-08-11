@@ -84,6 +84,7 @@ SOURCES = {
     mark-compact.cc
     messages.cc
     objects.cc
+    objects-visiting.cc
     oprofile-agent.cc
     parser.cc
     profile-generator.cc
