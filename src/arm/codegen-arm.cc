@@ -4564,22 +4564,18 @@ class DeferredStringCharCodeAt : public DeferredCode {
 // This generates code that performs a String.prototype.charCodeAt() call
 // or returns a smi in order to trigger conversion.
 void CodeGenerator::GenerateStringCharCodeAt(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment(masm_, "[ GenerateStringCharCodeAt");
   ASSERT(args->length() == 2);
 
   Load(args->at(0));
   Load(args->at(1));
 
-  Register index = r1;
-  Register object = r2;
-
-  frame_->EmitPop(r1);
-  frame_->EmitPop(r2);
+  Register index = frame_->PopToRegister();
+  Register object = frame_->PopToRegister(index);
 
   // We need two extra registers.
-  Register scratch = r3;
-  Register result = r0;
+  Register scratch = VirtualFrame::scratch0();
+  Register result = VirtualFrame::scratch1();
 
   DeferredStringCharCodeAt* deferred =
       new DeferredStringCharCodeAt(object,
@@ -4614,16 +4610,13 @@ class DeferredStringCharFromCode : public DeferredCode {
 
 // Generates code for creating a one-char string from a char code.
 void CodeGenerator::GenerateStringCharFromCode(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment(masm_, "[ GenerateStringCharFromCode");
   ASSERT(args->length() == 1);
 
   Load(args->at(0));
 
-  Register code = r1;
-  Register result = r0;
-
-  frame_->EmitPop(code);
+  Register result = frame_->GetTOSRegister();
+  Register code = frame_->PopToRegister(result);
 
   DeferredStringCharFromCode* deferred = new DeferredStringCharFromCode(
       code, result);
@@ -4685,23 +4678,20 @@ class DeferredStringCharAt : public DeferredCode {
 // This generates code that performs a String.prototype.charAt() call
 // or returns a smi in order to trigger conversion.
 void CodeGenerator::GenerateStringCharAt(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment(masm_, "[ GenerateStringCharAt");
   ASSERT(args->length() == 2);
 
   Load(args->at(0));
   Load(args->at(1));
 
-  Register index = r1;
-  Register object = r2;
-
-  frame_->EmitPop(r1);
-  frame_->EmitPop(r2);
+  Register index = frame_->PopToRegister();
+  Register object = frame_->PopToRegister(index);
 
   // We need three extra registers.
-  Register scratch1 = r3;
-  Register scratch2 = r4;
-  Register result = r0;
+  Register scratch1 = VirtualFrame::scratch0();
+  Register scratch2 = VirtualFrame::scratch1();
+  // Use r6 without notifying the virtual frame.
+  Register result = r6;
 
   DeferredStringCharAt* deferred =
       new DeferredStringCharAt(object,
@@ -4880,13 +4870,13 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   ASSERT(args->length() == 1);
 
   // Satisfy contract with ArgumentsAccessStub:
   // Load the key into r1 and the formal parameters count into r0.
   Load(args->at(0));
-  frame_->EmitPop(r1);
+  frame_->PopToR1();
+  frame_->SpillAll();
   __ mov(r0, Operand(Smi::FromInt(scope()->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
@@ -5114,9 +5104,7 @@ class DeferredSearchCache: public DeferredCode {
 void DeferredSearchCache::Generate() {
   __ Push(cache_, key_);
   __ CallRuntime(Runtime::kGetFromCache, 2);
-  if (!dst_.is(r0)) {
-    __ mov(dst_, r0);
-  }
+  __ Move(dst_, r0);
 }
 
 
@@ -5136,33 +5124,42 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
 
   Load(args->at(1));
 
-  VirtualFrame::SpilledScope spilled_scope(frame_);
+  frame_->PopToR1();
+  frame_->SpillAll();
+  Register key = r1;  // Just poped to r1
+  Register result = r0;  // Free, as frame has just been spilled.
+  Register scratch1 = VirtualFrame::scratch0();
+  Register scratch2 = VirtualFrame::scratch1();
 
-  frame_->EmitPop(r2);
+  __ ldr(scratch1, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ ldr(scratch1,
+         FieldMemOperand(scratch1, GlobalObject::kGlobalContextOffset));
+  __ ldr(scratch1,
+         ContextOperand(scratch1, Context::JSFUNCTION_RESULT_CACHES_INDEX));
+  __ ldr(scratch1,
+         FieldMemOperand(scratch1, FixedArray::OffsetOfElementAt(cache_id)));
 
-  __ ldr(r1, ContextOperand(cp, Context::GLOBAL_INDEX));
-  __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalContextOffset));
-  __ ldr(r1, ContextOperand(r1, Context::JSFUNCTION_RESULT_CACHES_INDEX));
-  __ ldr(r1, FieldMemOperand(r1, FixedArray::OffsetOfElementAt(cache_id)));
-
-  DeferredSearchCache* deferred = new DeferredSearchCache(r0, r1, r2);
+  DeferredSearchCache* deferred =
+      new DeferredSearchCache(result, scratch1, key);
 
   const int kFingerOffset =
       FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  __ ldr(r0, FieldMemOperand(r1, kFingerOffset));
-  // r0 now holds finger offset as a smi.
-  __ add(r3, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  // r3 now points to the start of fixed array elements.
-  __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2 - kSmiTagSize, PreIndex));
-  // Note side effect of PreIndex: r3 now points to the key of the pair.
-  __ cmp(r2, r0);
+  __ ldr(result, FieldMemOperand(scratch1, kFingerOffset));
+  // result now holds finger offset as a smi.
+  __ add(scratch2, scratch1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  // scratch2 now points to the start of fixed array elements.
+  __ ldr(result,
+         MemOperand(
+             scratch2, result, LSL, kPointerSizeLog2 - kSmiTagSize, PreIndex));
+  // Note side effect of PreIndex: scratch2 now points to the key of the pair.
+  __ cmp(key, result);
   deferred->Branch(ne);
 
-  __ ldr(r0, MemOperand(r3, kPointerSize));
+  __ ldr(result, MemOperand(scratch2, kPointerSize));
 
   deferred->BindExit();
-  frame_->EmitPush(r0);
+  frame_->EmitPush(result);
 }
 
 
@@ -10455,11 +10452,9 @@ void StringCharCodeAtGenerator::GenerateSlow(
     // NumberToSmi discards numbers that are not exact integers.
     __ CallRuntime(Runtime::kNumberToSmi, 1);
   }
-  if (!scratch_.is(r0)) {
-    // Save the conversion result before the pop instructions below
-    // have a chance to overwrite it.
-    __ mov(scratch_, r0);
-  }
+  // Save the conversion result before the pop instructions below
+  // have a chance to overwrite it.
+  __ Move(scratch_, r0);
   __ pop(index_);
   __ pop(object_);
   // Reload the instance type.
@@ -10478,9 +10473,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   call_helper.BeforeCall(masm);
   __ Push(object_, index_);
   __ CallRuntime(Runtime::kStringCharCodeAt, 2);
-  if (!result_.is(r0)) {
-    __ mov(result_, r0);
-  }
+  __ Move(result_, r0);
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
@@ -10521,9 +10514,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
   call_helper.BeforeCall(masm);
   __ push(code_);
   __ CallRuntime(Runtime::kCharFromCode, 1);
-  if (!result_.is(r0)) {
-    __ mov(result_, r0);
-  }
+  __ Move(result_, r0);
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
