@@ -2481,11 +2481,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   frame_->EmitPush(r0);
   frame_->EmitPush(r3);  // push entry
   frame_->InvokeBuiltin(Builtins::FILTER_KEY, CALL_JS, 2);
-  __ mov(r3, Operand(r0));
-
+  __ mov(r3, Operand(r0), SetCC);
   // If the property has been removed while iterating, we just skip it.
-  __ LoadRoot(ip, Heap::kNullValueRootIndex);
-  __ cmp(r3, ip);
   node->continue_target()->Branch(eq);
 
   end_del_check.Bind();

@@ -1053,7 +1053,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(rcx);  // Enumerable.
   __ push(rbx);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
-  __ CompareRoot(rax, Heap::kNullValueRootIndex);
+  __ SmiCompare(rax, Smi::FromInt(0));
   __ j(equal, loop_statement.continue_target());
   __ movq(rbx, rax);
 

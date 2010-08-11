@@ -1048,7 +1048,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(ecx);  // Enumerable.
   __ push(ebx);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
-  __ cmp(eax, Factory::null_value());
+  __ test(eax, Operand(eax));
   __ j(equal, loop_statement.continue_target());
   __ mov(ebx, Operand(eax));
 

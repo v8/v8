@@ -956,15 +956,13 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ cmp(r4, Operand(r2));
   __ b(eq, &update_each);
 
-  // Convert the entry to a string or null if it isn't a property
-  // anymore. If the property has been removed while iterating, we
+  // Convert the entry to a string or (smi) 0 if it isn't a property
+  // any more. If the property has been removed while iterating, we
   // just skip it.
   __ push(r1);  // Enumerable.
   __ push(r3);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_JS);
-  __ mov(r3, Operand(r0));
-  __ LoadRoot(ip, Heap::kNullValueRootIndex);
-  __ cmp(r3, ip);
+  __ mov(r3, Operand(r0), SetCC);
   __ b(eq, loop_statement.continue_target());
 
   // Update the 'each' property or variable from the possibly filtered

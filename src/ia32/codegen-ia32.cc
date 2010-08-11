@@ -4610,7 +4610,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ mov(ebx, Operand(eax));
 
   // If the property has been removed while iterating, we just skip it.
-  __ cmp(ebx, Factory::null_value());
+  __ test(ebx, Operand(ebx));
   node->continue_target()->Branch(equal);
 
   end_del_check.Bind();
