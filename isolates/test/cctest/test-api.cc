@@ -11256,12 +11256,15 @@ TEST(RunDefaultAndAnotherIsolate) {
   v8::Isolate* isolate = v8::Isolate::New();
   CHECK(isolate);
   isolate->Enter();
-  v8::HandleScope scope_new;
-  LocalContext context_new;
-
-  // Run something in new isolate.
-  CompileRun("var foo = 153;");
-  ExpectTrue("function f() { return foo == 153; }; f()");
+  { // Need this block because subsequent Exit() will deallocate Heap,
+    // so we need all scope objects to be deconstructed when it happens.
+    v8::HandleScope scope_new;
+    LocalContext context_new;
+  
+    // Run something in new isolate.
+    CompileRun("var foo = 153;");
+    ExpectTrue("function f() { return foo == 153; }; f()");
+  }
   isolate->Exit();
 
   // This runs automatically in default isolate.

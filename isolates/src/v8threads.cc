@@ -341,7 +341,8 @@ void ThreadManager::FreeThreadResources() {
 
 
 bool ThreadManager::IsArchived() {
-  return Isolate::CurrentPerIsolateThreadData()->thread_state() != NULL;
+  Isolate::PerIsolateThreadData* data = Isolate::CurrentPerIsolateThreadData();
+  return data != NULL && data->thread_state() != NULL;
 }
 
 

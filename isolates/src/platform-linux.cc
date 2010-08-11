@@ -748,7 +748,7 @@ static inline bool IsVmThread() {
   if (isolate == NULL) return false;
 
   ThreadManager* thread_manager = isolate->thread_manager();
-  if (thread_manager->HasId() && !thread_manager->IsArchived() &&
+  if (!thread_manager->IsArchived() &&
       thread_manager->CurrentId() == isolate->thread_id()) {
     return true;
   }
