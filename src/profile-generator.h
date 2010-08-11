@@ -689,6 +689,8 @@ class HeapSnapshot {
   bool entries_sorted_;
   List<HeapEntryCalculatedData> calculated_data_;
 
+  friend class HeapSnapshotTester;
+
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshot);
 };
 

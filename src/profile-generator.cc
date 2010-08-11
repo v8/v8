@@ -1379,10 +1379,10 @@ int HeapSnapshot::CalculateNetworkSize(JSObject* obj) {
   int size = obj->Size();
   // If 'properties' and 'elements' are non-empty (thus, non-shared),
   // take their size into account.
-  if (FixedArray::cast(obj->properties())->length() != 0) {
+  if (obj->properties() != Heap::empty_fixed_array()) {
     size += obj->properties()->Size();
   }
-  if (FixedArray::cast(obj->elements())->length() != 0) {
+  if (obj->elements() != Heap::empty_fixed_array()) {
     size += obj->elements()->Size();
   }
   // For functions, also account non-empty context and literals sizes.

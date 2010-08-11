@@ -833,4 +833,35 @@ TEST(HeapSnapshotsDiff) {
   CHECK(s1_A_id != s2_A_id);
 }
 
+
+namespace v8 {
+namespace internal {
+
+class HeapSnapshotTester {
+ public:
+  static int CalculateNetworkSize(JSObject* obj) {
+    return HeapSnapshot::CalculateNetworkSize(obj);
+  }
+};
+
+} }  // namespace v8::internal
+
+// http://code.google.com/p/v8/issues/detail?id=822
+// Trying to call CalculateNetworkSize on an object with elements set
+// to non-FixedArray may cause an assertion error in debug builds.
+TEST(Issue822) {
+  v8::HandleScope scope;
+  LocalContext context;
+  const int kElementCount = 260;
+  uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
+  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(kElementCount,
+                                                              pixel_data);
+  v8::Handle<v8::Object> obj = v8::Object::New();
+  // Set the elements to be the pixels.
+  obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
+  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
+  // This call must not cause an assertion error in debug builds.
+  i::HeapSnapshotTester::CalculateNetworkSize(*jsobj);
+}
+
 #endif  // ENABLE_LOGGING_AND_PROFILING
