@@ -1330,7 +1330,7 @@ Object* JSObject::AddConstantFunctionProperty(String* name,
   if (attributes != NONE) {
     return function;
   }
-  ConstTransitionDescriptor mark(name);
+  ConstTransitionDescriptor mark(name, Map::cast(new_map));
   new_descriptors =
       old_map->instance_descriptors()->CopyInsert(&mark, KEEP_TRANSITIONS);
   if (new_descriptors->IsFailure()) {
@@ -1688,11 +1688,7 @@ bool JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
 
 void JSObject::LookupInDescriptor(String* name, LookupResult* result) {
   DescriptorArray* descriptors = map()->instance_descriptors();
-  int number = DescriptorLookupCache::Lookup(descriptors, name);
-  if (number == DescriptorLookupCache::kAbsent) {
-    number = descriptors->Search(name);
-    DescriptorLookupCache::Update(descriptors, name, number);
-  }
+  int number = descriptors->SearchWithCache(name);
   if (number != DescriptorArray::kNotFound) {
     result->DescriptorResult(this, descriptors->GetDetails(number), number);
   } else {
@@ -1889,10 +1885,25 @@ Object* JSObject::SetProperty(LookupResult* result,
                                      result->holder());
     case INTERCEPTOR:
       return SetPropertyWithInterceptor(name, value, attributes);
-    case CONSTANT_TRANSITION:
-      // Replace with a MAP_TRANSITION to a new map with a FIELD, even
-      // if the value is a function.
+    case CONSTANT_TRANSITION: {
+      // If the same constant function is being added we can simply
+      // transition to the target map.
+      Map* target_map = result->GetTransitionMap();
+      DescriptorArray* target_descriptors = target_map->instance_descriptors();
+      int number = target_descriptors->SearchWithCache(name);
+      ASSERT(number != DescriptorArray::kNotFound);
+      ASSERT(target_descriptors->GetType(number) == CONSTANT_FUNCTION);
+      JSFunction* function =
+          JSFunction::cast(target_descriptors->GetValue(number));
+      ASSERT(!Heap::InNewSpace(function));
+      if (value == function) {
+        set_map(target_map);
+        return value;
+      }
+      // Otherwise, replace with a MAP_TRANSITION to a new map with a
+      // FIELD, even if the value is a constant function.
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
+    }
     case NULL_DESCRIPTOR:
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     default:
@@ -4936,7 +4947,8 @@ void String::PrintOn(FILE* file) {
 void Map::CreateBackPointers() {
   DescriptorArray* descriptors = instance_descriptors();
   for (int i = 0; i < descriptors->number_of_descriptors(); i++) {
-    if (descriptors->GetType(i) == MAP_TRANSITION) {
+    if (descriptors->GetType(i) == MAP_TRANSITION ||
+        descriptors->GetType(i) == CONSTANT_TRANSITION) {
       // Get target.
       Map* target = Map::cast(descriptors->GetValue(i));
 #ifdef DEBUG
@@ -4977,7 +4989,8 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
     // map is not reached again by following a back pointer from a
     // non-live object.
     PropertyDetails details(Smi::cast(contents->get(i + 1)));
-    if (details.type() == MAP_TRANSITION) {
+    if (details.type() == MAP_TRANSITION ||
+        details.type() == CONSTANT_TRANSITION) {
       Map* target = reinterpret_cast<Map*>(contents->get(i));
       ASSERT(target->IsHeapObject());
       if (!target->IsMarked()) {

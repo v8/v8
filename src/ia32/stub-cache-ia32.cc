@@ -1571,6 +1571,9 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
+  // If object is not a string, bail out to regular call.
+  if (!object->IsString()) return Heap::undefined_value();
+
   const int argc = arguments().immediate();
 
   Label miss;
@@ -1581,6 +1584,7 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
                                             eax);
+  ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, edi, name, &miss);
 
@@ -1635,6 +1639,9 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
+  // If object is not a string, bail out to regular call.
+  if (!object->IsString()) return Heap::undefined_value();
+
   const int argc = arguments().immediate();
 
   Label miss;
@@ -1646,6 +1653,7 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
                                             eax);
+  ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, edi, name, &miss);
 

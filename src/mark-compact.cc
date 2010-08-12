@@ -554,10 +554,11 @@ void MarkCompactCollector::MarkDescriptorArray(
   ASSERT(contents->IsFixedArray());
   ASSERT(contents->length() >= 2);
   SetMark(contents);
-  // Contents contains (value, details) pairs.  If the details say
-  // that the type of descriptor is MAP_TRANSITION, CONSTANT_TRANSITION,
-  // or NULL_DESCRIPTOR, we don't mark the value as live.  Only for
-  // type MAP_TRANSITION is the value a Object* (a Map*).
+  // Contents contains (value, details) pairs.  If the details say that
+  // the type of descriptor is MAP_TRANSITION, CONSTANT_TRANSITION, or
+  // NULL_DESCRIPTOR, we don't mark the value as live.  Only for
+  // MAP_TRANSITION and CONSTANT_TRANSITION is the value an Object* (a
+  // Map*).
   for (int i = 0; i < contents->length(); i += 2) {
     // If the pair (value, details) at index i, i+1 is not
     // a transition or null descriptor, mark the value.

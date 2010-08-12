@@ -1493,6 +1493,16 @@ int DescriptorArray::Search(String* name) {
 }
 
 
+int DescriptorArray::SearchWithCache(String* name) {
+  int number = DescriptorLookupCache::Lookup(this, name);
+  if (number == DescriptorLookupCache::kAbsent) {
+    number = Search(name);
+    DescriptorLookupCache::Update(this, name, number);
+  }
+  return number;
+}
+
+
 String* DescriptorArray::GetKey(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return String::cast(get(ToKeyIndex(descriptor_number)));

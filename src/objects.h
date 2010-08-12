@@ -1865,6 +1865,10 @@ class DescriptorArray: public FixedArray {
   // Search the instance descriptors for given name.
   inline int Search(String* name);
 
+  // As the above, but uses DescriptorLookupCache and updates it when
+  // necessary.
+  inline int SearchWithCache(String* name);
+
   // Tells whether the name is present int the array.
   bool Contains(String* name) { return kNotFound != Search(name); }
 
