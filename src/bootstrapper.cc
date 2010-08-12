@@ -1234,6 +1234,14 @@ bool Genesis::InstallNatives() {
 
   InstallNativeFunctions();
 
+  // Store the map for the string prototype after the natives has been compiled
+  // and the String function has been setup.
+  Handle<JSFunction> string_function(global_context()->string_function());
+  ASSERT(JSObject::cast(
+      string_function->initial_map()->prototype())->HasFastProperties());
+  global_context()->set_string_function_prototype_map(
+      HeapObject::cast(string_function->initial_map()->prototype())->map());
+
   InstallCustomCallGenerators();
 
   // Install Function.prototype.call and apply.

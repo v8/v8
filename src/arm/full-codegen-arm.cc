@@ -1957,6 +1957,26 @@ void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
 }
 
 
+void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
+    ZoneList<Expression*>* args) {
+
+  ASSERT(args->length() == 1);
+
+  VisitForValue(args->at(0), kAccumulator);
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+
+  // Just indicate false, as %_IsStringWrapperSafeForDefaultValueOf() is only
+  // used in a few functions in runtime.js which should not normally be hit by
+  // this compiler.
+  __ jmp(if_false);
+  Apply(context_, if_true, if_false);
+}
+
+
 void FullCodeGenerator::EmitIsFunction(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 

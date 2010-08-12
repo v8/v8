@@ -6040,6 +6040,143 @@ void CodeGenerator::GenerateIsSpecObject(ZoneList<Expression*>* args) {
 }
 
 
+// Deferred code to check whether the String JavaScript object is safe for using
+// default value of. This code is called after the bit caching this information
+// in the map has been checked with the map for the object in the map_result_
+// register. On return the register map_result_ contains 1 for true and 0 for
+// false.
+class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
+ public:
+  DeferredIsStringWrapperSafeForDefaultValueOf(Register object,
+                                               Register map_result,
+                                               Register scratch1,
+                                               Register scratch2)
+      : object_(object),
+        map_result_(map_result),
+        scratch1_(scratch1),
+        scratch2_(scratch2) { }
+
+  virtual void Generate() {
+    Label false_result;
+
+    // Check that map is loaded as expected.
+    if (FLAG_debug_code) {
+      __ cmpq(map_result_, FieldOperand(object_, HeapObject::kMapOffset));
+      __ Assert(equal, "Map not in expected register");
+    }
+
+    // Check for fast case object. Generate false result for slow case object.
+    __ movq(scratch1_, FieldOperand(object_, JSObject::kPropertiesOffset));
+    __ movq(scratch1_, FieldOperand(scratch1_, HeapObject::kMapOffset));
+    __ CompareRoot(scratch1_, Heap::kHashTableMapRootIndex);
+    __ j(equal, &false_result);
+
+    // Look for valueOf symbol in the descriptor array, and indicate false if
+    // found. The type is not checked, so if it is a transition it is a false
+    // negative.
+    __ movq(map_result_,
+           FieldOperand(map_result_, Map::kInstanceDescriptorsOffset));
+    __ movq(scratch1_, FieldOperand(map_result_, FixedArray::kLengthOffset));
+    // map_result_: descriptor array
+    // scratch1_: length of descriptor array
+    // Calculate the end of the descriptor array.
+    SmiIndex index = masm_->SmiToIndex(scratch2_, scratch1_, kPointerSizeLog2);
+    __ lea(scratch1_,
+           Operand(
+               map_result_, index.reg, index.scale, FixedArray::kHeaderSize));
+    // Calculate location of the first key name.
+    __ addq(map_result_,
+            Immediate(FixedArray::kHeaderSize +
+                      DescriptorArray::kFirstIndex * kPointerSize));
+    // Loop through all the keys in the descriptor array. If one of these is the
+    // symbol valueOf the result is false.
+    Label entry, loop;
+    __ jmp(&entry);
+    __ bind(&loop);
+    __ movq(scratch2_, FieldOperand(map_result_, 0));
+    __ Cmp(scratch2_, Factory::value_of_symbol());
+    __ j(equal, &false_result);
+    __ addq(map_result_, Immediate(kPointerSize));
+    __ bind(&entry);
+    __ cmpq(map_result_, scratch1_);
+    __ j(not_equal, &loop);
+
+    // Reload map as register map_result_ was used as temporary above.
+    __ movq(map_result_, FieldOperand(object_, HeapObject::kMapOffset));
+
+    // If a valueOf property is not found on the object check that it's
+    // prototype is the un-modified String prototype. If not result is false.
+    __ movq(scratch1_, FieldOperand(map_result_, Map::kPrototypeOffset));
+    __ testq(scratch1_, Immediate(kSmiTagMask));
+    __ j(zero, &false_result);
+    __ movq(scratch1_, FieldOperand(scratch1_, HeapObject::kMapOffset));
+    __ movq(scratch2_,
+            Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ movq(scratch2_,
+            FieldOperand(scratch2_, GlobalObject::kGlobalContextOffset));
+    __ cmpq(scratch1_,
+            CodeGenerator::ContextOperand(
+                scratch2_, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
+    __ j(not_equal, &false_result);
+    // Set the bit in the map to indicate that it has been checked safe for
+    // default valueOf and set true result.
+    __ or_(FieldOperand(map_result_, Map::kBitField2Offset),
+           Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
+    __ Set(map_result_, 1);
+    __ jmp(exit_label());
+    __ bind(&false_result);
+    // Set false result.
+    __ Set(map_result_, 0);
+  }
+
+ private:
+  Register object_;
+  Register map_result_;
+  Register scratch1_;
+  Register scratch2_;
+};
+
+
+void CodeGenerator::GenerateIsStringWrapperSafeForDefaultValueOf(
+    ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();  // Pop the string wrapper.
+  obj.ToRegister();
+  ASSERT(obj.is_valid());
+  if (FLAG_debug_code) {
+    __ AbortIfSmi(obj.reg());
+  }
+
+  // Check whether this map has already been checked to be safe for default
+  // valueOf.
+  Result map_result = allocator()->Allocate();
+  ASSERT(map_result.is_valid());
+  __ movq(map_result.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  __ testb(FieldOperand(map_result.reg(), Map::kBitField2Offset),
+           Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
+  destination()->true_target()->Branch(not_zero);
+
+  // We need an additional two scratch registers for the deferred code.
+  Result temp1 = allocator()->Allocate();
+  ASSERT(temp1.is_valid());
+  Result temp2 = allocator()->Allocate();
+  ASSERT(temp2.is_valid());
+
+  DeferredIsStringWrapperSafeForDefaultValueOf* deferred =
+      new DeferredIsStringWrapperSafeForDefaultValueOf(
+          obj.reg(), map_result.reg(), temp1.reg(), temp2.reg());
+  deferred->Branch(zero);
+  deferred->BindExit();
+  __ testq(map_result.reg(), map_result.reg());
+  obj.Unuse();
+  map_result.Unuse();
+  temp1.Unuse();
+  temp2.Unuse();
+  destination()->Split(not_equal);
+}
+
+
 void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
   // This generates a fast version of:
   // (%_ClassOf(arg) === 'Function')

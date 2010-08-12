@@ -3207,6 +3207,7 @@ class Map: public HeapObject {
   static const int kIsExtensible = 0;
   static const int kFunctionWithPrototype = 1;
   static const int kHasFastElements = 2;
+  static const int kStringWrapperSafeForDefaultValueOf = 3;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;

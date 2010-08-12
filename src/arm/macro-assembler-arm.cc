@@ -1655,6 +1655,13 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
 }
 
 
+void MacroAssembler::AbortIfSmi(Register object) {
+  ASSERT_EQ(0, kSmiTag);
+  tst(object, Operand(kSmiTagMask));
+  Assert(ne, "Operand is a smi");
+}
+
+
 void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
     Register first,
     Register second,

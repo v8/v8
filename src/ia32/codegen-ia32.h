@@ -358,6 +358,10 @@ class CodeGenerator: public AstVisitor {
     return FieldOperand(array, index_as_smi, times_half_pointer_size, offset);
   }
 
+  static Operand ContextOperand(Register context, int index) {
+    return Operand(context, Context::SlotOffset(index));
+  }
+
  private:
   // Construction/Destruction
   explicit CodeGenerator(MacroAssembler* masm);
@@ -429,10 +433,6 @@ class CodeGenerator: public AstVisitor {
 
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
-
-  static Operand ContextOperand(Register context, int index) {
-    return Operand(context, Context::SlotOffset(index));
-  }
 
   Operand SlotOperand(Slot* slot, Register tmp);
 
@@ -653,6 +653,8 @@ class CodeGenerator: public AstVisitor {
   void GenerateIsSpecObject(ZoneList<Expression*>* args);
   void GenerateIsFunction(ZoneList<Expression*>* args);
   void GenerateIsUndetectableObject(ZoneList<Expression*>* args);
+  void GenerateIsStringWrapperSafeForDefaultValueOf(
+      ZoneList<Expression*>* args);
 
   // Support for construct call checks.
   void GenerateIsConstructCall(ZoneList<Expression*>* args);

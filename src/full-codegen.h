@@ -408,6 +408,8 @@ class FullCodeGenerator: public AstVisitor {
   void EmitIsArray(ZoneList<Expression*>* arguments);
   void EmitIsRegExp(ZoneList<Expression*>* arguments);
   void EmitIsConstructCall(ZoneList<Expression*>* arguments);
+  void EmitIsStringWrapperSafeForDefaultValueOf(
+      ZoneList<Expression*>* arguments);
   void EmitObjectEquals(ZoneList<Expression*>* arguments);
   void EmitArguments(ZoneList<Expression*>* arguments);
   void EmitArgumentsLength(ZoneList<Expression*>* arguments);

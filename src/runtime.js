@@ -175,7 +175,7 @@ function ADD(x) {
 // Left operand (this) is already a string.
 function STRING_ADD_LEFT(y) {
   if (!IS_STRING(y)) {
-    if (IS_STRING_WRAPPER(y)) {
+    if (IS_STRING_WRAPPER(y) && %_IsStringWrapperSafeForDefaultValueOf(y)) {
       y = %_ValueOf(y);
     } else {
       y = IS_NUMBER(y)
@@ -191,7 +191,7 @@ function STRING_ADD_LEFT(y) {
 function STRING_ADD_RIGHT(y) {
   var x = this;
   if (!IS_STRING(x)) {
-    if (IS_STRING_WRAPPER(x)) {
+    if (IS_STRING_WRAPPER(x) && %_IsStringWrapperSafeForDefaultValueOf(x)) {
       x = %_ValueOf(x);
     } else {
       x = IS_NUMBER(x)

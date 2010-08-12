@@ -1977,10 +1977,17 @@ void MacroAssembler::AbortIfNotNumber(Register object) {
 }
 
 
+void MacroAssembler::AbortIfSmi(Register object) {
+  Label ok;
+  Condition is_smi = CheckSmi(object);
+  Assert(NegateCondition(is_smi), "Operand is a smi");
+}
+
+
 void MacroAssembler::AbortIfNotSmi(Register object) {
   Label ok;
   Condition is_smi = CheckSmi(object);
-  Assert(is_smi, "Operand not a smi");
+  Assert(is_smi, "Operand is not a smi");
 }
 
 

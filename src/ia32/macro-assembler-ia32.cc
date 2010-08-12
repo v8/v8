@@ -373,13 +373,13 @@ void MacroAssembler::AbortIfNotNumber(Register object) {
 
 void MacroAssembler::AbortIfNotSmi(Register object) {
   test(object, Immediate(kSmiTagMask));
-  Assert(equal, "Operand not a smi");
+  Assert(equal, "Operand is not a smi");
 }
 
 
 void MacroAssembler::AbortIfSmi(Register object) {
   test(object, Immediate(kSmiTagMask));
-  Assert(not_equal, "Operand a smi");
+  Assert(not_equal, "Operand is a smi");
 }
 
 

@@ -6760,7 +6760,7 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
 }
 
 
-  void CodeGenerator::GenerateIsSpecObject(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateIsSpecObject(ZoneList<Expression*>* args) {
   // This generates a fast version of:
   // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp' ||
   // typeof(arg) == function).
@@ -6778,6 +6778,143 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   __ CmpObjectType(value.reg(), FIRST_JS_OBJECT_TYPE, value.reg());
   value.Unuse();
   destination()->Split(above_equal);
+}
+
+
+// Deferred code to check whether the String JavaScript object is safe for using
+// default value of. This code is called after the bit caching this information
+// in the map has been checked with the map for the object in the map_result_
+// register. On return the register map_result_ contains 1 for true and 0 for
+// false.
+class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
+ public:
+  DeferredIsStringWrapperSafeForDefaultValueOf(Register object,
+                                               Register map_result,
+                                               Register scratch1,
+                                               Register scratch2)
+      : object_(object),
+        map_result_(map_result),
+        scratch1_(scratch1),
+        scratch2_(scratch2) { }
+
+  virtual void Generate() {
+    Label false_result;
+
+    // Check that map is loaded as expected.
+    if (FLAG_debug_code) {
+      __ cmp(map_result_, FieldOperand(object_, HeapObject::kMapOffset));
+      __ Assert(equal, "Map not in expected register");
+    }
+
+    // Check for fast case object. Generate false result for slow case object.
+    __ mov(scratch1_, FieldOperand(object_, JSObject::kPropertiesOffset));
+    __ mov(scratch1_, FieldOperand(scratch1_, HeapObject::kMapOffset));
+    __ cmp(scratch1_, Factory::hash_table_map());
+    __ j(equal, &false_result);
+
+    // Look for valueOf symbol in the descriptor array, and indicate false if
+    // found. The type is not checked, so if it is a transition it is a false
+    // negative.
+    __ mov(map_result_,
+           FieldOperand(map_result_, Map::kInstanceDescriptorsOffset));
+    __ mov(scratch1_, FieldOperand(map_result_, FixedArray::kLengthOffset));
+    // map_result_: descriptor array
+    // scratch1_: length of descriptor array
+    // Calculate the end of the descriptor array.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize == 1);
+    STATIC_ASSERT(kPointerSize == 4);
+    __ lea(scratch1_,
+           Operand(map_result_, scratch1_, times_2, FixedArray::kHeaderSize));
+    // Calculate location of the first key name.
+    __ add(Operand(map_result_),
+           Immediate(FixedArray::kHeaderSize +
+                     DescriptorArray::kFirstIndex * kPointerSize));
+    // Loop through all the keys in the descriptor array. If one of these is the
+    // symbol valueOf the result is false.
+    Label entry, loop;
+    __ jmp(&entry);
+    __ bind(&loop);
+    __ mov(scratch2_, FieldOperand(map_result_, 0));
+    __ cmp(scratch2_, Factory::value_of_symbol());
+    __ j(equal, &false_result);
+    __ add(Operand(map_result_), Immediate(kPointerSize));
+    __ bind(&entry);
+    __ cmp(map_result_, Operand(scratch1_));
+    __ j(not_equal, &loop);
+
+    // Reload map as register map_result_ was used as temporary above.
+    __ mov(map_result_, FieldOperand(object_, HeapObject::kMapOffset));
+
+    // If a valueOf property is not found on the object check that it's
+    // prototype is the un-modified String prototype. If not result is false.
+    __ mov(scratch1_, FieldOperand(map_result_, Map::kPrototypeOffset));
+    __ test(scratch1_, Immediate(kSmiTagMask));
+    __ j(zero, &false_result);
+    __ mov(scratch1_, FieldOperand(scratch1_, HeapObject::kMapOffset));
+    __ mov(scratch2_, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ mov(scratch2_,
+           FieldOperand(scratch2_, GlobalObject::kGlobalContextOffset));
+    __ cmp(scratch1_,
+           CodeGenerator::ContextOperand(
+               scratch2_, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
+    __ j(not_equal, &false_result);
+    // Set the bit in the map to indicate that it has been checked safe for
+    // default valueOf and set true result.
+    __ or_(FieldOperand(map_result_, Map::kBitField2Offset),
+           Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
+    __ Set(map_result_, Immediate(1));
+    __ jmp(exit_label());
+    __ bind(&false_result);
+    // Set false result.
+    __ Set(map_result_, Immediate(0));
+  }
+
+ private:
+  Register object_;
+  Register map_result_;
+  Register scratch1_;
+  Register scratch2_;
+};
+
+
+void CodeGenerator::GenerateIsStringWrapperSafeForDefaultValueOf(
+    ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();  // Pop the string wrapper.
+  obj.ToRegister();
+  ASSERT(obj.is_valid());
+  if (FLAG_debug_code) {
+    __ AbortIfSmi(obj.reg());
+  }
+
+  // Check whether this map has already been checked to be safe for default
+  // valueOf.
+  Result map_result = allocator()->Allocate();
+  ASSERT(map_result.is_valid());
+  __ mov(map_result.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  __ test_b(FieldOperand(map_result.reg(), Map::kBitField2Offset),
+            1 << Map::kStringWrapperSafeForDefaultValueOf);
+  destination()->true_target()->Branch(not_zero);
+
+  // We need an additional two scratch registers for the deferred code.
+  Result temp1 = allocator()->Allocate();
+  ASSERT(temp1.is_valid());
+  Result temp2 = allocator()->Allocate();
+  ASSERT(temp2.is_valid());
+
+  DeferredIsStringWrapperSafeForDefaultValueOf* deferred =
+      new DeferredIsStringWrapperSafeForDefaultValueOf(
+          obj.reg(), map_result.reg(), temp1.reg(), temp2.reg());
+  deferred->Branch(zero);
+  deferred->BindExit();
+  __ test(map_result.reg(), Operand(map_result.reg()));
+  obj.Unuse();
+  map_result.Unuse();
+  temp1.Unuse();
+  temp2.Unuse();
+  destination()->Split(not_equal);
 }
 
 
