@@ -259,10 +259,9 @@ void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
 // There is no calling conventions here, because it never actually gets called,
 // it only gets returned to.
 // Frame structure (conforms InternalFrame structure):
-//   -- JSFunction
 //   -- code
 //   -- SMI maker
-//   -- context
+//   -- function (slot is called "context")
 //   -- frame base
 void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   ExternalReference restarter_frame_function_slot =
@@ -270,15 +269,13 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ mov(Operand::StaticVariable(restarter_frame_function_slot), Immediate(0));
 
   // We do not know our frame height, but set esp based on ebp.
-  __ lea(esp, Operand(ebp, -4 * kPointerSize));
+  __ lea(esp, Operand(ebp, -1 * kPointerSize));
 
-  __ pop(edi);  // function
-
-  // Skip code self-reference and marker.
-  __ add(Operand(esp), Immediate(2 * kPointerSize));
-
-  __ pop(esi);  // Context.
+  __ pop(edi);  // Function.
   __ pop(ebp);
+
+  // Load context from the function.
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Get function code.
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
@@ -299,16 +296,19 @@ Object** Debug::SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
   ASSERT(bottom_js_frame->is_java_script());
 
   Address fp = bottom_js_frame->fp();
-  Memory::Object_at(fp - 4 * kPointerSize) =
-      Memory::Object_at(fp - 2 * kPointerSize);  // Move edi (function).
+
+  // Move function pointer into slot that is called referenced
+  // as StandardFrame::context()
+  Memory::Object_at(fp - 1 * kPointerSize) =
+      Memory::Object_at(fp - 2 * kPointerSize);
 
   Memory::Object_at(fp - 3 * kPointerSize) = *code;
   Memory::Object_at(fp - 2 * kPointerSize) = Smi::FromInt(StackFrame::INTERNAL);
 
-  return reinterpret_cast<Object**>(&Memory::Object_at(fp - 4 * kPointerSize));
+  return reinterpret_cast<Object**>(&Memory::Object_at(fp - 1 * kPointerSize));
 }
 
-const int Debug::kFrameDropperFrameSize = 5;
+const int Debug::kFrameDropperFrameSize = 4;
 
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
