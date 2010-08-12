@@ -107,9 +107,6 @@ PropertyDetails PropertyDetails::AsDeleted() {
   }
 
 
-#define GET_HEAP (HeapObject::cast(this)->GetHeap())
-
-
 bool Object::IsInstanceOf(FunctionTemplateInfo* expected) {
   // There is a constraint on the object; check.
   if (!this->IsJSObject()) return false;
@@ -451,22 +448,27 @@ bool Object::IsDescriptorArray() {
 
 
 bool Object::IsContext() {
-  return Object::IsHeapObject()
-    && (HeapObject::cast(this)->map() == GET_HEAP->context_map() ||
-        HeapObject::cast(this)->map() == GET_HEAP->catch_context_map() ||
-        HeapObject::cast(this)->map() == GET_HEAP->global_context_map());
+  if (Object::IsHeapObject()) {
+    Heap* heap = HeapObject::cast(this)->GetHeap();
+    return (HeapObject::cast(this)->map() == heap->context_map() ||
+            HeapObject::cast(this)->map() == heap->catch_context_map() ||
+            HeapObject::cast(this)->map() == heap->global_context_map());
+  }
+  return false;
 }
 
 
 bool Object::IsCatchContext() {
-  return Object::IsHeapObject()
-    && HeapObject::cast(this)->map() == GET_HEAP->catch_context_map();
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->catch_context_map();
 }
 
 
 bool Object::IsGlobalContext() {
-  return Object::IsHeapObject()
-    && HeapObject::cast(this)->map() == GET_HEAP->global_context_map();
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->global_context_map();
 }
 
 
@@ -548,18 +550,21 @@ template <> inline bool Is<JSArray>(Object* obj) {
 
 
 bool Object::IsHashTable() {
-  return Object::IsHeapObject()
-    && HeapObject::cast(this)->map() == GET_HEAP->hash_table_map();
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->hash_table_map();
 }
 
 
 bool Object::IsDictionary() {
-  return IsHashTable() && this != GET_HEAP->symbol_table();
+  return IsHashTable() && this !=
+         HeapObject::cast(this)->GetHeap()->symbol_table();
 }
 
 
 bool Object::IsSymbolTable() {
-  return IsHashTable() && this == GET_HEAP->raw_unchecked_symbol_table();
+  return IsHashTable() && this ==
+         HeapObject::cast(this)->GetHeap()->raw_unchecked_symbol_table();
 }
 
 
@@ -1472,7 +1477,7 @@ void FixedArray::set_undefined(Heap* heap, int index) {
 
 
 void FixedArray::set_null(int index) {
-  set_null(GetHeap(),index);
+  set_null(GetHeap(), index);
 }
 
 
@@ -2100,7 +2105,7 @@ inline Scavenger Map::scavenger() {
   Scavenger callback = reinterpret_cast<Scavenger>(
       READ_INTPTR_FIELD(this, kScavengerCallbackOffset));
 
-  ASSERT(instance_type() != MAP_TYPE); // MAP_TYPE has Heap pointer instead.
+  ASSERT(instance_type() != MAP_TYPE);  // MAP_TYPE has Heap pointer instead.
   ASSERT(callback == Heap::GetScavenger(instance_type(),
                                         instance_size()));
 
@@ -2108,7 +2113,7 @@ inline Scavenger Map::scavenger() {
 }
 
 inline void Map::set_scavenger(Scavenger callback) {
-  ASSERT(instance_type() != MAP_TYPE); // MAP_TYPE has Heap pointer instead.
+  ASSERT(instance_type() != MAP_TYPE);  // MAP_TYPE has Heap pointer instead.
   WRITE_INTPTR_FIELD(this,
                      kScavengerCallbackOffset,
                      reinterpret_cast<intptr_t>(callback));

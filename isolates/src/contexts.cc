@@ -76,6 +76,7 @@ void Context::set_global_proxy(JSObject* object) {
 
 Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
                                int* index_, PropertyAttributes* attributes) {
+  Heap* heap = GetHeap();
   Handle<Context> context(this);
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
@@ -155,10 +156,10 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       if (param_index >= 0) {
         // slot found.
         int index =
-            scope_info->ContextSlotIndex(HEAP->arguments_shadow_symbol(), NULL);
+            scope_info->ContextSlotIndex(heap->arguments_shadow_symbol(), NULL);
         ASSERT(index >= 0);  // arguments must exist and be in the heap context
         Handle<JSObject> arguments(JSObject::cast(context->get(index)));
-        ASSERT(arguments->HasLocalProperty(HEAP->length_symbol()));
+        ASSERT(arguments->HasLocalProperty(heap->length_symbol()));
         if (FLAG_trace_contexts) {
           PrintF("=> found parameter %d in arguments object\n", param_index);
         }
