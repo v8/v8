@@ -1806,8 +1806,10 @@ Object* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
     }
   }
 
+  HandleScope scope;
+  Handle<Object> value_handle(value);
   Top::ReportFailedAccessCheck(this, v8::ACCESS_SET);
-  return value;
+  return *value_handle;
 }
 
 
@@ -6090,8 +6092,10 @@ Object* JSObject::SetElement(uint32_t index, Object* value) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !Top::MayIndexedAccess(this, index, v8::ACCESS_SET)) {
+    HandleScope scope;
+    Handle<Object> value_handle(value);
     Top::ReportFailedAccessCheck(this, v8::ACCESS_SET);
-    return value;
+    return *value_handle;
   }
 
   if (IsJSGlobalProxy()) {
