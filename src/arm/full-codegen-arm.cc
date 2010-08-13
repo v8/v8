@@ -55,99 +55,97 @@ namespace internal {
 //
 // The function builds a JS frame.  Please see JavaScriptFrameConstants in
 // frames-arm.h for its layout.
-void FullCodeGenerator::Generate(CompilationInfo* info, Mode mode) {
+void FullCodeGenerator::Generate(CompilationInfo* info) {
   ASSERT(info_ == NULL);
   info_ = info;
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
-  if (mode == PRIMARY) {
-    int locals_count = scope()->num_stack_slots();
+  int locals_count = scope()->num_stack_slots();
 
-    __ Push(lr, fp, cp, r1);
-    if (locals_count > 0) {
-      // Load undefined value here, so the value is ready for the loop
-      // below.
-      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ Push(lr, fp, cp, r1);
+  if (locals_count > 0) {
+    // Load undefined value here, so the value is ready for the loop
+    // below.
+    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  }
+  // Adjust fp to point to caller's fp.
+  __ add(fp, sp, Operand(2 * kPointerSize));
+
+  { Comment cmnt(masm_, "[ Allocate locals");
+    for (int i = 0; i < locals_count; i++) {
+      __ push(ip);
     }
-    // Adjust fp to point to caller's fp.
-    __ add(fp, sp, Operand(2 * kPointerSize));
+  }
 
-    { Comment cmnt(masm_, "[ Allocate locals");
-      for (int i = 0; i < locals_count; i++) {
-        __ push(ip);
-      }
-    }
+  bool function_in_register = true;
 
-    bool function_in_register = true;
-
-    // Possibly allocate a local context.
-    int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-    if (heap_slots > 0) {
-      Comment cmnt(masm_, "[ Allocate local context");
-      // Argument to NewContext is the function, which is in r1.
-      __ push(r1);
-      if (heap_slots <= FastNewContextStub::kMaximumSlots) {
-        FastNewContextStub stub(heap_slots);
-        __ CallStub(&stub);
-      } else {
-        __ CallRuntime(Runtime::kNewContext, 1);
-      }
-      function_in_register = false;
-      // Context is returned in both r0 and cp.  It replaces the context
-      // passed to us.  It's saved in the stack and kept live in cp.
-      __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-      // Copy any necessary parameters into the context.
-      int num_parameters = scope()->num_parameters();
-      for (int i = 0; i < num_parameters; i++) {
-        Slot* slot = scope()->parameter(i)->slot();
-        if (slot != NULL && slot->type() == Slot::CONTEXT) {
-          int parameter_offset = StandardFrameConstants::kCallerSPOffset +
-                                   (num_parameters - 1 - i) * kPointerSize;
-          // Load parameter from stack.
-          __ ldr(r0, MemOperand(fp, parameter_offset));
-          // Store it in the context.
-          __ mov(r1, Operand(Context::SlotOffset(slot->index())));
-          __ str(r0, MemOperand(cp, r1));
-          // Update the write barrier. This clobbers all involved
-          // registers, so we have to use two more registers to avoid
-          // clobbering cp.
-          __ mov(r2, Operand(cp));
-          __ RecordWrite(r2, Operand(r1), r3, r0);
-        }
-      }
-    }
-
-    Variable* arguments = scope()->arguments()->AsVariable();
-    if (arguments != NULL) {
-      // Function uses arguments object.
-      Comment cmnt(masm_, "[ Allocate arguments object");
-      if (!function_in_register) {
-        // Load this again, if it's used by the local context below.
-        __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-      } else {
-        __ mov(r3, r1);
-      }
-      // Receiver is just before the parameters on the caller's stack.
-      int offset = scope()->num_parameters() * kPointerSize;
-      __ add(r2, fp,
-             Operand(StandardFrameConstants::kCallerSPOffset + offset));
-      __ mov(r1, Operand(Smi::FromInt(scope()->num_parameters())));
-      __ Push(r3, r2, r1);
-
-      // Arguments to ArgumentsAccessStub:
-      //   function, receiver address, parameter count.
-      // The stub will rewrite receiever and parameter count if the previous
-      // stack frame was an arguments adapter frame.
-      ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+  // Possibly allocate a local context.
+  int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  if (heap_slots > 0) {
+    Comment cmnt(masm_, "[ Allocate local context");
+    // Argument to NewContext is the function, which is in r1.
+    __ push(r1);
+    if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+      FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
-      // Duplicate the value; move-to-slot operation might clobber registers.
-      __ mov(r3, r0);
-      Move(arguments->slot(), r0, r1, r2);
-      Slot* dot_arguments_slot =
-          scope()->arguments_shadow()->AsVariable()->slot();
-      Move(dot_arguments_slot, r3, r1, r2);
+    } else {
+      __ CallRuntime(Runtime::kNewContext, 1);
     }
+    function_in_register = false;
+    // Context is returned in both r0 and cp.  It replaces the context
+    // passed to us.  It's saved in the stack and kept live in cp.
+    __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    // Copy any necessary parameters into the context.
+    int num_parameters = scope()->num_parameters();
+    for (int i = 0; i < num_parameters; i++) {
+      Slot* slot = scope()->parameter(i)->slot();
+      if (slot != NULL && slot->type() == Slot::CONTEXT) {
+        int parameter_offset = StandardFrameConstants::kCallerSPOffset +
+            (num_parameters - 1 - i) * kPointerSize;
+        // Load parameter from stack.
+        __ ldr(r0, MemOperand(fp, parameter_offset));
+        // Store it in the context.
+        __ mov(r1, Operand(Context::SlotOffset(slot->index())));
+        __ str(r0, MemOperand(cp, r1));
+        // Update the write barrier. This clobbers all involved
+        // registers, so we have to use two more registers to avoid
+        // clobbering cp.
+        __ mov(r2, Operand(cp));
+        __ RecordWrite(r2, Operand(r1), r3, r0);
+      }
+    }
+  }
+
+  Variable* arguments = scope()->arguments()->AsVariable();
+  if (arguments != NULL) {
+    // Function uses arguments object.
+    Comment cmnt(masm_, "[ Allocate arguments object");
+    if (!function_in_register) {
+      // Load this again, if it's used by the local context below.
+      __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+    } else {
+      __ mov(r3, r1);
+    }
+    // Receiver is just before the parameters on the caller's stack.
+    int offset = scope()->num_parameters() * kPointerSize;
+    __ add(r2, fp,
+           Operand(StandardFrameConstants::kCallerSPOffset + offset));
+    __ mov(r1, Operand(Smi::FromInt(scope()->num_parameters())));
+    __ Push(r3, r2, r1);
+
+    // Arguments to ArgumentsAccessStub:
+    //   function, receiver address, parameter count.
+    // The stub will rewrite receiever and parameter count if the previous
+    // stack frame was an arguments adapter frame.
+    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    __ CallStub(&stub);
+    // Duplicate the value; move-to-slot operation might clobber registers.
+    __ mov(r3, r0);
+    Move(arguments->slot(), r0, r1, r2);
+    Slot* dot_arguments_slot =
+        scope()->arguments_shadow()->AsVariable()->slot();
+    Move(dot_arguments_slot, r3, r1, r2);
   }
 
   { Comment cmnt(masm_, "[ Declarations");

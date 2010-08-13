@@ -432,18 +432,6 @@
 				RelativePath="..\..\src\factory.h"
 				>
 			</File>
-                        <File
-                                RelativePath="..\..\src\arm\fast-codegen-arm.cc"
-                                >
-                        </File>
-                        <File
-                                RelativePath="..\..\src\fast-codegen.cc"
-                                >
-                        </File>
-                        <File
-                                RelativePath="..\..\src\fast-codegen.h"
-                                >
-                        </File>
 			<File
 				RelativePath="..\..\src\flags.cc"
 				>

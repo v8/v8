@@ -425,18 +425,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\x64\fast-codegen-x64.cc"
-				>
-			</File>
-                        <File
-                                RelativePath="..\..\src\fast-codegen.cc"
-                                >
-                        </File>
-                        <File
-                                RelativePath="..\..\src\fast-codegen.h"
-                                >
-                        </File>
-			<File
 				RelativePath="..\..\src\flags.cc"
 				>
 			</File>

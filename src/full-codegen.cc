@@ -677,7 +677,7 @@ Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
   MacroAssembler masm(NULL, kInitialBufferSize);
 
   FullCodeGenerator cgen(&masm);
-  cgen.Generate(info, PRIMARY);
+  cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
