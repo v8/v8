@@ -1206,7 +1206,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
                               int bottom_js_frame_index,
                               Debug::FrameDropMode* mode,
                               Object*** restarter_frame_function_pointer) {
-  if (Debug::kFrameDropperFrameSize < 0) {
+  if (!Debug::kFrameDropperSupported) {
     return "Stack manipulations are not supported in this architecture.";
   }
 

@@ -254,15 +254,6 @@ void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
 }
 
 
-// FrameDropper is a code replacement for a JavaScript frame with possibly
-// several frames above.
-// There is no calling conventions here, because it never actually gets called,
-// it only gets returned to.
-// Frame structure (conforms InternalFrame structure):
-//   -- code
-//   -- SMI maker
-//   -- function (slot is called "context")
-//   -- frame base
 void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   ExternalReference restarter_frame_function_slot =
       ExternalReference(Debug_Address::RestarterFrameFunctionPointer());
@@ -286,30 +277,9 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ jmp(Operand(edx));
 }
 
+const bool Debug::kFrameDropperSupported = true;
+
 #undef __
-
-
-// TODO(LiveEdit): consider making it platform-independent.
-// TODO(LiveEdit): use more named constants instead of numbers.
-Object** Debug::SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
-                                       Handle<Code> code) {
-  ASSERT(bottom_js_frame->is_java_script());
-
-  Address fp = bottom_js_frame->fp();
-
-  // Move function pointer into slot that is called referenced
-  // as StandardFrame::context()
-  Memory::Object_at(fp - 1 * kPointerSize) =
-      Memory::Object_at(fp - 2 * kPointerSize);
-
-  Memory::Object_at(fp - 3 * kPointerSize) = *code;
-  Memory::Object_at(fp - 2 * kPointerSize) = Smi::FromInt(StackFrame::INTERNAL);
-
-  return reinterpret_cast<Object**>(&Memory::Object_at(fp - 1 * kPointerSize));
-}
-
-const int Debug::kFrameDropperFrameSize = 4;
-
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
