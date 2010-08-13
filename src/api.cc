@@ -174,6 +174,8 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.objects_per_type = objects_per_type;
   int size_per_type[LAST_TYPE + 1] = {0};
   heap_stats.size_per_type = size_per_type;
+  int os_error;
+  heap_stats.os_error = &os_error;
   int end_marker;
   heap_stats.end_marker = &end_marker;
   i::Heap::RecordStats(&heap_stats, take_snapshot);
