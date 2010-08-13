@@ -446,11 +446,12 @@ void Shell::Initialize() {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Install the debugger object in the utility scope
-  i::Debug::Load();
-  i::Handle<i::JSObject> debug
-      = i::Handle<i::JSObject>(i::Debug::debug_context()->global());
+  i::Debug* debug = i::Isolate::Current()->debug();
+  debug->Load();
+  i::Handle<i::JSObject> js_debug
+      = i::Handle<i::JSObject>(debug->debug_context()->global());
   utility_context_->Global()->Set(String::New("$debug"),
-                                  Utils::ToLocal(debug));
+                                  Utils::ToLocal(js_debug));
 #endif
 
   // Run the d8 shell utility script in the utility context
@@ -482,7 +483,7 @@ void Shell::Initialize() {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Set the security token of the debug context to allow access.
-  i::Debug::debug_context()->set_security_token(i::Heap::undefined_value());
+  debug->debug_context()->set_security_token(HEAP->undefined_value());
 
   // Start the debugger agent if requested.
   if (i::FLAG_debugger_agent) {
@@ -598,8 +599,8 @@ void Shell::RunShell() {
 
 class ShellThread : public i::Thread {
  public:
-  ShellThread(int no, i::Vector<const char> files)
-    : no_(no), files_(files) { }
+  ShellThread(i::Isolate* isolate, int no, i::Vector<const char> files)
+    : i::Thread(isolate), no_(no), files_(files) { }
   virtual void Run();
  private:
   int no_;
@@ -730,7 +731,8 @@ int Shell::Main(int argc, char* argv[]) {
         const char* files = ReadChars(argv[++i], &size);
         if (files == NULL) return 1;
         ShellThread* thread =
-            new ShellThread(threads.length(),
+            new ShellThread(i::Isolate::Current(),
+                            threads.length(),
                             i::Vector<const char>(files, size));
         thread->Start();
         threads.Add(thread);
