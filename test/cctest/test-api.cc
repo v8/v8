@@ -27,8 +27,6 @@
 
 #include <limits.h>
 
-#define USE_NEW_QUERY_CALLBACKS
-
 #include "v8.h"
 
 #include "api.h"

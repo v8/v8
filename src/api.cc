@@ -888,10 +888,10 @@ void FunctionTemplate::SetNamedInstancePropertyHandler(
 }
 
 
-void FunctionTemplate::SetIndexedInstancePropertyHandlerImpl(
+void FunctionTemplate::SetIndexedInstancePropertyHandler(
       IndexedPropertyGetter getter,
       IndexedPropertySetter setter,
-      IndexedPropertyQueryImpl query,
+      IndexedPropertyQuery query,
       IndexedPropertyDeleter remover,
       IndexedPropertyEnumerator enumerator,
       Handle<Value> data) {
@@ -1056,10 +1056,10 @@ void ObjectTemplate::SetAccessCheckCallbacks(
 }
 
 
-void ObjectTemplate::SetIndexedPropertyHandlerImpl(
+void ObjectTemplate::SetIndexedPropertyHandler(
       IndexedPropertyGetter getter,
       IndexedPropertySetter setter,
-      IndexedPropertyQueryImpl query,
+      IndexedPropertyQuery query,
       IndexedPropertyDeleter remover,
       IndexedPropertyEnumerator enumerator,
       Handle<Value> data) {
@@ -1070,12 +1070,12 @@ void ObjectTemplate::SetIndexedPropertyHandlerImpl(
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
-  Utils::ToLocal(cons)->SetIndexedInstancePropertyHandlerImpl(getter,
-                                                              setter,
-                                                              query,
-                                                              remover,
-                                                              enumerator,
-                                                              data);
+  Utils::ToLocal(cons)->SetIndexedInstancePropertyHandler(getter,
+                                                          setter,
+                                                          query,
+                                                          remover,
+                                                          enumerator,
+                                                          data);
 }
 
 

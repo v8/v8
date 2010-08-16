@@ -5768,23 +5768,18 @@ bool JSObject::HasElementWithInterceptor(JSObject* receiver, uint32_t index) {
   CustomArguments args(interceptor->data(), receiver, this);
   v8::AccessorInfo info(args.end());
   if (!interceptor->query()->IsUndefined()) {
-    v8::IndexedPropertyQueryImpl query =
-        v8::ToCData<v8::IndexedPropertyQueryImpl>(interceptor->query());
+    v8::IndexedPropertyQuery query =
+        v8::ToCData<v8::IndexedPropertyQuery>(interceptor->query());
     LOG(ApiIndexedPropertyAccess("interceptor-indexed-has", this, index));
-    v8::Handle<v8::Value> result;
+    v8::Handle<v8::Integer> result;
     {
       // Leaving JavaScript.
       VMState state(EXTERNAL);
       result = query(index, info);
     }
     if (!result.IsEmpty()) {
-      // IsBoolean check would be removed when transition to new API is over.
-      if (result->IsBoolean()) {
-        return result->IsTrue() ? true : false;
-      } else {
-        ASSERT(result->IsInt32());
-        return true;  // absence of property is signaled by empty handle.
-      }
+      ASSERT(result->IsInt32());
+      return true;  // absence of property is signaled by empty handle.
     }
   } else if (!interceptor->getter()->IsUndefined()) {
     v8::IndexedPropertyGetter getter =
