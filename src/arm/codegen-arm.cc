@@ -519,6 +519,10 @@ void CodeGenerator::LoadCondition(Expression* x,
 
 
 void CodeGenerator::Load(Expression* expr) {
+  // We generally assume that we are not in a spilled scope for most
+  // of the code generator.  A failure to ensure this caused issue 815
+  // and this assert is designed to catch similar issues.
+  frame_->AssertIsNotSpilled();
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
@@ -675,6 +679,10 @@ Reference::Reference(CodeGenerator* cgen,
       expression_(expression),
       type_(ILLEGAL),
       persist_after_get_(persist_after_get) {
+  // We generally assume that we are not in a spilled scope for most
+  // of the code generator.  A failure to ensure this caused issue 815
+  // and this assert is designed to catch similar issues.
+  cgen->frame()->AssertIsNotSpilled();
   cgen->LoadReference(this);
 }
 
@@ -1899,19 +1907,17 @@ void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
 
 
 void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
-  frame_->SpillAll();
   Comment cmnt(masm_, "[ ReturnStatement");
 
   CodeForStatementPosition(node);
   Load(node->expression());
+  frame_->PopToR0();
+  frame_->PrepareForReturn();
   if (function_return_is_shadowed_) {
-    frame_->EmitPop(r0);
     function_return_.Jump();
   } else {
     // Pop the result from the frame and prepare the frame for
     // returning thus making it easier to merge.
-    frame_->PopToR0();
-    frame_->PrepareForReturn();
     if (function_return_.is_bound()) {
       // If the function return label is already bound we reuse the
       // code by jumping to the return site.
@@ -2307,7 +2313,6 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ ForInStatement");
   CodeForStatementPosition(node);
 
@@ -2321,6 +2326,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // Get the object to enumerate over (converted to JSObject).
   Load(node->enumerable());
 
+  VirtualFrame::SpilledScope spilled_scope(frame_);
   // Both SpiderMonkey and kjs ignore null and undefined in contrast
   // to the specification.  12.6.4 mandates a call to ToObject.
   frame_->EmitPop(r0);
@@ -2490,25 +2496,31 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // Store the entry in the 'each' expression and take another spin in the
   // loop.  r3: i'th entry of the enum cache (or string there of)
   frame_->EmitPush(r3);  // push entry
-  { Reference each(this, node->each());
+  { VirtualFrame::RegisterAllocationScope scope(this);
+    Reference each(this, node->each());
     if (!each.is_illegal()) {
       if (each.size() > 0) {
+        // Loading a reference may leave the frame in an unspilled state.
+        frame_->SpillAll();  // Sync stack to memory.
+        // Get the value (under the reference on the stack) from memory.
         __ ldr(r0, frame_->ElementAt(each.size()));
         frame_->EmitPush(r0);
         each.SetValue(NOT_CONST_INIT, UNLIKELY_SMI);
-        frame_->Drop(2);
+        frame_->Drop(2);  // The result of the set and the extra pushed value.
       } else {
         // If the reference was to a slot we rely on the convenient property
-        // that it doesn't matter whether a value (eg, r3 pushed above) is
+        // that it doesn't matter whether a value (eg, ebx pushed above) is
         // right on top of or right underneath a zero-sized reference.
         each.SetValue(NOT_CONST_INIT, UNLIKELY_SMI);
-        frame_->Drop();
+        frame_->Drop(1);  // Drop the result of the set operation.
       }
     }
   }
   // Body.
   CheckStack();  // TODO(1222600): ignore if body contains calls.
-  Visit(node->body());
+  { VirtualFrame::RegisterAllocationScope scope(this);
+    Visit(node->body());
+  }
 
   // Next.  Reestablish a spilled frame in case we are coming here via
   // a continue in the body.
@@ -2555,7 +2567,9 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   // Remove the exception from the stack.
   frame_->Drop();
 
-  VisitStatements(node->catch_block()->statements());
+  { VirtualFrame::RegisterAllocationScope scope(this);
+    VisitStatements(node->catch_block()->statements());
+  }
   if (frame_ != NULL) {
     exit.Jump();
   }
@@ -2590,7 +2604,9 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   }
 
   // Generate code for the statements in the try block.
-  VisitStatements(node->try_block()->statements());
+  { VirtualFrame::RegisterAllocationScope scope(this);
+    VisitStatements(node->try_block()->statements());
+  }
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original labels are unshadowed and the
@@ -2611,7 +2627,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
     // the handler list and drop the rest of this handler from the
     // frame.
     STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-    frame_->EmitPop(r1);
+    frame_->EmitPop(r1);  // r0 can contain the return value.
     __ mov(r3, Operand(handler_address));
     __ str(r1, MemOperand(r3));
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
@@ -2637,7 +2653,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
       frame_->Forget(frame_->height() - handler_height);
 
       STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-      frame_->EmitPop(r1);
+      frame_->EmitPop(r1);  // r0 can contain the return value.
       __ str(r1, MemOperand(r3));
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
 
@@ -2704,7 +2720,9 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
   }
 
   // Generate code for the statements in the try block.
-  VisitStatements(node->try_block()->statements());
+  { VirtualFrame::RegisterAllocationScope scope(this);
+    VisitStatements(node->try_block()->statements());
+  }
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original labels are unshadowed and the
@@ -2794,7 +2812,9 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
   // and the state - while evaluating the finally block.
   //
   // Generate code for the statements in the finally block.
-  VisitStatements(node->finally_block()->statements());
+  { VirtualFrame::RegisterAllocationScope scope(this);
+    VisitStatements(node->finally_block()->statements());
+  }
 
   if (has_valid_frame()) {
     // Restore state and return value or faked TOS.
@@ -3974,7 +3994,6 @@ void CodeGenerator::VisitCall(Call* node) {
 
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
-    VirtualFrame::SpilledScope spilled_scope(frame_);
     // ----------------------------------
     // JavaScript examples:
     //
@@ -3987,8 +4006,6 @@ void CodeGenerator::VisitCall(Call* node) {
     //  }
     // ----------------------------------
 
-    // JumpTargets do not yet support merging frames so the frame must be
-    // spilled when jumping to these targets.
     JumpTarget slow, done;
 
     // Generate fast case for loading functions from slots that
@@ -4002,8 +4019,7 @@ void CodeGenerator::VisitCall(Call* node) {
     slow.Bind();
     // Load the function
     frame_->EmitPush(cp);
-    __ mov(r0, Operand(var->name()));
-    frame_->EmitPush(r0);
+    frame_->EmitPush(Operand(var->name()));
     frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     // r0: slot value; r1: receiver
 
@@ -4019,7 +4035,7 @@ void CodeGenerator::VisitCall(Call* node) {
       call.Jump();
       done.Bind();
       frame_->EmitPush(r0);  // function
-      LoadGlobalReceiver(r1);  // receiver
+      LoadGlobalReceiver(VirtualFrame::scratch0());  // receiver
       call.Bind();
     }
 
@@ -4074,8 +4090,6 @@ void CodeGenerator::VisitCall(Call* node) {
       // -------------------------------------------
       // JavaScript example: 'array[index](1, 2, 3)'
       // -------------------------------------------
-      VirtualFrame::SpilledScope spilled_scope(frame_);
-
       Load(property->obj());
       if (property->is_synthetic()) {
         Load(property->key());
@@ -4083,7 +4097,7 @@ void CodeGenerator::VisitCall(Call* node) {
         // Put the function below the receiver.
         // Use the global receiver.
         frame_->EmitPush(r0);  // Function.
-        LoadGlobalReceiver(r0);
+        LoadGlobalReceiver(VirtualFrame::scratch0());
         // Call the function.
         CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
         frame_->EmitPush(r0);
@@ -4096,6 +4110,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
         // Set the name register and call the IC initialization code.
         Load(property->key());
+        frame_->SpillAll();
         frame_->EmitPop(r2);  // Function name.
 
         InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
@@ -4115,10 +4130,8 @@ void CodeGenerator::VisitCall(Call* node) {
     // Load the function.
     Load(function);
 
-    VirtualFrame::SpilledScope spilled_scope(frame_);
-
     // Pass the global proxy as the receiver.
-    LoadGlobalReceiver(r0);
+    LoadGlobalReceiver(VirtualFrame::scratch0());
 
     // Call the function.
     CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
@@ -4173,8 +4186,8 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 
 
 void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
-  JumpTarget leave, null, function, non_function_constructor;
   Register scratch = VirtualFrame::scratch0();
+  JumpTarget null, function, leave, non_function_constructor;
 
   // Load the object into register.
   ASSERT(args->length() == 1);
