@@ -731,18 +731,6 @@ class CallFunctionStub: public CodeStub {
 };
 
 
-class ToBooleanStub: public CodeStub {
- public:
-  ToBooleanStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return 0; }
-};
-
-
 enum StringIndexFlags {
   // Accepts smis or heap numbers.
   STRING_INDEX_IS_NUMBER,

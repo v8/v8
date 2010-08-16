@@ -771,12 +771,26 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target,
     __ tst(tos, Operand(kSmiTagMask));
     true_target->Branch(eq);
 
-    // Slow case: call the runtime.
-    frame_->EmitPush(tos);
-    frame_->CallRuntime(Runtime::kToBool, 1);
-    // Convert the result (r0) to a condition code.
-    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-    __ cmp(r0, ip);
+    // Slow case.
+    if (CpuFeatures::IsSupported(VFP3)) {
+      CpuFeatures::Scope scope(VFP3);
+      // Implements the slow case by using ToBooleanStub.
+      // The ToBooleanStub takes a single argument, and
+      // returns a non-zero value for true, or zero for false.
+      // Both the argument value and the return value use the
+      // register assigned to tos_
+      ToBooleanStub stub(tos);
+      frame_->CallStub(&stub, 0);
+      // Convert the result in "tos" to a condition code.
+      __ cmp(tos, Operand(0));
+    } else {
+      // Implements slow case by calling the runtime.
+      frame_->EmitPush(tos);
+      frame_->CallRuntime(Runtime::kToBool, 1);
+      // Convert the result (r0) to a condition code.
+      __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+      __ cmp(r0, ip);
+    }
   }
 
   cc_reg_ = ne;
@@ -7936,6 +7950,77 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
   __ InvokeBuiltin(native, JUMP_JS);
+}
+
+
+// This stub does not handle the inlined cases (Smis, Booleans, undefined).
+// The stub returns zero for false, and a non-zero value for true.
+void ToBooleanStub::Generate(MacroAssembler* masm) {
+  Label false_result;
+  Label not_heap_number;
+  Register scratch0 = VirtualFrame::scratch0();
+
+  // HeapNumber => false iff +0, -0, or NaN.
+  __ ldr(scratch0, FieldMemOperand(tos_, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
+  __ cmp(scratch0, ip);
+  __ b(&not_heap_number, ne);
+
+  __ sub(ip, tos_, Operand(kHeapObjectTag));
+  __ vldr(d1, ip, HeapNumber::kValueOffset);
+  __ vcmp(d1, 0.0);
+  __ vmrs(pc);
+  // "tos_" is a register, and contains a non zero value by default.
+  // Hence we only need to overwrite "tos_" with zero to return false for
+  // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
+  __ mov(tos_, Operand(0), LeaveCC, eq);  // for FP_ZERO
+  __ mov(tos_, Operand(0), LeaveCC, vs);  // for FP_NAN
+  __ Ret();
+
+  __ bind(&not_heap_number);
+
+  // Check if the value is 'null'.
+  // 'null' => false.
+  __ LoadRoot(ip, Heap::kNullValueRootIndex);
+  __ cmp(tos_, ip);
+  __ b(&false_result, eq);
+
+  // It can be an undetectable object.
+  // Undetectable => false.
+  __ ldr(ip, FieldMemOperand(tos_, HeapObject::kMapOffset));
+  __ ldrb(scratch0, FieldMemOperand(ip, Map::kBitFieldOffset));
+  __ and_(scratch0, scratch0, Operand(1 << Map::kIsUndetectable));
+  __ cmp(scratch0, Operand(1 << Map::kIsUndetectable));
+  __ b(&false_result, eq);
+
+  // JavaScript object => true.
+  __ ldr(scratch0, FieldMemOperand(tos_, HeapObject::kMapOffset));
+  __ ldrb(scratch0, FieldMemOperand(scratch0, Map::kInstanceTypeOffset));
+  __ cmp(scratch0, Operand(FIRST_JS_OBJECT_TYPE));
+  // "tos_" is a register and contains a non-zero value.
+  // Hence we implicitly return true if the greater than
+  // condition is satisfied.
+  __ Ret(gt);
+
+  // Check for string
+  __ ldr(scratch0, FieldMemOperand(tos_, HeapObject::kMapOffset));
+  __ ldrb(scratch0, FieldMemOperand(scratch0, Map::kInstanceTypeOffset));
+  __ cmp(scratch0, Operand(FIRST_NONSTRING_TYPE));
+  // "tos_" is a register and contains a non-zero value.
+  // Hence we implicitly return true if the greater than
+  // condition is satisfied.
+  __ Ret(gt);
+
+  // String value => false iff empty, i.e., length is zero
+  __ ldr(tos_, FieldMemOperand(tos_, String::kLengthOffset));
+  // If length is zero, "tos_" contains zero ==> false.
+  // If length is not zero, "tos_" contains a non-zero value ==> true.
+  __ Ret();
+
+  // Return 0 in "tos_" for false .
+  __ bind(&false_result);
+  __ mov(tos_, Operand(0));
+  __ Ret();
 }
 
 
