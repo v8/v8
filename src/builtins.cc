@@ -352,7 +352,7 @@ static bool ArrayPrototypeHasNoElements(Context* global_context,
 }
 
 
-static Object* EnsureJSArrayWithWritableFastElements(Object* receiver) {
+static inline Object* EnsureJSArrayWithWritableFastElements(Object* receiver) {
   if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
   HeapObject* elms = HeapObject::cast(array->elements());
@@ -364,7 +364,7 @@ static Object* EnsureJSArrayWithWritableFastElements(Object* receiver) {
 }
 
 
-static bool IsJSArrayFastElementMovingAllowed(JSArray* receiver) {
+static inline bool IsJSArrayFastElementMovingAllowed(JSArray* receiver) {
   Context* global_context = Top::context()->global_context();
   JSObject* array_proto =
       JSObject::cast(global_context->array_function()->prototype());
