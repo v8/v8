@@ -1211,7 +1211,9 @@ class JSObject: public HeapObject {
  public:
   enum DeleteMode { NORMAL_DELETION, FORCE_DELETION };
   enum ElementsKind {
+    // The only "fast" kind.
     FAST_ELEMENTS,
+    // All the kinds below are "slow".
     DICTIONARY_ELEMENTS,
     PIXEL_ELEMENTS,
     EXTERNAL_BYTE_ELEMENTS,
@@ -1232,8 +1234,21 @@ class JSObject: public HeapObject {
   inline StringDictionary* property_dictionary();  // Gets slow properties.
 
   // [elements]: The elements (properties with names that are integers).
-  // elements is a FixedArray in the fast case, a Dictionary in the slow
-  // case, and a PixelArray or ExternalArray in special cases.
+  //
+  // Elements can be in two general modes: fast and slow. Each mode
+  // corrensponds to a set of object representations of elements that
+  // have something in common.
+  //
+  // In the fast mode elements is a FixedArray and so each element can
+  // be quickly accessed. This fact is used in the generated code. The
+  // elements array can have one of the two maps in this mode:
+  // fixed_array_map or fixed_cow_array_map (for copy-on-write
+  // arrays). In the latter case the elements array may be shared by a
+  // few objects and so before writing to any element the array must
+  // be copied. Use EnsureWritableFastElements in this case.
+  //
+  // In the slow mode elements is either a NumberDictionary or a
+  // PixelArray or an ExternalArray.
   DECL_ACCESSORS(elements, HeapObject)
   inline void initialize_elements();
   inline Object* ResetElements();
@@ -1251,6 +1266,8 @@ class JSObject: public HeapObject {
   inline bool HasExternalFloatElements();
   inline bool AllowsSetElementsLength();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
+  // Requires: this->HasFastElements().
+  inline Object* EnsureWritableFastElements();
 
   // Collects elements starting at index 0.
   // Undefined values are placed after non-undefined values.
@@ -1702,6 +1719,10 @@ class FixedArray: public HeapObject {
   inline void set_undefined(int index);
   inline void set_null(int index);
   inline void set_the_hole(int index);
+
+  // Setters with less debug checks for the GC to use.
+  inline void set_unchecked(int index, Smi* value);
+  inline void set_null_unchecked(int index);
 
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();
@@ -3061,7 +3082,8 @@ class Map: public HeapObject {
   inline bool is_extensible();
 
   // Tells whether the instance has fast elements.
-  void set_has_fast_elements(bool value) {
+  // Equivalent to instance->GetElementsKind() == FAST_ELEMENTS.
+  inline void set_has_fast_elements(bool value) {
     if (value) {
       set_bit_field2(bit_field2() | (1 << kHasFastElements));
     } else {
@@ -3069,7 +3091,7 @@ class Map: public HeapObject {
     }
   }
 
-  bool has_fast_elements() {
+  inline bool has_fast_elements() {
     return ((1 << kHasFastElements) & bit_field2()) != 0;
   }
 

@@ -278,7 +278,7 @@ class CodeGenerator: public AstVisitor {
 
   // Constants related to patching of inlined load/store.
   static int GetInlinedKeyedLoadInstructionsAfterPatch() {
-    return FLAG_debug_code ? 27 : 13;
+    return FLAG_debug_code ? 32 : 13;
   }
   static const int kInlinedKeyedStoreInstructionsAfterPatch = 5;
   static int GetInlinedNamedStoreInstructionsAfterPatch() {

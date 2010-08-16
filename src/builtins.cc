@@ -269,6 +269,7 @@ static void CopyElements(AssertNoAllocation* no_gc,
                          int src_index,
                          int len) {
   ASSERT(dst != src);  // Use MoveElements instead.
+  ASSERT(dst->map() != Heap::fixed_cow_array_map());
   ASSERT(len > 0);
   CopyWords(dst->data_start() + dst_index,
             src->data_start() + src_index,
@@ -286,6 +287,7 @@ static void MoveElements(AssertNoAllocation* no_gc,
                          FixedArray* src,
                          int src_index,
                          int len) {
+  ASSERT(dst->map() != Heap::fixed_cow_array_map());
   memmove(dst->data_start() + dst_index,
           src->data_start() + src_index,
           len * kPointerSize);
@@ -297,11 +299,13 @@ static void MoveElements(AssertNoAllocation* no_gc,
 
 
 static void FillWithHoles(FixedArray* dst, int from, int to) {
+  ASSERT(dst->map() != Heap::fixed_cow_array_map());
   MemsetPointer(dst->data_start() + from, Heap::the_hole_value(), to - from);
 }
 
 
 static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
+  ASSERT(elms->map() != Heap::fixed_cow_array_map());
   // For now this trick is only applied to fixed arrays in new space.
   // In large object space the object's start must coincide with chunk
   // and thus the trick is just not applicable.
@@ -348,33 +352,24 @@ static bool ArrayPrototypeHasNoElements(Context* global_context,
 }
 
 
-static bool IsJSArrayWithFastElements(Object* receiver,
-                                      FixedArray** elements) {
-  if (!receiver->IsJSArray()) {
-    return false;
-  }
-
+static Object* EnsureJSArrayWithWritableFastElements(Object* receiver) {
+  if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
-
   HeapObject* elms = HeapObject::cast(array->elements());
-  if (elms->map() != Heap::fixed_array_map()) {
-    return false;
+  if (elms->map() == Heap::fixed_array_map()) return elms;
+  if (elms->map() == Heap::fixed_cow_array_map()) {
+    return array->EnsureWritableFastElements();
   }
-
-  *elements = FixedArray::cast(elms);
-  return true;
+  return NULL;
 }
 
 
-static bool IsFastElementMovingAllowed(Object* receiver,
-                                       FixedArray** elements) {
-  if (!IsJSArrayWithFastElements(receiver, elements)) return false;
-
+static bool IsJSArrayFastElementMovingAllowed(JSArray* receiver) {
   Context* global_context = Top::context()->global_context();
   JSObject* array_proto =
       JSObject::cast(global_context->array_function()->prototype());
-  if (JSArray::cast(receiver)->GetPrototype() != array_proto) return false;
-  return ArrayPrototypeHasNoElements(global_context, array_proto);
+  return receiver->GetPrototype() == array_proto &&
+         ArrayPrototypeHasNoElements(global_context, array_proto);
 }
 
 
@@ -405,10 +400,10 @@ static Object* CallJsBuiltin(const char* name,
 
 BUILTIN(ArrayPush) {
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsJSArrayWithFastElements(receiver, &elms)) {
-    return CallJsBuiltin("ArrayPush", args);
-  }
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
+  if (elms_obj == NULL) return CallJsBuiltin("ArrayPush", args);
+  if (elms_obj->IsFailure()) return elms_obj;
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
 
   int len = Smi::cast(array->length())->value();
@@ -454,10 +449,10 @@ BUILTIN(ArrayPush) {
 
 BUILTIN(ArrayPop) {
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsJSArrayWithFastElements(receiver, &elms)) {
-    return CallJsBuiltin("ArrayPop", args);
-  }
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
+  if (elms_obj == NULL) return CallJsBuiltin("ArrayPop", args);
+  if (elms_obj->IsFailure()) return elms_obj;
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
 
   int len = Smi::cast(array->length())->value();
@@ -483,10 +478,13 @@ BUILTIN(ArrayPop) {
 
 BUILTIN(ArrayShift) {
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsFastElementMovingAllowed(receiver, &elms)) {
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
+  if (elms_obj->IsFailure()) return elms_obj;
+  if (elms_obj == NULL ||
+      !IsJSArrayFastElementMovingAllowed(JSArray::cast(receiver))) {
     return CallJsBuiltin("ArrayShift", args);
   }
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 
@@ -519,10 +517,13 @@ BUILTIN(ArrayShift) {
 
 BUILTIN(ArrayUnshift) {
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsFastElementMovingAllowed(receiver, &elms)) {
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
+  if (elms_obj->IsFailure()) return elms_obj;
+  if (elms_obj == NULL ||
+      !IsJSArrayFastElementMovingAllowed(JSArray::cast(receiver))) {
     return CallJsBuiltin("ArrayUnshift", args);
   }
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 
@@ -568,10 +569,13 @@ BUILTIN(ArrayUnshift) {
 
 BUILTIN(ArraySlice) {
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsFastElementMovingAllowed(receiver, &elms)) {
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
+  if (elms_obj->IsFailure()) return elms_obj;
+  if (elms_obj == NULL ||
+      !IsJSArrayFastElementMovingAllowed(JSArray::cast(receiver))) {
     return CallJsBuiltin("ArraySlice", args);
   }
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 
@@ -637,10 +641,13 @@ BUILTIN(ArraySlice) {
 
 BUILTIN(ArraySplice) {
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsFastElementMovingAllowed(receiver, &elms)) {
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
+  if (elms_obj->IsFailure()) return elms_obj;
+  if (elms_obj == NULL ||
+      !IsJSArrayFastElementMovingAllowed(JSArray::cast(receiver))) {
     return CallJsBuiltin("ArraySplice", args);
   }
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 

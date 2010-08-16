@@ -1167,7 +1167,8 @@ HeapObject* JSObject::elements() {
 
 void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
   ASSERT(map()->has_fast_elements() ==
-         (value->map() == Heap::fixed_array_map()));
+         (value->map() == Heap::fixed_array_map() ||
+          value->map() == Heap::fixed_cow_array_map()));
   // In the assert below Dictionary is covered under FixedArray.
   ASSERT(value->IsFixedArray() || value->IsPixelArray() ||
          value->IsExternalArray());
@@ -1397,6 +1398,7 @@ Object* FixedArray::get(int index) {
 
 
 void FixedArray::set(int index, Smi* value) {
+  ASSERT(map() != Heap::fixed_cow_array_map());
   ASSERT(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
@@ -1404,6 +1406,7 @@ void FixedArray::set(int index, Smi* value) {
 
 
 void FixedArray::set(int index, Object* value) {
+  ASSERT(map() != Heap::fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
@@ -1420,6 +1423,7 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(const AssertNoAllocation&) {
 void FixedArray::set(int index,
                      Object* value,
                      WriteBarrierMode mode) {
+  ASSERT(map() != Heap::fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
@@ -1428,6 +1432,7 @@ void FixedArray::set(int index,
 
 
 void FixedArray::fast_set(FixedArray* array, int index, Object* value) {
+  ASSERT(array->map() != Heap::raw_unchecked_fixed_cow_array_map());
   ASSERT(index >= 0 && index < array->length());
   ASSERT(!Heap::InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
@@ -1435,6 +1440,7 @@ void FixedArray::fast_set(FixedArray* array, int index, Object* value) {
 
 
 void FixedArray::set_undefined(int index) {
+  ASSERT(map() != Heap::fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
   ASSERT(!Heap::InNewSpace(Heap::undefined_value()));
   WRITE_FIELD(this, kHeaderSize + index * kPointerSize,
@@ -1443,6 +1449,7 @@ void FixedArray::set_undefined(int index) {
 
 
 void FixedArray::set_null(int index) {
+  ASSERT(map() != Heap::fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
   ASSERT(!Heap::InNewSpace(Heap::null_value()));
   WRITE_FIELD(this, kHeaderSize + index * kPointerSize, Heap::null_value());
@@ -1450,9 +1457,24 @@ void FixedArray::set_null(int index) {
 
 
 void FixedArray::set_the_hole(int index) {
+  ASSERT(map() != Heap::fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
   ASSERT(!Heap::InNewSpace(Heap::the_hole_value()));
   WRITE_FIELD(this, kHeaderSize + index * kPointerSize, Heap::the_hole_value());
+}
+
+
+void FixedArray::set_unchecked(int index, Smi* value) {
+  ASSERT(reinterpret_cast<Object*>(value)->IsSmi());
+  int offset = kHeaderSize + index * kPointerSize;
+  WRITE_FIELD(this, offset, value);
+}
+
+
+void FixedArray::set_null_unchecked(int index) {
+  ASSERT(index >= 0 && index < this->length());
+  ASSERT(!Heap::InNewSpace(Heap::null_value()));
+  WRITE_FIELD(this, kHeaderSize + index * kPointerSize, Heap::null_value());
 }
 
 
@@ -2398,6 +2420,7 @@ Object* Map::GetFastElementsMap() {
   if (obj->IsFailure()) return obj;
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(true);
+  Counters::map_slow_to_fast_elements.Increment();
   return new_map;
 }
 
@@ -2408,6 +2431,7 @@ Object* Map::GetSlowElementsMap() {
   if (obj->IsFailure()) return obj;
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(false);
+  Counters::map_fast_to_slow_elements.Increment();
   return new_map;
 }
 
@@ -2928,18 +2952,18 @@ void JSRegExp::SetDataAt(int index, Object* value) {
 
 
 JSObject::ElementsKind JSObject::GetElementsKind() {
+  if (map()->has_fast_elements()) {
+    ASSERT(elements()->map() == Heap::fixed_array_map() ||
+           elements()->map() == Heap::fixed_cow_array_map());
+    return FAST_ELEMENTS;
+  }
   HeapObject* array = elements();
   if (array->IsFixedArray()) {
-    // FAST_ELEMENTS or DICTIONARY_ELEMENTS are both stored in a FixedArray.
-    if (array->map() == Heap::fixed_array_map()) {
-      ASSERT(map()->has_fast_elements());
-      return FAST_ELEMENTS;
-    }
+    // FAST_ELEMENTS or DICTIONARY_ELEMENTS are both stored in a
+    // FixedArray, but FAST_ELEMENTS is already handled above.
     ASSERT(array->IsDictionary());
-    ASSERT(!map()->has_fast_elements());
     return DICTIONARY_ELEMENTS;
   }
-  ASSERT(!map()->has_fast_elements());
   if (array->IsExternalArray()) {
     switch (array->map()->instance_type()) {
       case EXTERNAL_BYTE_ARRAY_TYPE:
@@ -3039,6 +3063,19 @@ bool JSObject::AllowsSetElementsLength() {
   bool result = elements()->IsFixedArray();
   ASSERT(result == (!HasPixelElements() && !HasExternalArrayElements()));
   return result;
+}
+
+
+Object* JSObject::EnsureWritableFastElements() {
+  ASSERT(HasFastElements());
+  FixedArray* elems = FixedArray::cast(elements());
+  if (elems->map() != Heap::fixed_cow_array_map()) return elems;
+  Object* writable_elems = Heap::CopyFixedArray(elems);
+  if (writable_elems->IsFailure()) return writable_elems;
+  FixedArray::cast(writable_elems)->set_map(Heap::fixed_array_map());
+  set_elements(FixedArray::cast(writable_elems));
+  Counters::cow_arrays_converted.Increment();
+  return writable_elems;
 }
 
 

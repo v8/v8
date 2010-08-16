@@ -1457,6 +1457,11 @@ bool Heap::CreateInitialMaps() {
   oddball_map()->set_prototype(null_value());
   oddball_map()->set_constructor(null_value());
 
+  obj = AllocateMap(FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
+  if (obj->IsFailure()) return false;
+  set_fixed_cow_array_map(Map::cast(obj));
+  ASSERT(fixed_array_map() != fixed_cow_array_map());
+
   obj = AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
   if (obj->IsFailure()) return false;
   set_heap_number_map(Map::cast(obj));
@@ -2910,7 +2915,9 @@ Object* Heap::CopyJSObject(JSObject* source) {
   FixedArray* properties = FixedArray::cast(source->properties());
   // Update elements if necessary.
   if (elements->length() > 0) {
-    Object* elem = CopyFixedArray(elements);
+    Object* elem =
+        (elements->map() == fixed_cow_array_map()) ?
+        elements : CopyFixedArray(elements);
     if (elem->IsFailure()) return elem;
     JSObject::cast(clone)->set_elements(FixedArray::cast(elem));
   }

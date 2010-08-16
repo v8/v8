@@ -508,6 +508,8 @@ class MacroAssembler: public Assembler {
   // Use --debug_code to enable.
   void Assert(Condition cc, const char* msg);
 
+  void AssertFastElements(Register elements);
+
   // Like Assert(), but always enabled.
   void Check(Condition cc, const char* msg);
 

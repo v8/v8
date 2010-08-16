@@ -175,6 +175,8 @@ class CompileTimeValue: public AllStatic {
 
   static bool IsCompileTimeValue(Expression* expression);
 
+  static bool ArrayLiteralElementNeedsInitialization(Expression* value);
+
   // Get the value as a compile time value.
   static Handle<FixedArray> GetValue(Expression* expression);
 
