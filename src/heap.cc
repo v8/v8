@@ -4131,6 +4131,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->memory_allocator_size = MemoryAllocator::Size();
   *stats->memory_allocator_capacity =
       MemoryAllocator::Size() + MemoryAllocator::Available();
+  *stats->os_error = OS::GetLastError();
   if (take_snapshot) {
     HeapIterator iterator;
     for (HeapObject* obj = iterator.next();

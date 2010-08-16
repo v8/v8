@@ -1347,7 +1347,8 @@ class HeapStats {
   int* memory_allocator_capacity;       // 20
   int* objects_per_type;                // 21
   int* size_per_type;                   // 22
-  int* end_marker;                      // 23
+  int* os_error;                        // 23
+  int* end_marker;                      // 24
 };
 
 
