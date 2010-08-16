@@ -1549,12 +1549,10 @@ void MacroAssembler::ConvertToInt32(Register dst,
     if (scratch.is(no_reg)) scratch = dst;
     cvttsd2si(scratch, FieldOperand(source, HeapNumber::kValueOffset));
     cmp(scratch, 0x80000000u);
-    if (push_pop || dst.is(source)) {
+    if (push_pop) {
       j(not_equal, &done);
-      if (push_pop) {
-        pop(dst);
-        jmp(on_not_int32);
-      }
+      pop(dst);
+      jmp(on_not_int32);
     } else {
       j(equal, on_not_int32);
     }

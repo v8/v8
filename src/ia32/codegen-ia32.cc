@@ -1250,7 +1250,7 @@ void DeferredInlineBinaryOperation::GenerateNonSmiInput() {
     if (left_info_.IsSmi()) {
       // Right is a heap object.
       __ JumpIfNotNumber(right_, right_info_, entry_label());
-      __ ConvertToInt32(right_, right_, dst_, left_info_, entry_label());
+      __ ConvertToInt32(right_, right_, dst_, right_info_, entry_label());
       __ mov(dst_, Operand(left_));
       __ SmiUntag(dst_);
     } else if (right_info_.IsSmi()) {
@@ -1270,11 +1270,11 @@ void DeferredInlineBinaryOperation::GenerateNonSmiInput() {
       // Both were heap objects.
       __ rcl(right_, 1);  // Put tag back.
       __ JumpIfNotNumber(right_, right_info_, entry_label());
-      __ ConvertToInt32(right_, right_, no_reg, left_info_, entry_label());
+      __ ConvertToInt32(right_, right_, no_reg, right_info_, entry_label());
       __ jmp(&got_both);
       __ bind(&only_right_is_heap_object);
       __ JumpIfNotNumber(right_, right_info_, entry_label());
-      __ ConvertToInt32(right_, right_, no_reg, left_info_, entry_label());
+      __ ConvertToInt32(right_, right_, no_reg, right_info_, entry_label());
       __ bind(&got_both);
     }
   }
@@ -1940,6 +1940,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
     // Use a fresh answer register to avoid spilling the left operand.
     answer = allocator_->Allocate();
     ASSERT(answer.is_valid());
+
     DeferredInlineBinaryOperation* deferred =
         new DeferredInlineBinaryOperation(op,
                                           answer.reg(),
@@ -4605,10 +4606,11 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // loop.  edx: i'th entry of the enum cache (or string there of)
   frame_->EmitPush(ebx);
   { Reference each(this, node->each());
-    // Loading a reference may leave the frame in an unspilled state.
-    frame_->SpillAll();
     if (!each.is_illegal()) {
       if (each.size() > 0) {
+        // Loading a reference may leave the frame in an unspilled state.
+        frame_->SpillAll();
+        // Get the value (under the reference on the stack) from memory.
         frame_->EmitPush(frame_->ElementAt(each.size()));
         each.SetValue(NOT_CONST_INIT);
         frame_->Drop(2);
