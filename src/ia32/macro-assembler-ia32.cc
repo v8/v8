@@ -373,13 +373,13 @@ void MacroAssembler::AbortIfNotNumber(Register object) {
 
 void MacroAssembler::AbortIfNotSmi(Register object) {
   test(object, Immediate(kSmiTagMask));
-  Assert(equal, "Operand not a smi");
+  Assert(equal, "Operand is not a smi");
 }
 
 
 void MacroAssembler::AbortIfSmi(Register object) {
   test(object, Immediate(kSmiTagMask));
-  Assert(not_equal, "Operand a smi");
+  Assert(not_equal, "Operand is a smi");
 }
 
 
@@ -1549,12 +1549,10 @@ void MacroAssembler::ConvertToInt32(Register dst,
     if (scratch.is(no_reg)) scratch = dst;
     cvttsd2si(scratch, FieldOperand(source, HeapNumber::kValueOffset));
     cmp(scratch, 0x80000000u);
-    if (push_pop || dst.is(source)) {
+    if (push_pop) {
       j(not_equal, &done);
-      if (push_pop) {
-        pop(dst);
-        jmp(on_not_int32);
-      }
+      pop(dst);
+      jmp(on_not_int32);
     } else {
       j(equal, on_not_int32);
     }

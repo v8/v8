@@ -1291,6 +1291,26 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
 }
 
+
+void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Push a copy of the function onto the stack.
+  __ push(rdi);
+
+  __ push(rdi);  // Function is also the parameter to the runtime call.
+  __ CallRuntime(Runtime::kLazyCompile, 1);
+  __ pop(rdi);
+
+  // Tear down temporary frame.
+  __ LeaveInternalFrame();
+
+  // Do a tail-call of the compiled function.
+  __ lea(rcx, FieldOperand(rax, Code::kHeaderSize));
+  __ jmp(rcx);
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_X64

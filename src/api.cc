@@ -174,6 +174,8 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.objects_per_type = objects_per_type;
   int size_per_type[LAST_TYPE + 1] = {0};
   heap_stats.size_per_type = size_per_type;
+  int os_error;
+  heap_stats.os_error = &os_error;
   int end_marker;
   heap_stats.end_marker = &end_marker;
   i::Heap::RecordStats(&heap_stats, take_snapshot);
@@ -886,10 +888,10 @@ void FunctionTemplate::SetNamedInstancePropertyHandler(
 }
 
 
-void FunctionTemplate::SetIndexedInstancePropertyHandlerImpl(
+void FunctionTemplate::SetIndexedInstancePropertyHandler(
       IndexedPropertyGetter getter,
       IndexedPropertySetter setter,
-      IndexedPropertyQueryImpl query,
+      IndexedPropertyQuery query,
       IndexedPropertyDeleter remover,
       IndexedPropertyEnumerator enumerator,
       Handle<Value> data) {
@@ -1054,10 +1056,10 @@ void ObjectTemplate::SetAccessCheckCallbacks(
 }
 
 
-void ObjectTemplate::SetIndexedPropertyHandlerImpl(
+void ObjectTemplate::SetIndexedPropertyHandler(
       IndexedPropertyGetter getter,
       IndexedPropertySetter setter,
-      IndexedPropertyQueryImpl query,
+      IndexedPropertyQuery query,
       IndexedPropertyDeleter remover,
       IndexedPropertyEnumerator enumerator,
       Handle<Value> data) {
@@ -1068,12 +1070,12 @@ void ObjectTemplate::SetIndexedPropertyHandlerImpl(
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
-  Utils::ToLocal(cons)->SetIndexedInstancePropertyHandlerImpl(getter,
-                                                              setter,
-                                                              query,
-                                                              remover,
-                                                              enumerator,
-                                                              data);
+  Utils::ToLocal(cons)->SetIndexedInstancePropertyHandler(getter,
+                                                          setter,
+                                                          query,
+                                                          remover,
+                                                          enumerator,
+                                                          data);
 }
 
 

@@ -101,7 +101,8 @@ enum UncatchableExceptionType { OUT_OF_MEMORY, TERMINATION };
   F(IsObject, 1, 1)                                                          \
   F(IsFunction, 1, 1)                                                        \
   F(IsUndetectableObject, 1, 1)                                              \
-  F(IsSpecObject, 1, 1)                                            \
+  F(IsSpecObject, 1, 1)                                                      \
+  F(IsStringWrapperSafeForDefaultValueOf, 1, 1)                              \
   F(StringAdd, 2, 1)                                                         \
   F(SubString, 3, 1)                                                         \
   F(StringCompare, 2, 1)                                                     \
@@ -727,18 +728,6 @@ class CallFunctionStub: public CodeStub {
   static int ExtractArgcFromMinorKey(int minor_key) {
     return ArgcBits::decode(minor_key);
   }
-};
-
-
-class ToBooleanStub: public CodeStub {
- public:
-  ToBooleanStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return 0; }
 };
 
 

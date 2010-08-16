@@ -1,3 +1,15 @@
+2010-08-16: Version 2.3.8
+
+        Fixed build with strict aliasing on GCC 4.4 (issue 463).
+
+        Fixed issue with incorrect handling of custom valueOf methods on
+        string wrappers (issue 760).
+
+        Fixed compilation for ARMv4 (issue 590).
+
+        Improved performance.
+
+
 2010-08-11: Version 2.3.7
 
         Reduced size of heap snapshots produced by heap profiler (issue 783).

@@ -520,7 +520,6 @@ void Top::PrintStack(StringStream* accumulator) {
 
 
 void Top::SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback) {
-  ASSERT(thread_local_.failed_access_check_callback_ == NULL);
   thread_local_.failed_access_check_callback_ = callback;
 }
 
@@ -530,8 +529,6 @@ void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
 
   ASSERT(receiver->IsAccessCheckNeeded());
   ASSERT(Top::context());
-  // The callers of this method are not expecting a GC.
-  AssertNoAllocation no_gc;
 
   // Get the data object from access check info.
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());

@@ -782,8 +782,8 @@ void MacroAssembler::SmiCompare(Register dst, Smi* src) {
   if (src->value() == 0) {
     testq(dst, dst);
   } else {
-    Move(kScratchRegister, src);
-    cmpq(dst, kScratchRegister);
+    Register constant_reg = GetSmiConstant(src);
+    cmpq(dst, constant_reg);
   }
 }
 
@@ -1977,10 +1977,17 @@ void MacroAssembler::AbortIfNotNumber(Register object) {
 }
 
 
+void MacroAssembler::AbortIfSmi(Register object) {
+  Label ok;
+  Condition is_smi = CheckSmi(object);
+  Assert(NegateCondition(is_smi), "Operand is a smi");
+}
+
+
 void MacroAssembler::AbortIfNotSmi(Register object) {
   Label ok;
   Condition is_smi = CheckSmi(object);
-  Assert(is_smi, "Operand not a smi");
+  Assert(is_smi, "Operand is not a smi");
 }
 
 

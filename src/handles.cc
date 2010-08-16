@@ -637,8 +637,8 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
 
     // Check access rights if required.
     if (current->IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(*current, Heap::undefined_value(),
-                           v8::ACCESS_KEYS)) {
+        !Top::MayNamedAccess(*current, Heap::undefined_value(),
+                             v8::ACCESS_KEYS)) {
       Top::ReportFailedAccessCheck(*current, v8::ACCESS_KEYS);
       break;
     }
@@ -816,11 +816,6 @@ OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
   } else {
     has_been_transformed_ = false;
   }
-}
-
-
-Handle<Code> ComputeLazyCompile(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeLazyCompile(argc), Code);
 }
 
 

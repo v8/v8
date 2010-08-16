@@ -36,6 +36,7 @@
 #include "global-handles.h"
 #include "macro-assembler.h"
 #include "natives.h"
+#include "objects-visiting.h"
 #include "snapshot.h"
 #include "stub-cache.h"
 
@@ -813,9 +814,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     initial_map->set_instance_size(
         initial_map->instance_size() + 5 * kPointerSize);
     initial_map->set_instance_descriptors(*descriptors);
-    initial_map->set_scavenger(
-        Heap::GetScavenger(initial_map->instance_type(),
-                           initial_map->instance_size()));
+    initial_map->set_visitor_id(StaticVisitorBase::GetVisitorId(*initial_map));
   }
 
   {  // -- J S O N
@@ -1234,6 +1233,14 @@ bool Genesis::InstallNatives() {
   }
 
   InstallNativeFunctions();
+
+  // Store the map for the string prototype after the natives has been compiled
+  // and the String function has been setup.
+  Handle<JSFunction> string_function(global_context()->string_function());
+  ASSERT(JSObject::cast(
+      string_function->initial_map()->prototype())->HasFastProperties());
+  global_context()->set_string_function_prototype_map(
+      HeapObject::cast(string_function->initial_map()->prototype())->map());
 
   InstallCustomCallGenerators();
 
