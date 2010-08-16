@@ -112,7 +112,13 @@ class StackFrame BASE_EMBEDDED {
 
   // Opaque data type for identifying stack frames. Used extensively
   // by the debugger.
-  enum Id { NO_ID = 0 };
+  // ID_MIN_VALUE and ID_MAX_VALUE are specified to ensure that enumeration type
+  // has correct value range (see Issue 830 for more details).
+  enum Id {
+    ID_MIN_VALUE = kMinInt,
+    ID_MAX_VALUE = kMaxInt,
+    NO_ID = 0
+  };
 
   // Copy constructor; it breaks the connection to host iterator.
   StackFrame(const StackFrame& original) {
