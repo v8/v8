@@ -461,6 +461,8 @@ void BreakLocationIterator::SetDebugBreakAtIC() {
       KeyedStoreIC::ClearInlinedVersion(pc());
     } else if (code->is_load_stub()) {
       LoadIC::ClearInlinedVersion(pc());
+    } else if (code->is_store_stub()) {
+      StoreIC::ClearInlinedVersion(pc());
     }
   }
 }

@@ -2680,6 +2680,65 @@ TEST(DebugStepNamedLoadLoop) {
 }
 
 
+static void DoDebugStepNamedStoreLoop(int expected, bool full_compiler = true) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Register a debug event listener which steps and counts before compiling the
+  // function to ensure the full compiler is used.
+  if (full_compiler) {
+    v8::Debug::SetDebugEventListener(DebugEventStep);
+  }
+
+  // Create a function for testing stepping of named store.
+  v8::Local<v8::Function> foo = CompileFunction(
+      &env,
+      "function foo() {\n"
+          "  var a = {a:1};\n"
+          "  for (var i = 0; i < 10; i++) {\n"
+          "    a.a = 2\n"
+          "  }\n"
+          "}\n",
+          "foo");
+
+  // Call function without any break points to ensure inlining is in place.
+  foo->Call(env->Global(), 0, NULL);
+
+  // Register a debug event listener which steps and counts after compiling the
+  // function to ensure the optimizing compiler is used.
+  if (!full_compiler) {
+    v8::Debug::SetDebugEventListener(DebugEventStep);
+  }
+
+  // Setup break point and step through the function.
+  SetBreakPoint(foo, 3);
+  step_action = StepNext;
+  break_point_hit_count = 0;
+  foo->Call(env->Global(), 0, NULL);
+
+  // With stepping all expected break locations are hit.
+  CHECK_EQ(expected, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
+// Test of the stepping mechanism for named load in a loop.
+TEST(DebugStepNamedStoreLoopFull) {
+  // With the full compiler it is possible to break on the for statement.
+  DoDebugStepNamedStoreLoop(22);
+}
+
+
+// Test of the stepping mechanism for named load in a loop.
+TEST(DebugStepNamedStoreLoopOptimizing) {
+  // With the optimizing compiler it is not possible to break on the for
+  // statement as it uses a local variable thus no IC's.
+  DoDebugStepNamedStoreLoop(11, false);
+}
+
+
 // Test the stepping mechanism with different ICs.
 TEST(DebugStepLinearMixedICs) {
   v8::HandleScope scope;
