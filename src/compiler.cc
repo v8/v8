@@ -454,6 +454,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
   // Check the function has compiled code.
   ASSERT(shared->is_compiled());
+  shared->set_code_age(0);
   return true;
 }
 

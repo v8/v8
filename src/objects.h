@@ -3371,6 +3371,8 @@ class SharedFunctionInfo: public HeapObject {
   // [construct stub]: Code stub for constructing instances of this function.
   DECL_ACCESSORS(construct_stub, Code)
 
+  inline Code* unchecked_code();
+
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
 
@@ -3477,6 +3479,15 @@ class SharedFunctionInfo: public HeapObject {
   // when doing GC if we expect that the function will no longer be used.
   inline bool allows_lazy_compilation();
   inline void set_allows_lazy_compilation(bool flag);
+
+  // Indicates how many full GCs this function has survived with assigned
+  // code object. Used to determine when it is relatively safe to flush
+  // this code object and replace it with lazy compilation stub.
+  // Age is reset when GC notices that the code object is referenced
+  // from the stack or compilation cache.
+  inline int code_age();
+  inline void set_code_age(int age);
+
 
   // Check whether a inlined constructor can be generated with the given
   // prototype.
@@ -3608,6 +3619,8 @@ class SharedFunctionInfo: public HeapObject {
   static const int kHasOnlySimpleThisPropertyAssignments = 0;
   static const int kTryFullCodegen = 1;
   static const int kAllowLazyCompilation = 2;
+  static const int kCodeAgeShift = 3;
+  static const int kCodeAgeMask = 7;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
@@ -3623,6 +3636,8 @@ class JSFunction: public JSObject {
   // can be shared by instances.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
 
+  inline SharedFunctionInfo* unchecked_shared();
+
   // [context]: The context for this function.
   inline Context* context();
   inline Object* unchecked_context();
@@ -3634,6 +3649,8 @@ class JSFunction: public JSObject {
   // 8.6.2, page 27.
   inline Code* code();
   inline void set_code(Code* value);
+
+  inline Code* unchecked_code();
 
   // Tells whether this function is builtin.
   inline bool IsBuiltin();

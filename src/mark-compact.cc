@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "compilation-cache.h"
 #include "execution.h"
 #include "heap-profiler.h"
 #include "global-handles.h"
@@ -252,6 +253,15 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     table_.GetVisitor(map)(map, obj);
   }
 
+  static void EnableCodeFlushing(bool enabled) {
+    if (enabled) {
+      table_.Register(kVisitJSFunction, &VisitJSFunction);
+    } else {
+      table_.Register(kVisitJSFunction,
+                      &JSObjectVisitor::VisitSpecialized<JSFunction::kSize>);
+    }
+  }
+
   static void Initialize() {
     table_.Register(kVisitShortcutCandidate,
                     &FixedBodyVisitor<StaticMarkingVisitor,
@@ -288,6 +298,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                                       void>::Visit);
 
     table_.Register(kVisitCode, &VisitCode);
+
+    table_.Register(kVisitJSFunction, &VisitJSFunction);
 
     table_.Register(kVisitPropertyCell,
                     &FixedBodyVisitor<StaticMarkingVisitor,
@@ -405,6 +417,134 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     reinterpret_cast<Code*>(object)->CodeIterateBody<StaticMarkingVisitor>();
   }
 
+  // Code flushing support.
+
+  // How many collections newly compiled code object will survive before being
+  // flushed.
+  static const int kCodeAgeThreshold = 5;
+
+  inline static bool HasSourceCode(SharedFunctionInfo* info) {
+    Object* undefined = Heap::raw_unchecked_undefined_value();
+    return (info->script() != undefined) &&
+        (reinterpret_cast<Script*>(info->script())->source() != undefined);
+  }
+
+
+  inline static bool IsCompiled(JSFunction* function) {
+    return
+        function->unchecked_code() != Builtins::builtin(Builtins::LazyCompile);
+  }
+
+
+  inline static bool IsCompiled(SharedFunctionInfo* function) {
+    return
+        function->unchecked_code() != Builtins::builtin(Builtins::LazyCompile);
+  }
+
+
+  static void FlushCodeForFunction(JSFunction* function) {
+    SharedFunctionInfo* shared_info = function->unchecked_shared();
+
+    if (shared_info->IsMarked()) return;
+
+    // Special handling if the function and shared info objects
+    // have different code objects.
+    if (function->unchecked_code() != shared_info->unchecked_code()) {
+      // If the shared function has been flushed but the function has not,
+      // we flush the function if possible.
+      if (!IsCompiled(shared_info) &&
+          IsCompiled(function) &&
+          !function->unchecked_code()->IsMarked()) {
+        function->set_code(shared_info->unchecked_code());
+      }
+      return;
+    }
+
+    // Code is either on stack or in compilation cache.
+    if (shared_info->unchecked_code()->IsMarked()) {
+      shared_info->set_code_age(0);
+      return;
+    }
+
+    // The function must be compiled and have the source code available,
+    // to be able to recompile it in case we need the function again.
+    if (!(shared_info->is_compiled() && HasSourceCode(shared_info))) return;
+
+    // We never flush code for Api functions.
+    Object* function_data = shared_info->function_data();
+    if (function_data->IsHeapObject() &&
+        (SafeMap(function_data)->instance_type() ==
+         FUNCTION_TEMPLATE_INFO_TYPE)) {
+      return;
+    }
+
+    // Only flush code for functions.
+    if (shared_info->code()->kind() != Code::FUNCTION) return;
+
+    // Function must be lazy compilable.
+    if (!shared_info->allows_lazy_compilation()) return;
+
+    // If this is a full script wrapped in a function we do no flush the code.
+    if (shared_info->is_toplevel()) return;
+
+    // Age this shared function info.
+    if (shared_info->code_age() < kCodeAgeThreshold) {
+      shared_info->set_code_age(shared_info->code_age() + 1);
+      return;
+    }
+
+    // Compute the lazy compilable version of the code.
+    Code* code = Builtins::builtin(Builtins::LazyCompile);
+    shared_info->set_code(code);
+    function->set_code(code);
+  }
+
+
+  static inline Map* SafeMap(Object* obj) {
+    MapWord map_word = HeapObject::cast(obj)->map_word();
+    map_word.ClearMark();
+    map_word.ClearOverflow();
+    return map_word.ToMap();
+  }
+
+
+  static inline bool IsJSBuiltinsObject(Object* obj) {
+    return obj->IsHeapObject() &&
+        (SafeMap(obj)->instance_type() == JS_BUILTINS_OBJECT_TYPE);
+  }
+
+
+  static inline bool IsValidNotBuiltinContext(Object* ctx) {
+    if (!ctx->IsHeapObject()) return false;
+
+    Map* map = SafeMap(ctx);
+    if(!(map == Heap::raw_unchecked_context_map() ||
+         map == Heap::raw_unchecked_catch_context_map() ||
+         map == Heap::raw_unchecked_global_context_map())) {
+      return false;
+    }
+
+    Context* context = reinterpret_cast<Context*>(ctx);
+
+    if(IsJSBuiltinsObject(context->global())) {
+      return false;
+    }
+
+    return true;
+  }
+
+
+  static void VisitJSFunction(Map* map, HeapObject* object) {
+    JSFunction* jsfunction = reinterpret_cast<JSFunction*>(object);
+
+    // The function must have a valid context and not be a builtin.
+    if (IsValidNotBuiltinContext(jsfunction->unchecked_context())) {
+      FlushCodeForFunction(jsfunction);
+    }
+
+    JSObjectVisitor::VisitSpecialized<JSFunction::kSize>(map, object);
+  }
+
   typedef void (*Callback)(Map* map, HeapObject* object);
 
   static VisitorDispatchTable<Callback> table_;
@@ -433,6 +573,62 @@ class MarkingVisitor : public ObjectVisitor {
     StaticMarkingVisitor::VisitDebugTarget(rinfo);
   }
 };
+
+
+class CodeMarkingVisitor : public ThreadVisitor {
+ public:
+  void VisitThread(ThreadLocalTop* top) {
+    for (StackFrameIterator it(top); !it.done(); it.Advance()) {
+      MarkCompactCollector::MarkObject(it.frame()->unchecked_code());
+    }
+  }
+};
+
+
+class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
+ public:
+  void VisitPointers(Object** start, Object** end) {
+    for (Object** p = start; p < end; p++) VisitPointer(p);
+  }
+
+  void VisitPointer(Object** slot) {
+    Object* obj = *slot;
+    if (obj->IsHeapObject()) {
+      MarkCompactCollector::MarkObject(HeapObject::cast(obj));
+    }
+  }
+};
+
+
+void MarkCompactCollector::PrepareForCodeFlushing() {
+  if (!FLAG_flush_code) {
+    StaticMarkingVisitor::EnableCodeFlushing(false);
+    return;
+  }
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  if (Debug::IsLoaded() || Debug::has_break_points()) {
+    StaticMarkingVisitor::EnableCodeFlushing(false);
+    return;
+  }
+#endif
+  StaticMarkingVisitor::EnableCodeFlushing(true);
+
+  // Make sure we are not referencing the code from the stack.
+  for (StackFrameIterator it; !it.done(); it.Advance()) {
+    MarkCompactCollector::MarkObject(it.frame()->unchecked_code());
+  }
+
+  // Iterate the archived stacks in all threads to check if
+  // the code is referenced.
+  CodeMarkingVisitor code_marking_visitor;
+  ThreadManager::IterateArchivedThreads(&code_marking_visitor);
+
+  SharedFunctionInfoMarkingVisitor visitor;
+  CompilationCache::IterateFunctions(&visitor);
+
+  MarkCompactCollector::ProcessMarkingStack();
+}
 
 
 // Visitor class for marking heap roots.
@@ -792,6 +988,8 @@ void MarkCompactCollector::MarkLiveObjects() {
                            Heap::new_space()->FromSpaceHigh());
 
   ASSERT(!marking_stack.overflowed());
+
+  PrepareForCodeFlushing();
 
   RootMarkingVisitor root_visitor;
   MarkRoots(&root_visitor);

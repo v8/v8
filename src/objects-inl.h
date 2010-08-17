@@ -2563,6 +2563,7 @@ BOOL_ACCESSORS(SharedFunctionInfo,
                allows_lazy_compilation,
                kAllowLazyCompilation)
 
+
 #if V8_HOST_ARCH_32_BIT
 SMI_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 SMI_ACCESSORS(SharedFunctionInfo, formal_parameter_count,
@@ -2662,6 +2663,11 @@ Code* SharedFunctionInfo::code() {
 }
 
 
+Code* SharedFunctionInfo::unchecked_code() {
+  return reinterpret_cast<Code*>(READ_FIELD(this, kCodeOffset));
+}
+
+
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kCodeOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kCodeOffset, mode);
@@ -2708,6 +2714,17 @@ int SharedFunctionInfo::custom_call_generator_id() {
 }
 
 
+int SharedFunctionInfo::code_age() {
+  return (compiler_hints() >> kCodeAgeShift) & kCodeAgeMask;
+}
+
+
+void SharedFunctionInfo::set_code_age(int code_age) {
+  set_compiler_hints(compiler_hints() |
+                     ((code_age & kCodeAgeMask) << kCodeAgeShift));
+}
+
+
 bool JSFunction::IsBuiltin() {
   return context()->global()->IsJSBuiltinsObject();
 }
@@ -2715,6 +2732,11 @@ bool JSFunction::IsBuiltin() {
 
 Code* JSFunction::code() {
   return Code::cast(READ_FIELD(this, kCodeOffset));
+}
+
+
+Code* JSFunction::unchecked_code() {
+  return reinterpret_cast<Code*>(READ_FIELD(this, kCodeOffset));
 }
 
 
@@ -2732,6 +2754,12 @@ Context* JSFunction::context() {
 
 Object* JSFunction::unchecked_context() {
   return READ_FIELD(this, kContextOffset);
+}
+
+
+SharedFunctionInfo* JSFunction::unchecked_shared() {
+  return reinterpret_cast<SharedFunctionInfo*>(
+      READ_FIELD(this, kSharedFunctionInfoOffset));
 }
 
 

@@ -210,7 +210,6 @@ class StubCache : public AllStatic {
   static Object* ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind);
 #endif
 
-
   // Update cache for entry hash(name, map).
   static Code* Set(String* name, Map* map, Code* code);
 

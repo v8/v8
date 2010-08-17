@@ -5099,7 +5099,7 @@ Object* Oddball::Initialize(const char* to_string, Object* to_number) {
 
 bool SharedFunctionInfo::HasSourceCode() {
   return !script()->IsUndefined() &&
-         !Script::cast(script())->source()->IsUndefined();
+         !reinterpret_cast<Script*>(script())->source()->IsUndefined();
 }
 
 
