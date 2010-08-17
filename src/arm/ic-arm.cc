@@ -1791,19 +1791,22 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-// Convert int passed in register ival to IEE 754 single precision
-// floating point value and store it into register fval.
+// Convert and store int passed in register ival to IEEE 754 single precision
+// floating point value at memory location (dst + 4 * wordoffset)
 // If VFP3 is available use it for conversion.
-static void ConvertIntToFloat(MacroAssembler* masm,
-                              Register ival,
-                              Register fval,
-                              Register scratch1,
-                              Register scratch2) {
+static void StoreIntAsFloat(MacroAssembler* masm,
+                            Register dst,
+                            Register wordoffset,
+                            Register ival,
+                            Register fval,
+                            Register scratch1,
+                            Register scratch2) {
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     __ vmov(s0, ival);
+    __ add(scratch1, dst, Operand(wordoffset, LSL, 2));
     __ vcvt_f32_s32(s0, s0);
-    __ vmov(fval, s0);
+    __ vstr(s0, scratch1, 0);
   } else {
     Label not_special, done;
     // Move sign bit from source to destination.  This works because the sign
@@ -1853,6 +1856,7 @@ static void ConvertIntToFloat(MacroAssembler* masm,
            Operand(ival, LSR, kBitsPerInt - kBinary32MantissaBits));
 
     __ bind(&done);
+    __ str(fval, MemOperand(dst, wordoffset, LSL, 2));
   }
 }
 
@@ -1947,9 +1951,8 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       __ str(r5, MemOperand(r3, r4, LSL, 2));
       break;
     case kExternalFloatArray:
-      // Need to perform int-to-float conversion.
-      ConvertIntToFloat(masm, r5, r6, r7, r9);
-      __ str(r6, MemOperand(r3, r4, LSL, 2));
+      // Perform int-to-float conversion and store to memory.
+      StoreIntAsFloat(masm, r3, r4, r5, r6, r7, r9);
       break;
     default:
       UNREACHABLE();
@@ -1983,9 +1986,9 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       // include -kHeapObjectTag into it.
       __ sub(r5, r0, Operand(kHeapObjectTag));
       __ vldr(d0, r5, HeapNumber::kValueOffset);
+      __ add(r5, r3, Operand(r4, LSL, 2));
       __ vcvt_f32_f64(s0, d0);
-      __ vmov(r5, s0);
-      __ str(r5, MemOperand(r3, r4, LSL, 2));
+      __ vstr(s0, r5, 0);
     } else {
       // Need to perform float-to-int conversion.
       // Test for NaN or infinity (both give zero).
