@@ -570,6 +570,7 @@ void Debug::ThreadInit() {
   // TODO(isolates): frames_are_dropped_?
   thread_local_.debugger_entry_ = NULL;
   thread_local_.pending_interrupts_ = 0;
+  thread_local_.restarter_frame_function_pointer_ = NULL;
 }
 
 

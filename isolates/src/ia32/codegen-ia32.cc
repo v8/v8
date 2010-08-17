@@ -7600,8 +7600,7 @@ void CodeGenerator::GenerateIsRegExpEquivalent(ZoneList<Expression*>* args) {
   __ test(Operand(tmp), Immediate(kSmiTagMask));
   destination()->false_target()->Branch(equal);
   __ mov(tmp, FieldOperand(left, HeapObject::kMapOffset));
-  __ cmpb(FieldOperand(tmp, Map::kInstanceTypeOffset),
-          static_cast<int8_t>(JS_REGEXP_TYPE));
+  __ CmpInstanceType(tmp, JS_REGEXP_TYPE);
   destination()->false_target()->Branch(not_equal);
   __ cmp(tmp, FieldOperand(right, HeapObject::kMapOffset));
   destination()->false_target()->Branch(not_equal);
