@@ -1319,6 +1319,9 @@ class Heap : public AllStatic {
 
 class HeapStats {
  public:
+  static const int kStartMarker = 0xDECADE00;
+  static const int kEndMarker = 0xDECADE01;
+
   int* start_marker;                    //  0
   int* new_space_size;                  //  1
   int* new_space_capacity;              //  2

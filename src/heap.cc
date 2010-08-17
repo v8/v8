@@ -3959,8 +3959,8 @@ bool Heap::ConfigureHeapDefault() {
 
 
 void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
-  *stats->start_marker = 0xDECADE00;
-  *stats->end_marker = 0xDECADE01;
+  *stats->start_marker = HeapStats::kStartMarker;
+  *stats->end_marker = HeapStats::kEndMarker;
   *stats->new_space_size = new_space_.Size();
   *stats->new_space_capacity = new_space_.Capacity();
   *stats->old_pointer_space_size = old_pointer_space_->Size();

@@ -230,19 +230,21 @@ enum PropertyNormalizationMode {
   V(CONS_SYMBOL_TYPE)                                                          \
   V(CONS_ASCII_SYMBOL_TYPE)                                                    \
   V(EXTERNAL_SYMBOL_TYPE)                                                      \
+  V(EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE)                                      \
   V(EXTERNAL_ASCII_SYMBOL_TYPE)                                                \
   V(STRING_TYPE)                                                               \
   V(ASCII_STRING_TYPE)                                                         \
   V(CONS_STRING_TYPE)                                                          \
   V(CONS_ASCII_STRING_TYPE)                                                    \
   V(EXTERNAL_STRING_TYPE)                                                      \
+  V(EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                      \
   V(EXTERNAL_ASCII_STRING_TYPE)                                                \
   V(PRIVATE_EXTERNAL_ASCII_STRING_TYPE)                                        \
                                                                                \
   V(MAP_TYPE)                                                                  \
   V(CODE_TYPE)                                                                 \
-  V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
   V(ODDBALL_TYPE)                                                              \
+  V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
                                                                                \
   V(HEAP_NUMBER_TYPE)                                                          \
   V(PROXY_TYPE)                                                                \
@@ -260,11 +262,9 @@ enum PropertyNormalizationMode {
   V(EXTERNAL_FLOAT_ARRAY_TYPE)                                                 \
   V(FILLER_TYPE)                                                               \
                                                                                \
-  V(FIXED_ARRAY_TYPE)                                                          \
   V(ACCESSOR_INFO_TYPE)                                                        \
   V(ACCESS_CHECK_INFO_TYPE)                                                    \
   V(INTERCEPTOR_INFO_TYPE)                                                     \
-  V(SHARED_FUNCTION_INFO_TYPE)                                                 \
   V(CALL_HANDLER_INFO_TYPE)                                                    \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                                               \
   V(OBJECT_TEMPLATE_INFO_TYPE)                                                 \
@@ -272,6 +272,9 @@ enum PropertyNormalizationMode {
   V(TYPE_SWITCH_INFO_TYPE)                                                     \
   V(SCRIPT_TYPE)                                                               \
   V(CODE_CACHE_TYPE)                                                           \
+                                                                               \
+  V(FIXED_ARRAY_TYPE)                                                          \
+  V(SHARED_FUNCTION_INFO_TYPE)                                                 \
                                                                                \
   V(JS_VALUE_TYPE)                                                             \
   V(JS_OBJECT_TYPE)                                                            \
