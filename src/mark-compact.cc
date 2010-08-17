@@ -518,15 +518,15 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     if (!ctx->IsHeapObject()) return false;
 
     Map* map = SafeMap(ctx);
-    if(!(map == Heap::raw_unchecked_context_map() ||
-         map == Heap::raw_unchecked_catch_context_map() ||
-         map == Heap::raw_unchecked_global_context_map())) {
+    if (!(map == Heap::raw_unchecked_context_map() ||
+          map == Heap::raw_unchecked_catch_context_map() ||
+          map == Heap::raw_unchecked_global_context_map())) {
       return false;
     }
 
     Context* context = reinterpret_cast<Context*>(ctx);
 
-    if(IsJSBuiltinsObject(context->global())) {
+    if (IsJSBuiltinsObject(context->global())) {
       return false;
     }
 

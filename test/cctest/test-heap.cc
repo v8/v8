@@ -980,6 +980,7 @@ TEST(TestCodeFlushing) {
   Heap::CollectAllGarbage(true);
   Heap::CollectAllGarbage(true);
   Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(true);
 
   // foo should no longer be in the compilation cache
   CHECK(!function->shared()->is_compiled());
