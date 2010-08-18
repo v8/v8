@@ -1,3 +1,15 @@
+2010-08-18: Version 2.3.9
+
+        Fix compilation for ARMv4 on OpenBSD/FreeBSD.
+
+        Removed specialized handling of GCC 4.4 (issue 830).
+
+        Fixed DST cache to take into account the suspension of DST in 
+        Egypt during the 2010 Ramadan (issue http://crbug.com/51855).
+
+	Performance improvements on all platforms.
+
+
 2010-08-16: Version 2.3.8
 
         Fixed build with strict aliasing on GCC 4.4 (issue 463).
