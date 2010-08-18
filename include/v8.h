@@ -1763,8 +1763,6 @@ class V8EXPORT AccessorInfo {
 
 typedef Handle<Value> (*InvocationCallback)(const Arguments& args);
 
-typedef int (*LookupCallback)(Local<Object> self, Local<String> name);
-
 /**
  * NamedProperty[Getter|Setter] are used as interceptors on object.
  * See ObjectTemplate::SetNamedPropertyHandler.
