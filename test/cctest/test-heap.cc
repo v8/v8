@@ -36,8 +36,8 @@ TEST(HeapMaps) {
   InitializeVM();
   CheckMap(Heap::meta_map(), MAP_TYPE, Map::kSize);
   CheckMap(Heap::heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
-  CheckMap(Heap::fixed_array_map(), FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
-  CheckMap(Heap::string_map(), STRING_TYPE, SeqTwoByteString::kAlignedSize);
+  CheckMap(Heap::fixed_array_map(), FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+  CheckMap(Heap::string_map(), STRING_TYPE, kVariableSizeSentinel);
 }
 
 

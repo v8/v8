@@ -201,6 +201,10 @@ enum PropertyNormalizationMode {
 };
 
 
+// Instance size sentinel for objects of variable size.
+static const int kVariableSizeSentinel = 0;
+
+
 // All Maps have a field instance_type containing a InstanceType.
 // It describes the type of the instances.
 //
@@ -304,11 +308,11 @@ enum PropertyNormalizationMode {
 // iterate over them.
 #define STRING_TYPE_LIST(V)                                                    \
   V(SYMBOL_TYPE,                                                               \
-    SeqTwoByteString::kAlignedSize,                                            \
+    kVariableSizeSentinel,                                                     \
     symbol,                                                                    \
     Symbol)                                                                    \
   V(ASCII_SYMBOL_TYPE,                                                         \
-    SeqAsciiString::kAlignedSize,                                              \
+    kVariableSizeSentinel,                                                     \
     ascii_symbol,                                                              \
     AsciiSymbol)                                                               \
   V(CONS_SYMBOL_TYPE,                                                          \
@@ -332,11 +336,11 @@ enum PropertyNormalizationMode {
     external_ascii_symbol,                                                     \
     ExternalAsciiSymbol)                                                       \
   V(STRING_TYPE,                                                               \
-    SeqTwoByteString::kAlignedSize,                                            \
+    kVariableSizeSentinel,                                                     \
     string,                                                                    \
     String)                                                                    \
   V(ASCII_STRING_TYPE,                                                         \
-    SeqAsciiString::kAlignedSize,                                              \
+    kVariableSizeSentinel,                                                     \
     ascii_string,                                                              \
     AsciiString)                                                               \
   V(CONS_STRING_TYPE,                                                          \
@@ -358,7 +362,7 @@ enum PropertyNormalizationMode {
   V(EXTERNAL_ASCII_STRING_TYPE,                                                \
     ExternalAsciiString::kSize,                                                \
     external_ascii_string,                                                     \
-    ExternalAsciiString)                                                       \
+    ExternalAsciiString)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate
@@ -1099,10 +1103,6 @@ class HeapObject: public Object {
   inline void IteratePointers(ObjectVisitor* v, int start, int end);
   // as above, for the single element at "offset"
   inline void IteratePointer(ObjectVisitor* v, int offset);
-
-  // Computes the object size from the map.
-  // Should only be used from SizeFromMap.
-  int SlowSizeFromMap(Map* map);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(HeapObject);
@@ -2993,6 +2993,8 @@ class Code: public HeapObject {
 class Map: public HeapObject {
  public:
   // Instance size.
+  // Size in bytes or kVariableSizeSentinel if instances do not have
+  // a fixed size.
   inline int instance_size();
   inline void set_instance_size(int value);
 

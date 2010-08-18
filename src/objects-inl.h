@@ -2111,20 +2111,28 @@ int Map::pre_allocated_property_fields() {
 
 
 int HeapObject::SizeFromMap(Map* map) {
-  InstanceType instance_type = map->instance_type();
+  int instance_size = map->instance_size();
+  if (instance_size != kVariableSizeSentinel) return instance_size;
+  // We can ignore the "symbol" bit becase it is only set for symbols
+  // and implies a string type.
+  int instance_type = static_cast<int>(map->instance_type()) & ~kIsSymbolMask;
   // Only inline the most frequent cases.
-  if (instance_type == JS_OBJECT_TYPE ||
-      (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
-      (kStringTag | kConsStringTag) ||
-      instance_type == JS_ARRAY_TYPE) return map->instance_size();
   if (instance_type == FIXED_ARRAY_TYPE) {
     return FixedArray::BodyDescriptor::SizeOf(map, this);
+  }
+  if (instance_type == ASCII_STRING_TYPE) {
+    return SeqAsciiString::SizeFor(
+        reinterpret_cast<SeqAsciiString*>(this)->length());
   }
   if (instance_type == BYTE_ARRAY_TYPE) {
     return reinterpret_cast<ByteArray*>(this)->ByteArraySize();
   }
-  // Otherwise do the general size computation.
-  return SlowSizeFromMap(map);
+  if (instance_type == STRING_TYPE) {
+    return SeqTwoByteString::SizeFor(
+        reinterpret_cast<SeqTwoByteString*>(this)->length());
+  }
+  ASSERT(instance_type == CODE_TYPE);
+  return reinterpret_cast<Code*>(this)->CodeSize();
 }
 
 
