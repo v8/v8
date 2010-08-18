@@ -3524,7 +3524,7 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
   if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
 
   OffsetsVector registers(required_registers);
-  Vector<int> register_vector(registers.vector(), registers.length());
+  Vector<int32_t> register_vector(registers.vector(), registers.length());
   int subject_length = subject->length();
 
   for (;;) {  // Break on failure, return on exception.
@@ -3586,7 +3586,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
   if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
 
   OffsetsVector registers(required_registers);
-  Vector<int> register_vector(registers.vector(), registers.length());
+  Vector<int32_t> register_vector(registers.vector(), registers.length());
 
   RegExpImpl::IrregexpResult result =
       RegExpImpl::IrregexpExecOnce(regexp,
@@ -3646,7 +3646,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
       }
       // Swap register vectors, so the last successful match is in
       // prev_register_vector.
-      Vector<int> tmp = prev_register_vector;
+      Vector<int32_t> tmp = prev_register_vector;
       prev_register_vector = register_vector;
       register_vector = tmp;
 
