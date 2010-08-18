@@ -230,19 +230,21 @@ enum PropertyNormalizationMode {
   V(CONS_SYMBOL_TYPE)                                                          \
   V(CONS_ASCII_SYMBOL_TYPE)                                                    \
   V(EXTERNAL_SYMBOL_TYPE)                                                      \
+  V(EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE)                                      \
   V(EXTERNAL_ASCII_SYMBOL_TYPE)                                                \
   V(STRING_TYPE)                                                               \
   V(ASCII_STRING_TYPE)                                                         \
   V(CONS_STRING_TYPE)                                                          \
   V(CONS_ASCII_STRING_TYPE)                                                    \
   V(EXTERNAL_STRING_TYPE)                                                      \
+  V(EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                      \
   V(EXTERNAL_ASCII_STRING_TYPE)                                                \
   V(PRIVATE_EXTERNAL_ASCII_STRING_TYPE)                                        \
                                                                                \
   V(MAP_TYPE)                                                                  \
   V(CODE_TYPE)                                                                 \
-  V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
   V(ODDBALL_TYPE)                                                              \
+  V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
                                                                                \
   V(HEAP_NUMBER_TYPE)                                                          \
   V(PROXY_TYPE)                                                                \
@@ -260,11 +262,9 @@ enum PropertyNormalizationMode {
   V(EXTERNAL_FLOAT_ARRAY_TYPE)                                                 \
   V(FILLER_TYPE)                                                               \
                                                                                \
-  V(FIXED_ARRAY_TYPE)                                                          \
   V(ACCESSOR_INFO_TYPE)                                                        \
   V(ACCESS_CHECK_INFO_TYPE)                                                    \
   V(INTERCEPTOR_INFO_TYPE)                                                     \
-  V(SHARED_FUNCTION_INFO_TYPE)                                                 \
   V(CALL_HANDLER_INFO_TYPE)                                                    \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                                               \
   V(OBJECT_TEMPLATE_INFO_TYPE)                                                 \
@@ -272,6 +272,9 @@ enum PropertyNormalizationMode {
   V(TYPE_SWITCH_INFO_TYPE)                                                     \
   V(SCRIPT_TYPE)                                                               \
   V(CODE_CACHE_TYPE)                                                           \
+                                                                               \
+  V(FIXED_ARRAY_TYPE)                                                          \
+  V(SHARED_FUNCTION_INFO_TYPE)                                                 \
                                                                                \
   V(JS_VALUE_TYPE)                                                             \
   V(JS_OBJECT_TYPE)                                                            \
@@ -1211,7 +1214,9 @@ class JSObject: public HeapObject {
  public:
   enum DeleteMode { NORMAL_DELETION, FORCE_DELETION };
   enum ElementsKind {
+    // The only "fast" kind.
     FAST_ELEMENTS,
+    // All the kinds below are "slow".
     DICTIONARY_ELEMENTS,
     PIXEL_ELEMENTS,
     EXTERNAL_BYTE_ELEMENTS,
@@ -1232,8 +1237,21 @@ class JSObject: public HeapObject {
   inline StringDictionary* property_dictionary();  // Gets slow properties.
 
   // [elements]: The elements (properties with names that are integers).
-  // elements is a FixedArray in the fast case, a Dictionary in the slow
-  // case, and a PixelArray or ExternalArray in special cases.
+  //
+  // Elements can be in two general modes: fast and slow. Each mode
+  // corrensponds to a set of object representations of elements that
+  // have something in common.
+  //
+  // In the fast mode elements is a FixedArray and so each element can
+  // be quickly accessed. This fact is used in the generated code. The
+  // elements array can have one of the two maps in this mode:
+  // fixed_array_map or fixed_cow_array_map (for copy-on-write
+  // arrays). In the latter case the elements array may be shared by a
+  // few objects and so before writing to any element the array must
+  // be copied. Use EnsureWritableFastElements in this case.
+  //
+  // In the slow mode elements is either a NumberDictionary or a
+  // PixelArray or an ExternalArray.
   DECL_ACCESSORS(elements, HeapObject)
   inline void initialize_elements();
   inline Object* ResetElements();
@@ -1251,6 +1269,8 @@ class JSObject: public HeapObject {
   inline bool HasExternalFloatElements();
   inline bool AllowsSetElementsLength();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
+  // Requires: this->HasFastElements().
+  inline Object* EnsureWritableFastElements();
 
   // Collects elements starting at index 0.
   // Undefined values are placed after non-undefined values.
@@ -1702,6 +1722,10 @@ class FixedArray: public HeapObject {
   inline void set_undefined(int index);
   inline void set_null(int index);
   inline void set_the_hole(int index);
+
+  // Setters with less debug checks for the GC to use.
+  inline void set_unchecked(int index, Smi* value);
+  inline void set_null_unchecked(int index);
 
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();
@@ -2762,7 +2786,12 @@ class Code: public HeapObject {
  public:
   // Opaque data type for encapsulating code flags like kind, inline
   // cache state, and arguments count.
-  enum Flags { };
+  // FLAGS_MIN_VALUE and FLAGS_MAX_VALUE are specified to ensure that
+  // enumeration type has correct value range (see Issue 830 for more details).
+  enum Flags {
+    FLAGS_MIN_VALUE = kMinInt,
+    FLAGS_MAX_VALUE = kMaxInt
+  };
 
   enum Kind {
     FUNCTION,
@@ -3061,7 +3090,8 @@ class Map: public HeapObject {
   inline bool is_extensible();
 
   // Tells whether the instance has fast elements.
-  void set_has_fast_elements(bool value) {
+  // Equivalent to instance->GetElementsKind() == FAST_ELEMENTS.
+  inline void set_has_fast_elements(bool value) {
     if (value) {
       set_bit_field2(bit_field2() | (1 << kHasFastElements));
     } else {
@@ -3069,7 +3099,7 @@ class Map: public HeapObject {
     }
   }
 
-  bool has_fast_elements() {
+  inline bool has_fast_elements() {
     return ((1 << kHasFastElements) & bit_field2()) != 0;
   }
 
@@ -3344,6 +3374,8 @@ class SharedFunctionInfo: public HeapObject {
   // [construct stub]: Code stub for constructing instances of this function.
   DECL_ACCESSORS(construct_stub, Code)
 
+  inline Code* unchecked_code();
+
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
 
@@ -3450,6 +3482,15 @@ class SharedFunctionInfo: public HeapObject {
   // when doing GC if we expect that the function will no longer be used.
   inline bool allows_lazy_compilation();
   inline void set_allows_lazy_compilation(bool flag);
+
+  // Indicates how many full GCs this function has survived with assigned
+  // code object. Used to determine when it is relatively safe to flush
+  // this code object and replace it with lazy compilation stub.
+  // Age is reset when GC notices that the code object is referenced
+  // from the stack or compilation cache.
+  inline int code_age();
+  inline void set_code_age(int age);
+
 
   // Check whether a inlined constructor can be generated with the given
   // prototype.
@@ -3581,6 +3622,8 @@ class SharedFunctionInfo: public HeapObject {
   static const int kHasOnlySimpleThisPropertyAssignments = 0;
   static const int kTryFullCodegen = 1;
   static const int kAllowLazyCompilation = 2;
+  static const int kCodeAgeShift = 3;
+  static const int kCodeAgeMask = 7;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
@@ -3596,6 +3639,8 @@ class JSFunction: public JSObject {
   // can be shared by instances.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
 
+  inline SharedFunctionInfo* unchecked_shared();
+
   // [context]: The context for this function.
   inline Context* context();
   inline Object* unchecked_context();
@@ -3607,6 +3652,8 @@ class JSFunction: public JSObject {
   // 8.6.2, page 27.
   inline Code* code();
   inline void set_code(Code* value);
+
+  inline Code* unchecked_code();
 
   // Tells whether this function is builtin.
   inline bool IsBuiltin();

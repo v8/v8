@@ -363,7 +363,13 @@ class ThreadHandle {
 class Thread: public ThreadHandle {
  public:
   // Opaque data type for thread-local storage keys.
-  enum LocalStorageKey {};
+  // LOCAL_STORAGE_KEY_MIN_VALUE and LOCAL_STORAGE_KEY_MAX_VALUE are specified
+  // to ensure that enumeration type has correct value range (see Issue 830 for
+  // more details).
+  enum LocalStorageKey {
+    LOCAL_STORAGE_KEY_MIN_VALUE = kMinInt,
+    LOCAL_STORAGE_KEY_MAX_VALUE = kMaxInt
+  };
 
   // Create new thread.
   Thread();

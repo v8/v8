@@ -175,6 +175,10 @@ class MarkCompactCollector: public AllStatic {
   friend class RootMarkingVisitor;
   friend class MarkingVisitor;
   friend class StaticMarkingVisitor;
+  friend class CodeMarkingVisitor;
+  friend class SharedFunctionInfoMarkingVisitor;
+
+  static void PrepareForCodeFlushing();
 
   // Marking operations for objects reachable from roots.
   static void MarkLiveObjects();

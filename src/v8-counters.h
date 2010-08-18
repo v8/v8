@@ -120,6 +120,8 @@ namespace internal {
      V8.GCCompactorCausedByWeakHandles)                               \
   SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                   \
   SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)         \
+  SC(map_slow_to_fast_elements, V8.MapSlowToFastElements)             \
+  SC(map_fast_to_slow_elements, V8.MapFastToSlowElements)             \
   /* How is the generic keyed-load stub used? */                      \
   SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                  \
   SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)            \
@@ -155,6 +157,9 @@ namespace internal {
   SC(named_store_global_inline_miss, V8.NamedStoreGlobalInlineMiss)   \
   SC(store_normal_miss, V8.StoreNormalMiss)                           \
   SC(store_normal_hit, V8.StoreNormalHit)                             \
+  SC(cow_arrays_created_stub, V8.COWArraysCreatedStub)                \
+  SC(cow_arrays_created_runtime, V8.COWArraysCreatedRuntime)          \
+  SC(cow_arrays_converted, V8.COWArraysConverted)                     \
   SC(call_miss, V8.CallMiss)                                          \
   SC(keyed_call_miss, V8.KeyedCallMiss)                               \
   SC(load_miss, V8.LoadMiss)                                          \

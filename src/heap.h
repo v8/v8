@@ -55,6 +55,7 @@ namespace internal {
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
+  V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
   V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
   V(Map, meta_map, MetaMap)                                                    \
   V(Object, termination_exception, TerminationException)                       \
@@ -1257,10 +1258,6 @@ class Heap : public AllStatic {
   // Flush the number to string cache.
   static void FlushNumberStringCache();
 
-  // Flush code from functions we do not expect to use again. The code will
-  // be replaced with a lazy compilable version.
-  static void FlushCode();
-
   static void UpdateSurvivalRateTrend(int start_new_space_size);
 
   enum SurvivalRateTrend { INCREASING, STABLE, DECREASING, FLUCTUATING };
@@ -1322,6 +1319,9 @@ class Heap : public AllStatic {
 
 class HeapStats {
  public:
+  static const int kStartMarker = 0xDECADE00;
+  static const int kEndMarker = 0xDECADE01;
+
   int* start_marker;                    //  0
   int* new_space_size;                  //  1
   int* new_space_capacity;              //  2

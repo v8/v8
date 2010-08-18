@@ -262,6 +262,21 @@ void MacroAssembler::Assert(Condition cc, const char* msg) {
 }
 
 
+void MacroAssembler::AssertFastElements(Register elements) {
+  if (FLAG_debug_code) {
+    Label ok;
+    CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
+                Heap::kFixedArrayMapRootIndex);
+    j(equal, &ok);
+    CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
+                Heap::kFixedCOWArrayMapRootIndex);
+    j(equal, &ok);
+    Abort("JSObject with fast elements map has slow elements");
+    bind(&ok);
+  }
+}
+
+
 void MacroAssembler::Check(Condition cc, const char* msg) {
   Label L;
   j(cc, &L);

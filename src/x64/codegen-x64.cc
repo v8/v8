@@ -4989,12 +4989,18 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   frame_->Push(node->constant_elements());
   int length = node->values()->length();
   Result clone;
-  if (node->depth() > 1) {
+  if (node->constant_elements()->map() == Heap::fixed_cow_array_map()) {
+    FastCloneShallowArrayStub stub(
+        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
+    clone = frame_->CallStub(&stub, 3);
+    __ IncrementCounter(&Counters::cow_arrays_created_stub, 1);
+  } else if (node->depth() > 1) {
     clone = frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
-  } else if (length > FastCloneShallowArrayStub::kMaximumLength) {
+  } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     clone = frame_->CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   } else {
-    FastCloneShallowArrayStub stub(length);
+    FastCloneShallowArrayStub stub(
+        FastCloneShallowArrayStub::CLONE_ELEMENTS, length);
     clone = frame_->CallStub(&stub, 3);
   }
   frame_->Push(&clone);
@@ -5004,12 +5010,9 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   for (int i = 0; i < length; i++) {
     Expression* value = node->values()->at(i);
 
-    // If value is a literal the property value is already set in the
-    // boilerplate object.
-    if (value->AsLiteral() != NULL) continue;
-    // If value is a materialized literal the property value is already set
-    // in the boilerplate object if it is simple.
-    if (CompileTimeValue::IsCompileTimeValue(value)) continue;
+    if (!CompileTimeValue::ArrayLiteralElementNeedsInitialization(value)) {
+      continue;
+    }
 
     // The property must be set by generated code.
     Load(value);
@@ -6875,7 +6878,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
            Immediate(KeyedLoadIC::kSlowCaseBitFieldMask));
   deferred->Branch(not_zero);
 
-  // Check the object's elements are in fast case.
+  // Check the object's elements are in fast case and writable.
   __ movq(tmp1.reg(), FieldOperand(object.reg(), JSObject::kElementsOffset));
   __ CompareRoot(FieldOperand(tmp1.reg(), HeapObject::kMapOffset),
                  Heap::kFixedArrayMapRootIndex);
@@ -8419,15 +8422,10 @@ Result CodeGenerator::EmitKeyedLoad() {
     // Check that the key is a non-negative smi.
     __ JumpIfNotPositiveSmi(key.reg(), deferred->entry_label());
 
-    // Get the elements array from the receiver and check that it
-    // is not a dictionary.
+    // Get the elements array from the receiver.
     __ movq(elements.reg(),
             FieldOperand(receiver.reg(), JSObject::kElementsOffset));
-    if (FLAG_debug_code) {
-      __ Cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
-             Factory::fixed_array_map());
-      __ Assert(equal, "JSObject with fast elements map has slow elements");
-    }
+    __ AssertFastElements(elements.reg());
 
     // Check that key is within bounds.
     __ SmiCompare(key.reg(),
@@ -8840,6 +8838,25 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
           FieldOperand(rcx, index.reg, index.scale, FixedArray::kHeaderSize));
   __ CompareRoot(rcx, Heap::kUndefinedValueRootIndex);
   __ j(equal, &slow_case);
+
+  if (FLAG_debug_code) {
+    const char* message;
+    Heap::RootListIndex expected_map_index;
+    if (mode_ == CLONE_ELEMENTS) {
+      message = "Expected (writable) fixed array";
+      expected_map_index = Heap::kFixedArrayMapRootIndex;
+    } else {
+      ASSERT(mode_ == COPY_ON_WRITE_ELEMENTS);
+      message = "Expected copy-on-write fixed array";
+      expected_map_index = Heap::kFixedCOWArrayMapRootIndex;
+    }
+    __ push(rcx);
+    __ movq(rcx, FieldOperand(rcx, JSArray::kElementsOffset));
+    __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
+                   expected_map_index);
+    __ Assert(equal, message);
+    __ pop(rcx);
+  }
 
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.

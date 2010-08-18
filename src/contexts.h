@@ -243,7 +243,8 @@ class Context: public FixedArray {
 
   GlobalObject* global() {
     Object* result = get(GLOBAL_INDEX);
-    ASSERT(IsBootstrappingOrGlobalObject(result));
+    ASSERT(Heap::gc_state() != Heap::NOT_IN_GC ||
+           IsBootstrappingOrGlobalObject(result));
     return reinterpret_cast<GlobalObject*>(result);
   }
   void set_global(GlobalObject* global) { set(GLOBAL_INDEX, global); }

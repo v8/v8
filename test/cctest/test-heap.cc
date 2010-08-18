@@ -973,9 +973,10 @@ TEST(TestCodeFlushing) {
   Heap::CollectAllGarbage(true);
   Heap::CollectAllGarbage(true);
 
-  // foo should still be in the compilation cache and therefore not
-  // have been removed.
   CHECK(function->shared()->is_compiled());
+
+  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(true);
   Heap::CollectAllGarbage(true);
   Heap::CollectAllGarbage(true);
   Heap::CollectAllGarbage(true);
@@ -983,7 +984,9 @@ TEST(TestCodeFlushing) {
 
   // foo should no longer be in the compilation cache
   CHECK(!function->shared()->is_compiled());
+  CHECK(!function->is_compiled());
   // Call foo to get it recompiled.
   CompileRun("foo()");
   CHECK(function->shared()->is_compiled());
+  CHECK(function->is_compiled());
 }

@@ -181,6 +181,7 @@ class CodeGeneratorScope BASE_EMBEDDED {
   CodeGenerator* previous_;
 };
 
+
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 
 // State of used registers in a virtual frame.
@@ -395,20 +396,33 @@ class FastNewContextStub : public CodeStub {
 
 class FastCloneShallowArrayStub : public CodeStub {
  public:
-  static const int kMaximumLength = 8;
+  // Maximum length of copied elements array.
+  static const int kMaximumClonedLength = 8;
 
-  explicit FastCloneShallowArrayStub(int length) : length_(length) {
-    ASSERT(length >= 0 && length <= kMaximumLength);
+  enum Mode {
+    CLONE_ELEMENTS,
+    COPY_ON_WRITE_ELEMENTS
+  };
+
+  FastCloneShallowArrayStub(Mode mode, int length)
+      : mode_(mode),
+        length_((mode == COPY_ON_WRITE_ELEMENTS) ? 0 : length) {
+    ASSERT(length_ >= 0);
+    ASSERT(length_ <= kMaximumClonedLength);
   }
 
   void Generate(MacroAssembler* masm);
 
  private:
+  Mode mode_;
   int length_;
 
   const char* GetName() { return "FastCloneShallowArrayStub"; }
   Major MajorKey() { return FastCloneShallowArray; }
-  int MinorKey() { return length_; }
+  int MinorKey() {
+    ASSERT(mode_ == 0 || mode_ == 1);
+    return (length_ << 1) | mode_;
+  }
 };
 
 

@@ -536,7 +536,8 @@ class PartialSerializer : public Serializer {
     // would cause dupes.
     ASSERT(!o->IsScript());
     return o->IsString() || o->IsSharedFunctionInfo() ||
-           o->IsHeapNumber() || o->IsCode();
+           o->IsHeapNumber() || o->IsCode() ||
+           o->map() == Heap::fixed_cow_array_map();
   }
 
  private:

@@ -966,6 +966,11 @@ class Assembler : public Malloced {
             int offset,  // Offset must be a multiple of 4.
             const Condition cond = al);
 
+  void vstr(const SwVfpRegister src,
+            const Register base,
+            int offset,  // Offset must be a multiple of 4.
+            const Condition cond = al);
+
   void vmov(const DwVfpRegister dst,
             double imm,
             const Condition cond = al);

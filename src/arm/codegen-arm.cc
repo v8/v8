@@ -3445,12 +3445,18 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   frame_->EmitPush(Operand(Smi::FromInt(node->literal_index())));
   frame_->EmitPush(Operand(node->constant_elements()));
   int length = node->values()->length();
-  if (node->depth() > 1) {
+  if (node->constant_elements()->map() == Heap::fixed_cow_array_map()) {
+    FastCloneShallowArrayStub stub(
+        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
+    frame_->CallStub(&stub, 3);
+    __ IncrementCounter(&Counters::cow_arrays_created_stub, 1, r1, r2);
+  } else if (node->depth() > 1) {
     frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
-  } else if (length > FastCloneShallowArrayStub::kMaximumLength) {
+  } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     frame_->CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   } else {
-    FastCloneShallowArrayStub stub(length);
+    FastCloneShallowArrayStub stub(
+        FastCloneShallowArrayStub::CLONE_ELEMENTS, length);
     frame_->CallStub(&stub, 3);
   }
   frame_->EmitPush(r0);  // save the result
@@ -5402,7 +5408,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   __ tst(tmp2, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
   deferred->Branch(nz);
 
-  // Check the object's elements are in fast case.
+  // Check the object's elements are in fast case and writable.
   __ ldr(tmp1, FieldMemOperand(object, JSObject::kElementsOffset));
   __ ldr(tmp2, FieldMemOperand(tmp1, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
@@ -6694,15 +6700,9 @@ void CodeGenerator::EmitKeyedLoad() {
       __ cmp(scratch1, scratch2);
       deferred->Branch(ne);
 
-      // Get the elements array from the receiver and check that it
-      // is not a dictionary.
+      // Get the elements array from the receiver.
       __ ldr(scratch1, FieldMemOperand(receiver, JSObject::kElementsOffset));
-      if (FLAG_debug_code) {
-        __ ldr(scratch2, FieldMemOperand(scratch1, JSObject::kMapOffset));
-        __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-        __ cmp(scratch2, ip);
-        __ Assert(eq, "JSObject with fast elements map has slow elements");
-      }
+      __ AssertFastElements(scratch1);
 
       // Check that key is within bounds. Use unsigned comparison to handle
       // negative keys.
@@ -7111,6 +7111,26 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ cmp(r3, ip);
   __ b(eq, &slow_case);
+
+  if (FLAG_debug_code) {
+    const char* message;
+    Heap::RootListIndex expected_map_index;
+    if (mode_ == CLONE_ELEMENTS) {
+      message = "Expected (writable) fixed array";
+      expected_map_index = Heap::kFixedArrayMapRootIndex;
+    } else {
+      ASSERT(mode_ == COPY_ON_WRITE_ELEMENTS);
+      message = "Expected copy-on-write fixed array";
+      expected_map_index = Heap::kFixedCOWArrayMapRootIndex;
+    }
+    __ push(r3);
+    __ ldr(r3, FieldMemOperand(r3, JSArray::kElementsOffset));
+    __ ldr(r3, FieldMemOperand(r3, HeapObject::kMapOffset));
+    __ LoadRoot(ip, expected_map_index);
+    __ cmp(r3, ip);
+    __ Assert(eq, message);
+    __ pop(r3);
+  }
 
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.

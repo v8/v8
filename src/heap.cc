@@ -637,12 +637,6 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
   int start_new_space_size = Heap::new_space()->Size();
 
   if (collector == MARK_COMPACTOR) {
-    if (FLAG_flush_code) {
-      // Flush all potentially unused code.
-      GCTracer::Scope gc_scope(tracer, GCTracer::Scope::MC_FLUSH_CODE);
-      FlushCode();
-    }
-
     // Perform mark-sweep with optional compaction.
     MarkCompact(tracer);
 
@@ -1100,6 +1094,10 @@ class ScavengingVisitor : public StaticVisitorBase {
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                         VisitSpecialized<SharedFunctionInfo::kSize>);
 
+    table_.Register(kVisitJSFunction,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                    VisitSpecialized<JSFunction::kSize>);
+
     table_.RegisterSpecializations<ObjectEvacuationStrategy<DATA_OBJECT>,
                                    kVisitDataObject,
                                    kVisitDataObjectGeneric>();
@@ -1456,6 +1454,11 @@ bool Heap::CreateInitialMaps() {
 
   oddball_map()->set_prototype(null_value());
   oddball_map()->set_constructor(null_value());
+
+  obj = AllocateMap(FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
+  if (obj->IsFailure()) return false;
+  set_fixed_cow_array_map(Map::cast(obj));
+  ASSERT(fixed_array_map() != fixed_cow_array_map());
 
   obj = AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
   if (obj->IsFailure()) return false;
@@ -2354,109 +2357,6 @@ Object* Heap::AllocateExternalArray(int length,
 }
 
 
-// The StackVisitor is used to traverse all the archived threads to see if
-// there are activations on any of the stacks corresponding to the code.
-class FlushingStackVisitor : public ThreadVisitor {
- public:
-  explicit FlushingStackVisitor(Code* code) : found_(false), code_(code) {}
-
-  void VisitThread(ThreadLocalTop* top) {
-    // If we already found the code in a previous traversed thread we return.
-    if (found_) return;
-
-    for (StackFrameIterator it(top); !it.done(); it.Advance()) {
-      if (code_->contains(it.frame()->pc())) {
-        found_ = true;
-        return;
-      }
-    }
-  }
-  bool FoundCode() {return found_;}
-
- private:
-  bool found_;
-  Code* code_;
-};
-
-
-static bool CodeIsActive(Code* code) {
-  // Make sure we are not referencing the code from the stack.
-  for (StackFrameIterator it; !it.done(); it.Advance()) {
-    if (code->contains(it.frame()->pc())) return true;
-  }
-  // Iterate the archived stacks in all threads to check if
-  // the code is referenced.
-  FlushingStackVisitor threadvisitor(code);
-  ThreadManager::IterateArchivedThreads(&threadvisitor);
-  if (threadvisitor.FoundCode()) return true;
-  return false;
-}
-
-
-static void FlushCodeForFunction(JSFunction* function) {
-  SharedFunctionInfo* shared_info = function->shared();
-
-  // Special handling if the function and shared info objects
-  // have different code objects.
-  if (function->code() != shared_info->code()) {
-    // If the shared function has been flushed but the function has not,
-    // we flush the function if possible.
-    if (!shared_info->is_compiled() && function->is_compiled() &&
-        !CodeIsActive(function->code())) {
-      function->set_code(shared_info->code());
-    }
-    return;
-  }
-
-  // The function must be compiled and have the source code available,
-  // to be able to recompile it in case we need the function again.
-  if (!(shared_info->is_compiled() && shared_info->HasSourceCode())) return;
-
-  // We never flush code for Api functions.
-  if (shared_info->IsApiFunction()) return;
-
-  // Only flush code for functions.
-  if (!shared_info->code()->kind() == Code::FUNCTION) return;
-
-  // Function must be lazy compilable.
-  if (!shared_info->allows_lazy_compilation()) return;
-
-  // If this is a full script wrapped in a function we do no flush the code.
-  if (shared_info->is_toplevel()) return;
-
-  // If this function is in the compilation cache we do not flush the code.
-  if (CompilationCache::HasFunction(shared_info)) return;
-
-  // Check stack and archived threads for the code.
-  if (CodeIsActive(shared_info->code())) return;
-
-  // Compute the lazy compilable version of the code.
-  Code* code = Builtins::builtin(Builtins::LazyCompile);
-  shared_info->set_code(code);
-  function->set_code(code);
-}
-
-
-void Heap::FlushCode() {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Do not flush code if the debugger is loaded or there are breakpoints.
-  if (Debug::IsLoaded() || Debug::has_break_points()) return;
-#endif
-  HeapObjectIterator it(old_pointer_space());
-  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
-    if (obj->IsJSFunction()) {
-      JSFunction* function = JSFunction::cast(obj);
-
-      // The function must have a valid context and not be a builtin.
-      if (function->unchecked_context()->IsContext() &&
-          !function->IsBuiltin()) {
-        FlushCodeForFunction(function);
-      }
-    }
-  }
-}
-
-
 Object* Heap::CreateCode(const CodeDesc& desc,
                          Code::Flags flags,
                          Handle<Object> self_reference) {
@@ -2910,7 +2810,9 @@ Object* Heap::CopyJSObject(JSObject* source) {
   FixedArray* properties = FixedArray::cast(source->properties());
   // Update elements if necessary.
   if (elements->length() > 0) {
-    Object* elem = CopyFixedArray(elements);
+    Object* elem =
+        (elements->map() == fixed_cow_array_map()) ?
+        elements : CopyFixedArray(elements);
     if (elem->IsFailure()) return elem;
     JSObject::cast(clone)->set_elements(FixedArray::cast(elem));
   }
@@ -4057,8 +3959,8 @@ bool Heap::ConfigureHeapDefault() {
 
 
 void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
-  *stats->start_marker = 0xDECADE00;
-  *stats->end_marker = 0xDECADE01;
+  *stats->start_marker = HeapStats::kStartMarker;
+  *stats->end_marker = HeapStats::kEndMarker;
   *stats->new_space_size = new_space_.Size();
   *stats->new_space_capacity = new_space_.Capacity();
   *stats->old_pointer_space_size = old_pointer_space_->Size();
@@ -4815,7 +4717,6 @@ GCTracer::~GCTracer() {
     PrintF("sweep=%d ", static_cast<int>(scopes_[Scope::MC_SWEEP]));
     PrintF("sweepns=%d ", static_cast<int>(scopes_[Scope::MC_SWEEP_NEWSPACE]));
     PrintF("compact=%d ", static_cast<int>(scopes_[Scope::MC_COMPACT]));
-    PrintF("flushcode=%d ", static_cast<int>(scopes_[Scope::MC_FLUSH_CODE]));
 
     PrintF("total_size_before=%d ", start_size_);
     PrintF("total_size_after=%d ", Heap::SizeOfObjects());

@@ -1820,6 +1820,7 @@ void Assembler::vldr(const DwVfpRegister dst,
   ASSERT(CpuFeatures::IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
+  ASSERT(offset >= 0);
   emit(cond | 0xD9*B20 | base.code()*B16 | dst.code()*B12 |
        0xB*B8 | ((offset / 4) & 255));
 }
@@ -1836,6 +1837,7 @@ void Assembler::vldr(const SwVfpRegister dst,
   ASSERT(CpuFeatures::IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
+  ASSERT(offset >= 0);
   emit(cond | 0xD9*B20 | base.code()*B16 | dst.code()*B12 |
        0xA*B8 | ((offset / 4) & 255));
 }
@@ -1852,8 +1854,26 @@ void Assembler::vstr(const DwVfpRegister src,
   ASSERT(CpuFeatures::IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
+  ASSERT(offset >= 0);
   emit(cond | 0xD8*B20 | base.code()*B16 | src.code()*B12 |
        0xB*B8 | ((offset / 4) & 255));
+}
+
+
+void Assembler::vstr(const SwVfpRegister src,
+                     const Register base,
+                     int offset,
+                     const Condition cond) {
+  // MEM(Rbase + offset) = SSrc.
+  // Instruction details available in ARM DDI 0406A, A8-786.
+  // cond(31-28) | 1101(27-24)| 1000(23-20) | Rbase(19-16) |
+  // Vdst(15-12) | 1010(11-8) | (offset/4)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(offset % 4 == 0);
+  ASSERT((offset / 4) < 256);
+  ASSERT(offset >= 0);
+  emit(cond | 0xD8*B20 | base.code()*B16 | src.code()*B12 |
+       0xA*B8 | ((offset / 4) & 255));
 }
 
 

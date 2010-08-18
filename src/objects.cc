@@ -2338,6 +2338,8 @@ Object* JSObject::DeleteElementPostInterceptor(uint32_t index,
   ASSERT(!HasPixelElements() && !HasExternalArrayElements());
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
+      Object* obj = EnsureWritableFastElements();
+      if (obj->IsFailure()) return obj;
       uint32_t length = IsJSArray() ?
       static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
       static_cast<uint32_t>(FixedArray::cast(elements())->length());
@@ -2418,6 +2420,8 @@ Object* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
 
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
+      Object* obj = EnsureWritableFastElements();
+      if (obj->IsFailure()) return obj;
       uint32_t length = IsJSArray() ?
       static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
       static_cast<uint32_t>(FixedArray::cast(elements())->length());
@@ -5009,8 +5013,8 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
       ASSERT(target->IsHeapObject());
       if (!target->IsMarked()) {
         ASSERT(target->IsMap());
-        contents->set(i + 1, NullDescriptorDetails);
-        contents->set_null(i);
+        contents->set_unchecked(i + 1, NullDescriptorDetails);
+        contents->set_null_unchecked(i);
         ASSERT(target->prototype() == this ||
                target->prototype() == real_prototype);
         // Getter prototype() is read-only, set_prototype() has side effects.
@@ -5095,7 +5099,7 @@ Object* Oddball::Initialize(const char* to_string, Object* to_number) {
 
 bool SharedFunctionInfo::HasSourceCode() {
   return !script()->IsUndefined() &&
-         !Script::cast(script())->source()->IsUndefined();
+         !reinterpret_cast<Script*>(script())->source()->IsUndefined();
 }
 
 
@@ -5591,6 +5595,8 @@ Object* JSObject::SetElementsLength(Object* len) {
         int old_capacity = FixedArray::cast(elements())->length();
         if (value <= old_capacity) {
           if (IsJSArray()) {
+            Object* obj = EnsureWritableFastElements();
+            if (obj->IsFailure()) return obj;
             int old_length = FastD2I(JSArray::cast(this)->length()->Number());
             // NOTE: We may be able to optimize this by removing the
             // last part of the elements backing storage array and
@@ -6051,7 +6057,9 @@ Object* JSObject::SetElementWithCallback(Object* structure,
 Object* JSObject::SetFastElement(uint32_t index, Object* value) {
   ASSERT(HasFastElements());
 
-  FixedArray* elms = FixedArray::cast(elements());
+  Object* elms_obj = EnsureWritableFastElements();
+  if (elms_obj->IsFailure()) return elms_obj;
+  FixedArray* elms = FixedArray::cast(elms_obj);
   uint32_t elms_length = static_cast<uint32_t>(elms->length());
 
   if (!IsJSArray() && (index >= elms_length || elms->get(index)->IsTheHole())) {
@@ -6094,6 +6102,7 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
   ASSERT(HasDictionaryElements());
   return SetElement(index, value);
 }
+
 
 Object* JSObject::SetElement(uint32_t index, Object* value) {
   // Check access rights if needed.
@@ -7573,6 +7582,9 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
 
     set_map(new_map);
     set_elements(fast_elements);
+  } else {
+    Object* obj = EnsureWritableFastElements();
+    if (obj->IsFailure()) return obj;
   }
   ASSERT(HasFastElements());
 
