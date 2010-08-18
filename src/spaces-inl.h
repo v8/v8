@@ -243,15 +243,15 @@ void Page::InvalidateWatermark(bool value) {
 
 
 bool Page::GetPageFlag(PageFlag flag) {
-  return (flags_ & (1 << flag)) != 0;
+  return (flags_ & static_cast<intptr_t>(1 << flag)) != 0;
 }
 
 
 void Page::SetPageFlag(PageFlag flag, bool value) {
   if (value) {
-    flags_ |= (1 << flag);
+    flags_ |= static_cast<intptr_t>(1 << flag);
   } else {
-    flags_ &= ~(1 << flag);
+    flags_ &= ~static_cast<intptr_t>(1 << flag);
   }
 }
 

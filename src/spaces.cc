@@ -390,7 +390,7 @@ void MemoryAllocator::FreeRawMemory(void* mem,
   }
   Counters::memory_allocated.Decrement(static_cast<int>(length));
   size_ -= static_cast<int>(length);
-  if (executable == EXECUTABLE) size_executable_ -= length;
+  if (executable == EXECUTABLE) size_executable_ -= static_cast<int>(length);
   ASSERT(size_ >= 0);
 }
 
