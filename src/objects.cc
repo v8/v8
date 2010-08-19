@@ -1116,11 +1116,6 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
 }
 
 
-void HeapObject::IterateStructBody(int object_size, ObjectVisitor* v) {
-  IteratePointers(v, HeapObject::kHeaderSize, object_size);
-}
-
-
 Object* HeapNumber::HeapNumberToBoolean() {
   // NaN, +0, and -0 should return the false object
 #if __BYTE_ORDER == __LITTLE_ENDIAN

@@ -1022,10 +1022,6 @@ class HeapObject: public Object {
   // object, and so is safe to call while the map pointer is modified.
   void IterateBody(InstanceType type, int object_size, ObjectVisitor* v);
 
-  // This method only applies to struct objects.  Iterates over all the fields
-  // of this struct.
-  void IterateStructBody(int object_size, ObjectVisitor* v);
-
   // Returns the heap object's size in bytes
   inline int Size();
 
