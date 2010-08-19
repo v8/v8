@@ -9203,6 +9203,7 @@ class RegExpStringModificationTest {
            morphs_ < kMaxModifications) {
       int morphs_before = morphs_;
       {
+        v8::HandleScope scope;
         // Match 15-30 "a"'s against 14 and a "b".
         const char* c_source =
             "/a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaa/"
