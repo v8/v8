@@ -2883,6 +2883,9 @@ class Code: public HeapObject {
   // Convert a target address into a code object.
   static inline Code* GetCodeFromTargetAddress(Address address);
 
+  // Convert an entry address into an object.
+  static inline Object* GetObjectFromEntryAddress(Address location_of_address);
+
   // Returns the address of the first instruction.
   inline byte* instruction_start();
 
@@ -3705,6 +3708,10 @@ class JSFunction: public JSObject {
   // Casting.
   static inline JSFunction* cast(Object* obj);
 
+  // Iterates the objects, including code objects indirectly referenced
+  // through pointers to the first instruction in the code object.
+  void JSFunctionIterateBody(int object_size, ObjectVisitor* v);
+
   // Dispatched behavior.
 #ifdef DEBUG
   void JSFunctionPrint();
@@ -3718,9 +3725,9 @@ class JSFunction: public JSObject {
   static Context* GlobalContextFromLiterals(FixedArray* literals);
 
   // Layout descriptors.
-  static const int kCodeOffset = JSObject::kHeaderSize;
+  static const int kCodeEntryOffset = JSObject::kHeaderSize;
   static const int kPrototypeOrInitialMapOffset =
-      kCodeOffset + kPointerSize;
+      kCodeEntryOffset + kPointerSize;
   static const int kSharedFunctionInfoOffset =
       kPrototypeOrInitialMapOffset + kPointerSize;
   static const int kContextOffset = kSharedFunctionInfoOffset + kPointerSize;
@@ -5434,6 +5441,9 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits a code target in the instruction stream.
   virtual void VisitCodeTarget(RelocInfo* rinfo);
+
+  // Visits a code entry in a JS function.
+  virtual void VisitCodeEntry(Address entry_address);
 
   // Visits a runtime entry in the instruction stream.
   virtual void VisitRuntimeEntry(RelocInfo* rinfo) {}

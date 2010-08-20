@@ -2616,8 +2616,10 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(is_smi, &build_args);
       __ CmpObjectType(rax, JS_FUNCTION_TYPE, rcx);
       __ j(not_equal, &build_args);
+      __ movq(rcx, FieldOperand(rax, JSFunction::kCodeEntryOffset));
+      __ subq(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
       Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
-      __ Cmp(FieldOperand(rax, JSFunction::kCodeOffset), apply_code);
+      __ Cmp(FieldOperand(rcx, SharedFunctionInfo::kCodeOffset), apply_code);
       __ j(not_equal, &build_args);
 
       // Check that applicand is a function.
@@ -8758,7 +8760,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Initialize the code pointer in the function to be the one
   // found in the shared function info object.
   __ movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-  __ movq(FieldOperand(rax, JSFunction::kCodeOffset), rdx);
+  __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
+  __ movq(FieldOperand(rax, JSFunction::kCodeEntryOffset), rdx);
 
 
   // Return and remove the on-stack parameter.

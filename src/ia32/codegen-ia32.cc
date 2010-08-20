@@ -3423,8 +3423,10 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(zero, &build_args);
       __ CmpObjectType(eax, JS_FUNCTION_TYPE, ecx);
       __ j(not_equal, &build_args);
+      __ mov(ecx, FieldOperand(eax, JSFunction::kCodeEntryOffset));
+      __ sub(Operand(ecx), Immediate(Code::kHeaderSize - kHeapObjectTag));
       Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
-      __ cmp(FieldOperand(eax, JSFunction::kCodeOffset), Immediate(apply_code));
+      __ cmp(Operand(ecx), Immediate(apply_code));
       __ j(not_equal, &build_args);
 
       // Check that applicand is a function.
@@ -9815,7 +9817,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Initialize the code pointer in the function to be the one
   // found in the shared function info object.
   __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
-  __ mov(FieldOperand(eax, JSFunction::kCodeOffset), edx);
+  __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
+  __ mov(FieldOperand(eax, JSFunction::kCodeEntryOffset), edx);
 
   // Return and remove the on-stack parameter.
   __ ret(1 * kPointerSize);

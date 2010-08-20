@@ -169,6 +169,9 @@ class MacroAssembler: public Assembler {
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag);
 
+  // Store the function for the given builtin in the target register.
+  void GetBuiltinFunction(Register target, Builtins::JavaScript id);
+
   // Store the code object for the given builtin in the target register.
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 

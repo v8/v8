@@ -1066,11 +1066,14 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_VALUE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:
-    case JS_FUNCTION_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_BUILTINS_OBJECT_TYPE:
       JSObject::BodyDescriptor::IterateBody(this, object_size, v);
+      break;
+    case JS_FUNCTION_TYPE:
+      reinterpret_cast<JSFunction*>(this)
+          ->JSFunctionIterateBody(object_size, v);
       break;
     case ODDBALL_TYPE:
       Oddball::BodyDescriptor::IterateBody(this, v);
@@ -4988,6 +4991,15 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
 }
 
 
+void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
+  // Iterate over all fields in the body but take care in dealing with
+  // the code entry.
+  IteratePointers(v, kPropertiesOffset, kCodeEntryOffset);
+  v->VisitCodeEntry(this->address() + kCodeEntryOffset);
+  IteratePointers(v, kCodeEntryOffset + kPointerSize, object_size);
+}
+
+
 Object* JSFunction::SetInstancePrototype(Object* value) {
   ASSERT(value->IsJSObject());
 
@@ -5002,7 +5014,6 @@ Object* JSFunction::SetInstancePrototype(Object* value) {
   Heap::ClearInstanceofCache();
   return value;
 }
-
 
 
 Object* JSFunction::SetPrototype(Object* value) {
@@ -5229,6 +5240,16 @@ void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
   Object* old_target = target;
   VisitPointer(&target);
   CHECK_EQ(target, old_target);  // VisitPointer doesn't change Code* *target.
+}
+
+
+void ObjectVisitor::VisitCodeEntry(Address entry_address) {
+  Object* code = Code::GetObjectFromEntryAddress(entry_address);
+  Object* old_code = code;
+  VisitPointer(&code);
+  if (code != old_code) {
+    Memory::Address_at(entry_address) = reinterpret_cast<Code*>(code)->entry();
+  }
 }
 
 

@@ -1556,7 +1556,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   __ CompareObjectType(r0, r1, r2, JS_FUNCTION_TYPE);
   __ b(ne, &build_args);
   Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
-  __ ldr(r1, FieldMemOperand(r0, JSFunction::kCodeOffset));
+  __ ldr(r1, FieldMemOperand(r0, JSFunction::kCodeEntryOffset));
+  __ sub(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ cmp(r1, Operand(apply_code));
   __ b(ne, &build_args);
 
@@ -7028,7 +7029,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Initialize the code pointer in the function to be the one
   // found in the shared function info object.
   __ ldr(r3, FieldMemOperand(r3, SharedFunctionInfo::kCodeOffset));
-  __ str(r3, FieldMemOperand(r0, JSFunction::kCodeOffset));
+  __ add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ str(r3, FieldMemOperand(r0, JSFunction::kCodeEntryOffset));
 
   // Return result. The argument function info has been popped already.
   __ Ret();

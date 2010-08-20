@@ -35,9 +35,10 @@
 #ifndef V8_OBJECTS_INL_H_
 #define V8_OBJECTS_INL_H_
 
-#include "objects.h"
+#include "memory.h"
 #include "contexts.h"
 #include "conversions-inl.h"
+#include "objects.h"
 #include "property.h"
 
 namespace v8 {
@@ -2410,6 +2411,12 @@ Code* Code::GetCodeFromTargetAddress(Address address) {
 }
 
 
+Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
+  return HeapObject::
+      FromAddress(Memory::Address_at(location_of_address) - Code::kHeaderSize);
+}
+
+
 Object* Map::prototype() {
   return READ_FIELD(this, kPrototypeOffset);
 }
@@ -2739,19 +2746,21 @@ bool JSFunction::IsBuiltin() {
 
 
 Code* JSFunction::code() {
-  return Code::cast(READ_FIELD(this, kCodeOffset));
+  return Code::cast(unchecked_code());
 }
 
 
 Code* JSFunction::unchecked_code() {
-  return reinterpret_cast<Code*>(READ_FIELD(this, kCodeOffset));
+  return reinterpret_cast<Code*>(
+      Code::GetObjectFromEntryAddress(FIELD_ADDR(this, kCodeEntryOffset)));
 }
 
 
 void JSFunction::set_code(Code* value) {
   // Skip the write barrier because code is never in new space.
   ASSERT(!Heap::InNewSpace(value));
-  WRITE_FIELD(this, kCodeOffset, value);
+  Address entry = value->entry();
+  WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
 }
 
 
