@@ -162,6 +162,7 @@ namespace internal {
   F(RegExpExecMultiple, 4, 1) \
   F(RegExpInitializeObject, 5, 1) \
   F(RegExpConstructResult, 3, 1) \
+  F(RegExpCloneResult, 1, 1) \
   \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \
