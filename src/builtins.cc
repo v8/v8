@@ -306,12 +306,10 @@ static void FillWithHoles(FixedArray* dst, int from, int to) {
 
 static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
   ASSERT(elms->map() != Heap::fixed_cow_array_map());
-  // For now this trick is only applied to fixed arrays in new space.
+  // For now this trick is only applied to fixed arrays in new and paged space.
   // In large object space the object's start must coincide with chunk
   // and thus the trick is just not applicable.
-  // In old space we do not use this trick to avoid dealing with
-  // region dirty marks.
-  ASSERT(Heap::new_space()->Contains(elms));
+  ASSERT(!Heap::lo_space()->Contains(elms));
 
   STATIC_ASSERT(FixedArray::kMapOffset == 0);
   STATIC_ASSERT(FixedArray::kLengthOffset == kPointerSize);
@@ -321,6 +319,17 @@ static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
 
   const int len = elms->length();
 
+  if (to_trim > FixedArray::kHeaderSize / kPointerSize &&
+      !Heap::new_space()->Contains(elms)) {
+    // If we are doing a big trim in old space then we zap the space that was
+    // formerly part of the array so that the GC (aided by the card-based
+    // remembered set) won't find pointers to new-space there.
+    Object** zap = reinterpret_cast<Object**>(elms->address());
+    zap++;  // Header of filler must be at least one word so skip that.
+    for (int i = 1; i < to_trim; i++) {
+      *zap++ = Smi::FromInt(0);
+    }
+  }
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
@@ -329,9 +338,8 @@ static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
   former_start[to_trim] = Heap::fixed_array_map();
   former_start[to_trim + 1] = Smi::FromInt(len - to_trim);
 
-  ASSERT_EQ(elms->address() + to_trim * kPointerSize,
-            (elms + to_trim * kPointerSize)->address());
-  return elms + to_trim * kPointerSize;
+  return FixedArray::cast(HeapObject::FromAddress(
+      elms->address() + to_trim * kPointerSize));
 }
 
 
@@ -497,8 +505,8 @@ BUILTIN(ArrayShift) {
     first = Heap::undefined_value();
   }
 
-  if (Heap::new_space()->Contains(elms)) {
-    // As elms still in the same space they used to be (new space),
+  if (!Heap::lo_space()->Contains(elms)) {
+    // As elms still in the same space they used to be,
     // there is no need to update region dirty mark.
     array->set_elements(LeftTrimFixedArray(elms, 1), SKIP_WRITE_BARRIER);
   } else {
@@ -724,7 +732,7 @@ BUILTIN(ArraySplice) {
 
   if (item_count < actual_delete_count) {
     // Shrink the array.
-    const bool trim_array = Heap::new_space()->Contains(elms) &&
+    const bool trim_array = !Heap::lo_space()->Contains(elms) &&
       ((actual_start + item_count) <
           (len - actual_delete_count - actual_start));
     if (trim_array) {
