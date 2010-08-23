@@ -1222,21 +1222,26 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::SHR:
     case Token::SAR: {
       ASSERT(!reversed);
-      TypeInfo result =
-          (op == Token::SAR) ? TypeInfo::Integer32() : TypeInfo::Number();
-      if (!reversed) {
-        if (op == Token::SHR) {
-          if (int_value >= 2) {
-            result = TypeInfo::Smi();
-          } else if (int_value >= 1) {
-            result = TypeInfo::Integer32();
-          }
-        } else {
-          if (int_value >= 1) {
-            result = TypeInfo::Smi();
-          }
+      int shift_amount = int_value & 0x1f;
+      TypeInfo result = TypeInfo::Number();
+
+      if (op == Token::SHR) {
+        if (shift_amount > 1) {
+          result = TypeInfo::Smi();
+        } else if (shift_amount > 0) {
+          result = TypeInfo::Integer32();
         }
+      } else if (op == Token::SAR) {
+        if (shift_amount > 0) {
+          result = TypeInfo::Smi();
+        } else {
+          result = TypeInfo::Integer32();
+        }
+      } else {
+        ASSERT(op == Token::SHL);
+        result = TypeInfo::Integer32();
       }
+
       Register scratch = VirtualFrame::scratch0();
       Register scratch2 = VirtualFrame::scratch1();
       int shift_value = int_value & 0x1f;  // least significant 5 bits
