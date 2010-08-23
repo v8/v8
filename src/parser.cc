@@ -32,6 +32,7 @@
 #include "bootstrapper.h"
 #include "codegen.h"
 #include "compiler.h"
+#include "func-name-inferrer.h"
 #include "messages.h"
 #include "parser.h"
 #include "platform.h"
@@ -154,6 +155,7 @@ class Parser {
   bool is_pre_parsing_;
   ScriptDataImpl* pre_data_;
   bool seen_loop_stmt_;  // Used for inner loop detection.
+  FuncNameInferrer* fni_;
 
   bool inside_with() const  { return with_nesting_level_ > 0; }
   ParserFactory* factory() const  { return factory_; }
@@ -1214,7 +1216,8 @@ Parser::Parser(Handle<Script> script,
       log_(log),
       is_pre_parsing_(is_pre_parsing == PREPARSE),
       pre_data_(pre_data),
-      seen_loop_stmt_(false) {
+      seen_loop_stmt_(false),
+      fni_(NULL) {
 }
 
 
@@ -1243,6 +1246,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 
   HistogramTimerScope timer(&Counters::parse);
   Counters::total_parse_size.Increment(source->length());
+  fni_ = new FuncNameInferrer();
 
   // Initialize parser state.
   source->TryFlatten();
@@ -1302,6 +1306,9 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(&Counters::parse_lazy);
   Counters::total_parse_size.Increment(source->length());
+
+  fni_ = new FuncNameInferrer();
+  fni_->PushEnclosingName(name);
 
   // Initialize parser state.
   source->TryFlatten();
@@ -2080,9 +2087,12 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
   VariableProxy* last_var = NULL;  // the last variable declared
   int nvars = 0;  // the number of variables declared
   do {
+    if (fni_ != NULL) fni_->Enter();
+
     // Parse variable name.
     if (nvars > 0) Consume(Token::COMMA);
     Handle<String> name = ParseIdentifier(CHECK_OK);
+    if (fni_ != NULL) fni_->PushVariableName(name);
 
     // Declare variable.
     // Note that we *always* must treat the initial value via a separate init
@@ -2134,6 +2144,8 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
       Expect(Token::ASSIGN, CHECK_OK);
       position = scanner().location().beg_pos;
       value = ParseAssignmentExpression(accept_IN, CHECK_OK);
+      // Don't infer if it is "a = function(){...}();"-like expression.
+      if (fni_ != NULL && value->AsCall() == NULL) fni_->Infer();
     }
 
     // Make sure that 'const c' actually initializes 'c' to undefined
@@ -2210,6 +2222,8 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
       Assignment* assignment = NEW(Assignment(op, last_var, value, position));
       if (block) block->AddStatement(NEW(ExpressionStatement(assignment)));
     }
+
+    if (fni_ != NULL) fni_->Leave();
   } while (peek() == Token::COMMA);
 
   if (!is_const && nvars == 1) {
@@ -2822,9 +2836,11 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   //   ConditionalExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
 
+  if (fni_ != NULL) fni_->Enter();
   Expression* expression = ParseConditionalExpression(accept_IN, CHECK_OK);
 
   if (!Token::IsAssignmentOp(peek())) {
+    if (fni_ != NULL) fni_->Leave();
     // Parsed conditional expression only (no assignment).
     return expression;
   }
@@ -2853,6 +2869,19 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
       property->obj()->AsVariableProxy() != NULL &&
       property->obj()->AsVariableProxy()->is_this()) {
     temp_scope_->AddProperty();
+  }
+
+  if (fni_ != NULL) {
+    // Check if the right hand side is a call to avoid inferring a
+    // name if we're dealing with "a = function(){...}();"-like
+    // expression.
+    if ((op == Token::INIT_VAR
+         || op == Token::INIT_CONST
+         || op == Token::ASSIGN)
+        && (right->AsCall() == NULL)) {
+      fni_->Infer();
+    }
+    fni_->Leave();
   }
 
   return NEW(Assignment(op, expression, right, pos));
@@ -3125,6 +3154,7 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         int pos = scanner().location().beg_pos;
         Handle<String> name = ParseIdentifierName(CHECK_OK);
         result = factory()->NewProperty(result, NEW(Literal(name)), pos);
+        if (fni_ != NULL) fni_->PushLiteralName(name);
         break;
       }
 
@@ -3211,6 +3241,7 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
         int pos = scanner().location().beg_pos;
         Handle<String> name = ParseIdentifierName(CHECK_OK);
         result = factory()->NewProperty(result, NEW(Literal(name)), pos);
+        if (fni_ != NULL) fni_->PushLiteralName(name);
         break;
       }
       case Token::LPAREN: {
@@ -3321,6 +3352,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 
     case Token::IDENTIFIER: {
       Handle<String> name = ParseIdentifier(CHECK_OK);
+      if (fni_ != NULL) fni_->PushVariableName(name);
       if (is_pre_parsing_) {
         result = VariableProxySentinel::identifier_proxy();
       } else {
@@ -3343,6 +3375,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
           factory()->LookupSymbol(scanner_.literal_string(),
                                   scanner_.literal_length());
       result = NEW(Literal(symbol));
+      if (fni_ != NULL) fni_->PushLiteralName(symbol);
       break;
     }
 
@@ -3640,6 +3673,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
+    if (fni_ != NULL) fni_->Enter();
+
     Literal* key = NULL;
     Token::Value next = peek();
     switch (next) {
@@ -3648,6 +3683,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
         bool is_setter = false;
         Handle<String> id =
             ParseIdentifierOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
+        if (fni_ != NULL) fni_->PushLiteralName(id);
+
         if ((is_getter || is_setter) && peek() != Token::COLON) {
             ObjectLiteral::Property* property =
                 ParseObjectLiteralGetSet(is_getter, CHECK_OK);
@@ -3656,6 +3693,11 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
             }
             properties.Add(property);
             if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
+
+            if (fni_ != NULL) {
+              fni_->Infer();
+              fni_->Leave();
+            }
             continue;  // restart the while
         }
         // Failed to parse as get/set property, so it's just a property
@@ -3668,6 +3710,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
         Handle<String> string =
             factory()->LookupSymbol(scanner_.literal_string(),
                                     scanner_.literal_length());
+        if (fni_ != NULL) fni_->PushLiteralName(string);
         uint32_t index;
         if (!string.is_null() && string->AsArrayIndex(&index)) {
           key = NewNumberLiteral(index);
@@ -3711,6 +3754,11 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
     // TODO(1240767): Consider allowing trailing comma.
     if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
+
+    if (fni_ != NULL) {
+      fni_->Infer();
+      fni_->Leave();
+    }
   }
   Expect(Token::RBRACE, CHECK_OK);
   // Computation of literal_index must happen before pre parse bailout.
@@ -3922,6 +3970,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     // when peeling or unrolling such a loop.
     seen_loop_stmt_ = true;
 
+    if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);
     return function_literal;
   }
 }
