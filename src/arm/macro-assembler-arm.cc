@@ -757,8 +757,7 @@ void MacroAssembler::InvokeFunction(Register fun,
                       SharedFunctionInfo::kFormalParameterCountOffset));
   mov(expected_reg, Operand(expected_reg, ASR, kSmiTagSize));
   ldr(code_reg,
-      MemOperand(r1, JSFunction::kCodeOffset - kHeapObjectTag));
-  add(code_reg, code_reg, Operand(Code::kHeaderSize - kHeapObjectTag));
+      FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(expected_reg);
   InvokeCode(code_reg, expected, actual, flag);
@@ -1490,30 +1489,22 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
 }
 
 
-void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  ASSERT(!target.is(r1));
-
+void MacroAssembler::GetBuiltinFunction(Register target,
+                                        Builtins::JavaScript id) {
   // Load the builtins object into target register.
   ldr(target, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   ldr(target, FieldMemOperand(target, GlobalObject::kBuiltinsOffset));
-
   // Load the JavaScript builtin function from the builtins object.
-  ldr(r1, FieldMemOperand(target,
-                          JSBuiltinsObject::OffsetOfFunctionWithId(id)));
-
-  // Load the code entry point from the builtins object.
   ldr(target, FieldMemOperand(target,
-                              JSBuiltinsObject::OffsetOfCodeWithId(id)));
-  if (FLAG_debug_code) {
-    // Make sure the code objects in the builtins object and in the
-    // builtin function are the same.
-    push(r1);
-    ldr(r1, FieldMemOperand(r1, JSFunction::kCodeOffset));
-    cmp(r1, target);
-    Assert(eq, "Builtin code object changed");
-    pop(r1);
-  }
-  add(target, target, Operand(Code::kHeaderSize - kHeapObjectTag));
+                          JSBuiltinsObject::OffsetOfFunctionWithId(id)));
+}
+
+
+void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+  ASSERT(!target.is(r1));
+  GetBuiltinFunction(r1, id);
+  // Load the code entry point from the builtins object.
+  ldr(target, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
 }
 
 

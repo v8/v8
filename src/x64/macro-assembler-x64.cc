@@ -581,28 +581,21 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
 }
 
 
-void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  ASSERT(!target.is(rdi));
-
+void MacroAssembler::GetBuiltinFunction(Register target,
+                                        Builtins::JavaScript id) {
   // Load the builtins object into target register.
   movq(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   movq(target, FieldOperand(target, GlobalObject::kBuiltinsOffset));
+  movq(target, FieldOperand(target,
+                            JSBuiltinsObject::OffsetOfFunctionWithId(id)));
+}
 
+
+void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+  ASSERT(!target.is(rdi));
   // Load the JavaScript builtin function from the builtins object.
-  movq(rdi, FieldOperand(target, JSBuiltinsObject::OffsetOfFunctionWithId(id)));
-
-  // Load the code entry point from the builtins object.
-  movq(target, FieldOperand(target, JSBuiltinsObject::OffsetOfCodeWithId(id)));
-  if (FLAG_debug_code) {
-    // Make sure the code objects in the builtins object and in the
-    // builtin function are the same.
-    push(target);
-    movq(target, FieldOperand(rdi, JSFunction::kCodeOffset));
-    cmpq(target, Operand(rsp, 0));
-    Assert(equal, "Builtin code object changed");
-    pop(target);
-  }
-  lea(target, FieldOperand(target, Code::kHeaderSize));
+  GetBuiltinFunction(rdi, id);
+  movq(target, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 }
 
 
@@ -2311,10 +2304,9 @@ void MacroAssembler::InvokeFunction(Register function,
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
   movsxlq(rbx,
           FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
-  movq(rdx, FieldOperand(rdi, JSFunction::kCodeOffset));
   // Advances rdx to the end of the Code object header, to the start of
   // the executable code.
-  lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
+  movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(rbx);
   InvokeCode(rdx, expected, actual, flag);

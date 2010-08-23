@@ -727,6 +727,10 @@ void Simulator::set_register(int reg, int32_t value) {
 // the special case of accessing the PC register.
 int32_t Simulator::get_register(int reg) const {
   ASSERT((reg >= 0) && (reg < num_registers));
+  // Stupid code added to avoid bug in GCC.
+  // See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
+  if (reg >= num_registers) return 0;
+  // End stupid code.
   return registers_[reg] + ((reg == pc) ? Instr::kPCReadOffset : 0);
 }
 
@@ -1378,7 +1382,9 @@ void Simulator::HandleRList(Instr* instr, bool load) {
     }
     case 3: {
       // Print("ib");
-      UNIMPLEMENTED();
+      start_address = rn_val + 4;
+      end_address = rn_val + (num_regs * 4);
+      rn_val = end_address;
       break;
     }
     default: {

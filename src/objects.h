@@ -201,6 +201,10 @@ enum PropertyNormalizationMode {
 };
 
 
+// Instance size sentinel for objects of variable size.
+static const int kVariableSizeSentinel = 0;
+
+
 // All Maps have a field instance_type containing a InstanceType.
 // It describes the type of the instances.
 //
@@ -304,11 +308,11 @@ enum PropertyNormalizationMode {
 // iterate over them.
 #define STRING_TYPE_LIST(V)                                                    \
   V(SYMBOL_TYPE,                                                               \
-    SeqTwoByteString::kAlignedSize,                                            \
+    kVariableSizeSentinel,                                                     \
     symbol,                                                                    \
     Symbol)                                                                    \
   V(ASCII_SYMBOL_TYPE,                                                         \
-    SeqAsciiString::kAlignedSize,                                              \
+    kVariableSizeSentinel,                                                     \
     ascii_symbol,                                                              \
     AsciiSymbol)                                                               \
   V(CONS_SYMBOL_TYPE,                                                          \
@@ -332,11 +336,11 @@ enum PropertyNormalizationMode {
     external_ascii_symbol,                                                     \
     ExternalAsciiSymbol)                                                       \
   V(STRING_TYPE,                                                               \
-    SeqTwoByteString::kAlignedSize,                                            \
+    kVariableSizeSentinel,                                                     \
     string,                                                                    \
     String)                                                                    \
   V(ASCII_STRING_TYPE,                                                         \
-    SeqAsciiString::kAlignedSize,                                              \
+    kVariableSizeSentinel,                                                     \
     ascii_string,                                                              \
     AsciiString)                                                               \
   V(CONS_STRING_TYPE,                                                          \
@@ -358,7 +362,7 @@ enum PropertyNormalizationMode {
   V(EXTERNAL_ASCII_STRING_TYPE,                                                \
     ExternalAsciiString::kSize,                                                \
     external_ascii_string,                                                     \
-    ExternalAsciiString)                                                       \
+    ExternalAsciiString)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate
@@ -1018,10 +1022,6 @@ class HeapObject: public Object {
   // object, and so is safe to call while the map pointer is modified.
   void IterateBody(InstanceType type, int object_size, ObjectVisitor* v);
 
-  // This method only applies to struct objects.  Iterates over all the fields
-  // of this struct.
-  void IterateStructBody(int object_size, ObjectVisitor* v);
-
   // Returns the heap object's size in bytes
   inline int Size();
 
@@ -1099,10 +1099,6 @@ class HeapObject: public Object {
   inline void IteratePointers(ObjectVisitor* v, int start, int end);
   // as above, for the single element at "offset"
   inline void IteratePointer(ObjectVisitor* v, int offset);
-
-  // Computes the object size from the map.
-  // Should only be used from SizeFromMap.
-  int SlowSizeFromMap(Map* map);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(HeapObject);
@@ -2887,6 +2883,9 @@ class Code: public HeapObject {
   // Convert a target address into a code object.
   static inline Code* GetCodeFromTargetAddress(Address address);
 
+  // Convert an entry address into an object.
+  static inline Object* GetObjectFromEntryAddress(Address location_of_address);
+
   // Returns the address of the first instruction.
   inline byte* instruction_start();
 
@@ -2993,6 +2992,8 @@ class Code: public HeapObject {
 class Map: public HeapObject {
  public:
   // Instance size.
+  // Size in bytes or kVariableSizeSentinel if instances do not have
+  // a fixed size.
   inline int instance_size();
   inline void set_instance_size(int value);
 
@@ -3707,6 +3708,10 @@ class JSFunction: public JSObject {
   // Casting.
   static inline JSFunction* cast(Object* obj);
 
+  // Iterates the objects, including code objects indirectly referenced
+  // through pointers to the first instruction in the code object.
+  void JSFunctionIterateBody(int object_size, ObjectVisitor* v);
+
   // Dispatched behavior.
 #ifdef DEBUG
   void JSFunctionPrint();
@@ -3720,9 +3725,9 @@ class JSFunction: public JSObject {
   static Context* GlobalContextFromLiterals(FixedArray* literals);
 
   // Layout descriptors.
-  static const int kCodeOffset = JSObject::kHeaderSize;
+  static const int kCodeEntryOffset = JSObject::kHeaderSize;
   static const int kPrototypeOrInitialMapOffset =
-      kCodeOffset + kPointerSize;
+      kCodeEntryOffset + kPointerSize;
   static const int kSharedFunctionInfoOffset =
       kPrototypeOrInitialMapOffset + kPointerSize;
   static const int kContextOffset = kSharedFunctionInfoOffset + kPointerSize;
@@ -5436,6 +5441,9 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits a code target in the instruction stream.
   virtual void VisitCodeTarget(RelocInfo* rinfo);
+
+  // Visits a code entry in a JS function.
+  virtual void VisitCodeEntry(Address entry_address);
 
   // Visits a runtime entry in the instruction stream.
   virtual void VisitRuntimeEntry(RelocInfo* rinfo) {}

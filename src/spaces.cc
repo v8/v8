@@ -41,7 +41,7 @@ namespace internal {
          && (info).top <= (space).high()              \
          && (info).limit == (space).high())
 
-intptr_t Page::watermark_invalidated_mark_ = Page::WATERMARK_INVALIDATED;
+intptr_t Page::watermark_invalidated_mark_ = 1 << Page::WATERMARK_INVALIDATED;
 
 // ----------------------------------------------------------------------------
 // HeapObjectIterator
@@ -266,6 +266,7 @@ void CodeRange::TearDown() {
 //
 int MemoryAllocator::capacity_   = 0;
 int MemoryAllocator::size_       = 0;
+int MemoryAllocator::size_executable_ = 0;
 
 VirtualMemory* MemoryAllocator::initial_chunk_ = NULL;
 
@@ -292,6 +293,8 @@ int MemoryAllocator::Pop() {
 }
 
 
+void *executable_memory_histogram = NULL;
+
 bool MemoryAllocator::Setup(int capacity) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
 
@@ -308,6 +311,9 @@ bool MemoryAllocator::Setup(int capacity) {
   if (max_nof_chunks_ > kMaxNofChunks) return false;
 
   size_ = 0;
+  size_executable_ = 0;
+  executable_memory_histogram =
+      StatsTable::CreateHistogram("V8.ExecutableMemoryMax", 0, MB * 512, 50);
   ChunkInfo info;  // uninitialized element.
   for (int i = max_nof_chunks_ - 1; i >= 0; i--) {
     chunks_.Add(info);
@@ -353,6 +359,16 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
   }
   int alloced = static_cast<int>(*allocated);
   size_ += alloced;
+
+  if (executable == EXECUTABLE) {
+    size_executable_ += alloced;
+    static int size_executable_max_observed_ = 0;
+    if (size_executable_max_observed_ < size_executable_) {
+      size_executable_max_observed_ = size_executable_;
+      StatsTable::AddHistogramSample(executable_memory_histogram,
+          size_executable_);
+    }
+  }
 #ifdef DEBUG
   ZapBlock(reinterpret_cast<Address>(mem), alloced);
 #endif
@@ -361,7 +377,9 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
 }
 
 
-void MemoryAllocator::FreeRawMemory(void* mem, size_t length) {
+void MemoryAllocator::FreeRawMemory(void* mem,
+                                    size_t length,
+                                    Executability executable) {
 #ifdef DEBUG
   ZapBlock(reinterpret_cast<Address>(mem), length);
 #endif
@@ -372,6 +390,7 @@ void MemoryAllocator::FreeRawMemory(void* mem, size_t length) {
   }
   Counters::memory_allocated.Decrement(static_cast<int>(length));
   size_ -= static_cast<int>(length);
+  if (executable == EXECUTABLE) size_executable_ -= static_cast<int>(length);
   ASSERT(size_ >= 0);
 }
 
@@ -425,7 +444,7 @@ Page* MemoryAllocator::AllocatePages(int requested_pages, int* allocated_pages,
 
   *allocated_pages = PagesInChunk(static_cast<Address>(chunk), chunk_size);
   if (*allocated_pages == 0) {
-    FreeRawMemory(chunk, chunk_size);
+    FreeRawMemory(chunk, chunk_size, owner->executable());
     LOG(DeleteEvent("PagedChunk", chunk));
     return Page::FromAddress(NULL);
   }
@@ -591,7 +610,7 @@ void MemoryAllocator::DeleteChunk(int chunk_id) {
     Counters::memory_allocated.Decrement(static_cast<int>(c.size()));
   } else {
     LOG(DeleteEvent("PagedChunk", c.address()));
-    FreeRawMemory(c.address(), c.size());
+    FreeRawMemory(c.address(), c.size(), c.owner()->executable());
   }
   c.init(NULL, 0, NULL);
   Push(chunk_id);
@@ -2552,7 +2571,7 @@ LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
   if (mem == NULL) return NULL;
   LOG(NewEvent("LargeObjectChunk", mem, *chunk_size));
   if (*chunk_size < requested) {
-    MemoryAllocator::FreeRawMemory(mem, *chunk_size);
+    MemoryAllocator::FreeRawMemory(mem, *chunk_size, executable);
     LOG(DeleteEvent("LargeObjectChunk", mem));
     return NULL;
   }
@@ -2590,7 +2609,12 @@ void LargeObjectSpace::TearDown() {
     LargeObjectChunk* chunk = first_chunk_;
     first_chunk_ = first_chunk_->next();
     LOG(DeleteEvent("LargeObjectChunk", chunk->address()));
-    MemoryAllocator::FreeRawMemory(chunk->address(), chunk->size());
+    Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
+    Executability executable =
+        page->IsPageExecutable() ? EXECUTABLE : NOT_EXECUTABLE;
+    MemoryAllocator::FreeRawMemory(chunk->address(),
+                                   chunk->size(),
+                                   executable);
   }
 
   size_ = 0;
@@ -2654,6 +2678,7 @@ Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
   // low order bit should already be clear.
   ASSERT((chunk_size & 0x1) == 0);
   page->SetIsLargeObjectPage(true);
+  page->SetIsPageExecutable(executable);
   page->SetRegionMarks(Page::kAllRegionsCleanMarks);
   return HeapObject::FromAddress(object_address);
 }
@@ -2768,6 +2793,10 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       previous = current;
       current = current->next();
     } else {
+      Page* page = Page::FromAddress(RoundUp(current->address(),
+                                     Page::kPageSize));
+      Executability executable =
+          page->IsPageExecutable() ? EXECUTABLE : NOT_EXECUTABLE;
       Address chunk_address = current->address();
       size_t chunk_size = current->size();
 
@@ -2783,7 +2812,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       MarkCompactCollector::ReportDeleteIfNeeded(object);
       size_ -= static_cast<int>(chunk_size);
       page_count_--;
-      MemoryAllocator::FreeRawMemory(chunk_address, chunk_size);
+      MemoryAllocator::FreeRawMemory(chunk_address, chunk_size, executable);
       LOG(DeleteEvent("LargeObjectChunk", chunk_address));
     }
   }

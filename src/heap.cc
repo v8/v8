@@ -1413,7 +1413,7 @@ bool Heap::CreateInitialMaps() {
   set_meta_map(new_meta_map);
   new_meta_map->set_map(new_meta_map);
 
-  obj = AllocatePartialMap(FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
+  obj = AllocatePartialMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
   set_fixed_array_map(Map::cast(obj));
 
@@ -1455,7 +1455,7 @@ bool Heap::CreateInitialMaps() {
   oddball_map()->set_prototype(null_value());
   oddball_map()->set_constructor(null_value());
 
-  obj = AllocateMap(FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
+  obj = AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
   set_fixed_cow_array_map(Map::cast(obj));
   ASSERT(fixed_array_map() != fixed_cow_array_map());
@@ -1475,17 +1475,17 @@ bool Heap::CreateInitialMaps() {
     roots_[entry.index] = Map::cast(obj);
   }
 
-  obj = AllocateMap(STRING_TYPE, SeqTwoByteString::kAlignedSize);
+  obj = AllocateMap(STRING_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
   set_undetectable_string_map(Map::cast(obj));
   Map::cast(obj)->set_is_undetectable();
 
-  obj = AllocateMap(ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
+  obj = AllocateMap(ASCII_STRING_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
   set_undetectable_ascii_string_map(Map::cast(obj));
   Map::cast(obj)->set_is_undetectable();
 
-  obj = AllocateMap(BYTE_ARRAY_TYPE, ByteArray::kAlignedSize);
+  obj = AllocateMap(BYTE_ARRAY_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
   set_byte_array_map(Map::cast(obj));
 
@@ -1528,7 +1528,7 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_external_float_array_map(Map::cast(obj));
 
-  obj = AllocateMap(CODE_TYPE, Code::kHeaderSize);
+  obj = AllocateMap(CODE_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
   set_code_map(Map::cast(obj));
 
@@ -1552,19 +1552,19 @@ bool Heap::CreateInitialMaps() {
     roots_[entry.index] = Map::cast(obj);
   }
 
-  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
+  obj = AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
   set_hash_table_map(Map::cast(obj));
 
-  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
+  obj = AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
   set_context_map(Map::cast(obj));
 
-  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
+  obj = AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
   set_catch_context_map(Map::cast(obj));
 
-  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
+  obj = AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
   set_global_context_map(Map::cast(obj));
 

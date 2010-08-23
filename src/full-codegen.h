@@ -394,42 +394,11 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific code for inline runtime calls.
   void EmitInlineRuntimeCall(CallRuntime* expr);
-  void EmitIsSmi(ZoneList<Expression*>* arguments);
-  void EmitIsNonNegativeSmi(ZoneList<Expression*>* arguments);
-  void EmitIsObject(ZoneList<Expression*>* arguments);
-  void EmitIsSpecObject(ZoneList<Expression*>* arguments);
-  void EmitIsUndetectableObject(ZoneList<Expression*>* arguments);
-  void EmitIsFunction(ZoneList<Expression*>* arguments);
-  void EmitIsArray(ZoneList<Expression*>* arguments);
-  void EmitIsRegExp(ZoneList<Expression*>* arguments);
-  void EmitIsConstructCall(ZoneList<Expression*>* arguments);
-  void EmitIsStringWrapperSafeForDefaultValueOf(
-      ZoneList<Expression*>* arguments);
-  void EmitObjectEquals(ZoneList<Expression*>* arguments);
-  void EmitArguments(ZoneList<Expression*>* arguments);
-  void EmitArgumentsLength(ZoneList<Expression*>* arguments);
-  void EmitClassOf(ZoneList<Expression*>* arguments);
-  void EmitValueOf(ZoneList<Expression*>* arguments);
-  void EmitSetValueOf(ZoneList<Expression*>* arguments);
-  void EmitNumberToString(ZoneList<Expression*>* arguments);
-  void EmitStringCharFromCode(ZoneList<Expression*>* arguments);
-  void EmitStringCharCodeAt(ZoneList<Expression*>* arguments);
-  void EmitStringCharAt(ZoneList<Expression*>* arguments);
-  void EmitStringCompare(ZoneList<Expression*>* arguments);
-  void EmitStringAdd(ZoneList<Expression*>* arguments);
-  void EmitLog(ZoneList<Expression*>* arguments);
-  void EmitRandomHeapNumber(ZoneList<Expression*>* arguments);
-  void EmitSubString(ZoneList<Expression*>* arguments);
-  void EmitRegExpExec(ZoneList<Expression*>* arguments);
-  void EmitMathPow(ZoneList<Expression*>* arguments);
-  void EmitMathSin(ZoneList<Expression*>* arguments);
-  void EmitMathCos(ZoneList<Expression*>* arguments);
-  void EmitMathSqrt(ZoneList<Expression*>* arguments);
-  void EmitCallFunction(ZoneList<Expression*>* arguments);
-  void EmitRegExpConstructResult(ZoneList<Expression*>* arguments);
-  void EmitSwapElements(ZoneList<Expression*>* arguments);
-  void EmitGetFromCache(ZoneList<Expression*>* arguments);
-  void EmitIsRegExpEquivalent(ZoneList<Expression*>* arguments);
+
+#define EMIT_INLINE_RUNTIME_CALL(name, x, y) \
+  void Emit##name(ZoneList<Expression*>* arguments);
+  INLINE_RUNTIME_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
+#undef EMIT_INLINE_RUNTIME_CALL
 
   // Platform-specific code for loading variables.
   void EmitVariableLoad(Variable* expr, Expression::Context context);

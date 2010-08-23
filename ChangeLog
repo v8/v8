@@ -1,3 +1,14 @@
+2010-08-23: Version 2.3.10
+
+        Fix bug in bitops on ARM.
+
+        Build fixes for unusual compilers.
+
+        Track high water mark for RWX memory.
+
+        Performance improvements on all platforms.
+
+
 2010-08-18: Version 2.3.9
 
         Fix compilation for ARMv4 on OpenBSD/FreeBSD.

@@ -831,6 +831,12 @@ void Deserializer::ReadChunk(Object** current,
   CASE_STATEMENT(where, how, within, kLargeFixedArray)                         \
   CASE_BODY(where, how, within, kAnyOldSpace, kUnknownOffsetFromStart)
 
+#define ONE_PER_CODE_SPACE(where, how, within)                                 \
+  CASE_STATEMENT(where, how, within, CODE_SPACE)                               \
+  CASE_BODY(where, how, within, CODE_SPACE, kUnknownOffsetFromStart)           \
+  CASE_STATEMENT(where, how, within, kLargeCode)                               \
+  CASE_BODY(where, how, within, LO_SPACE, kUnknownOffsetFromStart)
+
 #define EMIT_COMMON_REFERENCE_PATTERNS(pseudo_space_number,                    \
                                        space_number,                           \
                                        offset_from_start)                      \
@@ -862,6 +868,8 @@ void Deserializer::ReadChunk(Object** current,
       // Deserialize a new object and write a pointer to it to the current
       // object.
       ONE_PER_SPACE(kNewObject, kPlain, kStartOfObject)
+      // Support for direct instruction pointers in functions
+      ONE_PER_CODE_SPACE(kNewObject, kPlain, kFirstInstruction)
       // Deserialize a new code object and write a pointer to its first
       // instruction to the current code object.
       ONE_PER_SPACE(kNewObject, kFromCode, kFirstInstruction)
@@ -870,11 +878,14 @@ void Deserializer::ReadChunk(Object** current,
       ALL_SPACES(kBackref, kPlain, kStartOfObject)
       // Find a recently deserialized code object using its offset from the
       // current allocation point and write a pointer to its first instruction
-      // to the current code object.
+      // to the current code object or the instruction pointer in a function
+      // object.
       ALL_SPACES(kBackref, kFromCode, kFirstInstruction)
+      ALL_SPACES(kBackref, kPlain, kFirstInstruction)
       // Find an already deserialized object using its offset from the start
       // and write a pointer to it to the current object.
       ALL_SPACES(kFromStart, kPlain, kStartOfObject)
+      ALL_SPACES(kFromStart, kPlain, kFirstInstruction)
       // Find an already deserialized code object using its offset from the
       // start and write a pointer to its first instruction to the current code
       // object.
@@ -892,6 +903,14 @@ void Deserializer::ReadChunk(Object** current,
       CASE_BODY(kPartialSnapshotCache,
                 kPlain,
                 kStartOfObject,
+                0,
+                kUnknownOffsetFromStart)
+      // Find an code entry in the partial snapshots cache and
+      // write a pointer to it to the current object.
+      CASE_STATEMENT(kPartialSnapshotCache, kPlain, kFirstInstruction, 0)
+      CASE_BODY(kPartialSnapshotCache,
+                kPlain,
+                kFirstInstruction,
                 0,
                 kUnknownOffsetFromStart)
       // Find an external reference and write a pointer to it to the current
@@ -1333,6 +1352,14 @@ void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
   Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   serializer_->SerializeObject(target, kFromCode, kFirstInstruction);
   bytes_processed_so_far_ += rinfo->target_address_size();
+}
+
+
+void Serializer::ObjectSerializer::VisitCodeEntry(Address entry_address) {
+  Code* target = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
+  OutputRawData(entry_address);
+  serializer_->SerializeObject(target, kPlain, kFirstInstruction);
+  bytes_processed_so_far_ += kPointerSize;
 }
 
 

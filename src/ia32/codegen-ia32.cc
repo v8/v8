@@ -3423,8 +3423,10 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(zero, &build_args);
       __ CmpObjectType(eax, JS_FUNCTION_TYPE, ecx);
       __ j(not_equal, &build_args);
+      __ mov(ecx, FieldOperand(eax, JSFunction::kCodeEntryOffset));
+      __ sub(Operand(ecx), Immediate(Code::kHeaderSize - kHeapObjectTag));
       Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
-      __ cmp(FieldOperand(eax, JSFunction::kCodeOffset), Immediate(apply_code));
+      __ cmp(Operand(ecx), Immediate(apply_code));
       __ j(not_equal, &build_args);
 
       // Check that applicand is a function.
@@ -5520,9 +5522,12 @@ void DeferredRegExpLiteral::Generate() {
 
 class DeferredAllocateInNewSpace: public DeferredCode {
  public:
-  DeferredAllocateInNewSpace(int size, Register target)
-    : size_(size), target_(target) {
+  DeferredAllocateInNewSpace(int size,
+                             Register target,
+                             int registers_to_save = 0)
+    : size_(size), target_(target), registers_to_save_(registers_to_save) {
     ASSERT(size >= kPointerSize && size <= Heap::MaxObjectSizeInNewSpace());
+    ASSERT_EQ(0, registers_to_save & target.bit());
     set_comment("[ DeferredAllocateInNewSpace");
   }
   void Generate();
@@ -5530,14 +5535,27 @@ class DeferredAllocateInNewSpace: public DeferredCode {
  private:
   int size_;
   Register target_;
+  int registers_to_save_;
 };
 
 
 void DeferredAllocateInNewSpace::Generate() {
+  for (int i = 0; i < kNumRegs; i++) {
+    if (registers_to_save_ & (1 << i)) {
+      Register save_register = { i };
+      __ push(save_register);
+    }
+  }
   __ push(Immediate(Smi::FromInt(size_)));
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
   if (!target_.is(eax)) {
     __ mov(target_, eax);
+  }
+  for (int i = kNumRegs - 1; i >= 0; i--) {
+    if (registers_to_save_ & (1 << i)) {
+      Register save_register = { i };
+      __ pop(save_register);
+    }
   }
 }
 
@@ -7358,6 +7376,89 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
     __ bind(&done);
   }
   frame_->Forget(3);
+  frame_->Push(eax);
+}
+
+
+void CodeGenerator::GenerateRegExpCloneResult(ZoneList<Expression*>* args) {
+  ASSERT_EQ(1, args->length());
+
+  Load(args->at(0));
+  Result object_result = frame_->Pop();
+  object_result.ToRegister(eax);
+  object_result.Unuse();
+  {
+    VirtualFrame::SpilledScope spilled_scope;
+
+    Label done;
+
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, &done);
+
+    // Load JSRegExpResult map into edx.
+    // Arguments to this function should be results of calling RegExp exec,
+    // which is either an unmodified JSRegExpResult or null. Anything not having
+    // the unmodified JSRegExpResult map is returned unmodified.
+    // This also ensures that elements are fast.
+    __ mov(edx, ContextOperand(esi, Context::GLOBAL_INDEX));
+    __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalContextOffset));
+    __ mov(edx, ContextOperand(edx, Context::REGEXP_RESULT_MAP_INDEX));
+    __ cmp(edx, FieldOperand(eax, HeapObject::kMapOffset));
+    __ j(not_equal, &done);
+
+    if (FLAG_debug_code) {
+      // Check that object really has empty properties array, as the map
+      // should guarantee.
+      __ cmp(FieldOperand(eax, JSObject::kPropertiesOffset),
+             Immediate(Factory::empty_fixed_array()));
+      __ Check(equal, "JSRegExpResult: default map but non-empty properties.");
+    }
+
+    DeferredAllocateInNewSpace* allocate_fallback =
+        new DeferredAllocateInNewSpace(JSRegExpResult::kSize,
+                                       ebx,
+                                       edx.bit() | eax.bit());
+
+    // All set, copy the contents to a new object.
+    __ AllocateInNewSpace(JSRegExpResult::kSize,
+                          ebx,
+                          ecx,
+                          no_reg,
+                          allocate_fallback->entry_label(),
+                          TAG_OBJECT);
+    __ bind(allocate_fallback->exit_label());
+
+    // Copy all fields from eax to ebx.
+    STATIC_ASSERT(JSRegExpResult::kSize % (2 * kPointerSize) == 0);
+    // There is an even number of fields, so unroll the loop once
+    // for efficiency.
+    for (int i = 0; i < JSRegExpResult::kSize; i += 2 * kPointerSize) {
+      STATIC_ASSERT(JSObject::kMapOffset % (2 * kPointerSize) == 0);
+      if (i != JSObject::kMapOffset) {
+        // The map was already loaded into edx.
+        __ mov(edx, FieldOperand(eax, i));
+      }
+      __ mov(ecx, FieldOperand(eax, i + kPointerSize));
+
+      STATIC_ASSERT(JSObject::kElementsOffset % (2 * kPointerSize) == 0);
+      if (i == JSObject::kElementsOffset) {
+        // If the elements array isn't empty, make it copy-on-write
+        // before copying it.
+        Label empty;
+        __ cmp(Operand(edx), Immediate(Factory::empty_fixed_array()));
+        __ j(equal, &empty);
+        ASSERT(!Heap::InNewSpace(Heap::fixed_cow_array_map()));
+        __ mov(FieldOperand(edx, HeapObject::kMapOffset),
+               Immediate(Factory::fixed_cow_array_map()));
+        __ bind(&empty);
+      }
+      __ mov(FieldOperand(ebx, i), edx);
+      __ mov(FieldOperand(ebx, i + kPointerSize), ecx);
+    }
+    __ mov(eax, ebx);
+
+    __ bind(&done);
+  }
   frame_->Push(eax);
 }
 
@@ -9815,7 +9916,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Initialize the code pointer in the function to be the one
   // found in the shared function info object.
   __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
-  __ mov(FieldOperand(eax, JSFunction::kCodeOffset), edx);
+  __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
+  __ mov(FieldOperand(eax, JSFunction::kCodeEntryOffset), edx);
 
   // Return and remove the on-stack parameter.
   __ ret(1 * kPointerSize);

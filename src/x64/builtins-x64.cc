@@ -310,8 +310,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ movsxlq(rbx,
              FieldOperand(rdx,
                           SharedFunctionInfo::kFormalParameterCountOffset));
-  __ movq(rdx, FieldOperand(rdi, JSFunction::kCodeOffset));
-  __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
+  __ movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   __ cmpq(rax, rbx);
   __ j(not_equal,
        Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),

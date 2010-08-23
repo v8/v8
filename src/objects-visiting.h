@@ -199,14 +199,16 @@ class FlexibleBodyVisitor : public BodyVisitorBase<StaticVisitor> {
  public:
   static inline ReturnType Visit(Map* map, HeapObject* object) {
     int object_size = BodyDescriptor::SizeOf(map, object);
-    IteratePointers(object, BodyDescriptor::kStartOffset, object_size);
+    BodyVisitorBase<StaticVisitor>::IteratePointers(
+        object, BodyDescriptor::kStartOffset, object_size);
     return static_cast<ReturnType>(object_size);
   }
 
   template<int object_size>
   static inline ReturnType VisitSpecialized(Map* map, HeapObject* object) {
     ASSERT(BodyDescriptor::SizeOf(map, object) == object_size);
-    IteratePointers(object, BodyDescriptor::kStartOffset, object_size);
+    BodyVisitorBase<StaticVisitor>::IteratePointers(
+        object, BodyDescriptor::kStartOffset, object_size);
     return static_cast<ReturnType>(object_size);
   }
 };
@@ -216,9 +218,8 @@ template<typename StaticVisitor, typename BodyDescriptor, typename ReturnType>
 class FixedBodyVisitor : public BodyVisitorBase<StaticVisitor> {
  public:
   static inline ReturnType Visit(Map* map, HeapObject* object) {
-    IteratePointers(object,
-                    BodyDescriptor::kStartOffset,
-                    BodyDescriptor::kEndOffset);
+    BodyVisitorBase<StaticVisitor>::IteratePointers(
+        object, BodyDescriptor::kStartOffset, BodyDescriptor::kEndOffset);
     return static_cast<ReturnType>(BodyDescriptor::kSize);
   }
 };

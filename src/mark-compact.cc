@@ -255,10 +255,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   static void EnableCodeFlushing(bool enabled) {
     if (enabled) {
-      table_.Register(kVisitJSFunction, &VisitJSFunction);
+      table_.Register(kVisitJSFunction, &VisitJSFunctionAndFlushCode);
     } else {
-      table_.Register(kVisitJSFunction,
-                      &JSObjectVisitor::VisitSpecialized<JSFunction::kSize>);
+      table_.Register(kVisitJSFunction, &VisitJSFunction);
     }
   }
 
@@ -299,7 +298,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     table_.Register(kVisitCode, &VisitCode);
 
-    table_.Register(kVisitJSFunction, &VisitJSFunction);
+    table_.Register(kVisitJSFunction, &VisitJSFunctionAndFlushCode);
 
     table_.Register(kVisitPropertyCell,
                     &FixedBodyVisitor<StaticMarkingVisitor,
@@ -534,16 +533,42 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   }
 
 
-  static void VisitJSFunction(Map* map, HeapObject* object) {
-    JSFunction* jsfunction = reinterpret_cast<JSFunction*>(object);
+  static void VisitCodeEntry(Address entry_address) {
+    Object* code = Code::GetObjectFromEntryAddress(entry_address);
+    Object* old_code = code;
+    VisitPointer(&code);
+    if (code != old_code) {
+      Memory::Address_at(entry_address) =
+          reinterpret_cast<Code*>(code)->entry();
+    }
+  }
 
+
+  static void VisitJSFunctionAndFlushCode(Map* map, HeapObject* object) {
+    JSFunction* jsfunction = reinterpret_cast<JSFunction*>(object);
     // The function must have a valid context and not be a builtin.
     if (IsValidNotBuiltinContext(jsfunction->unchecked_context())) {
       FlushCodeForFunction(jsfunction);
     }
-
-    JSObjectVisitor::VisitSpecialized<JSFunction::kSize>(map, object);
+    VisitJSFunction(map, object);
   }
+
+
+  static void VisitJSFunction(Map* map, HeapObject* object) {
+#define SLOT_ADDR(obj, offset)   \
+    reinterpret_cast<Object**>((obj)->address() + offset)
+
+    VisitPointers(SLOT_ADDR(object, JSFunction::kPropertiesOffset),
+                  SLOT_ADDR(object, JSFunction::kCodeEntryOffset));
+
+    VisitCodeEntry(object->address() + JSFunction::kCodeEntryOffset);
+
+    VisitPointers(SLOT_ADDR(object,
+                            JSFunction::kCodeEntryOffset + kPointerSize),
+                  SLOT_ADDR(object, JSFunction::kSize));
+#undef SLOT_ADDR
+  }
+
 
   typedef void (*Callback)(Map* map, HeapObject* object);
 

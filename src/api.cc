@@ -4592,7 +4592,15 @@ Handle<String> HeapGraphNode::GetName() const {
 
 uint64_t HeapGraphNode::GetId() const {
   IsDeadCheck("v8::HeapGraphNode::GetId");
+  ASSERT(ToInternal(this)->snapshot()->type() != i::HeapSnapshot::kAggregated);
   return ToInternal(this)->id();
+}
+
+
+int HeapGraphNode::GetInstancesCount() const {
+  IsDeadCheck("v8::HeapGraphNode::GetInstancesCount");
+  ASSERT(ToInternal(this)->snapshot()->type() == i::HeapSnapshot::kAggregated);
+  return static_cast<int>(ToInternal(this)->id());
 }
 
 
@@ -4677,6 +4685,12 @@ static i::HeapSnapshot* ToInternal(const HeapSnapshot* snapshot) {
 }
 
 
+HeapSnapshot::Type HeapSnapshot::GetType() const {
+  IsDeadCheck("v8::HeapSnapshot::GetType");
+  return static_cast<HeapSnapshot::Type>(ToInternal(this)->type());
+}
+
+
 unsigned HeapSnapshot::GetUid() const {
   IsDeadCheck("v8::HeapSnapshot::GetUid");
   return ToInternal(this)->uid();
@@ -4724,10 +4738,22 @@ const HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
 }
 
 
-const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title) {
+const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
+                                               HeapSnapshot::Type type) {
   IsDeadCheck("v8::HeapProfiler::TakeSnapshot");
+  i::HeapSnapshot::Type internal_type = i::HeapSnapshot::kFull;
+  switch (type) {
+    case HeapSnapshot::kFull:
+      internal_type = i::HeapSnapshot::kFull;
+      break;
+    case HeapSnapshot::kAggregated:
+      internal_type = i::HeapSnapshot::kAggregated;
+      break;
+    default:
+      UNREACHABLE();
+  }
   return reinterpret_cast<const HeapSnapshot*>(
-      i::HeapProfiler::TakeSnapshot(*Utils::OpenHandle(*title)));
+      i::HeapProfiler::TakeSnapshot(*Utils::OpenHandle(*title), internal_type));
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

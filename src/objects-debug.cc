@@ -640,8 +640,9 @@ void Map::MapPrint() {
 void Map::MapVerify() {
   ASSERT(!Heap::InNewSpace(this));
   ASSERT(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
-  ASSERT(kPointerSize <= instance_size()
-         && instance_size() < Heap::Capacity());
+  ASSERT(instance_size() == kVariableSizeSentinel ||
+         (kPointerSize <= instance_size() &&
+          instance_size() < Heap::Capacity()));
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
 }

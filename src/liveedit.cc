@@ -750,7 +750,7 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
 class ReferenceCollectorVisitor : public ObjectVisitor {
  public:
   explicit ReferenceCollectorVisitor(Code* original)
-      : original_(original), rvalues_(10), reloc_infos_(10) {
+    : original_(original), rvalues_(10), reloc_infos_(10), code_entries_(10) {
   }
 
   virtual void VisitPointers(Object** start, Object** end) {
@@ -761,7 +761,13 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) {
+  virtual void VisitCodeEntry(Address entry) {
+    if (Code::GetObjectFromEntryAddress(entry) == original_) {
+      code_entries_.Add(entry);
+    }
+  }
+
+  virtual void VisitCodeTarget(RelocInfo* rinfo) {
     if (RelocInfo::IsCodeTarget(rinfo->rmode()) &&
         Code::GetCodeFromTargetAddress(rinfo->target_address()) == original_) {
       reloc_infos_.Add(*rinfo);
@@ -778,8 +784,13 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
     for (int i = 0; i < rvalues_.length(); i++) {
       *(rvalues_[i]) = substitution;
     }
+    Address substitution_entry = substitution->instruction_start();
     for (int i = 0; i < reloc_infos_.length(); i++) {
-      reloc_infos_[i].set_target_address(substitution->instruction_start());
+      reloc_infos_[i].set_target_address(substitution_entry);
+    }
+    for (int i = 0; i < code_entries_.length(); i++) {
+      Address entry = code_entries_[i];
+      Memory::Address_at(entry) = substitution_entry;
     }
   }
 
@@ -787,6 +798,7 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
   Code* original_;
   ZoneList<Object**> rvalues_;
   ZoneList<RelocInfo> reloc_infos_;
+  ZoneList<Address> code_entries_;
 };
 
 

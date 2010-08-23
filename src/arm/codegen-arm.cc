@@ -1222,21 +1222,26 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::SHR:
     case Token::SAR: {
       ASSERT(!reversed);
-      TypeInfo result =
-          (op == Token::SAR) ? TypeInfo::Integer32() : TypeInfo::Number();
-      if (!reversed) {
-        if (op == Token::SHR) {
-          if (int_value >= 2) {
-            result = TypeInfo::Smi();
-          } else if (int_value >= 1) {
-            result = TypeInfo::Integer32();
-          }
-        } else {
-          if (int_value >= 1) {
-            result = TypeInfo::Smi();
-          }
+      int shift_amount = int_value & 0x1f;
+      TypeInfo result = TypeInfo::Number();
+
+      if (op == Token::SHR) {
+        if (shift_amount > 1) {
+          result = TypeInfo::Smi();
+        } else if (shift_amount > 0) {
+          result = TypeInfo::Integer32();
         }
+      } else if (op == Token::SAR) {
+        if (shift_amount > 0) {
+          result = TypeInfo::Smi();
+        } else {
+          result = TypeInfo::Integer32();
+        }
+      } else {
+        ASSERT(op == Token::SHL);
+        result = TypeInfo::Integer32();
       }
+
       Register scratch = VirtualFrame::scratch0();
       Register scratch2 = VirtualFrame::scratch1();
       int shift_value = int_value & 0x1f;  // least significant 5 bits
@@ -1556,7 +1561,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   __ CompareObjectType(r0, r1, r2, JS_FUNCTION_TYPE);
   __ b(ne, &build_args);
   Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
-  __ ldr(r1, FieldMemOperand(r0, JSFunction::kCodeOffset));
+  __ ldr(r1, FieldMemOperand(r0, JSFunction::kCodeEntryOffset));
+  __ sub(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ cmp(r1, Operand(apply_code));
   __ b(ne, &build_args);
 
@@ -5264,6 +5270,67 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRegExpCloneResult(ZoneList<Expression*>* args) {
+  ASSERT_EQ(1, args->length());
+
+  Load(args->at(0));
+  frame_->PopToR0();
+  {
+    VirtualFrame::SpilledScope spilled_scope(frame_);
+
+    Label done;
+    Label call_runtime;
+    __ BranchOnSmi(r0, &done);
+
+    // Load JSRegExp map into r1. Check that argument object has this map.
+    // Arguments to this function should be results of calling RegExp exec,
+    // which is either an unmodified JSRegExpResult or null. Anything not having
+    // the unmodified JSRegExpResult map is returned unmodified.
+    // This also ensures that elements are fast.
+
+    __ ldr(r1, ContextOperand(cp, Context::GLOBAL_INDEX));
+    __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalContextOffset));
+    __ ldr(r1, ContextOperand(r1, Context::REGEXP_RESULT_MAP_INDEX));
+    __ ldr(ip, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ cmp(r1, Operand(ip));
+    __ b(ne, &done);
+
+    // All set, copy the contents to a new object.
+    __ AllocateInNewSpace(JSRegExpResult::kSize,
+                          r2,
+                          r3,
+                          r4,
+                          &call_runtime,
+                          NO_ALLOCATION_FLAGS);
+    // Store RegExpResult map as map of allocated object.
+    ASSERT(JSRegExpResult::kSize == 6 * kPointerSize);
+    // Copy all fields (map is already in r1) from (untagged) r0 to r2.
+    // Change map of elements array (ends up in r4) to be a FixedCOWArray.
+    __ bic(r0, r0, Operand(kHeapObjectTagMask));
+    __ ldm(ib, r0, r3.bit() | r4.bit() | r5.bit() | r6.bit() | r7.bit());
+    __ stm(ia, r2,
+           r1.bit() | r3.bit() | r4.bit() | r5.bit() | r6.bit() | r7.bit());
+    ASSERT(!Heap::InNewSpace(Heap::fixed_cow_array_map()));
+    ASSERT(JSRegExp::kElementsOffset == 2 * kPointerSize);
+    // Check whether elements array is empty fixed array, and otherwise make
+    // it copy-on-write (it never should be empty unless someone is messing
+    // with the arguments to the runtime function).
+    __ LoadRoot(ip, Heap::kEmptyFixedArrayRootIndex);
+    __ add(r0, r2, Operand(kHeapObjectTag));  // Tag result and move it to r0.
+    __ cmp(r4, ip);
+    __ b(eq, &done);
+    __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
+    __ str(ip, FieldMemOperand(r4, HeapObject::kMapOffset));
+    __ b(&done);
+    __ bind(&call_runtime);
+    __ push(r0);
+    __ CallRuntime(Runtime::kRegExpCloneResult, 1);
+    __ bind(&done);
+  }
+  frame_->EmitPush(r0);
+}
+
+
 class DeferredSearchCache: public DeferredCode {
  public:
   DeferredSearchCache(Register dst, Register cache, Register key)
@@ -7028,7 +7095,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Initialize the code pointer in the function to be the one
   // found in the shared function info object.
   __ ldr(r3, FieldMemOperand(r3, SharedFunctionInfo::kCodeOffset));
-  __ str(r3, FieldMemOperand(r0, JSFunction::kCodeOffset));
+  __ add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ str(r3, FieldMemOperand(r0, JSFunction::kCodeEntryOffset));
 
   // Return result. The argument function info has been popped already.
   __ Ret();

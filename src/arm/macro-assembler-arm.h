@@ -576,6 +576,9 @@ class MacroAssembler: public Assembler {
   // setup the function in r1.
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
+  // Store the function for the given builtin in the target register.
+  void GetBuiltinFunction(Register target, Builtins::JavaScript id);
+
   Handle<Object> CodeObject() { return code_object_; }
 
 
