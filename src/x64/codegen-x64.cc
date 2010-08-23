@@ -2619,7 +2619,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ movq(rcx, FieldOperand(rax, JSFunction::kCodeEntryOffset));
       __ subq(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
       Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
-      __ Cmp(FieldOperand(rcx, SharedFunctionInfo::kCodeOffset), apply_code);
+      __ Cmp(rcx, apply_code);
       __ j(not_equal, &build_args);
 
       // Check that applicand is a function.
