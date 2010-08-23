@@ -7447,7 +7447,6 @@ void CodeGenerator::GenerateRegExpCloneResult(ZoneList<Expression*>* args) {
         Label empty;
         __ cmp(Operand(edx), Immediate(Factory::empty_fixed_array()));
         __ j(equal, &empty);
-        ASSERT(!Heap::InNewSpace(Heap::fixed_cow_array_map()));
         __ mov(FieldOperand(edx, HeapObject::kMapOffset),
                Immediate(Factory::fixed_cow_array_map()));
         __ bind(&empty);

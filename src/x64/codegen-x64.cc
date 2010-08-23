@@ -4833,7 +4833,7 @@ void DeferredAllocateInNewSpace::Generate() {
   for (int i = kNumRegs - 1; i >= 0; i--) {
     if (registers_to_save_ & (1 << i)) {
       Register save_register = { i };
-      __ push(save_register);
+      __ pop(save_register);
     }
   }
 }
@@ -6648,6 +6648,14 @@ void CodeGenerator::GenerateRegExpCloneResult(ZoneList<Expression*>* args) {
     __ cmpq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
     __ j(not_equal, &done);
 
+    if (FLAG_debug_code) {
+      // Check that object really has empty properties array, as the map
+      // should guarantee.
+      __ CompareRoot(FieldOperand(rax, JSObject::kPropertiesOffset),
+                     Heap::kEmptyFixedArrayRootIndex);
+      __ Check(equal, "JSRegExpResult: default map but non-empty properties.");
+    }
+
     DeferredAllocateInNewSpace* allocate_fallback =
         new DeferredAllocateInNewSpace(JSRegExpResult::kSize,
                                        rbx,
@@ -6680,7 +6688,6 @@ void CodeGenerator::GenerateRegExpCloneResult(ZoneList<Expression*>* args) {
         Label empty;
         __ CompareRoot(rdx, Heap::kEmptyFixedArrayRootIndex);
         __ j(equal, &empty);
-        ASSERT(!Heap::InNewSpace(Heap::fixed_cow_array_map()));
         __ LoadRoot(kScratchRegister, Heap::kFixedCOWArrayMapRootIndex);
         __ movq(FieldOperand(rdx, HeapObject::kMapOffset), kScratchRegister);
         __ bind(&empty);

@@ -2410,14 +2410,6 @@ void FullCodeGenerator::EmitRegExpConstructResult(ZoneList<Expression*>* args) {
 }
 
 
-void FullCodeGenerator::EmitRegExpCloneResult(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  VisitForValue(args->at(0), kStack);
-  __ CallRuntime(Runtime::kRegExpCloneResult, 1);
-  Apply(context_, eax);
-}
-
-
 void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 3);
   VisitForValue(args->at(0), kStack);
