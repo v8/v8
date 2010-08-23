@@ -865,6 +865,41 @@ void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
+  Comment cmnt(masm_, "[ BinaryOperation");
+  switch (expr->op()) {
+    case Token::COMMA:
+      VisitForEffect(expr->left());
+      Visit(expr->right());
+      break;
+
+    case Token::OR:
+    case Token::AND:
+      EmitLogicalOperation(expr);
+      break;
+
+    case Token::ADD:
+    case Token::SUB:
+    case Token::DIV:
+    case Token::MOD:
+    case Token::MUL:
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR:
+      VisitForValue(expr->left(), kStack);
+      VisitForValue(expr->right(), kAccumulator);
+      EmitBinaryOp(expr->op(), context_);
+      break;
+
+    default:
+      UNREACHABLE();
+  }
+}
+
+
 void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
   Label eval_right, done;
 
@@ -879,21 +914,9 @@ void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
         VisitForControl(expr->left(), &done, &eval_right);
         break;
       case Expression::kValue:
-        VisitForValueControl(expr->left(),
-                             location_,
-                             &done,
-                             &eval_right);
+        VisitLogicalForValue(expr->left(), expr->op(), location_, &done);
         break;
       case Expression::kTest:
-        VisitForControl(expr->left(), true_label_, &eval_right);
-        break;
-      case Expression::kValueTest:
-        VisitForValueControl(expr->left(),
-                             location_,
-                             true_label_,
-                             &eval_right);
-        break;
-      case Expression::kTestValue:
         VisitForControl(expr->left(), true_label_, &eval_right);
         break;
     }
@@ -906,22 +929,10 @@ void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
         VisitForControl(expr->left(), &eval_right, &done);
         break;
       case Expression::kValue:
-        VisitForControlValue(expr->left(),
-                             location_,
-                             &eval_right,
-                             &done);
+        VisitLogicalForValue(expr->left(), expr->op(), location_, &done);
         break;
       case Expression::kTest:
         VisitForControl(expr->left(), &eval_right, false_label_);
-        break;
-      case Expression::kValueTest:
-        VisitForControl(expr->left(), &eval_right, false_label_);
-        break;
-      case Expression::kTestValue:
-        VisitForControlValue(expr->left(),
-                             location_,
-                             &eval_right,
-                             false_label_);
         break;
     }
   }
@@ -930,6 +941,43 @@ void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
   Visit(expr->right());
 
   __ bind(&done);
+}
+
+
+void FullCodeGenerator::VisitLogicalForValue(Expression* expr,
+                                             Token::Value op,
+                                             Location where,
+                                             Label* done) {
+  ASSERT(op == Token::AND || op == Token::OR);
+  VisitForValue(expr, kAccumulator);
+  __ push(result_register());
+
+  Label discard;
+  switch (where) {
+    case kAccumulator: {
+      Label restore;
+      if (op == Token::OR) {
+        DoTest(&restore, &discard, &restore);
+      } else {
+        DoTest(&discard, &restore, &restore);
+      }
+      __ bind(&restore);
+      __ pop(result_register());
+      __ jmp(done);
+      break;
+    }
+    case kStack: {
+      if (op == Token::OR) {
+        DoTest(done, &discard, &discard);
+      } else {
+        DoTest(&discard, done, &discard);
+      }
+      break;
+    }
+  }
+
+  __ bind(&discard);
+  __ Drop(1);
 }
 
 

@@ -266,16 +266,10 @@ void FullCodeGenerator::Apply(Expression::Context context, Register reg) {
       }
       break;
 
-    case Expression::kValueTest:
-    case Expression::kTestValue:
-      // Push an extra copy of the value in case it's needed.
-      __ push(reg);
-      // Fall through.
-
     case Expression::kTest:
-      // We always call the runtime on ARM, so push the value as argument.
-      __ push(reg);
-      DoTest(context);
+      // For simplicity we always test the accumulator register.
+      if (!reg.is(result_register())) __ mov(result_register(), reg);
+      DoTest(true_label_, false_label_, NULL);
       break;
   }
 }
@@ -290,8 +284,6 @@ void FullCodeGenerator::Apply(Expression::Context context, Slot* slot) {
       break;
     case Expression::kValue:
     case Expression::kTest:
-    case Expression::kValueTest:
-    case Expression::kTestValue:
       // On ARM we have to move the value into a register to do anything
       // with it.
       Move(result_register(), slot);
@@ -310,8 +302,6 @@ void FullCodeGenerator::Apply(Expression::Context context, Literal* lit) {
       // Nothing to do.
     case Expression::kValue:
     case Expression::kTest:
-    case Expression::kValueTest:
-    case Expression::kTestValue:
       // On ARM we have to move the value into a register to do anything
       // with it.
       __ mov(result_register(), Operand(lit->handle()));
@@ -340,15 +330,9 @@ void FullCodeGenerator::ApplyTOS(Expression::Context context) {
       }
       break;
 
-    case Expression::kValueTest:
-    case Expression::kTestValue:
-      // Duplicate the value on the stack in case it's needed.
-      __ ldr(ip, MemOperand(sp));
-      __ push(ip);
-      // Fall through.
-
     case Expression::kTest:
-      DoTest(context);
+      __ pop(result_register());
+      DoTest(true_label_, false_label_, NULL);
       break;
   }
 }
@@ -381,22 +365,9 @@ void FullCodeGenerator::DropAndApply(int count,
       break;
 
     case Expression::kTest:
-      if (count > 1) __ Drop(count - 1);
-      __ str(reg, MemOperand(sp));
-      DoTest(context);
-      break;
-
-    case Expression::kValueTest:
-    case Expression::kTestValue:
-      if (count == 1) {
-        __ str(reg, MemOperand(sp));
-        __ push(reg);
-      } else {  // count > 1
-        __ Drop(count - 2);
-        __ str(reg, MemOperand(sp, kPointerSize));
-        __ str(reg, MemOperand(sp));
-      }
-      DoTest(context);
+      __ Drop(count);
+      if (!reg.is(result_register())) __ mov(result_register(), reg);
+      DoTest(true_label_, false_label_, NULL);
       break;
   }
 }
@@ -421,14 +392,6 @@ void FullCodeGenerator::PrepareTest(Label* materialize_true,
     case Expression::kTest:
       *if_true = true_label_;
       *if_false = false_label_;
-      break;
-    case Expression::kValueTest:
-      *if_true = materialize_true;
-      *if_false = false_label_;
-      break;
-    case Expression::kTestValue:
-      *if_true = true_label_;
-      *if_false = materialize_false;
       break;
   }
 }
@@ -471,34 +434,6 @@ void FullCodeGenerator::Apply(Expression::Context context,
 
     case Expression::kTest:
       break;
-
-    case Expression::kValueTest:
-      __ bind(materialize_true);
-      switch (location_) {
-        case kAccumulator:
-          __ LoadRoot(result_register(), Heap::kTrueValueRootIndex);
-          break;
-        case kStack:
-          __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-          __ push(ip);
-          break;
-      }
-      __ jmp(true_label_);
-      break;
-
-    case Expression::kTestValue:
-      __ bind(materialize_false);
-      switch (location_) {
-        case kAccumulator:
-          __ LoadRoot(result_register(), Heap::kFalseValueRootIndex);
-          break;
-        case kStack:
-          __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-          __ push(ip);
-          break;
-      }
-      __ jmp(false_label_);
-      break;
   }
 }
 
@@ -529,101 +464,34 @@ void FullCodeGenerator::Apply(Expression::Context context, bool flag) {
     case Expression::kTest:
       __ b(flag ? true_label_ : false_label_);
       break;
-    case Expression::kTestValue:
-      switch (location_) {
-        case kAccumulator:
-          // If value is false it's needed.
-          if (!flag) __ LoadRoot(result_register(), Heap::kFalseValueRootIndex);
-          break;
-        case kStack:
-          // If value is false it's needed.
-          if (!flag) {
-            __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-            __ push(ip);
-          }
-          break;
-      }
-      __ b(flag ? true_label_ : false_label_);
-      break;
-    case Expression::kValueTest:
-      switch (location_) {
-        case kAccumulator:
-          // If value is true it's needed.
-          if (flag) __ LoadRoot(result_register(), Heap::kTrueValueRootIndex);
-          break;
-        case kStack:
-          // If value is true it's needed.
-          if (flag) {
-            __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-            __ push(ip);
-          }
-          break;
-      }
-      __ b(flag ? true_label_ : false_label_);
-      break;
   }
 }
 
 
-void FullCodeGenerator::DoTest(Expression::Context context) {
-  // The value to test is pushed on the stack, and duplicated on the stack
-  // if necessary (for value/test and test/value contexts).
-  ASSERT_NE(NULL, true_label_);
-  ASSERT_NE(NULL, false_label_);
-
+void FullCodeGenerator::DoTest(Label* if_true,
+                               Label* if_false,
+                               Label* fall_through) {
   // Call the runtime to find the boolean value of the source and then
   // translate it into control flow to the pair of labels.
+  __ push(result_register());
   __ CallRuntime(Runtime::kToBool, 1);
   __ LoadRoot(ip, Heap::kTrueValueRootIndex);
   __ cmp(r0, ip);
+  Split(eq, if_true, if_false, fall_through);
+}
 
-  // Complete based on the context.
-  switch (context) {
-    case Expression::kUninitialized:
-    case Expression::kEffect:
-    case Expression::kValue:
-      UNREACHABLE();
 
-    case Expression::kTest:
-      __ b(eq, true_label_);
-      __ jmp(false_label_);
-      break;
-
-    case Expression::kValueTest: {
-      Label discard;
-      switch (location_) {
-        case kAccumulator:
-          __ b(ne, &discard);
-          __ pop(result_register());
-          __ jmp(true_label_);
-          break;
-        case kStack:
-          __ b(eq, true_label_);
-          break;
-      }
-      __ bind(&discard);
-      __ Drop(1);
-      __ jmp(false_label_);
-      break;
-    }
-
-    case Expression::kTestValue: {
-      Label discard;
-      switch (location_) {
-        case kAccumulator:
-          __ b(eq, &discard);
-          __ pop(result_register());
-          __ jmp(false_label_);
-          break;
-        case kStack:
-          __ b(ne, false_label_);
-          break;
-      }
-      __ bind(&discard);
-      __ Drop(1);
-      __ jmp(true_label_);
-      break;
-    }
+void FullCodeGenerator::Split(Condition cc,
+                              Label* if_true,
+                              Label* if_false,
+                              Label* fall_through) {
+  if (if_false == fall_through) {
+    __ b(cc, if_true);
+  } else if (if_true == fall_through) {
+    __ b(NegateCondition(cc), if_false);
+  } else {
+    __ b(cc, if_true);
+    __ b(if_false);
   }
 }
 
@@ -1107,28 +975,33 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   // r2 = RegExp pattern
   // r1 = RegExp flags
   // r0 = temp + materialized value (RegExp literal)
-  __ ldr(r0, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
-  __ ldr(r4,  FieldMemOperand(r0, JSFunction::kLiteralsOffset));
+  __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ ldr(r4, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
   int literal_offset =
-    FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
+      FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
   __ ldr(r0, FieldMemOperand(r4, literal_offset));
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ cmp(r0, ip);
   __ b(ne, &materialized);
+
+  // Create regexp literal using runtime function.
+  // Result will be in r0.
   __ mov(r3, Operand(Smi::FromInt(expr->literal_index())));
   __ mov(r2, Operand(expr->pattern()));
   __ mov(r1, Operand(expr->flags()));
   __ Push(r4, r3, r2, r1);
   __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+
   __ bind(&materialized);
   int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
   __ push(r0);
   __ mov(r0, Operand(Smi::FromInt(size)));
   __ push(r0);
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+
   // After this, registers are used as follows:
   // r0: Newly allocated regexp.
-  // r1: Materialized regexp
+  // r1: Materialized regexp.
   // r2: temp.
   __ pop(r1);
   __ CopyFields(r0, r1, r2.bit(), size / kPointerSize);
@@ -1885,8 +1758,7 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(ZoneList<Expression*>* args) {
   PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
 
   __ tst(r0, Operand(kSmiTagMask | 0x80000000));
-  __ b(eq, if_true);
-  __ b(if_false);
+  Split(eq, if_true, if_false, NULL);
 
   Apply(context_, if_true, if_false);
 }
@@ -1914,8 +1786,7 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
   __ b(lt, if_false);
   __ cmp(r1, Operand(LAST_JS_OBJECT_TYPE));
-  __ b(le, if_true);
-  __ b(if_false);
+  Split(le, if_true, if_false, NULL);
 
   Apply(context_, if_true, if_false);
 }
@@ -1933,8 +1804,7 @@ void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
 
   __ BranchOnSmi(r0, if_false);
   __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE);
-  __ b(ge, if_true);
-  __ b(if_false);
+  Split(ge, if_true, if_false, NULL);
 
   Apply(context_, if_true, if_false);
 }
@@ -1954,8 +1824,7 @@ void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kBitFieldOffset));
   __ tst(r1, Operand(1 << Map::kIsUndetectable));
-  __ b(ne, if_true);
-  __ b(if_false);
+  Split(ne, if_true, if_false, NULL);
 
   Apply(context_, if_true, if_false);
 }
@@ -1993,8 +1862,7 @@ void FullCodeGenerator::EmitIsFunction(ZoneList<Expression*>* args) {
 
   __ BranchOnSmi(r0, if_false);
   __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE);
-  __ b(eq, if_true);
-  __ b(if_false);
+  Split(eq, if_true, if_false, NULL);
 
   Apply(context_, if_true, if_false);
 }
@@ -2012,8 +1880,7 @@ void FullCodeGenerator::EmitIsArray(ZoneList<Expression*>* args) {
 
   __ BranchOnSmi(r0, if_false);
   __ CompareObjectType(r0, r1, r1, JS_ARRAY_TYPE);
-  __ b(eq, if_true);
-  __ b(if_false);
+  Split(eq, if_true, if_false, NULL);
 
   Apply(context_, if_true, if_false);
 }
@@ -2031,8 +1898,7 @@ void FullCodeGenerator::EmitIsRegExp(ZoneList<Expression*>* args) {
 
   __ BranchOnSmi(r0, if_false);
   __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE);
-  __ b(eq, if_true);
-  __ b(if_false);
+  Split(eq, if_true, if_false, NULL);
 
   Apply(context_, if_true, if_false);
 }
@@ -2061,8 +1927,7 @@ void FullCodeGenerator::EmitIsConstructCall(ZoneList<Expression*>* args) {
   __ bind(&check_frame_marker);
   __ ldr(r1, MemOperand(r2, StandardFrameConstants::kMarkerOffset));
   __ cmp(r1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
-  __ b(eq, if_true);
-  __ b(if_false);
+  Split(eq, if_true, if_false, NULL);
 
   Apply(context_, if_true, if_false);
 }
@@ -2082,8 +1947,7 @@ void FullCodeGenerator::EmitObjectEquals(ZoneList<Expression*>* args) {
 
   __ pop(r1);
   __ cmp(r0, r1);
-  __ b(eq, if_true);
-  __ b(if_false);
+  Split(eq, if_true, if_false, NULL);
 
   Apply(context_, if_true, if_false);
 }
@@ -2752,19 +2616,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
               break;
           }
           break;
-        case Expression::kTestValue:
-          // Value is false so it's needed.
-          __ LoadRoot(result_register(), Heap::kUndefinedValueRootIndex);
-          switch (location_) {
-            case kAccumulator:
-              break;
-            case kStack:
-              __ push(result_register());
-              break;
-          }
-          // Fall through.
         case Expression::kTest:
-        case Expression::kValueTest:
           __ jmp(false_label_);
           break;
       }
@@ -2945,8 +2797,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         break;
       case Expression::kValue:
       case Expression::kTest:
-      case Expression::kValueTest:
-      case Expression::kTestValue:
         // Save the result on the stack. If we have a named or keyed property
         // we store the result under the receiver that is currently on top
         // of the stack.
@@ -3034,41 +2884,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 }
 
 
-void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
-  Comment cmnt(masm_, "[ BinaryOperation");
-  switch (expr->op()) {
-    case Token::COMMA:
-      VisitForEffect(expr->left());
-      Visit(expr->right());
-      break;
-
-    case Token::OR:
-    case Token::AND:
-      EmitLogicalOperation(expr);
-      break;
-
-    case Token::ADD:
-    case Token::SUB:
-    case Token::DIV:
-    case Token::MOD:
-    case Token::MUL:
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR:
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR:
-      VisitForValue(expr->left(), kStack);
-      VisitForValue(expr->right(), kAccumulator);
-      EmitBinaryOp(expr->op(), context_);
-      break;
-
-    default:
-      UNREACHABLE();
-  }
-}
-
-
 void FullCodeGenerator::EmitNullCompare(bool strict,
                                         Register obj,
                                         Register null_const,
@@ -3077,7 +2892,7 @@ void FullCodeGenerator::EmitNullCompare(bool strict,
                                         Register scratch) {
   __ cmp(obj, null_const);
   if (strict) {
-    __ b(eq, if_true);
+    Split(eq, if_true, if_false, NULL);
   } else {
     __ b(eq, if_true);
     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
@@ -3088,9 +2903,8 @@ void FullCodeGenerator::EmitNullCompare(bool strict,
     __ ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
     __ ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
     __ tst(scratch, Operand(1 << Map::kIsUndetectable));
-    __ b(ne, if_true);
+    Split(ne, if_true, if_false, NULL);
   }
-  __ jmp(if_false);
 }
 
 
@@ -3112,17 +2926,16 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       __ InvokeBuiltin(Builtins::IN, CALL_JS);
       __ LoadRoot(ip, Heap::kTrueValueRootIndex);
       __ cmp(r0, ip);
-      __ b(eq, if_true);
-      __ jmp(if_false);
+      Split(eq, if_true, if_false, NULL);
       break;
 
     case Token::INSTANCEOF: {
       VisitForValue(expr->right(), kStack);
       InstanceofStub stub;
       __ CallStub(&stub);
+      // The stub returns 0 for true.
       __ tst(r0, r0);
-      __ b(eq, if_true);  // The stub returns 0 for true.
-      __ jmp(if_false);
+      Split(eq, if_true, if_false, NULL);
       break;
     }
 
@@ -3191,8 +3004,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       CompareStub stub(cc, strict, kBothCouldBeNaN, true, r1, r0);
       __ CallStub(&stub);
       __ cmp(r0, Operand(0));
-      __ b(cc, if_true);
-      __ jmp(if_false);
+      Split(cc, if_true, if_false, NULL);
     }
   }
 

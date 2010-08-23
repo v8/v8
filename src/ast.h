@@ -201,13 +201,7 @@ class Expression: public AstNode {
     // Evaluated for its value (and side effects).
     kValue,
     // Evaluated for control flow (and side effects).
-    kTest,
-    // Evaluated for control flow and side effects.  Value is also
-    // needed if true.
-    kValueTest,
-    // Evaluated for control flow and side effects.  Value is also
-    // needed if false.
-    kTestValue
+    kTest
   };
 
   Expression() : bitfields_(0) {}

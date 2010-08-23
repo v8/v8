@@ -296,7 +296,14 @@ class FullCodeGenerator: public AstVisitor {
   // Helper function to convert a pure value into a test context.  The value
   // is expected on the stack or the accumulator, depending on the platform.
   // See the platform-specific implementation for details.
-  void DoTest(Expression::Context context);
+  void DoTest(Label* if_true, Label* if_false, Label* fall_through);
+
+  // Helper function to split control flow and avoid a branch to the
+  // fall-through label if it is set up.
+  void Split(Condition cc,
+             Label* if_true,
+             Label* if_false,
+             Label* fall_through);
 
   void Move(Slot* dst, Register source, Register scratch1, Register scratch2);
   void Move(Register dst, Slot* source);
@@ -332,44 +339,6 @@ class FullCodeGenerator: public AstVisitor {
     false_label_ = if_false;
     Visit(expr);
     context_ = saved_context;
-    true_label_ = saved_true;
-    false_label_ = saved_false;
-  }
-
-  void VisitForValueControl(Expression* expr,
-                            Location where,
-                            Label* if_true,
-                            Label* if_false) {
-    Expression::Context saved_context = context_;
-    Location saved_location = location_;
-    Label* saved_true = true_label_;
-    Label* saved_false = false_label_;
-    context_ = Expression::kValueTest;
-    location_ = where;
-    true_label_ = if_true;
-    false_label_ = if_false;
-    Visit(expr);
-    context_ = saved_context;
-    location_ = saved_location;
-    true_label_ = saved_true;
-    false_label_ = saved_false;
-  }
-
-  void VisitForControlValue(Expression* expr,
-                            Location where,
-                            Label* if_true,
-                            Label* if_false) {
-    Expression::Context saved_context = context_;
-    Location saved_location = location_;
-    Label* saved_true = true_label_;
-    Label* saved_false = false_label_;
-    context_ = Expression::kTestValue;
-    location_ = where;
-    true_label_ = if_true;
-    false_label_ = if_false;
-    Visit(expr);
-    context_ = saved_context;
-    location_ = saved_location;
     true_label_ = saved_true;
     false_label_ = saved_false;
   }
@@ -491,6 +460,11 @@ class FullCodeGenerator: public AstVisitor {
 #undef DECLARE_VISIT
   // Handles the shortcutted logical binary operations in VisitBinaryOperation.
   void EmitLogicalOperation(BinaryOperation* expr);
+  void VisitLogicalForValue(Expression* expr,
+                            Token::Value op,
+                            Location where,
+                            Label* done);
+
 
   MacroAssembler* masm_;
   CompilationInfo* info_;
