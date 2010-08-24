@@ -3014,6 +3014,33 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
+void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
+  Comment cmnt(masm_, "[ CompareToNull");
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+
+  VisitForValue(expr->expression(), kAccumulator);
+  __ CompareRoot(rax, Heap::kNullValueRootIndex);
+  if (expr->is_strict()) {
+    Split(equal, if_true, if_false, NULL);
+  } else {
+    __ j(equal, if_true);
+    __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+    __ j(equal, if_true);
+    Condition is_smi = masm_->CheckSmi(rax);
+    __ j(is_smi, if_false);
+    // It can be an undetectable object.
+    __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ testb(FieldOperand(rdx, Map::kBitFieldOffset),
+             Immediate(1 << Map::kIsUndetectable));
+    Split(not_zero, if_true, if_false, NULL);
+  }
+  Apply(context_, if_true, if_false);
+}
+
+
 void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
   __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   Apply(context_, rax);

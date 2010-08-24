@@ -154,7 +154,6 @@ class Parser {
   ParserLog* log_;
   bool is_pre_parsing_;
   ScriptDataImpl* pre_data_;
-  bool seen_loop_stmt_;  // Used for inner loop detection.
   FuncNameInferrer* fni_;
 
   bool inside_with() const  { return with_nesting_level_ > 0; }
@@ -214,6 +213,8 @@ class Parser {
   Expression* ParseObjectLiteral(bool* ok);
   ObjectLiteral::Property* ParseObjectLiteralGetSet(bool is_getter, bool* ok);
   Expression* ParseRegExpLiteral(bool seen_equal, bool* ok);
+
+  Expression* NewCompareNode(Token::Value op, Expression* x, Expression* y);
 
   // Populate the constant properties fixed array for a materialized object
   // literal.
@@ -1216,7 +1217,6 @@ Parser::Parser(Handle<Script> script,
       log_(log),
       is_pre_parsing_(is_pre_parsing == PREPARSE),
       pre_data_(pre_data),
-      seen_loop_stmt_(false),
       fni_(NULL) {
 }
 
@@ -2677,9 +2677,6 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   if (peek() == Token::SEMICOLON) Consume(Token::SEMICOLON);
 
   if (loop != NULL) loop->Initialize(cond, body);
-
-  seen_loop_stmt_ = true;
-
   return loop;
 }
 
@@ -2699,9 +2696,6 @@ WhileStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   Statement* body = ParseStatement(NULL, CHECK_OK);
 
   if (loop != NULL) loop->Initialize(cond, body);
-
-  seen_loop_stmt_ = true;
-
   return loop;
 }
 
@@ -2735,9 +2729,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
           Block* result = NEW(Block(NULL, 2, false));
           result->AddStatement(variable_statement);
           result->AddStatement(loop);
-
-          seen_loop_stmt_ = true;
-
           // Parsed for-in loop w/ variable/const declaration.
           return result;
         }
@@ -2766,9 +2757,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
         Statement* body = ParseStatement(NULL, CHECK_OK);
         if (loop) loop->Initialize(expression, enumerable, body);
-
-        seen_loop_stmt_ = true;
-
         // Parsed for-in loop.
         return loop;
 
@@ -2799,17 +2787,8 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   }
   Expect(Token::RPAREN, CHECK_OK);
 
-  seen_loop_stmt_ = false;
-
   Statement* body = ParseStatement(NULL, CHECK_OK);
-
-  // Mark this loop if it is an inner loop.
-  if (loop && !seen_loop_stmt_) loop->set_peel_this_loop(true);
-
   if (loop) loop->Initialize(init, cond, next, body);
-
-  seen_loop_stmt_ = true;
-
   return loop;
 }
 
@@ -3001,7 +2980,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
 
       // For now we distinguish between comparisons and other binary
       // operations.  (We could combine the two and get rid of this
-      // code an AST node eventually.)
+      // code and AST node eventually.)
       if (Token::IsCompareOp(op)) {
         // We have a comparison.
         Token::Value cmp = op;
@@ -3010,7 +2989,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
           case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
           default: break;
         }
-        x = NEW(CompareOperation(cmp, x, y));
+        x = NewCompareNode(cmp, x, y);
         if (cmp != op) {
           // The comparison was negated - add a NOT.
           x = NEW(UnaryOperation(Token::NOT, x));
@@ -3023,6 +3002,26 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
     }
   }
   return x;
+}
+
+
+Expression* Parser::NewCompareNode(Token::Value op,
+                                   Expression* x,
+                                   Expression* y) {
+  ASSERT(op != Token::NE && op != Token::NE_STRICT);
+  if (!is_pre_parsing_ && (op == Token::EQ || op == Token::EQ_STRICT)) {
+    bool is_strict = (op == Token::EQ_STRICT);
+    Literal* x_literal = x->AsLiteral();
+    if (x_literal != NULL && x_literal->IsNull()) {
+      return NEW(CompareToNull(is_strict, y));
+    }
+
+    Literal* y_literal = y->AsLiteral();
+    if (y_literal != NULL && y_literal->IsNull()) {
+      return NEW(CompareToNull(is_strict, x));
+    }
+  }
+  return NEW(CompareOperation(op, x, y));
 }
 
 
@@ -3843,10 +3842,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
                                               bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-
-  // Reset flag used for inner loop detection.
-  seen_loop_stmt_ = false;
-
   bool is_named = !var_name.is_null();
 
   // The name associated with this function. If it's a function expression,
@@ -3964,11 +3959,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     if (!is_pre_parsing_) {
       function_literal->set_function_token_position(function_token_position);
     }
-
-    // Set flag for inner loop detection. We treat loops that contain a function
-    // literal not as inner loops because we avoid duplicating function literals
-    // when peeling or unrolling such a loop.
-    seen_loop_stmt_ = true;
 
     if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);
     return function_literal;

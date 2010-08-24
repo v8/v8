@@ -2772,41 +2772,6 @@ void CodeGenerator::Comparison(AstNode* node,
     ConstantSmiComparison(cc, strict, dest, &left_side, &right_side,
                           left_side_constant_smi, right_side_constant_smi,
                           is_loop_condition);
-  } else if (cc == equal &&
-             (left_side_constant_null || right_side_constant_null)) {
-    // To make null checks efficient, we check if either the left side or
-    // the right side is the constant 'null'.
-    // If so, we optimize the code by inlining a null check instead of
-    // calling the (very) general runtime routine for checking equality.
-    Result operand = left_side_constant_null ? right_side : left_side;
-    right_side.Unuse();
-    left_side.Unuse();
-    operand.ToRegister();
-    __ cmp(operand.reg(), Factory::null_value());
-    if (strict) {
-      operand.Unuse();
-      dest->Split(equal);
-    } else {
-      // The 'null' value is only equal to 'undefined' if using non-strict
-      // comparisons.
-      dest->true_target()->Branch(equal);
-      __ cmp(operand.reg(), Factory::undefined_value());
-      dest->true_target()->Branch(equal);
-      __ test(operand.reg(), Immediate(kSmiTagMask));
-      dest->false_target()->Branch(equal);
-
-      // It can be an undetectable object.
-      // Use a scratch register in preference to spilling operand.reg().
-      Result temp = allocator()->Allocate();
-      ASSERT(temp.is_valid());
-      __ mov(temp.reg(),
-             FieldOperand(operand.reg(), HeapObject::kMapOffset));
-      __ test_b(FieldOperand(temp.reg(), Map::kBitFieldOffset),
-                1 << Map::kIsUndetectable);
-      temp.Unuse();
-      operand.Unuse();
-      dest->Split(not_zero);
-    }
   } else if (left_side_constant_1_char_string ||
              right_side_constant_1_char_string) {
     if (left_side_constant_1_char_string && right_side_constant_1_char_string) {
@@ -5821,8 +5786,8 @@ void CodeGenerator::EmitSlotAssignment(Assignment* node) {
         (node->value()->AsBinaryOperation() != NULL &&
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
     // Construct the implicit binary operation.
-    BinaryOperation expr(node, node->binary_op(), node->target(),
-                         node->value());
+    BinaryOperation expr(node->binary_op(), node->target(), node->value());
+    expr.CopyAnalysisResultsFrom(node);
     GenericBinaryOperation(&expr,
                            overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {
@@ -5913,8 +5878,8 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
         (node->value()->AsBinaryOperation() != NULL &&
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
     // Construct the implicit binary operation.
-    BinaryOperation expr(node, node->binary_op(), node->target(),
-                         node->value());
+    BinaryOperation expr(node->binary_op(), node->target(), node->value());
+    expr.CopyAnalysisResultsFrom(node);
     GenericBinaryOperation(&expr,
                            overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {
@@ -6015,8 +5980,8 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
     bool overwrite_value =
         (node->value()->AsBinaryOperation() != NULL &&
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-    BinaryOperation expr(node, node->binary_op(), node->target(),
-                         node->value());
+    BinaryOperation expr(node->binary_op(), node->target(), node->value());
+    expr.CopyAnalysisResultsFrom(node);
     GenericBinaryOperation(&expr,
                            overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {
@@ -9157,6 +9122,41 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     Load(right);
   }
   Comparison(node, cc, strict, destination());
+}
+
+
+void CodeGenerator::VisitCompareToNull(CompareToNull* node) {
+  ASSERT(!in_safe_int32_mode());
+  Comment cmnt(masm_, "[ CompareToNull");
+
+  Load(node->expression());
+  Result operand = frame_->Pop();
+  operand.ToRegister();
+  __ cmp(operand.reg(), Factory::null_value());
+  if (node->is_strict()) {
+    operand.Unuse();
+    destination()->Split(equal);
+  } else {
+    // The 'null' value is only equal to 'undefined' if using non-strict
+    // comparisons.
+    destination()->true_target()->Branch(equal);
+    __ cmp(operand.reg(), Factory::undefined_value());
+    destination()->true_target()->Branch(equal);
+    __ test(operand.reg(), Immediate(kSmiTagMask));
+    destination()->false_target()->Branch(equal);
+
+    // It can be an undetectable object.
+    // Use a scratch register in preference to spilling operand.reg().
+    Result temp = allocator()->Allocate();
+    ASSERT(temp.is_valid());
+    __ mov(temp.reg(),
+           FieldOperand(operand.reg(), HeapObject::kMapOffset));
+    __ test_b(FieldOperand(temp.reg(), Map::kBitFieldOffset),
+              1 << Map::kIsUndetectable);
+    temp.Unuse();
+    operand.Unuse();
+    destination()->Split(not_zero);
+  }
 }
 
 

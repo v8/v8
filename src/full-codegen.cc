@@ -431,6 +431,11 @@ void FullCodeGenSyntaxChecker::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
+void FullCodeGenSyntaxChecker::VisitCompareToNull(CompareToNull* expr) {
+  Visit(expr->expression());
+}
+
+
 void FullCodeGenSyntaxChecker::VisitThisFunction(ThisFunction* expr) {
   // Supported.
 }
@@ -651,6 +656,11 @@ void BreakableStatementChecker::VisitCountOperation(CountOperation* expr) {
 void BreakableStatementChecker::VisitBinaryOperation(BinaryOperation* expr) {
   Visit(expr->left());
   Visit(expr->right());
+}
+
+
+void BreakableStatementChecker::VisitCompareToNull(CompareToNull* expr) {
+  Visit(expr->expression());
 }
 
 

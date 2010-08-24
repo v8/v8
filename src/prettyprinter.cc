@@ -403,6 +403,13 @@ void PrettyPrinter::VisitCompareOperation(CompareOperation* node) {
 }
 
 
+void PrettyPrinter::VisitCompareToNull(CompareToNull* node) {
+  Print("(");
+  Visit(node->expression());
+  Print("%s null)", Token::String(node->op()));
+}
+
+
 void PrettyPrinter::VisitThisFunction(ThisFunction* node) {
   Print("<this-function>");
 }
@@ -604,11 +611,6 @@ class IndentedScope BASE_EMBEDDED {
         ast_printer_->Print(StaticType::Type2String(expr->type()));
         printed_first = true;
       }
-      if (expr->num() != AstNode::kNoNumber) {
-        ast_printer_->Print(printed_first ? ", num = " : " (num = ");
-        ast_printer_->Print("%d", expr->num());
-        printed_first = true;
-      }
       if (printed_first) ast_printer_->Print(")");
     }
     ast_printer_->Print("\n");
@@ -667,9 +669,7 @@ void AstPrinter::PrintLiteralIndented(const char* info,
 void AstPrinter::PrintLiteralWithModeIndented(const char* info,
                                               Variable* var,
                                               Handle<Object> value,
-                                              StaticType* type,
-                                              int num,
-                                              bool is_primitive) {
+                                              StaticType* type) {
   if (var == NULL) {
     PrintLiteralIndented(info, value, true);
   } else {
@@ -680,11 +680,6 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
       pos += OS::SNPrintF(buf + pos, ", type = %s",
                           StaticType::Type2String(type));
     }
-    if (num != AstNode::kNoNumber) {
-      pos += OS::SNPrintF(buf + pos, ", num = %d", num);
-    }
-    pos += OS::SNPrintF(buf + pos,
-                        is_primitive ? ", primitive" : ", non-primitive");
     OS::SNPrintF(buf + pos, ")");
     PrintLiteralIndented(buf.start(), value, true);
   }
@@ -742,9 +737,7 @@ void AstPrinter::PrintParameters(Scope* scope) {
     for (int i = 0; i < scope->num_parameters(); i++) {
       PrintLiteralWithModeIndented("VAR", scope->parameter(i),
                                    scope->parameter(i)->name(),
-                                   scope->parameter(i)->type(),
-                                   AstNode::kNoNumber,
-                                   false);
+                                   scope->parameter(i)->type());
     }
   }
 }
@@ -789,9 +782,7 @@ void AstPrinter::VisitDeclaration(Declaration* node) {
     PrintLiteralWithModeIndented(Variable::Mode2String(node->mode()),
                                  node->proxy()->AsVariable(),
                                  node->proxy()->name(),
-                                 node->proxy()->AsVariable()->type(),
-                                 AstNode::kNoNumber,
-                                 node->proxy()->IsPrimitive());
+                                 node->proxy()->AsVariable()->type());
   } else {
     // function declarations
     PrintIndented("FUNCTION ");
@@ -1027,7 +1018,7 @@ void AstPrinter::VisitSlot(Slot* node) {
 
 void AstPrinter::VisitVariableProxy(VariableProxy* node) {
   PrintLiteralWithModeIndented("VAR PROXY", node->AsVariable(), node->name(),
-                               node->type(), node->num(), node->IsPrimitive());
+                               node->type());
   Variable* var = node->var();
   if (var != NULL && var->rewrite() != NULL) {
     IndentedScope indent;
@@ -1112,6 +1103,15 @@ void AstPrinter::VisitCompareOperation(CompareOperation* node) {
   IndentedScope indent(Token::Name(node->op()), node);
   Visit(node->left());
   Visit(node->right());
+}
+
+
+void AstPrinter::VisitCompareToNull(CompareToNull* node) {
+  const char* name = node->is_strict()
+      ? "COMPARE-TO-NULL-STRICT"
+      : "COMPARE-TO-NULL";
+  IndentedScope indent(name, node);
+  Visit(node->expression());
 }
 
 
@@ -1507,6 +1507,16 @@ void JsonAstBuilder::VisitCompareOperation(CompareOperation* expr) {
   }
   Visit(expr->left());
   Visit(expr->right());
+}
+
+
+void JsonAstBuilder::VisitCompareToNull(CompareToNull* expr) {
+  TagScope tag(this, "CompareToNull");
+  {
+    AttributesScope attributes(this);
+    AddAttribute("is_strict", expr->is_strict());
+  }
+  Visit(expr->expression());
 }
 
 

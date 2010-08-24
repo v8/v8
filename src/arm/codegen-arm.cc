@@ -6139,47 +6139,6 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   Expression* right = node->right();
   Token::Value op = node->op();
 
-  // To make null checks efficient, we check if either left or right is the
-  // literal 'null'. If so, we optimize the code by inlining a null check
-  // instead of calling the (very) general runtime routine for checking
-  // equality.
-  if (op == Token::EQ || op == Token::EQ_STRICT) {
-    bool left_is_null =
-        left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
-    bool right_is_null =
-        right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
-    // The 'null' value can only be equal to 'null' or 'undefined'.
-    if (left_is_null || right_is_null) {
-      Load(left_is_null ? right : left);
-      Register tos = frame_->PopToRegister();
-      __ LoadRoot(ip, Heap::kNullValueRootIndex);
-      __ cmp(tos, ip);
-
-      // The 'null' value is only equal to 'undefined' if using non-strict
-      // comparisons.
-      if (op != Token::EQ_STRICT) {
-        true_target()->Branch(eq);
-
-        __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-        __ cmp(tos, Operand(ip));
-        true_target()->Branch(eq);
-
-        __ tst(tos, Operand(kSmiTagMask));
-        false_target()->Branch(eq);
-
-        // It can be an undetectable object.
-        __ ldr(tos, FieldMemOperand(tos, HeapObject::kMapOffset));
-        __ ldrb(tos, FieldMemOperand(tos, Map::kBitFieldOffset));
-        __ and_(tos, tos, Operand(1 << Map::kIsUndetectable));
-        __ cmp(tos, Operand(1 << Map::kIsUndetectable));
-      }
-
-      cc_reg_ = eq;
-      ASSERT(has_cc() && frame_->height() == original_height);
-      return;
-    }
-  }
-
   // To make typeof testing for natives implemented in JavaScript really
   // efficient, we generate special code for expressions of the form:
   // 'typeof <expression> == <string>'.
@@ -6337,6 +6296,40 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   }
   ASSERT((has_cc() && frame_->height() == original_height) ||
          (!has_cc() && frame_->height() == original_height + 1));
+}
+
+
+void CodeGenerator::VisitCompareToNull(CompareToNull* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  Comment cmnt(masm_, "[ CompareToNull");
+
+  Load(node->expression());
+  Register tos = frame_->PopToRegister();
+  __ LoadRoot(ip, Heap::kNullValueRootIndex);
+  __ cmp(tos, ip);
+
+  // The 'null' value is only equal to 'undefined' if using non-strict
+  // comparisons.
+  if (!node->is_strict()) {
+    true_target()->Branch(eq);
+    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ cmp(tos, Operand(ip));
+    true_target()->Branch(eq);
+
+    __ tst(tos, Operand(kSmiTagMask));
+    false_target()->Branch(eq);
+
+    // It can be an undetectable object.
+    __ ldr(tos, FieldMemOperand(tos, HeapObject::kMapOffset));
+    __ ldrb(tos, FieldMemOperand(tos, Map::kBitFieldOffset));
+    __ and_(tos, tos, Operand(1 << Map::kIsUndetectable));
+    __ cmp(tos, Operand(1 << Map::kIsUndetectable));
+  }
+
+  cc_reg_ = eq;
+  ASSERT(has_cc() && frame_->height() == original_height);
 }
 
 

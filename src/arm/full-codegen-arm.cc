@@ -3006,6 +3006,36 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
+void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
+  Comment cmnt(masm_, "[ CompareToNull");
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+
+  VisitForValue(expr->expression(), kAccumulator);
+  __ LoadRoot(r1, Heap::kNullValueRootIndex);
+  __ cmp(r0, r1);
+  if (expr->is_strict()) {
+    Split(eq, if_true, if_false, NULL);
+  } else {
+    __ b(eq, if_true);
+    __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
+    __ cmp(r0, r1);
+    __ b(eq, if_true);
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, if_false);
+    // It can be an undetectable object.
+    __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ ldrb(r1, FieldMemOperand(r1, Map::kBitFieldOffset));
+    __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
+    __ cmp(r1, Operand(1 << Map::kIsUndetectable));
+    Split(eq, if_true, if_false, NULL);
+  }
+  Apply(context_, if_true, if_false);
+}
+
+
 void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   Apply(context_, r0);

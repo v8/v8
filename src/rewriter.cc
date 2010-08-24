@@ -106,7 +106,7 @@ void AstOptimizer::VisitWhileStatement(WhileStatement* node) {
   has_function_literal_ = false;
   node->cond()->set_no_negative_zero(true);
   Visit(node->cond());
-  node->may_have_function_literal_ = has_function_literal_;
+  node->set_may_have_function_literal(has_function_literal_);
   Visit(node->body());
 }
 
@@ -119,7 +119,7 @@ void AstOptimizer::VisitForStatement(ForStatement* node) {
     has_function_literal_ = false;
     node->cond()->set_no_negative_zero(true);
     Visit(node->cond());
-    node->may_have_function_literal_ = has_function_literal_;
+    node->set_may_have_function_literal(has_function_literal_);
   }
   Visit(node->body());
   if (node->next() != NULL) {
@@ -668,6 +668,11 @@ void AstOptimizer::VisitCompareOperation(CompareOperation* node) {
 }
 
 
+void AstOptimizer::VisitCompareToNull(CompareToNull* node) {
+  Visit(node->expression());
+}
+
+
 void AstOptimizer::VisitThisFunction(ThisFunction* node) {
   USE(node);
 }
@@ -955,6 +960,12 @@ void Processor::VisitBinaryOperation(BinaryOperation* node) {
 
 
 void Processor::VisitCompareOperation(CompareOperation* node) {
+  USE(node);
+  UNREACHABLE();
+}
+
+
+void Processor::VisitCompareToNull(CompareToNull* node) {
   USE(node);
   UNREACHABLE();
 }

@@ -3025,6 +3025,32 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
+void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+
+  VisitForValue(expr->expression(), kAccumulator);
+  __ cmp(eax, Factory::null_value());
+  if (expr->is_strict()) {
+    Split(equal, if_true, if_false, NULL);
+  } else {
+    __ j(equal, if_true);
+    __ cmp(eax, Factory::undefined_value());
+    __ j(equal, if_true);
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, if_false);
+    // It can be an undetectable object.
+    __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
+    __ movzx_b(edx, FieldOperand(edx, Map::kBitFieldOffset));
+    __ test(edx, Immediate(1 << Map::kIsUndetectable));
+    Split(not_zero, if_true, if_false, NULL);
+  }
+  Apply(context_, if_true, if_false);
+}
+
+
 void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   Apply(context_, eax);
