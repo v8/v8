@@ -1291,8 +1291,69 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
                                                   JSFunction* function,
                                                   String* name,
                                                   CheckType check) {
-  // TODO(722): implement this.
-  return Heap::undefined_value();
+  // ----------- S t a t e -------------
+  //  -- rcx                 : function name
+  //  -- rsp[0]              : return address
+  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- ...
+  //  -- rsp[(argc + 1) * 8] : receiver
+  // -----------------------------------
+
+  // If object is not a string, bail out to regular call.
+  if (!object->IsString()) return Heap::undefined_value();
+
+  const int argc = arguments().immediate();
+
+  Label miss;
+  Label index_out_of_range;
+
+  GenerateNameCheck(name, &miss);
+
+  // Check that the maps starting from the prototype haven't changed.
+  GenerateDirectLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            rax);
+  ASSERT(object != holder);
+  CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
+                  rbx, rdx, rdi, name, &miss);
+
+  Register receiver = rax;
+  Register index = rdi;
+  Register scratch1 = rbx;
+  Register scratch2 = rdx;
+  Register result = rax;
+  __ movq(receiver, Operand(rsp, (argc + 1) * kPointerSize));
+  if (argc > 0) {
+    __ movq(index, Operand(rsp, (argc - 0) * kPointerSize));
+  } else {
+    __ LoadRoot(index, Heap::kUndefinedValueRootIndex);
+  }
+
+  StringCharAtGenerator char_at_generator(receiver,
+                                          index,
+                                          scratch1,
+                                          scratch2,
+                                          result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &index_out_of_range,
+                                          STRING_INDEX_IS_NUMBER);
+  char_at_generator.GenerateFast(masm());
+  __ ret((argc + 1) * kPointerSize);
+
+  ICRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm(), call_helper);
+
+  __ bind(&index_out_of_range);
+  __ LoadRoot(rax, Heap::kEmptyStringRootIndex);
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&miss);
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
+
+  // Return the generated code.
+  return GetCode(function);
 }
 
 
@@ -1301,10 +1362,67 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
                                                       JSFunction* function,
                                                       String* name,
                                                       CheckType check) {
-  // TODO(722): implement this.
-  return Heap::undefined_value();
-}
+  // ----------- S t a t e -------------
+  //  -- rcx                 : function name
+  //  -- rsp[0]              : return address
+  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- ...
+  //  -- rsp[(argc + 1) * 8] : receiver
+  // -----------------------------------
 
+  // If object is not a string, bail out to regular call.
+  if (!object->IsString()) return Heap::undefined_value();
+
+  const int argc = arguments().immediate();
+
+  Label miss;
+  Label index_out_of_range;
+  GenerateNameCheck(name, &miss);
+
+  // Check that the maps starting from the prototype haven't changed.
+  GenerateDirectLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            rax);
+  ASSERT(object != holder);
+  CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
+                  rbx, rdx, rdi, name, &miss);
+
+  Register receiver = rbx;
+  Register index = rdi;
+  Register scratch = rdx;
+  Register result = rax;
+  __ movq(receiver, Operand(rsp, (argc + 1) * kPointerSize));
+  if (argc > 0) {
+    __ movq(index, Operand(rsp, (argc - 0) * kPointerSize));
+  } else {
+    __ LoadRoot(index, Heap::kUndefinedValueRootIndex);
+  }
+
+  StringCharCodeAtGenerator char_code_at_generator(receiver,
+                                                   index,
+                                                   scratch,
+                                                   result,
+                                                   &miss,  // When not a string.
+                                                   &miss,  // When not a number.
+                                                   &index_out_of_range,
+                                                   STRING_INDEX_IS_NUMBER);
+  char_code_at_generator.GenerateFast(masm());
+  __ ret((argc + 1) * kPointerSize);
+
+  ICRuntimeCallHelper call_helper;
+  char_code_at_generator.GenerateSlow(masm(), call_helper);
+
+  __ bind(&index_out_of_range);
+  __ LoadRoot(rax, Heap::kNanValueRootIndex);
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&miss);
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
+
+  // Return the generated code.
+  return GetCode(function);
+}
 
 
 Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
