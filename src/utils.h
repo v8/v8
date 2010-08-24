@@ -560,6 +560,15 @@ class Collector {
     return Vector<T>(new_store, total_length);
   }
 
+  // Resets the collector to be empty.
+  virtual void Reset() {
+    for (int i = chunks_.length() - 1; i >= 0; i--) {
+      chunks_.at(i).Dispose();
+    }
+    chunks_.Rewind(0);
+    index_ = 0;
+  }
+
  protected:
   static const int kMinCapacity = 16;
   List<Vector<T> > chunks_;
@@ -630,6 +639,18 @@ class SequenceCollector : public Collector<T> {
     sequence_start_ = kNoSequence;
     return Vector<T>(this->current_chunk_ + sequence_start,
                      this->index_ - sequence_start);
+  }
+
+  // Drops the currently added sequence, and all collected elements in it.
+  void DropSequence() {
+    ASSERT(sequence_start_ != kNoSequence);
+    this->index_ = sequence_start_;
+    sequence_start_ = kNoSequence;
+  }
+
+  virtual void Reset() {
+    sequence_start_ = kNoSequence;
+    this->Collector<T>::Reset();
   }
 
  private:

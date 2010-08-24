@@ -58,6 +58,14 @@ class UTF8Buffer {
     return Vector<const char>(sequence.start(), sequence.length());
   }
 
+  void DropLiteral() {
+    buffer_.DropSequence();
+  }
+
+  void Reset() {
+    buffer_.Reset();
+  }
+
   // The end marker added after a parsed literal.
   // Using zero allows the usage of strlen and similar functions on
   // identifiers and numbers (but not strings, since they may contain zero
@@ -262,6 +270,17 @@ class Scanner {
  public:
   typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
+  class LiteralScope {
+   public:
+    explicit LiteralScope(Scanner* self);
+    ~LiteralScope();
+    void Complete();
+
+   private:
+    Scanner* scanner_;
+    bool complete_;
+  };
+
   // Construction
   explicit Scanner(ParserMode parse_mode);
 
@@ -382,6 +401,8 @@ class Scanner {
   inline void AddChar(uc32 ch);
   inline void AddCharAdvance();
   inline void TerminateLiteral();
+  // Stops scanning of a literal, e.g., due to an encountered error.
+  inline void DropLiteral();
 
   // Low-level scanning support.
   void Advance() { c0_ = source_->Advance(); }
