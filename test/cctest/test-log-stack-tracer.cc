@@ -216,25 +216,25 @@ namespace internal {
 class CodeGeneratorPatcher {
  public:
   CodeGeneratorPatcher() {
-    CodeGenerator::InlineRuntimeLUT genGetFramePointer =
+    CodeGenerator::InlineRuntimeLUT gen_get_frame_pointer =
         {&CodeGenerator::GenerateGetFramePointer, "_GetFramePointer", 0};
     // _RandomHeapNumber is just used as a dummy function that has zero
     // arguments, the same as the _GetFramePointer function we actually patch
     // in.
     bool result = CodeGenerator::PatchInlineRuntimeEntry(
         NewString("_RandomHeapNumber"),
-        genGetFramePointer, &oldInlineEntry);
+        gen_get_frame_pointer, &old_inline_entry);
     CHECK(result);
   }
 
   ~CodeGeneratorPatcher() {
     CHECK(CodeGenerator::PatchInlineRuntimeEntry(
         NewString("_GetFramePointer"),
-        oldInlineEntry, NULL));
+        old_inline_entry, NULL));
   }
 
  private:
-  CodeGenerator::InlineRuntimeLUT oldInlineEntry;
+  CodeGenerator::InlineRuntimeLUT old_inline_entry;
 };
 
 } }  // namespace v8::internal
@@ -273,9 +273,10 @@ static void CreateTraceCallerFunction(const char* func_name,
 // StackTracer uses Top::c_entry_fp as a starting point for stack
 // walking.
 TEST(CFromJSStackTrace) {
-  // TODO(711) The hack of replacing the inline runtime function
-  // RandomHeapNumber with GetFrameNumber does not work with the way the full
-  // compiler generates inline runtime calls.
+  // TODO(711): The hack of replacing the inline runtime function
+  // RandomHeapNumber with GetFrameNumber does not work with the way
+  // the full compiler generates inline runtime calls.
+  i::FLAG_full_compiler = false;
   i::FLAG_always_full_compiler = false;
 
   TickSample sample;
@@ -313,9 +314,10 @@ TEST(CFromJSStackTrace) {
 // Top::c_entry_fp value. In this case, StackTracer uses passed frame
 // pointer value as a starting point for stack walking.
 TEST(PureJSStackTrace) {
-  // TODO(711) The hack of replacing the inline runtime function
-  // RandomHeapNumber with GetFrameNumber does not work with the way the full
-  // compiler generates inline runtime calls.
+  // TODO(711): The hack of replacing the inline runtime function
+  // RandomHeapNumber with GetFrameNumber does not work with the way
+  // the full compiler generates inline runtime calls.
+  i::FLAG_full_compiler = false;
   i::FLAG_always_full_compiler = false;
 
   TickSample sample;

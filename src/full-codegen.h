@@ -36,29 +36,6 @@
 namespace v8 {
 namespace internal {
 
-class FullCodeGenSyntaxChecker: public AstVisitor {
- public:
-  FullCodeGenSyntaxChecker() : has_supported_syntax_(true) {}
-
-  void Check(FunctionLiteral* fun);
-
-  bool has_supported_syntax() { return has_supported_syntax_; }
-
- private:
-  void VisitDeclarations(ZoneList<Declaration*>* decls);
-  void VisitStatements(ZoneList<Statement*>* stmts);
-
-  // AST node visit functions.
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
-  AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
-  bool has_supported_syntax_;
-
-  DISALLOW_COPY_AND_ASSIGN(FullCodeGenSyntaxChecker);
-};
-
-
 // AST node visitor which can tell whether a given statement will be breakable
 // when the code is compiled by the full compiler in the debugger. This means
 // that there will be an IC (load/store/call) in the code generated for the

@@ -104,15 +104,9 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
   bool is_run_once = (shared.is_null())
       ? info->scope()->is_global_scope()
       : (shared->is_toplevel() || shared->try_full_codegen());
-
-  if (AlwaysFullCompiler()) {
+  bool use_full = FLAG_full_compiler && !function->contains_loops();
+  if (AlwaysFullCompiler() || (use_full && is_run_once)) {
     return FullCodeGenerator::MakeCode(info);
-  } else if (FLAG_full_compiler && is_run_once) {
-    FullCodeGenSyntaxChecker checker;
-    checker.Check(function);
-    if (checker.has_supported_syntax()) {
-      return FullCodeGenerator::MakeCode(info);
-    }
   }
 
   AssignedVariablesAnalyzer ava(function);
@@ -476,21 +470,10 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
     CompilationInfo info(literal, script, false);
 
     bool is_run_once = literal->try_full_codegen();
-    bool is_compiled = false;
-
-    if (AlwaysFullCompiler()) {
+    bool use_full = FLAG_full_compiler && !literal->contains_loops();
+    if (AlwaysFullCompiler() || (use_full && is_run_once)) {
       code = FullCodeGenerator::MakeCode(&info);
-      is_compiled = true;
-    } else if (FLAG_full_compiler && is_run_once) {
-      FullCodeGenSyntaxChecker checker;
-      checker.Check(literal);
-      if (checker.has_supported_syntax()) {
-        code = FullCodeGenerator::MakeCode(&info);
-        is_compiled = true;
-      }
-    }
-
-    if (!is_compiled) {
+    } else {
       // We fall back to the classic V8 code generator.
       AssignedVariablesAnalyzer ava(literal);
       if (!ava.Analyze()) return Handle<SharedFunctionInfo>::null();
