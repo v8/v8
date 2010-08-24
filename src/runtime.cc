@@ -10688,9 +10688,10 @@ Runtime::Function* Runtime::FunctionForId(FunctionId fid) {
 }
 
 
-Runtime::Function* Runtime::FunctionForName(const char* name) {
+Runtime::Function* Runtime::FunctionForName(Vector<const char> name) {
   for (Function* f = Runtime_functions; f->name != NULL; f++) {
-    if (strcmp(f->name, name) == 0) {
+    if (strncmp(f->name, name.start(), name.length()) == 0
+        && f->name[name.length()] == 0) {
       return f;
     }
   }

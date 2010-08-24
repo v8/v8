@@ -3378,7 +3378,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::NUMBER: {
       Consume(Token::NUMBER);
       double value =
-        StringToDouble(scanner_.literal_string(), ALLOW_HEX | ALLOW_OCTALS);
+        StringToDouble(scanner_.literal(), ALLOW_HEX | ALLOW_OCTALS);
       result = NewNumberLiteral(value);
       break;
     }
@@ -3736,7 +3736,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       case Token::NUMBER: {
         Consume(Token::NUMBER);
         double value =
-          StringToDouble(scanner_.literal_string(), ALLOW_HEX | ALLOW_OCTALS);
+          StringToDouble(scanner_.literal(), ALLOW_HEX | ALLOW_OCTALS);
         key = NewNumberLiteral(value);
         break;
       }
@@ -3989,7 +3989,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   Expect(Token::MOD, CHECK_OK);
   Handle<String> name = ParseIdentifier(CHECK_OK);
   Runtime::Function* function =
-      Runtime::FunctionForName(scanner_.literal_string());
+      Runtime::FunctionForName(scanner_.literal());
   ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
   if (function == NULL && extension_ != NULL) {
     // The extension structures are only accessible while parsing the
@@ -4276,7 +4276,7 @@ Expression* Parser::ParseJsonValue(bool* ok) {
     case Token::NUMBER: {
       Consume(Token::NUMBER);
       ASSERT(scanner_.literal_length() > 0);
-      double value = StringToDouble(scanner_.literal_string(),
+      double value = StringToDouble(scanner_.literal(),
                                     NO_FLAGS,  // Hex, octal or trailing junk.
                                     OS::nan_value());
       return NewNumberLiteral(value);

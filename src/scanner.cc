@@ -50,35 +50,22 @@ StaticResource<Scanner::Utf8Decoder> Scanner::utf8_decoder_;
 // ----------------------------------------------------------------------------
 // UTF8Buffer
 
-UTF8Buffer::UTF8Buffer() : data_(NULL), limit_(NULL) { }
+UTF8Buffer::UTF8Buffer() : buffer_(kInitialCapacity) { }
 
 
-UTF8Buffer::~UTF8Buffer() {
-  if (data_ != NULL) DeleteArray(data_);
-}
+UTF8Buffer::~UTF8Buffer() {}
 
 
 void UTF8Buffer::AddCharSlow(uc32 c) {
-  static const int kCapacityGrowthLimit = 1 * MB;
-  if (cursor_ > limit_) {
-    int old_capacity = Capacity();
-    int old_position = pos();
-    int new_capacity =
-        Min(old_capacity * 3, old_capacity + kCapacityGrowthLimit);
-    char* new_data = NewArray<char>(new_capacity);
-    memcpy(new_data, data_, old_position);
-    DeleteArray(data_);
-    data_ = new_data;
-    cursor_ = new_data + old_position;
-    limit_ = ComputeLimit(new_data, new_capacity);
-    ASSERT(Capacity() == new_capacity && pos() == old_position);
-  }
-  if (static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
-    *cursor_++ = c;  // Common case: 7-bit ASCII.
-  } else {
-    cursor_ += unibrow::Utf8::Encode(cursor_, c);
-  }
-  ASSERT(pos() <= Capacity());
+  ASSERT(static_cast<unsigned>(c) > unibrow::Utf8::kMaxOneByteChar);
+  int length = unibrow::Utf8::Length(c);
+  Vector<char> block = buffer_.AddBlock(length, '\0');
+#ifdef DEBUG
+  int written_length = unibrow::Utf8::Encode(block.start(), c);
+  CHECK_EQ(length, written_length);
+#else
+  unibrow::Utf8::Encode(block.start(), c);
+#endif
 }
 
 
@@ -399,8 +386,8 @@ void Scanner::Init(Handle<String> source,
   // Set c0_ (one character ahead)
   ASSERT(kCharacterLookaheadBufferSize == 1);
   Advance();
-  // Initializer current_ to not refer to a literal buffer.
-  current_.literal_buffer = NULL;
+  // Initialise current_ to not refer to a literal.
+  current_.literal_chars = Vector<const char>();
 
   // Skip initial whitespace allowing HTML comment ends just like
   // after a newline and scan first token.
@@ -428,24 +415,16 @@ Token::Value Scanner::Next() {
 
 
 void Scanner::StartLiteral() {
-  // Use the first buffer unless it's currently in use by the current_ token.
-  // In most cases we won't have two literals/identifiers in a row, so
-  // the second buffer won't be used very often and is unlikely to grow much.
-  UTF8Buffer* free_buffer =
-      (current_.literal_buffer != &literal_buffer_1_) ? &literal_buffer_1_
-                                                      : &literal_buffer_2_;
-  next_.literal_buffer = free_buffer;
-  free_buffer->Reset();
+  literal_buffer_.StartLiteral();
 }
 
 
 void Scanner::AddChar(uc32 c) {
-  next_.literal_buffer->AddChar(c);
+  literal_buffer_.AddChar(c);
 }
 
-
 void Scanner::TerminateLiteral() {
-  AddChar(0);
+  next_.literal_chars = literal_buffer_.EndLiteral();
 }
 
 
@@ -575,7 +554,7 @@ Token::Value Scanner::ScanHtmlComment() {
 
 
 void Scanner::ScanJson() {
-  next_.literal_buffer = NULL;
+  next_.literal_chars = Vector<const char>();
   Token::Value token;
   has_line_terminator_before_next_ = false;
   do {
@@ -761,7 +740,7 @@ Token::Value Scanner::ScanJsonIdentifier(const char* text,
 
 
 void Scanner::ScanJavaScript() {
-  next_.literal_buffer = NULL;
+  next_.literal_chars = Vector<const char>();
   Token::Value token;
   has_line_terminator_before_next_ = false;
   do {
