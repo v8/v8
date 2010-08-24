@@ -214,7 +214,10 @@ class Parser {
   ObjectLiteral::Property* ParseObjectLiteralGetSet(bool is_getter, bool* ok);
   Expression* ParseRegExpLiteral(bool seen_equal, bool* ok);
 
-  Expression* NewCompareNode(Token::Value op, Expression* x, Expression* y);
+  Expression* NewCompareNode(Token::Value op,
+                             Expression* x,
+                             Expression* y,
+                             int position);
 
   // Populate the constant properties fixed array for a materialized object
   // literal.
@@ -2817,8 +2820,9 @@ Expression* Parser::ParseExpression(bool accept_IN, bool* ok) {
   Expression* result = ParseAssignmentExpression(accept_IN, CHECK_OK);
   while (peek() == Token::COMMA) {
     Expect(Token::COMMA, CHECK_OK);
+    int position = scanner().location().beg_pos;
     Expression* right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-    result = NEW(BinaryOperation(Token::COMMA, result, right));
+    result = NEW(BinaryOperation(Token::COMMA, result, right, position));
   }
   return result;
 }
@@ -2921,6 +2925,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
     // prec1 >= 4
     while (Precedence(peek(), accept_IN) == prec1) {
       Token::Value op = Next();
+      int position = scanner().location().beg_pos;
       Expression* y = ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
 
       // Compute some expressions involving only number literals.
@@ -3004,7 +3009,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
           case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
           default: break;
         }
-        x = NewCompareNode(cmp, x, y);
+        x = NewCompareNode(cmp, x, y, position);
         if (cmp != op) {
           // The comparison was negated - add a NOT.
           x = NEW(UnaryOperation(Token::NOT, x));
@@ -3012,7 +3017,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
 
       } else {
         // We have a "normal" binary operation.
-        x = NEW(BinaryOperation(op, x, y));
+        x = NEW(BinaryOperation(op, x, y, position));
       }
     }
   }
@@ -3022,7 +3027,8 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
 
 Expression* Parser::NewCompareNode(Token::Value op,
                                    Expression* x,
-                                   Expression* y) {
+                                   Expression* y,
+                                   int position) {
   ASSERT(op != Token::NE && op != Token::NE_STRICT);
   if (!is_pre_parsing_ && (op == Token::EQ || op == Token::EQ_STRICT)) {
     bool is_strict = (op == Token::EQ_STRICT);
@@ -3036,7 +3042,7 @@ Expression* Parser::NewCompareNode(Token::Value op,
       return NEW(CompareToNull(is_strict, x));
     }
   }
-  return NEW(CompareOperation(op, x, y));
+  return NEW(CompareOperation(op, x, y, position));
 }
 
 
@@ -3086,8 +3092,9 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       Handle<String> type = Factory::invalid_lhs_in_prefix_op_symbol();
       expression = NewThrowReferenceError(type);
     }
+    int position = scanner().location().beg_pos;
     IncrementOperation* increment = NEW(IncrementOperation(op, expression));
-    return NEW(CountOperation(true /* prefix */, increment));
+    return NEW(CountOperation(true /* prefix */, increment, position));
 
   } else {
     return ParsePostfixExpression(ok);
@@ -3110,8 +3117,9 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
       expression = NewThrowReferenceError(type);
     }
     Token::Value next = Next();
+    int position = scanner().location().beg_pos;
     IncrementOperation* increment = NEW(IncrementOperation(next, expression));
-    expression = NEW(CountOperation(false /* postfix */, increment));
+    expression = NEW(CountOperation(false /* postfix */, increment, position));
   }
   return expression;
 }

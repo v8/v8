@@ -5061,8 +5061,7 @@ void CodeGenerator::EmitSlotAssignment(Assignment* node) {
         (node->value()->AsBinaryOperation() != NULL &&
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
     // Construct the implicit binary operation.
-    BinaryOperation expr(node->binary_op(), node->target(), node->value());
-    expr.CopyAnalysisResultsFrom(node);
+    BinaryOperation expr(node);
     GenericBinaryOperation(&expr,
                            overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {
@@ -5153,8 +5152,7 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
         (node->value()->AsBinaryOperation() != NULL &&
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
     // Construct the implicit binary operation.
-    BinaryOperation expr(node->binary_op(), node->target(), node->value());
-    expr.CopyAnalysisResultsFrom(node);
+    BinaryOperation expr(node);
     GenericBinaryOperation(&expr,
                            overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {
@@ -5255,8 +5253,7 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
     bool overwrite_value =
         (node->value()->AsBinaryOperation() != NULL &&
          node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-    BinaryOperation expr(node->binary_op(), node->target(), node->value());
-    expr.CopyAnalysisResultsFrom(node);
+    BinaryOperation expr(node);
     GenericBinaryOperation(&expr,
                            overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
   } else {

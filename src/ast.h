@@ -1202,10 +1202,16 @@ class UnaryOperation: public Expression {
 
 class BinaryOperation: public Expression {
  public:
-  BinaryOperation(Token::Value op, Expression* left, Expression* right)
-      : op_(op), left_(left), right_(right) {
+  BinaryOperation(Token::Value op,
+                  Expression* left,
+                  Expression* right,
+                  int pos)
+      : op_(op), left_(left), right_(right), pos_(pos) {
     ASSERT(Token::IsBinaryOp(op));
   }
+
+  // Create the binary operation corresponding to a compound assignment.
+  explicit BinaryOperation(Assignment* assignment);
 
   virtual void Accept(AstVisitor* v);
 
@@ -1241,11 +1247,13 @@ class BinaryOperation: public Expression {
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
+  int position() const { return pos_; }
 
  private:
   Token::Value op_;
   Expression* left_;
   Expression* right_;
+  int pos_;
 };
 
 
@@ -1265,13 +1273,14 @@ class IncrementOperation: public Expression {
  private:
   Token::Value op_;
   Expression* expression_;
+  int pos_;
 };
 
 
 class CountOperation: public Expression {
  public:
-  CountOperation(bool is_prefix, IncrementOperation* increment)
-      : is_prefix_(is_prefix), increment_(increment) { }
+  CountOperation(bool is_prefix, IncrementOperation* increment, int pos)
+      : is_prefix_(is_prefix), increment_(increment), pos_(pos) { }
 
   virtual void Accept(AstVisitor* v);
 
@@ -1287,19 +1296,24 @@ class CountOperation: public Expression {
 
   Expression* expression() const { return increment_->expression(); }
   IncrementOperation* increment() const { return increment_; }
+  int position() const { return pos_; }
 
   virtual void MarkAsStatement() { is_prefix_ = true; }
 
  private:
   bool is_prefix_;
   IncrementOperation* increment_;
+  int pos_;
 };
 
 
 class CompareOperation: public Expression {
  public:
-  CompareOperation(Token::Value op, Expression* left, Expression* right)
-      : op_(op), left_(left), right_(right) {
+  CompareOperation(Token::Value op,
+                   Expression* left,
+                   Expression* right,
+                   int pos)
+      : op_(op), left_(left), right_(right), pos_(pos) {
     ASSERT(Token::IsCompareOp(op));
   }
 
@@ -1308,6 +1322,7 @@ class CompareOperation: public Expression {
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
+  int position() const { return pos_; }
 
   // Type testing & conversion
   virtual CompareOperation* AsCompareOperation() { return this; }
@@ -1316,6 +1331,7 @@ class CompareOperation: public Expression {
   Token::Value op_;
   Expression* left_;
   Expression* right_;
+  int pos_;
 };
 
 

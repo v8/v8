@@ -2702,6 +2702,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   Comment cmnt(masm_, "[ CountOperation");
+  SetSourcePosition(expr->position());
+
   // Invalid left-hand sides are rewritten to have a 'throw ReferenceError'
   // as the left-hand side.
   if (!expr->expression()->IsValidLeftHandSide()) {
@@ -2972,6 +2974,7 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
 
 void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Comment cmnt(masm_, "[ CompareOperation");
+  SetSourcePosition(expr->position());
 
   // Always perform the comparison for its control flow.  Pack the result
   // into the expression's context after the comparison is performed.

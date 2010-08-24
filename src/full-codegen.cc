@@ -500,6 +500,7 @@ void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::SAR:
       VisitForValue(expr->left(), kStack);
       VisitForValue(expr->right(), kAccumulator);
+      SetSourcePosition(expr->position());
       EmitBinaryOp(expr->op(), context_);
       break;
 

@@ -239,6 +239,16 @@ void Expression::CopyAnalysisResultsFrom(Expression* other) {
 }
 
 
+BinaryOperation::BinaryOperation(Assignment* assignment) {
+  ASSERT(assignment->is_compound());
+  op_ = assignment->binary_op();
+  left_ = assignment->target();
+  right_ = assignment->value();
+  pos_ = assignment->position();
+  CopyAnalysisResultsFrom(assignment);
+}
+
+
 // ----------------------------------------------------------------------------
 // Implementation of AstVisitor
 
