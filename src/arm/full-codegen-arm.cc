@@ -2632,30 +2632,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::TYPEOF: {
       Comment cmnt(masm_, "[ UnaryOperation (TYPEOF)");
-      VariableProxy* proxy = expr->expression()->AsVariableProxy();
-      if (proxy != NULL &&
-          !proxy->var()->is_this() &&
-          proxy->var()->is_global()) {
-        Comment cmnt(masm_, "Global variable");
-        __ ldr(r0, CodeGenerator::GlobalObject());
-        __ mov(r2, Operand(proxy->name()));
-        Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-        // Use a regular load, not a contextual load, to avoid a reference
-        // error.
-        __ Call(ic, RelocInfo::CODE_TARGET);
-        __ push(r0);
-      } else if (proxy != NULL &&
-                 proxy->var()->slot() != NULL &&
-                 proxy->var()->slot()->type() == Slot::LOOKUP) {
-        __ mov(r0, Operand(proxy->name()));
-        __ Push(cp, r0);
-        __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
-        __ push(r0);
-      } else {
-        // This expression cannot throw a reference error at the top level.
-        VisitForValue(expr->expression(), kStack);
-      }
-
+      VisitForTypeofValue(expr->expression(), kStack);
       __ CallRuntime(Runtime::kTypeof, 1);
       Apply(context_, r0);
       break;
@@ -2876,27 +2853,120 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 }
 
 
-void FullCodeGenerator::EmitNullCompare(bool strict,
-                                        Register obj,
-                                        Register null_const,
-                                        Label* if_true,
-                                        Label* if_false,
-                                        Register scratch) {
-  __ cmp(obj, null_const);
-  if (strict) {
-    Split(eq, if_true, if_false, NULL);
+void FullCodeGenerator::VisitForTypeofValue(Expression* expr, Location where) {
+  VariableProxy* proxy = expr->AsVariableProxy();
+  if (proxy != NULL && !proxy->var()->is_this() && proxy->var()->is_global()) {
+    Comment cmnt(masm_, "Global variable");
+    __ ldr(r0, CodeGenerator::GlobalObject());
+    __ mov(r2, Operand(proxy->name()));
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    // Use a regular load, not a contextual load, to avoid a reference
+    // error.
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    if (where == kStack) __ push(r0);
+  } else if (proxy != NULL &&
+             proxy->var()->slot() != NULL &&
+             proxy->var()->slot()->type() == Slot::LOOKUP) {
+    __ mov(r0, Operand(proxy->name()));
+    __ Push(cp, r0);
+    __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+    if (where == kStack) __ push(r0);
   } else {
-    __ b(eq, if_true);
-    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-    __ cmp(obj, ip);
-    __ b(eq, if_true);
-    __ BranchOnSmi(obj, if_false);
-    // It can be an undetectable object.
-    __ ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-    __ ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
-    __ tst(scratch, Operand(1 << Map::kIsUndetectable));
-    Split(ne, if_true, if_false, NULL);
+    // This expression cannot throw a reference error at the top level.
+    VisitForValue(expr, where);
   }
+}
+
+
+bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
+                                          Expression* left,
+                                          Expression* right,
+                                          Label* if_true,
+                                          Label* if_false,
+                                          Label* fall_through) {
+  if (op != Token::EQ && op != Token::EQ_STRICT) return false;
+
+  // Check for the pattern: typeof <expression> == <string literal>.
+  Literal* right_literal = right->AsLiteral();
+  if (right_literal == NULL) return false;
+  Handle<Object> right_literal_value = right_literal->handle();
+  if (!right_literal_value->IsString()) return false;
+  UnaryOperation* left_unary = left->AsUnaryOperation();
+  if (left_unary == NULL || left_unary->op() != Token::TYPEOF) return false;
+  Handle<String> check = Handle<String>::cast(right_literal_value);
+
+  VisitForTypeofValue(left_unary->expression(), kAccumulator);
+  if (check->Equals(Heap::number_symbol())) {
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, if_true);
+    __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
+    __ cmp(r0, ip);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (check->Equals(Heap::string_symbol())) {
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, if_false);
+    // Check for undetectable objects => false.
+    __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
+    __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
+    __ cmp(r1, Operand(1 << Map::kIsUndetectable));
+    __ b(eq, if_false);
+    __ ldrb(r1, FieldMemOperand(r0, Map::kInstanceTypeOffset));
+    __ cmp(r1, Operand(FIRST_NONSTRING_TYPE));
+    Split(lt, if_true, if_false, fall_through);
+  } else if (check->Equals(Heap::boolean_symbol())) {
+    __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+    __ cmp(r0, ip);
+    __ b(eq, if_true);
+    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+    __ cmp(r0, ip);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (check->Equals(Heap::undefined_symbol())) {
+    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ cmp(r0, ip);
+    __ b(eq, if_true);
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, if_false);
+    // Check for undetectable objects => true.
+    __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
+    __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
+    __ cmp(r1, Operand(1 << Map::kIsUndetectable));
+    Split(eq, if_true, if_false, fall_through);
+  } else if (check->Equals(Heap::function_symbol())) {
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, if_false);
+    __ CompareObjectType(r0, r1, r0, JS_FUNCTION_TYPE);
+    __ b(eq, if_true);
+    // Regular expressions => 'function' (they are callable).
+    __ CompareInstanceType(r1, r0, JS_REGEXP_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (check->Equals(Heap::object_symbol())) {
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, if_false);
+    __ LoadRoot(ip, Heap::kNullValueRootIndex);
+    __ cmp(r0, ip);
+    __ b(eq, if_true);
+    // Regular expressions => 'function', not 'object'.
+    __ CompareObjectType(r0, r1, r0, JS_REGEXP_TYPE);
+    __ b(eq, if_false);
+    // Check for undetectable objects => false.
+    __ ldrb(r0, FieldMemOperand(r1, Map::kBitFieldOffset));
+    __ and_(r0, r0, Operand(1 << Map::kIsUndetectable));
+    __ cmp(r0, Operand(1 << Map::kIsUndetectable));
+    __ b(eq, if_false);
+    // Check for JS objects => true.
+    __ ldrb(r0, FieldMemOperand(r1, Map::kInstanceTypeOffset));
+    __ cmp(r0, Operand(FIRST_JS_OBJECT_TYPE));
+    __ b(lt, if_false);
+    __ cmp(r0, Operand(LAST_JS_OBJECT_TYPE));
+    Split(le, if_true, if_false, fall_through);
+  } else {
+    if (if_false != fall_through) __ jmp(if_false);
+  }
+
+  return true;
 }
 
 
@@ -2910,6 +2980,16 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Label* if_true = NULL;
   Label* if_false = NULL;
   PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+
+  // First we try a fast inlined version of the compare when one of
+  // the operands is a literal.
+  Token::Value op = expr->op();
+  Expression* left = expr->left();
+  Expression* right = expr->right();
+  if (TryLiteralCompare(op, left, right, if_true, if_false, NULL)) {
+    Apply(context_, if_true, if_false);
+    return;
+  }
 
   VisitForValue(expr->left(), kStack);
   switch (expr->op()) {
@@ -2939,24 +3019,10 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         case Token::EQ_STRICT:
           strict = true;
           // Fall through
-        case Token::EQ: {
+        case Token::EQ:
           cc = eq;
           __ pop(r1);
-          // If either operand is constant null we do a fast compare
-          // against null.
-          Literal* right_literal = expr->right()->AsLiteral();
-          Literal* left_literal = expr->left()->AsLiteral();
-          if (right_literal != NULL && right_literal->handle()->IsNull()) {
-            EmitNullCompare(strict, r1, r0, if_true, if_false, r2);
-            Apply(context_, if_true, if_false);
-            return;
-          } else if (left_literal != NULL && left_literal->handle()->IsNull()) {
-            EmitNullCompare(strict, r0, r1, if_true, if_false, r2);
-            Apply(context_, if_true, if_false);
-            return;
-          }
           break;
-        }
         case Token::LT:
           cc = lt;
           __ pop(r1);

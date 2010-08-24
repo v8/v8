@@ -323,6 +323,16 @@ class FullCodeGenerator: public AstVisitor {
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
 
+  // Try to perform a comparison as a fast inlined literal compare if
+  // the operands allow it.  Returns true if the compare operations
+  // has been matched and all code generated; false otherwise.
+  bool TryLiteralCompare(Token::Value op,
+                         Expression* left,
+                         Expression* right,
+                         Label* if_true,
+                         Label* if_false,
+                         Label* fall_through);
+
   // Platform-specific code for a variable, constant, or function
   // declaration.  Functions have an initial value.
   void EmitDeclaration(Variable* variable,
@@ -386,14 +396,6 @@ class FullCodeGenerator: public AstVisitor {
   // accumulator.
   void EmitKeyedPropertyAssignment(Assignment* expr);
 
-  // Helper for compare operations. Expects the null-value in a register.
-  void EmitNullCompare(bool strict,
-                       Register obj,
-                       Register null_const,
-                       Label* if_true,
-                       Label* if_false,
-                       Register scratch);
-
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
@@ -437,6 +439,9 @@ class FullCodeGenerator: public AstVisitor {
 #undef DECLARE_VISIT
   // Handles the shortcutted logical binary operations in VisitBinaryOperation.
   void EmitLogicalOperation(BinaryOperation* expr);
+
+  void VisitForTypeofValue(Expression* expr, Location where);
+
   void VisitLogicalForValue(Expression* expr,
                             Token::Value op,
                             Location where,
