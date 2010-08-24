@@ -339,6 +339,11 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
 }
 
 
+void CodeGenerator::VisitIncrementOperation(IncrementOperation* expr) {
+  UNREACHABLE();
+}
+
+
 // List of special runtime calls which are generated inline. For some of these
 // functions the code will be generated inline, and for others a call to a code
 // stub will be inlined.

@@ -34,7 +34,6 @@
 namespace v8 {
 namespace internal {
 
-
 class AstOptimizer: public AstVisitor {
  public:
   explicit AstOptimizer() : has_function_literal_(false) {}
@@ -433,6 +432,11 @@ void AstOptimizer::VisitUnaryOperation(UnaryOperation* node) {
   } else if (node->op() == Token::BIT_NOT) {
     node->expression()->set_to_int32(true);
   }
+}
+
+
+void AstOptimizer::VisitIncrementOperation(IncrementOperation* node) {
+  UNREACHABLE();
 }
 
 
@@ -943,6 +947,11 @@ void Processor::VisitCallRuntime(CallRuntime* node) {
 
 void Processor::VisitUnaryOperation(UnaryOperation* node) {
   USE(node);
+  UNREACHABLE();
+}
+
+
+void Processor::VisitIncrementOperation(IncrementOperation* node) {
   UNREACHABLE();
 }
 

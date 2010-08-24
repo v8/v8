@@ -89,6 +89,7 @@ namespace internal {
   V(CallNew)                                    \
   V(CallRuntime)                                \
   V(UnaryOperation)                             \
+  V(IncrementOperation)                         \
   V(CountOperation)                             \
   V(BinaryOperation)                            \
   V(CompareOperation)                           \
@@ -1248,12 +1249,29 @@ class BinaryOperation: public Expression {
 };
 
 
-class CountOperation: public Expression {
+class IncrementOperation: public Expression {
  public:
-  CountOperation(bool is_prefix, Token::Value op, Expression* expression)
-      : is_prefix_(is_prefix), op_(op), expression_(expression) {
+  IncrementOperation(Token::Value op, Expression* expr)
+      : op_(op), expression_(expr) {
     ASSERT(Token::IsCountOp(op));
   }
+
+  Token::Value op() const { return op_; }
+  bool is_increment() { return op_ == Token::INC; }
+  Expression* expression() const { return expression_; }
+
+  virtual void Accept(AstVisitor* v);
+
+ private:
+  Token::Value op_;
+  Expression* expression_;
+};
+
+
+class CountOperation: public Expression {
+ public:
+  CountOperation(bool is_prefix, IncrementOperation* increment)
+      : is_prefix_(is_prefix), increment_(increment) { }
 
   virtual void Accept(AstVisitor* v);
 
@@ -1261,18 +1279,20 @@ class CountOperation: public Expression {
 
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
-  Token::Value op() const { return op_; }
+
+  Token::Value op() const { return increment_->op(); }
   Token::Value binary_op() {
-    return op_ == Token::INC ? Token::ADD : Token::SUB;
+    return (op() == Token::INC) ? Token::ADD : Token::SUB;
   }
-  Expression* expression() const { return expression_; }
+
+  Expression* expression() const { return increment_->expression(); }
+  IncrementOperation* increment() const { return increment_; }
 
   virtual void MarkAsStatement() { is_prefix_ = true; }
 
  private:
   bool is_prefix_;
-  Token::Value op_;
-  Expression* expression_;
+  IncrementOperation* increment_;
 };
 
 

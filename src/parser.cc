@@ -3086,7 +3086,8 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       Handle<String> type = Factory::invalid_lhs_in_prefix_op_symbol();
       expression = NewThrowReferenceError(type);
     }
-    return NEW(CountOperation(true /* prefix */, op, expression));
+    IncrementOperation* increment = NEW(IncrementOperation(op, expression));
+    return NEW(CountOperation(true /* prefix */, increment));
 
   } else {
     return ParsePostfixExpression(ok);
@@ -3109,7 +3110,8 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
       expression = NewThrowReferenceError(type);
     }
     Token::Value next = Next();
-    expression = NEW(CountOperation(false /* postfix */, next, expression));
+    IncrementOperation* increment = NEW(IncrementOperation(next, expression));
+    expression = NEW(CountOperation(false /* postfix */, increment));
   }
   return expression;
 }
