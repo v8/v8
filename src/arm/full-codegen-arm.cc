@@ -1207,7 +1207,10 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   if (expr->is_compound()) {
     Location saved_location = location_;
     location_ = kAccumulator;
-    EmitBinaryOp(expr->binary_op(), Expression::kValue);
+    OverwriteMode mode = expr->value()->ResultOverwriteAllowed()
+        ? OVERWRITE_RIGHT
+        : NO_OVERWRITE;
+    EmitBinaryOp(expr->binary_op(), Expression::kValue, mode);
     location_ = saved_location;
   }
 
@@ -1250,9 +1253,10 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 
 
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
-                                     Expression::Context context) {
+                                     Expression::Context context,
+                                     OverwriteMode mode) {
   __ pop(r1);
-  GenericBinaryOpStub stub(op, NO_OVERWRITE, r1, r0);
+  GenericBinaryOpStub stub(op, mode, r1, r0);
   __ CallStub(&stub);
   Apply(context, r0);
 }
@@ -2654,9 +2658,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::SUB: {
       Comment cmt(masm_, "[ UnaryOperation (SUB)");
-      bool can_overwrite =
-          (expr->expression()->AsBinaryOperation() != NULL &&
-           expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
       UnaryOverwriteMode overwrite =
           can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
       GenericUnaryOpStub stub(Token::SUB, overwrite);
@@ -2670,9 +2672,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::BIT_NOT: {
       Comment cmt(masm_, "[ UnaryOperation (BIT_NOT)");
-      bool can_overwrite =
-          (expr->expression()->AsBinaryOperation() != NULL &&
-           expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
       UnaryOverwriteMode overwrite =
           can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
       GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
@@ -2791,7 +2791,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Inline smi case if we are in a loop.
   Label stub_call, done;
   int count_value = expr->op() == Token::INC ? 1 : -1;
-  if (loop_depth() > 0) {
+  if (ShouldInlineSmiCase(expr->op())) {
     __ add(r0, r0, Operand(Smi::FromInt(count_value)), SetCC);
     __ b(vs, &stub_call);
     // We could eliminate this smi check if we split the code at
@@ -2998,7 +2998,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   }
 
   VisitForValue(expr->left(), kStack);
-  switch (expr->op()) {
+  switch (op) {
     case Token::IN:
       VisitForValue(expr->right(), kStack);
       __ InvokeBuiltin(Builtins::IN, CALL_JS);
@@ -3021,7 +3021,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForValue(expr->right(), kAccumulator);
       Condition cc = eq;
       bool strict = false;
-      switch (expr->op()) {
+      switch (op) {
         case Token::EQ_STRICT:
           strict = true;
           // Fall through

@@ -5692,9 +5692,7 @@ void CodeGenerator::EmitSlotAssignment(Assignment* node) {
     Load(node->value());
 
     // Perform the binary operation.
-    bool overwrite_value =
-        (node->value()->AsBinaryOperation() != NULL &&
-         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    bool overwrite_value = node->value()->ResultOverwriteAllowed();
     // Construct the implicit binary operation.
     BinaryOperation expr(node);
     GenericBinaryOperation(&expr,
@@ -5783,9 +5781,7 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
     frame()->Push(&value);
     Load(node->value());
 
-    bool overwrite_value =
-        (node->value()->AsBinaryOperation() != NULL &&
-         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    bool overwrite_value = node->value()->ResultOverwriteAllowed();
     // Construct the implicit binary operation.
     BinaryOperation expr(node);
     GenericBinaryOperation(&expr,
@@ -5885,9 +5881,7 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
     Load(node->value());
 
     // Perform the binary operation.
-    bool overwrite_value =
-        (node->value()->AsBinaryOperation() != NULL &&
-         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    bool overwrite_value = node->value()->ResultOverwriteAllowed();
     BinaryOperation expr(node);
     GenericBinaryOperation(&expr,
                            overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
@@ -8087,9 +8081,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       frame_->Push(&value);
     } else {
       Load(node->expression());
-      bool can_overwrite =
-          (node->expression()->AsBinaryOperation() != NULL &&
-           node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      bool can_overwrite = node->expression()->ResultOverwriteAllowed();
       UnaryOverwriteMode overwrite =
           can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
       bool no_negative_zero = node->expression()->no_negative_zero();
@@ -8794,11 +8786,9 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     // NOTE: The code below assumes that the slow cases (calls to runtime)
     // never return a constant/immutable object.
     OverwriteMode overwrite_mode = NO_OVERWRITE;
-    if (node->left()->AsBinaryOperation() != NULL &&
-        node->left()->AsBinaryOperation()->ResultOverwriteAllowed()) {
+    if (node->left()->ResultOverwriteAllowed()) {
       overwrite_mode = OVERWRITE_LEFT;
-    } else if (node->right()->AsBinaryOperation() != NULL &&
-               node->right()->AsBinaryOperation()->ResultOverwriteAllowed()) {
+    } else if (node->right()->ResultOverwriteAllowed()) {
       overwrite_mode = OVERWRITE_RIGHT;
     }
 

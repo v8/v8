@@ -239,6 +239,42 @@ void Expression::CopyAnalysisResultsFrom(Expression* other) {
 }
 
 
+bool UnaryOperation::ResultOverwriteAllowed() {
+  switch (op_) {
+    case Token::BIT_NOT:
+    case Token::SUB:
+      return true;
+    default:
+      return false;
+  }
+}
+
+
+bool BinaryOperation::ResultOverwriteAllowed() {
+  switch (op_) {
+    case Token::COMMA:
+    case Token::OR:
+    case Token::AND:
+      return false;
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
+      return true;
+    default:
+      UNREACHABLE();
+  }
+  return false;
+}
+
+
 BinaryOperation::BinaryOperation(Assignment* assignment) {
   ASSERT(assignment->is_compound());
   op_ = assignment->binary_op();

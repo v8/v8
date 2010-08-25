@@ -237,7 +237,13 @@ class FullCodeGenerator: public AstVisitor {
     kStack
   };
 
+  // Compute the frame pointer relative offset for a given local or
+  // parameter slot.
   int SlotOffset(Slot* slot);
+
+  // Determine whether or not to inline the smi case for the given
+  // operation.
+  bool ShouldInlineSmiCase(Token::Value op);
 
   // Emit code to convert a pure value (in a register, slot, as a literal,
   // or on top of the stack) into the result expected according to an
@@ -383,7 +389,9 @@ class FullCodeGenerator: public AstVisitor {
 
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.
-  void EmitBinaryOp(Token::Value op, Expression::Context context);
+  void EmitBinaryOp(Token::Value op,
+                    Expression::Context context,
+                    OverwriteMode mode);
 
   // Assign to the given expression as if via '='. The right-hand-side value
   // is expected in the accumulator.

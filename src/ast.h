@@ -201,6 +201,10 @@ class Expression: public AstNode {
   // (faster) prefix increments.
   virtual void MarkAsStatement() { /* do nothing */ }
 
+  // True iff the result can be safely overwritten (to avoid allocation).
+  // False for operations that can return one of their operands.
+  virtual bool ResultOverwriteAllowed() { return false; }
+
   // Static type information for this expression.
   StaticType* type() { return &type_; }
 
@@ -1187,6 +1191,7 @@ class UnaryOperation: public Expression {
   }
 
   virtual void Accept(AstVisitor* v);
+  virtual bool ResultOverwriteAllowed();
 
   // Type testing & conversion
   virtual UnaryOperation* AsUnaryOperation() { return this; }
@@ -1214,35 +1219,10 @@ class BinaryOperation: public Expression {
   explicit BinaryOperation(Assignment* assignment);
 
   virtual void Accept(AstVisitor* v);
+  virtual bool ResultOverwriteAllowed();
 
   // Type testing & conversion
   virtual BinaryOperation* AsBinaryOperation() { return this; }
-
-  // True iff the result can be safely overwritten (to avoid allocation).
-  // False for operations that can return one of their operands.
-  bool ResultOverwriteAllowed() {
-    switch (op_) {
-      case Token::COMMA:
-      case Token::OR:
-      case Token::AND:
-        return false;
-      case Token::BIT_OR:
-      case Token::BIT_XOR:
-      case Token::BIT_AND:
-      case Token::SHL:
-      case Token::SAR:
-      case Token::SHR:
-      case Token::ADD:
-      case Token::SUB:
-      case Token::MUL:
-      case Token::DIV:
-      case Token::MOD:
-        return true;
-      default:
-        UNREACHABLE();
-    }
-    return false;
-  }
 
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }

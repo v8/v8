@@ -317,6 +317,13 @@ int FullCodeGenerator::SlotOffset(Slot* slot) {
 }
 
 
+bool FullCodeGenerator::ShouldInlineSmiCase(Token::Value op) {
+  if (Debugger::IsDebuggerActive()) return false;
+  if (op == Token::DIV ||op == Token::MOD) return false;
+  return loop_depth_ > 0;
+}
+
+
 void FullCodeGenerator::PrepareTest(Label* materialize_true,
                                     Label* materialize_false,
                                     Label** if_true,
@@ -503,6 +510,14 @@ void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
 
 void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   Comment cmnt(masm_, "[ BinaryOperation");
+
+  OverwriteMode overwrite_mode = NO_OVERWRITE;
+  if (expr->left()->ResultOverwriteAllowed()) {
+    overwrite_mode = OVERWRITE_LEFT;
+  } else if (expr->right()->ResultOverwriteAllowed()) {
+    overwrite_mode = OVERWRITE_RIGHT;
+  }
+
   switch (expr->op()) {
     case Token::COMMA:
       VisitForEffect(expr->left());
@@ -528,7 +543,7 @@ void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
       VisitForValue(expr->left(), kStack);
       VisitForValue(expr->right(), kAccumulator);
       SetSourcePosition(expr->position());
-      EmitBinaryOp(expr->op(), context_);
+      EmitBinaryOp(expr->op(), context_, overwrite_mode);
       break;
 
     default:

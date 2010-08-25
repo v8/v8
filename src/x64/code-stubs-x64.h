@@ -112,6 +112,11 @@ class GenericBinaryOpStub: public CodeStub {
                       Result* left,
                       Result* right);
 
+  bool ArgsInRegistersSupported() {
+    return (op_ == Token::ADD) || (op_ == Token::SUB)
+        || (op_ == Token::MUL) || (op_ == Token::DIV);
+  }
+
  private:
   Token::Value op_;
   OverwriteMode mode_;
@@ -172,10 +177,6 @@ class GenericBinaryOpStub: public CodeStub {
   void GenerateRegisterArgsPush(MacroAssembler* masm);
   void GenerateTypeTransition(MacroAssembler* masm);
 
-  bool ArgsInRegistersSupported() {
-    return (op_ == Token::ADD) || (op_ == Token::SUB)
-        || (op_ == Token::MUL) || (op_ == Token::DIV);
-  }
   bool IsOperationCommutative() {
     return (op_ == Token::ADD) || (op_ == Token::MUL);
   }
