@@ -1,3 +1,27 @@
+2010-08-25: Version 2.3.11
+
+       Fix bug in RegExp related to copy-on-write arrays.
+
+       Refactoring of tools/test.py script, including the introduction of
+       VARIANT_FLAGS that allows specification of sets of flags with which
+       all tests should be run.
+
+       Fix a bug in the handling of debug breaks in CallIC.
+
+       Performance improvements on all platforms.
+
+
+2010-08-23: Version 2.3.10
+
+        Fix bug in bitops on ARM.
+
+        Build fixes for unusual compilers.
+
+        Track high water mark for RWX memory.
+
+        Performance improvements on all platforms.
+
+
 2010-08-18: Version 2.3.9
 
         Fix compilation for ARMv4 on OpenBSD/FreeBSD.
@@ -7,7 +31,7 @@
         Fixed DST cache to take into account the suspension of DST in 
         Egypt during the 2010 Ramadan (issue http://crbug.com/51855).
 
-	Performance improvements on all platforms.
+        Performance improvements on all platforms.
 
 
 2010-08-16: Version 2.3.8
