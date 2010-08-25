@@ -120,6 +120,9 @@ class ScriptDataImpl : public ScriptData {
 
   Vector<unsigned> store_;
 
+  // Read strings written by ParserRecorder::WriteString.
+  static const char* ReadString(unsigned* start, int* chars);
+
   // The last entry returned.  This is used to make lookup faster:
   // the next entry to return is typically the next entry so lookup
   // will usually be much faster if we start from the last entry.

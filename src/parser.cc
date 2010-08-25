@@ -912,12 +912,16 @@ class ParserRecorder: public ParserLog {
   virtual void LogMessage(Scanner::Location loc,
                           const char* message,
                           Vector<const char*> args);
-  void WriteString(Vector<const char> str);
-  static const char* ReadString(unsigned* start, int* chars);
-  List<unsigned>* store() { return &store_; }
+  Vector<unsigned> ExtractData() {
+    return store_.ToVector();
+  }
  private:
   bool has_error_;
-  List<unsigned> store_;
+  Collector<unsigned> store_;
+  Vector<unsigned> preamble_;
+
+  Collector<unsigned>* store() { return &store_; }
+  void WriteString(Vector<const char> str);
 };
 
 
@@ -939,12 +943,11 @@ FunctionEntry ScriptDataImpl::GetFunctionEnd(int start) {
 
 
 bool ScriptDataImpl::SanityCheck() {
-  if (store_.length() < static_cast<int>(ScriptDataImpl::kHeaderSize))
+  if (store_.length() < static_cast<int>(ScriptDataImpl::kHeaderSize)) {
     return false;
-  if (magic() != ScriptDataImpl::kMagicNumber)
-    return false;
-  if (version() != ScriptDataImpl::kCurrentVersion)
-    return false;
+  }
+  if (magic() != ScriptDataImpl::kMagicNumber) return false;
+  if (version() != ScriptDataImpl::kCurrentVersion) return false;
   return true;
 }
 
@@ -962,26 +965,28 @@ FunctionEntry ScriptDataImpl::nth(int n) {
 
 
 ParserRecorder::ParserRecorder()
-  : has_error_(false), store_(4) {
-  Vector<unsigned> preamble = store()->AddBlock(0, ScriptDataImpl::kHeaderSize);
-  preamble[ScriptDataImpl::kMagicOffset] = ScriptDataImpl::kMagicNumber;
-  preamble[ScriptDataImpl::kVersionOffset] = ScriptDataImpl::kCurrentVersion;
-  preamble[ScriptDataImpl::kHasErrorOffset] = false;
+    : has_error_(false), store_(ScriptDataImpl::kHeaderSize) {
+  preamble_ = store()->AddBlock(ScriptDataImpl::kHeaderSize, 0);
+  preamble_[ScriptDataImpl::kMagicOffset] = ScriptDataImpl::kMagicNumber;
+  preamble_[ScriptDataImpl::kVersionOffset] = ScriptDataImpl::kCurrentVersion;
+  preamble_[ScriptDataImpl::kHasErrorOffset] = false;
 }
 
 
 void ParserRecorder::WriteString(Vector<const char> str) {
   store()->Add(str.length());
-  for (int i = 0; i < str.length(); i++)
+  for (int i = 0; i < str.length(); i++) {
     store()->Add(str[i]);
+  }
 }
 
 
-const char* ParserRecorder::ReadString(unsigned* start, int* chars) {
+const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
   int length = start[0];
   char* result = NewArray<char>(length + 1);
-  for (int i = 0; i < length; i++)
+  for (int i = 0; i < length; i++) {
     result[i] = start[i + 1];
+  }
   result[length] = '\0';
   if (chars != NULL) *chars = length;
   return result;
@@ -991,14 +996,18 @@ const char* ParserRecorder::ReadString(unsigned* start, int* chars) {
 void ParserRecorder::LogMessage(Scanner::Location loc, const char* message,
                                 Vector<const char*> args) {
   if (has_error_) return;
-  store()->Rewind(ScriptDataImpl::kHeaderSize);
-  store()->at(ScriptDataImpl::kHasErrorOffset) = true;
+  store()->Reset();
+  preamble_ = store()->AddBlock(ScriptDataImpl::kHeaderSize, 0);
+  preamble_[ScriptDataImpl::kMagicOffset] = ScriptDataImpl::kMagicNumber;
+  preamble_[ScriptDataImpl::kVersionOffset] = ScriptDataImpl::kCurrentVersion;
+  preamble_[ScriptDataImpl::kHasErrorOffset] = true;
   store()->Add(loc.beg_pos);
   store()->Add(loc.end_pos);
   store()->Add(args.length());
   WriteString(CStrVector(message));
-  for (int i = 0; i < args.length(); i++)
+  for (int i = 0; i < args.length(); i++) {
     WriteString(CStrVector(args[i]));
+  }
 }
 
 
@@ -1011,7 +1020,7 @@ Scanner::Location ScriptDataImpl::MessageLocation() {
 
 const char* ScriptDataImpl::BuildMessage() {
   unsigned* start = ReadAddress(3);
-  return ParserRecorder::ReadString(start, NULL);
+  return ReadString(start, NULL);
 }
 
 
@@ -1021,7 +1030,7 @@ Vector<const char*> ScriptDataImpl::BuildArgs() {
   int pos = ScriptDataImpl::kHeaderSize + Read(3);
   for (int i = 0; i < arg_count; i++) {
     int count = 0;
-    array[i] = ParserRecorder::ReadString(ReadAddress(pos), &count);
+    array[i] = ReadString(ReadAddress(pos), &count);
     pos += count + 1;
   }
   return Vector<const char*>(array, arg_count);
@@ -1040,7 +1049,7 @@ unsigned* ScriptDataImpl::ReadAddress(int position) {
 
 FunctionEntry ParserRecorder::LogFunction(int start) {
   if (has_error_) return FunctionEntry();
-  FunctionEntry result(store()->AddBlock(0, FunctionEntry::kSize));
+  FunctionEntry result(store()->AddBlock(FunctionEntry::kSize, 0));
   result.set_start_pos(start);
   return result;
 }
@@ -5243,10 +5252,9 @@ ScriptDataImpl* PreParse(Handle<String> source,
       Bootstrapper::IsActive();
   PreParser parser(no_script, allow_natives_syntax, extension);
   if (!parser.PreParseProgram(source, stream)) return NULL;
-  // The list owns the backing store so we need to clone the vector.
-  // That way, the result will be exactly the right size rather than
-  // the expected 50% too large.
-  Vector<unsigned> store = parser.recorder()->store()->ToVector().Clone();
+  // Extract the accumulated data from the recorder as a single
+  // contiguous vector that we are responsible for disposing.
+  Vector<unsigned> store = parser.recorder()->ExtractData();
   return new ScriptDataImpl(store);
 }
 
