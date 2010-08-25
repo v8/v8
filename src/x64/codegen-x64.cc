@@ -5656,11 +5656,10 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // actual function to call is resolved after the arguments have been
   // evaluated.
 
-  // Compute function to call and use the global object as the
-  // receiver. There is no need to use the global proxy here because
-  // it will always be replaced with a newly allocated object.
+  // Push constructor on the stack.  If it's not a function it's used as
+  // receiver for CALL_NON_FUNCTION, otherwise the value on the stack is
+  // ignored.
   Load(node->expression());
-  LoadGlobal();
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = node->arguments();
@@ -5673,8 +5672,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // constructor invocation.
   CodeForSourcePosition(node->position());
   Result result = frame_->CallConstructor(arg_count);
-  // Replace the function on the stack with the result.
-  frame_->SetElementAt(0, &result);
+  frame_->Push(&result);
 }
 
 

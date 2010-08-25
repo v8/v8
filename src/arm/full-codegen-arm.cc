@@ -1700,12 +1700,12 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   // According to ECMA-262, section 11.2.2, page 44, the function
   // expression in new calls must be evaluated before the
   // arguments.
-  // Push function on the stack.
+
+  // Push constructor on the stack.  If it's not a function it's used as
+  // receiver for CALL_NON_FUNCTION, otherwise the value on the stack is
+  // ignored.
   VisitForValue(expr->expression(), kStack);
 
-  // Push global object (receiver).
-  __ ldr(r0, CodeGenerator::GlobalObject());
-  __ push(r0);
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -1717,16 +1717,13 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   // constructor invocation.
   SetSourcePosition(expr->position());
 
-  // Load function, arg_count into r1 and r0.
+  // Load function and argument count into r1 and r0.
   __ mov(r0, Operand(arg_count));
-  // Function is in sp[arg_count + 1].
-  __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
+  __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
 
   Handle<Code> construct_builtin(Builtins::builtin(Builtins::JSConstructCall));
   __ Call(construct_builtin, RelocInfo::CONSTRUCT_CALL);
-
-  // Replace function on TOS with result in r0, or pop it.
-  DropAndApply(1, context_, r0);
+  Apply(context_, r0);
 }
 
 
