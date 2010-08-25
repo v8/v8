@@ -953,7 +953,8 @@ function ArrayMap(f, receiver) {
 
 
 function ArrayIndexOf(element, index) {
-  var length = this.length;
+  var length = TO_UINT32(this.length);
+  if (length == 0) return -1;
   if (IS_UNDEFINED(index)) {
     index = 0;
   } else {
@@ -963,13 +964,13 @@ function ArrayIndexOf(element, index) {
     // If index is still negative, search the entire array.
     if (index < 0) index = 0;
   }
+  // Lookup through the array.
   if (!IS_UNDEFINED(element)) {
     for (var i = index; i < length; i++) {
       if (this[i] === element) return i;
     }
     return -1;
   }
-  // Lookup through the array.
   for (var i = index; i < length; i++) {
     if (IS_UNDEFINED(this[i]) && i in this) {
       return i;
@@ -980,7 +981,8 @@ function ArrayIndexOf(element, index) {
 
 
 function ArrayLastIndexOf(element, index) {
-  var length = this.length;
+  var length = TO_UINT32(this.length);
+  if (length == 0) return -1;
   if (%_ArgumentsLength() < 2) {
     index = length - 1;
   } else {
