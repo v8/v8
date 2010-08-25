@@ -869,8 +869,8 @@ static void DebugEventBreakPointCollectGarbage(
       // Scavenge.
       Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
     } else {
-      // Mark sweep (and perhaps compact).
-      Heap::CollectAllGarbage(false);
+      // Mark sweep compact.
+      Heap::CollectAllGarbage(true);
     }
   }
 }
@@ -1127,11 +1127,44 @@ TEST(BreakPointICCall) {
   foo->Call(env->Global(), 0, NULL);
   CHECK_EQ(0, break_point_hit_count);
 
-  // Run with breakpoint
+  // Run with breakpoint.
   int bp = SetBreakPoint(foo, 0);
   foo->Call(env->Global(), 0, NULL);
   CHECK_EQ(1, break_point_hit_count);
   foo->Call(env->Global(), 0, NULL);
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  foo->Call(env->Global(), 0, NULL);
+  CHECK_EQ(2, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
+// Test that a break point can be set at an IC call location and survive a GC.
+TEST(BreakPointICCallWithGC) {
+  break_point_hit_count = 0;
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  v8::Debug::SetDebugEventListener(DebugEventBreakPointCollectGarbage,
+                                   v8::Undefined());
+  v8::Script::Compile(v8::String::New("function bar(){return 1;}"))->Run();
+  v8::Script::Compile(v8::String::New("function foo(){return bar();}"))->Run();
+  v8::Local<v8::Function> foo =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("foo")));
+
+  // Run without breakpoints.
+  CHECK_EQ(1, foo->Call(env->Global(), 0, NULL)->Int32Value());
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  int bp = SetBreakPoint(foo, 0);
+  CHECK_EQ(1, foo->Call(env->Global(), 0, NULL)->Int32Value());
+  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ(1, foo->Call(env->Global(), 0, NULL)->Int32Value());
   CHECK_EQ(2, break_point_hit_count);
 
   // Run without breakpoints.
