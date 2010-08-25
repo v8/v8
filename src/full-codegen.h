@@ -73,7 +73,8 @@ class FullCodeGenerator: public AstVisitor {
         loop_depth_(0),
         location_(kStack),
         true_label_(NULL),
-        false_label_(NULL) {
+        false_label_(NULL),
+        fall_through_(NULL) {
   }
 
   static Handle<Code> MakeCode(CompilationInfo* info);
@@ -258,7 +259,8 @@ class FullCodeGenerator: public AstVisitor {
   void PrepareTest(Label* materialize_true,
                    Label* materialize_false,
                    Label** if_true,
-                   Label** if_false);
+                   Label** if_false,
+                   Label** fall_through);
 
   // Emit code to convert pure control flow to a pair of labels into the
   // result expected according to an expression context.
@@ -307,17 +309,23 @@ class FullCodeGenerator: public AstVisitor {
     location_ = saved_location;
   }
 
-  void VisitForControl(Expression* expr, Label* if_true, Label* if_false) {
+  void VisitForControl(Expression* expr,
+                       Label* if_true,
+                       Label* if_false,
+                       Label* fall_through) {
     Expression::Context saved_context = context_;
     Label* saved_true = true_label_;
     Label* saved_false = false_label_;
+    Label* saved_fall_through = fall_through_;
     context_ = Expression::kTest;
     true_label_ = if_true;
     false_label_ = if_false;
+    fall_through_ = fall_through;
     Visit(expr);
     context_ = saved_context;
     true_label_ = saved_true;
     false_label_ = saved_false;
+    fall_through_ = saved_fall_through;
   }
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
@@ -459,6 +467,7 @@ class FullCodeGenerator: public AstVisitor {
   Location location_;
   Label* true_label_;
   Label* false_label_;
+  Label* fall_through_;
 
   friend class NestedStatement;
 

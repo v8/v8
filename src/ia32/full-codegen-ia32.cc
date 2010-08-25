@@ -246,7 +246,7 @@ void FullCodeGenerator::Apply(Expression::Context context, Register reg) {
     case Expression::kTest:
       // For simplicity we always test the accumulator register.
       if (!reg.is(result_register())) __ mov(result_register(), reg);
-      DoTest(true_label_, false_label_, NULL);
+      DoTest(true_label_, false_label_, fall_through_);
       break;
   }
 }
@@ -276,7 +276,7 @@ void FullCodeGenerator::Apply(Expression::Context context, Slot* slot) {
     case Expression::kTest:
       // For simplicity we always test the accumulator register.
       Move(result_register(), slot);
-      DoTest(true_label_, false_label_, NULL);
+      DoTest(true_label_, false_label_, fall_through_);
       break;
   }
 }
@@ -304,7 +304,7 @@ void FullCodeGenerator::Apply(Expression::Context context, Literal* lit) {
     case Expression::kTest:
       // For simplicity we always test the accumulator register.
       __ mov(result_register(), lit->handle());
-      DoTest(true_label_, false_label_, NULL);
+      DoTest(true_label_, false_label_, fall_through_);
       break;
   }
 }
@@ -332,7 +332,7 @@ void FullCodeGenerator::ApplyTOS(Expression::Context context) {
     case Expression::kTest:
       // For simplicity we always test the accumulator register.
       __ pop(result_register());
-      DoTest(true_label_, false_label_, NULL);
+      DoTest(true_label_, false_label_, fall_through_);
       break;
   }
 }
@@ -368,32 +368,7 @@ void FullCodeGenerator::DropAndApply(int count,
       // For simplicity we always test the accumulator register.
       __ Drop(count);
       if (!reg.is(result_register())) __ mov(result_register(), reg);
-      DoTest(true_label_, false_label_, NULL);
-      break;
-  }
-}
-
-
-void FullCodeGenerator::PrepareTest(Label* materialize_true,
-                                    Label* materialize_false,
-                                    Label** if_true,
-                                    Label** if_false) {
-  switch (context_) {
-    case Expression::kUninitialized:
-      UNREACHABLE();
-      break;
-    case Expression::kEffect:
-      // In an effect context, the true and the false case branch to the
-      // same label.
-      *if_true = *if_false = materialize_true;
-      break;
-    case Expression::kValue:
-      *if_true = materialize_true;
-      *if_false = materialize_false;
-      break;
-    case Expression::kTest:
-      *if_true = true_label_;
-      *if_false = false_label_;
+      DoTest(true_label_, false_label_, fall_through_);
       break;
   }
 }
@@ -461,7 +436,11 @@ void FullCodeGenerator::Apply(Expression::Context context, bool flag) {
       break;
     }
     case Expression::kTest:
-      __ jmp(flag ? true_label_ : false_label_);
+      if (flag) {
+        if (true_label_ != fall_through_) __ jmp(true_label_);
+      } else {
+        if (false_label_ != fall_through_) __ jmp(false_label_);
+      }
       break;
   }
 }
@@ -1735,10 +1714,12 @@ void FullCodeGenerator::EmitIsSmi(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
-  Split(zero, if_true, if_false, NULL);
+  Split(zero, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -1752,10 +1733,12 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask | 0x80000000));
-  Split(zero, if_true, if_false, NULL);
+  Split(zero, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -1769,7 +1752,9 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, if_false);
@@ -1784,7 +1769,7 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
   __ j(below, if_false);
   __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-  Split(below_equal, if_true, if_false, NULL);
+  Split(below_equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -1798,12 +1783,14 @@ void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(equal, if_false);
   __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ebx);
-  Split(above_equal, if_true, if_false, NULL);
+  Split(above_equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -1817,14 +1804,16 @@ void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, if_false);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kBitFieldOffset));
   __ test(ebx, Immediate(1 << Map::kIsUndetectable));
-  Split(not_zero, if_true, if_false, NULL);
+  Split(not_zero, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -1839,7 +1828,9 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   // Just indicate false, as %_IsStringWrapperSafeForDefaultValueOf() is only
   // used in a few functions in runtime.js which should not normally be hit by
@@ -1857,12 +1848,14 @@ void FullCodeGenerator::EmitIsFunction(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, if_false);
   __ CmpObjectType(eax, JS_FUNCTION_TYPE, ebx);
-  Split(equal, if_true, if_false, NULL);
+  Split(equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -1876,12 +1869,14 @@ void FullCodeGenerator::EmitIsArray(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(equal, if_false);
   __ CmpObjectType(eax, JS_ARRAY_TYPE, ebx);
-  Split(equal, if_true, if_false, NULL);
+  Split(equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -1895,12 +1890,14 @@ void FullCodeGenerator::EmitIsRegExp(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(equal, if_false);
   __ CmpObjectType(eax, JS_REGEXP_TYPE, ebx);
-  Split(equal, if_true, if_false, NULL);
+  Split(equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -1913,7 +1910,9 @@ void FullCodeGenerator::EmitIsConstructCall(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   // Get the frame pointer for the calling frame.
   __ mov(eax, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
@@ -1929,7 +1928,7 @@ void FullCodeGenerator::EmitIsConstructCall(ZoneList<Expression*>* args) {
   __ bind(&check_frame_marker);
   __ cmp(Operand(eax, StandardFrameConstants::kMarkerOffset),
          Immediate(Smi::FromInt(StackFrame::CONSTRUCT)));
-  Split(equal, if_true, if_false, NULL);
+  Split(equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -1945,11 +1944,13 @@ void FullCodeGenerator::EmitObjectEquals(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ pop(ebx);
   __ cmp(eax, Operand(ebx));
-  Split(equal, if_true, if_false, NULL);
+  Split(equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -2613,15 +2614,15 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::NOT: {
       Comment cmnt(masm_, "[ UnaryOperation (NOT)");
+
       Label materialize_true, materialize_false;
       Label* if_true = NULL;
       Label* if_false = NULL;
-
+      Label* fall_through = NULL;
       // Notice that the labels are swapped.
-      PrepareTest(&materialize_true, &materialize_false, &if_false, &if_true);
-
-      VisitForControl(expr->expression(), if_true, if_false);
-
+      PrepareTest(&materialize_true, &materialize_false,
+                  &if_false, &if_true, &fall_through);
+      VisitForControl(expr->expression(), if_true, if_false, fall_through);
       Apply(context_, if_false, if_true);  // Labels swapped.
       break;
     }
@@ -2988,14 +2989,16 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   // First we try a fast inlined version of the compare when one of
   // the operands is a literal.
   Token::Value op = expr->op();
   Expression* left = expr->left();
   Expression* right = expr->right();
-  if (TryLiteralCompare(op, left, right, if_true, if_false, NULL)) {
+  if (TryLiteralCompare(op, left, right, if_true, if_false, fall_through)) {
     Apply(context_, if_true, if_false);
     return;
   }
@@ -3006,7 +3009,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForValue(expr->right(), kStack);
       __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION);
       __ cmp(eax, Factory::true_value());
-      Split(equal, if_true, if_false, NULL);
+      Split(equal, if_true, if_false, fall_through);
       break;
 
     case Token::INSTANCEOF: {
@@ -3015,7 +3018,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       __ CallStub(&stub);
       __ test(eax, Operand(eax));
       // The stub returns 0 for true.
-      Split(zero, if_true, if_false, NULL);
+      Split(zero, if_true, if_false, fall_through);
       break;
     }
 
@@ -3072,7 +3075,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       CompareStub stub(cc, strict);
       __ CallStub(&stub);
       __ test(eax, Operand(eax));
-      Split(cc, if_true, if_false, NULL);
+      Split(cc, if_true, if_false, fall_through);
     }
   }
 
@@ -3086,12 +3089,14 @@ void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   VisitForValue(expr->expression(), kAccumulator);
   __ cmp(eax, Factory::null_value());
   if (expr->is_strict()) {
-    Split(equal, if_true, if_false, NULL);
+    Split(equal, if_true, if_false, fall_through);
   } else {
     __ j(equal, if_true);
     __ cmp(eax, Factory::undefined_value());
@@ -3102,7 +3107,7 @@ void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
     __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
     __ movzx_b(edx, FieldOperand(edx, Map::kBitFieldOffset));
     __ test(edx, Immediate(1 << Map::kIsUndetectable));
-    Split(not_zero, if_true, if_false, NULL);
+    Split(not_zero, if_true, if_false, fall_through);
   }
   Apply(context_, if_true, if_false);
 }

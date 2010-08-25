@@ -317,6 +317,33 @@ int FullCodeGenerator::SlotOffset(Slot* slot) {
 }
 
 
+void FullCodeGenerator::PrepareTest(Label* materialize_true,
+                                    Label* materialize_false,
+                                    Label** if_true,
+                                    Label** if_false,
+                                    Label** fall_through) {
+  switch (context_) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+      break;
+    case Expression::kEffect:
+      // In an effect context, the true and the false case branch to the
+      // same label.
+      *if_true = *if_false = *fall_through = materialize_true;
+      break;
+    case Expression::kValue:
+      *if_true = *fall_through = materialize_true;
+      *if_false = materialize_false;
+      break;
+    case Expression::kTest:
+      *if_true = true_label_;
+      *if_false = false_label_;
+      *fall_through = fall_through_;
+      break;
+  }
+}
+
+
 void FullCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
@@ -521,13 +548,13 @@ void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
       case Expression::kUninitialized:
         UNREACHABLE();
       case Expression::kEffect:
-        VisitForControl(expr->left(), &done, &eval_right);
+        VisitForControl(expr->left(), &done, &eval_right, &eval_right);
         break;
       case Expression::kValue:
         VisitLogicalForValue(expr->left(), expr->op(), location_, &done);
         break;
       case Expression::kTest:
-        VisitForControl(expr->left(), true_label_, &eval_right);
+        VisitForControl(expr->left(), true_label_, &eval_right, &eval_right);
         break;
     }
   } else {
@@ -536,13 +563,13 @@ void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
       case Expression::kUninitialized:
         UNREACHABLE();
       case Expression::kEffect:
-        VisitForControl(expr->left(), &eval_right, &done);
+        VisitForControl(expr->left(), &eval_right, &done, &eval_right);
         break;
       case Expression::kValue:
         VisitLogicalForValue(expr->left(), expr->op(), location_, &done);
         break;
       case Expression::kTest:
-        VisitForControl(expr->left(), &eval_right, false_label_);
+        VisitForControl(expr->left(), &eval_right, false_label_, &eval_right);
         break;
     }
   }
@@ -618,16 +645,19 @@ void FullCodeGenerator::VisitIfStatement(IfStatement* stmt) {
   SetStatementPosition(stmt);
   Label then_part, else_part, done;
 
-  // Do not worry about optimizing for empty then or else bodies.
-  VisitForControl(stmt->condition(), &then_part, &else_part);
+  if (stmt->HasElseStatement()) {
+    VisitForControl(stmt->condition(), &then_part, &else_part, &then_part);
+    __ bind(&then_part);
+    Visit(stmt->then_statement());
+    __ jmp(&done);
 
-  __ bind(&then_part);
-  Visit(stmt->then_statement());
-  __ jmp(&done);
-
-  __ bind(&else_part);
-  Visit(stmt->else_statement());
-
+    __ bind(&else_part);
+    Visit(stmt->else_statement());
+  } else {
+    VisitForControl(stmt->condition(), &then_part, &done, &then_part);
+    __ bind(&then_part);
+    Visit(stmt->then_statement());
+  }
   __ bind(&done);
 }
 
@@ -715,7 +745,7 @@ void FullCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
 void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Comment cmnt(masm_, "[ DoWhileStatement");
   SetStatementPosition(stmt);
-  Label body, stack_limit_hit, stack_check_success;
+  Label body, stack_limit_hit, stack_check_success, done;
 
   Iteration loop_statement(this, stmt);
   increment_loop_depth();
@@ -727,21 +757,24 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   __ StackLimitCheck(&stack_limit_hit);
   __ bind(&stack_check_success);
 
+  // Record the position of the do while condition and make sure it is
+  // possible to break on the condition.
   __ bind(loop_statement.continue_target());
-
-  // Record the position of the do while condition and make sure it is possible
-  // to break on the condition.
   SetExpressionPosition(stmt->cond(), stmt->condition_position());
+  VisitForControl(stmt->cond(),
+                  &body,
+                  loop_statement.break_target(),
+                  loop_statement.break_target());
 
-  VisitForControl(stmt->cond(), &body, loop_statement.break_target());
+  __ bind(loop_statement.break_target());
+  __ jmp(&done);
 
   __ bind(&stack_limit_hit);
   StackCheckStub stack_stub;
   __ CallStub(&stack_stub);
   __ jmp(&stack_check_success);
 
-  __ bind(loop_statement.break_target());
-
+  __ bind(&done);
   decrement_loop_depth();
 }
 
@@ -756,24 +789,27 @@ void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   // Emit the test at the bottom of the loop.
   __ jmp(loop_statement.continue_target());
 
+  __ bind(&stack_limit_hit);
+  StackCheckStub stack_stub;
+  __ CallStub(&stack_stub);
+  __ jmp(&stack_check_success);
+
   __ bind(&body);
   Visit(stmt->body());
-
   __ bind(loop_statement.continue_target());
-  // Emit the statement position here as this is where the while statement code
-  // starts.
+
+  // Emit the statement position here as this is where the while
+  // statement code starts.
   SetStatementPosition(stmt);
 
   // Check stack before looping.
   __ StackLimitCheck(&stack_limit_hit);
   __ bind(&stack_check_success);
 
-  VisitForControl(stmt->cond(), &body, loop_statement.break_target());
-
-  __ bind(&stack_limit_hit);
-  StackCheckStub stack_stub;
-  __ CallStub(&stack_stub);
-  __ jmp(&stack_check_success);
+  VisitForControl(stmt->cond(),
+                  &body,
+                  loop_statement.break_target(),
+                  loop_statement.break_target());
 
   __ bind(loop_statement.break_target());
   decrement_loop_depth();
@@ -793,6 +829,11 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   // Emit the test at the bottom of the loop (even if empty).
   __ jmp(&test);
 
+    __ bind(&stack_limit_hit);
+  StackCheckStub stack_stub;
+  __ CallStub(&stack_stub);
+  __ jmp(&stack_check_success);
+
   __ bind(&body);
   Visit(stmt->body());
 
@@ -804,8 +845,8 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   }
 
   __ bind(&test);
-  // Emit the statement position here as this is where the for statement code
-  // starts.
+  // Emit the statement position here as this is where the for
+  // statement code starts.
   SetStatementPosition(stmt);
 
   // Check stack before looping.
@@ -813,15 +854,13 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   __ bind(&stack_check_success);
 
   if (stmt->cond() != NULL) {
-    VisitForControl(stmt->cond(), &body, loop_statement.break_target());
+    VisitForControl(stmt->cond(),
+                    &body,
+                    loop_statement.break_target(),
+                    loop_statement.break_target());
   } else {
     __ jmp(&body);
   }
-
-  __ bind(&stack_limit_hit);
-  StackCheckStub stack_stub;
-  __ CallStub(&stack_stub);
-  __ jmp(&stack_check_success);
 
   __ bind(loop_statement.break_target());
   decrement_loop_depth();
@@ -949,7 +988,7 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 void FullCodeGenerator::VisitConditional(Conditional* expr) {
   Comment cmnt(masm_, "[ Conditional");
   Label true_case, false_case, done;
-  VisitForControl(expr->condition(), &true_case, &false_case);
+  VisitForControl(expr->condition(), &true_case, &false_case, &true_case);
 
   __ bind(&true_case);
   SetExpressionPosition(expr->then_expression(),
