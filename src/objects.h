@@ -638,6 +638,7 @@ class Object BASE_EMBEDDED {
   inline bool IsDictionary();
   inline bool IsSymbolTable();
   inline bool IsJSFunctionResultCache();
+  inline bool IsNormalizedMapCache();
   inline bool IsCompilationCacheTable();
   inline bool IsCodeCacheHashTable();
   inline bool IsMapCache();
@@ -1550,6 +1551,8 @@ class JSObject: public HeapObject {
   Object* NormalizeProperties(PropertyNormalizationMode mode,
                               int expected_additional_properties);
   Object* NormalizeElements();
+
+  Object* UpdateMapCodeCache(String* name, Code* code);
 
   // Transform slow named properties to fast variants.
   // Returns failure if allocation failed.
@@ -2465,6 +2468,35 @@ class JSFunctionResultCache: public FixedArray {
 };
 
 
+// The cache for maps used by normalized (dictionary mode) objects.
+// Such maps do not have property descriptors, so a typical program
+// needs very limited number of distinct normalized maps.
+class NormalizedMapCache: public FixedArray {
+ public:
+  static const int kEntries = 64;
+
+  static bool IsCacheable(JSObject* object);
+
+  Object* Get(JSObject* object, PropertyNormalizationMode mode);
+
+  bool Contains(Map* map);
+
+  void Clear();
+
+  // Casting
+  static inline NormalizedMapCache* cast(Object* obj);
+
+#ifdef DEBUG
+  void NormalizedMapCacheVerify();
+#endif
+
+ private:
+  static int Hash(Map* fast);
+
+  static bool CheckHit(Map* slow, Map* fast, PropertyNormalizationMode mode);
+};
+
+
 // ByteArray represents fixed sized byte arrays.  Used by the outside world,
 // such as PCRE, and also by the memory allocator and garbage collector to
 // fill in free blocks in the heap.
@@ -3123,6 +3155,8 @@ class Map: public HeapObject {
 
   Object* CopyDropDescriptors();
 
+  Object* CopyNormalized(PropertyNormalizationMode mode);
+
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   Object* CopyDropTransitions();
@@ -3185,6 +3219,7 @@ class Map: public HeapObject {
 #ifdef DEBUG
   void MapPrint();
   void MapVerify();
+  void NormalizedMapVerify();
 #endif
 
   inline int visitor_id();
@@ -3219,6 +3254,8 @@ class Map: public HeapObject {
   static const int kPreAllocatedPropertyFieldsOffset =
       kInstanceSizesOffset + kPreAllocatedPropertyFieldsByte;
   // The byte at position 3 is not in use at the moment.
+  static const int kUnusedByte = 3;
+  static const int kUnusedOffset = kInstanceSizesOffset + kUnusedByte;
 
   // Byte offsets within kInstanceAttributesOffset attributes.
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;

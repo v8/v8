@@ -419,7 +419,7 @@ class Runtime : public AllStatic {
   static Function* FunctionForId(FunctionId fid);
 
   // Get the runtime function with the given name.
-  static Function* FunctionForName(const char* name);
+  static Function* FunctionForName(Vector<const char> name);
 
   static int StringMatch(Handle<String> sub, Handle<String> pat, int index);
 

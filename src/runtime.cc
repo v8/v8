@@ -1403,8 +1403,6 @@ static Object* Runtime_RegExpCloneResult(Arguments args) {
   // Copy JSObject elements as copy-on-write.
   FixedArray* elements = FixedArray::cast(result->elements());
   if (elements != Heap::empty_fixed_array()) {
-    ASSERT(!Heap::InNewSpace(Heap::fixed_cow_array_map()));
-    // No write barrier is necessary when writing old-space pointer.
     elements->set_map(Heap::fixed_cow_array_map());
   }
   new_array->set_elements(elements);
@@ -10690,9 +10688,10 @@ Runtime::Function* Runtime::FunctionForId(FunctionId fid) {
 }
 
 
-Runtime::Function* Runtime::FunctionForName(const char* name) {
+Runtime::Function* Runtime::FunctionForName(Vector<const char> name) {
   for (Function* f = Runtime_functions; f->name != NULL; f++) {
-    if (strcmp(f->name, name) == 0) {
+    if (strncmp(f->name, name.start(), name.length()) == 0
+        && f->name[name.length()] == 0) {
       return f;
     }
   }

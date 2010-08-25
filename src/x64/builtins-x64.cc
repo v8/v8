@@ -897,10 +897,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // rdi: called object
   // rax: number of arguments
   __ bind(&non_function_call);
-  // CALL_NON_FUNCTION expects the non-function constructor as receiver
-  // (instead of the original receiver from the call site).  The receiver is
-  // stack element argc+1.
-  __ movq(Operand(rsp, rax, times_pointer_size, kPointerSize), rdi);
   // Set expected number of arguments to zero (not changing rax).
   __ movq(rbx, Immediate(0));
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
