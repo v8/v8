@@ -575,6 +575,18 @@ bool Object::IsJSFunctionResultCache() {
 }
 
 
+bool Object::IsNormalizedMapCache() {
+  if (!IsFixedArray()) return false;
+  if (FixedArray::cast(this)->length() != NormalizedMapCache::kEntries) {
+    return false;
+  }
+#ifdef DEBUG
+  reinterpret_cast<NormalizedMapCache*>(this)->NormalizedMapCacheVerify();
+#endif
+  return true;
+}
+
+
 bool Object::IsCompilationCacheTable() {
   return IsHashTable();
 }
@@ -1660,6 +1672,7 @@ CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(JSFunctionResultCache)
+CAST_ACCESSOR(NormalizedMapCache)
 CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(CodeCacheHashTable)
 CAST_ACCESSOR(MapCache)
