@@ -29,6 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_X64)
 
+#include "code-stubs-x64.h"
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"

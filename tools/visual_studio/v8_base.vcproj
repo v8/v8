@@ -305,6 +305,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\ia32\code-stubs-ia32.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\ia32\code-stubs-ia32.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\code.h"
 				>
 			</File>

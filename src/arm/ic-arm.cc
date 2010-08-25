@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "assembler-arm.h"
-#include "codegen.h"
+#include "code-stubs-arm.h"
 #include "codegen-inl.h"
 #include "disasm.h"
 #include "ic-inl.h"
