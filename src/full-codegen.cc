@@ -318,9 +318,15 @@ int FullCodeGenerator::SlotOffset(Slot* slot) {
 
 
 bool FullCodeGenerator::ShouldInlineSmiCase(Token::Value op) {
-  if (Debugger::IsDebuggerActive()) return false;
-  if (op == Token::DIV ||op == Token::MOD) return false;
-  return loop_depth_ > 0;
+  // TODO(kasperl): Once the compare stub allows leaving out the
+  // inlined smi case, we should get rid of this check.
+  if (Token::IsCompareOp(op)) return true;
+  // TODO(kasperl): Once the unary bit not stub allows leaving out
+  // the inlined smi case, we should get rid of this check.
+  if (op == Token::BIT_NOT) return true;
+  // Inline smi case inside loops, but not division and modulo which
+  // are too complicated and take up too much space.
+  return (op != Token::DIV) && (op != Token::MOD) && (loop_depth_ > 0);
 }
 
 

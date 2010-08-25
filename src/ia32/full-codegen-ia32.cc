@@ -668,20 +668,21 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // Compile the label expression.
     VisitForValue(clause->label(), kAccumulator);
 
-    // Perform the comparison as if via '==='.  The comparison stub expects
-    // the smi vs. smi case to be handled before it is called.
-    Label slow_case;
+    // Perform the comparison as if via '==='.
     __ mov(edx, Operand(esp, 0));  // Switch value.
-    __ mov(ecx, edx);
-    __ or_(ecx, Operand(eax));
-    __ test(ecx, Immediate(kSmiTagMask));
-    __ j(not_zero, &slow_case, not_taken);
-    __ cmp(edx, Operand(eax));
-    __ j(not_equal, &next_test);
-    __ Drop(1);  // Switch value is no longer needed.
-    __ jmp(clause->body_target()->entry_label());
+    if (ShouldInlineSmiCase(Token::EQ_STRICT)) {
+      Label slow_case;
+      __ mov(ecx, edx);
+      __ or_(ecx, Operand(eax));
+      __ test(ecx, Immediate(kSmiTagMask));
+      __ j(not_zero, &slow_case, not_taken);
+      __ cmp(edx, Operand(eax));
+      __ j(not_equal, &next_test);
+      __ Drop(1);  // Switch value is no longer needed.
+      __ jmp(clause->body_target()->entry_label());
+      __ bind(&slow_case);
+    }
 
-    __ bind(&slow_case);
     CompareStub stub(equal, true);
     __ CallStub(&stub);
     __ test(eax, Operand(eax));
@@ -2672,26 +2673,26 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::BIT_NOT: {
       Comment cmt(masm_, "[ UnaryOperation (BIT_NOT)");
-      bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
-      UnaryOverwriteMode overwrite =
-          can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-      GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
-      // GenericUnaryOpStub expects the argument to be in the
-      // accumulator register eax.
+      // The generic unary operation stub expects the argument to be
+      // in the accumulator register eax.
       VisitForValue(expr->expression(), kAccumulator);
-      // Avoid calling the stub for Smis.
-      Label smi, done;
-      __ test(result_register(), Immediate(kSmiTagMask));
-      __ j(zero, &smi);
-      // Non-smi: call stub leaving result in accumulator register.
+      Label done;
+      if (ShouldInlineSmiCase(expr->op())) {
+        Label call_stub;
+        __ test(eax, Immediate(kSmiTagMask));
+        __ j(not_zero, &call_stub);
+        __ lea(eax, Operand(eax, kSmiTagMask));
+        __ not_(eax);
+        __ jmp(&done);
+        __ bind(&call_stub);
+      }
+      bool overwrite = expr->expression()->ResultOverwriteAllowed();
+      UnaryOverwriteMode mode =
+          overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
+      GenericUnaryOpStub stub(Token::BIT_NOT, mode);
       __ CallStub(&stub);
-      __ jmp(&done);
-      // Perform operation directly on Smis.
-      __ bind(&smi);
-      __ not_(result_register());
-      __ and_(result_register(), ~kSmiTagMask);  // Remove inverted smi-tag.
       __ bind(&done);
-      Apply(context_, result_register());
+      Apply(context_, eax);
       break;
     }
 
@@ -3066,18 +3067,17 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
           UNREACHABLE();
       }
 
-      // The comparison stub expects the smi vs. smi case to be
-      // handled before it is called.
-      Label slow_case;
-      __ mov(ecx, Operand(edx));
-      __ or_(ecx, Operand(eax));
-      __ test(ecx, Immediate(kSmiTagMask));
-      __ j(not_zero, &slow_case, not_taken);
-      __ cmp(edx, Operand(eax));
-      __ j(cc, if_true);
-      __ jmp(if_false);
+      if (ShouldInlineSmiCase(op)) {
+        Label slow_case;
+        __ mov(ecx, Operand(edx));
+        __ or_(ecx, Operand(eax));
+        __ test(ecx, Immediate(kSmiTagMask));
+        __ j(not_zero, &slow_case, not_taken);
+        __ cmp(edx, Operand(eax));
+        Split(cc, if_true, if_false, NULL);
+        __ bind(&slow_case);
+      }
 
-      __ bind(&slow_case);
       CompareStub stub(cc, strict);
       __ CallStub(&stub);
       __ test(eax, Operand(eax));
