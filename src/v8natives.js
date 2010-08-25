@@ -836,6 +836,7 @@ function ObjectIsExtensible(obj) {
   }
 });
 
+%SetExpectedNumberOfProperties($Object, 4);
 
 // ----------------------------------------------------------------------------
 

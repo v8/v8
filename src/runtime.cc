@@ -1701,7 +1701,6 @@ static Object* Runtime_SetCode(Arguments args) {
     RUNTIME_ASSERT(code->IsJSFunction());
     Handle<JSFunction> fun = Handle<JSFunction>::cast(code);
     Handle<SharedFunctionInfo> shared(fun->shared());
-    SetExpectedNofProperties(target, shared->expected_nof_properties());
 
     if (!EnsureCompiled(shared, KEEP_EXCEPTION)) {
       return Failure::Exception();
@@ -1743,6 +1742,17 @@ static Object* Runtime_SetCode(Arguments args) {
 
   target->set_context(*context);
   return *target;
+}
+
+
+static Object* Runtime_SetExpectedNumberOfProperties(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_SMI_CHECKED(num, args[1]);
+  RUNTIME_ASSERT(num >= 0);
+  SetExpectedNofProperties(function, num);
+  return Heap::undefined_value();
 }
 
 
