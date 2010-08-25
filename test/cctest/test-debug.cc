@@ -869,8 +869,8 @@ static void DebugEventBreakPointCollectGarbage(
       // Scavenge.
       Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
     } else {
-      // Mark sweep compact.
-      Heap::CollectAllGarbage(true);
+      // Mark sweep (and perhaps compact).
+      Heap::CollectAllGarbage(false);
     }
   }
 }
