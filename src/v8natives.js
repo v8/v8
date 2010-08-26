@@ -743,8 +743,8 @@ function ObjectSeal(obj) {
     throw MakeTypeError("obj_ctor_property_non_object", ["seal"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
-  for (var key in names) {
-    var name = names[key];
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i];
     var desc = GetOwnProperty(obj, name);
     if (desc.isConfigurable()) desc.setConfigurable(false);
     DefineOwnProperty(obj, name, desc, true);
@@ -759,8 +759,8 @@ function ObjectFreeze(obj) {
     throw MakeTypeError("obj_ctor_property_non_object", ["freeze"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
-  for (var key in names) {
-    var name = names[key];
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i];
     var desc = GetOwnProperty(obj, name);
     if (IsDataDescriptor(desc)) desc.setWritable(false);
     if (desc.isConfigurable()) desc.setConfigurable(false);
@@ -786,10 +786,10 @@ function ObjectIsSealed(obj) {
     throw MakeTypeError("obj_ctor_property_non_object", ["isSealed"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
-  for (var key in names) {
-    var name = names[key];
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i];
     var desc = GetOwnProperty(obj, name);
-    if (desc.isConfigurable()) return false;
+   if (desc.isConfigurable()) return false;
   }
   if (!ObjectIsExtensible(obj)) {
     return true;
@@ -804,8 +804,8 @@ function ObjectIsFrozen(obj) {
     throw MakeTypeError("obj_ctor_property_non_object", ["isFrozen"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
-  for (var key in names) {
-    var name = names[key];
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i];
     var desc = GetOwnProperty(obj, name);
     if (IsDataDescriptor(desc) && desc.isWritable()) return false;
     if (desc.isConfigurable()) return false;
