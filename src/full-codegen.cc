@@ -516,18 +516,21 @@ void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
 
 void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   Comment cmnt(masm_, "[ BinaryOperation");
+  Token::Value op = expr->op();
+  Expression* left = expr->left();
+  Expression* right = expr->right();
 
-  OverwriteMode overwrite_mode = NO_OVERWRITE;
-  if (expr->left()->ResultOverwriteAllowed()) {
-    overwrite_mode = OVERWRITE_LEFT;
-  } else if (expr->right()->ResultOverwriteAllowed()) {
-    overwrite_mode = OVERWRITE_RIGHT;
+  OverwriteMode mode = NO_OVERWRITE;
+  if (left->ResultOverwriteAllowed()) {
+    mode = OVERWRITE_LEFT;
+  } else if (right->ResultOverwriteAllowed()) {
+    mode = OVERWRITE_RIGHT;
   }
 
-  switch (expr->op()) {
+  switch (op) {
     case Token::COMMA:
-      VisitForEffect(expr->left());
-      Visit(expr->right());
+      VisitForEffect(left);
+      Visit(right);
       break;
 
     case Token::OR:
@@ -545,12 +548,31 @@ void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::BIT_XOR:
     case Token::SHL:
     case Token::SHR:
-    case Token::SAR:
-      VisitForValue(expr->left(), kStack);
-      VisitForValue(expr->right(), kAccumulator);
+    case Token::SAR: {
+      // Figure out if either of the operands is a constant.
+      ConstantOperand constant = ShouldInlineSmiCase(op)
+          ? GetConstantOperand(op, left, right)
+          : kNoConstants;
+
+      // Load only the operands that we need to materialize.
+      if (constant == kNoConstants) {
+        VisitForValue(left, kStack);
+        VisitForValue(right, kAccumulator);
+      } else if (constant == kRightConstant) {
+        VisitForValue(left, kAccumulator);
+      } else {
+        ASSERT(constant == kLeftConstant);
+        VisitForValue(right, kAccumulator);
+      }
+
       SetSourcePosition(expr->position());
-      EmitBinaryOp(expr->op(), context_, overwrite_mode);
+      if (ShouldInlineSmiCase(op)) {
+        EmitInlineSmiBinaryOp(expr, op, context_, mode, left, right, constant);
+      } else {
+        EmitBinaryOp(op, context_, mode);
+      }
       break;
+    }
 
     default:
       UNREACHABLE();

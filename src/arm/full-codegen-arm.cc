@@ -246,6 +246,13 @@ void FullCodeGenerator::EmitReturnSequence() {
 }
 
 
+FullCodeGenerator::ConstantOperand FullCodeGenerator::GetConstantOperand(
+    Token::Value op, Expression* left, Expression* right) {
+  ASSERT(ShouldInlineSmiCase(op));
+  return kNoConstants;
+}
+
+
 void FullCodeGenerator::Apply(Expression::Context context, Register reg) {
   switch (context) {
     case Expression::kUninitialized:
@@ -1144,10 +1151,11 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
   LhsKind assign_type = VARIABLE;
-  Property* prop = expr->target()->AsProperty();
-  if (prop != NULL) {
-    assign_type =
-        (prop->key()->IsPropertyName()) ? NAMED_PROPERTY : KEYED_PROPERTY;
+  Property* property = expr->target()->AsProperty();
+  if (property != NULL) {
+    assign_type = (property->key()->IsPropertyName())
+        ? NAMED_PROPERTY
+        : KEYED_PROPERTY;
   }
 
   // Evaluate LHS expression.
@@ -1158,61 +1166,70 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     case NAMED_PROPERTY:
       if (expr->is_compound()) {
         // We need the receiver both on the stack and in the accumulator.
-        VisitForValue(prop->obj(), kAccumulator);
+        VisitForValue(property->obj(), kAccumulator);
         __ push(result_register());
       } else {
-        VisitForValue(prop->obj(), kStack);
+        VisitForValue(property->obj(), kStack);
       }
       break;
     case KEYED_PROPERTY:
-      // We need the key and receiver on both the stack and in r0 and r1.
       if (expr->is_compound()) {
-        VisitForValue(prop->obj(), kStack);
-        VisitForValue(prop->key(), kAccumulator);
+        VisitForValue(property->obj(), kStack);
+        VisitForValue(property->key(), kAccumulator);
         __ ldr(r1, MemOperand(sp, 0));
         __ push(r0);
       } else {
-        VisitForValue(prop->obj(), kStack);
-        VisitForValue(prop->key(), kStack);
+        VisitForValue(property->obj(), kStack);
+        VisitForValue(property->key(), kStack);
       }
       break;
   }
 
-  // If we have a compound assignment: Get value of LHS expression and
-  // store in on top of the stack.
   if (expr->is_compound()) {
     Location saved_location = location_;
-    location_ = kStack;
+    location_ = kAccumulator;
     switch (assign_type) {
       case VARIABLE:
         EmitVariableLoad(expr->target()->AsVariableProxy()->var(),
                          Expression::kValue);
         break;
       case NAMED_PROPERTY:
-        EmitNamedPropertyLoad(prop);
-        __ push(result_register());
+        EmitNamedPropertyLoad(property);
         break;
       case KEYED_PROPERTY:
-        EmitKeyedPropertyLoad(prop);
-        __ push(result_register());
+        EmitKeyedPropertyLoad(property);
         break;
     }
-    location_ = saved_location;
-  }
 
-  // Evaluate RHS expression.
-  Expression* rhs = expr->value();
-  VisitForValue(rhs, kAccumulator);
+    Token::Value op = expr->binary_op();
+    ConstantOperand constant = ShouldInlineSmiCase(op)
+        ? GetConstantOperand(op, expr->target(), expr->value())
+        : kNoConstants;
+    ASSERT(constant == kRightConstant || constant == kNoConstants);
+    if (constant == kNoConstants) {
+      __ push(r0);  // Left operand goes on the stack.
+      VisitForValue(expr->value(), kAccumulator);
+    }
 
-  // If we have a compound assignment: Apply operator.
-  if (expr->is_compound()) {
-    Location saved_location = location_;
-    location_ = kAccumulator;
     OverwriteMode mode = expr->value()->ResultOverwriteAllowed()
         ? OVERWRITE_RIGHT
         : NO_OVERWRITE;
-    EmitBinaryOp(expr->binary_op(), Expression::kValue, mode);
+    SetSourcePosition(expr->position() + 1);
+    if (ShouldInlineSmiCase(op)) {
+      EmitInlineSmiBinaryOp(expr,
+                            op,
+                            Expression::kValue,
+                            mode,
+                            expr->target(),
+                            expr->value(),
+                            constant);
+    } else {
+      EmitBinaryOp(op, Expression::kValue, mode);
+    }
     location_ = saved_location;
+
+  } else {
+    VisitForValue(expr->value(), kAccumulator);
   }
 
   // Record source position before possible IC call.
@@ -1250,6 +1267,18 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   // Call keyed load IC. It has arguments key and receiver in r0 and r1.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
+}
+
+
+void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
+                                              Token::Value op,
+                                              Expression::Context context,
+                                              OverwriteMode mode,
+                                              Expression* left,
+                                              Expression* right,
+                                              ConstantOperand constant) {
+  ASSERT(constant == kNoConstants);  // Only handled case.
+  EmitBinaryOp(op, context, mode);
 }
 
 

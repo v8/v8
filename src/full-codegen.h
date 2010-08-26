@@ -237,6 +237,12 @@ class FullCodeGenerator: public AstVisitor {
     kStack
   };
 
+  enum ConstantOperand {
+    kNoConstants,
+    kLeftConstant,
+    kRightConstant
+  };
+
   // Compute the frame pointer relative offset for a given local or
   // parameter slot.
   int SlotOffset(Slot* slot);
@@ -244,6 +250,11 @@ class FullCodeGenerator: public AstVisitor {
   // Determine whether or not to inline the smi case for the given
   // operation.
   bool ShouldInlineSmiCase(Token::Value op);
+
+  // Compute which (if any) of the operands is a compile-time constant.
+  ConstantOperand GetConstantOperand(Token::Value op,
+                                     Expression* left,
+                                     Expression* right);
 
   // Emit code to convert a pure value (in a register, slot, as a literal,
   // or on top of the stack) into the result expected according to an
@@ -361,7 +372,6 @@ class FullCodeGenerator: public AstVisitor {
   void EmitCallWithIC(Call* expr, Handle<Object> name, RelocInfo::Mode mode);
   void EmitKeyedCallWithIC(Call* expr, Expression* key, RelocInfo::Mode mode);
 
-
   // Platform-specific code for inline runtime calls.
   void EmitInlineRuntimeCall(CallRuntime* expr);
 
@@ -392,6 +402,47 @@ class FullCodeGenerator: public AstVisitor {
   void EmitBinaryOp(Token::Value op,
                     Expression::Context context,
                     OverwriteMode mode);
+
+  // Helper functions for generating inlined smi code for certain
+  // binary operations.
+  void EmitInlineSmiBinaryOp(Expression* expr,
+                             Token::Value op,
+                             Expression::Context context,
+                             OverwriteMode mode,
+                             Expression* left,
+                             Expression* right,
+                             ConstantOperand constant);
+
+  void EmitConstantSmiBinaryOp(Expression* expr,
+                               Token::Value op,
+                               Expression::Context context,
+                               OverwriteMode mode,
+                               bool left_is_constant_smi,
+                               Smi* value);
+
+  void EmitConstantSmiBitOp(Expression* expr,
+                            Token::Value op,
+                            Expression::Context context,
+                            OverwriteMode mode,
+                            Smi* value);
+
+  void EmitConstantSmiShiftOp(Expression* expr,
+                              Token::Value op,
+                              Expression::Context context,
+                              OverwriteMode mode,
+                              Smi* value);
+
+  void EmitConstantSmiAdd(Expression* expr,
+                          Expression::Context context,
+                          OverwriteMode mode,
+                          bool left_is_constant_smi,
+                          Smi* value);
+
+  void EmitConstantSmiSub(Expression* expr,
+                          Expression::Context context,
+                          OverwriteMode mode,
+                          bool left_is_constant_smi,
+                          Smi* value);
 
   // Assign to the given expression as if via '='. The right-hand-side value
   // is expected in the accumulator.
