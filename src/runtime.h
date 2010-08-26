@@ -174,6 +174,7 @@ namespace internal {
   F(StringMatch, 3, 1) \
   F(StringTrim, 3, 1) \
   F(StringToArray, 1, 1) \
+  F(NewStringWrapper, 1, 1) \
   \
   /* Numbers */ \
   F(NumberToRadixString, 2, 1) \

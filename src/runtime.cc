@@ -5575,6 +5575,14 @@ static Object* Runtime_StringToArray(Arguments args) {
 }
 
 
+static Object* Runtime_NewStringWrapper(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(String, value, args[0]);
+  return value->ToObject();
+}
+
+
 bool Runtime::IsUpperCaseChar(uint16_t ch) {
   unibrow::uchar chars[unibrow::ToUppercase::kMaxWidth];
   int char_length = to_upper_mapping.get(ch, 0, chars);
