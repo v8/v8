@@ -100,12 +100,11 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 
 
 void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
-  // Register state for keyed IC call call (from ic-x64.cc)
+  // Register state for IC call call (from ic-x64.cc)
   // ----------- S t a t e -------------
-  //  -- rax: number of arguments
+  //  -- rcx: function name
   // -----------------------------------
-  // The number of arguments in rax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, 0, false);
+  Generate_DebugBreakCallHelper(masm, rcx.bit(), false);
 }
 
 

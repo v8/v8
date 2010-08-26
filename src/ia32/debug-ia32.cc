@@ -183,8 +183,6 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
   //  -- ecx    : key
   //  -- edx    : receiver
   // -----------------------------------
-  // Register eax contains an object that needs to be pushed on the
-  // expression stack of the fake JS frame.
   Generate_DebugBreakCallHelper(masm, eax.bit() | ecx.bit() | edx.bit(), false);
 }
 
@@ -192,10 +190,9 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
 void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC call call (from ic-ia32.cc)
   // ----------- S t a t e -------------
-  //  -- eax: number of arguments
+  //  -- ecx: name
   // -----------------------------------
-  // The number of arguments in eax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, 0, false);
+  Generate_DebugBreakCallHelper(masm, ecx.bit(), false);
 }
 
 
