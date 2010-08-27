@@ -867,11 +867,10 @@ class ParserLog BASE_EMBEDDED {
  public:
   virtual ~ParserLog() { }
 
-  // Records the occurrence of a function.  The returned object is
-  // only guaranteed to be valid until the next function has been
-  // logged.
+  // Records the occurrence of a function.
   virtual FunctionEntry LogFunction(int start) { return FunctionEntry(); }
-
+  // Return the current position in the function entry log.
+  virtual int position() { return 0; }
   virtual void LogError() { }
 };
 
@@ -913,30 +912,45 @@ class ParserRecorder: public ParserLog {
                           const char* message,
                           Vector<const char*> args);
   Vector<unsigned> ExtractData() {
-    return store_.ToVector();
+    int total_size = ScriptDataImpl::kHeaderSize + store_.size();
+    Vector<unsigned> data = Vector<unsigned>::New(total_size);
+    memcpy(data.start(), preamble_, sizeof(preamble_));
+    if (ScriptDataImpl::kHeaderSize < total_size) {
+      store_.WriteTo(data.SubVector(ScriptDataImpl::kHeaderSize, total_size));
+    }
+    return data;
   }
+  virtual int position() { return store_.size(); }
  private:
-  bool has_error_;
   Collector<unsigned> store_;
-  Vector<unsigned> preamble_;
+  unsigned preamble_[ScriptDataImpl::kHeaderSize];
+#ifdef DEBUG
+  int prev_start;
+#endif
 
-  Collector<unsigned>* store() { return &store_; }
+  bool has_error() {
+    return static_cast<bool>(preamble_[ScriptDataImpl::kHasErrorOffset]);
+  }
   void WriteString(Vector<const char> str);
 };
 
 
-FunctionEntry ScriptDataImpl::GetFunctionEnd(int start) {
-  if (nth(last_entry_).start_pos() > start) {
-    // If the last entry we looked up is higher than what we're
-    // looking for then it's useless and we reset it.
-    last_entry_ = 0;
-  }
-  for (int i = last_entry_; i < EntryCount(); i++) {
-    FunctionEntry entry = nth(i);
-    if (entry.start_pos() == start) {
-      last_entry_ = i;
-      return entry;
-    }
+void ScriptDataImpl::SkipFunctionEntry(int start) {
+  ASSERT(index_ + FunctionEntry::kSize <= store_.length());
+  ASSERT(static_cast<int>(store_[index_]) == start);
+  index_ += FunctionEntry::kSize;
+}
+
+
+FunctionEntry ScriptDataImpl::GetFunctionEntry(int start) {
+  // The current pre-data entry must be a FunctionEntry with the given
+  // start position.
+    if ((index_ + FunctionEntry::kSize <= store_.length())
+        && (static_cast<int>(store_[index_]) == start)) {
+    int index = index_;
+    index_ += FunctionEntry::kSize;
+    return FunctionEntry(store_.SubVector(index,
+                                          index + FunctionEntry::kSize));
   }
   return FunctionEntry();
 }
@@ -952,31 +966,23 @@ bool ScriptDataImpl::SanityCheck() {
 }
 
 
-int ScriptDataImpl::EntryCount() {
-  return (store_.length() - kHeaderSize) / FunctionEntry::kSize;
-}
-
-
-FunctionEntry ScriptDataImpl::nth(int n) {
-  int offset = kHeaderSize + n * FunctionEntry::kSize;
-  return FunctionEntry(Vector<unsigned>(store_.start() + offset,
-                                        FunctionEntry::kSize));
-}
-
-
 ParserRecorder::ParserRecorder()
-    : has_error_(false), store_(ScriptDataImpl::kHeaderSize) {
-  preamble_ = store()->AddBlock(ScriptDataImpl::kHeaderSize, 0);
+  : store_(0) {
+#ifdef DEBUG
+  prev_start = -1;
+#endif
   preamble_[ScriptDataImpl::kMagicOffset] = ScriptDataImpl::kMagicNumber;
   preamble_[ScriptDataImpl::kVersionOffset] = ScriptDataImpl::kCurrentVersion;
   preamble_[ScriptDataImpl::kHasErrorOffset] = false;
+  preamble_[ScriptDataImpl::kSizeOffset] = 0;
+  ASSERT_EQ(4, ScriptDataImpl::kHeaderSize);
 }
 
 
 void ParserRecorder::WriteString(Vector<const char> str) {
-  store()->Add(str.length());
+  store_.Add(str.length());
   for (int i = 0; i < str.length(); i++) {
-    store()->Add(str[i]);
+    store_.Add(str[i]);
   }
 }
 
@@ -995,15 +1001,12 @@ const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
 
 void ParserRecorder::LogMessage(Scanner::Location loc, const char* message,
                                 Vector<const char*> args) {
-  if (has_error_) return;
-  store()->Reset();
-  preamble_ = store()->AddBlock(ScriptDataImpl::kHeaderSize, 0);
-  preamble_[ScriptDataImpl::kMagicOffset] = ScriptDataImpl::kMagicNumber;
-  preamble_[ScriptDataImpl::kVersionOffset] = ScriptDataImpl::kCurrentVersion;
+  if (has_error()) return;
   preamble_[ScriptDataImpl::kHasErrorOffset] = true;
-  store()->Add(loc.beg_pos);
-  store()->Add(loc.end_pos);
-  store()->Add(args.length());
+  store_.Reset();
+  store_.Add(loc.beg_pos);
+  store_.Add(loc.end_pos);
+  store_.Add(args.length());
   WriteString(CStrVector(message));
   for (int i = 0; i < args.length(); i++) {
     WriteString(CStrVector(args[i]));
@@ -1046,10 +1049,22 @@ unsigned* ScriptDataImpl::ReadAddress(int position) {
   return &store_[ScriptDataImpl::kHeaderSize + position];
 }
 
+void ScriptDataImpl::FindStart(int position) {
+  // Only search forwards, and linearly for now.
+  while ((index_ < store_.length())
+      && (static_cast<int>(store_[index_])) < position) {
+    index_ += FunctionEntry::kSize;
+  }
+}
+
 
 FunctionEntry ParserRecorder::LogFunction(int start) {
-  if (has_error_) return FunctionEntry();
-  FunctionEntry result(store()->AddBlock(FunctionEntry::kSize, 0));
+#ifdef DEBUG
+  ASSERT(start > prev_start);
+  prev_start = start;
+#endif
+  if (has_error()) return FunctionEntry();
+  FunctionEntry result(store_.AddBlock(FunctionEntry::kSize, 0));
   result.set_start_pos(start);
   return result;
 }
@@ -3939,43 +3954,52 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     bool is_lazily_compiled =
         mode() == PARSE_LAZILY && top_scope_->HasTrivialOuterContext();
 
+    int function_block_pos = scanner_.location().beg_pos;
     int materialized_literal_count;
     int expected_property_count;
+    int end_pos;
     bool only_simple_this_property_assignments;
     Handle<FixedArray> this_property_assignments;
     if (is_lazily_compiled && pre_data() != NULL) {
-      FunctionEntry entry = pre_data()->GetFunctionEnd(start_pos);
+      FunctionEntry entry = pre_data()->GetFunctionEntry(function_block_pos);
       if (!entry.is_valid()) {
         ReportInvalidPreparseData(name, CHECK_OK);
       }
-      int end_pos = entry.end_pos();
-      if (end_pos <= start_pos) {
+      end_pos = entry.end_pos();
+      if (end_pos <= function_block_pos) {
         // End position greater than end of stream is safe, and hard to check.
         ReportInvalidPreparseData(name, CHECK_OK);
       }
-      Counters::total_preparse_skipped.Increment(end_pos - start_pos);
+      Counters::total_preparse_skipped.Increment(end_pos - function_block_pos);
       scanner_.SeekForward(end_pos);
+      pre_data()->Skip(entry.predata_skip());
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();
       only_simple_this_property_assignments = false;
       this_property_assignments = Factory::empty_fixed_array();
+      Expect(Token::RBRACE, CHECK_OK);
     } else {
+      if (pre_data() != NULL) {
+        // Skip pre-data entry for non-lazily compiled function.
+        pre_data()->SkipFunctionEntry(function_block_pos);
+      }
+      FunctionEntry entry = log()->LogFunction(function_block_pos);
+      int predata_position_before = log()->position();
       ParseSourceElements(&body, Token::RBRACE, CHECK_OK);
       materialized_literal_count = temp_scope.materialized_literal_count();
       expected_property_count = temp_scope.expected_property_count();
       only_simple_this_property_assignments =
           temp_scope.only_simple_this_property_assignments();
       this_property_assignments = temp_scope.this_property_assignments();
-    }
 
-    Expect(Token::RBRACE, CHECK_OK);
-    int end_pos = scanner_.location().end_pos;
-
-    FunctionEntry entry = log()->LogFunction(start_pos);
-    if (entry.is_valid()) {
-      entry.set_end_pos(end_pos);
-      entry.set_literal_count(materialized_literal_count);
-      entry.set_property_count(expected_property_count);
+      Expect(Token::RBRACE, CHECK_OK);
+      end_pos = scanner_.location().end_pos;
+      if (entry.is_valid()) {
+        entry.set_end_pos(end_pos);
+        entry.set_literal_count(materialized_literal_count);
+        entry.set_property_count(expected_property_count);
+        entry.set_predata_skip(log()->position() - predata_position_before);
+      }
     }
 
     FunctionLiteral* function_literal =
