@@ -4989,24 +4989,18 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
 }
 
 
-static inline uint32_t HashField(uint32_t hash,
-                                 bool is_array_index,
-                                 int length = -1) {
-  uint32_t result = (hash << String::kHashShift);
-  if (is_array_index) {
-    // For array indexes mix the length into the hash as an array index could
-    // be zero.
-    ASSERT(length > 0);
-    ASSERT(length <= String::kMaxArrayIndexSize);
-    ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
-           (1 << String::kArrayIndexValueBits));
-    ASSERT(String::kMaxArrayIndexSize < (1 << String::kArrayIndexValueBits));
-    result &= ~String::kIsNotArrayIndexMask;
-    result |= length << String::kArrayIndexHashLengthShift;
-  } else {
-    result |= String::kIsNotArrayIndexMask;
-  }
-  return result;
+uint32_t StringHasher::MakeCachedArrayIndex(uint32_t value, int length) {
+  value <<= String::kHashShift;
+  // For array indexes mix the length into the hash as an array index could
+  // be zero.
+  ASSERT(length > 0);
+  ASSERT(length <= String::kMaxArrayIndexSize);
+  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
+         (1 << String::kArrayIndexValueBits));
+  ASSERT(String::kMaxArrayIndexSize < (1 << String::kArrayIndexValueBits));
+  value &= ~String::kIsNotArrayIndexMask;
+  value |= length << String::kArrayIndexHashLengthShift;
+  return value;
 }
 
 
@@ -5014,14 +5008,11 @@ uint32_t StringHasher::GetHashField() {
   ASSERT(is_valid());
   if (length_ <= String::kMaxHashCalcLength) {
     if (is_array_index()) {
-      return v8::internal::HashField(array_index(), true, length_);
-    } else {
-      return v8::internal::HashField(GetHash(), false);
+      return MakeCachedArrayIndex(array_index(), length_);
     }
-    uint32_t payload = v8::internal::HashField(GetHash(), false);
-    return payload;
+    return (GetHash() << String::kHashShift) | String::kIsNotArrayIndexMask;
   } else {
-    return v8::internal::HashField(length_, false);
+    return (length_ << String::kHashShift) | String::kIsNotArrayIndexMask;
   }
 }
 

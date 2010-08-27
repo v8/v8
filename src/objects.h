@@ -4212,6 +4212,11 @@ class StringHasher {
 
   void invalidate() { is_valid_ = false; }
 
+  // Calculated hash value for a string consisting of 1 to
+  // String::kMaxArrayIndexSize digits with no leading zeros (except "0").
+  // value is represented decimal value.
+  static uint32_t MakeCachedArrayIndex(uint32_t value, int length);
+
  private:
 
   uint32_t array_index() {
