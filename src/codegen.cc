@@ -501,12 +501,11 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 
 
 int CEntryStub::MinorKey() {
-  ASSERT(result_size_ <= 2);
+  ASSERT(result_size_ == 1 || result_size_ == 2);
 #ifdef _WIN64
-  return ExitFrameModeBits::encode(mode_)
-         | IndirectResultBits::encode(result_size_ > 1);
+  return result_size_ == 1 ? 0 : 1;
 #else
-  return ExitFrameModeBits::encode(mode_);
+  return 0;
 #endif
 }
 

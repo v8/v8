@@ -191,81 +191,6 @@ void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-void MacroAssembler::SaveRegistersToMemory(RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Copy the content of registers to memory location.
-  for (int i = 0; i < kNumJSCallerSaved; i++) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      Register reg = { r };
-      ExternalReference reg_addr =
-          ExternalReference(Debug_Address::Register(i));
-      mov(Operand::StaticVariable(reg_addr), reg);
-    }
-  }
-}
-
-
-void MacroAssembler::RestoreRegistersFromMemory(RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Copy the content of memory location to registers.
-  for (int i = kNumJSCallerSaved; --i >= 0;) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      Register reg = { r };
-      ExternalReference reg_addr =
-          ExternalReference(Debug_Address::Register(i));
-      mov(reg, Operand::StaticVariable(reg_addr));
-    }
-  }
-}
-
-
-void MacroAssembler::PushRegistersFromMemory(RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Push the content of the memory location to the stack.
-  for (int i = 0; i < kNumJSCallerSaved; i++) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      ExternalReference reg_addr =
-          ExternalReference(Debug_Address::Register(i));
-      push(Operand::StaticVariable(reg_addr));
-    }
-  }
-}
-
-
-void MacroAssembler::PopRegistersToMemory(RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Pop the content from the stack to the memory location.
-  for (int i = kNumJSCallerSaved; --i >= 0;) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      ExternalReference reg_addr =
-          ExternalReference(Debug_Address::Register(i));
-      pop(Operand::StaticVariable(reg_addr));
-    }
-  }
-}
-
-
-void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
-                                                    Register scratch,
-                                                    RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Copy the content of the stack to the memory location and adjust base.
-  for (int i = kNumJSCallerSaved; --i >= 0;) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      mov(scratch, Operand(base, 0));
-      ExternalReference reg_addr =
-          ExternalReference(Debug_Address::Register(i));
-      mov(Operand::StaticVariable(reg_addr), scratch);
-      lea(base, Operand(base, kPointerSize));
-    }
-  }
-}
-
 void MacroAssembler::DebugBreak() {
   Set(eax, Immediate(0));
   mov(ebx, Immediate(ExternalReference(Runtime::kDebugBreak)));
@@ -273,6 +198,7 @@ void MacroAssembler::DebugBreak() {
   call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
 #endif
+
 
 void MacroAssembler::Set(Register dst, const Immediate& x) {
   if (x.is_zero()) {
@@ -405,7 +331,8 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   leave();
 }
 
-void MacroAssembler::EnterExitFramePrologue(ExitFrame::Mode mode) {
+
+void MacroAssembler::EnterExitFramePrologue() {
   // Setup the frame structure on the stack.
   ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
@@ -413,7 +340,7 @@ void MacroAssembler::EnterExitFramePrologue(ExitFrame::Mode mode) {
   push(ebp);
   mov(ebp, Operand(esp));
 
-  // Reserve room for entry stack pointer and push the debug marker.
+  // Reserve room for entry stack pointer and push the code object.
   ASSERT(ExitFrameConstants::kSPOffset  == -1 * kPointerSize);
   push(Immediate(0));  // Saved entry sp, patched before call.
   push(Immediate(CodeObject()));  // Accessed from ExitFrame::code_slot.
@@ -425,21 +352,8 @@ void MacroAssembler::EnterExitFramePrologue(ExitFrame::Mode mode) {
   mov(Operand::StaticVariable(context_address), esi);
 }
 
-void MacroAssembler::EnterExitFrameEpilogue(ExitFrame::Mode mode, int argc) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Save the state of all registers to the stack from the memory
-  // location. This is needed to allow nested break points.
-  if (mode == ExitFrame::MODE_DEBUG) {
-    // TODO(1243899): This should be symmetric to
-    // CopyRegistersFromStackToMemory() but it isn't! esp is assumed
-    // correct here, but computed for the other call. Very error
-    // prone! FIX THIS.  Actually there are deeper problems with
-    // register saving than this asymmetry (see the bug report
-    // associated with this issue).
-    PushRegistersFromMemory(kJSCallerSaved);
-  }
-#endif
 
+void MacroAssembler::EnterExitFrameEpilogue(int argc) {
   // Reserve space for arguments.
   sub(Operand(esp), Immediate(argc * kPointerSize));
 
@@ -455,44 +369,30 @@ void MacroAssembler::EnterExitFrameEpilogue(ExitFrame::Mode mode, int argc) {
 }
 
 
-void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
-  EnterExitFramePrologue(mode);
+void MacroAssembler::EnterExitFrame() {
+  EnterExitFramePrologue();
 
   // Setup argc and argv in callee-saved registers.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   mov(edi, Operand(eax));
   lea(esi, Operand(ebp, eax, times_4, offset));
 
-  EnterExitFrameEpilogue(mode, 2);
+  EnterExitFrameEpilogue(2);
 }
 
 
-void MacroAssembler::EnterApiExitFrame(ExitFrame::Mode mode,
-                                       int stack_space,
+void MacroAssembler::EnterApiExitFrame(int stack_space,
                                        int argc) {
-  EnterExitFramePrologue(mode);
+  EnterExitFramePrologue();
 
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   lea(esi, Operand(ebp, (stack_space * kPointerSize) + offset));
 
-  EnterExitFrameEpilogue(mode, argc);
+  EnterExitFrameEpilogue(argc);
 }
 
 
-void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Restore the memory copy of the registers by digging them out from
-  // the stack. This is needed to allow nested break points.
-  if (mode == ExitFrame::MODE_DEBUG) {
-    // It's okay to clobber register ebx below because we don't need
-    // the function pointer after this.
-    const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
-    int kOffset = ExitFrameConstants::kCodeOffset - kCallerSavedSize;
-    lea(ebx, Operand(ebp, kOffset));
-    CopyRegistersFromStackToMemory(ebx, ecx, kJSCallerSaved);
-  }
-#endif
-
+void MacroAssembler::LeaveExitFrame() {
   // Get the return address from the stack and restore the frame pointer.
   mov(ecx, Operand(ebp, 1 * kPointerSize));
   mov(ebp, Operand(ebp, 0 * kPointerSize));

@@ -99,13 +99,6 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Debugger Support
 
-  void SaveRegistersToMemory(RegList regs);
-  void RestoreRegistersFromMemory(RegList regs);
-  void PushRegistersFromMemory(RegList regs);
-  void PopRegistersToMemory(RegList regs);
-  void CopyRegistersFromStackToMemory(Register base,
-                                      Register scratch,
-                                      RegList regs);
   void DebugBreak();
 #endif
 
@@ -128,14 +121,14 @@ class MacroAssembler: public Assembler {
   // Expects the number of arguments in register eax and
   // sets up the number of arguments in register edi and the pointer
   // to the first argument in register esi.
-  void EnterExitFrame(ExitFrame::Mode mode);
+  void EnterExitFrame();
 
-  void EnterApiExitFrame(ExitFrame::Mode mode, int stack_space, int argc);
+  void EnterApiExitFrame(int stack_space, int argc);
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
   // argument in register esi.
-  void LeaveExitFrame(ExitFrame::Mode mode);
+  void LeaveExitFrame();
 
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
@@ -571,8 +564,8 @@ class MacroAssembler: public Assembler {
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
 
-  void EnterExitFramePrologue(ExitFrame::Mode mode);
-  void EnterExitFrameEpilogue(ExitFrame::Mode mode, int argc);
+  void EnterExitFramePrologue();
+  void EnterExitFrameEpilogue(int argc);
 
   // Allocation support helpers.
   void LoadAllocationTopHelper(Register result,

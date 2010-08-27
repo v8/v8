@@ -132,13 +132,6 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Debugger Support
 
-  void SaveRegistersToMemory(RegList regs);
-  void RestoreRegistersFromMemory(RegList regs);
-  void PushRegistersFromMemory(RegList regs);
-  void PopRegistersToMemory(RegList regs);
-  void CopyRegistersFromStackToMemory(Register base,
-                                      Register scratch,
-                                      RegList regs);
   void DebugBreak();
 #endif
 
@@ -161,17 +154,16 @@ class MacroAssembler: public Assembler {
   // debug mode. Expects the number of arguments in register rax and
   // sets up the number of arguments in register rdi and the pointer
   // to the first argument in register rsi.
-  void EnterExitFrame(ExitFrame::Mode mode, int result_size = 1);
+  void EnterExitFrame(int result_size = 1);
 
-  void EnterApiExitFrame(ExitFrame::Mode mode,
-                         int stack_space,
+  void EnterApiExitFrame(int stack_space,
                          int argc,
                          int result_size = 1);
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax:rdx (untouched) and the pointer to the first
   // argument in register rsi.
-  void LeaveExitFrame(ExitFrame::Mode mode, int result_size = 1);
+  void LeaveExitFrame(int result_size = 1);
 
 
   // ---------------------------------------------------------------------------
@@ -878,8 +870,8 @@ class MacroAssembler: public Assembler {
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
 
-  void EnterExitFramePrologue(ExitFrame::Mode mode, bool save_rax);
-  void EnterExitFrameEpilogue(ExitFrame::Mode mode, int result_size, int argc);
+  void EnterExitFramePrologue(bool save_rax);
+  void EnterExitFrameEpilogue(int result_size, int argc);
 
   // Allocation support helpers.
   // Loads the top of new-space into the result register.

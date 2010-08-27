@@ -280,7 +280,6 @@ class EntryConstructFrame: public EntryFrame {
 // Exit frames are used to exit JavaScript execution and go to C.
 class ExitFrame: public StackFrame {
  public:
-  enum Mode { MODE_NORMAL, MODE_DEBUG };
   virtual Type type() const { return EXIT; }
 
   virtual Code* unchecked_code() const;
