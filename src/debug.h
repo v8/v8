@@ -952,7 +952,7 @@ class DisableBreak BASE_EMBEDDED {
 // code.
 class Debug_Address {
  public:
-  Debug_Address(Debug::AddressId id) : id_(id) { }
+  explicit Debug_Address(Debug::AddressId id) : id_(id) { }
 
   static Debug_Address AfterBreakTarget() {
     return Debug_Address(Debug::k_after_break_target_address);

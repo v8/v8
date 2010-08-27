@@ -105,7 +105,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       __ SmiToInteger32(reg, reg);
       __ or_(reg, kScratchRegister);
     }
- }
+  }
 
   // Get rid of the internal frame.
   __ LeaveInternalFrame();
