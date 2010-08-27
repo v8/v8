@@ -244,10 +244,12 @@ const Address kHandleZapValue =
     reinterpret_cast<Address>(V8_UINT64_C(0x1baddead0baddead));
 const Address kFromSpaceZapValue =
     reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdad));
+const uint64_t kDebugZapValue = 0xbadbaddbbadbaddb;
 #else
 const Address kZapValue = reinterpret_cast<Address>(0xdeadbeed);
 const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddead);
 const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
+const uint32_t kDebugZapValue = 0xbadbaddb;
 #endif
 
 
