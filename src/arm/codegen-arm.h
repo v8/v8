@@ -550,6 +550,9 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateIsRegExpEquivalent(ZoneList<Expression*>* args);
 
+  void GenerateHasCachedArrayIndex(ZoneList<Expression*>* args);
+  void GenerateGetCachedArrayIndex(ZoneList<Expression*>* args);
+
   // Simple condition analysis.
   enum ConditionAnalysis {
     ALWAYS_TRUE,

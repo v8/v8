@@ -116,7 +116,9 @@ enum UncatchableExceptionType { OUT_OF_MEMORY, TERMINATION };
   F(MathSin, 1, 1)                                                           \
   F(MathCos, 1, 1)                                                           \
   F(MathSqrt, 1, 1)                                                          \
-  F(IsRegExpEquivalent, 2, 1)
+  F(IsRegExpEquivalent, 2, 1)                                                \
+  F(HasCachedArrayIndex, 1, 1)                                               \
+  F(GetCachedArrayIndex, 1, 1)
 
 
 #if V8_TARGET_ARCH_IA32

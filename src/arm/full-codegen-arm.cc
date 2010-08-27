@@ -2539,6 +2539,35 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
 }
 
 
+void FullCodeGenerator::EmitHasCachedArrayIndex(ZoneList<Expression*>* args) {
+  VisitForValue(args->at(0), kAccumulator);
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
+
+  __ ldr(r0, FieldMemOperand(r0, String::kHashFieldOffset));
+  __ tst(r0, Operand(String::kContainsCachedArrayIndexMask));
+
+  __ b(eq, if_true);
+  __ b(if_false);
+
+  Apply(context_, if_true, if_false);
+}
+
+
+void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  VisitForValue(args->at(0), kAccumulator);
+  __ ldr(r0, FieldMemOperand(r0, String::kHashFieldOffset));
+  __ IndexFromHash(r0, r0);
+  Apply(context_, r0);
+}
+
+
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   Handle<String> name = expr->name();
   if (name->length() > 0 && name->Get(0) == '_') {

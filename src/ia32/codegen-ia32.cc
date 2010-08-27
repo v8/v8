@@ -7918,6 +7918,42 @@ void CodeGenerator::GenerateIsRegExpEquivalent(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateHasCachedArrayIndex(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(value.reg());
+  }
+
+  __ test(FieldOperand(value.reg(), String::kHashFieldOffset),
+          Immediate(String::kContainsCachedArrayIndexMask));
+
+  value.Unuse();
+  destination()->Split(zero);
+}
+
+
+void CodeGenerator::GenerateGetCachedArrayIndex(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result string = frame_->Pop();
+  string.ToRegister();
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(string.reg());
+  }
+
+  Result number = allocator()->Allocate();
+  ASSERT(number.is_valid());
+  __ mov(number.reg(), FieldOperand(string.reg(), String::kHashFieldOffset));
+  __ IndexFromHash(number.reg(), number.reg());
+  string.Unuse();
+  frame_->Push(&number);
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   ASSERT(!in_safe_int32_mode());
   if (CheckForInlineRuntimeCall(node)) {

@@ -391,6 +391,25 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
 }
 
 
+void MacroAssembler::IndexFromHash(Register hash, Register index) {
+  // The assert checks that the constants for the maximum number of digits
+  // for an array index cached in the hash field and the number of bits
+  // reserved for it does not conflict.
+  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
+         (1 << String::kArrayIndexValueBits));
+  // We want the smi-tagged index in key. Even if we subsequently go to
+  // the slow case, converting the key to a smi is always valid.
+  // key: string key
+  // hash: key's hash field, including its array index value.
+  and_(hash, Immediate(String::kArrayIndexValueMask));
+  shr(hash, Immediate(String::kHashShift));
+  // Here we actually clobber the key which will be used if calling into
+  // runtime later. However as the new key is the numeric value of a string key
+  // there is no difference in using either key.
+  Integer32ToSmi(index, hash);
+}
+
+
 void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
   CallRuntime(Runtime::FunctionForId(id), num_arguments);
 }

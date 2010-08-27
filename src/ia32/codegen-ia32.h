@@ -730,6 +730,9 @@ class CodeGenerator: public AstVisitor {
   // Check whether two RegExps are equivalent
   void GenerateIsRegExpEquivalent(ZoneList<Expression*>* args);
 
+  void GenerateHasCachedArrayIndex(ZoneList<Expression*>* args);
+  void GenerateGetCachedArrayIndex(ZoneList<Expression*>* args);
+
   // Simple condition analysis.
   enum ConditionAnalysis {
     ALWAYS_TRUE,

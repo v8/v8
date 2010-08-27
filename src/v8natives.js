@@ -111,13 +111,20 @@ function GlobalParseInt(string, radix) {
     if (!(radix == 0 || (2 <= radix && radix <= 36)))
       return $NaN;
   }
-  return %StringParseInt(ToString(string), radix);
+  string = TO_STRING_INLINE(string);
+  if (%_HasCachedArrayIndex(string) &&
+      (radix == 0 || radix == 10)) {
+    return %_GetCachedArrayIndex(string);
+  }
+  return %StringParseInt(string, radix);
 }
 
 
 // ECMA-262 - 15.1.2.3
 function GlobalParseFloat(string) {
-  return %StringParseFloat(ToString(string));
+  string = TO_STRING_INLINE(string);
+  if (%_HasCachedArrayIndex(string)) return %_GetCachedArrayIndex(string);
+  return %StringParseFloat(string);
 }
 
 

@@ -303,6 +303,17 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
 }
 
 
+void MacroAssembler::AbortIfNotString(Register object) {
+  test(object, Immediate(kSmiTagMask));
+  Assert(not_equal, "Operand is not a string");
+  push(object);
+  mov(object, FieldOperand(object, HeapObject::kMapOffset));
+  CmpInstanceType(object, FIRST_NONSTRING_TYPE);
+  pop(object);
+  Assert(below, "Operand is not a string");
+}
+
+
 void MacroAssembler::AbortIfSmi(Register object) {
   test(object, Immediate(kSmiTagMask));
   Assert(not_equal, "Operand is a smi");
@@ -937,6 +948,25 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
     add(Operand(esp), Immediate(num_arguments * kPointerSize));
   }
   mov(eax, Immediate(Factory::undefined_value()));
+}
+
+
+void MacroAssembler::IndexFromHash(Register hash, Register index) {
+  // The assert checks that the constants for the maximum number of digits
+  // for an array index cached in the hash field and the number of bits
+  // reserved for it does not conflict.
+  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
+         (1 << String::kArrayIndexValueBits));
+  // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
+  // the low kHashShift bits.
+  and_(hash, String::kArrayIndexValueMask);
+  STATIC_ASSERT(String::kHashShift >= kSmiTagSize && kSmiTag == 0);
+  if (String::kHashShift > kSmiTagSize) {
+    shr(hash, String::kHashShift - kSmiTagSize);
+  }
+  if (!index.is(hash)) {
+    mov(index, hash);
+  }
 }
 
 

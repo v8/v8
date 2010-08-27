@@ -4854,6 +4854,19 @@ static Object* Runtime_StringToNumber(Arguments args) {
       if (minus) {
         if (d == 0) return Heap::minus_zero_value();
         d = -d;
+      } else if (!subject->HasHashCode() &&
+                 len <= String::kMaxArrayIndexSize &&
+                 (len == 1 || data[0] != '0')) {
+        // String hash is not calculated yet but all the data are present.
+        // Update the hash field to speed up sequential convertions.
+        uint32_t hash = StringHasher::MakeCachedArrayIndex(d, len);
+#ifdef DEBUG
+        ASSERT((hash & String::kContainsCachedArrayIndexMask) == 0);
+        subject->Hash();  // Force hash calculation.
+        ASSERT_EQ(static_cast<int>(subject->hash_field()),
+                  static_cast<int>(hash));
+#endif
+        subject->set_hash_field(hash);
       }
       return Smi::FromInt(d);
     }
