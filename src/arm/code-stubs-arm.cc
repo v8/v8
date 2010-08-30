@@ -30,8 +30,7 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "bootstrapper.h"
-#include "code-stubs-arm.h"
-#include "codegen-inl.h"
+#include "code-stubs.h"
 #include "regexp-macro-assembler.h"
 
 namespace v8 {

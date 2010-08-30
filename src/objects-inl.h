@@ -2321,14 +2321,13 @@ int Code::arguments_count() {
 }
 
 
-CodeStub::Major Code::major_key() {
+int Code::major_key() {
   ASSERT(kind() == STUB || kind() == BINARY_OP_IC);
-  return static_cast<CodeStub::Major>(READ_BYTE_FIELD(this,
-                                                      kStubMajorKeyOffset));
+  return READ_BYTE_FIELD(this, kStubMajorKeyOffset);
 }
 
 
-void Code::set_major_key(CodeStub::Major major) {
+void Code::set_major_key(int major) {
   ASSERT(kind() == STUB || kind() == BINARY_OP_IC);
   ASSERT(0 <= major && major < 256);
   WRITE_BYTE_FIELD(this, kStubMajorKeyOffset, major);

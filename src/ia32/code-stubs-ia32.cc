@@ -29,9 +29,9 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
+#include "code-stubs.h"
 #include "bootstrapper.h"
-#include "code-stubs-ia32.h"
-#include "codegen-inl.h"
+#include "jsregexp.h"
 #include "regexp-macro-assembler.h"
 
 namespace v8 {
@@ -149,7 +149,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kPointerSize == 4);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
-  __ mov(ecx, CodeGenerator::FixedArrayElementOperand(ecx, eax));
+  __ mov(ecx, FieldOperand(ecx, eax, times_half_pointer_size,
+                           FixedArray::kHeaderSize));
   __ cmp(ecx, Factory::undefined_value());
   __ j(equal, &slow_case);
 

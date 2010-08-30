@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "bootstrapper.h"
-#include "code-stubs-arm.h"
+#include "code-stubs.h"
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"
@@ -1135,7 +1135,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
       frame_->EmitPush(lhs, TypeInfo::Smi());
       TypeInfo t = both_sides_are_smi ? TypeInfo::Smi() : TypeInfo::Unknown();
       frame_->EmitPush(rhs, t);
-      GenericBinaryOperation(op, mode, GENERATE_INLINE_SMI, kUnknownIntValue);
+      GenericBinaryOperation(op, mode, GENERATE_INLINE_SMI,
+                             GenericBinaryOpStub::kUnknownIntValue);
     }
     return;
   }

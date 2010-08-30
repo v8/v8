@@ -29,7 +29,6 @@
 #define V8_OBJECTS_H_
 
 #include "builtins.h"
-#include "code-stubs.h"
 #include "smart-pointer.h"
 #include "unicode-inl.h"
 #if V8_TARGET_ARCH_ARM
@@ -2886,8 +2885,8 @@ class Code: public HeapObject {
   inline bool is_keyed_call_stub() { return kind() == KEYED_CALL_IC; }
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
-  inline CodeStub::Major major_key();
-  inline void set_major_key(CodeStub::Major major);
+  inline int major_key();
+  inline void set_major_key(int major);
 
   // Flags operations.
   static inline Flags ComputeFlags(Kind kind,

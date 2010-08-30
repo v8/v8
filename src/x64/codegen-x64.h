@@ -492,6 +492,11 @@ class CodeGenerator: public AstVisitor {
   void GenericBinaryOperation(BinaryOperation* expr,
                               OverwriteMode overwrite_mode);
 
+  // Generate a stub call from the virtual frame.
+  Result GenerateGenericBinaryOpStubCall(GenericBinaryOpStub* stub,
+                                         Result* left,
+                                         Result* right);
+
   // Emits code sequence that jumps to a JumpTarget if the inputs
   // are both smis.  Cannot be in MacroAssembler because it takes
   // advantage of TypeInfo to skip unneeded checks.

@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_X64)
 
 #include "bootstrapper.h"
-#include "code-stubs-x64.h"
+#include "code-stubs.h"
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"
@@ -1024,7 +1024,7 @@ void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
                              overwrite_mode,
                              NO_SMI_CODE_IN_STUB,
                              operands_type);
-    answer = stub.GenerateCall(masm_, frame_, &left, &right);
+    answer = GenerateGenericBinaryOpStubCall(&stub, &left, &right);
   } else if (right_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(expr, &left, right.handle(),
                                         false, overwrite_mode);
@@ -1047,7 +1047,7 @@ void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
                                overwrite_mode,
                                NO_GENERIC_BINARY_FLAGS,
                                operands_type);
-      answer = stub.GenerateCall(masm_, frame_, &left, &right);
+      answer = GenerateGenericBinaryOpStubCall(&stub, &left, &right);
     }
   }
 
@@ -8789,17 +8789,16 @@ void Reference::SetValue(InitState init_state) {
 }
 
 
-Result GenericBinaryOpStub::GenerateCall(MacroAssembler* masm,
-                                         VirtualFrame* frame,
-                                         Result* left,
-                                         Result* right) {
-  if (ArgsInRegistersSupported()) {
-    SetArgsInRegisters();
-    return frame->CallStub(this, left, right);
+Result CodeGenerator::GenerateGenericBinaryOpStubCall(GenericBinaryOpStub* stub,
+                                                      Result* left,
+                                                      Result* right) {
+  if (stub->ArgsInRegistersSupported()) {
+    stub->SetArgsInRegisters();
+    return frame_->CallStub(stub, left, right);
   } else {
-    frame->Push(left);
-    frame->Push(right);
-    return frame->CallStub(this, 2);
+    frame_->Push(left);
+    frame_->Push(right);
+    return frame_->CallStub(stub, 2);
   }
 }
 

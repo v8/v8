@@ -29,7 +29,6 @@
 #define V8_DEBUG_H_
 
 #include "assembler.h"
-#include "code-stubs.h"
 #include "debug-agent.h"
 #include "execution.h"
 #include "factory.h"

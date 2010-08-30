@@ -30,6 +30,7 @@
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "full-codegen.h"
+#include "macro-assembler.h"
 #include "scopes.h"
 #include "stub-cache.h"
 #include "debug.h"

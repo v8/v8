@@ -28,8 +28,9 @@
 #ifndef V8_ARM_CODEGEN_ARM_H_
 #define V8_ARM_CODEGEN_ARM_H_
 
-#include "ic-inl.h"
 #include "ast.h"
+#include "code-stubs-arm.h"
+#include "ic-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -270,8 +271,6 @@ class CodeGenerator: public AstVisitor {
 
   void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
 
-  static const int kUnknownIntValue = -1;
-
   // If the name is an inline runtime function call return the number of
   // expected arguments. Otherwise return -1.
   static int InlineRuntimeCallArgumentsCount(Handle<String> name);
@@ -420,7 +419,8 @@ class CodeGenerator: public AstVisitor {
   void GenericBinaryOperation(Token::Value op,
                               OverwriteMode overwrite_mode,
                               GenerateInlineSmi inline_smi,
-                              int known_rhs = kUnknownIntValue);
+                              int known_rhs =
+                                  GenericBinaryOpStub::kUnknownIntValue);
   void Comparison(Condition cc,
                   Expression* left,
                   Expression* right,

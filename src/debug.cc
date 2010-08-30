@@ -1443,7 +1443,7 @@ bool Debug::IsDebugBreak(Address addr) {
 // Check whether a code stub with the specified major key is a possible break
 // point location when looking for source break locations.
 bool Debug::IsSourceBreakStub(Code* code) {
-  CodeStub::Major major_key = code->major_key();
+  CodeStub::Major major_key = CodeStub::GetMajorKey(code);
   return major_key == CodeStub::CallFunction;
 }
 
@@ -1451,7 +1451,7 @@ bool Debug::IsSourceBreakStub(Code* code) {
 // Check whether a code stub with the specified major key is a possible break
 // location.
 bool Debug::IsBreakStub(Code* code) {
-  CodeStub::Major major_key = code->major_key();
+  CodeStub::Major major_key = CodeStub::GetMajorKey(code);
   return major_key == CodeStub::CallFunction ||
          major_key == CodeStub::StackCheck;
 }

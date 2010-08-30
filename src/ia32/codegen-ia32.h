@@ -574,6 +574,11 @@ class CodeGenerator: public AstVisitor {
   void Int32BinaryOperation(BinaryOperation* node);
 
 
+  // Generate a stub call from the virtual frame.
+  Result GenerateGenericBinaryOpStubCall(GenericBinaryOpStub* stub,
+                                         Result* left,
+                                         Result* right);
+
   void Comparison(AstNode* node,
                   Condition cc,
                   bool strict,

@@ -29,9 +29,9 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
-#include "bootstrapper.h"
-#include "code-stubs-ia32.h"
 #include "codegen-inl.h"
+#include "bootstrapper.h"
+#include "code-stubs.h"
 #include "compiler.h"
 #include "debug.h"
 #include "ic-inl.h"
@@ -1451,7 +1451,7 @@ void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
                              overwrite_mode,
                              NO_SMI_CODE_IN_STUB,
                              operands_type);
-    answer = stub.GenerateCall(masm_, frame_, &left, &right);
+    answer = GenerateGenericBinaryOpStubCall(&stub, &left, &right);
   } else if (right_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(expr, &left, right.handle(),
                                         false, overwrite_mode);
@@ -1474,12 +1474,26 @@ void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
                                overwrite_mode,
                                NO_GENERIC_BINARY_FLAGS,
                                operands_type);
-      answer = stub.GenerateCall(masm_, frame_, &left, &right);
+      answer = GenerateGenericBinaryOpStubCall(&stub, &left, &right);
     }
   }
 
   answer.set_type_info(result_type);
   frame_->Push(&answer);
+}
+
+
+Result CodeGenerator::GenerateGenericBinaryOpStubCall(GenericBinaryOpStub* stub,
+                                                      Result* left,
+                                                      Result* right) {
+  if (stub->ArgsInRegistersSupported()) {
+    stub->SetArgsInRegisters();
+    return frame_->CallStub(stub, left, right);
+  } else {
+    frame_->Push(left);
+    frame_->Push(right);
+    return frame_->CallStub(stub, 2);
+  }
 }
 
 
@@ -9812,21 +9826,6 @@ void Reference::SetValue(InitState init_state) {
     case UNLOADED:
     case ILLEGAL:
       UNREACHABLE();
-  }
-}
-
-
-Result GenericBinaryOpStub::GenerateCall(MacroAssembler* masm,
-                                         VirtualFrame* frame,
-                                         Result* left,
-                                         Result* right) {
-  if (ArgsInRegistersSupported()) {
-    SetArgsInRegisters();
-    return frame->CallStub(this, left, right);
-  } else {
-    frame->Push(left);
-    frame->Push(right);
-    return frame->CallStub(this, 2);
   }
 }
 

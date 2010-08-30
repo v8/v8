@@ -29,7 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_ARM)
 
-#include "code-stubs-arm.h"
+#include "code-stubs.h"
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"
