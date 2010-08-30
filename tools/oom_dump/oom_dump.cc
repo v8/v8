@@ -162,7 +162,7 @@ void DumpHeapStats(const char *minidump_file) {
   ReadPointedValue(memory_region, heap_stats_addr, offset)
 
   CHECK(READ_FIELD(0) == v8::internal::HeapStats::kStartMarker);
-  CHECK(READ_FIELD(23) == v8::internal::HeapStats::kEndMarker);
+  CHECK(READ_FIELD(24) == v8::internal::HeapStats::kEndMarker);
 
   const int new_space_size = READ_FIELD(1);
   const int new_space_capacity = READ_FIELD(2);
@@ -184,6 +184,7 @@ void DumpHeapStats(const char *minidump_file) {
   const int destroyed_global_handle_count = READ_FIELD(18);
   const int memory_allocator_size = READ_FIELD(19);
   const int memory_allocator_capacity = READ_FIELD(20);
+  const int os_error = READ_FIELD(23);
 #undef READ_FIELD
 
   int objects_per_type[v8::internal::LAST_TYPE + 1] = {0};
@@ -243,6 +244,7 @@ void DumpHeapStats(const char *minidump_file) {
   PRINT_INT_STAT(destroyed_global_handle_count);
   PRINT_MB_STAT(memory_allocator_size);
   PRINT_MB_STAT(memory_allocator_capacity);
+  PRINT_INT_STAT(os_error);
 #undef PRINT_STAT
 
   printf("\n");
