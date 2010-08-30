@@ -68,6 +68,12 @@ HeapObjectIterator::HeapObjectIterator(PagedSpace* space, Address start,
 }
 
 
+HeapObjectIterator::HeapObjectIterator(Page* page,
+                                       HeapObjectCallback size_func) {
+  Initialize(page->ObjectAreaStart(), page->AllocationTop(), size_func);
+}
+
+
 void HeapObjectIterator::Initialize(Address cur, Address end,
                                     HeapObjectCallback size_f) {
   cur_addr_ = cur;
@@ -2720,6 +2726,22 @@ Object* LargeObjectSpace::FindObject(Address a) {
   }
   return Failure::Exception();
 }
+
+
+LargeObjectChunk* LargeObjectSpace::FindChunkContainingPc(Address pc) {
+  // TODO(853): Change this implementation to only find executable
+  // chunks and use some kind of hash-based approach to speed it up.
+  for (LargeObjectChunk* chunk = first_chunk_;
+       chunk != NULL;
+       chunk = chunk->next()) {
+    Address chunk_address = chunk->address();
+    if (chunk_address <= pc && pc < chunk_address + chunk->size()) {
+      return chunk;
+    }
+  }
+  return NULL;
+}
+
 
 void LargeObjectSpace::IterateDirtyRegions(ObjectSlotCallback copy_object) {
   LargeObjectIterator it(this);

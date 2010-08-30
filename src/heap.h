@@ -819,6 +819,13 @@ class Heap : public AllStatic {
     roots_[kCodeStubsRootIndex] = value;
   }
 
+  // Support for computing object sizes for old objects during GCs. Returns
+  // a function that is guaranteed to be safe for computing object sizes in
+  // the current GC phase.
+  static HeapObjectCallback GcSafeSizeOfOldObjectFunction() {
+    return gc_safe_size_of_old_object_;
+  }
+
   // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
   static void public_set_non_monomorphic_cache(NumberDictionary* value) {
     roots_[kNonMonomorphicCacheRootIndex] = value;
@@ -1172,6 +1179,18 @@ class Heap : public AllStatic {
   static GCCallback global_gc_prologue_callback_;
   static GCCallback global_gc_epilogue_callback_;
 
+  // Support for computing object sizes during GC.
+  static HeapObjectCallback gc_safe_size_of_old_object_;
+  static int GcSafeSizeOfOldObject(HeapObject* object);
+  static int GcSafeSizeOfOldObjectWithEncodedMap(HeapObject* object);
+
+  // Update the GC state. Called from the mark-compact collector.
+  static void MarkMapPointersAsEncoded(bool encoded) {
+    gc_safe_size_of_old_object_ = encoded
+        ? &GcSafeSizeOfOldObjectWithEncodedMap
+        : &GcSafeSizeOfOldObject;
+  }
+
   // Checks whether a global GC is necessary
   static GarbageCollector SelectGarbageCollector(AllocationSpace space);
 
@@ -1225,7 +1244,6 @@ class Heap : public AllStatic {
 
   // Code to be run before and after mark-compact.
   static void MarkCompactPrologue(bool is_compacting);
-  static void MarkCompactEpilogue(bool is_compacting);
 
   // Completely clear the Instanceof cache (to stop it keeping objects alive
   // around a GC).
@@ -1317,6 +1335,7 @@ class Heap : public AllStatic {
   friend class DisallowAllocationFailure;
   friend class AlwaysAllocateScope;
   friend class LinearAllocationScope;
+  friend class MarkCompactCollector;
 };
 
 

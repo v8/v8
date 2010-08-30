@@ -121,10 +121,16 @@ class MarkCompactCollector: public AllStatic {
 #ifdef DEBUG
   // Checks whether performing mark-compact collection.
   static bool in_use() { return state_ > PREPARE_GC; }
+  static bool are_map_pointers_encoded() { return state_ == UPDATE_POINTERS; }
 #endif
 
   // Determine type of object and emit deletion log event.
   static void ReportDeleteIfNeeded(HeapObject* obj);
+
+  // Distinguishable invalid map encodings (for single word and multiple words)
+  // that indicate free regions.
+  static const uint32_t kSingleFreeEncoding = 0;
+  static const uint32_t kMultiFreeEncoding = 1;
 
  private:
 #ifdef DEBUG

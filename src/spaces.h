@@ -756,6 +756,7 @@ class HeapObjectIterator: public ObjectIterator {
   HeapObjectIterator(PagedSpace* space,
                      Address start,
                      HeapObjectCallback size_func);
+  HeapObjectIterator(Page* page, HeapObjectCallback size_func);
 
   inline HeapObject* next() {
     return (cur_addr_ < cur_limit_) ? FromCurrentPage() : FromNextPage();
@@ -2136,6 +2137,11 @@ class LargeObjectSpace : public Space {
   // if it is not found. The function iterates through all objects in this
   // space, may be slow.
   Object* FindObject(Address a);
+
+  // Finds a large object page containing the given pc, returns NULL
+  // if such a page doesn't exist.
+  LargeObjectChunk* FindChunkContainingPc(Address pc);
+
 
   // Iterates objects covered by dirty regions.
   void IterateDirtyRegions(ObjectSlotCallback func);

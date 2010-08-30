@@ -107,7 +107,10 @@ namespace internal {
   /* Number of contexts created from scratch. */                      \
   SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)    \
   /* Number of contexts created by partial snapshot. */               \
-  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)
+  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)      \
+  /* Number of code objects found from pc. */                         \
+  SC(pc_to_code, V8.PcToCode)                                         \
+  SC(pc_to_code_cached, V8.PcToCodeCached)
 
 
 #define STATS_COUNTER_LIST_2(SC)                                      \
