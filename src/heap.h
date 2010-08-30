@@ -30,6 +30,7 @@
 
 #include <math.h>
 
+#include "spaces.h"
 #include "splay-tree-inl.h"
 #include "v8-counters.h"
 

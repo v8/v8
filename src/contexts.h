@@ -28,6 +28,9 @@
 #ifndef V8_CONTEXTS_H_
 #define V8_CONTEXTS_H_
 
+#include "heap.h"
+#include "objects.h"
+
 namespace v8 {
 namespace internal {
 

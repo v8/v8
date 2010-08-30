@@ -35,11 +35,13 @@
 #ifndef V8_OBJECTS_INL_H_
 #define V8_OBJECTS_INL_H_
 
-#include "memory.h"
+#include "objects.h"
 #include "contexts.h"
 #include "conversions-inl.h"
-#include "objects.h"
+#include "heap.h"
+#include "memory.h"
 #include "property.h"
+#include "spaces.h"
 
 namespace v8 {
 namespace internal {
