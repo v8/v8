@@ -663,13 +663,10 @@ BUILTIN(ArraySplice) {
 
   int n_arguments = args.length() - 1;
 
-  // SpiderMonkey and JSC return undefined in the case where no
-  // arguments are given instead of using the implicit undefined
-  // arguments.  This does not follow ECMA-262, but we do the same for
-  // compatibility.
-  // TraceMonkey follows ECMA-262 though.
+  // Return empty array when no arguments are supplied.
   if (n_arguments == 0) {
-    return Heap::undefined_value();
+    // No handle scope needed since we return directly.
+    return *Factory::NewJSArray(0);
   }
 
   int relative_start = 0;
