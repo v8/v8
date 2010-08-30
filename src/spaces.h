@@ -1040,6 +1040,11 @@ class PagedSpace : public Space {
   // Freed pages are moved to the end of page list.
   void FreePages(Page* prev, Page* last);
 
+  // Deallocates a block.
+  virtual void DeallocateBlock(Address start,
+                               int size_in_bytes,
+                               bool add_to_freelist) = 0;
+
   // Set space allocation info.
   void SetTop(Address top) {
     allocation_info_.top = top;
@@ -1097,6 +1102,8 @@ class PagedSpace : public Space {
 
   // Returns the page of the allocation pointer.
   Page* AllocationTopPage() { return TopPageOf(allocation_info_); }
+
+  void RelinkPageListInChunkOrder(bool deallocate_blocks);
 
  protected:
   // Maximum capacity of this space.
@@ -1815,6 +1822,10 @@ class OldSpace : public PagedSpace {
     }
   }
 
+  virtual void DeallocateBlock(Address start,
+                               int size_in_bytes,
+                               bool add_to_freelist);
+
   // Prepare for full garbage collection.  Resets the relocation pointer and
   // clears the free list.
   virtual void PrepareForMarkCompact(bool will_compact);
@@ -1889,6 +1900,9 @@ class FixedSpace : public PagedSpace {
 
   virtual void PutRestOfCurrentPageOnFreeList(Page* current_page);
 
+  virtual void DeallocateBlock(Address start,
+                               int size_in_bytes,
+                               bool add_to_freelist);
 #ifdef DEBUG
   // Reports statistic info of the space
   void ReportStatistics();

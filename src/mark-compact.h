@@ -36,15 +36,6 @@ namespace internal {
 // to the first live object in the page (only used for old and map objects).
 typedef bool (*IsAliveFunction)(HeapObject* obj, int* size, int* offset);
 
-// Callback function for non-live blocks in the old generation.
-// If add_to_freelist is false then just accounting stats are updated and
-// no attempt to add area to free list is made.
-typedef void (*DeallocateFunction)(Address start,
-                                   int size_in_bytes,
-                                   bool add_to_freelist,
-                                   bool last_on_page);
-
-
 // Forward declarations.
 class RootMarkingVisitor;
 class MarkingVisitor;
@@ -328,33 +319,6 @@ class MarkCompactCollector: public AllStatic {
   // number of live objects.
   static int IterateLiveObjectsInRange(Address start, Address end,
                                        HeapObjectCallback size_func);
-
-  // Callback functions for deallocating non-live blocks in the old
-  // generation.
-  static void DeallocateOldPointerBlock(Address start,
-                                        int size_in_bytes,
-                                        bool add_to_freelist,
-                                        bool last_on_page);
-
-  static void DeallocateOldDataBlock(Address start,
-                                     int size_in_bytes,
-                                     bool add_to_freelist,
-                                     bool last_on_page);
-
-  static void DeallocateCodeBlock(Address start,
-                                  int size_in_bytes,
-                                  bool add_to_freelist,
-                                  bool last_on_page);
-
-  static void DeallocateMapBlock(Address start,
-                                 int size_in_bytes,
-                                 bool add_to_freelist,
-                                 bool last_on_page);
-
-  static void DeallocateCellBlock(Address start,
-                                  int size_in_bytes,
-                                  bool add_to_freelist,
-                                  bool last_on_page);
 
   // If we are not compacting the heap, we simply sweep the spaces except
   // for the large object space, clearing mark bits and adding unmarked
