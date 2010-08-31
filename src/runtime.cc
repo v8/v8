@@ -2913,7 +2913,6 @@ enum StringSearchStrategy { SEARCH_FAIL, SEARCH_SHORT, SEARCH_LONG };
 template <typename pchar>
 static inline StringSearchStrategy InitializeStringSearch(
     Vector<const pchar> pat, bool ascii_subject) {
-  ASSERT(pat.length() > 1);
   // We have an ASCII haystack and a non-ASCII needle. Check if there
   // really is a non-ASCII character in the needle and bail out if there
   // is.
@@ -5237,39 +5236,44 @@ static Object* Runtime_StringSplit(Arguments args) {
   int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);
   ZoneList<int> indices(initial_capacity);
   if (!pattern->IsFlat()) FlattenString(pattern);
-  AssertNoAllocation nogc;
-  if (subject->IsAsciiRepresentation()) {
-    Vector<const char> subject_vector = subject->ToAsciiVector();
-    if (pattern->IsAsciiRepresentation()) {
-      FindStringIndices(subject_vector,
-                        pattern->ToAsciiVector(),
-                        &indices,
-                        limit);
+
+  // No allocation block.
+  {
+    AssertNoAllocation nogc;
+    if (subject->IsAsciiRepresentation()) {
+      Vector<const char> subject_vector = subject->ToAsciiVector();
+      if (pattern->IsAsciiRepresentation()) {
+        FindStringIndices(subject_vector,
+                          pattern->ToAsciiVector(),
+                          &indices,
+                          limit);
+      } else {
+        FindStringIndices(subject_vector,
+                          pattern->ToUC16Vector(),
+                          &indices,
+                          limit);
+      }
     } else {
-      FindStringIndices(subject_vector,
-                        pattern->ToUC16Vector(),
-                        &indices,
-                        limit);
-    }
-  } else {
-    Vector<const uc16> subject_vector = subject->ToUC16Vector();
-    if (pattern->IsAsciiRepresentation()) {
-      FindStringIndices(subject_vector,
-                        pattern->ToAsciiVector(),
-                        &indices,
-                        limit);
-    } else {
-      FindStringIndices(subject_vector,
-                        pattern->ToUC16Vector(),
-                        &indices,
-                        limit);
+      Vector<const uc16> subject_vector = subject->ToUC16Vector();
+      if (pattern->IsAsciiRepresentation()) {
+        FindStringIndices(subject_vector,
+                          pattern->ToAsciiVector(),
+                          &indices,
+                          limit);
+      } else {
+        FindStringIndices(subject_vector,
+                          pattern->ToUC16Vector(),
+                          &indices,
+                          limit);
+      }
     }
   }
+
   if (static_cast<uint32_t>(indices.length()) < limit) {
     indices.Add(subject_length);
   }
-  // The list indices now contains the end of each part to create.
 
+  // The list indices now contains the end of each part to create.
 
   // Create JSArray of substrings separated by separator.
   int part_count = indices.length();
