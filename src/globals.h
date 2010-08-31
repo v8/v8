@@ -664,7 +664,7 @@ F FUNCTION_CAST(Address addr) {
 #define TRACK_MEMORY(name)
 #endif
 
-// define used for helping GCC to make better inlining. Don't bother for debug
+// Define used for helping GCC to make better inlining. Don't bother for debug
 // builds. On GCC 3.4.5 using __attribute__((always_inline)) causes compilation
 // errors in debug build.
 #if defined(__GNUC__) && !defined(DEBUG)
@@ -679,6 +679,14 @@ F FUNCTION_CAST(Address addr) {
 #define INLINE(header) inline header
 #define NO_INLINE(header) header
 #endif
+
+
+#if defined(__GNUC__) && __GNUC__ >= 4
+#define MUST_USE_RESULT __attribute__ ((warn_unused_result))
+#else
+#define MUST_USE_RESULT
+#endif
+
 
 // Feature flags bit positions. They are mostly based on the CPUID spec.
 // (We assign CPUID itself to one of the currently reserved bits --

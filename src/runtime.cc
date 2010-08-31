@@ -98,7 +98,7 @@ namespace internal {
 static StaticResource<StringInputBuffer> runtime_string_input_buffer;
 
 
-static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
+MUST_USE_RESULT static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
   StackLimitCheck check;
   if (check.HasOverflowed()) return Top::StackOverflow();
 
@@ -980,7 +980,9 @@ static Object* Runtime_DeclareContextSlot(Arguments args) {
             context->set(index, *initial_value);
           }
         } else {
-          Handle<JSObject>::cast(holder)->SetElement(index, *initial_value);
+          // The holder is an arguments object.
+          Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
+          SetElement(arguments, index, initial_value);
         }
       } else {
         // Slow case: The property is not in the FixedArray part of the context.
@@ -1238,7 +1240,8 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
     } else {
       // The holder is an arguments object.
       ASSERT((attributes & READ_ONLY) == 0);
-      Handle<JSObject>::cast(holder)->SetElement(index, *value);
+      Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
+      SetElement(arguments, index, value);
     }
     return *value;
   }
@@ -4105,7 +4108,8 @@ static Object* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
   if (result.IsProperty() &&
       (result.type() == FIELD || result.type() == NORMAL
        || result.type() == CONSTANT_FUNCTION)) {
-    obj->DeleteProperty(name, JSObject::NORMAL_DELETION);
+    Object* ok = obj->DeleteProperty(name, JSObject::NORMAL_DELETION);
+    if (ok->IsFailure()) return ok;
   }
   return obj->DefineAccessor(name, flag_setter->value() == 0, fun, attr);
 }

@@ -1007,17 +1007,18 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
     for (int i = 0; i < array->length(); i++) {
       Handle<Object> o(array->get(i));
       if (CheckBreakPoint(o)) {
-        break_points_hit->SetElement(break_points_hit_count++, *o);
+        SetElement(break_points_hit, break_points_hit_count++, o);
       }
     }
   } else {
     if (CheckBreakPoint(break_point_objects)) {
-      break_points_hit->SetElement(break_points_hit_count++,
-                                   *break_point_objects);
+      SetElement(break_points_hit,
+                 break_points_hit_count++,
+                 break_point_objects);
     }
   }
 
-  // Return undefined if no break points where triggered.
+  // Return undefined if no break points were triggered.
   if (break_points_hit_count == 0) {
     return Factory::undefined_value();
   }

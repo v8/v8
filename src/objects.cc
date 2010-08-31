@@ -54,7 +54,8 @@ const int kGetterIndex = 0;
 const int kSetterIndex = 1;
 
 
-static Object* CreateJSValue(JSFunction* constructor, Object* value) {
+MUST_USE_RESULT static Object* CreateJSValue(JSFunction* constructor,
+                                             Object* value) {
   Object* result = Heap::AllocateJSObject(constructor);
   if (result->IsFailure()) return result;
   JSValue::cast(result)->set_value(value);

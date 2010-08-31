@@ -739,7 +739,7 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
     Handle<String> name_handle(String::cast(info->name()));
     info_wrapper.SetProperties(name_handle, info->start_position(),
                                info->end_position(), info);
-    array->SetElement(i, *(info_wrapper.GetJSArray()));
+    SetElement(array, i, info_wrapper.GetJSArray());
   }
 }
 
@@ -1359,8 +1359,9 @@ static const char* DropActivationsInActiveThread(
   for (int i = 0; i < array_len; i++) {
     if (result->GetElement(i) ==
         Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
-      result->SetElement(i, Smi::FromInt(
-          LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK));
+      Handle<Object> replaced(
+          Smi::FromInt(LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK));
+      SetElement(result, i, replaced);
     }
   }
   return NULL;

@@ -243,7 +243,7 @@ BUILTIN(ArrayCodeGeneric) {
 }
 
 
-static Object* AllocateJSArray() {
+MUST_USE_RESULT static Object* AllocateJSArray() {
   JSFunction* array_function =
       Top::context()->global_context()->array_function();
   Object* result = Heap::AllocateJSObject(array_function);
@@ -252,7 +252,7 @@ static Object* AllocateJSArray() {
 }
 
 
-static Object* AllocateEmptyJSArray() {
+MUST_USE_RESULT static Object* AllocateEmptyJSArray() {
   Object* result = AllocateJSArray();
   if (result->IsFailure()) return result;
   JSArray* result_array = JSArray::cast(result);
