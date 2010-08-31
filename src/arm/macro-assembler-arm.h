@@ -250,14 +250,14 @@ class MacroAssembler: public Assembler {
   void EnterConstructFrame() { EnterFrame(StackFrame::CONSTRUCT); }
   void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
 
-  // Enter specific kind of exit frame; either normal or debug mode.
+  // Enter exit frame.
   // Expects the number of arguments in register r0 and
   // the builtin function to call in register r1. Exits with argc in
   // r4, argv in r6, and and the builtin function to call in r5.
-  void EnterExitFrame(ExitFrame::Mode mode);
+  void EnterExitFrame();
 
   // Leave the current exit frame. Expects the return value in r0.
-  void LeaveExitFrame(ExitFrame::Mode mode);
+  void LeaveExitFrame();
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -294,12 +294,6 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Debugger Support
 
-  void SaveRegistersToMemory(RegList regs);
-  void RestoreRegistersFromMemory(RegList regs);
-  void CopyRegistersFromMemoryToStack(Register base, RegList regs);
-  void CopyRegistersFromStackToMemory(Register base,
-                                      Register scratch,
-                                      RegList regs);
   void DebugBreak();
 #endif
 

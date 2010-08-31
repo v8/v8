@@ -55,17 +55,13 @@ StackFrame::Type StackFrame::ComputeType(State* state) {
 StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   if (fp == 0) return NONE;
   // Compute frame type and stack pointer.
-  Address sp = fp + ExitFrameConstants::kSPDisplacement;
-  const int offset = ExitFrameConstants::kCodeOffset;
-  Object* code = Memory::Object_at(fp + offset);
-  bool is_debug_exit = code->IsSmi();
-  if (is_debug_exit) {
-    sp -= kNumJSCallerSaved * kPointerSize;
-  }
+  Address sp = fp + ExitFrameConstants::kSPOffset;
+
   // Fill in the state.
   state->sp = sp;
   state->fp = fp;
   state->pc_address = reinterpret_cast<Address*>(sp - 1 * kPointerSize);
+  ASSERT(*state->pc_address != NULL);
   return EXIT;
 }
 

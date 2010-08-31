@@ -560,9 +560,7 @@ class CompareStub: public CodeStub {
 
 class CEntryStub : public CodeStub {
  public:
-  explicit CEntryStub(int result_size,
-                      ExitFrame::Mode mode = ExitFrame::MODE_NORMAL)
-      : result_size_(result_size), mode_(mode) { }
+  explicit CEntryStub(int result_size) : result_size_(result_size) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -580,10 +578,8 @@ class CEntryStub : public CodeStub {
 
   // Number of pointers/values returned.
   const int result_size_;
-  const ExitFrame::Mode mode_;
 
   // Minor key encoding
-  class ExitFrameModeBits: public BitField<ExitFrame::Mode, 0, 1> {};
   class IndirectResultBits: public BitField<bool, 1, 1> {};
 
   Major MajorKey() { return CEntry; }

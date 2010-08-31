@@ -241,16 +241,6 @@ void ExternalReferenceTable::PopulateTable() {
       DEBUG_ADDRESS,
       Debug::k_restarter_frame_function_pointer << kDebugIdShift,
       "Debug::restarter_frame_function_pointer_address()");
-  const char* debug_register_format = "Debug::register_address(%i)";
-  int dr_format_length = StrLength(debug_register_format);
-  for (int i = 0; i < kNumJSCallerSaved; ++i) {
-    Vector<char> name = Vector<char>::New(dr_format_length + 1);
-    OS::SNPrintF(name, debug_register_format, i);
-    Add(Debug_Address(Debug::k_register_address, i).address(),
-        DEBUG_ADDRESS,
-        Debug::k_register_address << kDebugIdShift | i,
-        name.start());
-  }
 #endif
 
   // Stat counters
