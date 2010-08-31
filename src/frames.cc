@@ -316,7 +316,7 @@ void StackFrame::IteratePc(ObjectVisitor* v,
                            Code* holder) {
   Address pc = *pc_address;
   ASSERT(holder->contains(pc));
-  unsigned pc_offset = pc - holder->instruction_start();
+  unsigned pc_offset = static_cast<unsigned>(pc - holder->instruction_start());
   Object* code = holder;
   v->VisitPointer(&code);
   if (code != holder) {
