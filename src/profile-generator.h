@@ -299,6 +299,9 @@ class CpuProfilesCollection {
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(const Vector<CodeEntry*>& path);
 
+  // Limits the number of profiles that can be simultaneously collected.
+  static const int kMaxSimultaneousProfiles = 100;
+
  private:
   const char* GetName(int args_count);
   const char* GetFunctionName(String* name) {
