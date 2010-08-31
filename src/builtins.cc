@@ -665,9 +665,7 @@ BUILTIN(ArraySplice) {
 
   // Return empty array when no arguments are supplied.
   if (n_arguments == 0) {
-    Object* result = AllocateEmptyJSArray();
-    if (result->IsFailure()) return result;
-    return JSArray::cast(result);
+    return AllocateEmptyJSArray();
   }
 
   int relative_start = 0;
