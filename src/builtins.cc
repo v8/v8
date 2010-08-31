@@ -665,8 +665,9 @@ BUILTIN(ArraySplice) {
 
   // Return empty array when no arguments are supplied.
   if (n_arguments == 0) {
-    // No handle scope needed since we return directly.
-    return *Factory::NewJSArray(0);
+    Object* result = AllocateEmptyJSArray();
+    if (result->IsFailure()) return result;
+    return JSArray::cast(result);
   }
 
   int relative_start = 0;
