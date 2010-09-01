@@ -1442,6 +1442,8 @@ class OffsetsVector {
   inline int* vector() { return vector_; }
   inline int length() { return offsets_vector_length_; }
 
+  static const int kStaticOffsetsVectorSize = 50;
+
  private:
   static Address static_offsets_vector_address(Isolate* isolate) {
     return reinterpret_cast<Address>(isolate->jsregexp_static_offsets_vector());

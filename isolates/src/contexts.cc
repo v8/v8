@@ -250,7 +250,9 @@ bool Context::IsBootstrappingOrContext(Object* object) {
 bool Context::IsBootstrappingOrGlobalObject(Object* object) {
   // During bootstrapping we allow all objects to pass as global
   // objects. This is necessary to fix circular dependencies.
-  return Isolate::Current()->bootstrapper()->IsActive() ||
+  Isolate* isolate = Isolate::Current();
+  return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
+      isolate->bootstrapper()->IsActive() ||
       object->IsGlobalObject();
 }
 #endif

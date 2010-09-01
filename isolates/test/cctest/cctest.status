@@ -42,9 +42,6 @@ test-serialize/DependentTestThatAlwaysFails: FAIL
 
 [ $arch == arm ]
 
-# BUG(240): Test seems flaky on ARM.
-test-api/RegExpInterruption: SKIP
-
 # We cannot assume that we can throw OutOfMemory exceptions in all situations.
 # Apparently our ARM box is in such a state. Skip the test as it also runs for
 # a long time.
@@ -53,6 +50,10 @@ test-api/OutOfMemoryNested: SKIP
 
 # BUG(355): Test crashes on ARM.
 test-log/ProfLazyMode: SKIP
+
+# BUG(845)
+test-debug/GCDuringBreakPointProcessing: SKIP
+test-debug/BreakPointICCallWithGC: SKIP
 
 [ $arch == mips ]
 test-accessors: SKIP

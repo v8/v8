@@ -111,7 +111,13 @@ class StackFrame BASE_EMBEDDED {
 
   // Opaque data type for identifying stack frames. Used extensively
   // by the debugger.
-  enum Id { NO_ID = 0 };
+  // ID_MIN_VALUE and ID_MAX_VALUE are specified to ensure that enumeration type
+  // has correct value range (see Issue 830 for more details).
+  enum Id {
+    ID_MIN_VALUE = kMinInt,
+    ID_MAX_VALUE = kMaxInt,
+    NO_ID = 0
+  };
 
   // Copy constructor; it breaks the connection to host iterator.
   StackFrame(const StackFrame& original) {
@@ -151,7 +157,13 @@ class StackFrame BASE_EMBEDDED {
   virtual Type type() const = 0;
 
   // Get the code associated with this frame.
-  virtual Code* code() const = 0;
+  // This method could be called during marking phase of GC.
+  virtual Code* unchecked_code() const = 0;
+
+  // Get the code associated with this frame.
+  inline Code* code() const {
+    return Code::cast(unchecked_code());
+  }
 
   // Garbage collection support.
   static void CookFramesForThread(ThreadLocalTop* thread);
@@ -217,7 +229,7 @@ class EntryFrame: public StackFrame {
  public:
   virtual Type type() const { return ENTRY; }
 
-  virtual Code* code() const;
+  virtual Code* unchecked_code() const;
 
   // Garbage collection support.
   virtual void Iterate(ObjectVisitor* v) const;
@@ -248,7 +260,7 @@ class EntryConstructFrame: public EntryFrame {
  public:
   virtual Type type() const { return ENTRY_CONSTRUCT; }
 
-  virtual Code* code() const;
+  virtual Code* unchecked_code() const;
 
   static EntryConstructFrame* cast(StackFrame* frame) {
     ASSERT(frame->is_entry_construct());
@@ -270,7 +282,7 @@ class ExitFrame: public StackFrame {
   enum Mode { MODE_NORMAL, MODE_DEBUG };
   virtual Type type() const { return EXIT; }
 
-  virtual Code* code() const;
+  virtual Code* unchecked_code() const;
 
   Object*& code_slot() const;
 
@@ -396,7 +408,7 @@ class JavaScriptFrame: public StandardFrame {
                      int index) const;
 
   // Determine the code for the frame.
-  virtual Code* code() const;
+  virtual Code* unchecked_code() const;
 
   static JavaScriptFrame* cast(StackFrame* frame) {
     ASSERT(frame->is_java_script());
@@ -432,7 +444,7 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
   virtual Type type() const { return ARGUMENTS_ADAPTOR; }
 
   // Determine the code for the frame.
-  virtual Code* code() const;
+  virtual Code* unchecked_code() const;
 
   static ArgumentsAdaptorFrame* cast(StackFrame* frame) {
     ASSERT(frame->is_arguments_adaptor());
@@ -462,7 +474,7 @@ class InternalFrame: public StandardFrame {
   virtual void Iterate(ObjectVisitor* v) const;
 
   // Determine the code for the frame.
-  virtual Code* code() const;
+  virtual Code* unchecked_code() const;
 
   static InternalFrame* cast(StackFrame* frame) {
     ASSERT(frame->is_internal());

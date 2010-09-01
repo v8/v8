@@ -226,11 +226,13 @@ TEST(4) {
     double a;
     double b;
     double c;
+    float d;
+    float e;
   } T;
   T t;
 
   // Create a function that accepts &t, and loads, manipulates, and stores
-  // the doubles t.a, t.b, and t.c.
+  // the doubles t.a, t.b, and t.c, and floats t.d, t.e.
   Assembler assm(NULL, 0);
   Label L, C;
 
@@ -252,6 +254,15 @@ TEST(4) {
     __ vmov(d4, r2, r3);
     __ vstr(d4, r4, OFFSET_OF(T, b));
 
+    // Load t.d and t.e, switch values, and store back to the struct.
+    __ vldr(s0, r4, OFFSET_OF(T, d));
+    __ vldr(s1, r4, OFFSET_OF(T, e));
+    __ vmov(s2, s0);
+    __ vmov(s0, s1);
+    __ vmov(s1, s2);
+    __ vstr(s0, r4, OFFSET_OF(T, d));
+    __ vstr(s1, r4, OFFSET_OF(T, e));
+
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
     CodeDesc desc;
@@ -267,8 +278,12 @@ TEST(4) {
     t.a = 1.5;
     t.b = 2.75;
     t.c = 17.17;
+    t.d = 4.5;
+    t.e = 9.0;
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
+    CHECK_EQ(4.5, t.e);
+    CHECK_EQ(9.0, t.d);
     CHECK_EQ(4.25, t.c);
     CHECK_EQ(4.25, t.b);
     CHECK_EQ(1.5, t.a);

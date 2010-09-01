@@ -30,6 +30,7 @@
 #include "disassembler.h"
 #include "disasm.h"
 #include "jsregexp.h"
+#include "objects-visiting.h"
 
 namespace v8 {
 namespace internal {
@@ -540,7 +541,8 @@ void JSObject::JSObjectVerify() {
               map()->NextFreePropertyIndex()));
   }
   ASSERT(map()->has_fast_elements() ==
-         (elements()->map() == HEAP->fixed_array_map()));
+         (elements()->map() == GetHeap()->fixed_array_map() ||
+          elements()->map() == GetHeap()->fixed_cow_array_map()));
   ASSERT(map()->has_fast_elements() == HasFastElements());
 }
 
@@ -639,10 +641,22 @@ void Map::MapPrint() {
 void Map::MapVerify() {
   ASSERT(!HEAP->InNewSpace(this));
   ASSERT(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
-  ASSERT(kPointerSize <= instance_size()
-         && instance_size() < HEAP->Capacity());
+  ASSERT(instance_size() == kVariableSizeSentinel ||
+         (kPointerSize <= instance_size() &&
+          instance_size() < HEAP->Capacity()));
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
+}
+
+
+void Map::NormalizedMapVerify() {
+  MapVerify();
+  ASSERT_EQ(GetHeap()->empty_descriptor_array(), instance_descriptors());
+  ASSERT_EQ(GetHeap()->empty_fixed_array(), code_cache());
+  ASSERT_EQ(0, pre_allocated_property_fields());
+  ASSERT_EQ(0, unused_property_fields());
+  ASSERT_EQ(StaticVisitorBase::GetVisitorId(instance_type(), instance_size()),
+      visitor_id());
 }
 
 
@@ -1357,6 +1371,21 @@ void JSFunctionResultCache::JSFunctionResultCacheVerify() {
     for (int i = size; i < length(); i++) {
       ASSERT(get(i)->IsTheHole());
       get(i)->Verify();
+    }
+  }
+}
+
+
+void NormalizedMapCache::NormalizedMapCacheVerify() {
+  FixedArray::cast(this)->Verify();
+  if (FLAG_enable_slow_asserts) {
+    for (int i = 0; i < length(); i++) {
+      Object* e = get(i);
+      if (e->IsMap()) {
+        Map::cast(e)->NormalizedMapVerify();
+      } else {
+        ASSERT(e->IsUndefined());
+      }
     }
   }
 }

@@ -262,6 +262,21 @@ void MacroAssembler::Assert(Condition cc, const char* msg) {
 }
 
 
+void MacroAssembler::AssertFastElements(Register elements) {
+  if (FLAG_debug_code) {
+    Label ok;
+    CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
+                Heap::kFixedArrayMapRootIndex);
+    j(equal, &ok);
+    CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
+                Heap::kFixedCOWArrayMapRootIndex);
+    j(equal, &ok);
+    Abort("JSObject with fast elements map has slow elements");
+    bind(&ok);
+  }
+}
+
+
 void MacroAssembler::Check(Condition cc, const char* msg) {
   Label L;
   j(cc, &L);
@@ -566,29 +581,21 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
 }
 
 
-void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  ASSERT(!target.is(rdi));
-
+void MacroAssembler::GetBuiltinFunction(Register target,
+                                        Builtins::JavaScript id) {
   // Load the builtins object into target register.
   movq(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   movq(target, FieldOperand(target, GlobalObject::kBuiltinsOffset));
+  movq(target, FieldOperand(target,
+                            JSBuiltinsObject::OffsetOfFunctionWithId(id)));
+}
 
+
+void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+  ASSERT(!target.is(rdi));
   // Load the JavaScript builtin function from the builtins object.
-  movq(rdi, FieldOperand(target, JSBuiltinsObject::OffsetOfFunctionWithId(id)));
-
-  // Load the code entry point from the builtins object.
-  movq(target, FieldOperand(target, JSBuiltinsObject::OffsetOfCodeWithId(id)));
-  if (FLAG_debug_code) {
-    // Make sure the code objects in the builtins object and in the
-    // builtin function are the same.
-    push(target);
-    movq(target, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    movq(target, FieldOperand(target, SharedFunctionInfo::kCodeOffset));
-    cmpq(target, Operand(rsp, 0));
-    Assert(equal, "Builtin code object changed");
-    pop(target);
-  }
-  lea(target, FieldOperand(target, Code::kHeaderSize));
+  GetBuiltinFunction(rdi, id);
+  movq(target, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 }
 
 
@@ -783,8 +790,8 @@ void MacroAssembler::SmiCompare(Register dst, Smi* src) {
   if (src->value() == 0) {
     testq(dst, dst);
   } else {
-    Move(kScratchRegister, src);
-    cmpq(dst, kScratchRegister);
+    Register constant_reg = GetSmiConstant(src);
+    cmpq(dst, constant_reg);
   }
 }
 
@@ -1978,10 +1985,17 @@ void MacroAssembler::AbortIfNotNumber(Register object) {
 }
 
 
+void MacroAssembler::AbortIfSmi(Register object) {
+  Label ok;
+  Condition is_smi = CheckSmi(object);
+  Assert(NegateCondition(is_smi), "Operand is a smi");
+}
+
+
 void MacroAssembler::AbortIfNotSmi(Register object) {
   Label ok;
   Condition is_smi = CheckSmi(object);
-  Assert(is_smi, "Operand not a smi");
+  Assert(is_smi, "Operand is not a smi");
 }
 
 
@@ -2291,10 +2305,9 @@ void MacroAssembler::InvokeFunction(Register function,
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
   movsxlq(rbx,
           FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
-  movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
   // Advances rdx to the end of the Code object header, to the start of
   // the executable code.
-  lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
+  movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(rbx);
   InvokeCode(rdx, expected, actual, flag);

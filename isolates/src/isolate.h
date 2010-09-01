@@ -829,7 +829,7 @@ class Isolate {
   AtomicWord* vm_state() { return &vm_state_; }
 
   // SerializerDeserializer state.
-  static const int kPartialSnapshotCacheCapacity = 1300;
+  static const int kPartialSnapshotCacheCapacity = 1400;
 
   static const int kJSRegexpStaticOffsetsVectorSize = 50;
 

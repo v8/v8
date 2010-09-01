@@ -375,8 +375,8 @@ StackFrame::Type StackFrame::GetCallerState(State* state) const {
 }
 
 
-Code* EntryFrame::code() const {
-  return HEAP->js_entry_code();
+Code* EntryFrame::unchecked_code() const {
+  return HEAP->raw_unchecked_js_entry_code();
 }
 
 
@@ -398,8 +398,8 @@ StackFrame::Type EntryFrame::GetCallerState(State* state) const {
 }
 
 
-Code* EntryConstructFrame::code() const {
-  return HEAP->js_construct_entry_code();
+Code* EntryConstructFrame::unchecked_code() const {
+  return HEAP->raw_unchecked_js_construct_entry_code();
 }
 
 
@@ -409,8 +409,8 @@ Object*& ExitFrame::code_slot() const {
 }
 
 
-Code* ExitFrame::code() const {
-  return Code::cast(code_slot());
+Code* ExitFrame::unchecked_code() const {
+  return reinterpret_cast<Code*>(code_slot());
 }
 
 
@@ -496,23 +496,23 @@ bool JavaScriptFrame::IsConstructor() const {
 }
 
 
-Code* JavaScriptFrame::code() const {
+Code* JavaScriptFrame::unchecked_code() const {
   JSFunction* function = JSFunction::cast(this->function());
-  return function->shared()->code();
+  return function->unchecked_code();
 }
 
 
-Code* ArgumentsAdaptorFrame::code() const {
+Code* ArgumentsAdaptorFrame::unchecked_code() const {
   return Isolate::Current()->builtins()->builtin(
       Builtins::ArgumentsAdaptorTrampoline);
 }
 
 
-Code* InternalFrame::code() const {
+Code* InternalFrame::unchecked_code() const {
   const int offset = InternalFrameConstants::kCodeOffset;
   Object* code = Memory::Object_at(fp() + offset);
   ASSERT(code != NULL);
-  return Code::cast(code);
+  return reinterpret_cast<Code*>(code);
 }
 
 

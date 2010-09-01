@@ -163,13 +163,22 @@ static Object* DeepCopyBoilerplate(Heap* heap, JSObject* boilerplate) {
   switch (copy->GetElementsKind()) {
     case JSObject::FAST_ELEMENTS: {
       FixedArray* elements = FixedArray::cast(copy->elements());
-      for (int i = 0; i < elements->length(); i++) {
-        Object* value = elements->get(i);
-        if (value->IsJSObject()) {
-          JSObject* js_object = JSObject::cast(value);
-          result = DeepCopyBoilerplate(heap, js_object);
-          if (result->IsFailure()) return result;
-          elements->set(i, result);
+      if (elements->map() == HEAP->fixed_cow_array_map()) {
+        COUNTERS->cow_arrays_created_runtime()->Increment();
+#ifdef DEBUG
+        for (int i = 0; i < elements->length(); i++) {
+          ASSERT(!elements->get(i)->IsJSObject());
+        }
+#endif
+      } else {
+        for (int i = 0; i < elements->length(); i++) {
+          Object* value = elements->get(i);
+          if (value->IsJSObject()) {
+            JSObject* js_object = JSObject::cast(value);
+            result = DeepCopyBoilerplate(heap, js_object);
+            if (result->IsFailure()) return result;
+            elements->set(i, result);
+          }
         }
       }
       break;
@@ -311,13 +320,14 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
       }
       Handle<Object> result;
       uint32_t element_index = 0;
-      if (key->ToArrayIndex(&element_index)) {
+      if (key->IsSymbol()) {
+        // If key is a symbol it is not an array element.
+        Handle<String> name(String::cast(*key));
+        ASSERT(!name->AsArrayIndex(&element_index));
+        result = SetProperty(boilerplate, name, value, NONE);
+      } else if (key->ToArrayIndex(&element_index)) {
         // Array index (uint32).
         result = SetElement(boilerplate, element_index, value);
-      } else if (key->IsSymbol()) {
-        // The key is not an array index.
-        Handle<String> name(String::cast(*key));
-        result = SetProperty(boilerplate, name, value, NONE);
       } else {
         // Non-uint32 number.
         ASSERT(key->IsNumber());
@@ -348,18 +358,29 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
       JSFunction::GlobalContextFromLiterals(*literals)->array_function());
   Handle<Object> object = Factory::NewJSObject(constructor);
 
-  Handle<Object> copied_elements = Factory::CopyFixedArray(elements);
+  const bool is_cow = (elements->map() == HEAP->fixed_cow_array_map());
+  Handle<FixedArray> copied_elements =
+      is_cow ? elements : Factory::CopyFixedArray(elements);
 
   Handle<FixedArray> content = Handle<FixedArray>::cast(copied_elements);
-  for (int i = 0; i < content->length(); i++) {
-    if (content->get(i)->IsFixedArray()) {
-      // The value contains the constant_properties of a
-      // simple object literal.
-      Handle<FixedArray> fa(FixedArray::cast(content->get(i)));
-      Handle<Object> result =
-        CreateLiteralBoilerplate(literals, fa);
-      if (result.is_null()) return result;
-      content->set(i, *result);
+  if (is_cow) {
+#ifdef DEBUG
+    // Copy-on-write arrays must be shallow (and simple).
+    for (int i = 0; i < content->length(); i++) {
+      ASSERT(!content->get(i)->IsFixedArray());
+    }
+#endif
+  } else {
+    for (int i = 0; i < content->length(); i++) {
+      if (content->get(i)->IsFixedArray()) {
+        // The value contains the constant_properties of a
+        // simple object literal.
+        Handle<FixedArray> fa(FixedArray::cast(content->get(i)));
+        Handle<Object> result =
+            CreateLiteralBoilerplate(literals, fa);
+        if (result.is_null()) return result;
+        content->set(i, *result);
+      }
     }
   }
 
@@ -493,6 +514,10 @@ static Object* Runtime_CreateArrayLiteralShallow(RUNTIME_CALLING_CONVENTION) {
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
+  }
+  if (JSObject::cast(*boilerplate)->elements()->map() ==
+      isolate->heap()->fixed_cow_array_map()) {
+    COUNTERS->cow_arrays_created_runtime()->Increment();
   }
   return isolate->heap()->CopyJSObject(JSObject::cast(*boilerplate));
 }
@@ -1385,6 +1410,63 @@ static Object* Runtime_RegExpConstructResult(RUNTIME_CALLING_CONVENTION) {
 }
 
 
+static Object* Runtime_RegExpCloneResult(RUNTIME_CALLING_CONVENTION) {
+  ASSERT(args.length() == 1);
+  Map* regexp_result_map;
+  {
+    AssertNoAllocation no_gc;
+    HandleScope handles;
+    regexp_result_map = isolate->global_context()->regexp_result_map();
+  }
+  if (!args[0]->IsJSArray()) return args[0];
+
+  JSArray* result = JSArray::cast(args[0]);
+  // Arguments to RegExpCloneResult should always be fresh RegExp exec call
+  // results (either a fresh JSRegExpResult or null).
+  // If the argument is not a JSRegExpResult, or isn't unmodified, just return
+  // the argument uncloned.
+  if (result->map() != regexp_result_map) return result;
+
+  // Having the original JSRegExpResult map guarantees that we have
+  // fast elements and no properties except the two in-object properties.
+  ASSERT(result->HasFastElements());
+  ASSERT(result->properties() == HEAP->empty_fixed_array());
+  ASSERT_EQ(2, regexp_result_map->inobject_properties());
+
+  Object* new_array_alloc = HEAP->AllocateRaw(JSRegExpResult::kSize,
+                                              NEW_SPACE,
+                                              OLD_POINTER_SPACE);
+  if (new_array_alloc->IsFailure()) return new_array_alloc;
+
+  // Set HeapObject map to JSRegExpResult map.
+  reinterpret_cast<HeapObject*>(new_array_alloc)->set_map(regexp_result_map);
+
+  JSArray* new_array = JSArray::cast(new_array_alloc);
+
+  // Copy JSObject properties.
+  new_array->set_properties(result->properties());  // Empty FixedArray.
+
+  // Copy JSObject elements as copy-on-write.
+  FixedArray* elements = FixedArray::cast(result->elements());
+  if (elements != HEAP->empty_fixed_array()) {
+    elements->set_map(HEAP->fixed_cow_array_map());
+  }
+  new_array->set_elements(elements);
+
+  // Copy JSArray length.
+  new_array->set_length(result->length());
+
+  // Copy JSRegExpResult in-object property fields input and index.
+  new_array->FastPropertyAtPut(JSRegExpResult::kIndexIndex,
+                               result->FastPropertyAt(
+                                   JSRegExpResult::kIndexIndex));
+  new_array->FastPropertyAtPut(JSRegExpResult::kInputIndex,
+                               result->FastPropertyAt(
+                                   JSRegExpResult::kInputIndex));
+  return new_array;
+}
+
+
 static Object* Runtime_RegExpInitializeObject(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   AssertNoAllocation no_alloc;
@@ -1693,7 +1775,8 @@ static Object* Runtime_SetCode(RUNTIME_CALLING_CONVENTION) {
     }
     // Set the code, scope info, formal parameter count,
     // and the length of the target function.
-    target->set_code(fun->code());
+    target->shared()->set_code(shared->code());
+    target->set_code(shared->code());
     target->shared()->set_scope_info(shared->scope_info());
     target->shared()->set_length(shared->length());
     target->shared()->set_formal_parameter_count(
@@ -3558,7 +3641,7 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
   if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
 
   OffsetsVector registers(required_registers);
-  Vector<int> register_vector(registers.vector(), registers.length());
+  Vector<int32_t> register_vector(registers.vector(), registers.length());
   int subject_length = subject->length();
 
   for (;;) {  // Break on failure, return on exception.
@@ -3621,7 +3704,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
   if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
 
   OffsetsVector registers(required_registers);
-  Vector<int> register_vector(registers.vector(), registers.length());
+  Vector<int32_t> register_vector(registers.vector(), registers.length());
 
   RegExpImpl::IrregexpResult result =
       RegExpImpl::IrregexpExecOnce(regexp,
@@ -3681,7 +3764,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
       }
       // Swap register vectors, so the last successful match is in
       // prev_register_vector.
-      Vector<int> tmp = prev_register_vector;
+      Vector<int32_t> tmp = prev_register_vector;
       prev_register_vector = register_vector;
       register_vector = tmp;
 
@@ -6887,9 +6970,13 @@ static Object* Runtime_DateYMDFromTime(RUNTIME_CALLING_CONVENTION) {
   int year, month, day;
   DateYMDFromTime(static_cast<int>(floor(t / 86400000)), year, month, day);
 
-  res_array->SetElement(0, Smi::FromInt(year));
-  res_array->SetElement(1, Smi::FromInt(month));
-  res_array->SetElement(2, Smi::FromInt(day));
+  RUNTIME_ASSERT(res_array->elements()->map() == HEAP->fixed_array_map());
+  FixedArray* elms = FixedArray::cast(res_array->elements());
+  RUNTIME_ASSERT(elms->length() == 3);
+
+  elms->set(0, Smi::FromInt(year));
+  elms->set(1, Smi::FromInt(month));
+  elms->set(2, Smi::FromInt(day));
 
   return isolate->heap()->undefined_value();
 }
@@ -7066,7 +7153,7 @@ static Object* Runtime_LazyCompile(RUNTIME_CALLING_CONVENTION) {
 
   Handle<JSFunction> function = args.at<JSFunction>(0);
 #ifdef DEBUG
-  if (FLAG_trace_lazy) {
+  if (FLAG_trace_lazy && !function->shared()->is_compiled()) {
     PrintF("[lazy: ");
     function->shared()->name()->Print();
     PrintF("]\n");
@@ -8301,7 +8388,8 @@ static Object* Runtime_MoveArrayContents(RUNTIME_CALLING_CONVENTION) {
   CONVERT_CHECKED(JSArray, to, args[1]);
   HeapObject* new_elements = from->elements();
   Object* new_map;
-  if (new_elements->map() == isolate->heap()->fixed_array_map()) {
+  if (new_elements->map() == HEAP->fixed_array_map() ||
+      new_elements->map() == HEAP->fixed_cow_array_map()) {
     new_map = to->map()->GetFastElementsMap();
   } else {
     new_map = to->map()->GetSlowElementsMap();
@@ -10952,9 +11040,10 @@ Runtime::Function* Runtime::FunctionForId(FunctionId fid) {
 }
 
 
-Runtime::Function* Runtime::FunctionForName(const char* name) {
+Runtime::Function* Runtime::FunctionForName(Vector<const char> name) {
   for (Function* f = Runtime_functions; f->name != NULL; f++) {
-    if (strcmp(f->name, name) == 0) {
+    if (strncmp(f->name, name.start(), name.length()) == 0
+        && f->name[name.length()] == 0) {
       return f;
     }
   }

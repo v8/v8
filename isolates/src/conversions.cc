@@ -776,6 +776,17 @@ double StringToDouble(const char* str, int flags, double empty_string_val) {
 }
 
 
+double StringToDouble(Vector<const char> str,
+                      int flags,
+                      double empty_string_val) {
+  ScannerCharacterClasses* character_classes =
+      Isolate::Current()->scanner_character_classes();
+  const char* end = str.start() + str.length();
+  return InternalStringToDouble(character_classes, str.start(), end, flags,
+                                empty_string_val);
+}
+
+
 extern "C" char* dtoa(double d, int mode, int ndigits,
                       int* decpt, int* sign, char** rve);
 

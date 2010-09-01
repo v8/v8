@@ -140,6 +140,9 @@ class MarkCompactCollector {
     force_compaction_ = value;
   }
 
+
+  static void Initialize();
+
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
   void Prepare(GCTracer* tracer);
@@ -227,6 +230,11 @@ class MarkCompactCollector {
 
   friend class RootMarkingVisitor;
   friend class MarkingVisitor;
+  friend class StaticMarkingVisitor;
+  friend class CodeMarkingVisitor;
+  friend class SharedFunctionInfoMarkingVisitor;
+
+  static void PrepareForCodeFlushing();
 
   // Marking operations for objects reachable from roots.
   void MarkLiveObjects();
@@ -264,17 +272,17 @@ class MarkCompactCollector {
   // Mark all objects in an object group with at least one marked
   // object, then all objects reachable from marked objects in object
   // groups, and repeat.
-  void ProcessObjectGroups(MarkingVisitor* visitor);
+  void ProcessObjectGroups();
 
   // Mark objects reachable (transitively) from objects in the marking stack
   // or overflowed in the heap.
-  void ProcessMarkingStack(MarkingVisitor* visitor);
+  void ProcessMarkingStack();
 
   // Mark objects reachable (transitively) from objects in the marking
   // stack.  This function empties the marking stack, but may leave
   // overflowed objects in the heap, in which case the marking stack's
   // overflow flag will be set.
-  void EmptyMarkingStack(MarkingVisitor* visitor);
+  void EmptyMarkingStack();
 
   // Refill the marking stack with overflowed objects from the heap.  This
   // function either leaves the marking stack full or clears the overflow

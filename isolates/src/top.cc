@@ -89,16 +89,15 @@ void Isolate::IterateThread(ThreadVisitor* v, char* t) {
 void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   v->VisitPointer(&(thread->pending_exception_));
   v->VisitPointer(&(thread->pending_message_obj_));
-  v->VisitPointer(
-      BitCast<Object**, Script**>(&(thread->pending_message_script_)));
-  v->VisitPointer(BitCast<Object**, Context**>(&(thread->context_)));
+  v->VisitPointer(BitCast<Object**>(&(thread->pending_message_script_)));
+  v->VisitPointer(BitCast<Object**>(&(thread->context_)));
   v->VisitPointer(&(thread->scheduled_exception_));
 
   for (v8::TryCatch* block = thread->TryCatchHandler();
        block != NULL;
        block = TRY_CATCH_FROM_ADDRESS(block->next_)) {
-    v->VisitPointer(BitCast<Object**, void**>(&(block->exception_)));
-    v->VisitPointer(BitCast<Object**, void**>(&(block->message_)));
+    v->VisitPointer(BitCast<Object**>(&(block->exception_)));
+    v->VisitPointer(BitCast<Object**>(&(block->message_)));
   }
 
   // Iterate over pointers on native execution stack.
@@ -349,7 +348,6 @@ void Isolate::PrintStack(StringStream* accumulator) {
 
 void Isolate::SetFailedAccessCheckCallback(
     v8::FailedAccessCheckCallback callback) {
-  ASSERT(thread_local_top()->failed_access_check_callback_ == NULL);
   thread_local_top()->failed_access_check_callback_ = callback;
 }
 
@@ -359,8 +357,6 @@ void Isolate::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
 
   ASSERT(receiver->IsAccessCheckNeeded());
   ASSERT(context());
-  // The callers of this method are not expecting a GC.
-  AssertNoAllocation no_gc;
 
   // Get the data object from access check info.
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
@@ -465,8 +461,6 @@ bool Isolate::MayIndexedAccess(JSObject* receiver,
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
   ASSERT(context());
-  // The callers of this method are not expecting a GC.
-  AssertNoAllocation no_gc;
 
   MayAccessDecision decision = MayAccessPreCheck(this, receiver, type);
   if (decision != UNKNOWN) return decision == YES;

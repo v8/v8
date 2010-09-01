@@ -194,10 +194,10 @@ class HeapGraphNode;
 class V8EXPORT HeapGraphEdge {
  public:
   enum Type {
-    CONTEXT_VARIABLE = 0,  // A variable from a function context.
-    ELEMENT = 1,           // An element of an array.
-    PROPERTY = 2,          // A named object property.
-    INTERNAL = 3           // A link that can't be accessed from JS,
+    kContextVariable = 0,  // A variable from a function context.
+    kElement = 1,          // An element of an array.
+    kProperty = 2,         // A named object property.
+    kInternal = 3          // A link that can't be accessed from JS,
                            // thus, its name isn't a real property name.
   };
 
@@ -240,12 +240,12 @@ class V8EXPORT HeapGraphPath {
 class V8EXPORT HeapGraphNode {
  public:
   enum Type {
-    INTERNAL = 0,   // Internal node, a virtual one, for housekeeping.
-    ARRAY = 1,      // An array of elements.
-    STRING = 2,     // A string.
-    OBJECT = 3,     // A JS object (except for arrays and strings).
-    CODE = 4,       // Compiled code.
-    CLOSURE = 5     // Function closure.
+    kInternal = 0,   // Internal node, a virtual one, for housekeeping.
+    kArray = 1,      // An array of elements.
+    kString = 2,     // A string.
+    kObject = 3,     // A JS object (except for arrays and strings).
+    kCode = 4,       // Compiled code.
+    kClosure = 5     // Function closure.
   };
 
   /** Returns node type (see HeapGraphNode::Type). */
@@ -260,21 +260,30 @@ class V8EXPORT HeapGraphNode {
 
   /**
    * Returns node id. For the same heap object, the id remains the same
-   * across all snapshots.
+   * across all snapshots. Not applicable to aggregated heap snapshots
+   * as they only contain aggregated instances.
    */
   uint64_t GetId() const;
+
+  /**
+   * Returns the number of instances. Only applicable to aggregated
+   * heap snapshots.
+   */
+  int GetInstancesCount() const;
 
   /** Returns node's own size, in bytes. */
   int GetSelfSize() const;
 
   /** Returns node's network (self + reachable nodes) size, in bytes. */
-  int GetTotalSize() const;
+  int GetReachableSize() const;
 
   /**
-   * Returns node's private size, in bytes. That is, the size of memory
-   * that will be reclaimed having this node collected.
+   * Returns node's retained size, in bytes. That is, self + sizes of
+   * the objects that are reachable only from this object. In other
+   * words, the size of memory that will be reclaimed having this node
+   * collected.
    */
-  int GetPrivateSize() const;
+  int GetRetainedSize() const;
 
   /** Returns child nodes count of the node. */
   int GetChildrenCount() const;
@@ -311,6 +320,15 @@ class V8EXPORT HeapSnapshotsDiff {
  */
 class V8EXPORT HeapSnapshot {
  public:
+  enum Type {
+    kFull = 0,       // Heap snapshot with all instances and references.
+    kAggregated = 1  // Snapshot doesn't contain individual heap entries,
+                     //instead they are grouped by constructor name.
+  };
+
+  /** Returns heap snapshot type. */
+  Type GetType() const;
+
   /** Returns heap snapshot UID (assigned by the profiler.) */
   unsigned GetUid() const;
 
@@ -320,7 +338,10 @@ class V8EXPORT HeapSnapshot {
   /** Returns the root node of the heap graph. */
   const HeapGraphNode* GetRoot() const;
 
-  /** Returns a diff between this snapshot and another one. */
+  /**
+   * Returns a diff between this snapshot and another one. Only snapshots
+   * of the same type can be compared.
+   */
   const HeapSnapshotsDiff* CompareWith(const HeapSnapshot* snapshot) const;
 };
 
@@ -339,8 +360,13 @@ class V8EXPORT HeapProfiler {
   /** Returns a profile by uid. */
   static const HeapSnapshot* FindSnapshot(unsigned uid);
 
-  /** Takes a heap snapshot and returns it. Title may be an empty string. */
-  static const HeapSnapshot* TakeSnapshot(Handle<String> title);
+  /**
+   * Takes a heap snapshot and returns it. Title may be an empty string.
+   * See HeapSnapshot::Type for types description.
+   */
+  static const HeapSnapshot* TakeSnapshot(
+      Handle<String> title,
+      HeapSnapshot::Type type = HeapSnapshot::kFull);
 };
 
 

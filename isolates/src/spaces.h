@@ -199,6 +199,10 @@ class Page {
 
   inline void SetIsLargeObjectPage(bool is_large_object_page);
 
+  inline bool IsPageExecutable();
+
+  inline void SetIsPageExecutable(bool is_page_executable);
+
   // Returns the offset of a given address to this page.
   INLINE(int Offset(Address a)) {
     int offset = static_cast<int>(a - address());
@@ -258,13 +262,16 @@ class Page {
   STATIC_CHECK(kRegionSize == kPageSize / kBitsPerInt);
 
   enum PageFlag {
-    IS_NORMAL_PAGE = 1 << 0,
-    WAS_IN_USE_BEFORE_MC = 1 << 1,
+    IS_NORMAL_PAGE = 0,
+    WAS_IN_USE_BEFORE_MC,
 
     // Page allocation watermark was bumped by preallocation during scavenge.
     // Correct watermark can be retrieved by CachedAllocationWatermark() method
-    WATERMARK_INVALIDATED = 1 << 2
+    WATERMARK_INVALIDATED,
+    IS_EXECUTABLE,
+    NUM_PAGE_FLAGS  // Must be last
   };
+  static const int kPageFlagMask = (1 << NUM_PAGE_FLAGS) - 1;
 
   // To avoid an additional WATERMARK_INVALIDATED flag clearing pass during
   // scavenge we just invalidate the watermark on each old space page after
@@ -293,7 +300,7 @@ class Page {
 
   inline void ClearGCFields();
 
-  static const int kAllocationWatermarkOffsetShift = 3;
+  static const int kAllocationWatermarkOffsetShift = WATERMARK_INVALIDATED + 1;
   static const int kAllocationWatermarkOffsetBits  = kPageSizeBits + 1;
   static const uint32_t kAllocationWatermarkOffsetMask =
       ((1 << kAllocationWatermarkOffsetBits) - 1) <<
@@ -562,13 +569,18 @@ class MemoryAllocator {
   void* AllocateRawMemory(const size_t requested,
                           size_t* allocated,
                           Executability executable);
-  void FreeRawMemory(void* buf, size_t length);
+  void FreeRawMemory(void* buf,
+                     size_t length,
+                     Executability executable);
 
   // Returns the maximum available bytes of heaps.
   int Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
 
   // Returns allocated spaces in bytes.
   int Size() { return size_; }
+
+  // Returns allocated executable spaces in bytes.
+  static int SizeExecutable() { return size_executable_; }
 
   // Returns maximum available bytes that the old space can have.
   int MaxAvailable() {
@@ -633,6 +645,8 @@ class MemoryAllocator {
   // Maximum space size in bytes.
   int capacity_;
 
+  // Allocated executable space size in bytes.
+  static int size_executable_;
   // Allocated space size in bytes.
   int size_;
 
@@ -642,20 +656,23 @@ class MemoryAllocator {
   // Allocated chunk info: chunk start address, chunk size, and owning space.
   class ChunkInfo BASE_EMBEDDED {
    public:
-    ChunkInfo() : address_(NULL), size_(0), owner_(NULL) {}
-    void init(Address a, size_t s, PagedSpace* o) {
-      address_ = a;
-      size_ = s;
-      owner_ = o;
-    }
+    ChunkInfo() : address_(NULL),
+                  size_(0),
+                  owner_(NULL),
+                  executable_(NOT_EXECUTABLE) {}
+    inline void init(Address a, size_t s, PagedSpace* o);
     Address address() { return address_; }
     size_t size() { return size_; }
     PagedSpace* owner() { return owner_; }
+    // We save executability of the owner to allow using it
+    // when collecting stats after the owner has been destroyed.
+    Executability executable() const { return executable_; }
 
    private:
     Address address_;
     size_t size_;
     PagedSpace* owner_;
+    Executability executable_;
   };
 
   // Chunks_, free_chunk_ids_ and top_ act as a stack of free chunk ids.
@@ -2071,7 +2088,7 @@ class LargeObjectChunk {
   LargeObjectChunk* next() { return next_; }
   void set_next(LargeObjectChunk* chunk) { next_ = chunk; }
 
-  size_t size() { return size_; }
+  size_t size() { return size_ & ~Page::kPageFlagMask; }
   void set_size(size_t size_in_bytes) { size_ = size_in_bytes; }
 
   // Returns the object in this chunk.

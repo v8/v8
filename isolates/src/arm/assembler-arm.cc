@@ -1821,6 +1821,7 @@ void Assembler::vldr(const DwVfpRegister dst,
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
+  ASSERT(offset >= 0);
   emit(cond | 0xD9*B20 | base.code()*B16 | dst.code()*B12 |
        0xB*B8 | ((offset / 4) & 255));
 }
@@ -1837,6 +1838,7 @@ void Assembler::vldr(const SwVfpRegister dst,
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
+  ASSERT(offset >= 0);
   emit(cond | 0xD9*B20 | base.code()*B16 | dst.code()*B12 |
        0xA*B8 | ((offset / 4) & 255));
 }
@@ -1853,8 +1855,26 @@ void Assembler::vstr(const DwVfpRegister src,
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
+  ASSERT(offset >= 0);
   emit(cond | 0xD8*B20 | base.code()*B16 | src.code()*B12 |
        0xB*B8 | ((offset / 4) & 255));
+}
+
+
+void Assembler::vstr(const SwVfpRegister src,
+                     const Register base,
+                     int offset,
+                     const Condition cond) {
+  // MEM(Rbase + offset) = SSrc.
+  // Instruction details available in ARM DDI 0406A, A8-786.
+  // cond(31-28) | 1101(27-24)| 1000(23-20) | Rbase(19-16) |
+  // Vdst(15-12) | 1010(11-8) | (offset/4)
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
+  ASSERT(offset % 4 == 0);
+  ASSERT((offset / 4) < 256);
+  ASSERT(offset >= 0);
+  emit(cond | 0xD8*B20 | base.code()*B16 | src.code()*B12 |
+       0xA*B8 | ((offset / 4) & 255));
 }
 
 
@@ -2274,6 +2294,21 @@ void Assembler::vcmp(const DwVfpRegister src1,
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(cond | 0xE*B24 |B23 | 0x3*B20 | B18 |
        src1.code()*B12 | 0x5*B9 | B8 | B6 | src2.code());
+}
+
+
+void Assembler::vcmp(const DwVfpRegister src1,
+                     const double src2,
+                     const SBit s,
+                     const Condition cond) {
+  // vcmp(Dd, Dm) double precision floating point comparison.
+  // Instruction details available in ARM DDI 0406A, A8-570.
+  // cond(31-28) | 11101 (27-23)| D=?(22) | 11 (21-20) | 0101 (19-16) |
+  // Vd(15-12) | 101(11-9) | sz(8)=1 | E(7)=? | 1(6) | M(5)=? | 0(4) | 0000(3-0)
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
+  ASSERT(src2 == 0.0);
+  emit(cond | 0xE*B24 |B23 | 0x3*B20 | B18 | B16 |
+       src1.code()*B12 | 0x5*B9 | B8 | B6);
 }
 
 

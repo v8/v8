@@ -792,20 +792,32 @@ bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
 bool CompileLazy(Handle<JSFunction> function,
                  Handle<Object> receiver,
                  ClearExceptionFlag flag) {
-  CompilationInfo info(function, 0, receiver);
-  bool result = CompileLazyHelper(&info, flag);
-  PROFILE(FunctionCreateEvent(*function));
-  return result;
+  if (function->shared()->is_compiled()) {
+    function->set_code(function->shared()->code());
+    function->shared()->set_code_age(0);
+    return true;
+  } else {
+    CompilationInfo info(function, 0, receiver);
+    bool result = CompileLazyHelper(&info, flag);
+    PROFILE(FunctionCreateEvent(*function));
+    return result;
+  }
 }
 
 
 bool CompileLazyInLoop(Handle<JSFunction> function,
                        Handle<Object> receiver,
                        ClearExceptionFlag flag) {
-  CompilationInfo info(function, 1, receiver);
-  bool result = CompileLazyHelper(&info, flag);
-  PROFILE(FunctionCreateEvent(*function));
-  return result;
+  if (function->shared()->is_compiled()) {
+    function->set_code(function->shared()->code());
+    function->shared()->set_code_age(0);
+    return true;
+  } else {
+    CompilationInfo info(function, 1, receiver);
+    bool result = CompileLazyHelper(&info, flag);
+    PROFILE(FunctionCreateEvent(*function));
+    return result;
+  }
 }
 
 
@@ -827,12 +839,6 @@ OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
   } else {
     has_been_transformed_ = false;
   }
-}
-
-
-Handle<Code> ComputeLazyCompile(int argc) {
-  CALL_HEAP_FUNCTION(Isolate::Current()->stub_cache()->ComputeLazyCompile(argc),
-                     Code);
 }
 
 

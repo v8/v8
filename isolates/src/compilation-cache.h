@@ -64,10 +64,9 @@ class CompilationSubCache {
   // young generation.
   void Age();
 
-  bool HasFunction(SharedFunctionInfo* function_info);
-
   // GC support.
   void Iterate(ObjectVisitor* v);
+  void IterateFunctions(ObjectVisitor* v);
 
   // Clear this sub-cache evicting all its content.
   void Clear();
@@ -203,11 +202,9 @@ class CompilationCache {
   // Clear the cache - also used to initialize the cache at startup.
   void Clear();
 
-
-  bool HasFunction(SharedFunctionInfo* function_info);
-
   // GC support.
   void Iterate(ObjectVisitor* v);
+  void IterateFunctions(ObjectVisitor* v);
 
   // Notify the cache that a mark-sweep garbage collection is about to
   // take place. This is used to retire entries from the cache to

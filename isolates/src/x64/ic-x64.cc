@@ -487,6 +487,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
 
 
 // Loads an indexed element from a fast case array.
+// If not_fast_array is NULL, doesn't perform the elements map check.
 static void GenerateFastArrayLoad(MacroAssembler* masm,
                                   Register receiver,
                                   Register key,
@@ -515,10 +516,14 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   //   scratch - used to hold elements of the receiver and the loaded value.
 
   __ movq(elements, FieldOperand(receiver, JSObject::kElementsOffset));
-  // Check that the object is in fast mode (not dictionary).
-  __ CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
-                 Heap::kFixedArrayMapRootIndex);
-  __ j(not_equal, not_fast_array);
+  if (not_fast_array != NULL) {
+    // Check that the object is in fast mode and writable.
+    __ CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
+                   Heap::kFixedArrayMapRootIndex);
+    __ j(not_equal, not_fast_array);
+  } else {
+    __ AssertFastElements(elements);
+  }
   // Check that the key (index) is within bounds.
   __ SmiCompare(key, FieldOperand(elements, FixedArray::kLengthOffset));
   // Unsigned comparison rejects negative indices.
@@ -611,13 +616,19 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateKeyedLoadReceiverCheck(
       masm, rdx, rcx, Map::kHasIndexedInterceptor, &slow);
 
+  // Check the "has fast elements" bit in the receiver's map which is
+  // now in rcx.
+  __ testb(FieldOperand(rcx, Map::kBitField2Offset),
+           Immediate(1 << Map::kHasFastElements));
+  __ j(zero, &check_pixel_array);
+
   GenerateFastArrayLoad(masm,
                         rdx,
                         rax,
                         rcx,
                         rbx,
                         rax,
-                        &check_pixel_array,
+                        NULL,
                         &slow);
   __ IncrementCounter(COUNTERS->keyed_load_generic_smi(), 1);
   __ ret(0);
@@ -626,7 +637,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Check whether the elements object is a pixel array.
   // rdx: receiver
   // rax: key
-  // rcx: elements array
+  __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
   __ SmiToInteger32(rbx, rax);  // Used on both directions of next branch.
   __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
                  Heap::kPixelArrayMapRootIndex);
@@ -1012,7 +1023,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rdx: JSObject
   // rcx: index
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
-  // Check that the object is in fast mode (not dictionary).
+  // Check that the object is in fast mode and writable.
   __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
                  Heap::kFixedArrayMapRootIndex);
   __ j(not_equal, &check_pixel_array);
@@ -1075,8 +1086,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ jmp(&fast);
 
   // Array case: Get the length and the elements array from the JS
-  // array. Check that the array is in fast mode; if it is the
-  // length is always a smi.
+  // array. Check that the array is in fast mode (and writable); if it
+  // is the length is always a smi.
   __ bind(&array);
   // rax: value
   // rdx: receiver (a JSArray)
@@ -1866,6 +1877,8 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   __ j(not_equal, &miss);
 
   // Check that elements are FixedArray.
+  // We rely on StoreIC_ArrayLength below to deal with all types of
+  // fast elements (including COW).
   __ movq(scratch, FieldOperand(receiver, JSArray::kElementsOffset));
   __ CmpObjectType(scratch, FIXED_ARRAY_TYPE, scratch);
   __ j(not_equal, &miss);

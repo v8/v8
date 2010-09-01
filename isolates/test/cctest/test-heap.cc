@@ -36,8 +36,8 @@ TEST(HeapMaps) {
   InitializeVM();
   CheckMap(HEAP->meta_map(), MAP_TYPE, Map::kSize);
   CheckMap(HEAP->heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
-  CheckMap(HEAP->fixed_array_map(), FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
-  CheckMap(HEAP->string_map(), STRING_TYPE, SeqTwoByteString::kAlignedSize);
+  CheckMap(HEAP->fixed_array_map(), FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+  CheckMap(HEAP->string_map(), STRING_TYPE, kVariableSizeSentinel);
 }
 
 
@@ -987,9 +987,10 @@ TEST(TestCodeFlushing) {
   HEAP->CollectAllGarbage(true);
   HEAP->CollectAllGarbage(true);
 
-  // foo should still be in the compilation cache and therefore not
-  // have been removed.
   CHECK(function->shared()->is_compiled());
+
+  HEAP->CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
   HEAP->CollectAllGarbage(true);
   HEAP->CollectAllGarbage(true);
   HEAP->CollectAllGarbage(true);
@@ -997,7 +998,9 @@ TEST(TestCodeFlushing) {
 
   // foo should no longer be in the compilation cache
   CHECK(!function->shared()->is_compiled());
+  CHECK(!function->is_compiled());
   // Call foo to get it recompiled.
   CompileRun("foo()");
   CHECK(function->shared()->is_compiled());
+  CHECK(function->is_compiled());
 }

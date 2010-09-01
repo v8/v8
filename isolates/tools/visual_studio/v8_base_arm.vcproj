@@ -277,6 +277,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\arm\code-stubs-arm.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\arm\code-stubs-arm.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\code.h"
 				>
 			</File>
@@ -432,18 +440,6 @@
 				RelativePath="..\..\src\factory.h"
 				>
 			</File>
-                        <File
-                                RelativePath="..\..\src\arm\fast-codegen-arm.cc"
-                                >
-                        </File>
-                        <File
-                                RelativePath="..\..\src\fast-codegen.cc"
-                                >
-                        </File>
-                        <File
-                                RelativePath="..\..\src\fast-codegen.h"
-                                >
-                        </File>
 			<File
 				RelativePath="..\..\src\flags.cc"
 				>
@@ -712,6 +708,13 @@
 				RelativePath="..\..\src\objects-inl.h"
 				>
 			</File>
+			<File
+				RelativePath="..\..\src\objects-visiting.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\objects-visiting.h"
+				>
 			<File
 				RelativePath="..\..\src\objects.cc"
 				>

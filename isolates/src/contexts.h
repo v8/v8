@@ -56,6 +56,7 @@ enum ContextLookupFlags {
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function) \
   V(NUMBER_FUNCTION_INDEX, JSFunction, number_function) \
   V(STRING_FUNCTION_INDEX, JSFunction, string_function) \
+  V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map) \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function) \
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function) \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function) \
@@ -85,6 +86,7 @@ enum ContextLookupFlags {
   V(CONFIGURE_GLOBAL_INDEX, JSFunction, configure_global_fun) \
   V(FUNCTION_CACHE_INDEX, JSObject, function_cache) \
   V(JSFUNCTION_RESULT_CACHES_INDEX, FixedArray, jsfunction_result_caches) \
+  V(NORMALIZED_MAP_CACHE_INDEX, NormalizedMapCache, normalized_map_cache) \
   V(RUNTIME_CONTEXT_INDEX, Context, runtime_context) \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate) \
   V(CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, JSFunction, \
@@ -186,6 +188,7 @@ class Context: public FixedArray {
     BOOLEAN_FUNCTION_INDEX,
     NUMBER_FUNCTION_INDEX,
     STRING_FUNCTION_INDEX,
+    STRING_FUNCTION_PROTOTYPE_MAP_INDEX,
     OBJECT_FUNCTION_INDEX,
     ARRAY_FUNCTION_INDEX,
     DATE_FUNCTION_INDEX,
@@ -209,6 +212,7 @@ class Context: public FixedArray {
     CONFIGURE_GLOBAL_INDEX,
     FUNCTION_CACHE_INDEX,
     JSFUNCTION_RESULT_CACHES_INDEX,
+    NORMALIZED_MAP_CACHE_INDEX,
     RUNTIME_CONTEXT_INDEX,
     CALL_AS_FUNCTION_DELEGATE_INDEX,
     CALL_AS_CONSTRUCTOR_DELEGATE_INDEX,

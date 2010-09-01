@@ -80,9 +80,20 @@ static void ExpectTrue(const char* code) {
 }
 
 
+static void ExpectFalse(const char* code) {
+  ExpectBoolean(code, false);
+}
+
+
 static void ExpectObject(const char* code, Local<Value> expected) {
   Local<Value> result = CompileRun(code);
   CHECK(result->Equals(expected));
+}
+
+
+static void ExpectUndefined(const char* code) {
+  Local<Value> result = CompileRun(code);
+  CHECK(result->IsUndefined());
 }
 
 
@@ -1193,12 +1204,12 @@ v8::Handle<Value> CheckThisNamedPropertySetter(Local<String> property,
   return v8::Handle<Value>();
 }
 
-v8::Handle<v8::Boolean> CheckThisIndexedPropertyQuery(
+v8::Handle<v8::Integer> CheckThisIndexedPropertyQuery(
     uint32_t index,
     const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Boolean>();
+  return v8::Handle<v8::Integer>();
 }
 
 
@@ -8334,6 +8345,31 @@ THREADED_TEST(PropertyEnumeration) {
   CheckProperties(elms->Get(v8::Integer::New(3)), elmc3, elmv3);
 }
 
+THREADED_TEST(PropertyEnumeration2) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::Value> obj = v8::Script::Compile(v8::String::New(
+      "var result = [];"
+      "result[0] = {};"
+      "result[1] = {a: 1, b: 2};"
+      "result[2] = [1, 2, 3];"
+      "var proto = {x: 1, y: 2, z: 3};"
+      "var x = { __proto__: proto, w: 0, z: 1 };"
+      "result[3] = x;"
+      "result;"))->Run();
+  v8::Handle<v8::Array> elms = obj.As<v8::Array>();
+  CHECK_EQ(4, elms->Length());
+  int elmc0 = 0;
+  const char** elmv0 = NULL;
+  CheckProperties(elms->Get(v8::Integer::New(0)), elmc0, elmv0);
+
+  v8::Handle<v8::Value> val = elms->Get(v8::Integer::New(0));
+  v8::Handle<v8::Array> props = val.As<v8::Object>()->GetPropertyNames();
+  CHECK_EQ(0, props->Length());
+  for (uint32_t i = 0; i < props->Length(); i++) {
+    printf("p[%d]\n", i);
+  }
+}
 
 static bool NamedSetAccessBlocker(Local<v8::Object> obj,
                                   Local<Value> name,
@@ -9194,6 +9230,7 @@ class RegExpStringModificationTest {
            morphs_ < kMaxModifications) {
       int morphs_before = morphs_;
       {
+        v8::HandleScope scope;
         // Match 15-30 "a"'s against 14 and a "b".
         const char* c_source =
             "/a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaa/"
@@ -11191,6 +11228,92 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
   CHECK_EQ(static_cast<int32_t>('e'), reresult->Int32Value());
 }
 
+
+// Failed access check callback that performs a GC on each invocation.
+void FailedAccessCheckCallbackGC(Local<v8::Object> target,
+                                 v8::AccessType type,
+                                 Local<v8::Value> data) {
+  HEAP->CollectAllGarbage(true);
+}
+
+
+TEST(GCInFailedAccessCheckCallback) {
+  // Install a failed access check callback that performs a GC on each
+  // invocation. Then force the callback to be called from va
+
+  v8::V8::Initialize();
+  v8::V8::SetFailedAccessCheckCallbackFunction(&FailedAccessCheckCallbackGC);
+
+  v8::HandleScope scope;
+
+  // Create an ObjectTemplate for global objects and install access
+  // check callbacks that will block access.
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetAccessCheckCallbacks(NamedGetAccessBlocker,
+                                           IndexedGetAccessBlocker,
+                                           v8::Handle<v8::Value>(),
+                                           false);
+
+  // Create a context and set an x property on it's global object.
+  LocalContext context0(NULL, global_template);
+  context0->Global()->Set(v8_str("x"), v8_num(42));
+  v8::Handle<v8::Object> global0 = context0->Global();
+
+  // Create a context with a different security token so that the
+  // failed access check callback will be called on each access.
+  LocalContext context1(NULL, global_template);
+  context1->Global()->Set(v8_str("other"), global0);
+
+  // Get property with failed access check.
+  ExpectUndefined("other.x");
+
+  // Get element with failed access check.
+  ExpectUndefined("other[0]");
+
+  // Set property with failed access check.
+  v8::Handle<v8::Value> result = CompileRun("other.x = new Object()");
+  CHECK(result->IsObject());
+
+  // Set element with failed access check.
+  result = CompileRun("other[0] = new Object()");
+  CHECK(result->IsObject());
+
+  // Get property attribute with failed access check.
+  ExpectFalse("\'x\' in other");
+
+  // Get property attribute for element with failed access check.
+  ExpectFalse("0 in other");
+
+  // Delete property.
+  ExpectFalse("delete other.x");
+
+  // Delete element.
+  CHECK_EQ(false, global0->Delete(0));
+
+  // DefineAccessor.
+  CHECK_EQ(false,
+           global0->SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("x")));
+
+  // Define JavaScript accessor.
+  ExpectUndefined("Object.prototype.__defineGetter__.call("
+                  "    other, \'x\', function() { return 42; })");
+
+  // LookupAccessor.
+  ExpectUndefined("Object.prototype.__lookupGetter__.call("
+                  "    other, \'x\')");
+
+  // HasLocalElement.
+  ExpectFalse("Object.prototype.hasOwnProperty.call(other, \'0\')");
+
+  CHECK_EQ(false, global0->HasRealIndexedProperty(0));
+  CHECK_EQ(false, global0->HasRealNamedProperty(v8_str("x")));
+  CHECK_EQ(false, global0->HasRealNamedCallbackProperty(v8_str("x")));
+
+  // Reset the failed access check callback so it does not influence
+  // the other tests.
+  v8::V8::SetFailedAccessCheckCallbackFunction(NULL);
+}
+
 TEST(DefaultIsolateGetCurrent) {
   CHECK(v8::Isolate::GetCurrent() != NULL);
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -11217,7 +11340,7 @@ TEST(IsolateEnterExitDefault) {
   v8::HandleScope scope;
   LocalContext context;
   v8::Isolate* current_isolate = v8::Isolate::GetCurrent();
-  CHECK(current_isolate != NULL); // Default isolate.
+  CHECK(current_isolate != NULL);  // Default isolate.
   ExpectString("'hello'", "hello");
   current_isolate->Enter();
   ExpectString("'still working'", "still working");
@@ -11260,7 +11383,7 @@ TEST(RunDefaultAndAnotherIsolate) {
     // so we need all scope objects to be deconstructed when it happens.
     v8::HandleScope scope_new;
     LocalContext context_new;
-  
+
     // Run something in new isolate.
     CompileRun("var foo = 153;");
     ExpectTrue("function f() { return foo == 153; }; f()");
@@ -11431,10 +11554,10 @@ TEST(MultipleIsolatesOnIndividualThreads) {
 
   // Compare results. The actual fibonacci numbers for 12 and 21 are taken
   // (I'm lazy!) from http://en.wikipedia.org/wiki/Fibonacci_number
-  CHECK(result1 == 10946);
-  CHECK(result2 == 144);
-  CHECK(result1 == thread1.result());
-  CHECK(result2 == thread2.result());
+  CHECK_EQ(result1, 10946);
+  CHECK_EQ(result2, 144);
+  CHECK_EQ(result1, thread1.result());
+  CHECK_EQ(result2, thread2.result());
 
   isolate1->Dispose();
   isolate2->Dispose();

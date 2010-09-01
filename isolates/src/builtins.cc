@@ -270,6 +270,7 @@ static void CopyElements(Heap* heap,
                          int src_index,
                          int len) {
   ASSERT(dst != src);  // Use MoveElements instead.
+  ASSERT(dst->map() != HEAP->fixed_cow_array_map());
   ASSERT(len > 0);
   CopyWords(dst->data_start() + dst_index,
             src->data_start() + src_index,
@@ -288,6 +289,7 @@ static void MoveElements(Heap* heap,
                          FixedArray* src,
                          int src_index,
                          int len) {
+  ASSERT(dst->map() != HEAP->fixed_cow_array_map());
   memmove(dst->data_start() + dst_index,
           src->data_start() + src_index,
           len * kPointerSize);
@@ -299,6 +301,7 @@ static void MoveElements(Heap* heap,
 
 
 static void FillWithHoles(Heap* heap, FixedArray* dst, int from, int to) {
+  ASSERT(dst->map() != heap->fixed_cow_array_map());
   MemsetPointer(dst->data_start() + from, heap->the_hole_value(), to - from);
 }
 
@@ -306,12 +309,11 @@ static void FillWithHoles(Heap* heap, FixedArray* dst, int from, int to) {
 static FixedArray* LeftTrimFixedArray(Heap* heap,
                                       FixedArray* elms,
                                       int to_trim) {
-  // For now this trick is only applied to fixed arrays in new space.
+  ASSERT(elms->map() != HEAP->fixed_cow_array_map());
+  // For now this trick is only applied to fixed arrays in new and paged space.
   // In large object space the object's start must coincide with chunk
   // and thus the trick is just not applicable.
-  // In old space we do not use this trick to avoid dealing with
-  // region dirty marks.
-  ASSERT(heap->new_space()->Contains(elms));
+  ASSERT(!HEAP->lo_space()->Contains(elms));
 
   STATIC_ASSERT(FixedArray::kMapOffset == 0);
   STATIC_ASSERT(FixedArray::kLengthOffset == kPointerSize);
@@ -321,6 +323,17 @@ static FixedArray* LeftTrimFixedArray(Heap* heap,
 
   const int len = elms->length();
 
+  if (to_trim > FixedArray::kHeaderSize / kPointerSize &&
+      !heap->new_space()->Contains(elms)) {
+    // If we are doing a big trim in old space then we zap the space that was
+    // formerly part of the array so that the GC (aided by the card-based
+    // remembered set) won't find pointers to new-space there.
+    Object** zap = reinterpret_cast<Object**>(elms->address());
+    zap++;  // Header of filler must be at least one word so skip that.
+    for (int i = 1; i < to_trim; i++) {
+      *zap++ = Smi::FromInt(0);
+    }
+  }
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
@@ -329,9 +342,8 @@ static FixedArray* LeftTrimFixedArray(Heap* heap,
   former_start[to_trim] = heap->fixed_array_map();
   former_start[to_trim + 1] = Smi::FromInt(len - to_trim);
 
-  ASSERT_EQ(elms->address() + to_trim * kPointerSize,
-            (elms + to_trim * kPointerSize)->address());
-  return elms + to_trim * kPointerSize;
+  return FixedArray::cast(HeapObject::FromAddress(
+      elms->address() + to_trim * kPointerSize));
 }
 
 
@@ -353,36 +365,26 @@ static bool ArrayPrototypeHasNoElements(Heap* heap,
 }
 
 
-static bool IsJSArrayWithFastElements(Heap* heap,
-                                      Object* receiver,
-                                      FixedArray** elements) {
-  if (!receiver->IsJSArray()) {
-    return false;
-  }
-
+static inline Object* EnsureJSArrayWithWritableFastElements(
+    Heap* heap, Object* receiver) {
+  if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
-
   HeapObject* elms = HeapObject::cast(array->elements());
-  if (elms->map() != heap->fixed_array_map()) {
-    return false;
+  if (elms->map() == heap->fixed_array_map()) return elms;
+  if (elms->map() == heap->fixed_cow_array_map()) {
+    return array->EnsureWritableFastElements();
   }
-
-  *elements = FixedArray::cast(elms);
-  return true;
+  return NULL;
 }
 
 
-static bool IsFastElementMovingAllowed(Heap* heap,
-                                       Object* receiver,
-                                       FixedArray** elements) {
-  if (!IsJSArrayWithFastElements(heap, receiver, elements)) return false;
-
-  Context* global_context =
-      heap->isolate()->context()->global_context();
+static inline bool IsJSArrayFastElementMovingAllowed(Heap* heap,
+                                                     JSArray* receiver) {
+  Context* global_context = heap->isolate()->context()->global_context();
   JSObject* array_proto =
       JSObject::cast(global_context->array_function()->prototype());
-  if (JSArray::cast(receiver)->GetPrototype() != array_proto) return false;
-  return ArrayPrototypeHasNoElements(heap, global_context, array_proto);
+  return receiver->GetPrototype() == array_proto &&
+         ArrayPrototypeHasNoElements(heap, global_context, array_proto);
 }
 
 
@@ -416,10 +418,10 @@ static Object* CallJsBuiltin(Isolate* isolate,
 BUILTIN(ArrayPush) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsJSArrayWithFastElements(heap, receiver, &elms)) {
-    return CallJsBuiltin(isolate, "ArrayPush", args);
-  }
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(heap, receiver);
+  if (elms_obj == NULL) return CallJsBuiltin(isolate, "ArrayPush", args);
+  if (elms_obj->IsFailure()) return elms_obj;
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
 
   int len = Smi::cast(array->length())->value();
@@ -466,10 +468,10 @@ BUILTIN(ArrayPush) {
 BUILTIN(ArrayPop) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsJSArrayWithFastElements(heap, receiver, &elms)) {
-    return CallJsBuiltin(isolate, "ArrayPop", args);
-  }
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(heap, receiver);
+  if (elms_obj == NULL) return CallJsBuiltin(isolate, "ArrayPop", args);
+  if (elms_obj->IsFailure()) return elms_obj;
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
 
   int len = Smi::cast(array->length())->value();
@@ -496,10 +498,13 @@ BUILTIN(ArrayPop) {
 BUILTIN(ArrayShift) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsFastElementMovingAllowed(heap, receiver, &elms)) {
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(heap, receiver);
+  if (elms_obj->IsFailure()) return elms_obj;
+  if (elms_obj == NULL ||
+      !IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayShift", args);
   }
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 
@@ -512,8 +517,8 @@ BUILTIN(ArrayShift) {
     first = heap->undefined_value();
   }
 
-  if (heap->new_space()->Contains(elms)) {
-    // As elms still in the same space they used to be (new space),
+  if (!heap->lo_space()->Contains(elms)) {
+    // As elms still in the same space they used to be,
     // there is no need to update region dirty mark.
     array->set_elements(LeftTrimFixedArray(heap, elms, 1), SKIP_WRITE_BARRIER);
   } else {
@@ -533,10 +538,13 @@ BUILTIN(ArrayShift) {
 BUILTIN(ArrayUnshift) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsFastElementMovingAllowed(heap, receiver, &elms)) {
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(heap, receiver);
+  if (elms_obj->IsFailure()) return elms_obj;
+  if (elms_obj == NULL ||
+      !IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayUnshift", args);
   }
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 
@@ -583,10 +591,13 @@ BUILTIN(ArrayUnshift) {
 BUILTIN(ArraySlice) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsFastElementMovingAllowed(heap, receiver, &elms)) {
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(heap, receiver);
+  if (elms_obj->IsFailure()) return elms_obj;
+  if (elms_obj == NULL ||
+      !IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArraySlice", args);
   }
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 
@@ -653,10 +664,13 @@ BUILTIN(ArraySlice) {
 BUILTIN(ArraySplice) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  FixedArray* elms = NULL;
-  if (!IsFastElementMovingAllowed(heap, receiver, &elms)) {
+  Object* elms_obj = EnsureJSArrayWithWritableFastElements(heap, receiver);
+  if (elms_obj->IsFailure()) return elms_obj;
+  if (elms_obj == NULL ||
+      !IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArraySplice", args);
   }
+  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastElements());
 
@@ -734,7 +748,7 @@ BUILTIN(ArraySplice) {
 
   if (item_count < actual_delete_count) {
     // Shrink the array.
-    const bool trim_array = heap->new_space()->Contains(elms) &&
+    const bool trim_array = !heap->lo_space()->Contains(elms) &&
       ((actual_start + item_count) <
           (len - actual_delete_count - actual_start));
     if (trim_array) {

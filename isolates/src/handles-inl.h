@@ -48,7 +48,7 @@ template <class T>
 inline T* Handle<T>::operator*() const {
   ASSERT(location_ != NULL);
   ASSERT(reinterpret_cast<Address>(*location_) != kHandleZapValue);
-  return *location_;
+  return *BitCast<T**>(location_);
 }
 
 

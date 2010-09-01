@@ -268,6 +268,7 @@ const uint64_t kQuietNaNMask = static_cast<uint64_t>(0xfff) << 51;
 // If looking only at the top 32 bits, the QNaN mask is bits 19 to 30.
 const uint32_t kQuietNaNHighBitsMask = 0xfff << (51 - 32);
 
+const int kMapVisitorId = 35;
 
 // -----------------------------------------------------------------------------
 // Forward declarations for frequently used classes
@@ -504,6 +505,31 @@ union DoubleRepresentation {
   double  value;
   int64_t bits;
   DoubleRepresentation(double x) { value = x; }
+};
+
+
+// Union used for customized checking of the IEEE double types
+// inlined within v8 runtime, rather than going to the underlying
+// platform headers and libraries
+union IeeeDoubleLittleEndianArchType {
+  double d;
+  struct {
+    unsigned int man_low  :32;
+    unsigned int man_high :20;
+    unsigned int exp      :11;
+    unsigned int sign     :1;
+  } bits;
+};
+
+
+union IeeeDoubleBigEndianArchType {
+  double d;
+  struct {
+    unsigned int sign     :1;
+    unsigned int exp      :11;
+    unsigned int man_high :20;
+    unsigned int man_low  :32;
+  } bits;
 };
 
 

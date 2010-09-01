@@ -80,34 +80,72 @@ enum UnaryOverwriteMode { UNARY_OVERWRITE, UNARY_NO_OVERWRITE };
 // Types of uncatchable exceptions.
 enum UncatchableExceptionType { OUT_OF_MEMORY, TERMINATION };
 
+#define INLINE_RUNTIME_FUNCTION_LIST(F) \
+  F(IsSmi, 1, 1)                                                             \
+  F(IsNonNegativeSmi, 1, 1)                                                  \
+  F(IsArray, 1, 1)                                                           \
+  F(IsRegExp, 1, 1)                                                          \
+  F(CallFunction, -1 /* receiver + n args + function */, 1)                  \
+  F(IsConstructCall, 0, 1)                                                   \
+  F(ArgumentsLength, 0, 1)                                                   \
+  F(Arguments, 1, 1)                                                         \
+  F(ClassOf, 1, 1)                                                           \
+  F(ValueOf, 1, 1)                                                           \
+  F(SetValueOf, 2, 1)                                                        \
+  F(StringCharCodeAt, 2, 1)                                                  \
+  F(StringCharFromCode, 1, 1)                                                \
+  F(StringCharAt, 2, 1)                                                      \
+  F(ObjectEquals, 2, 1)                                                      \
+  F(Log, 3, 1)                                                               \
+  F(RandomHeapNumber, 0, 1)                                                  \
+  F(IsObject, 1, 1)                                                          \
+  F(IsFunction, 1, 1)                                                        \
+  F(IsUndetectableObject, 1, 1)                                              \
+  F(IsSpecObject, 1, 1)                                                      \
+  F(IsStringWrapperSafeForDefaultValueOf, 1, 1)                              \
+  F(StringAdd, 2, 1)                                                         \
+  F(SubString, 3, 1)                                                         \
+  F(StringCompare, 2, 1)                                                     \
+  F(RegExpExec, 4, 1)                                                        \
+  F(RegExpConstructResult, 3, 1)                                             \
+  F(RegExpCloneResult, 1, 1)                                                 \
+  F(GetFromCache, 2, 1)                                                      \
+  F(NumberToString, 1, 1)                                                    \
+  F(SwapElements, 3, 1)                                                      \
+  F(MathPow, 2, 1)                                                           \
+  F(MathSin, 1, 1)                                                           \
+  F(MathCos, 1, 1)                                                           \
+  F(MathSqrt, 1, 1)                                                          \
+  F(IsRegExpEquivalent, 2, 1)
+
 namespace v8 {
- namespace internal {
+namespace internal {
 
- class InlineRuntimeFunctionsTable {
-  public:
-   enum {
- #define LUT_ENTRY(name, argc, resize) __##name,
-     INLINE_RUNTIME_FUNCTION_LIST(LUT_ENTRY)
-     kInlineRuntimeFunctionsTableSize
- #undef LUT_ENTRY
-   };
+class InlineRuntimeFunctionsTable {
+ public:
+  enum {
+#define LUT_ENTRY(name, argc, resize) __##name,
+    INLINE_RUNTIME_FUNCTION_LIST(LUT_ENTRY)
+    kInlineRuntimeFunctionsTableSize
+#undef LUT_ENTRY
+  };
 
-   struct Entry {
-     void (CodeGenerator::*method)(ZoneList<Expression*>*);
-     const char* name;
-     int nargs;
-   };
+  struct Entry {
+    void (CodeGenerator::*method)(ZoneList<Expression*>*);
+    const char* name;
+    int nargs;
+  };
 
-   Entry* entries() { return entries_; }
+  Entry* entries() { return entries_; }
 
-  private:
-   InlineRuntimeFunctionsTable();
+ private:
+  InlineRuntimeFunctionsTable();
 
-   Entry entries_[kInlineRuntimeFunctionsTableSize];
+  Entry entries_[kInlineRuntimeFunctionsTableSize];
 
-   friend class Isolate;
+  friend class Isolate;
 
-   DISALLOW_COPY_AND_ASSIGN(InlineRuntimeFunctionsTable);
+  DISALLOW_COPY_AND_ASSIGN(InlineRuntimeFunctionsTable);
 };
 
 }  // namespace internal
@@ -316,6 +354,15 @@ class DeferredCode: public ZoneObject {
 
   void SaveRegisters();
   void RestoreRegisters();
+  void Exit();
+
+  // If this returns true then all registers will be saved for the duration
+  // of the Generate() call.  Otherwise the registers are not saved and the
+  // Generate() call must bracket runtime any runtime calls with calls to
+  // SaveRegisters() and RestoreRegisters().  In this case the Generate
+  // method must also call Exit() in order to return to the non-deferred
+  // code.
+  virtual bool AutoSaveAndRestore() { return true; }
 
  protected:
   MacroAssembler* masm_;
@@ -382,20 +429,33 @@ class FastNewContextStub : public CodeStub {
 
 class FastCloneShallowArrayStub : public CodeStub {
  public:
-  static const int kMaximumLength = 8;
+  // Maximum length of copied elements array.
+  static const int kMaximumClonedLength = 8;
 
-  explicit FastCloneShallowArrayStub(int length) : length_(length) {
-    ASSERT(length >= 0 && length <= kMaximumLength);
+  enum Mode {
+    CLONE_ELEMENTS,
+    COPY_ON_WRITE_ELEMENTS
+  };
+
+  FastCloneShallowArrayStub(Mode mode, int length)
+      : mode_(mode),
+        length_((mode == COPY_ON_WRITE_ELEMENTS) ? 0 : length) {
+    ASSERT(length_ >= 0);
+    ASSERT(length_ <= kMaximumClonedLength);
   }
 
   void Generate(MacroAssembler* masm);
 
  private:
+  Mode mode_;
   int length_;
 
   const char* GetName() { return "FastCloneShallowArrayStub"; }
   Major MajorKey() { return FastCloneShallowArray; }
-  int MinorKey() { return length_; }
+  int MinorKey() {
+    ASSERT(mode_ == 0 || mode_ == 1);
+    return (length_ << 1) | mode_;
+  }
 };
 
 
@@ -715,18 +775,6 @@ class CallFunctionStub: public CodeStub {
   static int ExtractArgcFromMinorKey(int minor_key) {
     return ArgcBits::decode(minor_key);
   }
-};
-
-
-class ToBooleanStub: public CodeStub {
- public:
-  ToBooleanStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return 0; }
 };
 
 

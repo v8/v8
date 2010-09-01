@@ -25,53 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Check that when valueOf for a String object is overwritten it is called and
+// the result used when that object is added with a string.  
 
-#if defined(V8_TARGET_ARCH_MIPS)
+// See: http://code.google.com/p/v8/issues/detail?id=760
 
-#include "codegen-inl.h"
-#include "fast-codegen.h"
-
-namespace v8 {
-namespace internal {
-
-#define __ ACCESS_MASM(masm_)
-
-Register FastCodeGenerator::accumulator0() { return no_reg; }
-Register FastCodeGenerator::accumulator1() { return no_reg; }
-Register FastCodeGenerator::scratch0() { return no_reg; }
-Register FastCodeGenerator::scratch1() { return no_reg; }
-Register FastCodeGenerator::receiver_reg() { return no_reg; }
-Register FastCodeGenerator::context_reg() { return no_reg; }
-
-
-void FastCodeGenerator::Generate(CompilationInfo* info) {
-  UNIMPLEMENTED_MIPS();
+function test() {
+  var o = Object('x');
+  o.valueOf = function() { return 'y' };
+  assertEquals('y', o + '');
+  assertEquals('y', '' + o);
 }
 
-
-void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
-  UNIMPLEMENTED_MIPS();
+for (var i = 0; i < 10; i++) {
+  var o = Object('x');
+  o.valueOf = function() { return 'y' };
+  assertEquals('y', o + '');
+  assertEquals('y', '' + o);
 }
 
-
-void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> name) {
-  UNIMPLEMENTED_MIPS();
+for (var i = 0; i < 10; i++) {
+  test()
 }
-
-
-void FastCodeGenerator::EmitThisPropertyLoad(Handle<String> name) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void FastCodeGenerator::EmitBitOr() {
-  UNIMPLEMENTED_MIPS();
-}
-
-#undef __
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_TARGET_ARCH_MIPS

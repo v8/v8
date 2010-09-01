@@ -45,6 +45,20 @@ void FuncNameInferrer::PushEnclosingName(Handle<String> name) {
 }
 
 
+void FuncNameInferrer::PushLiteralName(Handle<String> name) {
+  if (IsOpen() && !HEAP->prototype_symbol()->Equals(*name)) {
+    names_stack_.Add(name);
+  }
+}
+
+
+void FuncNameInferrer::PushVariableName(Handle<String> name) {
+  if (IsOpen() && !HEAP->result_symbol()->Equals(*name)) {
+    names_stack_.Add(name);
+  }
+}
+
+
 Handle<String> FuncNameInferrer::MakeNameFromStack() {
   if (names_stack_.is_empty()) {
     return Factory::empty_string();

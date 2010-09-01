@@ -164,6 +164,7 @@ namespace internal {
   F(RegExpExecMultiple, 4, 1) \
   F(RegExpInitializeObject, 5, 1) \
   F(RegExpConstructResult, 3, 1) \
+  F(RegExpCloneResult, 1, 1) \
   \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \
@@ -374,42 +375,6 @@ namespace internal {
 #define RUNTIME_FUNCTION_LIST_DEBUG(F)
 #endif
 
-#define INLINE_RUNTIME_FUNCTION_LIST(F) \
-  F(IsSmi, 1, 1)                                                             \
-  F(IsNonNegativeSmi, 1, 1)                                                  \
-  F(IsArray, 1, 1)                                                           \
-  F(IsRegExp, 1, 1)                                                          \
-  F(CallFunction, -1 /* receiver + n args + function */, 1)                  \
-  F(IsConstructCall, 0, 1)                                                   \
-  F(ArgumentsLength, 0, 1)                                                   \
-  F(Arguments, 1, 1)                                                         \
-  F(ClassOf, 1, 1)                                                           \
-  F(ValueOf, 1, 1)                                                           \
-  F(SetValueOf, 2, 1)                                                        \
-  F(StringCharCodeAt, 2, 1)                                                  \
-  F(StringCharFromCode, 1, 1)                                                \
-  F(StringCharAt, 2, 1)                                                      \
-  F(ObjectEquals, 2, 1)                                                      \
-  F(Log, 3, 1)                                                               \
-  F(RandomHeapNumber, 0, 1)                                                  \
-  F(IsObject, 1, 1)                                                          \
-  F(IsFunction, 1, 1)                                                        \
-  F(IsUndetectableObject, 1, 1)                                              \
-  F(IsSpecObject, 1, 1)                                            \
-  F(StringAdd, 2, 1)                                                         \
-  F(SubString, 3, 1)                                                         \
-  F(StringCompare, 2, 1)                                                     \
-  F(RegExpExec, 4, 1)                                                        \
-  F(RegExpConstructResult, 3, 1)                                             \
-  F(GetFromCache, 2, 1)                                                      \
-  F(NumberToString, 1, 1)                                                    \
-  F(SwapElements, 3, 1)                                                      \
-  F(MathPow, 2, 1)                                                           \
-  F(MathSin, 1, 1)                                                           \
-  F(MathCos, 1, 1)                                                           \
-  F(MathSqrt, 1, 1)                                                          \
-  F(IsRegExpEquivalent, 2, 1)
-
 // ----------------------------------------------------------------------------
 // RUNTIME_FUNCTION_LIST defines all runtime functions accessed
 // either directly by id (via the code generator), or indirectly
@@ -457,7 +422,7 @@ class Runtime : public AllStatic {
   static Function* FunctionForId(FunctionId fid);
 
   // Get the runtime function with the given name.
-  static Function* FunctionForName(const char* name);
+  static Function* FunctionForName(Vector<const char> name);
 
   static int StringMatch(RuntimeState* runtime_state,
                          Handle<String> sub,

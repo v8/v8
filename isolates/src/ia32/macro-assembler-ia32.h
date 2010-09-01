@@ -29,6 +29,7 @@
 #define V8_IA32_MACRO_ASSEMBLER_IA32_H_
 
 #include "assembler.h"
+#include "type-info.h"
 
 namespace v8 {
 namespace internal {
@@ -168,6 +169,9 @@ class MacroAssembler: public Assembler {
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag);
 
+  // Store the function for the given builtin in the target register.
+  void GetBuiltinFunction(Register target, Builtins::JavaScript id);
+
   // Store the code object for the given builtin in the target register.
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
@@ -225,11 +229,43 @@ class MacroAssembler: public Assembler {
     sar(reg, kSmiTagSize);
   }
 
+  // Modifies the register even if it does not contain a Smi!
+  void SmiUntag(Register reg, TypeInfo info, Label* non_smi) {
+    ASSERT(kSmiTagSize == 1);
+    sar(reg, kSmiTagSize);
+    if (info.IsSmi()) {
+      ASSERT(kSmiTag == 0);
+      j(carry, non_smi);
+    }
+  }
+
+  // Modifies the register even if it does not contain a Smi!
+  void SmiUntag(Register reg, Label* is_smi) {
+    ASSERT(kSmiTagSize == 1);
+    sar(reg, kSmiTagSize);
+    ASSERT(kSmiTag == 0);
+    j(not_carry, is_smi);
+  }
+
+  // Assumes input is a heap object.
+  void JumpIfNotNumber(Register reg, TypeInfo info, Label* on_not_number);
+
+  // Assumes input is a heap number.  Jumps on things out of range.  Also jumps
+  // on the min negative int32.  Ignores frational parts.
+  void ConvertToInt32(Register dst,
+                      Register src,      // Can be the same as dst.
+                      Register scratch,  // Can be no_reg or dst, but not src.
+                      TypeInfo info,
+                      Label* on_not_int32);
+
   // Abort execution if argument is not a number. Used in debug code.
   void AbortIfNotNumber(Register object);
 
   // Abort execution if argument is not a smi. Used in debug code.
   void AbortIfNotSmi(Register object);
+
+  // Abort execution if argument is a smi. Used in debug code.
+  void AbortIfSmi(Register object);
 
   // ---------------------------------------------------------------------------
   // Exception handling
@@ -474,6 +510,8 @@ class MacroAssembler: public Assembler {
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
   void Assert(Condition cc, const char* msg);
+
+  void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
   void Check(Condition cc, const char* msg);
