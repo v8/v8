@@ -68,6 +68,12 @@ HeapObjectIterator::HeapObjectIterator(PagedSpace* space, Address start,
 }
 
 
+HeapObjectIterator::HeapObjectIterator(Page* page,
+                                       HeapObjectCallback size_func) {
+  Initialize(page->ObjectAreaStart(), page->AllocationTop(), size_func);
+}
+
+
 void HeapObjectIterator::Initialize(Address cur, Address end,
                                     HeapObjectCallback size_f) {
   cur_addr_ = cur;
@@ -1996,76 +2002,87 @@ void PagedSpace::FreePages(Page* prev, Page* last) {
 }
 
 
+void PagedSpace::RelinkPageListInChunkOrder(bool deallocate_blocks) {
+  const bool add_to_freelist = true;
+
+  // Mark used and unused pages to properly fill unused pages
+  // after reordering.
+  PageIterator all_pages_iterator(this, PageIterator::ALL_PAGES);
+  Page* last_in_use = AllocationTopPage();
+  bool in_use = true;
+
+  while (all_pages_iterator.has_next()) {
+    Page* p = all_pages_iterator.next();
+    p->SetWasInUseBeforeMC(in_use);
+    if (p == last_in_use) {
+      // We passed a page containing allocation top. All consequent
+      // pages are not used.
+      in_use = false;
+    }
+  }
+
+  if (page_list_is_chunk_ordered_) return;
+
+  Page* new_last_in_use = Page::FromAddress(NULL);
+  MemoryAllocator::RelinkPageListInChunkOrder(this,
+                                              &first_page_,
+                                              &last_page_,
+                                              &new_last_in_use);
+  ASSERT(new_last_in_use->is_valid());
+
+  if (new_last_in_use != last_in_use) {
+    // Current allocation top points to a page which is now in the middle
+    // of page list. We should move allocation top forward to the new last
+    // used page so various object iterators will continue to work properly.
+    int size_in_bytes = static_cast<int>(PageAllocationLimit(last_in_use) -
+                                         last_in_use->AllocationTop());
+
+    last_in_use->SetAllocationWatermark(last_in_use->AllocationTop());
+    if (size_in_bytes > 0) {
+      Address start = last_in_use->AllocationTop();
+      if (deallocate_blocks) {
+        accounting_stats_.AllocateBytes(size_in_bytes);
+        DeallocateBlock(start, size_in_bytes, add_to_freelist);
+      } else {
+        Heap::CreateFillerObjectAt(start, size_in_bytes);
+      }
+    }
+
+    // New last in use page was in the middle of the list before
+    // sorting so it full.
+    SetTop(new_last_in_use->AllocationTop());
+
+    ASSERT(AllocationTopPage() == new_last_in_use);
+    ASSERT(AllocationTopPage()->WasInUseBeforeMC());
+  }
+
+  PageIterator pages_in_use_iterator(this, PageIterator::PAGES_IN_USE);
+  while (pages_in_use_iterator.has_next()) {
+    Page* p = pages_in_use_iterator.next();
+    if (!p->WasInUseBeforeMC()) {
+      // Empty page is in the middle of a sequence of used pages.
+      // Allocate it as a whole and deallocate immediately.
+      int size_in_bytes = static_cast<int>(PageAllocationLimit(p) -
+                                           p->ObjectAreaStart());
+
+      p->SetAllocationWatermark(p->ObjectAreaStart());
+      Address start = p->ObjectAreaStart();
+      if (deallocate_blocks) {
+        accounting_stats_.AllocateBytes(size_in_bytes);
+        DeallocateBlock(start, size_in_bytes, add_to_freelist);
+      } else {
+        Heap::CreateFillerObjectAt(start, size_in_bytes);
+      }
+    }
+  }
+
+  page_list_is_chunk_ordered_ = true;
+}
+
+
 void PagedSpace::PrepareForMarkCompact(bool will_compact) {
   if (will_compact) {
-    // MarkCompact collector relies on WAS_IN_USE_BEFORE_MC page flag
-    // to skip unused pages. Update flag value for all pages in space.
-    PageIterator all_pages_iterator(this, PageIterator::ALL_PAGES);
-    Page* last_in_use = AllocationTopPage();
-    bool in_use = true;
-
-    while (all_pages_iterator.has_next()) {
-      Page* p = all_pages_iterator.next();
-      p->SetWasInUseBeforeMC(in_use);
-      if (p == last_in_use) {
-        // We passed a page containing allocation top. All consequent
-        // pages are not used.
-        in_use = false;
-      }
-    }
-
-    if (!page_list_is_chunk_ordered_) {
-      Page* new_last_in_use = Page::FromAddress(NULL);
-      MemoryAllocator::RelinkPageListInChunkOrder(this,
-                                                  &first_page_,
-                                                  &last_page_,
-                                                  &new_last_in_use);
-      ASSERT(new_last_in_use->is_valid());
-
-      if (new_last_in_use != last_in_use) {
-        // Current allocation top points to a page which is now in the middle
-        // of page list. We should move allocation top forward to the new last
-        // used page so various object iterators will continue to work properly.
-        last_in_use->SetAllocationWatermark(last_in_use->AllocationTop());
-
-        int size_in_bytes = static_cast<int>(PageAllocationLimit(last_in_use) -
-                                             last_in_use->AllocationTop());
-
-        if (size_in_bytes > 0) {
-          // There is still some space left on this page. Create a fake
-          // object which will occupy all free space on this page.
-          // Otherwise iterators would not be able to scan this page
-          // correctly.
-
-          Heap::CreateFillerObjectAt(last_in_use->AllocationTop(),
-                                     size_in_bytes);
-        }
-
-        // New last in use page was in the middle of the list before
-        // sorting so it full.
-        SetTop(new_last_in_use->AllocationTop());
-
-        ASSERT(AllocationTopPage() == new_last_in_use);
-        ASSERT(AllocationTopPage()->WasInUseBeforeMC());
-      }
-
-      PageIterator pages_in_use_iterator(this, PageIterator::PAGES_IN_USE);
-      while (pages_in_use_iterator.has_next()) {
-        Page* p = pages_in_use_iterator.next();
-        if (!p->WasInUseBeforeMC()) {
-          // Empty page is in the middle of a sequence of used pages.
-          // Create a fake object which will occupy all free space on this page.
-          // Otherwise iterators would not be able to scan this page correctly.
-          int size_in_bytes = static_cast<int>(PageAllocationLimit(p) -
-                                               p->ObjectAreaStart());
-
-          p->SetAllocationWatermark(p->ObjectAreaStart());
-          Heap::CreateFillerObjectAt(p->ObjectAreaStart(), size_in_bytes);
-        }
-      }
-
-      page_list_is_chunk_ordered_ = true;
-    }
+    RelinkPageListInChunkOrder(false);
   }
 }
 
@@ -2198,6 +2215,13 @@ HeapObject* OldSpace::AllocateInNextPage(Page* current_page,
   PutRestOfCurrentPageOnFreeList(current_page);
   SetAllocationInfo(&allocation_info_, next_page);
   return AllocateLinearly(&allocation_info_, size_in_bytes);
+}
+
+
+void OldSpace::DeallocateBlock(Address start,
+                                 int size_in_bytes,
+                                 bool add_to_freelist) {
+  Free(start, size_in_bytes, add_to_freelist);
 }
 
 
@@ -2475,6 +2499,21 @@ HeapObject* FixedSpace::AllocateInNextPage(Page* current_page,
 }
 
 
+void FixedSpace::DeallocateBlock(Address start,
+                                 int size_in_bytes,
+                                 bool add_to_freelist) {
+  // Free-list elements in fixed space are assumed to have a fixed size.
+  // We break the free block into chunks and add them to the free list
+  // individually.
+  int size = object_size_in_bytes();
+  ASSERT(size_in_bytes % size == 0);
+  Address end = start + size_in_bytes;
+  for (Address a = start; a < end; a += size) {
+    Free(a, add_to_freelist);
+  }
+}
+
+
 #ifdef DEBUG
 void FixedSpace::ReportStatistics() {
   int pct = Available() * 100 / Capacity();
@@ -2720,6 +2759,22 @@ Object* LargeObjectSpace::FindObject(Address a) {
   }
   return Failure::Exception();
 }
+
+
+LargeObjectChunk* LargeObjectSpace::FindChunkContainingPc(Address pc) {
+  // TODO(853): Change this implementation to only find executable
+  // chunks and use some kind of hash-based approach to speed it up.
+  for (LargeObjectChunk* chunk = first_chunk_;
+       chunk != NULL;
+       chunk = chunk->next()) {
+    Address chunk_address = chunk->address();
+    if (chunk_address <= pc && pc < chunk_address + chunk->size()) {
+      return chunk;
+    }
+  }
+  return NULL;
+}
+
 
 void LargeObjectSpace::IterateDirtyRegions(ObjectSlotCallback copy_object) {
   LargeObjectIterator it(this);

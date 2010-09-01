@@ -29,9 +29,9 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
+#include "code-stubs.h"
 #include "bootstrapper.h"
-#include "code-stubs-ia32.h"
-#include "codegen-inl.h"
+#include "jsregexp.h"
 #include "regexp-macro-assembler.h"
 
 namespace v8 {
@@ -149,7 +149,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kPointerSize == 4);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
-  __ mov(ecx, CodeGenerator::FixedArrayElementOperand(ecx, eax));
+  __ mov(ecx, FieldOperand(ecx, eax, times_half_pointer_size,
+                           FixedArray::kHeaderSize));
   __ cmp(ecx, Factory::undefined_value());
   __ j(equal, &slow_case);
 
@@ -3054,7 +3055,7 @@ void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
   Label empty_handle;
   Label prologue;
   Label promote_scheduled_exception;
-  __ EnterApiExitFrame(ExitFrame::MODE_NORMAL, kStackSpace, kArgc);
+  __ EnterApiExitFrame(kStackSpace, kArgc);
   STATIC_ASSERT(kArgc == 4);
   if (kPassHandlesDirectly) {
     // When handles as passed directly we don't have to allocate extra
@@ -3100,7 +3101,7 @@ void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
   // It was non-zero.  Dereference to get the result value.
   __ mov(eax, Operand(eax, 0));
   __ bind(&prologue);
-  __ LeaveExitFrame(ExitFrame::MODE_NORMAL);
+  __ LeaveExitFrame();
   __ ret(0);
   __ bind(&promote_scheduled_exception);
   __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
@@ -3177,7 +3178,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &failure_returned, not_taken);
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(mode_);
+  __ LeaveExitFrame();
   __ ret(0);
 
   // Handling of failure.
@@ -3277,7 +3278,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // a garbage collection and retrying the builtin (twice).
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(mode_);
+  __ EnterExitFrame();
 
   // eax: result parameter for PerformGC, if any (setup below)
   // ebx: pointer to builtin function  (C callee-saved)

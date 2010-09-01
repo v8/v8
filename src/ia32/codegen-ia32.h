@@ -574,6 +574,11 @@ class CodeGenerator: public AstVisitor {
   void Int32BinaryOperation(BinaryOperation* node);
 
 
+  // Generate a stub call from the virtual frame.
+  Result GenerateGenericBinaryOpStubCall(GenericBinaryOpStub* stub,
+                                         Result* left,
+                                         Result* right);
+
   void Comparison(AstNode* node,
                   Condition cc,
                   bool strict,
@@ -729,6 +734,9 @@ class CodeGenerator: public AstVisitor {
 
   // Check whether two RegExps are equivalent
   void GenerateIsRegExpEquivalent(ZoneList<Expression*>* args);
+
+  void GenerateHasCachedArrayIndex(ZoneList<Expression*>* args);
+  void GenerateGetCachedArrayIndex(ZoneList<Expression*>* args);
 
   // Simple condition analysis.
   enum ConditionAnalysis {

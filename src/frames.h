@@ -46,6 +46,32 @@ class Top;
 class ThreadLocalTop;
 
 
+class PcToCodeCache : AllStatic {
+ public:
+  struct PcToCodeCacheEntry {
+    Address pc;
+    Code* code;
+  };
+
+  static PcToCodeCacheEntry* cache(int index) {
+    return &cache_[index];
+  }
+
+  static Code* GcSafeFindCodeForPc(Address pc);
+  static Code* GcSafeCastToCode(HeapObject* object, Address pc);
+
+  static void FlushPcToCodeCache() {
+    memset(&cache_[0], 0, sizeof(cache_));
+  }
+
+  static PcToCodeCacheEntry* GetCacheEntry(Address pc);
+
+ private:
+  static const int kPcToCodeCacheSize = 256;
+  static PcToCodeCacheEntry cache_[kPcToCodeCacheSize];
+};
+
+
 class StackHandler BASE_EMBEDDED {
  public:
   enum State {
@@ -64,7 +90,7 @@ class StackHandler BASE_EMBEDDED {
   inline bool includes(Address address) const;
 
   // Garbage collection support.
-  inline void Iterate(ObjectVisitor* v) const;
+  inline void Iterate(ObjectVisitor* v, Code* holder) const;
 
   // Conversion support.
   static inline StackHandler* FromAddress(Address address);
@@ -74,16 +100,11 @@ class StackHandler BASE_EMBEDDED {
   bool is_try_catch() { return state() == TRY_CATCH; }
   bool is_try_finally() { return state() == TRY_FINALLY; }
 
-  // Garbage collection support.
-  void Cook(Code* code);
-  void Uncook(Code* code);
-
  private:
   // Accessors.
   inline State state() const;
 
-  inline Address pc() const;
-  inline void set_pc(Address value);
+  inline Address* pc_address() const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackHandler);
 };
@@ -162,15 +183,16 @@ class StackFrame BASE_EMBEDDED {
   virtual Code* unchecked_code() const = 0;
 
   // Get the code associated with this frame.
-  inline Code* code() const {
-    return Code::cast(unchecked_code());
+  Code* code() const { return GetContainingCode(pc()); }
+
+  // Get the code object that contains the given pc.
+  Code* GetContainingCode(Address pc) const {
+    return PcToCodeCache::GetCacheEntry(pc)->code;
   }
 
-  // Garbage collection support.
-  static void CookFramesForThread(ThreadLocalTop* thread);
-  static void UncookFramesForThread(ThreadLocalTop* thread);
+  virtual void Iterate(ObjectVisitor* v) const = 0;
+  static void IteratePc(ObjectVisitor* v, Address* pc_address, Code* holder);
 
-  virtual void Iterate(ObjectVisitor* v) const { }
 
   // Printing support.
   enum PrintMode { OVERVIEW, DETAILS };
@@ -211,10 +233,6 @@ class StackFrame BASE_EMBEDDED {
 
   // Get the type and the state of the calling frame.
   virtual Type GetCallerState(State* state) const;
-
-  // Cooking/uncooking support.
-  void Cook();
-  void Uncook();
 
   friend class StackFrameIterator;
   friend class StackHandlerIterator;
@@ -280,7 +298,6 @@ class EntryConstructFrame: public EntryFrame {
 // Exit frames are used to exit JavaScript execution and go to C.
 class ExitFrame: public StackFrame {
  public:
-  enum Mode { MODE_NORMAL, MODE_DEBUG };
   virtual Type type() const { return EXIT; }
 
   virtual Code* unchecked_code() const;
@@ -418,19 +435,11 @@ class JavaScriptFrame: public StandardFrame {
 
  protected:
   explicit JavaScriptFrame(StackFrameIterator* iterator)
-      : StandardFrame(iterator), disable_heap_access_(false) { }
+      : StandardFrame(iterator) { }
 
   virtual Address GetCallerStackPointer() const;
 
-  // When this mode is enabled it is not allowed to access heap objects.
-  // This is a special mode used when gathering stack samples in profiler.
-  // A shortcoming is that caller's SP value will be calculated incorrectly
-  // (see GetCallerStackPointer implementation), but it is not used for stack
-  // sampling.
-  void DisableHeapAccess() { disable_heap_access_ = true; }
-
  private:
-  bool disable_heap_access_;
   inline Object* function_slot_object() const;
 
   friend class StackFrameIterator;
@@ -637,6 +646,8 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   void Advance();
   void Reset();
 
+  static bool is_active() { return active_count_ > 0; }
+
   static bool IsWithinBounds(
       Address low_bound, Address high_bound, Address addr) {
     return low_bound <= addr && addr <= high_bound;
@@ -650,6 +661,19 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   bool IsValidFrame(StackFrame* frame) const;
   bool IsValidCaller(StackFrame* frame);
 
+  // This is a nasty hack to make sure the active count is incremented
+  // before the constructor for the embedded iterator is invoked. This
+  // is needed because the constructor will start looking at frames
+  // right away and we need to make sure it doesn't start inspecting
+  // heap objects.
+  class ActiveCountMaintainer BASE_EMBEDDED {
+   public:
+    ActiveCountMaintainer() { active_count_++; }
+    ~ActiveCountMaintainer() { active_count_--; }
+  };
+
+  ActiveCountMaintainer maintainer_;
+  static int active_count_;
   Address low_bound_;
   Address high_bound_;
   const bool is_valid_top_;

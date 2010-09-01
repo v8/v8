@@ -28,8 +28,8 @@
 #ifndef V8_IA32_CODE_STUBS_IA32_H_
 #define V8_IA32_CODE_STUBS_IA32_H_
 
-#include "codegen-inl.h"
-#include "ast.h"
+#include "macro-assembler.h"
+#include "code-stubs.h"
 #include "ic-inl.h"
 
 namespace v8 {
@@ -111,11 +111,6 @@ class GenericBinaryOpStub: public CodeStub {
   void GenerateCall(MacroAssembler* masm, Register left, Register right);
   void GenerateCall(MacroAssembler* masm, Register left, Smi* right);
   void GenerateCall(MacroAssembler* masm, Smi* left, Register right);
-
-  Result GenerateCall(MacroAssembler* masm,
-                      VirtualFrame* frame,
-                      Result* left,
-                      Result* right);
 
   bool ArgsInRegistersSupported() {
     return op_ == Token::ADD || op_ == Token::SUB
@@ -211,6 +206,8 @@ class GenericBinaryOpStub: public CodeStub {
   virtual InlineCacheState GetICState() {
     return BinaryOpIC::ToState(runtime_operands_type_);
   }
+
+  friend class CodeGenerator;
 };
 
 

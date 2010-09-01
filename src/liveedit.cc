@@ -739,7 +739,7 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
     Handle<String> name_handle(String::cast(info->name()));
     info_wrapper.SetProperties(name_handle, info->start_position(),
                                info->end_position(), info);
-    array->SetElement(i, *(info_wrapper.GetJSArray()));
+    SetElement(array, i, info_wrapper.GetJSArray());
   }
 }
 
@@ -802,25 +802,6 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
 };
 
 
-class FrameCookingThreadVisitor : public ThreadVisitor {
- public:
-  void VisitThread(ThreadLocalTop* top) {
-    StackFrame::CookFramesForThread(top);
-  }
-};
-
-class FrameUncookingThreadVisitor : public ThreadVisitor {
- public:
-  void VisitThread(ThreadLocalTop* top) {
-    StackFrame::UncookFramesForThread(top);
-  }
-};
-
-static void IterateAllThreads(ThreadVisitor* visitor) {
-  Top::IterateThread(visitor);
-  ThreadManager::IterateArchivedThreads(visitor);
-}
-
 // Finds all references to original and replaces them with substitution.
 static void ReplaceCodeObject(Code* original, Code* substitution) {
   ASSERT(!Heap::InNewSpace(substitution));
@@ -836,13 +817,7 @@ static void ReplaceCodeObject(Code* original, Code* substitution) {
   // so temporary replace the pointers with offset numbers
   // in prologue/epilogue.
   {
-    FrameCookingThreadVisitor cooking_visitor;
-    IterateAllThreads(&cooking_visitor);
-
     Heap::IterateStrongRoots(&visitor, VISIT_ALL);
-
-    FrameUncookingThreadVisitor uncooking_visitor;
-    IterateAllThreads(&uncooking_visitor);
   }
 
   // Now iterate over all pointers of all objects, including code_target
@@ -1384,8 +1359,9 @@ static const char* DropActivationsInActiveThread(
   for (int i = 0; i < array_len; i++) {
     if (result->GetElement(i) ==
         Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
-      result->SetElement(i, Smi::FromInt(
-          LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK));
+      Handle<Object> replaced(
+          Smi::FromInt(LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK));
+      SetElement(result, i, replaced);
     }
   }
   return NULL;

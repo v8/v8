@@ -492,6 +492,11 @@ class CodeGenerator: public AstVisitor {
   void GenericBinaryOperation(BinaryOperation* expr,
                               OverwriteMode overwrite_mode);
 
+  // Generate a stub call from the virtual frame.
+  Result GenerateGenericBinaryOpStubCall(GenericBinaryOpStub* stub,
+                                         Result* left,
+                                         Result* right);
+
   // Emits code sequence that jumps to a JumpTarget if the inputs
   // are both smis.  Cannot be in MacroAssembler because it takes
   // advantage of TypeInfo to skip unneeded checks.
@@ -682,6 +687,9 @@ class CodeGenerator: public AstVisitor {
   void GenerateMathSqrt(ZoneList<Expression*>* args);
 
   void GenerateIsRegExpEquivalent(ZoneList<Expression*>* args);
+
+  void GenerateHasCachedArrayIndex(ZoneList<Expression*>* args);
+  void GenerateGetCachedArrayIndex(ZoneList<Expression*>* args);
 
 // Simple condition analysis.
   enum ConditionAnalysis {

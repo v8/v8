@@ -174,6 +174,7 @@ namespace internal {
   F(StringMatch, 3, 1) \
   F(StringTrim, 3, 1) \
   F(StringToArray, 1, 1) \
+  F(NewStringWrapper, 1, 1) \
   \
   /* Numbers */ \
   F(NumberToRadixString, 2, 1) \
@@ -201,6 +202,7 @@ namespace internal {
   \
   F(ClassOf, 1, 1) \
   F(SetCode, 2, 1) \
+  F(SetExpectedNumberOfProperties, 2, 1) \
   \
   F(CreateApiFunction, 1, 1) \
   F(IsTemplate, 1, 1) \

@@ -77,7 +77,7 @@ class UTF8Buffer {
   static const char kEndMarker = '\x00';
  private:
   static const int kInitialCapacity = 256;
-  SequenceCollector<char> buffer_;
+  SequenceCollector<char, 4> buffer_;
 
   void AddCharSlow(uc32 c);
 };

@@ -1,3 +1,16 @@
+2010-09-01: Version 2.4.0
+
+      Fix bug in Object.freeze and Object.seal when Array.prototype or
+      Object.prototype is changed (issue 842).
+
+      Update Array.splice to follow Safari and Firefox when called
+      with zero arguments.
+
+      Fix a missing live register when breaking at keyed loads on ARM.
+
+      Performance improvements on all platforms.
+
+
 2010-08-25: Version 2.3.11
 
        Fix bug in RegExp related to copy-on-write arrays.

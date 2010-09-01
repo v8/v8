@@ -8603,7 +8603,7 @@ TEST(PreCompileInvalidPreparseDataError) {
   // ScriptDataImpl private implementation details
   const int kUnsignedSize = sizeof(unsigned);
   const int kHeaderSize = 4;
-  const int kFunctionEntrySize = 4;
+  const int kFunctionEntrySize = 5;
   const int kFunctionEntryStartOffset = 0;
   const int kFunctionEntryEndOffset = 1;
   unsigned* sd_data =
@@ -8625,6 +8625,8 @@ TEST(PreCompileInvalidPreparseDataError) {
   try_catch.Reset();
   // Overwrite function bar's start position with 200.  The function entry
   // will not be found when searching for it by position.
+  sd = v8::ScriptData::PreCompile(script, i::StrLength(script));
+  sd_data = reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
       200;
   compiled_script = Script::New(source, NULL, sd);

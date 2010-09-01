@@ -1007,17 +1007,18 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
     for (int i = 0; i < array->length(); i++) {
       Handle<Object> o(array->get(i));
       if (CheckBreakPoint(o)) {
-        break_points_hit->SetElement(break_points_hit_count++, *o);
+        SetElement(break_points_hit, break_points_hit_count++, o);
       }
     }
   } else {
     if (CheckBreakPoint(break_point_objects)) {
-      break_points_hit->SetElement(break_points_hit_count++,
-                                   *break_point_objects);
+      SetElement(break_points_hit,
+                 break_points_hit_count++,
+                 break_point_objects);
     }
   }
 
-  // Return undefined if no break points where triggered.
+  // Return undefined if no break points were triggered.
   if (break_points_hit_count == 0) {
     return Factory::undefined_value();
   }
@@ -1443,7 +1444,7 @@ bool Debug::IsDebugBreak(Address addr) {
 // Check whether a code stub with the specified major key is a possible break
 // point location when looking for source break locations.
 bool Debug::IsSourceBreakStub(Code* code) {
-  CodeStub::Major major_key = code->major_key();
+  CodeStub::Major major_key = CodeStub::GetMajorKey(code);
   return major_key == CodeStub::CallFunction;
 }
 
@@ -1451,7 +1452,7 @@ bool Debug::IsSourceBreakStub(Code* code) {
 // Check whether a code stub with the specified major key is a possible break
 // location.
 bool Debug::IsBreakStub(Code* code) {
-  CodeStub::Major major_key = code->major_key();
+  CodeStub::Major major_key = CodeStub::GetMajorKey(code);
   return major_key == CodeStub::CallFunction ||
          major_key == CodeStub::StackCheck;
 }

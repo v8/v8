@@ -30,8 +30,7 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "bootstrapper.h"
-#include "code-stubs-arm.h"
-#include "codegen-inl.h"
+#include "code-stubs.h"
 #include "regexp-macro-assembler.h"
 
 namespace v8 {
@@ -2702,7 +2701,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
-  __ LeaveExitFrame(mode_);
+  __ LeaveExitFrame();
 
   // check if we should retry or throw exception
   Label retry;
@@ -2751,7 +2750,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // builtin once.
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(mode_);
+  __ EnterExitFrame();
 
   // r4: number of arguments (C callee-saved)
   // r5: pointer to builtin function (C callee-saved)

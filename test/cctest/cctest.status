@@ -35,6 +35,11 @@ test-debug/DebuggerAgent: PASS, (PASS || FAIL) if $system == linux
 # BUG(382): Weird test. Can't guarantee that it never times out.
 test-api/ApplyInterruption: PASS || TIMEOUT
 
+# Bug (484): This test which we thought was originally corrected in r5236
+# is reappering. Disabled until bug in test is fixed. This only fails
+# when snapshot is on, so I am marking it PASS || FAIL
+test-heap-profiler/HeapSnapshotsDiff: PASS || FAIL
+
 # These tests always fail.  They are here to test test.py.  If
 # they don't fail then test.py has failed.
 test-serialize/TestThatAlwaysFails: FAIL
@@ -50,10 +55,6 @@ test-api/OutOfMemoryNested: SKIP
 
 # BUG(355): Test crashes on ARM.
 test-log/ProfLazyMode: SKIP
-
-# BUG(845)
-test-debug/GCDuringBreakPointProcessing: SKIP
-test-debug/BreakPointICCallWithGC: SKIP
 
 [ $arch == mips ]
 test-accessors: SKIP

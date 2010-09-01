@@ -104,6 +104,7 @@ List<Heap::GCEpilogueCallbackPair> Heap::gc_epilogue_callbacks_;
 
 GCCallback Heap::global_gc_prologue_callback_ = NULL;
 GCCallback Heap::global_gc_epilogue_callback_ = NULL;
+HeapObjectCallback Heap::gc_safe_size_of_old_object_ = NULL;
 
 // Variables set based on semispace_size_ and old_generation_size_ in
 // ConfigureHeap.
@@ -190,6 +191,33 @@ bool Heap::HasBeenSetup() {
          map_space_ != NULL &&
          cell_space_ != NULL &&
          lo_space_ != NULL;
+}
+
+
+int Heap::GcSafeSizeOfOldObject(HeapObject* object) {
+  ASSERT(!Heap::InNewSpace(object));  // Code only works for old objects.
+  ASSERT(!MarkCompactCollector::are_map_pointers_encoded());
+  MapWord map_word = object->map_word();
+  map_word.ClearMark();
+  map_word.ClearOverflow();
+  return object->SizeFromMap(map_word.ToMap());
+}
+
+
+int Heap::GcSafeSizeOfOldObjectWithEncodedMap(HeapObject* object) {
+  ASSERT(!Heap::InNewSpace(object));  // Code only works for old objects.
+  ASSERT(MarkCompactCollector::are_map_pointers_encoded());
+  uint32_t marker = Memory::uint32_at(object->address());
+  if (marker == MarkCompactCollector::kSingleFreeEncoding) {
+    return kIntSize;
+  } else if (marker == MarkCompactCollector::kMultiFreeEncoding) {
+    return Memory::int_at(object->address() + kIntSize);
+  } else {
+    MapWord map_word = object->map_word();
+    Address map_address = map_word.DecodeMapAddress(Heap::map_space());
+    Map* map = reinterpret_cast<Map*>(HeapObject::FromAddress(map_address));
+    return object->SizeFromMap(map);
+  }
 }
 
 
@@ -540,6 +568,13 @@ void Heap::EnsureFromSpaceIsCommitted() {
 
   // Committing memory to from space failed.
   // Try shrinking and try again.
+  PagedSpaces spaces;
+  for (PagedSpace* space = spaces.next();
+       space != NULL;
+       space = spaces.next()) {
+    space->RelinkPageListInChunkOrder(true);
+  }
+
   Shrink();
   if (new_space_.CommitFromSpaceIfNeeded()) return;
 
@@ -742,8 +777,6 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
   MarkCompactCollector::CollectGarbage();
 
-  MarkCompactEpilogue(is_compacting);
-
   LOG(ResourceEvent("markcompact", "end"));
 
   gc_state_ = NOT_IN_GC;
@@ -765,20 +798,11 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
 
   CompilationCache::MarkCompactPrologue();
 
-  Top::MarkCompactPrologue(is_compacting);
-  ThreadManager::MarkCompactPrologue(is_compacting);
-
   CompletelyClearInstanceofCache();
 
   if (is_compacting) FlushNumberStringCache();
 
   ClearNormalizedMapCaches();
-}
-
-
-void Heap::MarkCompactEpilogue(bool is_compacting) {
-  Top::MarkCompactEpilogue(is_compacting);
-  ThreadManager::MarkCompactEpilogue(is_compacting);
 }
 
 
@@ -4048,6 +4072,8 @@ bool Heap::Setup(bool create_heap_objects) {
   ScavengingVisitor::Initialize();
   NewSpaceScavenger::Initialize();
   MarkCompactCollector::Initialize();
+
+  MarkMapPointersAsEncoded(false);
 
   // Setup memory allocator and reserve a chunk of memory for new
   // space.  The chunk is double the size of the requested reserved

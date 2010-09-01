@@ -29,7 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
-#include "code-stubs-ia32.h"
+#include "code-stubs.h"
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"
@@ -217,8 +217,24 @@ void FullCodeGenerator::EmitReturnSequence() {
     // Check that the size of the code used for returning matches what is
     // expected by the debugger.
     ASSERT_EQ(Assembler::kJSReturnSequenceLength,
-            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+              masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
+  }
+}
+
+
+FullCodeGenerator::ConstantOperand FullCodeGenerator::GetConstantOperand(
+    Token::Value op, Expression* left, Expression* right) {
+  ASSERT(ShouldInlineSmiCase(op));
+  if (op == Token::DIV || op == Token::MOD || op == Token::MUL) {
+    // We never generate inlined constant smi operations for these.
+    return kNoConstants;
+  } else if (right->IsSmiLiteral()) {
+    return kRightConstant;
+  } else if (left->IsSmiLiteral() && !Token::IsShiftOp(op)) {
+    return kLeftConstant;
+  } else {
+    return kNoConstants;
   }
 }
 
@@ -1152,10 +1168,11 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
   LhsKind assign_type = VARIABLE;
-  Property* prop = expr->target()->AsProperty();
-  if (prop != NULL) {
-    assign_type =
-        (prop->key()->IsPropertyName()) ? NAMED_PROPERTY : KEYED_PROPERTY;
+  Property* property = expr->target()->AsProperty();
+  if (property != NULL) {
+    assign_type = (property->key()->IsPropertyName())
+        ? NAMED_PROPERTY
+        : KEYED_PROPERTY;
   }
 
   // Evaluate LHS expression.
@@ -1166,60 +1183,70 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     case NAMED_PROPERTY:
       if (expr->is_compound()) {
         // We need the receiver both on the stack and in the accumulator.
-        VisitForValue(prop->obj(), kAccumulator);
+        VisitForValue(property->obj(), kAccumulator);
         __ push(result_register());
       } else {
-        VisitForValue(prop->obj(), kStack);
+        VisitForValue(property->obj(), kStack);
       }
       break;
     case KEYED_PROPERTY:
       if (expr->is_compound()) {
-        VisitForValue(prop->obj(), kStack);
-        VisitForValue(prop->key(), kAccumulator);
+        VisitForValue(property->obj(), kStack);
+        VisitForValue(property->key(), kAccumulator);
         __ mov(edx, Operand(esp, 0));
         __ push(eax);
       } else {
-        VisitForValue(prop->obj(), kStack);
-        VisitForValue(prop->key(), kStack);
+        VisitForValue(property->obj(), kStack);
+        VisitForValue(property->key(), kStack);
       }
       break;
   }
 
-  // If we have a compound assignment: Get value of LHS expression and
-  // store in on top of the stack.
   if (expr->is_compound()) {
     Location saved_location = location_;
-    location_ = kStack;
+    location_ = kAccumulator;
     switch (assign_type) {
       case VARIABLE:
         EmitVariableLoad(expr->target()->AsVariableProxy()->var(),
                          Expression::kValue);
         break;
       case NAMED_PROPERTY:
-        EmitNamedPropertyLoad(prop);
-        __ push(result_register());
+        EmitNamedPropertyLoad(property);
         break;
       case KEYED_PROPERTY:
-        EmitKeyedPropertyLoad(prop);
-        __ push(result_register());
+        EmitKeyedPropertyLoad(property);
         break;
     }
-    location_ = saved_location;
-  }
 
-  // Evaluate RHS expression.
-  Expression* rhs = expr->value();
-  VisitForValue(rhs, kAccumulator);
+    Token::Value op = expr->binary_op();
+    ConstantOperand constant = ShouldInlineSmiCase(op)
+        ? GetConstantOperand(op, expr->target(), expr->value())
+        : kNoConstants;
+    ASSERT(constant == kRightConstant || constant == kNoConstants);
+    if (constant == kNoConstants) {
+      __ push(eax);  // Left operand goes on the stack.
+      VisitForValue(expr->value(), kAccumulator);
+    }
 
-  // If we have a compound assignment: Apply operator.
-  if (expr->is_compound()) {
-    Location saved_location = location_;
-    location_ = kAccumulator;
     OverwriteMode mode = expr->value()->ResultOverwriteAllowed()
         ? OVERWRITE_RIGHT
         : NO_OVERWRITE;
-    EmitBinaryOp(expr->binary_op(), Expression::kValue, mode);
+    SetSourcePosition(expr->position() + 1);
+    if (ShouldInlineSmiCase(op)) {
+      EmitInlineSmiBinaryOp(expr,
+                            op,
+                            Expression::kValue,
+                            mode,
+                            expr->target(),
+                            expr->value(),
+                            constant);
+    } else {
+      EmitBinaryOp(op, Expression::kValue, mode);
+    }
     location_ = saved_location;
+
+  } else {
+    VisitForValue(expr->value(), kAccumulator);
   }
 
   // Record source position before possible IC call.
@@ -1257,6 +1284,313 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
+}
+
+
+void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
+                                           Expression::Context context,
+                                           OverwriteMode mode,
+                                           bool left_is_constant_smi,
+                                           Smi* value) {
+  Label call_stub, done;
+  __ add(Operand(eax), Immediate(value));
+  __ j(overflow, &call_stub);
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &done);
+
+  // Undo the optimistic add operation and call the shared stub.
+  __ bind(&call_stub);
+  __ sub(Operand(eax), Immediate(value));
+  Token::Value op = Token::ADD;
+  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
+  if (left_is_constant_smi) {
+    __ push(Immediate(value));
+    __ push(eax);
+  } else {
+    __ push(eax);
+    __ push(Immediate(value));
+  }
+  __ CallStub(&stub);
+  __ bind(&done);
+  Apply(context, eax);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
+                                           Expression::Context context,
+                                           OverwriteMode mode,
+                                           bool left_is_constant_smi,
+                                           Smi* value) {
+  Label call_stub, done;
+  if (left_is_constant_smi) {
+    __ mov(ecx, eax);
+    __ mov(eax, Immediate(value));
+    __ sub(Operand(eax), ecx);
+  } else {
+    __ sub(Operand(eax), Immediate(value));
+  }
+  __ j(overflow, &call_stub);
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &done);
+
+  __ bind(&call_stub);
+  if (left_is_constant_smi)  {
+    __ push(Immediate(value));
+    __ push(ecx);
+  } else {
+    // Undo the optimistic sub operation.
+    __ add(Operand(eax), Immediate(value));
+
+    __ push(eax);
+    __ push(Immediate(value));
+  }
+
+  Token::Value op = Token::SUB;
+  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
+  __ CallStub(&stub);
+  __ bind(&done);
+  Apply(context, eax);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiShiftOp(Expression* expr,
+                                               Token::Value op,
+                                               Expression::Context context,
+                                               OverwriteMode mode,
+                                               Smi* value) {
+  Label call_stub, smi_case, done;
+  int shift_value = value->value() & 0x1f;
+
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &smi_case);
+
+  __ bind(&call_stub);
+  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
+  __ push(eax);
+  __ push(Immediate(value));
+  __ CallStub(&stub);
+  __ jmp(&done);
+
+  __ bind(&smi_case);
+  switch (op) {
+    case Token::SHL:
+      if (shift_value != 0) {
+        __ mov(edx, eax);
+        if (shift_value > 1) {
+          __ shl(edx, shift_value - 1);
+        }
+        // Convert int result to smi, checking that it is in int range.
+        ASSERT(kSmiTagSize == 1);  // Adjust code if not the case.
+        __ add(edx, Operand(edx));
+        __ j(overflow, &call_stub);
+        __ mov(eax, edx);  // Put result back into eax.
+      }
+      break;
+    case Token::SAR:
+      if (shift_value != 0) {
+        __ sar(eax, shift_value);
+        __ and_(eax, ~kSmiTagMask);
+      }
+      break;
+    case Token::SHR:
+      if (shift_value < 2) {
+        __ mov(edx, eax);
+        __ SmiUntag(edx);
+        __ shr(edx, shift_value);
+        __ test(edx, Immediate(0xc0000000));
+        __ j(not_zero, &call_stub);
+        __ SmiTag(edx);
+        __ mov(eax, edx);  // Put result back into eax.
+      } else {
+        __ SmiUntag(eax);
+        __ shr(eax, shift_value);
+        __ SmiTag(eax);
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ bind(&done);
+  Apply(context, eax);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiBitOp(Expression* expr,
+                                             Token::Value op,
+                                             Expression::Context context,
+                                             OverwriteMode mode,
+                                             Smi* value) {
+  Label smi_case, done;
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &smi_case);
+
+  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
+  // The order of the arguments does not matter for bit-ops with a
+  // constant operand.
+  __ push(Immediate(value));
+  __ push(eax);
+  __ CallStub(&stub);
+  __ jmp(&done);
+
+  __ bind(&smi_case);
+  switch (op) {
+    case Token::BIT_OR:
+      __ or_(Operand(eax), Immediate(value));
+      break;
+    case Token::BIT_XOR:
+      __ xor_(Operand(eax), Immediate(value));
+      break;
+    case Token::BIT_AND:
+      __ and_(Operand(eax), Immediate(value));
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ bind(&done);
+  Apply(context, eax);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiBinaryOp(Expression* expr,
+                                                Token::Value op,
+                                                Expression::Context context,
+                                                OverwriteMode mode,
+                                                bool left_is_constant_smi,
+                                                Smi* value) {
+  switch (op) {
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+      EmitConstantSmiBitOp(expr, op, context, mode, value);
+      break;
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+      ASSERT(!left_is_constant_smi);
+      EmitConstantSmiShiftOp(expr, op, context, mode, value);
+      break;
+    case Token::ADD:
+      EmitConstantSmiAdd(expr, context, mode, left_is_constant_smi, value);
+      break;
+    case Token::SUB:
+      EmitConstantSmiSub(expr, context, mode, left_is_constant_smi, value);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
+                                              Token::Value op,
+                                              Expression::Context context,
+                                              OverwriteMode mode,
+                                              Expression* left,
+                                              Expression* right,
+                                              ConstantOperand constant) {
+  if (constant == kRightConstant) {
+    Smi* value =  Smi::cast(*right->AsLiteral()->handle());
+    EmitConstantSmiBinaryOp(expr, op, context, mode, false, value);
+    return;
+  } else if (constant == kLeftConstant) {
+    Smi* value =  Smi::cast(*left->AsLiteral()->handle());
+    EmitConstantSmiBinaryOp(expr, op, context, mode, true, value);
+    return;
+  }
+
+  // Do combined smi check of the operands. Left operand is on the
+  // stack. Right operand is in eax.
+  Label done, stub_call, smi_case;
+  __ pop(edx);
+  __ mov(ecx, eax);
+  __ or_(eax, Operand(edx));
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &smi_case);
+
+  __ bind(&stub_call);
+  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
+  if (stub.ArgsInRegistersSupported()) {
+    stub.GenerateCall(masm_, edx, ecx);
+  } else {
+    __ push(edx);
+    __ push(ecx);
+    __ CallStub(&stub);
+  }
+  __ jmp(&done);
+
+  __ bind(&smi_case);
+  __ mov(eax, edx);  // Copy left operand in case of a stub call.
+
+  switch (op) {
+    case Token::SAR:
+      __ SmiUntag(eax);
+      __ SmiUntag(ecx);
+      __ sar_cl(eax);  // No checks of result necessary
+      __ SmiTag(eax);
+      break;
+    case Token::SHL: {
+      Label result_ok;
+      __ SmiUntag(eax);
+      __ SmiUntag(ecx);
+      __ shl_cl(eax);
+      // Check that the *signed* result fits in a smi.
+      __ cmp(eax, 0xc0000000);
+      __ j(positive, &result_ok);
+      __ SmiTag(ecx);
+      __ jmp(&stub_call);
+      __ bind(&result_ok);
+      __ SmiTag(eax);
+      break;
+    }
+    case Token::SHR: {
+      Label result_ok;
+      __ SmiUntag(eax);
+      __ SmiUntag(ecx);
+      __ shr_cl(eax);
+      __ test(eax, Immediate(0xc0000000));
+      __ j(zero, &result_ok);
+      __ SmiTag(ecx);
+      __ jmp(&stub_call);
+      __ bind(&result_ok);
+      __ SmiTag(eax);
+      break;
+    }
+    case Token::ADD:
+      __ add(eax, Operand(ecx));
+      __ j(overflow, &stub_call);
+      break;
+    case Token::SUB:
+      __ sub(eax, Operand(ecx));
+      __ j(overflow, &stub_call);
+      break;
+    case Token::MUL: {
+      __ SmiUntag(eax);
+      __ imul(eax, Operand(ecx));
+      __ j(overflow, &stub_call);
+      __ test(eax, Operand(eax));
+      __ j(not_zero, &done, taken);
+      __ mov(ebx, edx);
+      __ or_(ebx, Operand(ecx));
+      __ j(negative, &stub_call);
+      break;
+    }
+    case Token::BIT_OR:
+      __ or_(eax, Operand(ecx));
+      break;
+    case Token::BIT_AND:
+      __ and_(eax, Operand(ecx));
+      break;
+    case Token::BIT_XOR:
+      __ xor_(eax, Operand(ecx));
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ bind(&done);
+  Apply(context, eax);
 }
 
 
@@ -2509,6 +2843,46 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
   __ bind(&ok);
   __ mov(eax, Immediate(Factory::true_value()));
   __ bind(&done);
+
+  Apply(context_, eax);
+}
+
+
+void FullCodeGenerator::EmitHasCachedArrayIndex(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+
+  VisitForValue(args->at(0), kAccumulator);
+
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(eax);
+  }
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
+
+  __ test(FieldOperand(eax, String::kHashFieldOffset),
+          Immediate(String::kContainsCachedArrayIndexMask));
+  Split(zero, if_true, if_false, fall_through);
+
+  Apply(context_, if_true, if_false);
+}
+
+
+void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+
+  VisitForValue(args->at(0), kAccumulator);
+
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(eax);
+  }
+
+  __ mov(eax, FieldOperand(eax, String::kHashFieldOffset));
+  __ IndexFromHash(eax, eax);
 
   Apply(context_, eax);
 }

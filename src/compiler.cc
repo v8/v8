@@ -416,6 +416,9 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   // object last we avoid this.
   shared->set_scope_info(*SerializedScopeInfo::Create(info->scope()));
   shared->set_code(*code);
+  if (!info->closure().is_null()) {
+    info->closure()->set_code(*code);
+  }
 
   // Set the expected number of properties for instances.
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());

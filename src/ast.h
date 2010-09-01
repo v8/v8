@@ -205,6 +205,9 @@ class Expression: public AstNode {
   // False for operations that can return one of their operands.
   virtual bool ResultOverwriteAllowed() { return false; }
 
+  // True iff the expression is a literal represented as a smi.
+  virtual bool IsSmiLiteral() { return false; }
+
   // Static type information for this expression.
   StaticType* type() { return &type_; }
 
@@ -775,6 +778,7 @@ class Literal: public Expression {
 
   virtual void Accept(AstVisitor* v);
   virtual bool IsTrivial() { return true; }
+  virtual bool IsSmiLiteral() { return handle_->IsSmi(); }
 
   // Type testing & conversion.
   virtual Literal* AsLiteral() { return this; }

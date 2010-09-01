@@ -481,6 +481,13 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
+  // TODO(849): implement custom construct stub.
+  // Generate a copy of the generic stub for now.
+  Generate_JSConstructStubGeneric(masm);
+}
+
+
 void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0     : number of arguments

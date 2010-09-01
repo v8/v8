@@ -513,7 +513,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
+void MacroAssembler::EnterExitFrame() {
   // Compute the argv pointer and keep it in a callee-saved register.
   // r0 is argc.
   add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
@@ -556,16 +556,6 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
   // Setup argc and the builtin function in callee-saved registers.
   mov(r4, Operand(r0));
   mov(r5, Operand(r1));
-
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Save the state of all registers to the stack from the memory
-  // location. This is needed to allow nested break points.
-  if (mode == ExitFrame::MODE_DEBUG) {
-    // Use sp as base to push.
-    CopyRegistersFromMemoryToStack(sp, kJSCallerSaved);
-  }
-#endif
 }
 
 
@@ -600,19 +590,7 @@ int MacroAssembler::ActivationFrameAlignment() {
 }
 
 
-void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Restore the memory copy of the registers by digging them out from
-  // the stack. This is needed to allow nested break points.
-  if (mode == ExitFrame::MODE_DEBUG) {
-    // This code intentionally clobbers r2 and r3.
-    const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
-    const int kOffset = ExitFrameConstants::kCodeOffset - kCallerSavedSize;
-    add(r3, fp, Operand(kOffset));
-    CopyRegistersFromStackToMemory(r3, r2, kJSCallerSaved);
-  }
-#endif
-
+void MacroAssembler::LeaveExitFrame() {
   // Clear top frame.
   mov(r3, Operand(0));
   mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
@@ -779,66 +757,8 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
 }
 
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
-void MacroAssembler::SaveRegistersToMemory(RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Copy the content of registers to memory location.
-  for (int i = 0; i < kNumJSCallerSaved; i++) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      Register reg = { r };
-      mov(ip, Operand(ExternalReference(Debug_Address::Register(i))));
-      str(reg, MemOperand(ip));
-    }
-  }
-}
-
-
-void MacroAssembler::RestoreRegistersFromMemory(RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Copy the content of memory location to registers.
-  for (int i = kNumJSCallerSaved; --i >= 0;) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      Register reg = { r };
-      mov(ip, Operand(ExternalReference(Debug_Address::Register(i))));
-      ldr(reg, MemOperand(ip));
-    }
-  }
-}
-
-
-void MacroAssembler::CopyRegistersFromMemoryToStack(Register base,
-                                                    RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Copy the content of the memory location to the stack and adjust base.
-  for (int i = kNumJSCallerSaved; --i >= 0;) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      mov(ip, Operand(ExternalReference(Debug_Address::Register(i))));
-      ldr(ip, MemOperand(ip));
-      str(ip, MemOperand(base, 4, NegPreIndex));
-    }
-  }
-}
-
-
-void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
-                                                    Register scratch,
-                                                    RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Copy the content of the stack to the memory location and adjust base.
-  for (int i = 0; i < kNumJSCallerSaved; i++) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      mov(ip, Operand(ExternalReference(Debug_Address::Register(i))));
-      ldr(scratch, MemOperand(base, 4, PostIndex));
-      str(scratch, MemOperand(ip));
-    }
-  }
-}
-
-
 void MacroAssembler::DebugBreak() {
   ASSERT(allow_stub_calls());
   mov(r0, Operand(0));
@@ -1334,6 +1254,21 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
     add(sp, sp, Operand(num_arguments * kPointerSize));
   }
   LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+}
+
+
+void MacroAssembler::IndexFromHash(Register hash, Register index) {
+  // If the hash field contains an array index pick it out. The assert checks
+  // that the constants for the maximum number of digits for an array index
+  // cached in the hash field and the number of bits reserved for it does not
+  // conflict.
+  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
+         (1 << String::kArrayIndexValueBits));
+  // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
+  // the low kHashShift bits.
+  STATIC_ASSERT(kSmiTag == 0);
+  Ubfx(hash, hash, String::kHashShift, String::kArrayIndexValueBits);
+  mov(index, Operand(hash, LSL, kSmiTagSize));
 }
 
 
