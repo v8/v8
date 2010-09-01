@@ -3828,21 +3828,41 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotBothSequentialAsciiStrings(eax, edx, ebx, ecx,
                                          &string_add_runtime);
 
-  // Get the two characters forming the sub string.
+  // Get the two characters forming the new string.
   __ movzx_b(ebx, FieldOperand(eax, SeqAsciiString::kHeaderSize));
   __ movzx_b(ecx, FieldOperand(edx, SeqAsciiString::kHeaderSize));
 
   // Try to lookup two character string in symbol table. If it is not found
   // just allocate a new one.
-  Label make_two_character_string, make_flat_ascii_string;
+  Label make_two_character_string, make_two_character_string_no_reload;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, ebx, ecx, eax, edx, edi, &make_two_character_string);
+      masm, ebx, ecx, eax, edx, edi,
+      &make_two_character_string_no_reload, &make_two_character_string);
   __ IncrementCounter(&Counters::string_add_native, 1);
   __ ret(2 * kPointerSize);
 
+  // Allocate a two character string.
   __ bind(&make_two_character_string);
-  __ Set(ebx, Immediate(Smi::FromInt(2)));
-  __ jmp(&make_flat_ascii_string);
+  // Reload the arguments.
+  __ mov(eax, Operand(esp, 2 * kPointerSize));  // First argument.
+  __ mov(edx, Operand(esp, 1 * kPointerSize));  // Second argument.
+  // Get the two characters forming the new string.
+  __ movzx_b(ebx, FieldOperand(eax, SeqAsciiString::kHeaderSize));
+  __ movzx_b(ecx, FieldOperand(edx, SeqAsciiString::kHeaderSize));
+  __ bind(&make_two_character_string_no_reload);
+  __ IncrementCounter(&Counters::string_add_make_two_char, 1);
+  __ AllocateAsciiString(eax,  // Result.
+                         2,    // Length.
+                         edi,  // Scratch 1.
+                         edx,  // Scratch 2.
+                         &string_add_runtime);
+  // Pack both characters in ebx.
+  __ shl(ecx, kBitsPerByte);
+  __ or_(ebx, Operand(ecx));
+  // Set the characters in the new string.
+  __ mov_w(FieldOperand(eax, SeqAsciiString::kHeaderSize), ebx);
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
 
   __ bind(&longer_than_two);
   // Check if resulting string will be flat.
@@ -3921,7 +3941,6 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
   __ j(zero, &string_add_runtime);
 
-  __ bind(&make_flat_ascii_string);
   // Both strings are ascii strings.  As they are short they are both flat.
   // ebx: length of resulting flat string as a smi
   __ SmiUntag(ebx);
@@ -4092,6 +4111,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
                                                         Register scratch1,
                                                         Register scratch2,
                                                         Register scratch3,
+                                                        Label* not_probed,
                                                         Label* not_found) {
   // Register scratch3 is the general scratch register in this function.
   Register scratch = scratch3;
@@ -4106,7 +4126,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   __ mov(scratch, c2);
   __ sub(Operand(scratch), Immediate(static_cast<int>('0')));
   __ cmp(Operand(scratch), Immediate(static_cast<int>('9' - '0')));
-  __ j(below_equal, not_found);
+  __ j(below_equal, not_probed);
 
   __ bind(&not_array_index);
   // Calculate the two character string hash.
@@ -4320,7 +4340,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Try to lookup two character string in symbol table.
   Label make_two_character_string;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, ebx, ecx, eax, edx, edi, &make_two_character_string);
+      masm, ebx, ecx, eax, edx, edi,
+      &make_two_character_string, &make_two_character_string);
   __ ret(3 * kPointerSize);
 
   __ bind(&make_two_character_string);
