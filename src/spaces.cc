@@ -616,7 +616,7 @@ void MemoryAllocator::DeleteChunk(int chunk_id) {
     Counters::memory_allocated.Decrement(static_cast<int>(c.size()));
   } else {
     LOG(DeleteEvent("PagedChunk", c.address()));
-    FreeRawMemory(c.address(), c.size(), c.owner()->executable());
+    FreeRawMemory(c.address(), c.size(), c.executable());
   }
   c.init(NULL, 0, NULL);
   Push(chunk_id);

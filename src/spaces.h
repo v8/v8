@@ -649,20 +649,23 @@ class MemoryAllocator : public AllStatic {
   // Allocated chunk info: chunk start address, chunk size, and owning space.
   class ChunkInfo BASE_EMBEDDED {
    public:
-    ChunkInfo() : address_(NULL), size_(0), owner_(NULL) {}
-    void init(Address a, size_t s, PagedSpace* o) {
-      address_ = a;
-      size_ = s;
-      owner_ = o;
-    }
+    ChunkInfo() : address_(NULL),
+                  size_(0),
+                  owner_(NULL),
+                  executable_(NOT_EXECUTABLE) {}
+    inline void init(Address a, size_t s, PagedSpace* o);
     Address address() { return address_; }
     size_t size() { return size_; }
     PagedSpace* owner() { return owner_; }
+    // We save executability of the owner to allow using it
+    // when collecting stats after the owner has been destroyed.
+    Executability executable() const { return executable_; }
 
    private:
     Address address_;
     size_t size_;
     PagedSpace* owner_;
+    Executability executable_;
   };
 
   // Chunks_, free_chunk_ids_ and top_ act as a stack of free chunk ids.
