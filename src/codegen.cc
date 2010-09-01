@@ -385,21 +385,6 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
 }
 
 
-bool CodeGenerator::PatchInlineRuntimeEntry(Handle<String> name,
-    const CodeGenerator::InlineRuntimeLUT& new_entry,
-    CodeGenerator::InlineRuntimeLUT* old_entry) {
-  InlineRuntimeLUT* entry = FindInlineRuntimeLUT(name);
-  if (entry == NULL) return false;
-  if (old_entry != NULL) {
-    old_entry->name = entry->name;
-    old_entry->method = entry->method;
-  }
-  entry->name = new_entry.name;
-  entry->method = new_entry.method;
-  return true;
-}
-
-
 int CodeGenerator::InlineRuntimeCallArgumentsCount(Handle<String> name) {
   CodeGenerator::InlineRuntimeLUT* f =
       CodeGenerator::FindInlineRuntimeLUT(name);
