@@ -1747,7 +1747,7 @@ class RegExpText: public RegExpTree {
   void AddElement(TextElement elm)  {
     elements_.Add(elm);
     length_ += elm.length();
-  };
+  }
   ZoneList<TextElement>* elements() { return &elements_; }
  private:
   ZoneList<TextElement> elements_;

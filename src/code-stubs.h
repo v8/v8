@@ -110,10 +110,10 @@ class CodeStub BASE_EMBEDDED {
 
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));
-  };
+  }
   static int MinorKeyFromKey(uint32_t key) {
     return MinorKeyBits::decode(key);
-  };
+  }
 
   // Gets the major key from a code object that is a code stub or binary op IC.
   static Major GetMajorKey(Code* code_stub) {
