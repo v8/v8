@@ -74,7 +74,7 @@ var characterQuoteCache = {
   '\f': '\\f',  // ASCII 12, Formfeed
   '\r': '\\r',  // ASCII 13, Carriage Return
   '\"': '\\"',
-  '/': '\\/'
+  '\\': '\\\\'
 };
 
 function QuoteSingleJSONCharacter(c) {
