@@ -430,6 +430,7 @@ Token::Value Scanner::Next() {
     stack_overflow_ = true;
     next_.token = Token::ILLEGAL;
   } else {
+    has_line_terminator_before_next_ = false;
     Scan();
   }
   return current_.token;
@@ -772,7 +773,6 @@ Token::Value Scanner::ScanJsonIdentifier(const char* text,
 void Scanner::ScanJavaScript() {
   next_.literal_chars = Vector<const char>();
   Token::Value token;
-  has_line_terminator_before_next_ = false;
   do {
     // Remember the position of the next token
     next_.location.beg_pos = source_pos();
@@ -1013,6 +1013,10 @@ void Scanner::ScanJavaScript() {
 void Scanner::SeekForward(int pos) {
   source_->SeekForward(pos - 1);
   Advance();
+  // This function is only called to seek to the location
+  // of the end of a function (at the "}" token). It doesn't matter
+  // whether there was a line terminator in the part we skip.
+  has_line_terminator_before_next_ = false;
   Scan();
 }
 
