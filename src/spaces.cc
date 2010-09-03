@@ -656,8 +656,8 @@ void MemoryAllocator::DeleteChunk(int chunk_id) {
   } else {
     LOG(DeleteEvent("PagedChunk", c.address()));
     ObjectSpace space = static_cast<ObjectSpace>(1 << c.owner()->identity());
-    int size = c.size();
-    FreeRawMemory(c.address(), c.size(), c.executable());
+    size_t size = c.size();
+    FreeRawMemory(c.address(), size, c.executable());
     PerformAllocationCallback(space, kAllocationActionFree, size);
   }
   c.init(NULL, 0, NULL);
