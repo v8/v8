@@ -395,7 +395,7 @@ void MemoryAllocator::FreeRawMemory(void* mem,
 
 void MemoryAllocator::PerformAllocationCallback(ObjectSpace space,
                                                 AllocationAction action,
-                                                int size) {
+                                                size_t size) {
   for (int i = 0; i < memory_allocation_callbacks_.length(); ++i) {
     MemoryAllocationCallbackRegistration registration =
       memory_allocation_callbacks_[i];

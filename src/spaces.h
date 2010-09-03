@@ -569,7 +569,7 @@ class MemoryAllocator : public AllStatic {
                             Executability executable);
   static void PerformAllocationCallback(ObjectSpace space,
                                         AllocationAction action,
-                                        int size);
+                                        size_t size);
 
   static void AddMemoryAllocationCallback(MemoryAllocationCallback callback,
                                           ObjectSpace space,
