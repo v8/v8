@@ -2700,12 +2700,10 @@ void LargeObjectSpace::TearDown() {
         page->IsPageExecutable() ? EXECUTABLE : NOT_EXECUTABLE;
     ObjectSpace space = kObjectSpaceLoSpace;
     if (executable == EXECUTABLE) space = kObjectSpaceCodeSpace;
-    int size = chunk->size();
-    MemoryAllocator::FreeRawMemory(chunk->address(),
-                                   chunk->size(),
-                                   executable);
-    MemoryAllocator::PerformAllocationCallback(space, kAllocationActionFree,
-                                               size);
+    size_t size = chunk->size();
+    MemoryAllocator::FreeRawMemory(chunk->address(), size, executable);
+    MemoryAllocator::PerformAllocationCallback(
+        space, kAllocationActionFree, size);
   }
 
   size_ = 0;
