@@ -85,7 +85,7 @@ class IC {
 
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
-  explicit IC(FrameDepth depth);
+  IC(FrameDepth depth, Isolate* isolate);
 
   // Get the call-site target; used for determining the state.
   Code* target() { return GetTargetAtAddress(address()); }
@@ -129,6 +129,7 @@ class IC {
  protected:
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
+  Isolate* isolate() const { return isolate_; }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Computes the address in the original code when the code running is
@@ -147,10 +148,10 @@ class IC {
                       const char* extra_info = "");
 #endif
 
-  static Failure* TypeError(const char* type,
-                            Handle<Object> object,
-                            Handle<Object> key);
-  static Failure* ReferenceError(const char* type, Handle<String> name);
+  Failure* TypeError(const char* type,
+                     Handle<Object> object,
+                     Handle<Object> key);
+  Failure* ReferenceError(const char* type, Handle<String> name);
 
   // Access the target code for the given IC address.
   static inline Code* GetTargetAtAddress(Address address);
@@ -165,6 +166,8 @@ class IC {
   // GetProperty and SetProperty are called and they in turn might
   // invoke the garbage collector.
   Address* pc_address_;
+
+  Isolate* isolate_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };
@@ -188,7 +191,8 @@ class IC_Utility {
 
 class CallICBase: public IC {
  protected:
-  explicit CallICBase(Code::Kind kind) : IC(EXTRA_CALL_FRAME), kind_(kind) {}
+  CallICBase(Code::Kind kind, Isolate* isolate)
+      : IC(EXTRA_CALL_FRAME, isolate), kind_(kind) {}
 
  public:
   Object* LoadFunction(State state, Handle<Object> object, Handle<String> name);
@@ -217,7 +221,9 @@ class CallICBase: public IC {
 
 class CallIC: public CallICBase {
  public:
-  CallIC() : CallICBase(Code::CALL_IC) { ASSERT(target()->is_call_stub()); }
+  explicit CallIC(Isolate* isolate) : CallICBase(Code::CALL_IC, isolate) {
+    ASSERT(target()->is_call_stub());
+  }
 
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm, int argc) {
@@ -231,7 +237,7 @@ class CallIC: public CallICBase {
 
 class KeyedCallIC: public CallICBase {
  public:
-  KeyedCallIC() : CallICBase(Code::KEYED_CALL_IC) {
+  explicit KeyedCallIC(Isolate* isolate) : CallICBase(Code::KEYED_CALL_IC, isolate) {
     ASSERT(target()->is_keyed_call_stub());
   }
 
@@ -249,7 +255,9 @@ class KeyedCallIC: public CallICBase {
 
 class LoadIC: public IC {
  public:
-  LoadIC() : IC(NO_EXTRA_FRAME) { ASSERT(target()->is_load_stub()); }
+  explicit LoadIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {
+    ASSERT(target()->is_load_stub());
+  }
 
   Object* Load(State state, Handle<Object> object, Handle<String> name);
 
@@ -284,16 +292,16 @@ class LoadIC: public IC {
                     Handle<String> name);
 
   // Stub accessors.
-  static Code* megamorphic_stub() {
-    return Isolate::Current()->builtins()->builtin(
+  Code* megamorphic_stub() {
+    return isolate()->builtins()->builtin(
         Builtins::LoadIC_Megamorphic);
   }
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
         Builtins::LoadIC_Initialize);
   }
-  static Code* pre_monomorphic_stub() {
-    return Isolate::Current()->builtins()->builtin(
+  Code* pre_monomorphic_stub() {
+    return isolate()->builtins()->builtin(
         Builtins::LoadIC_PreMonomorphic);
   }
 
@@ -307,7 +315,9 @@ class LoadIC: public IC {
 
 class KeyedLoadIC: public IC {
  public:
-  KeyedLoadIC() : IC(NO_EXTRA_FRAME) { ASSERT(target()->is_keyed_load_stub()); }
+  explicit KeyedLoadIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {
+    ASSERT(target()->is_keyed_load_stub());
+  }
 
   Object* Load(State state, Handle<Object> object, Handle<Object> key);
 
@@ -351,26 +361,26 @@ class KeyedLoadIC: public IC {
     return Isolate::Current()->builtins()->builtin(
         Builtins::KeyedLoadIC_Initialize);
   }
-  static Code* megamorphic_stub() {
-    return Isolate::Current()->builtins()->builtin(
+  Code* megamorphic_stub() {
+    return isolate()->builtins()->builtin(
         Builtins::KeyedLoadIC_Generic);
   }
-  static Code* generic_stub() {
-    return Isolate::Current()->builtins()->builtin(
+  Code* generic_stub() {
+    return isolate()->builtins()->builtin(
         Builtins::KeyedLoadIC_Generic);
   }
-  static Code* pre_monomorphic_stub() {
-    return Isolate::Current()->builtins()->builtin(
+  Code* pre_monomorphic_stub() {
+    return isolate()->builtins()->builtin(
         Builtins::KeyedLoadIC_PreMonomorphic);
   }
-  static Code* string_stub() {
-    return Isolate::Current()->builtins()->builtin(
+  Code* string_stub() {
+    return isolate()->builtins()->builtin(
         Builtins::KeyedLoadIC_String);
   }
-  static Code* external_array_stub(JSObject::ElementsKind elements_kind);
+  Code* external_array_stub(JSObject::ElementsKind elements_kind);
 
-  static Code* indexed_interceptor_stub() {
-    return Isolate::Current()->builtins()->builtin(
+  Code* indexed_interceptor_stub() {
+    return isolate()->builtins()->builtin(
         Builtins::KeyedLoadIC_IndexedInterceptor);
   }
 
@@ -386,7 +396,9 @@ class KeyedLoadIC: public IC {
 
 class StoreIC: public IC {
  public:
-  StoreIC() : IC(NO_EXTRA_FRAME) { ASSERT(target()->is_store_stub()); }
+  explicit StoreIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {
+    ASSERT(target()->is_store_stub());
+  }
 
   Object* Store(State state,
                 Handle<Object> object,
@@ -416,8 +428,8 @@ class StoreIC: public IC {
                     Handle<Object> value);
 
   // Stub accessors.
-  static Code* megamorphic_stub() {
-    return Isolate::Current()->builtins()->builtin(
+  Code* megamorphic_stub() {
+    return isolate()->builtins()->builtin(
         Builtins::StoreIC_Megamorphic);
   }
   static Code* initialize_stub() {
@@ -437,7 +449,7 @@ class StoreIC: public IC {
 
 class KeyedStoreIC: public IC {
  public:
-  KeyedStoreIC() : IC(NO_EXTRA_FRAME) { }
+  explicit KeyedStoreIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
 
   Object* Store(State state,
                 Handle<Object> object,
@@ -476,15 +488,15 @@ class KeyedStoreIC: public IC {
     return Isolate::Current()->builtins()->builtin(
         Builtins::KeyedStoreIC_Initialize);
   }
-  static Code* megamorphic_stub() {
-    return Isolate::Current()->builtins()->builtin(
+  Code* megamorphic_stub() {
+    return isolate()->builtins()->builtin(
         Builtins::KeyedStoreIC_Generic);
   }
-  static Code* generic_stub() {
-    return Isolate::Current()->builtins()->builtin(
+  Code* generic_stub() {
+    return isolate()->builtins()->builtin(
         Builtins::KeyedStoreIC_Generic);
   }
-  static Code* external_array_stub(JSObject::ElementsKind elements_kind);
+  Code* external_array_stub(JSObject::ElementsKind elements_kind);
 
   static void Clear(Address address, Code* target);
 
@@ -511,7 +523,7 @@ class BinaryOpIC: public IC {
     GENERIC   // Non-specialized case (processes any type combination).
   };
 
-  BinaryOpIC() : IC(NO_EXTRA_FRAME) { }
+  explicit BinaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
 
   void patch(Code* code);
 

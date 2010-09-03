@@ -267,7 +267,7 @@ class StubCache {
 
 
  private:
-  StubCache();
+  explicit StubCache(Isolate*);
 
   friend class Isolate;
   friend class SCTableReference;
@@ -322,6 +322,8 @@ class StubCache {
     return reinterpret_cast<Entry*>(
         reinterpret_cast<Address>(table) + (offset << shift_amount));
   }
+
+  Isolate* isolate_;
 
   DISALLOW_COPY_AND_ASSIGN(StubCache);
 };

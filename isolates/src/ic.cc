@@ -77,12 +77,13 @@ void IC::TraceIC(const char* type,
 #endif
 
 
-IC::IC(FrameDepth depth) {
+IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
+  ASSERT(isolate == Isolate::Current());
   // To improve the performance of the (much used) IC code, we unfold
   // a few levels of the stack frame iteration code. This yields a
   // ~35% speedup when running DeltaBlue with the '--nouse-ic' flag.
   const Address entry =
-      Isolate::c_entry_fp(Isolate::Current()->thread_local_top());
+      Isolate::c_entry_fp(isolate->thread_local_top());
   Address* pc_address =
       reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
   Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);
@@ -235,7 +236,7 @@ Failure* IC::TypeError(const char* type,
   HandleScope scope;
   Handle<Object> args[2] = { key, object };
   Handle<Object> error = Factory::NewTypeError(type, HandleVector(args, 2));
-  return Isolate::Current()->Throw(*error);
+  return isolate()->Throw(*error);
 }
 
 
@@ -243,7 +244,7 @@ Failure* IC::ReferenceError(const char* type, Handle<String> name) {
   HandleScope scope;
   Handle<Object> error =
       Factory::NewReferenceError(type, HandleVector(&name, 1));
-  return Isolate::Current()->Throw(*error);
+  return isolate()->Throw(*error);
 }
 
 
@@ -350,25 +351,25 @@ void KeyedStoreIC::Clear(Address address, Code* target) {
 Code* KeyedLoadIC::external_array_stub(JSObject::ElementsKind elements_kind) {
   switch (elements_kind) {
     case JSObject::EXTERNAL_BYTE_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedLoadIC_ExternalByteArray);
     case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedLoadIC_ExternalUnsignedByteArray);
     case JSObject::EXTERNAL_SHORT_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedLoadIC_ExternalShortArray);
     case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedLoadIC_ExternalUnsignedShortArray);
     case JSObject::EXTERNAL_INT_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedLoadIC_ExternalIntArray);
     case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedLoadIC_ExternalUnsignedIntArray);
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedLoadIC_ExternalFloatArray);
     default:
       UNREACHABLE();
@@ -380,25 +381,25 @@ Code* KeyedLoadIC::external_array_stub(JSObject::ElementsKind elements_kind) {
 Code* KeyedStoreIC::external_array_stub(JSObject::ElementsKind elements_kind) {
   switch (elements_kind) {
     case JSObject::EXTERNAL_BYTE_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedStoreIC_ExternalByteArray);
     case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedStoreIC_ExternalUnsignedByteArray);
     case JSObject::EXTERNAL_SHORT_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedStoreIC_ExternalShortArray);
     case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedStoreIC_ExternalUnsignedShortArray);
     case JSObject::EXTERNAL_INT_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedStoreIC_ExternalIntArray);
     case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedStoreIC_ExternalUnsignedIntArray);
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      return Isolate::Current()->builtins()->builtin(
+      return isolate()->builtins()->builtin(
           Builtins::KeyedStoreIC_ExternalFloatArray);
     default:
       UNREACHABLE();
@@ -550,7 +551,7 @@ Object* CallICBase::LoadFunction(State state,
   if (result->IsJSFunction()) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
     // Handle stepping into a function if step into is active.
-    Debug* debug = Isolate::Current()->debug();
+    Debug* debug = isolate()->debug();
     if (debug->StepInActive()) {
       // Protect the result in a handle as the debugger can allocate and might
       // cause GC.
@@ -594,19 +595,19 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
-    code = Isolate::Current()->stub_cache()->ComputeCallPreMonomorphic(argc,
-                                                                       in_loop,
-                                                                       kind_);
+    code = isolate()->stub_cache()->ComputeCallPreMonomorphic(argc,
+                                                              in_loop,
+                                                              kind_);
   } else if (state == MONOMORPHIC) {
-    code = Isolate::Current()->stub_cache()->ComputeCallMegamorphic(argc,
-                                                                    in_loop,
-                                                                    kind_);
+    code = isolate()->stub_cache()->ComputeCallMegamorphic(argc,
+                                                           in_loop,
+                                                           kind_);
   } else {
     // Compute monomorphic stub.
     switch (lookup->type()) {
       case FIELD: {
         int index = lookup->GetFieldIndex();
-        code = Isolate::Current()->stub_cache()->ComputeCallField(
+        code = isolate()->stub_cache()->ComputeCallField(
             argc,
             in_loop,
             kind_,
@@ -621,7 +622,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
         // call; used for rewriting to monomorphic state and making sure
         // that the code stub is in the stub cache.
         JSFunction* function = lookup->GetConstantFunction();
-        code = Isolate::Current()->stub_cache()->ComputeCallConstant(
+        code = isolate()->stub_cache()->ComputeCallConstant(
             argc,
             in_loop,
             kind_,
@@ -641,31 +642,31 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
           if (!cell->value()->IsJSFunction()) return;
           JSFunction* function = JSFunction::cast(cell->value());
-          code = Isolate::Current()->stub_cache()->ComputeCallGlobal(argc,
-                                                                     in_loop,
-                                                                     kind_,
-                                                                     *name,
-                                                                     *receiver,
-                                                                     global,
-                                                                     cell,
-                                                                     function);
+          code = isolate()->stub_cache()->ComputeCallGlobal(argc,
+                                                            in_loop,
+                                                            kind_,
+                                                            *name,
+                                                            *receiver,
+                                                            global,
+                                                            cell,
+                                                            function);
         } else {
           // There is only one shared stub for calling normalized
           // properties. It does not traverse the prototype chain, so the
           // property must be found in the receiver for the stub to be
           // applicable.
           if (lookup->holder() != *receiver) return;
-          code = Isolate::Current()->stub_cache()->ComputeCallNormal(argc,
-                                                                     in_loop,
-                                                                     kind_,
-                                                                     *name,
-                                                                     *receiver);
+          code = isolate()->stub_cache()->ComputeCallNormal(argc,
+                                                            in_loop,
+                                                            kind_,
+                                                            *name,
+                                                            *receiver);
         }
         break;
       }
       case INTERCEPTOR: {
         ASSERT(HasInterceptorGetter(lookup->holder()));
-        code = Isolate::Current()->stub_cache()->ComputeCallInterceptor(
+        code = isolate()->stub_cache()->ComputeCallInterceptor(
             argc,
             kind_,
             *name,
@@ -695,7 +696,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
                               object->GetPrototype())->map();
 
     // Update the stub cache.
-    Isolate::Current()->stub_cache()->Set(*name, map, Code::cast(code));
+    isolate()->stub_cache()->Set(*name, map, Code::cast(code));
   }
 
 #ifdef DEBUG
@@ -723,7 +724,7 @@ Object* KeyedCallIC::LoadFunction(State state,
   if (FLAG_use_ic && state != MEGAMORPHIC && !object->IsAccessCheckNeeded()) {
     int argc = target()->arguments_count();
     InLoopFlag in_loop = target()->ic_in_loop();
-    Object* code = Isolate::Current()->stub_cache()->ComputeCallMegamorphic(
+    Object* code = isolate()->stub_cache()->ComputeCallMegamorphic(
         argc, in_loop, Code::KEYED_CALL_IC);
     if (!code->IsFailure()) {
       set_target(Code::cast(code));
@@ -771,7 +772,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       }
 
       Code* target = NULL;
-      target = Isolate::Current()->builtins()->builtin(
+      target = isolate()->builtins()->builtin(
           Builtins::LoadIC_StringLength);
       set_target(target);
       return Smi::FromInt(String::cast(*object)->length());
@@ -786,7 +787,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       const int offset = JSArray::kLengthOffset;
       PatchInlinedLoad(address(), map, offset);
 
-      Code* target = Isolate::Current()->builtins()->builtin(
+      Code* target = isolate()->builtins()->builtin(
           Builtins::LoadIC_ArrayLength);
       set_target(target);
       return JSArray::cast(*object)->length();
@@ -798,7 +799,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
 #endif
-      Code* target = Isolate::Current()->builtins()->builtin(
+      Code* target = isolate()->builtins()->builtin(
           Builtins::LoadIC_FunctionPrototype);
       set_target(target);
       return Accessors::FunctionGetPrototype(*object, 0);
@@ -916,13 +917,13 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     code = pre_monomorphic_stub();
   } else if (!lookup->IsProperty()) {
     // Nonexistent property. The result is undefined.
-    code = Isolate::Current()->stub_cache()->ComputeLoadNonexistent(*name,
-                                                                    *receiver);
+    code = isolate()->stub_cache()->ComputeLoadNonexistent(*name,
+                                                           *receiver);
   } else {
     // Compute monomorphic stub.
     switch (lookup->type()) {
       case FIELD: {
-        code = Isolate::Current()->stub_cache()->ComputeLoadField(
+        code = isolate()->stub_cache()->ComputeLoadField(
             *name,
             *receiver,
             lookup->holder(),
@@ -931,7 +932,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
       }
       case CONSTANT_FUNCTION: {
         Object* constant = lookup->GetConstantFunction();
-        code = Isolate::Current()->stub_cache()->ComputeLoadConstant(
+        code = isolate()->stub_cache()->ComputeLoadConstant(
             *name,
             *receiver,
             lookup->holder(),
@@ -943,7 +944,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
           GlobalObject* global = GlobalObject::cast(lookup->holder());
           JSGlobalPropertyCell* cell =
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-          code = Isolate::Current()->stub_cache()->ComputeLoadGlobal(
+          code = isolate()->stub_cache()->ComputeLoadGlobal(
               *name,
               *receiver,
               global,
@@ -955,7 +956,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
           // property must be found in the receiver for the stub to be
           // applicable.
           if (lookup->holder() != *receiver) return;
-          code = Isolate::Current()->stub_cache()->ComputeLoadNormal();
+          code = isolate()->stub_cache()->ComputeLoadNormal();
         }
         break;
       }
@@ -964,7 +965,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         AccessorInfo* callback =
             AccessorInfo::cast(lookup->GetCallbackObject());
         if (v8::ToCData<Address>(callback->getter()) == 0) return;
-        code = Isolate::Current()->stub_cache()->ComputeLoadCallback(
+        code = isolate()->stub_cache()->ComputeLoadCallback(
             *name,
             *receiver,
             lookup->holder(),
@@ -973,7 +974,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
       }
       case INTERCEPTOR: {
         ASSERT(HasInterceptorGetter(lookup->holder()));
-        code = Isolate::Current()->stub_cache()->ComputeLoadInterceptor(
+        code = isolate()->stub_cache()->ComputeLoadInterceptor(
             *name,
             *receiver,
             lookup->holder());
@@ -1000,7 +1001,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     Map* map = JSObject::cast(object->IsJSObject() ? *object :
                               object->GetPrototype())->map();
 
-    Isolate::Current()->stub_cache()->Set(*name, map, Code::cast(code));
+    isolate()->stub_cache()->Set(*name, map, Code::cast(code));
   }
 
 #ifdef DEBUG
@@ -1026,7 +1027,7 @@ Object* KeyedLoadIC::Load(State state,
       if (object->IsString() && name->Equals(HEAP->length_symbol())) {
         Handle<String> string = Handle<String>::cast(object);
         Object* code = NULL;
-        code = Isolate::Current()->stub_cache()->ComputeKeyedLoadStringLength(
+        code = isolate()->stub_cache()->ComputeKeyedLoadStringLength(
             *name,
             *string);
         if (code->IsFailure()) return code;
@@ -1041,7 +1042,7 @@ Object* KeyedLoadIC::Load(State state,
       if (object->IsJSArray() && name->Equals(HEAP->length_symbol())) {
         Handle<JSArray> array = Handle<JSArray>::cast(object);
         Object* code =
-            Isolate::Current()->stub_cache()->ComputeKeyedLoadArrayLength(
+            isolate()->stub_cache()->ComputeKeyedLoadArrayLength(
                 *name,
                 *array);
         if (code->IsFailure()) return code;
@@ -1057,7 +1058,7 @@ Object* KeyedLoadIC::Load(State state,
         JSFunction::cast(*object)->should_have_prototype()) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(object);
         Object* code =
-            Isolate::Current()->stub_cache()->ComputeKeyedLoadFunctionPrototype(
+            isolate()->stub_cache()->ComputeKeyedLoadFunctionPrototype(
                 *name,
                 *function);
         if (code->IsFailure()) return code;
@@ -1167,7 +1168,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
     // Compute a monomorphic stub.
     switch (lookup->type()) {
       case FIELD: {
-        code = Isolate::Current()->stub_cache()->ComputeKeyedLoadField(
+        code = isolate()->stub_cache()->ComputeKeyedLoadField(
             *name,
             *receiver,
             lookup->holder(),
@@ -1176,7 +1177,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
       }
       case CONSTANT_FUNCTION: {
         Object* constant = lookup->GetConstantFunction();
-        code = Isolate::Current()->stub_cache()->ComputeKeyedLoadConstant(
+        code = isolate()->stub_cache()->ComputeKeyedLoadConstant(
             *name,
             *receiver,
             lookup->holder(),
@@ -1188,7 +1189,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
         AccessorInfo* callback =
             AccessorInfo::cast(lookup->GetCallbackObject());
         if (v8::ToCData<Address>(callback->getter()) == 0) return;
-        code = Isolate::Current()->stub_cache()->ComputeKeyedLoadCallback(
+        code = isolate()->stub_cache()->ComputeKeyedLoadCallback(
             *name,
             *receiver,
             lookup->holder(),
@@ -1197,7 +1198,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
       }
       case INTERCEPTOR: {
         ASSERT(HasInterceptorGetter(lookup->holder()));
-        code = Isolate::Current()->stub_cache()->ComputeKeyedLoadInterceptor(
+        code = isolate()->stub_cache()->ComputeKeyedLoadInterceptor(
             *name,
             *receiver,
             lookup->holder());
@@ -1292,7 +1293,7 @@ Object* StoreIC::Store(State state,
 #ifdef DEBUG
     if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
 #endif
-    Code* target = Isolate::Current()->builtins()->builtin(
+    Code* target = isolate()->builtins()->builtin(
         Builtins::StoreIC_ArrayLength);
     set_target(target);
     return receiver->SetProperty(*name, *value, NONE);
@@ -1382,7 +1383,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   Object* code = NULL;
   switch (type) {
     case FIELD: {
-      code = Isolate::Current()->stub_cache()->ComputeStoreField(
+      code = isolate()->stub_cache()->ComputeStoreField(
           *name,
           *receiver,
           lookup->GetFieldIndex());
@@ -1394,10 +1395,10 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       ASSERT(type == MAP_TRANSITION);
       Handle<Map> transition(lookup->GetTransitionMap());
       int index = transition->PropertyIndexFor(*name);
-      code = Isolate::Current()->stub_cache()->ComputeStoreField(*name,
-                                                                 *receiver,
-                                                                 index,
-                                                                 *transition);
+      code = isolate()->stub_cache()->ComputeStoreField(*name,
+                                                        *receiver,
+                                                        index,
+                                                        *transition);
       break;
     }
     case NORMAL: {
@@ -1408,12 +1409,12 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
         JSGlobalPropertyCell* cell =
             JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-        code = Isolate::Current()->stub_cache()->ComputeStoreGlobal(*name,
-                                                                    *global,
-                                                                    cell);
+        code = isolate()->stub_cache()->ComputeStoreGlobal(*name,
+                                                           *global,
+                                                           cell);
       } else {
         if (lookup->holder() != *receiver) return;
-        code = Isolate::Current()->stub_cache()->ComputeStoreNormal();
+        code = isolate()->stub_cache()->ComputeStoreNormal();
       }
       break;
     }
@@ -1421,14 +1422,14 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       if (!lookup->GetCallbackObject()->IsAccessorInfo()) return;
       AccessorInfo* callback = AccessorInfo::cast(lookup->GetCallbackObject());
       if (v8::ToCData<Address>(callback->setter()) == 0) return;
-      code = Isolate::Current()->stub_cache()->ComputeStoreCallback(*name,
-                                                                    *receiver,
-                                                                    callback);
+      code = isolate()->stub_cache()->ComputeStoreCallback(*name,
+                                                           *receiver,
+                                                           callback);
       break;
     }
     case INTERCEPTOR: {
       ASSERT(!receiver->GetNamedInterceptor()->setter()->IsUndefined());
-      code = Isolate::Current()->stub_cache()->ComputeStoreInterceptor(
+      code = isolate()->stub_cache()->ComputeStoreInterceptor(
           *name,
           *receiver);
       break;
@@ -1449,9 +1450,9 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     if (target() != Code::cast(code)) set_target(megamorphic_stub());
   } else if (state == MEGAMORPHIC) {
     // Update the stub cache.
-    Isolate::Current()->stub_cache()->Set(*name,
-                                          receiver->map(),
-                                          Code::cast(code));
+    isolate()->stub_cache()->Set(*name,
+                                 receiver->map(),
+                                 Code::cast(code));
   }
 
 #ifdef DEBUG
@@ -1547,7 +1548,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
 
   switch (type) {
     case FIELD: {
-      code = Isolate::Current()->stub_cache()->ComputeKeyedStoreField(
+      code = isolate()->stub_cache()->ComputeKeyedStoreField(
           *name,
           *receiver,
           lookup->GetFieldIndex());
@@ -1559,7 +1560,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
         ASSERT(type == MAP_TRANSITION);
         Handle<Map> transition(lookup->GetTransitionMap());
         int index = transition->PropertyIndexFor(*name);
-        code = Isolate::Current()->stub_cache()->ComputeKeyedStoreField(
+        code = isolate()->stub_cache()->ComputeKeyedStoreField(
             *name,
             *receiver,
             index,
@@ -1619,7 +1620,7 @@ Object* CallIC_Miss(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
-  CallIC ic;
+  CallIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Object* result =
       ic.LoadFunction(state, args.at<Object>(0), args.at<String>(1));
@@ -1643,7 +1644,7 @@ Object* KeyedCallIC_Miss(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
-  KeyedCallIC ic;
+  KeyedCallIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Object* result =
       ic.LoadFunction(state, args.at<Object>(0), args.at<Object>(1));
@@ -1660,7 +1661,7 @@ Object* LoadIC_Miss(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
-  LoadIC ic;
+  LoadIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Load(state, args.at<Object>(0), args.at<String>(1));
 }
@@ -1671,7 +1672,7 @@ Object* KeyedLoadIC_Miss(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
-  KeyedLoadIC ic;
+  KeyedLoadIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Load(state, args.at<Object>(0), args.at<Object>(1));
 }
@@ -1682,7 +1683,7 @@ Object* StoreIC_Miss(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
-  StoreIC ic;
+  StoreIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Store(state, args.at<Object>(0), args.at<String>(1),
                   args.at<Object>(2));
@@ -1743,7 +1744,7 @@ Object* KeyedStoreIC_Miss(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
-  KeyedStoreIC ic;
+  KeyedStoreIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Store(state, args.at<Object>(0), args.at<Object>(1),
                   args.at<Object>(2));
@@ -1821,7 +1822,7 @@ Object* BinaryOp_Patch(RUNTIME_CALLING_CONVENTION) {
     BinaryOpIC::TypeInfo type_info = BinaryOpIC::GetTypeInfo(*left, *right);
     Handle<Code> code = GetBinaryOpStub(key, type_info);
     if (!code.is_null()) {
-      BinaryOpIC ic;
+      BinaryOpIC ic(isolate);
       ic.patch(*code);
 #ifdef DEBUG
       if (FLAG_trace_ic) {
@@ -1836,7 +1837,7 @@ Object* BinaryOp_Patch(RUNTIME_CALLING_CONVENTION) {
 
   HandleScope scope;
   Handle<JSBuiltinsObject> builtins = Handle<JSBuiltinsObject>(
-      Isolate::Current()->thread_local_top()->context_->builtins());
+      isolate->thread_local_top()->context_->builtins());
 
   Object* builtin = NULL;  // Initialization calms down the compiler.
 

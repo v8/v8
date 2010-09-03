@@ -39,7 +39,8 @@ namespace internal {
 // StubCache implementation.
 
 
-StubCache::StubCache() {
+StubCache::StubCache(Isolate* isolate) : isolate_(isolate) {
+  ASSERT(isolate == Isolate::Current());
   memset(primary_, 0, sizeof(primary_[0]) * StubCache::kPrimaryTableSize);
   memset(secondary_, 0, sizeof(secondary_[0]) * StubCache::kSecondaryTableSize);
 }
@@ -81,7 +82,7 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
 
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
-  if (hit != Isolate::Current()->builtins()->builtin(Builtins::Illegal)) {
+  if (hit != isolate_->builtins()->builtin(Builtins::Illegal)) {
     Code::Flags primary_flags = Code::RemoveTypeFromFlags(hit->flags());
     int secondary_offset =
         SecondaryOffset(primary->key, primary_flags, primary_offset);
@@ -208,7 +209,7 @@ Object* StubCache::ComputeLoadInterceptor(String* name,
 
 
 Object* StubCache::ComputeLoadNormal() {
-  return Isolate::Current()->builtins()->builtin(Builtins::LoadIC_Normal);
+  return isolate_->builtins()->builtin(Builtins::LoadIC_Normal);
 }
 
 
@@ -388,7 +389,7 @@ Object* StubCache::ComputeStoreField(String* name,
 
 
 Object* StubCache::ComputeStoreNormal() {
-  return Isolate::Current()->builtins()->builtin(Builtins::StoreIC_Normal);
+  return isolate_->builtins()->builtin(Builtins::StoreIC_Normal);
 }
 
 
@@ -786,12 +787,12 @@ Object* StubCache::ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind) {
 void StubCache::Clear() {
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = HEAP->empty_string();
-    primary_[i].value = Isolate::Current()->builtins()->builtin(
+    primary_[i].value = isolate_->builtins()->builtin(
         Builtins::Illegal);
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
     secondary_[j].key = HEAP->empty_string();
-    secondary_[j].value = Isolate::Current()->builtins()->builtin(
+    secondary_[j].value = isolate_->builtins()->builtin(
         Builtins::Illegal);
   }
 }
@@ -904,7 +905,7 @@ static Object* ThrowReferenceError(String* name) {
   // If the load is non-contextual, just return the undefined result.
   // Note that both keyed and non-keyed loads may end up here, so we
   // can't use either LoadIC or KeyedLoadIC constructors.
-  IC ic(IC::NO_EXTRA_FRAME);
+  IC ic(IC::NO_EXTRA_FRAME, Isolate::Current());
   ASSERT(ic.target()->is_load_stub() || ic.target()->is_keyed_load_stub());
   if (!ic.SlowIsContextual()) return HEAP->undefined_value();
 
