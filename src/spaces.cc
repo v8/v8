@@ -274,6 +274,9 @@ int MemoryAllocator::capacity_   = 0;
 int MemoryAllocator::size_       = 0;
 int MemoryAllocator::size_executable_ = 0;
 
+List<MemoryAllocator::MemoryAllocationCallbackRegistration>
+  MemoryAllocator::memory_allocation_callbacks_;
+
 VirtualMemory* MemoryAllocator::initial_chunk_ = NULL;
 
 // 270 is an estimate based on the static default heap size of a pair of 256K
@@ -299,8 +302,6 @@ int MemoryAllocator::Pop() {
 }
 
 
-void *executable_memory_histogram = NULL;
-
 bool MemoryAllocator::Setup(int capacity) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
 
@@ -318,8 +319,6 @@ bool MemoryAllocator::Setup(int capacity) {
 
   size_ = 0;
   size_executable_ = 0;
-  executable_memory_histogram =
-      StatsTable::CreateHistogram("V8.ExecutableMemoryMax", 0, MB * 512, 50);
   ChunkInfo info;  // uninitialized element.
   for (int i = max_nof_chunks_ - 1; i >= 0; i--) {
     chunks_.Add(info);
@@ -366,15 +365,7 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
   int alloced = static_cast<int>(*allocated);
   size_ += alloced;
 
-  if (executable == EXECUTABLE) {
-    size_executable_ += alloced;
-    static int size_executable_max_observed_ = 0;
-    if (size_executable_max_observed_ < size_executable_) {
-      size_executable_max_observed_ = size_executable_;
-      StatsTable::AddHistogramSample(executable_memory_histogram,
-          size_executable_);
-    }
-  }
+  if (executable == EXECUTABLE) size_executable_ += alloced;
 #ifdef DEBUG
   ZapBlock(reinterpret_cast<Address>(mem), alloced);
 #endif
@@ -397,9 +388,55 @@ void MemoryAllocator::FreeRawMemory(void* mem,
   Counters::memory_allocated.Decrement(static_cast<int>(length));
   size_ -= static_cast<int>(length);
   if (executable == EXECUTABLE) size_executable_ -= static_cast<int>(length);
+
   ASSERT(size_ >= 0);
 }
 
+
+void MemoryAllocator::PerformAllocationCallback(ObjectSpace space,
+                                                AllocationAction action,
+                                                int size) {
+  for (int i = 0; i < memory_allocation_callbacks_.length(); ++i) {
+    MemoryAllocationCallbackRegistration registration =
+      memory_allocation_callbacks_[i];
+    if ((registration.space & space) == space &&
+        (registration.action & action) == action)
+      registration.callback(space, action, static_cast<int>(size));
+  }
+}
+
+
+bool MemoryAllocator::MemoryAllocationCallbackRegistered(
+    MemoryAllocationCallback callback) {
+  for (int i = 0; i < memory_allocation_callbacks_.length(); ++i) {
+    if (memory_allocation_callbacks_[i].callback == callback) return true;
+  }
+  return false;
+}
+
+
+void MemoryAllocator::AddMemoryAllocationCallback(
+    MemoryAllocationCallback callback,
+    ObjectSpace space,
+    AllocationAction action) {
+  ASSERT(callback != NULL);
+  MemoryAllocationCallbackRegistration registration(callback, space, action);
+  ASSERT(!MemoryAllocator::MemoryAllocationCallbackRegistered(callback));
+  return memory_allocation_callbacks_.Add(registration);
+}
+
+
+void MemoryAllocator::RemoveMemoryAllocationCallback(
+     MemoryAllocationCallback callback) {
+  ASSERT(callback != NULL);
+  for (int i = 0; i < memory_allocation_callbacks_.length(); ++i) {
+    if (memory_allocation_callbacks_[i].callback == callback) {
+      memory_allocation_callbacks_.Remove(i);
+      return;
+    }
+  }
+  UNREACHABLE();
+}
 
 void* MemoryAllocator::ReserveInitialChunk(const size_t requested) {
   ASSERT(initial_chunk_ == NULL);
@@ -458,6 +495,8 @@ Page* MemoryAllocator::AllocatePages(int requested_pages, int* allocated_pages,
   int chunk_id = Pop();
   chunks_[chunk_id].init(static_cast<Address>(chunk), chunk_size, owner);
 
+  ObjectSpace space = static_cast<ObjectSpace>(1 << owner->identity());
+  PerformAllocationCallback(space, kAllocationActionAllocate, chunk_size);
   return InitializePagesInChunk(chunk_id, *allocated_pages, owner);
 }
 
@@ -616,7 +655,10 @@ void MemoryAllocator::DeleteChunk(int chunk_id) {
     Counters::memory_allocated.Decrement(static_cast<int>(c.size()));
   } else {
     LOG(DeleteEvent("PagedChunk", c.address()));
+    ObjectSpace space = static_cast<ObjectSpace>(1 << c.owner()->identity());
+    int size = c.size();
     FreeRawMemory(c.address(), c.size(), c.executable());
+    PerformAllocationCallback(space, kAllocationActionFree, size);
   }
   c.init(NULL, 0, NULL);
   Push(chunk_id);
@@ -2614,6 +2656,11 @@ LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
     LOG(DeleteEvent("LargeObjectChunk", mem));
     return NULL;
   }
+  ObjectSpace space =
+      (executable == EXECUTABLE) ? kObjectSpaceCodeSpace : kObjectSpaceLoSpace;
+  MemoryAllocator::PerformAllocationCallback(space,
+                                             kAllocationActionAllocate,
+                                             *chunk_size);
   return reinterpret_cast<LargeObjectChunk*>(mem);
 }
 
@@ -2651,9 +2698,14 @@ void LargeObjectSpace::TearDown() {
     Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
     Executability executable =
         page->IsPageExecutable() ? EXECUTABLE : NOT_EXECUTABLE;
+    ObjectSpace space = kObjectSpaceLoSpace;
+    if (executable == EXECUTABLE) space = kObjectSpaceCodeSpace;
+    int size = chunk->size();
     MemoryAllocator::FreeRawMemory(chunk->address(),
                                    chunk->size(),
                                    executable);
+    MemoryAllocator::PerformAllocationCallback(space, kAllocationActionFree,
+                                               size);
   }
 
   size_ = 0;
@@ -2867,7 +2919,11 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       MarkCompactCollector::ReportDeleteIfNeeded(object);
       size_ -= static_cast<int>(chunk_size);
       page_count_--;
+      ObjectSpace space = kObjectSpaceLoSpace;
+      if (executable == EXECUTABLE) space = kObjectSpaceCodeSpace;
       MemoryAllocator::FreeRawMemory(chunk_address, chunk_size, executable);
+      MemoryAllocator::PerformAllocationCallback(space, kAllocationActionFree,
+                                                 size_);
       LOG(DeleteEvent("LargeObjectChunk", chunk_address));
     }
   }

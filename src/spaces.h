@@ -567,6 +567,17 @@ class MemoryAllocator : public AllStatic {
   static void FreeRawMemory(void* buf,
                             size_t length,
                             Executability executable);
+  static void PerformAllocationCallback(ObjectSpace space,
+                                        AllocationAction action,
+                                        int size);
+
+  static void AddMemoryAllocationCallback(MemoryAllocationCallback callback,
+                                          ObjectSpace space,
+                                          AllocationAction action);
+  static void RemoveMemoryAllocationCallback(
+      MemoryAllocationCallback callback);
+  static bool MemoryAllocationCallbackRegistered(
+      MemoryAllocationCallback callback);
 
   // Returns the maximum available bytes of heaps.
   static int Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
@@ -642,6 +653,20 @@ class MemoryAllocator : public AllStatic {
   static int size_;
   // Allocated executable space size in bytes.
   static int size_executable_;
+
+  struct MemoryAllocationCallbackRegistration {
+    MemoryAllocationCallbackRegistration(MemoryAllocationCallback callback,
+                                         ObjectSpace space,
+                                         AllocationAction action)
+        : callback(callback), space(space), action(action) {
+    }
+    MemoryAllocationCallback callback;
+    ObjectSpace space;
+    AllocationAction action;
+  };
+  // A List of callback that are triggered when memory is allocated or free'd
+  static List<MemoryAllocationCallbackRegistration>
+      memory_allocation_callbacks_;
 
   // The initial chunk of virtual memory.
   static VirtualMemory* initial_chunk_;
