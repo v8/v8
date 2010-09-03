@@ -743,7 +743,7 @@ Token::Value Scanner::ScanJsonNumber() {
       AddCharAdvance();
     } while (c0_ >= '0' && c0_ <= '9');
   }
-  if ((c0_ | 0x20) == 'e') {
+  if (AsciiAlphaToLower(c0_) == 'e') {
     AddCharAdvance();
     if (c0_ == '-' || c0_ == '+') AddCharAdvance();
     if (c0_ < '0' || c0_ > '9') return Token::ILLEGAL;
