@@ -3605,6 +3605,29 @@ THREADED_TEST(ExceptionExtensions) {
 }
 
 
+static const char* kNativeCallInExtensionSource =
+    "function call_runtime_last_index_of(x) {"
+    "  return %StringLastIndexOf(x, 'bob', 10);"
+    "}";
+
+
+static const char* kNativeCallTest =
+    "call_runtime_last_index_of('bobbobboellebobboellebobbob');";
+
+// Test that a native runtime calls are supported in extensions.
+THREADED_TEST(NativeCallInExtensions) {
+  v8::HandleScope handle_scope;
+  v8::RegisterExtension(new Extension("nativecall",
+                                      kNativeCallInExtensionSource));
+  const char* extension_names[] = { "nativecall" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  Context::Scope lock(context);
+  v8::Handle<Value> result = Script::Compile(v8_str(kNativeCallTest))->Run();
+  CHECK_EQ(result, v8::Integer::New(3));
+}
+
+
 static void CheckDependencies(const char* name, const char* expected) {
   v8::HandleScope handle_scope;
   v8::ExtensionConfiguration config(1, &name);
