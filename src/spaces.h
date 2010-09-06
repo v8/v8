@@ -567,6 +567,17 @@ class MemoryAllocator : public AllStatic {
   static void FreeRawMemory(void* buf,
                             size_t length,
                             Executability executable);
+  static void PerformAllocationCallback(ObjectSpace space,
+                                        AllocationAction action,
+                                        size_t size);
+
+  static void AddMemoryAllocationCallback(MemoryAllocationCallback callback,
+                                          ObjectSpace space,
+                                          AllocationAction action);
+  static void RemoveMemoryAllocationCallback(
+      MemoryAllocationCallback callback);
+  static bool MemoryAllocationCallbackRegistered(
+      MemoryAllocationCallback callback);
 
   // Returns the maximum available bytes of heaps.
   static int Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
@@ -643,26 +654,43 @@ class MemoryAllocator : public AllStatic {
   // Allocated executable space size in bytes.
   static int size_executable_;
 
+  struct MemoryAllocationCallbackRegistration {
+    MemoryAllocationCallbackRegistration(MemoryAllocationCallback callback,
+                                         ObjectSpace space,
+                                         AllocationAction action)
+        : callback(callback), space(space), action(action) {
+    }
+    MemoryAllocationCallback callback;
+    ObjectSpace space;
+    AllocationAction action;
+  };
+  // A List of callback that are triggered when memory is allocated or free'd
+  static List<MemoryAllocationCallbackRegistration>
+      memory_allocation_callbacks_;
+
   // The initial chunk of virtual memory.
   static VirtualMemory* initial_chunk_;
 
   // Allocated chunk info: chunk start address, chunk size, and owning space.
   class ChunkInfo BASE_EMBEDDED {
    public:
-    ChunkInfo() : address_(NULL), size_(0), owner_(NULL) {}
-    void init(Address a, size_t s, PagedSpace* o) {
-      address_ = a;
-      size_ = s;
-      owner_ = o;
-    }
+    ChunkInfo() : address_(NULL),
+                  size_(0),
+                  owner_(NULL),
+                  executable_(NOT_EXECUTABLE) {}
+    inline void init(Address a, size_t s, PagedSpace* o);
     Address address() { return address_; }
     size_t size() { return size_; }
     PagedSpace* owner() { return owner_; }
+    // We save executability of the owner to allow using it
+    // when collecting stats after the owner has been destroyed.
+    Executability executable() const { return executable_; }
 
    private:
     Address address_;
     size_t size_;
     PagedSpace* owner_;
+    Executability executable_;
   };
 
   // Chunks_, free_chunk_ids_ and top_ act as a stack of free chunk ids.

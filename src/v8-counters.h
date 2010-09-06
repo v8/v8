@@ -203,6 +203,7 @@ namespace internal {
   SC(string_add_runtime_ext_to_ascii, V8.StringAddRuntimeExtToAscii)  \
   SC(sub_string_runtime, V8.SubStringRuntime)                         \
   SC(sub_string_native, V8.SubStringNative)                           \
+  SC(string_add_make_two_char, V8.StringAddMakeTwoChar)               \
   SC(string_compare_native, V8.StringCompareNative)                   \
   SC(string_compare_runtime, V8.StringCompareRuntime)                 \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                     \

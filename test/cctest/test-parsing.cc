@@ -32,6 +32,7 @@
 #include "token.h"
 #include "scanner.h"
 #include "utils.h"
+#include "execution.h"
 
 #include "cctest.h"
 
@@ -127,3 +128,35 @@ TEST(KeywordMatcher) {
   CHECK_EQ(i::Token::IDENTIFIER, full_stop.token());
 }
 
+
+TEST(ScanHTMLEndComments) {
+  // Regression test. See:
+  //    http://code.google.com/p/chromium/issues/detail?id=53548
+  // Tests that --> is correctly interpreted as comment-to-end-of-line if there
+  // is only whitespace before it on the line, even after a multiline-comment
+  // comment. This was not the case if it occurred before the first real token
+  // in the input.
+  const char* tests[] = {
+      // Before first real token.
+      "--> is eol-comment\nvar y = 37;\n",
+      "\n --> is eol-comment\nvar y = 37;\n",
+      "/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      "\n/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      // After first real token.
+      "var x = 42;\n--> is eol-comment\nvar y = 37;\n",
+      "var x = 42;\n/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      NULL
+  };
+
+  // Parser needs a stack limit.
+  int marker;
+  i::StackGuard::SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  for (int i = 0; tests[i]; i++) {
+    v8::ScriptData* data =
+        v8::ScriptData::PreCompile(tests[i], strlen(tests[i]));
+    CHECK(data != NULL && !data->HasError());
+    delete data;
+  }
+}

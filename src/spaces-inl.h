@@ -303,6 +303,14 @@ void Page::SetIsPageExecutable(bool is_page_executable) {
 // -----------------------------------------------------------------------------
 // MemoryAllocator
 
+void MemoryAllocator::ChunkInfo::init(Address a, size_t s, PagedSpace* o) {
+  address_ = a;
+  size_ = s;
+  owner_ = o;
+  executable_ = (o == NULL) ? NOT_EXECUTABLE : o->executable();
+}
+
+
 bool MemoryAllocator::IsValidChunk(int chunk_id) {
   if (!IsValidChunkId(chunk_id)) return false;
 

@@ -356,6 +356,11 @@ class MacroAssembler: public Assembler {
                            Register scratch2,
                            Register scratch3,
                            Label* gc_required);
+  void AllocateAsciiString(Register result,
+                           int length,
+                           Register scratch1,
+                           Register scratch2,
+                           Label* gc_required);
 
   // Allocate a raw cons string object. Only the map field of the result is
   // initialized.

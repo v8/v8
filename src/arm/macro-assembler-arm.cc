@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <limits.h>  // For LONG_MIN, LONG_MAX.
+
 #include "v8.h"
 
 #if defined(V8_TARGET_ARCH_ARM)
@@ -1330,6 +1332,104 @@ void MacroAssembler::SmiToDoubleVFPRegister(Register smi,
   mov(scratch1, Operand(smi, ASR, kSmiTagSize));
   vmov(scratch2, scratch1);
   vcvt_f64_s32(value, scratch2);
+}
+
+
+// Tries to get a signed int32 out of a double precision floating point heap
+// number. Rounds towards 0. Branch to 'not_int32' if the double is out of the
+// 32bits signed integer range.
+void MacroAssembler::ConvertToInt32(Register source,
+                                    Register dest,
+                                    Register scratch,
+                                    Register scratch2,
+                                    Label *not_int32) {
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+    sub(scratch, source, Operand(kHeapObjectTag));
+    vldr(d0, scratch, HeapNumber::kValueOffset);
+    vcvt_s32_f64(s0, d0);
+    vmov(dest, s0);
+    // Signed vcvt instruction will saturate to the minimum (0x80000000) or
+    // maximun (0x7fffffff) signed 32bits integer when the double is out of
+    // range. When substracting one, the minimum signed integer becomes the
+    // maximun signed integer.
+    sub(scratch, dest, Operand(1));
+    cmp(scratch, Operand(LONG_MAX - 1));
+    // If equal then dest was LONG_MAX, if greater dest was LONG_MIN.
+    b(ge, not_int32);
+  } else {
+    // This code is faster for doubles that are in the ranges -0x7fffffff to
+    // -0x40000000 or 0x40000000 to 0x7fffffff. This corresponds almost to
+    // the range of signed int32 values that are not Smis.  Jumps to the label
+    // 'not_int32' if the double isn't in the range -0x80000000.0 to
+    // 0x80000000.0 (excluding the endpoints).
+    Label right_exponent, done;
+    // Get exponent word.
+    ldr(scratch, FieldMemOperand(source, HeapNumber::kExponentOffset));
+    // Get exponent alone in scratch2.
+    Ubfx(scratch2,
+            scratch,
+            HeapNumber::kExponentShift,
+            HeapNumber::kExponentBits);
+    // Load dest with zero.  We use this either for the final shift or
+    // for the answer.
+    mov(dest, Operand(0));
+    // Check whether the exponent matches a 32 bit signed int that is not a Smi.
+    // A non-Smi integer is 1.xxx * 2^30 so the exponent is 30 (biased). This is
+    // the exponent that we are fastest at and also the highest exponent we can
+    // handle here.
+    const uint32_t non_smi_exponent = HeapNumber::kExponentBias + 30;
+    // The non_smi_exponent, 0x41d, is too big for ARM's immediate field so we
+    // split it up to avoid a constant pool entry.  You can't do that in general
+    // for cmp because of the overflow flag, but we know the exponent is in the
+    // range 0-2047 so there is no overflow.
+    int fudge_factor = 0x400;
+    sub(scratch2, scratch2, Operand(fudge_factor));
+    cmp(scratch2, Operand(non_smi_exponent - fudge_factor));
+    // If we have a match of the int32-but-not-Smi exponent then skip some
+    // logic.
+    b(eq, &right_exponent);
+    // If the exponent is higher than that then go to slow case.  This catches
+    // numbers that don't fit in a signed int32, infinities and NaNs.
+    b(gt, not_int32);
+
+    // We know the exponent is smaller than 30 (biased).  If it is less than
+    // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
+    // it rounds to zero.
+    const uint32_t zero_exponent = HeapNumber::kExponentBias + 0;
+    sub(scratch2, scratch2, Operand(zero_exponent - fudge_factor), SetCC);
+    // Dest already has a Smi zero.
+    b(lt, &done);
+
+    // We have an exponent between 0 and 30 in scratch2.  Subtract from 30 to
+    // get how much to shift down.
+    rsb(dest, scratch2, Operand(30));
+
+    bind(&right_exponent);
+    // Get the top bits of the mantissa.
+    and_(scratch2, scratch, Operand(HeapNumber::kMantissaMask));
+    // Put back the implicit 1.
+    orr(scratch2, scratch2, Operand(1 << HeapNumber::kExponentShift));
+    // Shift up the mantissa bits to take up the space the exponent used to
+    // take. We just orred in the implicit bit so that took care of one and
+    // we want to leave the sign bit 0 so we subtract 2 bits from the shift
+    // distance.
+    const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
+    mov(scratch2, Operand(scratch2, LSL, shift_distance));
+    // Put sign in zero flag.
+    tst(scratch, Operand(HeapNumber::kSignMask));
+    // Get the second half of the double. For some exponents we don't
+    // actually need this because the bits get shifted out again, but
+    // it's probably slower to test than just to do it.
+    ldr(scratch, FieldMemOperand(source, HeapNumber::kMantissaOffset));
+    // Shift down 22 bits to get the last 10 bits.
+    orr(scratch, scratch2, Operand(scratch, LSR, 32 - shift_distance));
+    // Move down according to the exponent.
+    mov(dest, Operand(scratch, LSR, dest));
+    // Fix sign if sign bit was set.
+    rsb(dest, dest, Operand(0), LeaveCC, ne);
+    bind(&done);
+  }
 }
 
 

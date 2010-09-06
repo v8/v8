@@ -84,7 +84,10 @@ VariableProxy::VariableProxy(Handle<String> name,
 
 
 VariableProxy::VariableProxy(bool is_this)
-    : is_this_(is_this) {
+  : var_(NULL),
+    is_this_(is_this),
+    inside_with_(false),
+    is_trivial_(false) {
 }
 
 

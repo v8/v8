@@ -64,7 +64,6 @@
 //   DeclareGlobals
 //   FindInlineRuntimeLUT
 //   CheckForInlineRuntimeCall
-//   PatchInlineRuntimeEntry
 //   AnalyzeCondition
 //   CodeForFunctionPosition
 //   CodeForReturnPosition

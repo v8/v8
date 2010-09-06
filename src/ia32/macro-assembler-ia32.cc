@@ -782,6 +782,31 @@ void MacroAssembler::AllocateAsciiString(Register result,
 }
 
 
+void MacroAssembler::AllocateAsciiString(Register result,
+                                         int length,
+                                         Register scratch1,
+                                         Register scratch2,
+                                         Label* gc_required) {
+  ASSERT(length > 0);
+
+  // Allocate ascii string in new space.
+  AllocateInNewSpace(SeqAsciiString::SizeFor(length),
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map, length and hash field.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(Factory::ascii_string_map()));
+  mov(FieldOperand(result, String::kLengthOffset),
+      Immediate(Smi::FromInt(length)));
+  mov(FieldOperand(result, String::kHashFieldOffset),
+      Immediate(String::kEmptyHashField));
+}
+
+
 void MacroAssembler::AllocateConsString(Register result,
                                         Register scratch1,
                                         Register scratch2,

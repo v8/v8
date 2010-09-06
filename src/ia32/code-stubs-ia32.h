@@ -234,16 +234,21 @@ class StringHelper : public AllStatic {
                                         Register scratch,  // Neither of above.
                                         bool ascii);
 
-  // Probe the symbol table for a two character string. If the string is
-  // not found by probing a jump to the label not_found is performed. This jump
-  // does not guarantee that the string is not in the symbol table. If the
-  // string is found the code falls through with the string in register eax.
+  // Probe the symbol table for a two character string. If the string
+  // requires non-standard hashing a jump to the label not_probed is
+  // performed and registers c1 and c2 are preserved. In all other
+  // cases they are clobbered. If the string is not found by probing a
+  // jump to the label not_found is performed. This jump does not
+  // guarantee that the string is not in the symbol table. If the
+  // string is found the code falls through with the string in
+  // register eax.
   static void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
                                                    Register c1,
                                                    Register c2,
                                                    Register scratch1,
                                                    Register scratch2,
                                                    Register scratch3,
+                                                   Label* not_probed,
                                                    Label* not_found);
 
   // Generate string hash.
@@ -267,24 +272,35 @@ class StringHelper : public AllStatic {
 // Flag that indicates how to generate code for the stub StringAddStub.
 enum StringAddFlags {
   NO_STRING_ADD_FLAGS = 0,
-  NO_STRING_CHECK_IN_STUB = 1 << 0  // Omit string check in stub.
+  // Omit left string check in stub (left is definitely a string).
+  NO_STRING_CHECK_LEFT_IN_STUB = 1 << 0,
+  // Omit right string check in stub (right is definitely a string).
+  NO_STRING_CHECK_RIGHT_IN_STUB = 1 << 1,
+  // Omit both string checks in stub.
+  NO_STRING_CHECK_IN_STUB =
+      NO_STRING_CHECK_LEFT_IN_STUB | NO_STRING_CHECK_RIGHT_IN_STUB
 };
 
 
 class StringAddStub: public CodeStub {
  public:
-  explicit StringAddStub(StringAddFlags flags) {
-    string_check_ = ((flags & NO_STRING_CHECK_IN_STUB) == 0);
-  }
+  explicit StringAddStub(StringAddFlags flags) : flags_(flags) {}
 
  private:
   Major MajorKey() { return StringAdd; }
-  int MinorKey() { return string_check_ ? 0 : 1; }
+  int MinorKey() { return flags_; }
 
   void Generate(MacroAssembler* masm);
 
-  // Should the stub check whether arguments are strings?
-  bool string_check_;
+  void GenerateConvertArgument(MacroAssembler* masm,
+                               int stack_offset,
+                               Register arg,
+                               Register scratch1,
+                               Register scratch2,
+                               Register scratch3,
+                               Label* slow);
+
+  const StringAddFlags flags_;
 };
 
 

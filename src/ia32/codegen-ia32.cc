@@ -1411,12 +1411,12 @@ void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
           StringAddStub stub(NO_STRING_CHECK_IN_STUB);
           answer = frame_->CallStub(&stub, 2);
         } else {
-          answer =
-            frame_->InvokeBuiltin(Builtins::STRING_ADD_LEFT, CALL_FUNCTION, 2);
+          StringAddStub stub(NO_STRING_CHECK_LEFT_IN_STUB);
+          answer = frame_->CallStub(&stub, 2);
         }
       } else if (right_is_string) {
-        answer =
-          frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
+        StringAddStub stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+        answer = frame_->CallStub(&stub, 2);
       }
       answer.set_type_info(TypeInfo::String());
       frame_->Push(&answer);

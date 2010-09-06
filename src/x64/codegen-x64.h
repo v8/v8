@@ -591,9 +591,7 @@ class CodeGenerator: public AstVisitor {
   };
   static InlineRuntimeLUT* FindInlineRuntimeLUT(Handle<String> name);
   bool CheckForInlineRuntimeCall(CallRuntime* node);
-  static bool PatchInlineRuntimeEntry(Handle<String> name,
-                                      const InlineRuntimeLUT& new_entry,
-                                      InlineRuntimeLUT* old_entry);
+
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
   static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
