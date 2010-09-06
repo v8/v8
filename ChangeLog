@@ -1,3 +1,17 @@
+2010-09-06: Version 2.4.1
+
+      Added the ability for an embedding application to receive a callback
+      when V8 allocates (V8::AddMemoryAllocationCallback) or deallocates
+      (V8::RemoveMemoryAllocationCallback) from the OS.
+
+      Fixed several JSON bugs (including issue 855).
+
+      Fixed memory overrun crash bug triggered during V8's tick-based
+      profiling.
+
+      Performance improvements on all platforms.
+
+
 2010-09-01: Version 2.4.0
 
       Fix bug in Object.freeze and Object.seal when Array.prototype or
@@ -41,7 +55,7 @@
 
         Removed specialized handling of GCC 4.4 (issue 830).
 
-        Fixed DST cache to take into account the suspension of DST in 
+        Fixed DST cache to take into account the suspension of DST in
         Egypt during the 2010 Ramadan (issue http://crbug.com/51855).
 
         Performance improvements on all platforms.
