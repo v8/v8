@@ -2126,9 +2126,6 @@ Object* NormalizedMapCache::Get(JSObject* obj, PropertyNormalizationMode mode) {
         // The cached map should match newly created normalized map bit-by-bit.
         Object* fresh = fast->CopyNormalized(mode);
         if (!fresh->IsFailure()) {
-          // Copy the unused byte so that the assertion below works.
-          Map::cast(fresh)->address()[Map::kUnusedOffset] =
-              Map::cast(result)->address()[Map::kUnusedOffset];
           ASSERT(memcmp(Map::cast(fresh)->address(),
                         Map::cast(result)->address(),
                         Map::kSize) == 0);

@@ -3245,8 +3245,7 @@ class Map: public HeapObject {
   static const int kInstanceDescriptorsOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
-  static const int kScavengerCallbackOffset = kCodeCacheOffset + kPointerSize;
-  static const int kPadStart = kScavengerCallbackOffset + kPointerSize;
+  static const int kPadStart = kCodeCacheOffset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
@@ -3263,9 +3262,8 @@ class Map: public HeapObject {
   static const int kPreAllocatedPropertyFieldsByte = 2;
   static const int kPreAllocatedPropertyFieldsOffset =
       kInstanceSizesOffset + kPreAllocatedPropertyFieldsByte;
-  // The byte at position 3 is not in use at the moment.
-  static const int kUnusedByte = 3;
-  static const int kUnusedOffset = kInstanceSizesOffset + kUnusedByte;
+  static const int kVisitorIdByte = 3;
+  static const int kVisitorIdOffset = kInstanceSizesOffset + kVisitorIdByte;
 
   // Byte offsets within kInstanceAttributesOffset attributes.
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;
