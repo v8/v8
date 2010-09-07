@@ -296,7 +296,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(HeapNumber::kSignMask == 0x80000000u);
   __ and_(exponent, source_, Operand(HeapNumber::kSignMask), SetCC);
   // Subtract from 0 if source was negative.
-  __ rsb(source_, source_, Operand(0), LeaveCC, ne);
+  __ rsb(source_, source_, Operand(0, RelocInfo::NONE), LeaveCC, ne);
 
   // We have -1, 0 or 1, which we treat specially. Register source_ contains
   // absolute value: it is either equal to 1 (special case of -1 and 1),
@@ -309,7 +309,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
       HeapNumber::kExponentBias << HeapNumber::kExponentShift;
   __ orr(exponent, exponent, Operand(exponent_word_for_1), LeaveCC, eq);
   // 1, 0 and -1 all have 0 for the second word.
-  __ mov(mantissa, Operand(0));
+  __ mov(mantissa, Operand(0, RelocInfo::NONE));
   __ Ret();
 
   __ bind(&not_special);
@@ -357,7 +357,7 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   // Set the sign bit in scratch_ if the value was negative.
   __ orr(scratch_, scratch_, Operand(HeapNumber::kSignMask), LeaveCC, cs);
   // Subtract from 0 if the value was negative.
-  __ rsb(the_int_, the_int_, Operand(0), LeaveCC, cs);
+  __ rsb(the_int_, the_int_, Operand(0, RelocInfo::NONE), LeaveCC, cs);
   // We should be masking the implict first digit of the mantissa away here,
   // but it just ends up combining harmlessly with the last digit of the
   // exponent that happens to be 1.  The sign bit is 0 so we shift 10 to get
@@ -380,7 +380,7 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   non_smi_exponent += 1 << HeapNumber::kExponentShift;
   __ mov(ip, Operand(HeapNumber::kSignMask | non_smi_exponent));
   __ str(ip, FieldMemOperand(the_heap_number_, HeapNumber::kExponentOffset));
-  __ mov(ip, Operand(0));
+  __ mov(ip, Operand(0, RelocInfo::NONE));
   __ str(ip, FieldMemOperand(the_heap_number_, HeapNumber::kMantissaOffset));
   __ Ret();
 }
@@ -604,7 +604,7 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cc) {
          Operand(lhs_exponent, LSL, HeapNumber::kNonMantissaBitsInTopWord),
          SetCC);
   __ b(ne, &one_is_nan);
-  __ cmp(lhs_mantissa, Operand(0));
+  __ cmp(lhs_mantissa, Operand(0, RelocInfo::NONE));
   __ b(ne, &one_is_nan);
 
   __ bind(lhs_not_nan);
@@ -619,7 +619,7 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cc) {
          Operand(rhs_exponent, LSL, HeapNumber::kNonMantissaBitsInTopWord),
          SetCC);
   __ b(ne, &one_is_nan);
-  __ cmp(rhs_mantissa, Operand(0));
+  __ cmp(rhs_mantissa, Operand(0, RelocInfo::NONE));
   __ b(eq, &neither_is_nan);
 
   __ bind(&one_is_nan);
@@ -1085,8 +1085,8 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // "tos_" is a register, and contains a non zero value by default.
   // Hence we only need to overwrite "tos_" with zero to return false for
   // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
-  __ mov(tos_, Operand(0), LeaveCC, eq);  // for FP_ZERO
-  __ mov(tos_, Operand(0), LeaveCC, vs);  // for FP_NAN
+  __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, eq);  // for FP_ZERO
+  __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, vs);  // for FP_NAN
   __ Ret();
 
   __ bind(&not_heap_number);
@@ -1131,7 +1131,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
   // Return 0 in "tos_" for false .
   __ bind(&false_result);
-  __ mov(tos_, Operand(0));
+  __ mov(tos_, Operand(0, RelocInfo::NONE));
   __ Ret();
 }
 
@@ -2231,7 +2231,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ ldr(r0, MemOperand(r0, type_ * sizeof(TranscendentalCache::caches_[0])));
     // r0 points to the cache for the type type_.
     // If NULL, the cache hasn't been initialized yet, so go through runtime.
-    __ cmp(r0, Operand(0));
+    __ cmp(r0, Operand(0, RelocInfo::NONE));
     __ b(eq, &runtime_call);
 
 #ifdef DEBUG
@@ -2311,12 +2311,12 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       // smi while we are at it.
       __ bic(ip, r0, Operand(0x80000000), SetCC);
       __ b(eq, &slow);
-      __ rsb(r0, r0, Operand(0));
+      __ rsb(r0, r0, Operand(0, RelocInfo::NONE));
       __ StubReturn(1);
     } else {
       // The value of the expression is a smi and 0 is OK for -0.  Try
       // optimistic subtraction '0 - value'.
-      __ rsb(r0, r0, Operand(0), SetCC);
+      __ rsb(r0, r0, Operand(0, RelocInfo::NONE), SetCC);
       __ StubReturn(1, vc);
       // We don't have to reverse the optimistic neg since the only case
       // where we fall through is the minimum negative Smi, which is the case
@@ -2429,9 +2429,9 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Before returning we restore the context from the frame pointer if
   // not NULL.  The frame pointer is NULL in the exception handler of a
   // JS entry frame.
-  __ cmp(fp, Operand(0));
+  __ cmp(fp, Operand(0, RelocInfo::NONE));
   // Set cp to NULL if fp is NULL.
-  __ mov(cp, Operand(0), LeaveCC, eq);
+  __ mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
   // Restore cp otherwise.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
 #ifdef DEBUG
@@ -2497,9 +2497,9 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
   // Before returning we restore the context from the frame pointer if
   // not NULL.  The frame pointer is NULL in the exception handler of a
   // JS entry frame.
-  __ cmp(fp, Operand(0));
+  __ cmp(fp, Operand(0, RelocInfo::NONE));
   // Set cp to NULL if fp is NULL.
-  __ mov(cp, Operand(0), LeaveCC, eq);
+  __ mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
   // Restore cp otherwise.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
 #ifdef DEBUG
@@ -2567,7 +2567,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
       (frame_alignment_skew + kPointerSize) & frame_alignment_mask;
   if (alignment_before_call > 0) {
     // Push until the alignment before the call is met.
-    __ mov(r2, Operand(0));
+    __ mov(r2, Operand(0, RelocInfo::NONE));
     for (int i = alignment_before_call;
         (i & frame_alignment_mask) != 0;
         i += kPointerSize) {
@@ -2991,7 +2991,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // of the arguments object and the elements array in words.
   Label add_arguments_object;
   __ bind(&try_allocate);
-  __ cmp(r1, Operand(0));
+  __ cmp(r1, Operand(0, RelocInfo::NONE));
   __ b(eq, &add_arguments_object);
   __ mov(r1, Operand(r1, LSR, kSmiTagSize));
   __ add(r1, r1, Operand(FixedArray::kHeaderSize / kPointerSize));
@@ -3028,7 +3028,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
   // If there are no actual arguments, we're done.
   Label done;
-  __ cmp(r1, Operand(0));
+  __ cmp(r1, Operand(0, RelocInfo::NONE));
   __ b(eq, &done);
 
   // Get the parameters pointer from the stack.
@@ -3054,7 +3054,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // Post-increment r4 with kPointerSize on each iteration.
   __ str(r3, MemOperand(r4, kPointerSize, PostIndex));
   __ sub(r1, r1, Operand(1));
-  __ cmp(r1, Operand(0));
+  __ cmp(r1, Operand(0, RelocInfo::NONE));
   __ b(ne, &loop);
 
   // Return and remove the on-stack parameters.
@@ -3452,7 +3452,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // of the original receiver from the call site).
   __ str(r1, MemOperand(sp, argc_ * kPointerSize));
   __ mov(r0, Operand(argc_));  // Setup the number of arguments.
-  __ mov(r2, Operand(0));
+  __ mov(r2, Operand(0, RelocInfo::NONE));
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
   __ Jump(Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline)),
           RelocInfo::CODE_TARGET);
@@ -3794,7 +3794,7 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
   if (!ascii) {
     __ add(count, count, Operand(count), SetCC);
   } else {
-    __ cmp(count, Operand(0));
+    __ cmp(count, Operand(0, RelocInfo::NONE));
   }
   __ b(eq, &done);
 
@@ -3849,7 +3849,7 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
   if (!ascii) {
     __ add(count, count, Operand(count), SetCC);
   } else {
-    __ cmp(count, Operand(0));
+    __ cmp(count, Operand(0, RelocInfo::NONE));
   }
   __ b(eq, &done);
 

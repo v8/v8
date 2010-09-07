@@ -688,7 +688,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
     CompareStub stub(eq, true, kBothCouldBeNaN, true, r1, r0);
     __ CallStub(&stub);
-    __ cmp(r0, Operand(0));
+    __ cmp(r0, Operand(0, RelocInfo::NONE));
     __ b(ne, &next_test);
     __ Drop(1);  // Switch value is no longer needed.
     __ b(clause->body_target()->entry_label());
@@ -2132,7 +2132,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
     // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
     __ vmov(d7, r0, r1);
     // Move 0x4130000000000000 to VFP.
-    __ mov(r0, Operand(0));
+    __ mov(r0, Operand(0, RelocInfo::NONE));
     __ vmov(d8, r0, r1);
     // Subtract and store the result in the heap number.
     __ vsub(d7, d7, d8);
@@ -3125,7 +3125,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
       CompareStub stub(cc, strict, kBothCouldBeNaN, true, r1, r0);
       __ CallStub(&stub);
-      __ cmp(r0, Operand(0));
+      __ cmp(r0, Operand(0, RelocInfo::NONE));
       Split(cc, if_true, if_false, fall_through);
     }
   }
