@@ -643,9 +643,13 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
 #endif
   StaticMarkingVisitor::EnableCodeFlushing(true);
 
+  // Ensure that empty descriptor array is marked. Method MarkDescriptorArray
+  // relies on it being marked before any other descriptor array.
+  MarkObject(Heap::raw_unchecked_empty_descriptor_array());
+
   // Make sure we are not referencing the code from the stack.
   for (StackFrameIterator it; !it.done(); it.Advance()) {
-    MarkCompactCollector::MarkObject(it.frame()->unchecked_code());
+    MarkObject(it.frame()->unchecked_code());
   }
 
   // Iterate the archived stacks in all threads to check if
@@ -656,7 +660,7 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
   SharedFunctionInfoMarkingVisitor visitor;
   CompilationCache::IterateFunctions(&visitor);
 
-  MarkCompactCollector::ProcessMarkingStack();
+  ProcessMarkingStack();
 }
 
 
