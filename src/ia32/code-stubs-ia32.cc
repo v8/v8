@@ -1001,15 +1001,16 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     }
   }
 
+  // If all else fails, use the runtime system to get the correct
+  // result. If arguments was passed in registers now place them on the
+  // stack in the correct order below the return address.
+
   // Avoid hitting the string ADD code below when allocation fails in
   // the floating point code above.
   if (op_ != Token::ADD) {
     __ bind(&call_runtime);
   }
 
-  // If all else fails, use the runtime system to get the correct
-  // result. If arguments was passed in registers now place them on the
-  // stack in the correct order below the return address.
   if (HasArgsInRegisters()) {
     GenerateRegisterArgsPush(masm);
   }
@@ -1044,12 +1045,13 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
       __ TailCallStub(&string_add_left_stub);
 
+      Label call_runtime_with_args;
       // Left operand is not a string, test right.
       __ bind(&lhs_not_string);
       __ test(rhs, Immediate(kSmiTagMask));
-      __ j(zero, &call_runtime);
+      __ j(zero, &call_runtime_with_args);
       __ CmpObjectType(rhs, FIRST_NONSTRING_TYPE, ecx);
-      __ j(above_equal, &call_runtime);
+      __ j(above_equal, &call_runtime_with_args);
 
       StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
       __ TailCallStub(&string_add_right_stub);
@@ -1059,6 +1061,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       if (HasArgsInRegisters()) {
         GenerateRegisterArgsPush(masm);
       }
+      __ bind(&call_runtime_with_args);
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
       break;
     }
