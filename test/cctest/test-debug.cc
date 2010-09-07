@@ -4591,6 +4591,18 @@ int GetTotalFramesInt(char *message) {
 }
 
 
+// We match parts of the message to get source line.
+int GetSourceLineFromBreakEventMessage(char *message) {
+  const char* source_line = "\"sourceLine\":";
+  char* pos = strstr(message, source_line);
+  if (pos == NULL) {
+    return -1;
+  }
+  int res = -1;
+  res = StringToInt(pos + strlen(source_line));
+  return res;
+}
+
 /* Test MessageQueues */
 /* Tests the message queues that hold debugger commands and
  * response messages to the debugger.  Fills queues and makes
@@ -4870,6 +4882,9 @@ static void ThreadedMessageHandler(const v8::Debug::Message& message) {
   v8::String::Value json(message.GetJSON());
   Utf16ToAscii(*json, json.length(), print_buffer);
   if (IsBreakEventMessage(print_buffer)) {
+    // Check that we are inside the while loop.
+    int source_line = GetSourceLineFromBreakEventMessage(print_buffer);
+    CHECK(8 <= source_line && source_line <= 13);
     threaded_debugging_barriers.barrier_2.Wait();
   }
 }
