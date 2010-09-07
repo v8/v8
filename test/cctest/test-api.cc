@@ -37,6 +37,7 @@
 #include "top.h"
 #include "utils.h"
 #include "cctest.h"
+#include "parser.h"
 
 static const bool kLogThreading = true;
 
@@ -8624,15 +8625,12 @@ TEST(PreCompileInvalidPreparseDataError) {
       v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK(!sd->HasError());
   // ScriptDataImpl private implementation details
-  const int kUnsignedSize = sizeof(unsigned);
-  const int kHeaderSize = 4;
-  const int kFunctionEntrySize = 5;
+  const int kHeaderSize = i::ScriptDataImpl::kHeaderSize;
+  const int kFunctionEntrySize = i::FunctionEntry::kSize;
   const int kFunctionEntryStartOffset = 0;
   const int kFunctionEntryEndOffset = 1;
   unsigned* sd_data =
       reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
-  CHECK_EQ(sd->Length(),
-           (kHeaderSize + 2 * kFunctionEntrySize) * kUnsignedSize);
 
   // Overwrite function bar's end position with 0.
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryEndOffset] = 0;
