@@ -2830,15 +2830,16 @@ static int SimpleIndexOf(Vector<const schar> subject,
                          int idx,
                          bool* complete) {
   ASSERT(pattern.length() > 1);
+  int pattern_length = pattern.length();
   // Badness is a count of how much work we have done.  When we have
   // done enough work we decide it's probably worth switching to a better
   // algorithm.
-  int badness = -10 - (pattern.length() << 2);
+  int badness = -10 - (pattern_length << 2);
 
   // We know our pattern is at least 2 characters, we cache the first so
   // the common case of the first character not matching is faster.
   pchar pattern_first_char = pattern[0];
-  for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
+  for (int i = idx, n = subject.length() - pattern_length; i <= n; i++) {
     badness++;
     if (badness > 0) {
       *complete = false;
@@ -2863,8 +2864,8 @@ static int SimpleIndexOf(Vector<const schar> subject,
         break;
       }
       j++;
-    } while (j < pattern.length());
-    if (j == pattern.length()) {
+    } while (j < pattern_length);
+    if (j == pattern_length) {
       *complete = true;
       return i;
     }
@@ -2879,8 +2880,9 @@ template <typename pchar, typename schar>
 static int SimpleIndexOf(Vector<const schar> subject,
                          Vector<const pchar> pattern,
                          int idx) {
+  int pattern_length = pattern.length();
   pchar pattern_first_char = pattern[0];
-  for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
+  for (int i = idx, n = subject.length() - pattern_length; i <= n; i++) {
     if (sizeof(schar) == 1 && sizeof(pchar) == 1) {
       const schar* pos = reinterpret_cast<const schar*>(
           memchr(subject.start() + i,
@@ -2892,13 +2894,13 @@ static int SimpleIndexOf(Vector<const schar> subject,
       if (subject[i] != pattern_first_char) continue;
     }
     int j = 1;
-    while (j < pattern.length()) {
+    while (j < pattern_length) {
       if (pattern[j] != subject[i+j]) {
         break;
       }
       j++;
     }
-    if (j == pattern.length()) {
+    if (j == pattern_length) {
       return i;
     }
   }
@@ -3042,32 +3044,33 @@ static Object* Runtime_StringIndexOf(Arguments args) {
 
 
 template <typename schar, typename pchar>
-static int StringMatchBackwards(Vector<const schar> sub,
-                                Vector<const pchar> pat,
+static int StringMatchBackwards(Vector<const schar> subject,
+                                Vector<const pchar> pattern,
                                 int idx) {
-  ASSERT(pat.length() >= 1);
-  ASSERT(idx + pat.length() <= sub.length());
+  int pattern_length = pattern.length();
+  ASSERT(pattern_length >= 1);
+  ASSERT(idx + pattern_length <= subject.length());
 
   if (sizeof(schar) == 1 && sizeof(pchar) > 1) {
-    for (int i = 0; i < pat.length(); i++) {
-      uc16 c = pat[i];
+    for (int i = 0; i < pattern_length; i++) {
+      uc16 c = pattern[i];
       if (c > String::kMaxAsciiCharCode) {
         return -1;
       }
     }
   }
 
-  pchar pattern_first_char = pat[0];
+  pchar pattern_first_char = pattern[0];
   for (int i = idx; i >= 0; i--) {
-    if (sub[i] != pattern_first_char) continue;
+    if (subject[i] != pattern_first_char) continue;
     int j = 1;
-    while (j < pat.length()) {
-      if (pat[j] != sub[i+j]) {
+    while (j < pattern_length) {
+      if (pattern[j] != subject[i+j]) {
         break;
       }
       j++;
     }
-    if (j == pat.length()) {
+    if (j == pattern_length) {
       return i;
     }
   }
