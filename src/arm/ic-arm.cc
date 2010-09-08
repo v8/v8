@@ -1292,7 +1292,7 @@ static void GenerateUInt2Double(MacroAssembler* masm,
     __ mov(loword, Operand(hiword, LSL, mantissa_shift_for_lo_word));
     __ orr(hiword, scratch, Operand(hiword, LSR, mantissa_shift_for_hi_word));
   } else {
-    __ mov(loword, Operand(0));
+    __ mov(loword, Operand(0, RelocInfo::NONE));
     __ orr(hiword, scratch, Operand(hiword, LSL, mantissa_shift_for_hi_word));
   }
 
@@ -1790,7 +1790,7 @@ static void StoreIntAsFloat(MacroAssembler* masm,
 
     __ and_(fval, ival, Operand(kBinary32SignMask), SetCC);
     // Negate value if it is negative.
-    __ rsb(ival, ival, Operand(0), LeaveCC, ne);
+    __ rsb(ival, ival, Operand(0, RelocInfo::NONE), LeaveCC, ne);
 
     // We have -1, 0 or 1, which we treat specially. Register ival contains
     // absolute value: it is either equal to 1 (special case of -1 and 1),
@@ -2075,18 +2075,18 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       // and infinities. All these should be converted to 0.
       __ mov(r7, Operand(HeapNumber::kExponentMask));
       __ and_(r9, r5, Operand(r7), SetCC);
-      __ mov(r5, Operand(0), LeaveCC, eq);
+      __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, eq);
       __ b(eq, &done);
 
       __ teq(r9, Operand(r7));
-      __ mov(r5, Operand(0), LeaveCC, eq);
+      __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, eq);
       __ b(eq, &done);
 
       // Unbias exponent.
       __ mov(r9, Operand(r9, LSR, HeapNumber::kExponentShift));
       __ sub(r9, r9, Operand(HeapNumber::kExponentBias), SetCC);
       // If exponent is negative than result is 0.
-      __ mov(r5, Operand(0), LeaveCC, mi);
+      __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, mi);
       __ b(mi, &done);
 
       // If exponent is too big than result is minimal value.
@@ -2102,14 +2102,14 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       __ mov(r5, Operand(r5, LSR, r9), LeaveCC, pl);
       __ b(pl, &sign);
 
-      __ rsb(r9, r9, Operand(0));
+      __ rsb(r9, r9, Operand(0, RelocInfo::NONE));
       __ mov(r5, Operand(r5, LSL, r9));
       __ rsb(r9, r9, Operand(meaningfull_bits));
       __ orr(r5, r5, Operand(r6, LSR, r9));
 
       __ bind(&sign);
-      __ teq(r7, Operand(0));
-      __ rsb(r5, r5, Operand(0), LeaveCC, ne);
+      __ teq(r7, Operand(0, RelocInfo::NONE));
+      __ rsb(r5, r5, Operand(0, RelocInfo::NONE), LeaveCC, ne);
 
       __ bind(&done);
       switch (array_type) {

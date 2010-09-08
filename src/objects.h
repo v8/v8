@@ -3245,8 +3245,7 @@ class Map: public HeapObject {
   static const int kInstanceDescriptorsOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
-  static const int kScavengerCallbackOffset = kCodeCacheOffset + kPointerSize;
-  static const int kPadStart = kScavengerCallbackOffset + kPointerSize;
+  static const int kPadStart = kCodeCacheOffset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
@@ -3263,9 +3262,8 @@ class Map: public HeapObject {
   static const int kPreAllocatedPropertyFieldsByte = 2;
   static const int kPreAllocatedPropertyFieldsOffset =
       kInstanceSizesOffset + kPreAllocatedPropertyFieldsByte;
-  // The byte at position 3 is not in use at the moment.
-  static const int kUnusedByte = 3;
-  static const int kUnusedOffset = kInstanceSizesOffset + kUnusedByte;
+  static const int kVisitorIdByte = 3;
+  static const int kVisitorIdOffset = kInstanceSizesOffset + kVisitorIdByte;
 
   // Byte offsets within kInstanceAttributesOffset attributes.
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;
@@ -4225,7 +4223,7 @@ class StringHasher {
   // Calculated hash value for a string consisting of 1 to
   // String::kMaxArrayIndexSize digits with no leading zeros (except "0").
   // value is represented decimal value.
-  static uint32_t MakeCachedArrayIndex(uint32_t value, int length);
+  static uint32_t MakeArrayIndexHash(uint32_t value, int length);
 
  private:
 
@@ -4469,6 +4467,7 @@ class String: public HeapObject {
       kBitsPerInt - kArrayIndexValueBits - kNofHashBitFields;
 
   STATIC_CHECK((kArrayIndexLengthBits > 0));
+  STATIC_CHECK(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
   static const int kArrayIndexHashLengthShift =
       kArrayIndexValueBits + kNofHashBitFields;

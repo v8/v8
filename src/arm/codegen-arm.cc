@@ -770,7 +770,7 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target,
       ToBooleanStub stub(tos);
       frame_->CallStub(&stub, 0);
       // Convert the result in "tos" to a condition code.
-      __ cmp(tos, Operand(0));
+      __ cmp(tos, Operand(0, RelocInfo::NONE));
     } else {
       // Implements slow case by calling the runtime.
       frame_->EmitPush(tos);
@@ -1129,7 +1129,7 @@ void DeferredInlineSmiOperation::GenerateNonSmiInput() {
         __ mov(int32, Operand(int32, LSR, shift_value), SetCC);
       } else {
         // SHR is special because it is required to produce a positive answer.
-        __ cmp(int32, Operand(0));
+        __ cmp(int32, Operand(0, RelocInfo::NONE));
       }
       if (CpuFeatures::IsSupported(VFP3)) {
         __ b(mi, &result_not_a_smi);
@@ -1513,7 +1513,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
             }
             __ mov(tos, Operand(tos, LSL, kSmiTagSize));
           } else {
-            __ cmp(tos, Operand(0));
+            __ cmp(tos, Operand(0, RelocInfo::NONE));
             deferred->JumpToAnswerOutOfRange(mi);
           }
           break;
@@ -1653,7 +1653,7 @@ void CodeGenerator::Comparison(Condition cc,
     // We call with 0 args because there are 0 on the stack.
     CompareStub stub(cc, strict, kBothCouldBeNaN, true, lhs, rhs);
     frame_->CallStub(&stub, 0);
-    __ cmp(r0, Operand(0));
+    __ cmp(r0, Operand(0, RelocInfo::NONE));
     exit.Jump();
 
     smi.Bind();
@@ -1817,7 +1817,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // frame.
   Label loop;
   // r3 is a small non-negative integer, due to the test above.
-  __ cmp(r3, Operand(0));
+  __ cmp(r3, Operand(0, RelocInfo::NONE));
   __ b(eq, &invoke);
   // Compute the address of the first argument.
   __ add(r2, r2, Operand(r3, LSL, kPointerSizeLog2));
@@ -1975,7 +1975,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     } else if (node->fun() != NULL) {
       Load(node->fun());
     } else {
-      frame_->EmitPush(Operand(0));
+      frame_->EmitPush(Operand(0, RelocInfo::NONE));
     }
 
     frame_->CallRuntime(Runtime::kDeclareContextSlot, 4);
@@ -4612,7 +4612,8 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     // Get the absolute untagged value of the exponent and use that for the
     // calculation.
     __ mov(scratch1, Operand(exponent, ASR, kSmiTagSize), SetCC);
-    __ rsb(scratch1, scratch1, Operand(0), LeaveCC, mi);  // Negate if negative.
+    // Negate if negative.
+    __ rsb(scratch1, scratch1, Operand(0, RelocInfo::NONE), LeaveCC, mi);
     __ vmov(d2, d0, mi);  // 1.0 needed in d2 later if exponent is negative.
 
     // Run through all the bits in the exponent. The result is calculated in d0
@@ -4625,14 +4626,14 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ b(ne, &more_bits);
 
     // If exponent is positive we are done.
-    __ cmp(exponent, Operand(0));
+    __ cmp(exponent, Operand(0, RelocInfo::NONE));
     __ b(ge, &allocate_return);
 
     // If exponent is negative result is 1/result (d2 already holds 1.0 in that
     // case). However if d0 has reached infinity this will not provide the
     // correct result, so call runtime if that is the case.
     __ mov(scratch2, Operand(0x7FF00000));
-    __ mov(scratch1, Operand(0));
+    __ mov(scratch1, Operand(0, RelocInfo::NONE));
     __ vmov(d1, scratch1, scratch2);  // Load infinity into d1.
     __ vcmp(d0, d1);
     __ vmrs(pc);
@@ -5135,7 +5136,7 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
     __ jmp(exit_label());
     __ bind(&false_result);
     // Set false result.
-    __ mov(map_result_, Operand(0));
+    __ mov(map_result_, Operand(0, RelocInfo::NONE));
   }
 
  private:
@@ -5309,7 +5310,7 @@ void CodeGenerator::GenerateRandomHeapNumber(
     // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
     __ vmov(d7, r0, r1);
     // Move 0x4130000000000000 to VFP.
-    __ mov(r0, Operand(0));
+    __ mov(r0, Operand(0, RelocInfo::NONE));
     __ vmov(d8, r0, r1);
     // Subtract and store the result in the heap number.
     __ vsub(d7, d7, d8);

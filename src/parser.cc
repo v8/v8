@@ -266,6 +266,8 @@ class Parser {
   bool Check(Token::Value token);
   void ExpectSemicolon(bool* ok);
 
+  Handle<String> GetSymbol(bool* ok);
+
   // Get odd-ball literals.
   Literal* GetLiteralUndefined();
   Literal* GetLiteralTheHole();
@@ -828,7 +830,7 @@ class ParserFactory BASE_EMBEDDED {
 
   virtual Scope* NewScope(Scope* parent, Scope::Type type, bool inside_with);
 
-  virtual Handle<String> LookupSymbol(const char* string, int length) {
+  virtual Handle<String> LookupSymbol(int index, Vector<const char> string) {
     return Handle<String>();
   }
 
@@ -869,20 +871,46 @@ class ParserLog BASE_EMBEDDED {
 
   // Records the occurrence of a function.
   virtual FunctionEntry LogFunction(int start) { return FunctionEntry(); }
+  virtual void LogSymbol(int start, Vector<const char> symbol) {}
   // Return the current position in the function entry log.
-  virtual int position() { return 0; }
+  virtual int function_position() { return 0; }
+  virtual int symbol_position() { return 0; }
+  virtual int symbol_ids() { return 0; }
   virtual void LogError() { }
 };
 
 
 class AstBuildingParserFactory : public ParserFactory {
  public:
-  AstBuildingParserFactory() : ParserFactory(false) { }
+  explicit AstBuildingParserFactory(int expected_symbols)
+      : ParserFactory(false), symbol_cache_(expected_symbols) { }
 
   virtual Scope* NewScope(Scope* parent, Scope::Type type, bool inside_with);
 
-  virtual Handle<String> LookupSymbol(const char* string, int length) {
-    return Factory::LookupSymbol(Vector<const char>(string, length));
+  virtual Handle<String> LookupSymbol(int symbol_id,
+                                      Vector<const char> string) {
+    // If there is no preparse data, we have no simpler way to identify similar
+    // symbols.
+    if (symbol_id < 0) return Factory::LookupSymbol(string);
+    return LookupCachedSymbol(symbol_id, string);
+  }
+
+  Handle<String> LookupCachedSymbol(int symbol_id,
+                                    Vector<const char> string) {
+    // Make sure the cache is large enough to hold the symbol identifier.
+    if (symbol_cache_.length() <= symbol_id) {
+      // Increase length to index + 1.
+      symbol_cache_.AddBlock(Handle<String>::null(),
+                             symbol_id + 1 - symbol_cache_.length());
+    }
+    Handle<String> result = symbol_cache_.at(symbol_id);
+    if (result.is_null()) {
+      result = Factory::LookupSymbol(string);
+      symbol_cache_.at(symbol_id) = result;
+      return result;
+    }
+    Counters::total_preparse_symbols_skipped.Increment();
+    return result;
   }
 
   virtual Handle<String> EmptySymbol() {
@@ -900,6 +928,8 @@ class AstBuildingParserFactory : public ParserFactory {
   }
 
   virtual Statement* EmptyStatement();
+ private:
+  List<Handle<String> > symbol_cache_;
 };
 
 
@@ -907,22 +937,74 @@ class ParserRecorder: public ParserLog {
  public:
   ParserRecorder();
   virtual FunctionEntry LogFunction(int start);
+  virtual void LogSymbol(int start, Vector<const char> literal) {
+    int hash = vector_hash(literal);
+    HashMap::Entry* entry = symbol_table_.Lookup(&literal, hash, true);
+    int id = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
+    if (id == 0) {
+      // Put (symbol_id_ + 1) into entry and increment it.
+      symbol_id_++;
+      entry->value = reinterpret_cast<void*>(symbol_id_);
+      Vector<Vector<const char> > symbol = symbol_entries_.AddBlock(1, literal);
+      entry->key = &symbol[0];
+    } else {
+      // Log a reuse of an earlier seen symbol.
+      symbol_store_.Add(start);
+      symbol_store_.Add(id - 1);
+    }
+  }
   virtual void LogError() { }
   virtual void LogMessage(Scanner::Location loc,
                           const char* message,
                           Vector<const char*> args);
   Vector<unsigned> ExtractData() {
-    int total_size = ScriptDataImpl::kHeaderSize + store_.size();
+    int function_size = function_store_.size();
+    int symbol_size = symbol_store_.size();
+    int total_size = ScriptDataImpl::kHeaderSize + function_size + symbol_size;
     Vector<unsigned> data = Vector<unsigned>::New(total_size);
+    preamble_[ScriptDataImpl::kFunctionsSizeOffset] = function_size;
+    preamble_[ScriptDataImpl::kSymbolCountOffset] = symbol_id_;
     memcpy(data.start(), preamble_, sizeof(preamble_));
-    if (ScriptDataImpl::kHeaderSize < total_size) {
-      store_.WriteTo(data.SubVector(ScriptDataImpl::kHeaderSize, total_size));
+    int symbol_start = ScriptDataImpl::kHeaderSize + function_size;
+    if (function_size > 0) {
+      function_store_.WriteTo(data.SubVector(ScriptDataImpl::kHeaderSize,
+                                             symbol_start));
+    }
+    if (symbol_size > 0) {
+      symbol_store_.WriteTo(data.SubVector(symbol_start, total_size));
     }
     return data;
   }
-  virtual int position() { return store_.size(); }
+
+  virtual int function_position() { return function_store_.size(); }
+  virtual int symbol_position() { return symbol_store_.size(); }
+  virtual int symbol_ids() { return symbol_id_; }
  private:
-  Collector<unsigned> store_;
+  Collector<unsigned> function_store_;
+  Collector<unsigned> symbol_store_;
+  Collector<Vector<const char> > symbol_entries_;
+  HashMap symbol_table_;
+  int symbol_id_;
+
+  static int vector_hash(Vector<const char> string) {
+    int hash = 0;
+    for (int i = 0; i < string.length(); i++) {
+      int c = string[i];
+      hash += c;
+      hash += (hash << 10);
+      hash ^= (hash >> 6);
+    }
+    return hash;
+  }
+
+  static bool vector_compare(void* a, void* b) {
+    Vector<const char>* string1 = reinterpret_cast<Vector<const char>* >(a);
+    Vector<const char>* string2 = reinterpret_cast<Vector<const char>* >(b);
+    int length = string1->length();
+    if (string2->length() != length) return false;
+    return memcmp(string1->start(), string2->start(), length) == 0;
+  }
+
   unsigned preamble_[ScriptDataImpl::kHeaderSize];
 #ifdef DEBUG
   int prev_start;
@@ -936,19 +1018,19 @@ class ParserRecorder: public ParserLog {
 
 
 void ScriptDataImpl::SkipFunctionEntry(int start) {
-  ASSERT(index_ + FunctionEntry::kSize <= store_.length());
-  ASSERT(static_cast<int>(store_[index_]) == start);
-  index_ += FunctionEntry::kSize;
+  ASSERT(function_index_ + FunctionEntry::kSize <= store_.length());
+  ASSERT(static_cast<int>(store_[function_index_]) == start);
+  function_index_ += FunctionEntry::kSize;
 }
 
 
 FunctionEntry ScriptDataImpl::GetFunctionEntry(int start) {
   // The current pre-data entry must be a FunctionEntry with the given
   // start position.
-    if ((index_ + FunctionEntry::kSize <= store_.length())
-        && (static_cast<int>(store_[index_]) == start)) {
-    int index = index_;
-    index_ += FunctionEntry::kSize;
+  if ((function_index_ + FunctionEntry::kSize <= store_.length())
+      && (static_cast<int>(store_[function_index_]) == start)) {
+    int index = function_index_;
+    function_index_ += FunctionEntry::kSize;
     return FunctionEntry(store_.SubVector(index,
                                           index + FunctionEntry::kSize));
   }
@@ -956,33 +1038,79 @@ FunctionEntry ScriptDataImpl::GetFunctionEntry(int start) {
 }
 
 
-bool ScriptDataImpl::SanityCheck() {
-  if (store_.length() < static_cast<int>(ScriptDataImpl::kHeaderSize)) {
-    return false;
+int ScriptDataImpl::GetSymbolIdentifier(int start) {
+  int next = symbol_index_ + 2;
+  if (next <= store_.length()
+      && static_cast<int>(store_[symbol_index_]) == start) {
+    symbol_index_ = next;
+    return store_[next - 1];
   }
+  return symbol_id_++;
+}
+
+
+
+bool ScriptDataImpl::SanityCheck() {
+  // Check that the header data is valid and doesn't specify
+  // point to positions outside the store.
+  if (store_.length() < ScriptDataImpl::kHeaderSize) return false;
   if (magic() != ScriptDataImpl::kMagicNumber) return false;
   if (version() != ScriptDataImpl::kCurrentVersion) return false;
+  if (has_error()) {
+    // Extra sane sanity check for error message encoding.
+    if (store_.length() <= kHeaderSize + kMessageTextPos) return false;
+    if (Read(kMessageStartPos) > Read(kMessageEndPos)) return false;
+    unsigned arg_count = Read(kMessageArgCountPos);
+    int pos = kMessageTextPos;
+    for (unsigned int i = 0; i <= arg_count; i++) {
+      if (store_.length() <= kHeaderSize + pos) return false;
+      int length = static_cast<int>(Read(pos));
+      if (length < 0) return false;
+      pos += 1 + length;
+    }
+    if (store_.length() < kHeaderSize + pos) return false;
+    return true;
+  }
+  // Check that the space allocated for function entries is sane.
+  int functions_size =
+      static_cast<int>(store_[ScriptDataImpl::kFunctionsSizeOffset]);
+  if (functions_size < 0) return false;
+  if (functions_size % FunctionEntry::kSize != 0) return false;
+  // Check that the count of symbols is non-negative.
+  int symbol_count =
+      static_cast<int>(store_[ScriptDataImpl::kSymbolCountOffset]);
+  if (symbol_count < 0) return false;
+  // Check that the total size has room both function entries.
+  int minimum_size =
+      ScriptDataImpl::kHeaderSize + functions_size;
+  if (store_.length() < minimum_size) return false;
   return true;
 }
 
 
 ParserRecorder::ParserRecorder()
-  : store_(0) {
+  : function_store_(0),
+    symbol_store_(0),
+    symbol_entries_(0),
+    symbol_table_(vector_compare),
+    symbol_id_(0) {
 #ifdef DEBUG
   prev_start = -1;
 #endif
   preamble_[ScriptDataImpl::kMagicOffset] = ScriptDataImpl::kMagicNumber;
   preamble_[ScriptDataImpl::kVersionOffset] = ScriptDataImpl::kCurrentVersion;
   preamble_[ScriptDataImpl::kHasErrorOffset] = false;
+  preamble_[ScriptDataImpl::kFunctionsSizeOffset] = 0;
+  preamble_[ScriptDataImpl::kSymbolCountOffset] = 0;
   preamble_[ScriptDataImpl::kSizeOffset] = 0;
-  ASSERT_EQ(4, ScriptDataImpl::kHeaderSize);
+  ASSERT_EQ(6, ScriptDataImpl::kHeaderSize);
 }
 
 
 void ParserRecorder::WriteString(Vector<const char> str) {
-  store_.Add(str.length());
+  function_store_.Add(str.length());
   for (int i = 0; i < str.length(); i++) {
-    store_.Add(str[i]);
+    function_store_.Add(str[i]);
   }
 }
 
@@ -1003,10 +1131,14 @@ void ParserRecorder::LogMessage(Scanner::Location loc, const char* message,
                                 Vector<const char*> args) {
   if (has_error()) return;
   preamble_[ScriptDataImpl::kHasErrorOffset] = true;
-  store_.Reset();
-  store_.Add(loc.beg_pos);
-  store_.Add(loc.end_pos);
-  store_.Add(args.length());
+  function_store_.Reset();
+  STATIC_ASSERT(ScriptDataImpl::kMessageStartPos == 0);
+  function_store_.Add(loc.beg_pos);
+  STATIC_ASSERT(ScriptDataImpl::kMessageEndPos == 1);
+  function_store_.Add(loc.end_pos);
+  STATIC_ASSERT(ScriptDataImpl::kMessageArgCountPos == 2);
+  function_store_.Add(args.length());
+  STATIC_ASSERT(ScriptDataImpl::kMessageTextPos == 3);
   WriteString(CStrVector(message));
   for (int i = 0; i < args.length(); i++) {
     WriteString(CStrVector(args[i]));
@@ -1015,22 +1147,23 @@ void ParserRecorder::LogMessage(Scanner::Location loc, const char* message,
 
 
 Scanner::Location ScriptDataImpl::MessageLocation() {
-  int beg_pos = Read(0);
-  int end_pos = Read(1);
+  int beg_pos = Read(kMessageStartPos);
+  int end_pos = Read(kMessageEndPos);
   return Scanner::Location(beg_pos, end_pos);
 }
 
 
 const char* ScriptDataImpl::BuildMessage() {
-  unsigned* start = ReadAddress(3);
+  unsigned* start = ReadAddress(kMessageTextPos);
   return ReadString(start, NULL);
 }
 
 
 Vector<const char*> ScriptDataImpl::BuildArgs() {
-  int arg_count = Read(2);
+  int arg_count = Read(kMessageArgCountPos);
   const char** array = NewArray<const char*>(arg_count);
-  int pos = ScriptDataImpl::kHeaderSize + Read(3);
+  // Position after the string starting at position 3.
+  int pos = kMessageTextPos + 1 + Read(kMessageTextPos);
   for (int i = 0; i < arg_count; i++) {
     int count = 0;
     array[i] = ReadString(ReadAddress(pos), &count);
@@ -1049,14 +1182,6 @@ unsigned* ScriptDataImpl::ReadAddress(int position) {
   return &store_[ScriptDataImpl::kHeaderSize + position];
 }
 
-void ScriptDataImpl::FindStart(int position) {
-  // Only search forwards, and linearly for now.
-  while ((index_ < store_.length())
-      && (static_cast<int>(store_[index_])) < position) {
-    index_ += FunctionEntry::kSize;
-  }
-}
-
 
 FunctionEntry ParserRecorder::LogFunction(int start) {
 #ifdef DEBUG
@@ -1064,7 +1189,7 @@ FunctionEntry ParserRecorder::LogFunction(int start) {
   prev_start = start;
 #endif
   if (has_error()) return FunctionEntry();
-  FunctionEntry result(store_.AddBlock(FunctionEntry::kSize, 0));
+  FunctionEntry result(function_store_.AddBlock(FunctionEntry::kSize, 0));
   result.set_start_pos(start);
   return result;
 }
@@ -1074,8 +1199,14 @@ class AstBuildingParser : public Parser {
  public:
   AstBuildingParser(Handle<Script> script, bool allow_natives_syntax,
                     v8::Extension* extension, ScriptDataImpl* pre_data)
-      : Parser(script, allow_natives_syntax, extension, PARSE,
-               factory(), log(), pre_data) { }
+      : Parser(script,
+               allow_natives_syntax,
+               extension,
+               PARSE,
+               factory(),
+               log(),
+               pre_data),
+        factory_(pre_data ? pre_data->symbol_count() : 16) { }
   virtual void ReportMessageAt(Scanner::Location loc, const char* message,
                                Vector<const char*> args);
   virtual VariableProxy* Declare(Handle<String> name, Variable::Mode mode,
@@ -1439,6 +1570,21 @@ FunctionLiteral* Parser::ParseJson(Handle<String> source) {
 void Parser::ReportMessage(const char* type, Vector<const char*> args) {
   Scanner::Location source_location = scanner_.location();
   ReportMessageAt(source_location, type, args);
+}
+
+
+Handle<String> Parser::GetSymbol(bool* ok) {
+  if (pre_data() != NULL) {
+    int symbol_id =
+        pre_data()->GetSymbolIdentifier(scanner_.location().beg_pos);
+    if (symbol_id < 0) {
+      ReportInvalidPreparseData(Factory::empty_symbol(), ok);
+      return Handle<String>::null();
+    }
+    return factory()->LookupSymbol(symbol_id, scanner_.literal());
+  }
+  log()->LogSymbol(scanner_.location().beg_pos, scanner_.literal());
+  return factory()->LookupSymbol(-1, scanner_.literal());
 }
 
 
@@ -3419,9 +3565,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 
     case Token::STRING: {
       Consume(Token::STRING);
-      Handle<String> symbol =
-          factory()->LookupSymbol(scanner_.literal_string(),
-                                  scanner_.literal_length());
+      Handle<String> symbol = GetSymbol(CHECK_OK);
       result = NEW(Literal(symbol));
       if (fni_ != NULL) fni_->PushLiteralName(symbol);
       break;
@@ -3689,9 +3833,7 @@ ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
   Token::Value next = Next();
   // TODO(820): Allow NUMBER and STRING as well (and handle array indices).
   if (next == Token::IDENTIFIER || Token::IsKeyword(next)) {
-    Handle<String> name =
-        factory()->LookupSymbol(scanner_.literal_string(),
-                                scanner_.literal_length());
+    Handle<String> name = GetSymbol(CHECK_OK);
     FunctionLiteral* value =
         ParseFunctionLiteral(name,
                              RelocInfo::kNoPosition,
@@ -3755,9 +3897,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       }
       case Token::STRING: {
         Consume(Token::STRING);
-        Handle<String> string =
-            factory()->LookupSymbol(scanner_.literal_string(),
-                                    scanner_.literal_length());
+        Handle<String> string = GetSymbol(CHECK_OK);
         if (fni_ != NULL) fni_->PushLiteralName(string);
         uint32_t index;
         if (!string.is_null() && string->AsArrayIndex(&index)) {
@@ -3777,9 +3917,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       default:
         if (Token::IsKeyword(next)) {
           Consume(next);
-          Handle<String> string =
-              factory()->LookupSymbol(scanner_.literal_string(),
-                                      scanner_.literal_length());
+          Handle<String> string = GetSymbol(CHECK_OK);
           key = NEW(Literal(string));
         } else {
           // Unexpected token.
@@ -3972,7 +4110,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       }
       Counters::total_preparse_skipped.Increment(end_pos - function_block_pos);
       scanner_.SeekForward(end_pos);
-      pre_data()->Skip(entry.predata_skip());
+      pre_data()->Skip(entry.predata_function_skip(),
+                       entry.predata_symbol_skip(),
+                       entry.symbol_id_skip());
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();
       only_simple_this_property_assignments = false;
@@ -3984,7 +4124,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         pre_data()->SkipFunctionEntry(function_block_pos);
       }
       FunctionEntry entry = log()->LogFunction(function_block_pos);
-      int predata_position_before = log()->position();
+      int predata_function_position_before = log()->function_position();
+      int predata_symbol_position_before = log()->symbol_position();
+      int symbol_ids_before = log()->symbol_ids();
       ParseSourceElements(&body, Token::RBRACE, CHECK_OK);
       materialized_literal_count = temp_scope.materialized_literal_count();
       expected_property_count = temp_scope.expected_property_count();
@@ -3998,7 +4140,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         entry.set_end_pos(end_pos);
         entry.set_literal_count(materialized_literal_count);
         entry.set_property_count(expected_property_count);
-        entry.set_predata_skip(log()->position() - predata_position_before);
+        entry.set_predata_function_skip(
+            log()->function_position() - predata_function_position_before);
+        entry.set_predata_symbol_skip(
+            log()->symbol_position() - predata_symbol_position_before);
+        entry.set_symbol_id_skip(
+            log()->symbol_ids() - symbol_ids_before);
       }
     }
 
@@ -4148,8 +4295,7 @@ Literal* Parser::GetLiteralNumber(double value) {
 Handle<String> Parser::ParseIdentifier(bool* ok) {
   Expect(Token::IDENTIFIER, ok);
   if (!*ok) return Handle<String>();
-  return factory()->LookupSymbol(scanner_.literal_string(),
-                                 scanner_.literal_length());
+  return GetSymbol(ok);
 }
 
 
@@ -4160,8 +4306,7 @@ Handle<String> Parser::ParseIdentifierName(bool* ok) {
     *ok = false;
     return Handle<String>();
   }
-  return factory()->LookupSymbol(scanner_.literal_string(),
-                                 scanner_.literal_length());
+  return GetSymbol(ok);
 }
 
 
@@ -4179,8 +4324,7 @@ Handle<String> Parser::ParseIdentifierOrGetOrSet(bool* is_get,
     *is_get = strcmp(token, "get") == 0;
     *is_set = !*is_get && strcmp(token, "set") == 0;
   }
-  return factory()->LookupSymbol(scanner_.literal_string(),
-                                 scanner_.literal_length());
+  return GetSymbol(ok);
 }
 
 
@@ -4362,8 +4506,7 @@ Expression* Parser::ParseJsonObject(bool* ok) {
   if (peek() != Token::RBRACE) {
     do {
       Expect(Token::STRING, CHECK_OK);
-      Handle<String> key = factory()->LookupSymbol(scanner_.literal_string(),
-                                                   scanner_.literal_length());
+      Handle<String> key = GetSymbol(CHECK_OK);
       Expect(Token::COLON, CHECK_OK);
       Expression* value = ParseJsonValue(CHECK_OK);
       Literal* key_literal;
@@ -5251,7 +5394,7 @@ ParserMessage::~ParserMessage() {
 
 
 ScriptDataImpl::~ScriptDataImpl() {
-  store_.Dispose();
+  if (owns_store_) store_.Dispose();
 }
 
 

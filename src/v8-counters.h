@@ -98,6 +98,8 @@ namespace internal {
   SC(total_parse_size, V8.TotalParseSize)                             \
   /* Amount of source code skipped over using preparsing. */          \
   SC(total_preparse_skipped, V8.TotalPreparseSkipped)                 \
+  /* Number of symbol lookups skipped using preparsing */             \
+  SC(total_preparse_symbols_skipped, V8.TotalPreparseSymbolSkipped)   \
   /* Amount of compiled source code. */                               \
   SC(total_compile_size, V8.TotalCompileSize)                         \
   /* Amount of source code compiled with the old codegen. */          \

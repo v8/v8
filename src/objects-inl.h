@@ -2109,7 +2109,16 @@ void ExternalFloatArray::set(int index, float value) {
 }
 
 
-INT_ACCESSORS(Map, visitor_id, kScavengerCallbackOffset)
+int Map::visitor_id() {
+  return READ_BYTE_FIELD(this, kVisitorIdOffset);
+}
+
+
+void Map::set_visitor_id(int id) {
+  ASSERT(0 <= id && id < 256);
+  WRITE_BYTE_FIELD(this, kVisitorIdOffset, static_cast<byte>(id));
+}
+
 
 int Map::instance_size() {
   return READ_BYTE_FIELD(this, kInstanceSizeOffset) << kPointerSizeLog2;

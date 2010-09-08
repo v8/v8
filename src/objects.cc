@@ -2126,9 +2126,6 @@ Object* NormalizedMapCache::Get(JSObject* obj, PropertyNormalizationMode mode) {
         // The cached map should match newly created normalized map bit-by-bit.
         Object* fresh = fast->CopyNormalized(mode);
         if (!fresh->IsFailure()) {
-          // Copy the unused byte so that the assertion below works.
-          Map::cast(fresh)->address()[Map::kUnusedOffset] =
-              Map::cast(result)->address()[Map::kUnusedOffset];
           ASSERT(memcmp(Map::cast(fresh)->address(),
                         Map::cast(result)->address(),
                         Map::kSize) == 0);
@@ -4991,17 +4988,20 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
 }
 
 
-uint32_t StringHasher::MakeCachedArrayIndex(uint32_t value, int length) {
-  value <<= String::kHashShift;
+uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
   ASSERT(length > 0);
   ASSERT(length <= String::kMaxArrayIndexSize);
   ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
-  ASSERT(String::kMaxArrayIndexSize < (1 << String::kArrayIndexValueBits));
-  value &= ~String::kIsNotArrayIndexMask;
+
+  value <<= String::kHashShift;
   value |= length << String::kArrayIndexHashLengthShift;
+
+  ASSERT((value & String::kIsNotArrayIndexMask) == 0);
+  ASSERT((length > String::kMaxCachedArrayIndexLength) ||
+         (value & String::kContainsCachedArrayIndexMask) == 0);
   return value;
 }
 
@@ -5010,7 +5010,7 @@ uint32_t StringHasher::GetHashField() {
   ASSERT(is_valid());
   if (length_ <= String::kMaxHashCalcLength) {
     if (is_array_index()) {
-      return MakeCachedArrayIndex(array_index(), length_);
+      return MakeArrayIndexHash(array_index(), length_);
     }
     return (GetHash() << String::kHashShift) | String::kIsNotArrayIndexMask;
   } else {
