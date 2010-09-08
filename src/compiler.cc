@@ -269,9 +269,20 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
   }
 
   if (result.is_null()) {
-    // No cache entry found. Do pre-parsing and compile the script.
+    // No cache entry found. Do pre-parsing, if it makes sense, and compile
+    // the script.
+    // Building preparse data that is only used immediately after is only a
+    // saving if we might skip building the AST for lazily compiled functions.
+    // I.e., preparse data isn't relevant when the lazy flag is off, and
+    // for small sources, odds are that there aren't many functions
+    // that would be compiled lazily anyway, so we skip the preparse step
+    // in that case too.
+    // TODO(lrn): Maybe *only* collect function info, not symbol info, in
+    // this case, since it's just replacing one hash-lookup with another.
     ScriptDataImpl* pre_data = input_pre_data;
-    if (pre_data == NULL && source_length >= FLAG_min_preparse_length) {
+    if (pre_data == NULL
+        && FLAG_lazy
+        && source_length >= FLAG_min_preparse_length) {
       pre_data = PreParse(source, NULL, extension);
     }
 
