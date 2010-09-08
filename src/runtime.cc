@@ -2578,7 +2578,7 @@ static const int kBMMaxShift = 0xff;
 static const int kBMAlphabetSize = 0x100;
 // For patterns below this length, the skip length of Boyer-Moore is too short
 // to compensate for the algorithmic overhead compared to simple brute force.
-static const int kBMMinPatternLength = 5;
+static const int kBMMinPatternLength = 7;
 
 // Holds the two buffers used by Boyer-Moore string search's Good Suffix
 // shift. Only allows the last kBMMaxShift characters of the needle
