@@ -8022,8 +8022,10 @@ static Object* Runtime_SwapElements(Arguments args) {
 
 
 // Returns an array that tells you where in the [0, length) interval an array
-// might have elements.  Can either return keys or intervals.  Keys can have
-// gaps in (undefined).  Intervals can also span over some undefined keys.
+// might have elements.  Can either return keys (positive integers) or
+// intervals (pair of a negative integer (-start-1) followed by a
+// positive (length)) or undefined values.
+// Intervals can span over some keys that are not in the object.
 static Object* Runtime_GetArrayKeys(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;
