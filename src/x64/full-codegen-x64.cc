@@ -507,7 +507,7 @@ MemOperand FullCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
       int context_chain_length =
           scope()->ContextChainLength(slot->var()->scope());
       __ LoadContext(scratch, context_chain_length);
-      return CodeGenerator::ContextOperand(scratch, slot->index());
+      return ContextOperand(scratch, slot->index());
     }
     case Slot::LOOKUP:
       UNREACHABLE();
@@ -568,20 +568,17 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
-          __ movq(rbx,
-                  CodeGenerator::ContextOperand(rsi, Context::FCONTEXT_INDEX));
+          __ movq(rbx, ContextOperand(rsi, Context::FCONTEXT_INDEX));
           __ cmpq(rbx, rsi);
           __ Check(equal, "Unexpected declaration in current context.");
         }
         if (mode == Variable::CONST) {
           __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
-          __ movq(CodeGenerator::ContextOperand(rsi, slot->index()),
-                  kScratchRegister);
+          __ movq(ContextOperand(rsi, slot->index()), kScratchRegister);
           // No write barrier since the hole value is in old space.
         } else if (function != NULL) {
           VisitForValue(function, kAccumulator);
-          __ movq(CodeGenerator::ContextOperand(rsi, slot->index()),
-                  result_register());
+          __ movq(ContextOperand(rsi, slot->index()), result_register());
           int offset = Context::SlotOffset(slot->index());
           __ movq(rbx, rsi);
           __ RecordWrite(rbx, offset, result_register(), rcx);
@@ -881,6 +878,71 @@ void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
+void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
+    Slot* slot,
+    TypeofState typeof_state,
+    Label* slow) {
+  Register context = rsi;
+  Register temp = rdx;
+
+  Scope* s = scope();
+  while (s != NULL) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
+                Immediate(0));
+        __ j(not_equal, slow);
+      }
+      // Load next context in chain.
+      __ movq(temp, ContextOperand(context, Context::CLOSURE_INDEX));
+      __ movq(temp, FieldOperand(temp, JSFunction::kContextOffset));
+      // Walk the rest of the chain using a single register without
+      // clobbering rsi.
+      context = temp;
+    }
+    // If no outer scope calls eval, we do not need to check more
+    // context extensions.  If we have reached an eval scope, we check
+    // all extensions from this point.
+    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
+    s = s->outer_scope();
+  }
+
+  if (s != NULL && s->is_eval_scope()) {
+    // Loop up the context chain.  There is no frame effect so it is
+    // safe to use raw labels here.
+    Label next, fast;
+    if (!context.is(temp)) {
+      __ movq(temp, context);
+    }
+    // Load map for comparison into register, outside loop.
+    __ LoadRoot(kScratchRegister, Heap::kGlobalContextMapRootIndex);
+    __ bind(&next);
+    // Terminate at global context.
+    __ cmpq(kScratchRegister, FieldOperand(temp, HeapObject::kMapOffset));
+    __ j(equal, &fast);
+    // Check that extension is NULL.
+    __ cmpq(ContextOperand(temp, Context::EXTENSION_INDEX), Immediate(0));
+    __ j(not_equal, slow);
+    // Load next context in chain.
+    __ movq(temp, ContextOperand(temp, Context::CLOSURE_INDEX));
+    __ movq(temp, FieldOperand(temp, JSFunction::kContextOffset));
+    __ jmp(&next);
+    __ bind(&fast);
+  }
+
+  // All extension objects were empty and it is safe to use a global
+  // load IC call.
+  __ movq(rax, CodeGenerator::GlobalObject());
+  __ Move(rcx, slot->var()->name());
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
+      ? RelocInfo::CODE_TARGET
+      : RelocInfo::CODE_TARGET_CONTEXT;
+  __ call(ic, mode);
+}
+
+
 void FullCodeGenerator::EmitVariableLoad(Variable* var,
                                          Expression::Context context) {
   // Four cases: non-this global variables, lookup slots, all other
@@ -904,11 +966,26 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     Apply(context, rax);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
+    Label done, slow;
+
+    // Generate fast-case code for variables that might be shadowed by
+    // eval-introduced variables.  Eval is used a lot without
+    // introducing variables.  In those cases, we do not want to
+    // perform a runtime call for all variables in the scope
+    // containing the eval.
+    if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+      EmitLoadGlobalSlotCheckExtensions(slot, NOT_INSIDE_TYPEOF, &slow);
+      Apply(context, rax);
+      __ jmp(&done);
+    }
+
+    __ bind(&slow);
     Comment cmnt(masm_, "Lookup slot");
     __ push(rsi);  // Context.
     __ Push(var->name());
     __ CallRuntime(Runtime::kLoadContextSlot, 2);
     Apply(context, rax);
+    __ bind(&done);
 
   } else if (slot != NULL) {
     Comment cmnt(masm_, (slot->type() == Slot::CONTEXT)
@@ -2522,12 +2599,11 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
   Register key = rax;
   Register cache = rbx;
   Register tmp = rcx;
-  __ movq(cache, CodeGenerator::ContextOperand(rsi, Context::GLOBAL_INDEX));
+  __ movq(cache, ContextOperand(rsi, Context::GLOBAL_INDEX));
   __ movq(cache,
           FieldOperand(cache, GlobalObject::kGlobalContextOffset));
   __ movq(cache,
-          CodeGenerator::ContextOperand(
-              cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
+          ContextOperand(cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
   __ movq(cache,
           FieldOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
 
@@ -3243,7 +3319,7 @@ void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
 
 
 void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
-  __ movq(dst, CodeGenerator::ContextOperand(rsi, context_index));
+  __ movq(dst, ContextOperand(rsi, context_index));
 }
 
 

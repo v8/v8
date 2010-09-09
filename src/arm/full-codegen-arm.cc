@@ -493,7 +493,7 @@ MemOperand FullCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
       int context_chain_length =
           scope()->ContextChainLength(slot->var()->scope());
       __ LoadContext(scratch, context_chain_length);
-      return CodeGenerator::ContextOperand(scratch, slot->index());
+      return ContextOperand(scratch, slot->index());
     }
     case Slot::LOOKUP:
       UNREACHABLE();
@@ -557,19 +557,17 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
-          __ ldr(r1,
-                 CodeGenerator::ContextOperand(cp, Context::FCONTEXT_INDEX));
+          __ ldr(r1, ContextOperand(cp, Context::FCONTEXT_INDEX));
           __ cmp(r1, cp);
           __ Check(eq, "Unexpected declaration in current context.");
         }
         if (mode == Variable::CONST) {
           __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-          __ str(ip, CodeGenerator::ContextOperand(cp, slot->index()));
+          __ str(ip, ContextOperand(cp, slot->index()));
           // No write barrier since the_hole_value is in old space.
         } else if (function != NULL) {
           VisitForValue(function, kAccumulator);
-          __ str(result_register(),
-                 CodeGenerator::ContextOperand(cp, slot->index()));
+          __ str(result_register(), ContextOperand(cp, slot->index()));
           int offset = Context::SlotOffset(slot->index());
           // We know that we have written a function, which is not a smi.
           __ mov(r1, Operand(cp));
@@ -881,6 +879,68 @@ void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
+void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
+    Slot* slot,
+    TypeofState typeof_state,
+    Label* slow) {
+  Register current = cp;
+  Register next = r1;
+  Register temp = r2;
+
+  Scope* s = scope();
+  while (s != NULL) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ ldr(temp, ContextOperand(current, Context::EXTENSION_INDEX));
+        __ tst(temp, temp);
+        __ b(ne, slow);
+      }
+      // Load next context in chain.
+      __ ldr(next, ContextOperand(current, Context::CLOSURE_INDEX));
+      __ ldr(next, FieldMemOperand(next, JSFunction::kContextOffset));
+      // Walk the rest of the chain using a single register without
+      // clobbering cp.
+      current = next;
+    }
+    // If no outer scope calls eval, we do not need to check more
+    // context extensions.
+    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
+    s = s->outer_scope();
+  }
+
+  if (s->is_eval_scope()) {
+    Label loop, fast;
+    if (!current.is(next)) {
+      __ Move(next, current);
+    }
+    __ bind(&loop);
+    // Terminate at global context.
+    __ ldr(temp, FieldMemOperand(next, HeapObject::kMapOffset));
+    __ LoadRoot(ip, Heap::kGlobalContextMapRootIndex);
+    __ cmp(temp, ip);
+    __ b(eq, &fast);
+    // Check that extension is NULL.
+    __ ldr(temp, ContextOperand(next, Context::EXTENSION_INDEX));
+    __ tst(temp, temp);
+    __ b(ne, slow);
+    // Load next context in chain.
+    __ ldr(next, ContextOperand(next, Context::CLOSURE_INDEX));
+    __ ldr(next, FieldMemOperand(next, JSFunction::kContextOffset));
+    __ b(&loop);
+    __ bind(&fast);
+  }
+
+  __ ldr(r0, CodeGenerator::GlobalObject());
+  __ mov(r2, Operand(slot->var()->name()));
+  RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
+      ? RelocInfo::CODE_TARGET
+      : RelocInfo::CODE_TARGET_CONTEXT;
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  __ Call(ic, mode);
+}
+
+
 void FullCodeGenerator::EmitVariableLoad(Variable* var,
                                          Expression::Context context) {
   // Four cases: non-this global variables, lookup slots, all other
@@ -900,11 +960,26 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     Apply(context, r0);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
+    Label done, slow;
+
+    // Generate fast-case code for variables that might be shadowed by
+    // eval-introduced variables.  Eval is used a lot without
+    // introducing variables.  In those cases, we do not want to
+    // perform a runtime call for all variables in the scope
+    // containing the eval.
+    if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+      EmitLoadGlobalSlotCheckExtensions(slot, NOT_INSIDE_TYPEOF, &slow);
+      Apply(context, r0);
+      __ jmp(&done);
+    }
+
+    __ bind(&slow);
     Comment cmnt(masm_, "Lookup slot");
     __ mov(r1, Operand(var->name()));
     __ Push(cp, r1);  // Context and name.
     __ CallRuntime(Runtime::kLoadContextSlot, 2);
     Apply(context, r0);
+    __ bind(&done);
 
   } else if (slot != NULL) {
     Comment cmnt(masm_, (slot->type() == Slot::CONTEXT)
@@ -2464,11 +2539,9 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
 
   Register key = r0;
   Register cache = r1;
-  __ ldr(cache, CodeGenerator::ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ ldr(cache, ContextOperand(cp, Context::GLOBAL_INDEX));
   __ ldr(cache, FieldMemOperand(cache, GlobalObject::kGlobalContextOffset));
-  __ ldr(cache,
-         CodeGenerator::ContextOperand(
-             cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
+  __ ldr(cache, ContextOperand(cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
   __ ldr(cache,
          FieldMemOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
 
@@ -3187,7 +3260,7 @@ void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
 
 
 void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
-  __ ldr(dst, CodeGenerator::ContextOperand(cp, context_index));
+  __ ldr(dst, ContextOperand(cp, context_index));
 }
 
 
