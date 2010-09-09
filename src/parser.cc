@@ -872,11 +872,14 @@ class ParserLog BASE_EMBEDDED {
   // Records the occurrence of a function.
   virtual FunctionEntry LogFunction(int start) { return FunctionEntry(); }
   virtual void LogSymbol(int start, Vector<const char> symbol) {}
+  virtual void LogError() { }
   // Return the current position in the function entry log.
   virtual int function_position() { return 0; }
   virtual int symbol_position() { return 0; }
   virtual int symbol_ids() { return 0; }
-  virtual void LogError() { }
+  virtual Vector<unsigned> ExtractData() {
+    return Vector<unsigned>();
+  };
 };
 
 
@@ -889,9 +892,14 @@ class AstBuildingParserFactory : public ParserFactory {
 
   virtual Handle<String> LookupSymbol(int symbol_id,
                                       Vector<const char> string) {
-    // If there is no preparse data, we have no simpler way to identify similar
-    // symbols.
-    if (symbol_id < 0) return Factory::LookupSymbol(string);
+    // Length of symbol cache is the number of identified symbols.
+    // If we are larger than that, or negative, it's not a cached symbol.
+    // This might also happen if there is no preparser symbol data, even
+    // if there is some preparser data.
+    if (static_cast<unsigned>(symbol_id)
+        >= static_cast<unsigned>(symbol_cache_.length())) {
+      return Factory::LookupSymbol(string);
+    }
     return LookupCachedSymbol(symbol_id, string);
   }
 
@@ -933,10 +941,55 @@ class AstBuildingParserFactory : public ParserFactory {
 };
 
 
-class ParserRecorder: public ParserLog {
+// Record only functions.
+class PartialParserRecorder: public ParserLog {
  public:
-  ParserRecorder();
+  PartialParserRecorder();
   virtual FunctionEntry LogFunction(int start);
+
+  virtual int function_position() { return function_store_.size(); }
+
+  virtual void LogError() { }
+
+  virtual void LogMessage(Scanner::Location loc,
+                          const char* message,
+                          Vector<const char*> args);
+
+  virtual Vector<unsigned> ExtractData() {
+    int function_size = function_store_.size();
+    int total_size = ScriptDataImpl::kHeaderSize + function_size;
+    Vector<unsigned> data = Vector<unsigned>::New(total_size);
+    preamble_[ScriptDataImpl::kFunctionsSizeOffset] = function_size;
+    preamble_[ScriptDataImpl::kSymbolCountOffset] = 0;
+    memcpy(data.start(), preamble_, sizeof(preamble_));
+    int symbol_start = ScriptDataImpl::kHeaderSize + function_size;
+    if (function_size > 0) {
+      function_store_.WriteTo(data.SubVector(ScriptDataImpl::kHeaderSize,
+                                             symbol_start));
+    }
+    return data;
+  }
+
+ protected:
+  bool has_error() {
+    return static_cast<bool>(preamble_[ScriptDataImpl::kHasErrorOffset]);
+  }
+
+  void WriteString(Vector<const char> str);
+
+  Collector<unsigned> function_store_;
+  unsigned preamble_[ScriptDataImpl::kHeaderSize];
+#ifdef DEBUG
+  int prev_start;
+#endif
+};
+
+
+// Record both functions and symbols.
+class CompleteParserRecorder: public PartialParserRecorder {
+ public:
+  CompleteParserRecorder();
+
   virtual void LogSymbol(int start, Vector<const char> literal) {
     int hash = vector_hash(literal);
     HashMap::Entry* entry = symbol_table_.Lookup(&literal, hash, true);
@@ -953,11 +1006,8 @@ class ParserRecorder: public ParserLog {
       symbol_store_.Add(id - 1);
     }
   }
-  virtual void LogError() { }
-  virtual void LogMessage(Scanner::Location loc,
-                          const char* message,
-                          Vector<const char*> args);
-  Vector<unsigned> ExtractData() {
+
+  virtual Vector<unsigned> ExtractData() {
     int function_size = function_store_.size();
     int symbol_size = symbol_store_.size();
     int total_size = ScriptDataImpl::kHeaderSize + function_size + symbol_size;
@@ -976,11 +1026,9 @@ class ParserRecorder: public ParserLog {
     return data;
   }
 
-  virtual int function_position() { return function_store_.size(); }
   virtual int symbol_position() { return symbol_store_.size(); }
   virtual int symbol_ids() { return symbol_id_; }
  private:
-  Collector<unsigned> function_store_;
   Collector<unsigned> symbol_store_;
   Collector<Vector<const char> > symbol_entries_;
   HashMap symbol_table_;
@@ -1004,16 +1052,6 @@ class ParserRecorder: public ParserLog {
     if (string2->length() != length) return false;
     return memcmp(string1->start(), string2->start(), length) == 0;
   }
-
-  unsigned preamble_[ScriptDataImpl::kHeaderSize];
-#ifdef DEBUG
-  int prev_start;
-#endif
-
-  bool has_error() {
-    return static_cast<bool>(preamble_[ScriptDataImpl::kHasErrorOffset]);
-  }
-  void WriteString(Vector<const char> str);
 };
 
 
@@ -1088,15 +1126,8 @@ bool ScriptDataImpl::SanityCheck() {
 }
 
 
-ParserRecorder::ParserRecorder()
-  : function_store_(0),
-    symbol_store_(0),
-    symbol_entries_(0),
-    symbol_table_(vector_compare),
-    symbol_id_(0) {
-#ifdef DEBUG
-  prev_start = -1;
-#endif
+
+PartialParserRecorder::PartialParserRecorder() : function_store_(0) {
   preamble_[ScriptDataImpl::kMagicOffset] = ScriptDataImpl::kMagicNumber;
   preamble_[ScriptDataImpl::kVersionOffset] = ScriptDataImpl::kCurrentVersion;
   preamble_[ScriptDataImpl::kHasErrorOffset] = false;
@@ -1104,10 +1135,22 @@ ParserRecorder::ParserRecorder()
   preamble_[ScriptDataImpl::kSymbolCountOffset] = 0;
   preamble_[ScriptDataImpl::kSizeOffset] = 0;
   ASSERT_EQ(6, ScriptDataImpl::kHeaderSize);
+#ifdef DEBUG
+  prev_start = -1;
+#endif
 }
 
 
-void ParserRecorder::WriteString(Vector<const char> str) {
+CompleteParserRecorder::CompleteParserRecorder()
+    : PartialParserRecorder(),
+      symbol_store_(0),
+      symbol_entries_(0),
+      symbol_table_(vector_compare),
+      symbol_id_(0) {
+}
+
+
+void PartialParserRecorder::WriteString(Vector<const char> str) {
   function_store_.Add(str.length());
   for (int i = 0; i < str.length(); i++) {
     function_store_.Add(str[i]);
@@ -1127,8 +1170,9 @@ const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
 }
 
 
-void ParserRecorder::LogMessage(Scanner::Location loc, const char* message,
-                                Vector<const char*> args) {
+void PartialParserRecorder::LogMessage(Scanner::Location loc,
+                                      const char* message,
+                                      Vector<const char*> args) {
   if (has_error()) return;
   preamble_[ScriptDataImpl::kHasErrorOffset] = true;
   function_store_.Reset();
@@ -1183,7 +1227,7 @@ unsigned* ScriptDataImpl::ReadAddress(int position) {
 }
 
 
-FunctionEntry ParserRecorder::LogFunction(int start) {
+FunctionEntry PartialParserRecorder::LogFunction(int start) {
 #ifdef DEBUG
   ASSERT(start > prev_start);
   prev_start = start;
@@ -1206,7 +1250,7 @@ class AstBuildingParser : public Parser {
                factory(),
                log(),
                pre_data),
-        factory_(pre_data ? pre_data->symbol_count() : 16) { }
+        factory_(pre_data ? pre_data->symbol_count() : 0) { }
   virtual void ReportMessageAt(Scanner::Location loc, const char* message,
                                Vector<const char*> args);
   virtual VariableProxy* Declare(Handle<String> name, Variable::Mode mode,
@@ -1223,20 +1267,41 @@ class AstBuildingParser : public Parser {
 class PreParser : public Parser {
  public:
   PreParser(Handle<Script> script, bool allow_natives_syntax,
-            v8::Extension* extension)
+            v8::Extension* extension, ParserLog* recorder)
       : Parser(script, allow_natives_syntax, extension, PREPARSE,
-               factory(), recorder(), NULL),
+               factory(), recorder, NULL),
         factory_(true) { }
   virtual void ReportMessageAt(Scanner::Location loc, const char* message,
                                Vector<const char*> args);
   virtual VariableProxy* Declare(Handle<String> name, Variable::Mode mode,
                                  FunctionLiteral* fun, bool resolve, bool* ok);
   ParserFactory* factory() { return &factory_; }
-  ParserRecorder* recorder() { return &recorder_; }
+  virtual PartialParserRecorder* recorder() = 0;
 
  private:
-  ParserRecorder recorder_;
   ParserFactory factory_;
+};
+
+
+class CompletePreParser : public PreParser {
+ public:
+  CompletePreParser(Handle<Script> script, bool allow_natives_syntax,
+                    v8::Extension* extension)
+      : PreParser(script, allow_natives_syntax, extension, &recorder_) { }
+  virtual PartialParserRecorder* recorder() { return &recorder_; }
+ private:
+  CompleteParserRecorder recorder_;
+};
+
+
+class PartialPreParser : public PreParser {
+ public:
+  PartialPreParser(Handle<Script> script, bool allow_natives_syntax,
+                   v8::Extension* extension)
+      : PreParser(script, allow_natives_syntax, extension, &recorder_) { }
+  virtual PartialParserRecorder* recorder() { return &recorder_; }
+ private:
+  PartialParserRecorder recorder_;
 };
 
 
@@ -5413,6 +5478,25 @@ bool ScriptDataImpl::HasError() {
 }
 
 
+// Preparse, but only collect data that is immediately useful,
+// even if the preparser data is only used once.
+ScriptDataImpl* PartialPreParse(Handle<String> source,
+                                unibrow::CharacterStream* stream,
+                                v8::Extension* extension) {
+  Handle<Script> no_script;
+  bool allow_natives_syntax =
+      always_allow_natives_syntax ||
+      FLAG_allow_natives_syntax ||
+      Bootstrapper::IsActive();
+  PartialPreParser parser(no_script, allow_natives_syntax, extension);
+  if (!parser.PreParseProgram(source, stream)) return NULL;
+  // Extract the accumulated data from the recorder as a single
+  // contiguous vector that we are responsible for disposing.
+  Vector<unsigned> store = parser.recorder()->ExtractData();
+  return new ScriptDataImpl(store);
+}
+
+
 ScriptDataImpl* PreParse(Handle<String> source,
                          unibrow::CharacterStream* stream,
                          v8::Extension* extension) {
@@ -5421,7 +5505,7 @@ ScriptDataImpl* PreParse(Handle<String> source,
       always_allow_natives_syntax ||
       FLAG_allow_natives_syntax ||
       Bootstrapper::IsActive();
-  PreParser parser(no_script, allow_natives_syntax, extension);
+  CompletePreParser parser(no_script, allow_natives_syntax, extension);
   if (!parser.PreParseProgram(source, stream)) return NULL;
   // Extract the accumulated data from the recorder as a single
   // contiguous vector that we are responsible for disposing.

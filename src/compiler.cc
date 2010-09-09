@@ -277,13 +277,11 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     // for small sources, odds are that there aren't many functions
     // that would be compiled lazily anyway, so we skip the preparse step
     // in that case too.
-    // TODO(lrn): Maybe *only* collect function info, not symbol info, in
-    // this case, since it's just replacing one hash-lookup with another.
     ScriptDataImpl* pre_data = input_pre_data;
     if (pre_data == NULL
         && FLAG_lazy
         && source_length >= FLAG_min_preparse_length) {
-      pre_data = PreParse(source, NULL, extension);
+      pre_data = PartialPreParse(source, NULL, extension);
     }
 
     // Create a script object describing the script to be compiled.
