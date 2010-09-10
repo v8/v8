@@ -88,6 +88,7 @@ Heap::Heap()
       always_allocate_scope_depth_(0),
       linear_allocation_scope_depth_(0),
       contexts_disposed_(0),
+      new_space_(this),
       old_pointer_space_(NULL),
       old_data_space_(NULL),
       code_space_(NULL),
@@ -826,7 +827,7 @@ class ScavengeVisitor: public ObjectVisitor {
   void ScavengePointer(Object** p) {
     Object* object = *p;
     if (!HEAP->InNewSpace(object)) return;
-    HEAP->ScavengeObject(reinterpret_cast<HeapObject**>(p),
+    Heap::ScavengeObject(reinterpret_cast<HeapObject**>(p),
                          reinterpret_cast<HeapObject*>(object));
   }
 };
@@ -940,7 +941,7 @@ void Heap::Scavenge() {
   // Copy objects reachable from the old generation.  By definition,
   // there are no intergenerational pointers in code or data spaces.
   IterateDirtyRegions(old_pointer_space_,
-                      &IteratePointersInDirtyRegion,
+                      &Heap::IteratePointersInDirtyRegion,
                       &ScavengePointer,
                       WATERMARK_CAN_BE_INVALID);
 
@@ -1037,7 +1038,7 @@ class NewSpaceScavenger : public StaticNewSpaceVisitor<NewSpaceScavenger> {
   static inline void VisitPointer(Object** p) {
     Object* object = *p;
     if (!HEAP->InNewSpace(object)) return;
-    HEAP->ScavengeObject(reinterpret_cast<HeapObject**>(p),
+    Heap::ScavengeObject(reinterpret_cast<HeapObject**>(p),
                          reinterpret_cast<HeapObject*>(object));
   }
 };
@@ -1127,7 +1128,7 @@ class ScavengingVisitor : public StaticVisitorBase {
   enum SizeRestriction { SMALL, UNKNOWN_SIZE };
 
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
-  static void RecordCopiedObject(HeapObject* obj) {
+  static void RecordCopiedObject(Heap* heap, HeapObject* obj) {
     bool should_record = false;
 #ifdef DEBUG
     should_record = FLAG_heap_stats;
@@ -1136,10 +1137,10 @@ class ScavengingVisitor : public StaticVisitorBase {
     should_record = should_record || FLAG_log_gc;
 #endif
     if (should_record) {
-      if (HEAP->new_space()->Contains(obj)) {
-        HEAP->new_space()->RecordAllocation(obj);
+      if (heap->new_space()->Contains(obj)) {
+        heap->new_space()->RecordAllocation(obj);
       } else {
-        HEAP->new_space()->RecordPromotion(obj);
+        heap->new_space()->RecordPromotion(obj);
       }
     }
   }
@@ -1148,20 +1149,21 @@ class ScavengingVisitor : public StaticVisitorBase {
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source
   // object.  Returns the target object.
-  INLINE(static HeapObject* MigrateObject(HeapObject* source,
+  INLINE(static HeapObject* MigrateObject(Heap* heap,
+                                          HeapObject* source,
                                           HeapObject* target,
                                           int size)) {
     // Copy the content of source to target.
-    HEAP->CopyBlock(target->address(), source->address(), size);
+    heap->CopyBlock(target->address(), source->address(), size);
 
     // Set the forwarding address.
     source->set_map_word(MapWord::FromForwardingAddress(target));
 
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
     // Update NewSpace stats if necessary.
-    RecordCopiedObject(target);
+    RecordCopiedObject(heap, target);
 #endif
-    HEAP_PROFILE(ObjectMoveEvent(source->address(), target->address()));
+    HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
 
     return target;
   }
@@ -1176,35 +1178,36 @@ class ScavengingVisitor : public StaticVisitorBase {
            (object_size <= Page::kMaxHeapObjectSize));
     ASSERT(object->Size() == object_size);
 
-    if (HEAP->ShouldBePromoted(object->address(), object_size)) {
+    Heap* heap = map->heap();
+    if (heap->ShouldBePromoted(object->address(), object_size)) {
       Object* result;
 
       if ((size_restriction != SMALL) &&
           (object_size > Page::kMaxHeapObjectSize)) {
-        result = HEAP->lo_space()->AllocateRawFixedArray(object_size);
+        result = heap->lo_space()->AllocateRawFixedArray(object_size);
       } else {
         if (object_contents == DATA_OBJECT) {
-          result = HEAP->old_data_space()->AllocateRaw(object_size);
+          result = heap->old_data_space()->AllocateRaw(object_size);
         } else {
-          result = HEAP->old_pointer_space()->AllocateRaw(object_size);
+          result = heap->old_pointer_space()->AllocateRaw(object_size);
         }
       }
 
       if (!result->IsFailure()) {
         HeapObject* target = HeapObject::cast(result);
-        *slot = MigrateObject(object, target, object_size);
+        *slot = MigrateObject(heap, object , target, object_size);
 
         if (object_contents == POINTER_OBJECT) {
-          HEAP->promotion_queue()->insert(target, object_size);
+          heap->promotion_queue()->insert(target, object_size);
         }
 
-        HEAP->tracer()->increment_promoted_objects_size(object_size);
+        heap->tracer()->increment_promoted_objects_size(object_size);
         return;
       }
     }
-    Object* result = HEAP->new_space()->AllocateRaw(object_size);
+    Object* result = heap->new_space()->AllocateRaw(object_size);
     ASSERT(!result->IsFailure());
-    *slot = MigrateObject(object, HeapObject::cast(result), object_size);
+    *slot = MigrateObject(heap, object, HeapObject::cast(result), object_size);
     return;
   }
 
@@ -1255,13 +1258,14 @@ class ScavengingVisitor : public StaticVisitorBase {
                                                HeapObject* object) {
     ASSERT(IsShortcutCandidate(map->instance_type()));
 
-    if (ConsString::cast(object)->unchecked_second() == HEAP->empty_string()) {
+    if (ConsString::cast(object)->unchecked_second() ==
+        map->heap()->empty_string()) {
       HeapObject* first =
           HeapObject::cast(ConsString::cast(object)->unchecked_first());
 
       *slot = first;
 
-      if (!HEAP->InNewSpace(first)) {
+      if (!map->heap()->InNewSpace(first)) {
         object->set_map_word(MapWord::FromForwardingAddress(first));
         return;
       }
@@ -1312,16 +1316,11 @@ VisitorDispatchTable<ScavengingVisitor::Callback> ScavengingVisitor::table_;
 
 
 void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
-  ASSERT(InFromSpace(object));
+  ASSERT(HEAP->InFromSpace(object));
   MapWord first_word = object->map_word();
   ASSERT(!first_word.IsForwardingAddress());
   Map* map = first_word.ToMap();
   ScavengingVisitor::Scavenge(map, p, object);
-}
-
-
-void Heap::ScavengePointer(HeapObject** p) {
-  HEAP->ScavengeObject(p, *p);
 }
 
 
@@ -1354,7 +1353,6 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_map(meta_map());
   map->set_heap(this);
   map->set_instance_type(instance_type);
-  reinterpret_cast<Map*>(result)->set_heap(this);
   map->set_visitor_id(
       StaticVisitorBase::GetVisitorId(instance_type, instance_size));
   map->set_prototype(null_value());
@@ -3621,7 +3619,8 @@ void Heap::ZapFromSpace() {
 #endif  // DEBUG
 
 
-bool Heap::IteratePointersInDirtyRegion(Address start,
+bool Heap::IteratePointersInDirtyRegion(Heap* heap,
+                                        Address start,
                                         Address end,
                                         ObjectSlotCallback copy_object_func) {
   Address slot_address = start;
@@ -3629,10 +3628,10 @@ bool Heap::IteratePointersInDirtyRegion(Address start,
 
   while (slot_address < end) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
-    if (HEAP->InNewSpace(*slot)) {
+    if (heap->InNewSpace(*slot)) {
       ASSERT((*slot)->IsHeapObject());
       copy_object_func(reinterpret_cast<HeapObject**>(slot));
-      if (HEAP->InNewSpace(*slot)) {
+      if (heap->InNewSpace(*slot)) {
         ASSERT((*slot)->IsHeapObject());
         pointers_to_new_space_found = true;
       }
@@ -3666,14 +3665,16 @@ static bool IteratePointersInDirtyMaps(Address start,
   Address map_address = start;
   bool pointers_to_new_space_found = false;
 
+  Heap* heap = HEAP;
   while (map_address < end) {
-    ASSERT(!HEAP->InNewSpace(Memory::Object_at(map_address)));
+    ASSERT(!heap->InNewSpace(Memory::Object_at(map_address)));
     ASSERT(Memory::Object_at(map_address)->IsMap());
 
     Address pointer_fields_start = map_address + Map::kPointerFieldsBeginOffset;
     Address pointer_fields_end = map_address + Map::kPointerFieldsEndOffset;
 
-    if (HEAP->IteratePointersInDirtyRegion(pointer_fields_start,
+    if (Heap::IteratePointersInDirtyRegion(heap,
+                                           pointer_fields_start,
                                            pointer_fields_end,
                                            copy_object_func)) {
       pointers_to_new_space_found = true;
@@ -3687,6 +3688,7 @@ static bool IteratePointersInDirtyMaps(Address start,
 
 
 bool Heap::IteratePointersInDirtyMapsRegion(
+    Heap* heap,
     Address start,
     Address end,
     ObjectSlotCallback copy_object_func) {
@@ -3706,7 +3708,8 @@ bool Heap::IteratePointersInDirtyMapsRegion(
         Min(prev_map + Map::kPointerFieldsEndOffset, end);
 
     contains_pointers_to_new_space =
-      IteratePointersInDirtyRegion(pointer_fields_start,
+      IteratePointersInDirtyRegion(heap,
+                                   pointer_fields_start,
                                    pointer_fields_end,
                                    copy_object_func)
         || contains_pointers_to_new_space;
@@ -3728,7 +3731,8 @@ bool Heap::IteratePointersInDirtyMapsRegion(
         Min(end, map_aligned_end + Map::kPointerFieldsEndOffset);
 
     contains_pointers_to_new_space =
-      IteratePointersInDirtyRegion(pointer_fields_start,
+      IteratePointersInDirtyRegion(heap,
+                                   pointer_fields_start,
                                    pointer_fields_end,
                                    copy_object_func)
         || contains_pointers_to_new_space;
@@ -3790,7 +3794,7 @@ uint32_t Heap::IterateDirtyRegions(
   Address region_end = Min(second_region, area_end);
 
   if (marks & mask) {
-    if (visit_dirty_region(region_start, region_end, copy_object_func)) {
+    if (visit_dirty_region(this, region_start, region_end, copy_object_func)) {
       newmarks |= mask;
     }
   }
@@ -3802,7 +3806,10 @@ uint32_t Heap::IterateDirtyRegions(
 
   while (region_end <= area_end) {
     if (marks & mask) {
-      if (visit_dirty_region(region_start, region_end, copy_object_func)) {
+      if (visit_dirty_region(this,
+                             region_start,
+                             region_end,
+                             copy_object_func)) {
         newmarks |= mask;
       }
     }
@@ -3818,7 +3825,7 @@ uint32_t Heap::IterateDirtyRegions(
     // with region end. Check whether region covering last part of area is
     // dirty.
     if (marks & mask) {
-      if (visit_dirty_region(region_start, area_end, copy_object_func)) {
+      if (visit_dirty_region(this, region_start, area_end, copy_object_func)) {
         newmarks |= mask;
       }
     }
@@ -4268,13 +4275,19 @@ bool Heap::Setup(bool create_heap_objects) {
 
   // Initialize old pointer space.
   old_pointer_space_ =
-      new OldSpace(max_old_generation_size_, OLD_POINTER_SPACE, NOT_EXECUTABLE);
+      new OldSpace(this,
+                   max_old_generation_size_,
+                   OLD_POINTER_SPACE,
+                   NOT_EXECUTABLE);
   if (old_pointer_space_ == NULL) return false;
   if (!old_pointer_space_->Setup(NULL, 0)) return false;
 
   // Initialize old data space.
   old_data_space_ =
-      new OldSpace(max_old_generation_size_, OLD_DATA_SPACE, NOT_EXECUTABLE);
+      new OldSpace(this,
+                   max_old_generation_size_,
+                   OLD_DATA_SPACE,
+                   NOT_EXECUTABLE);
   if (old_data_space_ == NULL) return false;
   if (!old_data_space_->Setup(NULL, 0)) return false;
 
@@ -4289,12 +4302,12 @@ bool Heap::Setup(bool create_heap_objects) {
   }
 
   code_space_ =
-      new OldSpace(max_old_generation_size_, CODE_SPACE, EXECUTABLE);
+      new OldSpace(this, max_old_generation_size_, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;
   if (!code_space_->Setup(NULL, 0)) return false;
 
   // Initialize map space.
-  map_space_ = new MapSpace(FLAG_use_big_map_space
+  map_space_ = new MapSpace(this, FLAG_use_big_map_space
       ? max_old_generation_size_
       : MapSpace::kMaxMapPageIndex * Page::kPageSize,
       FLAG_max_map_space_pages,
@@ -4303,14 +4316,14 @@ bool Heap::Setup(bool create_heap_objects) {
   if (!map_space_->Setup(NULL, 0)) return false;
 
   // Initialize global property cell space.
-  cell_space_ = new CellSpace(max_old_generation_size_, CELL_SPACE);
+  cell_space_ = new CellSpace(this, max_old_generation_size_, CELL_SPACE);
   if (cell_space_ == NULL) return false;
   if (!cell_space_->Setup(NULL, 0)) return false;
 
   // The large object code space may contain code or data.  We set the memory
   // to be non-executable here for safety, but this means we need to enable it
   // explicitly when allocating large code objects.
-  lo_space_ = new LargeObjectSpace(LO_SPACE);
+  lo_space_ = new LargeObjectSpace(this, LO_SPACE);
   if (lo_space_ == NULL) return false;
   if (!lo_space_->Setup()) return false;
 

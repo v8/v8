@@ -355,10 +355,12 @@ class Page {
 // Space is the abstract superclass for all allocation spaces.
 class Space : public Malloced {
  public:
-  Space(AllocationSpace id, Executability executable)
-      : id_(id), executable_(executable) {}
+  Space(Heap* heap, AllocationSpace id, Executability executable)
+      : heap_(heap), id_(id), executable_(executable) {}
 
   virtual ~Space() {}
+
+  Heap* heap() const { return heap_; }
 
   // Does the space need executable memory?
   Executability executable() { return executable_; }
@@ -387,6 +389,7 @@ class Space : public Malloced {
   virtual bool ReserveSpace(int bytes) = 0;
 
  private:
+  Heap* heap_;
   AllocationSpace id_;
   Executability executable_;
 };
@@ -990,7 +993,10 @@ class AllocationStats BASE_EMBEDDED {
 class PagedSpace : public Space {
  public:
   // Creates a space with a maximum capacity, and an id.
-  PagedSpace(int max_capacity, AllocationSpace id, Executability executable);
+  PagedSpace(Heap* heap,
+             int max_capacity,
+             AllocationSpace id,
+             Executability executable);
 
   virtual ~PagedSpace() {}
 
@@ -1279,7 +1285,7 @@ class HistogramInfo: public NumberAndSizeInfo {
 class SemiSpace : public Space {
  public:
   // Constructor.
-  SemiSpace() :Space(NEW_SPACE, NOT_EXECUTABLE) {
+  explicit SemiSpace(Heap* heap) : Space(heap, NEW_SPACE, NOT_EXECUTABLE) {
     start_ = NULL;
     age_mark_ = NULL;
   }
@@ -1446,7 +1452,10 @@ class SemiSpaceIterator : public ObjectIterator {
 class NewSpace : public Space {
  public:
   // Constructor.
-  NewSpace() : Space(NEW_SPACE, NOT_EXECUTABLE) {}
+  explicit NewSpace(Heap* heap)
+    : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
+      to_space_(heap),
+      from_space_(heap) {}
 
   // Sets up the new space using the given chunk.
   bool Setup(Address start, int size);
@@ -1833,10 +1842,11 @@ class OldSpace : public PagedSpace {
  public:
   // Creates an old space object with a given maximum capacity.
   // The constructor does not allocate pages from OS.
-  explicit OldSpace(int max_capacity,
-                    AllocationSpace id,
-                    Executability executable)
-      : PagedSpace(max_capacity, id, executable), free_list_(id) {
+  OldSpace(Heap* heap,
+           int max_capacity,
+           AllocationSpace id,
+           Executability executable)
+      : PagedSpace(heap, max_capacity, id, executable), free_list_(id) {
     page_extra_ = 0;
   }
 
@@ -1903,11 +1913,12 @@ class OldSpace : public PagedSpace {
 
 class FixedSpace : public PagedSpace {
  public:
-  FixedSpace(int max_capacity,
+  FixedSpace(Heap* heap,
+             int max_capacity,
              AllocationSpace id,
              int object_size_in_bytes,
              const char* name)
-      : PagedSpace(max_capacity, id, NOT_EXECUTABLE),
+      : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE),
         object_size_in_bytes_(object_size_in_bytes),
         name_(name),
         free_list_(id, object_size_in_bytes) {
@@ -1978,8 +1989,11 @@ class FixedSpace : public PagedSpace {
 class MapSpace : public FixedSpace {
  public:
   // Creates a map space object with a maximum capacity.
-  MapSpace(int max_capacity, int max_map_space_pages, AllocationSpace id)
-      : FixedSpace(max_capacity, id, Map::kSize, "map"),
+  MapSpace(Heap* heap,
+           int max_capacity,
+           int max_map_space_pages,
+           AllocationSpace id)
+      : FixedSpace(heap, max_capacity, id, Map::kSize, "map"),
         max_map_space_pages_(max_map_space_pages) {
     ASSERT(max_map_space_pages < kMaxMapPageIndex);
   }
@@ -2083,8 +2097,9 @@ class MapSpace : public FixedSpace {
 class CellSpace : public FixedSpace {
  public:
   // Creates a property cell space object with a maximum capacity.
-  CellSpace(int max_capacity, AllocationSpace id)
-      : FixedSpace(max_capacity, id, JSGlobalPropertyCell::kSize, "cell") {}
+  CellSpace(Heap* heap, int max_capacity, AllocationSpace id)
+      : FixedSpace(heap, max_capacity, id, JSGlobalPropertyCell::kSize, "cell")
+  {}
 
  protected:
 #ifdef DEBUG
@@ -2158,7 +2173,7 @@ class LargeObjectChunk {
 
 class LargeObjectSpace : public Space {
  public:
-  explicit LargeObjectSpace(AllocationSpace id);
+  LargeObjectSpace(Heap* heap, AllocationSpace id);
   virtual ~LargeObjectSpace() {}
 
   // Initializes internal data structures.

@@ -96,7 +96,9 @@ TEST(MemoryAllocator) {
   CHECK(isolate->heap()->ConfigureHeapDefault());
   CHECK(isolate->memory_allocator()->Setup(isolate->heap()->MaxReserved()));
 
-  OldSpace faked_space(isolate->heap()->MaxReserved(), OLD_POINTER_SPACE,
+  OldSpace faked_space(isolate->heap(),
+                       isolate->heap()->MaxReserved(),
+                       OLD_POINTER_SPACE,
                        NOT_EXECUTABLE);
   int total_pages = 0;
   int requested = 2;
@@ -156,7 +158,7 @@ TEST(NewSpace) {
   CHECK(HEAP->ConfigureHeapDefault());
   CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved()));
 
-  NewSpace new_space;
+  NewSpace new_space(HEAP);
 
   void* chunk =
       Isolate::Current()->memory_allocator()->ReserveInitialChunk(
@@ -183,7 +185,8 @@ TEST(OldSpace) {
   CHECK(HEAP->ConfigureHeapDefault());
   CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved()));
 
-  OldSpace* s = new OldSpace(HEAP->MaxOldGenerationSize(),
+  OldSpace* s = new OldSpace(HEAP,
+                             HEAP->MaxOldGenerationSize(),
                              OLD_POINTER_SPACE,
                              NOT_EXECUTABLE);
   CHECK(s != NULL);

@@ -412,9 +412,7 @@ HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
 
 
 void HeapProfiler::ObjectMoveEvent(Address from, Address to) {
-  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
-  ASSERT(profiler != NULL);
-  profiler->snapshots_->ObjectMoveEvent(from, to);
+  snapshots_->ObjectMoveEvent(from, to);
 }
 
 

@@ -686,15 +686,11 @@ void Deserializer::ReadObject(int space_number,
   }
   ReadChunk(current, limit, space_number, address);
 
-  if (space == HEAP->map_space()) {
+  if (space == space->heap()->map_space()) {
     ASSERT(size == Map::kSize);
     HeapObject* obj = HeapObject::FromAddress(address);
     Map* map = reinterpret_cast<Map*>(obj);
-    if (map->instance_type() == MAP_TYPE) {
-      // Meta map has Heap pointer instead of scavenger.
-      ASSERT(map == map->map());
-      map->set_heap(HEAP);
-    }
+    map->set_heap(space->heap());
   }
 }
 

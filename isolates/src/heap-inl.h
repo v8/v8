@@ -267,7 +267,7 @@ void Heap::CopyBlockToOldSpaceAndUpdateRegionMarks(Address dst,
        remaining--) {
     Memory::Object_at(dst) = Memory::Object_at(src);
 
-    if (Heap::InNewSpace(Memory::Object_at(dst))) {
+    if (InNewSpace(Memory::Object_at(dst))) {
       marks |= page->GetRegionMaskForAddress(dst);
     }
 
@@ -313,8 +313,13 @@ void Heap::MoveBlockToOldSpaceAndUpdateRegionMarks(Address dst,
 }
 
 
+void Heap::ScavengePointer(HeapObject** p) {
+  ScavengeObject(p, *p);
+}
+
+
 void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
-  ASSERT(InFromSpace(object));
+  ASSERT(HEAP->InFromSpace(object));
 
   // We use the first word (where the map pointer usually is) of a heap
   // object to record the forwarding pointer.  A forwarding pointer can

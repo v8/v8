@@ -215,7 +215,8 @@ class Isolate;
 
 typedef String* (*ExternalStringTableUpdaterCallback)(Object** pointer);
 
-typedef bool (*DirtyRegionCallback)(Address start,
+typedef bool (*DirtyRegionCallback)(Heap* heap,
+                                    Address start,
                                     Address end,
                                     ObjectSlotCallback copy_object_func);
 
@@ -871,7 +872,8 @@ class Heap {
 
   // Iterate pointers to new space found in memory interval from start to end.
   // Return true if pointers to new space was found.
-  static bool IteratePointersInDirtyRegion(Address start,
+  static bool IteratePointersInDirtyRegion(Heap* heap,
+                                           Address start,
                                            Address end,
                                            ObjectSlotCallback callback);
 
@@ -879,7 +881,8 @@ class Heap {
   // Iterate pointers to new space found in memory interval from start to end.
   // This interval is considered to belong to the map space.
   // Return true if pointers to new space was found.
-  static bool IteratePointersInDirtyMapsRegion(Address start,
+  static bool IteratePointersInDirtyMapsRegion(Heap* heap,
+                                               Address start,
                                                Address end,
                                                ObjectSlotCallback callback);
 
@@ -988,8 +991,8 @@ class Heap {
   // necessary, the object might be promoted to an old space.  The caller must
   // ensure the precondition that the object is (a) a heap object and (b) in
   // the heap's from space.
-  static void ScavengePointer(HeapObject** p);
-  inline void ScavengeObject(HeapObject** p, HeapObject* object);
+  static inline void ScavengePointer(HeapObject** p);
+  static inline void ScavengeObject(HeapObject** p, HeapObject* object);
 
   // Commits from space if it is uncommitted.
   void EnsureFromSpaceIsCommitted();
@@ -1372,7 +1375,7 @@ class Heap {
 #endif
 
   // Slow part of scavenge object.
-  void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
+  static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
 
   // Initializes a function with a shared part and prototype.
   // Returns the function.

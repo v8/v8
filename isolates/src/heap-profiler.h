@@ -39,14 +39,15 @@ namespace internal {
 class HeapSnapshot;
 class HeapSnapshotsCollection;
 
-#define HEAP_PROFILE(Call)                             \
-  do {                                                 \
-    if (v8::internal::HeapProfiler::is_profiling()) {  \
-      v8::internal::HeapProfiler::Call;                \
-    }                                                  \
+#define HEAP_PROFILE(heap, call)                                             \
+  do {                                                                       \
+    v8::internal::HeapProfiler* profiler = heap->isolate()->heap_profiler(); \
+    if (profiler != NULL && profiler->is_profiling()) {                      \
+      profiler->call;                                                        \
+    }                                                                        \
   } while (false)
 #else
-#define HEAP_PROFILE(Call) ((void) 0)
+#define HEAP_PROFILE(heap, call) ((void) 0)
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 // The HeapProfiler writes data to the log files, which can be postprocessed
@@ -63,11 +64,10 @@ class HeapProfiler {
   static HeapSnapshot* GetSnapshot(int index);
   static HeapSnapshot* FindSnapshot(unsigned uid);
 
-  static void ObjectMoveEvent(Address from, Address to);
+  void ObjectMoveEvent(Address from, Address to);
 
-  static INLINE(bool is_profiling()) {
-    HeapProfiler* profiler = Isolate::Current()->heap_profiler();
-    return profiler != NULL && profiler->snapshots_->is_tracking_objects();
+  INLINE(bool is_profiling()) {
+    return snapshots_->is_tracking_objects();
   }
 
   // Obsolete interface.

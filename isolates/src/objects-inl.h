@@ -1072,7 +1072,7 @@ Heap* HeapObject::GetHeap() {
   // Assert that we are not in GC, implement GC code in a way that it doesn't
   // pull heap from the map.
   ASSERT(HEAP->is_safe_to_read_maps());
-  return map()->map()->heap();
+  return map()->heap();
 }
 
 
@@ -2475,8 +2475,6 @@ Code* Code::GetCodeFromTargetAddress(Address address) {
 
 
 Heap* Map::heap() {
-  ASSERT(instance_type() == MAP_TYPE);
-  ASSERT(this == map());
   Heap* heap = reinterpret_cast<Heap*>(READ_INTPTR_FIELD(this, kHeapOffset));
   ASSERT(heap != NULL);
   ASSERT(heap->isolate() == Isolate::Current());
