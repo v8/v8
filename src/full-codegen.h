@@ -384,6 +384,11 @@ class FullCodeGenerator: public AstVisitor {
   void EmitLoadGlobalSlotCheckExtensions(Slot* slot,
                                          TypeofState typeof_state,
                                          Label* slow);
+  MemOperand ContextSlotOperandCheckExtensions(Slot* slot, Label* slow);
+  void EmitDynamicLoadFromSlotFastCase(Slot* slot,
+                                       TypeofState typeof_state,
+                                       Label* slow,
+                                       Label* done);
   void EmitVariableLoad(Variable* expr, Expression::Context context);
 
   // Platform-specific support for allocating a new closure based on
