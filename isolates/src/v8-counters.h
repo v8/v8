@@ -85,6 +85,11 @@ namespace internal {
   SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
   SC(regexp_cache_hits, V8.RegExpCacheHits)                           \
   SC(regexp_cache_misses, V8.RegExpCacheMisses)                       \
+  SC(string_ctor_calls, V8.StringConstructorCalls)                    \
+  SC(string_ctor_conversions, V8.StringConstructorConversions)        \
+  SC(string_ctor_cached_number, V8.StringConstructorCachedNumber)     \
+  SC(string_ctor_string_value, V8.StringConstructorStringValue)       \
+  SC(string_ctor_gc_required, V8.StringConstructorGCRequired)         \
   /* Amount of evaled source code. */                                 \
   SC(total_eval_size, V8.TotalEvalSize)                               \
   /* Amount of loaded source code. */                                 \
@@ -102,7 +107,10 @@ namespace internal {
   /* Number of contexts created from scratch. */                      \
   SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)    \
   /* Number of contexts created by partial snapshot. */               \
-  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)
+  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)      \
+  /* Number of code objects found from pc. */                         \
+  SC(pc_to_code, V8.PcToCode)                                         \
+  SC(pc_to_code_cached, V8.PcToCodeCached)
 
 
 #define STATS_COUNTER_LIST_2(SC)                                      \
@@ -195,6 +203,7 @@ namespace internal {
   SC(string_add_runtime_ext_to_ascii, V8.StringAddRuntimeExtToAscii)  \
   SC(sub_string_runtime, V8.SubStringRuntime)                         \
   SC(sub_string_native, V8.SubStringNative)                           \
+  SC(string_add_make_two_char, V8.StringAddMakeTwoChar)               \
   SC(string_compare_native, V8.StringCompareNative)                   \
   SC(string_compare_runtime, V8.StringCompareRuntime)                 \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                     \

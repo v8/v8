@@ -31,10 +31,10 @@
 #if defined(V8_TARGET_ARCH_X64)
 
 #include "ic-inl.h"
-#include "code-stubs-x64.h"
+#include "code-stubs.h"
 #include "codegen-inl.h"
 #include "stub-cache.h"
-#include "macro-assembler-x64.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {

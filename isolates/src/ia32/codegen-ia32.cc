@@ -29,9 +29,9 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
-#include "bootstrapper.h"
-#include "code-stubs-ia32.h"
 #include "codegen-inl.h"
+#include "bootstrapper.h"
+#include "code-stubs.h"
 #include "compiler.h"
 #include "debug.h"
 #include "ic-inl.h"
@@ -1413,12 +1413,12 @@ void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
           StringAddStub stub(NO_STRING_CHECK_IN_STUB);
           answer = frame_->CallStub(&stub, 2);
         } else {
-          answer =
-            frame_->InvokeBuiltin(Builtins::STRING_ADD_LEFT, CALL_FUNCTION, 2);
+          StringAddStub stub(NO_STRING_CHECK_LEFT_IN_STUB);
+          answer = frame_->CallStub(&stub, 2);
         }
       } else if (right_is_string) {
-        answer =
-          frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
+        StringAddStub stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+        answer = frame_->CallStub(&stub, 2);
       }
       answer.set_type_info(TypeInfo::String());
       frame_->Push(&answer);
@@ -1453,7 +1453,7 @@ void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
                              overwrite_mode,
                              NO_SMI_CODE_IN_STUB,
                              operands_type);
-    answer = stub.GenerateCall(masm_, frame_, &left, &right);
+    answer = GenerateGenericBinaryOpStubCall(&stub, &left, &right);
   } else if (right_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(expr, &left, right.handle(),
                                         false, overwrite_mode);
@@ -1476,12 +1476,26 @@ void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
                                overwrite_mode,
                                NO_GENERIC_BINARY_FLAGS,
                                operands_type);
-      answer = stub.GenerateCall(masm_, frame_, &left, &right);
+      answer = GenerateGenericBinaryOpStubCall(&stub, &left, &right);
     }
   }
 
   answer.set_type_info(result_type);
   frame_->Push(&answer);
+}
+
+
+Result CodeGenerator::GenerateGenericBinaryOpStubCall(GenericBinaryOpStub* stub,
+                                                      Result* left,
+                                                      Result* right) {
+  if (stub->ArgsInRegistersSupported()) {
+    stub->SetArgsInRegisters();
+    return frame_->CallStub(stub, left, right);
+  } else {
+    frame_->Push(left);
+    frame_->Push(right);
+    return frame_->CallStub(stub, 2);
+  }
 }
 
 
@@ -7922,6 +7936,42 @@ void CodeGenerator::GenerateIsRegExpEquivalent(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateHasCachedArrayIndex(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(value.reg());
+  }
+
+  __ test(FieldOperand(value.reg(), String::kHashFieldOffset),
+          Immediate(String::kContainsCachedArrayIndexMask));
+
+  value.Unuse();
+  destination()->Split(zero);
+}
+
+
+void CodeGenerator::GenerateGetCachedArrayIndex(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result string = frame_->Pop();
+  string.ToRegister();
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(string.reg());
+  }
+
+  Result number = allocator()->Allocate();
+  ASSERT(number.is_valid());
+  __ mov(number.reg(), FieldOperand(string.reg(), String::kHashFieldOffset));
+  __ IndexFromHash(number.reg(), number.reg());
+  string.Unuse();
+  frame_->Push(&number);
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   ASSERT(!in_safe_int32_mode());
   if (CheckForInlineRuntimeCall(node)) {
@@ -9786,20 +9836,6 @@ void Reference::SetValue(InitState init_state) {
   }
 }
 
-
-Result GenericBinaryOpStub::GenerateCall(MacroAssembler* masm,
-                                         VirtualFrame* frame,
-                                         Result* left,
-                                         Result* right) {
-  if (ArgsInRegistersSupported()) {
-    SetArgsInRegisters();
-    return frame->CallStub(this, left, right);
-  } else {
-    frame->Push(left);
-    frame->Push(right);
-    return frame->CallStub(this, 2);
-  }
-}
 
 #undef __
 

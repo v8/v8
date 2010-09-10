@@ -326,9 +326,9 @@ class Vector {
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
   Vector<T> SubVector(int from, int to) {
-    ASSERT(from < length_);
     ASSERT(to <= length_);
     ASSERT(from < to);
+    ASSERT(0 <= from);
     return Vector<T>(start() + from, to - from);
   }
 
@@ -485,24 +485,20 @@ inline Vector< Handle<Object> > HandleVector(v8::internal::Handle<T>* elms,
  * in memory). The collector may move elements unless it has guaranteed not
  * to.
  */
-template <typename T>
+template <typename T, int growth_factor = 2, int max_growth = 1 * MB>
 class Collector {
  public:
-  Collector(int initial_capacity = kMinCapacity,
-            int growth_factor = 2,
-            int max_growth = 1 * MB)
-      : growth_factor_(growth_factor), max_growth_(max_growth) {
+  explicit Collector(int initial_capacity = kMinCapacity)
+      : index_(0), size_(0) {
     if (initial_capacity < kMinCapacity) {
       initial_capacity = kMinCapacity;
     }
-    current_chunk_ = NewArray<T>(initial_capacity);
-    current_capacity_ = initial_capacity;
-    index_ = 0;
+    current_chunk_ = Vector<T>::New(initial_capacity);
   }
 
   virtual ~Collector() {
     // Free backing store (in reverse allocation order).
-    DeleteArray(current_chunk_);
+    current_chunk_.Dispose();
     for (int i = chunks_.length() - 1; i >= 0; i--) {
       chunks_.at(i).Dispose();
     }
@@ -510,11 +506,12 @@ class Collector {
 
   // Add a single element.
   inline void Add(T value) {
-    if (index_ >= current_capacity_) {
+    if (index_ >= current_chunk_.length()) {
       Grow(1);
     }
     current_chunk_[index_] = value;
     index_++;
+    size_++;
   }
 
   // Add a block of contiguous elements and return a Vector backed by the
@@ -522,11 +519,13 @@ class Collector {
   // A basic Collector will keep this vector valid as long as the Collector
   // is alive.
   inline Vector<T> AddBlock(int size, T initial_value) {
-    if (index_ + size > current_capacity_) {
+    ASSERT(size > 0);
+    if (size > current_chunk_.length() - index_) {
       Grow(size);
     }
-    T* position = current_chunk_ + index_;
+    T* position = current_chunk_.start() + index_;
     index_ += size;
+    size_ += size;
     for (int i = 0; i < size; i++) {
       position[i] = initial_value;
     }
@@ -534,30 +533,31 @@ class Collector {
   }
 
 
+  // Write the contents of the collector into the provided vector.
+  void WriteTo(Vector<T> destination) {
+    ASSERT(size_ <= destination.length());
+    int position = 0;
+    for (int i = 0; i < chunks_.length(); i++) {
+      Vector<T> chunk = chunks_.at(i);
+      for (int j = 0; j < chunk.length(); j++) {
+        destination[position] = chunk[j];
+        position++;
+      }
+    }
+    for (int i = 0; i < index_; i++) {
+      destination[position] = current_chunk_[i];
+      position++;
+    }
+  }
+
   // Allocate a single contiguous vector, copy all the collected
   // elements to the vector, and return it.
   // The caller is responsible for freeing the memory of the returned
   // vector (e.g., using Vector::Dispose).
   Vector<T> ToVector() {
-    // Find the total length.
-    int total_length = index_;
-    for (int i = 0; i < chunks_.length(); i++) {
-      total_length += chunks_.at(i).length();
-    }
-    T* new_store = NewArray<T>(total_length);
-    int position = 0;
-    for (int i = 0; i < chunks_.length(); i++) {
-      Vector<T> chunk = chunks_.at(i);
-      for (int j = 0; j < chunk.length(); j++) {
-        new_store[position] = chunk[j];
-        position++;
-      }
-    }
-    for (int i = 0; i < index_; i++) {
-      new_store[position] = current_chunk_[i];
-      position++;
-    }
-    return Vector<T>(new_store, total_length);
+    Vector<T> new_store = Vector<T>::New(size_);
+    WriteTo(new_store);
+    return new_store;
   }
 
   // Resets the collector to be empty.
@@ -567,35 +567,42 @@ class Collector {
     }
     chunks_.Rewind(0);
     index_ = 0;
+    size_ = 0;
   }
+
+  // Total number of elements added to collector so far.
+  inline int size() { return size_; }
 
  protected:
   static const int kMinCapacity = 16;
   List<Vector<T> > chunks_;
-  T* current_chunk_;
-  int growth_factor_;
-  int max_growth_;
-  int current_capacity_;
-  int index_;
+  Vector<T> current_chunk_;  // Block of memory currently being written into.
+  int index_;  // Current index in current chunk.
+  int size_;  // Total number of elements in collector.
 
   // Creates a new current chunk, and stores the old chunk in the chunks_ list.
   void Grow(int min_capacity) {
-    ASSERT(growth_factor_ > 1);
-    int growth = current_capacity_ * (growth_factor_ - 1);
-    if (growth > max_growth_) {
-      growth = max_growth_;
+    ASSERT(growth_factor > 1);
+    int growth = current_chunk_.length() * (growth_factor - 1);
+    if (growth > max_growth) {
+      growth = max_growth;
     }
-    int new_capacity = current_capacity_ + growth;
+    int new_capacity = current_chunk_.length() + growth;
     if (new_capacity < min_capacity) {
-      new_capacity = min_capacity;
+      new_capacity = min_capacity + growth;
     }
-    T* new_chunk = NewArray<T>(new_capacity);
-    int new_index = PrepareGrow(Vector<T>(new_chunk, new_capacity));
-    chunks_.Add(Vector<T>(current_chunk_, index_));
+    Vector<T> new_chunk = Vector<T>::New(new_capacity);
+    int new_index = PrepareGrow(new_chunk);
+    if (index_ > 0) {
+      chunks_.Add(current_chunk_.SubVector(0, index_));
+    } else {
+      // Can happen if the call to PrepareGrow moves everything into
+      // the new chunk.
+      current_chunk_.Dispose();
+    }
     current_chunk_ = new_chunk;
-    current_capacity_ = new_capacity;
     index_ = new_index;
-    ASSERT(index_ + min_capacity <= current_capacity_);
+    ASSERT(index_ + min_capacity <= current_chunk_.length());
   }
 
   // Before replacing the current chunk, give a subclass the option to move
@@ -617,13 +624,11 @@ class Collector {
  * NOTICE: Blocks allocated using Collector::AddBlock(int) can move
  * as well, if inside an active sequence where another element is added.
  */
-template <typename T>
-class SequenceCollector : public Collector<T> {
+template <typename T, int growth_factor = 2, int max_growth = 1 * MB>
+class SequenceCollector : public Collector<T, growth_factor, max_growth> {
  public:
-  SequenceCollector(int initial_capacity,
-                    int growth_factor = 2,
-                    int max_growth = 1 * MB)
-      : Collector<T>(initial_capacity, growth_factor, max_growth),
+  explicit SequenceCollector(int initial_capacity)
+      : Collector<T, growth_factor, max_growth>(initial_capacity),
         sequence_start_(kNoSequence) { }
 
   virtual ~SequenceCollector() {}
@@ -637,20 +642,22 @@ class SequenceCollector : public Collector<T> {
     ASSERT(sequence_start_ != kNoSequence);
     int sequence_start = sequence_start_;
     sequence_start_ = kNoSequence;
-    return Vector<T>(this->current_chunk_ + sequence_start,
-                     this->index_ - sequence_start);
+    if (sequence_start == this->index_) return Vector<T>();
+    return this->current_chunk_.SubVector(sequence_start, this->index_);
   }
 
   // Drops the currently added sequence, and all collected elements in it.
   void DropSequence() {
     ASSERT(sequence_start_ != kNoSequence);
+    int sequence_length = this->index_ - sequence_start_;
     this->index_ = sequence_start_;
+    this->size_ -= sequence_length;
     sequence_start_ = kNoSequence;
   }
 
   virtual void Reset() {
     sequence_start_ = kNoSequence;
-    this->Collector<T>::Reset();
+    this->Collector<T, growth_factor, max_growth>::Reset();
   }
 
  private:

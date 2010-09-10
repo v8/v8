@@ -28,9 +28,7 @@
 #ifndef V8_ARM_CODE_STUBS_ARM_H_
 #define V8_ARM_CODE_STUBS_ARM_H_
 
-#include "codegen-inl.h"
 #include "ic-inl.h"
-#include "ast.h"
 
 namespace v8 {
 namespace internal {
@@ -66,11 +64,13 @@ class ToBooleanStub: public CodeStub {
 
 class GenericBinaryOpStub : public CodeStub {
  public:
+  static const int kUnknownIntValue = -1;
+
   GenericBinaryOpStub(Token::Value op,
                       OverwriteMode mode,
                       Register lhs,
                       Register rhs,
-                      int constant_rhs = CodeGenerator::kUnknownIntValue)
+                      int constant_rhs = kUnknownIntValue)
       : op_(op),
         mode_(mode),
         lhs_(lhs),
@@ -134,7 +134,7 @@ class GenericBinaryOpStub : public CodeStub {
   void GenerateTypeTransition(MacroAssembler* masm);
 
   static bool RhsIsOneWeWantToOptimizeFor(Token::Value op, int constant_rhs) {
-    if (constant_rhs == CodeGenerator::kUnknownIntValue) return false;
+    if (constant_rhs == kUnknownIntValue) return false;
     if (op == Token::DIV) return constant_rhs >= 2 && constant_rhs <= 3;
     if (op == Token::MOD) {
       if (constant_rhs <= 1) return false;
@@ -467,6 +467,22 @@ class RecordWriteStub : public CodeStub {
            object_.code(), offset_.code(), scratch_.code());
   }
 #endif
+};
+
+
+// Enter C code from generated RegExp code in a way that allows
+// the C code to fix the return address in case of a GC.
+// Currently only needed on ARM.
+class RegExpCEntryStub: public CodeStub {
+ public:
+  RegExpCEntryStub() {}
+  virtual ~RegExpCEntryStub() {}
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return RegExpCEntry; }
+  int MinorKey() { return 0; }
+  const char* GetName() { return "RegExpCEntryStub"; }
 };
 
 

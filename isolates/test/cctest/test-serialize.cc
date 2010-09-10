@@ -98,13 +98,6 @@ static int make_code(TypeCode type, int id) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-static int register_code(int reg) {
-  return Debug::k_register_address << kDebugIdShift | reg;
-}
-#endif  // ENABLE_DEBUGGER_SUPPORT
-
-
 TEST(ExternalReferenceEncoder) {
   OS::Setup();
   i::Isolate::Current()->stats_table()->SetCounterFunction(counter_function);
@@ -116,10 +109,6 @@ TEST(ExternalReferenceEncoder) {
            Encode(encoder, Runtime::kAbort));
   CHECK_EQ(make_code(IC_UTILITY, IC::kLoadCallbackProperty),
            Encode(encoder, IC_Utility(IC::kLoadCallbackProperty)));
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  CHECK_EQ(make_code(DEBUG_ADDRESS, register_code(3)),
-           Encode(encoder, Debug_Address(Debug::k_register_address, 3)));
-#endif  // ENABLE_DEBUGGER_SUPPORT
   ExternalReference keyed_load_function_prototype =
       ExternalReference(COUNTERS->keyed_load_function_prototype());
   CHECK_EQ(make_code(STATS_COUNTER, Counters::k_keyed_load_function_prototype),
@@ -158,10 +147,6 @@ TEST(ExternalReferenceDecoder) {
            decoder.Decode(make_code(RUNTIME_FUNCTION, Runtime::kAbort)));
   CHECK_EQ(AddressOf(IC_Utility(IC::kLoadCallbackProperty)),
            decoder.Decode(make_code(IC_UTILITY, IC::kLoadCallbackProperty)));
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  CHECK_EQ(AddressOf(Debug_Address(Debug::k_register_address, 3)),
-           decoder.Decode(make_code(DEBUG_ADDRESS, register_code(3))));
-#endif  // ENABLE_DEBUGGER_SUPPORT
   ExternalReference keyed_load_function =
       ExternalReference(COUNTERS->keyed_load_function_prototype());
   CHECK_EQ(keyed_load_function.address(),

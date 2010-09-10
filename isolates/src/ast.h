@@ -205,6 +205,9 @@ class Expression: public AstNode {
   // False for operations that can return one of their operands.
   virtual bool ResultOverwriteAllowed() { return false; }
 
+  // True iff the expression is a literal represented as a smi.
+  virtual bool IsSmiLiteral() { return false; }
+
   // Static type information for this expression.
   StaticType* type() { return &type_; }
 
@@ -770,6 +773,7 @@ class Literal: public Expression {
   explicit Literal(Handle<Object> handle) : handle_(handle) { }
 
   virtual void Accept(AstVisitor* v);
+  virtual bool IsSmiLiteral() { return handle_->IsSmi(); }
 
   // Type testing & conversion.
   virtual Literal* AsLiteral() { return this; }
@@ -1760,7 +1764,7 @@ class RegExpText: public RegExpTree {
   void AddElement(TextElement elm)  {
     elements_.Add(elm);
     length_ += elm.length();
-  };
+  }
   ZoneList<TextElement>* elements() { return &elements_; }
  private:
   ZoneList<TextElement> elements_;

@@ -101,7 +101,8 @@ RuntimeState::RuntimeState()
   type name = NumberTo##Type(obj);
 
 
-static Object* DeepCopyBoilerplate(Heap* heap, JSObject* boilerplate) {
+MUST_USE_RESULT static Object* DeepCopyBoilerplate(Heap* heap,
+                                                   JSObject* boilerplate) {
   StackLimitCheck check;
   if (check.HasOverflowed()) return heap->isolate()->StackOverflow();
 
@@ -1017,7 +1018,9 @@ static Object* Runtime_DeclareContextSlot(RUNTIME_CALLING_CONVENTION) {
             context->set(index, *initial_value);
           }
         } else {
-          Handle<JSObject>::cast(holder)->SetElement(index, *initial_value);
+          // The holder is an arguments object.
+          Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
+          SetElement(arguments, index, initial_value);
         }
       } else {
         // Slow case: The property is not in the FixedArray part of the context.
@@ -1279,7 +1282,8 @@ static Object* Runtime_InitializeConstContextSlot(RUNTIME_CALLING_CONVENTION) {
     } else {
       // The holder is an arguments object.
       ASSERT((attributes & READ_ONLY) == 0);
-      Handle<JSObject>::cast(holder)->SetElement(index, *value);
+      Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
+      SetElement(arguments, index, value);
     }
     return *value;
   }
@@ -1768,7 +1772,6 @@ static Object* Runtime_SetCode(RUNTIME_CALLING_CONVENTION) {
     RUNTIME_ASSERT(code->IsJSFunction());
     Handle<JSFunction> fun = Handle<JSFunction>::cast(code);
     Handle<SharedFunctionInfo> shared(fun->shared());
-    SetExpectedNofProperties(target, shared->expected_nof_properties());
 
     if (!EnsureCompiled(shared, KEEP_EXCEPTION)) {
       return Failure::Exception();
@@ -1810,6 +1813,19 @@ static Object* Runtime_SetCode(RUNTIME_CALLING_CONVENTION) {
 
   target->set_context(*context);
   return *target;
+}
+
+
+static Object* Runtime_SetExpectedNumberOfProperties(
+    RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+  HandleScope scope;
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_SMI_CHECKED(num, args[1]);
+  RUNTIME_ASSERT(num >= 0);
+  SetExpectedNofProperties(function, num);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -2835,40 +2851,6 @@ static int BoyerMooreIndexOf(RuntimeState* state,
 }
 
 
-template <typename schar>
-static inline int SingleCharIndexOf(Vector<const schar> string,
-                                    schar pattern_char,
-                                    int start_index) {
-  if (sizeof(schar) == 1) {
-    const schar* pos = reinterpret_cast<const schar*>(
-        memchr(string.start() + start_index,
-               pattern_char,
-               string.length() - start_index));
-    if (pos == NULL) return -1;
-    return static_cast<int>(pos - string.start());
-  }
-  for (int i = start_index, n = string.length(); i < n; i++) {
-    if (pattern_char == string[i]) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-
-template <typename schar>
-static int SingleCharLastIndexOf(Vector<const schar> string,
-                                 schar pattern_char,
-                                 int start_index) {
-  for (int i = start_index; i >= 0; i--) {
-    if (pattern_char == string[i]) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-
 // Trivial string search for shorter strings.
 // On return, if "complete" is set to true, the return value is the
 // final result of searching for the patter in the subject.
@@ -2880,6 +2862,7 @@ static int SimpleIndexOf(Vector<const schar> subject,
                          Vector<const pchar> pattern,
                          int idx,
                          bool* complete) {
+  ASSERT(pattern.length() > 1);
   // Badness is a count of how much work we have done.  When we have
   // done enough work we decide it's probably worth switching to a better
   // algorithm.
@@ -2942,12 +2925,12 @@ static int SimpleIndexOf(Vector<const schar> subject,
       if (subject[i] != pattern_first_char) continue;
     }
     int j = 1;
-    do {
+    while (j < pattern.length()) {
       if (pattern[j] != subject[i+j]) {
         break;
       }
       j++;
-    } while (j < pattern.length());
+    }
     if (j == pattern.length()) {
       return i;
     }
@@ -2963,7 +2946,6 @@ enum StringSearchStrategy { SEARCH_FAIL, SEARCH_SHORT, SEARCH_LONG };
 template <typename pchar>
 static inline StringSearchStrategy InitializeStringSearch(
     RuntimeState* state, Vector<const pchar> pat, bool ascii_subject) {
-  ASSERT(pat.length() > 1);
   // We have an ASCII haystack and a non-ASCII needle. Check if there
   // really is a non-ASCII character in the needle and bail out if there
   // is.
@@ -3053,54 +3035,15 @@ int Runtime::StringMatch(RuntimeState* runtime_state,
   int subject_length = sub->length();
   if (start_index + pattern_length > subject_length) return -1;
 
-  if (!sub->IsFlat()) {
-    FlattenString(sub);
-  }
-
-  // Searching for one specific character is common.  For one
-  // character patterns linear search is necessary, so any smart
-  // algorithm is unnecessary overhead.
-  if (pattern_length == 1) {
-    AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
-    String* seq_sub = *sub;
-    if (seq_sub->IsConsString()) {
-      seq_sub = ConsString::cast(seq_sub)->first();
-    }
-    if (seq_sub->IsAsciiRepresentation()) {
-      uc16 pchar = pat->Get(0);
-      if (pchar > String::kMaxAsciiCharCode) {
-        return -1;
-      }
-      Vector<const char> ascii_vector =
-          seq_sub->ToAsciiVector().SubVector(start_index, subject_length);
-      const void* pos = memchr(ascii_vector.start(),
-                               static_cast<const char>(pchar),
-                               static_cast<size_t>(ascii_vector.length()));
-      if (pos == NULL) {
-        return -1;
-      }
-      return static_cast<int>(reinterpret_cast<const char*>(pos)
-          - ascii_vector.start() + start_index);
-    }
-    return SingleCharIndexOf(seq_sub->ToUC16Vector(),
-                             pat->Get(0),
-                             start_index);
-  }
-
-  if (!pat->IsFlat()) {
-    FlattenString(pat);
-  }
+  if (!sub->IsFlat()) FlattenString(sub);
+  if (!pat->IsFlat()) FlattenString(pat);
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
   // Extract flattened substrings of cons strings before determining asciiness.
   String* seq_sub = *sub;
-  if (seq_sub->IsConsString()) {
-    seq_sub = ConsString::cast(seq_sub)->first();
-  }
+  if (seq_sub->IsConsString()) seq_sub = ConsString::cast(seq_sub)->first();
   String* seq_pat = *pat;
-  if (seq_pat->IsConsString()) {
-    seq_pat = ConsString::cast(seq_pat)->first();
-  }
+  if (seq_pat->IsConsString()) seq_pat = ConsString::cast(seq_pat)->first();
 
   // dispatch on type of strings
   if (seq_pat->IsAsciiRepresentation()) {
@@ -3205,30 +3148,8 @@ static Object* Runtime_StringLastIndexOf(RUNTIME_CALLING_CONVENTION) {
     return Smi::FromInt(start_index);
   }
 
-  if (!sub->IsFlat()) {
-    FlattenString(sub);
-  }
-
-  if (pat_length == 1) {
-    AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
-    if (sub->IsAsciiRepresentation()) {
-      uc16 pchar = pat->Get(0);
-      if (pchar > String::kMaxAsciiCharCode) {
-        return Smi::FromInt(-1);
-      }
-      return Smi::FromInt(SingleCharLastIndexOf(sub->ToAsciiVector(),
-                                                static_cast<char>(pat->Get(0)),
-                                                start_index));
-    } else {
-      return Smi::FromInt(SingleCharLastIndexOf(sub->ToUC16Vector(),
-                                                pat->Get(0),
-                                                start_index));
-    }
-  }
-
-  if (!pat->IsFlat()) {
-    FlattenString(pat);
-  }
+  if (!sub->IsFlat()) FlattenString(sub);
+  if (!pat->IsFlat()) FlattenString(pat);
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
 
@@ -3411,88 +3332,6 @@ static void SetLastMatchInfoNoCaptures(Handle<String> subject,
 }
 
 
-template <typename schar>
-static bool SearchCharMultiple(Vector<schar> subject,
-                               String* pattern,
-                               schar pattern_char,
-                               FixedArrayBuilder* builder,
-                               int* match_pos) {
-  // Position of last match.
-  int pos = *match_pos;
-  int subject_length = subject.length();
-  while (pos < subject_length) {
-    int match_end = pos + 1;
-    if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
-      *match_pos = pos;
-      return false;
-    }
-    int new_pos = SingleCharIndexOf(subject, pattern_char, match_end);
-    if (new_pos >= 0) {
-      // Match has been found.
-      if (new_pos > match_end) {
-        ReplacementStringBuilder::AddSubjectSlice(builder, match_end, new_pos);
-      }
-      pos = new_pos;
-      builder->Add(pattern);
-    } else {
-      break;
-    }
-  }
-  if (pos + 1 < subject_length) {
-    ReplacementStringBuilder::AddSubjectSlice(builder, pos + 1, subject_length);
-  }
-  *match_pos = pos;
-  return true;
-}
-
-
-static bool SearchCharMultiple(Handle<String> subject,
-                               Handle<String> pattern,
-                               Handle<JSArray> last_match_info,
-                               FixedArrayBuilder* builder) {
-  ASSERT(subject->IsFlat());
-  ASSERT_EQ(1, pattern->length());
-  uc16 pattern_char = pattern->Get(0);
-  // Treating position before first as initial "previous match position".
-  int match_pos = -1;
-
-  for (;;) {  // Break when search complete.
-    builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
-    AssertNoAllocation no_gc;
-    if (subject->IsAsciiRepresentation()) {
-      if (pattern_char > String::kMaxAsciiCharCode) {
-        break;
-      }
-      Vector<const char> subject_vector = subject->ToAsciiVector();
-      char pattern_ascii_char = static_cast<char>(pattern_char);
-      bool complete = SearchCharMultiple<const char>(subject_vector,
-                                                     *pattern,
-                                                     pattern_ascii_char,
-                                                     builder,
-                                                     &match_pos);
-      if (complete) break;
-    } else {
-      Vector<const uc16> subject_vector = subject->ToUC16Vector();
-      bool complete = SearchCharMultiple<const uc16>(subject_vector,
-                                                     *pattern,
-                                                     pattern_char,
-                                                     builder,
-                                                     &match_pos);
-      if (complete) break;
-    }
-  }
-
-  if (match_pos >= 0) {
-    SetLastMatchInfoNoCaptures(subject,
-                               last_match_info,
-                               match_pos,
-                               match_pos + 1);
-    return true;
-  }
-  return false;  // No matches at all.
-}
-
-
 template <typename schar, typename pchar>
 static bool SearchStringMultiple(RuntimeState* state,
                                  Vector<schar> subject,
@@ -3572,7 +3411,6 @@ static bool SearchStringMultiple(RuntimeState* state,
                                  FixedArrayBuilder* builder) {
   ASSERT(subject->IsFlat());
   ASSERT(pattern->IsFlat());
-  ASSERT(pattern->length() > 1);
 
   // Treating as if a previous match was before first character.
   int match_pos = -pattern->length();
@@ -3836,14 +3674,6 @@ static Object* Runtime_RegExpExecMultiple(RUNTIME_CALLING_CONVENTION) {
   if (regexp->TypeTag() == JSRegExp::ATOM) {
     Handle<String> pattern(
         String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex)));
-    int pattern_length = pattern->length();
-    if (pattern_length == 1) {
-      if (SearchCharMultiple(subject, pattern, last_match_info, &builder)) {
-        return *builder.ToJSArray(result_array);
-      }
-      return isolate->heap()->null_value();
-    }
-
     if (!pattern->IsFlat()) FlattenString(pattern);
     if (SearchStringMultiple(isolate->runtime_state(), subject, pattern,
                              last_match_info, &builder)) {
@@ -4174,7 +4004,8 @@ static Object* Runtime_DefineOrRedefineAccessorProperty(
   if (result.IsProperty() &&
       (result.type() == FIELD || result.type() == NORMAL
        || result.type() == CONSTANT_FUNCTION)) {
-    obj->DeleteProperty(name, JSObject::NORMAL_DELETION);
+    Object* ok = obj->DeleteProperty(name, JSObject::NORMAL_DELETION);
+    if (ok->IsFailure()) return ok;
   }
   return obj->DefineAccessor(name, flag_setter->value() == 0, fun, attr);
 }
@@ -4960,6 +4791,19 @@ static Object* Runtime_StringToNumber(RUNTIME_CALLING_CONVENTION) {
       if (minus) {
         if (d == 0) return isolate->heap()->minus_zero_value();
         d = -d;
+      } else if (!subject->HasHashCode() &&
+                 len <= String::kMaxArrayIndexSize &&
+                 (len == 1 || data[0] != '0')) {
+        // String hash is not calculated yet but all the data are present.
+        // Update the hash field to speed up sequential convertions.
+        uint32_t hash = StringHasher::MakeCachedArrayIndex(d, len);
+#ifdef DEBUG
+        ASSERT((hash & String::kContainsCachedArrayIndexMask) == 0);
+        subject->Hash();  // Force hash calculation.
+        ASSERT_EQ(static_cast<int>(subject->hash_field()),
+                  static_cast<int>(hash));
+#endif
+        subject->set_hash_field(hash);
       }
       return Smi::FromInt(d);
     }
@@ -5500,23 +5344,6 @@ void FindStringIndices(RuntimeState* state,
   }
 }
 
-template <typename schar>
-inline void FindCharIndices(Vector<const schar> subject,
-                            const schar pattern_char,
-                            ZoneList<int>* indices,
-                            unsigned int limit) {
-  // Collect indices of pattern_char in subject, and the end-of-string index.
-  // Stop after finding at most limit values.
-  int index = 0;
-  while (limit > 0) {
-    index = SingleCharIndexOf(subject, pattern_char, index);
-    if (index < 0) return;
-    indices->Add(index);
-    index++;
-    limit--;
-  }
-}
-
 
 static Object* Runtime_StringSplit(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
@@ -5543,23 +5370,10 @@ static Object* Runtime_StringSplit(RUNTIME_CALLING_CONVENTION) {
   // Find (up to limit) indices of separator and end-of-string in subject
   int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);
   ZoneList<int> indices(initial_capacity);
-  if (pattern_length == 1) {
-    // Special case, go directly to fast single-character split.
-    AssertNoAllocation nogc;
-    uc16 pattern_char = pattern->Get(0);
-    if (subject->IsTwoByteRepresentation()) {
-      FindCharIndices(subject->ToUC16Vector(),
-                      pattern_char,
-                      &indices,
-                      limit);
-    } else if (pattern_char <= String::kMaxAsciiCharCode) {
-      FindCharIndices(subject->ToAsciiVector(),
-                      static_cast<char>(pattern_char),
-                      &indices,
-                      limit);
-    }
-  } else {
-    if (!pattern->IsFlat()) FlattenString(pattern);
+  if (!pattern->IsFlat()) FlattenString(pattern);
+
+  // No allocation block.
+  {
     AssertNoAllocation nogc;
     if (subject->IsAsciiRepresentation()) {
       Vector<const char> subject_vector = subject->ToAsciiVector();
@@ -5593,11 +5407,12 @@ static Object* Runtime_StringSplit(RUNTIME_CALLING_CONVENTION) {
       }
     }
   }
+
   if (static_cast<uint32_t>(indices.length()) < limit) {
     indices.Add(subject_length);
   }
-  // The list indices now contains the end of each part to create.
 
+  // The list indices now contains the end of each part to create.
 
   // Create JSArray of substrings separated by separator.
   int part_count = indices.length();
@@ -5702,6 +5517,15 @@ static Object* Runtime_StringToArray(RUNTIME_CALLING_CONVENTION) {
 #endif
 
   return *Factory::NewJSArrayWithElements(elements);
+}
+
+
+static Object* Runtime_NewStringWrapper(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(String, value, args[0]);
+  return value->ToObject();
 }
 
 

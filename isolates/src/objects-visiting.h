@@ -106,6 +106,9 @@ class StaticVisitorBase : public AllStatic {
     kMinObjectSizeInWords = 2
   };
 
+  // Visitor ID should fit in one byte.
+  STATIC_ASSERT(kVisitorIdCount <= 256);
+
   // Determine which specialized visitor should be used for given instance type
   // and instance type.
   static VisitorId GetVisitorId(int instance_type, int instance_size);

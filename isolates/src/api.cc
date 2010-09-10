@@ -3881,6 +3881,22 @@ void V8::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
 }
 
 
+void V8::AddMemoryAllocationCallback(MemoryAllocationCallback callback,
+                                     ObjectSpace space,
+                                     AllocationAction action) {
+  if (IsDeadCheck("v8::V8::AddMemoryAllocationCallback()")) return;
+  i::Isolate::Current()->memory_allocator()->AddMemoryAllocationCallback(
+      callback, space, action);
+}
+
+
+void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
+  if (IsDeadCheck("v8::V8::RemoveMemoryAllocationCallback()")) return;
+  i::Isolate::Current()->memory_allocator()->RemoveMemoryAllocationCallback(
+      callback);
+}
+
+
 void V8::PauseProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   PauseProfilerEx(PROFILER_MODULE_CPU);

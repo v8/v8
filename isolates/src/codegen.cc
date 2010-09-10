@@ -380,21 +380,6 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
 }
 
 
-bool CodeGenerator::PatchInlineRuntimeEntry(Handle<String> name,
-    const InlineRuntimeFunctionsTable::Entry& new_entry,
-    InlineRuntimeFunctionsTable::Entry* old_entry) {
-  InlineRuntimeFunctionsTable::Entry* entry = FindInlineRuntimeLUT(name);
-  if (entry == NULL) return false;
-  if (old_entry != NULL) {
-    old_entry->name = entry->name;
-    old_entry->method = entry->method;
-  }
-  entry->name = new_entry.name;
-  entry->method = new_entry.method;
-  return true;
-}
-
-
 int CodeGenerator::InlineRuntimeCallArgumentsCount(Handle<String> name) {
   InlineRuntimeFunctionsTable::Entry* f =
       CodeGenerator::FindInlineRuntimeLUT(name);
@@ -496,12 +481,11 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 
 
 int CEntryStub::MinorKey() {
-  ASSERT(result_size_ <= 2);
+  ASSERT(result_size_ == 1 || result_size_ == 2);
 #ifdef _WIN64
-  return ExitFrameModeBits::encode(mode_)
-         | IndirectResultBits::encode(result_size_ > 1);
+  return result_size_ == 1 ? 0 : 1;
 #else
-  return ExitFrameModeBits::encode(mode_);
+  return 0;
 #endif
 }
 

@@ -35,12 +35,14 @@
 #ifndef V8_OBJECTS_INL_H_
 #define V8_OBJECTS_INL_H_
 
-#include "memory.h"
+#include "objects.h"
 #include "contexts.h"
 #include "conversions-inl.h"
-#include "objects.h"
+#include "heap.h"
+#include "memory.h"
 #include "isolate.h"
 #include "property.h"
+#include "spaces.h"
 
 namespace v8 {
 namespace internal {
@@ -2148,13 +2150,13 @@ void ExternalFloatArray::set(int index, float value) {
 
 
 int Map::visitor_id() {
-  if (instance_type() == MAP_TYPE) return kMapVisitorId;
-  return READ_INT_FIELD(this, kScavengerCallbackOffset);
+  return READ_BYTE_FIELD(this, kVisitorIdOffset);
 }
 
 
-void Map::set_visitor_id(int value) {
-  WRITE_INT_FIELD(this, kScavengerCallbackOffset, value);
+void Map::set_visitor_id(int id) {
+  ASSERT(0 <= id && id < 256);
+  WRITE_BYTE_FIELD(this, kVisitorIdOffset, static_cast<byte>(id));
 }
 
 
@@ -2368,14 +2370,13 @@ int Code::arguments_count() {
 }
 
 
-CodeStub::Major Code::major_key() {
+int Code::major_key() {
   ASSERT(kind() == STUB || kind() == BINARY_OP_IC);
-  return static_cast<CodeStub::Major>(READ_BYTE_FIELD(this,
-                                                      kStubMajorKeyOffset));
+  return READ_BYTE_FIELD(this, kStubMajorKeyOffset);
 }
 
 
-void Code::set_major_key(CodeStub::Major major) {
+void Code::set_major_key(int major) {
   ASSERT(kind() == STUB || kind() == BINARY_OP_IC);
   ASSERT(0 <= major && major < 256);
   WRITE_BYTE_FIELD(this, kStubMajorKeyOffset, major);
@@ -2476,8 +2477,7 @@ Code* Code::GetCodeFromTargetAddress(Address address) {
 Heap* Map::heap() {
   ASSERT(instance_type() == MAP_TYPE);
   ASSERT(this == map());
-  Heap* heap = reinterpret_cast<Heap*>(
-      READ_INTPTR_FIELD(this, kScavengerCallbackOffset));
+  Heap* heap = reinterpret_cast<Heap*>(READ_INTPTR_FIELD(this, kHeapOffset));
   ASSERT(heap != NULL);
   ASSERT(heap->isolate() == Isolate::Current());
   return heap;
@@ -2487,11 +2487,8 @@ Heap* Map::heap() {
 void Map::set_heap(Heap* heap) {
   ASSERT(heap != NULL);
   ASSERT(heap->isolate() == Isolate::Current());
-  ASSERT(instance_type() == MAP_TYPE);
   // WRITE_FIELD does not invoke write barrier, but there is no need here.
-  WRITE_INTPTR_FIELD(this,
-                     kScavengerCallbackOffset,
-                     reinterpret_cast<intptr_t>(heap));
+  WRITE_INTPTR_FIELD(this, kHeapOffset, reinterpret_cast<intptr_t>(heap));
 }
 
 

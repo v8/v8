@@ -69,158 +69,162 @@ class StubCache {
 
   // Computes the right stub matching. Inserts the result in the
   // cache before returning.  This might compile a stub if needed.
-  Object* ComputeLoadNonexistent(String* name, JSObject* receiver);
+  MUST_USE_RESULT Object* ComputeLoadNonexistent(String* name,
+                                                 JSObject* receiver);
 
-  Object* ComputeLoadField(String* name,
-                           JSObject* receiver,
-                           JSObject* holder,
-                           int field_index);
+  MUST_USE_RESULT Object* ComputeLoadField(String* name,
+                                          JSObject* receiver,
+                                          JSObject* holder,
+                                          int field_index);
 
-  Object* ComputeLoadCallback(String* name,
-                              JSObject* receiver,
-                              JSObject* holder,
-                              AccessorInfo* callback);
+  MUST_USE_RESULT Object* ComputeLoadCallback(String* name,
+                                              JSObject* receiver,
+                                              JSObject* holder,
+                                              AccessorInfo* callback);
 
-  Object* ComputeLoadConstant(String* name,
-                              JSObject* receiver,
-                              JSObject* holder,
-                              Object* value);
+  MUST_USE_RESULT Object* ComputeLoadConstant(String* name,
+                                              JSObject* receiver,
+                                              JSObject* holder,
+                                              Object* value);
 
-  Object* ComputeLoadInterceptor(String* name,
-                                JSObject* receiver,
-                                JSObject* holder);
+  MUST_USE_RESULT Object* ComputeLoadInterceptor(String* name,
+                                                 JSObject* receiver,
+                                                JSObject* holder);
 
-  Object* ComputeLoadNormal();
+  MUST_USE_RESULT Object* ComputeLoadNormal();
 
-
-  Object* ComputeLoadGlobal(String* name,
-                            JSObject* receiver,
-                            GlobalObject* holder,
-                            JSGlobalPropertyCell* cell,
-                            bool is_dont_delete);
-
-
-  // ---
-
-  Object* ComputeKeyedLoadField(String* name,
-                                JSObject* receiver,
-                                JSObject* holder,
-                                int field_index);
-
-  Object* ComputeKeyedLoadCallback(String* name,
-                                   JSObject* receiver,
-                                   JSObject* holder,
-                                   AccessorInfo* callback);
-
-  Object* ComputeKeyedLoadConstant(String* name, JSObject* receiver,
-                                   JSObject* holder, Object* value);
-
-  Object* ComputeKeyedLoadInterceptor(String* name,
-                                      JSObject* receiver,
-                                      JSObject* holder);
-
-  Object* ComputeKeyedLoadArrayLength(String* name, JSArray* receiver);
-
-  Object* ComputeKeyedLoadStringLength(String* name,
-                                       String* receiver);
-
-  Object* ComputeKeyedLoadFunctionPrototype(String* name,
-                                            JSFunction* receiver);
+  MUST_USE_RESULT Object* ComputeLoadGlobal(String* name,
+                                            JSObject* receiver,
+                                            GlobalObject* holder,
+                                            JSGlobalPropertyCell* cell,
+                                            bool is_dont_delete);
 
   // ---
 
-  Object* ComputeStoreField(String* name,
-                            JSObject* receiver,
-                            int field_index,
-                            Map* transition = NULL);
+  MUST_USE_RESULT Object* ComputeKeyedLoadField(String* name,
+                                                JSObject* receiver,
+                                                JSObject* holder,
+                                                int field_index);
 
-  Object* ComputeStoreNormal();
+  MUST_USE_RESULT Object* ComputeKeyedLoadCallback(String* name,
+                                                   JSObject* receiver,
+                                                   JSObject* holder,
+                                                   AccessorInfo* callback);
 
-  Object* ComputeStoreGlobal(String* name,
-                                    GlobalObject* receiver,
-                                    JSGlobalPropertyCell* cell);
+  MUST_USE_RESULT Object* ComputeKeyedLoadConstant(String* name,
+                                                   JSObject* receiver,
+                                                   JSObject* holder,
+                                                   Object* value);
 
-  Object* ComputeStoreCallback(String* name,
-                               JSObject* receiver,
-                               AccessorInfo* callback);
+  MUST_USE_RESULT Object* ComputeKeyedLoadInterceptor(String* name,
+                                                      JSObject* receiver,
+                                                      JSObject* holder);
 
-  Object* ComputeStoreInterceptor(String* name, JSObject* receiver);
+  MUST_USE_RESULT Object* ComputeKeyedLoadArrayLength(String* name,
+                                                      JSArray* receiver);
 
-  // ---
+  MUST_USE_RESULT Object* ComputeKeyedLoadStringLength(String* name,
+                                                       String* receiver);
 
-  Object* ComputeKeyedStoreField(String* name,
-                                 JSObject* receiver,
-                                 int field_index,
-                                 Map* transition = NULL);
-
-  // ---
-
-  Object* ComputeCallField(int argc,
-                           InLoopFlag in_loop,
-                           Code::Kind,
-                           String* name,
-                           Object* object,
-                           JSObject* holder,
-                           int index);
-
-  Object* ComputeCallConstant(int argc,
-                              InLoopFlag in_loop,
-                              Code::Kind,
-                              String* name,
-                              Object* object,
-                              JSObject* holder,
-                              JSFunction* function);
-
-  Object* ComputeCallNormal(int argc,
-                            InLoopFlag in_loop,
-                            Code::Kind,
-                            String* name,
-                            JSObject* receiver);
-
-  Object* ComputeCallInterceptor(int argc,
-                                 Code::Kind,
-                                 String* name,
-                                 Object* object,
-                                 JSObject* holder);
-
-  Object* ComputeCallGlobal(int argc,
-                            InLoopFlag in_loop,
-                            Code::Kind,
-                            String* name,
-                            JSObject* receiver,
-                            GlobalObject* holder,
-                            JSGlobalPropertyCell* cell,
-                            JSFunction* function);
+  MUST_USE_RESULT Object* ComputeKeyedLoadFunctionPrototype(
+      String* name, JSFunction* receiver);
 
   // ---
 
-  Object* ComputeCallInitialize(int argc,
-                                InLoopFlag in_loop,
-                                Code::Kind kind);
+  MUST_USE_RESULT Object* ComputeStoreField(String* name,
+                                            JSObject* receiver,
+                                            int field_index,
+                                            Map* transition = NULL);
 
-  Object* ComputeCallPreMonomorphic(int argc,
-                                    InLoopFlag in_loop,
-                                    Code::Kind kind);
+  MUST_USE_RESULT Object* ComputeStoreNormal();
 
-  Object* ComputeCallNormal(int argc,
-                            InLoopFlag in_loop,
-                            Code::Kind kind);
+  MUST_USE_RESULT Object* ComputeStoreGlobal(String* name,
+                                             GlobalObject* receiver,
+                                             JSGlobalPropertyCell* cell);
 
-  Object* ComputeCallMegamorphic(int argc,
-                                 InLoopFlag in_loop,
-                                 Code::Kind kind);
+  MUST_USE_RESULT Object* ComputeStoreCallback(String* name,
+                                               JSObject* receiver,
+                                               AccessorInfo* callback);
 
-  Object* ComputeCallMiss(int argc, Code::Kind kind);
+  MUST_USE_RESULT Object* ComputeStoreInterceptor(String* name,
+                                                  JSObject* receiver);
+
+  // ---
+
+  MUST_USE_RESULT Object* ComputeKeyedStoreField(String* name,
+                                                 JSObject* receiver,
+                                                 int field_index,
+                                                 Map* transition = NULL);
+
+  // ---
+
+  MUST_USE_RESULT Object* ComputeCallField(int argc,
+                                           InLoopFlag in_loop,
+                                           Code::Kind,
+                                           String* name,
+                                           Object* object,
+                                           JSObject* holder,
+                                           int index);
+
+  MUST_USE_RESULT Object* ComputeCallConstant(int argc,
+                                              InLoopFlag in_loop,
+                                              Code::Kind,
+                                              String* name,
+                                              Object* object,
+                                              JSObject* holder,
+                                              JSFunction* function);
+
+  MUST_USE_RESULT Object* ComputeCallNormal(int argc,
+                                            InLoopFlag in_loop,
+                                            Code::Kind,
+                                            String* name,
+                                            JSObject* receiver);
+
+  MUST_USE_RESULT Object* ComputeCallInterceptor(int argc,
+                                                 Code::Kind,
+                                                 String* name,
+                                                 Object* object,
+                                                 JSObject* holder);
+
+  MUST_USE_RESULT Object* ComputeCallGlobal(int argc,
+                                            InLoopFlag in_loop,
+                                            Code::Kind,
+                                            String* name,
+                                            JSObject* receiver,
+                                            GlobalObject* holder,
+                                            JSGlobalPropertyCell* cell,
+                                            JSFunction* function);
+
+  // ---
+
+  MUST_USE_RESULT Object* ComputeCallInitialize(int argc,
+                                                InLoopFlag in_loop,
+                                                Code::Kind kind);
+
+  MUST_USE_RESULT Object* ComputeCallPreMonomorphic(int argc,
+                                                    InLoopFlag in_loop,
+                                                    Code::Kind kind);
+
+  MUST_USE_RESULT Object* ComputeCallNormal(int argc,
+                                            InLoopFlag in_loop,
+                                            Code::Kind kind);
+
+  MUST_USE_RESULT Object* ComputeCallMegamorphic(int argc,
+                                                 InLoopFlag in_loop,
+                                                 Code::Kind kind);
+
+  MUST_USE_RESULT Object* ComputeCallMiss(int argc, Code::Kind kind);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
-  Code* FindCallInitialize(int argc,
-                           InLoopFlag in_loop,
-                           Code::Kind kind);
+  MUST_USE_RESULT Code* FindCallInitialize(int argc,
+                                           InLoopFlag in_loop,
+                                           Code::Kind kind);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Object* ComputeCallDebugBreak(int argc, Code::Kind kind);
+  MUST_USE_RESULT Object* ComputeCallDebugBreak(int argc, Code::Kind kind);
 
-  Object* ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind);
+  MUST_USE_RESULT Object* ComputeCallDebugPrepareStepIn(int argc,
+                                                        Code::Kind kind);
 #endif
 
   // Update cache for entry hash(name, map).

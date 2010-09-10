@@ -566,13 +566,6 @@ function ArraySlice(start, end) {
 function ArraySplice(start, delete_count) {
   var num_arguments = %_ArgumentsLength();
 
-  // SpiderMonkey and JSC return undefined in the case where no
-  // arguments are given instead of using the implicit undefined
-  // arguments.  This does not follow ECMA-262, but we do the same for
-  // compatibility.
-  // TraceMonkey follows ECMA-262 though.
-  if (num_arguments == 0) return;
-
   var len = TO_UINT32(this.length);
   var start_i = TO_INTEGER(start);
 

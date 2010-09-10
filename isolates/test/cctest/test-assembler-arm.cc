@@ -226,13 +226,17 @@ TEST(4) {
     double a;
     double b;
     double c;
-    float d;
-    float e;
+    double d;
+    double e;
+    double f;
+    int i;
+    float x;
+    float y;
   } T;
   T t;
 
   // Create a function that accepts &t, and loads, manipulates, and stores
-  // the doubles t.a, t.b, and t.c, and floats t.d, t.e.
+  // the doubles and floats.
   Assembler assm(NULL, 0);
   Label L, C;
 
@@ -254,15 +258,34 @@ TEST(4) {
     __ vmov(d4, r2, r3);
     __ vstr(d4, r4, OFFSET_OF(T, b));
 
-    // Load t.d and t.e, switch values, and store back to the struct.
-    __ vldr(s0, r4, OFFSET_OF(T, d));
-    __ vldr(s1, r4, OFFSET_OF(T, e));
-    __ vmov(s2, s0);
-    __ vmov(s0, s1);
-    __ vmov(s1, s2);
-    __ vstr(s0, r4, OFFSET_OF(T, d));
-    __ vstr(s1, r4, OFFSET_OF(T, e));
+    // Load t.x and t.y, switch values, and store back to the struct.
+    __ vldr(s0, r4, OFFSET_OF(T, x));
+    __ vldr(s31, r4, OFFSET_OF(T, y));
+    __ vmov(s16, s0);
+    __ vmov(s0, s31);
+    __ vmov(s31, s16);
+    __ vstr(s0, r4, OFFSET_OF(T, x));
+    __ vstr(s31, r4, OFFSET_OF(T, y));
 
+    // Move a literal into a register that can be encoded in the instruction.
+    __ vmov(d4, 1.0);
+    __ vstr(d4, r4, OFFSET_OF(T, e));
+
+    // Move a literal into a register that requires 64 bits to encode.
+    // 0x3ff0000010000000 = 1.000000059604644775390625
+    __ vmov(d4, 1.000000059604644775390625);
+    __ vstr(d4, r4, OFFSET_OF(T, d));
+
+    // Convert from floating point to integer.
+    __ vmov(d4, 2.0);
+    __ vcvt_s32_f64(s31, d4);
+    __ vstr(s31, r4, OFFSET_OF(T, i));
+
+    // Convert from integer to floating point.
+    __ mov(lr, Operand(42));
+    __ vmov(s31, lr);
+    __ vcvt_f64_s32(d4, s31);
+    __ vstr(d4, r4, OFFSET_OF(T, f));
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
     CodeDesc desc;
@@ -278,12 +301,20 @@ TEST(4) {
     t.a = 1.5;
     t.b = 2.75;
     t.c = 17.17;
-    t.d = 4.5;
-    t.e = 9.0;
+    t.d = 0.0;
+    t.e = 0.0;
+    t.f = 0.0;
+    t.i = 0;
+    t.x = 4.5;
+    t.y = 9.0;
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
-    CHECK_EQ(4.5, t.e);
-    CHECK_EQ(9.0, t.d);
+    CHECK_EQ(4.5, t.y);
+    CHECK_EQ(9.0, t.x);
+    CHECK_EQ(2, t.i);
+    CHECK_EQ(42.0, t.f);
+    CHECK_EQ(1.0, t.e);
+    CHECK_EQ(1.000000059604644775390625, t.d);
     CHECK_EQ(4.25, t.c);
     CHECK_EQ(4.25, t.b);
     CHECK_EQ(1.5, t.a);

@@ -51,7 +51,6 @@ void ThreadLocalTop::Initialize() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   js_entry_sp_ = 0;
 #endif
-  stack_is_cooked_ = false;
   try_catch_handler_address_ = NULL;
   context_ = NULL;
   int id = Isolate::Current()->thread_manager()->CurrentId();
@@ -131,40 +130,6 @@ void Isolate::UnregisterTryCatchHandler(v8::TryCatch* that) {
       reinterpret_cast<Address>(that->next_));
   thread_local_top()->catcher_ = NULL;
   SimulatorStack::UnregisterCTryCatch();
-}
-
-
-void Isolate::MarkCompactPrologue(bool is_compacting) {
-  MarkCompactPrologue(is_compacting, thread_local_top());
-}
-
-
-void Isolate::MarkCompactPrologue(bool is_compacting, char* data) {
-  MarkCompactPrologue(is_compacting, reinterpret_cast<ThreadLocalTop*>(data));
-}
-
-
-void Isolate::MarkCompactPrologue(bool is_compacting, ThreadLocalTop* thread) {
-  if (is_compacting) {
-    StackFrame::CookFramesForThread(thread);
-  }
-}
-
-
-void Isolate::MarkCompactEpilogue(bool is_compacting, char* data) {
-  MarkCompactEpilogue(is_compacting, reinterpret_cast<ThreadLocalTop*>(data));
-}
-
-
-void Isolate::MarkCompactEpilogue(bool is_compacting) {
-  MarkCompactEpilogue(is_compacting, thread_local_top());
-}
-
-
-void Isolate::MarkCompactEpilogue(bool is_compacting, ThreadLocalTop* thread) {
-  if (is_compacting) {
-    StackFrame::UncookFramesForThread(thread);
-  }
 }
 
 

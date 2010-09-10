@@ -302,7 +302,7 @@ class VirtualMemory {
   void* address() {
     ASSERT(IsReserved());
     return address_;
-  };
+  }
 
   // Returns the size of the reserved memory.
   size_t size() { return size_; }

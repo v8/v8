@@ -68,11 +68,18 @@ class FunctionEntry BASE_EMBEDDED {
   void set_literal_count(int value) { backing_[kLiteralCountOffset] = value; }
 
   int property_count() { return backing_[kPropertyCountOffset]; }
-  void set_property_count(int value) { backing_[kPropertyCountOffset] = value; }
+  void set_property_count(int value) {
+    backing_[kPropertyCountOffset] = value;
+  }
+
+  int predata_skip() { return backing_[kPredataSkipOffset]; }
+  void set_predata_skip(int value) {
+    backing_[kPredataSkipOffset] = value;
+  }
 
   bool is_valid() { return backing_.length() > 0; }
 
-  static const int kSize = 4;
+  static const int kSize = 5;
 
  private:
   Vector<unsigned> backing_;
@@ -80,6 +87,7 @@ class FunctionEntry BASE_EMBEDDED {
   static const int kEndPosOffset = 1;
   static const int kLiteralCountOffset = 2;
   static const int kPropertyCountOffset = 3;
+  static const int kPredataSkipOffset = 4;
 };
 
 
@@ -87,12 +95,13 @@ class ScriptDataImpl : public ScriptData {
  public:
   explicit ScriptDataImpl(Vector<unsigned> store)
       : store_(store),
-        last_entry_(0) { }
+        index_(kHeaderSize) { }
   virtual ~ScriptDataImpl();
   virtual int Length();
   virtual const char* Data();
   virtual bool HasError();
-  FunctionEntry GetFunctionEnd(int start);
+  FunctionEntry GetFunctionEntry(int start);
+  void SkipFunctionEntry(int start);
   bool SanityCheck();
 
   Scanner::Location MessageLocation();
@@ -102,31 +111,33 @@ class ScriptDataImpl : public ScriptData {
   bool has_error() { return store_[kHasErrorOffset]; }
   unsigned magic() { return store_[kMagicOffset]; }
   unsigned version() { return store_[kVersionOffset]; }
+  // Skip forward in the preparser data by the given number
+  // of unsigned ints.
+  virtual void Skip(int entries) {
+    ASSERT(entries >= 0);
+    ASSERT(entries <= store_.length() - index_);
+    index_ += entries;
+  }
 
   static const unsigned kMagicNumber = 0xBadDead;
   static const unsigned kCurrentVersion = 1;
 
-  static const unsigned kMagicOffset = 0;
-  static const unsigned kVersionOffset = 1;
-  static const unsigned kHasErrorOffset = 2;
-  static const unsigned kSizeOffset = 3;
-  static const unsigned kHeaderSize = 4;
+  static const int kMagicOffset = 0;
+  static const int kVersionOffset = 1;
+  static const int kHasErrorOffset = 2;
+  static const int kSizeOffset = 3;
+  static const int kHeaderSize = 4;
 
  private:
+  Vector<unsigned> store_;
+  int index_;
+
   unsigned Read(int position);
   unsigned* ReadAddress(int position);
-  int EntryCount();
-  FunctionEntry nth(int n);
 
-  Vector<unsigned> store_;
-
+  void FindStart(int position);
   // Read strings written by ParserRecorder::WriteString.
   static const char* ReadString(unsigned* start, int* chars);
-
-  // The last entry returned.  This is used to make lookup faster:
-  // the next entry to return is typically the next entry so lookup
-  // will usually be much faster if we start from the last entry.
-  int last_entry_;
 };
 
 

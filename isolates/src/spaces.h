@@ -572,6 +572,15 @@ class MemoryAllocator {
   void FreeRawMemory(void* buf,
                      size_t length,
                      Executability executable);
+  void PerformAllocationCallback(ObjectSpace space,
+                                 AllocationAction action,
+                                 size_t size);
+
+  void AddMemoryAllocationCallback(MemoryAllocationCallback callback,
+                                   ObjectSpace space,
+                                   AllocationAction action);
+  void RemoveMemoryAllocationCallback(MemoryAllocationCallback callback);
+  bool MemoryAllocationCallbackRegistered(MemoryAllocationCallback callback);
 
   // Returns the maximum available bytes of heaps.
   int Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
@@ -580,7 +589,7 @@ class MemoryAllocator {
   int Size() { return size_; }
 
   // Returns allocated executable spaces in bytes.
-  static int SizeExecutable() { return size_executable_; }
+  int SizeExecutable() { return size_executable_; }
 
   // Returns maximum available bytes that the old space can have.
   int MaxAvailable() {
@@ -646,9 +655,24 @@ class MemoryAllocator {
   int capacity_;
 
   // Allocated executable space size in bytes.
-  static int size_executable_;
+  int size_executable_;
+
   // Allocated space size in bytes.
   int size_;
+
+  struct MemoryAllocationCallbackRegistration {
+    MemoryAllocationCallbackRegistration(MemoryAllocationCallback callback,
+                                         ObjectSpace space,
+                                         AllocationAction action)
+        : callback(callback), space(space), action(action) {
+    }
+    MemoryAllocationCallback callback;
+    ObjectSpace space;
+    AllocationAction action;
+  };
+  // A List of callback that are triggered when memory is allocated or free'd
+  List<MemoryAllocationCallbackRegistration>
+      memory_allocation_callbacks_;
 
   // The initial chunk of virtual memory.
   VirtualMemory* initial_chunk_;
@@ -772,6 +796,7 @@ class HeapObjectIterator: public ObjectIterator {
   HeapObjectIterator(PagedSpace* space,
                      Address start,
                      HeapObjectCallback size_func);
+  HeapObjectIterator(Page* page, HeapObjectCallback size_func);
 
   inline HeapObject* next() {
     return (cur_addr_ < cur_limit_) ? FromCurrentPage() : FromNextPage();
@@ -1055,6 +1080,11 @@ class PagedSpace : public Space {
   // Freed pages are moved to the end of page list.
   void FreePages(Page* prev, Page* last);
 
+  // Deallocates a block.
+  virtual void DeallocateBlock(Address start,
+                               int size_in_bytes,
+                               bool add_to_freelist) = 0;
+
   // Set space allocation info.
   void SetTop(Address top) {
     allocation_info_.top = top;
@@ -1112,6 +1142,8 @@ class PagedSpace : public Space {
 
   // Returns the page of the allocation pointer.
   Page* AllocationTopPage() { return TopPageOf(allocation_info_); }
+
+  void RelinkPageListInChunkOrder(bool deallocate_blocks);
 
  protected:
   // Maximum capacity of this space.
@@ -1830,6 +1862,10 @@ class OldSpace : public PagedSpace {
     }
   }
 
+  virtual void DeallocateBlock(Address start,
+                               int size_in_bytes,
+                               bool add_to_freelist);
+
   // Prepare for full garbage collection.  Resets the relocation pointer and
   // clears the free list.
   virtual void PrepareForMarkCompact(bool will_compact);
@@ -1904,6 +1940,9 @@ class FixedSpace : public PagedSpace {
 
   virtual void PutRestOfCurrentPageOnFreeList(Page* current_page);
 
+  virtual void DeallocateBlock(Address start,
+                               int size_in_bytes,
+                               bool add_to_freelist);
 #ifdef DEBUG
   // Reports statistic info of the space
   void ReportStatistics();
@@ -2150,6 +2189,11 @@ class LargeObjectSpace : public Space {
   // if it is not found. The function iterates through all objects in this
   // space, may be slow.
   Object* FindObject(Address a);
+
+  // Finds a large object page containing the given pc, returns NULL
+  // if such a page doesn't exist.
+  LargeObjectChunk* FindChunkContainingPc(Address pc);
+
 
   // Iterates objects covered by dirty regions.
   void IterateDirtyRegions(ObjectSlotCallback func);

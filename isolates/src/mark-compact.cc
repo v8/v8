@@ -85,11 +85,15 @@ void MarkCompactCollector::CollectGarbage() {
     GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_COMPACT);
     EncodeForwardingAddresses();
 
+    heap_->MarkMapPointersAsEncoded(true);
     UpdatePointers();
+    heap_->MarkMapPointersAsEncoded(false);
+    PcToCodeCache::FlushPcToCodeCache();
 
     RelocateObjects();
   } else {
     SweepSpaces();
+    PcToCodeCache::FlushPcToCodeCache();
   }
 
   Finish();
@@ -1191,8 +1195,6 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
 // pair of distinguished invalid map encodings (for single word and multiple
 // words) to indicate free regions in the page found during computation of
 // forwarding addresses and skipped over in subsequent sweeps.
-static const uint32_t kSingleFreeEncoding = 0;
-static const uint32_t kMultiFreeEncoding = 1;
 
 
 // Encode a free region, defined by the given start address and size, in the
@@ -1200,10 +1202,10 @@ static const uint32_t kMultiFreeEncoding = 1;
 void EncodeFreeRegion(Address free_start, int free_size) {
   ASSERT(free_size >= kIntSize);
   if (free_size == kIntSize) {
-    Memory::uint32_at(free_start) = kSingleFreeEncoding;
+    Memory::uint32_at(free_start) = MarkCompactCollector::kSingleFreeEncoding;
   } else {
     ASSERT(free_size >= 2 * kIntSize);
-    Memory::uint32_at(free_start) = kMultiFreeEncoding;
+    Memory::uint32_at(free_start) = MarkCompactCollector::kMultiFreeEncoding;
     Memory::int_at(free_start + kIntSize) = free_size;
   }
 
@@ -1640,8 +1642,7 @@ static void SweepNewSpace(Heap* heap, NewSpace* space) {
 }
 
 
-static void SweepSpace(Heap* heap, PagedSpace* space,
-                       DeallocateFunction dealloc) {
+static void SweepSpace(Heap* heap, PagedSpace* space) {
   PageIterator it(space, PageIterator::PAGES_IN_USE);
 
   // During sweeping of paged space we are trying to find longest sequences
@@ -1682,10 +1683,9 @@ static void SweepSpace(Heap* heap, PagedSpace* space,
         heap->mark_compact_collector()->tracer()->decrement_marked_count();
 
         if (!is_previous_alive) {  // Transition from free to live.
-          dealloc(free_start,
-                  static_cast<int>(current - free_start),
-                  true,
-                  false);
+          space->DeallocateBlock(free_start,
+                                 static_cast<int>(current - free_start),
+                                 true);
           is_previous_alive = true;
         }
       } else {
@@ -1715,7 +1715,7 @@ static void SweepSpace(Heap* heap, PagedSpace* space,
         // without putting anything into free list.
         int size_in_bytes = static_cast<int>(p->AllocationTop() - free_start);
         if (size_in_bytes > 0) {
-          dealloc(free_start, size_in_bytes, false, true);
+          space->DeallocateBlock(free_start, size_in_bytes, false);
         }
       }
     } else {
@@ -1731,7 +1731,7 @@ static void SweepSpace(Heap* heap, PagedSpace* space,
       if (last_free_size > 0) {
         Page::FromAddress(last_free_start)->
             SetAllocationWatermark(last_free_start);
-        dealloc(last_free_start, last_free_size, true, true);
+        space->DeallocateBlock(last_free_start, last_free_size, true);
         last_free_start = NULL;
         last_free_size  = 0;
       }
@@ -1762,7 +1762,7 @@ static void SweepSpace(Heap* heap, PagedSpace* space,
     // There was a free ending area on the previous page.
     // Deallocate it without putting it into freelist and move allocation
     // top to the beginning of this free area.
-    dealloc(last_free_start, last_free_size, false, true);
+    space->DeallocateBlock(last_free_start, last_free_size, false);
     new_allocation_top = last_free_start;
   }
 
@@ -1779,61 +1779,6 @@ static void SweepSpace(Heap* heap, PagedSpace* space,
 #endif
 
     space->SetTop(new_allocation_top);
-  }
-}
-
-
-void MarkCompactCollector::DeallocateOldPointerBlock(Address start,
-                                                     int size_in_bytes,
-                                                     bool add_to_freelist,
-                                                     bool last_on_page) {
-  HEAP->old_pointer_space()->Free(start, size_in_bytes, add_to_freelist);
-}
-
-
-void MarkCompactCollector::DeallocateOldDataBlock(Address start,
-                                                  int size_in_bytes,
-                                                  bool add_to_freelist,
-                                                  bool last_on_page) {
-  HEAP->old_data_space()->Free(start, size_in_bytes, add_to_freelist);
-}
-
-
-void MarkCompactCollector::DeallocateCodeBlock(Address start,
-                                               int size_in_bytes,
-                                               bool add_to_freelist,
-                                               bool last_on_page) {
-  HEAP->code_space()->Free(start, size_in_bytes, add_to_freelist);
-}
-
-
-void MarkCompactCollector::DeallocateMapBlock(Address start,
-                                              int size_in_bytes,
-                                              bool add_to_freelist,
-                                              bool last_on_page) {
-  // Objects in map space are assumed to have size Map::kSize and a
-  // valid map in their first word.  Thus, we break the free block up into
-  // chunks and free them separately.
-  ASSERT(size_in_bytes % Map::kSize == 0);
-  Address end = start + size_in_bytes;
-  for (Address a = start; a < end; a += Map::kSize) {
-    HEAP->map_space()->Free(a, add_to_freelist);
-  }
-}
-
-
-void MarkCompactCollector::DeallocateCellBlock(Address start,
-                                               int size_in_bytes,
-                                               bool add_to_freelist,
-                                               bool last_on_page) {
-  // Free-list elements in cell space are assumed to have a fixed size.
-  // We break the free block into chunks and add them to the free list
-  // individually.
-  int size = HEAP->cell_space()->object_size_in_bytes();
-  ASSERT(size_in_bytes % size == 0);
-  Address end = start + size_in_bytes;
-  for (Address a = start; a < end; a += size) {
-    HEAP->cell_space()->Free(a, add_to_freelist);
   }
 }
 
@@ -2104,14 +2049,14 @@ void MarkCompactCollector::SweepSpaces() {
   // the map space last because freeing non-live maps overwrites them and
   // the other spaces rely on possibly non-live maps to get the sizes for
   // non-live objects.
-  SweepSpace(heap_, heap_->old_pointer_space(), &DeallocateOldPointerBlock);
-  SweepSpace(heap_, heap_->old_data_space(), &DeallocateOldDataBlock);
-  SweepSpace(heap_, heap_->code_space(), &DeallocateCodeBlock);
-  SweepSpace(heap_, heap_->cell_space(), &DeallocateCellBlock);
+  SweepSpace(heap_, heap_->old_pointer_space());
+  SweepSpace(heap_, heap_->old_data_space());
+  SweepSpace(heap_, heap_->code_space());
+  SweepSpace(heap_, heap_->cell_space());
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
     SweepNewSpace(heap_, heap_->new_space());
   }
-  SweepSpace(heap_, heap_->map_space(), &DeallocateMapBlock);
+  SweepSpace(heap_, heap_->map_space());
 
   heap_->IterateDirtyRegions(heap_->map_space(),
                              &heap_->IteratePointersInDirtyMapsRegion,

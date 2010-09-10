@@ -492,6 +492,11 @@ class CodeGenerator: public AstVisitor {
   void GenericBinaryOperation(BinaryOperation* expr,
                               OverwriteMode overwrite_mode);
 
+  // Generate a stub call from the virtual frame.
+  Result GenerateGenericBinaryOpStubCall(GenericBinaryOpStub* stub,
+                                         Result* left,
+                                         Result* right);
+
   // Emits code sequence that jumps to a JumpTarget if the inputs
   // are both smis.  Cannot be in MacroAssembler because it takes
   // advantage of TypeInfo to skip unneeded checks.
@@ -583,10 +588,6 @@ class CodeGenerator: public AstVisitor {
       Handle<String> name);
 
   bool CheckForInlineRuntimeCall(CallRuntime* node);
-  static bool PatchInlineRuntimeEntry(
-      Handle<String> name,
-      const InlineRuntimeFunctionsTable::Entry& new_entry,
-      InlineRuntimeFunctionsTable::Entry* old_entry);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
   static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
@@ -680,6 +681,9 @@ class CodeGenerator: public AstVisitor {
   void GenerateMathSqrt(ZoneList<Expression*>* args);
 
   void GenerateIsRegExpEquivalent(ZoneList<Expression*>* args);
+
+  void GenerateHasCachedArrayIndex(ZoneList<Expression*>* args);
+  void GenerateGetCachedArrayIndex(ZoneList<Expression*>* args);
 
 // Simple condition analysis.
   enum ConditionAnalysis {

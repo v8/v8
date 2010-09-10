@@ -120,6 +120,11 @@ struct SwVfpRegister {
     ASSERT(is_valid());
     return 1 << code_;
   }
+  void split_code(int* vm, int* m) const  {
+    ASSERT(is_valid());
+    *m = code_ & 0x1;
+    *vm = code_ >> 1;
+  }
 
   int code_;
 };
@@ -151,6 +156,11 @@ struct DwVfpRegister {
   int bit() const  {
     ASSERT(is_valid());
     return 1 << code_;
+  }
+  void split_code(int* vm, int* m) const  {
+    ASSERT(is_valid());
+    *m = (code_ & 0x10) >> 4;
+    *vm = code_ & 0x0F;
   }
 
   int code_;

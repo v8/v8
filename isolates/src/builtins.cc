@@ -243,7 +243,7 @@ BUILTIN(ArrayCodeGeneric) {
 }
 
 
-static Object* AllocateJSArray(Heap* heap) {
+MUST_USE_RESULT static Object* AllocateJSArray(Heap* heap) {
   JSFunction* array_function =
       heap->isolate()->context()->global_context()->array_function();
   Object* result = heap->AllocateJSObject(array_function);
@@ -252,7 +252,7 @@ static Object* AllocateJSArray(Heap* heap) {
 }
 
 
-static Object* AllocateEmptyJSArray(Heap* heap) {
+MUST_USE_RESULT static Object* AllocateEmptyJSArray(Heap* heap) {
   Object* result = AllocateJSArray(heap);
   if (result->IsFailure()) return result;
   JSArray* result_array = JSArray::cast(result);
@@ -678,13 +678,9 @@ BUILTIN(ArraySplice) {
 
   int n_arguments = args.length() - 1;
 
-  // SpiderMonkey and JSC return undefined in the case where no
-  // arguments are given instead of using the implicit undefined
-  // arguments.  This does not follow ECMA-262, but we do the same for
-  // compatibility.
-  // TraceMonkey follows ECMA-262 though.
+  // Return empty array when no arguments are supplied.
   if (n_arguments == 0) {
-    return heap->undefined_value();
+    return AllocateEmptyJSArray(heap);
   }
 
   int relative_start = 0;

@@ -188,9 +188,6 @@ class ThreadLocalTop BASE_EMBEDDED {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   Address js_entry_sp_;  // the stack pointer of the bottom js entry frame
 #endif
-  bool stack_is_cooked_;
-  inline bool stack_is_cooked() { return stack_is_cooked_; }
-  inline void set_stack_is_cooked(bool value) { stack_is_cooked_ = value; }
 
   // Generated code scratch locations.
   int32_t formal_count_;
@@ -559,13 +556,6 @@ class Isolate {
   // exception.
   bool is_out_of_memory();
 
-
-  void MarkCompactPrologue(bool is_compacting);
-  void MarkCompactEpilogue(bool is_compacting);
-  void MarkCompactPrologue(bool is_compacting,
-                           char* archived_thread_data);
-  void MarkCompactEpilogue(bool is_compacting,
-                           char* archived_thread_data);
   void PrintCurrentStackTrace(FILE* out);
   void PrintStackTrace(FILE* out, char* thread_data);
   void PrintStack(StringStream* accumulator);

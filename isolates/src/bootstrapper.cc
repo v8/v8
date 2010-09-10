@@ -681,6 +681,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         InstallFunction(global, "String", JS_VALUE_TYPE, JSValue::kSize,
                         Isolate::Current()->initial_object_prototype(),
                         Builtins::Illegal, true);
+    string_fun->shared()->set_construct_stub(
+        Isolate::Current()->builtins()->builtin(Builtins::StringConstructCode));
     global_context()->set_string_function(*string_fun);
     // Add 'length' property to strings.
     Handle<DescriptorArray> string_descriptors =

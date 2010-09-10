@@ -56,6 +56,7 @@ static const int kMinimumAllocationLimit = 8*MB;
 
 static Mutex* gc_initializer_mutex = OS::CreateMutex();
 
+
 Heap::Heap()
     : isolate_(NULL),
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
@@ -113,6 +114,7 @@ Heap::Heap()
       hidden_symbol_(NULL),
       global_gc_prologue_callback_(NULL),
       global_gc_epilogue_callback_(NULL),
+      gc_safe_size_of_old_object_(NULL),
       tracer_(NULL),
       young_survivors_after_last_gc_(0),
       high_survival_rate_period_length_(0),
@@ -180,6 +182,33 @@ bool Heap::HasBeenSetup() {
          map_space_ != NULL &&
          cell_space_ != NULL &&
          lo_space_ != NULL;
+}
+
+
+int Heap::GcSafeSizeOfOldObject(HeapObject* object) {
+  ASSERT(!HEAP->InNewSpace(object));  // Code only works for old objects.
+  ASSERT(!HEAP->mark_compact_collector()->are_map_pointers_encoded());
+  MapWord map_word = object->map_word();
+  map_word.ClearMark();
+  map_word.ClearOverflow();
+  return object->SizeFromMap(map_word.ToMap());
+}
+
+
+int Heap::GcSafeSizeOfOldObjectWithEncodedMap(HeapObject* object) {
+  ASSERT(!HEAP->InNewSpace(object));  // Code only works for old objects.
+  ASSERT(HEAP->mark_compact_collector()->are_map_pointers_encoded());
+  uint32_t marker = Memory::uint32_at(object->address());
+  if (marker == MarkCompactCollector::kSingleFreeEncoding) {
+    return kIntSize;
+  } else if (marker == MarkCompactCollector::kMultiFreeEncoding) {
+    return Memory::int_at(object->address() + kIntSize);
+  } else {
+    MapWord map_word = object->map_word();
+    Address map_address = map_word.DecodeMapAddress(HEAP->map_space());
+    Map* map = reinterpret_cast<Map*>(HeapObject::FromAddress(map_address));
+    return object->SizeFromMap(map);
+  }
 }
 
 
@@ -533,6 +562,13 @@ void Heap::EnsureFromSpaceIsCommitted() {
 
   // Committing memory to from space failed.
   // Try shrinking and try again.
+  PagedSpaces spaces;
+  for (PagedSpace* space = spaces.next();
+       space != NULL;
+       space = spaces.next()) {
+    space->RelinkPageListInChunkOrder(true);
+  }
+
   Shrink();
   if (new_space_.CommitFromSpaceIfNeeded()) return;
 
@@ -737,8 +773,6 @@ void Heap::MarkCompact(GCTracer* tracer) {
   mark_compact_collector_.CollectGarbage();
   is_safe_to_read_maps_ = true;
 
-  MarkCompactEpilogue(is_compacting);
-
   LOG(ResourceEvent("markcompact", "end"));
 
   gc_state_ = NOT_IN_GC;
@@ -760,20 +794,11 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
 
   isolate_->compilation_cache()->MarkCompactPrologue();
 
-  isolate_->MarkCompactPrologue(is_compacting);
-  isolate_->thread_manager()->MarkCompactPrologue(is_compacting);
-
   CompletelyClearInstanceofCache();
 
   if (is_compacting) FlushNumberStringCache();
 
   ClearNormalizedMapCaches();
-}
-
-
-void Heap::MarkCompactEpilogue(bool is_compacting) {
-  isolate_->MarkCompactEpilogue(is_compacting);
-  isolate_->thread_manager()->MarkCompactEpilogue(is_compacting);
 }
 
 
@@ -1307,14 +1332,11 @@ Object* Heap::AllocatePartialMap(InstanceType instance_type,
 
   // Map::cast cannot be used due to uninitialized map field.
   reinterpret_cast<Map*>(result)->set_map(raw_unchecked_meta_map());
+  reinterpret_cast<Map*>(result)->set_heap(this);
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
-  if (instance_type == MAP_TYPE) {
-    reinterpret_cast<Map*>(result)->set_heap(this);
-  } else {
-    reinterpret_cast<Map*>(result)->set_visitor_id(
+  reinterpret_cast<Map*>(result)->set_visitor_id(
         StaticVisitorBase::GetVisitorId(instance_type, instance_size));
-  }
   reinterpret_cast<Map*>(result)->set_inobject_properties(0);
   reinterpret_cast<Map*>(result)->set_pre_allocated_property_fields(0);
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
@@ -1330,7 +1352,9 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
 
   Map* map = reinterpret_cast<Map*>(result);
   map->set_map(meta_map());
+  map->set_heap(this);
   map->set_instance_type(instance_type);
+  reinterpret_cast<Map*>(result)->set_heap(this);
   map->set_visitor_id(
       StaticVisitorBase::GetVisitorId(instance_type, instance_size));
   map->set_prototype(null_value());
@@ -4221,6 +4245,8 @@ bool Heap::Setup(bool create_heap_objects) {
       MarkCompactCollector::Initialize();
   }
   gc_initializer_mutex->Unlock();
+
+  MarkMapPointersAsEncoded(false);
 
   // Setup memory allocator and reserve a chunk of memory for new
   // space.  The chunk is double the size of the requested reserved

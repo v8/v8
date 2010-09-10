@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,70 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CHAR_PREDICATES_INL_H_
-#define V8_CHAR_PREDICATES_INL_H_
+// 842 describes a scenario where Object.prototype or Array.prototype is
+// changed (a property is added) after which freeze and seal would fail
+// since that property would be listed when doing a "for (var key in names)"
 
-#include "char-predicates.h"
+Array.prototype.myfunc = function() {};
+Array.prototype[10] = 42;
+Array.prototype.length = 3000;
 
-namespace v8 {
-namespace internal {
+var obj = { name: "n1" };
 
-
-// If c is in 'A'-'Z' or 'a'-'z', return its lower-case.
-// Else, return something outside of 'A'-'Z' and 'a'-'z'.
-// Note: it ignores LOCALE.
-inline int AsciiAlphaToLower(uc32 c) {
-  return c | 0x20;
+try {
+  obj = Object.freeze(obj);
+} catch (e) {
+  assertUnreachable();
 }
-
-
-inline bool IsCarriageReturn(uc32 c) {
-  return c == 0x000D;
-}
-
-
-inline bool IsLineFeed(uc32 c) {
-  return c == 0x000A;
-}
-
-
-static inline bool IsInRange(int value, int lower_limit, int higher_limit) {
-  ASSERT(lower_limit <= higher_limit);
-  return static_cast<unsigned int>(value - lower_limit) <=
-      static_cast<unsigned int>(higher_limit - lower_limit);
-}
-
-
-inline bool IsDecimalDigit(uc32 c) {
-  // ECMA-262, 3rd, 7.8.3 (p 16)
-  return IsInRange(c, '0', '9');
-}
-
-
-inline bool IsHexDigit(uc32 c) {
-  // ECMA-262, 3rd, 7.6 (p 15)
-  return IsDecimalDigit(c) || IsInRange(AsciiAlphaToLower(c), 'a', 'f');
-}
-
-
-inline bool IsRegExpWord(uc16 c) {
-  return IsInRange(AsciiAlphaToLower(c), 'a', 'z')
-      || IsDecimalDigit(c)
-      || (c == '_');
-}
-
-
-inline bool IsRegExpNewline(uc16 c) {
-  switch (c) {
-    //   CR           LF           LS           PS
-    case 0x000A: case 0x000D: case 0x2028: case 0x2029:
-      return false;
-    default:
-      return true;
-  }
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_CHAR_PREDICATES_INL_H_
