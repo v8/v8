@@ -293,6 +293,10 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   ISOLATE_DEBUGGER_INIT_LIST(V)
 
 class Isolate {
+  // These forward declarations are required to make the friend declarations in
+  // PerIsolateThreadData work on some older versions of gcc.
+  class ThreadDataTable;
+  class EntryStackItem;
  public:
   ~Isolate();
 
