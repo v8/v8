@@ -127,6 +127,9 @@ class MarkCompactCollector {
   // Type of functions to process non-live objects.
   typedef void (*ProcessNonLiveFunction)(HeapObject* object);
 
+  // Pointer to member function, used in IterateLiveObjects.
+  typedef int (MarkCompactCollector::*LiveObjectCallback)(HeapObject* obj);
+
   // Set the global force_compaction flag, it must be called before Prepare
   // to take effect.
   void SetForceCompaction(bool value) {
@@ -364,13 +367,13 @@ class MarkCompactCollector {
   // Iterates live objects in a space, passes live objects
   // to a callback function which returns the heap size of the object.
   // Returns the number of live objects iterated.
-  int IterateLiveObjects(NewSpace* space, HeapObjectCallback size_f);
-  int IterateLiveObjects(PagedSpace* space, HeapObjectCallback size_f);
+  int IterateLiveObjects(NewSpace* space, LiveObjectCallback size_f);
+  int IterateLiveObjects(PagedSpace* space, LiveObjectCallback size_f);
 
   // Iterates the live objects between a range of addresses, returning the
   // number of live objects.
   int IterateLiveObjectsInRange(Address start, Address end,
-                                HeapObjectCallback size_func);
+                                LiveObjectCallback size_func);
 
   // If we are not compacting the heap, we simply sweep the spaces except
   // for the large object space, clearing mark bits and adding unmarked
@@ -393,11 +396,11 @@ class MarkCompactCollector {
 
   // Updates pointers in an object in new space.
   // Returns the heap size of the object.
-  static int UpdatePointersInNewObject(HeapObject* obj);
+  int UpdatePointersInNewObject(HeapObject* obj);
 
   // Updates pointers in an object in old spaces.
   // Returns the heap size of the object.
-  static int UpdatePointersInOldObject(HeapObject* obj);
+  int UpdatePointersInOldObject(HeapObject* obj);
 
   // Calculates the forwarding address of an object in an old space.
   static Address GetForwardingAddressInOldSpace(HeapObject* obj);
@@ -418,24 +421,24 @@ class MarkCompactCollector {
   int ConvertCodeICTargetToAddress(HeapObject* obj);
 
   // Relocate a map object.
-  static int RelocateMapObject(HeapObject* obj);
+  int RelocateMapObject(HeapObject* obj);
 
   // Relocates an old object.
-  static int RelocateOldPointerObject(HeapObject* obj);
-  static int RelocateOldDataObject(HeapObject* obj);
+  int RelocateOldPointerObject(HeapObject* obj);
+  int RelocateOldDataObject(HeapObject* obj);
 
   // Relocate a property cell object.
-  static int RelocateCellObject(HeapObject* obj);
+  int RelocateCellObject(HeapObject* obj);
 
   // Helper function.
   inline int RelocateOldNonCodeObject(HeapObject* obj,
                                       PagedSpace* space);
 
   // Relocates an object in the code space.
-  static int RelocateCodeObject(HeapObject* obj);
+  int RelocateCodeObject(HeapObject* obj);
 
   // Copy a new object.
-  static int RelocateNewObject(HeapObject* obj);
+  int RelocateNewObject(HeapObject* obj);
 
 #ifdef DEBUG
   // -----------------------------------------------------------------------
