@@ -27,7 +27,7 @@
 
 var array = [1,2,3,1,2,3,1,2,3,1,2,3];
 var undef_array = [0,,2,undefined,4,,6,undefined,8,,10];
-// Sparse arrays with lenght 42000.
+// Sparse arrays with length 42000.
 var sparse_array = [];
 sparse_array[100] = 3;
 sparse_array[200] = undefined;
@@ -39,6 +39,11 @@ sparse_array[700] = 4;
 sparse_array[800] = undefined;
 sparse_array[900] = 3
 sparse_array[41999] = "filler";
+
+var dense_object = { 0: 42, 1: 37, length: 2 };
+var sparse_object = { 0: 42, 100000: 37, length: 200000 };
+var funky_object = { 10:42, 100000: 42, 100001: 37, length: 50000 };
+var infinite_object = { 10: 42, 100000: 37, length: Infinity };
 
 // ----------------------------------------------------------------------
 // Array.prototype.indexOf.
@@ -93,6 +98,20 @@ assertEquals(200, sparse_array.indexOf(undefined, -42000));
 assertEquals(800, sparse_array.indexOf(undefined, 201 - 42000));
 assertEquals(-1, sparse_array.indexOf(undefined, 801 - 42000));
 
+// Find in non-arrays.
+assertEquals(0, Array.prototype.indexOf.call(dense_object, 42));
+assertEquals(1, Array.prototype.indexOf.call(dense_object, 37));
+assertEquals(-1, Array.prototype.indexOf.call(dense_object, 87));
+
+assertEquals(0, Array.prototype.indexOf.call(sparse_object, 42));
+assertEquals(100000, Array.prototype.indexOf.call(sparse_object, 37));
+assertEquals(-1, Array.prototype.indexOf.call(sparse_object, 87));
+
+assertEquals(10, Array.prototype.indexOf.call(funky_object, 42));
+assertEquals(-1, Array.prototype.indexOf.call(funky_object, 42, 15));
+assertEquals(-1, Array.prototype.indexOf.call(funky_object, 37));
+
+assertEquals(-1, Array.prototype.indexOf.call(infinite_object, 42));
 
 // ----------------------------------------------------------------------
 // Array.prototype.lastIndexOf.
@@ -145,3 +164,23 @@ assertEquals(-1, sparse_array.lastIndexOf(undefined, 199));
 assertEquals(800, sparse_array.lastIndexOf(undefined, -1));
 assertEquals(200, sparse_array.lastIndexOf(undefined, 799 - 42000));
 assertEquals(-1, sparse_array.lastIndexOf(undefined, 199 - 42000));
+
+assertEquals(0, Array.prototype.lastIndexOf.call(dense_object, 42));
+assertEquals(1, Array.prototype.lastIndexOf.call(dense_object, 37));
+assertEquals(0, Array.prototype.lastIndexOf.call(sparse_object, 42));
+assertEquals(100000, Array.prototype.lastIndexOf.call(sparse_object, 37));
+
+//Find in non-arrays.
+assertEquals(0, Array.prototype.lastIndexOf.call(dense_object, 42));
+assertEquals(1, Array.prototype.lastIndexOf.call(dense_object, 37));
+assertEquals(-1, Array.prototype.lastIndexOf.call(dense_object, 87));
+
+assertEquals(0, Array.prototype.lastIndexOf.call(sparse_object, 42));
+assertEquals(100000, Array.prototype.lastIndexOf.call(sparse_object, 37));
+assertEquals(-1, Array.prototype.lastIndexOf.call(sparse_object, 87));
+
+assertEquals(10, Array.prototype.lastIndexOf.call(funky_object, 42, 15));
+assertEquals(10, Array.prototype.lastIndexOf.call(funky_object, 42));
+assertEquals(-1, Array.prototype.lastIndexOf.call(funky_object, 37));
+
+assertEquals(-1, Array.prototype.lastIndexOf.call(infinite_object, 42));

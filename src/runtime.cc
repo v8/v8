@@ -7982,15 +7982,17 @@ static Object* Runtime_MoveArrayContents(Arguments args) {
 }
 
 
-// How many elements does this array have?
+// How many elements does this object/array have?
 static Object* Runtime_EstimateNumberOfElements(Arguments args) {
   ASSERT(args.length() == 1);
-  CONVERT_CHECKED(JSArray, array, args[0]);
-  HeapObject* elements = array->elements();
+  CONVERT_CHECKED(JSObject, object, args[0]);
+  HeapObject* elements = object->elements();
   if (elements->IsDictionary()) {
     return Smi::FromInt(NumberDictionary::cast(elements)->NumberOfElements());
+  } else if (object->IsJSArray()) {
+    return JSArray::cast(object)->length();
   } else {
-    return array->length();
+    return Smi::FromInt(FixedArray::cast(elements)->length());
   }
 }
 
