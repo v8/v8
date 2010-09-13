@@ -212,10 +212,16 @@ FunctionLiteral* MakeAST(bool compile_in_global_context,
                          ScriptDataImpl* pre_data,
                          bool is_json = false);
 
-
+// Generic preparser generating full preparse data.
 ScriptDataImpl* PreParse(Handle<String> source,
                          unibrow::CharacterStream* stream,
                          v8::Extension* extension);
+
+// Preparser that only does preprocessing that makes sense if only used
+// immediately after.
+ScriptDataImpl* PartialPreParse(Handle<String> source,
+                                unibrow::CharacterStream* stream,
+                                v8::Extension* extension);
 
 
 bool ParseRegExp(FlatStringReader* input,

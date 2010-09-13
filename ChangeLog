@@ -1,3 +1,10 @@
+2010-09-13: Version 2.4.3
+
+        Made Date.parse properly handle TZ offsets (issue 857).
+
+        Performance improvements on all platforms.
+
+
 2010-09-08: Version 2.4.2
 
         Fixed GC crash bug.
