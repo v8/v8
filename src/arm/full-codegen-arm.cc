@@ -744,11 +744,10 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&done_convert);
   __ push(r0);
 
-  // TODO(kasperl): Check cache validity in generated code. This is a
-  // fast case for the JSObject::IsSimpleEnum cache validity
-  // checks. If we cannot guarantee cache validity, call the runtime
-  // system to check cache validity or get the property names in a
-  // fixed array.
+  // BUG(867): Check cache validity in generated code. This is a fast
+  // case for the JSObject::IsSimpleEnum cache validity checks. If we
+  // cannot guarantee cache validity, call the runtime system to check
+  // cache validity or get the property names in a fixed array.
 
   // Get the set of properties to enumerate.
   __ push(r0);  // Duplicate the enumerable object on the stack.
