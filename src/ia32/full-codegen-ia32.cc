@@ -988,6 +988,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
       ? RelocInfo::CODE_TARGET
       : RelocInfo::CODE_TARGET_CONTEXT;
   __ call(ic, mode);
+  __ nop();  // Signal no inlined code.
 }
 
 
@@ -3138,7 +3139,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
     Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
     __ call(ic, RelocInfo::CODE_TARGET);
-      // Restore context register.
+    // Restore context register.
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   } else {
     // Call the C runtime function.
@@ -3483,6 +3484,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr, Location where) {
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
     __ call(ic, RelocInfo::CODE_TARGET);
+    __ nop();  // Signal no inlined code.
     if (where == kStack) __ push(eax);
   } else if (proxy != NULL &&
              proxy->var()->slot() != NULL &&

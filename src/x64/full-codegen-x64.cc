@@ -938,6 +938,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
       ? RelocInfo::CODE_TARGET
       : RelocInfo::CODE_TARGET_CONTEXT;
   __ call(ic, mode);
+  __ nop();  // Signal no inlined code.
 }
 
 
@@ -3174,6 +3175,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr, Location where) {
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
     __ Call(ic, RelocInfo::CODE_TARGET);
+    __ nop();  // Signal no inlined code.
     if (where == kStack) __ push(rax);
   } else if (proxy != NULL &&
              proxy->var()->slot() != NULL &&
