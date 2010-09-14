@@ -3196,6 +3196,26 @@ class V8EXPORT Locker {
 };
 
 
+/**
+ * An interface for exporting data from V8, using "push" model.
+ */
+class V8EXPORT OutputStream {
+public:
+  enum OutputEncoding {
+    kAscii = 0  // 7-bit ASCII.
+  };
+  virtual ~OutputStream() {}
+  /** Notify about the end of stream. */
+  virtual void EndOfStream() = 0;
+  /** Get preferred output chunk size. Called only once. */
+  virtual int GetChunkSize() { return 1024; }
+  /** Get preferred output encoding. Called only once. */
+  virtual OutputEncoding GetOutputEncoding() { return kAscii; }
+  /** Writes the next chunk of snapshot data into the stream. */
+  virtual void WriteAsciiChunk(char* data, int size) = 0;
+};
+
+
 
 // --- I m p l e m e n t a t i o n ---
 
