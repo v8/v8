@@ -4243,58 +4243,43 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 
   Expect(Token::MOD, CHECK_OK);
   Handle<String> name = ParseIdentifier(CHECK_OK);
-  Runtime::Function* function =
-      Runtime::FunctionForName(scanner_.literal());
   ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
-  if (function == NULL && extension_ != NULL) {
+  if (is_pre_parsing_) return NULL;
+
+  if (extension_ != NULL) {
     // The extension structures are only accessible while parsing the
     // very first time not when reparsing because of lazy compilation.
     top_scope_->ForceEagerCompilation();
   }
 
-  // Check for built-in macros.
-  if (!is_pre_parsing_) {
-    if (function == Runtime::FunctionForId(Runtime::kIS_VAR)) {
-      // %IS_VAR(x)
-      //   evaluates to x if x is a variable,
-      //   leads to a parse error otherwise
-      if (args->length() == 1 && args->at(0)->AsVariableProxy() != NULL) {
-        return args->at(0);
-      }
-      *ok = false;
-    // Check here for other macros.
-    // } else if (function == Runtime::FunctionForId(Runtime::kIS_VAR)) {
-    //   ...
-    }
+  Runtime::Function* function = Runtime::FunctionForSymbol(name);
 
-    if (!*ok) {
-      // We found a macro but it failed.
+  // Check for built-in IS_VAR macro.
+  if (function != NULL &&
+      function->intrinsic_type == Runtime::RUNTIME &&
+      function->function_id == Runtime::kIS_VAR) {
+    // %IS_VAR(x) evaluates to x if x is a variable,
+    // leads to a parse error otherwise.  Could be implemented as an
+    // inline function %_IS_VAR(x) to eliminate this special case.
+    if (args->length() == 1 && args->at(0)->AsVariableProxy() != NULL) {
+      return args->at(0);
+    } else {
       ReportMessage("unable_to_parse", Vector<const char*>::empty());
-      return NULL;
-    }
-  }
-
-  // Check that the expected number arguments are passed to runtime functions.
-  if (!is_pre_parsing_) {
-    if (function != NULL
-        && function->nargs != -1
-        && function->nargs != args->length()) {
-      ReportMessage("illegal_access", Vector<const char*>::empty());
       *ok = false;
       return NULL;
-    } else if (function == NULL && !name.is_null()) {
-      // If this is not a runtime function implemented in C++ it might be an
-      // inlined runtime function.
-      int argc = CodeGenerator::InlineRuntimeCallArgumentsCount(name);
-      if (argc != -1 && argc != args->length()) {
-        ReportMessage("illegal_access", Vector<const char*>::empty());
-        *ok = false;
-        return NULL;
-      }
     }
   }
 
-  // Otherwise we have a valid runtime call.
+  // Check that the expected number of arguments are being passed.
+  if (function != NULL &&
+      function->nargs != -1 &&
+      function->nargs != args->length()) {
+    ReportMessage("illegal_access", Vector<const char*>::empty());
+    *ok = false;
+    return NULL;
+  }
+
+  // We have a valid intrinsics call or a call to a builtin.
   return NEW(CallRuntime(name, function, args));
 }
 

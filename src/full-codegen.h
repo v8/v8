@@ -243,6 +243,12 @@ class FullCodeGenerator: public AstVisitor {
     kRightConstant
   };
 
+  // Type of a member function that generates inline code for a native function.
+  typedef void (FullCodeGenerator::*InlineFunctionGenerator)
+      (ZoneList<Expression*>*);
+
+  static const InlineFunctionGenerator kInlineFunctionGenerators[];
+
   // Compute the frame pointer relative offset for a given local or
   // parameter slot.
   int SlotOffset(Slot* slot);
@@ -373,10 +379,13 @@ class FullCodeGenerator: public AstVisitor {
   void EmitKeyedCallWithIC(Call* expr, Expression* key, RelocInfo::Mode mode);
 
   // Platform-specific code for inline runtime calls.
+  InlineFunctionGenerator FindInlineFunctionGenerator(Runtime::FunctionId id);
+
   void EmitInlineRuntimeCall(CallRuntime* expr);
 
 #define EMIT_INLINE_RUNTIME_CALL(name, x, y) \
   void Emit##name(ZoneList<Expression*>* arguments);
+  INLINE_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
   INLINE_RUNTIME_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
 #undef EMIT_INLINE_RUNTIME_CALL
 

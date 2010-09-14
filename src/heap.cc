@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1833,6 +1833,13 @@ bool Heap::CreateInitialObjects() {
   set_instanceof_cache_answer(Smi::FromInt(0));
 
   CreateFixedStubs();
+
+  // Allocate the dictionary of intrinsic function names.
+  obj = StringDictionary::Allocate(Runtime::kNumFunctions);
+  if (obj->IsFailure()) return false;
+  obj = Runtime::InitializeIntrinsicFunctionNames(obj);
+  if (obj->IsFailure()) return false;
+  set_intrinsic_function_names(StringDictionary::cast(obj));
 
   if (InitializeNumberStringCache()->IsFailure()) return false;
 
