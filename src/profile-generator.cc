@@ -2465,9 +2465,17 @@ void HeapSnapshotJSONSerializer::SerializeStrings() {
 
 template<typename T>
 inline static int SortUsingEntryValue(const T* x, const T* y) {
-  return reinterpret_cast<intptr_t>((*x)->value) -
-      reinterpret_cast<intptr_t>((*y)->value);
+  uintptr_t x_uint = reinterpret_cast<uintptr_t>((*x)->value);
+  uintptr_t y_uint = reinterpret_cast<uintptr_t>((*y)->value);
+  if (x_uint > y_uint) {
+    return 1;
+  } else if (x_uint == y_uint) {
+    return 0;
+  } else {
+    return -1;
+  }
 }
+
 
 void HeapSnapshotJSONSerializer::SortHashMap(
     HashMap* map, List<HashMap::Entry*>* sorted_entries) {

@@ -10106,9 +10106,6 @@ Runtime::Function kIntrinsicFunctions[] = {
 };
 
 
-const int Runtime::kNotFound;
-
-
 Object* Runtime::InitializeIntrinsicFunctionNames(Object* dictionary) {
   ASSERT(dictionary != NULL);
   ASSERT(StringDictionary::cast(dictionary)->NumberOfElements() == 0);
