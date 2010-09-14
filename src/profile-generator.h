@@ -1003,6 +1003,7 @@ class HeapSnapshotJSONSerializer {
   int GetNodeId(HeapEntry* entry);
   int GetStringId(const char* s);
   void SerializeEdge(HeapGraphEdge* edge);
+  void SerializeImpl();
   void SerializeNode(HeapEntry* entry);
   void SerializeNodes();
   void SerializeSnapshot();

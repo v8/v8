@@ -3204,6 +3204,10 @@ public:
   enum OutputEncoding {
     kAscii = 0  // 7-bit ASCII.
   };
+  enum WriteResult {
+    kContinue = 0,
+    kAbort = 1
+  };
   virtual ~OutputStream() {}
   /** Notify about the end of stream. */
   virtual void EndOfStream() = 0;
@@ -3211,8 +3215,12 @@ public:
   virtual int GetChunkSize() { return 1024; }
   /** Get preferred output encoding. Called only once. */
   virtual OutputEncoding GetOutputEncoding() { return kAscii; }
-  /** Writes the next chunk of snapshot data into the stream. */
-  virtual void WriteAsciiChunk(char* data, int size) = 0;
+  /**
+   * Writes the next chunk of snapshot data into the stream. Writing
+   * can be stopped by returning kAbort as function result. EndOfStream
+   * will not be called in case writing was aborted.
+   */
+  virtual WriteResult WriteAsciiChunk(char* data, int size) = 0;
 };
 
 

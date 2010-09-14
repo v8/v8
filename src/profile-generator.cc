@@ -2140,9 +2140,11 @@ class OutputStreamWriter {
       : stream_(stream),
         chunk_size_(stream->GetChunkSize()),
         chunk_(chunk_size_),
-        chunk_pos_(0) {
+        chunk_pos_(0),
+        aborted_(false) {
     ASSERT(chunk_size_ > 0);
   }
+  bool aborted() { return aborted_; }
   void AddCharacter(char c) {
     ASSERT(c != '\0');
     ASSERT(chunk_pos_ < chunk_size_);
@@ -2170,6 +2172,7 @@ class OutputStreamWriter {
   void AddNumber(unsigned n) { AddNumberImpl<unsigned>(n, "%u"); }
   void AddNumber(uint64_t n) { AddNumberImpl<uint64_t>(n, "%llu"); }
   void Finalize() {
+    if (aborted_) return;
     ASSERT(chunk_pos_ < chunk_size_);
     if (chunk_pos_ != 0) {
       WriteChunk();
@@ -2194,13 +2197,16 @@ class OutputStreamWriter {
     }
   }
   void WriteChunk() {
-    stream_->WriteAsciiChunk(chunk_.start(), chunk_pos_);
+    if (aborted_) return;
+    if (stream_->WriteAsciiChunk(chunk_.start(), chunk_pos_) ==
+        v8::OutputStream::kAbort) aborted_ = true;
   }
 
   v8::OutputStream* stream_;
   int chunk_size_;
   ScopedVector<char> chunk_;
   int chunk_pos_;
+  bool aborted_;
 };
 
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
@@ -2210,22 +2216,29 @@ void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   // Since nodes graph is cyclic, we need the first pass to enumerate
   // them. Strings can be serialized in one pass.
   EnumerateNodes();
-
-  writer_->AddCharacter('{');
-  writer_->AddString("\"snapshot\":{");
-  SerializeSnapshot();
-  writer_->AddString("},\n");
-  writer_->AddString("\"nodes\":[");
-  SerializeNodes();
-  writer_->AddString("],\n");
-  writer_->AddString("\"strings\":[");
-  SerializeStrings();
-  writer_->AddCharacter(']');
-  writer_->AddCharacter('}');
-  writer_->Finalize();
+  SerializeImpl();
 
   delete writer_;
   writer_ = NULL;
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeImpl() {
+  writer_->AddCharacter('{');
+  writer_->AddString("\"snapshot\":{");
+  SerializeSnapshot();
+  if (writer_->aborted()) return;
+  writer_->AddString("},\n");
+  writer_->AddString("\"nodes\":[");
+  SerializeNodes();
+  if (writer_->aborted()) return;
+  writer_->AddString("],\n");
+  writer_->AddString("\"strings\":[");
+  SerializeStrings();
+  if (writer_->aborted()) return;
+  writer_->AddCharacter(']');
+  writer_->AddCharacter('}');
+  writer_->Finalize();
 }
 
 
@@ -2296,6 +2309,7 @@ void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
   writer_->AddNumber(children.length());
   for (int i = 0; i < children.length(); ++i) {
     SerializeEdge(&children[i]);
+    if (writer_->aborted()) return;
   }
 }
 
@@ -2363,6 +2377,7 @@ void HeapSnapshotJSONSerializer::SerializeNodes() {
   }
   for (int i = 0; i < sorted_nodes.length(); ++i) {
     SerializeNode(reinterpret_cast<HeapEntry*>(sorted_nodes[i]->key));
+    if (writer_->aborted()) return;
   }
 }
 
@@ -2443,6 +2458,7 @@ void HeapSnapshotJSONSerializer::SerializeStrings() {
     writer_->AddCharacter(',');
     SerializeString(
         reinterpret_cast<const unsigned char*>(sorted_strings[i]->key));
+    if (writer_->aborted()) return;
   }
 }
 

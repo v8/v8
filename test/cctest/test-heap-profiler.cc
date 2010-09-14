@@ -993,13 +993,18 @@ namespace {
 
 class TestJSONStream : public v8::OutputStream {
  public:
-  TestJSONStream() : eos_signaled_(0) {}
+  TestJSONStream() : eos_signaled_(0), abort_countdown_(-1) {}
+  explicit TestJSONStream(int abort_countdown)
+      : eos_signaled_(0), abort_countdown_(abort_countdown) {}
   virtual ~TestJSONStream() {}
   virtual void EndOfStream() { ++eos_signaled_; }
-  virtual void WriteAsciiChunk(char* buffer, int chars_written) {
+  virtual WriteResult WriteAsciiChunk(char* buffer, int chars_written) {
+    if (abort_countdown_ > 0) --abort_countdown_;
+    if (abort_countdown_ == 0) return kAbort;
     CHECK_GT(chars_written, 0);
     i::Vector<char> chunk = buffer_.AddBlock(chars_written, '\0');
     memcpy(chunk.start(), buffer, chars_written);
+    return kContinue;
   }
   void WriteTo(i::Vector<char> dest) { buffer_.WriteTo(dest); }
   int eos_signaled() { return eos_signaled_; }
@@ -1007,6 +1012,7 @@ class TestJSONStream : public v8::OutputStream {
  private:
   i::Collector<char> buffer_;
   int eos_signaled_;
+  int abort_countdown_;
 };
 
 class AsciiResource: public v8::String::ExternalAsciiStringResource {
@@ -1121,6 +1127,18 @@ TEST(HeapSnapshotJSONSerialization) {
 #undef STRING_LITERAL_FOR_TEST
   CHECK_EQ(*v8::String::Utf8Value(ref_string),
            *v8::String::Utf8Value(string));
+}
+
+
+TEST(HeapSnapshotJSONSerializationAborting) {
+  v8::HandleScope scope;
+  LocalContext env;
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("abort"));
+  TestJSONStream stream(5);
+  snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
+  CHECK_GT(stream.size(), 0);
+  CHECK_EQ(0, stream.eos_signaled());
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
