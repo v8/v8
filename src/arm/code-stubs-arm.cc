@@ -930,6 +930,24 @@ void CompareStub::Generate(MacroAssembler* masm) {
   Label slow;  // Call builtin.
   Label not_smis, both_loaded_as_doubles, lhs_not_nan;
 
+  if (include_smi_compare_) {
+    Label not_two_smis, smi_done;
+    __ orr(r2, r1, r0);
+    __ tst(r2, Operand(kSmiTagMask));
+    __ b(ne, &not_two_smis);
+    __ sub(r0, r1, r0);
+    __ b(vc, &smi_done);
+    // Correct the sign in case of overflow.
+    __ rsb(r0, r0, Operand(0, RelocInfo::NONE));
+    __ bind(&smi_done);
+    __ Ret();
+    __ bind(&not_two_smis);
+  } else if (FLAG_debug_code) {
+    __ orr(r2, r1, r0);
+    __ tst(r2, Operand(kSmiTagMask));
+    __ Assert(nz, "CompareStub: unexpected smi operands.");
+  }
+
   // NOTICE! This code is only reached after a smi-fast-case check, so
   // it is certain that at least one operand isn't a smi.
 
@@ -2288,7 +2306,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
   __ push(r0);
   __ TailCallRuntime(Runtime::kStackGuard, 1, 1);
 
-  __ StubReturn(1);
+  __ Ret();
 }
 
 
@@ -2299,32 +2317,37 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
 
   if (op_ == Token::SUB) {
-    // Check whether the value is a smi.
-    Label try_float;
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(ne, &try_float);
+    if (include_smi_code_) {
+      // Check whether the value is a smi.
+      Label try_float;
+      __ tst(r0, Operand(kSmiTagMask));
+      __ b(ne, &try_float);
 
-    // Go slow case if the value of the expression is zero
-    // to make sure that we switch between 0 and -0.
-    if (negative_zero_ == kStrictNegativeZero) {
-      // If we have to check for zero, then we can check for the max negative
-      // smi while we are at it.
-      __ bic(ip, r0, Operand(0x80000000), SetCC);
-      __ b(eq, &slow);
-      __ rsb(r0, r0, Operand(0, RelocInfo::NONE));
-      __ StubReturn(1);
-    } else {
-      // The value of the expression is a smi and 0 is OK for -0.  Try
-      // optimistic subtraction '0 - value'.
-      __ rsb(r0, r0, Operand(0, RelocInfo::NONE), SetCC);
-      __ StubReturn(1, vc);
-      // We don't have to reverse the optimistic neg since the only case
-      // where we fall through is the minimum negative Smi, which is the case
-      // where the neg leaves the register unchanged.
-      __ jmp(&slow);  // Go slow on max negative Smi.
+      // Go slow case if the value of the expression is zero
+      // to make sure that we switch between 0 and -0.
+      if (negative_zero_ == kStrictNegativeZero) {
+        // If we have to check for zero, then we can check for the max negative
+        // smi while we are at it.
+        __ bic(ip, r0, Operand(0x80000000), SetCC);
+        __ b(eq, &slow);
+        __ rsb(r0, r0, Operand(0, RelocInfo::NONE));
+        __ Ret();
+      } else {
+        // The value of the expression is a smi and 0 is OK for -0.  Try
+        // optimistic subtraction '0 - value'.
+        __ rsb(r0, r0, Operand(0, RelocInfo::NONE), SetCC);
+        __ Ret(vc);
+        // We don't have to reverse the optimistic neg since the only case
+        // where we fall through is the minimum negative Smi, which is the case
+        // where the neg leaves the register unchanged.
+        __ jmp(&slow);  // Go slow on max negative Smi.
+      }
+      __ bind(&try_float);
+    } else if (FLAG_debug_code) {
+      __ tst(r0, Operand(kSmiTagMask));
+      __ Assert(ne, "Unexpected smi operand.");
     }
 
-    __ bind(&try_float);
     __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
     __ cmp(r1, heap_number_map);
@@ -2344,6 +2367,19 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ mov(r0, Operand(r1));
     }
   } else if (op_ == Token::BIT_NOT) {
+    if (include_smi_code_) {
+      Label non_smi;
+      __ BranchOnNotSmi(r0, &non_smi);
+      __ mvn(r0, Operand(r0));
+      // Bit-clear inverted smi-tag.
+      __ bic(r0, r0, Operand(kSmiTagMask));
+      __ Ret();
+      __ bind(&non_smi);
+    } else if (FLAG_debug_code) {
+      __ tst(r0, Operand(kSmiTagMask));
+      __ Assert(ne, "Unexpected smi operand.");
+    }
+
     // Check if the operand is a heap number.
     __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
@@ -2391,7 +2427,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&done);
-  __ StubReturn(1);
+  __ Ret();
 
   // Handle the slow case by jumping to the JavaScript builtin.
   __ bind(&slow);
@@ -3499,6 +3535,11 @@ const char* CompareStub::GetName() {
     include_number_compare_name = "_NO_NUMBER";
   }
 
+  const char* include_smi_compare_name = "";
+  if (!include_smi_compare_) {
+    include_smi_compare_name = "_NO_SMI";
+  }
+
   OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
                "CompareStub_%s%s%s%s%s%s",
                cc_name,
@@ -3506,7 +3547,8 @@ const char* CompareStub::GetName() {
                rhs_name,
                strict_name,
                never_nan_nan_name,
-               include_number_compare_name);
+               include_number_compare_name,
+               include_smi_compare_name);
   return name_;
 }
 
@@ -3522,7 +3564,8 @@ int CompareStub::MinorKey() {
          | RegisterField::encode(lhs_.is(r0))
          | StrictField::encode(strict_)
          | NeverNanNanField::encode(cc_ == eq ? never_nan_nan_ : false)
-         | IncludeNumberCompareField::encode(include_number_compare_);
+         | IncludeNumberCompareField::encode(include_number_compare_)
+         | IncludeSmiCompareField::encode(include_smi_compare_);
 }
 
 
