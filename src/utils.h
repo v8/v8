@@ -391,6 +391,12 @@ class Vector {
   // Factory method for creating empty vectors.
   static Vector<T> empty() { return Vector<T>(NULL, 0); }
 
+  template<typename S>
+  static Vector<T> cast(Vector<S> input) {
+    return Vector<T>(reinterpret_cast<T*>(input.start()),
+                     input.length() * sizeof(S) / sizeof(T));
+  }
+
  protected:
   void set_start(T* start) { start_ = start; }
 
