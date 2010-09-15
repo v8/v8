@@ -165,7 +165,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
 
   { Comment cmnt(masm_, "[ Stack check");
-    Label ok;
+    NearLabel ok;
     __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
     __ j(above_equal, &ok);
     StackCheckStub stub;
@@ -396,7 +396,7 @@ void FullCodeGenerator::Apply(Expression::Context context,
       break;
 
     case Expression::kValue: {
-      Label done;
+      NearLabel done;
       switch (location_) {
         case kAccumulator:
           __ bind(materialize_true);
@@ -762,7 +762,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // If we got a map from the runtime call, we can do a fast
   // modification check. Otherwise, we got a fixed array, and we have
   // to do a slow check.
-  Label fixed_array;
+  NearLabel fixed_array;
   __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
                  Heap::kMetaMapRootIndex);
   __ j(not_equal, &fixed_array);
@@ -808,7 +808,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Check if the expected map still matches that of the enumerable.
   // If not, we have to filter the key.
-  Label update_each;
+  NearLabel update_each;
   __ movq(rcx, Operand(rsp, 4 * kPointerSize));
   __ cmpq(rdx, FieldOperand(rcx, HeapObject::kMapOffset));
   __ j(equal, &update_each);
@@ -913,7 +913,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
   if (s != NULL && s->is_eval_scope()) {
     // Loop up the context chain.  There is no frame effect so it is
     // safe to use raw labels here.
-    Label next, fast;
+    NearLabel next, fast;
     if (!context.is(temp)) {
       __ movq(temp, context);
     }
@@ -1073,7 +1073,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     if (var->mode() == Variable::CONST) {
       // Constants may be the hole value if they have not been initialized.
       // Unhole them.
-      Label done;
+      NearLabel done;
       MemOperand slot_operand = EmitSlotSearch(slot, rax);
       __ movq(rax, slot_operand);
       __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
@@ -1892,7 +1892,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // function and receiver and have the slow path jump around this
     // code.
     if (done.is_linked()) {
-      Label call;
+      NearLabel call;
       __ jmp(&call);
       __ bind(&done);
       // Push function.
@@ -2254,7 +2254,7 @@ void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
 void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
 
-  Label exit;
+  NearLabel exit;
   // Get the number of formal parameters.
   __ Move(rax, Smi::FromInt(scope()->num_parameters()));
 
@@ -2713,7 +2713,7 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
   __ movq(cache,
           FieldOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
 
-  Label done, not_found;
+  NearLabel done, not_found;
   // tmp now holds finger offset as a smi.
   ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ movq(tmp, FieldOperand(cache, JSFunctionResultCache::kFingerOffset));
@@ -2752,7 +2752,7 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
   VisitForValue(args->at(1), kAccumulator);
   __ pop(left);
 
-  Label done, fail, ok;
+  NearLabel done, fail, ok;
   __ cmpq(left, right);
   __ j(equal, &ok);
   // Fail if either is a non-HeapObject.
@@ -2944,7 +2944,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::ADD: {
       Comment cmt(masm_, "[ UnaryOperation (ADD)");
       VisitForValue(expr->expression(), kAccumulator);
-      Label no_conversion;
+      NearLabel no_conversion;
       Condition is_smi = masm_->CheckSmi(result_register());
       __ j(is_smi, &no_conversion);
       __ push(result_register());
@@ -3051,7 +3051,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Call ToNumber only if operand is not a smi.
-  Label no_conversion;
+  NearLabel no_conversion;
   Condition is_smi;
   is_smi = masm_->CheckSmi(rax);
   __ j(is_smi, &no_conversion);

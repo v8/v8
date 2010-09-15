@@ -162,7 +162,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
 
   { Comment cmnt(masm_, "[ Stack check");
-    Label ok;
+    NearLabel ok;
     ExternalReference stack_limit =
         ExternalReference::address_of_stack_limit();
     __ cmp(esp, Operand::StaticVariable(stack_limit));
@@ -403,7 +403,7 @@ void FullCodeGenerator::Apply(Expression::Context context,
       break;
 
     case Expression::kValue: {
-      Label done;
+      NearLabel done;
       switch (location_) {
         case kAccumulator:
           __ bind(materialize_true);
@@ -686,7 +686,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     __ mov(edx, Operand(esp, 0));  // Switch value.
     bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
     if (inline_smi_code) {
-      Label slow_case;
+      NearLabel slow_case;
       __ mov(ecx, edx);
       __ or_(ecx, Operand(eax));
       __ test(ecx, Immediate(kSmiTagMask));
@@ -749,7 +749,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ j(equal, &exit);
 
   // Convert the object to a JS object.
-  Label convert, done_convert;
+  NearLabel convert, done_convert;
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, &convert);
   __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
@@ -790,7 +790,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ j(zero, &call_runtime);
 
   // For all objects but the receiver, check that the cache is empty.
-  Label check_prototype;
+  NearLabel check_prototype;
   __ cmp(ecx, Operand(eax));
   __ j(equal, &check_prototype);
   __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheBridgeCacheOffset));
@@ -805,7 +805,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // The enum cache is valid.  Load the map of the object being
   // iterated over and use the cache for the iteration.
-  Label use_cache;
+  NearLabel use_cache;
   __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
   __ jmp(&use_cache);
 
@@ -817,7 +817,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // If we got a map from the runtime call, we can do a fast
   // modification check. Otherwise, we got a fixed array, and we have
   // to do a slow check.
-  Label fixed_array;
+  NearLabel fixed_array;
   __ cmp(FieldOperand(eax, HeapObject::kMapOffset), Factory::meta_map());
   __ j(not_equal, &fixed_array);
 
@@ -859,7 +859,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Check if the expected map still matches that of the enumerable.
   // If not, we have to filter the key.
-  Label update_each;
+  NearLabel update_each;
   __ mov(ecx, Operand(esp, 4 * kPointerSize));
   __ cmp(edx, FieldOperand(ecx, HeapObject::kMapOffset));
   __ j(equal, &update_each);
@@ -882,7 +882,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   EmitAssignment(stmt->each());
 
   // Generate code for the body of the loop.
-  Label stack_limit_hit, stack_check_done;
+  Label stack_limit_hit;
+  NearLabel stack_check_done;
   Visit(stmt->body());
 
   __ StackLimitCheck(&stack_limit_hit);
@@ -964,7 +965,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
   if (s != NULL && s->is_eval_scope()) {
     // Loop up the context chain.  There is no frame effect so it is
     // safe to use raw labels here.
-    Label next, fast;
+    NearLabel next, fast;
     if (!context.is(temp)) {
       __ mov(temp, context);
     }
@@ -1124,7 +1125,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     if (var->mode() == Variable::CONST) {
       // Constants may be the hole value if they have not been initialized.
       // Unhole them.
-      Label done;
+      NearLabel done;
       MemOperand slot_operand = EmitSlotSearch(slot, eax);
       __ mov(eax, slot_operand);
       __ cmp(eax, Factory::the_hole_value());
@@ -1173,7 +1174,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  Label materialized;
+  NearLabel materialized;
   // Registers will be used as follows:
   // edi = JS function.
   // ecx = literals array.
@@ -1494,7 +1495,8 @@ void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
                                            OverwriteMode mode,
                                            bool left_is_constant_smi,
                                            Smi* value) {
-  Label call_stub, done;
+  NearLabel call_stub;
+  Label done;
   __ add(Operand(eax), Immediate(value));
   __ j(overflow, &call_stub);
   __ test(eax, Immediate(kSmiTagMask));
@@ -2719,7 +2721,7 @@ void FullCodeGenerator::EmitValueOf(ZoneList<Expression*>* args) {
 
   VisitForValue(args->at(0), kAccumulator);  // Load the object.
 
-  Label done;
+  NearLabel done;
   // If the object is a smi return the object.
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, &done);
@@ -2750,7 +2752,7 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
   VisitForValue(args->at(1), kAccumulator);  // Load the value.
   __ pop(ebx);  // eax = value. ebx = object.
 
-  Label done;
+  NearLabel done;
   // If the object is a smi, return the value.
   __ test(ebx, Immediate(kSmiTagMask));
   __ j(zero, &done);
@@ -3279,7 +3281,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Label done;
       bool inline_smi_case = ShouldInlineSmiCase(expr->op());
       if (inline_smi_case) {
-        Label call_stub;
+        NearLabel call_stub;
         __ test(eax, Immediate(kSmiTagMask));
         __ j(not_zero, &call_stub);
         __ lea(eax, Operand(eax, kSmiTagMask));
@@ -3357,7 +3359,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Call ToNumber only if operand is not a smi.
-  Label no_conversion;
+  NearLabel no_conversion;
   if (ShouldInlineSmiCase(expr->op())) {
     __ test(eax, Immediate(kSmiTagMask));
     __ j(zero, &no_conversion);
@@ -3395,7 +3397,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Inline smi case if we are in a loop.
-  Label stub_call, done;
+  NearLabel stub_call;
+  Label done;
   if (ShouldInlineSmiCase(expr->op())) {
     if (expr->op() == Token::INC) {
       __ add(Operand(eax), Immediate(Smi::FromInt(1)));
@@ -3684,7 +3687,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
       bool inline_smi_code = ShouldInlineSmiCase(op);
       if (inline_smi_code) {
-        Label slow_case;
+        NearLabel slow_case;
         __ mov(ecx, Operand(edx));
         __ or_(ecx, Operand(eax));
         __ test(ecx, Immediate(kSmiTagMask));
