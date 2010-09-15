@@ -996,21 +996,23 @@ class CompleteParserRecorder: public PartialParserRecorder {
     int id = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
     if (id == 0) {
       // Put (symbol_id_ + 1) into entry and increment it.
-      symbol_id_++;
-      entry->value = reinterpret_cast<void*>(symbol_id_);
+      id = ++symbol_id_;
+      entry->value = reinterpret_cast<void*>(id);
       Vector<Vector<const char> > symbol = symbol_entries_.AddBlock(1, literal);
       entry->key = &symbol[0];
-    } else {
-      // Log a reuse of an earlier seen symbol.
-      symbol_store_.Add(start);
-      symbol_store_.Add(id - 1);
     }
+    symbol_store_.Add(id - 1);
   }
 
   virtual Vector<unsigned> ExtractData() {
     int function_size = function_store_.size();
+    // Add terminator to symbols, then pad to unsigned size.
     int symbol_size = symbol_store_.size();
-    int total_size = ScriptDataImpl::kHeaderSize + function_size + symbol_size;
+    int padding = sizeof(unsigned) - (symbol_size % sizeof(unsigned));
+    symbol_store_.AddBlock(padding, ScriptDataImpl::kNumberTerminator);
+    symbol_size += padding;
+    int total_size = ScriptDataImpl::kHeaderSize + function_size
+        + (symbol_size / sizeof(unsigned));
     Vector<unsigned> data = Vector<unsigned>::New(total_size);
     preamble_[ScriptDataImpl::kFunctionsSizeOffset] = function_size;
     preamble_[ScriptDataImpl::kSymbolCountOffset] = symbol_id_;
@@ -1020,8 +1022,9 @@ class CompleteParserRecorder: public PartialParserRecorder {
       function_store_.WriteTo(data.SubVector(ScriptDataImpl::kHeaderSize,
                                              symbol_start));
     }
-    if (symbol_size > 0) {
-      symbol_store_.WriteTo(data.SubVector(symbol_start, total_size));
+    if (!has_error()) {
+      symbol_store_.WriteTo(
+          Vector<byte>::cast(data.SubVector(symbol_start, total_size)));
     }
     return data;
   }
@@ -1029,12 +1032,7 @@ class CompleteParserRecorder: public PartialParserRecorder {
   virtual int symbol_position() { return symbol_store_.size(); }
   virtual int symbol_ids() { return symbol_id_; }
  private:
-  Collector<unsigned> symbol_store_;
-  Collector<Vector<const char> > symbol_entries_;
-  HashMap symbol_table_;
-  int symbol_id_;
-
-  static int vector_hash(Vector<const char> string) {
+    static int vector_hash(Vector<const char> string) {
     int hash = 0;
     for (int i = 0; i < string.length(); i++) {
       int c = string[i];
@@ -1052,6 +1050,14 @@ class CompleteParserRecorder: public PartialParserRecorder {
     if (string2->length() != length) return false;
     return memcmp(string1->start(), string2->start(), length) == 0;
   }
+
+  // Write a non-negative number to the symbol store.
+  void WriteNumber(int number);
+
+  Collector<byte> symbol_store_;
+  Collector<Vector<const char> > symbol_entries_;
+  HashMap symbol_table_;
+  int symbol_id_;
 };
 
 
@@ -1076,16 +1082,9 @@ FunctionEntry ScriptDataImpl::GetFunctionEntry(int start) {
 }
 
 
-int ScriptDataImpl::GetSymbolIdentifier(int start) {
-  int next = symbol_index_ + 2;
-  if (next <= store_.length()
-      && static_cast<int>(store_[symbol_index_]) == start) {
-    symbol_index_ = next;
-    return store_[next - 1];
-  }
-  return symbol_id_++;
+int ScriptDataImpl::GetSymbolIdentifier() {
+  return ReadNumber(&symbol_data_);
 }
-
 
 
 bool ScriptDataImpl::SanityCheck() {
@@ -1118,7 +1117,7 @@ bool ScriptDataImpl::SanityCheck() {
   int symbol_count =
       static_cast<int>(store_[ScriptDataImpl::kSymbolCountOffset]);
   if (symbol_count < 0) return false;
-  // Check that the total size has room both function entries.
+  // Check that the total size has room for header and function entries.
   int minimum_size =
       ScriptDataImpl::kHeaderSize + functions_size;
   if (store_.length() < minimum_size) return false;
@@ -1156,6 +1155,22 @@ void PartialParserRecorder::WriteString(Vector<const char> str) {
     function_store_.Add(str[i]);
   }
 }
+
+
+void CompleteParserRecorder::WriteNumber(int number) {
+  ASSERT(number >= 0);
+
+  int mask = (1 << 28) - 1;
+  for (int i = 28; i > 0; i -= 7) {
+    if (number > mask) {
+      symbol_store_.Add(static_cast<byte>(number >> i) | 0x80u);
+      number &= mask;
+    }
+    mask >>= 7;
+  }
+  symbol_store_.Add(static_cast<byte>(number));
+}
+
 
 
 const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
@@ -1206,7 +1221,8 @@ const char* ScriptDataImpl::BuildMessage() {
 Vector<const char*> ScriptDataImpl::BuildArgs() {
   int arg_count = Read(kMessageArgCountPos);
   const char** array = NewArray<const char*>(arg_count);
-  // Position after the string starting at position 3.
+  // Position after text found by skipping past length field and
+  // length field content words.
   int pos = kMessageTextPos + 1 + Read(kMessageTextPos);
   for (int i = 0; i < arg_count; i++) {
     int count = 0;
@@ -1287,7 +1303,8 @@ class CompletePreParser : public PreParser {
  public:
   CompletePreParser(Handle<Script> script, bool allow_natives_syntax,
                     v8::Extension* extension)
-      : PreParser(script, allow_natives_syntax, extension, &recorder_) { }
+      : PreParser(script, allow_natives_syntax, extension, &recorder_),
+        recorder_()  { }
   virtual PartialParserRecorder* recorder() { return &recorder_; }
  private:
   CompleteParserRecorder recorder_;
@@ -1298,7 +1315,8 @@ class PartialPreParser : public PreParser {
  public:
   PartialPreParser(Handle<Script> script, bool allow_natives_syntax,
                    v8::Extension* extension)
-      : PreParser(script, allow_natives_syntax, extension, &recorder_) { }
+      : PreParser(script, allow_natives_syntax, extension, &recorder_),
+        recorder_() { }
   virtual PartialParserRecorder* recorder() { return &recorder_; }
  private:
   PartialParserRecorder recorder_;
@@ -1639,17 +1657,12 @@ void Parser::ReportMessage(const char* type, Vector<const char*> args) {
 
 
 Handle<String> Parser::GetSymbol(bool* ok) {
-  if (pre_data() != NULL) {
-    int symbol_id =
-        pre_data()->GetSymbolIdentifier(scanner_.location().beg_pos);
-    if (symbol_id < 0) {
-      ReportInvalidPreparseData(Factory::empty_symbol(), ok);
-      return Handle<String>::null();
-    }
-    return factory()->LookupSymbol(symbol_id, scanner_.literal());
-  }
   log()->LogSymbol(scanner_.location().beg_pos, scanner_.literal());
-  return factory()->LookupSymbol(-1, scanner_.literal());
+  int symbol_id = -1;
+  if (pre_data() != NULL) {
+    symbol_id = pre_data()->GetSymbolIdentifier();
+  }
+  return factory()->LookupSymbol(symbol_id, scanner_.literal());
 }
 
 
@@ -4176,8 +4189,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       Counters::total_preparse_skipped.Increment(end_pos - function_block_pos);
       scanner_.SeekForward(end_pos);
       pre_data()->Skip(entry.predata_function_skip(),
-                       entry.predata_symbol_skip(),
-                       entry.symbol_id_skip());
+                       entry.predata_symbol_skip());
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();
       only_simple_this_property_assignments = false;
@@ -4191,7 +4203,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       FunctionEntry entry = log()->LogFunction(function_block_pos);
       int predata_function_position_before = log()->function_position();
       int predata_symbol_position_before = log()->symbol_position();
-      int symbol_ids_before = log()->symbol_ids();
       ParseSourceElements(&body, Token::RBRACE, CHECK_OK);
       materialized_literal_count = temp_scope.materialized_literal_count();
       expected_property_count = temp_scope.expected_property_count();
@@ -4209,8 +4220,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
             log()->function_position() - predata_function_position_before);
         entry.set_predata_symbol_skip(
             log()->symbol_position() - predata_symbol_position_before);
-        entry.set_symbol_id_skip(
-            log()->symbol_ids() - symbol_ids_before);
       }
     }
 
@@ -4243,58 +4252,43 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 
   Expect(Token::MOD, CHECK_OK);
   Handle<String> name = ParseIdentifier(CHECK_OK);
-  Runtime::Function* function =
-      Runtime::FunctionForName(scanner_.literal());
   ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
-  if (function == NULL && extension_ != NULL) {
+  if (is_pre_parsing_) return NULL;
+
+  if (extension_ != NULL) {
     // The extension structures are only accessible while parsing the
     // very first time not when reparsing because of lazy compilation.
     top_scope_->ForceEagerCompilation();
   }
 
-  // Check for built-in macros.
-  if (!is_pre_parsing_) {
-    if (function == Runtime::FunctionForId(Runtime::kIS_VAR)) {
-      // %IS_VAR(x)
-      //   evaluates to x if x is a variable,
-      //   leads to a parse error otherwise
-      if (args->length() == 1 && args->at(0)->AsVariableProxy() != NULL) {
-        return args->at(0);
-      }
-      *ok = false;
-    // Check here for other macros.
-    // } else if (function == Runtime::FunctionForId(Runtime::kIS_VAR)) {
-    //   ...
-    }
+  Runtime::Function* function = Runtime::FunctionForSymbol(name);
 
-    if (!*ok) {
-      // We found a macro but it failed.
+  // Check for built-in IS_VAR macro.
+  if (function != NULL &&
+      function->intrinsic_type == Runtime::RUNTIME &&
+      function->function_id == Runtime::kIS_VAR) {
+    // %IS_VAR(x) evaluates to x if x is a variable,
+    // leads to a parse error otherwise.  Could be implemented as an
+    // inline function %_IS_VAR(x) to eliminate this special case.
+    if (args->length() == 1 && args->at(0)->AsVariableProxy() != NULL) {
+      return args->at(0);
+    } else {
       ReportMessage("unable_to_parse", Vector<const char*>::empty());
-      return NULL;
-    }
-  }
-
-  // Check that the expected number arguments are passed to runtime functions.
-  if (!is_pre_parsing_) {
-    if (function != NULL
-        && function->nargs != -1
-        && function->nargs != args->length()) {
-      ReportMessage("illegal_access", Vector<const char*>::empty());
       *ok = false;
       return NULL;
-    } else if (function == NULL && !name.is_null()) {
-      // If this is not a runtime function implemented in C++ it might be an
-      // inlined runtime function.
-      int argc = CodeGenerator::InlineRuntimeCallArgumentsCount(name);
-      if (argc != -1 && argc != args->length()) {
-        ReportMessage("illegal_access", Vector<const char*>::empty());
-        *ok = false;
-        return NULL;
-      }
     }
   }
 
-  // Otherwise we have a valid runtime call.
+  // Check that the expected number of arguments are being passed.
+  if (function != NULL &&
+      function->nargs != -1 &&
+      function->nargs != args->length()) {
+    ReportMessage("illegal_access", Vector<const char*>::empty());
+    *ok = false;
+    return NULL;
+  }
+
+  // We have a valid intrinsics call or a call to a builtin.
   return NEW(CallRuntime(name, function, args));
 }
 
@@ -5494,6 +5488,47 @@ ScriptDataImpl* PartialPreParse(Handle<String> source,
   // contiguous vector that we are responsible for disposing.
   Vector<unsigned> store = parser.recorder()->ExtractData();
   return new ScriptDataImpl(store);
+}
+
+
+void ScriptDataImpl::Initialize() {
+  if (store_.length() >= kHeaderSize) {
+    int symbol_data_offset = kHeaderSize + store_[kFunctionsSizeOffset];
+    if (store_.length() > symbol_data_offset) {
+      symbol_data_ = reinterpret_cast<byte*>(&store_[symbol_data_offset]);
+    } else {
+      // Partial preparse causes no symbol information.
+      symbol_data_ = reinterpret_cast<byte*>(&store_[0] + store_.length());
+    }
+    symbol_data_end_ = reinterpret_cast<byte*>(&store_[0] + store_.length());
+  }
+}
+
+
+int ScriptDataImpl::ReadNumber(byte** source) {
+  // Reads a number from symbol_data_ in base 128. The most significant
+  // bit marks that there are more digits.
+  // If the first byte is 0x80 (kNumberTerminator), it would normally
+  // represent a leading zero. Since that is useless, and therefore won't
+  // appear as the first digit of any actual value, it is used to
+  // mark the end of the input stream.
+  byte* data = *source;
+  if (data >= symbol_data_end_) return -1;
+  byte input = *data;
+  if (input == kNumberTerminator) {
+    // End of stream marker.
+    return -1;
+  }
+  int result = input & 0x7f;
+  data++;
+  while ((input & 0x80u) != 0) {
+    if (data >= symbol_data_end_) return -1;
+    input = *data;
+    result = (result << 7) | (input & 0x7f);
+    data++;
+  }
+  *source = data;
+  return result;
 }
 
 

@@ -672,7 +672,8 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
     // Perform the comparison as if via '==='.
     __ ldr(r1, MemOperand(sp, 0));  // Switch value.
-    if (ShouldInlineSmiCase(Token::EQ_STRICT)) {
+    bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
+    if (inline_smi_code) {
       Label slow_case;
       __ orr(r2, r1, r0);
       __ tst(r2, Operand(kSmiTagMask));
@@ -684,7 +685,10 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     __ bind(&slow_case);
     }
 
-    CompareStub stub(eq, true, kBothCouldBeNaN, true, r1, r0);
+    CompareFlags flags = inline_smi_code
+        ? NO_SMI_COMPARE_IN_STUB
+        : NO_COMPARE_FLAGS;
+    CompareStub stub(eq, true, flags, r1, r0);
     __ CallStub(&stub);
     __ cmp(r0, Operand(0, RelocInfo::NONE));
     __ b(ne, &next_test);
@@ -2888,7 +2892,9 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
       UnaryOverwriteMode overwrite =
           can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-      GenericUnaryOpStub stub(Token::SUB, overwrite);
+      GenericUnaryOpStub stub(Token::SUB,
+                              overwrite,
+                              NO_UNARY_FLAGS);
       // GenericUnaryOpStub expects the argument to be in the
       // accumulator register r0.
       VisitForValue(expr->expression(), kAccumulator);
@@ -2903,7 +2909,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       // in the accumulator register r0.
       VisitForValue(expr->expression(), kAccumulator);
       Label done;
-      if (ShouldInlineSmiCase(expr->op())) {
+      bool inline_smi_code = ShouldInlineSmiCase(expr->op());
+      if (inline_smi_code) {
         Label call_stub;
         __ BranchOnNotSmi(r0, &call_stub);
         __ mvn(r0, Operand(r0));
@@ -2913,9 +2920,12 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         __ bind(&call_stub);
       }
       bool overwrite = expr->expression()->ResultOverwriteAllowed();
+      UnaryOpFlags flags = inline_smi_code
+          ? NO_UNARY_SMI_CODE_IN_STUB
+          : NO_UNARY_FLAGS;
       UnaryOverwriteMode mode =
           overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-      GenericUnaryOpStub stub(Token::BIT_NOT, mode);
+      GenericUnaryOpStub stub(Token::BIT_NOT, mode, flags);
       __ CallStub(&stub);
       __ bind(&done);
       Apply(context_, r0);
@@ -3292,7 +3302,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
           UNREACHABLE();
       }
 
-      if (ShouldInlineSmiCase(op)) {
+      bool inline_smi_code = ShouldInlineSmiCase(op);
+      if (inline_smi_code) {
         Label slow_case;
         __ orr(r2, r0, Operand(r1));
         __ BranchOnNotSmi(r2, &slow_case);
@@ -3300,8 +3311,10 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         Split(cc, if_true, if_false, NULL);
         __ bind(&slow_case);
       }
-
-      CompareStub stub(cc, strict, kBothCouldBeNaN, true, r1, r0);
+      CompareFlags flags = inline_smi_code
+          ? NO_SMI_COMPARE_IN_STUB
+          : NO_COMPARE_FLAGS;
+      CompareStub stub(cc, strict, flags, r1, r0);
       __ CallStub(&stub);
       __ cmp(r0, Operand(0, RelocInfo::NONE));
       Split(cc, if_true, if_false, fall_through);

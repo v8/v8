@@ -4519,7 +4519,6 @@ static Object* Runtime_StringParseInt(Arguments args) {
   RUNTIME_ASSERT(radix == 0 || (2 <= radix && radix <= 36));
   double value = StringToInt(s, radix);
   return Heap::NumberFromDouble(value);
-  return Heap::nan_value();
 }
 
 
@@ -10064,6 +10063,7 @@ static Object* Runtime_ListNatives(Arguments args) {
   inline_runtime_functions = false;
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
   inline_runtime_functions = true;
+  INLINE_FUNCTION_LIST(ADD_ENTRY)
   INLINE_RUNTIME_FUNCTION_LIST(ADD_ENTRY)
 #undef ADD_ENTRY
   return *result;
@@ -10090,32 +10090,52 @@ static Object* Runtime_IS_VAR(Arguments args) {
 // ----------------------------------------------------------------------------
 // Implementation of Runtime
 
-#define F(name, nargs, ressize)                                           \
-  { #name, FUNCTION_ADDR(Runtime_##name), nargs, \
-    static_cast<int>(Runtime::k##name), ressize },
+#define F(name, number_of_args, result_size)                             \
+  { Runtime::k##name, Runtime::RUNTIME, #name,   \
+    FUNCTION_ADDR(Runtime_##name), number_of_args, result_size },
 
-static Runtime::Function Runtime_functions[] = {
+
+#define I(name, number_of_args, result_size)                             \
+  { Runtime::kInline##name, Runtime::INLINE,     \
+    "_" #name, NULL, number_of_args, result_size },
+
+Runtime::Function kIntrinsicFunctions[] = {
   RUNTIME_FUNCTION_LIST(F)
-  { NULL, NULL, 0, -1, 0 }
+  INLINE_FUNCTION_LIST(I)
+  INLINE_RUNTIME_FUNCTION_LIST(I)
 };
 
-#undef F
 
-
-Runtime::Function* Runtime::FunctionForId(FunctionId fid) {
-  ASSERT(0 <= fid && fid < kNofFunctions);
-  return &Runtime_functions[fid];
+Object* Runtime::InitializeIntrinsicFunctionNames(Object* dictionary) {
+  ASSERT(dictionary != NULL);
+  ASSERT(StringDictionary::cast(dictionary)->NumberOfElements() == 0);
+  for (int i = 0; i < kNumFunctions; ++i) {
+    Object* name_symbol = Heap::LookupAsciiSymbol(kIntrinsicFunctions[i].name);
+    if (name_symbol->IsFailure()) return name_symbol;
+    StringDictionary* string_dictionary = StringDictionary::cast(dictionary);
+    dictionary = string_dictionary->Add(String::cast(name_symbol),
+                                        Smi::FromInt(i),
+                                        PropertyDetails(NONE, NORMAL));
+    // Non-recoverable failure.  Calling code must restart heap initialization.
+    if (dictionary->IsFailure()) return dictionary;
+  }
+  return dictionary;
 }
 
 
-Runtime::Function* Runtime::FunctionForName(Vector<const char> name) {
-  for (Function* f = Runtime_functions; f->name != NULL; f++) {
-    if (strncmp(f->name, name.start(), name.length()) == 0
-        && f->name[name.length()] == 0) {
-      return f;
-    }
+Runtime::Function* Runtime::FunctionForSymbol(Handle<String> name) {
+  int entry = Heap::intrinsic_function_names()->FindEntry(*name);
+  if (entry != kNotFound) {
+    Object* smi_index = Heap::intrinsic_function_names()->ValueAt(entry);
+    int function_index = Smi::cast(smi_index)->value();
+    return &(kIntrinsicFunctions[function_index]);
   }
   return NULL;
+}
+
+
+Runtime::Function* Runtime::FunctionForId(Runtime::FunctionId id) {
+  return &(kIntrinsicFunctions[static_cast<int>(id)]);
 }
 
 

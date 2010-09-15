@@ -677,9 +677,10 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     VisitForValue(clause->label(), kAccumulator);
 
     // Perform the comparison as if via '==='.
-    if (ShouldInlineSmiCase(Token::EQ_STRICT)) {
+    __ movq(rdx, Operand(rsp, 0));  // Switch value.
+    bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
+    if (inline_smi_code) {
       Label slow_case;
-      __ movq(rdx, Operand(rsp, 0));  // Switch value.
       __ JumpIfNotBothSmi(rdx, rax, &slow_case);
       __ SmiCompare(rdx, rax);
       __ j(not_equal, &next_test);
@@ -688,7 +689,10 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
       __ bind(&slow_case);
     }
 
-    CompareStub stub(equal, true);
+    CompareFlags flags = inline_smi_code
+        ? NO_SMI_COMPARE_IN_STUB
+        : NO_COMPARE_FLAGS;
+    CompareStub stub(equal, true, flags);
     __ CallStub(&stub);
     __ testq(rax, rax);
     __ j(not_equal, &next_test);
@@ -938,6 +942,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
       ? RelocInfo::CODE_TARGET
       : RelocInfo::CODE_TARGET_CONTEXT;
   __ call(ic, mode);
+  __ nop();  // Signal no inlined code.
 }
 
 
@@ -2954,7 +2959,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
       UnaryOverwriteMode overwrite =
           can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-      GenericUnaryOpStub stub(Token::SUB, overwrite);
+      GenericUnaryOpStub stub(Token::SUB, overwrite, NO_UNARY_FLAGS);
       // GenericUnaryOpStub expects the argument to be in the
       // accumulator register rax.
       VisitForValue(expr->expression(), kAccumulator);
@@ -2969,7 +2974,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       // in the accumulator register rax.
       VisitForValue(expr->expression(), kAccumulator);
       Label done;
-      if (ShouldInlineSmiCase(expr->op())) {
+      bool inline_smi_case = ShouldInlineSmiCase(expr->op());
+      if (inline_smi_case) {
         Label call_stub;
         __ JumpIfNotSmi(rax, &call_stub);
         __ SmiNot(rax, rax);
@@ -2979,7 +2985,10 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       bool overwrite = expr->expression()->ResultOverwriteAllowed();
       UnaryOverwriteMode mode =
           overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-      GenericUnaryOpStub stub(Token::BIT_NOT, mode);
+      UnaryOpFlags flags = inline_smi_case
+          ? NO_UNARY_SMI_CODE_IN_STUB
+          : NO_UNARY_FLAGS;
+      GenericUnaryOpStub stub(Token::BIT_NOT, mode, flags);
       __ CallStub(&stub);
       __ bind(&done);
       Apply(context_, rax);
@@ -3174,6 +3183,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr, Location where) {
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
     __ Call(ic, RelocInfo::CODE_TARGET);
+    __ nop();  // Signal no inlined code.
     if (where == kStack) __ push(rax);
   } else if (proxy != NULL &&
              proxy->var()->slot() != NULL &&
@@ -3361,7 +3371,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
           UNREACHABLE();
       }
 
-      if (ShouldInlineSmiCase(op)) {
+      bool inline_smi_code = ShouldInlineSmiCase(op);
+      if (inline_smi_code) {
         Label slow_case;
         __ JumpIfNotBothSmi(rax, rdx, &slow_case);
         __ SmiCompare(rdx, rax);
@@ -3369,7 +3380,10 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         __ bind(&slow_case);
       }
 
-      CompareStub stub(cc, strict);
+      CompareFlags flags = inline_smi_code
+          ? NO_SMI_COMPARE_IN_STUB
+          : NO_COMPARE_FLAGS;
+      CompareStub stub(cc, strict, flags);
       __ CallStub(&stub);
       __ testq(rax, rax);
       Split(cc, if_true, if_false, fall_through);
