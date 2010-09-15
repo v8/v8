@@ -311,6 +311,7 @@ void MemoryAllocator::ChunkInfo::init(Address a, size_t s, PagedSpace* o) {
   size_ = s;
   owner_ = o;
   executable_ = (o == NULL) ? NOT_EXECUTABLE : o->executable();
+  owner_identity_ = (o == NULL) ? FIRST_SPACE : o->identity();
 }
 
 

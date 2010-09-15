@@ -686,7 +686,8 @@ class MemoryAllocator {
     ChunkInfo() : address_(NULL),
                   size_(0),
                   owner_(NULL),
-                  executable_(NOT_EXECUTABLE) {}
+                  executable_(NOT_EXECUTABLE),
+                  owner_identity_(FIRST_SPACE) {}
     inline void init(Address a, size_t s, PagedSpace* o);
     Address address() { return address_; }
     size_t size() { return size_; }
@@ -694,12 +695,14 @@ class MemoryAllocator {
     // We save executability of the owner to allow using it
     // when collecting stats after the owner has been destroyed.
     Executability executable() const { return executable_; }
+    AllocationSpace owner_identity() const { return owner_identity_; }
 
    private:
     Address address_;
     size_t size_;
     PagedSpace* owner_;
     Executability executable_;
+    AllocationSpace owner_identity_;
   };
 
   // Chunks_, free_chunk_ids_ and top_ act as a stack of free chunk ids.
