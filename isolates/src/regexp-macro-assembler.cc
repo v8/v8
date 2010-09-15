@@ -105,7 +105,8 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
     Handle<String> subject,
     int* offsets_vector,
     int offsets_vector_length,
-    int previous_index) {
+    int previous_index,
+    Isolate* isolate) {
 
   ASSERT(subject->IsFlat());
   ASSERT(previous_index >= 0);
@@ -142,7 +143,8 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
                        start_offset,
                        input_start,
                        input_end,
-                       offsets_vector);
+                       offsets_vector,
+                       isolate);
   return res;
 }
 
@@ -153,10 +155,11 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
     int start_offset,
     const byte* input_start,
     const byte* input_end,
-    int* output) {
-  Isolate* isolate = Isolate::Current();
+    int* output,
+    Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
   typedef int (*matcher)(String*, int, const byte*,
-                         const byte*, int*, Address, int);
+                         const byte*, int*, Address, int, Isolate*);
   matcher matcher_func = FUNCTION_CAST<matcher>(code->entry());
 
   // Ensure that the minimum stack has been allocated.
@@ -171,7 +174,8 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
                                           input_end,
                                           output,
                                           stack_base,
-                                          direct_call);
+                                          direct_call,
+                                          isolate);
   ASSERT(result <= SUCCESS);
   ASSERT(result >= RETRY);
 
@@ -210,9 +214,11 @@ const byte NativeRegExpMacroAssembler::word_character_map[] = {
 int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
     Address byte_offset1,
     Address byte_offset2,
-    size_t byte_length) {
+    size_t byte_length,
+    Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
   unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
-      Isolate::Current()->regexp_macro_assembler_canonicalize();
+      isolate->regexp_macro_assembler_canonicalize();
   // This function is not allowed to cause a garbage collection.
   // A GC might move the calling generated code and invalidate the
   // return address on the stack.
@@ -241,8 +247,10 @@ int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
 
 
 Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,
-                                              Address* stack_base) {
-  RegExpStack* regexp_stack = Isolate::Current()->regexp_stack();
+                                              Address* stack_base,
+                                              Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
+  RegExpStack* regexp_stack = isolate->regexp_stack();
   size_t size = regexp_stack->stack_capacity();
   Address old_stack_base = regexp_stack->stack_base();
   ASSERT(old_stack_base == *stack_base);

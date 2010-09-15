@@ -60,7 +60,6 @@
 namespace v8 {
 namespace internal {
 
-
 Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
                                                Handle<String> pattern,
                                                Handle<String> flags,
@@ -99,7 +98,7 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
   SetElement(array, 0, pattern);
   SetElement(array, 1, error_text);
   Handle<Object> regexp_err = Factory::NewSyntaxError(message, array);
-  Isolate::Current()->Throw(*regexp_err);
+  re->GetIsolate()->Throw(*regexp_err);
 }
 
 
@@ -110,7 +109,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                    Handle<String> pattern,
                                    Handle<String> flag_str) {
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
-  CompilationCache* compilation_cache = Isolate::Current()->compilation_cache();
+  CompilationCache* compilation_cache = re->GetIsolate()->compilation_cache();
   Handle<FixedArray> cached = compilation_cache->LookupRegExp(pattern, flags);
   bool in_cache = !cached.is_null();
   LOG(RegExpCompileEvent(re, in_cache));
@@ -209,7 +208,7 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                     Handle<String> subject,
                                     int index,
                                     Handle<JSArray> last_match_info) {
-  RuntimeState* runtime_state = Isolate::Current()->runtime_state();
+  RuntimeState* runtime_state = re->GetIsolate()->runtime_state();
 
   Handle<String> needle(String::cast(re->DataAt(JSRegExp::kAtomPatternIndex)));
 
@@ -255,7 +254,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   if (entry->IsJSObject()) {
     // If it's a JSObject, a previous compilation failed and threw this object.
     // Re-throw the object without trying again.
-    Isolate::Current()->Throw(entry);
+    re->GetIsolate()->Throw(entry);
     return false;
   }
   ASSERT(entry->IsTheHole());
@@ -293,7 +292,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
                Factory::NewStringFromUtf8(CStrVector(result.error_message)));
     Handle<Object> regexp_err =
         Factory::NewSyntaxError("malformed_regexp", array);
-    Isolate::Current()->Throw(*regexp_err);
+    re->GetIsolate()->Throw(*regexp_err);
     re->SetDataAt(JSRegExp::code_index(is_ascii), *regexp_err);
     return false;
   }
@@ -409,7 +408,8 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
                                           subject,
                                           output.start(),
                                           output.length(),
-                                          index);
+                                          index,
+                                          regexp->GetIsolate());
     if (res != NativeRegExpMacroAssembler::RETRY) {
       ASSERT(res != NativeRegExpMacroAssembler::EXCEPTION ||
              Isolate::Current()->has_pending_exception());

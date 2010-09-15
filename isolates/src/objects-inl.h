@@ -1076,6 +1076,13 @@ Heap* HeapObject::GetHeap() {
 }
 
 
+Isolate* HeapObject::GetIsolate() {
+  Isolate* i = GetHeap()->isolate();
+  ASSERT(i == Isolate::Current());
+  return i;
+}
+
+
 Map* HeapObject::map() {
   return map_word().ToMap();
 }

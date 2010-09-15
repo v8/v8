@@ -2575,7 +2575,7 @@ int v8::Object::GetIdentityHash() {
     do {
       // Generate a random 32-bit hash value but limit range to fit
       // within a smi.
-      hash_value = i::V8::Random() & i::Smi::kMaxValue;
+      hash_value = i::V8::Random(self->GetIsolate()) & i::Smi::kMaxValue;
       attempts++;
     } while (hash_value == 0 && attempts < 30);
     hash_value = hash_value != 0 ? hash_value : 1;  // never return 0

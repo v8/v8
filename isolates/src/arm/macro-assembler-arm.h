@@ -572,7 +572,7 @@ class MacroAssembler: public Assembler {
   // return address (unless this is somehow accounted for by the called
   // function).
   void CallCFunction(ExternalReference function, int num_arguments);
-  void CallCFunction(Register function, int num_arguments);
+  void CallCFunction(Register function, Register scratch, int num_arguments);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin);
@@ -670,6 +670,11 @@ class MacroAssembler: public Assembler {
 
 
  private:
+  void CallCFunctionHelper(Register function,
+                           ExternalReference function_reference,
+                           Register scratch,
+                           int num_arguments);
+
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
 

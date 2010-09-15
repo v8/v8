@@ -141,6 +141,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kStackHighEnd = kRegisterOutput + kPointerSize;
   // DirectCall is passed as 32 bit int (values 0 or 1).
   static const int kDirectCall = kStackHighEnd + kPointerSize;
+  static const int kIsolate = kDirectCall + kPointerSize;
 #else
   // In AMD64 ABI Calling Convention, the first six integer parameters
   // are passed as registers, and caller must allocate space on the stack
@@ -152,6 +153,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kRegisterOutput = kInputEnd - kPointerSize;
   static const int kStackHighEnd = kRegisterOutput - kPointerSize;
   static const int kDirectCall = kFrameAlign;
+  static const int kIsolate = kDirectCall + kPointerSize;
 #endif
 
 #ifdef _WIN64

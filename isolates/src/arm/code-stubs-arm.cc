@@ -3312,7 +3312,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Locate the code entry and call it.
   __ add(r7, r7, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ CallCFunction(r7, kRegExpExecuteArguments);
+  __ CallCFunction(r7, r9, kRegExpExecuteArguments);
   __ pop(lr);
 
   // r0: result

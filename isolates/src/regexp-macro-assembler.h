@@ -189,20 +189,23 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                       Handle<String> subject,
                       int* offsets_vector,
                       int offsets_vector_length,
-                      int previous_index);
+                      int previous_index,
+                      Isolate* isolate);
 
   // Compares two-byte strings case insensitively.
   // Called from generated RegExp code.
   static int CaseInsensitiveCompareUC16(Address byte_offset1,
                                         Address byte_offset2,
-                                        size_t byte_length);
+                                        size_t byte_length,
+                                        Isolate* isolate);
 
   // Called from RegExp if the backtrack stack limit is hit.
   // Tries to expand the stack. Returns the new stack-pointer if
   // successful, and updates the stack_top address, or returns 0 if unable
   // to grow the stack.
   // This function must not trigger a garbage collection.
-  static Address GrowStack(Address stack_pointer, Address* stack_top);
+  static Address GrowStack(Address stack_pointer, Address* stack_top,
+                           Isolate* isolate);
 
   static const byte* StringCharacterPosition(String* subject, int start_index);
 
@@ -220,7 +223,8 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                         int start_offset,
                         const byte* input_start,
                         const byte* input_end,
-                        int* output);
+                        int* output,
+                        Isolate* isolate);
 };
 
 #endif  // V8_INTERPRETED_REGEXP

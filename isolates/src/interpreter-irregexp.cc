@@ -163,10 +163,9 @@ class BacktrackStack {
   }
 
   ~BacktrackStack() {
-    Isolate* isolate = Isolate::Current();
-    if (isolate->irregexp_interpreter_backtrack_stack_cache() == NULL) {
+    if (isolate_->irregexp_interpreter_backtrack_stack_cache() == NULL) {
       // The cache is empty. Keep this backtrack stack around.
-      isolate->set_irregexp_interpreter_backtrack_stack_cache(data_);
+      isolate_->set_irregexp_interpreter_backtrack_stack_cache(data_);
     } else {
       // A backtrack stack was already cached, just release this one.
       DeleteArray(data_);

@@ -103,7 +103,9 @@ static uint32_t random_seed() {
 }
 
 
-uint32_t V8::Random() {
+uint32_t V8::Random(Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
+  // TODO(isolates): move lo and hi to isolate
   // Random number generator using George Marsaglia's MWC algorithm.
   static uint32_t hi = 0;
   static uint32_t lo = 0;
@@ -140,7 +142,7 @@ typedef union {
 
 
 Object* V8::FillHeapNumberWithRandom(Object* heap_number) {
-  uint64_t random_bits = Random();
+  uint64_t random_bits = Random(Isolate::Current());
   // Make a double* from address (heap_number + sizeof(double)).
   double_int_union* r = reinterpret_cast<double_int_union*>(
       reinterpret_cast<char*>(heap_number) +

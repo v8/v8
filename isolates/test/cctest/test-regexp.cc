@@ -690,7 +690,8 @@ static ArchRegExpMacroAssembler::Result Execute(Code* code,
       start_offset,
       input_start,
       input_end,
-      captures);
+      captures,
+      Isolate::Current());
 }
 
 

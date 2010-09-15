@@ -1604,6 +1604,9 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
 
 
 void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
+  // Reserve space for Isolate address which is always passed as last parameter
+  num_arguments += 1;
+
   int frameAlignment = OS::ActivationFrameAlignment();
   if (frameAlignment != 0) {
     // Make stack end at alignment and make room for num_arguments words
@@ -1629,6 +1632,11 @@ void MacroAssembler::CallCFunction(ExternalReference function,
 
 void MacroAssembler::CallCFunction(Register function,
                                    int num_arguments) {
+  // Pass current isolate address as additional parameter.
+  mov(Operand(esp, num_arguments * kPointerSize),
+      Immediate(ExternalReference::isolate_address()));
+  num_arguments += 1;
+
   // Check stack alignment.
   if (FLAG_debug_code) {
     CheckStackAlignment();
