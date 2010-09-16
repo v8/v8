@@ -3827,7 +3827,7 @@ Object* DescriptorArray::RemoveTransitions() {
 }
 
 
-void DescriptorArray::Sort() {
+void DescriptorArray::SortUnchecked() {
   // In-place heap sort.
   int len = number_of_descriptors();
 
@@ -3877,7 +3877,11 @@ void DescriptorArray::Sort() {
       parent_index = child_index;
     }
   }
+}
 
+
+void DescriptorArray::Sort() {
+  SortUnchecked();
   SLOW_ASSERT(IsSortedNoDuplicates());
 }
 
@@ -5274,6 +5278,13 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
   }
 
   return true;
+}
+
+
+void SharedFunctionInfo::ForbidInlineConstructor() {
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kHasOnlySimpleThisPropertyAssignments,
+                                     false));
 }
 
 
