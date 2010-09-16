@@ -141,6 +141,13 @@ class StackFrame BASE_EMBEDDED {
     NO_ID = 0
   };
 
+  struct State {
+    State() : sp(NULL), fp(NULL), pc_address(NULL) { }
+    Address sp;
+    Address fp;
+    Address* pc_address;
+  };
+
   // Copy constructor; it breaks the connection to host iterator.
   StackFrame(const StackFrame& original) {
     this->state_ = original.state_;
@@ -201,13 +208,6 @@ class StackFrame BASE_EMBEDDED {
                      int index) const { }
 
  protected:
-  struct State {
-    State() : sp(NULL), fp(NULL), pc_address(NULL) { }
-    Address sp;
-    Address fp;
-    Address* pc_address;
-  };
-
   explicit StackFrame(StackFrameIterator* iterator) : iterator_(iterator) { }
   virtual ~StackFrame() { }
 
@@ -238,8 +238,7 @@ class StackFrame BASE_EMBEDDED {
   friend class StackFrameIterator;
   friend class StackHandlerIterator;
   friend class SafeStackFrameIterator;
-  friend class ExitFrameValidator;
-  
+
  private:
   void operator=(const StackFrame& original);
 };
