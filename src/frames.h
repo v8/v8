@@ -120,6 +120,13 @@ class StackFrame BASE_EMBEDDED {
     NO_ID = 0
   };
 
+  struct State {
+    State() : sp(NULL), fp(NULL), pc_address(NULL) { }
+    Address sp;
+    Address fp;
+    Address* pc_address;
+  };
+
   // Copy constructor; it breaks the connection to host iterator.
   StackFrame(const StackFrame& original) {
     this->state_ = original.state_;
@@ -179,12 +186,6 @@ class StackFrame BASE_EMBEDDED {
                      int index) const { }
 
  protected:
-  struct State {
-    Address sp;
-    Address fp;
-    Address* pc_address;
-  };
-
   explicit StackFrame(StackFrameIterator* iterator) : iterator_(iterator) { }
   virtual ~StackFrame() { }
 
@@ -300,6 +301,8 @@ class ExitFrame: public StackFrame {
   // pointer. Used when constructing the first stack frame seen by an
   // iterator and the frames following entry frames.
   static Type GetStateForFramePointer(Address fp, State* state);
+  static Address ComputeStackPointer(Address fp);
+  static void FillState(Address fp, Address sp, State* state);
 
  protected:
   explicit ExitFrame(StackFrameIterator* iterator) : StackFrame(iterator) { }
@@ -433,6 +436,7 @@ class JavaScriptFrame: public StandardFrame {
   inline Object* function_slot_object() const;
 
   friend class StackFrameIterator;
+  friend class StackTracer;
 };
 
 
@@ -642,15 +646,38 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   }
 
  private:
+  class StackAddressValidator {
+   public:
+    StackAddressValidator(Address low_bound, Address high_bound)
+        : low_bound_(low_bound), high_bound_(high_bound) { }
+    bool IsValid(Address addr) const {
+      return IsWithinBounds(low_bound_, high_bound_, addr);
+    }
+   private:
+    Address low_bound_;
+    Address high_bound_;
+  };
+
+  class ExitFrameValidator {
+   public:
+    explicit ExitFrameValidator(const StackAddressValidator& validator)
+        : validator_(validator) { }
+    ExitFrameValidator(Address low_bound, Address high_bound)
+        : validator_(low_bound, high_bound) { }
+    bool IsValidFP(Address fp);
+   private:
+    StackAddressValidator validator_;
+  };
+
   bool IsValidStackAddress(Address addr) const {
-    return IsWithinBounds(low_bound_, high_bound_, addr);
+    return stack_validator_.IsValid(addr);
   }
   bool CanIterateHandles(StackFrame* frame, StackHandler* handler);
   bool IsValidFrame(StackFrame* frame) const;
   bool IsValidCaller(StackFrame* frame);
+  static bool IsValidTop(Address low_bound, Address high_bound);
 
-  Address low_bound_;
-  Address high_bound_;
+  StackAddressValidator stack_validator_;
   const bool is_valid_top_;
   const bool is_valid_fp_;
   const bool is_working_iterator_;

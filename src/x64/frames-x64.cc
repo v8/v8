@@ -50,17 +50,10 @@ StackFrame::Type StackFrame::ComputeType(State* state) {
 }
 
 
-StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
-  if (fp == 0) return NONE;
-  // Compute the stack pointer.
-  Address sp = Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
-  // Fill in the state.
-  state->fp = fp;
-  state->sp = sp;
-  state->pc_address = reinterpret_cast<Address*>(sp - 1 * kPointerSize);
-  ASSERT(*state->pc_address != NULL);
-  return EXIT;
+Address ExitFrame::ComputeStackPointer(Address fp) {
+  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
 }
+
 
 int JavaScriptFrame::GetProvidedParametersCount() const {
   return ComputeParametersCount();
