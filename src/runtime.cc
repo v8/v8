@@ -8962,6 +8962,20 @@ static Object* Runtime_ChangeBreakOnException(Arguments args) {
 }
 
 
+// Returns the state of break on exceptions
+// args[0]: boolean indicating uncaught exceptions
+static Object* Runtime_IsBreakOnException(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  ASSERT(args[0]->IsNumber());
+
+  ExceptionBreakType type =
+      static_cast<ExceptionBreakType>(NumberToUint32(args[0]));
+  bool result = Debug::IsBreakOnException(type);
+  return Smi::FromInt(result);
+}
+
+
 // Prepare for stepping
 // args[0]: break id for checking execution state
 // args[1]: step action from the enumeration StepAction
