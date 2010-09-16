@@ -847,7 +847,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
     // For the UnsignedInt array type, we need to see whether
     // the value can be represented in a Smi. If not, we need to convert
     // it to a HeapNumber.
-    Label box_int;
+    NearLabel box_int;
 
     __ JumpIfUIntNotValidSmiValue(rcx, &box_int);
 
@@ -1032,7 +1032,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // No more bailouts to slow case on this path, so key not needed.
   __ SmiToInteger32(rdi, rax);
   {  // Clamp the value to [0..255].
-    Label done;
+    NearLabel done;
     __ testl(rdi, Immediate(0xFFFFFF00));
     __ j(zero, &done);
     __ setcc(negative, rdi);  // 1 if negative, 0 if positive.
@@ -1082,7 +1082,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rax: value
   // rbx: receiver's elements array (a FixedArray)
   // rcx: index
-  Label non_smi_value;
+  NearLabel non_smi_value;
   __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
           rax);
   __ JumpIfNotSmi(rax, &non_smi_value);
@@ -1104,7 +1104,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   //  -- rdx     : receiver
   //  -- rsp[0]  : return address
   // -----------------------------------
-  Label slow, check_heap_number;
+  Label slow;
 
   // Check that the object isn't a smi.
   __ JumpIfSmi(rdx, &slow);
@@ -1145,6 +1145,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   // rdx: receiver (a JSObject)
   // rbx: elements array
   // rdi: untagged key
+  NearLabel check_heap_number;
   __ JumpIfNotSmi(rax, &check_heap_number);
   // No more branches to slow case on this path.  Key and receiver not needed.
   __ SmiToInteger32(rdx, rax);
@@ -1488,7 +1489,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
-  Label do_call, slow_call, slow_load, slow_reload_receiver;
+  Label do_call, slow_call, slow_load;
   Label check_number_dictionary, check_string, lookup_monomorphic_cache;
   Label index_smi, index_string;
 
@@ -1880,7 +1881,7 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   // -----------------------------------
 
-  Label miss, restore_miss;
+  Label miss;
 
   GenerateStringDictionaryReceiverCheck(masm, rdx, rbx, rdi, &miss);
 
