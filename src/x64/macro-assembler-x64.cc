@@ -1315,7 +1315,6 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 
 void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  WriteRecordedPositions();
   call(code_object, rmode);
 }
 
