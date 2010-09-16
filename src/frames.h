@@ -238,7 +238,8 @@ class StackFrame BASE_EMBEDDED {
   friend class StackFrameIterator;
   friend class StackHandlerIterator;
   friend class SafeStackFrameIterator;
-
+  friend class ExitFrameValidator;
+  
  private:
   void operator=(const StackFrame& original);
 };
