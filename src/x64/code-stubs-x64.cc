@@ -1989,7 +1989,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(negative, &done);
   // Read the value from the static offsets vector buffer and make it a smi.
   __ movl(rdi, Operand(rcx, rdx, times_int_size, 0));
-  __ Integer32ToSmi(rdi, rdi, &runtime);
+  __ Integer32ToSmi(rdi, rdi);
   // Store the smi value in the last match info.
   __ movq(FieldOperand(rbx,
                        rdx,

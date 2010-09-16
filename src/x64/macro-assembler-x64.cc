@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1015,7 +1015,6 @@ void MacroAssembler::SmiSub(Register dst,
                             const Operand& src2) {
   // No overflow checking. Use only when it's known that
   // overflowing is impossible (e.g., subtracting two positive smis).
-  ASSERT(!dst.is(src2));
   if (dst.is(src1)) {
     subq(dst, src2);
   } else {
