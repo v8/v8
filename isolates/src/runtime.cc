@@ -103,7 +103,7 @@ RuntimeState::RuntimeState()
 
 MUST_USE_RESULT static Object* DeepCopyBoilerplate(Heap* heap,
                                                    JSObject* boilerplate) {
-  StackLimitCheck check;
+  StackLimitCheck check(heap->isolate());
   if (check.HasOverflowed()) return heap->isolate()->StackOverflow();
 
   Object* result = heap->CopyJSObject(boilerplate);
@@ -164,8 +164,8 @@ MUST_USE_RESULT static Object* DeepCopyBoilerplate(Heap* heap,
   switch (copy->GetElementsKind()) {
     case JSObject::FAST_ELEMENTS: {
       FixedArray* elements = FixedArray::cast(copy->elements());
-      if (elements->map() == HEAP->fixed_cow_array_map()) {
-        COUNTERS->cow_arrays_created_runtime()->Increment();
+      if (elements->map() == heap->fixed_cow_array_map()) {
+        heap->isolate()->counters()->cow_arrays_created_runtime()->Increment();
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
           ASSERT(!elements->get(i)->IsJSObject());

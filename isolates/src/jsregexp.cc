@@ -4757,7 +4757,7 @@ OutSet* DispatchTable::Get(uc16 value) {
 
 
 void Analysis::EnsureAnalyzed(RegExpNode* that) {
-  StackLimitCheck check;
+  StackLimitCheck check(Isolate::Current());
   if (check.HasOverflowed()) {
     fail("Stack overflow");
     return;

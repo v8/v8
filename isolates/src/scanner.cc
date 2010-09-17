@@ -416,7 +416,7 @@ Token::Value Scanner::Next() {
   // threads.
   current_ = next_;
   // Check for stack-overflow before returning any tokens.
-  StackLimitCheck check;
+  StackLimitCheck check(Isolate::Current());
   if (check.HasOverflowed()) {
     stack_overflow_ = true;
     next_.token = Token::ILLEGAL;

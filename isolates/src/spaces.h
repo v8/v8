@@ -243,7 +243,7 @@ class Page {
   static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
 
   static const int kPageHeaderSize = kPointerSize + kPointerSize + kIntSize +
-    kIntSize + kPointerSize;
+    kIntSize + kPointerSize + kPointerSize;
 
   // The start offset of the object area in a page.
   static const int kObjectStartOffset = MAP_POINTER_ALIGN(kPageHeaderSize);
@@ -286,7 +286,7 @@ class Page {
   // This invariant guarantees that after flipping flag meaning at the
   // beginning of scavenge all pages in use will be marked as having valid
   // watermark.
-  static inline void FlipMeaningOfInvalidatedWatermarkFlag();
+  static inline void FlipMeaningOfInvalidatedWatermarkFlag(Heap* heap);
 
   // Returns true if the page allocation watermark was not altered during
   // scavenge.
@@ -348,6 +348,8 @@ class Page {
   // During scavenge collection this field is used to store allocation watermark
   // if it is altered during scavenge.
   Address mc_first_forwarded;
+
+  Heap* heap_;
 };
 
 

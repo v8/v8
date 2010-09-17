@@ -585,6 +585,7 @@ Page* MemoryAllocator::InitializePagesInChunk(int chunk_id, int pages_in_chunk,
   Address page_addr = low;
   for (int i = 0; i < pages_in_chunk; i++) {
     Page* p = Page::FromAddress(page_addr);
+    p->heap_ = owner->heap();
     p->opaque_header = OffsetFrom(page_addr + Page::kPageSize) | chunk_id;
     p->InvalidateWatermark(true);
     p->SetIsLargeObjectPage(false);

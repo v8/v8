@@ -1101,8 +1101,10 @@ class ExecutionAccess BASE_EMBEDDED {
 // Support for checking for stack-overflows in C++ code.
 class StackLimitCheck BASE_EMBEDDED {
  public:
+  explicit StackLimitCheck(Isolate* isolate) : isolate_(isolate) { }
+
   bool HasOverflowed() const {
-    StackGuard* stack_guard = Isolate::Current()->stack_guard();
+    StackGuard* stack_guard = isolate_->stack_guard();
     // Stack has overflowed in C++ code only if stack pointer exceeds the C++
     // stack guard and the limits are not set to interrupt values.
     // TODO(214): Stack overflows are ignored if a interrupt is pending. This
@@ -1110,6 +1112,8 @@ class StackLimitCheck BASE_EMBEDDED {
     return (reinterpret_cast<uintptr_t>(this) < stack_guard->climit()) &&
            stack_guard->IsStackOverflow();
   }
+ private:
+  Isolate* isolate_;
 };
 
 

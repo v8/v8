@@ -380,7 +380,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // Returns false if the operation fails (lack of stack space).
   static inline bool VisitUnmarkedObjects(Object** start, Object** end) {
     // Return false is we are close to the stack limit.
-    StackLimitCheck check;
+    StackLimitCheck check(Isolate::Current());
     if (check.HasOverflowed()) return false;
 
     // Visit the unmarked objects.

@@ -295,7 +295,7 @@ BinaryOperation::BinaryOperation(Assignment* assignment) {
 
 bool AstVisitor::CheckStackOverflow() {
   if (stack_overflow_) return true;
-  StackLimitCheck check;
+  StackLimitCheck check(Isolate::Current());
   if (!check.HasOverflowed()) return false;
   return (stack_overflow_ = true);
 }

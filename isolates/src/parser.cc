@@ -4471,10 +4471,11 @@ uc32 RegExpParser::Next() {
 
 void RegExpParser::Advance() {
   if (next_pos_ < in()->length()) {
-    StackLimitCheck check;
+    Isolate* isolate = Isolate::Current();
+    StackLimitCheck check(isolate);
     if (check.HasOverflowed()) {
       ReportError(CStrVector(Isolate::kStackOverflowMessage));
-    } else if (ZONE->excess_allocation()) {
+    } else if (isolate->zone()->excess_allocation()) {
       ReportError(CStrVector("Regular expression too large"));
     } else {
       current_ = in()->Get(next_pos_);

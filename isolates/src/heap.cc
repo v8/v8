@@ -816,6 +816,8 @@ Object* Heap::FindCodeObject(Address a) {
 // Helper class for copying HeapObjects
 class ScavengeVisitor: public ObjectVisitor {
  public:
+  explicit ScavengeVisitor(Heap* heap) : heap_(heap) {}
+
   void VisitPointer(Object** p) { ScavengePointer(p); }
 
   void VisitPointers(Object** start, Object** end) {
@@ -826,10 +828,12 @@ class ScavengeVisitor: public ObjectVisitor {
  private:
   void ScavengePointer(Object** p) {
     Object* object = *p;
-    if (!HEAP->InNewSpace(object)) return;
+    if (!heap_->InNewSpace(object)) return;
     Heap::ScavengeObject(reinterpret_cast<HeapObject**>(p),
                          reinterpret_cast<HeapObject*>(object));
   }
+
+  Heap* heap_;
 };
 
 
@@ -883,7 +887,7 @@ void Heap::Scavenge() {
 
   gc_state_ = SCAVENGE;
 
-  Page::FlipMeaningOfInvalidatedWatermarkFlag();
+  Page::FlipMeaningOfInvalidatedWatermarkFlag(this);
 #ifdef DEBUG
   VerifyPageWatermarkValidity(old_pointer_space_, ALL_VALID);
   VerifyPageWatermarkValidity(map_space_, ALL_VALID);
@@ -934,7 +938,7 @@ void Heap::Scavenge() {
   promotion_queue_.Initialize(new_space_.ToSpaceHigh());
 
   is_safe_to_read_maps_ = false;
-  ScavengeVisitor scavenge_visitor;
+  ScavengeVisitor scavenge_visitor(this);
   // Copy roots.
   IterateRoots(&scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
 

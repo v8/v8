@@ -57,18 +57,18 @@ Page* PageIterator::next() {
 // Page
 
 Page* Page::next_page() {
-  return Isolate::Current()->memory_allocator()->GetNextPage(this);
+  return heap_->isolate()->memory_allocator()->GetNextPage(this);
 }
 
 
 Address Page::AllocationTop() {
-  PagedSpace* owner = Isolate::Current()->memory_allocator()->PageOwner(this);
+  PagedSpace* owner = heap_->isolate()->memory_allocator()->PageOwner(this);
   return owner->PageAllocationTop(this);
 }
 
 
 Address Page::AllocationWatermark() {
-  PagedSpace* owner = Isolate::Current()->memory_allocator()->PageOwner(this);
+  PagedSpace* owner = heap_->isolate()->memory_allocator()->PageOwner(this);
   if (this == owner->AllocationTopPage()) {
     return owner->top();
   }
@@ -83,7 +83,7 @@ uint32_t Page::AllocationWatermarkOffset() {
 
 
 void Page::SetAllocationWatermark(Address allocation_watermark) {
-  if ((HEAP->gc_state() == Heap::SCAVENGE) && IsWatermarkValid()) {
+  if ((heap_->gc_state() == Heap::SCAVENGE) && IsWatermarkValid()) {
     // When iterating intergenerational references during scavenge
     // we might decide to promote an encountered young object.
     // We will allocate a space for such an object and put it
@@ -220,25 +220,25 @@ void Page::ClearRegionMarks(Address start, Address end, bool reaches_limit) {
 }
 
 
-void Page::FlipMeaningOfInvalidatedWatermarkFlag() {
-  HEAP->page_watermark_invalidated_mark_ ^= 1 << WATERMARK_INVALIDATED;
+void Page::FlipMeaningOfInvalidatedWatermarkFlag(Heap* heap) {
+  heap->page_watermark_invalidated_mark_ ^= 1 << WATERMARK_INVALIDATED;
 }
 
 
 bool Page::IsWatermarkValid() {
   return (flags_ & (1 << WATERMARK_INVALIDATED)) !=
-      HEAP->page_watermark_invalidated_mark_;
+      heap_->page_watermark_invalidated_mark_;
 }
 
 
 void Page::InvalidateWatermark(bool value) {
   if (value) {
     flags_ = (flags_ & ~(1 << WATERMARK_INVALIDATED)) |
-             HEAP->page_watermark_invalidated_mark_;
+             heap_->page_watermark_invalidated_mark_;
   } else {
     flags_ =
         (flags_ & ~(1 << WATERMARK_INVALIDATED)) |
-        (HEAP->page_watermark_invalidated_mark_ ^ (1 << WATERMARK_INVALIDATED));
+        (heap_->page_watermark_invalidated_mark_ ^ (1 << WATERMARK_INVALIDATED));
   }
 
   ASSERT(IsWatermarkValid() == !value);
@@ -267,7 +267,7 @@ void Page::ClearPageFlags() {
 void Page::ClearGCFields() {
   InvalidateWatermark(true);
   SetAllocationWatermark(ObjectAreaStart());
-  if (HEAP->gc_state() == Heap::SCAVENGE) {
+  if (heap_->gc_state() == Heap::SCAVENGE) {
     SetCachedAllocationWatermark(ObjectAreaStart());
   }
   SetRegionMarks(kAllRegionsCleanMarks);
@@ -413,7 +413,7 @@ bool PagedSpace::Contains(Address addr) {
   Page* p = Page::FromAddress(addr);
   ASSERT(p->is_valid());
 
-  return Isolate::Current()->memory_allocator()->IsPageInSpace(p, this);
+  return heap()->isolate()->memory_allocator()->IsPageInSpace(p, this);
 }
 
 
@@ -496,7 +496,7 @@ Object* NewSpace::AllocateRawInternal(int size_in_bytes,
 
 int LargeObjectSpace::Available() {
   return LargeObjectChunk::ObjectSizeFor(
-      Isolate::Current()->memory_allocator()->Available());
+      heap()->isolate()->memory_allocator()->Available());
 }
 
 
