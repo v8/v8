@@ -265,7 +265,11 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 
 
 void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
-    MacroAssembler* masm, int index, Register prototype) {
+    MacroAssembler* masm, int index, Register prototype, Label* miss) {
+  // Check we're still in the same context.
+  __ cmp(Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)),
+         Top::global());
+  __ j(not_equal, miss);
   // Get the global function with the given index.
   JSFunction* function = JSFunction::cast(Top::global_context()->get(index));
   // Load its initial map. The global functions all have initial maps.
@@ -1626,7 +1630,8 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
-                                            eax);
+                                            eax,
+                                            &miss);
   ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, edi, name, &miss);
@@ -1695,7 +1700,8 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
-                                            eax);
+                                            eax,
+                                            &miss);
   ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, edi, name, &miss);
@@ -1894,7 +1900,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ j(above_equal, &miss, not_taken);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::STRING_FUNCTION_INDEX, eax);
+            masm(), Context::STRING_FUNCTION_INDEX, eax, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, edi, name, &miss);
       }
@@ -1914,7 +1920,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::NUMBER_FUNCTION_INDEX, eax);
+            masm(), Context::NUMBER_FUNCTION_INDEX, eax, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, edi, name, &miss);
       }
@@ -1935,7 +1941,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::BOOLEAN_FUNCTION_INDEX, eax);
+            masm(), Context::BOOLEAN_FUNCTION_INDEX, eax, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, edi, name, &miss);
       }

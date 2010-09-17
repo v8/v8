@@ -370,13 +370,15 @@ class StubCompiler BASE_EMBEDDED {
                                                   Register prototype);
 
   // Generates prototype loading code that uses the objects from the
-  // context we were in when this function was called.  This ties the
-  // generated code to a particular context and so must not be used in
-  // cases where the generated code is not allowed to have references
-  // to objects from a context.
+  // context we were in when this function was called. If the context
+  // has changed, a jump to miss is performed. This ties the generated
+  // code to a particular context and so must not be used in cases
+  // where the generated code is not allowed to have references to
+  // objects from a context.
   static void GenerateDirectLoadGlobalFunctionPrototype(MacroAssembler* masm,
                                                         int index,
-                                                        Register prototype);
+                                                        Register prototype,
+                                                        Label* miss);
 
   static void GenerateFastPropertyLoad(MacroAssembler* masm,
                                        Register dst, Register src,
