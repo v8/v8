@@ -702,7 +702,7 @@ bool FastDtoa(double v,
   ASSERT(!Double(v).IsSpecial());
 
   bool result = false;
-  int decimal_exponent;
+  int decimal_exponent = 0;
   switch (mode) {
     case FAST_DTOA_SHORTEST:
       result = Grisu3(v, buffer, length, &decimal_exponent);
@@ -711,6 +711,8 @@ bool FastDtoa(double v,
       result = Grisu3Counted(v, requested_digits,
                              buffer, length, &decimal_exponent);
       break;
+    default:
+      UNREACHABLE();
   }
   if (result) {
     *decimal_point = *length + decimal_exponent;
