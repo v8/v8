@@ -1457,7 +1457,7 @@ Parser::Parser(Handle<Script> script,
                ParserLog* log,
                ScriptDataImpl* pre_data)
     : script_(script),
-      scanner_(is_pre_parsing),
+      scanner_(),
       top_scope_(NULL),
       with_nesting_level_(0),
       temp_scope_(NULL),
