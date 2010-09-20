@@ -967,6 +967,14 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 }
 
 
+bool LoadIC::PatchInlinedContextualLoad(Address address,
+                                        Object* map,
+                                        Object* cell) {
+  // TODO(<bug#>): implement this.
+  return false;
+}
+
+
 bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
   // Find the end of the inlined code for the store if there is an
   // inlined version of the store.

@@ -1726,6 +1726,14 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 }
 
 
+bool LoadIC::PatchInlinedContextualLoad(Address address,
+                                        Object* map,
+                                        Object* cell) {
+  // TODO(<bug#>): implement this.
+  return false;
+}
+
+
 // The offset from the inlined patch site to the start of the inlined
 // store instruction.
 const int StoreIC::kOffsetToStoreInstruction = 20;

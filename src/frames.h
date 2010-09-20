@@ -67,7 +67,7 @@ class PcToCodeCache : AllStatic {
   static PcToCodeCacheEntry* GetCacheEntry(Address pc);
 
  private:
-  static const int kPcToCodeCacheSize = 256;
+  static const int kPcToCodeCacheSize = 1024;
   static PcToCodeCacheEntry cache_[kPcToCodeCacheSize];
 };
 
