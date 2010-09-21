@@ -1354,7 +1354,8 @@ static Handle<JSObject> ResolveCustomCallGeneratorHolder(
         GetProperty(global, Factory::LookupAsciiSymbol(holder_expr)));
   }
   ASSERT_EQ(".prototype", period_pos);
-  Vector<const char> property(holder_expr, period_pos - holder_expr);
+  Vector<const char> property(holder_expr,
+                              static_cast<int>(period_pos - holder_expr));
   Handle<JSFunction> function = Handle<JSFunction>::cast(
       GetProperty(global, Factory::LookupSymbol(property)));
   return Handle<JSObject>(JSObject::cast(function->prototype()));
