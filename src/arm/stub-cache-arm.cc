@@ -1633,6 +1633,16 @@ Object* CallStubCompiler::CompileStringFromCharCodeCall(
 }
 
 
+Object* CallStubCompiler::CompileMathFloorCall(Object* object,
+                                               JSObject* holder,
+                                               JSGlobalPropertyCell* cell,
+                                               JSFunction* function,
+                                               String* name) {
+  // TODO(872): implement this.
+  return Heap::undefined_value();
+}
+
+
 Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSObject* holder,
                                               JSFunction* function,

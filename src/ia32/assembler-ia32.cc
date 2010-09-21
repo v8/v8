@@ -2205,6 +2205,16 @@ void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::andpd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x54);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::ucomisd(XMMRegister dst, XMMRegister src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
@@ -2227,7 +2237,29 @@ void Assembler::movmskpd(Register dst, XMMRegister src) {
 }
 
 
-void Assembler::movdqa(const Operand& dst, XMMRegister src ) {
+void Assembler::cmpltsd(XMMRegister dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0xC2);
+  emit_sse_operand(dst, src);
+  EMIT(1);  // LT == 1
+}
+
+
+void Assembler::movaps(XMMRegister dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x0F);
+  EMIT(0x28);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movdqa(const Operand& dst, XMMRegister src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2383,6 +2415,19 @@ void Assembler::ptest(XMMRegister dst, XMMRegister src) {
   EMIT(0x17);
   emit_sse_operand(dst, src);
 }
+
+
+void Assembler::psllq(XMMRegister reg, int8_t imm8) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x73);
+  emit_sse_operand(esi, reg);  // esi == 6
+  EMIT(imm8);
+}
+
 
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
   Register ireg = { reg.code() };
