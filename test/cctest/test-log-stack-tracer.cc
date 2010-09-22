@@ -241,11 +241,12 @@ static v8::Handle<Value> construct_call(const v8::Arguments& args) {
   CHECK(calling_frame->is_java_script());
 
 #if defined(V8_HOST_ARCH_32_BIT)
-  int32_t low_bits = reinterpret_cast<intptr_t>(calling_frame->fp());
+  int32_t low_bits = reinterpret_cast<int32_t>(calling_frame->fp());
   args.This()->Set(v8_str("low_bits"), v8_num(low_bits >> 1));
 #elif defined(V8_HOST_ARCH_64_BIT)
-  int32_t low_bits = reinterpret_cast<uintptr_t>(calling_frame->fp());
-  int32_t high_bits = reinterpret_cast<uintptr_t>(calling_frame->fp()) >> 32;
+  uint64_t fp = reinterpret_cast<uint64_t>(calling_frame->fp());
+  int32_t low_bits = fp & 0xffffffff;
+  int32_t high_bits = fp >> 32;
   args.This()->Set(v8_str("low_bits"), v8_num(low_bits));
   args.This()->Set(v8_str("high_bits"), v8_num(high_bits));
 #else
