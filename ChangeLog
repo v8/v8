@@ -1,3 +1,16 @@
+2010-09-22: Version 2.4.5
+        Changed the RegExp benchmark to exercise the regexp engine on different
+        inputs by scrambling the input strings.
+
+        Fixed a bug in keyed loads on strings.
+
+        Fixed a bug with loading global function prototypes.
+
+        Fixed a bug with profiling RegExp calls (issue http://crbug.com/55999).
+
+        Performance improvements on all platforms.
+
+
 2010-09-15: Version 2.4.4
 
         Fixed bug with hangs on very large sparse arrays.
