@@ -1413,8 +1413,14 @@ void Genesis::InstallJSFunctionResultCaches() {
   Handle<FixedArray> caches = Factory::NewFixedArray(kNumberOfCaches, TENURED);
 
   int index = 0;
-#define F(size, func) caches->set(index++, CreateCache(size, func));
-    JSFUNCTION_RESULT_CACHE_LIST(F)
+
+#define F(size, func) do {                           \
+    FixedArray* cache = CreateCache((size), (func)); \
+    caches->set(index++, cache);                     \
+  } while (false)
+
+  JSFUNCTION_RESULT_CACHE_LIST(F);
+
 #undef F
 
   global_context()->set_jsfunction_result_caches(*caches);

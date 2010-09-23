@@ -466,7 +466,8 @@ void InitScriptLineEnds(Handle<Script> script) {
 
   if (!script->source()->IsString()) {
     ASSERT(script->source()->IsUndefined());
-    script->set_line_ends(*(Factory::NewFixedArray(0)));
+    Handle<FixedArray> empty = Factory::NewFixedArray(0);
+    script->set_line_ends(*empty);
     ASSERT(script->line_ends()->IsFixedArray());
     return;
   }

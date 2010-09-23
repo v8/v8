@@ -678,7 +678,8 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
       // Elements that are stored as array elements always has:
       // writable: true, configurable: true, enumerable: true.
       elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-      elms->set(VALUE_INDEX, obj->GetElement(index));
+      Object* element = obj->GetElement(index);
+      elms->set(VALUE_INDEX, element);
       elms->set(WRITABLE_INDEX, Heap::true_value());
       elms->set(ENUMERABLE_INDEX,  Heap::true_value());
       elms->set(CONFIGURABLE_INDEX, Heap::true_value());
@@ -2837,7 +2838,8 @@ static Object* Runtime_StringMatch(Arguments args) {
   for (int i = 0; i < matches ; i++) {
     int from = offsets.at(i * 2);
     int to = offsets.at(i * 2 + 1);
-    elements->set(i, *Factory::NewSubString(subject, from, to));
+    Handle<String> match = Factory::NewSubString(subject, from, to);
+    elements->set(i, *match);
   }
   Handle<JSArray> result = Factory::NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(matches));
@@ -3105,9 +3107,10 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
         // Arguments array to replace function is match, captures, index and
         // subject, i.e., 3 + capture count in total.
         Handle<FixedArray> elements = Factory::NewFixedArray(3 + capture_count);
-        elements->set(0, *Factory::NewSubString(subject,
-                                                match_start,
-                                                match_end));
+        Handle<String> match = Factory::NewSubString(subject,
+                                                     match_start,
+                                                     match_end);
+        elements->set(0, *match);
         for (int i = 1; i <= capture_count; i++) {
           int start = register_vector[i * 2];
           if (start >= 0) {
@@ -4953,12 +4956,14 @@ static Object* Runtime_StringToArray(Arguments args) {
                                                             length);
 
     for (int i = num_copied_from_cache; i < length; ++i) {
-      elements->set(i, *LookupSingleCharacterStringFromCode(chars[i]));
+      Handle<Object> str = LookupSingleCharacterStringFromCode(chars[i]);
+      elements->set(i, *str);
     }
   } else {
     elements = Factory::NewFixedArray(length);
     for (int i = 0; i < length; ++i) {
-      elements->set(i, *LookupSingleCharacterStringFromCode(s->Get(i)));
+      Handle<Object> str = LookupSingleCharacterStringFromCode(s->Get(i));
+      elements->set(i, *str);
     }
   }
 
@@ -7826,7 +7831,8 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
     Handle<FixedArray> details = Factory::NewFixedArray(2);
-    details->set(0, Runtime::GetElementOrCharAt(obj, index));
+    Object* element_or_char = Runtime::GetElementOrCharAt(obj, index);
+    details->set(0, element_or_char);
     details->set(1, PropertyDetails(NONE, NORMAL).AsSmi());
     return *Factory::NewJSArrayWithElements(details);
   }
@@ -8628,7 +8634,8 @@ static Object* Runtime_GetScopeDetails(Arguments args) {
 
   // Fill in scope details.
   details->set(kScopeDetailsTypeIndex, Smi::FromInt(it.Type()));
-  details->set(kScopeDetailsObjectIndex, *it.ScopeObject());
+  Handle<JSObject> scope_object = it.ScopeObject();
+  details->set(kScopeDetailsObjectIndex, *scope_object);
 
   return *Factory::NewJSArrayWithElements(details);
 }
@@ -8673,10 +8680,10 @@ static Object* Runtime_GetCFrames(Arguments args) {
   Handle<FixedArray> frames_array = Factory::NewFixedArray(frames_count);
   for (int i = 0; i < frames_count; i++) {
     Handle<JSObject> frame_value = Factory::NewJSObject(Top::object_function());
-    frame_value->SetProperty(
-        *address_str,
-        *Factory::NewNumberFromInt(reinterpret_cast<int>(frames[i].address)),
-        NONE);
+    Handle<Object> frame_address =
+        Factory::NewNumberFromInt(reinterpret_cast<int>(frames[i].address));
+
+    frame_value->SetProperty(*address_str, *frame_address, NONE);
 
     // Get the stack walk text for this frame.
     Handle<String> frame_text;

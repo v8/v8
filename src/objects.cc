@@ -8721,11 +8721,11 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
     // No free slot - extend break point info array.
     Handle<FixedArray> old_break_points =
         Handle<FixedArray>(FixedArray::cast(debug_info->break_points()));
-    debug_info->set_break_points(*Factory::NewFixedArray(
-        old_break_points->length() +
-            Debug::kEstimatedNofBreakPointsInFunction));
     Handle<FixedArray> new_break_points =
-        Handle<FixedArray>(FixedArray::cast(debug_info->break_points()));
+        Factory::NewFixedArray(old_break_points->length() +
+                               Debug::kEstimatedNofBreakPointsInFunction);
+
+    debug_info->set_break_points(*new_break_points);
     for (int i = 0; i < old_break_points->length(); i++) {
       new_break_points->set(i, old_break_points->get(i));
     }
