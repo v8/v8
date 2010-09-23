@@ -3187,9 +3187,9 @@ Object* JSObject::EnsureWritableFastElements() {
   ASSERT(HasFastElements());
   FixedArray* elems = FixedArray::cast(elements());
   if (elems->map() != Heap::fixed_cow_array_map()) return elems;
-  Object* writable_elems = Heap::CopyFixedArray(elems);
+  Object* writable_elems = Heap::CopyFixedArrayWithMap(elems,
+                                                       Heap::fixed_array_map());
   if (writable_elems->IsFailure()) return writable_elems;
-  FixedArray::cast(writable_elems)->set_map(Heap::fixed_array_map());
   set_elements(FixedArray::cast(writable_elems));
   Counters::cow_arrays_converted.Increment();
   return writable_elems;

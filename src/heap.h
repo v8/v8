@@ -498,7 +498,12 @@ class Heap : public AllStatic {
 
   // Make a copy of src and return it. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
-  MUST_USE_RESULT static Object* CopyFixedArray(FixedArray* src);
+  MUST_USE_RESULT static inline Object* CopyFixedArray(FixedArray* src);
+
+  // Make a copy of src, set the map, and return the copy. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  MUST_USE_RESULT static Object* CopyFixedArrayWithMap(FixedArray* src,
+                                                       Map* map);
 
   // Allocates a fixed array initialized with the hole values.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
