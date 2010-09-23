@@ -1343,8 +1343,8 @@ Object* JSObject::InObjectPropertyAtPut(int index,
 
 
 
-void JSObject::InitializeBody(int object_size) {
-  Object* value = Heap::undefined_value();
+void JSObject::InitializeBody(int object_size, Object* value) {
+  ASSERT(!value->IsHeapObject() || !Heap::InNewSpace(value));
   for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
     WRITE_FIELD(this, offset, value);
   }
@@ -2279,6 +2279,23 @@ bool Map::is_extensible() {
 }
 
 
+void Map::set_attached_to_shared_function_info(bool value) {
+  if (value) {
+    set_bit_field2(bit_field2() | (1 << kAttachedToSharedFunctionInfo));
+  } else {
+    set_bit_field2(bit_field2() & ~(1 << kAttachedToSharedFunctionInfo));
+  }
+}
+
+bool Map::attached_to_shared_function_info() {
+  return ((1 << kAttachedToSharedFunctionInfo) & bit_field2()) != 0;
+}
+
+
+JSFunction* Map::unchecked_constructor() {
+  return reinterpret_cast<JSFunction*>(READ_FIELD(this, kConstructorOffset));
+}
+
 
 Code::Flags Code::flags() {
   return static_cast<Flags>(READ_INT_FIELD(this, kFlagsOffset));
@@ -2571,6 +2588,7 @@ ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
+ACCESSORS(SharedFunctionInfo, initial_map, Object, kInitialMapOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
@@ -2661,6 +2679,37 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, compiler_hints,
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, this_property_assignments_count,
               kThisPropertyAssignmentsCountOffset)
 #endif
+
+
+int SharedFunctionInfo::construction_count() {
+  return READ_BYTE_FIELD(this, kConstructionCountOffset);
+}
+
+
+void SharedFunctionInfo::set_construction_count(int value) {
+  ASSERT(0 <= value && value < 256);
+  WRITE_BYTE_FIELD(this, kConstructionCountOffset, static_cast<byte>(value));
+}
+
+
+bool SharedFunctionInfo::live_objects_may_exist() {
+  return (compiler_hints() & (1 << kLiveObjectsMayExist)) != 0;
+}
+
+
+void SharedFunctionInfo::set_live_objects_may_exist(bool value) {
+  if (value) {
+    set_compiler_hints(compiler_hints() | (1 << kLiveObjectsMayExist));
+  } else {
+    set_compiler_hints(compiler_hints() & ~(1 << kLiveObjectsMayExist));
+  }
+}
+
+
+bool SharedFunctionInfo::IsInobjectSlackTrackingInProgress() {
+  return initial_map() != Heap::undefined_value();
+}
+
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)

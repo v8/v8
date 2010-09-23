@@ -2068,6 +2068,7 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_debug_info(undefined_value());
   share->set_inferred_name(empty_string());
   share->set_compiler_hints(0);
+  share->set_initial_map(undefined_value());
   share->set_this_property_assignments_count(0);
   share->set_this_property_assignments(undefined_value());
   share->set_num_literals(0);
@@ -2726,6 +2727,9 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
       }
     }
   }
+
+  fun->shared()->StartInobjectSlackTracking(map);
+
   return map;
 }
 
@@ -2742,7 +2746,20 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj,
   // fixed array (eg, Heap::empty_fixed_array()).  Currently, the object
   // verification code has to cope with (temporarily) invalid objects.  See
   // for example, JSArray::JSArrayVerify).
-  obj->InitializeBody(map->instance_size());
+  Object* filler;
+  // We cannot always fill with one_pointer_filler_map because objects
+  // created from API functions expect their internal fields to be initialized
+  // with undefined_value.
+  if (map->constructor()->IsJSFunction() &&
+      JSFunction::cast(map->constructor())->shared()->
+          IsInobjectSlackTrackingInProgress()) {
+    // We might want to shrink the object later.
+    ASSERT(obj->GetInternalFieldCount() == 0);
+    filler = Heap::one_pointer_filler_map();
+  } else {
+    filler = Heap::undefined_value();
+  }
+  obj->InitializeBody(map->instance_size(), filler);
 }
 
 
@@ -2925,19 +2942,13 @@ Object* Heap::CopyJSObject(JSObject* source) {
 
 Object* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
                                         JSGlobalProxy* object) {
-  // Allocate initial map if absent.
-  if (!constructor->has_initial_map()) {
-    Object* initial_map = AllocateInitialMap(constructor);
-    if (initial_map->IsFailure()) return initial_map;
-    constructor->set_initial_map(Map::cast(initial_map));
-    Map::cast(initial_map)->set_constructor(constructor);
-  }
-
+  ASSERT(constructor->has_initial_map());
   Map* map = constructor->initial_map();
 
-  // Check that the already allocated object has the same size as
+  // Check that the already allocated object has the same size and type as
   // objects allocated using the constructor.
   ASSERT(map->instance_size() == object->map()->instance_size());
+  ASSERT(map->instance_type() == object->map()->instance_type());
 
   // Allocate the backing storage for the properties.
   int prop_size = map->unused_property_fields() - map->inobject_properties();

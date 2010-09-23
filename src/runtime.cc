@@ -6284,7 +6284,7 @@ static Object* Runtime_NewObjectFromBound(Arguments args) {
 }
 
 
-static Code* ComputeConstructStub(Handle<JSFunction> function) {
+static void TrySettingInlineConstructStub(Handle<JSFunction> function) {
   Handle<Object> prototype = Factory::null_value();
   if (function->has_instance_prototype()) {
     prototype = Handle<Object>(function->instance_prototype());
@@ -6292,13 +6292,10 @@ static Code* ComputeConstructStub(Handle<JSFunction> function) {
   if (function->shared()->CanGenerateInlineConstructor(*prototype)) {
     ConstructStubCompiler compiler;
     Object* code = compiler.CompileConstructStub(function->shared());
-    if (code->IsFailure()) {
-      return Builtins::builtin(Builtins::JSConstructStubGeneric);
+    if (!code->IsFailure()) {
+      function->shared()->set_construct_stub(Code::cast(code));
     }
-    return Code::cast(code);
   }
-
-  return function->shared()->construct_stub();
 }
 
 
@@ -6355,18 +6352,38 @@ static Object* Runtime_NewObject(Arguments args) {
   Handle<SharedFunctionInfo> shared(function->shared());
   EnsureCompiled(shared, CLEAR_EXCEPTION);
 
-  bool first_allocation = !function->has_initial_map();
+  if (!function->has_initial_map() &&
+      shared->IsInobjectSlackTrackingInProgress()) {
+    // The tracking is already in progress for another function. We can only
+    // track one initial_map at a time, so we force the completion before the
+    // function is called as a constructor for the first time.
+    shared->CompleteInobjectSlackTracking();
+    TrySettingInlineConstructStub(function);
+  }
+
+  bool first_allocation = !shared->live_objects_may_exist();
   Handle<JSObject> result = Factory::NewJSObject(function);
-  if (first_allocation) {
-    Handle<Code> stub = Handle<Code>(
-        ComputeConstructStub(Handle<JSFunction>(function)));
-    shared->set_construct_stub(*stub);
+  // Delay setting the stub if inobject slack tracking is in progress.
+  if (first_allocation && !shared->IsInobjectSlackTrackingInProgress()) {
+    TrySettingInlineConstructStub(function);
   }
 
   Counters::constructed_objects.Increment();
   Counters::constructed_objects_runtime.Increment();
 
   return *result;
+}
+
+
+static Object* Runtime_FinalizeInstanceSize(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  function->shared()->CompleteInobjectSlackTracking();
+  TrySettingInlineConstructStub(function);
+
+  return Heap::undefined_value();
 }
 
 

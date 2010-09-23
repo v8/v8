@@ -1476,8 +1476,8 @@ Object* JSObject::ConvertDescriptorToField(String* name,
   FixedArray* new_properties = 0;  // Will always be NULL or a valid pointer.
   int new_unused_property_fields = map()->unused_property_fields() - 1;
   if (map()->unused_property_fields() == 0) {
-     new_unused_property_fields = kFieldsAdded - 1;
-     Object* new_properties_unchecked =
+    new_unused_property_fields = kFieldsAdded - 1;
+    Object* new_properties_unchecked =
         properties()->CopySize(properties()->length() + kFieldsAdded);
     if (new_properties_unchecked->IsFailure()) return new_properties_unchecked;
     new_properties = FixedArray::cast(new_properties_unchecked);
@@ -3268,6 +3268,47 @@ void Map::RemoveFromCodeCache(String* name, Code* code, int index) {
   // RemoveFromCodeCache so the code cache must be there.
   ASSERT(!code_cache()->IsFixedArray());
   CodeCache::cast(code_cache())->RemoveByIndex(name, code, index);
+}
+
+
+void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
+  Map* current = this;
+  while (current != Heap::meta_map()) {
+    DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
+        *RawField(current, Map::kInstanceDescriptorsOffset));
+    if (d == Heap::empty_descriptor_array()) {
+      Map* prev = current->map();
+      current->set_map(Heap::meta_map());
+      callback(current, data);
+      current = prev;
+      continue;
+    }
+
+    FixedArray* contents = reinterpret_cast<FixedArray*>(
+        d->get(DescriptorArray::kContentArrayIndex));
+    Object** map_or_index_field = RawField(contents, HeapObject::kMapOffset);
+    Object* map_or_index = *map_or_index_field;
+    bool map_done = true;
+    for (int i = map_or_index->IsSmi() ? Smi::cast(map_or_index)->value() : 0;
+         i < contents->length();
+         i += 2) {
+      PropertyDetails details(Smi::cast(contents->get(i + 1)));
+      if (details.IsTransition()) {
+        Map* next = reinterpret_cast<Map*>(contents->get(i));
+        next->set_map(current);
+        *map_or_index_field = Smi::FromInt(i + 2);
+        current = next;
+        map_done = false;
+        break;
+      }
+    }
+    if (!map_done) continue;
+    *map_or_index_field = Heap::fixed_array_map();
+    Map* prev = current->map();
+    current->set_map(Heap::meta_map());
+    callback(current, data);
+    current = prev;
+  }
 }
 
 
@@ -5373,6 +5414,107 @@ void SharedFunctionInfo::SourceCodePrint(StringStream* accumulator,
     accumulator->Add("...\n");
   } else {
     accumulator->Put(script_source, start_position(), end_position());
+  }
+}
+
+
+void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
+  ASSERT(!IsInobjectSlackTrackingInProgress());
+
+  // Only initiate the tracking the first time.
+  if (live_objects_may_exist()) return;
+  set_live_objects_may_exist(true);
+
+  // No tracking during the snapshot construction phase.
+  if (Serializer::enabled()) return;
+
+  if (map->unused_property_fields() == 0) return;
+
+  // Nonzero counter is a leftover from the previous attempt interrupted
+  // by GC, keep it.
+  if (construction_count() == 0) {
+    set_construction_count(kGenerousAllocationCount);
+  }
+  set_initial_map(map);
+  ASSERT_EQ(Builtins::builtin(Builtins::JSConstructStubGeneric),
+            construct_stub());
+  set_construct_stub(Builtins::builtin(Builtins::JSConstructStubCountdown));
+}
+
+
+// Called from GC, hence reinterpret_cast and unchecked accessors.
+void SharedFunctionInfo::DetachInitialMap() {
+  Map* map = reinterpret_cast<Map*>(initial_map());
+
+  // Make the map remember to restore the link if it survives the GC.
+  map->set_bit_field2(
+      map->bit_field2() | (1 << Map::kAttachedToSharedFunctionInfo));
+
+  // Undo state changes made by StartInobjectTracking (except the
+  // construction_count). This way if the initial map does not survive the GC
+  // then StartInobjectTracking will be called again the next time the
+  // constructor is called. The countdown will continue and (possibly after
+  // several more GCs) CompleteInobjectSlackTracking will eventually be called.
+  set_initial_map(Heap::raw_unchecked_undefined_value());
+  ASSERT_EQ(Builtins::builtin(Builtins::JSConstructStubCountdown),
+            *RawField(this, kConstructStubOffset));
+  set_construct_stub(Builtins::builtin(Builtins::JSConstructStubGeneric));
+  // It is safe to clear the flag: it will be set again if the map is live.
+  set_live_objects_may_exist(false);
+}
+
+
+// Called from GC, hence reinterpret_cast and unchecked accessors.
+void SharedFunctionInfo::AttachInitialMap(Map* map) {
+  map->set_bit_field2(
+      map->bit_field2() & ~(1 << Map::kAttachedToSharedFunctionInfo));
+
+  // Resume inobject slack tracking.
+  set_initial_map(map);
+  ASSERT_EQ(Builtins::builtin(Builtins::JSConstructStubGeneric),
+            *RawField(this, kConstructStubOffset));
+  set_construct_stub(Builtins::builtin(Builtins::JSConstructStubCountdown));
+  // The map survived the gc, so there may be objects referencing it.
+  set_live_objects_may_exist(true);
+}
+
+
+static void GetMinInobjectSlack(Map* map, void* data) {
+  int slack = map->unused_property_fields();
+  if (*reinterpret_cast<int*>(data) > slack) {
+    *reinterpret_cast<int*>(data) = slack;
+  }
+}
+
+
+static void ShrinkInstanceSize(Map* map, void* data) {
+  int slack = *reinterpret_cast<int*>(data);
+  map->set_inobject_properties(map->inobject_properties() - slack);
+  map->set_unused_property_fields(map->unused_property_fields() - slack);
+  map->set_instance_size(map->instance_size() - slack * kPointerSize);
+
+  // Visitor id might depend on the instance size, recalculate it.
+  map->set_visitor_id(StaticVisitorBase::GetVisitorId(map));
+}
+
+
+void SharedFunctionInfo::CompleteInobjectSlackTracking() {
+  ASSERT(live_objects_may_exist() && IsInobjectSlackTrackingInProgress());
+  Map* map = Map::cast(initial_map());
+
+  set_initial_map(Heap::undefined_value());
+  ASSERT_EQ(Builtins::builtin(Builtins::JSConstructStubCountdown),
+            construct_stub());
+  set_construct_stub(Builtins::builtin(Builtins::JSConstructStubGeneric));
+
+  int slack = map->unused_property_fields();
+  map->TraverseTransitionTree(&GetMinInobjectSlack, &slack);
+  if (slack != 0) {
+    // Resize the initial map and all maps in its transition tree.
+    map->TraverseTransitionTree(&ShrinkInstanceSize, &slack);
+    // Give the correct expected_nof_properties to initial maps created later.
+    ASSERT(expected_nof_properties() >= slack);
+    set_expected_nof_properties(expected_nof_properties() - slack);
   }
 }
 

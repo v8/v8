@@ -10947,7 +10947,9 @@ TEST(Bug618) {
   CompileRun(source);
 
   script = v8::Script::Compile(v8_str("new C1();"));
-  for (int i = 0; i < 10; i++) {
+  // Allow enough iterations for the inobject slack tracking logic
+  // to finalize instance size and install the fast construct stub.
+  for (int i = 0; i < 256; i++) {
     v8::Handle<v8::Object> c1 = v8::Handle<v8::Object>::Cast(script->Run());
     CHECK_EQ(23, c1->Get(v8_str("x"))->Int32Value());
     CHECK_EQ(42, c1->Get(v8_str("y"))->Int32Value());

@@ -595,6 +595,7 @@ class Assembler : public Malloced {
   void cmp(const Operand& op, Handle<Object> handle);
 
   void dec_b(Register dst);
+  void dec_b(const Operand& dst);
 
   void dec(Register dst);
   void dec(const Operand& dst);

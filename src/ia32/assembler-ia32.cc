@@ -993,6 +993,14 @@ void Assembler::dec_b(Register dst) {
 }
 
 
+void Assembler::dec_b(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xFE);
+  emit_operand(ecx, dst);
+}
+
+
 void Assembler::dec(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
