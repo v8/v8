@@ -904,7 +904,7 @@ void Code::CodePrint() {
 
 void Code::CodeVerify() {
   CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),
-                  static_cast<intptr_t>(kCodeAlignment)));
+                  kCodeAlignment));
   Address last_gc_pc = NULL;
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Verify();

@@ -2994,15 +2994,11 @@ class Code: public HeapObject {
   inline void CodeIterateBody(ObjectVisitor* v);
 
   template<typename StaticVisitor>
-  inline void CodeIterateBody();
+  inline void CodeIterateBody(Heap* heap);
 #ifdef DEBUG
   void CodePrint();
   void CodeVerify();
 #endif
-  // Code entry points are aligned to 32 bytes.
-  static const int kCodeAlignmentBits = 5;
-  static const int kCodeAlignment = 1 << kCodeAlignmentBits;
-  static const int kCodeAlignmentMask = kCodeAlignment - 1;
 
   // Layout description.
   static const int kInstructionSizeOffset = HeapObject::kHeaderSize;

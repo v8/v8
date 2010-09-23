@@ -320,18 +320,18 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                                    kVisitStructGeneric>();
   }
 
-  INLINE(static void VisitPointer(Object** p)) {
-    MarkObjectByPointer(p);
+  INLINE(static void VisitPointer(Heap* heap, Object** p)) {
+    MarkObjectByPointer(heap, p);
   }
 
-  INLINE(static void VisitPointers(Object** start, Object** end)) {
+  INLINE(static void VisitPointers(Heap* heap, Object** start, Object** end)) {
     // Mark all objects pointed to in [start, end).
     const int kMinRangeForMarkingRecursion = 64;
     if (end - start >= kMinRangeForMarkingRecursion) {
-      if (VisitUnmarkedObjects(start, end)) return;
+      if (VisitUnmarkedObjects(heap, start, end)) return;
       // We are close to a stack overflow, so just mark the objects.
     }
-    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
+    for (Object** p = start; p < end; p++) MarkObjectByPointer(heap, p);
   }
 
   static inline void VisitCodeTarget(RelocInfo* rinfo) {
@@ -356,10 +356,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   }
 
   // Mark object pointed to by p.
-  INLINE(static void MarkObjectByPointer(Object** p)) {
+  INLINE(static void MarkObjectByPointer(Heap* heap, Object** p)) {
     if (!(*p)->IsHeapObject()) return;
     HeapObject* object = ShortCircuitConsString(p);
-    HEAP->mark_compact_collector()->MarkObject(object);
+    heap->mark_compact_collector()->MarkObject(object);
   }
 
 
@@ -370,17 +370,20 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     ASSERT(!obj->IsMarked());
 #endif
     Map* map = obj->map();
-    map->heap()->mark_compact_collector()->SetMark(obj);
+    MarkCompactCollector* collector = map->heap()->mark_compact_collector();
+    collector->SetMark(obj);
     // Mark the map pointer and the body.
-    map->heap()->mark_compact_collector()->MarkObject(map);
+    collector->MarkObject(map);
     IterateBody(map, obj);
   }
 
   // Visit all unmarked objects pointed to by [start, end).
   // Returns false if the operation fails (lack of stack space).
-  static inline bool VisitUnmarkedObjects(Object** start, Object** end) {
+  static inline bool VisitUnmarkedObjects(Heap* heap,
+                                          Object** start,
+                                          Object** end) {
     // Return false is we are close to the stack limit.
-    StackLimitCheck check(Isolate::Current());
+    StackLimitCheck check(heap->isolate());
     if (check.HasOverflowed()) return false;
 
     // Visit the unmarked objects.
@@ -416,7 +419,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                               void> StructObjectVisitor;
 
   static void VisitCode(Map* map, HeapObject* object) {
-    reinterpret_cast<Code*>(object)->CodeIterateBody<StaticMarkingVisitor>();
+    reinterpret_cast<Code*>(object)->CodeIterateBody<StaticMarkingVisitor>(
+        map->heap());
   }
 
   // Code flushing support.
@@ -536,10 +540,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   }
 
 
-  static void VisitCodeEntry(Address entry_address) {
+  static void VisitCodeEntry(Heap* heap, Address entry_address) {
     Object* code = Code::GetObjectFromEntryAddress(entry_address);
     Object* old_code = code;
-    VisitPointer(&code);
+    VisitPointer(heap, &code);
     if (code != old_code) {
       Memory::Address_at(entry_address) =
           reinterpret_cast<Code*>(code)->entry();
@@ -560,13 +564,15 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static void VisitJSFunction(Map* map, HeapObject* object) {
 #define SLOT_ADDR(obj, offset)   \
     reinterpret_cast<Object**>((obj)->address() + offset)
-
-    VisitPointers(SLOT_ADDR(object, JSFunction::kPropertiesOffset),
+    Heap* heap = map->heap();
+    VisitPointers(heap,
+                  SLOT_ADDR(object, JSFunction::kPropertiesOffset),
                   SLOT_ADDR(object, JSFunction::kCodeEntryOffset));
 
-    VisitCodeEntry(object->address() + JSFunction::kCodeEntryOffset);
+    VisitCodeEntry(heap, object->address() + JSFunction::kCodeEntryOffset);
 
-    VisitPointers(SLOT_ADDR(object,
+    VisitPointers(heap,
+                  SLOT_ADDR(object,
                             JSFunction::kCodeEntryOffset + kPointerSize),
                   SLOT_ADDR(object, JSFunction::kSize));
 #undef SLOT_ADDR
@@ -585,12 +591,14 @@ VisitorDispatchTable<StaticMarkingVisitor::Callback>
 
 class MarkingVisitor : public ObjectVisitor {
  public:
+  explicit MarkingVisitor(Heap* heap) : heap_(heap) { }
+
   void VisitPointer(Object** p) {
-    StaticMarkingVisitor::VisitPointer(p);
+    StaticMarkingVisitor::VisitPointer(heap_, p);
   }
 
   void VisitPointers(Object** start, Object** end) {
-    StaticMarkingVisitor::VisitPointers(start, end);
+    StaticMarkingVisitor::VisitPointers(heap_, start, end);
   }
 
   void VisitCodeTarget(RelocInfo* rinfo) {
@@ -600,6 +608,9 @@ class MarkingVisitor : public ObjectVisitor {
   void VisitDebugTarget(RelocInfo* rinfo) {
     StaticMarkingVisitor::VisitDebugTarget(rinfo);
   }
+
+ private:
+  Heap* heap_;
 };
 
 
@@ -664,6 +675,9 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
 // Visitor class for marking heap roots.
 class RootMarkingVisitor : public ObjectVisitor {
  public:
+  explicit RootMarkingVisitor(Heap* heap)
+    : collector_(heap->mark_compact_collector()) { }
+
   void VisitPointer(Object** p) {
     MarkObjectByPointer(p);
   }
@@ -682,16 +696,18 @@ class RootMarkingVisitor : public ObjectVisitor {
 
     Map* map = object->map();
     // Mark the object.
-    HEAP->mark_compact_collector()->SetMark(object);
+    collector_->SetMark(object);
 
     // Mark the map pointer and body, and push them on the marking stack.
-    HEAP->mark_compact_collector()->MarkObject(map);
+    collector_->MarkObject(map);
     StaticMarkingVisitor::IterateBody(map, object);
 
     // Mark all the objects reachable from the map and body.  May leave
     // overflowed objects in the heap.
-    HEAP->mark_compact_collector()->EmptyMarkingStack();
+    collector_->EmptyMarkingStack();
   }
+
+  MarkCompactCollector* collector_;
 };
 
 
@@ -762,7 +778,7 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
 
   Object** end_slot = HeapObject::RawField(map, Map::kPointerFieldsEndOffset);
 
-  StaticMarkingVisitor::VisitPointers(start_slot, end_slot);
+  StaticMarkingVisitor::VisitPointers(map->heap(), start_slot, end_slot);
 }
 
 
@@ -861,11 +877,11 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
 
 
 void MarkCompactCollector::MarkSymbolTable() {
-  SymbolTable* symbol_table = HEAP->raw_unchecked_symbol_table();
+  SymbolTable* symbol_table = heap_->raw_unchecked_symbol_table();
   // Mark the symbol table itself.
   SetMark(symbol_table);
   // Explicitly mark the prefix.
-  MarkingVisitor marker;
+  MarkingVisitor marker(heap_);
   symbol_table->IteratePrefix(&marker);
   ProcessMarkingStack();
 }
@@ -930,7 +946,7 @@ void MarkCompactCollector::EmptyMarkingStack() {
   while (!marking_stack_.is_empty()) {
     HeapObject* object = marking_stack_.Pop();
     ASSERT(object->IsHeapObject());
-    ASSERT(HEAP->Contains(object));
+    ASSERT(heap_->Contains(object));
     ASSERT(object->IsMarked());
     ASSERT(!object->IsOverflowed());
 
@@ -1019,14 +1035,14 @@ void MarkCompactCollector::MarkLiveObjects() {
 #endif
   // The to space contains live objects, the from space is used as a marking
   // stack.
-  marking_stack_.Initialize(HEAP->new_space()->FromSpaceLow(),
-                            HEAP->new_space()->FromSpaceHigh());
+  marking_stack_.Initialize(heap_->new_space()->FromSpaceLow(),
+                            heap_->new_space()->FromSpaceHigh());
 
   ASSERT(!marking_stack_.overflowed());
 
   PrepareForCodeFlushing();
 
-  RootMarkingVisitor root_visitor;
+  RootMarkingVisitor root_visitor(heap_);
   MarkRoots(&root_visitor);
 
   // The objects reachable from the roots are marked, yet unreachable
@@ -1437,14 +1453,14 @@ static void MigrateObject(Heap* heap,
 class StaticPointersToNewGenUpdatingVisitor : public
   StaticNewSpaceVisitor<StaticPointersToNewGenUpdatingVisitor> {
  public:
-  static inline void VisitPointer(Object** p) {
+  static inline void VisitPointer(Heap* heap, Object** p) {
     if (!(*p)->IsHeapObject()) return;
 
     HeapObject* obj = HeapObject::cast(*p);
     Address old_addr = obj->address();
 
-    if (HEAP->new_space()->Contains(obj)) {
-      ASSERT(HEAP->InFromSpace(*p));
+    if (heap->new_space()->Contains(obj)) {
+      ASSERT(heap->InFromSpace(*p));
       *p = HeapObject::FromAddress(Memory::Address_at(old_addr));
     }
   }
@@ -1455,13 +1471,15 @@ class StaticPointersToNewGenUpdatingVisitor : public
 // It does not expect to encounter pointers to dead objects.
 class PointersToNewGenUpdatingVisitor: public ObjectVisitor {
  public:
+  explicit PointersToNewGenUpdatingVisitor(Heap* heap) : heap_(heap) { }
+
   void VisitPointer(Object** p) {
-    StaticPointersToNewGenUpdatingVisitor::VisitPointer(p);
+    StaticPointersToNewGenUpdatingVisitor::VisitPointer(heap_, p);
   }
 
   void VisitPointers(Object** start, Object** end) {
     for (Object** p = start; p < end; p++) {
-      StaticPointersToNewGenUpdatingVisitor::VisitPointer(p);
+      StaticPointersToNewGenUpdatingVisitor::VisitPointer(heap_, p);
     }
   }
 
@@ -1481,6 +1499,8 @@ class PointersToNewGenUpdatingVisitor: public ObjectVisitor {
     VisitPointer(&target);
     rinfo->set_call_address(Code::cast(target)->instruction_start());
   }
+ private:
+  Heap* heap_;
 };
 
 
@@ -1597,7 +1617,7 @@ static void SweepNewSpace(Heap* heap, NewSpace* space) {
   }
 
   // Second pass: find pointers to new space and update them.
-  PointersToNewGenUpdatingVisitor updating_visitor;
+  PointersToNewGenUpdatingVisitor updating_visitor(heap);
 
   // Update pointers in to space.
   Address current = space->bottom();

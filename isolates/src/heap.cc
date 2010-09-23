@@ -1039,9 +1039,9 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 
 class NewSpaceScavenger : public StaticNewSpaceVisitor<NewSpaceScavenger> {
  public:
-  static inline void VisitPointer(Object** p) {
+  static inline void VisitPointer(Heap* heap, Object** p) {
     Object* object = *p;
-    if (!HEAP->InNewSpace(object)) return;
+    if (!heap->InNewSpace(object)) return;
     Heap::ScavengeObject(reinterpret_cast<HeapObject**>(p),
                          reinterpret_cast<HeapObject*>(object));
   }
@@ -2390,7 +2390,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   // Compute size
   int body_size = RoundUp(desc.instr_size, kObjectAlignment);
   int obj_size = Code::SizeFor(body_size);
-  ASSERT(IsAligned(obj_size, Code::kCodeAlignment));
+  ASSERT(IsAligned(static_cast<intptr_t>(obj_size), kCodeAlignment));
   Object* result;
   if (obj_size > MaxObjectSizeInPagedSpace()) {
     result = lo_space_->AllocateRawCode(obj_size);
@@ -2787,7 +2787,7 @@ Object* Heap::AllocateGlobalObject(JSFunction* constructor) {
 
   // Setup the global object as a normalized object.
   global->set_map(new_map);
-  global->map()->set_instance_descriptors(HEAP->empty_descriptor_array());
+  global->map()->set_instance_descriptors(empty_descriptor_array());
   global->set_properties(dictionary);
 
   // Make sure result is a global object with properties in dictionary.

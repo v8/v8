@@ -65,6 +65,8 @@ TEST(Page) {
   Address page_start = RoundUp(start, Page::kPageSize);
 
   Page* p = Page::FromAddress(page_start);
+  // Initialized Page has heap pointer, normally set by memory_allocator.
+  p->heap_ = HEAP;
   CHECK(p->address() == page_start);
   CHECK(p->is_valid());
 

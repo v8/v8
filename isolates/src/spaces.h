@@ -245,8 +245,11 @@ class Page {
   static const int kPageHeaderSize = kPointerSize + kPointerSize + kIntSize +
     kIntSize + kPointerSize + kPointerSize;
 
-  // The start offset of the object area in a page.
-  static const int kObjectStartOffset = MAP_POINTER_ALIGN(kPageHeaderSize);
+  // The start offset of the object area in a page. Aligned to both maps and
+  // code alignment to be suitabel for both.
+  static const int kObjectStartOffset =
+      CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kPageHeaderSize));
+
 
   // Object area size in bytes.
   static const int kObjectAreaSize = kPageSize - kObjectStartOffset;

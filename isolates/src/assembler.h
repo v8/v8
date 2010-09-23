@@ -234,7 +234,7 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(void set_call_object(Object* target));
   INLINE(Object** call_object_address());
 
-  template<typename StaticVisitor> inline void Visit();
+  template<typename StaticVisitor> inline void Visit(Heap* heap);
   inline void Visit(ObjectVisitor* v);
 
   // Patch the code with some other code.

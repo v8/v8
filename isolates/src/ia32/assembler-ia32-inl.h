@@ -185,16 +185,16 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
 
 
 template<typename StaticVisitor>
-void RelocInfo::Visit() {
+void RelocInfo::Visit(Heap* heap) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    StaticVisitor::VisitPointer(target_object_address());
+    StaticVisitor::VisitPointer(heap, target_object_address());
   } else if (RelocInfo::IsCodeTarget(mode)) {
     StaticVisitor::VisitCodeTarget(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  } else if (Isolate::Current()->debug()->has_break_points() &&
+  } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
