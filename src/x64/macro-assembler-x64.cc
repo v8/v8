@@ -1207,6 +1207,15 @@ SmiIndex MacroAssembler::SmiToNegativeIndex(Register dst,
 }
 
 
+void MacroAssembler::Move(Register dst, Register src) {
+  if (!dst.is(src)) {
+    movq(dst, src);
+  }
+}
+
+
+
+
 void MacroAssembler::Move(Register dst, Handle<Object> source) {
   ASSERT(!source->IsFailure());
   if (source->IsSmi()) {

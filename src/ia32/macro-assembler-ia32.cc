@@ -1361,6 +1361,13 @@ void MacroAssembler::Drop(int stack_elements) {
 }
 
 
+void MacroAssembler::Move(Register dst, Register src) {
+  if (!dst.is(src)) {
+    mov(dst, src);
+  }
+}
+
+
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
   mov(dst, value);
 }

@@ -505,6 +505,9 @@ class MacroAssembler: public Assembler {
 
   void Call(Label* target) { call(target); }
 
+  // Move if the registers are not identical.
+  void Move(Register target, Register source);
+
   void Move(Register target, Handle<Object> value);
 
   Handle<Object> CodeObject() { return code_object_; }
