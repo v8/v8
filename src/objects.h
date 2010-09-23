@@ -1417,7 +1417,26 @@ class JSObject: public HeapObject {
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
   bool HasElementWithReceiver(JSObject* receiver, uint32_t index);
-  bool HasLocalElement(uint32_t index);
+
+  // Tells whether the index'th element is present and how it is stored.
+  enum LocalElementType {
+    // There is no element with given index.
+    UNDEFINED_ELEMENT,
+
+    // Element with given index is handled by interceptor.
+    INTERCEPTED_ELEMENT,
+
+    // Element with given index is character in string.
+    STRING_CHARACTER_ELEMENT,
+
+    // Element with given index is stored in fast backing store.
+    FAST_ELEMENT,
+
+    // Element with given index is stored in slow backing store.
+    DICTIONARY_ELEMENT
+  };
+
+  LocalElementType HasLocalElement(uint32_t index);
 
   bool HasElementWithInterceptor(JSObject* receiver, uint32_t index);
   bool HasElementPostInterceptor(JSObject* receiver, uint32_t index);

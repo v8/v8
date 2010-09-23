@@ -644,46 +644,63 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
   // This could be an element.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    if (!obj->HasLocalElement(index)) {
-      return Heap::undefined_value();
-    }
+    switch (obj->HasLocalElement(index)) {
+      case JSObject::UNDEFINED_ELEMENT:
+        return Heap::undefined_value();
 
-    // Special handling of string objects according to ECMAScript 5 15.5.5.2.
-    // Note that this might be a string object with elements other than the
-    // actual string value. This is covered by the subsequent cases.
-    if (obj->IsStringObjectWithCharacterAt(index)) {
-      JSValue* js_value = JSValue::cast(obj);
-      String* str = String::cast(js_value->value());
-      elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-      elms->set(VALUE_INDEX, str->SubString(index, index+1));
-      elms->set(WRITABLE_INDEX, Heap::false_value());
-      elms->set(ENUMERABLE_INDEX,  Heap::false_value());
-      elms->set(CONFIGURABLE_INDEX, Heap::false_value());
-      return *desc;
-    }
+      case JSObject::STRING_CHARACTER_ELEMENT: {
+        // Special handling of string objects according to ECMAScript 5
+        // 15.5.5.2. Note that this might be a string object with elements
+        // other than the actual string value. This is covered by the
+        // subsequent cases.
+        JSValue* js_value = JSValue::cast(obj);
+        String* str = String::cast(js_value->value());
+        elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+        elms->set(VALUE_INDEX, str->SubString(index, index+1));
+        elms->set(WRITABLE_INDEX, Heap::false_value());
+        elms->set(ENUMERABLE_INDEX,  Heap::false_value());
+        elms->set(CONFIGURABLE_INDEX, Heap::false_value());
+        return *desc;
+      }
 
-    // This can potentially be an element in the elements dictionary or
-    // a fast element.
-    if (obj->HasDictionaryElements()) {
-      NumberDictionary* dictionary = obj->element_dictionary();
-      int entry = dictionary->FindEntry(index);
-      PropertyDetails details = dictionary->DetailsAt(entry);
-      elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-      elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
-      elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
-      elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!details.IsDontEnum()));
-      elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!details.IsDontDelete()));
-      return *desc;
-    } else {
-      // Elements that are stored as array elements always has:
-      // writable: true, configurable: true, enumerable: true.
-      elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-      Object* element = obj->GetElement(index);
-      elms->set(VALUE_INDEX, element);
-      elms->set(WRITABLE_INDEX, Heap::true_value());
-      elms->set(ENUMERABLE_INDEX,  Heap::true_value());
-      elms->set(CONFIGURABLE_INDEX, Heap::true_value());
-      return *desc;
+      case JSObject::INTERCEPTED_ELEMENT:
+      case JSObject::FAST_ELEMENT:
+        elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+        elms->set(VALUE_INDEX, obj->GetElement(index));
+        elms->set(WRITABLE_INDEX, Heap::true_value());
+        elms->set(ENUMERABLE_INDEX,  Heap::true_value());
+        elms->set(CONFIGURABLE_INDEX, Heap::true_value());
+        return *desc;
+
+      case JSObject::DICTIONARY_ELEMENT: {
+        NumberDictionary* dictionary = obj->element_dictionary();
+        int entry = dictionary->FindEntry(index);
+        ASSERT(entry != NumberDictionary::kNotFound);
+        PropertyDetails details = dictionary->DetailsAt(entry);
+        switch (details.type()) {
+          case CALLBACKS: {
+            // This is an accessor property with getter and/or setter.
+            FixedArray* callbacks =
+                FixedArray::cast(dictionary->ValueAt(entry));
+            elms->set(IS_ACCESSOR_INDEX, Heap::true_value());
+            elms->set(GETTER_INDEX, callbacks->get(0));
+            elms->set(SETTER_INDEX, callbacks->get(1));
+            break;
+          }
+          case NORMAL:
+            // This is a data property.
+            elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+            elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
+            elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
+        elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!details.IsDontEnum()));
+        elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!details.IsDontDelete()));
+        return *desc;
+      }
     }
   }
 
