@@ -718,6 +718,10 @@ int DisassemblerIA32::RegisterFPUInstruction(int escape_opcode,
 
     case 0xD9:
       switch (modrm_byte & 0xF8) {
+        case 0xC0:
+          mnem = "fld";
+          has_register = true;
+          break;
         case 0xC8:
           mnem = "fxch";
           has_register = true;
