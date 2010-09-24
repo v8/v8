@@ -3013,11 +3013,6 @@ class Code: public HeapObject {
   void CodePrint();
   void CodeVerify();
 #endif
-  // Code entry points are aligned to 32 bytes.
-  static const int kCodeAlignmentBits = 5;
-  static const int kCodeAlignment = 1 << kCodeAlignmentBits;
-  static const int kCodeAlignmentMask = kCodeAlignment - 1;
-
   // Layout description.
   static const int kInstructionSizeOffset = HeapObject::kHeaderSize;
   static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
@@ -3026,8 +3021,7 @@ class Code: public HeapObject {
   // Add padding to align the instruction start following right after
   // the Code object header.
   static const int kHeaderSize =
-      (kKindSpecificFlagsOffset + kIntSize + kCodeAlignmentMask) &
-          ~kCodeAlignmentMask;
+      CODE_POINTER_ALIGN(kKindSpecificFlagsOffset + kIntSize);
 
   // Byte offsets within kKindSpecificFlagsOffset.
   static const int kStubMajorKeyOffset = kKindSpecificFlagsOffset + 1;

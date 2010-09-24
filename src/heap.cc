@@ -2444,7 +2444,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   // Compute size
   int body_size = RoundUp(desc.instr_size, kObjectAlignment);
   int obj_size = Code::SizeFor(body_size);
-  ASSERT(IsAligned(obj_size, Code::kCodeAlignment));
+  ASSERT(IsAligned(static_cast<intptr_t>(obj_size), kCodeAlignment));
   Object* result;
   if (obj_size > MaxObjectSizeInPagedSpace()) {
     result = lo_space_->AllocateRawCode(obj_size);
