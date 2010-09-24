@@ -431,7 +431,7 @@ void CpuProfiler::FunctionCreateEventFromMove(JSFunction* function,
   // This function is called from GC iterators (during Scavenge,
   // MC, and MS), so marking bits can be set on objects. That's
   // why unchecked accessors are used here.
-  
+
   // The same function can be reported several times.
   if (function->unchecked_code() == Builtins::builtin(Builtins::LazyCompile)
       || singleton_->processor_->IsKnownFunction(function->address())) return;
