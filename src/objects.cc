@@ -2099,58 +2099,31 @@ PropertyAttributes JSObject::GetLocalPropertyAttribute(String* name) {
 }
 
 
-bool NormalizedMapCache::IsCacheable(JSObject* object) {
-  // Caching for global objects is not worth it (there are too few of them).
-  return !object->IsGlobalObject();
-}
-
-
 Object* NormalizedMapCache::Get(JSObject* obj, PropertyNormalizationMode mode) {
-  Object* result;
-
   Map* fast = obj->map();
-  if (!IsCacheable(obj)) {
-    result = fast->CopyNormalized(mode);
-    if (result->IsFailure()) return result;
-  } else {
-    int index = Hash(fast) % kEntries;
-    result = get(index);
-
-    if (result->IsMap() && CheckHit(Map::cast(result), fast, mode)) {
+  int index = Hash(fast) % kEntries;
+  Object* result = get(index);
+  if (result->IsMap() && CheckHit(Map::cast(result), fast, mode)) {
 #ifdef DEBUG
-      if (FLAG_enable_slow_asserts) {
-        // Make sure that the new slow map has exactly the same hash as the
-        // original fast map. This way we can use hash to check if a slow map
-        // is already in the hash (see Contains method).
-        ASSERT(Hash(fast) == Hash(Map::cast(result)));
-        // The cached map should match newly created normalized map bit-by-bit.
-        Object* fresh = fast->CopyNormalized(mode);
-        if (!fresh->IsFailure()) {
-          ASSERT(memcmp(Map::cast(fresh)->address(),
-                        Map::cast(result)->address(),
-                        Map::kSize) == 0);
-        }
+    if (FLAG_enable_slow_asserts) {
+      // The cached map should match newly created normalized map bit-by-bit.
+      Object* fresh = fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
+      if (!fresh->IsFailure()) {
+        ASSERT(memcmp(Map::cast(fresh)->address(),
+                      Map::cast(result)->address(),
+                      Map::kSize) == 0);
       }
-#endif
-      return result;
     }
-
-    result = fast->CopyNormalized(mode);
-    if (result->IsFailure()) return result;
-    set(index, result);
+#endif
+    return result;
   }
+
+  result = fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
+  if (result->IsFailure()) return result;
+  set(index, result);
   Counters::normalized_maps.Increment();
 
   return result;
-}
-
-
-bool NormalizedMapCache::Contains(Map* map) {
-  // If the map is present in the cache it can only be at one place:
-  // at the index calculated from the hash. We assume that a slow map has the
-  // same hash as a fast map it has been generated from.
-  int index = Hash(map) % kEntries;
-  return get(index) == map;
 }
 
 
@@ -2184,7 +2157,7 @@ bool NormalizedMapCache::CheckHit(Map* slow,
                                   Map* fast,
                                   PropertyNormalizationMode mode) {
 #ifdef DEBUG
-  slow->NormalizedMapVerify();
+  slow->SharedMapVerify();
 #endif
   return
     slow->constructor() == fast->constructor() &&
@@ -2194,17 +2167,17 @@ bool NormalizedMapCache::CheckHit(Map* slow,
                                     fast->inobject_properties()) &&
     slow->instance_type() == fast->instance_type() &&
     slow->bit_field() == fast->bit_field() &&
-    slow->bit_field2() == fast->bit_field2();
+    (slow->bit_field2() & ~(1<<Map::kIsShared)) == fast->bit_field2();
 }
 
 
 Object* JSObject::UpdateMapCodeCache(String* name, Code* code) {
-  if (!HasFastProperties() &&
-      NormalizedMapCache::IsCacheable(this) &&
-      Top::context()->global_context()->normalized_map_cache()->
-          Contains(map())) {
-    // Replace the map with the identical copy that can be safely modified.
-    Object* obj = map()->CopyNormalized(KEEP_INOBJECT_PROPERTIES);
+  if (map()->is_shared()) {
+    // Fast case maps are never marked as shared.
+    ASSERT(!HasFastProperties());
+    // Replace the map with an identical copy that can be safely modified.
+    Object* obj = map()->CopyNormalized(KEEP_INOBJECT_PROPERTIES,
+                                        UNIQUE_NORMALIZED_MAP);
     if (obj->IsFailure()) return obj;
     Counters::normalized_maps.Increment();
 
@@ -3189,12 +3162,14 @@ Object* Map::CopyDropDescriptors() {
   }
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
+  Map::cast(result)->set_is_shared(false);
   Map::cast(result)->ClearCodeCache();
   return result;
 }
 
 
-Object* Map::CopyNormalized(PropertyNormalizationMode mode) {
+Object* Map::CopyNormalized(PropertyNormalizationMode mode,
+                            NormalizedMapSharingMode sharing) {
   int new_instance_size = instance_size();
   if (mode == CLEAR_INOBJECT_PROPERTIES) {
     new_instance_size -= inobject_properties() * kPointerSize;
@@ -3213,8 +3188,12 @@ Object* Map::CopyNormalized(PropertyNormalizationMode mode) {
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
 
+  Map::cast(result)->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
+
 #ifdef DEBUG
-  Map::cast(result)->NormalizedMapVerify();
+  if (Map::cast(result)->is_shared()) {
+    Map::cast(result)->SharedMapVerify();
+  }
 #endif
 
   return result;

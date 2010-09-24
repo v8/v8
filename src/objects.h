@@ -200,6 +200,14 @@ enum PropertyNormalizationMode {
 };
 
 
+// NormalizedMapSharingMode is used to specify whether a map may be shared
+// by different objects with normalized properties.
+enum NormalizedMapSharingMode {
+  UNIQUE_NORMALIZED_MAP,
+  SHARED_NORMALIZED_MAP
+};
+
+
 // Instance size sentinel for objects of variable size.
 static const int kVariableSizeSentinel = 0;
 
@@ -2509,11 +2517,7 @@ class NormalizedMapCache: public FixedArray {
  public:
   static const int kEntries = 64;
 
-  static bool IsCacheable(JSObject* object);
-
   Object* Get(JSObject* object, PropertyNormalizationMode mode);
-
-  bool Contains(Map* map);
 
   void Clear();
 
@@ -3176,6 +3180,13 @@ class Map: public HeapObject {
 
   inline bool attached_to_shared_function_info();
 
+  // Tells whether the map is shared between objects that may have different
+  // behavior. If true, the map should never be modified, instead a clone
+  // should be created and modified.
+  inline void set_is_shared(bool value);
+
+  inline bool is_shared();
+
   // Tells whether the instance needs security checks when accessing its
   // properties.
   inline void set_is_access_check_needed(bool access_check_needed);
@@ -3197,7 +3208,8 @@ class Map: public HeapObject {
 
   MUST_USE_RESULT Object* CopyDropDescriptors();
 
-  MUST_USE_RESULT Object* CopyNormalized(PropertyNormalizationMode mode);
+  MUST_USE_RESULT Object* CopyNormalized(PropertyNormalizationMode mode,
+                                         NormalizedMapSharingMode sharing);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
@@ -3261,7 +3273,7 @@ class Map: public HeapObject {
 #ifdef DEBUG
   void MapPrint();
   void MapVerify();
-  void NormalizedMapVerify();
+  void SharedMapVerify();
 #endif
 
   inline int visitor_id();
@@ -3325,6 +3337,7 @@ class Map: public HeapObject {
   static const int kHasFastElements = 2;
   static const int kStringWrapperSafeForDefaultValueOf = 3;
   static const int kAttachedToSharedFunctionInfo = 4;
+  static const int kIsShared = 5;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;
