@@ -249,7 +249,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
       // the function.
       for (int i = 0; i < scope()->num_parameters(); i++) {
         Variable* par = scope()->parameter(i);
-        Slot* slot = par->slot();
+        Slot* slot = par->AsSlot();
         if (slot != NULL && slot->type() == Slot::CONTEXT) {
           // The use of SlotOperand below is safe in unspilled code
           // because the slot is guaranteed to be a context slot.
@@ -285,7 +285,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
     // Initialize ThisFunction reference if present.
     if (scope()->is_function_scope() && scope()->function() != NULL) {
       frame_->Push(Factory::the_hole_value());
-      StoreToSlot(scope()->function()->slot(), NOT_CONST_INIT);
+      StoreToSlot(scope()->function()->AsSlot(), NOT_CONST_INIT);
     }
 
 
@@ -717,10 +717,10 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
     Property property(&global, &key, RelocInfo::kNoPosition);
     Reference ref(this, &property);
     ref.GetValue();
-  } else if (variable != NULL && variable->slot() != NULL) {
+  } else if (variable != NULL && variable->AsSlot() != NULL) {
     // For a variable that rewrites to a slot, we signal it is the immediate
     // subexpression of a typeof.
-    LoadFromSlotCheckForArguments(variable->slot(), INSIDE_TYPEOF);
+    LoadFromSlotCheckForArguments(variable->AsSlot(), INSIDE_TYPEOF);
   } else {
     // Anything else can be handled normally.
     Load(expr);
@@ -759,17 +759,17 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     frame_->Push(&result);
   }
 
-  Variable* arguments = scope()->arguments()->var();
-  Variable* shadow = scope()->arguments_shadow()->var();
-  ASSERT(arguments != NULL && arguments->slot() != NULL);
-  ASSERT(shadow != NULL && shadow->slot() != NULL);
+  Variable* arguments = scope()->arguments();
+  Variable* shadow = scope()->arguments_shadow();
+  ASSERT(arguments != NULL && arguments->AsSlot() != NULL);
+  ASSERT(shadow != NULL && shadow->AsSlot() != NULL);
   JumpTarget done;
   bool skip_arguments = false;
   if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
     // We have to skip storing into the arguments slot if it has
     // already been written to. This can happen if the a function
     // has a local variable named 'arguments'.
-    LoadFromSlot(arguments->slot(), NOT_INSIDE_TYPEOF);
+    LoadFromSlot(arguments->AsSlot(), NOT_INSIDE_TYPEOF);
     Result probe = frame_->Pop();
     if (probe.is_constant()) {
       // We have to skip updating the arguments object if it has
@@ -782,10 +782,10 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     }
   }
   if (!skip_arguments) {
-    StoreToSlot(arguments->slot(), NOT_CONST_INIT);
+    StoreToSlot(arguments->AsSlot(), NOT_CONST_INIT);
     if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
   }
-  StoreToSlot(shadow->slot(), NOT_CONST_INIT);
+  StoreToSlot(shadow->AsSlot(), NOT_CONST_INIT);
   return frame_->Pop();
 }
 
@@ -842,7 +842,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
       LoadGlobal();
       ref->set_type(Reference::NAMED);
     } else {
-      ASSERT(var->slot() != NULL);
+      ASSERT(var->AsSlot() != NULL);
       ref->set_type(Reference::SLOT);
     }
   } else {
@@ -3274,7 +3274,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // Load the receiver and the existing arguments object onto the
   // expression stack. Avoid allocating the arguments object here.
   Load(receiver);
-  LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+  LoadFromSlot(scope()->arguments()->AsSlot(), NOT_INSIDE_TYPEOF);
 
   // Emit the source position information after having loaded the
   // receiver and the arguments.
@@ -3536,7 +3536,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
   Comment cmnt(masm_, "[ Declaration");
   Variable* var = node->proxy()->var();
   ASSERT(var != NULL);  // must have been resolved
-  Slot* slot = var->slot();
+  Slot* slot = var->AsSlot();
 
   // If it was not possible to allocate the variable at compile time,
   // we need to "declare" it at runtime to make sure it actually
@@ -4252,7 +4252,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   // the bottom check of the loop condition.
   if (node->is_fast_smi_loop()) {
     // Set number type of the loop variable to smi.
-    SetTypeForStackSlot(node->loop_variable()->slot(), TypeInfo::Smi());
+    SetTypeForStackSlot(node->loop_variable()->AsSlot(), TypeInfo::Smi());
   }
 
   Visit(node->body());
@@ -4278,7 +4278,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   // expression if we are in a fast smi loop condition.
   if (node->is_fast_smi_loop() && has_valid_frame()) {
     // Set number type of the loop variable to smi.
-    SetTypeForStackSlot(node->loop_variable()->slot(), TypeInfo::Smi());
+    SetTypeForStackSlot(node->loop_variable()->AsSlot(), TypeInfo::Smi());
   }
 
   // Based on the condition analysis, compile the backward jump as
@@ -4577,8 +4577,8 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
 
   // Store the caught exception in the catch variable.
   Variable* catch_var = node->catch_var()->var();
-  ASSERT(catch_var != NULL && catch_var->slot() != NULL);
-  StoreToSlot(catch_var->slot(), NOT_CONST_INIT);
+  ASSERT(catch_var != NULL && catch_var->AsSlot() != NULL);
+  StoreToSlot(catch_var->AsSlot(), NOT_CONST_INIT);
 
   // Remove the exception from the stack.
   frame_->Drop();
@@ -5173,7 +5173,7 @@ void CodeGenerator::EmitDynamicLoadFromSlotFastCase(Slot* slot,
     done->Jump(result);
 
   } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
-    Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
+    Slot* potential_slot = slot->var()->local_if_not_shadowed()->AsSlot();
     Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
     if (potential_slot != NULL) {
       // Generate fast case for locals that rewrite to slots.
@@ -5206,7 +5206,7 @@ void CodeGenerator::EmitDynamicLoadFromSlotFastCase(Slot* slot,
           Result arguments = allocator()->Allocate();
           ASSERT(arguments.is_valid());
           __ mov(arguments.reg(),
-                 ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
+                 ContextSlotOperandCheckExtensions(obj_proxy->var()->AsSlot(),
                                                    arguments,
                                                    slow));
           frame_->Push(&arguments);
@@ -5714,7 +5714,7 @@ void CodeGenerator::EmitSlotAssignment(Assignment* node) {
   Comment cmnt(masm(), "[ Variable Assignment");
   Variable* var = node->target()->AsVariableProxy()->AsVariable();
   ASSERT(var != NULL);
-  Slot* slot = var->slot();
+  Slot* slot = var->AsSlot();
   ASSERT(slot != NULL);
 
   // Evaluate the right-hand side.
@@ -6063,14 +6063,14 @@ void CodeGenerator::VisitCall(Call* node) {
     // in generated code. If we succeed, there is no need to perform a
     // context lookup in the runtime system.
     JumpTarget done;
-    if (var->slot() != NULL && var->mode() == Variable::DYNAMIC_GLOBAL) {
-      ASSERT(var->slot()->type() == Slot::LOOKUP);
+    if (var->AsSlot() != NULL && var->mode() == Variable::DYNAMIC_GLOBAL) {
+      ASSERT(var->AsSlot()->type() == Slot::LOOKUP);
       JumpTarget slow;
       // Prepare the stack for the call to
       // ResolvePossiblyDirectEvalNoLookup by pushing the loaded
       // function, the first argument to the eval call and the
       // receiver.
-      Result fun = LoadFromGlobalSlotCheckExtensions(var->slot(),
+      Result fun = LoadFromGlobalSlotCheckExtensions(var->AsSlot(),
                                                      NOT_INSIDE_TYPEOF,
                                                      &slow);
       frame_->Push(&fun);
@@ -6153,8 +6153,8 @@ void CodeGenerator::VisitCall(Call* node) {
     frame_->RestoreContextRegister();
     frame_->Push(&result);
 
-  } else if (var != NULL && var->slot() != NULL &&
-             var->slot()->type() == Slot::LOOKUP) {
+  } else if (var != NULL && var->AsSlot() != NULL &&
+             var->AsSlot()->type() == Slot::LOOKUP) {
     // ----------------------------------
     // JavaScript examples:
     //
@@ -6173,7 +6173,7 @@ void CodeGenerator::VisitCall(Call* node) {
     // Generate fast case for loading functions from slots that
     // correspond to local/global variables or arguments unless they
     // are shadowed by eval-introduced bindings.
-    EmitDynamicLoadFromSlotFastCase(var->slot(),
+    EmitDynamicLoadFromSlotFastCase(var->AsSlot(),
                                     NOT_INSIDE_TYPEOF,
                                     &function,
                                     &slow,
@@ -8053,7 +8053,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
     Variable* variable = node->expression()->AsVariableProxy()->AsVariable();
     if (variable != NULL) {
-      Slot* slot = variable->slot();
+      Slot* slot = variable->AsSlot();
       if (variable->is_global()) {
         LoadGlobal();
         frame_->Push(variable->name());
@@ -9787,7 +9787,7 @@ void Reference::GetValue() {
   switch (type_) {
     case SLOT: {
       Comment cmnt(masm, "[ Load from Slot");
-      Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+      Slot* slot = expression_->AsVariableProxy()->AsVariable()->AsSlot();
       ASSERT(slot != NULL);
       cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
       if (!persist_after_get_) set_unloaded();
@@ -9832,7 +9832,7 @@ void Reference::TakeValue() {
     return;
   }
 
-  Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+  Slot* slot = expression_->AsVariableProxy()->AsVariable()->AsSlot();
   ASSERT(slot != NULL);
   if (slot->type() == Slot::LOOKUP ||
       slot->type() == Slot::CONTEXT ||
@@ -9865,7 +9865,7 @@ void Reference::SetValue(InitState init_state) {
   switch (type_) {
     case SLOT: {
       Comment cmnt(masm, "[ Store to Slot");
-      Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+      Slot* slot = expression_->AsVariableProxy()->AsVariable()->AsSlot();
       ASSERT(slot != NULL);
       cgen_->StoreToSlot(slot, init_state);
       set_unloaded();

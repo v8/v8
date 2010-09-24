@@ -429,7 +429,7 @@ void FullCodeGenerator::VisitDeclarations(
   for (int i = 0; i < length; i++) {
     Declaration* decl = declarations->at(i);
     Variable* var = decl->proxy()->var();
-    Slot* slot = var->slot();
+    Slot* slot = var->AsSlot();
 
     // If it was not possible to allocate the variable at compile
     // time, we need to "declare" it at runtime to make sure it
@@ -449,7 +449,7 @@ void FullCodeGenerator::VisitDeclarations(
     for (int j = 0, i = 0; i < length; i++) {
       Declaration* decl = declarations->at(i);
       Variable* var = decl->proxy()->var();
-      Slot* slot = var->slot();
+      Slot* slot = var->AsSlot();
 
       if ((slot == NULL || slot->type() != Slot::LOOKUP) && var->is_global()) {
         array->set(j++, *(var->name()));
@@ -1018,7 +1018,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
     // The catch variable is *always* a variable proxy for a local variable.
     Variable* catch_var = stmt->catch_var()->AsVariableProxy()->AsVariable();
     ASSERT_NOT_NULL(catch_var);
-    Slot* variable_slot = catch_var->slot();
+    Slot* variable_slot = catch_var->AsSlot();
     ASSERT_NOT_NULL(variable_slot);
     ASSERT_EQ(Slot::LOCAL, variable_slot->type());
     StoreToFrameField(SlotOffset(variable_slot), result_register());

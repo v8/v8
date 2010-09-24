@@ -525,8 +525,8 @@ void AstOptimizer::VisitBinaryOperation(BinaryOperation* node) {
         Variable* rvar = rvar_proxy->AsVariable();
         if (lvar != NULL && rvar != NULL) {
           if (lvar->mode() == Variable::VAR && rvar->mode() == Variable::VAR) {
-            Slot* lslot = lvar->slot();
-            Slot* rslot = rvar->slot();
+            Slot* lslot = lvar->AsSlot();
+            Slot* rslot = rvar->AsSlot();
             if (lslot->type() == rslot->type() &&
                 (lslot->type() == Slot::PARAMETER ||
                  lslot->type() == Slot::LOCAL) &&

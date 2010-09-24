@@ -948,6 +948,8 @@ class CatchExtensionObject: public Expression {
 
 class VariableProxy: public Expression {
  public:
+  explicit VariableProxy(Variable* var);
+
   virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
@@ -960,7 +962,10 @@ class VariableProxy: public Expression {
   }
 
   Variable* AsVariable() {
-    return this == NULL || var_ == NULL ? NULL : var_->AsVariable();
+    if (this == NULL || var_ == NULL) return NULL;
+    Expression* rewrite = var_->rewrite();
+    if (rewrite == NULL || rewrite->AsSlot() != NULL) return var_;
+    return NULL;
   }
 
   virtual bool IsValidLeftHandSide() {

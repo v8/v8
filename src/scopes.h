@@ -233,11 +233,11 @@ class Scope: public ZoneObject {
 
   // The local variable 'arguments' if we need to allocate it; NULL otherwise.
   // If arguments() exist, arguments_shadow() exists, too.
-  VariableProxy* arguments()  const  { return arguments_; }
+  Variable* arguments()  const  { return arguments_; }
 
   // The '.arguments' shadow variable if we need to allocate it; NULL otherwise.
   // If arguments_shadow() exist, arguments() exists, too.
-  VariableProxy* arguments_shadow()  const  { return arguments_shadow_; }
+  Variable* arguments_shadow()  const  { return arguments_shadow_; }
 
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
@@ -322,9 +322,9 @@ class Scope: public ZoneObject {
   // Function variable, if any; function scopes only.
   Variable* function_;
   // Convenience variable; function scopes only.
-  VariableProxy* arguments_;
+  Variable* arguments_;
   // Convenience variable; function scopes only.
-  VariableProxy* arguments_shadow_;
+  Variable* arguments_shadow_;
 
   // Illegal redeclaration.
   Expression* illegal_redecl_;

@@ -122,8 +122,9 @@ class Variable: public ZoneObject {
   static const char* Mode2String(Mode mode);
 
   // Type testing & conversion
-  Property* AsProperty();
-  Variable* AsVariable();
+  Property* AsProperty() const;
+  Slot* AsSlot() const;
+
   bool IsValidLeftHandSide() { return is_valid_LHS_; }
 
   // The source code for an eval() call may refer to a variable that is
@@ -172,7 +173,6 @@ class Variable: public ZoneObject {
   }
 
   Expression* rewrite() const  { return rewrite_; }
-  Slot* slot() const;
 
   StaticType* type() { return &type_; }
 
