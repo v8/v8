@@ -1186,25 +1186,43 @@ void StubCompiler::LookupPostInterceptor(JSObject* holder,
 
 Object* LoadStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, type);
-  return GetCodeWithFlags(flags, name);
+  Object* result = GetCodeWithFlags(flags, name);
+  if (!result->IsFailure()) {
+    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(result), name));
+  }
+  return result;
 }
 
 
 Object* KeyedLoadStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, type);
-  return GetCodeWithFlags(flags, name);
+  Object* result = GetCodeWithFlags(flags, name);
+  if (!result->IsFailure()) {
+    PROFILE(
+        CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(result), name));
+  }
+  return result;
 }
 
 
 Object* StoreStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, type);
-  return GetCodeWithFlags(flags, name);
+  Object* result = GetCodeWithFlags(flags, name);
+  if (!result->IsFailure()) {
+    PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(result), name));
+  }
+  return result;
 }
 
 
 Object* KeyedStoreStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, type);
-  return GetCodeWithFlags(flags, name);
+  Object* result = GetCodeWithFlags(flags, name);
+  if (!result->IsFailure()) {
+    PROFILE(
+        CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(result), name));
+  }
+  return result;
 }
 
 

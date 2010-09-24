@@ -1218,7 +1218,14 @@ class ScavengingVisitor : public StaticVisitorBase {
     RecordCopiedObject(target);
 #endif
     HEAP_PROFILE(ObjectMoveEvent(source->address(), target->address()));
-
+#if defined(ENABLE_LOGGING_AND_PROFILING)
+    if (Logger::is_logging() || CpuProfiler::is_profiling()) {
+      if (target->IsJSFunction()) {
+        PROFILE(FunctionMoveEvent(source->address(), target->address()));
+        PROFILE(FunctionCreateEventFromMove(JSFunction::cast(target), source));
+      }
+    }
+#endif
     return target;
   }
 

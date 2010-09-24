@@ -871,20 +871,33 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
 
 void Logger::FunctionCreateEvent(JSFunction* function) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
+  // This function can be called from GC iterators (during Scavenge,
+  // MC, and MS), so marking bits can be set on objects. That's
+  // why unchecked accessors are used here.
   static Address prev_code = NULL;
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("%s,", log_events_[FUNCTION_CREATION_EVENT]);
   msg.AppendAddress(function->address());
   msg.Append(',');
-  msg.AppendAddress(function->code()->address(), prev_code);
-  prev_code = function->code()->address();
+  msg.AppendAddress(function->unchecked_code()->address(), prev_code);
+  prev_code = function->unchecked_code()->address();
   if (FLAG_compress_log) {
     ASSERT(compression_helper_ != NULL);
     if (!compression_helper_->HandleMessage(&msg)) return;
   }
   msg.Append('\n');
   msg.WriteToLogFile();
+#endif
+}
+
+
+void Logger::FunctionCreateEventFromMove(JSFunction* function,
+                                         HeapObject*) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (function->unchecked_code() != Builtins::builtin(Builtins::LazyCompile)) {
+    FunctionCreateEvent(function);
+  }
 #endif
 }
 

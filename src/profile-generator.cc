@@ -134,10 +134,13 @@ void CodeEntry::CopyData(const CodeEntry& source) {
 
 uint32_t CodeEntry::GetCallUid() const {
   uint32_t hash = ComputeIntegerHash(tag_);
-  hash ^= static_cast<int32_t>(reinterpret_cast<intptr_t>(name_prefix_));
-  hash ^= static_cast<int32_t>(reinterpret_cast<intptr_t>(name_));
-  hash ^= static_cast<int32_t>(reinterpret_cast<intptr_t>(resource_name_));
-  hash ^= static_cast<int32_t>(line_number_);
+  hash ^= ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)));
+  hash ^= ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)));
+  hash ^= ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)));
+  hash ^= ComputeIntegerHash(line_number_);
   return hash;
 }
 
@@ -442,9 +445,10 @@ void CodeMap::AddAlias(Address start, CodeEntry* entry, Address code_start) {
   CodeTree::Locator locator;
   if (tree_.Find(code_start, &locator)) {
     const CodeEntryInfo& code_info = locator.value();
-    entry->CopyData(*code_info.entry);
-    tree_.Insert(start, &locator);
-    locator.set_value(CodeEntryInfo(entry, code_info.size));
+    if (tree_.Insert(start, &locator)) {
+      entry->CopyData(*code_info.entry);
+      locator.set_value(CodeEntryInfo(entry, code_info.size));
+    }
   }
 }
 

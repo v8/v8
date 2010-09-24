@@ -745,7 +745,8 @@ class HeapObjectsMap {
   }
 
   static uint32_t AddressHash(Address addr) {
-    return static_cast<int32_t>(reinterpret_cast<intptr_t>(addr));
+    return ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr)));
   }
 
   bool initial_fill_mode_;
@@ -888,7 +889,8 @@ class HeapEntriesMap {
   };
 
   uint32_t Hash(HeapObject* object) {
-    return static_cast<uint32_t>(reinterpret_cast<intptr_t>(object));
+    return ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(object)));
   }
   static bool HeapObjectsMatch(void* key1, void* key2) { return key1 == key2; }
 
@@ -995,7 +997,8 @@ class HeapSnapshotJSONSerializer {
   }
 
   INLINE(static uint32_t ObjectHash(const void* key)) {
-    return static_cast<int32_t>(reinterpret_cast<intptr_t>(key));
+    return ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key)));
   }
 
   void EnumerateNodes();

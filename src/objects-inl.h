@@ -83,7 +83,6 @@ PropertyDetails PropertyDetails::AsDeleted() {
   }
 
 
-
 #define SMI_ACCESSORS(holder, name, offset)             \
   int holder::name() {                                  \
     Object* value = READ_FIELD(this, offset);           \
