@@ -375,10 +375,10 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(
     Label* materialize_false) const {
   NearLabel done;
   __ bind(materialize_true);
-  __ LoadRoot(result_register(), Heap::kTrueValueRootIndex);
+  __ Move(result_register(), Factory::true_value());
   __ jmp(&done);
   __ bind(materialize_false);
-  __ LoadRoot(result_register(), Heap::kFalseValueRootIndex);
+  __ Move(result_register(), Factory::false_value());
   __ bind(&done);
 }
 
@@ -388,10 +388,10 @@ void FullCodeGenerator::StackValueContext::Plug(
     Label* materialize_false) const {
   NearLabel done;
   __ bind(materialize_true);
-  __ PushRoot(Heap::kTrueValueRootIndex);
+  __ Push(Factory::true_value());
   __ jmp(&done);
   __ bind(materialize_false);
-  __ PushRoot(Heap::kFalseValueRootIndex);
+  __ Push(Factory::false_value());
   __ bind(&done);
 }
 
@@ -2250,12 +2250,12 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Functions have class 'Function'.
   __ bind(&function);
-  __ LoadRoot(rax, Heap::kFunctionClassSymbolRootIndex);
+  __ Move(rax, Factory::function_class_symbol());
   __ jmp(&done);
 
   // Objects with a non-function constructor have class 'Object'.
   __ bind(&non_function_constructor);
-  __ LoadRoot(rax, Heap::kObjectSymbolRootIndex);
+  __ Move(rax, Factory::Object_symbol());
   __ jmp(&done);
 
   // Non-JS objects have class null.
@@ -2710,10 +2710,10 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
   __ cmpq(tmp, FieldOperand(right, JSRegExp::kDataOffset));
   __ j(equal, &ok);
   __ bind(&fail);
-  __ LoadRoot(rax, Heap::kFalseValueRootIndex);
+  __ Move(rax, Factory::false_value());
   __ jmp(&done);
   __ bind(&ok);
-  __ LoadRoot(rax, Heap::kTrueValueRootIndex);
+  __ Move(rax, Factory::true_value());
   __ bind(&done);
 
   context()->Plug(rax);
