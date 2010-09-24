@@ -156,12 +156,12 @@ class Parser {
   ScriptDataImpl* pre_data_;
   FuncNameInferrer* fni_;
 
-  bool inside_with() const  { return with_nesting_level_ > 0; }
-  ParserFactory* factory() const  { return factory_; }
+  bool inside_with() const { return with_nesting_level_ > 0; }
+  ParserFactory* factory() const { return factory_; }
   ParserLog* log() const { return log_; }
   Scanner& scanner()  { return scanner_; }
-  Mode mode() const  { return mode_; }
-  ScriptDataImpl* pre_data() const  { return pre_data_; }
+  Mode mode() const { return mode_; }
+  ScriptDataImpl* pre_data() const { return pre_data_; }
 
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.

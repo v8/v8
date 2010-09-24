@@ -692,7 +692,7 @@ class Processor: public AstVisitor {
   }
 
   void Process(ZoneList<Statement*>* statements);
-  bool result_assigned() const  { return result_assigned_; }
+  bool result_assigned() const { return result_assigned_; }
 
  private:
   VariableProxy* result_;
