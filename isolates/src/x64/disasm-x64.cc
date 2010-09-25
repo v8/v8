@@ -1451,12 +1451,12 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data++;
         int mod, regop, rm;
         get_modrm(*data, &mod, &regop, &rm);
-        if (mod == 3 && regop == 1) {
-          AppendToBuffer("decb %s", NameOfCPURegister(rm));
+        if (regop == 1) {
+          AppendToBuffer("decb ");
+          data += PrintRightOperand(data);
         } else {
           UnimplementedInstruction();
         }
-        data++;
       }
         break;
 

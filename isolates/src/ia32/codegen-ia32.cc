@@ -2648,6 +2648,19 @@ static Condition DoubleCondition(Condition cc) {
 }
 
 
+static CompareFlags ComputeCompareFlags(NaNInformation nan_info,
+                                        bool inline_number_compare) {
+  CompareFlags flags = NO_SMI_COMPARE_IN_STUB;
+  if (nan_info == kCantBothBeNaN) {
+    flags = static_cast<CompareFlags>(flags | CANT_BOTH_BE_NAN);
+  }
+  if (inline_number_compare) {
+    flags = static_cast<CompareFlags>(flags | NO_NUMBER_COMPARE_IN_STUB);
+  }
+  return flags;
+}
+
+
 void CodeGenerator::Comparison(AstNode* node,
                                Condition cc,
                                bool strict,
@@ -2775,7 +2788,9 @@ void CodeGenerator::Comparison(AstNode* node,
 
       // Setup and call the compare stub.
       is_not_string.Bind(&left_side);
-      CompareStub stub(cc, strict, kCantBothBeNaN);
+      CompareFlags flags =
+          static_cast<CompareFlags>(CANT_BOTH_BE_NAN | NO_SMI_COMPARE_IN_STUB);
+      CompareStub stub(cc, strict, flags);
       Result result = frame_->CallStub(&stub, &left_side, &right_side);
       result.ToRegister();
       __ cmp(result.reg(), 0);
@@ -2869,7 +2884,8 @@ void CodeGenerator::Comparison(AstNode* node,
 
       // End of in-line compare, call out to the compare stub. Don't include
       // number comparison in the stub if it was inlined.
-      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
+      CompareFlags flags = ComputeCompareFlags(nan_info, inline_number_compare);
+      CompareStub stub(cc, strict, flags);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       __ test(answer.reg(), Operand(answer.reg()));
       answer.Unuse();
@@ -2902,7 +2918,9 @@ void CodeGenerator::Comparison(AstNode* node,
 
         // End of in-line compare, call out to the compare stub. Don't include
         // number comparison in the stub if it was inlined.
-        CompareStub stub(cc, strict, nan_info, !inline_number_compare);
+        CompareFlags flags =
+            ComputeCompareFlags(nan_info, inline_number_compare);
+        CompareStub stub(cc, strict, flags);
         Result answer = frame_->CallStub(&stub, &left_side, &right_side);
         __ test(answer.reg(), Operand(answer.reg()));
         answer.Unuse();
@@ -2996,7 +3014,6 @@ void CodeGenerator::ConstantSmiComparison(Condition cc,
         dest->false_target()->Branch(zero);
       } else {
         // Do the smi check, then the comparison.
-        JumpTarget is_not_smi;
         __ test(left_reg, Immediate(kSmiTagMask));
         is_smi.Branch(zero, left_side, right_side);
       }
@@ -3034,7 +3051,9 @@ void CodeGenerator::ConstantSmiComparison(Condition cc,
       }
 
       // Setup and call the compare stub.
-      CompareStub stub(cc, strict, kCantBothBeNaN);
+      CompareFlags flags =
+          static_cast<CompareFlags>(CANT_BOTH_BE_NAN | NO_SMI_CODE_IN_STUB);
+      CompareStub stub(cc, strict, flags);
       Result result = frame_->CallStub(&stub, left_side, right_side);
       result.ToRegister();
       __ test(result.reg(), Operand(result.reg()));
@@ -8150,6 +8169,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
           GenericUnaryOpStub stub(
               Token::SUB,
               overwrite,
+              NO_UNARY_FLAGS,
               no_negative_zero ? kIgnoreNegativeZero : kStrictNegativeZero);
           Result operand = frame_->Pop();
           Result answer = frame_->CallStub(&stub, &operand);
@@ -8177,7 +8197,9 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
             __ test(operand.reg(), Immediate(kSmiTagMask));
             smi_label.Branch(zero, &operand, taken);
 
-            GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
+            GenericUnaryOpStub stub(Token::BIT_NOT,
+                                    overwrite,
+                                    NO_UNARY_SMI_CODE_IN_STUB);
             Result answer = frame_->CallStub(&stub, &operand);
             continue_label.Jump(&answer);
 
@@ -9126,9 +9148,15 @@ class DeferredReferenceGetNamedValue: public DeferredCode {
  public:
   DeferredReferenceGetNamedValue(Register dst,
                                  Register receiver,
-                                 Handle<String> name)
-      : dst_(dst), receiver_(receiver),  name_(name) {
-    set_comment("[ DeferredReferenceGetNamedValue");
+                                 Handle<String> name,
+                                 bool is_contextual)
+      : dst_(dst),
+        receiver_(receiver),
+        name_(name),
+        is_contextual_(is_contextual) {
+    set_comment(is_contextual
+                ? "[ DeferredReferenceGetNamedValue (contextual)"
+                : "[ DeferredReferenceGetNamedValue");
   }
 
   virtual void Generate();
@@ -9140,6 +9168,7 @@ class DeferredReferenceGetNamedValue: public DeferredCode {
   Register dst_;
   Register receiver_;
   Handle<String> name_;
+  bool is_contextual_;
 };
 
 
@@ -9150,9 +9179,15 @@ void DeferredReferenceGetNamedValue::Generate() {
   __ Set(ecx, Immediate(name_));
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
       Builtins::LoadIC_Initialize));
-  __ call(ic, RelocInfo::CODE_TARGET);
-  // The call must be followed by a test eax instruction to indicate
-  // that the inobject property case was inlined.
+  RelocInfo::Mode mode = is_contextual_
+      ? RelocInfo::CODE_TARGET_CONTEXT
+      : RelocInfo::CODE_TARGET;
+  __ call(ic, mode);
+  // The call must be followed by:
+  // - a test eax instruction to indicate that the inobject property
+  //   case was inlined.
+  // - a mov ecx instruction to indicate that the contextual property
+  //   load was inlined.
   //
   // Store the delta to the map check instruction here in the test
   // instruction.  Use masm_-> instead of the __ macro since the
@@ -9160,8 +9195,13 @@ void DeferredReferenceGetNamedValue::Generate() {
   int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
   // Here we use masm_-> instead of the __ macro because this is the
   // instruction that gets patched and coverage code gets in the way.
-  masm_->test(eax, Immediate(-delta_to_patch_site));
-  __ IncrementCounter(COUNTERS->named_load_inline_miss(), 1);
+  if (is_contextual_) {
+    masm_->mov(ecx, -delta_to_patch_site);
+    __ IncrementCounter(COUNTERS->named_load_global_inline_miss(), 1);
+  } else {
+    masm_->test(eax, Immediate(-delta_to_patch_site));
+    __ IncrementCounter(COUNTERS->named_load_inline_miss(), 1);
+  }
 
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
@@ -9334,12 +9374,17 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 #ifdef DEBUG
   int original_height = frame()->height();
 #endif
+
+  bool contextual_load_in_builtin =
+      is_contextual &&
+      (Isolate::Current()->bootstrapper()->IsActive() ||
+       (!info_->closure().is_null() && info_->closure()->IsBuiltin()));
+
   Result result;
-  // Do not inline the inobject property case for loads from the global
-  // object.  Also do not inline for unoptimized code.  This saves time in
-  // the code generator.  Unoptimized code is toplevel code or code that is
-  // not in a loop.
-  if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
+  // Do not inline in the global code or when not in loop.
+  if (scope()->is_global_scope() ||
+      loop_nesting() == 0 ||
+      contextual_load_in_builtin) {
     Comment cmnt(masm(), "[ Load from named Property");
     frame()->Push(name);
 
@@ -9352,19 +9397,26 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     // instruction here.
     __ nop();
   } else {
-    // Inline the inobject property case.
-    Comment cmnt(masm(), "[ Inlined named property load");
+    // Inline the property load.
+    Comment cmnt(masm(), is_contextual
+                         ? "[ Inlined contextual property load"
+                         : "[ Inlined named property load");
     Result receiver = frame()->Pop();
     receiver.ToRegister();
 
     result = allocator()->Allocate();
     ASSERT(result.is_valid());
     DeferredReferenceGetNamedValue* deferred =
-        new DeferredReferenceGetNamedValue(result.reg(), receiver.reg(), name);
+        new DeferredReferenceGetNamedValue(result.reg(),
+                                           receiver.reg(),
+                                           name,
+                                           is_contextual);
 
-    // Check that the receiver is a heap object.
-    __ test(receiver.reg(), Immediate(kSmiTagMask));
-    deferred->Branch(zero);
+    if (!is_contextual) {
+      // Check that the receiver is a heap object.
+      __ test(receiver.reg(), Immediate(kSmiTagMask));
+      deferred->Branch(zero);
+    }
 
     __ bind(deferred->patch_site());
     // This is the map check instruction that will be patched (so we can't
@@ -9376,17 +9428,33 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     // which allows the assert below to succeed and patching to work.
     deferred->Branch(not_equal);
 
-    // The delta from the patch label to the load offset must be statically
-    // known.
+    // The delta from the patch label to the actual load must be
+    // statically known.
     ASSERT(masm()->SizeOfCodeGeneratedSince(deferred->patch_site()) ==
            LoadIC::kOffsetToLoadInstruction);
-    // The initial (invalid) offset has to be large enough to force a 32-bit
-    // instruction encoding to allow patching with an arbitrary offset.  Use
-    // kMaxInt (minus kHeapObjectTag).
-    int offset = kMaxInt;
-    masm()->mov(result.reg(), FieldOperand(receiver.reg(), offset));
 
-    __ IncrementCounter(COUNTERS->named_load_inline(), 1);
+    if (is_contextual) {
+      // Load the (initialy invalid) cell and get its value.
+      masm()->mov(result.reg(), Factory::null_value());
+      if (FLAG_debug_code) {
+        __ cmp(FieldOperand(result.reg(), HeapObject::kMapOffset),
+               Factory::global_property_cell_map());
+        __ Assert(equal, "Uninitialized inlined contextual load");
+      }
+      __ mov(result.reg(),
+             FieldOperand(result.reg(), JSGlobalPropertyCell::kValueOffset));
+      __ cmp(result.reg(), Factory::the_hole_value());
+      deferred->Branch(equal);
+      __ IncrementCounter(COUNTERS->named_load_global_inline(), 1);
+    } else {
+      // The initial (invalid) offset has to be large enough to force a 32-bit
+      // instruction encoding to allow patching with an arbitrary offset.  Use
+      // kMaxInt (minus kHeapObjectTag).
+      int offset = kMaxInt;
+      masm()->mov(result.reg(), FieldOperand(receiver.reg(), offset));
+      __ IncrementCounter(COUNTERS->named_load_inline(), 1);
+    }
+
     deferred->BindExit();
   }
   ASSERT(frame()->height() == original_height - 1);

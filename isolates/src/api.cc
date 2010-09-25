@@ -783,6 +783,12 @@ int TypeSwitch::match(v8::Handle<Value> value) {
 }
 
 
+#define SET_FIELD_WRAPPED(obj, setter, cdata) do {  \
+    i::Handle<i::Object> proxy = FromCData(cdata);  \
+    (obj)->setter(*proxy);                          \
+  } while (false)
+
+
 void FunctionTemplate::SetCallHandler(InvocationCallback callback,
                                       v8::Handle<Value> data) {
   if (IsDeadCheck("v8::FunctionTemplate::SetCallHandler()")) return;
@@ -792,7 +798,7 @@ void FunctionTemplate::SetCallHandler(InvocationCallback callback,
       i::Factory::NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
-  obj->set_callback(*FromCData(callback));
+  SET_FIELD_WRAPPED(obj, set_callback, callback);
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
   Utils::OpenHandle(this)->set_call_code(*obj);
@@ -808,8 +814,8 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
       v8::PropertyAttribute attributes) {
   i::Handle<i::AccessorInfo> obj = i::Factory::NewAccessorInfo();
   ASSERT(getter != NULL);
-  obj->set_getter(*FromCData(getter));
-  obj->set_setter(*FromCData(setter));
+  SET_FIELD_WRAPPED(obj, set_getter, getter);
+  SET_FIELD_WRAPPED(obj, set_setter, setter);
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
   obj->set_name(*Utils::OpenHandle(*name));
@@ -893,11 +899,13 @@ void FunctionTemplate::SetNamedInstancePropertyHandler(
       i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
   i::Handle<i::InterceptorInfo> obj =
       i::Handle<i::InterceptorInfo>::cast(struct_obj);
-  if (getter != 0) obj->set_getter(*FromCData(getter));
-  if (setter != 0) obj->set_setter(*FromCData(setter));
-  if (query != 0) obj->set_query(*FromCData(query));
-  if (remover != 0) obj->set_deleter(*FromCData(remover));
-  if (enumerator != 0) obj->set_enumerator(*FromCData(enumerator));
+
+  if (getter != 0) SET_FIELD_WRAPPED(obj, set_getter, getter);
+  if (setter != 0) SET_FIELD_WRAPPED(obj, set_setter, setter);
+  if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
+  if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
+  if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
+
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
   Utils::OpenHandle(this)->set_named_property_handler(*obj);
@@ -921,11 +929,13 @@ void FunctionTemplate::SetIndexedInstancePropertyHandler(
       i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
   i::Handle<i::InterceptorInfo> obj =
       i::Handle<i::InterceptorInfo>::cast(struct_obj);
-  if (getter != 0) obj->set_getter(*FromCData(getter));
-  if (setter != 0) obj->set_setter(*FromCData(setter));
-  if (query != 0) obj->set_query(*FromCData(query));
-  if (remover != 0) obj->set_deleter(*FromCData(remover));
-  if (enumerator != 0) obj->set_enumerator(*FromCData(enumerator));
+
+  if (getter != 0) SET_FIELD_WRAPPED(obj, set_getter, getter);
+  if (setter != 0) SET_FIELD_WRAPPED(obj, set_setter, setter);
+  if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
+  if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
+  if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
+
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
   Utils::OpenHandle(this)->set_indexed_property_handler(*obj);
@@ -944,7 +954,7 @@ void FunctionTemplate::SetInstanceCallAsFunctionHandler(
       i::Factory::NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
-  obj->set_callback(*FromCData(callback));
+  SET_FIELD_WRAPPED(obj, set_callback, callback);
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
   Utils::OpenHandle(this)->set_instance_call_handler(*obj);
@@ -1059,8 +1069,10 @@ void ObjectTemplate::SetAccessCheckCallbacks(
       i::Factory::NewStruct(i::ACCESS_CHECK_INFO_TYPE);
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
-  info->set_named_callback(*FromCData(named_callback));
-  info->set_indexed_callback(*FromCData(indexed_callback));
+
+  SET_FIELD_WRAPPED(info, set_named_callback, named_callback);
+  SET_FIELD_WRAPPED(info, set_indexed_callback, indexed_callback);
+
   if (data.IsEmpty()) data = v8::Undefined();
   info->set_data(*Utils::OpenHandle(*data));
 
@@ -1152,13 +1164,18 @@ ScriptData* ScriptData::PreCompile(v8::Handle<String> source) {
 ScriptData* ScriptData::New(const char* data, int length) {
   // Return an empty ScriptData if the length is obviously invalid.
   if (length % sizeof(unsigned) != 0) {
-    return new i::ScriptDataImpl(i::Vector<unsigned>());
+    return new i::ScriptDataImpl();
   }
 
   // Copy the data to ensure it is properly aligned.
   int deserialized_data_length = length / sizeof(unsigned);
+  // If aligned, don't create a copy of the data.
+  if (reinterpret_cast<intptr_t>(data) % sizeof(unsigned) == 0) {
+    return new i::ScriptDataImpl(data, length);
+  }
+  // Copy the data to align it.
   unsigned* deserialized_data = i::NewArray<unsigned>(deserialized_data_length);
-  memcpy(deserialized_data, data, length);
+  i::MemCopy(deserialized_data, data, length);
 
   return new i::ScriptDataImpl(
       i::Vector<unsigned>(deserialized_data, deserialized_data_length));
@@ -4447,7 +4464,7 @@ double CpuProfileNode::GetSelfSamplesCount() const {
 
 unsigned CpuProfileNode::GetCallUid() const {
   IsDeadCheck("v8::CpuProfileNode::GetCallUid");
-  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->call_uid();
+  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->GetCallUid();
 }
 
 
@@ -4750,6 +4767,23 @@ const HeapSnapshotsDiff* HeapSnapshot::CompareWith(
   IsDeadCheck("v8::HeapSnapshot::CompareWith");
   return reinterpret_cast<const HeapSnapshotsDiff*>(
       ToInternal(this)->CompareWith(ToInternal(snapshot)));
+}
+
+
+void HeapSnapshot::Serialize(OutputStream* stream,
+                             HeapSnapshot::SerializationFormat format) const {
+  IsDeadCheck("v8::HeapSnapshot::Serialize");
+  ApiCheck(format == kJSON,
+           "v8::HeapSnapshot::Serialize",
+           "Unknown serialization format");
+  ApiCheck(stream->GetOutputEncoding() == OutputStream::kAscii,
+           "v8::HeapSnapshot::Serialize",
+           "Unsupported output encoding");
+  ApiCheck(stream->GetChunkSize() > 0,
+           "v8::HeapSnapshot::Serialize",
+           "Invalid stream chunk size");
+  i::HeapSnapshotJSONSerializer serializer(ToInternal(this));
+  serializer.Serialize(stream);
 }
 
 

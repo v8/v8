@@ -121,8 +121,9 @@ Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info) {
   Handle<Context> context = Handle<Context>::null();
   Handle<Code> code = MakeCode(context, info);
   if (!info->shared_info().is_null()) {
-    info->shared_info()->set_scope_info(
-        *SerializedScopeInfo::Create(info->scope()));
+    Handle<SerializedScopeInfo> scope_info =
+        SerializedScopeInfo::Create(info->scope());
+    info->shared_info()->set_scope_info(*scope_info);
   }
   return code;
 }
@@ -276,10 +277,19 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
   }
 
   if (result.is_null()) {
-    // No cache entry found. Do pre-parsing and compile the script.
+    // No cache entry found. Do pre-parsing, if it makes sense, and compile
+    // the script.
+    // Building preparse data that is only used immediately after is only a
+    // saving if we might skip building the AST for lazily compiled functions.
+    // I.e., preparse data isn't relevant when the lazy flag is off, and
+    // for small sources, odds are that there aren't many functions
+    // that would be compiled lazily anyway, so we skip the preparse step
+    // in that case too.
     ScriptDataImpl* pre_data = input_pre_data;
-    if (pre_data == NULL && source_length >= FLAG_min_preparse_length) {
-      pre_data = PreParse(source, NULL, extension);
+    if (pre_data == NULL
+        && FLAG_lazy
+        && source_length >= FLAG_min_preparse_length) {
+      pre_data = PartialPreParse(source, NULL, extension);
     }
 
     // Create a script object describing the script to be compiled.
@@ -423,10 +433,12 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
   // Update the shared function info with the compiled code and the scope info.
   // Please note, that the order of the sharedfunction initialization is
-  // important since set_scope_info might trigger a GC, causing the ASSERT
-  // below to be invalid if the code was flushed. By settting the code
+  // important since SerializedScopeInfo::Create might trigger a GC, causing
+  // the ASSERT below to be invalid if the code was flushed. By setting the code
   // object last we avoid this.
-  shared->set_scope_info(*SerializedScopeInfo::Create(info->scope()));
+  Handle<SerializedScopeInfo> scope_info =
+      SerializedScopeInfo::Create(info->scope());
+  shared->set_scope_info(*scope_info);
   shared->set_code(*code);
   if (!info->closure().is_null()) {
     info->closure()->set_code(*code);

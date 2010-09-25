@@ -378,13 +378,15 @@ class StubCompiler BASE_EMBEDDED {
                                                   Register prototype);
 
   // Generates prototype loading code that uses the objects from the
-  // context we were in when this function was called.  This ties the
-  // generated code to a particular context and so must not be used in
-  // cases where the generated code is not allowed to have references
-  // to objects from a context.
+  // context we were in when this function was called. If the context
+  // has changed, a jump to miss is performed. This ties the generated
+  // code to a particular context and so must not be used in cases
+  // where the generated code is not allowed to have references to
+  // objects from a context.
   static void GenerateDirectLoadGlobalFunctionPrototype(MacroAssembler* masm,
                                                         int index,
-                                                        Register prototype);
+                                                        Register prototype,
+                                                        Label* miss);
 
   static void GenerateFastPropertyLoad(MacroAssembler* masm,
                                        Register dst, Register src,
@@ -620,21 +622,25 @@ class KeyedStoreStubCompiler: public StubCompiler {
 // Installation of custom call generators for the selected builtins is
 // handled by the bootstrapper.
 //
-// Each entry has a name of a global function (lowercased), a name of
-// a builtin function on its instance prototype (the one the generator
-// is set for), and a name of a generator itself (used to build ids
-// and generator function names).
-#define CUSTOM_CALL_IC_GENERATORS(V)      \
-  V(array, push, ArrayPush)               \
-  V(array, pop, ArrayPop)                 \
-  V(string, charCodeAt, StringCharCodeAt) \
-  V(string, charAt, StringCharAt)
+// Each entry has a name of a global object property holding an object
+// optionally followed by ".prototype" (this controls whether the
+// generator is set on the object itself or, in case it's a function,
+// on the its instance prototype), a name of a builtin function on the
+// object (the one the generator is set for), and a name of the
+// generator (used to build ids and generator function names).
+#define CUSTOM_CALL_IC_GENERATORS(V)                \
+  V(Array.prototype, push, ArrayPush)               \
+  V(Array.prototype, pop, ArrayPop)                 \
+  V(String.prototype, charCodeAt, StringCharCodeAt) \
+  V(String.prototype, charAt, StringCharAt)         \
+  V(String, fromCharCode, StringFromCharCode)       \
+  V(Math, floor, MathFloor)
 
 
 class CallStubCompiler: public StubCompiler {
  public:
   enum {
-#define DECLARE_CALL_GENERATOR_ID(ignored1, ignored2, name) \
+#define DECLARE_CALL_GENERATOR_ID(ignored1, ignore2, name) \
     k##name##CallGenerator,
     CUSTOM_CALL_IC_GENERATORS(DECLARE_CALL_GENERATOR_ID)
 #undef DECLARE_CALL_GENERATOR_ID
@@ -664,20 +670,21 @@ class CallStubCompiler: public StubCompiler {
                             JSFunction* function,
                             String* name);
 
-  // Compiles a custom call constant IC using the generator with given id.
+  // Compiles a custom call constant/global IC using the generator
+  // with given id. For constant calls cell is NULL.
   Object* CompileCustomCall(int generator_id,
                             Object* object,
                             JSObject* holder,
+                            JSGlobalPropertyCell* cell,
                             JSFunction* function,
-                            String* name,
-                            CheckType check);
+                            String* name);
 
-#define DECLARE_CALL_GENERATOR(ignored1, ignored2, name) \
-  Object* Compile##name##Call(Object* object,            \
-                              JSObject* holder,          \
-                              JSFunction* function,      \
-                              String* fname,             \
-                              CheckType check);
+#define DECLARE_CALL_GENERATOR(ignored1, ignored2,  name) \
+  Object* Compile##name##Call(Object* object,             \
+                              JSObject* holder,           \
+                              JSGlobalPropertyCell* cell, \
+                              JSFunction* function,       \
+                              String* fname);
   CUSTOM_CALL_IC_GENERATORS(DECLARE_CALL_GENERATOR)
 #undef DECLARE_CALL_GENERATOR
 
@@ -696,6 +703,17 @@ class CallStubCompiler: public StubCompiler {
   Object* GetCode(JSFunction* function);
 
   void GenerateNameCheck(String* name, Label* miss);
+
+  void GenerateGlobalReceiverCheck(JSObject* object,
+                                   JSObject* holder,
+                                   String* name,
+                                   Label* miss);
+
+  // Generates code to load the function from the cell checking that
+  // it still contains the same function.
+  void GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
+                                    JSFunction* function,
+                                    Label* miss);
 
   // Generates a jump to CallIC miss stub. Returns Failure if the jump cannot
   // be generated.

@@ -1425,7 +1425,26 @@ class JSObject: public HeapObject {
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
   bool HasElementWithReceiver(JSObject* receiver, uint32_t index);
-  bool HasLocalElement(uint32_t index);
+
+  // Tells whether the index'th element is present and how it is stored.
+  enum LocalElementType {
+    // There is no element with given index.
+    UNDEFINED_ELEMENT,
+
+    // Element with given index is handled by interceptor.
+    INTERCEPTED_ELEMENT,
+
+    // Element with given index is character in string.
+    STRING_CHARACTER_ELEMENT,
+
+    // Element with given index is stored in fast backing store.
+    FAST_ELEMENT,
+
+    // Element with given index is stored in slow backing store.
+    DICTIONARY_ELEMENT
+  };
+
+  LocalElementType HasLocalElement(uint32_t index);
 
   bool HasElementWithInterceptor(JSObject* receiver, uint32_t index);
   bool HasElementPostInterceptor(JSObject* receiver, uint32_t index);
@@ -1584,7 +1603,7 @@ class JSObject: public HeapObject {
   // initialized by set_properties
   // Note: this call does not update write barrier, it is caller's
   // reponsibility to ensure that *v* can be collected without WB here.
-  inline void InitializeBody(int object_size);
+  inline void InitializeBody(int object_size, Object* value);
 
   // Check whether this object references another object
   bool ReferencesObject(Object* obj);
@@ -1906,6 +1925,11 @@ class DescriptorArray: public FixedArray {
   MUST_USE_RESULT Object* RemoveTransitions();
 
   // Sort the instance descriptors by the hash codes of their keys.
+  // Does not check for duplicates.
+  void SortUnchecked();
+
+  // Sort the instance descriptors by the hash codes of their keys.
+  // Checks the result for duplicates.
   void Sort();
 
   // Search the instance descriptors for given name.
@@ -3156,6 +3180,12 @@ class Map: public HeapObject {
     return ((1 << kHasFastElements) & bit_field2()) != 0;
   }
 
+  // Tells whether the map is attached to SharedFunctionInfo
+  // (for inobject slack tracking).
+  inline void set_attached_to_shared_function_info(bool value);
+
+  inline bool attached_to_shared_function_info();
+
   // Tells whether the instance needs security checks when accessing its
   // properties.
   inline void set_is_access_check_needed(bool access_check_needed);
@@ -3166,6 +3196,8 @@ class Map: public HeapObject {
 
   // [constructor]: points back to the function responsible for this map.
   DECL_ACCESSORS(constructor, Object)
+
+  inline JSFunction* unchecked_constructor();
 
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
@@ -3249,6 +3281,10 @@ class Map: public HeapObject {
   inline Heap* heap();
   inline void set_heap(Heap* heap);
 
+  typedef void (*TraverseCallback)(Map* map, void* data);
+
+  void TraverseTransitionTree(TraverseCallback callback, void* data);
+
   static const int kMaxPreAllocatedPropertyFields = 255;
 
   // Layout description.
@@ -3303,6 +3339,7 @@ class Map: public HeapObject {
   static const int kFunctionWithPrototype = 1;
   static const int kHasFastElements = 2;
   static const int kStringWrapperSafeForDefaultValueOf = 3;
+  static const int kAttachedToSharedFunctionInfo = 4;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;
@@ -3457,6 +3494,100 @@ class SharedFunctionInfo: public HeapObject {
   inline int expected_nof_properties();
   inline void set_expected_nof_properties(int value);
 
+  // Inobject slack tracking is the way to reclaim unused inobject space.
+  //
+  // The instance size is initially determined by adding some slack to
+  // expected_nof_properties (to allow for a few extra properties added
+  // after the constructor). There is no guarantee that the extra space
+  // will not be wasted.
+  //
+  // Here is the algorithm to reclaim the unused inobject space:
+  // - Detect the first constructor call for this SharedFunctionInfo.
+  //   When it happens enter the "in progress" state: remember the
+  //   constructor's initial_map and install a special construct stub that
+  //   counts constructor calls.
+  // - While the tracking is in progress create objects filled with
+  //   one_pointer_filler_map instead of undefined_value. This way they can be
+  //   resized quickly and safely.
+  // - Once enough (kGenerousAllocationCount) objects have been created
+  //   compute the 'slack' (traverse the map transition tree starting from the
+  //   initial_map and find the lowest value of unused_property_fields).
+  // - Traverse the transition tree again and decrease the instance size
+  //   of every map. Existing objects will resize automatically (they are
+  //   filled with one_pointer_filler_map). All further allocations will
+  //   use the adjusted instance size.
+  // - Decrease expected_nof_properties so that an allocations made from
+  //   another context will use the adjusted instance size too.
+  // - Exit "in progress" state by clearing the reference to the initial_map
+  //   and setting the regular construct stub (generic or inline).
+  //
+  //  The above is the main event sequence. Some special cases are possible
+  //  while the tracking is in progress:
+  //
+  // - GC occurs.
+  //   Check if the initial_map is referenced by any live objects (except this
+  //   SharedFunctionInfo). If it is, continue tracking as usual.
+  //   If it is not, clear the reference and reset the tracking state. The
+  //   tracking will be initiated again on the next constructor call.
+  //
+  // - The constructor is called from another context.
+  //   Immediately complete the tracking, perform all the necessary changes
+  //   to maps. This is  necessary because there is no efficient way to track
+  //   multiple initial_maps.
+  //   Proceed to create an object in the current context (with the adjusted
+  //   size).
+  //
+  // - A different constructor function sharing the same SharedFunctionInfo is
+  //   called in the same context. This could be another closure in the same
+  //   context, or the first function could have been disposed.
+  //   This is handled the same way as the previous case.
+  //
+  //  Important: inobject slack tracking is not attempted during the snapshot
+  //  creation.
+
+  static const int kGenerousAllocationCount = 16;
+
+  // [construction_count]: Counter for constructor calls made during
+  // the tracking phase.
+  inline int construction_count();
+  inline void set_construction_count(int value);
+
+  // [initial_map]: initial map of the first function called as a constructor.
+  // Saved for the duration of the tracking phase.
+  // This is a weak link (GC resets it to undefined_value if no other live
+  // object reference this map).
+  DECL_ACCESSORS(initial_map, Object)
+
+  // True if the initial_map is not undefined and the countdown stub is
+  // installed.
+  inline bool IsInobjectSlackTrackingInProgress();
+
+  // Starts the tracking.
+  // Stores the initial map and installs the countdown stub.
+  // IsInobjectSlackTrackingInProgress is normally true after this call,
+  // except when tracking have not been started (e.g. the map has no unused
+  // properties or the snapshot is being built).
+  void StartInobjectSlackTracking(Map* map);
+
+  // Completes the tracking.
+  // IsInobjectSlackTrackingInProgress is false after this call.
+  void CompleteInobjectSlackTracking();
+
+  // Clears the initial_map before the GC marking phase to ensure the reference
+  // is weak. IsInobjectSlackTrackingInProgress is false after this call.
+  void DetachInitialMap();
+
+  // Restores the link to the initial map after the GC marking phase.
+  // IsInobjectSlackTrackingInProgress is true after this call.
+  void AttachInitialMap(Map* map);
+
+  // False if there are definitely no live objects created from this function.
+  // True if live objects _may_ exist (existence not guaranteed).
+  // May go back from true to false after GC.
+  inline bool live_objects_may_exist();
+
+  inline void set_live_objects_may_exist(bool value);
+
   // [instance class name]: class name for instances.
   DECL_ACCESSORS(instance_class_name, Object)
 
@@ -3557,6 +3688,10 @@ class SharedFunctionInfo: public HeapObject {
   // prototype.
   bool CanGenerateInlineConstructor(Object* prototype);
 
+  // Prevents further attempts to generate inline constructors.
+  // To be called if generation failed for any reason.
+  void ForbidInlineConstructor();
+
   // For functions which only contains this property assignments this provides
   // access to the names for the properties assigned.
   DECL_ACCESSORS(this_property_assignments, Object)
@@ -3604,8 +3739,10 @@ class SharedFunctionInfo: public HeapObject {
   static const int kScriptOffset = kFunctionDataOffset + kPointerSize;
   static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
   static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
-  static const int kThisPropertyAssignmentsOffset =
+  static const int kInitialMapOffset =
       kInferredNameOffset + kPointerSize;
+  static const int kThisPropertyAssignmentsOffset =
+      kInitialMapOffset + kPointerSize;
 #if V8_HOST_ARCH_32_BIT
   // Smi fields.
   static const int kLengthOffset =
@@ -3629,7 +3766,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kSize = kThisPropertyAssignmentsCountOffset + kPointerSize;
 #else
   // The only reason to use smi fields instead of int fields
-  // is to allow interation without maps decoding during
+  // is to allow iteration without maps decoding during
   // garbage collections.
   // To avoid wasting space on 64-bit architectures we use
   // the following trick: we group integer fields into pairs
@@ -3664,6 +3801,18 @@ class SharedFunctionInfo: public HeapObject {
   static const int kSize = kThisPropertyAssignmentsCountOffset + kIntSize;
 
 #endif
+
+  // The construction counter for inobject slack tracking is stored in the
+  // most significant byte of compiler_hints which is otherwise unused.
+  // Its offset depends on the endian-ness of the architecture.
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+  static const int kConstructionCountOffset = kCompilerHintsOffset + 3;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+  static const int kConstructionCountOffset = kCompilerHintsOffset + 0;
+#else
+#error Unknown byte ordering
+#endif
+
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
   typedef FixedBodyDescriptor<kNameOffset,
@@ -3683,7 +3832,8 @@ class SharedFunctionInfo: public HeapObject {
   static const int kHasOnlySimpleThisPropertyAssignments = 0;
   static const int kTryFullCodegen = 1;
   static const int kAllowLazyCompilation = 2;
-  static const int kCodeAgeShift = 3;
+  static const int kLiveObjectsMayExist = 3;
+  static const int kCodeAgeShift = 4;
   static const int kCodeAgeMask = 7;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
@@ -4238,7 +4388,7 @@ class StringHasher {
   // Calculated hash value for a string consisting of 1 to
   // String::kMaxArrayIndexSize digits with no leading zeros (except "0").
   // value is represented decimal value.
-  static uint32_t MakeCachedArrayIndex(uint32_t value, int length);
+  static uint32_t MakeArrayIndexHash(uint32_t value, int length);
 
  private:
 
@@ -4482,6 +4632,7 @@ class String: public HeapObject {
       kBitsPerInt - kArrayIndexValueBits - kNofHashBitFields;
 
   STATIC_CHECK((kArrayIndexLengthBits > 0));
+  STATIC_CHECK(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
   static const int kArrayIndexHashLengthShift =
       kArrayIndexValueBits + kNofHashBitFields;

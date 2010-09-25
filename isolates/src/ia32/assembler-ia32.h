@@ -593,6 +593,7 @@ class Assembler : public Malloced {
   void add(const Operand& dst, const Immediate& x);
 
   void and_(Register dst, int32_t imm32);
+  void and_(Register dst, const Immediate& x);
   void and_(Register dst, const Operand& src);
   void and_(const Operand& src, Register dst);
   void and_(const Operand& dst, const Immediate& x);
@@ -610,6 +611,7 @@ class Assembler : public Malloced {
   void cmp(const Operand& op, Handle<Object> handle);
 
   void dec_b(Register dst);
+  void dec_b(const Operand& dst);
 
   void dec(Register dst);
   void dec(const Operand& dst);
@@ -702,6 +704,7 @@ class Assembler : public Malloced {
   // but it may be bound only once.
 
   void bind(Label* L);  // binds an unbound label L to the current code position
+  void bind(NearLabel* L);
 
   // Calls
   void call(Label* L);
@@ -716,10 +719,16 @@ class Assembler : public Malloced {
   void jmp(const Operand& adr);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
+  // Short jump
+  void jmp(NearLabel* L);
+
   // Conditional jumps
   void j(Condition cc, Label* L, Hint hint = no_hint);
   void j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint = no_hint);
   void j(Condition cc, Handle<Code> code, Hint hint = no_hint);
+
+  // Conditional short jump
+  void j(Condition cc, NearLabel* L, Hint hint = no_hint);
 
   // Floating-point operations
   void fld(int i);
@@ -803,8 +812,14 @@ class Assembler : public Malloced {
   void xorpd(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
+  void andpd(XMMRegister dst, XMMRegister src);
+
   void ucomisd(XMMRegister dst, XMMRegister src);
   void movmskpd(Register dst, XMMRegister src);
+
+  void cmpltsd(XMMRegister dst, XMMRegister src);
+
+  void movaps(XMMRegister dst, XMMRegister src);
 
   void movdqa(XMMRegister dst, const Operand& src);
   void movdqa(const Operand& dst, XMMRegister src);
@@ -820,6 +835,8 @@ class Assembler : public Malloced {
 
   void pxor(XMMRegister dst, XMMRegister src);
   void ptest(XMMRegister dst, XMMRegister src);
+
+  void psllq(XMMRegister reg, int8_t imm8);
 
   // Parallel XMM operations.
   void movntdqa(XMMRegister src, const Operand& dst);
@@ -883,6 +900,7 @@ class Assembler : public Malloced {
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }
   byte byte_at(int pos)  { return buffer_[pos]; }
+  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
   uint32_t long_at(int pos)  {
     return *reinterpret_cast<uint32_t*>(addr_at(pos));
   }
@@ -917,7 +935,6 @@ class Assembler : public Malloced {
   // labels
   void print(Label* L);
   void bind_to(Label* L, int pos);
-  void link_to(Label* L, Label* appendix);
 
   // displacements
   inline Displacement disp_at(Label* L);

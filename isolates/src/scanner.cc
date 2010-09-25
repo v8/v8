@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -330,11 +330,12 @@ void Scanner::LiteralScope::Complete() {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(ParserMode pre)
-  : character_classes_(Isolate::Current()->scanner_character_classes()),
-    is_pre_parsing_(pre == PREPARSE),
-    stack_overflow_(false) {
-}
+Scanner::Scanner()
+    : character_classes_(Isolate::Current()->scanner_character_classes()),
+      has_line_terminator_before_next_(false),
+      is_parsing_json_(false),
+      source_(NULL),
+      stack_overflow_(false) {}
 
 
 void Scanner::Initialize(Handle<String> source,

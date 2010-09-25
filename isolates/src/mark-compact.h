@@ -236,7 +236,7 @@ class MarkCompactCollector {
   friend class CodeMarkingVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
 
-  static void PrepareForCodeFlushing();
+  void PrepareForCodeFlushing();
 
   // Marking operations for objects reachable from roots.
   void MarkLiveObjects();

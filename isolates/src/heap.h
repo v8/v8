@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -120,6 +120,7 @@ inline Heap* _inline_get_heap_();
   V(Object, last_script_id, LastScriptId)                                      \
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
+  V(StringDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
 
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
 #define STRONG_ROOT_LIST(V)                                                    \
@@ -576,7 +577,11 @@ class Heap {
 
   // Make a copy of src and return it. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
-  MUST_USE_RESULT Object* CopyFixedArray(FixedArray* src);
+  MUST_USE_RESULT inline Object* CopyFixedArray(FixedArray* src);
+
+  // Make a copy of src, set the map, and return the copy. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  MUST_USE_RESULT Object* CopyFixedArrayWithMap(FixedArray* src, Map* map);
 
   // Allocates a fixed array initialized with the hole values.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -759,13 +764,21 @@ class Heap {
   void GarbageCollectionPrologue();
   void GarbageCollectionEpilogue();
 
+  enum CollectionPolicy { NORMAL, AGGRESSIVE };
+
   // Performs garbage collection operation.
   // Returns whether required_space bytes are available after the collection.
-  bool CollectGarbage(int required_space, AllocationSpace space);
+  bool CollectGarbage(int required_space,
+                      AllocationSpace space,
+                      CollectionPolicy collectionPolicy = NORMAL);
 
   // Performs a full garbage collection. Force compaction if the
   // parameter is true.
-  void CollectAllGarbage(bool force_compaction);
+  void CollectAllGarbage(bool force_compaction,
+                        CollectionPolicy collectionPolicy = NORMAL);
+
+  // Last hope GC, should try to squeeze as much as possible.
+  void CollectAllAvailableGarbage();
 
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed() { return ++contexts_disposed_; }
@@ -1315,9 +1328,14 @@ class Heap {
   GarbageCollector SelectGarbageCollector(AllocationSpace space);
 
   // Performs garbage collection
-  void PerformGarbageCollection(AllocationSpace space,
-                                GarbageCollector collector,
-                                GCTracer* tracer);
+  void PerformGarbageCollection(GarbageCollector collector,
+                                GCTracer* tracer,
+                                CollectionPolicy collectionPolicy);
+
+  static const int kMinimumPromotionLimit = 2 * MB;
+  static const int kMinimumAllocationLimit = 8 * MB;
+
+  inline void UpdateOldSpaceLimits();
 
   // Allocate an uninitialized object in map space.  The behavior is identical
   // to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that (a) it doesn't

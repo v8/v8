@@ -280,10 +280,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                                          FixedArray::BodyDescriptor,
                                          void>::Visit);
 
-    table_.Register(kVisitSharedFunctionInfo,
-                    &FixedBodyVisitor<StaticMarkingVisitor,
-                                      SharedFunctionInfo::BodyDescriptor,
-                                      void>::Visit);
+    table_.Register(kVisitSharedFunctionInfo, &VisitSharedFunctionInfo);
 
     table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
     table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
@@ -540,6 +537,17 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   }
 
 
+  static void VisitSharedFunctionInfo(Map* map, HeapObject* object) {
+    SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(object);
+    if (shared->IsInobjectSlackTrackingInProgress()) {
+      shared->DetachInitialMap();
+    }
+    FixedBodyVisitor<StaticMarkingVisitor,
+                     SharedFunctionInfo::BodyDescriptor,
+                     void>::Visit(map, object);
+  }
+
+
   static void VisitCodeEntry(Heap* heap, Address entry_address) {
     Object* code = Code::GetObjectFromEntryAddress(entry_address);
     Object* old_code = code;
@@ -640,35 +648,42 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
 
 
 void MarkCompactCollector::PrepareForCodeFlushing() {
+  ASSERT(heap_ == Isolate::Current()->heap());
+
   if (!FLAG_flush_code) {
     StaticMarkingVisitor::EnableCodeFlushing(false);
     return;
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (Isolate::Current()->debug()->IsLoaded() ||
-      Isolate::Current()->debug()->has_break_points()) {
+  if (heap_->isolate()->debug()->IsLoaded() ||
+      heap_->isolate()->debug()->has_break_points()) {
     StaticMarkingVisitor::EnableCodeFlushing(false);
     return;
   }
 #endif
   StaticMarkingVisitor::EnableCodeFlushing(true);
 
+  // Ensure that empty descriptor array is marked. Method MarkDescriptorArray
+  // relies on it being marked before any other descriptor array.
+  MarkObject(heap_->raw_unchecked_empty_descriptor_array());
+
   // Make sure we are not referencing the code from the stack.
+  MarkCompactCollector* collector = heap_->mark_compact_collector();
   for (StackFrameIterator it; !it.done(); it.Advance()) {
-    HEAP->mark_compact_collector()->MarkObject(it.frame()->unchecked_code());
+    collector->MarkObject(it.frame()->unchecked_code());
   }
 
   // Iterate the archived stacks in all threads to check if
   // the code is referenced.
   CodeMarkingVisitor code_marking_visitor;
-  Isolate::Current()->thread_manager()->IterateArchivedThreads(
+  heap_->isolate()->thread_manager()->IterateArchivedThreads(
       &code_marking_visitor);
 
   SharedFunctionInfoMarkingVisitor visitor;
-  Isolate::Current()->compilation_cache()->IterateFunctions(&visitor);
+  heap_->isolate()->compilation_cache()->IterateFunctions(&visitor);
 
-  HEAP->mark_compact_collector()->ProcessMarkingStack();
+  collector->ProcessMarkingStack();
 }
 
 
@@ -1157,6 +1172,14 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
     // Only JSObject and subtypes have map transitions and back pointers.
     if (map->instance_type() < FIRST_JS_OBJECT_TYPE) continue;
     if (map->instance_type() > JS_FUNCTION_TYPE) continue;
+
+    if (map->IsMarked() && map->attached_to_shared_function_info()) {
+      // This map is used for inobject slack tracking and has been detached
+      // from SharedFunctionInfo during the mark phase.
+      // Since it survived the GC, reattach it now.
+      map->unchecked_constructor()->unchecked_shared()->AttachInitialMap(map);
+    }
+
     // Follow the chain of back pointers to find the prototype.
     Map* current = map;
     while (SafeIsMap(current)) {

@@ -271,10 +271,6 @@ class CodeGenerator: public AstVisitor {
 
   void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
 
-  // If the name is an inline runtime function call return the number of
-  // expected arguments. Otherwise return -1.
-  static int InlineRuntimeCallArgumentsCount(Handle<String> name);
-
   // Constants related to patching of inlined load/store.
   static int GetInlinedKeyedLoadInstructionsAfterPatch() {
     return FLAG_debug_code ? 32 : 13;
@@ -290,6 +286,12 @@ class CodeGenerator: public AstVisitor {
   }
 
  private:
+  // Type of a member function that generates inline code for a native function.
+  typedef void (CodeGenerator::*InlineFunctionGenerator)
+      (ZoneList<Expression*>*);
+
+  static const InlineFunctionGenerator kInlineFunctionGenerators[];
+
   // Construction/Destruction
   explicit CodeGenerator(MacroAssembler* masm);
 
@@ -447,8 +449,9 @@ class CodeGenerator: public AstVisitor {
   void Branch(bool if_true, JumpTarget* target);
   void CheckStack();
 
-  static InlineRuntimeFunctionsTable::Entry* FindInlineRuntimeLUT(
-      Handle<String> name);
+  static InlineFunctionGenerator FindInlineFunctionGenerator(
+      Runtime::FunctionId function_id);
+
   bool CheckForInlineRuntimeCall(CallRuntime* node);
 
   static Handle<Code> ComputeLazyCompile(int argc);

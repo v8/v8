@@ -40,6 +40,7 @@
 #include "heap.h"
 #include "regexp-stack.h"
 #include "runtime.h"
+#include "string-search.h"
 #include "zone.h"
 #include "../include/v8-debug.h"
 
@@ -279,7 +280,6 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   /* State for Relocatable. */                                                 \
   V(Relocatable*, relocatable_top, NULL)                                       \
   /* State for CodeEntry in profile-generator. */                              \
-  V(unsigned, code_entry_next_call_uid, NULL)                                  \
   V(CodeGenerator*, current_code_generator, NULL)                              \
   V(bool, jump_target_compiling_deferred_code, false)                          \
   V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \

@@ -1511,8 +1511,8 @@ Object* JSObject::ConvertDescriptorToField(String* name,
   FixedArray* new_properties = 0;  // Will always be NULL or a valid pointer.
   int new_unused_property_fields = map()->unused_property_fields() - 1;
   if (map()->unused_property_fields() == 0) {
-     new_unused_property_fields = kFieldsAdded - 1;
-     Object* new_properties_unchecked =
+    new_unused_property_fields = kFieldsAdded - 1;
+    Object* new_properties_unchecked =
         properties()->CopySize(properties()->length() + kFieldsAdded);
     if (new_properties_unchecked->IsFailure()) return new_properties_unchecked;
     new_properties = FixedArray::cast(new_properties_unchecked);
@@ -3350,6 +3350,48 @@ void Map::RemoveFromCodeCache(String* name, Code* code, int index) {
 }
 
 
+void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
+  Map* current = this;
+  Map* meta_map = heap()->meta_map();
+  while (current != meta_map) {
+    DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
+        *RawField(current, Map::kInstanceDescriptorsOffset));
+    if (d == heap()->empty_descriptor_array()) {
+      Map* prev = current->map();
+      current->set_map(meta_map);
+      callback(current, data);
+      current = prev;
+      continue;
+    }
+
+    FixedArray* contents = reinterpret_cast<FixedArray*>(
+        d->get(DescriptorArray::kContentArrayIndex));
+    Object** map_or_index_field = RawField(contents, HeapObject::kMapOffset);
+    Object* map_or_index = *map_or_index_field;
+    bool map_done = true;
+    for (int i = map_or_index->IsSmi() ? Smi::cast(map_or_index)->value() : 0;
+         i < contents->length();
+         i += 2) {
+      PropertyDetails details(Smi::cast(contents->get(i + 1)));
+      if (details.IsTransition()) {
+        Map* next = reinterpret_cast<Map*>(contents->get(i));
+        next->set_map(current);
+        *map_or_index_field = Smi::FromInt(i + 2);
+        current = next;
+        map_done = false;
+        break;
+      }
+    }
+    if (!map_done) continue;
+    *map_or_index_field = heap()->fixed_array_map();
+    Map* prev = current->map();
+    current->set_map(meta_map);
+    callback(current, data);
+    current = prev;
+  }
+}
+
+
 Object* CodeCache::Update(String* name, Code* code) {
   ASSERT(code->ic_state() == MONOMORPHIC);
 
@@ -3910,7 +3952,7 @@ Object* DescriptorArray::RemoveTransitions() {
 }
 
 
-void DescriptorArray::Sort() {
+void DescriptorArray::SortUnchecked() {
   // In-place heap sort.
   int len = number_of_descriptors();
 
@@ -3960,7 +4002,11 @@ void DescriptorArray::Sort() {
       parent_index = child_index;
     }
   }
+}
 
+
+void DescriptorArray::Sort() {
+  SortUnchecked();
   SLOW_ASSERT(IsSortedNoDuplicates());
 }
 
@@ -5083,17 +5129,20 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
 }
 
 
-uint32_t StringHasher::MakeCachedArrayIndex(uint32_t value, int length) {
-  value <<= String::kHashShift;
+uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
   ASSERT(length > 0);
   ASSERT(length <= String::kMaxArrayIndexSize);
   ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
-  ASSERT(String::kMaxArrayIndexSize < (1 << String::kArrayIndexValueBits));
-  value &= ~String::kIsNotArrayIndexMask;
+
+  value <<= String::kHashShift;
   value |= length << String::kArrayIndexHashLengthShift;
+
+  ASSERT((value & String::kIsNotArrayIndexMask) == 0);
+  ASSERT((length > String::kMaxCachedArrayIndexLength) ||
+         (value & String::kContainsCachedArrayIndexMask) == 0);
   return value;
 }
 
@@ -5102,7 +5151,7 @@ uint32_t StringHasher::GetHashField() {
   ASSERT(is_valid());
   if (length_ <= String::kMaxHashCalcLength) {
     if (is_array_index()) {
-      return MakeCachedArrayIndex(array_index(), length_);
+      return MakeArrayIndexHash(array_index(), length_);
     }
     return (GetHash() << String::kHashShift) | String::kIsNotArrayIndexMask;
   } else {
@@ -5371,6 +5420,13 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
 }
 
 
+void SharedFunctionInfo::ForbidInlineConstructor() {
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kHasOnlySimpleThisPropertyAssignments,
+                                     false));
+}
+
+
 void SharedFunctionInfo::SetThisPropertyAssignmentsInfo(
     bool only_simple_this_property_assignments,
     FixedArray* assignments) {
@@ -5465,6 +5521,112 @@ void SharedFunctionInfo::SourceCodePrint(StringStream* accumulator,
     accumulator->Add("...\n");
   } else {
     accumulator->Put(script_source, start_position(), end_position());
+  }
+}
+
+
+void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
+  ASSERT(!IsInobjectSlackTrackingInProgress());
+
+  // Only initiate the tracking the first time.
+  if (live_objects_may_exist()) return;
+  set_live_objects_may_exist(true);
+
+  // No tracking during the snapshot construction phase.
+  if (Serializer::enabled()) return;
+
+  if (map->unused_property_fields() == 0) return;
+
+  // Nonzero counter is a leftover from the previous attempt interrupted
+  // by GC, keep it.
+  if (construction_count() == 0) {
+    set_construction_count(kGenerousAllocationCount);
+  }
+  set_initial_map(map);
+  Builtins* builtins = map->heap()->isolate()->builtins();
+  ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubGeneric),
+            construct_stub());
+  set_construct_stub(builtins->builtin(Builtins::JSConstructStubCountdown));
+}
+
+
+// Called from GC, hence reinterpret_cast and unchecked accessors.
+void SharedFunctionInfo::DetachInitialMap() {
+  Map* map = reinterpret_cast<Map*>(initial_map());
+
+  // Make the map remember to restore the link if it survives the GC.
+  map->set_bit_field2(
+      map->bit_field2() | (1 << Map::kAttachedToSharedFunctionInfo));
+
+  // Undo state changes made by StartInobjectTracking (except the
+  // construction_count). This way if the initial map does not survive the GC
+  // then StartInobjectTracking will be called again the next time the
+  // constructor is called. The countdown will continue and (possibly after
+  // several more GCs) CompleteInobjectSlackTracking will eventually be called.
+  set_initial_map(map->heap()->raw_unchecked_undefined_value());
+  Builtins* builtins = map->heap()->isolate()->builtins();
+  ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubCountdown),
+            *RawField(this, kConstructStubOffset));
+  set_construct_stub(builtins->builtin(Builtins::JSConstructStubGeneric));
+  // It is safe to clear the flag: it will be set again if the map is live.
+  set_live_objects_may_exist(false);
+}
+
+
+// Called from GC, hence reinterpret_cast and unchecked accessors.
+void SharedFunctionInfo::AttachInitialMap(Map* map) {
+  map->set_bit_field2(
+      map->bit_field2() & ~(1 << Map::kAttachedToSharedFunctionInfo));
+
+  // Resume inobject slack tracking.
+  set_initial_map(map);
+  Builtins* builtins = map->heap()->isolate()->builtins();
+  ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubGeneric),
+            *RawField(this, kConstructStubOffset));
+  set_construct_stub(builtins->builtin(Builtins::JSConstructStubCountdown));
+  // The map survived the gc, so there may be objects referencing it.
+  set_live_objects_may_exist(true);
+}
+
+
+static void GetMinInobjectSlack(Map* map, void* data) {
+  int slack = map->unused_property_fields();
+  if (*reinterpret_cast<int*>(data) > slack) {
+    *reinterpret_cast<int*>(data) = slack;
+  }
+}
+
+
+static void ShrinkInstanceSize(Map* map, void* data) {
+  int slack = *reinterpret_cast<int*>(data);
+  map->set_inobject_properties(map->inobject_properties() - slack);
+  map->set_unused_property_fields(map->unused_property_fields() - slack);
+  map->set_instance_size(map->instance_size() - slack * kPointerSize);
+
+  // Visitor id might depend on the instance size, recalculate it.
+  map->set_visitor_id(StaticVisitorBase::GetVisitorId(map));
+}
+
+
+void SharedFunctionInfo::CompleteInobjectSlackTracking() {
+  ASSERT(live_objects_may_exist() && IsInobjectSlackTrackingInProgress());
+  Map* map = Map::cast(initial_map());
+
+  Heap* heap = map->heap();
+  set_initial_map(heap->undefined_value());
+  Builtins* builtins = heap->isolate()->builtins();
+  ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubCountdown),
+            construct_stub());
+  set_construct_stub(builtins->builtin(Builtins::JSConstructStubGeneric));
+
+  int slack = map->unused_property_fields();
+  map->TraverseTransitionTree(&GetMinInobjectSlack, &slack);
+  if (slack != 0) {
+    // Resize the initial map and all maps in its transition tree.
+    map->TraverseTransitionTree(&ShrinkInstanceSize, &slack);
+    // Give the correct expected_nof_properties to initial maps created later.
+    ASSERT(expected_nof_properties() >= slack);
+    set_expected_nof_properties(expected_nof_properties() - slack);
   }
 }
 
@@ -6031,23 +6193,26 @@ bool JSObject::HasElementWithInterceptor(JSObject* receiver, uint32_t index) {
 }
 
 
-bool JSObject::HasLocalElement(uint32_t index) {
+JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
   Heap* heap = GetHeap();
 
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !heap->isolate()->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
     heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
-    return false;
+    return UNDEFINED_ELEMENT;
   }
 
   // Check for lookup interceptor
   if (HasIndexedInterceptor()) {
-    return HasElementWithInterceptor(this, index);
+    return HasElementWithInterceptor(this, index) ? INTERCEPTED_ELEMENT
+                                                  : UNDEFINED_ELEMENT;
   }
 
   // Handle [] on String objects.
-  if (this->IsStringObjectWithCharacterAt(index)) return true;
+  if (this->IsStringObjectWithCharacterAt(index)) {
+    return STRING_CHARACTER_ELEMENT;
+  }
 
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
@@ -6055,12 +6220,16 @@ bool JSObject::HasLocalElement(uint32_t index) {
           static_cast<uint32_t>
               (Smi::cast(JSArray::cast(this)->length())->value()) :
           static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      return (index < length) &&
-          !FixedArray::cast(elements())->get(index)->IsTheHole();
+      if ((index < length) &&
+          !FixedArray::cast(elements())->get(index)->IsTheHole()) {
+        return FAST_ELEMENT;
+      }
+      break;
     }
     case PIXEL_ELEMENTS: {
       PixelArray* pixels = PixelArray::cast(elements());
-      return (index < static_cast<uint32_t>(pixels->length()));
+      if (index < static_cast<uint32_t>(pixels->length())) return FAST_ELEMENT;
+      break;
     }
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
@@ -6070,18 +6239,22 @@ bool JSObject::HasLocalElement(uint32_t index) {
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS: {
       ExternalArray* array = ExternalArray::cast(elements());
-      return (index < static_cast<uint32_t>(array->length()));
+      if (index < static_cast<uint32_t>(array->length())) return FAST_ELEMENT;
+      break;
     }
     case DICTIONARY_ELEMENTS: {
-      return element_dictionary()->FindEntry(index)
-          != NumberDictionary::kNotFound;
+      if (element_dictionary()->FindEntry(index) !=
+              NumberDictionary::kNotFound) {
+        return DICTIONARY_ELEMENT;
+      }
+      break;
     }
     default:
       UNREACHABLE();
       break;
   }
-  UNREACHABLE();
-  return heap->null_value();
+
+  return UNDEFINED_ELEMENT;
 }
 
 
@@ -8860,11 +9033,11 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
     // No free slot - extend break point info array.
     Handle<FixedArray> old_break_points =
         Handle<FixedArray>(FixedArray::cast(debug_info->break_points()));
-    debug_info->set_break_points(*Factory::NewFixedArray(
-        old_break_points->length() +
-            Debug::kEstimatedNofBreakPointsInFunction));
     Handle<FixedArray> new_break_points =
-        Handle<FixedArray>(FixedArray::cast(debug_info->break_points()));
+        Factory::NewFixedArray(old_break_points->length() +
+                               Debug::kEstimatedNofBreakPointsInFunction);
+
+    debug_info->set_break_points(*new_break_points);
     for (int i = 0; i < old_break_points->length(); i++) {
       new_break_points->set(i, old_break_points->get(i));
     }

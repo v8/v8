@@ -1314,23 +1314,41 @@ bool Genesis::InstallNatives() {
 }
 
 
-static void InstallCustomCallGenerator(Handle<JSFunction> holder_function,
+static Handle<JSObject> ResolveCustomCallGeneratorHolder(
+    Handle<Context> global_context,
+    const char* holder_expr) {
+  Handle<GlobalObject> global(global_context->global());
+  const char* period_pos = strchr(holder_expr, '.');
+  if (period_pos == NULL) {
+    return Handle<JSObject>::cast(
+        GetProperty(global, Factory::LookupAsciiSymbol(holder_expr)));
+  }
+  ASSERT_EQ(".prototype", period_pos);
+  Vector<const char> property(holder_expr,
+                              static_cast<int>(period_pos - holder_expr));
+  Handle<JSFunction> function = Handle<JSFunction>::cast(
+      GetProperty(global, Factory::LookupSymbol(property)));
+  return Handle<JSObject>(JSObject::cast(function->prototype()));
+}
+
+
+static void InstallCustomCallGenerator(Handle<JSObject> holder,
                                        const char* function_name,
                                        int id) {
-  Handle<JSObject> proto(JSObject::cast(holder_function->instance_prototype()));
   Handle<String> name = Factory::LookupAsciiSymbol(function_name);
-  Handle<JSFunction> function(JSFunction::cast(proto->GetProperty(*name)));
+  Handle<JSFunction> function(JSFunction::cast(holder->GetProperty(*name)));
   function->shared()->set_function_data(Smi::FromInt(id));
 }
 
 
 void Genesis::InstallCustomCallGenerators() {
   HandleScope scope;
-#define INSTALL_CALL_GENERATOR(holder_fun, fun_name, name)                \
-  {                                                                       \
-    Handle<JSFunction> holder(global_context()->holder_fun##_function()); \
-    const int id = CallStubCompiler::k##name##CallGenerator;              \
-    InstallCustomCallGenerator(holder, #fun_name, id);                    \
+#define INSTALL_CALL_GENERATOR(holder_expr, fun_name, name)     \
+  {                                                             \
+    Handle<JSObject> holder = ResolveCustomCallGeneratorHolder( \
+        global_context(), #holder_expr);                        \
+    const int id = CallStubCompiler::k##name##CallGenerator;    \
+    InstallCustomCallGenerator(holder, #fun_name, id);          \
   }
   CUSTOM_CALL_IC_GENERATORS(INSTALL_CALL_GENERATOR)
 #undef INSTALL_CALL_GENERATOR
@@ -1365,8 +1383,14 @@ void Genesis::InstallJSFunctionResultCaches() {
   Handle<FixedArray> caches = Factory::NewFixedArray(kNumberOfCaches, TENURED);
 
   int index = 0;
-#define F(size, func) caches->set(index++, CreateCache(size, func));
-    JSFUNCTION_RESULT_CACHE_LIST(F)
+
+#define F(size, func) do {                           \
+    FixedArray* cache = CreateCache((size), (func)); \
+    caches->set(index++, cache);                     \
+  } while (false)
+
+  JSFUNCTION_RESULT_CACHE_LIST(F);
+
 #undef F
 
   global_context()->set_jsfunction_result_caches(*caches);

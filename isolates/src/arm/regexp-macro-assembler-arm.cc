@@ -190,7 +190,7 @@ void RegExpMacroAssemblerARM::CheckAtStart(Label* on_at_start) {
   Label not_at_start;
   // Did we start the match at the start of the string at all?
   __ ldr(r0, MemOperand(frame_pointer(), kAtStart));
-  __ cmp(r0, Operand(0));
+  __ cmp(r0, Operand(0, RelocInfo::NONE));
   BranchOrBacktrack(eq, &not_at_start);
 
   // If we did, are we still at the start of the input?
@@ -205,7 +205,7 @@ void RegExpMacroAssemblerARM::CheckAtStart(Label* on_at_start) {
 void RegExpMacroAssemblerARM::CheckNotAtStart(Label* on_not_at_start) {
   // Did we start the match at the start of the string at all?
   __ ldr(r0, MemOperand(frame_pointer(), kAtStart));
-  __ cmp(r0, Operand(0));
+  __ cmp(r0, Operand(0, RelocInfo::NONE));
   BranchOrBacktrack(eq, on_not_at_start);
   // If we did, are we still at the start of the input?
   __ ldr(r1, MemOperand(frame_pointer(), kInputStart));
@@ -365,7 +365,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     __ CallCFunction(function, argument_count);
 
     // Check if function returned non-zero for success or zero for failure.
-    __ cmp(r0, Operand(0));
+    __ cmp(r0, Operand(0, RelocInfo::NONE));
     BranchOrBacktrack(eq, on_no_match);
     // On success, increment position by length of capture.
     __ add(current_input_offset(), current_input_offset(), Operand(r4));
@@ -635,7 +635,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
 
   __ bind(&stack_limit_hit);
   CallCheckStackGuardState(r0);
-  __ cmp(r0, Operand(0));
+  __ cmp(r0, Operand(0, RelocInfo::NONE));
   // If returned value is non-zero, we exit with the returned value as result.
   __ b(ne, &exit_label_);
 
@@ -662,7 +662,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   // string, and store that value in a local variable.
   __ tst(r1, Operand(r1));
   __ mov(r1, Operand(1), LeaveCC, eq);
-  __ mov(r1, Operand(0), LeaveCC, ne);
+  __ mov(r1, Operand(0, RelocInfo::NONE), LeaveCC, ne);
   __ str(r1, MemOperand(frame_pointer(), kAtStart));
 
   if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
@@ -685,7 +685,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   // Load previous char as initial value of current character register.
   Label at_start;
   __ ldr(r0, MemOperand(frame_pointer(), kAtStart));
-  __ cmp(r0, Operand(0));
+  __ cmp(r0, Operand(0, RelocInfo::NONE));
   __ b(ne, &at_start);
   LoadCurrentCharacterUnchecked(-1, 1);  // Load previous char.
   __ jmp(&start_label_);
@@ -752,7 +752,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
     SafeCallTarget(&check_preempt_label_);
 
     CallCheckStackGuardState(r0);
-    __ cmp(r0, Operand(0));
+    __ cmp(r0, Operand(0, RelocInfo::NONE));
     // If returning non-zero, we should end execution with the given
     // result as return value.
     __ b(ne, &exit_label_);
@@ -779,7 +779,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
     __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
-    __ cmp(r0, Operand(0));
+    __ cmp(r0, Operand(0, RelocInfo::NONE));
     __ b(eq, &exit_with_exception);
     // Otherwise use return value as new stack pointer.
     __ mov(backtrack_stackpointer(), r0);

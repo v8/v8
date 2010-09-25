@@ -47,6 +47,7 @@
 #include "smart-pointer.h"
 #include "stub-cache.h"
 #include "v8threads.h"
+#include "string-search.h"
 
 namespace v8 {
 namespace internal {
@@ -664,48 +665,63 @@ static Object* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
   // This could be an element.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    if (!obj->HasLocalElement(index)) {
-      return heap->undefined_value();
-    }
+    switch (obj->HasLocalElement(index)) {
+      case JSObject::UNDEFINED_ELEMENT:
+        return heap->undefined_value();
 
-    // Special handling of string objects according to ECMAScript 5 15.5.5.2.
-    // Note that this might be a string object with elements other than the
-    // actual string value. This is covered by the subsequent cases.
-    if (obj->IsStringObjectWithCharacterAt(index)) {
-      JSValue* js_value = JSValue::cast(obj);
-      String* str = String::cast(js_value->value());
-      elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-      elms->set(VALUE_INDEX, str->SubString(index, index+1));
-      elms->set(WRITABLE_INDEX, heap->false_value());
-      elms->set(ENUMERABLE_INDEX,  heap->false_value());
-      elms->set(CONFIGURABLE_INDEX, heap->false_value());
-      return *desc;
-    }
+      case JSObject::STRING_CHARACTER_ELEMENT: {
+        // Special handling of string objects according to ECMAScript 5
+        // 15.5.5.2. Note that this might be a string object with elements
+        // other than the actual string value. This is covered by the
+        // subsequent cases.
+        JSValue* js_value = JSValue::cast(obj);
+        String* str = String::cast(js_value->value());
+        elms->set(IS_ACCESSOR_INDEX, heap->false_value());
+        elms->set(VALUE_INDEX, str->SubString(index, index+1));
+        elms->set(WRITABLE_INDEX, heap->false_value());
+        elms->set(ENUMERABLE_INDEX,  heap->false_value());
+        elms->set(CONFIGURABLE_INDEX, heap->false_value());
+        return *desc;
+      }
 
-    // This can potentially be an element in the elements dictionary or
-    // a fast element.
-    if (obj->HasDictionaryElements()) {
-      NumberDictionary* dictionary = obj->element_dictionary();
-      int entry = dictionary->FindEntry(index);
-      PropertyDetails details = dictionary->DetailsAt(entry);
-      elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-      elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
-      elms->set(WRITABLE_INDEX,
-                heap->ToBoolean(!details.IsReadOnly()));
-      elms->set(ENUMERABLE_INDEX,
-                heap->ToBoolean(!details.IsDontEnum()));
-      elms->set(CONFIGURABLE_INDEX,
-                heap->ToBoolean(!details.IsDontDelete()));
-      return *desc;
-    } else {
-      // Elements that are stored as array elements always has:
-      // writable: true, configurable: true, enumerable: true.
-      elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-      elms->set(VALUE_INDEX, obj->GetElement(index));
-      elms->set(WRITABLE_INDEX, heap->true_value());
-      elms->set(ENUMERABLE_INDEX,  heap->true_value());
-      elms->set(CONFIGURABLE_INDEX, heap->true_value());
-      return *desc;
+      case JSObject::INTERCEPTED_ELEMENT:
+      case JSObject::FAST_ELEMENT:
+        elms->set(IS_ACCESSOR_INDEX, heap->false_value());
+        elms->set(VALUE_INDEX, obj->GetElement(index));
+        elms->set(WRITABLE_INDEX, heap->true_value());
+        elms->set(ENUMERABLE_INDEX,  heap->true_value());
+        elms->set(CONFIGURABLE_INDEX, heap->true_value());
+        return *desc;
+
+      case JSObject::DICTIONARY_ELEMENT: {
+        NumberDictionary* dictionary = obj->element_dictionary();
+        int entry = dictionary->FindEntry(index);
+        ASSERT(entry != NumberDictionary::kNotFound);
+        PropertyDetails details = dictionary->DetailsAt(entry);
+        switch (details.type()) {
+          case CALLBACKS: {
+            // This is an accessor property with getter and/or setter.
+            FixedArray* callbacks =
+                FixedArray::cast(dictionary->ValueAt(entry));
+            elms->set(IS_ACCESSOR_INDEX,heap->true_value());
+            elms->set(GETTER_INDEX, callbacks->get(0));
+            elms->set(SETTER_INDEX, callbacks->get(1));
+            break;
+          }
+          case NORMAL:
+            // This is a data property.
+            elms->set(IS_ACCESSOR_INDEX, heap->false_value());
+            elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
+            elms->set(WRITABLE_INDEX, heap->ToBoolean(!details.IsReadOnly()));
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
+        elms->set(ENUMERABLE_INDEX, heap->ToBoolean(!details.IsDontEnum()));
+        elms->set(CONFIGURABLE_INDEX, heap->ToBoolean(!details.IsDontDelete()));
+        return *desc;
+      }
     }
   }
 
@@ -983,7 +999,7 @@ static Object* Runtime_DeclareContextSlot(RUNTIME_CALLING_CONVENTION) {
   Handle<String> name(String::cast(args[1]));
   PropertyAttributes mode =
       static_cast<PropertyAttributes>(Smi::cast(args[2])->value());
-  ASSERT(mode == READ_ONLY || mode == NONE);
+  RUNTIME_ASSERT(mode == READ_ONLY || mode == NONE);
   Handle<Object> initial_value(args[3]);
 
   // Declarations are always done in the function context.
@@ -2652,373 +2668,6 @@ static Object* Runtime_StringReplaceRegExpWithString(
 }
 
 
-// Compute the bad-char table for Boyer-Moore in the static buffer.
-template <typename pchar>
-static void BoyerMoorePopulateBadCharTable(RuntimeState* state,
-                                           Vector<const pchar> pattern) {
-  int* bad_char_occurrence = state->bad_char_occurrence();
-  // Only preprocess at most kBMMaxShift last characters of pattern.
-  int start = pattern.length() < RuntimeState::kBMMaxShift ? 0
-      : pattern.length() - RuntimeState::kBMMaxShift;
-  // Run forwards to populate bad_char_table, so that *last* instance
-  // of character equivalence class is the one registered.
-  // Notice: Doesn't include the last character.
-  int table_size = (sizeof(pchar) == 1) ? String::kMaxAsciiCharCode + 1
-                                        : RuntimeState::kBMAlphabetSize;
-  if (start == 0) {  // All patterns less than kBMMaxShift in length.
-    memset(bad_char_occurrence, -1, table_size * sizeof(*bad_char_occurrence));
-  } else {
-    for (int i = 0; i < table_size; i++) {
-      bad_char_occurrence[i] = start - 1;
-    }
-  }
-  for (int i = start; i < pattern.length() - 1; i++) {
-    pchar c = pattern[i];
-    int bucket = (sizeof(pchar) ==1) ? c : c % RuntimeState::kBMAlphabetSize;
-    bad_char_occurrence[bucket] = i;
-  }
-}
-
-
-template <typename pchar>
-static void BoyerMoorePopulateGoodSuffixTable(RuntimeState* state,
-                                              Vector<const pchar> pattern) {
-  RuntimeState::BMGoodSuffixBuffers& bmgs_buffers = *state->bmgs_buffers();
-  int m = pattern.length();
-  int start = m < RuntimeState::kBMMaxShift ? 0 : m - RuntimeState::kBMMaxShift;
-  int len = m - start;
-  // Compute Good Suffix tables.
-  bmgs_buffers.init(m);
-
-  bmgs_buffers.shift(m-1) = 1;
-  bmgs_buffers.suffix(m) = m + 1;
-  pchar last_char = pattern[m - 1];
-  int suffix = m + 1;
-  for (int i = m; i > start;) {
-    for (pchar c = pattern[i - 1]; suffix <= m && c != pattern[suffix - 1];) {
-      if (bmgs_buffers.shift(suffix) == len) {
-        bmgs_buffers.shift(suffix) = suffix - i;
-      }
-      suffix = bmgs_buffers.suffix(suffix);
-    }
-    i--;
-    suffix--;
-    bmgs_buffers.suffix(i) = suffix;
-    if (suffix == m) {
-      // No suffix to extend, so we check against last_char only.
-      while (i > start && pattern[i - 1] != last_char) {
-        if (bmgs_buffers.shift(m) == len) {
-          bmgs_buffers.shift(m) = m - i;
-        }
-        i--;
-        bmgs_buffers.suffix(i) = m;
-      }
-      if (i > start) {
-        i--;
-        suffix--;
-        bmgs_buffers.suffix(i) = suffix;
-      }
-    }
-  }
-  if (suffix < m) {
-    for (int i = start; i <= m; i++) {
-      if (bmgs_buffers.shift(i) == len) {
-        bmgs_buffers.shift(i) = suffix - start;
-      }
-      if (i == suffix) {
-        suffix = bmgs_buffers.suffix(suffix);
-      }
-    }
-  }
-}
-
-
-template <typename schar, typename pchar>
-static inline int CharOccurrence(RuntimeState* state, int char_code) {
-  int* bad_char_occurrence = state->bad_char_occurrence();
-  if (sizeof(schar) == 1) {
-    return bad_char_occurrence[char_code];
-  }
-  if (sizeof(pchar) == 1) {
-    if (char_code > String::kMaxAsciiCharCode) {
-      return -1;
-    }
-    return bad_char_occurrence[char_code];
-  }
-  return bad_char_occurrence[char_code % RuntimeState::kBMAlphabetSize];
-}
-
-
-// Restricted simplified Boyer-Moore string matching.
-// Uses only the bad-shift table of Boyer-Moore and only uses it
-// for the character compared to the last character of the needle.
-template <typename schar, typename pchar>
-static int BoyerMooreHorspool(RuntimeState* state,
-                              Vector<const schar> subject,
-                              Vector<const pchar> pattern,
-                              int start_index,
-                              bool* complete) {
-  ASSERT(state->algorithm() <= RuntimeState::BOYER_MOORE_HORSPOOL);
-  int n = subject.length();
-  int m = pattern.length();
-
-  int badness = -m;
-
-  // How bad we are doing without a good-suffix table.
-  int idx;  // No matches found prior to this index.
-  pchar last_char = pattern[m - 1];
-  int last_char_shift = m - 1 - CharOccurrence<schar, pchar>(state, last_char);
-  // Perform search
-  for (idx = start_index; idx <= n - m;) {
-    int j = m - 1;
-    int c;
-    while (last_char != (c = subject[idx + j])) {
-      int bc_occ = CharOccurrence<schar, pchar>(state, c);
-      int shift = j - bc_occ;
-      idx += shift;
-      badness += 1 - shift;  // at most zero, so badness cannot increase.
-      if (idx > n - m) {
-        *complete = true;
-        return -1;
-      }
-    }
-    j--;
-    while (j >= 0 && pattern[j] == (subject[idx + j])) j--;
-    if (j < 0) {
-      *complete = true;
-      return idx;
-    } else {
-      idx += last_char_shift;
-      // Badness increases by the number of characters we have
-      // checked, and decreases by the number of characters we
-      // can skip by shifting. It's a measure of how we are doing
-      // compared to reading each character exactly once.
-      badness += (m - j) - last_char_shift;
-      if (badness > 0) {
-        *complete = false;
-        return idx;
-      }
-    }
-  }
-  *complete = true;
-  return -1;
-}
-
-
-template <typename schar, typename pchar>
-static int BoyerMooreIndexOf(RuntimeState* state,
-                             Vector<const schar> subject,
-                             Vector<const pchar> pattern,
-                             int idx) {
-  ASSERT(state->algorithm() <= RuntimeState::BOYER_MOORE);
-  RuntimeState::BMGoodSuffixBuffers& bmgs_buffers = *state->bmgs_buffers();
-  int n = subject.length();
-  int m = pattern.length();
-  // Only preprocess at most kBMMaxShift last characters of pattern.
-  int start = m < RuntimeState::kBMMaxShift ? 0 : m - RuntimeState::kBMMaxShift;
-
-  pchar last_char = pattern[m - 1];
-  // Continue search from i.
-  while (idx <= n - m) {
-    int j = m - 1;
-    schar c;
-    while (last_char != (c = subject[idx + j])) {
-      int shift = j - CharOccurrence<schar, pchar>(state, c);
-      idx += shift;
-      if (idx > n - m) {
-        return -1;
-      }
-    }
-    while (j >= 0 && pattern[j] == (c = subject[idx + j])) j--;
-    if (j < 0) {
-      return idx;
-    } else if (j < start) {
-      // we have matched more than our tables allow us to be smart about.
-      // Fall back on BMH shift.
-      idx += m - 1 - CharOccurrence<schar, pchar>(state, last_char);
-    } else {
-      int gs_shift = bmgs_buffers.shift(j + 1);       // Good suffix shift.
-      int bc_occ = CharOccurrence<schar, pchar>(state, c);
-      int shift = j - bc_occ;                         // Bad-char shift.
-      if (gs_shift > shift) {
-        shift = gs_shift;
-      }
-      idx += shift;
-    }
-  }
-
-  return -1;
-}
-
-
-// Trivial string search for shorter strings.
-// On return, if "complete" is set to true, the return value is the
-// final result of searching for the patter in the subject.
-// If "complete" is set to false, the return value is the index where
-// further checking should start, i.e., it's guaranteed that the pattern
-// does not occur at a position prior to the returned index.
-template <typename pchar, typename schar>
-static int SimpleIndexOf(Vector<const schar> subject,
-                         Vector<const pchar> pattern,
-                         int idx,
-                         bool* complete) {
-  ASSERT(pattern.length() > 1);
-  // Badness is a count of how much work we have done.  When we have
-  // done enough work we decide it's probably worth switching to a better
-  // algorithm.
-  int badness = -10 - (pattern.length() << 2);
-
-  // We know our pattern is at least 2 characters, we cache the first so
-  // the common case of the first character not matching is faster.
-  pchar pattern_first_char = pattern[0];
-  for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
-    badness++;
-    if (badness > 0) {
-      *complete = false;
-      return i;
-    }
-    if (sizeof(schar) == 1 && sizeof(pchar) == 1) {
-      const schar* pos = reinterpret_cast<const schar*>(
-          memchr(subject.start() + i,
-                 pattern_first_char,
-                 n - i + 1));
-      if (pos == NULL) {
-        *complete = true;
-        return -1;
-      }
-      i = static_cast<int>(pos - subject.start());
-    } else {
-      if (subject[i] != pattern_first_char) continue;
-    }
-    int j = 1;
-    do {
-      if (pattern[j] != subject[i+j]) {
-        break;
-      }
-      j++;
-    } while (j < pattern.length());
-    if (j == pattern.length()) {
-      *complete = true;
-      return i;
-    }
-    badness += j;
-  }
-  *complete = true;
-  return -1;
-}
-
-// Simple indexOf that never bails out. For short patterns only.
-template <typename pchar, typename schar>
-static int SimpleIndexOf(Vector<const schar> subject,
-                         Vector<const pchar> pattern,
-                         int idx) {
-  pchar pattern_first_char = pattern[0];
-  for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
-    if (sizeof(schar) == 1 && sizeof(pchar) == 1) {
-      const schar* pos = reinterpret_cast<const schar*>(
-          memchr(subject.start() + i,
-                 pattern_first_char,
-                 n - i + 1));
-      if (pos == NULL) return -1;
-      i = static_cast<int>(pos - subject.start());
-    } else {
-      if (subject[i] != pattern_first_char) continue;
-    }
-    int j = 1;
-    while (j < pattern.length()) {
-      if (pattern[j] != subject[i+j]) {
-        break;
-      }
-      j++;
-    }
-    if (j == pattern.length()) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-
-// Strategy for searching for a string in another string.
-enum StringSearchStrategy { SEARCH_FAIL, SEARCH_SHORT, SEARCH_LONG };
-
-
-template <typename pchar>
-static inline StringSearchStrategy InitializeStringSearch(
-    RuntimeState* state, Vector<const pchar> pat, bool ascii_subject) {
-  // We have an ASCII haystack and a non-ASCII needle. Check if there
-  // really is a non-ASCII character in the needle and bail out if there
-  // is.
-  if (ascii_subject && sizeof(pchar) > 1) {
-    for (int i = 0; i < pat.length(); i++) {
-      uc16 c = pat[i];
-      if (c > String::kMaxAsciiCharCode) {
-        return SEARCH_FAIL;
-      }
-    }
-  }
-  if (pat.length() < RuntimeState::kBMMinPatternLength) {
-    return SEARCH_SHORT;
-  }
-  state->set_algorithm(RuntimeState::SIMPLE_SEARCH);
-  return SEARCH_LONG;
-}
-
-
-// Dispatch long needle searches to different algorithms.
-template <typename schar, typename pchar>
-static int ComplexIndexOf(RuntimeState* state,
-                          Vector<const schar> sub,
-                          Vector<const pchar> pat,
-                          int start_index) {
-  ASSERT(pat.length() >= RuntimeState::kBMMinPatternLength);
-  // Try algorithms in order of increasing setup cost and expected performance.
-  bool complete;
-  int idx = start_index;
-  switch (state->algorithm()) {
-    case RuntimeState::SIMPLE_SEARCH:
-      idx = SimpleIndexOf(sub, pat, idx, &complete);
-      if (complete) return idx;
-      BoyerMoorePopulateBadCharTable(state, pat);
-      state->set_algorithm(RuntimeState::BOYER_MOORE_HORSPOOL);
-      // FALLTHROUGH.
-    case RuntimeState::BOYER_MOORE_HORSPOOL:
-      idx = BoyerMooreHorspool(state, sub, pat, idx, &complete);
-      if (complete) return idx;
-      // Build the Good Suffix table and continue searching.
-      BoyerMoorePopulateGoodSuffixTable(state, pat);
-      state->set_algorithm(RuntimeState::BOYER_MOORE);
-      // FALLTHROUGH.
-    case RuntimeState::BOYER_MOORE:
-      return BoyerMooreIndexOf(state, sub, pat, idx);
-  }
-  UNREACHABLE();
-  return -1;
-}
-
-
-// Dispatch to different search strategies for a single search.
-// If searching multiple times on the same needle, the search
-// strategy should only be computed once and then dispatch to different
-// loops.
-template <typename schar, typename pchar>
-static int StringSearch(RuntimeState* state,
-                        Vector<const schar> sub,
-                        Vector<const pchar> pat,
-                        int start_index) {
-  bool ascii_subject = (sizeof(schar) == 1);
-  StringSearchStrategy strategy = InitializeStringSearch(state, pat,
-                                                         ascii_subject);
-  switch (strategy) {
-    case SEARCH_FAIL: return -1;
-    case SEARCH_SHORT: return SimpleIndexOf(sub, pat, start_index);
-    case SEARCH_LONG: return ComplexIndexOf(state, sub, pat, start_index);
-  }
-  UNREACHABLE();
-  return -1;
-}
-
-
 // Perform string match of pattern on subject, starting at start index.
 // Caller must ensure that 0 <= start_index <= sub->length(),
 // and should check that pat->length() + start_index <= sub->length()
@@ -3093,32 +2742,33 @@ static Object* Runtime_StringIndexOf(RUNTIME_CALLING_CONVENTION) {
 
 
 template <typename schar, typename pchar>
-static int StringMatchBackwards(Vector<const schar> sub,
-                                Vector<const pchar> pat,
+static int StringMatchBackwards(Vector<const schar> subject,
+                                Vector<const pchar> pattern,
                                 int idx) {
-  ASSERT(pat.length() >= 1);
-  ASSERT(idx + pat.length() <= sub.length());
+  int pattern_length = pattern.length();
+  ASSERT(pattern_length >= 1);
+  ASSERT(idx + pattern_length <= subject.length());
 
   if (sizeof(schar) == 1 && sizeof(pchar) > 1) {
-    for (int i = 0; i < pat.length(); i++) {
-      uc16 c = pat[i];
+    for (int i = 0; i < pattern_length; i++) {
+      uc16 c = pattern[i];
       if (c > String::kMaxAsciiCharCode) {
         return -1;
       }
     }
   }
 
-  pchar pattern_first_char = pat[0];
+  pchar pattern_first_char = pattern[0];
   for (int i = idx; i >= 0; i--) {
-    if (sub[i] != pattern_first_char) continue;
+    if (subject[i] != pattern_first_char) continue;
     int j = 1;
-    while (j < pat.length()) {
-      if (pat[j] != sub[i+j]) {
+    while (j < pattern_length) {
+      if (pattern[j] != subject[i+j]) {
         break;
       }
       j++;
     }
-    if (j == pat.length()) {
+    if (j == pattern_length) {
       return i;
     }
   }
@@ -3304,7 +2954,8 @@ static Object* Runtime_StringMatch(RUNTIME_CALLING_CONVENTION) {
   for (int i = 0; i < matches ; i++) {
     int from = offsets.at(i * 2);
     int to = offsets.at(i * 2 + 1);
-    elements->set(i, *Factory::NewSubString(subject, from, to));
+    Handle<String> match = Factory::NewSubString(subject, from, to);
+    elements->set(i, *match);
   }
   Handle<JSArray> result = Factory::NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(matches));
@@ -3579,9 +3230,10 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
         // Arguments array to replace function is match, captures, index and
         // subject, i.e., 3 + capture count in total.
         Handle<FixedArray> elements = Factory::NewFixedArray(3 + capture_count);
-        elements->set(0, *Factory::NewSubString(subject,
-                                                match_start,
-                                                match_end));
+        Handle<String> match = Factory::NewSubString(subject,
+                                                     match_start,
+                                                     match_end);
+        elements->set(0, *match);
         for (int i = 1; i <= capture_count; i++) {
           int start = register_vector[i * 2];
           if (start >= 0) {
@@ -4796,9 +4448,8 @@ static Object* Runtime_StringToNumber(RUNTIME_CALLING_CONVENTION) {
                  (len == 1 || data[0] != '0')) {
         // String hash is not calculated yet but all the data are present.
         // Update the hash field to speed up sequential convertions.
-        uint32_t hash = StringHasher::MakeCachedArrayIndex(d, len);
+        uint32_t hash = StringHasher::MakeArrayIndexHash(d, len);
 #ifdef DEBUG
-        ASSERT((hash & String::kContainsCachedArrayIndexMask) == 0);
         subject->Hash();  // Force hash calculation.
         ASSERT_EQ(static_cast<int>(subject->hash_field()),
                   static_cast<int>(hash));
@@ -5055,7 +4706,6 @@ static Object* Runtime_StringParseInt(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_ASSERT(radix == 0 || (2 <= radix && radix <= 36));
   double value = StringToInt(s, radix);
   return isolate->heap()->NumberFromDouble(value);
-  return isolate->heap()->nan_value();
 }
 
 
@@ -5501,12 +5151,14 @@ static Object* Runtime_StringToArray(RUNTIME_CALLING_CONVENTION) {
                                                             length);
 
     for (int i = num_copied_from_cache; i < length; ++i) {
-      elements->set(i, *LookupSingleCharacterStringFromCode(chars[i]));
+      Handle<Object> str = LookupSingleCharacterStringFromCode(chars[i]);
+      elements->set(i, *str);
     }
   } else {
     elements = Factory::NewFixedArray(length);
     for (int i = 0; i < length; ++i) {
-      elements->set(i, *LookupSingleCharacterStringFromCode(s->Get(i)));
+      Handle<Object> str = LookupSingleCharacterStringFromCode(s->Get(i));
+      elements->set(i, *str);
     }
   }
 
@@ -6881,8 +6533,7 @@ static Object* Runtime_NewObjectFromBound(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-static Code* ComputeConstructStub(Isolate* isolate,
-                                  Handle<JSFunction> function) {
+static void TrySettingInlineConstructStub(Handle<JSFunction> function) {
   Handle<Object> prototype = Factory::null_value();
   if (function->has_instance_prototype()) {
     prototype = Handle<Object>(function->instance_prototype());
@@ -6890,13 +6541,10 @@ static Code* ComputeConstructStub(Isolate* isolate,
   if (function->shared()->CanGenerateInlineConstructor(*prototype)) {
     ConstructStubCompiler compiler;
     Object* code = compiler.CompileConstructStub(function->shared());
-    if (code->IsFailure()) {
-      return isolate->builtins()->builtin(Builtins::JSConstructStubGeneric);
+    if (!code->IsFailure()) {
+      function->shared()->set_construct_stub(Code::cast(code));
     }
-    return Code::cast(code);
   }
-
-  return function->shared()->construct_stub();
 }
 
 
@@ -6955,18 +6603,39 @@ static Object* Runtime_NewObject(RUNTIME_CALLING_CONVENTION) {
   Handle<SharedFunctionInfo> shared(function->shared());
   EnsureCompiled(shared, CLEAR_EXCEPTION);
 
-  bool first_allocation = !function->has_initial_map();
+  if (!function->has_initial_map() &&
+      shared->IsInobjectSlackTrackingInProgress()) {
+    // The tracking is already in progress for another function. We can only
+    // track one initial_map at a time, so we force the completion before the
+    // function is called as a constructor for the first time.
+    shared->CompleteInobjectSlackTracking();
+    TrySettingInlineConstructStub(function);
+  }
+
+  bool first_allocation = !shared->live_objects_may_exist();
   Handle<JSObject> result = Factory::NewJSObject(function);
-  if (first_allocation) {
-    Handle<Code> stub = Handle<Code>(
-        ComputeConstructStub(isolate, Handle<JSFunction>(function)));
-    shared->set_construct_stub(*stub);
+  // Delay setting the stub if inobject slack tracking is in progress.
+  if (first_allocation && !shared->IsInobjectSlackTrackingInProgress()) {
+    TrySettingInlineConstructStub(function);
   }
 
   isolate->counters()->constructed_objects()->Increment();
   isolate->counters()->constructed_objects_runtime()->Increment();
 
   return *result;
+}
+
+
+static Object* Runtime_FinalizeInstanceSize(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  function->shared()->CompleteInobjectSlackTracking();
+  TrySettingInlineConstructStub(function);
+
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -8229,16 +7898,18 @@ static Object* Runtime_MoveArrayContents(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-// How many elements does this array have?
+// How many elements does this object/array have?
 static Object* Runtime_EstimateNumberOfElements(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   ASSERT(args.length() == 1);
-  CONVERT_CHECKED(JSArray, array, args[0]);
-  HeapObject* elements = array->elements();
+  CONVERT_CHECKED(JSObject, object, args[0]);
+  HeapObject* elements = object->elements();
   if (elements->IsDictionary()) {
     return Smi::FromInt(NumberDictionary::cast(elements)->NumberOfElements());
+  } else if (object->IsJSArray()) {
+    return JSArray::cast(object)->length();
   } else {
-    return array->length();
+    return Smi::FromInt(FixedArray::cast(elements)->length());
   }
 }
 
@@ -8271,8 +7942,10 @@ static Object* Runtime_SwapElements(RUNTIME_CALLING_CONVENTION) {
 
 
 // Returns an array that tells you where in the [0, length) interval an array
-// might have elements.  Can either return keys or intervals.  Keys can have
-// gaps in (undefined).  Intervals can also span over some undefined keys.
+// might have elements.  Can either return keys (positive integers) or
+// intervals (pair of a negative integer (-start-1) followed by a
+// positive (length)) or undefined values.
+// Intervals can span over some keys that are not in the object.
 static Object* Runtime_GetArrayKeys(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   ASSERT(args.length() == 2);
@@ -8488,7 +8161,10 @@ static Object* Runtime_DebugGetPropertyDetails(RUNTIME_CALLING_CONVENTION) {
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
     Handle<FixedArray> details = Factory::NewFixedArray(2);
-    details->set(0, Runtime::GetElementOrCharAt(isolate->heap(), obj, index));
+    Object* element_or_char = Runtime::GetElementOrCharAt(isolate->heap(),
+                                                          obj,
+                                                          index);
+    details->set(0, element_or_char);
     details->set(1, PropertyDetails(NONE, NORMAL).AsSmi());
     return *Factory::NewJSArrayWithElements(details);
   }
@@ -9318,7 +8994,8 @@ static Object* Runtime_GetScopeDetails(RUNTIME_CALLING_CONVENTION) {
 
   // Fill in scope details.
   details->set(kScopeDetailsTypeIndex, Smi::FromInt(it.Type()));
-  details->set(kScopeDetailsObjectIndex, *it.ScopeObject());
+  Handle<JSObject> scope_object = it.ScopeObject();
+  details->set(kScopeDetailsObjectIndex, *scope_object);
 
   return *Factory::NewJSArrayWithElements(details);
 }
@@ -9366,10 +9043,10 @@ static Object* Runtime_GetCFrames(RUNTIME_CALLING_CONVENTION) {
   for (int i = 0; i < frames_count; i++) {
     Handle<JSObject> frame_value =
         Factory::NewJSObject(isolate->object_function());
-    frame_value->SetProperty(
-        *address_str,
-        *Factory::NewNumberFromInt(reinterpret_cast<int>(frames[i].address)),
-        NONE);
+    Handle<Object> frame_address =
+        Factory::NewNumberFromInt(reinterpret_cast<int>(frames[i].address));
+
+    frame_value->SetProperty(*address_str, *frame_address, NONE);
 
     // Get the stack walk text for this frame.
     Handle<String> frame_text;
@@ -9651,22 +9328,38 @@ static Object* Runtime_ClearBreakPoint(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-// Change the state of break on exceptions
-// args[0]: boolean indicating uncaught exceptions
-// args[1]: boolean indicating on/off
+// Change the state of break on exceptions.
+// args[0]: Enum value indicating whether to affect caught/uncaught exceptions.
+// args[1]: Boolean indicating on/off.
 static Object* Runtime_ChangeBreakOnException(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   HandleScope scope;
   ASSERT(args.length() == 2);
-  ASSERT(args[0]->IsNumber());
-  ASSERT(args[1]->IsBoolean());
+  RUNTIME_ASSERT(args[0]->IsNumber());
+  CONVERT_BOOLEAN_CHECKED(enable, args[1]);
 
-  // Update break point state
+  // If the number doesn't match an enum value, the ChangeBreakOnException
+  // function will default to affecting caught exceptions.
   ExceptionBreakType type =
       static_cast<ExceptionBreakType>(NumberToUint32(args[0]));
-  bool enable = args[1]->ToBoolean()->IsTrue();
+  // Update break point state.
   isolate->debug()->ChangeBreakOnException(type, enable);
   return isolate->heap()->undefined_value();
+}
+
+
+// Returns the state of break on exceptions
+// args[0]: boolean indicating uncaught exceptions
+static Object* Runtime_IsBreakOnException(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  RUNTIME_ASSERT(args[0]->IsNumber());
+
+  ExceptionBreakType type =
+      static_cast<ExceptionBreakType>(NumberToUint32(args[0]));
+  bool result = isolate->debug()->IsBreakOnException(type);
+  return Smi::FromInt(result);
 }
 
 
@@ -10819,6 +10512,7 @@ static Object* Runtime_ListNatives(RUNTIME_CALLING_CONVENTION) {
   inline_runtime_functions = false;
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
   inline_runtime_functions = true;
+  INLINE_FUNCTION_LIST(ADD_ENTRY)
   INLINE_RUNTIME_FUNCTION_LIST(ADD_ENTRY)
 #undef ADD_ENTRY
   return *result;
@@ -10846,32 +10540,55 @@ static Object* Runtime_IS_VAR(RUNTIME_CALLING_CONVENTION) {
 // ----------------------------------------------------------------------------
 // Implementation of Runtime
 
-#define F(name, nargs, ressize)                                           \
-  { #name, FUNCTION_ADDR(Runtime_##name), nargs, \
-    static_cast<int>(Runtime::k##name), ressize },
+#define F(name, number_of_args, result_size)                             \
+  { Runtime::k##name, Runtime::RUNTIME, #name,   \
+    FUNCTION_ADDR(Runtime_##name), number_of_args, result_size },
 
-static Runtime::Function Runtime_functions[] = {
+
+#define I(name, number_of_args, result_size)                             \
+  { Runtime::kInline##name, Runtime::INLINE,     \
+    "_" #name, NULL, number_of_args, result_size },
+
+Runtime::Function kIntrinsicFunctions[] = {
   RUNTIME_FUNCTION_LIST(F)
-  { NULL, NULL, 0, -1, 0 }
+  INLINE_FUNCTION_LIST(I)
+  INLINE_RUNTIME_FUNCTION_LIST(I)
 };
 
-#undef F
 
-
-Runtime::Function* Runtime::FunctionForId(FunctionId fid) {
-  ASSERT(0 <= fid && fid < kNofFunctions);
-  return &Runtime_functions[fid];
+Object* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
+                                                  Object* dictionary) {
+  ASSERT(Isolate::Current()->heap() == heap);
+  ASSERT(dictionary != NULL);
+  ASSERT(StringDictionary::cast(dictionary)->NumberOfElements() == 0);
+  for (int i = 0; i < kNumFunctions; ++i) {
+    Object* name_symbol = heap->LookupAsciiSymbol(kIntrinsicFunctions[i].name);
+    if (name_symbol->IsFailure()) return name_symbol;
+    StringDictionary* string_dictionary = StringDictionary::cast(dictionary);
+    dictionary = string_dictionary->Add(String::cast(name_symbol),
+                                        Smi::FromInt(i),
+                                        PropertyDetails(NONE, NORMAL));
+    // Non-recoverable failure.  Calling code must restart heap initialization.
+    if (dictionary->IsFailure()) return dictionary;
+  }
+  return dictionary;
 }
 
 
-Runtime::Function* Runtime::FunctionForName(Vector<const char> name) {
-  for (Function* f = Runtime_functions; f->name != NULL; f++) {
-    if (strncmp(f->name, name.start(), name.length()) == 0
-        && f->name[name.length()] == 0) {
-      return f;
-    }
+Runtime::Function* Runtime::FunctionForSymbol(Handle<String> name) {
+  Heap* heap = HEAP;
+  int entry = heap->intrinsic_function_names()->FindEntry(*name);
+  if (entry != kNotFound) {
+    Object* smi_index = heap->intrinsic_function_names()->ValueAt(entry);
+    int function_index = Smi::cast(smi_index)->value();
+    return &(kIntrinsicFunctions[function_index]);
   }
   return NULL;
+}
+
+
+Runtime::Function* Runtime::FunctionForId(Runtime::FunctionId id) {
+  return &(kIntrinsicFunctions[static_cast<int>(id)]);
 }
 
 

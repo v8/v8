@@ -345,10 +345,6 @@ class CodeGenerator: public AstVisitor {
   bool in_spilled_code() const { return in_spilled_code_; }
   void set_in_spilled_code(bool flag) { in_spilled_code_ = flag; }
 
-  // If the name is an inline runtime function call return the number of
-  // expected arguments. Otherwise return -1.
-  static int InlineRuntimeCallArgumentsCount(Handle<String> name);
-
   // Return a position of the element at |index_as_smi| + |additional_offset|
   // in FixedArray pointer to which is held in |array|.  |index_as_smi| is Smi.
   static Operand FixedArrayElementOperand(Register array,
@@ -363,6 +359,12 @@ class CodeGenerator: public AstVisitor {
   }
 
  private:
+  // Type of a member function that generates inline code for a native function.
+  typedef void (CodeGenerator::*InlineFunctionGenerator)
+      (ZoneList<Expression*>*);
+
+  static const InlineFunctionGenerator kInlineFunctionGenerators[];
+
   // Construction/Destruction
   explicit CodeGenerator(MacroAssembler* masm);
 
@@ -624,8 +626,9 @@ class CodeGenerator: public AstVisitor {
 
   void CheckStack();
 
-  static InlineRuntimeFunctionsTable::Entry* FindInlineRuntimeLUT(
-      Handle<String> name);
+  static InlineFunctionGenerator FindInlineFunctionGenerator(
+      Runtime::FunctionId function_id);
+
   bool CheckForInlineRuntimeCall(CallRuntime* node);
 
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);

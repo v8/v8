@@ -46,8 +46,7 @@ const char* StringsStorage::GetFunctionName(const char* name) {
 
 
 CodeEntry::CodeEntry(int security_token_id)
-    : call_uid_(0),
-      tag_(Logger::FUNCTION_TAG),
+    : tag_(Logger::FUNCTION_TAG),
       name_prefix_(kEmptyNamePrefix),
       name_(""),
       resource_name_(""),
@@ -68,9 +67,6 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
       resource_name_(resource_name),
       line_number_(line_number),
       security_token_id_(security_token_id) {
-  Isolate* isolate = Isolate::Current();
-  call_uid_ = isolate->code_entry_next_call_uid();
-  isolate->set_code_entry_next_call_uid(call_uid_ + 1);
 }
 
 
