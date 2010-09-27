@@ -40,7 +40,14 @@ namespace internal {
 template<class T>
 Handle<T>::Handle(T* obj) {
   ASSERT(!obj->IsFailure());
-  location_ = HandleScope::CreateHandle(obj);
+  location_ = HandleScope::CreateHandle(obj, Isolate::Current());
+}
+
+
+template<class T>
+Handle<T>::Handle(T* obj, Isolate* isolate) {
+  ASSERT(!obj->IsFailure());
+  location_ = HandleScope::CreateHandle(obj, isolate);
 }
 
 
@@ -59,9 +66,10 @@ HandleScope::HandleScope()
 
 
 template <typename T>
-T** HandleScope::CreateHandle(T* value) {
+T** HandleScope::CreateHandle(T* value, Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
   v8::ImplementationUtilities::HandleScopeData* current =
-      Isolate::Current()->handle_scope_data();
+      isolate->handle_scope_data();
 
   internal::Object** cur = current->next;
   if (cur == current->limit) cur = Extend();

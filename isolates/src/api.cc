@@ -486,7 +486,7 @@ int HandleScope::NumberOfHandles() {
 
 
 i::Object** v8::HandleScope::CreateHandle(i::Object* value) {
-  return i::HandleScope::CreateHandle(value);
+  return i::HandleScope::CreateHandle(value, i::Isolate::Current());
 }
 
 
