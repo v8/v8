@@ -1350,11 +1350,14 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           overwrite_mode);
 
     Label do_op;
+    // Left operand must be unchanged in left->reg() for deferred code.
+    // Left operand is in answer.reg(), possibly converted to int32, for
+    // inline code.
+    __ movq(answer.reg(), left->reg());
     if (right_type_info.IsSmi()) {
       if (FLAG_debug_code) {
         __ AbortIfNotSmi(right->reg());
       }
-      __ movq(answer.reg(), left->reg());
       // If left is not known to be a smi, check if it is.
       // If left is not known to be a number, and it isn't a smi, check if
       // it is a HeapNumber.
@@ -1371,7 +1374,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                      FieldOperand(answer.reg(), HeapNumber::kValueOffset));
         // Branch if we might have overflowed.
         // (False negative for Smi::kMinValue)
-        __ cmpq(answer.reg(), Immediate(0x80000000));
+        __ cmpl(answer.reg(), Immediate(0x80000000));
         deferred->Branch(equal);
         // TODO(lrn): Inline shifts on int32 here instead of first smi-tagging.
         __ Integer32ToSmi(answer.reg(), answer.reg());
@@ -1390,18 +1393,18 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
     // Perform the operation.
     switch (op) {
       case Token::SAR:
-        __ SmiShiftArithmeticRight(answer.reg(), left->reg(), rcx);
+        __ SmiShiftArithmeticRight(answer.reg(), answer.reg(), rcx);
         break;
       case Token::SHR: {
         __ SmiShiftLogicalRight(answer.reg(),
-                              left->reg(),
-                              rcx,
-                              deferred->entry_label());
+                                answer.reg(),
+                                rcx,
+                                deferred->entry_label());
         break;
       }
       case Token::SHL: {
         __ SmiShiftLeft(answer.reg(),
-                        left->reg(),
+                        answer.reg(),
                         rcx);
         break;
       }
