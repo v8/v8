@@ -4265,6 +4265,11 @@ void Debug::DebugBreak() {
 }
 
 
+void Debug::CancelDebugBreak() {
+  i::StackGuard::Continue(i::DEBUGBREAK);
+}
+
+
 void Debug::DebugBreakForCommand(ClientData* data) {
   if (!i::V8::IsRunning()) return;
   i::Debugger::EnqueueDebugCommand(data);
