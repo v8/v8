@@ -638,8 +638,8 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
   Handle<FixedArray> elms = Factory::NewFixedArray(DESCRIPTOR_SIZE);
   Handle<JSArray> desc = Factory::NewJSArrayWithElements(elms);
   LookupResult result;
-  CONVERT_CHECKED(JSObject, obj, args[0]);
-  CONVERT_CHECKED(String, name, args[1]);
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_CHECKED(String, name, 1);
 
   // This could be an element.
   uint32_t index;
@@ -653,10 +653,12 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
         // 15.5.5.2. Note that this might be a string object with elements
         // other than the actual string value. This is covered by the
         // subsequent cases.
-        JSValue* js_value = JSValue::cast(obj);
-        String* str = String::cast(js_value->value());
+        Handle<JSValue> js_value = Handle<JSValue>::cast(obj);
+        Handle<String> str(String::cast(js_value->value()));
+        Handle<String> substr = SubString(str, index, index+1, NOT_TENURED);
+
         elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-        elms->set(VALUE_INDEX, str->SubString(index, index+1));
+        elms->set(VALUE_INDEX, *substr);
         elms->set(WRITABLE_INDEX, Heap::false_value());
         elms->set(ENUMERABLE_INDEX,  Heap::false_value());
         elms->set(CONFIGURABLE_INDEX, Heap::false_value());
@@ -664,13 +666,15 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
       }
 
       case JSObject::INTERCEPTED_ELEMENT:
-      case JSObject::FAST_ELEMENT:
+      case JSObject::FAST_ELEMENT: {
         elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-        elms->set(VALUE_INDEX, obj->GetElement(index));
+        Handle<Object> element = GetElement(Handle<Object>(obj), index);
+        elms->set(VALUE_INDEX, *element);
         elms->set(WRITABLE_INDEX, Heap::true_value());
         elms->set(ENUMERABLE_INDEX,  Heap::true_value());
         elms->set(CONFIGURABLE_INDEX, Heap::true_value());
         return *desc;
+      }
 
       case JSObject::DICTIONARY_ELEMENT: {
         NumberDictionary* dictionary = obj->element_dictionary();
@@ -705,7 +709,7 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
   }
 
   // Use recursive implementation to also traverse hidden prototypes
-  GetOwnPropertyImplementation(obj, name, &result);
+  GetOwnPropertyImplementation(*obj, *name, &result);
 
   if (!result.IsProperty()) {
     return Heap::undefined_value();
@@ -716,7 +720,8 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
       // Property that is internally implemented as a callback or
       // an API defined callback.
       Object* value = obj->GetPropertyWithCallback(
-          obj, structure, name, result.holder());
+          *obj, structure, *name, result.holder());
+      if (value->IsFailure()) return value;
       elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
       elms->set(VALUE_INDEX, value);
       elms->set(WRITABLE_INDEX, Heap::ToBoolean(!result.IsReadOnly()));
@@ -7537,14 +7542,18 @@ static Object* Runtime_ArrayConcat(Arguments args) {
     // The backing storage array must have non-existing elements to
     // preserve holes across concat operations.
     storage = Factory::NewFixedArrayWithHoles(result_length);
-    result->set_map(*Factory::GetFastElementsMap(Handle<Map>(result->map())));
+    Handle<Map> fast_map =
+        Factory::GetFastElementsMap(Handle<Map>(result->map()));
+    result->set_map(*fast_map);
   } else {
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
                   Factory::NewNumberDictionary(at_least_space_for));
-    result->set_map(*Factory::GetSlowElementsMap(Handle<Map>(result->map())));
+    Handle<Map> slow_map =
+        Factory::GetSlowElementsMap(Handle<Map>(result->map()));
+    result->set_map(*slow_map);
   }
 
   Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
@@ -9079,10 +9088,10 @@ static Handle<Context> CopyWithContextChain(Handle<Context> context_chain,
   // Recursively copy the with contexts.
   Handle<Context> previous(context_chain->previous());
   Handle<JSObject> extension(JSObject::cast(context_chain->extension()));
-  return Factory::NewWithContext(
-      CopyWithContextChain(function_context, previous),
-      extension,
-      context_chain->IsCatchContext());
+  Handle<Context> context = CopyWithContextChain(function_context, previous);
+  return Factory::NewWithContext(context,
+                                 extension,
+                                 context_chain->IsCatchContext());
 }
 
 
