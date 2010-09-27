@@ -5917,21 +5917,24 @@ bool JSObject::HasElementWithInterceptor(JSObject* receiver, uint32_t index) {
 }
 
 
-bool JSObject::HasLocalElement(uint32_t index) {
+JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !Top::MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
     Top::ReportFailedAccessCheck(this, v8::ACCESS_HAS);
-    return false;
+    return UNDEFINED_ELEMENT;
   }
 
   // Check for lookup interceptor
   if (HasIndexedInterceptor()) {
-    return HasElementWithInterceptor(this, index);
+    return HasElementWithInterceptor(this, index) ? INTERCEPTED_ELEMENT
+                                                  : UNDEFINED_ELEMENT;
   }
 
   // Handle [] on String objects.
-  if (this->IsStringObjectWithCharacterAt(index)) return true;
+  if (this->IsStringObjectWithCharacterAt(index)) {
+    return STRING_CHARACTER_ELEMENT;
+  }
 
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
@@ -5939,12 +5942,16 @@ bool JSObject::HasLocalElement(uint32_t index) {
           static_cast<uint32_t>
               (Smi::cast(JSArray::cast(this)->length())->value()) :
           static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      return (index < length) &&
-          !FixedArray::cast(elements())->get(index)->IsTheHole();
+      if ((index < length) &&
+          !FixedArray::cast(elements())->get(index)->IsTheHole()) {
+        return FAST_ELEMENT;
+      }
+      break;
     }
     case PIXEL_ELEMENTS: {
       PixelArray* pixels = PixelArray::cast(elements());
-      return (index < static_cast<uint32_t>(pixels->length()));
+      if (index < static_cast<uint32_t>(pixels->length())) return FAST_ELEMENT;
+      break;
     }
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
@@ -5954,18 +5961,22 @@ bool JSObject::HasLocalElement(uint32_t index) {
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS: {
       ExternalArray* array = ExternalArray::cast(elements());
-      return (index < static_cast<uint32_t>(array->length()));
+      if (index < static_cast<uint32_t>(array->length())) return FAST_ELEMENT;
+      break;
     }
     case DICTIONARY_ELEMENTS: {
-      return element_dictionary()->FindEntry(index)
-          != NumberDictionary::kNotFound;
+      if (element_dictionary()->FindEntry(index) !=
+              NumberDictionary::kNotFound) {
+        return DICTIONARY_ELEMENT;
+      }
+      break;
     }
     default:
       UNREACHABLE();
       break;
   }
-  UNREACHABLE();
-  return Heap::null_value();
+
+  return UNDEFINED_ELEMENT;
 }
 
 
@@ -8708,11 +8719,11 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
     // No free slot - extend break point info array.
     Handle<FixedArray> old_break_points =
         Handle<FixedArray>(FixedArray::cast(debug_info->break_points()));
-    debug_info->set_break_points(*Factory::NewFixedArray(
-        old_break_points->length() +
-            Debug::kEstimatedNofBreakPointsInFunction));
     Handle<FixedArray> new_break_points =
-        Handle<FixedArray>(FixedArray::cast(debug_info->break_points()));
+        Factory::NewFixedArray(old_break_points->length() +
+                               Debug::kEstimatedNofBreakPointsInFunction);
+
+    debug_info->set_break_points(*new_break_points);
     for (int i = 0; i < old_break_points->length(); i++) {
       new_break_points->set(i, old_break_points->get(i));
     }
