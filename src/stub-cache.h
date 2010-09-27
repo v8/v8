@@ -626,7 +626,8 @@ class KeyedStoreStubCompiler: public StubCompiler {
   V(String.prototype, charCodeAt, StringCharCodeAt) \
   V(String.prototype, charAt, StringCharAt)         \
   V(String, fromCharCode, StringFromCharCode)       \
-  V(Math, floor, MathFloor)
+  V(Math, floor, MathFloor)                         \
+  V(Math, abs, MathAbs)
 
 
 class CallStubCompiler: public StubCompiler {

@@ -1558,6 +1558,109 @@ Object* CallStubCompiler::CompileMathFloorCall(Object* object,
 }
 
 
+Object* CallStubCompiler::CompileMathAbsCall(Object* object,
+                                             JSObject* holder,
+                                             JSGlobalPropertyCell* cell,
+                                             JSFunction* function,
+                                             String* name) {
+  // ----------- S t a t e -------------
+  //  -- rcx                 : function name
+  //  -- rsp[0]              : return address
+  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- ...
+  //  -- rsp[(argc + 1) * 8] : receiver
+  // -----------------------------------
+
+  const int argc = arguments().immediate();
+
+  // If the object is not a JSObject or we got an unexpected number of
+  // arguments, bail out to the regular call.
+  if (!object->IsJSObject() || argc != 1) return Heap::undefined_value();
+
+  Label miss;
+  GenerateNameCheck(name, &miss);
+
+  if (cell == NULL) {
+    __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+
+    __ JumpIfSmi(rdx, &miss);
+
+    CheckPrototypes(JSObject::cast(object), rdx, holder, rbx, rax, rdi, name,
+                    &miss);
+  } else {
+    ASSERT(cell->value() == function);
+    GenerateGlobalReceiverCheck(JSObject::cast(object), holder, name, &miss);
+    GenerateLoadFunctionFromCell(cell, function, &miss);
+  }
+
+  // Load the (only) argument into rax.
+  __ movq(rax, Operand(rsp, 1 * kPointerSize));
+
+  // Check if the argument is a smi.
+  Label not_smi;
+  STATIC_ASSERT(kSmiTag == 0);
+  __ JumpIfNotSmi(rax, &not_smi);
+  __ SmiToInteger32(rax, rax);
+
+  // Set ebx to 1...1 (== -1) if the argument is negative, or to 0...0
+  // otherwise.
+  __ movl(rbx, rax);
+  __ sarl(rbx, Immediate(kBitsPerInt - 1));
+
+  // Do bitwise not or do nothing depending on ebx.
+  __ xorl(rax, rbx);
+
+  // Add 1 or do nothing depending on ebx.
+  __ subl(rax, rbx);
+
+  // If the result is still negative, go to the slow case.
+  // This only happens for the most negative smi.
+  Label slow;
+  __ j(negative, &slow);
+
+  // Smi case done.
+  __ Integer32ToSmi(rax, rax);
+  __ ret(2 * kPointerSize);
+
+  // Check if the argument is a heap number and load its value.
+  __ bind(&not_smi);
+  __ CheckMap(rax, Factory::heap_number_map(), &slow, true);
+  __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
+
+  // Check the sign of the argument. If the argument is positive,
+  // just return it.
+  Label negative_sign;
+  const int sign_mask_shift =
+      (HeapNumber::kExponentOffset - HeapNumber::kValueOffset) * kBitsPerByte;
+  __ movq(rdi, static_cast<int64_t>(HeapNumber::kSignMask) << sign_mask_shift,
+          RelocInfo::NONE);
+  __ testq(rbx, rdi);
+  __ j(not_zero, &negative_sign);
+  __ ret(2 * kPointerSize);
+
+  // If the argument is negative, clear the sign, and return a new
+  // number. We still have the sign mask in rdi.
+  __ bind(&negative_sign);
+  __ xor_(rbx, rdi);
+  __ AllocateHeapNumber(rax, rdx, &slow);
+  __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rbx);
+  __ ret(2 * kPointerSize);
+
+  // Tail call the full function. We do not have to patch the receiver
+  // because the function makes no use of it.
+  __ bind(&slow);
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+
+  __ bind(&miss);
+  // rcx: function name.
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
+
+  // Return the generated code.
+  return (cell == NULL) ? GetCode(function) : GetCode(NORMAL, name);
+}
+
+
 Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
                                                  JSObject* holder,
                                                  String* name) {
