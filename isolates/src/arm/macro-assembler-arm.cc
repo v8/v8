@@ -1903,7 +1903,6 @@ void MacroAssembler::CallCFunction(Register function,
                       ExternalReference::the_hole_value_location(),
                       scratch,
                       num_arguments);
-
 }
 
 

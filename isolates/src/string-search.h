@@ -185,15 +185,16 @@ static void BoyerMoorePopulateBadCharTable(RuntimeState* state,
   }
   for (int i = start; i < pattern.length() - 1; i++) {
     PatternChar c = pattern[i];
-    int bucket = (sizeof(PatternChar) ==1) ? c : c % RuntimeState::kBMAlphabetSize;
+    int bucket = (sizeof(PatternChar) ==1)
+        ? c : c % RuntimeState::kBMAlphabetSize;
     bad_char_occurrence[bucket] = i;
   }
 }
 
 
 template <typename PatternChar>
-static void BoyerMoorePopulateGoodSuffixTable(RuntimeState* state,
-                                              Vector<const PatternChar> pattern) {
+static void BoyerMoorePopulateGoodSuffixTable(
+    RuntimeState* state, Vector<const PatternChar> pattern) {
   RuntimeState::BMGoodSuffixBuffers& bmgs_buffers = *state->bmgs_buffers();
   int m = pattern.length();
   int start = m < RuntimeState::kBMMaxShift ? 0 : m - RuntimeState::kBMMaxShift;

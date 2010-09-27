@@ -703,7 +703,7 @@ static Object* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
             // This is an accessor property with getter and/or setter.
             FixedArray* callbacks =
                 FixedArray::cast(dictionary->ValueAt(entry));
-            elms->set(IS_ACCESSOR_INDEX,heap->true_value());
+            elms->set(IS_ACCESSOR_INDEX, heap->true_value());
             elms->set(GETTER_INDEX, callbacks->get(0));
             elms->set(SETTER_INDEX, callbacks->get(1));
             break;

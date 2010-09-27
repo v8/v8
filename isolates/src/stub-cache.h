@@ -271,7 +271,7 @@ class StubCache {
 
 
  private:
-  explicit StubCache(Isolate*);
+  explicit StubCache(Isolate* isolate);
 
   friend class Isolate;
   friend class SCTableReference;

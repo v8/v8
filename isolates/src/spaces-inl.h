@@ -238,7 +238,8 @@ void Page::InvalidateWatermark(bool value) {
   } else {
     flags_ =
         (flags_ & ~(1 << WATERMARK_INVALIDATED)) |
-        (heap_->page_watermark_invalidated_mark_ ^ (1 << WATERMARK_INVALIDATED));
+        (heap_->page_watermark_invalidated_mark_ ^
+         (1 << WATERMARK_INVALIDATED));
   }
 
   ASSERT(IsWatermarkValid() == !value);

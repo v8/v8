@@ -237,7 +237,8 @@ class CallIC: public CallICBase {
 
 class KeyedCallIC: public CallICBase {
  public:
-  explicit KeyedCallIC(Isolate* isolate) : CallICBase(Code::KEYED_CALL_IC, isolate) {
+  explicit KeyedCallIC(Isolate* isolate)
+      : CallICBase(Code::KEYED_CALL_IC, isolate) {
     ASSERT(target()->is_keyed_call_stub());
   }
 
