@@ -557,6 +557,9 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, int64_t x);
   void Set(const Operand& dst, int64_t x);
 
+  // Move if the registers are not identical.
+  void Move(Register target, Register source);
+
   // Handle support
   void Move(Register dst, Handle<Object> source);
   void Move(const Operand& dst, Handle<Object> source);

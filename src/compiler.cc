@@ -120,8 +120,9 @@ Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info) {
   Handle<Context> context = Handle<Context>::null();
   Handle<Code> code = MakeCode(context, info);
   if (!info->shared_info().is_null()) {
-    info->shared_info()->set_scope_info(
-        *SerializedScopeInfo::Create(info->scope()));
+    Handle<SerializedScopeInfo> scope_info =
+        SerializedScopeInfo::Create(info->scope());
+    info->shared_info()->set_scope_info(*scope_info);
   }
   return code;
 }
@@ -420,10 +421,12 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
   // Update the shared function info with the compiled code and the scope info.
   // Please note, that the order of the sharedfunction initialization is
-  // important since set_scope_info might trigger a GC, causing the ASSERT
-  // below to be invalid if the code was flushed. By settting the code
+  // important since SerializedScopeInfo::Create might trigger a GC, causing
+  // the ASSERT below to be invalid if the code was flushed. By setting the code
   // object last we avoid this.
-  shared->set_scope_info(*SerializedScopeInfo::Create(info->scope()));
+  Handle<SerializedScopeInfo> scope_info =
+      SerializedScopeInfo::Create(info->scope());
+  shared->set_scope_info(*scope_info);
   shared->set_code(*code);
   if (!info->closure().is_null()) {
     info->closure()->set_code(*code);

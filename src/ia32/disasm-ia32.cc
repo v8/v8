@@ -718,6 +718,10 @@ int DisassemblerIA32::RegisterFPUInstruction(int escape_opcode,
 
     case 0xD9:
       switch (modrm_byte & 0xF8) {
+        case 0xC0:
+          mnem = "fld";
+          has_register = true;
+          break;
         case 0xC8:
           mnem = "fxch";
           has_register = true;
@@ -1194,12 +1198,12 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         { data++;
           int mod, regop, rm;
           get_modrm(*data, &mod, &regop, &rm);
-          if (mod == 3 && regop == ecx) {
-            AppendToBuffer("dec_b %s", NameOfCPURegister(rm));
+          if (regop == ecx) {
+            AppendToBuffer("dec_b ");
+            data += PrintRightOperand(data);
           } else {
             UnimplementedInstruction();
           }
-          data++;
         }
         break;
 

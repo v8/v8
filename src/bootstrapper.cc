@@ -1064,8 +1064,11 @@ bool Genesis::InstallNatives() {
   // global object.
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  SetProperty(builtins, Factory::LookupAsciiSymbol("global"),
-              Handle<Object>(global_context()->global()), attributes);
+  Handle<String> global_symbol = Factory::LookupAsciiSymbol("global");
+  SetProperty(builtins,
+              global_symbol,
+              Handle<Object>(global_context()->global()),
+              attributes);
 
   // Setup the reference from the global object to the builtins object.
   JSGlobalObject::cast(global_context()->global())->set_builtins(*builtins);
@@ -1413,8 +1416,14 @@ void Genesis::InstallJSFunctionResultCaches() {
   Handle<FixedArray> caches = Factory::NewFixedArray(kNumberOfCaches, TENURED);
 
   int index = 0;
-#define F(size, func) caches->set(index++, CreateCache(size, func));
-    JSFUNCTION_RESULT_CACHE_LIST(F)
+
+#define F(size, func) do {                           \
+    FixedArray* cache = CreateCache((size), (func)); \
+    caches->set(index++, cache);                     \
+  } while (false)
+
+  JSFUNCTION_RESULT_CACHE_LIST(F);
+
 #undef F
 
   global_context()->set_jsfunction_result_caches(*caches);

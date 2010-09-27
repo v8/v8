@@ -165,6 +165,8 @@ TEST(DisasmIa320) {
   __ mov(Operand(ebx, ecx, times_4, 10000), edx);
   __ nop();
   __ dec_b(edx);
+  __ dec_b(Operand(eax, 10));
+  __ dec_b(Operand(ebx, ecx, times_4, 10000));
   __ dec(edx);
   __ cdq();
 
@@ -334,8 +336,10 @@ TEST(DisasmIa320) {
   // 0xD9 instructions
   __ nop();
 
+  __ fld(1);
   __ fld1();
   __ fldz();
+  __ fldpi();
   __ fabs();
   __ fchs();
   __ fprem();

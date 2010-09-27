@@ -187,21 +187,21 @@ class Scope: public ZoneObject {
   // Predicates.
 
   // Specific scope types.
-  bool is_eval_scope() const  { return type_ == EVAL_SCOPE; }
-  bool is_function_scope() const  { return type_ == FUNCTION_SCOPE; }
-  bool is_global_scope() const  { return type_ == GLOBAL_SCOPE; }
+  bool is_eval_scope() const { return type_ == EVAL_SCOPE; }
+  bool is_function_scope() const { return type_ == FUNCTION_SCOPE; }
+  bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
 
   // Information about which scopes calls eval.
-  bool calls_eval() const  { return scope_calls_eval_; }
-  bool outer_scope_calls_eval() const  { return outer_scope_calls_eval_; }
+  bool calls_eval() const { return scope_calls_eval_; }
+  bool outer_scope_calls_eval() const { return outer_scope_calls_eval_; }
 
   // Is this scope inside a with statement.
-  bool inside_with() const  { return scope_inside_with_; }
+  bool inside_with() const { return scope_inside_with_; }
   // Does this scope contain a with statement.
-  bool contains_with() const  { return scope_contains_with_; }
+  bool contains_with() const { return scope_contains_with_; }
 
   // The scope immediately surrounding this scope, or NULL.
-  Scope* outer_scope() const  { return outer_scope_; }
+  Scope* outer_scope() const { return outer_scope_; }
 
   // ---------------------------------------------------------------------------
   // Accessors.
@@ -217,27 +217,27 @@ class Scope: public ZoneObject {
   // The variable holding the function literal for named function
   // literals, or NULL.
   // Only valid for function scopes.
-  Variable* function() const  {
+  Variable* function() const {
     ASSERT(is_function_scope());
     return function_;
   }
 
   // Parameters. The left-most parameter has index 0.
   // Only valid for function scopes.
-  Variable* parameter(int index) const  {
+  Variable* parameter(int index) const {
     ASSERT(is_function_scope());
     return params_[index];
   }
 
-  int num_parameters() const  { return params_.length(); }
+  int num_parameters() const { return params_.length(); }
 
   // The local variable 'arguments' if we need to allocate it; NULL otherwise.
   // If arguments() exist, arguments_shadow() exists, too.
-  VariableProxy* arguments()  const  { return arguments_; }
+  Variable* arguments() const { return arguments_; }
 
   // The '.arguments' shadow variable if we need to allocate it; NULL otherwise.
   // If arguments_shadow() exist, arguments() exists, too.
-  VariableProxy* arguments_shadow()  const  { return arguments_shadow_; }
+  Variable* arguments_shadow() const { return arguments_shadow_; }
 
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
@@ -262,8 +262,8 @@ class Scope: public ZoneObject {
   void AllocateVariables(Handle<Context> context);
 
   // Result of variable allocation.
-  int num_stack_slots() const  { return num_stack_slots_; }
-  int num_heap_slots() const  { return num_heap_slots_; }
+  int num_stack_slots() const { return num_stack_slots_; }
+  int num_heap_slots() const { return num_heap_slots_; }
 
   // Make sure this scope and all outer scopes are eagerly compiled.
   void ForceEagerCompilation()  { force_eager_compilation_ = true; }
@@ -322,9 +322,9 @@ class Scope: public ZoneObject {
   // Function variable, if any; function scopes only.
   Variable* function_;
   // Convenience variable; function scopes only.
-  VariableProxy* arguments_;
+  Variable* arguments_;
   // Convenience variable; function scopes only.
-  VariableProxy* arguments_shadow_;
+  Variable* arguments_shadow_;
 
   // Illegal redeclaration.
   Expression* illegal_redecl_;

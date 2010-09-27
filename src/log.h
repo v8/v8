@@ -216,6 +216,8 @@ class Logger {
   static void CodeDeleteEvent(Address from);
   // Emits a function object create event.
   static void FunctionCreateEvent(JSFunction* function);
+  static void FunctionCreateEventFromMove(JSFunction* function,
+                                          HeapObject*);
   // Emits a function move event.
   static void FunctionMoveEvent(Address from, Address to);
   // Emits a function delete event.

@@ -664,7 +664,7 @@ class FunctionInfoListener {
       int j = 0;
       for (int i = 0; i < list.length(); i++) {
         Variable* var1 = list[i];
-        Slot* slot = var1->slot();
+        Slot* slot = var1->AsSlot();
         if (slot != NULL && slot->type() == Slot::CONTEXT) {
           if (j != i) {
             list[j] = var1;
@@ -677,7 +677,7 @@ class FunctionInfoListener {
       for (int k = 1; k < j; k++) {
         int l = k;
         for (int m = k + 1; m < j; m++) {
-          if (list[l]->slot()->index() > list[m]->slot()->index()) {
+          if (list[l]->AsSlot()->index() > list[m]->AsSlot()->index()) {
             l = m;
           }
         }
@@ -687,7 +687,7 @@ class FunctionInfoListener {
         SetElement(scope_info_list, scope_info_length, list[i]->name());
         scope_info_length++;
         SetElement(scope_info_list, scope_info_length,
-                   Handle<Smi>(Smi::FromInt(list[i]->slot()->index())));
+                   Handle<Smi>(Smi::FromInt(list[i]->AsSlot()->index())));
         scope_info_length++;
       }
       SetElement(scope_info_list, scope_info_length,

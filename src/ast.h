@@ -172,18 +172,6 @@ class Statement: public AstNode {
 
 class Expression: public AstNode {
  public:
-  enum Context {
-    // Not assigned a context yet, or else will not be visited during
-    // code generation.
-    kUninitialized,
-    // Evaluated for its side effects.
-    kEffect,
-    // Evaluated for its value (and side effects).
-    kValue,
-    // Evaluated for control flow (and side effects).
-    kTest
-  };
-
   Expression() : bitfields_(0) {}
 
   virtual Expression* AsExpression()  { return this; }
@@ -342,7 +330,7 @@ class Block: public BreakableStatement {
   void AddStatement(Statement* statement) { statements_.Add(statement); }
 
   ZoneList<Statement*>* statements() { return &statements_; }
-  bool is_initializer_block() const  { return is_initializer_block_; }
+  bool is_initializer_block() const { return is_initializer_block_; }
 
  private:
   ZoneList<Statement*> statements_;
@@ -363,9 +351,9 @@ class Declaration: public AstNode {
 
   virtual void Accept(AstVisitor* v);
 
-  VariableProxy* proxy() const  { return proxy_; }
-  Variable::Mode mode() const  { return mode_; }
-  FunctionLiteral* fun() const  { return fun_; }  // may be NULL
+  VariableProxy* proxy() const { return proxy_; }
+  Variable::Mode mode() const { return mode_; }
+  FunctionLiteral* fun() const { return fun_; }  // may be NULL
 
  private:
   VariableProxy* proxy_;
@@ -466,11 +454,11 @@ class ForStatement: public IterationStatement {
 
   virtual void Accept(AstVisitor* v);
 
-  Statement* init() const  { return init_; }
+  Statement* init() const { return init_; }
   void set_init(Statement* stmt) { init_ = stmt; }
-  Expression* cond() const  { return cond_; }
+  Expression* cond() const { return cond_; }
   void set_cond(Expression* expr) { cond_ = expr; }
-  Statement* next() const  { return next_; }
+  Statement* next() const { return next_; }
   void set_next(Statement* stmt) { next_ = stmt; }
 
   bool may_have_function_literal() const {
@@ -543,7 +531,7 @@ class ContinueStatement: public Statement {
 
   virtual void Accept(AstVisitor* v);
 
-  IterationStatement* target() const  { return target_; }
+  IterationStatement* target() const { return target_; }
 
  private:
   IterationStatement* target_;
@@ -557,7 +545,7 @@ class BreakStatement: public Statement {
 
   virtual void Accept(AstVisitor* v);
 
-  BreakableStatement* target() const  { return target_; }
+  BreakableStatement* target() const { return target_; }
 
  private:
   BreakableStatement* target_;
@@ -588,7 +576,7 @@ class WithEnterStatement: public Statement {
 
   virtual void Accept(AstVisitor* v);
 
-  Expression* expression() const  { return expression_; }
+  Expression* expression() const { return expression_; }
 
   bool is_catch_block() const { return is_catch_block_; }
 
@@ -610,13 +598,13 @@ class CaseClause: public ZoneObject {
  public:
   CaseClause(Expression* label, ZoneList<Statement*>* statements);
 
-  bool is_default() const  { return label_ == NULL; }
-  Expression* label() const  {
+  bool is_default() const { return label_ == NULL; }
+  Expression* label() const {
     CHECK(!is_default());
     return label_;
   }
   JumpTarget* body_target() { return &body_target_; }
-  ZoneList<Statement*>* statements() const  { return statements_; }
+  ZoneList<Statement*>* statements() const { return statements_; }
 
  private:
   Expression* label_;
@@ -636,8 +624,8 @@ class SwitchStatement: public BreakableStatement {
 
   virtual void Accept(AstVisitor* v);
 
-  Expression* tag() const  { return tag_; }
-  ZoneList<CaseClause*>* cases() const  { return cases_; }
+  Expression* tag() const { return tag_; }
+  ZoneList<CaseClause*>* cases() const { return cases_; }
 
  private:
   Expression* tag_;
@@ -731,8 +719,8 @@ class TryCatchStatement: public TryStatement {
 
   virtual void Accept(AstVisitor* v);
 
-  VariableProxy* catch_var() const  { return catch_var_; }
-  Block* catch_block() const  { return catch_block_; }
+  VariableProxy* catch_var() const { return catch_var_; }
+  Block* catch_block() const { return catch_block_; }
 
  private:
   VariableProxy* catch_var_;
@@ -960,6 +948,8 @@ class CatchExtensionObject: public Expression {
 
 class VariableProxy: public Expression {
  public:
+  explicit VariableProxy(Variable* var);
+
   virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
@@ -972,7 +962,10 @@ class VariableProxy: public Expression {
   }
 
   Variable* AsVariable() {
-    return this == NULL || var_ == NULL ? NULL : var_->AsVariable();
+    if (this == NULL || var_ == NULL) return NULL;
+    Expression* rewrite = var_->rewrite();
+    if (rewrite == NULL || rewrite->AsSlot() != NULL) return var_;
+    return NULL;
   }
 
   virtual bool IsValidLeftHandSide() {
@@ -994,10 +987,10 @@ class VariableProxy: public Expression {
     return (variable == NULL) ? false : variable->is_arguments();
   }
 
-  Handle<String> name() const  { return name_; }
-  Variable* var() const  { return var_; }
-  bool is_this() const  { return is_this_; }
-  bool inside_with() const  { return inside_with_; }
+  Handle<String> name() const { return name_; }
+  Variable* var() const { return var_; }
+  bool is_this() const { return is_this_; }
+  bool inside_with() const { return inside_with_; }
 
   void MarkAsTrivial() { is_trivial_ = true; }
 
@@ -1464,9 +1457,9 @@ class FunctionLiteral: public Expression {
   // Type testing & conversion
   virtual FunctionLiteral* AsFunctionLiteral()  { return this; }
 
-  Handle<String> name() const  { return name_; }
-  Scope* scope() const  { return scope_; }
-  ZoneList<Statement*>* body() const  { return body_; }
+  Handle<String> name() const { return name_; }
+  Scope* scope() const { return scope_; }
+  ZoneList<Statement*>* body() const { return body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
   int function_token_position() const { return function_token_position_; }
   int start_position() const { return start_position_; }
@@ -1486,7 +1479,7 @@ class FunctionLiteral: public Expression {
 
   bool AllowsLazyCompilation();
 
-  Handle<String> inferred_name() const  { return inferred_name_; }
+  Handle<String> inferred_name() const { return inferred_name_; }
   void set_inferred_name(Handle<String> inferred_name) {
     inferred_name_ = inferred_name;
   }

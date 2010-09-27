@@ -649,8 +649,9 @@ void Map::MapVerify() {
 }
 
 
-void Map::NormalizedMapVerify() {
+void Map::SharedMapVerify() {
   MapVerify();
+  ASSERT(is_shared());
   ASSERT_EQ(Heap::empty_descriptor_array(), instance_descriptors());
   ASSERT_EQ(Heap::empty_fixed_array(), code_cache());
   ASSERT_EQ(0, pre_allocated_property_fields());
@@ -904,7 +905,7 @@ void Code::CodePrint() {
 
 void Code::CodeVerify() {
   CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),
-                  static_cast<intptr_t>(kCodeAlignment)));
+                  kCodeAlignment));
   Address last_gc_pc = NULL;
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Verify();
@@ -1381,7 +1382,7 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
     for (int i = 0; i < length(); i++) {
       Object* e = get(i);
       if (e->IsMap()) {
-        Map::cast(e)->NormalizedMapVerify();
+        Map::cast(e)->SharedMapVerify();
       } else {
         ASSERT(e->IsUndefined());
       }

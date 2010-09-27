@@ -64,15 +64,15 @@ namespace internal {
 // and best performance in optimized code.
 //
 struct Register {
-  bool is_valid() const  { return 0 <= code_ && code_ < 8; }
-  bool is(Register reg) const  { return code_ == reg.code_; }
+  bool is_valid() const { return 0 <= code_ && code_ < 8; }
+  bool is(Register reg) const { return code_ == reg.code_; }
   // eax, ebx, ecx and edx are byte registers, the rest are not.
-  bool is_byte_register() const  { return code_ <= 3; }
-  int code() const  {
+  bool is_byte_register() const { return code_ <= 3; }
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
-  int bit() const  {
+  int bit() const {
     ASSERT(is_valid());
     return 1 << code_;
   }
@@ -93,8 +93,8 @@ const Register no_reg = { -1 };
 
 
 struct XMMRegister {
-  bool is_valid() const  { return 0 <= code_ && code_ < 8; }
-  int code() const  {
+  bool is_valid() const { return 0 <= code_ && code_ < 8; }
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
@@ -595,6 +595,7 @@ class Assembler : public Malloced {
   void cmp(const Operand& op, Handle<Object> handle);
 
   void dec_b(Register dst);
+  void dec_b(const Operand& dst);
 
   void dec(Register dst);
   void dec(const Operand& dst);
@@ -687,6 +688,7 @@ class Assembler : public Malloced {
   // but it may be bound only once.
 
   void bind(Label* L);  // binds an unbound label L to the current code position
+  void bind(NearLabel* L);
 
   // Calls
   void call(Label* L);
@@ -701,10 +703,16 @@ class Assembler : public Malloced {
   void jmp(const Operand& adr);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
+  // Short jump
+  void jmp(NearLabel* L);
+
   // Conditional jumps
   void j(Condition cc, Label* L, Hint hint = no_hint);
   void j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint = no_hint);
   void j(Condition cc, Handle<Code> code, Hint hint = no_hint);
+
+  // Conditional short jump
+  void j(Condition cc, NearLabel* L, Hint hint = no_hint);
 
   // Floating-point operations
   void fld(int i);
@@ -847,9 +855,9 @@ class Assembler : public Malloced {
   // Used for inline tables, e.g., jump-tables.
   void dd(uint32_t data, RelocInfo::Mode reloc_info);
 
-  int pc_offset() const  { return pc_ - buffer_; }
+  int pc_offset() const { return pc_ - buffer_; }
   int current_statement_position() const { return current_statement_position_; }
-  int current_position() const  { return current_position_; }
+  int current_position() const { return current_position_; }
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
@@ -876,6 +884,7 @@ class Assembler : public Malloced {
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }
   byte byte_at(int pos)  { return buffer_[pos]; }
+  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
   uint32_t long_at(int pos)  {
     return *reinterpret_cast<uint32_t*>(addr_at(pos));
   }
@@ -910,7 +919,6 @@ class Assembler : public Malloced {
   // labels
   void print(Label* L);
   void bind_to(Label* L, int pos);
-  void link_to(Label* L, Label* appendix);
 
   // displacements
   inline Displacement disp_at(Label* L);

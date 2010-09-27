@@ -59,6 +59,11 @@ Object* Heap::AllocateSymbol(Vector<const char> str,
 }
 
 
+Object* Heap::CopyFixedArray(FixedArray* src) {
+  return CopyFixedArrayWithMap(src, src->map());
+}
+
+
 Object* Heap::AllocateRaw(int size_in_bytes,
                           AllocationSpace space,
                           AllocationSpace retry_space) {
