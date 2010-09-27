@@ -1,3 +1,16 @@
+2010-09-27: Version 2.4.6
+        Fixed assertion failure related to copy-on-write arrays (issue 876).
+
+        Fixed build failure of 64-bit V8 on Windows.
+
+        Fixed a bug in RegExp (issue http://crbug.com/52801).
+
+        Improved the profiler's coverage to cover more functions (issue 858).
+
+        Fixed error in shift operators on 64-bit V8
+        (issue http://crbug.com/54521).
+
+
 2010-09-22: Version 2.4.5
         Changed the RegExp benchmark to exercise the regexp engine on different
         inputs by scrambling the input strings.
