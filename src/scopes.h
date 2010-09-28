@@ -34,7 +34,6 @@
 namespace v8 {
 namespace internal {
 
-
 // A hash map to support fast variable declaration and lookup.
 class VariableMap: public HashMap {
  public:
@@ -100,8 +99,12 @@ class Scope: public ZoneObject {
   // The scope name is only used for printing/debugging.
   void SetScopeName(Handle<String> scope_name)  { scope_name_ = scope_name; }
 
-  void Initialize(bool inside_with);
+  virtual void Initialize(bool inside_with);
 
+  // Called just before leaving a scope.
+  virtual void Leave() {
+    // No cleanup or fixup necessary.
+  }
 
   // ---------------------------------------------------------------------------
   // Declarations
@@ -272,7 +275,7 @@ class Scope: public ZoneObject {
   bool AllowsLazyCompilation() const;
 
   // True if the outer context of this scope is always the global context.
-  bool HasTrivialOuterContext() const;
+  virtual bool HasTrivialOuterContext() const;
 
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
@@ -378,20 +381,53 @@ class Scope: public ZoneObject {
 };
 
 
+// Scope used during pre-parsing.
 class DummyScope : public Scope {
  public:
-  DummyScope() : Scope(GLOBAL_SCOPE) {
+  DummyScope()
+      : Scope(GLOBAL_SCOPE),
+        nesting_level_(1),  // Allows us to Leave the initial scope.
+        inside_with_level_(kNotInsideWith) {
     outer_scope_ = this;
+    scope_inside_with_ = false;
+  }
+
+  virtual void Initialize(bool inside_with) {
+    nesting_level_++;
+    if (inside_with && inside_with_level_ == kNotInsideWith) {
+      inside_with_level_ = nesting_level_;
+    }
+    ASSERT(inside_with_level_ <= nesting_level_);
+  }
+
+  virtual void Leave() {
+    nesting_level_--;
+    ASSERT(nesting_level_ >= 0);
+    if (nesting_level_ < inside_with_level_) {
+      inside_with_level_ = kNotInsideWith;
+    }
+    ASSERT(inside_with_level_ <= nesting_level_);
   }
 
   virtual Variable* Lookup(Handle<String> name)  { return NULL; }
-  virtual Variable* Declare(Handle<String> name, Variable::Mode mode) {
-    return NULL;
-  }
+
   virtual VariableProxy* NewUnresolved(Handle<String> name, bool inside_with) {
     return NULL;
   }
+
   virtual VariableProxy* NewTemporary(Handle<String> name)  { return NULL; }
+
+  virtual bool HasTrivialOuterContext() const {
+    return (nesting_level_ == 0 || inside_with_level_ <= 0);
+  }
+
+ private:
+  static const int kNotInsideWith = -1;
+  // Number of surrounding scopes of the current scope.
+  int nesting_level_;
+  // Nesting level of outermost scope that is contained in a with statement,
+  // or kNotInsideWith if there are no with's around the current scope.
+  int inside_with_level_;
 };
 
 

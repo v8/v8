@@ -201,7 +201,6 @@ void Scope::Initialize(bool inside_with) {
 }
 
 
-
 Variable* Scope::LocalLookup(Handle<String> name) {
   return variables_.Lookup(name);
 }
