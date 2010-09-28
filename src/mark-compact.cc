@@ -2008,10 +2008,8 @@ class MapCompact {
 
 #ifdef DEBUG
       if (FLAG_gc_verbose) {
-        PrintF("update %p : %p -> %p\n",
-               obj->address(),
-               reinterpret_cast<void*>(map),
-               reinterpret_cast<void*>(new_map));
+        PrintF("update %p : %p -> %p\n", obj->address(),
+              map, new_map);
       }
 #endif
     }

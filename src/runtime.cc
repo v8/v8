@@ -6801,7 +6801,7 @@ static void PrintObject(Object* obj) {
   } else if (obj->IsFalse()) {
     PrintF("<false>");
   } else {
-    PrintF("%p", reinterpret_cast<void*>(obj));
+    PrintF("%p", obj);
   }
 }
 
