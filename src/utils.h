@@ -222,11 +222,19 @@ uint32_t ComputeIntegerHash(uint32_t key);
 // ----------------------------------------------------------------------------
 // I/O support.
 
+#if __GNUC__ >= 4
+// On gcc we can ask the compiler to check the types of %d-style format
+// specifiers and their associated arguments.
+#define PRINTF_CHECKING __attribute__ ((format (printf, 1, 2)))
+#else
+#define PRINTF_CHECKING
+#endif
+
 // Our version of printf(). Avoids compilation errors that we get
 // with standard printf when attempting to print pointers, etc.
 // (the errors are due to the extra compilation flags, which we
 // want elsewhere).
-void PrintF(const char* format, ...);
+void PRINTF_CHECKING PrintF(const char* format, ...);
 
 // Our version of fflush.
 void Flush();

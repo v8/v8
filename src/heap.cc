@@ -77,17 +77,17 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 int Heap::max_semispace_size_  = 2*MB;
 intptr_t Heap::max_old_generation_size_ = 192*MB;
 int Heap::initial_semispace_size_ = 128*KB;
-size_t Heap::code_range_size_ = 0;
+intptr_t Heap::code_range_size_ = 0;
 #elif defined(V8_TARGET_ARCH_X64)
 int Heap::max_semispace_size_  = 16*MB;
 intptr_t Heap::max_old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
-size_t Heap::code_range_size_ = 512*MB;
+intptr_t Heap::code_range_size_ = 512*MB;
 #else
 int Heap::max_semispace_size_  = 8*MB;
 intptr_t Heap::max_old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
-size_t Heap::code_range_size_ = 0;
+intptr_t Heap::code_range_size_ = 0;
 #endif
 
 // The snapshot semispace size will be the default semispace size if

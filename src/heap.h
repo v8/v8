@@ -251,7 +251,7 @@ class Heap : public AllStatic {
   static int MaxSemiSpaceSize() { return max_semispace_size_; }
   static int ReservedSemiSpaceSize() { return reserved_semispace_size_; }
   static int InitialSemiSpaceSize() { return initial_semispace_size_; }
-  static int MaxOldGenerationSize() { return max_old_generation_size_; }
+  static intptr_t MaxOldGenerationSize() { return max_old_generation_size_; }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
@@ -1070,7 +1070,7 @@ class Heap : public AllStatic {
   static int max_semispace_size_;
   static int initial_semispace_size_;
   static intptr_t max_old_generation_size_;
-  static size_t code_range_size_;
+  static intptr_t code_range_size_;
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
@@ -1231,8 +1231,8 @@ class Heap : public AllStatic {
                                        GCTracer* tracer,
                                        CollectionPolicy collectionPolicy);
 
-  static const int kMinimumPromotionLimit = 2 * MB;
-  static const int kMinimumAllocationLimit = 8 * MB;
+  static const intptr_t kMinimumPromotionLimit = 2 * MB;
+  static const intptr_t kMinimumAllocationLimit = 8 * MB;
 
   inline static void UpdateOldSpaceLimits();
 

@@ -953,7 +953,7 @@ class AllocationStats BASE_EMBEDDED {
   }
 
   // Free allocated bytes, making them available (size -> available).
-  void DeallocateBytes(int size_in_bytes) {
+  void DeallocateBytes(intptr_t size_in_bytes) {
     size_ -= size_in_bytes;
     available_ += size_in_bytes;
   }
@@ -2133,7 +2133,7 @@ class LargeObjectChunk {
 
   // Given a chunk size, returns the object size it can accommodate.  Used by
   // LargeObjectSpace::Available.
-  static int ObjectSizeFor(int chunk_size) {
+  static intptr_t ObjectSizeFor(intptr_t chunk_size) {
     if (chunk_size <= (Page::kPageSize + Page::kObjectStartOffset)) return 0;
     return chunk_size - Page::kPageSize - Page::kObjectStartOffset;
   }
