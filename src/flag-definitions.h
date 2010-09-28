@@ -108,6 +108,8 @@ DEFINE_bool(enable_sse2, true,
             "enable use of SSE2 instructions if available")
 DEFINE_bool(enable_sse3, true,
             "enable use of SSE3 instructions if available")
+DEFINE_bool(enable_sse4_1, true,
+            "enable use of SSE4.1 instructions if available")
 DEFINE_bool(enable_cmov, true,
             "enable use of CMOV instruction if available")
 DEFINE_bool(enable_rdtsc, true,
