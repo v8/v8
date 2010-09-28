@@ -371,7 +371,7 @@ class Space : public Malloced {
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
 
-  virtual int Size() = 0;
+  virtual intptr_t Size() = 0;
 
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect the space by marking it read-only/writable.
@@ -491,7 +491,7 @@ class MemoryAllocator : public AllStatic {
  public:
   // Initializes its internal bookkeeping structures.
   // Max capacity of the total space.
-  static bool Setup(int max_capacity);
+  static bool Setup(intptr_t max_capacity);
 
   // Deletes valid chunks.
   static void TearDown();
@@ -582,16 +582,18 @@ class MemoryAllocator : public AllStatic {
       MemoryAllocationCallback callback);
 
   // Returns the maximum available bytes of heaps.
-  static int Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
+  static intptr_t Available() {
+    return capacity_ < size_ ? 0 : capacity_ - size_;
+  }
 
   // Returns allocated spaces in bytes.
-  static int Size() { return size_; }
+  static intptr_t Size() { return size_; }
 
   // Returns allocated executable spaces in bytes.
-  static int SizeExecutable() { return size_executable_; }
+  static intptr_t SizeExecutable() { return size_executable_; }
 
   // Returns maximum available bytes that the old space can have.
-  static int MaxAvailable() {
+  static intptr_t MaxAvailable() {
     return (Available() / Page::kPageSize) * Page::kObjectAreaSize;
   }
 
@@ -649,12 +651,12 @@ class MemoryAllocator : public AllStatic {
 
  private:
   // Maximum space size in bytes.
-  static int capacity_;
+  static intptr_t capacity_;
 
   // Allocated space size in bytes.
-  static int size_;
+  static intptr_t size_;
   // Allocated executable space size in bytes.
-  static int size_executable_;
+  static intptr_t size_executable_;
 
   struct MemoryAllocationCallbackRegistration {
     MemoryAllocationCallbackRegistration(MemoryAllocationCallback callback,
@@ -927,10 +929,10 @@ class AllocationStats BASE_EMBEDDED {
   }
 
   // Accessors for the allocation statistics.
-  int Capacity() { return capacity_; }
-  int Available() { return available_; }
-  int Size() { return size_; }
-  int Waste() { return waste_; }
+  intptr_t Capacity() { return capacity_; }
+  intptr_t Available() { return available_; }
+  intptr_t Size() { return size_; }
+  intptr_t Waste() { return waste_; }
 
   // Grow the space by adding available bytes.
   void ExpandSpace(int size_in_bytes) {
@@ -970,17 +972,19 @@ class AllocationStats BASE_EMBEDDED {
   }
 
  private:
-  int capacity_;
-  int available_;
-  int size_;
-  int waste_;
+  intptr_t capacity_;
+  intptr_t available_;
+  intptr_t size_;
+  intptr_t waste_;
 };
 
 
 class PagedSpace : public Space {
  public:
   // Creates a space with a maximum capacity, and an id.
-  PagedSpace(int max_capacity, AllocationSpace id, Executability executable);
+  PagedSpace(intptr_t max_capacity,
+             AllocationSpace id,
+             Executability executable);
 
   virtual ~PagedSpace() {}
 
@@ -1031,21 +1035,21 @@ class PagedSpace : public Space {
   }
 
   // Current capacity without growing (Size() + Available() + Waste()).
-  int Capacity() { return accounting_stats_.Capacity(); }
+  intptr_t Capacity() { return accounting_stats_.Capacity(); }
 
   // Total amount of memory committed for this space.  For paged
   // spaces this equals the capacity.
-  int CommittedMemory() { return Capacity(); }
+  intptr_t CommittedMemory() { return Capacity(); }
 
   // Available bytes without growing.
-  int Available() { return accounting_stats_.Available(); }
+  intptr_t Available() { return accounting_stats_.Available(); }
 
   // Allocated bytes in this space.
-  virtual int Size() { return accounting_stats_.Size(); }
+  virtual intptr_t Size() { return accounting_stats_.Size(); }
 
   // Wasted bytes due to fragmentation and not recoverable until the
   // next GC of this space.
-  int Waste() { return accounting_stats_.Waste(); }
+  intptr_t Waste() { return accounting_stats_.Waste(); }
 
   // Returns the address of the first object in this space.
   Address bottom() { return first_page_->ObjectAreaStart(); }
@@ -1328,7 +1332,7 @@ class SemiSpace : public Space {
 
   // If we don't have these here then SemiSpace will be abstract.  However
   // they should never be called.
-  virtual int Size() {
+  virtual intptr_t Size() {
     UNREACHABLE();
     return 0;
   }
@@ -1354,7 +1358,7 @@ class SemiSpace : public Space {
 #endif
 
   // Returns the current capacity of the semi space.
-  int Capacity() { return capacity_; }
+  intptr_t Capacity() { return capacity_; }
 
   // Returns the maximum capacity of the semi space.
   int MaximumCapacity() { return maximum_capacity_; }
@@ -1471,22 +1475,22 @@ class NewSpace : public Space {
   }
 
   // Return the allocated bytes in the active semispace.
-  virtual int Size() { return static_cast<int>(top() - bottom()); }
+  virtual intptr_t Size() { return static_cast<int>(top() - bottom()); }
 
   // Return the current capacity of a semispace.
-  int Capacity() {
+  intptr_t Capacity() {
     ASSERT(to_space_.Capacity() == from_space_.Capacity());
     return to_space_.Capacity();
   }
 
   // Return the total amount of memory committed for new space.
-  int CommittedMemory() {
+  intptr_t CommittedMemory() {
     if (from_space_.is_committed()) return 2 * Capacity();
     return Capacity();
   }
 
   // Return the available bytes without growing in the active semispace.
-  int Available() { return Capacity() - Size(); }
+  intptr_t Available() { return Capacity() - Size(); }
 
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {
@@ -1495,7 +1499,7 @@ class NewSpace : public Space {
   }
 
   // Returns the initial capacity of a semispace.
-  int InitialCapacity() {
+  intptr_t InitialCapacity() {
     ASSERT(to_space_.InitialCapacity() == from_space_.InitialCapacity());
     return to_space_.InitialCapacity();
   }
@@ -1681,7 +1685,7 @@ class OldSpaceFreeList BASE_EMBEDDED {
   void Reset();
 
   // Return the number of bytes available on the free list.
-  int available() { return available_; }
+  intptr_t available() { return available_; }
 
   // Place a node on the free list.  The block of size 'size_in_bytes'
   // starting at 'start' is placed on the free list.  The return value is the
@@ -1783,7 +1787,7 @@ class FixedSizeFreeList BASE_EMBEDDED {
   void Reset();
 
   // Return the number of bytes available on the free list.
-  int available() { return available_; }
+  intptr_t available() { return available_; }
 
   // Place a node on the free list.  The block starting at 'start' (assumed to
   // have size object_size_) is placed on the free list.  Bookkeeping
@@ -1797,7 +1801,7 @@ class FixedSizeFreeList BASE_EMBEDDED {
 
  private:
   // Available bytes on the free list.
-  int available_;
+  intptr_t available_;
 
   // The head of the free list.
   Address head_;
@@ -1832,7 +1836,7 @@ class OldSpace : public PagedSpace {
 
   // The bytes available on the free list (ie, not above the linear allocation
   // pointer).
-  int AvailableFree() { return free_list_.available(); }
+  intptr_t AvailableFree() { return free_list_.available(); }
 
   // The limit of allocation for a page in this space.
   virtual Address PageAllocationLimit(Page* page) {
@@ -2165,11 +2169,11 @@ class LargeObjectSpace : public Space {
   Object* AllocateRawFixedArray(int size_in_bytes);
 
   // Available bytes for objects in this space.
-  int Available() {
+  intptr_t Available() {
     return LargeObjectChunk::ObjectSizeFor(MemoryAllocator::Available());
   }
 
-  virtual int Size() {
+  virtual intptr_t Size() {
     return size_;
   }
 
@@ -2223,7 +2227,7 @@ class LargeObjectSpace : public Space {
  private:
   // The head of the linked list of large object chunks.
   LargeObjectChunk* first_chunk_;
-  int size_;  // allocated bytes
+  intptr_t size_;  // allocated bytes
   int page_count_;  // number of chunks
 
 
