@@ -7253,15 +7253,15 @@ static uint32_t IterateExternalArrayElements(Handle<JSObject> receiver,
             Handle<Smi> e(Smi::FromInt(static_cast<int>(val)));
             visitor->visit(j, e);
           } else {
-            Handle<Object> e(
-                Heap::AllocateHeapNumber(static_cast<ElementType>(val)));
+            Handle<Object> e =
+                Factory::NewNumber(static_cast<ElementType>(val));
             visitor->visit(j, e);
           }
         }
       }
     } else {
       for (uint32_t j = 0; j < len; j++) {
-        Handle<Object> e(Heap::AllocateHeapNumber(array->get(j)));
+        Handle<Object> e = Factory::NewNumber(array->get(j));
         visitor->visit(j, e);
       }
     }
