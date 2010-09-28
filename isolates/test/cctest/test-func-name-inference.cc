@@ -88,7 +88,9 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Obtain SharedFunctionInfo for the function.
   Object* shared_func_info_ptr =
-      Runtime::FindSharedFunctionInfoInScript(HEAP, i_script, func_pos);
+      Runtime::FindSharedFunctionInfoInScript(Isolate::Current(),
+                                              i_script,
+                                              func_pos);
   CHECK(shared_func_info_ptr != HEAP->undefined_value());
   Handle<SharedFunctionInfo> shared_func_info(
       SharedFunctionInfo::cast(shared_func_info_ptr));

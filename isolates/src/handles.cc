@@ -257,9 +257,10 @@ Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes) {
-  Heap* heap = HEAP;
+  Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(
-      Runtime::SetObjectProperty(heap, object, key, value, attributes), Object);
+      Runtime::SetObjectProperty(isolate, object, key, value, attributes),
+      Object);
 }
 
 
@@ -267,8 +268,10 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> key,
                                 Handle<Object> value,
                                 PropertyAttributes attributes) {
+  Isolate* isolate = object->GetIsolate();
   CALL_HEAP_FUNCTION(
-      Runtime::ForceSetObjectProperty(object, key, value, attributes), Object);
+      Runtime::ForceSetObjectProperty(isolate, object, key, value, attributes),
+      Object);
 }
 
 
@@ -283,8 +286,8 @@ Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
 
 Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
                                    Handle<Object> key) {
-  Heap* heap = HEAP;
-  CALL_HEAP_FUNCTION(Runtime::ForceDeleteObjectProperty(heap, object, key),
+  Isolate* isolate = object->GetIsolate();
+  CALL_HEAP_FUNCTION(Runtime::ForceDeleteObjectProperty(isolate, object, key),
                      Object);
 }
 
@@ -319,8 +322,8 @@ Handle<Object> GetProperty(Handle<JSObject> obj,
 
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key) {
-  Heap* heap = HEAP;
-  CALL_HEAP_FUNCTION(Runtime::GetObjectProperty(heap, obj, key), Object);
+  Isolate* isolate = Isolate::Current();
+  CALL_HEAP_FUNCTION(Runtime::GetObjectProperty(isolate, obj, key), Object);
 }
 
 

@@ -513,32 +513,33 @@ class Runtime : public AllStatic {
 
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
-  static Object* GetElementOrCharAt(Heap* heap,
+  static Object* GetElementOrCharAt(Isolate* isolate,
                                     Handle<Object> object,
                                     uint32_t index);
   static Object* GetElement(Handle<Object> object, uint32_t index);
 
-  static Object* SetObjectProperty(Heap* heap,
+  static Object* SetObjectProperty(Isolate* isolate,
                                    Handle<Object> object,
                                    Handle<Object> key,
                                    Handle<Object> value,
                                    PropertyAttributes attr);
 
-  static Object* ForceSetObjectProperty(Handle<JSObject> object,
+  static Object* ForceSetObjectProperty(Isolate* isolate,
+                                        Handle<JSObject> object,
                                         Handle<Object> key,
                                         Handle<Object> value,
                                         PropertyAttributes attr);
 
-  static Object* ForceDeleteObjectProperty(Heap* heap,
+  static Object* ForceDeleteObjectProperty(Isolate* isolate,
                                            Handle<JSObject> object,
                                            Handle<Object> key);
 
-  static Object* GetObjectProperty(Heap* heap,
+  static Object* GetObjectProperty(Isolate* isolate,
                                    Handle<Object> object,
                                    Handle<Object> key);
 
   // This function is used in FunctionNameUsing* tests.
-  static Object* FindSharedFunctionInfoInScript(Heap* heap,
+  static Object* FindSharedFunctionInfoInScript(Isolate* isolate,
                                                 Handle<Script> script,
                                                 int position);
 

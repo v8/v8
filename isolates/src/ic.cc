@@ -736,8 +736,7 @@ Object* KeyedCallIC::LoadFunction(State state,
 #endif
     }
   }
-  Heap* heap = HEAP;
-  Object* result = Runtime::GetObjectProperty(heap, object, key);
+  Object* result = Runtime::GetObjectProperty(isolate(), object, key);
   if (result->IsJSFunction()) return result;
   result = TryCallAsFunction(result);
   return result->IsJSFunction() ?
@@ -1093,7 +1092,7 @@ Object* KeyedLoadIC::Load(State state,
       HandleScope scope;
       // Rewrite to the generic keyed load stub.
       if (FLAG_use_ic) set_target(generic_stub());
-      return Runtime::GetElementOrCharAt(HEAP, object, index);
+      return Runtime::GetElementOrCharAt(isolate(), object, index);
     }
 
     // Named lookup.
@@ -1158,7 +1157,7 @@ Object* KeyedLoadIC::Load(State state,
   }
 
   // Get the property.
-  return Runtime::GetObjectProperty(HEAP, object, key);
+  return Runtime::GetObjectProperty(isolate(), object, key);
 }
 
 
@@ -1533,7 +1532,7 @@ Object* KeyedStoreIC::Store(State state,
   }
 
   // Set the property.
-  return Runtime::SetObjectProperty(HEAP, object, key, value, NONE);
+  return Runtime::SetObjectProperty(isolate(), object, key, value, NONE);
 }
 
 
