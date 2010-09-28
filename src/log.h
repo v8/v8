@@ -237,7 +237,7 @@ class Logger {
   static void HeapSampleJSProducerEvent(const char* constructor,
                                         Address* stack);
   static void HeapSampleStats(const char* space, const char* kind,
-                              int capacity, int used);
+                              intptr_t capacity, intptr_t used);
 
   static void SharedLibraryEvent(const char* library_path,
                                  uintptr_t start,

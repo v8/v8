@@ -1005,11 +1005,12 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 
 
 void Logger::HeapSampleStats(const char* space, const char* kind,
-                             int capacity, int used) {
+                             intptr_t capacity, intptr_t used) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg;
-  msg.Append("heap-sample-stats,\"%s\",\"%s\",%d,%d\n",
+  msg.Append("heap-sample-stats,\"%s\",\"%s\","
+                 "%" V8_PTR_PREFIX "d,%" V8_PTR_PREFIX "d\n",
              space, kind, capacity, used);
   msg.WriteToLogFile();
 #endif
