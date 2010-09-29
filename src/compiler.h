@@ -42,15 +42,11 @@ namespace internal {
 class CompilationInfo BASE_EMBEDDED {
  public:
   // Lazy compilation of a JSFunction.
-  CompilationInfo(Handle<JSFunction> closure,
-                  int loop_nesting,
-                  Handle<Object> receiver)
+  CompilationInfo(Handle<JSFunction> closure, int loop_nesting)
       : closure_(closure),
         function_(NULL),
         is_eval_(false),
-        loop_nesting_(loop_nesting),
-        receiver_(receiver) {
-    Initialize();
+        loop_nesting_(loop_nesting) {
     ASSERT(!closure_.is_null() &&
            shared_info_.is_null() &&
            script_.is_null());
@@ -62,7 +58,6 @@ class CompilationInfo BASE_EMBEDDED {
         function_(NULL),
         is_eval_(false),
         loop_nesting_(0) {
-    Initialize();
     ASSERT(closure_.is_null() &&
            !shared_info_.is_null() &&
            script_.is_null());
@@ -74,7 +69,6 @@ class CompilationInfo BASE_EMBEDDED {
         function_(literal),
         is_eval_(is_eval),
         loop_nesting_(0) {
-    Initialize();
     ASSERT(closure_.is_null() &&
            shared_info_.is_null() &&
            !script_.is_null());
@@ -112,11 +106,6 @@ class CompilationInfo BASE_EMBEDDED {
   // Simple accessors.
   bool is_eval() { return is_eval_; }
   int loop_nesting() { return loop_nesting_; }
-  bool has_receiver() { return !receiver_.is_null(); }
-  Handle<Object> receiver() { return receiver_; }
-
-  bool has_this_properties() { return has_this_properties_; }
-  void set_has_this_properties(bool flag) { has_this_properties_ = flag; }
 
   bool has_global_object() {
     return !closure().is_null() && (closure()->context()->global() != NULL);
@@ -126,18 +115,10 @@ class CompilationInfo BASE_EMBEDDED {
     return has_global_object() ? closure()->context()->global() : NULL;
   }
 
-  bool has_globals() { return has_globals_; }
-  void set_has_globals(bool flag) { has_globals_ = flag; }
-
   // Derived accessors.
   Scope* scope() { return function()->scope(); }
 
  private:
-  void Initialize() {
-    has_this_properties_ = false;
-    has_globals_ = false;
-  }
-
   Handle<JSFunction> closure_;
   Handle<SharedFunctionInfo> shared_info_;
   Handle<Script> script_;
@@ -146,11 +127,6 @@ class CompilationInfo BASE_EMBEDDED {
 
   bool is_eval_;
   int loop_nesting_;
-
-  Handle<Object> receiver_;
-
-  bool has_this_properties_;
-  bool has_globals_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
