@@ -334,8 +334,9 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreSearch(
     } else if (j < start) {
       // we have matched more than our tables allow us to be smart about.
       // Fall back on BMH shift.
-      index +=
-          pattern_length - 1 - CharOccurrence(bad_char_occurence, last_char);
+      index += pattern_length - 1
+          - CharOccurrence(bad_char_occurence,
+                           static_cast<SubjectChar>(last_char));
     } else {
       int gs_shift = good_suffix_shift[j + 1];
       int bc_occ =
@@ -432,7 +433,7 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreHorspoolSearch(
   // How bad we are doing without a good-suffix table.
   PatternChar last_char = pattern[pattern_length - 1];
   int last_char_shift = pattern_length - 1 -
-      CharOccurrence(char_occurrences, last_char);
+      CharOccurrence(char_occurrences, static_cast<SubjectChar>(last_char));
   // Perform search
   int index = start_index;  // No matches found prior to this index.
   while (index <= subject_length - pattern_length) {
