@@ -894,6 +894,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   __ JumpIfSmi(rdx, &slow);
 
   // Check that the key is an array index, that is Uint32.
+  STATIC_ASSERT(kSmiValueSize <= 32);
   __ JumpIfNotPositiveSmi(rax, &slow);
 
   // Get the map of the receiver.
