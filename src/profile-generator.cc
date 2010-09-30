@@ -952,8 +952,8 @@ void HeapEntry::PaintAllReachable() {
 
 
 void HeapEntry::Print(int max_depth, int indent) {
-  OS::Print("%6d %6d %6d [%llu, %d] ",
-            self_size(), ReachableSize(), RetainedSize(), id_, painted_);
+  OS::Print("%6d %6d %6d [%ld] ",
+            self_size(), ReachableSize(), RetainedSize(), id_);
   if (type() != kString) {
     OS::Print("%s %.40s\n", TypeAsString(), name_);
   } else {
@@ -1237,7 +1237,7 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       type_(type),
       title_(title),
       uid_(uid),
-      root_entry_(NULL),
+      root_entry_index_(-1),
       raw_entries_(NULL),
       entries_sorted_(false) {
   STATIC_ASSERT(
@@ -1276,11 +1276,11 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
                                   int children_count,
                                   int retainers_count) {
   if (object == kInternalRootObject) {
-    ASSERT(root_entry_ == NULL);
+    ASSERT(root_entry_index_ == -1);
+    root_entry_index_ = entries_.length();
     ASSERT(retainers_count == 0);
-    root_entry_ = AddEntry(
+    return AddEntry(
         HeapEntry::kInternal, "", 0, 0, children_count, retainers_count);
-    return root_entry_;
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
