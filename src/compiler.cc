@@ -377,20 +377,12 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
   // Compute name, source code and script data.
   Handle<SharedFunctionInfo> shared = info->shared_info();
-  Handle<String> name(String::cast(shared->name()));
-
-  int start_position = shared->start_position();
-  int end_position = shared->end_position();
-  bool is_expression = shared->is_expression();
-  Counters::total_compile_size.Increment(end_position - start_position);
+  int compiled_size = shared->end_position() - shared->start_position();
+  Counters::total_compile_size.Increment(compiled_size);
 
   // Generate the AST for the lazily compiled function. The AST may be
   // NULL in case of parser stack overflow.
-  FunctionLiteral* lit = MakeLazyAST(info->script(),
-                                     name,
-                                     start_position,
-                                     end_position,
-                                     is_expression);
+  FunctionLiteral* lit = MakeLazyAST(shared);
 
   // Check for parse errors.
   if (lit == NULL) {
@@ -414,9 +406,9 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   }
 
   RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG,
-                            name,
+                            Handle<String>(String::cast(shared->name())),
                             Handle<String>(shared->inferred_name()),
-                            start_position,
+                            shared->start_position(),
                             info->script(),
                             code);
 

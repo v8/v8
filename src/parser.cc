@@ -115,11 +115,7 @@ class Parser {
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram(Handle<String> source,
                                 bool in_global_context);
-  FunctionLiteral* ParseLazy(Handle<String> source,
-                             Handle<String> name,
-                             int start_position,
-                             int end_position,
-                             bool is_expression);
+  FunctionLiteral* ParseLazy(Handle<SharedFunctionInfo> info);
   FunctionLiteral* ParseJson(Handle<String> source);
 
   // The minimum number of contiguous assignment that will
@@ -1587,21 +1583,20 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 }
 
 
-FunctionLiteral* Parser::ParseLazy(Handle<String> source,
-                                   Handle<String> name,
-                                   int start_position,
-                                   int end_position,
-                                   bool is_expression) {
+FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(&Counters::parse_lazy);
+  Handle<String> source(String::cast(script_->source()));
   Counters::total_parse_size.Increment(source->length());
 
+  Handle<String> name(String::cast(info->name()));
   fni_ = new FuncNameInferrer();
   fni_->PushEnclosingName(name);
 
   // Initialize parser state.
   source->TryFlatten();
-  scanner_.Initialize(source, start_position, end_position, JAVASCRIPT);
+  scanner_.Initialize(source, info->start_position(), info->end_position(),
+                      JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
 
@@ -1616,7 +1611,8 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
     LexicalScope lexical_scope(this, scope);
     TemporaryScope temp_scope(this);
 
-    FunctionLiteralType type = is_expression ? EXPRESSION : DECLARATION;
+    FunctionLiteralType type =
+        info->is_expression() ? EXPRESSION : DECLARATION;
     bool ok = true;
     result = ParseFunctionLiteral(name, RelocInfo::kNoPosition, type, &ok);
     // Make sure the results agree.
@@ -1636,6 +1632,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
   }
   return result;
 }
+
 
 FunctionLiteral* Parser::ParseJson(Handle<String> source) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
@@ -5475,12 +5472,6 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
 // ----------------------------------------------------------------------------
 // The Parser interface.
 
-// MakeAST() is just a wrapper for the corresponding Parser calls
-// so we don't have to expose the entire Parser class in the .h file.
-
-static bool always_allow_natives_syntax = false;
-
-
 ParserMessage::~ParserMessage() {
   for (int i = 0; i < args().length(); i++)
     DeleteArray(args()[i]);
@@ -5515,9 +5506,7 @@ ScriptDataImpl* PartialPreParse(Handle<String> source,
                                 v8::Extension* extension) {
   Handle<Script> no_script;
   bool allow_natives_syntax =
-      always_allow_natives_syntax ||
-      FLAG_allow_natives_syntax ||
-      Bootstrapper::IsActive();
+      FLAG_allow_natives_syntax || Bootstrapper::IsActive();
   PartialPreParser parser(no_script, allow_natives_syntax, extension);
   if (!parser.PreParseProgram(source, stream)) return NULL;
   // Extract the accumulated data from the recorder as a single
@@ -5575,9 +5564,7 @@ ScriptDataImpl* PreParse(Handle<String> source,
                          v8::Extension* extension) {
   Handle<Script> no_script;
   bool allow_natives_syntax =
-      always_allow_natives_syntax ||
-      FLAG_allow_natives_syntax ||
-      Bootstrapper::IsActive();
+      FLAG_allow_natives_syntax || Bootstrapper::IsActive();
   CompletePreParser parser(no_script, allow_natives_syntax, extension);
   if (!parser.PreParseProgram(source, stream)) return NULL;
   // Extract the accumulated data from the recorder as a single
@@ -5609,15 +5596,15 @@ bool ParseRegExp(FlatStringReader* input,
 }
 
 
+// MakeAST is just a wrapper for the corresponding Parser calls so we don't
+// have to expose the entire Parser class in the .h file.
 FunctionLiteral* MakeAST(bool compile_in_global_context,
                          Handle<Script> script,
                          v8::Extension* extension,
                          ScriptDataImpl* pre_data,
                          bool is_json) {
   bool allow_natives_syntax =
-      always_allow_natives_syntax ||
-      FLAG_allow_natives_syntax ||
-      Bootstrapper::IsActive();
+      FLAG_allow_natives_syntax || Bootstrapper::IsActive();
   AstBuildingParser parser(script, allow_natives_syntax, extension, pre_data);
   if (pre_data != NULL && pre_data->has_error()) {
     Scanner::Location loc = pre_data->MessageLocation();
@@ -5643,20 +5630,10 @@ FunctionLiteral* MakeAST(bool compile_in_global_context,
 }
 
 
-FunctionLiteral* MakeLazyAST(Handle<Script> script,
-                             Handle<String> name,
-                             int start_position,
-                             int end_position,
-                             bool is_expression) {
-  bool allow_natives_syntax_before = always_allow_natives_syntax;
-  always_allow_natives_syntax = true;
-  AstBuildingParser parser(script, true, NULL, NULL);  // always allow
-  always_allow_natives_syntax = allow_natives_syntax_before;
-  // Parse the function by pointing to the function source in the script source.
-  Handle<String> script_source(String::cast(script->source()));
-  FunctionLiteral* result =
-      parser.ParseLazy(script_source, name,
-                       start_position, end_position, is_expression);
+FunctionLiteral* MakeLazyAST(Handle<SharedFunctionInfo> info) {
+  Handle<Script> script(Script::cast(info->script()));
+  AstBuildingParser parser(script, true, NULL, NULL);
+  FunctionLiteral* result = parser.ParseLazy(info);
   return result;
 }
 

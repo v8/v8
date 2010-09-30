@@ -192,20 +192,8 @@ bool ParseRegExp(FlatStringReader* input,
                  RegExpCompileData* result);
 
 
-// Support for doing lazy compilation. The script is the script containing full
-// source of the script where the function is declared. The start_position and
-// end_position specifies the part of the script source which has the source
-// for the function declaration in the form:
-//
-//    (<formal parameters>) { <function body> }
-//
-// without any function keyword or name.
-//
-FunctionLiteral* MakeLazyAST(Handle<Script> script,
-                             Handle<String> name,
-                             int start_position,
-                             int end_position,
-                             bool is_expression);
+// Support for doing lazy compilation.
+FunctionLiteral* MakeLazyAST(Handle<SharedFunctionInfo> info);
 
 
 // Support for handling complex values (array and object literals) that
