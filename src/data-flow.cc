@@ -42,7 +42,7 @@ void BitVector::Print() {
     if (Contains(i)) {
       if (!first) PrintF(",");
       first = false;
-      PrintF("%d");
+      PrintF("%d", i);
     }
   }
   PrintF("}");

@@ -118,35 +118,38 @@ typedef ZoneList<Handle<String> > ZoneStringList;
 typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 
+#define DECLARE_NODE_TYPE(type)                                         \
+  virtual void Accept(AstVisitor* v);                                   \
+  virtual AstNode::Type node_type() const { return AstNode::k##type; }  \
+  virtual type* As##type() { return this; }
+
+
 class AstNode: public ZoneObject {
  public:
-  virtual ~AstNode() { }
-  virtual void Accept(AstVisitor* v) = 0;
+#define DECLARE_TYPE_ENUM(type) k##type,
+  enum Type {
+    AST_NODE_LIST(DECLARE_TYPE_ENUM)
+    kInvalid = -1
+  };
+#undef DECLARE_TYPE_ENUM
 
-  // Type testing & conversion.
+  virtual ~AstNode() { }
+
+  virtual void Accept(AstVisitor* v) = 0;
+  virtual Type node_type() const { return kInvalid; }
+
+  // Type testing & conversion functions overridden by concrete subclasses.
+#define DECLARE_NODE_FUNCTIONS(type)                  \
+  virtual type* As##type() { return NULL; }
+  AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
+#undef DECLARE_NODE_FUNCTIONS
+
   virtual Statement* AsStatement() { return NULL; }
-  virtual Block* AsBlock() { return NULL; }
-  virtual ExpressionStatement* AsExpressionStatement() { return NULL; }
-  virtual EmptyStatement* AsEmptyStatement() { return NULL; }
   virtual Expression* AsExpression() { return NULL; }
-  virtual Literal* AsLiteral() { return NULL; }
-  virtual Slot* AsSlot() { return NULL; }
-  virtual VariableProxy* AsVariableProxy() { return NULL; }
-  virtual Property* AsProperty() { return NULL; }
-  virtual Call* AsCall() { return NULL; }
   virtual TargetCollector* AsTargetCollector() { return NULL; }
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
   virtual IterationStatement* AsIterationStatement() { return NULL; }
-  virtual ForStatement* AsForStatement() { return NULL; }
-  virtual UnaryOperation* AsUnaryOperation() { return NULL; }
-  virtual CountOperation* AsCountOperation() { return NULL; }
-  virtual BinaryOperation* AsBinaryOperation() { return NULL; }
-  virtual Assignment* AsAssignment() { return NULL; }
-  virtual FunctionLiteral* AsFunctionLiteral() { return NULL; }
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
-  virtual ObjectLiteral* AsObjectLiteral() { return NULL; }
-  virtual ArrayLiteral* AsArrayLiteral() { return NULL; }
-  virtual CompareOperation* AsCompareOperation() { return NULL; }
 };
 
 
@@ -155,7 +158,6 @@ class Statement: public AstNode {
   Statement() : statement_pos_(RelocInfo::kNoPosition) {}
 
   virtual Statement* AsStatement()  { return this; }
-  virtual ReturnStatement* AsReturnStatement() { return NULL; }
 
   virtual Assignment* StatementAsSimpleAssignment() { return NULL; }
   virtual CountOperation* StatementAsCountOperation() { return NULL; }
@@ -313,9 +315,7 @@ class Block: public BreakableStatement {
  public:
   inline Block(ZoneStringList* labels, int capacity, bool is_initializer_block);
 
-  virtual void Accept(AstVisitor* v);
-
-  virtual Block* AsBlock() { return this; }
+  DECLARE_NODE_TYPE(Block)
 
   virtual Assignment* StatementAsSimpleAssignment() {
     if (statements_.length() != 1) return NULL;
@@ -349,7 +349,7 @@ class Declaration: public AstNode {
     ASSERT(fun == NULL || mode == Variable::VAR);
   }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(Declaration)
 
   VariableProxy* proxy() const { return proxy_; }
   Variable::Mode mode() const { return mode_; }
@@ -390,12 +390,12 @@ class DoWhileStatement: public IterationStatement {
  public:
   explicit inline DoWhileStatement(ZoneStringList* labels);
 
+  DECLARE_NODE_TYPE(DoWhileStatement)
+
   void Initialize(Expression* cond, Statement* body) {
     IterationStatement::Initialize(body);
     cond_ = cond;
   }
-
-  virtual void Accept(AstVisitor* v);
 
   Expression* cond() const { return cond_; }
 
@@ -414,12 +414,12 @@ class WhileStatement: public IterationStatement {
  public:
   explicit WhileStatement(ZoneStringList* labels);
 
+  DECLARE_NODE_TYPE(WhileStatement)
+
   void Initialize(Expression* cond, Statement* body) {
     IterationStatement::Initialize(body);
     cond_ = cond;
   }
-
-  virtual void Accept(AstVisitor* v);
 
   Expression* cond() const { return cond_; }
   bool may_have_function_literal() const {
@@ -440,7 +440,7 @@ class ForStatement: public IterationStatement {
  public:
   explicit inline ForStatement(ZoneStringList* labels);
 
-  virtual ForStatement* AsForStatement() { return this; }
+  DECLARE_NODE_TYPE(ForStatement)
 
   void Initialize(Statement* init,
                   Expression* cond,
@@ -451,8 +451,6 @@ class ForStatement: public IterationStatement {
     cond_ = cond;
     next_ = next;
   }
-
-  virtual void Accept(AstVisitor* v);
 
   Statement* init() const { return init_; }
   void set_init(Statement* stmt) { init_ = stmt; }
@@ -486,13 +484,13 @@ class ForInStatement: public IterationStatement {
  public:
   explicit inline ForInStatement(ZoneStringList* labels);
 
+  DECLARE_NODE_TYPE(ForInStatement)
+
   void Initialize(Expression* each, Expression* enumerable, Statement* body) {
     IterationStatement::Initialize(body);
     each_ = each;
     enumerable_ = enumerable;
   }
-
-  virtual void Accept(AstVisitor* v);
 
   Expression* each() const { return each_; }
   Expression* enumerable() const { return enumerable_; }
@@ -508,10 +506,7 @@ class ExpressionStatement: public Statement {
   explicit ExpressionStatement(Expression* expression)
       : expression_(expression) { }
 
-  virtual void Accept(AstVisitor* v);
-
-  // Type testing & conversion.
-  virtual ExpressionStatement* AsExpressionStatement() { return this; }
+  DECLARE_NODE_TYPE(ExpressionStatement)
 
   virtual Assignment* StatementAsSimpleAssignment();
   virtual CountOperation* StatementAsCountOperation();
@@ -529,7 +524,7 @@ class ContinueStatement: public Statement {
   explicit ContinueStatement(IterationStatement* target)
       : target_(target) { }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(ContinueStatement)
 
   IterationStatement* target() const { return target_; }
 
@@ -543,7 +538,7 @@ class BreakStatement: public Statement {
   explicit BreakStatement(BreakableStatement* target)
       : target_(target) { }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(BreakStatement)
 
   BreakableStatement* target() const { return target_; }
 
@@ -557,10 +552,7 @@ class ReturnStatement: public Statement {
   explicit ReturnStatement(Expression* expression)
       : expression_(expression) { }
 
-  virtual void Accept(AstVisitor* v);
-
-  // Type testing & conversion.
-  virtual ReturnStatement* AsReturnStatement() { return this; }
+  DECLARE_NODE_TYPE(ReturnStatement)
 
   Expression* expression() { return expression_; }
 
@@ -574,7 +566,7 @@ class WithEnterStatement: public Statement {
   explicit WithEnterStatement(Expression* expression, bool is_catch_block)
       : expression_(expression), is_catch_block_(is_catch_block) { }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(WithEnterStatement)
 
   Expression* expression() const { return expression_; }
 
@@ -590,7 +582,7 @@ class WithExitStatement: public Statement {
  public:
   WithExitStatement() { }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(WithExitStatement)
 };
 
 
@@ -617,12 +609,12 @@ class SwitchStatement: public BreakableStatement {
  public:
   explicit inline SwitchStatement(ZoneStringList* labels);
 
+  DECLARE_NODE_TYPE(SwitchStatement)
+
   void Initialize(Expression* tag, ZoneList<CaseClause*>* cases) {
     tag_ = tag;
     cases_ = cases;
   }
-
-  virtual void Accept(AstVisitor* v);
 
   Expression* tag() const { return tag_; }
   ZoneList<CaseClause*>* cases() const { return cases_; }
@@ -647,7 +639,7 @@ class IfStatement: public Statement {
         then_statement_(then_statement),
         else_statement_(else_statement) { }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(IfStatement)
 
   bool HasThenStatement() const { return !then_statement()->IsEmpty(); }
   bool HasElseStatement() const { return !else_statement()->IsEmpty(); }
@@ -717,7 +709,7 @@ class TryCatchStatement: public TryStatement {
         catch_block_(catch_block) {
   }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(TryCatchStatement)
 
   VariableProxy* catch_var() const { return catch_var_; }
   Block* catch_block() const { return catch_block_; }
@@ -734,7 +726,7 @@ class TryFinallyStatement: public TryStatement {
       : TryStatement(try_block),
         finally_block_(finally_block) { }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(TryFinallyStatement)
 
   Block* finally_block() const { return finally_block_; }
 
@@ -745,18 +737,13 @@ class TryFinallyStatement: public TryStatement {
 
 class DebuggerStatement: public Statement {
  public:
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(DebuggerStatement)
 };
 
 
 class EmptyStatement: public Statement {
  public:
-  EmptyStatement() {}
-
-  virtual void Accept(AstVisitor* v);
-
-  // Type testing & conversion.
-  virtual EmptyStatement* AsEmptyStatement() { return this; }
+  DECLARE_NODE_TYPE(EmptyStatement)
 };
 
 
@@ -764,12 +751,10 @@ class Literal: public Expression {
  public:
   explicit Literal(Handle<Object> handle) : handle_(handle) { }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(Literal)
+
   virtual bool IsTrivial() { return true; }
   virtual bool IsSmiLiteral() { return handle_->IsSmi(); }
-
-  // Type testing & conversion.
-  virtual Literal* AsLiteral() { return this; }
 
   // Check if this literal is identical to the other literal.
   bool IsIdenticalTo(const Literal* other) const {
@@ -864,8 +849,7 @@ class ObjectLiteral: public MaterializedLiteral {
         properties_(properties),
         fast_elements_(fast_elements) {}
 
-  virtual ObjectLiteral* AsObjectLiteral() { return this; }
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(ObjectLiteral)
 
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
@@ -891,7 +875,7 @@ class RegExpLiteral: public MaterializedLiteral {
         pattern_(pattern),
         flags_(flags) {}
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(RegExpLiteral)
 
   Handle<String> pattern() const { return pattern_; }
   Handle<String> flags() const { return flags_; }
@@ -914,8 +898,7 @@ class ArrayLiteral: public MaterializedLiteral {
         constant_elements_(constant_elements),
         values_(values) {}
 
-  virtual void Accept(AstVisitor* v);
-  virtual ArrayLiteral* AsArrayLiteral() { return this; }
+  DECLARE_NODE_TYPE(ArrayLiteral)
 
   Handle<FixedArray> constant_elements() const { return constant_elements_; }
   ZoneList<Expression*>* values() const { return values_; }
@@ -935,7 +918,7 @@ class CatchExtensionObject: public Expression {
       : key_(key), value_(value) {
   }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(CatchExtensionObject)
 
   Literal* key() const { return key_; }
   VariableProxy* value() const { return value_; }
@@ -950,15 +933,11 @@ class VariableProxy: public Expression {
  public:
   explicit VariableProxy(Variable* var);
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(VariableProxy)
 
   // Type testing & conversion
   virtual Property* AsProperty() {
     return var_ == NULL ? NULL : var_->AsProperty();
-  }
-
-  virtual VariableProxy* AsVariableProxy() {
-    return this;
   }
 
   Variable* AsVariable() {
@@ -1055,10 +1034,7 @@ class Slot: public Expression {
     ASSERT(var != NULL);
   }
 
-  virtual void Accept(AstVisitor* v);
-
-  // Type testing & conversion
-  virtual Slot* AsSlot() { return this; }
+  DECLARE_NODE_TYPE(Slot)
 
   bool IsStackAllocated() { return type_ == PARAMETER || type_ == LOCAL; }
 
@@ -1085,10 +1061,7 @@ class Property: public Expression {
   Property(Expression* obj, Expression* key, int pos, Type type = NORMAL)
       : obj_(obj), key_(key), pos_(pos), type_(type) { }
 
-  virtual void Accept(AstVisitor* v);
-
-  // Type testing & conversion
-  virtual Property* AsProperty() { return this; }
+  DECLARE_NODE_TYPE(Property)
 
   virtual bool IsValidLeftHandSide() { return true; }
 
@@ -1117,10 +1090,7 @@ class Call: public Expression {
   Call(Expression* expression, ZoneList<Expression*>* arguments, int pos)
       : expression_(expression), arguments_(arguments), pos_(pos) { }
 
-  virtual void Accept(AstVisitor* v);
-
-  // Type testing and conversion.
-  virtual Call* AsCall() { return this; }
+  DECLARE_NODE_TYPE(Call)
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
@@ -1142,7 +1112,7 @@ class CallNew: public Expression {
   CallNew(Expression* expression, ZoneList<Expression*>* arguments, int pos)
       : expression_(expression), arguments_(arguments), pos_(pos) { }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(CallNew)
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
@@ -1166,7 +1136,7 @@ class CallRuntime: public Expression {
               ZoneList<Expression*>* arguments)
       : name_(name), function_(function), arguments_(arguments) { }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(CallRuntime)
 
   Handle<String> name() const { return name_; }
   Runtime::Function* function() const { return function_; }
@@ -1187,11 +1157,9 @@ class UnaryOperation: public Expression {
     ASSERT(Token::IsUnaryOp(op));
   }
 
-  virtual void Accept(AstVisitor* v);
-  virtual bool ResultOverwriteAllowed();
+  DECLARE_NODE_TYPE(UnaryOperation)
 
-  // Type testing & conversion
-  virtual UnaryOperation* AsUnaryOperation() { return this; }
+  virtual bool ResultOverwriteAllowed();
 
   Token::Value op() const { return op_; }
   Expression* expression() const { return expression_; }
@@ -1215,11 +1183,9 @@ class BinaryOperation: public Expression {
   // Create the binary operation corresponding to a compound assignment.
   explicit BinaryOperation(Assignment* assignment);
 
-  virtual void Accept(AstVisitor* v);
-  virtual bool ResultOverwriteAllowed();
+  DECLARE_NODE_TYPE(BinaryOperation)
 
-  // Type testing & conversion
-  virtual BinaryOperation* AsBinaryOperation() { return this; }
+  virtual bool ResultOverwriteAllowed();
 
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
@@ -1241,11 +1207,11 @@ class IncrementOperation: public Expression {
     ASSERT(Token::IsCountOp(op));
   }
 
+  DECLARE_NODE_TYPE(IncrementOperation)
+
   Token::Value op() const { return op_; }
   bool is_increment() { return op_ == Token::INC; }
   Expression* expression() const { return expression_; }
-
-  virtual void Accept(AstVisitor* v);
 
  private:
   Token::Value op_;
@@ -1259,9 +1225,7 @@ class CountOperation: public Expression {
   CountOperation(bool is_prefix, IncrementOperation* increment, int pos)
       : is_prefix_(is_prefix), increment_(increment), pos_(pos) { }
 
-  virtual void Accept(AstVisitor* v);
-
-  virtual CountOperation* AsCountOperation() { return this; }
+  DECLARE_NODE_TYPE(CountOperation)
 
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
@@ -1294,15 +1258,12 @@ class CompareOperation: public Expression {
     ASSERT(Token::IsCompareOp(op));
   }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(CompareOperation)
 
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
   int position() const { return pos_; }
-
-  // Type testing & conversion
-  virtual CompareOperation* AsCompareOperation() { return this; }
 
  private:
   Token::Value op_;
@@ -1317,7 +1278,7 @@ class CompareToNull: public Expression {
   CompareToNull(bool is_strict, Expression* expression)
       : is_strict_(is_strict), expression_(expression) { }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(CompareToNull)
 
   bool is_strict() const { return is_strict_; }
   Token::Value op() const { return is_strict_ ? Token::EQ_STRICT : Token::EQ; }
@@ -1342,7 +1303,7 @@ class Conditional: public Expression {
         then_expression_position_(then_expression_position),
         else_expression_position_(else_expression_position) { }
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(Conditional)
 
   Expression* condition() const { return condition_; }
   Expression* then_expression() const { return then_expression_; }
@@ -1368,8 +1329,7 @@ class Assignment: public Expression {
     ASSERT(Token::IsAssignmentOp(op));
   }
 
-  virtual void Accept(AstVisitor* v);
-  virtual Assignment* AsAssignment() { return this; }
+  DECLARE_NODE_TYPE(Assignment)
 
   Assignment* AsSimpleAssignment() { return !is_compound() ? this : NULL; }
 
@@ -1406,7 +1366,7 @@ class Throw: public Expression {
   Throw(Expression* exception, int pos)
       : exception_(exception), pos_(pos) {}
 
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(Throw)
 
   Expression* exception() const { return exception_; }
   int position() const { return pos_; }
@@ -1452,10 +1412,7 @@ class FunctionLiteral: public Expression {
 #endif
   }
 
-  virtual void Accept(AstVisitor* v);
-
-  // Type testing & conversion
-  virtual FunctionLiteral* AsFunctionLiteral()  { return this; }
+  DECLARE_NODE_TYPE(FunctionLiteral)
 
   Handle<String> name() const { return name_; }
   Scope* scope() const { return scope_; }
@@ -1522,11 +1479,11 @@ class SharedFunctionInfoLiteral: public Expression {
       Handle<SharedFunctionInfo> shared_function_info)
       : shared_function_info_(shared_function_info) { }
 
+  DECLARE_NODE_TYPE(SharedFunctionInfoLiteral)
+
   Handle<SharedFunctionInfo> shared_function_info() const {
     return shared_function_info_;
   }
-
-  virtual void Accept(AstVisitor* v);
 
  private:
   Handle<SharedFunctionInfo> shared_function_info_;
@@ -1535,7 +1492,7 @@ class SharedFunctionInfoLiteral: public Expression {
 
 class ThisFunction: public Expression {
  public:
-  virtual void Accept(AstVisitor* v);
+  DECLARE_NODE_TYPE(ThisFunction)
 };
 
 

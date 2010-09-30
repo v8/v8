@@ -134,27 +134,27 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.new_space_size = &new_space_size;
   int new_space_capacity;
   heap_stats.new_space_capacity = &new_space_capacity;
-  int old_pointer_space_size;
+  intptr_t old_pointer_space_size;
   heap_stats.old_pointer_space_size = &old_pointer_space_size;
-  int old_pointer_space_capacity;
+  intptr_t old_pointer_space_capacity;
   heap_stats.old_pointer_space_capacity = &old_pointer_space_capacity;
-  int old_data_space_size;
+  intptr_t old_data_space_size;
   heap_stats.old_data_space_size = &old_data_space_size;
-  int old_data_space_capacity;
+  intptr_t old_data_space_capacity;
   heap_stats.old_data_space_capacity = &old_data_space_capacity;
-  int code_space_size;
+  intptr_t code_space_size;
   heap_stats.code_space_size = &code_space_size;
-  int code_space_capacity;
+  intptr_t code_space_capacity;
   heap_stats.code_space_capacity = &code_space_capacity;
-  int map_space_size;
+  intptr_t map_space_size;
   heap_stats.map_space_size = &map_space_size;
-  int map_space_capacity;
+  intptr_t map_space_capacity;
   heap_stats.map_space_capacity = &map_space_capacity;
-  int cell_space_size;
+  intptr_t cell_space_size;
   heap_stats.cell_space_size = &cell_space_size;
-  int cell_space_capacity;
+  intptr_t cell_space_capacity;
   heap_stats.cell_space_capacity = &cell_space_capacity;
-  int lo_space_size;
+  intptr_t lo_space_size;
   heap_stats.lo_space_size = &lo_space_size;
   int global_handle_count;
   heap_stats.global_handle_count = &global_handle_count;
@@ -166,9 +166,9 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.near_death_global_handle_count = &near_death_global_handle_count;
   int destroyed_global_handle_count;
   heap_stats.destroyed_global_handle_count = &destroyed_global_handle_count;
-  int memory_allocator_size;
+  intptr_t memory_allocator_size;
   heap_stats.memory_allocator_size = &memory_allocator_size;
-  int memory_allocator_capacity;
+  intptr_t memory_allocator_capacity;
   heap_stats.memory_allocator_capacity = &memory_allocator_capacity;
   int objects_per_type[LAST_TYPE + 1] = {0};
   heap_stats.objects_per_type = objects_per_type;
@@ -4262,6 +4262,11 @@ bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
 void Debug::DebugBreak() {
   if (!i::V8::IsRunning()) return;
   i::StackGuard::DebugBreak();
+}
+
+
+void Debug::CancelDebugBreak() {
+  i::StackGuard::Continue(i::DEBUGBREAK);
 }
 
 

@@ -393,11 +393,28 @@ void Logger::IntEvent(const char* name, int value) {
 }
 
 
+void Logger::IntPtrTEvent(const char* name, intptr_t value) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (FLAG_log) UncheckedIntPtrTEvent(name, value);
+#endif
+}
+
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::UncheckedIntEvent(const char* name, int value) {
   if (!Log::IsEnabled()) return;
   LogMessageBuilder msg;
   msg.Append("%s,%d\n", name, value);
+  msg.WriteToLogFile();
+}
+#endif
+
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
+  if (!Log::IsEnabled()) return;
+  LogMessageBuilder msg;
+  msg.Append("%s,%" V8_PTR_PREFIX "d\n", name, value);
   msg.WriteToLogFile();
 }
 #endif
@@ -1005,11 +1022,12 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 
 
 void Logger::HeapSampleStats(const char* space, const char* kind,
-                             int capacity, int used) {
+                             intptr_t capacity, intptr_t used) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg;
-  msg.Append("heap-sample-stats,\"%s\",\"%s\",%d,%d\n",
+  msg.Append("heap-sample-stats,\"%s\",\"%s\","
+                 "%" V8_PTR_PREFIX "d,%" V8_PTR_PREFIX "d\n",
              space, kind, capacity, used);
   msg.WriteToLogFile();
 #endif

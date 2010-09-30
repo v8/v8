@@ -408,6 +408,7 @@ static void CompileScriptForTracker(Handle<Script> script) {
 
   // Build AST.
   ScriptDataImpl* pre_data = NULL;
+  EagerCompilationInfo info(script, is_eval);
   FunctionLiteral* lit = MakeAST(is_global, script, extension, pre_data);
 
   // Check for parse errors.
@@ -415,10 +416,9 @@ static void CompileScriptForTracker(Handle<Script> script) {
     ASSERT(Top::has_pending_exception());
     return;
   }
+  info.set_function(lit);
 
   // Compile the code.
-  CompilationInfo info(lit, script, is_eval);
-
   LiveEditFunctionTracker tracker(lit);
   Handle<Code> code = MakeCodeForLiveEdit(&info);
 

@@ -885,8 +885,8 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   __ test(edx, Immediate(kSmiTagMask));
   __ j(zero, &slow, not_taken);
 
-  // Check that the key is a smi.
-  __ test(eax, Immediate(kSmiTagMask));
+  // Check that the key is an array index, that is Uint32.
+  __ test(eax, Immediate(kSmiTagMask | kSmiSignMask));
   __ j(not_zero, &slow, not_taken);
 
   // Get the map of the receiver.

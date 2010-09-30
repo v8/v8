@@ -988,6 +988,7 @@ Object* StoreInterceptorProperty(Arguments args) {
 
 Object* KeyedLoadPropertyWithInterceptor(Arguments args) {
   JSObject* receiver = JSObject::cast(args[0]);
+  ASSERT(Smi::cast(args[1])->value() >= 0);
   uint32_t index = Smi::cast(args[1])->value();
   return receiver->GetElementWithInterceptor(receiver, index);
 }

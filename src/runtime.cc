@@ -2624,15 +2624,15 @@ int Runtime::StringMatch(Handle<String> sub,
   if (seq_pat->IsAsciiRepresentation()) {
     Vector<const char> pat_vector = seq_pat->ToAsciiVector();
     if (seq_sub->IsAsciiRepresentation()) {
-      return StringSearch(seq_sub->ToAsciiVector(), pat_vector, start_index);
+      return SearchString(seq_sub->ToAsciiVector(), pat_vector, start_index);
     }
-    return StringSearch(seq_sub->ToUC16Vector(), pat_vector, start_index);
+    return SearchString(seq_sub->ToUC16Vector(), pat_vector, start_index);
   }
   Vector<const uc16> pat_vector = seq_pat->ToUC16Vector();
   if (seq_sub->IsAsciiRepresentation()) {
-    return StringSearch(seq_sub->ToAsciiVector(), pat_vector, start_index);
+    return SearchString(seq_sub->ToAsciiVector(), pat_vector, start_index);
   }
-  return StringSearch(seq_sub->ToUC16Vector(), pat_vector, start_index);
+  return SearchString(seq_sub->ToUC16Vector(), pat_vector, start_index);
 }
 
 
@@ -2889,67 +2889,39 @@ static void SetLastMatchInfoNoCaptures(Handle<String> subject,
 }
 
 
-template <typename schar, typename pchar>
-static bool SearchStringMultiple(Vector<schar> subject,
-                                 String* pattern,
-                                 Vector<pchar> pattern_string,
+template <typename SubjectChar, typename PatternChar>
+static bool SearchStringMultiple(Vector<const SubjectChar> subject,
+                                 Vector<const PatternChar> pattern,
+                                 String* pattern_string,
                                  FixedArrayBuilder* builder,
                                  int* match_pos) {
   int pos = *match_pos;
   int subject_length = subject.length();
-  int pattern_length = pattern_string.length();
+  int pattern_length = pattern.length();
   int max_search_start = subject_length - pattern_length;
-  bool is_ascii = (sizeof(schar) == 1);
-  StringSearchStrategy strategy =
-      InitializeStringSearch(pattern_string, is_ascii);
-  switch (strategy) {
-    case SEARCH_FAIL: break;
-    case SEARCH_SHORT:
-      while (pos <= max_search_start) {
-        if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
-          *match_pos = pos;
-          return false;
-        }
-        // Position of end of previous match.
-        int match_end = pos + pattern_length;
-        int new_pos = SimpleIndexOf(subject, pattern_string, match_end);
-        if (new_pos >= 0) {
-          // A match.
-          if (new_pos > match_end) {
-            ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                      match_end,
-                                                      new_pos);
-          }
-          pos = new_pos;
-          builder->Add(pattern);
-        } else {
-          break;
-        }
+  StringSearch<PatternChar, SubjectChar> search(pattern);
+  while (pos <= max_search_start) {
+    if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
+      *match_pos = pos;
+      return false;
+    }
+    // Position of end of previous match.
+    int match_end = pos + pattern_length;
+    int new_pos = search.Search(subject, match_end);
+    if (new_pos >= 0) {
+      // A match.
+      if (new_pos > match_end) {
+        ReplacementStringBuilder::AddSubjectSlice(builder,
+            match_end,
+            new_pos);
       }
+      pos = new_pos;
+      builder->Add(pattern_string);
+    } else {
       break;
-    case SEARCH_LONG:
-      while (pos  <= max_search_start) {
-        if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
-          *match_pos = pos;
-          return false;
-        }
-        int match_end = pos + pattern_length;
-        int new_pos = ComplexIndexOf(subject, pattern_string, match_end);
-        if (new_pos >= 0) {
-          // A match has been found.
-          if (new_pos > match_end) {
-            ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                      match_end,
-                                                      new_pos);
-          }
-          pos = new_pos;
-          builder->Add(pattern);
-        } else {
-         break;
-        }
-      }
-      break;
+    }
   }
+
   if (pos < max_search_start) {
     ReplacementStringBuilder::AddSubjectSlice(builder,
                                               pos + pattern_length,
@@ -2977,14 +2949,14 @@ static bool SearchStringMultiple(Handle<String> subject,
       Vector<const char> subject_vector = subject->ToAsciiVector();
       if (pattern->IsAsciiRepresentation()) {
         if (SearchStringMultiple(subject_vector,
-                                 *pattern,
                                  pattern->ToAsciiVector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       } else {
         if (SearchStringMultiple(subject_vector,
-                                 *pattern,
                                  pattern->ToUC16Vector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       }
@@ -2992,14 +2964,14 @@ static bool SearchStringMultiple(Handle<String> subject,
       Vector<const uc16> subject_vector = subject->ToUC16Vector();
       if (pattern->IsAsciiRepresentation()) {
         if (SearchStringMultiple(subject_vector,
-                                 *pattern,
                                  pattern->ToAsciiVector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       } else {
         if (SearchStringMultiple(subject_vector,
-                                 *pattern,
                                  pattern->ToUC16Vector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       }
@@ -4781,51 +4753,23 @@ static Object* Runtime_StringTrim(Arguments args) {
 }
 
 
-// Define storage for buffers declared in header file.
-// TODO(lrn): Remove these when rewriting search code.
-int BMBuffers::bad_char_occurrence[kBMAlphabetSize];
-BMGoodSuffixBuffers BMBuffers::bmgs_buffers;
-
-
-template <typename schar, typename pchar>
-void FindStringIndices(Vector<const schar> subject,
-                       Vector<const pchar> pattern,
+template <typename SubjectChar, typename PatternChar>
+void FindStringIndices(Vector<const SubjectChar> subject,
+                       Vector<const PatternChar> pattern,
                        ZoneList<int>* indices,
                        unsigned int limit) {
   ASSERT(limit > 0);
   // Collect indices of pattern in subject, and the end-of-string index.
   // Stop after finding at most limit values.
-  StringSearchStrategy strategy =
-      InitializeStringSearch(pattern, sizeof(schar) == 1);
-  switch (strategy) {
-    case SEARCH_FAIL: return;
-    case SEARCH_SHORT: {
-      int pattern_length = pattern.length();
-      int index = 0;
-      while (limit > 0) {
-        index = SimpleIndexOf(subject, pattern, index);
-        if (index < 0) return;
-        indices->Add(index);
-        index += pattern_length;
-        limit--;
-      }
-      return;
-    }
-    case SEARCH_LONG: {
-      int pattern_length = pattern.length();
-      int index = 0;
-      while (limit > 0) {
-        index = ComplexIndexOf(subject, pattern, index);
-        if (index < 0) return;
-        indices->Add(index);
-        index += pattern_length;
-        limit--;
-      }
-      return;
-    }
-    default:
-      UNREACHABLE();
-      return;
+  StringSearch<PatternChar, SubjectChar> search(pattern);
+  int pattern_length = pattern.length();
+  int index = 0;
+  while (limit > 0) {
+    index = search.Search(subject, index);
+    if (index < 0) return;
+    indices->Add(index);
+    index += pattern_length;
+    limit--;
   }
 }
 
@@ -6430,7 +6374,7 @@ static Object* Runtime_LazyCompile(Arguments args) {
   // this means that things called through constructors are never known to
   // be in loops.  We compile them as if they are in loops here just in case.
   ASSERT(!function->is_compiled());
-  if (!CompileLazyInLoop(function, Handle<Object>::null(), KEEP_EXCEPTION)) {
+  if (!CompileLazyInLoop(function, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
 
@@ -6801,7 +6745,7 @@ static void PrintObject(Object* obj) {
   } else if (obj->IsFalse()) {
     PrintF("<false>");
   } else {
-    PrintF("%p", obj);
+    PrintF("%p", reinterpret_cast<void*>(obj));
   }
 }
 
@@ -7253,15 +7197,15 @@ static uint32_t IterateExternalArrayElements(Handle<JSObject> receiver,
             Handle<Smi> e(Smi::FromInt(static_cast<int>(val)));
             visitor->visit(j, e);
           } else {
-            Handle<Object> e(
-                Heap::AllocateHeapNumber(static_cast<ElementType>(val)));
+            Handle<Object> e =
+                Factory::NewNumber(static_cast<ElementType>(val));
             visitor->visit(j, e);
           }
         }
       }
     } else {
       for (uint32_t j = 0; j < len; j++) {
-        Handle<Object> e(Heap::AllocateHeapNumber(array->get(j)));
+        Handle<Object> e = Factory::NewNumber(array->get(j));
         visitor->visit(j, e);
       }
     }

@@ -2414,7 +2414,7 @@ void Assembler::pxor(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::ptest(XMMRegister dst, XMMRegister src) {
-  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  ASSERT(CpuFeatures::IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x66);
