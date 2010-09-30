@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -153,9 +153,10 @@ class ScriptDataImpl : public ScriptData {
 
   ScriptDataImpl(const char* backing_store, int length)
       : store_(reinterpret_cast<unsigned*>(const_cast<char*>(backing_store)),
-               length / sizeof(unsigned)),
+               length / static_cast<int>(sizeof(unsigned))),
         owns_store_(false) {
-    ASSERT_EQ(0, reinterpret_cast<intptr_t>(backing_store) % sizeof(unsigned));
+    ASSERT_EQ(0, static_cast<int>(
+        reinterpret_cast<intptr_t>(backing_store) % sizeof(unsigned)));
   }
 
   // Read strings written by ParserRecorder::WriteString.

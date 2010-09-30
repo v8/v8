@@ -1485,9 +1485,9 @@ THREADED_TEST(InternalFieldsNativePointers) {
   char* data = new char[100];
 
   void* aligned = data;
-  CHECK_EQ(0, reinterpret_cast<uintptr_t>(aligned) & 0x1);
+  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(aligned) & 0x1));
   void* unaligned = data + 1;
-  CHECK_EQ(1, reinterpret_cast<uintptr_t>(unaligned) & 0x1);
+  CHECK_EQ(1, static_cast<int>(reinterpret_cast<uintptr_t>(unaligned) & 0x1));
 
   // Check reading and writing aligned pointers.
   obj->SetPointerInInternalField(0, aligned);
@@ -1517,9 +1517,9 @@ THREADED_TEST(InternalFieldsNativePointersAndExternal) {
   char* data = new char[100];
 
   void* aligned = data;
-  CHECK_EQ(0, reinterpret_cast<uintptr_t>(aligned) & 0x1);
+  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(aligned) & 0x1));
   void* unaligned = data + 1;
-  CHECK_EQ(1, reinterpret_cast<uintptr_t>(unaligned) & 0x1);
+  CHECK_EQ(1, static_cast<int>(reinterpret_cast<uintptr_t>(unaligned) & 0x1));
 
   obj->SetPointerInInternalField(0, aligned);
   i::Heap::CollectAllGarbage(false);

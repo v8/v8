@@ -181,8 +181,8 @@ DEFINE_bool(always_inline_smi_code, false,
             "always inline smi code in non-opt code")
 
 // heap.cc
-DEFINE_int(max_new_space_size, 0, "max size of the new generation")
-DEFINE_int(max_old_space_size, 0, "max size of the old generation")
+DEFINE_int(max_new_space_size, 0, "max size of the new generation (in kBytes)")
+DEFINE_int(max_old_space_size, 0, "max size of the old generation (in Mbytes)")
 DEFINE_bool(gc_global, false, "always perform global GCs")
 DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_bool(trace_gc, false,
