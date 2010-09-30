@@ -1,4 +1,18 @@
+2010-09-30: Version 2.4.7
+
+        Changed the command-line flag --max-new-space-size to be in kB and the
+        flag --max-old-space-size to be in MB (previously they were in bytes).
+
+        Added Debug::CancelDebugBreak to the debugger API.
+
+        Fixed a bug in getters for negative numeric property names
+        (https://bugs.webkit.org/show_bug.cgi?id=46689).
+
+        Performance improvements on all platforms.
+
+
 2010-09-27: Version 2.4.6
+
         Fixed assertion failure related to copy-on-write arrays (issue 876).
 
         Fixed build failure of 64-bit V8 on Windows.
@@ -12,6 +26,7 @@
 
 
 2010-09-22: Version 2.4.5
+
         Changed the RegExp benchmark to exercise the regexp engine on different
         inputs by scrambling the input strings.
 
