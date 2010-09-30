@@ -146,9 +146,10 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   bool is_json = (validate == Compiler::VALIDATE_JSON);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (is_eval || is_json) {
-    script->set_compilation_type(
-        is_json ? Smi::FromInt(Script::COMPILATION_TYPE_JSON) :
-                               Smi::FromInt(Script::COMPILATION_TYPE_EVAL));
+    Script::CompilationType compilation_type = is_json
+        ? Script::COMPILATION_TYPE_JSON
+        : Script::COMPILATION_TYPE_EVAL;
+    script->set_compilation_type(Smi::FromInt(compilation_type));
     // For eval scripts add information on the function from which eval was
     // called.
     if (is_eval) {
@@ -171,16 +172,16 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   ASSERT(is_eval || is_global);
 
   // Build AST.
+  EagerCompilationInfo info(script, is_eval);
   FunctionLiteral* lit =
       MakeAST(is_global, script, extension, pre_data, is_json);
-
-  LiveEditFunctionTracker live_edit_tracker(lit);
 
   // Check for parse errors.
   if (lit == NULL) {
     ASSERT(Top::has_pending_exception());
     return Handle<SharedFunctionInfo>::null();
   }
+  info.set_function(lit);
 
   // Measure how long it takes to do the compilation; only take the
   // rest of the function into account to avoid overlap with the
@@ -191,7 +192,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   HistogramTimerScope timer(rate);
 
   // Compile the code.
-  CompilationInfo info(lit, script, is_eval);
+  LiveEditFunctionTracker live_edit_tracker(lit);
   Handle<Code> code = MakeCode(context, &info);
 
   // Check for stack-overflow exceptions.
@@ -482,7 +483,8 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
     // Generate code and return it.  The way that the compilation mode
     // is controlled by the command-line flags is described in
     // the static helper function MakeCode.
-    CompilationInfo info(literal, script, false);
+    EagerCompilationInfo info(script, false);
+    info.set_function(literal);
 
     bool is_run_once = literal->try_full_codegen();
     bool use_full = FLAG_full_compiler && !literal->contains_loops();
