@@ -170,12 +170,12 @@ class StringSearch : private StringSearchBase {
       return bad_char_occurrence[static_cast<int>(char_code)];
     }
     if (sizeof(PatternChar) == 1) {
-      if (static_cast<unsigned char>(char_code) > String::kMaxAsciiCharCode) {
+      if (static_cast<unsigned int>(char_code) > String::kMaxAsciiCharCodeU) {
         return -1;
       }
-      return bad_char_occurrence[static_cast<int>(char_code)];
+      return bad_char_occurrence[static_cast<unsigned int>(char_code)];
     }
-    // Reduce to equivalence class.
+    // Both pattern and subject are UC16. Reduce character to equivalence class.
     int equiv_class = char_code % kUC16AlphabetSize;
     return bad_char_occurrence[equiv_class];
   }
