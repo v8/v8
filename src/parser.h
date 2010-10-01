@@ -29,6 +29,7 @@
 #define V8_PARSER_H_
 
 #include "allocation.h"
+#include "ast.h"
 #include "scanner.h"
 
 namespace v8 {
