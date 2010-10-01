@@ -375,7 +375,7 @@ Isolate::Isolate()
   producer_heap_profile_ = NULL;
 #endif
 
-  handle_scope_data_.Initialize();
+  handle_scope_data_.Initialize(this);
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value)                        \
   name##_ = (initial_value);

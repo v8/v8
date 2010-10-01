@@ -470,9 +470,11 @@ class V8EXPORT HandleScope {
     int extensions;
     internal::Object** next;
     internal::Object** limit;
-    inline void Initialize() {
+    internal::Isolate* isolate;
+    inline void Initialize(internal::Isolate* i) {
       extensions = -1;
       next = limit = NULL;
+      isolate = i;
     }
   };
 

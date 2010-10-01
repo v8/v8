@@ -4837,13 +4837,14 @@ void HandleScopeImplementer::FreeThreadResources() {
 
 
 char* HandleScopeImplementer::ArchiveThread(char* storage) {
+  Isolate* isolate = Isolate::Current();
   v8::ImplementationUtilities::HandleScopeData* current =
-      Isolate::Current()->handle_scope_data();
+      isolate->handle_scope_data();
   handle_scope_data_ = *current;
   memcpy(storage, this, sizeof(*this));
 
   ResetAfterArchive();
-  current->Initialize();
+  current->Initialize(isolate);
 
   return storage + ArchiveSpacePerThread();
 }

@@ -127,7 +127,8 @@ void HandleScope::Enter(
 
 void HandleScope::Leave(
     const v8::ImplementationUtilities::HandleScopeData* previous) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = previous->isolate;
+  ASSERT(isolate == Isolate::Current());
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate->handle_scope_data();
   if (current->extensions > 0) {

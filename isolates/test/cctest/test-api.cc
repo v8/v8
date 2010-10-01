@@ -11479,56 +11479,81 @@ TEST(RunTwoIsolatesOnSingleThread) {
   // Run isolate 1.
   v8::Isolate* isolate1 = v8::Isolate::New();
   isolate1->Enter();
-  v8::HandleScope scope1;
-  LocalContext context1;
+  v8::Persistent<v8::Context> context1 = v8::Context::New();
 
-  // Run something in new isolate.
-  CompileRun("var foo = 'isolate 1';");
-  ExpectString("function f() { return foo; }; f()", "isolate 1");
+  {
+    v8::Context::Scope cscope(context1);
+    v8::HandleScope scope;
+    // Run something in new isolate.
+    CompileRun("var foo = 'isolate 1';");
+    ExpectString("function f() { return foo; }; f()", "isolate 1");
+  }
 
   // Run isolate 2.
   v8::Isolate* isolate2 = v8::Isolate::New();
-  isolate2->Enter();
-  v8::HandleScope scope2;
-  LocalContext context2;
+  v8::Persistent<v8::Context> context2;
 
-  // Run something in new isolate.
-  CompileRun("var foo = 'isolate 2';");
-  ExpectString("function f() { return foo; }; f()", "isolate 2");
+  {
+    v8::Isolate::Scope iscope(isolate2);
+    context2 = v8::Context::New();
+    v8::Context::Scope cscope(context2);
+    v8::HandleScope scope;
 
-  isolate2->Exit();
+    // Run something in new isolate.
+    CompileRun("var foo = 'isolate 2';");
+    ExpectString("function f() { return foo; }; f()", "isolate 2");
+  }
 
-  // Now again in isolate 1
-
-  ExpectString("function f() { return foo; }; f()", "isolate 1");
+  {
+    v8::Context::Scope cscope(context1);
+    v8::HandleScope scope;
+    // Now again in isolate 1
+    ExpectString("function f() { return foo; }; f()", "isolate 1");
+  }
 
   isolate1->Exit();
 
   // Run some stuff in default isolate.
-  v8::HandleScope scope_default;
-  LocalContext context_default;
+  v8::Persistent<v8::Context> context_default = v8::Context::New();
 
-  // Variables in other isolates should be not available, verify there
-  // is an exception.
-  ExpectTrue("function f() {"
-             "  try {"
-             "    foo;"
-             "    return false;"
-             "  } catch(e) {"
-             "    return true;"
-             "  }"
-             "};"
-             "var isDefaultIsolate = true;"
-             "f()");
+  {
+    v8::Context::Scope cscope(context_default);
+    v8::HandleScope scope;
+    // Variables in other isolates should be not available, verify there
+    // is an exception.
+    ExpectTrue("function f() {"
+               "  try {"
+               "    foo;"
+               "    return false;"
+               "  } catch(e) {"
+               "    return true;"
+               "  }"
+               "};"
+               "var isDefaultIsolate = true;"
+               "f()");
+  }
 
   isolate1->Enter();
 
   {
-    v8::Isolate::Scope isolate_scope(isolate2);
+    v8::Isolate::Scope iscope(isolate2);
+    v8::Context::Scope cscope(context2);
+    v8::HandleScope scope;
     ExpectString("function f() { return foo; }; f()", "isolate 2");
   }
 
-  ExpectString("function f() { return foo; }; f()", "isolate 1");
+  {
+    v8::Context::Scope cscope(context1);
+    v8::HandleScope scope;
+    ExpectString("function f() { return foo; }; f()", "isolate 1");
+  }
+
+  {
+    v8::Isolate::Scope iscope(isolate2);
+    context2.Dispose();
+  }
+
+  context1.Dispose();
   isolate1->Exit();
 
   v8::V8::SetFatalErrorHandler(StoringErrorCallback);
@@ -11543,7 +11568,11 @@ TEST(RunTwoIsolatesOnSingleThread) {
   CHECK_EQ(last_message, NULL);
 
   // Check that default isolate still runs.
-  ExpectTrue("function f() { return isDefaultIsolate; }; f()");
+  {
+    v8::Context::Scope cscope(context_default);
+    v8::HandleScope scope;
+    ExpectTrue("function f() { return isDefaultIsolate; }; f()");
+  }
 }
 
 static int CalcFibonacci(v8::Isolate* isolate, int limit) {
