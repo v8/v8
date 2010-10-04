@@ -190,7 +190,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   }
 #endif
 
-  {
+  {  // NOLINT
     CodeGenState state(this);
     // Entry:
     // Stack: receiver, arguments, return address.
