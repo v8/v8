@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -52,12 +52,14 @@ class CompilationInfo BASE_EMBEDDED {
   bool is_json() const { return (flags_ & IsJson::mask()) != 0; }
   bool is_in_loop() const { return (flags_ & IsInLoop::mask()) != 0; }
   FunctionLiteral* function() const { return function_; }
-  Scope* scope() const { return function_->scope(); }
+  Scope* scope() const { return scope_; }
+  Handle<Code> code() const { return code_; }
   Handle<JSFunction> closure() const { return closure_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   Handle<Script> script() const { return script_; }
   v8::Extension* extension() const { return extension_; }
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
+  Handle<Context> calling_context() const { return calling_context_; }
 
   void MarkAsEval() {
     ASSERT(!is_lazy());
@@ -79,6 +81,11 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(function_ == NULL);
     function_ = literal;
   }
+  void SetScope(Scope* scope) {
+    ASSERT(scope_ == NULL);
+    scope_ = scope;
+  }
+  void SetCode(Handle<Code> code) { code_ = code; }
   void SetExtension(v8::Extension* extension) {
     ASSERT(!is_lazy());
     extension_ = extension;
@@ -86,6 +93,10 @@ class CompilationInfo BASE_EMBEDDED {
   void SetPreParseData(ScriptDataImpl* pre_parse_data) {
     ASSERT(!is_lazy());
     pre_parse_data_ = pre_parse_data;
+  }
+  void SetCallingContext(Handle<Context> context) {
+    ASSERT(is_eval());
+    calling_context_ = context;
   }
 
  private:
@@ -104,8 +115,13 @@ class CompilationInfo BASE_EMBEDDED {
   unsigned flags_;
 
   // Fields filled in by the compilation pipeline.
+  // AST filled in by the parser.
   FunctionLiteral* function_;
+  // The scope of the function literal as a convenience.  Set to indidicate
+  // that scopes have been analyzed.
   Scope* scope_;
+  // The compiled code.
+  Handle<Code> code_;
 
   // Possible initial inputs to the compilation process.
   Handle<JSFunction> closure_;
@@ -115,6 +131,10 @@ class CompilationInfo BASE_EMBEDDED {
   // Fields possibly needed for eager compilation, NULL by default.
   v8::Extension* extension_;
   ScriptDataImpl* pre_parse_data_;
+
+  // The context of the caller is needed for eval code, and will be a null
+  // handle otherwise.
+  Handle<Context> calling_context_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
@@ -127,9 +147,9 @@ class CompilationInfo BASE_EMBEDDED {
 // functions, they will be compiled and allocated as part of the compilation
 // of the source code.
 
-// Please note this interface returns shared function infos.
-// This means you need to call Factory::NewFunctionFromSharedFunctionInfo
-// before you have a real function with a context.
+// Please note this interface returns shared function infos.  This means you
+// need to call Factory::NewFunctionFromSharedFunctionInfo before you have a
+// real function with a context.
 
 class Compiler : public AllStatic {
  public:
@@ -155,17 +175,14 @@ class Compiler : public AllStatic {
                                                 bool is_global,
                                                 ValidationState validation);
 
-  // Compile from function info (used for lazy compilation). Returns
-  // true on success and false if the compilation resulted in a stack
-  // overflow.
+  // Compile from function info (used for lazy compilation). Returns true on
+  // success and false if the compilation resulted in a stack overflow.
   static bool CompileLazy(CompilationInfo* info);
 
-  // Compile a shared function info object (the function is possibly
-  // lazily compiled). Called recursively from a backend code
-  // generator 'caller' to build the shared function info.
+  // Compile a shared function info object (the function is possibly lazily
+  // compiled).
   static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
-                                                      Handle<Script> script,
-                                                      AstVisitor* caller);
+                                                      Handle<Script> script);
 
   // Set the function info for a newly compiled function.
   static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
@@ -173,21 +190,16 @@ class Compiler : public AllStatic {
                               bool is_toplevel,
                               Handle<Script> script);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  static bool MakeCodeForLiveEdit(CompilationInfo* info);
+#endif
+
  private:
   static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                         Handle<String> name,
-                                        Handle<String> inferred_name,
                                         int start_position,
-                                        Handle<Script> script,
-                                        Handle<Code> code);
+                                        CompilationInfo* info);
 };
-
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
-Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info);
-
-#endif
 
 
 // During compilation we need a global list of handles to constants

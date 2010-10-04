@@ -191,10 +191,8 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   }
 #endif
 
-  // New scope to get automatic timing calculation.
-  { HistogramTimerScope codegen_timer(&Counters::code_generation);
+  {
     CodeGenState state(this);
-
     // Entry:
     // Stack: receiver, arguments, return address.
     // ebp: caller's frame pointer
@@ -369,7 +367,6 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 
   // Process any deferred code using the register allocator.
   if (!HasStackOverflow()) {
-    HistogramTimerScope deferred_timer(&Counters::deferred_code_generation);
     JumpTarget::set_compiling_deferred_code(true);
     ProcessDeferred();
     JumpTarget::set_compiling_deferred_code(false);
@@ -4925,9 +4922,12 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   ASSERT(!in_safe_int32_mode());
   // Build the function info and instantiate it.
   Handle<SharedFunctionInfo> function_info =
-      Compiler::BuildFunctionInfo(node, script(), this);
+      Compiler::BuildFunctionInfo(node, script());
   // Check for stack-overflow exception.
-  if (HasStackOverflow()) return;
+  if (function_info.is_null()) {
+    SetStackOverflow();
+    return;
+  }
   Result result = InstantiateFunction(function_info);
   frame()->Push(&result);
 }

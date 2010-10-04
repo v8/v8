@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -5224,6 +5224,13 @@ Object* Oddball::Initialize(const char* to_string, Object* to_number) {
   set_to_string(String::cast(symbol));
   set_to_number(to_number);
   return this;
+}
+
+
+String* SharedFunctionInfo::DebugName() {
+  Object* n = name();
+  if (!n->IsString() || String::cast(n)->length() == 0) return inferred_name();
+  return String::cast(n);
 }
 
 

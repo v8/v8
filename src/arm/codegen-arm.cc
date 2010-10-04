@@ -3132,9 +3132,9 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
 
   // Build the function info and instantiate it.
   Handle<SharedFunctionInfo> function_info =
-      Compiler::BuildFunctionInfo(node, script(), this);
-  // Check for stack-overflow exception.
-  if (HasStackOverflow()) {
+      Compiler::BuildFunctionInfo(node, script());
+  if (function_info.is_null()) {
+    SetStackOverflow();
     ASSERT(frame_->height() == original_height);
     return;
   }

@@ -74,7 +74,7 @@ class FullCodeGenerator: public AstVisitor {
         context_(NULL) {
   }
 
-  static Handle<Code> MakeCode(CompilationInfo* info);
+  static bool MakeCode(CompilationInfo* info);
 
   void Generate(CompilationInfo* info);
 

@@ -207,9 +207,7 @@ enum NopMarkerTypes {
 
 class CodeGenerator: public AstVisitor {
  public:
-  // Takes a function literal, generates code for it. This function should only
-  // be called by compiler.cc.
-  static Handle<Code> MakeCode(CompilationInfo* info);
+  static bool MakeCode(CompilationInfo* info);
 
   // Printing of AST, etc. as requested by flags.
   static void MakeCodePrologue(CompilationInfo* info);

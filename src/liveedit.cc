@@ -404,18 +404,16 @@ static void CompileScriptForTracker(Handle<Script> script) {
   // Build AST.
   CompilationInfo info(script);
   info.MarkAsGlobal();
-  if (!Parser::Parse(&info)) return;
-
-  // Compile the code.
-  LiveEditFunctionTracker tracker(info.function());
-  Handle<Code> code = MakeCodeForLiveEdit(&info);
-
-  // Check for stack-overflow exceptions.
-  if (code.is_null()) {
-    Top::StackOverflow();
-    return;
+  if (Parser::Parse(&info)) {
+    // Compile the code.
+    LiveEditFunctionTracker tracker(info.function());
+    if (Compiler::MakeCodeForLiveEdit(&info)) {
+      ASSERT(!info.code().is_null());
+      tracker.RecordRootFunctionInfo(info.code());
+    } else {
+      Top::StackOverflow();
+    }
   }
-  tracker.RecordRootFunctionInfo(code);
 }
 
 
