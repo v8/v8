@@ -45,6 +45,40 @@
 namespace v8 {
 namespace internal {
 
+
+CompilationInfo::CompilationInfo(Handle<Script> script)
+    : flags_(0),
+      function_(NULL),
+      scope_(NULL),
+      script_(script),
+      extension_(NULL),
+      pre_parse_data_(NULL) {
+}
+
+
+CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info)
+    : flags_(IsLazy::encode(true)),
+      function_(NULL),
+      scope_(NULL),
+      shared_info_(shared_info),
+      script_(Handle<Script>(Script::cast(shared_info->script()))),
+      extension_(NULL),
+      pre_parse_data_(NULL) {
+}
+
+
+CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
+    : flags_(IsLazy::encode(true)),
+      function_(NULL),
+      scope_(NULL),
+      closure_(closure),
+      shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
+      script_(Handle<Script>(Script::cast(shared_info_->script()))),
+      extension_(NULL),
+      pre_parse_data_(NULL) {
+}
+
+
 // For normal operation the syntax checker is used to determine whether to
 // use the full compiler for top level code or not. However if the flag
 // --always-full-compiler is specified or debugging is active the full
@@ -131,30 +165,25 @@ Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info) {
 #endif
 
 
-static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
-    bool is_eval,
-    Compiler::ValidationState validate,
-    Handle<Script> script,
-    Handle<Context> context,
-    v8::Extension* extension,
-    ScriptDataImpl* pre_data) {
+static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info,
+                                                   Handle<Context> context) {
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
   PostponeInterruptsScope postpone;
 
   ASSERT(!i::Top::global_context().is_null());
+  Handle<Script> script = info->script();
   script->set_context_data((*i::Top::global_context())->data());
 
-  bool is_json = (validate == Compiler::VALIDATE_JSON);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (is_eval || is_json) {
-    Script::CompilationType compilation_type = is_json
+  if (info->is_eval() || info->is_json()) {
+    Script::CompilationType compilation_type = info->is_json()
         ? Script::COMPILATION_TYPE_JSON
         : Script::COMPILATION_TYPE_EVAL;
     script->set_compilation_type(Smi::FromInt(compilation_type));
     // For eval scripts add information on the function from which eval was
     // called.
-    if (is_eval) {
+    if (info->is_eval()) {
       StackTraceFrameIterator it;
       if (!it.done()) {
         script->set_eval_from_shared(
@@ -171,31 +200,22 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 #endif
 
   // Only allow non-global compiles for eval.
-  ASSERT(is_eval || is_global);
+  ASSERT(info->is_eval() || info->is_global());
 
-  // Build AST.
-  EagerCompilationInfo info(script, is_eval);
-  FunctionLiteral* lit =
-      Parser::MakeAST(is_global, script, extension, pre_data, is_json);
-
-  // Check for parse errors.
-  if (lit == NULL) {
-    ASSERT(Top::has_pending_exception());
-    return Handle<SharedFunctionInfo>::null();
-  }
-  info.set_function(lit);
+  if (!Parser::Parse(info)) return Handle<SharedFunctionInfo>::null();
 
   // Measure how long it takes to do the compilation; only take the
   // rest of the function into account to avoid overlap with the
   // parsing statistics.
-  HistogramTimer* rate = is_eval
+  HistogramTimer* rate = info->is_eval()
       ? &Counters::compile_eval
       : &Counters::compile;
   HistogramTimerScope timer(rate);
 
   // Compile the code.
+  FunctionLiteral* lit = info->function();
   LiveEditFunctionTracker live_edit_tracker(lit);
-  Handle<Code> code = MakeCode(context, &info);
+  Handle<Code> code = MakeCode(context, info);
 
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
@@ -205,18 +225,22 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
 
   if (script->name()->IsString()) {
     PROFILE(CodeCreateEvent(
-        is_eval ? Logger::EVAL_TAG :
-            Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
-        *code, String::cast(script->name())));
+        info->is_eval()
+            ? Logger::EVAL_TAG
+            : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+        *code,
+        String::cast(script->name())));
     OPROFILE(CreateNativeCodeRegion(String::cast(script->name()),
                                     code->instruction_start(),
                                     code->instruction_size()));
   } else {
     PROFILE(CodeCreateEvent(
-        is_eval ? Logger::EVAL_TAG :
-            Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
-        *code, ""));
-    OPROFILE(CreateNativeCodeRegion(is_eval ? "Eval" : "Script",
+        info->is_eval()
+            ? Logger::EVAL_TAG
+            : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+        *code,
+        ""));
+    OPROFILE(CreateNativeCodeRegion(info->is_eval() ? "Eval" : "Script",
                                     code->instruction_start(),
                                     code->instruction_size()));
   }
@@ -227,7 +251,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
           lit->name(),
           lit->materialized_literal_count(),
           code,
-          SerializedScopeInfo::Create(info.scope()));
+          SerializedScopeInfo::Create(info->scope()));
 
   ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
   Compiler::SetFunctionInfo(result, lit, true, script);
@@ -303,13 +327,11 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                            : *script_data);
 
     // Compile the function and add it to the cache.
-    result = MakeFunctionInfo(true,
-                              false,
-                              DONT_VALIDATE_JSON,
-                              script,
-                              Handle<Context>::null(),
-                              extension,
-                              pre_data);
+    CompilationInfo info(script);
+    info.MarkAsGlobal();
+    info.SetExtension(extension);
+    info.SetPreParseData(pre_data);
+    result = MakeFunctionInfo(&info, Handle<Context>::null());
     if (extension == NULL && !result.is_null()) {
       CompilationCache::PutScript(source, result);
     }
@@ -329,9 +351,10 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
                                                  Handle<Context> context,
                                                  bool is_global,
                                                  ValidationState validate) {
-  // Note that if validation is required then no path through this
-  // function is allowed to return a value without validating that
-  // the input is legal json.
+  // Note that if validation is required then no path through this function
+  // is allowed to return a value without validating that the input is legal
+  // json.
+  bool is_json = (validate == VALIDATE_JSON);
 
   int source_length = source->length();
   Counters::total_eval_size.Increment(source_length);
@@ -340,27 +363,26 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
 
-  // Do a lookup in the compilation cache; if the entry is not there,
-  // invoke the compiler and add the result to the cache.  If we're
-  // evaluating json we bypass the cache since we can't be sure a
-  // potential value in the cache has been validated.
+  // Do a lookup in the compilation cache; if the entry is not there, invoke
+  // the compiler and add the result to the cache.  If we're evaluating json
+  // we bypass the cache since we can't be sure a potential value in the
+  // cache has been validated.
   Handle<SharedFunctionInfo> result;
-  if (validate == DONT_VALIDATE_JSON)
+  if (!is_json) {
     result = CompilationCache::LookupEval(source, context, is_global);
+  }
 
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
-    result = MakeFunctionInfo(is_global,
-                              true,
-                              validate,
-                              script,
-                              context,
-                              NULL,
-                              NULL);
-    if (!result.is_null() && validate != VALIDATE_JSON) {
-      // For json it's unlikely that we'll ever see exactly the same
-      // string again so we don't use the compilation cache.
+    CompilationInfo info(script);
+    info.MarkAsEval();
+    if (is_global) info.MarkAsGlobal();
+    if (is_json) info.MarkAsJson();
+    result = MakeFunctionInfo(&info, context);
+    if (!result.is_null() && !is_json) {
+      // For json it's unlikely that we'll ever see exactly the same string
+      // again so we don't use the compilation cache.
       CompilationCache::PutEval(source, context, is_global, result);
     }
   }
@@ -382,16 +404,8 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   int compiled_size = shared->end_position() - shared->start_position();
   Counters::total_compile_size.Increment(compiled_size);
 
-  // Generate the AST for the lazily compiled function. The AST may be
-  // NULL in case of parser stack overflow.
-  FunctionLiteral* lit = Parser::MakeLazyAST(shared);
-
-  // Check for parse errors.
-  if (lit == NULL) {
-    ASSERT(Top::has_pending_exception());
-    return false;
-  }
-  info->set_function(lit);
+  // Generate the AST for the lazily compiled function.
+  if (!Parser::Parse(info)) return false;
 
   // Measure how long it takes to do the lazy compilation; only take
   // the rest of the function into account to avoid overlap with the
@@ -428,6 +442,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   }
 
   // Set the expected number of properties for instances.
+  FunctionLiteral* lit = info->function();
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
 
   // Set the optimication hints after performing lazy compilation, as these are
@@ -477,8 +492,8 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
     // Generate code and return it.  The way that the compilation mode
     // is controlled by the command-line flags is described in
     // the static helper function MakeCode.
-    EagerCompilationInfo info(script, false);
-    info.set_function(literal);
+    CompilationInfo info(script);
+    info.SetFunction(literal);
 
     bool is_run_once = literal->try_full_codegen();
     bool use_full = FLAG_full_compiler && !literal->contains_loops();

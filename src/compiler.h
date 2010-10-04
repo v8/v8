@@ -42,109 +42,81 @@ class ScriptDataImpl;
 // is constructed based on the resources available at compile-time.
 class CompilationInfo BASE_EMBEDDED {
  public:
-  virtual ~CompilationInfo() {}
+  explicit CompilationInfo(Handle<Script> script);
+  explicit CompilationInfo(Handle<SharedFunctionInfo> shared_info);
+  explicit CompilationInfo(Handle<JSFunction> closure);
 
-  // Dispatched behavior.
-  virtual Handle<SharedFunctionInfo> shared_info() const = 0;
+  bool is_lazy() const { return (flags_ & IsLazy::mask()) != 0; }
+  bool is_eval() const { return (flags_ & IsEval::mask()) != 0; }
+  bool is_global() const { return (flags_ & IsGlobal::mask()) != 0; }
+  bool is_json() const { return (flags_ & IsJson::mask()) != 0; }
+  bool is_in_loop() const { return (flags_ & IsInLoop::mask()) != 0; }
+  FunctionLiteral* function() const { return function_; }
+  Scope* scope() const { return function_->scope(); }
+  Handle<JSFunction> closure() const { return closure_; }
+  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  Handle<Script> script() const { return script_; }
+  v8::Extension* extension() const { return extension_; }
+  ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
 
-  virtual Handle<Script> script() const {
-    return Handle<Script>(Script::cast(shared_info()->script()));
+  void MarkAsEval() {
+    ASSERT(!is_lazy());
+    flags_ |= IsEval::encode(true);
   }
-
-  virtual Handle<JSFunction> closure() const {
-    return Handle<JSFunction>::null();
+  void MarkAsGlobal() {
+    ASSERT(!is_lazy());
+    flags_ |= IsGlobal::encode(true);
   }
-
-  virtual bool is_eval() const { return false; }
-
-  virtual int loop_nesting() const { return 0; }
-
-  virtual bool has_global_object() const { return false; }
-  virtual GlobalObject* global_object() const { return NULL; }
-
-  // There should always be a function literal, but it may be set after
-  // construction (for lazy compilation).
-  FunctionLiteral* function() { return function_; }
-  void set_function(FunctionLiteral* literal) { function_ = literal; }
-
-  // Derived accessors.
-  Scope* scope() { return function()->scope(); }
-
- protected:
-  CompilationInfo() : function_(NULL) {}
+  void MarkAsJson() {
+    ASSERT(!is_lazy());
+    flags_ |= IsJson::encode(true);
+  }
+  void MarkAsInLoop() {
+    ASSERT(is_lazy());
+    flags_ |= IsInLoop::encode(true);
+  }
+  void SetFunction(FunctionLiteral* literal) {
+    ASSERT(function_ == NULL);
+    function_ = literal;
+  }
+  void SetExtension(v8::Extension* extension) {
+    ASSERT(!is_lazy());
+    extension_ = extension;
+  }
+  void SetPreParseData(ScriptDataImpl* pre_parse_data) {
+    ASSERT(!is_lazy());
+    pre_parse_data_ = pre_parse_data;
+  }
 
  private:
+  // Flags using template class BitField<type, start, length>.  All are
+  // false by default.
+  //
+  // Compilation is either eager or lazy.
+  class IsLazy:   public BitField<bool, 0, 1> {};
+  // Flags that can be set for eager compilation.
+  class IsEval:   public BitField<bool, 1, 1> {};
+  class IsGlobal: public BitField<bool, 2, 1> {};
+  class IsJson:   public BitField<bool, 3, 1> {};
+  // Flags that can be set for lazy compilation.
+  class IsInLoop: public BitField<bool, 4, 1> {};
+
+  unsigned flags_;
+
+  // Fields filled in by the compilation pipeline.
   FunctionLiteral* function_;
+  Scope* scope_;
+
+  // Possible initial inputs to the compilation process.
+  Handle<JSFunction> closure_;
+  Handle<SharedFunctionInfo> shared_info_;
+  Handle<Script> script_;
+
+  // Fields possibly needed for eager compilation, NULL by default.
+  v8::Extension* extension_;
+  ScriptDataImpl* pre_parse_data_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
-};
-
-
-class EagerCompilationInfo: public CompilationInfo {
- public:
-  EagerCompilationInfo(Handle<Script> script, bool is_eval)
-      : script_(script), is_eval_(is_eval) {
-    ASSERT(!script.is_null());
-  }
-
-  // Overridden functions from the base class.
-  virtual Handle<SharedFunctionInfo> shared_info() const {
-    return Handle<SharedFunctionInfo>::null();
-  }
-
-  virtual Handle<Script> script() const { return script_; }
-
-  virtual bool is_eval() const { return is_eval_; }
-
- private:
-  Handle<Script> script_;
-  bool is_eval_;
-};
-
-
-class LazySharedCompilationInfo: public CompilationInfo {
- public:
-  explicit LazySharedCompilationInfo(Handle<SharedFunctionInfo> shared_info)
-      : shared_info_(shared_info) {
-    ASSERT(!shared_info.is_null());
-  }
-
-  // Overridden functions from the base class.
-  virtual Handle<SharedFunctionInfo> shared_info() const {
-    return shared_info_;
-  }
-
- private:
-  Handle<SharedFunctionInfo> shared_info_;
-};
-
-
-class LazyFunctionCompilationInfo: public CompilationInfo {
- public:
-  LazyFunctionCompilationInfo(Handle<JSFunction> closure,
-                              int loop_nesting)
-      : closure_(closure), loop_nesting_(loop_nesting) {
-    ASSERT(!closure.is_null());
-  }
-
-  // Overridden functions from the base class.
-  virtual Handle<SharedFunctionInfo> shared_info() const {
-    return Handle<SharedFunctionInfo>(closure_->shared());
-  }
-
-  virtual int loop_nesting() const { return loop_nesting_; }
-
-  virtual bool has_global_object() const {
-    return closure_->context()->global() != NULL;
-  }
-
-  virtual GlobalObject* global_object() const {
-    return closure_->context()->global();
-  }
-
- private:
-  Handle<JSFunction> closure_;
-  int loop_nesting_;
 };
 
 
@@ -161,7 +133,7 @@ class LazyFunctionCompilationInfo: public CompilationInfo {
 
 class Compiler : public AllStatic {
  public:
-  enum ValidationState { VALIDATE_JSON, DONT_VALIDATE_JSON };
+  enum ValidationState { DONT_VALIDATE_JSON, VALIDATE_JSON };
 
   // All routines return a JSFunction.
   // If an error occurs an exception is raised and
