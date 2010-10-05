@@ -11727,3 +11727,31 @@ TEST(RegExp) {
   context->Global()->Set(v8_str("ex"), try_catch.Exception());
   ExpectTrue("ex instanceof SyntaxError");
 }
+
+
+static v8::Handle<v8::Value> Getter(v8::Local<v8::String> property,
+                                    const v8::AccessorInfo& info ) {
+  return v8_str("42!");
+}
+
+
+static v8::Handle<v8::Array> Enumerator(const v8::AccessorInfo& info) {
+  v8::Handle<v8::Array> result = v8::Array::New();
+  result->Set(0, v8_str("universalAnswer"));
+  return result;
+}
+
+
+TEST(NamedEnumeratorAndForIn) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+  v8::Context::Scope context_scope(context.local());
+
+  v8::Handle<v8::ObjectTemplate> tmpl = v8::ObjectTemplate::New();
+  tmpl->SetNamedPropertyHandler(Getter, NULL, NULL, NULL, Enumerator);
+  context->Global()->Set(v8_str("o"), tmpl->NewInstance());
+  v8::Handle<v8::Array> result = v8::Handle<v8::Array>::Cast(CompileRun(
+        "var result = []; for (var k in o) result.push(k); result"));
+  CHECK_EQ(1, result->Length());
+  CHECK_EQ(v8_str("universalAnswer"), result->Get(0));
+}
