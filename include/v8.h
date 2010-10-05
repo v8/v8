@@ -1386,7 +1386,7 @@ class RegExp : public Value {
   /**
    * Creates a regular expression from the given pattern string and
    * the flags bit field. May throw a JavaScript exception as
-   * described in ECMA-252, 15.10.4.1.
+   * described in ECMA-262, 15.10.4.1.
    *
    * For example,
    *   RegExp::New(v8::String::New("foo"),
