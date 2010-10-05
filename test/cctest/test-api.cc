@@ -10565,7 +10565,7 @@ v8::Handle<Value> AnalyzeStackOfEvalWithSourceURL(const v8::Arguments& args) {
     v8::Handle<v8::String> name =
         stackTrace->GetFrame(i)->GetScriptNameOrSourceURL();
     CHECK(!name.IsEmpty());
-    CHECK_EQ(url, name); 
+    CHECK_EQ(url, name);
   }
   return v8::Undefined();
 }

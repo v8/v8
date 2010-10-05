@@ -392,7 +392,7 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
       Handle<JSValue> script_wrapper = GetScriptWrapper(Handle<Script>(script));
       Handle<Object> property = GetProperty(script_wrapper, method_name);
       ASSERT(property->IsJSFunction());
-      Handle<JSFunction> method = Handle<JSFunction>::cast(property); 
+      Handle<JSFunction> method = Handle<JSFunction>::cast(property);
       bool caught_exception;
       Handle<Object> result = Execution::TryCall(method, script_wrapper, 0,
                                                  NULL, &caught_exception);
