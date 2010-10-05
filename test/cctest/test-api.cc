@@ -766,6 +766,12 @@ static v8::Handle<Value> construct_call(const v8::Arguments& args) {
   return args.This();
 }
 
+static v8::Handle<Value> Return239(Local<String> name, const AccessorInfo&) {
+  ApiTestFuzzer::Fuzz();
+  return v8_num(239);
+}
+
+
 THREADED_TEST(FunctionTemplate) {
   v8::HandleScope scope;
   LocalContext env;
@@ -792,6 +798,7 @@ THREADED_TEST(FunctionTemplate) {
     Local<v8::FunctionTemplate> fun_templ =
         v8::FunctionTemplate::New(construct_call);
     fun_templ->SetClassName(v8_str("funky"));
+    fun_templ->InstanceTemplate()->SetAccessor(v8_str("m"), Return239);
     Local<Function> fun = fun_templ->GetFunction();
     env->Global()->Set(v8_str("obj"), fun);
     Local<Script> script = v8_compile("var s = new obj(); s.x");
@@ -799,6 +806,9 @@ THREADED_TEST(FunctionTemplate) {
 
     Local<Value> result = v8_compile("(new obj()).toString()")->Run();
     CHECK_EQ(v8_str("[object funky]"), result);
+
+    result = v8_compile("(new obj()).m")->Run();
+    CHECK_EQ(239, result->Int32Value());
   }
 }
 
@@ -6506,12 +6516,6 @@ THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
     "}"
     "result;",
     42 * 10);
-}
-
-
-static v8::Handle<Value> Return239(Local<String> name, const AccessorInfo&) {
-  ApiTestFuzzer::Fuzz();
-  return v8_num(239);
 }
 
 
