@@ -3754,14 +3754,9 @@ Local<v8::RegExp> v8::RegExp::New(Handle<String> pattern,
   LOG_API("RegExp::New");
   ENTER_V8;
   EXCEPTION_PREAMBLE();
-  i::Handle<i::String> flags_string = RegExpFlagsToString(flags);
-  i::Object** argv[2] = {
-    i::Handle<i::Object>::cast(Utils::OpenHandle(*pattern)).location(),
-    i::Handle<i::Object>::cast(flags_string).location()
-  };
-  i::Handle<i::Object> obj = i::Execution::New(
-      i::Handle<i::JSFunction>(i::Top::global_context()->regexp_function()),
-      2, argv,
+  i::Handle<i::JSRegExp> obj = i::Execution::NewJSRegExp(
+      Utils::OpenHandle(*pattern),
+      RegExpFlagsToString(flags),
       &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK(Local<v8::RegExp>());
   return Utils::ToLocal(i::Handle<i::JSRegExp>::cast(obj));

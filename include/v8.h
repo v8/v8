@@ -1372,6 +1372,10 @@ class Date : public Value {
  */
 class RegExp : public Value {
  public:
+  /**
+   * Regular expression flag bits. They can be or'ed to enable a set
+   * of flags.
+   */
   enum Flags {
     kNone = 0,
     kGlobal = 1,
@@ -1379,6 +1383,16 @@ class RegExp : public Value {
     kMultiline = 4
   };
 
+  /**
+   * Creates a regular expression from the given pattern string and
+   * the flags bit field. May throw a JavaScript exception as
+   * described in ECMA-252, 15.10.4.1.
+   *
+   * For example,
+   *   RegExp::New(v8::String::New("foo"),
+   *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
+   * is equivalent to evaluating "/foo/gm".
+   */
   V8EXPORT static Local<RegExp> New(Handle<String> pattern,
                                     Flags flags);
 
@@ -1388,6 +1402,9 @@ class RegExp : public Value {
    */
   V8EXPORT Local<String> GetSource() const;
 
+  /**
+   * Returns the flags bit field.
+   */
   V8EXPORT Flags GetFlags() const;
 
   static inline RegExp* Cast(v8::Value* obj);
