@@ -1679,6 +1679,21 @@ Local<String> StackFrame::GetScriptName() const {
 }
 
 
+Local<String> StackFrame::GetScriptNameOrSourceURL() const {
+  if (IsDeadCheck("v8::StackFrame::GetScriptNameOrSourceURL()")) {
+    return Local<String>();
+  }
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> name = GetProperty(self, "scriptNameOrSourceURL");
+  if (!name->IsString()) {
+    return Local<String>();
+  }
+  return scope.Close(Local<String>::Cast(Utils::ToLocal(name)));
+}
+
+
 Local<String> StackFrame::GetFunctionName() const {
   if (IsDeadCheck("v8::StackFrame::GetFunctionName()")) return Local<String>();
   ENTER_V8;

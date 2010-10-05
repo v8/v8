@@ -385,6 +385,25 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
       SetProperty(stackFrame, script_key, script_name, NONE);
     }
 
+    if (options & StackTrace::kScriptNameOrSourceURL) {
+      Handle<Object> script_name(script->name());
+      Handle<String> method_name =
+          Factory::LookupAsciiSymbol("nameOrSourceURL");
+      Handle<JSValue> script_wrapper = GetScriptWrapper(Handle<Script>(script));
+      Handle<Object> property = GetProperty(script_wrapper, method_name);
+      ASSERT(property->IsJSFunction());
+      Handle<JSFunction> method = Handle<JSFunction>::cast(property); 
+      bool caught_exception;
+      Handle<Object> result = Execution::TryCall(method, script_wrapper, 0,
+                                                 NULL, &caught_exception);
+      if (caught_exception) {
+        result = Factory::undefined_value();
+      }
+      Handle<String> script_name_or_source_url_key =
+          Factory::LookupAsciiSymbol("scriptNameOrSourceURL");
+      SetProperty(stackFrame, script_name_or_source_url_key, result, NONE);
+    }
+
     if (options & StackTrace::kFunctionName) {
       Handle<Object> fun_name(fun->shared()->name());
       if (fun_name->ToBoolean()->IsFalse()) {

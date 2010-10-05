@@ -758,8 +758,9 @@ class V8EXPORT StackTrace {
     kFunctionName = 1 << 3,
     kIsEval = 1 << 4,
     kIsConstructor = 1 << 5,
+    kScriptNameOrSourceURL = 1 << 6,
     kOverview = kLineNumber | kColumnOffset | kScriptName | kFunctionName,
-    kDetailed = kOverview | kIsEval | kIsConstructor
+    kDetailed = kOverview | kIsEval | kIsConstructor | kScriptNameOrSourceURL
   };
 
   /**
@@ -817,6 +818,13 @@ class V8EXPORT StackFrame {
    * function for this StackFrame.
    */
   Local<String> GetScriptName() const;
+
+  /**
+   * Returns the name of the resource that contains the script for the
+   * function for this StackFrame or sourceURL value if the script name
+   * is undefined and its source ends with //@ sourceURL=... string.
+   */
+  Local<String> GetScriptNameOrSourceURL() const;
 
   /**
    * Returns the name of the function associated with this stack frame.
