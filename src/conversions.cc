@@ -665,9 +665,15 @@ static double InternalStringToDouble(Iterator current,
       buffer[buffer_pos++] = '-';
       exponent = -exponent;
     }
-    if (exponent > 999) exponent = 999;  // Result will be Infinity or 0 or -0.
 
-    const int exp_digits = 3;
+    // The minimal/maximal double is +/-1.7e-308. Given that
+    // the buffer contains at most 773 (kMaxSignificantDigits + 1) the
+    // minimal possible exponent is hence -(308 + 773)=-1081.
+    // Since leading zeros are removed the maximal exponent cannot exceed 308.
+    // If the following test triggers the result will be +/-infinity or +/-0.
+    if (exponent > 9999) exponent = 9999;
+
+    const int exp_digits = 4;
     for (int i = 0; i < exp_digits; i++) {
       buffer[buffer_pos + exp_digits - 1 - i] = '0' + exponent % 10;
       exponent /= 10;
