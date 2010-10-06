@@ -183,16 +183,9 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 
   JumpTarget::set_compiling_deferred_code(false);
 
-#ifdef DEBUG
-  if (strlen(FLAG_stop_at) > 0 &&
-      info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
-    frame_->SpillAll();
-    __ int3();
-  }
-#endif
-
-  {  // NOLINT
+  {
     CodeGenState state(this);
+
     // Entry:
     // Stack: receiver, arguments, return address.
     // ebp: caller's frame pointer
@@ -200,6 +193,14 @@ void CodeGenerator::Generate(CompilationInfo* info) {
     // edi: called JS function
     // esi: callee's context
     allocator_->Initialize();
+
+#ifdef DEBUG
+    if (strlen(FLAG_stop_at) > 0 &&
+        info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+      frame_->SpillAll();
+      __ int3();
+    }
+#endif
 
     frame_->Enter();
 
