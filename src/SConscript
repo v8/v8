@@ -42,6 +42,7 @@ SOURCES = {
     ast.cc
     bootstrapper.cc
     builtins.cc
+    cached-powers.cc
     checks.cc
     circular-queue.cc
     code-stubs.cc
