@@ -340,6 +340,9 @@ class TestCase(object):
   def IsNegative(self):
     return False
 
+  def TestsIsolates(self):
+    return False
+
   def CompareTime(self, other):
     return cmp(other.duration, self.duration)
 
@@ -1000,6 +1003,9 @@ class ClassifiedTest(object):
     self.case = case
     self.outcomes = outcomes
 
+  def TestsIsolates(self):
+    return self.case.TestsIsolates()
+
 
 class Configuration(object):
   """The parsed contents of a configuration file"""
@@ -1159,6 +1165,7 @@ def BuildOptions():
   result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
         dest="suppress_dialogs", action="store_false")
   result.add_option("--shell", help="Path to V8 shell", default="shell")
+  result.add_option("--isolates", help="Whether to test isolates", default=False, action="store_true")
   result.add_option("--store-unexpected-output", 
       help="Store the temporary JS files from tests that fails",
       dest="store_unexpected_output", default=True, action="store_true")
@@ -1380,6 +1387,8 @@ def Main():
   def DoSkip(case):
     return SKIP in case.outcomes or SLOW in case.outcomes
   cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
+  if not options.isolates:
+    cases_to_run = [c for c in cases_to_run if not c.TestsIsolates()]
   if len(cases_to_run) == 0:
     print "No tests to run."
     return 0

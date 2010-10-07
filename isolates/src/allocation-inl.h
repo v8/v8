@@ -58,7 +58,11 @@ NativeAllocationChecker::~NativeAllocationChecker() {
 
 
 bool NativeAllocationChecker::allocation_allowed() {
+#ifdef DEBUG
   return Isolate::Current()->allocation_disallowed() == 0;
+#else
+  return true;
+#endif  // DEBUG
 }
 
 

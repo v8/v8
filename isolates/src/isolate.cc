@@ -247,6 +247,8 @@ void Isolate::EnsureDefaultIsolate() {
     thread_data_table_ = new Isolate::ThreadDataTable();
     default_isolate_ = new Isolate();
   }
+  // Can't use SetIsolateThreadLocals(default_isolate_, NULL) here
+  // becase a non-null thread data may be already set.
   Thread::SetThreadLocal(isolate_key_, default_isolate_);
   CHECK(default_isolate_->PreInit());
 }
@@ -389,11 +391,22 @@ Isolate::Isolate()
 }
 
 void Isolate::TearDown() {
+  // Temporarily set this isolate as current so that various parts of
+  // the isolate can access it in their destructors without having a
+  // direct pointer. We don't use Enter/Exit here to avoid
+  // initializing the thread data.
+  PerIsolateThreadData* saved_data = CurrentPerIsolateThreadData();
+  Isolate* saved_isolate = UncheckedCurrent();
+  SetIsolateThreadLocals(this, NULL);
+
   Deinit();
 
   if (!IsDefaultIsolate()) {
     delete this;
   }
+
+  // Restore the previous current isolate.
+  SetIsolateThreadLocals(saved_isolate, saved_data);
 }
 
 
@@ -421,6 +434,14 @@ void Isolate::Deinit() {
     state_ = PREINITIALIZED;
   }
 }
+
+
+void Isolate::SetIsolateThreadLocals(Isolate* isolate,
+                                     PerIsolateThreadData* data) {
+  Thread::SetThreadLocal(isolate_key_, isolate);
+  Thread::SetThreadLocal(per_isolate_thread_data_key_, data);
+}
+
 
 Isolate::~Isolate() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -701,8 +722,7 @@ void Isolate::Enter() {
                                             entry_stack_);
   entry_stack_ = item;
 
-  Thread::SetThreadLocal(per_isolate_thread_data_key_, data);
-  Thread::SetThreadLocal(isolate_key_, this);
+  SetIsolateThreadLocals(this, data);
 
   CHECK(PreInit());
 
@@ -732,8 +752,7 @@ void Isolate::Exit() {
   delete item;
 
   // Reinit the current thread for the isolate it was running before this one.
-  Thread::SetThreadLocal(per_isolate_thread_data_key_, previous_thread_data);
-  Thread::SetThreadLocal(isolate_key_, previous_isolate);
+  SetIsolateThreadLocals(previous_isolate, previous_thread_data);
 }
 
 } }  // namespace v8::internal

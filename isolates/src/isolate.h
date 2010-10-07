@@ -633,7 +633,7 @@ class Isolate {
   char* ArchiveThread(char* to);
   char* RestoreThread(char* from);
 
-  static const char* kStackOverflowMessage;
+  static const char* const kStackOverflowMessage;
 
   // Accessors.
 #define GLOBAL_ACCESSOR(type, name, initialvalue)                              \
@@ -885,6 +885,9 @@ class Isolate {
   bool PreInit();
 
   void Deinit();
+
+  static void SetIsolateThreadLocals(Isolate* isolate,
+                                     PerIsolateThreadData* data);
 
   enum State {
     UNINITIALIZED,    // Some components may not have been allocated.

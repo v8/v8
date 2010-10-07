@@ -461,7 +461,7 @@ bool Isolate::MayIndexedAccess(JSObject* receiver,
 }
 
 
-const char* Isolate::kStackOverflowMessage =
+const char* const Isolate::kStackOverflowMessage =
   "Uncaught RangeError: Maximum call stack size exceeded";
 
 
