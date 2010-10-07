@@ -445,6 +445,8 @@
         '../../src/string-search.h',
         '../../src/string-stream.cc',
         '../../src/string-stream.h',
+        '../../src/strtod.cc',
+        '../../src/strtod.h',
         '../../src/stub-cache.cc',
         '../../src/stub-cache.h',
         '../../src/token.cc',
