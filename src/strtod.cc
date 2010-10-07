@@ -40,8 +40,9 @@ extern "C" double gay_strtod(const char* s00, const char** se);
 
 double strtod(Vector<char> buffer, int exponent) {
   char gay_buffer[1024];
+  Vector<char> gay_buffer_vector(gay_buffer, sizeof(gay_buffer));
   buffer.start()[buffer.length()] = '\0';
-  snprintf(gay_buffer, 1024, "%se%d", buffer.start(), exponent);
+  OS::SNPrintF(gay_buffer_vector, "%se%d", buffer.start(), exponent);
   return gay_strtod(gay_buffer, NULL);
 }
 
