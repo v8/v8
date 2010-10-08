@@ -1128,9 +1128,14 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
   __ bind(&true_case);
   SetExpressionPosition(expr->then_expression(),
                         expr->then_expression_position());
-  Visit(expr->then_expression());
-  // If control flow falls through Visit, jump to done.
-  if (!context()->IsTest()) {
+  if (context()->IsTest()) {
+    const TestContext* for_test = TestContext::cast(context());
+    VisitForControl(expr->then_expression(),
+                    for_test->true_label(),
+                    for_test->false_label(),
+                    NULL);
+  } else {
+    Visit(expr->then_expression());
     __ jmp(&done);
   }
 

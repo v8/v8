@@ -604,6 +604,15 @@ class FullCodeGenerator: public AstVisitor {
           false_label_(false_label),
           fall_through_(fall_through) { }
 
+    static const TestContext* cast(const ExpressionContext* context) {
+      ASSERT(context->IsTest());
+      return reinterpret_cast<const TestContext*>(context);
+    }
+
+    Label* true_label() const { return true_label_; }
+    Label* false_label() const { return false_label_; }
+    Label* fall_through() const { return fall_through_; }
+
     virtual void Plug(bool flag) const;
     virtual void Plug(Register reg) const;
     virtual void Plug(Label* materialize_true, Label* materialize_false) const;
