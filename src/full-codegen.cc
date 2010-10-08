@@ -1014,10 +1014,11 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
   __ bind(&true_case);
   SetExpressionPosition(expr->then_expression(),
                         expr->then_expression_position());
-  Visit(expr->then_expression());
-  // If control flow falls through Visit, jump to done.
   if (context_ == Expression::kEffect || context_ == Expression::kValue) {
+    Visit(expr->then_expression());
     __ jmp(&done);
+  } else {
+    VisitForControl(expr->then_expression(), true_label_, false_label_, NULL);
   }
 
   __ bind(&false_case);
