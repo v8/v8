@@ -109,7 +109,9 @@ class MarkCompactCollector {
   // Object* that will be the object after forwarding.  There is a separate
   // allocation function for each (compactable) space based on the location
   // of the object before compaction.
-  typedef Object* (*AllocationFunction)(HeapObject* object, int object_size);
+  typedef Object* (*AllocationFunction)(Heap* heap,
+                                        HeapObject* object,
+                                        int object_size);
 
   // Type of functions to encode the forwarding address for an object.
   // Given the object, its size, and the new (non-failure) object it will be
@@ -119,7 +121,8 @@ class MarkCompactCollector {
   // page as input, and is updated to contain the offset to be used for the
   // next live object in the same page.  For spaces using a different
   // encoding (ie, contiguous spaces), the offset parameter is ignored.
-  typedef void (*EncodingFunction)(HeapObject* old_object,
+  typedef void (*EncodingFunction)(Heap* heap,
+                                   HeapObject* old_object,
                                    int object_size,
                                    Object* new_object,
                                    int* offset);
@@ -181,6 +184,8 @@ class MarkCompactCollector {
   // that indicate free regions.
   static const uint32_t kSingleFreeEncoding = 0;
   static const uint32_t kMultiFreeEncoding = 1;
+
+  inline Heap* heap() const { return heap_; }
 
  private:
   MarkCompactCollector();
