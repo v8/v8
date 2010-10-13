@@ -1001,6 +1001,7 @@ const char* HeapEntry::TypeAsString() {
     case kString: return "/string/";
     case kCode: return "/code/";
     case kArray: return "/array/";
+    case kRegExp: return "/regexp/";
     default: return "???";
   }
 }
@@ -1284,11 +1285,16 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
-    String* name = String::cast(shared->name())->length() > 0 ?
-        String::cast(shared->name()) : shared->inferred_name();
     return AddEntry(object,
                     HeapEntry::kClosure,
-                    collection_->GetFunctionName(name),
+                    collection_->GetName(String::cast(shared->name())),
+                    children_count,
+                    retainers_count);
+  } else if (object->IsJSRegExp()) {
+    JSRegExp* re = JSRegExp::cast(object);
+    return AddEntry(object,
+                    HeapEntry::kRegExp,
+                    collection_->GetName(re->Pattern()),
                     children_count,
                     retainers_count);
   } else if (object->IsJSObject()) {
@@ -1342,6 +1348,7 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
 bool HeapSnapshot::WillAddEntry(HeapObject* object) {
   return object == kInternalRootObject
       || object->IsJSFunction()
+      || object->IsJSRegExp()
       || object->IsJSObject()
       || object->IsString()
       || object->IsCode()
@@ -1905,12 +1912,19 @@ void HeapSnapshotGenerator::ExtractReferences(HeapObject* obj) {
     ExtractPropertyReferences(js_obj, entry);
     ExtractElementReferences(js_obj, entry);
     SetPropertyReference(
-        obj, entry, Heap::prototype_symbol(), js_obj->map()->prototype());
+        obj, entry, Heap::Proto_symbol(), js_obj->GetPrototype());
+    if (obj->IsJSFunction()) {
+      JSFunction* js_fun = JSFunction::cast(obj);
+      if (js_fun->has_prototype()) {
+        SetPropertyReference(
+            obj, entry, Heap::prototype_symbol(), js_fun->prototype());
+      }
+    }
   } else if (obj->IsString()) {
     if (obj->IsConsString()) {
       ConsString* cs = ConsString::cast(obj);
-      SetElementReference(obj, entry, 0, cs->first());
-      SetElementReference(obj, entry, 1, cs->second());
+      SetInternalReference(obj, entry, "1", cs->first());
+      SetInternalReference(obj, entry, "2", cs->second());
     }
   } else if (obj->IsCode() || obj->IsSharedFunctionInfo() || obj->IsScript()) {
     IndexedReferencesExtractor refs_extractor(this, obj, entry);
@@ -2055,7 +2069,9 @@ void HeapSnapshotGenerator::SetPropertyReference(HeapObject* parent_obj,
                                                  Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry != NULL) {
-    filler_->SetNamedReference(HeapGraphEdge::kProperty,
+    HeapGraphEdge::Type type = reference_name->length() > 0 ?
+        HeapGraphEdge::kProperty : HeapGraphEdge::kInternal;
+    filler_->SetNamedReference(type,
                                parent_obj,
                                parent_entry,
                                collection_->GetName(reference_name),
@@ -2351,7 +2367,8 @@ void HeapSnapshotJSONSerializer::SerializeNodes() {
             "," JSON_S("string")
             "," JSON_S("object")
             "," JSON_S("code")
-            "," JSON_S("closure"))
+            "," JSON_S("closure")
+            "," JSON_S("regexp"))
         "," JSON_S("string")
         "," JSON_S("number")
         "," JSON_S("number")

@@ -502,7 +502,8 @@ class HeapEntry BASE_EMBEDDED {
     kString = v8::HeapGraphNode::kString,
     kObject = v8::HeapGraphNode::kObject,
     kCode = v8::HeapGraphNode::kCode,
-    kClosure = v8::HeapGraphNode::kClosure
+    kClosure = v8::HeapGraphNode::kClosure,
+    kRegExp = v8::HeapGraphNode::kRegExp
   };
 
   HeapEntry() { }

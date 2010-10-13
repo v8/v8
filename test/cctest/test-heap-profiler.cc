@@ -594,7 +594,7 @@ TEST(HeapSnapshotObjectSizes) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "x");
   CHECK_NE(NULL, x);
   const v8::HeapGraphNode* x_prototype =
-      GetProperty(x, v8::HeapGraphEdge::kProperty, "prototype");
+      GetProperty(x, v8::HeapGraphEdge::kProperty, "__proto__");
   CHECK_NE(NULL, x_prototype);
   const v8::HeapGraphNode* x1 =
       GetProperty(x, v8::HeapGraphEdge::kProperty, "a");
@@ -606,7 +606,7 @@ TEST(HeapSnapshotObjectSizes) {
       x->GetSelfSize() * 3,
       x->GetReachableSize() - x_prototype->GetReachableSize());
   CHECK_EQ(
-      x->GetSelfSize() * 3 + x_prototype->GetSelfSize(), x->GetRetainedSize());
+      x->GetSelfSize() * 3, x->GetRetainedSize());
   CHECK_EQ(
       x1->GetSelfSize() * 2,
       x1->GetReachableSize() - x_prototype->GetReachableSize());
@@ -651,7 +651,6 @@ TEST(HeapSnapshotCodeObjects) {
   CompileAndRunScript(
       "function lazy(x) { return x - 1; }\n"
       "function compiled(x) { return x + 1; }\n"
-      "var inferred = function(x) { return x; }\n"
       "var anonymous = (function() { return function() { return 0; } })();\n"
       "compiled(1)");
   const v8::HeapSnapshot* snapshot =
@@ -666,18 +665,12 @@ TEST(HeapSnapshotCodeObjects) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "lazy");
   CHECK_NE(NULL, lazy);
   CHECK_EQ(v8::HeapGraphNode::kClosure, lazy->GetType());
-  const v8::HeapGraphNode* inferred =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "inferred");
-  CHECK_NE(NULL, inferred);
-  CHECK_EQ(v8::HeapGraphNode::kClosure, inferred->GetType());
-  v8::String::AsciiValue inferred_name(inferred->GetName());
-  CHECK_EQ("inferred", *inferred_name);
   const v8::HeapGraphNode* anonymous =
       GetProperty(global, v8::HeapGraphEdge::kProperty, "anonymous");
   CHECK_NE(NULL, anonymous);
   CHECK_EQ(v8::HeapGraphNode::kClosure, anonymous->GetType());
   v8::String::AsciiValue anonymous_name(anonymous->GetName());
-  CHECK_EQ("(anonymous function)", *anonymous_name);
+  CHECK_EQ("", *anonymous_name);
 
   // Find references to code.
   const v8::HeapGraphNode* compiled_code =
