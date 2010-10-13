@@ -120,7 +120,7 @@ template <typename T> static inline T ToCData(v8::internal::Object* obj) {
 template <typename T>
 static inline v8::internal::Handle<v8::internal::Object> FromCData(T obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
-  return v8::internal::Factory::NewProxy(
+  return FACTORY->NewProxy(
       reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(obj)));
 }
 

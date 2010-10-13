@@ -147,7 +147,7 @@ TEST(HeapObjects) {
   CHECK(HEAP->nan_value()->IsNumber());
   CHECK(isnan(HEAP->nan_value()->Number()));
 
-  Handle<String> s = Factory::NewStringFromAscii(CStrVector("fisk hest "));
+  Handle<String> s = FACTORY->NewStringFromAscii(CStrVector("fisk hest "));
   CHECK(s->IsString());
   CHECK_EQ(10, s->length());
 
@@ -199,23 +199,23 @@ TEST(GarbageCollection) {
   int free_bytes = HEAP->MaxObjectSizeInPagedSpace();
   CHECK(HEAP->CollectGarbage(free_bytes, NEW_SPACE));
 
-  Handle<String> name = Factory::LookupAsciiSymbol("theFunction");
-  Handle<String> prop_name = Factory::LookupAsciiSymbol("theSlot");
-  Handle<String> prop_namex = Factory::LookupAsciiSymbol("theSlotx");
-  Handle<String> obj_name = Factory::LookupAsciiSymbol("theObject");
+  Handle<String> name = FACTORY->LookupAsciiSymbol("theFunction");
+  Handle<String> prop_name = FACTORY->LookupAsciiSymbol("theSlot");
+  Handle<String> prop_namex = FACTORY->LookupAsciiSymbol("theSlotx");
+  Handle<String> obj_name = FACTORY->LookupAsciiSymbol("theObject");
 
   {
     v8::HandleScope inner_scope;
     // Allocate a function and keep it in global object's property.
     Handle<JSFunction> function =
-        Factory::NewFunction(name, Factory::undefined_value());
+        FACTORY->NewFunction(name, FACTORY->undefined_value());
     Handle<Map> initial_map =
-        Factory::NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+        FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     function->set_initial_map(*initial_map);
     Isolate::Current()->context()->global()->SetProperty(*name, *function,
                                                          NONE);
     // Allocate an object.  Unrooted after leaving the scope.
-    Handle<JSObject> obj = Factory::NewJSObject(function);
+    Handle<JSObject> obj = FACTORY->NewJSObject(function);
     obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
     obj->SetProperty(*prop_namex, Smi::FromInt(24), NONE);
 
@@ -236,7 +236,7 @@ TEST(GarbageCollection) {
   {
     HandleScope inner_scope;
     // Allocate another object, make it reachable from global.
-    Handle<JSObject> obj = Factory::NewJSObject(function);
+    Handle<JSObject> obj = FACTORY->NewJSObject(function);
     Isolate::Current()->context()->global()->SetProperty(*obj_name, *obj, NONE);
     obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
   }
@@ -256,7 +256,7 @@ TEST(GarbageCollection) {
 
 static void VerifyStringAllocation(const char* string) {
   v8::HandleScope scope;
-  Handle<String> s = Factory::NewStringFromUtf8(CStrVector(string));
+  Handle<String> s = FACTORY->NewStringFromUtf8(CStrVector(string));
   CHECK_EQ(StrLength(string), s->length());
   for (int index = 0; index < s->length(); index++) {
     CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));
@@ -280,7 +280,7 @@ TEST(LocalHandles) {
 
   v8::HandleScope scope;
   const char* name = "Kasper the spunky";
-  Handle<String> string = Factory::NewStringFromAscii(CStrVector(name));
+  Handle<String> string = FACTORY->NewStringFromAscii(CStrVector(name));
   CHECK_EQ(StrLength(name), string->length());
 }
 
@@ -297,8 +297,8 @@ TEST(GlobalHandles) {
   {
     HandleScope scope;
 
-    Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
-    Handle<Object> u = Factory::NewNumber(1.12344);
+    Handle<Object> i = FACTORY->NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> u = FACTORY->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
     h2 = global_handles->Create(*u);
@@ -345,8 +345,8 @@ TEST(WeakGlobalHandlesScavenge) {
   {
     HandleScope scope;
 
-    Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
-    Handle<Object> u = Factory::NewNumber(1.12344);
+    Handle<Object> i = FACTORY->NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> u = FACTORY->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
     h2 = global_handles->Create(*u);
@@ -383,8 +383,8 @@ TEST(WeakGlobalHandlesMark) {
   {
     HandleScope scope;
 
-    Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
-    Handle<Object> u = Factory::NewNumber(1.12344);
+    Handle<Object> i = FACTORY->NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> u = FACTORY->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
     h2 = global_handles->Create(*u);
@@ -421,7 +421,7 @@ TEST(DeleteWeakGlobalHandle) {
   {
     HandleScope scope;
 
-    Handle<Object> i = Factory::NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> i = FACTORY->NewStringFromAscii(CStrVector("fisk"));
     h = global_handles->Create(*i);
   }
 
@@ -530,15 +530,15 @@ TEST(FunctionAllocation) {
   InitializeVM();
 
   v8::HandleScope sc;
-  Handle<String> name = Factory::LookupAsciiSymbol("theFunction");
+  Handle<String> name = FACTORY->LookupAsciiSymbol("theFunction");
   Handle<JSFunction> function =
-      Factory::NewFunction(name, Factory::undefined_value());
+      FACTORY->NewFunction(name, FACTORY->undefined_value());
   Handle<Map> initial_map =
-      Factory::NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+      FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   function->set_initial_map(*initial_map);
 
-  Handle<String> prop_name = Factory::LookupAsciiSymbol("theSlot");
-  Handle<JSObject> obj = Factory::NewJSObject(function);
+  Handle<String> prop_name = FACTORY->LookupAsciiSymbol("theSlot");
+  Handle<JSObject> obj = FACTORY->NewJSObject(function);
   obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
   CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
   // Check that we can add properties to function objects.
@@ -556,9 +556,9 @@ TEST(ObjectProperties) {
       JSFunction::cast(Isolate::Current()->context()->global()->
           GetProperty(object_symbol));
   Handle<JSFunction> constructor(object_function);
-  Handle<JSObject> obj = Factory::NewJSObject(constructor);
-  Handle<String> first = Factory::LookupAsciiSymbol("first");
-  Handle<String> second = Factory::LookupAsciiSymbol("second");
+  Handle<JSObject> obj = FACTORY->NewJSObject(constructor);
+  Handle<String> first = FACTORY->LookupAsciiSymbol("first");
+  Handle<String> second = FACTORY->LookupAsciiSymbol("second");
 
   // check for empty
   CHECK(!obj->HasLocalProperty(*first));
@@ -599,16 +599,16 @@ TEST(ObjectProperties) {
 
   // check string and symbol match
   static const char* string1 = "fisk";
-  Handle<String> s1 = Factory::NewStringFromAscii(CStrVector(string1));
+  Handle<String> s1 = FACTORY->NewStringFromAscii(CStrVector(string1));
   obj->SetProperty(*s1, Smi::FromInt(1), NONE);
-  Handle<String> s1_symbol = Factory::LookupAsciiSymbol(string1);
+  Handle<String> s1_symbol = FACTORY->LookupAsciiSymbol(string1);
   CHECK(obj->HasLocalProperty(*s1_symbol));
 
   // check symbol and string match
   static const char* string2 = "fugl";
-  Handle<String> s2_symbol = Factory::LookupAsciiSymbol(string2);
+  Handle<String> s2_symbol = FACTORY->LookupAsciiSymbol(string2);
   obj->SetProperty(*s2_symbol, Smi::FromInt(1), NONE);
-  Handle<String> s2 = Factory::NewStringFromAscii(CStrVector(string2));
+  Handle<String> s2 = FACTORY->NewStringFromAscii(CStrVector(string2));
   CHECK(obj->HasLocalProperty(*s2));
 }
 
@@ -617,15 +617,15 @@ TEST(JSObjectMaps) {
   InitializeVM();
 
   v8::HandleScope sc;
-  Handle<String> name = Factory::LookupAsciiSymbol("theFunction");
+  Handle<String> name = FACTORY->LookupAsciiSymbol("theFunction");
   Handle<JSFunction> function =
-      Factory::NewFunction(name, Factory::undefined_value());
+      FACTORY->NewFunction(name, FACTORY->undefined_value());
   Handle<Map> initial_map =
-      Factory::NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+      FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   function->set_initial_map(*initial_map);
 
-  Handle<String> prop_name = Factory::LookupAsciiSymbol("theSlot");
-  Handle<JSObject> obj = Factory::NewJSObject(function);
+  Handle<String> prop_name = FACTORY->LookupAsciiSymbol("theSlot");
+  Handle<JSObject> obj = FACTORY->NewJSObject(function);
 
   // Set a propery
   obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
@@ -640,13 +640,13 @@ TEST(JSArray) {
   InitializeVM();
 
   v8::HandleScope sc;
-  Handle<String> name = Factory::LookupAsciiSymbol("Array");
+  Handle<String> name = FACTORY->LookupAsciiSymbol("Array");
   Handle<JSFunction> function = Handle<JSFunction>(
       JSFunction::cast(Isolate::Current()->context()->global()->
           GetProperty(*name)));
 
   // Allocate the object.
-  Handle<JSObject> object = Factory::NewJSObject(function);
+  Handle<JSObject> object = FACTORY->NewJSObject(function);
   Handle<JSArray> array = Handle<JSArray>::cast(object);
   Object* ok = array->Initialize(0);
   // We just initialized the VM, no heap allocation failure yet.
@@ -666,7 +666,7 @@ TEST(JSArray) {
 
   // Set array length with larger than smi value.
   Handle<Object> length =
-      Factory::NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
+      FACTORY->NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
   ok = array->SetElementsLength(*length);
   CHECK(!ok->IsFailure());
 
@@ -695,9 +695,9 @@ TEST(JSObjectCopy) {
       JSFunction::cast(Isolate::Current()->context()->global()->
           GetProperty(object_symbol));
   Handle<JSFunction> constructor(object_function);
-  Handle<JSObject> obj = Factory::NewJSObject(constructor);
-  Handle<String> first = Factory::LookupAsciiSymbol("first");
-  Handle<String> second = Factory::LookupAsciiSymbol("second");
+  Handle<JSObject> obj = FACTORY->NewJSObject(constructor);
+  Handle<String> first = FACTORY->LookupAsciiSymbol("first");
+  Handle<String> second = FACTORY->LookupAsciiSymbol("second");
 
   obj->SetProperty(*first, Smi::FromInt(1), NONE);
   obj->SetProperty(*second, Smi::FromInt(2), NONE);
@@ -753,17 +753,17 @@ TEST(StringAllocation) {
       non_ascii[3 * i + 2] = chars[2];
     }
     Handle<String> non_ascii_sym =
-        Factory::LookupSymbol(Vector<const char>(non_ascii, 3 * length));
+        FACTORY->LookupSymbol(Vector<const char>(non_ascii, 3 * length));
     CHECK_EQ(length, non_ascii_sym->length());
     Handle<String> ascii_sym =
-        Factory::LookupSymbol(Vector<const char>(ascii, length));
+        FACTORY->LookupSymbol(Vector<const char>(ascii, length));
     CHECK_EQ(length, ascii_sym->length());
     Handle<String> non_ascii_str =
-        Factory::NewStringFromUtf8(Vector<const char>(non_ascii, 3 * length));
+        FACTORY->NewStringFromUtf8(Vector<const char>(non_ascii, 3 * length));
     non_ascii_str->Hash();
     CHECK_EQ(length, non_ascii_str->length());
     Handle<String> ascii_str =
-        Factory::NewStringFromUtf8(Vector<const char>(ascii, length));
+        FACTORY->NewStringFromUtf8(Vector<const char>(ascii, length));
     ascii_str->Hash();
     CHECK_EQ(length, ascii_str->length());
     DeleteArray(non_ascii);
@@ -797,14 +797,14 @@ TEST(Iteration) {
   int next_objs_index = 0;
 
   // Allocate a JS array to OLD_POINTER_SPACE and NEW_SPACE
-  objs[next_objs_index++] = Factory::NewJSArray(10);
-  objs[next_objs_index++] = Factory::NewJSArray(10, TENURED);
+  objs[next_objs_index++] = FACTORY->NewJSArray(10);
+  objs[next_objs_index++] = FACTORY->NewJSArray(10, TENURED);
 
   // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
   objs[next_objs_index++] =
-      Factory::NewStringFromAscii(CStrVector("abcdefghij"));
+      FACTORY->NewStringFromAscii(CStrVector("abcdefghij"));
   objs[next_objs_index++] =
-      Factory::NewStringFromAscii(CStrVector("abcdefghij"), TENURED);
+      FACTORY->NewStringFromAscii(CStrVector("abcdefghij"), TENURED);
 
   // Allocate a large string (for large object space).
   int large_size = HEAP->MaxObjectSizeInPagedSpace() + 1;
@@ -812,7 +812,7 @@ TEST(Iteration) {
   for (int i = 0; i < large_size - 1; ++i) str[i] = 'a';
   str[large_size - 1] = '\0';
   objs[next_objs_index++] =
-      Factory::NewStringFromAscii(CStrVector(str), TENURED);
+      FACTORY->NewStringFromAscii(CStrVector(str), TENURED);
   delete[] str;
 
   // Add a Map object to look for.
@@ -908,7 +908,7 @@ TEST(Regression39128) {
   CHECK(object_ctor->has_initial_map());
   Handle<Map> object_map(object_ctor->initial_map());
   // Create a map with single inobject property.
-  Handle<Map> my_map = Factory::CopyMap(object_map, 1);
+  Handle<Map> my_map = FACTORY->CopyMap(object_map, 1);
   int n_properties = my_map->inobject_properties();
   CHECK_GT(n_properties, 0);
 
@@ -983,7 +983,7 @@ TEST(TestCodeFlushing) {
                        "  var z = x + y;"
                        "};"
                        "foo()";
-  Handle<String> foo_name = Factory::LookupAsciiSymbol("foo");
+  Handle<String> foo_name = FACTORY->LookupAsciiSymbol("foo");
 
   // This compile will add the code to the compilation cache.
   CompileRun(source);

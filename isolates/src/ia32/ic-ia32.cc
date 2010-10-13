@@ -94,7 +94,7 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   __ j(not_zero, miss, not_taken);
 
   __ mov(r0, FieldOperand(receiver, JSObject::kPropertiesOffset));
-  __ CheckMap(r0, Factory::hash_table_map(), miss, true);
+  __ CheckMap(r0, FACTORY->hash_table_map(), miss, true);
 }
 
 
@@ -471,7 +471,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   __ mov(scratch, FieldOperand(receiver, JSObject::kElementsOffset));
   if (not_fast_array != NULL) {
     // Check that the object is in fast mode and writable.
-    __ CheckMap(scratch, Factory::fixed_array_map(), not_fast_array, true);
+    __ CheckMap(scratch, FACTORY->fixed_array_map(), not_fast_array, true);
   } else {
     __ AssertFastElements(scratch);
   }
@@ -481,7 +481,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   // Fast case: Do the load.
   ASSERT((kPointerSize == 4) && (kSmiTagSize == 1) && (kSmiTag == 0));
   __ mov(scratch, FieldOperand(scratch, key, times_2, FixedArray::kHeaderSize));
-  __ cmp(Operand(scratch), Immediate(Factory::the_hole_value()));
+  __ cmp(Operand(scratch), Immediate(FACTORY->the_hole_value()));
   // In case the loaded value is the_hole we have to consult GetProperty
   // to ensure the prototype chain is searched.
   __ j(equal, out_of_range);
@@ -561,7 +561,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
   __ mov(ebx, eax);
   __ SmiUntag(ebx);
-  __ CheckMap(ecx, Factory::pixel_array_map(), &check_number_dictionary, true);
+  __ CheckMap(ecx, FACTORY->pixel_array_map(), &check_number_dictionary, true);
   __ cmp(ebx, FieldOperand(ecx, PixelArray::kLengthOffset));
   __ j(above_equal, &slow);
   __ mov(eax, FieldOperand(ecx, PixelArray::kExternalPointerOffset));
@@ -575,7 +575,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // ebx: untagged index
   // eax: key
   // ecx: elements
-  __ CheckMap(ecx, Factory::hash_table_map(), &slow, true);
+  __ CheckMap(ecx, FACTORY->hash_table_map(), &slow, true);
   Label slow_pop_receiver;
   // Push receiver on the stack to free up a register for the dictionary
   // probing.
@@ -613,7 +613,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // cache. Otherwise probe the dictionary.
   __ mov(ebx, FieldOperand(edx, JSObject::kPropertiesOffset));
   __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
-         Immediate(Factory::hash_table_map()));
+         Immediate(FACTORY->hash_table_map()));
   __ j(equal, &probe_dictionary);
 
   // Load the map of the receiver, compute the keyed lookup cache hash
@@ -949,7 +949,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ecx: key (a smi)
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
   // Check that the object is in fast mode and writable.
-  __ CheckMap(edi, Factory::fixed_array_map(), &check_pixel_array, true);
+  __ CheckMap(edi, FACTORY->fixed_array_map(), &check_pixel_array, true);
   __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
   __ j(below, &fast, taken);
 
@@ -963,7 +963,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ecx: key (a smi)
   // edx: receiver
   // edi: elements array
-  __ CheckMap(edi, Factory::pixel_array_map(), &slow, true);
+  __ CheckMap(edi, FACTORY->pixel_array_map(), &slow, true);
   // Check that the value is a smi. If a conversion is needed call into the
   // runtime to convert and clamp.
   __ test(eax, Immediate(kSmiTagMask));
@@ -1011,7 +1011,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // edx: receiver, a JSArray
   // ecx: key, a smi.
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-  __ CheckMap(edi, Factory::fixed_array_map(), &check_pixel_array, true);
+  __ CheckMap(edi, FACTORY->fixed_array_map(), &check_pixel_array, true);
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
@@ -1122,7 +1122,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   // edi: elements array
   // ebx: untagged index
   __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
-         Immediate(Factory::heap_number_map()));
+         Immediate(FACTORY->heap_number_map()));
   __ j(not_equal, &slow);
 
   // The WebGL specification leaves the behavior of storing NaN and
@@ -1265,9 +1265,9 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
 
   // Check for boolean.
   __ bind(&non_string);
-  __ cmp(edx, Factory::true_value());
+  __ cmp(edx, FACTORY->true_value());
   __ j(equal, &boolean, not_taken);
-  __ cmp(edx, Factory::false_value());
+  __ cmp(edx, FACTORY->false_value());
   __ j(not_equal, &miss, taken);
   __ bind(&boolean);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
@@ -1477,7 +1477,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // eax: elements
   // ecx: smi key
   // Check whether the elements is a number dictionary.
-  __ CheckMap(eax, Factory::hash_table_map(), &slow_load, true);
+  __ CheckMap(eax, FACTORY->hash_table_map(), &slow_load, true);
   __ mov(ebx, ecx);
   __ SmiUntag(ebx);
   // ebx: untagged index
@@ -1515,7 +1515,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
       masm, edx, eax, Map::kHasNamedInterceptor, &lookup_monomorphic_cache);
 
   __ mov(ebx, FieldOperand(edx, JSObject::kPropertiesOffset));
-  __ CheckMap(ebx, Factory::hash_table_map(), &lookup_monomorphic_cache, true);
+  __ CheckMap(ebx, FACTORY->hash_table_map(), &lookup_monomorphic_cache, true);
 
   GenerateDictionaryLoad(masm, &slow_load, ebx, ecx, eax, edi, edi);
   __ IncrementCounter(COUNTERS->keyed_call_generic_lookup_dict(), 1);

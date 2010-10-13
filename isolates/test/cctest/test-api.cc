@@ -566,7 +566,7 @@ THREADED_TEST(UsingExternalString) {
     // Trigger GCs so that the newly allocated string moves to old gen.
     HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
     HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
-    i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
+    i::Handle<i::String> isymbol = FACTORY->SymbolFromString(istring);
     CHECK(isymbol->IsSymbol());
   }
   HEAP->CollectAllGarbage(false);
@@ -584,7 +584,7 @@ THREADED_TEST(UsingExternalAsciiString) {
     // Trigger GCs so that the newly allocated string moves to old gen.
     HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
     HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
-    i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
+    i::Handle<i::String> isymbol = FACTORY->SymbolFromString(istring);
     CHECK(isymbol->IsSymbol());
   }
   HEAP->CollectAllGarbage(false);
@@ -9126,9 +9126,9 @@ THREADED_TEST(MorphCompositeStringTest) {
                                   i::StrLength(c_string)));
 
     Local<String> lhs(v8::Utils::ToLocal(
-        i::Factory::NewExternalStringFromAscii(&ascii_resource)));
+        FACTORY->NewExternalStringFromAscii(&ascii_resource)));
     Local<String> rhs(v8::Utils::ToLocal(
-        i::Factory::NewExternalStringFromAscii(&ascii_resource)));
+        FACTORY->NewExternalStringFromAscii(&ascii_resource)));
 
     env->Global()->Set(v8_str("lhs"), lhs);
     env->Global()->Set(v8_str("rhs"), rhs);
@@ -9213,11 +9213,11 @@ class RegExpStringModificationTest {
 
     // Create the input string for the regexp - the one we are going to change
     // properties of.
-    input_ = i::Factory::NewExternalStringFromAscii(&ascii_resource_);
+    input_ = FACTORY->NewExternalStringFromAscii(&ascii_resource_);
 
     // Inject the input as a global variable.
     i::Handle<i::String> input_name =
-        i::Factory::NewStringFromAscii(i::Vector<const char>("input", 5));
+        FACTORY->NewStringFromAscii(i::Vector<const char>("input", 5));
     i::Isolate::Current()->global_context()->global()->
         SetProperty(*input_name, *input_, NONE);
 
@@ -9675,7 +9675,7 @@ THREADED_TEST(PixelArray) {
   LocalContext context;
   const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
-  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(kElementCount,
+  i::Handle<i::PixelArray> pixels = FACTORY->NewPixelArray(kElementCount,
                                                               pixel_data);
   HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
@@ -9912,7 +9912,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
       static_cast<ElementType*>(malloc(kElementCount * element_size));
   i::Handle<ExternalArrayClass> array =
       i::Handle<ExternalArrayClass>::cast(
-          i::Factory::NewExternalArray(kElementCount, array_type, array_data));
+          FACTORY->NewExternalArray(kElementCount, array_type, array_data));
   HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
     array->set(i, static_cast<ElementType>(i));
@@ -10150,7 +10150,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
         static_cast<ElementType*>(malloc(kLargeElementCount * element_size));
     i::Handle<ExternalArrayClass> large_array =
         i::Handle<ExternalArrayClass>::cast(
-            i::Factory::NewExternalArray(kLargeElementCount,
+            FACTORY->NewExternalArray(kLargeElementCount,
                                          array_type,
                                          array_data));
     v8::Handle<v8::Object> large_obj = v8::Object::New();

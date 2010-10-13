@@ -96,7 +96,7 @@ TEST(CodeEvents) {
   // Enqueue code creation events.
   i::HandleScope scope;
   const char* aaa_str = "aaa";
-  i::Handle<i::String> aaa_name = i::Factory::NewStringFromAscii(
+  i::Handle<i::String> aaa_name = FACTORY->NewStringFromAscii(
       i::Vector<const char>(aaa_str, i::StrLength(aaa_str)));
   processor.CodeCreateEvent(i::Logger::FUNCTION_TAG,
                             *aaa_name,

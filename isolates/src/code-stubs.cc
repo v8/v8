@@ -102,7 +102,7 @@ Handle<Code> CodeStub::GetCode() {
         static_cast<Code::Kind>(GetCodeKind()),
         InLoop(),
         GetICState());
-    Handle<Code> new_object = Factory::NewCode(desc, flags, masm.CodeObject());
+    Handle<Code> new_object = FACTORY->NewCode(desc, flags, masm.CodeObject());
     RecordCodeGeneration(*new_object, &masm);
 
     if (has_custom_cache()) {
@@ -110,7 +110,7 @@ Handle<Code> CodeStub::GetCode() {
     } else {
       // Update the dictionary and the root in Heap.
       Handle<NumberDictionary> dict =
-          Factory::DictionaryAtNumberPut(
+          FACTORY->DictionaryAtNumberPut(
               Handle<NumberDictionary>(HEAP->code_stubs()),
               GetKey(),
               new_object);

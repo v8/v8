@@ -94,11 +94,12 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
                                         Handle<String> pattern,
                                         Handle<String> error_text,
                                         const char* message) {
-  Handle<JSArray> array = Factory::NewJSArray(2);
+  Isolate* isolate = re->GetIsolate();
+  Handle<JSArray> array = isolate->factory()->NewJSArray(2);
   SetElement(array, 0, pattern);
   SetElement(array, 1, error_text);
-  Handle<Object> regexp_err = Factory::NewSyntaxError(message, array);
-  re->GetIsolate()->Throw(*regexp_err);
+  Handle<Object> regexp_err = isolate->factory()->NewSyntaxError(message, array);
+  isolate->Throw(*regexp_err);
 }
 
 
@@ -141,7 +142,8 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
       parse_result.capture_count == 0) {
     RegExpAtom* atom = parse_result.tree->AsAtom();
     Vector<const uc16> atom_pattern = atom->data();
-    Handle<String> atom_string = Factory::NewStringFromTwoByte(atom_pattern);
+    Handle<String> atom_string =
+        re->GetIsolate()->factory()->NewStringFromTwoByte(atom_pattern);
     AtomCompile(re, pattern, flags, atom_string);
   } else {
     IrregexpInitialize(re, pattern, flags, parse_result.capture_count);
@@ -183,11 +185,11 @@ void RegExpImpl::AtomCompile(Handle<JSRegExp> re,
                              Handle<String> pattern,
                              JSRegExp::Flags flags,
                              Handle<String> match_pattern) {
-  Factory::SetRegExpAtomData(re,
-                             JSRegExp::ATOM,
-                             pattern,
-                             flags,
-                             match_pattern);
+  re->GetIsolate()->factory()->SetRegExpAtomData(re,
+                                                 JSRegExp::ATOM,
+                                                 pattern,
+                                                 flags,
+                                                 match_pattern);
 }
 
 
@@ -208,14 +210,15 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                     Handle<String> subject,
                                     int index,
                                     Handle<JSArray> last_match_info) {
-  RuntimeState* runtime_state = re->GetIsolate()->runtime_state();
+  Isolate* isolate = re->GetIsolate();
+  RuntimeState* runtime_state = isolate->runtime_state();
 
   Handle<String> needle(String::cast(re->DataAt(JSRegExp::kAtomPatternIndex)));
 
   uint32_t start_index = index;
 
   int value = Runtime::StringMatch(runtime_state, subject, needle, start_index);
-  if (value == -1) return Factory::null_value();
+  if (value == -1) return isolate->factory()->null_value();
   ASSERT(last_match_info->HasFastElements());
 
   {
@@ -285,14 +288,16 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
                             is_ascii);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
-    Handle<JSArray> array = Factory::NewJSArray(2);
+    Isolate* isolate = re->GetIsolate();
+    Handle<JSArray> array = isolate->factory()->NewJSArray(2);
     SetElement(array, 0, pattern);
     SetElement(array,
                1,
-               Factory::NewStringFromUtf8(CStrVector(result.error_message)));
+               isolate->factory()->
+                   NewStringFromUtf8(CStrVector(result.error_message)));
     Handle<Object> regexp_err =
-        Factory::NewSyntaxError("malformed_regexp", array);
-    re->GetIsolate()->Throw(*regexp_err);
+        isolate->factory()->NewSyntaxError("malformed_regexp", array);
+    isolate->Throw(*regexp_err);
     re->SetDataAt(JSRegExp::code_index(is_ascii), *regexp_err);
     return false;
   }
@@ -344,11 +349,11 @@ void RegExpImpl::IrregexpInitialize(Handle<JSRegExp> re,
                                     JSRegExp::Flags flags,
                                     int capture_count) {
   // Initialize compiled code entries to null.
-  Factory::SetRegExpIrregexpData(re,
-                                 JSRegExp::IRREGEXP,
-                                 pattern,
-                                 flags,
-                                 capture_count);
+  re->GetIsolate()->factory()->SetRegExpIrregexpData(re,
+                                                     JSRegExp::IRREGEXP,
+                                                     pattern,
+                                                     flags,
+                                                     capture_count);
 }
 
 
@@ -505,7 +510,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
     return Handle<Object>::null();
   }
   ASSERT(res == RE_FAILURE);
-  return Factory::null_value();
+  return FACTORY->null_value();
 }
 
 

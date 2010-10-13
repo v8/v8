@@ -913,7 +913,7 @@ static Object* ThrowReferenceError(String* name) {
   HandleScope scope;
   Handle<String> name_handle(name);
   Handle<Object> error =
-      Factory::NewReferenceError("not_defined",
+      FACTORY->NewReferenceError("not_defined",
                                   HandleVector(&name_handle, 1));
   return Isolate::Current()->Throw(*error);
 }

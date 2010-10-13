@@ -61,7 +61,7 @@ void FuncNameInferrer::PushVariableName(Handle<String> name) {
 
 Handle<String> FuncNameInferrer::MakeNameFromStack() {
   if (names_stack_.is_empty()) {
-    return Factory::empty_string();
+    return FACTORY->empty_string();
   } else {
     return MakeNameFromStackHelper(1, names_stack_.at(0));
   }
@@ -73,8 +73,8 @@ Handle<String> FuncNameInferrer::MakeNameFromStackHelper(int pos,
   if (pos >= names_stack_.length()) {
     return prev;
   } else {
-    Handle<String> curr = Factory::NewConsString(dot_, names_stack_.at(pos));
-    return MakeNameFromStackHelper(pos + 1, Factory::NewConsString(prev, curr));
+    Handle<String> curr = FACTORY->NewConsString(dot_, names_stack_.at(pos));
+    return MakeNameFromStackHelper(pos + 1, FACTORY->NewConsString(prev, curr));
   }
 }
 

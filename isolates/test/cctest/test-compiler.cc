@@ -98,21 +98,21 @@ static void InitializeVM() {
 
 
 static Object* GetGlobalProperty(const char* name) {
-  Handle<String> symbol = Factory::LookupAsciiSymbol(name);
+  Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
   return Isolate::Current()->context()->global()->GetProperty(*symbol);
 }
 
 
 static void SetGlobalProperty(const char* name, Object* value) {
   Handle<Object> object(value);
-  Handle<String> symbol = Factory::LookupAsciiSymbol(name);
+  Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
   Handle<JSObject> global(Isolate::Current()->context()->global());
   SetProperty(global, symbol, object, NONE);
 }
 
 
 static Handle<JSFunction> Compile(const char* source) {
-  Handle<String> source_code(Factory::NewStringFromUtf8(CStrVector(source)));
+  Handle<String> source_code(FACTORY->NewStringFromUtf8(CStrVector(source)));
   Handle<SharedFunctionInfo> shared_function =
       Compiler::Compile(source_code,
                         Handle<String>(),
@@ -122,7 +122,7 @@ static Handle<JSFunction> Compile(const char* source) {
                         NULL,
                         Handle<String>::null(),
                         NOT_NATIVES_CODE);
-  return Factory::NewFunctionFromSharedFunctionInfo(shared_function,
+  return FACTORY->NewFunctionFromSharedFunctionInfo(shared_function,
       Isolate::Current()->global_context());
 }
 
@@ -299,11 +299,11 @@ TEST(C2JSFrames) {
   Handle<Object> fun1 =
       Handle<Object>(
           Isolate::Current()->context()->global()->GetProperty(
-              *Factory::LookupAsciiSymbol("foo")));
+              *FACTORY->LookupAsciiSymbol("foo")));
   CHECK(fun1->IsJSFunction());
 
   Object** argv[1] = {
-    Handle<Object>::cast(Factory::LookupAsciiSymbol("hello")).location()
+    Handle<Object>::cast(FACTORY->LookupAsciiSymbol("hello")).location()
   };
   Execution::Call(Handle<JSFunction>::cast(fun1), global, 1, argv,
                   &has_pending_exception);
@@ -317,7 +317,7 @@ TEST(Regression236) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Handle<Script> script = Factory::NewScript(Factory::empty_string());
+  Handle<Script> script = FACTORY->NewScript(FACTORY->empty_string());
   script->set_source(HEAP->undefined_value());
   CHECK_EQ(-1, GetScriptLineNumber(script, 0));
   CHECK_EQ(-1, GetScriptLineNumber(script, 100));

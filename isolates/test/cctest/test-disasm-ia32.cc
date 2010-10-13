@@ -68,7 +68,7 @@ TEST(DisasmIa320) {
   __ sub(Operand(eax), Immediate(12345678));
   __ xor_(eax, 12345678);
   __ and_(eax, 12345678);
-  Handle<FixedArray> foo = Factory::NewFixedArray(10, TENURED);
+  Handle<FixedArray> foo = FACTORY->NewFixedArray(10, TENURED);
   __ cmp(eax, foo);
 
   // ---- This one caused crash
@@ -99,7 +99,7 @@ TEST(DisasmIa320) {
   __ cmp(edx, 3);
   __ cmp(edx, Operand(esp, 4));
   __ cmp(Operand(ebp, ecx, times_4, 0), Immediate(1000));
-  Handle<FixedArray> foo2 = Factory::NewFixedArray(10, TENURED);
+  Handle<FixedArray> foo2 = FACTORY->NewFixedArray(10, TENURED);
   __ cmp(ebx, foo2);
   __ cmpb(ebx, Operand(ebp, ecx, times_2, 0));
   __ cmpb(Operand(ebp, ecx, times_2, 0), ebx);

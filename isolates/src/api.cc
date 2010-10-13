@@ -296,25 +296,25 @@ void ImplementationUtilities::ZapHandleRange(i::Object** begin,
 
 v8::Handle<v8::Primitive> ImplementationUtilities::Undefined() {
   if (!EnsureInitialized("v8::Undefined()")) return v8::Handle<v8::Primitive>();
-  return v8::Handle<Primitive>(ToApi<Primitive>(i::Factory::undefined_value()));
+  return v8::Handle<Primitive>(ToApi<Primitive>(FACTORY->undefined_value()));
 }
 
 
 v8::Handle<v8::Primitive> ImplementationUtilities::Null() {
   if (!EnsureInitialized("v8::Null()")) return v8::Handle<v8::Primitive>();
-  return v8::Handle<Primitive>(ToApi<Primitive>(i::Factory::null_value()));
+  return v8::Handle<Primitive>(ToApi<Primitive>(FACTORY->null_value()));
 }
 
 
 v8::Handle<v8::Boolean> ImplementationUtilities::True() {
   if (!EnsureInitialized("v8::True()")) return v8::Handle<v8::Boolean>();
-  return v8::Handle<v8::Boolean>(ToApi<Boolean>(i::Factory::true_value()));
+  return v8::Handle<v8::Boolean>(ToApi<Boolean>(FACTORY->true_value()));
 }
 
 
 v8::Handle<v8::Boolean> ImplementationUtilities::False() {
   if (!EnsureInitialized("v8::False()")) return v8::Handle<v8::Boolean>();
-  return v8::Handle<v8::Boolean>(ToApi<Boolean>(i::Factory::false_value()));
+  return v8::Handle<v8::Boolean>(ToApi<Boolean>(FACTORY->false_value()));
 }
 
 
@@ -592,8 +592,8 @@ i::Object** v8::HandleScope::RawClose(i::Object** value) {
 NeanderObject::NeanderObject(int size) {
   EnsureInitialized("v8::Nowhere");
   ENTER_V8;
-  value_ = i::Factory::NewNeanderObject();
-  i::Handle<i::FixedArray> elements = i::Factory::NewFixedArray(size);
+  value_ = FACTORY->NewNeanderObject();
+  i::Handle<i::FixedArray> elements = FACTORY->NewFixedArray(size);
   value_->set_elements(*elements);
 }
 
@@ -629,7 +629,7 @@ void NeanderArray::add(i::Handle<i::Object> value) {
   int length = this->length();
   int size = obj_.size();
   if (length == size - 1) {
-    i::Handle<i::FixedArray> new_elms = i::Factory::NewFixedArray(2 * size);
+    i::Handle<i::FixedArray> new_elms = FACTORY->NewFixedArray(2 * size);
     for (int i = 0; i < length; i++)
       new_elms->set(i + 1, get(i));
     obj_.value()->set_elements(*new_elms);
@@ -706,7 +706,7 @@ Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
   ENTER_V8;
   i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
+      FACTORY->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
   i::Handle<i::FunctionTemplateInfo> obj =
       i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
   InitializeFunctionTemplate(obj);
@@ -732,12 +732,12 @@ Local<Signature> Signature::New(Handle<FunctionTemplate> receiver,
   LOG_API("Signature::New");
   ENTER_V8;
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::SIGNATURE_INFO_TYPE);
+      FACTORY->NewStruct(i::SIGNATURE_INFO_TYPE);
   i::Handle<i::SignatureInfo> obj =
       i::Handle<i::SignatureInfo>::cast(struct_obj);
   if (!receiver.IsEmpty()) obj->set_receiver(*Utils::OpenHandle(*receiver));
   if (argc > 0) {
-    i::Handle<i::FixedArray> args = i::Factory::NewFixedArray(argc);
+    i::Handle<i::FixedArray> args = FACTORY->NewFixedArray(argc);
     for (int i = 0; i < argc; i++) {
       if (!argv[i].IsEmpty())
         args->set(i, *Utils::OpenHandle(*argv[i]));
@@ -758,11 +758,11 @@ Local<TypeSwitch> TypeSwitch::New(int argc, Handle<FunctionTemplate> types[]) {
   EnsureInitialized("v8::TypeSwitch::New()");
   LOG_API("TypeSwitch::New");
   ENTER_V8;
-  i::Handle<i::FixedArray> vector = i::Factory::NewFixedArray(argc);
+  i::Handle<i::FixedArray> vector = FACTORY->NewFixedArray(argc);
   for (int i = 0; i < argc; i++)
     vector->set(i, *Utils::OpenHandle(*types[i]));
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::TYPE_SWITCH_INFO_TYPE);
+      FACTORY->NewStruct(i::TYPE_SWITCH_INFO_TYPE);
   i::Handle<i::TypeSwitchInfo> obj =
       i::Handle<i::TypeSwitchInfo>::cast(struct_obj);
   obj->set_types(*vector);
@@ -795,7 +795,7 @@ void FunctionTemplate::SetCallHandler(InvocationCallback callback,
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::CALL_HANDLER_INFO_TYPE);
+      FACTORY->NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
@@ -812,7 +812,7 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
       v8::Handle<Value> data,
       v8::AccessControl settings,
       v8::PropertyAttribute attributes) {
-  i::Handle<i::AccessorInfo> obj = i::Factory::NewAccessorInfo();
+  i::Handle<i::AccessorInfo> obj = FACTORY->NewAccessorInfo();
   ASSERT(getter != NULL);
   SET_FIELD_WRAPPED(obj, set_getter, getter);
   SET_FIELD_WRAPPED(obj, set_setter, setter);
@@ -896,7 +896,7 @@ void FunctionTemplate::SetNamedInstancePropertyHandler(
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
+      FACTORY->NewStruct(i::INTERCEPTOR_INFO_TYPE);
   i::Handle<i::InterceptorInfo> obj =
       i::Handle<i::InterceptorInfo>::cast(struct_obj);
 
@@ -926,7 +926,7 @@ void FunctionTemplate::SetIndexedInstancePropertyHandler(
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
+      FACTORY->NewStruct(i::INTERCEPTOR_INFO_TYPE);
   i::Handle<i::InterceptorInfo> obj =
       i::Handle<i::InterceptorInfo>::cast(struct_obj);
 
@@ -951,7 +951,7 @@ void FunctionTemplate::SetInstanceCallAsFunctionHandler(
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::CALL_HANDLER_INFO_TYPE);
+      FACTORY->NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
@@ -976,7 +976,7 @@ Local<ObjectTemplate> ObjectTemplate::New(
   LOG_API("ObjectTemplate::New");
   ENTER_V8;
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::OBJECT_TEMPLATE_INFO_TYPE);
+      FACTORY->NewStruct(i::OBJECT_TEMPLATE_INFO_TYPE);
   i::Handle<i::ObjectTemplateInfo> obj =
       i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
   InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
@@ -1066,7 +1066,7 @@ void ObjectTemplate::SetAccessCheckCallbacks(
   EnsureConstructor(this);
 
   i::Handle<i::Struct> struct_info =
-      i::Factory::NewStruct(i::ACCESS_CHECK_INFO_TYPE);
+      FACTORY->NewStruct(i::ACCESS_CHECK_INFO_TYPE);
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
@@ -1252,7 +1252,7 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   i::Handle<i::SharedFunctionInfo> function =
       i::Handle<i::SharedFunctionInfo>(i::SharedFunctionInfo::cast(*obj));
   i::Handle<i::JSFunction> result =
-      i::Factory::NewFunctionFromSharedFunctionInfo(
+      FACTORY->NewFunctionFromSharedFunctionInfo(
           function,
           i::Isolate::Current()->global_context());
   return Local<Script>(ToApi<Script>(result));
@@ -1279,7 +1279,7 @@ Local<Value> Script::Run() {
     if (obj->IsSharedFunctionInfo()) {
       i::Handle<i::SharedFunctionInfo>
           function_info(i::SharedFunctionInfo::cast(*obj));
-      fun = i::Factory::NewFunctionFromSharedFunctionInfo(
+      fun = FACTORY->NewFunctionFromSharedFunctionInfo(
           function_info, i::Isolate::Current()->global_context());
     } else {
       fun = i::Handle<i::JSFunction>(i::JSFunction::cast(*obj));
@@ -1401,7 +1401,7 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     if (!raw_obj->IsJSObject()) return v8::Local<Value>();
     v8::HandleScope scope;
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj));
-    i::Handle<i::String> name = i::Factory::LookupAsciiSymbol("stack");
+    i::Handle<i::String> name = FACTORY->LookupAsciiSymbol("stack");
     if (!obj->HasProperty(*name))
       return v8::Local<Value>();
     return scope.Close(v8::Utils::ToLocal(i::GetProperty(obj, name)));
@@ -1504,7 +1504,7 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                int argc,
                                                i::Object** argv[],
                                                bool* has_pending_exception) {
-  i::Handle<i::String> fmt_str = i::Factory::LookupAsciiSymbol(name);
+  i::Handle<i::String> fmt_str = FACTORY->LookupAsciiSymbol(name);
   i::Object* object_fun =
       i::Isolate::Current()->js_builtins_object()->GetProperty(*fmt_str);
   i::Handle<i::JSFunction> fun =
@@ -2114,7 +2114,7 @@ Local<Uint32> Value::ToArrayIndex() const {
     if (index <= static_cast<uint32_t>(i::Smi::kMaxValue)) {
       value = i::Handle<i::Object>(i::Smi::FromInt(index));
     } else {
-      value = i::Factory::NewNumber(index);
+      value = FACTORY->NewNumber(index);
     }
     return Utils::Uint32ToLocal(value);
   }
@@ -2360,8 +2360,8 @@ Local<Array> v8::Object::GetPropertyNames() {
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
   // we clone the result.
-  i::Handle<i::FixedArray> elms = i::Factory::CopyFixedArray(value);
-  i::Handle<i::JSArray> result = i::Factory::NewJSArrayWithElements(elms);
+  i::Handle<i::FixedArray> elms = FACTORY->CopyFixedArray(value);
+  i::Handle<i::JSArray> result = FACTORY->NewJSArrayWithElements(elms);
   return scope.Close(Utils::ToLocal(result));
 }
 
@@ -2553,7 +2553,7 @@ void v8::Object::TurnOnAccessCheck() {
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
 
   i::Handle<i::Map> new_map =
-    i::Factory::CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
+    FACTORY->CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
   new_map->set_is_access_check_needed(true);
   obj->set_map(*new_map);
 }
@@ -2582,7 +2582,7 @@ int v8::Object::GetIdentityHash() {
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
-  i::Handle<i::Object> hash_symbol = i::Factory::identity_hash_symbol();
+  i::Handle<i::Object> hash_symbol = FACTORY->identity_hash_symbol();
   i::Handle<i::Object> hash = i::GetProperty(hidden_props, hash_symbol);
   int hash_value;
   if (hash->IsSmi()) {
@@ -2676,9 +2676,9 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
                 "JSArray is not supported")) {
     return;
   }
-  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(length, data);
+  i::Handle<i::PixelArray> pixels = FACTORY->NewPixelArray(length, data);
   self->set_map(
-      *i::Factory::GetSlowElementsMap(i::Handle<i::Map>(self->map())));
+      *FACTORY->GetSlowElementsMap(i::Handle<i::Map>(self->map())));
   self->set_elements(*pixels);
 }
 
@@ -2731,9 +2731,9 @@ void v8::Object::SetIndexedPropertiesToExternalArrayData(
     return;
   }
   i::Handle<i::ExternalArray> array =
-      i::Factory::NewExternalArray(length, array_type, data);
+      FACTORY->NewExternalArray(length, array_type, data);
   self->set_map(
-      *i::Factory::GetSlowElementsMap(i::Handle<i::Map>(self->map())));
+      *FACTORY->GetSlowElementsMap(i::Handle<i::Map>(self->map())));
   self->set_elements(*array);
 }
 
@@ -3142,7 +3142,7 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
   }
   HandleScope scope;
   i::Handle<i::Proxy> proxy =
-      i::Factory::NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
+      FACTORY->NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
   if (!proxy.is_null())
       Utils::OpenHandle(this)->SetInternalField(index, *proxy);
 }
@@ -3420,7 +3420,7 @@ bool FunctionTemplate::HasInstance(v8::Handle<v8::Value> value) {
 
 
 static Local<External> ExternalNewImpl(void* data) {
-  return Utils::ToLocal(i::Factory::NewProxy(static_cast<i::Address>(data)));
+  return Utils::ToLocal(FACTORY->NewProxy(static_cast<i::Address>(data)));
 }
 
 static void* ExternalValueImpl(i::Handle<i::Object> obj) {
@@ -3490,7 +3490,7 @@ void* External::Value() const {
 Local<String> v8::String::Empty() {
   EnsureInitialized("v8::String::Empty()");
   LOG_API("String::Empty()");
-  return Utils::ToLocal(i::Factory::empty_symbol());
+  return Utils::ToLocal(FACTORY->empty_symbol());
 }
 
 
@@ -3501,7 +3501,7 @@ Local<String> v8::String::New(const char* data, int length) {
   ENTER_V8;
   if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
-      i::Factory::NewStringFromUtf8(i::Vector<const char>(data, length));
+      FACTORY->NewStringFromUtf8(i::Vector<const char>(data, length));
   return Utils::ToLocal(result);
 }
 
@@ -3512,7 +3512,7 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
   ENTER_V8;
   i::Handle<i::String> left_string = Utils::OpenHandle(*left);
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
-  i::Handle<i::String> result = i::Factory::NewConsString(left_string,
+  i::Handle<i::String> result = FACTORY->NewConsString(left_string,
                                                           right_string);
   return Utils::ToLocal(result);
 }
@@ -3524,7 +3524,7 @@ Local<String> v8::String::NewUndetectable(const char* data, int length) {
   ENTER_V8;
   if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
-      i::Factory::NewStringFromUtf8(i::Vector<const char>(data, length));
+      FACTORY->NewStringFromUtf8(i::Vector<const char>(data, length));
   result->MarkAsUndetectable();
   return Utils::ToLocal(result);
 }
@@ -3544,7 +3544,7 @@ Local<String> v8::String::New(const uint16_t* data, int length) {
   ENTER_V8;
   if (length == -1) length = TwoByteStringLength(data);
   i::Handle<i::String> result =
-      i::Factory::NewStringFromTwoByte(i::Vector<const uint16_t>(data, length));
+      FACTORY->NewStringFromTwoByte(i::Vector<const uint16_t>(data, length));
   return Utils::ToLocal(result);
 }
 
@@ -3555,7 +3555,7 @@ Local<String> v8::String::NewUndetectable(const uint16_t* data, int length) {
   ENTER_V8;
   if (length == -1) length = TwoByteStringLength(data);
   i::Handle<i::String> result =
-      i::Factory::NewStringFromTwoByte(i::Vector<const uint16_t>(data, length));
+      FACTORY->NewStringFromTwoByte(i::Vector<const uint16_t>(data, length));
   result->MarkAsUndetectable();
   return Utils::ToLocal(result);
 }
@@ -3564,7 +3564,7 @@ Local<String> v8::String::NewUndetectable(const uint16_t* data, int length) {
 i::Handle<i::String> NewExternalStringHandle(
       v8::String::ExternalStringResource* resource) {
   i::Handle<i::String> result =
-      i::Factory::NewExternalStringFromTwoByte(resource);
+      FACTORY->NewExternalStringFromTwoByte(resource);
   return result;
 }
 
@@ -3572,7 +3572,7 @@ i::Handle<i::String> NewExternalStringHandle(
 i::Handle<i::String> NewExternalAsciiStringHandle(
       v8::String::ExternalAsciiStringResource* resource) {
   i::Handle<i::String> result =
-      i::Factory::NewExternalStringFromAscii(resource);
+      FACTORY->NewExternalStringFromAscii(resource);
   return result;
 }
 
@@ -3651,7 +3651,7 @@ Local<v8::Object> v8::Object::New() {
   LOG_API("Object::New");
   ENTER_V8;
   i::Handle<i::JSObject> obj =
-      i::Factory::NewJSObject(i::Isolate::Current()->object_function());
+      FACTORY->NewJSObject(i::Isolate::Current()->object_function());
   return Utils::ToLocal(obj);
 }
 
@@ -3685,7 +3685,7 @@ Local<v8::Array> v8::Array::New(int length) {
   EnsureInitialized("v8::Array::New()");
   LOG_API("Array::New");
   ENTER_V8;
-  i::Handle<i::JSArray> obj = i::Factory::NewJSArray(length);
+  i::Handle<i::JSArray> obj = FACTORY->NewJSArray(length);
   return Utils::ToLocal(obj);
 }
 
@@ -3729,7 +3729,7 @@ Local<String> v8::String::NewSymbol(const char* data, int length) {
   ENTER_V8;
   if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
-      i::Factory::LookupSymbol(i::Vector<const char>(data, length));
+      FACTORY->LookupSymbol(i::Vector<const char>(data, length));
   return Utils::ToLocal(result);
 }
 
@@ -3741,7 +3741,7 @@ Local<Number> v8::Number::New(double value) {
     value = i::OS::nan_value();
   }
   ENTER_V8;
-  i::Handle<i::Object> result = i::Factory::NewNumber(value);
+  i::Handle<i::Object> result = FACTORY->NewNumber(value);
   return Utils::NumberToLocal(result);
 }
 
@@ -3752,7 +3752,7 @@ Local<Integer> v8::Integer::New(int32_t value) {
     return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value)));
   }
   ENTER_V8;
-  i::Handle<i::Object> result = i::Factory::NewNumber(value);
+  i::Handle<i::Object> result = FACTORY->NewNumber(value);
   return Utils::IntegerToLocal(result);
 }
 
@@ -3763,7 +3763,7 @@ Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
     return Integer::New(static_cast<int32_t>(value));
   }
   ENTER_V8;
-  i::Handle<i::Object> result = i::Factory::NewNumber(value);
+  i::Handle<i::Object> result = FACTORY->NewNumber(value);
   return Utils::IntegerToLocal(result);
 }
 
@@ -3779,9 +3779,9 @@ bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
   ON_BAILOUT("v8::V8::AddMessageListener()", return false);
   ENTER_V8;
   HandleScope scope;
-  NeanderArray listeners(i::Factory::message_listeners());
+  NeanderArray listeners(FACTORY->message_listeners());
   NeanderObject obj(2);
-  obj.set(0, *i::Factory::NewProxy(FUNCTION_ADDR(that)));
+  obj.set(0, *FACTORY->NewProxy(FUNCTION_ADDR(that)));
   obj.set(1, data.IsEmpty() ?
              HEAP->undefined_value() :
              *Utils::OpenHandle(*data));
@@ -3795,7 +3795,7 @@ void V8::RemoveMessageListeners(MessageCallback that) {
   ON_BAILOUT("v8::V8::RemoveMessageListeners()", return);
   ENTER_V8;
   HandleScope scope;
-  NeanderArray listeners(i::Factory::message_listeners());
+  NeanderArray listeners(FACTORY->message_listeners());
   for (int i = 0; i < listeners.length(); i++) {
     if (listeners.get(i)->IsUndefined()) continue;  // skip deleted ones
 
@@ -4145,7 +4145,7 @@ Local<Value> Exception::RangeError(v8::Handle<v8::String> raw_message) {
   {
     HandleScope scope;
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = i::Factory::NewRangeError(message);
+    i::Handle<i::Object> result = FACTORY->NewRangeError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4160,7 +4160,7 @@ Local<Value> Exception::ReferenceError(v8::Handle<v8::String> raw_message) {
   {
     HandleScope scope;
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = i::Factory::NewReferenceError(message);
+    i::Handle<i::Object> result = FACTORY->NewReferenceError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4175,7 +4175,7 @@ Local<Value> Exception::SyntaxError(v8::Handle<v8::String> raw_message) {
   {
     HandleScope scope;
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = i::Factory::NewSyntaxError(message);
+    i::Handle<i::Object> result = FACTORY->NewSyntaxError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4190,7 +4190,7 @@ Local<Value> Exception::TypeError(v8::Handle<v8::String> raw_message) {
   {
     HandleScope scope;
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = i::Factory::NewTypeError(message);
+    i::Handle<i::Object> result = FACTORY->NewTypeError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4205,7 +4205,7 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
   {
     HandleScope scope;
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = i::Factory::NewError(message);
+    i::Handle<i::Object> result = FACTORY->NewError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4238,9 +4238,9 @@ bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   isolate->set_debug_event_callback(that);
 
   HandleScope scope;
-  i::Handle<i::Object> proxy = i::Factory::undefined_value();
+  i::Handle<i::Object> proxy = isolate->factory()->undefined_value();
   if (that != NULL) {
-    proxy = i::Factory::NewProxy(FUNCTION_ADDR(EventCallbackWrapper));
+    proxy = isolate->factory()->NewProxy(FUNCTION_ADDR(EventCallbackWrapper));
   }
   isolate->debugger()->SetEventListener(proxy, Utils::OpenHandle(*data));
   return true;
@@ -4251,10 +4251,11 @@ bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
   EnsureInitialized("v8::Debug::SetDebugEventListener2()");
   ON_BAILOUT("v8::Debug::SetDebugEventListener2()", return false);
   ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
   HandleScope scope;
-  i::Handle<i::Object> proxy = i::Factory::undefined_value();
+  i::Handle<i::Object> proxy = isolate->factory()->undefined_value();
   if (that != NULL) {
-    proxy = i::Factory::NewProxy(FUNCTION_ADDR(that));
+    proxy = isolate->factory()->NewProxy(FUNCTION_ADDR(that));
   }
   i::Isolate::Current()->debugger()->SetEventListener(proxy,
                                                       Utils::OpenHandle(*data));
@@ -4354,7 +4355,7 @@ Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
   if (data.IsEmpty()) {
     result =
         i::Isolate::Current()->debugger()->Call(Utils::OpenHandle(*fun),
-                                                i::Factory::undefined_value(),
+                                                FACTORY->undefined_value(),
                                                 &has_pending_exception);
   } else {
     result = i::Isolate::Current()->debugger()->Call(Utils::OpenHandle(*fun),
@@ -4374,7 +4375,7 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   i::Debug* isolate_debug = i::Isolate::Current()->debug();
   isolate_debug->Load();
   i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global());
-  i::Handle<i::String> name = i::Factory::LookupAsciiSymbol("MakeMirror");
+  i::Handle<i::String> name = FACTORY->LookupAsciiSymbol("MakeMirror");
   i::Handle<i::Object> fun_obj = i::GetProperty(debug, name);
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);
   v8::Handle<v8::Function> v8_fun = Utils::ToLocal(fun);
@@ -4413,13 +4414,14 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
   IsDeadCheck("v8::CpuProfileNode::GetFunctionName");
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   const i::CodeEntry* entry = node->entry();
+  i::Isolate* isolate = i::Isolate::Current();
   if (!entry->has_name_prefix()) {
     return Handle<String>(ToApi<String>(
-        i::Factory::LookupAsciiSymbol(entry->name())));
+        isolate->factory()->LookupAsciiSymbol(entry->name())));
   } else {
-    return Handle<String>(ToApi<String>(i::Factory::NewConsString(
-        i::Factory::LookupAsciiSymbol(entry->name_prefix()),
-        i::Factory::LookupAsciiSymbol(entry->name()))));
+    return Handle<String>(ToApi<String>(isolate->factory()->NewConsString(
+        isolate->factory()->LookupAsciiSymbol(entry->name_prefix()),
+        isolate->factory()->LookupAsciiSymbol(entry->name()))));
   }
 }
 
@@ -4427,7 +4429,7 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
 Handle<String> CpuProfileNode::GetScriptResourceName() const {
   IsDeadCheck("v8::CpuProfileNode::GetScriptResourceName");
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
-  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(FACTORY->LookupAsciiSymbol(
       node->entry()->resource_name())));
 }
 
@@ -4491,7 +4493,7 @@ unsigned CpuProfile::GetUid() const {
 Handle<String> CpuProfile::GetTitle() const {
   IsDeadCheck("v8::CpuProfile::GetTitle");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(FACTORY->LookupAsciiSymbol(
       profile->title())));
 }
 
@@ -4570,10 +4572,10 @@ Handle<Value> HeapGraphEdge::GetName() const {
     case i::HeapGraphEdge::kContextVariable:
     case i::HeapGraphEdge::kInternal:
     case i::HeapGraphEdge::kProperty:
-      return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+      return Handle<String>(ToApi<String>(FACTORY->LookupAsciiSymbol(
           edge->name())));
     case i::HeapGraphEdge::kElement:
-      return Handle<Number>(ToApi<Number>(i::Factory::NewNumberFromInt(
+      return Handle<Number>(ToApi<Number>(FACTORY->NewNumberFromInt(
           edge->index())));
     default: UNREACHABLE();
   }
@@ -4637,7 +4639,7 @@ HeapGraphNode::Type HeapGraphNode::GetType() const {
 
 Handle<String> HeapGraphNode::GetName() const {
   IsDeadCheck("v8::HeapGraphNode::GetName");
-  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(FACTORY->LookupAsciiSymbol(
       ToInternal(this)->name())));
 }
 
@@ -4751,7 +4753,7 @@ unsigned HeapSnapshot::GetUid() const {
 
 Handle<String> HeapSnapshot::GetTitle() const {
   IsDeadCheck("v8::HeapSnapshot::GetTitle");
-  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(FACTORY->LookupAsciiSymbol(
       ToInternal(this)->title())));
 }
 

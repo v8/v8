@@ -284,7 +284,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 
     // Initialize ThisFunction reference if present.
     if (scope()->is_function_scope() && scope()->function() != NULL) {
-      frame_->Push(Factory::the_hole_value());
+      frame_->Push(FACTORY->the_hole_value());
       StoreToSlot(scope()->function()->slot(), NOT_CONST_INIT);
     }
 
@@ -337,7 +337,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
         ASSERT(!function_return_is_shadowed_);
         CodeForReturnPosition(info->function());
         frame_->PrepareForReturn();
-        Result undefined(Factory::undefined_value());
+        Result undefined(FACTORY->undefined_value());
         if (function_return_.is_bound()) {
           function_return_.Jump(&undefined);
         } else {
@@ -635,12 +635,12 @@ void CodeGenerator::Load(Expression* expr) {
     if (dest.false_was_fall_through()) {
       // The false target was just bound.
       JumpTarget loaded;
-      frame_->Push(Factory::false_value());
+      frame_->Push(FACTORY->false_value());
       // There may be dangling jumps to the true target.
       if (true_target.is_linked()) {
         loaded.Jump();
         true_target.Bind();
-        frame_->Push(Factory::true_value());
+        frame_->Push(FACTORY->true_value());
         loaded.Bind();
       }
 
@@ -648,11 +648,11 @@ void CodeGenerator::Load(Expression* expr) {
       // There is true, and possibly false, control flow (with true as
       // the fall through).
       JumpTarget loaded;
-      frame_->Push(Factory::true_value());
+      frame_->Push(FACTORY->true_value());
       if (false_target.is_linked()) {
         loaded.Jump();
         false_target.Bind();
-        frame_->Push(Factory::false_value());
+        frame_->Push(FACTORY->false_value());
         loaded.Bind();
       }
 
@@ -667,14 +667,14 @@ void CodeGenerator::Load(Expression* expr) {
         loaded.Jump();  // Don't lose the current TOS.
         if (true_target.is_linked()) {
           true_target.Bind();
-          frame_->Push(Factory::true_value());
+          frame_->Push(FACTORY->true_value());
           if (false_target.is_linked()) {
             loaded.Jump();
           }
         }
         if (false_target.is_linked()) {
           false_target.Bind();
-          frame_->Push(Factory::false_value());
+          frame_->Push(FACTORY->false_value());
         }
         loaded.Bind();
       }
@@ -749,7 +749,7 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     // When using lazy arguments allocation, we store the hole value
     // as a sentinel indicating that the arguments object hasn't been
     // allocated yet.
-    frame_->Push(Factory::the_hole_value());
+    frame_->Push(FACTORY->the_hole_value());
   } else {
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     frame_->PushFunction();
@@ -776,7 +776,7 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
       // been assigned a proper value.
       skip_arguments = !probe.handle()->IsTheHole();
     } else {
-      __ cmp(Operand(probe.reg()), Immediate(Factory::the_hole_value()));
+      __ cmp(Operand(probe.reg()), Immediate(FACTORY->the_hole_value()));
       probe.Unuse();
       done.Branch(not_equal);
     }
@@ -905,15 +905,15 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
   } else {
     // Fast case checks.
     // 'false' => false.
-    __ cmp(value.reg(), Factory::false_value());
+    __ cmp(value.reg(), FACTORY->false_value());
     dest->false_target()->Branch(equal);
 
     // 'true' => true.
-    __ cmp(value.reg(), Factory::true_value());
+    __ cmp(value.reg(), FACTORY->true_value());
     dest->true_target()->Branch(equal);
 
     // 'undefined' => false.
-    __ cmp(value.reg(), Factory::undefined_value());
+    __ cmp(value.reg(), FACTORY->undefined_value());
     dest->false_target()->Branch(equal);
 
     // Smi => false iff zero.
@@ -1021,7 +1021,7 @@ void DeferredInlineBinaryOperation::Generate() {
       __ j(zero, &left_smi);
       if (!left_info_.IsNumber()) {
         __ cmp(FieldOperand(left_, HeapObject::kMapOffset),
-               Factory::heap_number_map());
+               FACTORY->heap_number_map());
         __ j(not_equal, &call_runtime);
       }
       __ movdbl(xmm0, FieldOperand(left_, HeapNumber::kValueOffset));
@@ -1050,7 +1050,7 @@ void DeferredInlineBinaryOperation::Generate() {
       __ j(zero, &right_smi);
       if (!right_info_.IsNumber()) {
         __ cmp(FieldOperand(right_, HeapObject::kMapOffset),
-               Factory::heap_number_map());
+               FACTORY->heap_number_map());
         __ j(not_equal, &call_runtime);
       }
       __ movdbl(xmm1, FieldOperand(right_, HeapNumber::kValueOffset));
@@ -3028,7 +3028,7 @@ void CodeGenerator::ConstantSmiComparison(Condition cc,
         CpuFeatures::Scope use_sse2(SSE2);
         JumpTarget not_number;
         __ cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
-               Immediate(Factory::heap_number_map()));
+               Immediate(FACTORY->heap_number_map()));
         not_number.Branch(not_equal, left_side);
         __ movdbl(xmm1,
                   FieldOperand(left_reg, HeapNumber::kValueOffset));
@@ -3094,7 +3094,7 @@ static void CheckComparisonOperand(MacroAssembler* masm_,
     __ test(operand->reg(), Immediate(kSmiTagMask));
     __ j(zero, &done);
     __ cmp(FieldOperand(operand->reg(), HeapObject::kMapOffset),
-           Immediate(Factory::heap_number_map()));
+           Immediate(FACTORY->heap_number_map()));
     not_numbers->Branch(not_equal, left_side, right_side, not_taken);
     __ bind(&done);
   }
@@ -3161,7 +3161,7 @@ static void LoadComparisonOperandSSE2(MacroAssembler* masm_,
     __ j(zero, &smi);
     if (!operand->type_info().IsNumber()) {
       __ cmp(FieldOperand(operand->reg(), HeapObject::kMapOffset),
-             Immediate(Factory::heap_number_map()));
+             Immediate(FACTORY->heap_number_map()));
       not_numbers->Branch(not_equal, left_side, right_side, taken);
     }
     __ movdbl(xmm_reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
@@ -3268,7 +3268,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // give us a megamorphic load site. Not super, but it works.
   Load(applicand);
   frame()->Dup();
-  Handle<String> name = Factory::LookupAsciiSymbol("apply");
+  Handle<String> name = FACTORY->LookupAsciiSymbol("apply");
   frame()->Push(name);
   Result answer = frame()->CallLoadIC(RelocInfo::CODE_TARGET);
   __ nop();
@@ -3300,7 +3300,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
     if (probe.is_constant()) {
       try_lazy = probe.handle()->IsTheHole();
     } else {
-      __ cmp(Operand(probe.reg()), Immediate(Factory::the_hole_value()));
+      __ cmp(Operand(probe.reg()), Immediate(FACTORY->the_hole_value()));
       probe.Unuse();
       __ j(not_equal, &slow);
     }
@@ -3563,7 +3563,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     // 'undefined') because we may have a (legal) redeclaration and we
     // must not destroy the current value.
     if (node->mode() == Variable::CONST) {
-      frame_->EmitPush(Immediate(Factory::the_hole_value()));
+      frame_->EmitPush(Immediate(FACTORY->the_hole_value()));
     } else if (node->fun() != NULL) {
       Load(node->fun());
     } else {
@@ -3579,7 +3579,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
   // If we have a function or a constant, we need to initialize the variable.
   Expression* val = NULL;
   if (node->mode() == Variable::CONST) {
-    val = new Literal(Factory::the_hole_value());
+    val = new Literal(FACTORY->the_hole_value());
   } else {
     val = node->fun();  // NULL if we don't have a function
   }
@@ -4359,9 +4359,9 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   frame_->EmitPop(eax);
 
   // eax: value to be iterated over
-  __ cmp(eax, Factory::undefined_value());
+  __ cmp(eax, FACTORY->undefined_value());
   exit.Branch(equal);
-  __ cmp(eax, Factory::null_value());
+  __ cmp(eax, FACTORY->null_value());
   exit.Branch(equal);
 
   // Stack layout in body:
@@ -4400,14 +4400,14 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   loop.Bind();
   // Check that there are no elements.
   __ mov(edx, FieldOperand(ecx, JSObject::kElementsOffset));
-  __ cmp(Operand(edx), Immediate(Factory::empty_fixed_array()));
+  __ cmp(Operand(edx), Immediate(FACTORY->empty_fixed_array()));
   call_runtime.Branch(not_equal);
   // Check that instance descriptors are not empty so that we can
   // check for an enum cache.  Leave the map in ebx for the subsequent
   // prototype load.
   __ mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
   __ mov(edx, FieldOperand(ebx, Map::kInstanceDescriptorsOffset));
-  __ cmp(Operand(edx), Immediate(Factory::empty_descriptor_array()));
+  __ cmp(Operand(edx), Immediate(FACTORY->empty_descriptor_array()));
   call_runtime.Branch(equal);
   // Check that there in an enum cache in the non-empty instance
   // descriptors.  This is the case if the next enumeration index
@@ -4419,12 +4419,12 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ cmp(ecx, Operand(eax));
   check_prototype.Branch(equal);
   __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheBridgeCacheOffset));
-  __ cmp(Operand(edx), Immediate(Factory::empty_fixed_array()));
+  __ cmp(Operand(edx), Immediate(FACTORY->empty_fixed_array()));
   call_runtime.Branch(not_equal);
   check_prototype.Bind();
   // Load the prototype from the map and loop if non-null.
   __ mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
-  __ cmp(Operand(ecx), Immediate(Factory::null_value()));
+  __ cmp(Operand(ecx), Immediate(FACTORY->null_value()));
   loop.Branch(not_equal);
   // The enum cache is valid.  Load the map of the object being
   // iterated over and use the cache for the iteration.
@@ -4443,7 +4443,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // Runtime::kGetPropertyNamesFast)
   __ mov(edx, Operand(eax));
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ cmp(ecx, Factory::meta_map());
+  __ cmp(ecx, FACTORY->meta_map());
   fixed_array.Branch(not_equal);
 
   use_cache.Bind();
@@ -4773,7 +4773,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
 
     // Fake a top of stack value (unneeded when FALLING) and set the
     // state in ecx, then jump around the unlink blocks if any.
-    frame_->EmitPush(Immediate(Factory::undefined_value()));
+    frame_->EmitPush(Immediate(FACTORY->undefined_value()));
     __ Set(ecx, Immediate(Smi::FromInt(FALLING)));
     if (nof_unlinks > 0) {
       finally_block.Jump();
@@ -4816,7 +4816,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
         frame_->EmitPush(eax);
       } else {
         // Fake TOS for targets that shadowed breaks and continues.
-        frame_->EmitPush(Immediate(Factory::undefined_value()));
+        frame_->EmitPush(Immediate(FACTORY->undefined_value()));
       }
       __ Set(ecx, Immediate(Smi::FromInt(JUMPING + i)));
       if (--nof_unlinks > 0) {
@@ -5023,9 +5023,9 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     Comment cmnt(masm_, "[ Load const");
     Label exit;
     __ mov(ecx, SlotOperand(slot, ecx));
-    __ cmp(ecx, Factory::the_hole_value());
+    __ cmp(ecx, FACTORY->the_hole_value());
     __ j(not_equal, &exit);
-    __ mov(ecx, Factory::undefined_value());
+    __ mov(ecx, FACTORY->undefined_value());
     __ bind(&exit);
     frame()->EmitPush(ecx);
 
@@ -5075,7 +5075,7 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
   // indicates that we haven't loaded the arguments object yet, we
   // need to do it now.
   JumpTarget exit;
-  __ cmp(Operand(result.reg()), Immediate(Factory::the_hole_value()));
+  __ cmp(Operand(result.reg()), Immediate(FACTORY->the_hole_value()));
   frame()->Push(&result);
   exit.Branch(not_equal);
 
@@ -5129,7 +5129,7 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     __ bind(&next);
     // Terminate at global context.
     __ cmp(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
-           Immediate(Factory::global_context_map()));
+           Immediate(FACTORY->global_context_map()));
     __ j(equal, &fast);
     // Check that extension is NULL.
     __ cmp(ContextOperand(tmp.reg(), Context::EXTENSION_INDEX), Immediate(0));
@@ -5189,9 +5189,9 @@ void CodeGenerator::EmitDynamicLoadFromSlotFastCase(Slot* slot,
       __ mov(result->reg(),
              ContextSlotOperandCheckExtensions(potential_slot, *result, slow));
       if (potential_slot->var()->mode() == Variable::CONST) {
-        __ cmp(result->reg(), Factory::the_hole_value());
+        __ cmp(result->reg(), FACTORY->the_hole_value());
         done->Branch(not_equal, result);
-        __ mov(result->reg(), Factory::undefined_value());
+        __ mov(result->reg(), FACTORY->undefined_value());
       }
       done->Jump(result);
     } else if (rewrite != NULL) {
@@ -5277,7 +5277,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       VirtualFrame::SpilledScope spilled_scope;
       Comment cmnt(masm_, "[ Init const");
       __ mov(ecx, SlotOperand(slot, ecx));
-      __ cmp(ecx, Factory::the_hole_value());
+      __ cmp(ecx, FACTORY->the_hole_value());
       exit.Branch(not_equal);
     }
 
@@ -5499,7 +5499,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   // jump to the deferred code passing the literals array.
   DeferredRegExpLiteral* deferred =
       new DeferredRegExpLiteral(boilerplate.reg(), literals.reg(), node);
-  __ cmp(boilerplate.reg(), Factory::undefined_value());
+  __ cmp(boilerplate.reg(), FACTORY->undefined_value());
   deferred->Branch(equal);
   deferred->BindExit();
 
@@ -6049,7 +6049,7 @@ void CodeGenerator::VisitCall(Call* node) {
     Load(function);
 
     // Allocate a frame slot for the receiver.
-    frame_->Push(Factory::undefined_value());
+    frame_->Push(FACTORY->undefined_value());
 
     // Load the arguments.
     int arg_count = args->length();
@@ -6081,7 +6081,7 @@ void CodeGenerator::VisitCall(Call* node) {
       if (arg_count > 0) {
         frame_->PushElementAt(arg_count);
       } else {
-        frame_->Push(Factory::undefined_value());
+        frame_->Push(FACTORY->undefined_value());
       }
       frame_->PushParameterAt(-1);
 
@@ -6100,7 +6100,7 @@ void CodeGenerator::VisitCall(Call* node) {
     if (arg_count > 0) {
       frame_->PushElementAt(arg_count);
     } else {
-      frame_->Push(Factory::undefined_value());
+      frame_->Push(FACTORY->undefined_value());
     }
     frame_->PushParameterAt(-1);
 
@@ -6380,7 +6380,7 @@ void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
   }
 #endif
   // Finally, we're expected to leave a value on the top of the stack.
-  frame_->Push(Factory::undefined_value());
+  frame_->Push(FACTORY->undefined_value());
 }
 
 
@@ -6423,13 +6423,13 @@ class DeferredStringCharCodeAt : public DeferredCode {
     __ bind(&need_conversion_);
     // Move the undefined value into the result register, which will
     // trigger conversion.
-    __ Set(result_, Immediate(Factory::undefined_value()));
+    __ Set(result_, Immediate(FACTORY->undefined_value()));
     __ jmp(exit_label());
 
     __ bind(&index_out_of_range_);
     // When the index is out of range, the spec requires us to return
     // NaN.
-    __ Set(result_, Immediate(Factory::nan_value()));
+    __ Set(result_, Immediate(FACTORY->nan_value()));
     __ jmp(exit_label());
   }
 
@@ -6552,7 +6552,7 @@ class DeferredStringCharAt : public DeferredCode {
     __ bind(&index_out_of_range_);
     // When the index is out of range, the spec requires us to return
     // the empty string.
-    __ Set(result_, Immediate(Factory::empty_string()));
+    __ Set(result_, Immediate(FACTORY->empty_string()));
     __ jmp(exit_label());
   }
 
@@ -6649,7 +6649,7 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
 
   __ test(obj.reg(), Immediate(kSmiTagMask));
   destination()->false_target()->Branch(zero);
-  __ cmp(obj.reg(), Factory::null_value());
+  __ cmp(obj.reg(), FACTORY->null_value());
   destination()->true_target()->Branch(equal);
 
   Result map = allocator()->Allocate();
@@ -6720,7 +6720,7 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
     // Check for fast case object. Generate false result for slow case object.
     __ mov(scratch1_, FieldOperand(object_, JSObject::kPropertiesOffset));
     __ mov(scratch1_, FieldOperand(scratch1_, HeapObject::kMapOffset));
-    __ cmp(scratch1_, Factory::hash_table_map());
+    __ cmp(scratch1_, FACTORY->hash_table_map());
     __ j(equal, &false_result);
 
     // Look for valueOf symbol in the descriptor array, and indicate false if
@@ -6747,7 +6747,7 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
     __ jmp(&entry);
     __ bind(&loop);
     __ mov(scratch2_, FieldOperand(map_result_, 0));
-    __ cmp(scratch2_, Factory::value_of_symbol());
+    __ cmp(scratch2_, FACTORY->value_of_symbol());
     __ j(equal, &false_result);
     __ add(Operand(map_result_), Immediate(kPointerSize));
     __ bind(&entry);
@@ -6962,17 +6962,17 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
 
   // Functions have class 'Function'.
   function.Bind();
-  frame_->Push(Factory::function_class_symbol());
+  frame_->Push(FACTORY->function_class_symbol());
   leave.Jump();
 
   // Objects with a non-function constructor have class 'Object'.
   non_function_constructor.Bind();
-  frame_->Push(Factory::Object_symbol());
+  frame_->Push(FACTORY->Object_symbol());
   leave.Jump();
 
   // Non-JS objects have class null.
   null.Bind();
-  frame_->Push(Factory::null_value());
+  frame_->Push(FACTORY->null_value());
 
   // All done.
   leave.Bind();
@@ -7230,7 +7230,7 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
     // Set elements to point to FixedArray allocated right after the JSArray.
     // Interleave operations for better latency.
     __ mov(edx, ContextOperand(esi, Context::GLOBAL_INDEX));
-    __ mov(ecx, Immediate(Factory::empty_fixed_array()));
+    __ mov(ecx, Immediate(FACTORY->empty_fixed_array()));
     __ lea(ebx, Operand(eax, JSRegExpResult::kSize));
     __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalContextOffset));
     __ mov(FieldOperand(eax, JSObject::kElementsOffset), ebx);
@@ -7251,12 +7251,12 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
 
     // Set map.
     __ mov(FieldOperand(ebx, HeapObject::kMapOffset),
-           Immediate(Factory::fixed_array_map()));
+           Immediate(FACTORY->fixed_array_map()));
     // Set length.
     __ mov(FieldOperand(ebx, FixedArray::kLengthOffset), ecx);
     // Fill contents of fixed-array with the-hole.
     __ SmiUntag(ecx);
-    __ mov(edx, Immediate(Factory::the_hole_value()));
+    __ mov(edx, Immediate(FACTORY->the_hole_value()));
     __ lea(ebx, FieldOperand(ebx, FixedArray::kHeaderSize));
     // Fill fixed array elements with hole.
     // eax: JSArray.
@@ -7311,7 +7311,7 @@ void CodeGenerator::GenerateRegExpCloneResult(ZoneList<Expression*>* args) {
       // Check that object really has empty properties array, as the map
       // should guarantee.
       __ cmp(FieldOperand(eax, JSObject::kPropertiesOffset),
-             Immediate(Factory::empty_fixed_array()));
+             Immediate(FACTORY->empty_fixed_array()));
       __ Check(equal, "JSRegExpResult: default map but non-empty properties.");
     }
 
@@ -7346,10 +7346,10 @@ void CodeGenerator::GenerateRegExpCloneResult(ZoneList<Expression*>* args) {
         // If the elements array isn't empty, make it copy-on-write
         // before copying it.
         Label empty;
-        __ cmp(Operand(edx), Immediate(Factory::empty_fixed_array()));
+        __ cmp(Operand(edx), Immediate(FACTORY->empty_fixed_array()));
         __ j(equal, &empty);
         __ mov(FieldOperand(edx, HeapObject::kMapOffset),
-               Immediate(Factory::fixed_cow_array_map()));
+               Immediate(FACTORY->fixed_cow_array_map()));
         __ bind(&empty);
       }
       __ mov(FieldOperand(ebx, i), edx);
@@ -7491,7 +7491,7 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
       Isolate::Current()->global_context()->jsfunction_result_caches());
   if (jsfunction_result_caches->length() <= cache_id) {
     __ Abort("Attempt to use undefined cache.");
-    frame_->Push(Factory::undefined_value());
+    frame_->Push(FACTORY->undefined_value());
     return;
   }
 
@@ -7608,7 +7608,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   // Check the object's elements are in fast case and writable.
   __ mov(tmp1.reg(), FieldOperand(object.reg(), JSObject::kElementsOffset));
   __ cmp(FieldOperand(tmp1.reg(), HeapObject::kMapOffset),
-         Immediate(Factory::fixed_array_map()));
+         Immediate(FACTORY->fixed_array_map()));
   deferred->Branch(not_equal);
 
   // Smi-tagging is equivalent to multiplying by 2.
@@ -7642,7 +7642,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   __ bind(&done);
 
   deferred->BindExit();
-  frame_->Push(Factory::undefined_value());
+  frame_->Push(FACTORY->undefined_value());
 }
 
 
@@ -7711,7 +7711,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     // exponent is smi and base is a heapnumber.
     __ bind(&base_nonsmi);
     __ cmp(FieldOperand(base.reg(), HeapObject::kMapOffset),
-           Factory::heap_number_map());
+           FACTORY->heap_number_map());
     call_runtime.Branch(not_equal);
 
     __ movdbl(xmm0, FieldOperand(base.reg(), HeapNumber::kValueOffset));
@@ -7762,7 +7762,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     // on doubles.
     __ bind(&exponent_nonsmi);
     __ cmp(FieldOperand(exponent.reg(), HeapObject::kMapOffset),
-           Factory::heap_number_map());
+           FACTORY->heap_number_map());
     call_runtime.Branch(not_equal);
     __ movdbl(xmm1, FieldOperand(exponent.reg(), HeapNumber::kValueOffset));
     // Test if exponent is nan.
@@ -7778,7 +7778,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ jmp(&handle_special_cases);
     __ bind(&base_not_smi);
     __ cmp(FieldOperand(base.reg(), HeapObject::kMapOffset),
-           Factory::heap_number_map());
+           FACTORY->heap_number_map());
     call_runtime.Branch(not_equal);
     __ mov(answer.reg(), FieldOperand(base.reg(), HeapNumber::kExponentOffset));
     __ and_(answer.reg(), HeapNumber::kExponentMask);
@@ -7893,7 +7893,7 @@ void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
     __ jmp(&load_done);
     __ bind(&non_smi);
     __ cmp(FieldOperand(result.reg(), HeapObject::kMapOffset),
-           Factory::heap_number_map());
+           FACTORY->heap_number_map());
     __ j(not_equal, &runtime);
     __ movdbl(xmm0, FieldOperand(result.reg(), HeapNumber::kValueOffset));
 
@@ -8086,12 +8086,12 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       // Default: Result of deleting non-global, not dynamically
       // introduced variables is false.
-      frame_->Push(Factory::false_value());
+      frame_->Push(FACTORY->false_value());
 
     } else {
       // Default: Result of deleting expressions is true.
       Load(node->expression());  // may have side-effects
-      frame_->SetElementAt(0, Factory::true_value());
+      frame_->SetElementAt(0, FACTORY->true_value());
     }
 
   } else if (op == Token::TYPEOF) {
@@ -8112,10 +8112,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         expression->AsLiteral()->IsNull())) {
       // Omit evaluating the value of the primitive literal.
       // It will be discarded anyway, and can have no side effect.
-      frame_->Push(Factory::undefined_value());
+      frame_->Push(FACTORY->undefined_value());
     } else {
       Load(node->expression());
-      frame_->SetElementAt(0, Factory::undefined_value());
+      frame_->SetElementAt(0, FACTORY->undefined_value());
     }
 
   } else {
@@ -8918,7 +8918,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       destination()->true_target()->Branch(zero);
       frame_->Spill(answer.reg());
       __ mov(answer.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ cmp(answer.reg(), Factory::heap_number_map());
+      __ cmp(answer.reg(), FACTORY->heap_number_map());
       answer.Unuse();
       destination()->Split(equal);
 
@@ -8939,14 +8939,14 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       destination()->Split(below);
 
     } else if (check->Equals(HEAP->boolean_symbol())) {
-      __ cmp(answer.reg(), Factory::true_value());
+      __ cmp(answer.reg(), FACTORY->true_value());
       destination()->true_target()->Branch(equal);
-      __ cmp(answer.reg(), Factory::false_value());
+      __ cmp(answer.reg(), FACTORY->false_value());
       answer.Unuse();
       destination()->Split(equal);
 
     } else if (check->Equals(HEAP->undefined_symbol())) {
-      __ cmp(answer.reg(), Factory::undefined_value());
+      __ cmp(answer.reg(), FACTORY->undefined_value());
       destination()->true_target()->Branch(equal);
 
       __ test(answer.reg(), Immediate(kSmiTagMask));
@@ -8973,7 +8973,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     } else if (check->Equals(HEAP->object_symbol())) {
       __ test(answer.reg(), Immediate(kSmiTagMask));
       destination()->false_target()->Branch(zero);
-      __ cmp(answer.reg(), Factory::null_value());
+      __ cmp(answer.reg(), FACTORY->null_value());
       destination()->true_target()->Branch(equal);
 
       Result map = allocator()->Allocate();
@@ -9016,7 +9016,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       Result scratch = allocator()->Allocate();
       ASSERT(scratch.is_valid());
       __ mov(scratch.reg(), FieldOperand(lhs.reg(), HeapObject::kMapOffset));
-      __ cmp(scratch.reg(), Factory::heap_number_map());
+      __ cmp(scratch.reg(), FACTORY->heap_number_map());
       JumpTarget not_a_number;
       not_a_number.Branch(not_equal, &lhs);
       __ mov(scratch.reg(),
@@ -9103,7 +9103,7 @@ void CodeGenerator::VisitCompareToNull(CompareToNull* node) {
   Load(node->expression());
   Result operand = frame_->Pop();
   operand.ToRegister();
-  __ cmp(operand.reg(), Factory::null_value());
+  __ cmp(operand.reg(), FACTORY->null_value());
   if (node->is_strict()) {
     operand.Unuse();
     destination()->Split(equal);
@@ -9111,7 +9111,7 @@ void CodeGenerator::VisitCompareToNull(CompareToNull* node) {
     // The 'null' value is only equal to 'undefined' if using non-strict
     // comparisons.
     destination()->true_target()->Branch(equal);
-    __ cmp(operand.reg(), Factory::undefined_value());
+    __ cmp(operand.reg(), FACTORY->undefined_value());
     destination()->true_target()->Branch(equal);
     __ test(operand.reg(), Immediate(kSmiTagMask));
     destination()->false_target()->Branch(equal);
@@ -9423,7 +9423,7 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     // use the double underscore macro that may insert instructions).
     // Initially use an invalid map to force a failure.
     masm()->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
-                Immediate(Factory::null_value()));
+                Immediate(FACTORY->null_value()));
     // This branch is always a forwards branch so it's always a fixed size
     // which allows the assert below to succeed and patching to work.
     deferred->Branch(not_equal);
@@ -9435,15 +9435,15 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 
     if (is_contextual) {
       // Load the (initialy invalid) cell and get its value.
-      masm()->mov(result.reg(), Factory::null_value());
+      masm()->mov(result.reg(), FACTORY->null_value());
       if (FLAG_debug_code) {
         __ cmp(FieldOperand(result.reg(), HeapObject::kMapOffset),
-               Factory::global_property_cell_map());
+               FACTORY->global_property_cell_map());
         __ Assert(equal, "Uninitialized inlined contextual load");
       }
       __ mov(result.reg(),
              FieldOperand(result.reg(), JSGlobalPropertyCell::kValueOffset));
-      __ cmp(result.reg(), Factory::the_hole_value());
+      __ cmp(result.reg(), FACTORY->the_hole_value());
       deferred->Branch(equal);
       __ IncrementCounter(COUNTERS->named_load_global_inline(), 1);
     } else {
@@ -9498,7 +9498,7 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     // Initially use an invalid map to force a failure.
     __ bind(&patch_site);
     masm()->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
-                Immediate(Factory::null_value()));
+                Immediate(FACTORY->null_value()));
     // This branch is always a forwards branch so it's always a fixed size
     // which allows the assert below to succeed and patching to work.
     slow.Branch(not_equal, &value, &receiver);
@@ -9608,7 +9608,7 @@ Result CodeGenerator::EmitKeyedLoad() {
     // Use masm-> here instead of the double underscore macro since extra
     // coverage code can interfere with the patching.
     masm_->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
-               Immediate(Factory::null_value()));
+               Immediate(FACTORY->null_value()));
     deferred->Branch(not_equal);
 
     // Check that the key is a smi.
@@ -9638,7 +9638,7 @@ Result CodeGenerator::EmitKeyedLoad() {
                         times_2,
                         FixedArray::kHeaderSize));
     result = elements;
-    __ cmp(Operand(result.reg()), Immediate(Factory::the_hole_value()));
+    __ cmp(Operand(result.reg()), Immediate(FACTORY->the_hole_value()));
     deferred->Branch(equal);
     __ IncrementCounter(COUNTERS->keyed_load_inline(), 1);
 
@@ -9737,7 +9737,7 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     // which will allow the debugger to break for fast case stores.
     __ bind(deferred->patch_site());
     __ cmp(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
-           Immediate(Factory::fixed_array_map()));
+           Immediate(FACTORY->fixed_array_map()));
     deferred->Branch(not_equal);
 
     // Store the value.

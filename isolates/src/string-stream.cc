@@ -280,7 +280,7 @@ void StringStream::OutputToStdOut() {
 
 
 Handle<String> StringStream::ToString() {
-  return Factory::NewStringFromUtf8(Vector<const char>(buffer_, length_));
+  return FACTORY->NewStringFromUtf8(Vector<const char>(buffer_, length_));
 }
 
 

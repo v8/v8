@@ -797,7 +797,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(&code_desc);
-  Handle<Code> code = Factory::NewCode(code_desc,
+  Handle<Code> code = FACTORY->NewCode(code_desc,
                                        Code::ComputeFlags(Code::REGEXP),
                                        masm_->CodeObject());
   PROFILE(RegExpCodeCreateEvent(*code, *source));

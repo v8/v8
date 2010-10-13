@@ -418,7 +418,7 @@ Isolate* Heap::isolate() {
 // Warning: Do not use the identifiers __object__ or __scope__ in a
 // call to this macro.
 
-#define CALL_AND_RETRY(FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)         \
+#define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)\
   do {                                                                    \
     GC_GREEDY_CHECK();                                                    \
     Object* __object__ = FUNCTION_CALL;                                   \
@@ -427,7 +427,7 @@ Isolate* Heap::isolate() {
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0", true);\
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
-    HEAP->CollectGarbage(Failure::cast(__object__)->requested(),          \
+    ISOLATE->heap()->CollectGarbage(Failure::cast(__object__)->requested(),\
                          Failure::cast(__object__)->allocation_space());  \
     __object__ = FUNCTION_CALL;                                           \
     if (!__object__->IsFailure()) RETURN_VALUE;                           \
@@ -435,8 +435,8 @@ Isolate* Heap::isolate() {
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_1", true);\
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
-    COUNTERS->gc_last_resort_from_handles()->Increment();                 \
-    HEAP->CollectAllAvailableGarbage();                                   \
+    ISOLATE->counters()->gc_last_resort_from_handles()->Increment();      \
+    ISOLATE->heap()->CollectAllAvailableGarbage();                        \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
       __object__ = FUNCTION_CALL;                                         \
@@ -453,14 +453,15 @@ Isolate* Heap::isolate() {
 
 // TODO(isolates): cache isolate: either accept as a parameter or
 //                 set to some known symbol (__CUR_ISOLATE__?)
-#define CALL_HEAP_FUNCTION(FUNCTION_CALL, TYPE)                \
-  CALL_AND_RETRY(FUNCTION_CALL,                                \
-                 return Handle<TYPE>(TYPE::cast(__object__)),  \
+#define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)       \
+  CALL_AND_RETRY(ISOLATE,                                      \
+                 FUNCTION_CALL,                                \
+                 return Handle<TYPE>(TYPE::cast(__object__), ISOLATE),  \
                  return Handle<TYPE>())
 
 
-#define CALL_HEAP_FUNCTION_VOID(FUNCTION_CALL) \
-  CALL_AND_RETRY(FUNCTION_CALL, return, return)
+#define CALL_HEAP_FUNCTION_VOID(ISOLATE, FUNCTION_CALL) \
+  CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, return, return)
 
 
 #ifdef DEBUG

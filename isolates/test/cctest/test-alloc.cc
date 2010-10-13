@@ -99,7 +99,7 @@ static Object* AllocateAfterFailures() {
 
 
 static Handle<Object> Test() {
-  CALL_HEAP_FUNCTION(AllocateAfterFailures(), Object);
+  CALL_HEAP_FUNCTION(ISOLATE, AllocateAfterFailures(), Object);
 }
 
 
@@ -130,19 +130,19 @@ TEST(StressJS) {
   v8::HandleScope scope;
   env->Enter();
   Handle<JSFunction> function =
-      Factory::NewFunction(Factory::function_symbol(), Factory::null_value());
+      FACTORY->NewFunction(FACTORY->function_symbol(), FACTORY->null_value());
   // Force the creation of an initial map and set the code to
   // something empty.
-  Factory::NewJSObject(function);
+  FACTORY->NewJSObject(function);
   function->set_code(Isolate::Current()->builtins()->builtin(
       Builtins::EmptyFunction));
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
-  Handle<Proxy> proxy = Factory::NewProxy(&kDescriptor);
-  instance_descriptors = Factory::CopyAppendProxyDescriptor(
+  Handle<Proxy> proxy = FACTORY->NewProxy(&kDescriptor);
+  instance_descriptors = FACTORY->CopyAppendProxyDescriptor(
       instance_descriptors,
-      Factory::NewStringFromAscii(Vector<const char>("get", 3)),
+      FACTORY->NewStringFromAscii(Vector<const char>("get", 3)),
       proxy,
       static_cast<PropertyAttributes>(0));
   map->set_instance_descriptors(*instance_descriptors);

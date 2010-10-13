@@ -612,7 +612,7 @@ ExternalReference ExternalReference::keyed_lookup_cache_field_offsets() {
 
 
 ExternalReference ExternalReference::the_hole_value_location() {
-  return ExternalReference(Factory::the_hole_value().location());
+  return ExternalReference(FACTORY->the_hole_value().location());
 }
 
 

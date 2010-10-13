@@ -31,7 +31,7 @@ class ConstructorHeapProfileTestHelper : public i::ConstructorHeapProfile {
  public:
   ConstructorHeapProfileTestHelper()
     : i::ConstructorHeapProfile(),
-      f_name_(i::Factory::NewStringFromAscii(i::CStrVector("F"))),
+      f_name_(FACTORY->NewStringFromAscii(i::CStrVector("F"))),
       f_count_(0) {
   }
 
@@ -149,8 +149,8 @@ TEST(ClustersCoarserSimple) {
 
   JSObjectsRetainerTree tree;
   JSObjectsCluster function(HEAP->function_class_symbol());
-  JSObjectsCluster a(*i::Factory::NewStringFromAscii(i::CStrVector("A")));
-  JSObjectsCluster b(*i::Factory::NewStringFromAscii(i::CStrVector("B")));
+  JSObjectsCluster a(*FACTORY->NewStringFromAscii(i::CStrVector("A")));
+  JSObjectsCluster b(*FACTORY->NewStringFromAscii(i::CStrVector("B")));
 
   // o1 <- Function
   JSObjectsCluster o1 =
@@ -869,7 +869,7 @@ TEST(Issue822) {
   LocalContext context;
   const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
-  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(kElementCount,
+  i::Handle<i::PixelArray> pixels = FACTORY->NewPixelArray(kElementCount,
                                                               pixel_data);
   v8::Handle<v8::Object> obj = v8::Object::New();
   // Set the elements to be the pixels.

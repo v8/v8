@@ -138,7 +138,7 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
 
   // Check that the properties array is a dictionary.
   __ cmp(FieldOperand(properties, HeapObject::kMapOffset),
-         Immediate(Factory::hash_table_map()));
+         Immediate(FACTORY->hash_table_map()));
   __ j(not_equal, miss_label);
 
   // Compute the capacity mask.
@@ -178,7 +178,7 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
     ASSERT_EQ(kSmiTagSize, 1);
     __ mov(entity_name, Operand(properties, index, times_half_pointer_size,
                                 kElementsStartOffset - kHeapObjectTag));
-    __ cmp(entity_name, Factory::undefined_value());
+    __ cmp(entity_name, FACTORY->undefined_value());
     if (i != kProbes - 1) {
       __ j(equal, &done, taken);
 
@@ -702,7 +702,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ pop(receiver);  // Restore the holder.
     __ LeaveInternalFrame();
 
-    __ cmp(eax, Factory::no_interceptor_result_sentinel());
+    __ cmp(eax, FACTORY->no_interceptor_result_sentinel());
     __ j(not_equal, interceptor_succeeded);
   }
 
@@ -821,7 +821,7 @@ static Object* GenerateCheckPropertyCell(MacroAssembler* masm,
   ASSERT(cell->value()->IsTheHole());
   __ mov(scratch, Immediate(Handle<Object>(cell)));
   __ cmp(FieldOperand(scratch, JSGlobalPropertyCell::kValueOffset),
-         Immediate(Factory::the_hole_value()));
+         Immediate(FACTORY->the_hole_value()));
   __ j(not_equal, miss, not_taken);
   return cell;
 }
@@ -1178,7 +1178,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
     // Check if interceptor provided a value for property.  If it's
     // the case, return immediately.
     Label interceptor_failed;
-    __ cmp(eax, Factory::no_interceptor_result_sentinel());
+    __ cmp(eax, FACTORY->no_interceptor_result_sentinel());
     __ j(equal, &interceptor_failed);
     __ LeaveInternalFrame();
     __ ret(0);
@@ -1425,7 +1425,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
     // Check that the elements are in fast mode and writable.
     __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
-           Immediate(Factory::fixed_array_map()));
+           Immediate(FACTORY->fixed_array_map()));
     __ j(not_equal, &call_builtin);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
@@ -1497,7 +1497,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       // ... and fill the rest with holes.
       for (int i = 1; i < kAllocationDelta; i++) {
         __ mov(Operand(edx, i * kPointerSize),
-               Immediate(Factory::the_hole_value()));
+               Immediate(FACTORY->the_hole_value()));
       }
 
       // Restore receiver to edx as finish sequence assumes it's here.
@@ -1563,7 +1563,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
 
   // Check that the elements are in fast mode and writable.
   __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
-         Immediate(Factory::fixed_array_map()));
+         Immediate(FACTORY->fixed_array_map()));
   __ j(not_equal, &call_builtin);
 
   // Get the array's length into ecx and calculate new length.
@@ -1577,7 +1577,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ mov(eax, FieldOperand(ebx,
                            ecx, times_half_pointer_size,
                            FixedArray::kHeaderSize));
-  __ cmp(Operand(eax), Immediate(Factory::the_hole_value()));
+  __ cmp(Operand(eax), Immediate(FACTORY->the_hole_value()));
   __ j(equal, &call_builtin);
 
   // Set the array's length.
@@ -1587,11 +1587,11 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ mov(FieldOperand(ebx,
                       ecx, times_half_pointer_size,
                       FixedArray::kHeaderSize),
-         Immediate(Factory::the_hole_value()));
+         Immediate(FACTORY->the_hole_value()));
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&return_undefined);
-  __ mov(eax, Immediate(Factory::undefined_value()));
+  __ mov(eax, Immediate(FACTORY->undefined_value()));
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&call_builtin);
@@ -1648,7 +1648,7 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(
   if (argc > 0) {
     __ mov(index, Operand(esp, (argc - 0) * kPointerSize));
   } else {
-    __ Set(index, Immediate(Factory::undefined_value()));
+    __ Set(index, Immediate(FACTORY->undefined_value()));
   }
 
   StringCharCodeAtGenerator char_code_at_generator(receiver,
@@ -1666,7 +1666,7 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(
   char_code_at_generator.GenerateSlow(masm(), call_helper);
 
   __ bind(&index_out_of_range);
-  __ Set(eax, Immediate(Factory::nan_value()));
+  __ Set(eax, Immediate(FACTORY->nan_value()));
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&miss);
@@ -1719,7 +1719,7 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   if (argc > 0) {
     __ mov(index, Operand(esp, (argc - 0) * kPointerSize));
   } else {
-    __ Set(index, Immediate(Factory::undefined_value()));
+    __ Set(index, Immediate(FACTORY->undefined_value()));
   }
 
   StringCharAtGenerator char_at_generator(receiver,
@@ -1738,7 +1738,7 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   char_at_generator.GenerateSlow(masm(), call_helper);
 
   __ bind(&index_out_of_range);
-  __ Set(eax, Immediate(Factory::empty_string()));
+  __ Set(eax, Immediate(FACTORY->empty_string()));
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&miss);
@@ -1875,7 +1875,7 @@ Object* CallStubCompiler::CompileMathFloorCall(Object* object,
 
   // Check if the argument is a heap number and load its value into xmm0.
   Label slow;
-  __ CheckMap(eax, Factory::heap_number_map(), &slow, true);
+  __ CheckMap(eax, FACTORY->heap_number_map(), &slow, true);
   __ movdbl(xmm0, FieldOperand(eax, HeapNumber::kValueOffset));
 
   // Check if the argument is strictly positive. Note this also
@@ -2064,9 +2064,9 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       } else {
         Label fast;
         // Check that the object is a boolean.
-        __ cmp(edx, Factory::true_value());
+        __ cmp(edx, FACTORY->true_value());
         __ j(equal, &fast, taken);
-        __ cmp(edx, Factory::false_value());
+        __ cmp(edx, FACTORY->false_value());
         __ j(not_equal, &miss, not_taken);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
@@ -2473,7 +2473,7 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
 
   // Return undefined if maps of the full prototype chain are still the
   // same and no global property with this name contains a value.
-  __ mov(eax, Factory::undefined_value());
+  __ mov(eax, FACTORY->undefined_value());
   __ ret(0);
 
   __ bind(&miss);
@@ -2614,10 +2614,10 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 
   // Check for deleted property if property can actually be deleted.
   if (!is_dont_delete) {
-    __ cmp(ebx, Factory::the_hole_value());
+    __ cmp(ebx, FACTORY->the_hole_value());
     __ j(equal, &miss, not_taken);
   } else if (FLAG_debug_code) {
-    __ cmp(ebx, Factory::the_hole_value());
+    __ cmp(ebx, FACTORY->the_hole_value());
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 
@@ -2853,7 +2853,7 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // code for the function thereby hitting the break points.
   __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kDebugInfoOffset));
-  __ cmp(ebx, Factory::undefined_value());
+  __ cmp(ebx, FACTORY->undefined_value());
   __ j(not_equal, &generic_stub_call, not_taken);
 #endif
 
@@ -2890,7 +2890,7 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // ebx: initial map
   // edx: JSObject (untagged)
   __ mov(Operand(edx, JSObject::kMapOffset), ebx);
-  __ mov(ebx, Factory::empty_fixed_array());
+  __ mov(ebx, FACTORY->empty_fixed_array());
   __ mov(Operand(edx, JSObject::kPropertiesOffset), ebx);
   __ mov(Operand(edx, JSObject::kElementsOffset), ebx);
 
@@ -2907,7 +2907,7 @@ Object* ConstructStubCompiler::CompileConstructStub(
   __ lea(ecx, Operand(esp, eax, times_4, 1 * kPointerSize));
 
   // Use edi for holding undefined which is used in several places below.
-  __ mov(edi, Factory::undefined_value());
+  __ mov(edi, FACTORY->undefined_value());
 
   // eax: argc
   // ecx: first argument

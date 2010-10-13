@@ -202,7 +202,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ testq(rax, rax);
     __ j(not_zero, &done);
     __ pop(rbx);
-    __ Push(Factory::undefined_value());
+    __ Push(FACTORY->undefined_value());
     __ push(rbx);
     __ incq(rax);
     __ bind(&done);
@@ -504,7 +504,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch2: start of next object
   __ movq(FieldOperand(result, JSObject::kMapOffset), scratch1);
   __ Move(FieldOperand(result, JSArray::kPropertiesOffset),
-          Factory::empty_fixed_array());
+          FACTORY->empty_fixed_array());
   // Field JSArray::kElementsOffset is initialized later.
   __ Move(FieldOperand(result, JSArray::kLengthOffset), Smi::FromInt(0));
 
@@ -512,7 +512,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // fixed array.
   if (initial_capacity == 0) {
     __ Move(FieldOperand(result, JSArray::kElementsOffset),
-            Factory::empty_fixed_array());
+            FACTORY->empty_fixed_array());
     return;
   }
 
@@ -529,7 +529,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch1: elements array
   // scratch2: start of next object
   __ Move(FieldOperand(scratch1, HeapObject::kMapOffset),
-          Factory::fixed_array_map());
+          FACTORY->fixed_array_map());
   __ Move(FieldOperand(scratch1, FixedArray::kLengthOffset),
           Smi::FromInt(initial_capacity));
 
@@ -537,7 +537,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
   static const int kLoopUnfoldLimit = 4;
   ASSERT(kPreallocatedArrayElements <= kLoopUnfoldLimit);
-  __ Move(scratch3, Factory::the_hole_value());
+  __ Move(scratch3, FACTORY->the_hole_value());
   if (initial_capacity <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
     // the loop.
@@ -621,7 +621,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // array_size: size of array (smi)
   __ bind(&allocated);
   __ movq(FieldOperand(result, JSObject::kMapOffset), elements_array);
-  __ Move(elements_array, Factory::empty_fixed_array());
+  __ Move(elements_array, FACTORY->empty_fixed_array());
   __ movq(FieldOperand(result, JSArray::kPropertiesOffset), elements_array);
   // Field JSArray::kElementsOffset is initialized later.
   __ movq(FieldOperand(result, JSArray::kLengthOffset), array_size);
@@ -640,7 +640,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_end: start of next object
   // array_size: size of array (smi)
   __ Move(FieldOperand(elements_array, JSObject::kMapOffset),
-          Factory::fixed_array_map());
+          FACTORY->fixed_array_map());
   Label not_empty_2, fill_array;
   __ SmiTest(array_size);
   __ j(not_zero, &not_empty_2);
@@ -661,7 +661,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ bind(&fill_array);
   if (fill_with_hole) {
     Label loop, entry;
-    __ Move(scratch, Factory::the_hole_value());
+    __ Move(scratch, FACTORY->the_hole_value());
     __ lea(elements_array, Operand(elements_array,
                                    FixedArray::kHeaderSize - kHeapObjectTag));
     __ jmp(&entry);

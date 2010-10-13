@@ -114,7 +114,7 @@ Scope::Scope(Type type)
   : outer_scope_(NULL),
     inner_scopes_(0),
     type_(type),
-    scope_name_(Factory::empty_symbol()),
+    scope_name_(FACTORY->empty_symbol()),
     variables_(false),
     temps_(0),
     params_(0),
@@ -142,7 +142,7 @@ Scope::Scope(Scope* outer_scope, Type type)
   : outer_scope_(outer_scope),
     inner_scopes_(4),
     type_(type),
-    scope_name_(Factory::empty_symbol()),
+    scope_name_(FACTORY->empty_symbol()),
     temps_(4),
     params_(4),
     dynamics_(NULL),
@@ -188,7 +188,7 @@ void Scope::Initialize(bool inside_with) {
   // such parameter is 'this' which is passed on the stack when
   // invoking scripts
   Variable* var =
-      variables_.Declare(this, Factory::this_symbol(), Variable::VAR,
+      variables_.Declare(this, FACTORY->this_symbol(), Variable::VAR,
                          false, Variable::THIS);
   var->rewrite_ = new Slot(var, Slot::PARAMETER, -1);
   receiver_ = var;
@@ -197,7 +197,7 @@ void Scope::Initialize(bool inside_with) {
     // Declare 'arguments' variable which exists in all functions.
     // Note that it might never be accessed, in which case it won't be
     // allocated during variable allocation.
-    variables_.Declare(this, Factory::arguments_symbol(), Variable::VAR,
+    variables_.Declare(this, FACTORY->arguments_symbol(), Variable::VAR,
                        true, Variable::ARGUMENTS);
   }
 }
@@ -762,7 +762,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
 
 bool Scope::HasArgumentsParameter() {
   for (int i = 0; i < params_.length(); i++) {
-    if (params_[i]->name().is_identical_to(Factory::arguments_symbol()))
+    if (params_[i]->name().is_identical_to(FACTORY->arguments_symbol()))
       return true;
   }
   return false;
@@ -781,7 +781,7 @@ void Scope::AllocateHeapSlot(Variable* var) {
 
 void Scope::AllocateParameterLocals() {
   ASSERT(is_function_scope());
-  Variable* arguments = LocalLookup(Factory::arguments_symbol());
+  Variable* arguments = LocalLookup(FACTORY->arguments_symbol());
   ASSERT(arguments != NULL);  // functions have 'arguments' declared implicitly
   if (MustAllocate(arguments) && !HasArgumentsParameter()) {
     // 'arguments' is used. Unless there is also a parameter called
@@ -812,7 +812,7 @@ void Scope::AllocateParameterLocals() {
 
     // We are using 'arguments'. Tell the code generator that is needs to
     // allocate the arguments object by setting 'arguments_'.
-    arguments_ = new VariableProxy(Factory::arguments_symbol(), false, false);
+    arguments_ = new VariableProxy(FACTORY->arguments_symbol(), false, false);
     arguments_->BindTo(arguments);
 
     // We also need the '.arguments' shadow variable. Declare it and create
@@ -825,10 +825,10 @@ void Scope::AllocateParameterLocals() {
     // variable may be allocated in the heap-allocated context (temporaries
     // are never allocated in the context).
     Variable* arguments_shadow =
-        new Variable(this, Factory::arguments_shadow_symbol(),
+        new Variable(this, FACTORY->arguments_shadow_symbol(),
                      Variable::INTERNAL, true, Variable::ARGUMENTS);
     arguments_shadow_ =
-        new VariableProxy(Factory::arguments_shadow_symbol(), false, false);
+        new VariableProxy(FACTORY->arguments_shadow_symbol(), false, false);
     arguments_shadow_->BindTo(arguments_shadow);
     temps_.Add(arguments_shadow);
 
@@ -889,7 +889,7 @@ void Scope::AllocateParameterLocals() {
 void Scope::AllocateNonParameterLocal(Variable* var) {
   ASSERT(var->scope() == this);
   ASSERT(var->rewrite_ == NULL ||
-         (!var->IsVariable(Factory::result_symbol())) ||
+         (!var->IsVariable(FACTORY->result_symbol())) ||
          (var->slot() == NULL || var->slot()->type() != Slot::LOCAL));
   if (var->rewrite_ == NULL && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {

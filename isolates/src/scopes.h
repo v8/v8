@@ -209,7 +209,7 @@ class Scope: public ZoneObject {
   // A new variable proxy corresponding to the (function) receiver.
   VariableProxy* receiver() const {
     VariableProxy* proxy =
-        new VariableProxy(Factory::this_symbol(), true, false);
+        new VariableProxy(FACTORY->this_symbol(), true, false);
     proxy->BindTo(receiver_);
     return proxy;
   }

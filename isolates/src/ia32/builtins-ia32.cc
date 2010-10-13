@@ -183,7 +183,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // ebx: JSObject
     // edi: start of next object
     __ mov(Operand(ebx, JSObject::kMapOffset), eax);
-    __ mov(ecx, Factory::empty_fixed_array());
+    __ mov(ecx, FACTORY->empty_fixed_array());
     __ mov(Operand(ebx, JSObject::kPropertiesOffset), ecx);
     __ mov(Operand(ebx, JSObject::kElementsOffset), ecx);
     // Set extra fields in the newly allocated object.
@@ -193,9 +193,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     { Label loop, entry;
       // To allow for truncation.
       if (count_constructions) {
-        __ mov(edx, Factory::one_pointer_filler_map());
+        __ mov(edx, FACTORY->one_pointer_filler_map());
       } else {
-        __ mov(edx, Factory::undefined_value());
+        __ mov(edx, FACTORY->undefined_value());
       }
       __ lea(ecx, Operand(ebx, JSObject::kHeaderSize));
       __ jmp(&entry);
@@ -251,7 +251,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // edi: FixedArray
     // edx: number of elements
     // ecx: start of next object
-    __ mov(eax, Factory::fixed_array_map());
+    __ mov(eax, FACTORY->fixed_array_map());
     __ mov(Operand(edi, FixedArray::kMapOffset), eax);  // setup the map
     __ SmiTag(edx);
     __ mov(Operand(edi, FixedArray::kLengthOffset), edx);  // and length
@@ -261,7 +261,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // edi: FixedArray
     // ecx: start of next object
     { Label loop, entry;
-      __ mov(edx, Factory::undefined_value());
+      __ mov(edx, FACTORY->undefined_value());
       __ lea(eax, Operand(edi, FixedArray::kHeaderSize));
       __ jmp(&entry);
       __ bind(&loop);
@@ -487,7 +487,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ test(eax, Operand(eax));
     __ j(not_zero, &done, taken);
     __ pop(ebx);
-    __ push(Immediate(Factory::undefined_value()));
+    __ push(Immediate(FACTORY->undefined_value()));
     __ push(ebx);
     __ inc(eax);
     __ bind(&done);
@@ -514,9 +514,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ test(ebx, Immediate(kSmiTagMask));
     __ j(zero, &convert_to_object);
 
-    __ cmp(ebx, Factory::null_value());
+    __ cmp(ebx, FACTORY->null_value());
     __ j(equal, &use_global_receiver);
-    __ cmp(ebx, Factory::undefined_value());
+    __ cmp(ebx, FACTORY->undefined_value());
     __ j(equal, &use_global_receiver);
 
     // We don't use IsObjectJSObjectType here because we jump on success.
@@ -660,9 +660,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ mov(ebx, Operand(ebp, 3 * kPointerSize));
   __ test(ebx, Immediate(kSmiTagMask));
   __ j(zero, &call_to_object);
-  __ cmp(ebx, Factory::null_value());
+  __ cmp(ebx, FACTORY->null_value());
   __ j(equal, &use_global_receiver);
-  __ cmp(ebx, Factory::undefined_value());
+  __ cmp(ebx, FACTORY->undefined_value());
   __ j(equal, &use_global_receiver);
 
   // If given receiver is already a JavaScript object then there's no
@@ -775,7 +775,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch2: start of next object
   __ mov(FieldOperand(result, JSObject::kMapOffset), scratch1);
   __ mov(FieldOperand(result, JSArray::kPropertiesOffset),
-         Factory::empty_fixed_array());
+         FACTORY->empty_fixed_array());
   // Field JSArray::kElementsOffset is initialized later.
   __ mov(FieldOperand(result, JSArray::kLengthOffset), Immediate(0));
 
@@ -783,7 +783,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // fixed array.
   if (initial_capacity == 0) {
     __ mov(FieldOperand(result, JSArray::kElementsOffset),
-           Factory::empty_fixed_array());
+           FACTORY->empty_fixed_array());
     return;
   }
 
@@ -800,7 +800,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch1: elements array
   // scratch2: start of next object
   __ mov(FieldOperand(scratch1, FixedArray::kMapOffset),
-         Factory::fixed_array_map());
+         FACTORY->fixed_array_map());
   __ mov(FieldOperand(scratch1, FixedArray::kLengthOffset),
          Immediate(Smi::FromInt(initial_capacity)));
 
@@ -811,7 +811,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   if (initial_capacity <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
     // the loop.
-    __ mov(scratch3, Factory::the_hole_value());
+    __ mov(scratch3, FACTORY->the_hole_value());
     for (int i = 0; i < initial_capacity; i++) {
       __ mov(FieldOperand(scratch1,
                           FixedArray::kHeaderSize + i * kPointerSize),
@@ -821,7 +821,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
     Label loop, entry;
     __ jmp(&entry);
     __ bind(&loop);
-    __ mov(Operand(scratch1, 0), Factory::the_hole_value());
+    __ mov(Operand(scratch1, 0), FACTORY->the_hole_value());
     __ add(Operand(scratch1), Immediate(kPointerSize));
     __ bind(&entry);
     __ cmp(scratch1, Operand(scratch2));
@@ -876,7 +876,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_end: start of next object
   // array_size: size of array (smi)
   __ mov(FieldOperand(result, JSObject::kMapOffset), elements_array);
-  __ mov(elements_array, Factory::empty_fixed_array());
+  __ mov(elements_array, FACTORY->empty_fixed_array());
   __ mov(FieldOperand(result, JSArray::kPropertiesOffset), elements_array);
   // Field JSArray::kElementsOffset is initialized later.
   __ mov(FieldOperand(result, JSArray::kLengthOffset), array_size);
@@ -895,7 +895,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_end: start of next object
   // array_size: size of array (smi)
   __ mov(FieldOperand(elements_array, FixedArray::kMapOffset),
-         Factory::fixed_array_map());
+         FACTORY->fixed_array_map());
   // For non-empty JSArrays the length of the FixedArray and the JSArray is the
   // same.
   __ mov(FieldOperand(elements_array, FixedArray::kLengthOffset), array_size);
@@ -907,7 +907,7 @@ static void AllocateJSArray(MacroAssembler* masm,
     __ SmiUntag(array_size);
     __ lea(edi, Operand(elements_array,
                         FixedArray::kHeaderSize - kHeapObjectTag));
-    __ mov(eax, Factory::the_hole_value());
+    __ mov(eax, FACTORY->the_hole_value());
     __ cld();
     // Do not use rep stos when filling less than kRepStosThreshold
     // words.
@@ -1250,7 +1250,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ mov(FieldOperand(eax, HeapObject::kMapOffset), ecx);
 
   // Set properties and elements.
-  __ Set(ecx, Immediate(Factory::empty_fixed_array()));
+  __ Set(ecx, Immediate(FACTORY->empty_fixed_array()));
   __ mov(FieldOperand(eax, JSObject::kPropertiesOffset), ecx);
   __ mov(FieldOperand(eax, JSObject::kElementsOffset), ecx);
 
@@ -1291,7 +1291,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // Load the empty string into ebx, remove the receiver from the
   // stack, and jump back to the case where the argument is a string.
   __ bind(&no_arguments);
-  __ Set(ebx, Immediate(Factory::empty_string()));
+  __ Set(ebx, Immediate(FACTORY->empty_string()));
   __ pop(ecx);
   __ lea(esp, Operand(esp, kPointerSize));
   __ push(ecx);
@@ -1399,7 +1399,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Label fill;
     __ bind(&fill);
     __ inc(ecx);
-    __ push(Immediate(Factory::undefined_value()));
+    __ push(Immediate(FACTORY->undefined_value()));
     __ cmp(ecx, Operand(ebx));
     __ j(less, &fill);
 

@@ -47,7 +47,7 @@ class FuncNameInferrer : public ZoneObject {
       : entries_stack_(10),
         names_stack_(5),
         funcs_to_infer_(4),
-        dot_(Factory::NewStringFromAscii(CStrVector("."))) {
+        dot_(FACTORY->NewStringFromAscii(CStrVector("."))) {
   }
 
   // Returns whether we have entered name collection state.

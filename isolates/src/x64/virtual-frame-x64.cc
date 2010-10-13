@@ -112,7 +112,7 @@ void VirtualFrame::AllocateStackSlots() {
     // them later.  First sync everything above the stack pointer so we can
     // use pushes to allocate and initialize the locals.
     SyncRange(stack_pointer_ + 1, element_count() - 1);
-    Handle<Object> undefined = Factory::undefined_value();
+    Handle<Object> undefined = FACTORY->undefined_value();
     FrameElement initial_value =
         FrameElement::ConstantElement(undefined, FrameElement::SYNCED);
     if (count < kLocalVarBound) {

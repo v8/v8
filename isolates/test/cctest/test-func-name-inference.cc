@@ -78,7 +78,7 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
 
   // Find the position of a given func source substring in the source.
   Handle<String> func_pos_str =
-      Factory::NewStringFromAscii(CStrVector(func_pos_src));
+      FACTORY->NewStringFromAscii(CStrVector(func_pos_src));
   int func_pos = Runtime::StringMatch(Isolate::Current()->runtime_state(),
                                       script_src,
                                       func_pos_str,

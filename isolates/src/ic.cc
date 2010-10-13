@@ -235,7 +235,7 @@ Failure* IC::TypeError(const char* type,
                        Handle<Object> key) {
   HandleScope scope;
   Handle<Object> args[2] = { key, object };
-  Handle<Object> error = Factory::NewTypeError(type, HandleVector(args, 2));
+  Handle<Object> error = FACTORY->NewTypeError(type, HandleVector(args, 2));
   return isolate()->Throw(*error);
 }
 
@@ -243,7 +243,7 @@ Failure* IC::TypeError(const char* type,
 Failure* IC::ReferenceError(const char* type, Handle<String> name) {
   HandleScope scope;
   Handle<Object> error =
-      Factory::NewReferenceError(type, HandleVector(&name, 1));
+      FACTORY->NewReferenceError(type, HandleVector(&name, 1));
   return isolate()->Throw(*error);
 }
 
@@ -484,7 +484,7 @@ void CallICBase::ReceiverToObject(Handle<Object> object) {
   StackFrameLocator locator;
   JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
   int index = frame->ComputeExpressionsCount() - (argc + 1);
-  frame->SetExpression(index, *Factory::ToObject(object));
+  frame->SetExpression(index, *FACTORY->ToObject(object));
 }
 
 

@@ -158,7 +158,7 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
     ASSERT_EQ(kSmiTagSize, 1);
     __ movq(entity_name, Operand(properties, index, times_pointer_size,
                                  kElementsStartOffset - kHeapObjectTag));
-    __ Cmp(entity_name, Factory::undefined_value());
+    __ Cmp(entity_name, FACTORY->undefined_value());
     // __ jmp(miss_label);
     if (i != kProbes - 1) {
       __ j(equal, &done);
@@ -811,7 +811,7 @@ static Object* GenerateCheckPropertyCell(MacroAssembler* masm,
   ASSERT(cell->value()->IsTheHole());
   __ Move(scratch, Handle<Object>(cell));
   __ Cmp(FieldOperand(scratch, JSGlobalPropertyCell::kValueOffset),
-         Factory::the_hole_value());
+         FACTORY->the_hole_value());
   __ j(not_equal, miss);
   return cell;
 }
@@ -1150,7 +1150,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
     // Check that the elements are in fast mode and writable.
     __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
-           Factory::fixed_array_map());
+           FACTORY->fixed_array_map());
     __ j(not_equal, &call_builtin);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
@@ -2726,7 +2726,7 @@ Object* ConstructStubCompiler::CompileConstructStub(
   Label generic_stub_call;
 
   // Use r8 for holding undefined which is used in several places below.
-  __ Move(r8, Factory::undefined_value());
+  __ Move(r8, FACTORY->undefined_value());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Check to see whether there are any break points in the function code. If
@@ -2770,7 +2770,7 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // rbx: initial map
   // rdx: JSObject (untagged)
   __ movq(Operand(rdx, JSObject::kMapOffset), rbx);
-  __ Move(rbx, Factory::empty_fixed_array());
+  __ Move(rbx, FACTORY->empty_fixed_array());
   __ movq(Operand(rdx, JSObject::kPropertiesOffset), rbx);
   __ movq(Operand(rdx, JSObject::kElementsOffset), rbx);
 

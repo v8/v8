@@ -952,8 +952,8 @@ static Object* HandleApiCallHelper(
   if (is_construct) {
     Handle<FunctionTemplateInfo> desc(fun_data);
     bool pending_exception = false;
-    Factory::ConfigureInstance(desc, Handle<JSObject>::cast(args.receiver()),
-                               &pending_exception);
+    isolate->factory()->ConfigureInstance(
+        desc, Handle<JSObject>::cast(args.receiver()), &pending_exception);
     ASSERT(isolate->has_pending_exception() == pending_exception);
     if (pending_exception) return Failure::Exception();
     fun_data = *desc;
@@ -964,7 +964,8 @@ static Object* HandleApiCallHelper(
   if (raw_holder->IsNull()) {
     // This function cannot be called with the given receiver.  Abort!
     Handle<Object> obj =
-        Factory::NewTypeError("illegal_invocation", HandleVector(&function, 1));
+        isolate->factory()->NewTypeError(
+            "illegal_invocation", HandleVector(&function, 1));
     return isolate->Throw(*obj);
   }
 

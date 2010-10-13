@@ -71,6 +71,7 @@ class CpuProfiler;
 class Deserializer;
 class EmptyStatement;
 class ExternalReferenceTable;
+class Factory;
 class FunctionInfoListener;
 class HandleScopeImplementer;
 class HeapProfiler;
@@ -822,6 +823,8 @@ class Isolate {
   /* A stack of VM states. */
   AtomicWord* vm_state() { return &vm_state_; }
 
+  Factory* factory() { return reinterpret_cast<Factory*>(this); }
+
   // SerializerDeserializer state.
   static const int kPartialSnapshotCacheCapacity = 1400;
 
@@ -1141,9 +1144,11 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 };
 
 
-// Temporary macros for accessing fields off the global isolate. Define these
-// when reformatting code would become burdensome.
+// Temporary macros for accessing current isolate and its subobjects.
+// They provide better readability, especially when used a lot in the code.
 #define HEAP (v8::internal::Isolate::Current()->heap())
+#define FACTORY (v8::internal::Isolate::Current()->factory())
+#define ISOLATE (v8::internal::Isolate::Current())
 #define ZONE (v8::internal::Isolate::Current()->zone())
 #define LOGGER (v8::internal::Isolate::Current()->logger())
 

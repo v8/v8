@@ -61,7 +61,9 @@ CompilationCache::CompilationCache()
 
 
 static Handle<CompilationCacheTable> AllocateTable(int size) {
-  CALL_HEAP_FUNCTION(CompilationCacheTable::Allocate(size),
+  Isolate* isolate = Isolate::Current();
+  CALL_HEAP_FUNCTION(isolate,
+                     CompilationCacheTable::Allocate(size),
                      CompilationCacheTable);
 }
 
@@ -218,7 +220,10 @@ Object* CompilationCacheScript::TryTablePut(
 Handle<CompilationCacheTable> CompilationCacheScript::TablePut(
     Handle<String> source,
     Handle<SharedFunctionInfo> function_info) {
-  CALL_HEAP_FUNCTION(TryTablePut(source, function_info), CompilationCacheTable);
+  Isolate* isolate = Isolate::Current();
+  CALL_HEAP_FUNCTION(isolate,
+                     TryTablePut(source, function_info),
+                     CompilationCacheTable);
 }
 
 
@@ -273,7 +278,9 @@ Handle<CompilationCacheTable> CompilationCacheEval::TablePut(
     Handle<String> source,
     Handle<Context> context,
     Handle<SharedFunctionInfo> function_info) {
-  CALL_HEAP_FUNCTION(TryTablePut(source, context, function_info),
+  Isolate* isolate = Isolate::Current();
+  CALL_HEAP_FUNCTION(isolate,
+                     TryTablePut(source, context, function_info),
                      CompilationCacheTable);
 }
 
@@ -329,7 +336,10 @@ Handle<CompilationCacheTable> CompilationCacheRegExp::TablePut(
     Handle<String> source,
     JSRegExp::Flags flags,
     Handle<FixedArray> data) {
-  CALL_HEAP_FUNCTION(TryTablePut(source, flags, data), CompilationCacheTable);
+  Isolate* isolate = Isolate::Current();
+  CALL_HEAP_FUNCTION(isolate,
+                     TryTablePut(source, flags, data),
+                     CompilationCacheTable);
 }
 
 

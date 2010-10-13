@@ -141,7 +141,7 @@ TEST(2) {
 
   // some relocated stuff here, not executed
   __ RecordComment("dead code, just testing relocations");
-  __ mov(r0, Operand(Factory::true_value()));
+  __ mov(r0, Operand(FACTORY->true_value()));
   __ RecordComment("dead code, just testing immediate operands");
   __ mov(r0, Operand(-1));
   __ mov(r0, Operand(0xFF000000));

@@ -212,7 +212,7 @@ TEST(MarkCompactCollector) {
 
 
 static Handle<Map> CreateMap() {
-  return Factory::NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  return FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
 }
 
 
@@ -224,11 +224,11 @@ TEST(MapCompact) {
     v8::HandleScope sc;
     // keep allocating maps while pointers are still encodable and thus
     // mark compact is permitted.
-    Handle<JSObject> root = Factory::NewJSObjectFromMap(CreateMap());
+    Handle<JSObject> root = FACTORY->NewJSObjectFromMap(CreateMap());
     do {
       Handle<Map> map = CreateMap();
       map->set_prototype(*root);
-      root = Factory::NewJSObjectFromMap(map);
+      root = FACTORY->NewJSObjectFromMap(map);
     } while (HEAP->map_space()->MapPointersEncodable());
   }
   // Now, as we don't have any handles to just allocated maps, we should

@@ -170,15 +170,16 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
 
   if (*caught_exception) {
     ASSERT(catcher.HasCaught());
-    ASSERT(Isolate::Current()->has_pending_exception());
-    ASSERT(Isolate::Current()->external_caught_exception());
-    if (Isolate::Current()->pending_exception() ==
-        HEAP->termination_exception()) {
-      result = Factory::termination_exception();
+    Isolate* isolate = Isolate::Current();
+    ASSERT(isolate->has_pending_exception());
+    ASSERT(isolate->external_caught_exception());
+    if (isolate->pending_exception() ==
+        isolate->heap()->termination_exception()) {
+      result = isolate->factory()->termination_exception();
     } else {
       result = v8::Utils::OpenHandle(*catcher.Exception());
     }
-    Isolate::Current()->OptionalRescheduleException(true);
+    isolate->OptionalRescheduleException(true);
   }
 
   ASSERT(!Isolate::Current()->has_pending_exception());
@@ -196,7 +197,7 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   // Regular expressions can be called as functions in both Firefox
   // and Safari so we allow it too.
   if (object->IsJSRegExp()) {
-    Handle<String> exec = Factory::exec_symbol();
+    Handle<String> exec = FACTORY->exec_symbol();
     return Handle<Object>(object->GetProperty(*exec));
   }
 
@@ -208,7 +209,7 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
         Isolate::Current()->global_context()->call_as_function_delegate());
   }
 
-  return Factory::undefined_value();
+  return FACTORY->undefined_value();
 }
 
 
@@ -226,7 +227,7 @@ Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
         Isolate::Current()->global_context()->call_as_constructor_delegate());
   }
 
-  return Factory::undefined_value();
+  return FACTORY->undefined_value();
 }
 
 
@@ -488,7 +489,7 @@ Handle<Object> Execution::ToInt32(Handle<Object> obj, bool* exc) {
 
 
 Handle<Object> Execution::NewDate(double time, bool* exc) {
-  Handle<Object> time_obj = Factory::NewNumber(time);
+  Handle<Object> time_obj = FACTORY->NewNumber(time);
   RETURN_NATIVE_CALL(create_date, 1, { time_obj.location() }, exc);
 }
 
@@ -499,18 +500,18 @@ Handle<Object> Execution::NewDate(double time, bool* exc) {
 Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
   int int_index = static_cast<int>(index);
   if (int_index < 0 || int_index >= string->length()) {
-    return Factory::undefined_value();
+    return FACTORY->undefined_value();
   }
 
   Handle<Object> char_at =
       GetProperty(Isolate::Current()->js_builtins_object(),
-                  Factory::char_at_symbol());
+                  FACTORY->char_at_symbol());
   if (!char_at->IsJSFunction()) {
-    return Factory::undefined_value();
+    return FACTORY->undefined_value();
   }
 
   bool caught_exception;
-  Handle<Object> index_object = Factory::NewNumberFromInt(int_index);
+  Handle<Object> index_object = FACTORY->NewNumberFromInt(int_index);
   Object** index_arg[] = { index_object.location() };
   Handle<Object> result = TryCall(Handle<JSFunction>::cast(char_at),
                                   string,
@@ -518,7 +519,7 @@ Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
                                   index_arg,
                                   &caught_exception);
   if (caught_exception) {
-    return Factory::undefined_value();
+    return FACTORY->undefined_value();
   }
   return result;
 }
@@ -595,7 +596,7 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
       TryCall(Isolate::Current()->get_stack_trace_line_fun(),
               Isolate::Current()->js_builtins_object(), argc, args,
               &caught_exception);
-  if (caught_exception || !result->IsString()) return Factory::empty_symbol();
+  if (caught_exception || !result->IsString()) return FACTORY->empty_symbol();
   return Handle<String>::cast(result);
 }
 
@@ -688,7 +689,7 @@ void Execution::ProcessDebugMesssages(bool debug_command_only) {
 
   // Notify the debug event listeners. Indicate auto continue if the break was
   // a debug command break.
-  Isolate::Current()->debugger()->OnDebugBreak(Factory::undefined_value(),
+  Isolate::Current()->debugger()->OnDebugBreak(FACTORY->undefined_value(),
                                                debug_command_only);
 }
 

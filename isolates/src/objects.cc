@@ -1395,7 +1395,7 @@ Object* JSObject::AddProperty(String* name,
   if (!map()->is_extensible()) {
     Handle<Object> args[1] = {Handle<String>(name)};
     return heap->isolate()->Throw(
-        *Factory::NewTypeError("object_not_extensible", HandleVector(args, 1)));
+        *FACTORY->NewTypeError("object_not_extensible", HandleVector(args, 1)));
   }
   if (HasFastProperties()) {
     // Ensure the descriptor array does not get too big.
@@ -1630,7 +1630,7 @@ Object* JSObject::SetPropertyWithCallback(Object* structure,
       Handle<Object> holder_handle(holder);
       Handle<Object> args[2] = { key, holder_handle };
       return heap->isolate()->Throw(
-          *Factory::NewTypeError("no_setter_in_callback",
+          *FACTORY->NewTypeError("no_setter_in_callback",
           HandleVector(args, 2)));
     }
   }
@@ -5946,7 +5946,7 @@ void JSArray::Expand(int required_size) {
   Handle<FixedArray> old_backing(FixedArray::cast(elements()));
   int old_size = old_backing->length();
   int new_size = required_size > old_size ? required_size : old_size;
-  Handle<FixedArray> new_backing = Factory::NewFixedArray(new_size);
+  Handle<FixedArray> new_backing = FACTORY->NewFixedArray(new_size);
   // Can't use this any more now because we may have had a GC!
   for (int i = 0; i < old_size; i++) new_backing->set(i, old_backing->get(i));
   self->SetContent(*new_backing);
@@ -5963,7 +5963,7 @@ static int NewElementsCapacity(int old_capacity) {
 static Object* ArrayLengthRangeError(Heap* heap) {
   HandleScope scope;
   return heap->isolate()->Throw(
-      *Factory::NewRangeError("invalid_array_length",
+      *FACTORY->NewRangeError("invalid_array_length",
           HandleVector<Object>(NULL, 0)));
 }
 
@@ -6068,7 +6068,7 @@ Object* JSObject::SetPrototype(Object* value,
       // Cycle detected.
       HandleScope scope;
       return heap->isolate()->Throw(
-          *Factory::NewError("cyclic_proto", HandleVector<Object>(NULL, 0)));
+          *FACTORY->NewError("cyclic_proto", HandleVector<Object>(NULL, 0)));
     }
   }
 
@@ -6369,8 +6369,8 @@ Object* JSObject::GetElementWithCallback(Object* receiver,
     HandleScope scope;
     Handle<JSObject> self(JSObject::cast(receiver));
     Handle<JSObject> holder_handle(JSObject::cast(holder));
-    Handle<Object> number = Factory::NewNumberFromUint(index);
-    Handle<String> key(Factory::NumberToString(number));
+    Handle<Object> number = FACTORY->NewNumberFromUint(index);
+    Handle<String> key(FACTORY->NumberToString(number));
     LOG(ApiNamedPropertyAccess("load", *self, *key));
     CustomArguments args(data->data(), *self, *holder_handle);
     v8::AccessorInfo info(args.end());
@@ -6424,8 +6424,8 @@ Object* JSObject::SetElementWithCallback(Object* structure,
     Object* call_obj = data->setter();
     v8::AccessorSetter call_fun = v8::ToCData<v8::AccessorSetter>(call_obj);
     if (call_fun == NULL) return value;
-    Handle<Object> number = Factory::NewNumberFromUint(index);
-    Handle<String> key(Factory::NumberToString(number));
+    Handle<Object> number = FACTORY->NewNumberFromUint(index);
+    Handle<String> key(FACTORY->NumberToString(number));
     LOG(ApiNamedPropertyAccess("store", this, *key));
     CustomArguments args(data->data(), this, JSObject::cast(holder));
     v8::AccessorInfo info(args.end());
@@ -6446,10 +6446,10 @@ Object* JSObject::SetElementWithCallback(Object* structure,
      return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
     } else {
       Handle<Object> holder_handle(holder);
-      Handle<Object> key(Factory::NewNumberFromUint(index));
+      Handle<Object> key(FACTORY->NewNumberFromUint(index));
       Handle<Object> args[2] = { key, holder_handle };
       return heap->isolate()->Throw(
-          *Factory::NewTypeError("no_setter_in_callback",
+          *FACTORY->NewTypeError("no_setter_in_callback",
               HandleVector(args, 2)));
     }
   }
@@ -6605,10 +6605,10 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
         // the element into dictionary mode (and force them to stay there).
         if (!map()->is_extensible()) {
           Handle<Object> number(heap->NumberFromUint32(index));
-          Handle<String> index_string(Factory::NumberToString(number));
+          Handle<String> index_string(FACTORY->NumberToString(number));
           Handle<Object> args[1] = { index_string };
           return heap->isolate()->Throw(
-              *Factory::NewTypeError("object_not_extensible",
+              *FACTORY->NewTypeError("object_not_extensible",
                                      HandleVector(args, 1)));
         }
         Object* result = dictionary->AtNumberPut(index, value);
@@ -9011,7 +9011,7 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
                               int source_position,
                               int statement_position,
                               Handle<Object> break_point_object) {
-  Heap* heap = Isolate::Current()->heap();
+  Isolate* isolate = Isolate::Current();
   Handle<Object> break_point_info(debug_info->GetBreakPointInfo(code_position));
   if (!break_point_info->IsUndefined()) {
     BreakPointInfo::SetBreakPoint(
@@ -9034,8 +9034,9 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
     Handle<FixedArray> old_break_points =
         Handle<FixedArray>(FixedArray::cast(debug_info->break_points()));
     Handle<FixedArray> new_break_points =
-        Factory::NewFixedArray(old_break_points->length() +
-                               Debug::kEstimatedNofBreakPointsInFunction);
+        isolate->factory()->NewFixedArray(
+            old_break_points->length() +
+            Debug::kEstimatedNofBreakPointsInFunction);
 
     debug_info->set_break_points(*new_break_points);
     for (int i = 0; i < old_break_points->length(); i++) {
@@ -9046,13 +9047,14 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
   ASSERT(index != kNoBreakPointInfo);
 
   // Allocate new BreakPointInfo object and set the break point.
-  Handle<BreakPointInfo> new_break_point_info =
-      Handle<BreakPointInfo>::cast(Factory::NewStruct(BREAK_POINT_INFO_TYPE));
+  Handle<BreakPointInfo> new_break_point_info = Handle<BreakPointInfo>::cast(
+      isolate->factory()->NewStruct(BREAK_POINT_INFO_TYPE));
   new_break_point_info->set_code_position(Smi::FromInt(code_position));
   new_break_point_info->set_source_position(Smi::FromInt(source_position));
   new_break_point_info->
       set_statement_position(Smi::FromInt(statement_position));
-  new_break_point_info->set_break_point_objects(heap->undefined_value());
+  new_break_point_info->set_break_point_objects(
+      isolate->heap()->undefined_value());
   BreakPointInfo::SetBreakPoint(new_break_point_info, break_point_object);
   debug_info->break_points()->set(index, *new_break_point_info);
 }
@@ -9123,13 +9125,14 @@ int DebugInfo::GetBreakPointInfoIndex(int code_position) {
 // Remove the specified break point object.
 void BreakPointInfo::ClearBreakPoint(Handle<BreakPointInfo> break_point_info,
                                      Handle<Object> break_point_object) {
-  Heap* heap = Isolate::Current()->heap();
+  Isolate* isolate = Isolate::Current();
   // If there are no break points just ignore.
   if (break_point_info->break_point_objects()->IsUndefined()) return;
   // If there is a single break point clear it if it is the same.
   if (!break_point_info->break_point_objects()->IsFixedArray()) {
     if (break_point_info->break_point_objects() == *break_point_object) {
-      break_point_info->set_break_point_objects(heap->undefined_value());
+      break_point_info->set_break_point_objects(
+          isolate->heap()->undefined_value());
     }
     return;
   }
@@ -9139,7 +9142,7 @@ void BreakPointInfo::ClearBreakPoint(Handle<BreakPointInfo> break_point_info,
       Handle<FixedArray>(
           FixedArray::cast(break_point_info->break_point_objects()));
   Handle<FixedArray> new_array =
-      Factory::NewFixedArray(old_array->length() - 1);
+      isolate->factory()->NewFixedArray(old_array->length() - 1);
   int found_count = 0;
   for (int i = 0; i < old_array->length(); i++) {
     if (old_array->get(i) == *break_point_object) {
@@ -9166,7 +9169,7 @@ void BreakPointInfo::SetBreakPoint(Handle<BreakPointInfo> break_point_info,
   if (break_point_info->break_point_objects() == *break_point_object) return;
   // If there was one break point object before replace with array.
   if (!break_point_info->break_point_objects()->IsFixedArray()) {
-    Handle<FixedArray> array = Factory::NewFixedArray(2);
+    Handle<FixedArray> array = FACTORY->NewFixedArray(2);
     array->set(0, break_point_info->break_point_objects());
     array->set(1, *break_point_object);
     break_point_info->set_break_point_objects(*array);
@@ -9177,7 +9180,7 @@ void BreakPointInfo::SetBreakPoint(Handle<BreakPointInfo> break_point_info,
       Handle<FixedArray>(
           FixedArray::cast(break_point_info->break_point_objects()));
   Handle<FixedArray> new_array =
-      Factory::NewFixedArray(old_array->length() + 1);
+      FACTORY->NewFixedArray(old_array->length() + 1);
   for (int i = 0; i < old_array->length(); i++) {
     // If the break point was there before just ignore.
     if (old_array->get(i) == *break_point_object) return;

@@ -142,7 +142,7 @@ TEST(AssemblerIa322) {
   __ ret(0);
 
   // some relocated stuff here, not executed
-  __ mov(eax, Factory::true_value());
+  __ mov(eax, FACTORY->true_value());
   __ jmp(NULL, RelocInfo::RUNTIME_ENTRY);
 
   CodeDesc desc;

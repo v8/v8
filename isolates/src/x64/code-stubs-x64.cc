@@ -1008,7 +1008,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
   __ bind(&input_not_smi);
   // Check if input is a HeapNumber.
-  __ Move(rbx, Factory::heap_number_map());
+  __ Move(rbx, FACTORY->heap_number_map());
   __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
   __ j(not_equal, &runtime_call);
   // Input is a HeapNumber. Push it on the FPU stack and load its
@@ -1422,7 +1422,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       if (negative_zero_ == kStrictNegativeZero) {
         __ SmiCompare(rax, Smi::FromInt(0));
         __ j(not_equal, &slow);
-        __ Move(rax, Factory::minus_zero_value());
+        __ Move(rax, FACTORY->minus_zero_value());
         __ jmp(&done);
       } else  {
         __ SmiCompare(rax, Smi::FromInt(Smi::kMinValue));
@@ -1761,7 +1761,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the JSArray is in fast case.
   __ movq(rbx, FieldOperand(rax, JSArray::kElementsOffset));
   __ movq(rax, FieldOperand(rbx, HeapObject::kMapOffset));
-  __ Cmp(rax, Factory::fixed_array_map());
+  __ Cmp(rax, FACTORY->fixed_array_map());
   __ j(not_equal, &runtime);
   // Check that the last match info has space for the capture registers and the
   // additional information. Ensure no overflow in add.
@@ -1797,7 +1797,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(not_zero, &runtime);
   // String is a cons string.
   __ movq(rdx, FieldOperand(rax, ConsString::kSecondOffset));
-  __ Cmp(rdx, Factory::empty_string());
+  __ Cmp(rdx, FACTORY->empty_string());
   __ j(not_equal, &runtime);
   __ movq(rax, FieldOperand(rax, ConsString::kFirstOffset));
   __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
@@ -1941,11 +1941,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   ExternalReference pending_exception_address(
       Isolate::k_pending_exception_address);
   __ movq(kScratchRegister, pending_exception_address);
-  __ Cmp(kScratchRegister, Factory::the_hole_value());
+  __ Cmp(kScratchRegister, FACTORY->the_hole_value());
   __ j(equal, &runtime);
   __ bind(&failure);
   // For failure and exception return null.
-  __ Move(rax, Factory::null_value());
+  __ Move(rax, FACTORY->null_value());
   __ ret(4 * kPointerSize);
 
   // Load RegExp data.
@@ -2043,7 +2043,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Label load_result_from_cache;
   if (!object_is_smi) {
     __ JumpIfSmi(object, &is_smi);
-    __ CheckMap(object, Factory::heap_number_map(), not_found, true);
+    __ CheckMap(object, FACTORY->heap_number_map(), not_found, true);
 
     STATIC_ASSERT(8 == kDoubleSize);
     __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
@@ -2173,7 +2173,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ bind(&check_for_nan);
     }
 
-    // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
+    // Test for NaN. Sadly, we can't just compare to FACTORY->nan_value(),
     // so we do the second best thing - test it ourselves.
     // Note: if cc_ != equal, never_nan_nan_ is not used.
     // We cannot set rax to EQUAL until just before return because
@@ -2186,7 +2186,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       NearLabel heap_number;
       // If it's not a heap number, then return equal for (in)equality operator.
       __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
-             Factory::heap_number_map());
+             FACTORY->heap_number_map());
       __ j(equal, &heap_number);
       if (cc_ != equal) {
         // Call runtime on identical JSObjects.  Otherwise return equal.
@@ -2231,7 +2231,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
         // Check if the non-smi operand is a heap number.
         __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
-               Factory::heap_number_map());
+               FACTORY->heap_number_map());
         // If heap number, handle it in the slow case.
         __ j(equal, &slow);
         // Return non-equal.  ebx (the lower half of rbx) is not zero.
@@ -2531,7 +2531,7 @@ void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address();
   __ movq(rsi, scheduled_exception_address);
-  __ Cmp(Operand(rsi, 0), Factory::the_hole_value());
+  __ Cmp(Operand(rsi, 0), FACTORY->the_hole_value());
   __ j(not_equal, &promote_scheduled_exception);
 #ifdef _WIN64
   // rax keeps a pointer to v8::Handle, unpack it.
@@ -2549,7 +2549,7 @@ void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
   __ bind(&empty_result);
   // It was zero; the result is undefined.
-  __ Move(rax, Factory::undefined_value());
+  __ Move(rax, FACTORY->undefined_value());
   __ jmp(&prologue);
 }
 
@@ -3190,7 +3190,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // Index is not a smi.
   __ bind(&index_not_smi_);
   // If index is a heap number, try converting it to an integer.
-  __ CheckMap(index_, Factory::heap_number_map(), index_not_number_, true);
+  __ CheckMap(index_, FACTORY->heap_number_map(), index_not_number_, true);
   call_helper.BeforeCall(masm);
   __ push(object_);
   __ push(index_);

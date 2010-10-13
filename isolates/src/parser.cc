@@ -785,7 +785,7 @@ TemporaryScope::TemporaryScope(Parser* parser)
   : materialized_literal_count_(0),
     expected_property_count_(0),
     only_simple_this_property_assignments_(false),
-    this_property_assignments_(Factory::empty_fixed_array()),
+    this_property_assignments_(FACTORY->empty_fixed_array()),
     loop_count_(0),
     parser_(parser),
     parent_(parser->temp_scope_) {
@@ -899,7 +899,7 @@ class AstBuildingParserFactory : public ParserFactory {
     // if there is some preparser data.
     if (static_cast<unsigned>(symbol_id)
         >= static_cast<unsigned>(symbol_cache_.length())) {
-      return Factory::LookupSymbol(string);
+      return FACTORY->LookupSymbol(string);
     }
     return LookupCachedSymbol(symbol_id, string);
   }
@@ -914,7 +914,7 @@ class AstBuildingParserFactory : public ParserFactory {
     }
     Handle<String> result = symbol_cache_.at(symbol_id);
     if (result.is_null()) {
-      result = Factory::LookupSymbol(string);
+      result = FACTORY->LookupSymbol(string);
       symbol_cache_.at(symbol_id) = result;
       return result;
     }
@@ -923,7 +923,7 @@ class AstBuildingParserFactory : public ParserFactory {
   }
 
   virtual Handle<String> EmptySymbol() {
-    return Factory::empty_symbol();
+    return FACTORY->empty_symbol();
   }
 
   virtual Expression* NewProperty(Expression* obj, Expression* key, int pos) {
@@ -1667,11 +1667,11 @@ void AstBuildingParser::ReportMessageAt(Scanner::Location source_location,
                                         Vector<const char*> args) {
   MessageLocation location(script_,
                            source_location.beg_pos, source_location.end_pos);
-  Handle<JSArray> array = Factory::NewJSArray(args.length());
+  Handle<JSArray> array = FACTORY->NewJSArray(args.length());
   for (int i = 0; i < args.length(); i++) {
-    SetElement(array, i, Factory::NewStringFromUtf8(CStrVector(args[i])));
+    SetElement(array, i, FACTORY->NewStringFromUtf8(CStrVector(args[i])));
   }
-  Handle<Object> result = Factory::NewSyntaxError(type, array);
+  Handle<Object> result = FACTORY->NewSyntaxError(type, array);
   Isolate::Current()->Throw(*result, &location);
 }
 
@@ -1831,14 +1831,14 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
   // form this.x = y;
   Handle<FixedArray> GetThisPropertyAssignments() {
     if (names_ == NULL) {
-      return Factory::empty_fixed_array();
+      return FACTORY->empty_fixed_array();
     }
     ASSERT(names_ != NULL);
     ASSERT(assigned_arguments_ != NULL);
     ASSERT_EQ(names_->length(), assigned_arguments_->length());
     ASSERT_EQ(names_->length(), assigned_constants_->length());
     Handle<FixedArray> assignments =
-        Factory::NewFixedArray(names_->length() * 3);
+        FACTORY->NewFixedArray(names_->length() * 3);
     for (int i = 0; i < names_->length(); i++) {
       assignments->set(i * 3, *names_->at(i));
       assignments->set(i * 3 + 1, Smi::FromInt(assigned_arguments_->at(i)));
@@ -1902,7 +1902,7 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     EnsureAllocation();
     names_->Add(name);
     assigned_arguments_->Add(index);
-    assigned_constants_->Add(Factory::undefined_value());
+    assigned_constants_->Add(FACTORY->undefined_value());
   }
 
   void AssignmentFromConstant(Handle<String> name, Handle<Object> value) {
@@ -2130,9 +2130,9 @@ VariableProxy* AstBuildingParser::Declare(Handle<String> name,
                var->mode() == Variable::CONST);
         const char* type = (var->mode() == Variable::VAR) ? "var" : "const";
         Handle<String> type_string =
-            Factory::NewStringFromUtf8(CStrVector(type), TENURED);
+            FACTORY->NewStringFromUtf8(CStrVector(type), TENURED);
         Expression* expression =
-            NewThrowTypeError(Factory::redeclaration_symbol(),
+            NewThrowTypeError(FACTORY->redeclaration_symbol(),
                               type_string, name);
         top_scope_->SetIllegalRedeclaration(expression);
       }
@@ -2238,7 +2238,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<SharedFunctionInfo> shared =
-      Factory::NewSharedFunctionInfo(name, literals, code,
+      FACTORY->NewSharedFunctionInfo(name, literals, code,
           Handle<SerializedScopeInfo>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
 
@@ -2454,13 +2454,13 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
       if (is_const) {
         initialize =
           NEW(CallRuntime(
-            Factory::InitializeConstGlobal_symbol(),
+            FACTORY->InitializeConstGlobal_symbol(),
             Runtime::FunctionForId(Runtime::kInitializeConstGlobal),
             arguments));
       } else {
         initialize =
           NEW(CallRuntime(
-            Factory::InitializeVarGlobal_symbol(),
+            FACTORY->InitializeVarGlobal_symbol(),
             Runtime::FunctionForId(Runtime::kInitializeVarGlobal),
             arguments));
       }
@@ -2593,8 +2593,8 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
     if (target == NULL) {
       // Illegal continue statement.  To be consistent with KJS we delay
       // reporting of the syntax error until runtime.
-      Handle<String> error_type = Factory::illegal_continue_symbol();
-      if (!label.is_null()) error_type = Factory::unknown_label_symbol();
+      Handle<String> error_type = FACTORY->illegal_continue_symbol();
+      if (!label.is_null()) error_type = FACTORY->unknown_label_symbol();
       Expression* throw_error = NewThrowSyntaxError(error_type, label);
       return NEW(ExpressionStatement(throw_error));
     }
@@ -2626,8 +2626,8 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
     if (target == NULL) {
       // Illegal break statement.  To be consistent with KJS we delay
       // reporting of the syntax error until runtime.
-      Handle<String> error_type = Factory::illegal_break_symbol();
-      if (!label.is_null()) error_type = Factory::unknown_label_symbol();
+      Handle<String> error_type = FACTORY->illegal_break_symbol();
+      if (!label.is_null()) error_type = FACTORY->unknown_label_symbol();
       Expression* throw_error = NewThrowSyntaxError(error_type, label);
       return NEW(ExpressionStatement(throw_error));
     }
@@ -2652,7 +2652,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   //
   // To be consistent with KJS we report the syntax error at runtime.
   if (!is_pre_parsing_ && !top_scope_->is_function_scope()) {
-    Handle<String> type = Factory::illegal_return_symbol();
+    Handle<String> type = FACTORY->illegal_return_symbol();
     Expression* throw_error = NewThrowSyntaxError(type, Handle<Object>::null());
     return NEW(ExpressionStatement(throw_error));
   }
@@ -2853,7 +2853,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     if (peek() == Token::LBRACE) {
       // Allocate a temporary for holding the finally state while
       // executing the finally block.
-      catch_var = top_scope_->NewTemporary(Factory::catch_var_symbol());
+      catch_var = top_scope_->NewTemporary(FACTORY->catch_var_symbol());
       Literal* name_literal = NEW(Literal(name));
       Expression* obj = NEW(CatchExtensionObject(name_literal, catch_var));
       { Target target(this, &catch_collector);
@@ -3008,7 +3008,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         // error here but for compatibility with JSC we choose to report
         // the error at runtime.
         if (expression == NULL || !expression->IsValidLeftHandSide()) {
-          Handle<String> type = Factory::invalid_lhs_in_for_in_symbol();
+          Handle<String> type = FACTORY->invalid_lhs_in_for_in_symbol();
           expression = NewThrowReferenceError(type);
         }
         ForInStatement* loop = NEW(ForInStatement(labels));
@@ -3093,7 +3093,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   // for compatibility with JSC we choose to report the error at
   // runtime.
   if (expression == NULL || !expression->IsValidLeftHandSide()) {
-    Handle<String> type = Factory::invalid_lhs_in_assignment_symbol();
+    Handle<String> type = FACTORY->invalid_lhs_in_assignment_symbol();
     expression = NewThrowReferenceError(type);
   }
 
@@ -3334,7 +3334,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     // error here but for compatibility with JSC we choose to report the
     // error at runtime.
     if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      Handle<String> type = Factory::invalid_lhs_in_prefix_op_symbol();
+      Handle<String> type = FACTORY->invalid_lhs_in_prefix_op_symbol();
       expression = NewThrowReferenceError(type);
     }
     int position = scanner().location().beg_pos;
@@ -3358,7 +3358,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
     // error here but for compatibility with JSC we choose to report the
     // error at runtime.
     if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      Handle<String> type = Factory::invalid_lhs_in_postfix_op_symbol();
+      Handle<String> type = FACTORY->invalid_lhs_in_postfix_op_symbol();
       expression = NewThrowReferenceError(type);
     }
     Token::Value next = Next();
@@ -3406,7 +3406,7 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         // to eval is determined at run time.
         if (!is_pre_parsing_) {
           VariableProxy* callee = result->AsVariableProxy();
-          if (callee != NULL && callee->IsVariable(Factory::eval_symbol())) {
+          if (callee != NULL && callee->IsVariable(FACTORY->eval_symbol())) {
             Handle<String> name = callee->name();
             Variable* var = top_scope_->Lookup(name);
             if (var == NULL) {
@@ -3607,17 +3607,17 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 
     case Token::NULL_LITERAL:
       Consume(Token::NULL_LITERAL);
-      result = NEW(Literal(Factory::null_value()));
+      result = NEW(Literal(FACTORY->null_value()));
       break;
 
     case Token::TRUE_LITERAL:
       Consume(Token::TRUE_LITERAL);
-      result = NEW(Literal(Factory::true_value()));
+      result = NEW(Literal(FACTORY->true_value()));
       break;
 
     case Token::FALSE_LITERAL:
       Consume(Token::FALSE_LITERAL);
-      result = NEW(Literal(Factory::false_value()));
+      result = NEW(Literal(FACTORY->false_value()));
       break;
 
     case Token::IDENTIFIER: {
@@ -3743,7 +3743,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
 
   // Allocate a fixed array with all the literals.
   Handle<FixedArray> literals =
-      Factory::NewFixedArray(values.length(), TENURED);
+      FACTORY->NewFixedArray(values.length(), TENURED);
 
   // Fill in the literals.
   bool is_simple = true;
@@ -3799,7 +3799,7 @@ bool CompileTimeValue::ArrayLiteralElementNeedsInitialization(
 
 Handle<FixedArray> CompileTimeValue::GetValue(Expression* expression) {
   ASSERT(IsCompileTimeValue(expression));
-  Handle<FixedArray> result = Factory::NewFixedArray(2, TENURED);
+  Handle<FixedArray> result = FACTORY->NewFixedArray(2, TENURED);
   ObjectLiteral* object_literal = expression->AsObjectLiteral();
   if (object_literal != NULL) {
     ASSERT(object_literal->is_simple());
@@ -3837,7 +3837,7 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
   if (CompileTimeValue::IsCompileTimeValue(expression)) {
     return CompileTimeValue::GetValue(expression);
   }
-  return Factory::undefined_value();
+  return FACTORY->undefined_value();
 }
 
 
@@ -4028,7 +4028,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   if (is_pre_parsing_) return NULL;
 
   Handle<FixedArray> constant_properties =
-      Factory::NewFixedArray(number_of_boilerplate_properties * 2, TENURED);
+      FACTORY->NewFixedArray(number_of_boilerplate_properties * 2, TENURED);
 
   bool is_simple = true;
   bool fast_elements = true;
@@ -4071,10 +4071,10 @@ Expression* Parser::ParseRegExpLiteral(bool seen_equal, bool* ok) {
   }
 
   Handle<String> js_pattern =
-      Factory::NewStringFromUtf8(scanner_.next_literal(), TENURED);
+      FACTORY->NewStringFromUtf8(scanner_.next_literal(), TENURED);
   scanner_.ScanRegExpFlags();
   Handle<String> js_flags =
-      Factory::NewStringFromUtf8(scanner_.next_literal(), TENURED);
+      FACTORY->NewStringFromUtf8(scanner_.next_literal(), TENURED);
   Next();
 
   return new RegExpLiteral(js_pattern, js_flags, literal_index);
@@ -4192,7 +4192,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();
       only_simple_this_property_assignments = false;
-      this_property_assignments = Factory::empty_fixed_array();
+      this_property_assignments = FACTORY->empty_fixed_array();
       Expect(Token::RBRACE, CHECK_OK);
     } else {
       if (pre_data() != NULL) {
@@ -4336,12 +4336,12 @@ void Parser::ExpectSemicolon(bool* ok) {
 
 
 Literal* Parser::GetLiteralUndefined() {
-  return NEW(Literal(Factory::undefined_value()));
+  return NEW(Literal(FACTORY->undefined_value()));
 }
 
 
 Literal* Parser::GetLiteralTheHole() {
-  return NEW(Literal(Factory::the_hole_value()));
+  return NEW(Literal(FACTORY->the_hole_value()));
 }
 
 
@@ -4444,12 +4444,12 @@ void Parser::RegisterTargetUse(BreakTarget* target, Target* stop) {
 
 
 Literal* Parser::NewNumberLiteral(double number) {
-  return NEW(Literal(Factory::NewNumber(number, TENURED)));
+  return NEW(Literal(FACTORY->NewNumber(number, TENURED)));
 }
 
 
 Expression* Parser::NewThrowReferenceError(Handle<String> type) {
-  return NewThrowError(Factory::MakeReferenceError_symbol(),
+  return NewThrowError(FACTORY->MakeReferenceError_symbol(),
                        type, HandleVector<Object>(NULL, 0));
 }
 
@@ -4458,7 +4458,7 @@ Expression* Parser::NewThrowSyntaxError(Handle<String> type,
                                         Handle<Object> first) {
   int argc = first.is_null() ? 0 : 1;
   Vector< Handle<Object> > arguments = HandleVector<Object>(&first, argc);
-  return NewThrowError(Factory::MakeSyntaxError_symbol(), type, arguments);
+  return NewThrowError(FACTORY->MakeSyntaxError_symbol(), type, arguments);
 }
 
 
@@ -4469,7 +4469,7 @@ Expression* Parser::NewThrowTypeError(Handle<String> type,
   Handle<Object> elements[] = { first, second };
   Vector< Handle<Object> > arguments =
       HandleVector<Object>(elements, ARRAY_SIZE(elements));
-  return NewThrowError(Factory::MakeTypeError_symbol(), type, arguments);
+  return NewThrowError(FACTORY->MakeTypeError_symbol(), type, arguments);
 }
 
 
@@ -4479,7 +4479,7 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
   if (is_pre_parsing_) return NULL;
 
   int argc = arguments.length();
-  Handle<JSArray> array = Factory::NewJSArray(argc, TENURED);
+  Handle<JSArray> array = FACTORY->NewJSArray(argc, TENURED);
   ASSERT(array->IsJSArray() && array->HasFastElements());
   for (int i = 0; i < argc; i++) {
     Handle<Object> element = arguments[i];
@@ -4517,10 +4517,10 @@ Expression* Parser::ParseJsonValue(bool* ok) {
       int literal_length = scanner_.literal_length();
       const char* literal_string = scanner_.literal_string();
       if (literal_length == 0) {
-        return NEW(Literal(Factory::empty_string()));
+        return NEW(Literal(FACTORY->empty_string()));
       }
       Vector<const char> literal(literal_string, literal_length);
-      return NEW(Literal(Factory::NewStringFromUtf8(literal, TENURED)));
+      return NEW(Literal(FACTORY->NewStringFromUtf8(literal, TENURED)));
     }
     case Token::NUMBER: {
       Consume(Token::NUMBER);
@@ -4532,13 +4532,13 @@ Expression* Parser::ParseJsonValue(bool* ok) {
     }
     case Token::FALSE_LITERAL:
       Consume(Token::FALSE_LITERAL);
-      return NEW(Literal(Factory::false_value()));
+      return NEW(Literal(FACTORY->false_value()));
     case Token::TRUE_LITERAL:
       Consume(Token::TRUE_LITERAL);
-      return NEW(Literal(Factory::true_value()));
+      return NEW(Literal(FACTORY->true_value()));
     case Token::NULL_LITERAL:
       Consume(Token::NULL_LITERAL);
-      return NEW(Literal(Factory::null_value()));
+      return NEW(Literal(FACTORY->null_value()));
     case Token::LBRACE: {
       Expression* result = ParseJsonObject(CHECK_OK);
       return result;
@@ -4589,7 +4589,7 @@ Expression* Parser::ParseJsonObject(bool* ok) {
   if (is_pre_parsing_) return NULL;
 
   Handle<FixedArray> constant_properties =
-        Factory::NewFixedArray(boilerplate_properties * 2, TENURED);
+        FACTORY->NewFixedArray(boilerplate_properties * 2, TENURED);
   bool is_simple = true;
   bool fast_elements = true;
   int depth = 1;
@@ -4627,7 +4627,7 @@ Expression* Parser::ParseJsonArray(bool* ok) {
 
   // Allocate a fixed array with all the literals.
   Handle<FixedArray> literals =
-      Factory::NewFixedArray(values.length(), TENURED);
+      FACTORY->NewFixedArray(values.length(), TENURED);
 
   bool is_simple;
   int depth;
@@ -4709,7 +4709,7 @@ bool RegExpParser::simple() {
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
   failed_ = true;
-  *error_ = Factory::NewStringFromAscii(message, NOT_TENURED);
+  *error_ = FACTORY->NewStringFromAscii(message, NOT_TENURED);
   // Zip to the end to make sure the no more input is read.
   current_ = kEndMarker;
   next_pos_ = in()->length();

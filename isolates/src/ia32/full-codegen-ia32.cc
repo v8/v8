@@ -69,9 +69,9 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = scope()->num_stack_slots();
     if (locals_count == 1) {
-      __ push(Immediate(Factory::undefined_value()));
+      __ push(Immediate(FACTORY->undefined_value()));
     } else if (locals_count > 1) {
-      __ mov(eax, Immediate(Factory::undefined_value()));
+      __ mov(eax, Immediate(FACTORY->undefined_value()));
       for (int i = 0; i < locals_count; i++) {
         __ push(eax);
       }
@@ -184,7 +184,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 
   { Comment cmnt(masm_, "[ return <undefined>;");
     // Emit a 'return undefined' in case control fell off the end of the body.
-    __ mov(eax, Factory::undefined_value());
+    __ mov(eax, FACTORY->undefined_value());
     EmitReturnSequence();
   }
 }
@@ -373,10 +373,10 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(
     Label* materialize_false) const {
   NearLabel done;
   __ bind(materialize_true);
-  __ mov(result_register(), Factory::true_value());
+  __ mov(result_register(), FACTORY->true_value());
   __ jmp(&done);
   __ bind(materialize_false);
-  __ mov(result_register(), Factory::false_value());
+  __ mov(result_register(), FACTORY->false_value());
   __ bind(&done);
 }
 
@@ -386,10 +386,10 @@ void FullCodeGenerator::StackValueContext::Plug(
     Label* materialize_false) const {
   NearLabel done;
   __ bind(materialize_true);
-  __ push(Immediate(Factory::true_value()));
+  __ push(Immediate(FACTORY->true_value()));
   __ jmp(&done);
   __ bind(materialize_false);
-  __ push(Immediate(Factory::false_value()));
+  __ push(Immediate(FACTORY->false_value()));
   __ bind(&done);
 }
 
@@ -407,14 +407,14 @@ void FullCodeGenerator::EffectContext::Plug(bool flag) const {
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(bool flag) const {
   Handle<Object> value =
-      flag ? Factory::true_value() : Factory::false_value();
+      flag ? FACTORY->true_value() : FACTORY->false_value();
   __ mov(result_register(), value);
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(bool flag) const {
   Handle<Object> value =
-      flag ? Factory::true_value() : Factory::false_value();
+      flag ? FACTORY->true_value() : FACTORY->false_value();
   __ push(Immediate(value));
 }
 
@@ -432,11 +432,11 @@ void FullCodeGenerator::DoTest(Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
   // Emit the inlined tests assumed by the stub.
-  __ cmp(result_register(), Factory::undefined_value());
+  __ cmp(result_register(), FACTORY->undefined_value());
   __ j(equal, if_false);
-  __ cmp(result_register(), Factory::true_value());
+  __ cmp(result_register(), FACTORY->true_value());
   __ j(equal, if_true);
-  __ cmp(result_register(), Factory::false_value());
+  __ cmp(result_register(), FACTORY->false_value());
   __ j(equal, if_false);
   ASSERT_EQ(0, kSmiTag);
   __ test(result_register(), Operand(result_register()));
@@ -524,7 +524,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       case Slot::LOCAL:
         if (mode == Variable::CONST) {
           __ mov(Operand(ebp, SlotOffset(slot)),
-                 Immediate(Factory::the_hole_value()));
+                 Immediate(FACTORY->the_hole_value()));
         } else if (function != NULL) {
           VisitForAccumulatorValue(function);
           __ mov(Operand(ebp, SlotOffset(slot)), result_register());
@@ -545,7 +545,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         }
         if (mode == Variable::CONST) {
           __ mov(ContextOperand(esi, slot->index()),
-                 Immediate(Factory::the_hole_value()));
+                 Immediate(FACTORY->the_hole_value()));
           // No write barrier since the hole value is in old space.
         } else if (function != NULL) {
           VisitForAccumulatorValue(function);
@@ -568,7 +568,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         // 'undefined') because we may have a (legal) redeclaration and we
         // must not destroy the current value.
         if (mode == Variable::CONST) {
-          __ push(Immediate(Factory::the_hole_value()));
+          __ push(Immediate(FACTORY->the_hole_value()));
         } else if (function != NULL) {
           VisitForStackValue(function);
         } else {
@@ -591,7 +591,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       } else {
         VisitForAccumulatorValue(prop->key());
         __ mov(ecx, result_register());
-        __ mov(result_register(), Factory::the_hole_value());
+        __ mov(result_register(), FACTORY->the_hole_value());
       }
       __ pop(edx);
 
@@ -706,9 +706,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // ignore null and undefined in contrast to the specification; see
   // ECMA-262 section 12.6.4.
   VisitForAccumulatorValue(stmt->enumerable());
-  __ cmp(eax, Factory::undefined_value());
+  __ cmp(eax, FACTORY->undefined_value());
   __ j(equal, &exit);
-  __ cmp(eax, Factory::null_value());
+  __ cmp(eax, FACTORY->null_value());
   __ j(equal, &exit);
 
   // Convert the object to a JS object.
@@ -734,7 +734,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Check that there are no elements.  Register ecx contains the
   // current JS object we've reached through the prototype chain.
   __ cmp(FieldOperand(ecx, JSObject::kElementsOffset),
-         Factory::empty_fixed_array());
+         FACTORY->empty_fixed_array());
   __ j(not_equal, &call_runtime);
 
   // Check that instance descriptors are not empty so that we can
@@ -742,7 +742,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // prototype load.
   __ mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
   __ mov(edx, FieldOperand(ebx, Map::kInstanceDescriptorsOffset));
-  __ cmp(edx, Factory::empty_descriptor_array());
+  __ cmp(edx, FACTORY->empty_descriptor_array());
   __ j(equal, &call_runtime);
 
   // Check that there in an enum cache in the non-empty instance
@@ -757,13 +757,13 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ cmp(ecx, Operand(eax));
   __ j(equal, &check_prototype);
   __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheBridgeCacheOffset));
-  __ cmp(edx, Factory::empty_fixed_array());
+  __ cmp(edx, FACTORY->empty_fixed_array());
   __ j(not_equal, &call_runtime);
 
   // Load the prototype from the map and loop if non-null.
   __ bind(&check_prototype);
   __ mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
-  __ cmp(ecx, Factory::null_value());
+  __ cmp(ecx, FACTORY->null_value());
   __ j(not_equal, &next);
 
   // The enum cache is valid.  Load the map of the object being
@@ -781,7 +781,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // modification check. Otherwise, we got a fixed array, and we have
   // to do a slow check.
   NearLabel fixed_array;
-  __ cmp(FieldOperand(eax, HeapObject::kMapOffset), Factory::meta_map());
+  __ cmp(FieldOperand(eax, HeapObject::kMapOffset), FACTORY->meta_map());
   __ j(not_equal, &fixed_array);
 
   // We got a map in register eax. Get the enumeration cache from it.
@@ -935,7 +935,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
     __ bind(&next);
     // Terminate at global context.
     __ cmp(FieldOperand(temp, HeapObject::kMapOffset),
-           Immediate(Factory::global_context_map()));
+           Immediate(FACTORY->global_context_map()));
     __ j(equal, &fast);
     // Check that extension is NULL.
     __ cmp(ContextOperand(temp, Context::EXTENSION_INDEX), Immediate(0));
@@ -1010,9 +1010,9 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
       __ mov(eax,
              ContextSlotOperandCheckExtensions(potential_slot, slow));
       if (potential_slot->var()->mode() == Variable::CONST) {
-        __ cmp(eax, Factory::the_hole_value());
+        __ cmp(eax, FACTORY->the_hole_value());
         __ j(not_equal, done);
-        __ mov(eax, Factory::undefined_value());
+        __ mov(eax, FACTORY->undefined_value());
       }
       __ jmp(done);
     } else if (rewrite != NULL) {
@@ -1087,9 +1087,9 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
       NearLabel done;
       MemOperand slot_operand = EmitSlotSearch(slot, eax);
       __ mov(eax, slot_operand);
-      __ cmp(eax, Factory::the_hole_value());
+      __ cmp(eax, FACTORY->the_hole_value());
       __ j(not_equal, &done);
-      __ mov(eax, Factory::undefined_value());
+      __ mov(eax, FACTORY->undefined_value());
       __ bind(&done);
       context()->Plug(eax);
     } else {
@@ -1143,7 +1143,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   int literal_offset =
       FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
   __ mov(ebx, FieldOperand(ecx, literal_offset));
-  __ cmp(ebx, Factory::undefined_value());
+  __ cmp(ebx, FACTORY->undefined_value());
   __ j(not_equal, &materialized);
 
   // Create regexp literal using runtime function
@@ -1843,7 +1843,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         if (op == Token::INIT_CONST) {
           // Detect const reinitialization by checking for the hole value.
           __ mov(edx, Operand(ebp, SlotOffset(slot)));
-          __ cmp(edx, Factory::the_hole_value());
+          __ cmp(edx, FACTORY->the_hole_value());
           __ j(not_equal, &done);
         }
         // Perform the assignment.
@@ -1855,7 +1855,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         if (op == Token::INIT_CONST) {
           // Detect const reinitialization by checking for the hole value.
           __ mov(edx, target);
-          __ cmp(edx, Factory::the_hole_value());
+          __ cmp(edx, FACTORY->the_hole_value());
           __ j(not_equal, &done);
         }
         // Perform the assignment and issue the write barrier.
@@ -2059,7 +2059,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // call.  Then we call the resolved function using the given
     // arguments.
     VisitForStackValue(fun);
-    __ push(Immediate(Factory::undefined_value()));  // Reserved receiver slot.
+    __ push(Immediate(FACTORY->undefined_value()));  // Reserved receiver slot.
 
     // Push the arguments.
     ZoneList<Expression*>* args = expr->arguments();
@@ -2075,7 +2075,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     if (arg_count > 0) {
       __ push(Operand(esp, arg_count * kPointerSize));
     } else {
-      __ push(Immediate(Factory::undefined_value()));
+      __ push(Immediate(FACTORY->undefined_value()));
     }
 
     // Push the receiver of the enclosing function and do runtime call.
@@ -2273,7 +2273,7 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, if_false);
-  __ cmp(eax, Factory::null_value());
+  __ cmp(eax, FACTORY->null_value());
   __ j(equal, if_true);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   // Undetectable objects behave like undefined when tested with typeof.
@@ -2544,17 +2544,17 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Functions have class 'Function'.
   __ bind(&function);
-  __ mov(eax, Factory::function_class_symbol());
+  __ mov(eax, FACTORY->function_class_symbol());
   __ jmp(&done);
 
   // Objects with a non-function constructor have class 'Object'.
   __ bind(&non_function_constructor);
-  __ mov(eax, Factory::Object_symbol());
+  __ mov(eax, FACTORY->Object_symbol());
   __ jmp(&done);
 
   // Non-JS objects have class null.
   __ bind(&null);
-  __ mov(eax, Factory::null_value());
+  __ mov(eax, FACTORY->null_value());
 
   // All done.
   __ bind(&done);
@@ -2580,7 +2580,7 @@ void FullCodeGenerator::EmitLog(ZoneList<Expression*>* args) {
   }
 #endif
   // Finally, we're expected to leave a value on the top of the stack.
-  __ mov(eax, Factory::undefined_value());
+  __ mov(eax, FACTORY->undefined_value());
   context()->Plug(eax);
 }
 
@@ -2775,13 +2775,13 @@ void FullCodeGenerator::EmitStringCharCodeAt(ZoneList<Expression*>* args) {
   __ bind(&index_out_of_range);
   // When the index is out of range, the spec requires us to return
   // NaN.
-  __ Set(result, Immediate(Factory::nan_value()));
+  __ Set(result, Immediate(FACTORY->nan_value()));
   __ jmp(&done);
 
   __ bind(&need_conversion);
   // Move the undefined value into the result register, which will
   // trigger conversion.
-  __ Set(result, Immediate(Factory::undefined_value()));
+  __ Set(result, Immediate(FACTORY->undefined_value()));
   __ jmp(&done);
 
   NopRuntimeCallHelper call_helper;
@@ -2824,7 +2824,7 @@ void FullCodeGenerator::EmitStringCharAt(ZoneList<Expression*>* args) {
   __ bind(&index_out_of_range);
   // When the index is out of range, the spec requires us to return
   // the empty string.
-  __ Set(result, Immediate(Factory::empty_string()));
+  __ Set(result, Immediate(FACTORY->empty_string()));
   __ jmp(&done);
 
   __ bind(&need_conversion);
@@ -2943,7 +2943,7 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
       Isolate::Current()->global_context()->jsfunction_result_caches());
   if (jsfunction_result_caches->length() <= cache_id) {
     __ Abort("Attempt to use undefined cache.");
-    __ mov(eax, Factory::undefined_value());
+    __ mov(eax, FACTORY->undefined_value());
     context()->Plug(eax);
     return;
   }
@@ -3009,10 +3009,10 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
   __ cmp(tmp, FieldOperand(right, JSRegExp::kDataOffset));
   __ j(equal, &ok);
   __ bind(&fail);
-  __ mov(eax, Immediate(Factory::false_value()));
+  __ mov(eax, Immediate(FACTORY->false_value()));
   __ jmp(&done);
   __ bind(&ok);
-  __ mov(eax, Immediate(Factory::true_value()));
+  __ mov(eax, Immediate(FACTORY->true_value()));
   __ bind(&done);
 
   context()->Plug(eax);
@@ -3143,7 +3143,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::VOID: {
       Comment cmnt(masm_, "[ UnaryOperation (VOID)");
       VisitForEffect(expr->expression());
-      context()->Plug(Factory::undefined_value());
+      context()->Plug(FACTORY->undefined_value());
       break;
     }
 
@@ -3460,7 +3460,7 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
     __ test(eax, Immediate(kSmiTagMask));
     __ j(zero, if_true);
     __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
-           Factory::heap_number_map());
+           FACTORY->heap_number_map());
     Split(equal, if_true, if_false, fall_through);
   } else if (check->Equals(HEAP->string_symbol())) {
     __ test(eax, Immediate(kSmiTagMask));
@@ -3473,12 +3473,12 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
     __ CmpInstanceType(edx, FIRST_NONSTRING_TYPE);
     Split(below, if_true, if_false, fall_through);
   } else if (check->Equals(HEAP->boolean_symbol())) {
-    __ cmp(eax, Factory::true_value());
+    __ cmp(eax, FACTORY->true_value());
     __ j(equal, if_true);
-    __ cmp(eax, Factory::false_value());
+    __ cmp(eax, FACTORY->false_value());
     Split(equal, if_true, if_false, fall_through);
   } else if (check->Equals(HEAP->undefined_symbol())) {
-    __ cmp(eax, Factory::undefined_value());
+    __ cmp(eax, FACTORY->undefined_value());
     __ j(equal, if_true);
     __ test(eax, Immediate(kSmiTagMask));
     __ j(zero, if_false);
@@ -3498,7 +3498,7 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
   } else if (check->Equals(HEAP->object_symbol())) {
     __ test(eax, Immediate(kSmiTagMask));
     __ j(zero, if_false);
-    __ cmp(eax, Factory::null_value());
+    __ cmp(eax, FACTORY->null_value());
     __ j(equal, if_true);
     // Regular expressions => 'function', not 'object'.
     __ CmpObjectType(eax, JS_REGEXP_TYPE, edx);
@@ -3550,7 +3550,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     case Token::IN:
       VisitForStackValue(expr->right());
       __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION);
-      __ cmp(eax, Factory::true_value());
+      __ cmp(eax, FACTORY->true_value());
       Split(equal, if_true, if_false, fall_through);
       break;
 
@@ -3639,12 +3639,12 @@ void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
                          &if_true, &if_false, &fall_through);
 
   VisitForAccumulatorValue(expr->expression());
-  __ cmp(eax, Factory::null_value());
+  __ cmp(eax, FACTORY->null_value());
   if (expr->is_strict()) {
     Split(equal, if_true, if_false, fall_through);
   } else {
     __ j(equal, if_true);
-    __ cmp(eax, Factory::undefined_value());
+    __ cmp(eax, FACTORY->undefined_value());
     __ j(equal, if_true);
     __ test(eax, Immediate(kSmiTagMask));
     __ j(zero, if_false);

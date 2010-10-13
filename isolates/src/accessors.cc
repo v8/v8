@@ -128,7 +128,7 @@ Object* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
     }
   }
   return Isolate::Current()->Throw(
-      *Factory::NewRangeError("invalid_array_length",
+      *FACTORY->NewRangeError("invalid_array_length",
           HandleVector<Object>(NULL, 0)));
 }
 
@@ -317,8 +317,8 @@ Object* Accessors::ScriptGetLineEnds(Object* object, void*) {
   InitScriptLineEnds(script);
   ASSERT(script->line_ends()->IsFixedArray());
   Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
-  Handle<FixedArray> copy = Factory::CopyFixedArray(line_ends);
-  Handle<JSArray> js_array = Factory::NewJSArrayWithElements(copy);
+  Handle<FixedArray> copy = FACTORY->CopyFixedArray(line_ends);
+  Handle<JSArray> js_array = FACTORY->NewJSArrayWithElements(copy);
   return *js_array;
 }
 
@@ -566,8 +566,8 @@ Object* Accessors::FunctionGetArguments(Object* object, void*) {
     // Get the number of arguments and construct an arguments object
     // mirror for the right frame.
     const int length = frame->GetProvidedParametersCount();
-    Handle<JSObject> arguments = Factory::NewArgumentsObject(function, length);
-    Handle<FixedArray> array = Factory::NewFixedArray(length);
+    Handle<JSObject> arguments = FACTORY->NewArgumentsObject(function, length);
+    Handle<FixedArray> array = FACTORY->NewFixedArray(length);
 
     // Copy the parameters to the arguments object.
     ASSERT(array->length() == length);

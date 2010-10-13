@@ -445,7 +445,7 @@ void FullCodeGenerator::VisitDeclarations(
   // Compute array of global variable and function declarations.
   // Do nothing in case of no declared global functions or variables.
   if (globals > 0) {
-    Handle<FixedArray> array = Factory::NewFixedArray(2 * globals, TENURED);
+    Handle<FixedArray> array = FACTORY->NewFixedArray(2 * globals, TENURED);
     for (int j = 0, i = 0; i < length; i++) {
       Declaration* decl = declarations->at(i);
       Variable* var = decl->proxy()->var();

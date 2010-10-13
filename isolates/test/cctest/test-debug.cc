@@ -150,7 +150,7 @@ class DebugLocalContext {
     Handle<JSGlobalProxy> global(Handle<JSGlobalProxy>::cast(
         v8::Utils::OpenHandle(*context_->Global())));
     Handle<v8::internal::String> debug_string =
-        v8::internal::Factory::LookupAsciiSymbol("debug");
+        FACTORY->LookupAsciiSymbol("debug");
     SetProperty(global, debug_string,
         Handle<Object>(debug->debug_context()->global_proxy()), DONT_ENUM);
   }
@@ -391,7 +391,7 @@ Handle<FixedArray> GetDebuggedFunctions() {
 
   // Allocate array for the debugged functions
   Handle<FixedArray> debugged_functions =
-      v8::internal::Factory::NewFixedArray(count);
+      FACTORY->NewFixedArray(count);
 
   // Run through the debug info objects and collect all functions.
   count = 0;
@@ -406,6 +406,7 @@ Handle<FixedArray> GetDebuggedFunctions() {
 
 static Handle<Code> ComputeCallDebugBreak(int argc) {
   CALL_HEAP_FUNCTION(
+      v8::internal::Isolate::Current(),
       v8::internal::Isolate::Current()->stub_cache()->ComputeCallDebugBreak(
           argc, Code::CALL_IC),
       Code);

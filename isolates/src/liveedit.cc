@@ -354,7 +354,7 @@ class LineArrayCompareInput : public Comparator::Input {
 class LineArrayCompareOutput : public Comparator::Output {
  public:
   LineArrayCompareOutput(LineEndsWrapper line_ends1, LineEndsWrapper line_ends2)
-      : array_(Factory::NewJSArray(10)), current_size_(0),
+      : array_(FACTORY->NewJSArray(10)), current_size_(0),
         line_ends1_(line_ends1), line_ends2_(line_ends2) {
   }
 
@@ -445,7 +445,7 @@ static Handle<JSValue> WrapInJSValue(Object* object) {
   Handle<JSFunction> constructor =
       Isolate::Current()->opaque_reference_function();
   Handle<JSValue> result =
-      Handle<JSValue>::cast(Factory::NewJSObject(constructor));
+      Handle<JSValue>::cast(FACTORY->NewJSObject(constructor));
   result->set_value(object);
   return result;
 }
@@ -457,7 +457,7 @@ template<typename S>
 class JSArrayBasedStruct {
  public:
   static S Create() {
-    Handle<JSArray> array = Factory::NewJSArray(S::kSize_);
+    Handle<JSArray> array = FACTORY->NewJSArray(S::kSize_);
     return S(array);
   }
   static S cast(Object* object) {
@@ -601,7 +601,7 @@ class FunctionInfoListener {
   FunctionInfoListener() {
     current_parent_index_ = -1;
     len_ = 0;
-    result_ = Factory::NewJSArray(10);
+    result_ = FACTORY->NewJSArray(10);
   }
 
   void FunctionStarted(FunctionLiteral* fun) {
@@ -653,7 +653,7 @@ class FunctionInfoListener {
   Object* SerializeFunctionScope(Scope* scope) {
     HandleScope handle_scope;
 
-    Handle<JSArray> scope_info_list = Factory::NewJSArray(10);
+    Handle<JSArray> scope_info_list = FACTORY->NewJSArray(10);
     int scope_info_length = 0;
 
     // Saves some description of scope. It stores name and indexes of
@@ -861,7 +861,7 @@ Object* LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
   if (shared_info->debug_info()->IsDebugInfo()) {
     Handle<DebugInfo> debug_info(DebugInfo::cast(shared_info->debug_info()));
     Handle<Code> new_original_code =
-        Factory::CopyCode(compile_info_wrapper.GetFunctionCode());
+        FACTORY->CopyCode(compile_info_wrapper.GetFunctionCode());
     debug_info->set_original_code(*new_original_code);
   }
 
@@ -1030,7 +1030,7 @@ static Handle<Code> PatchPositionsInCode(Handle<Code> code,
     // Relocation info section now has different size. We cannot simply
     // rewrite it inside code object. Instead we have to create a new
     // code object.
-    Handle<Code> result(Factory::CopyCode(code, buffer));
+    Handle<Code> result(FACTORY->CopyCode(code, buffer));
     return result;
   }
 }
@@ -1078,7 +1078,7 @@ Object* LiveEdit::PatchFunctionPositions(
 static Handle<Script> CreateScriptCopy(Handle<Script> original) {
   Handle<String> original_source(String::cast(original->source()));
 
-  Handle<Script> copy = Factory::NewScript(original_source);
+  Handle<Script> copy = FACTORY->NewScript(original_source);
 
   copy->set_name(original->name());
   copy->set_line_offset(original->line_offset());
@@ -1401,7 +1401,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
     Handle<JSArray> shared_info_array, bool do_drop) {
   int len = Smi::cast(shared_info_array->length())->value();
 
-  Handle<JSArray> result = Factory::NewJSArray(len);
+  Handle<JSArray> result = FACTORY->NewJSArray(len);
 
   // Fill the default values.
   for (int i = 0; i < len; i++) {
@@ -1425,7 +1425,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   if (error_message != NULL) {
     // Add error message as an array extra element.
     Vector<const char> vector_message(error_message, StrLength(error_message));
-    Handle<String> str = Factory::NewStringFromAscii(vector_message);
+    Handle<String> str = FACTORY->NewStringFromAscii(vector_message);
     SetElement(result, len, str);
   }
   return result;

@@ -1185,7 +1185,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.
   __ Branch(eq, throw_termination_exception,
-            v0, Operand(Factory::termination_exception()));
+            v0, Operand(FACTORY->termination_exception()));
 
   // Handle normal exception.
   __ b(throw_normal_exception);

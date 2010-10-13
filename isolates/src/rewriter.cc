@@ -994,7 +994,7 @@ bool Rewriter::Process(FunctionLiteral* function) {
   ZoneList<Statement*>* body = function->body();
   if (body->is_empty()) return true;
 
-  VariableProxy* result = scope->NewTemporary(Factory::result_symbol());
+  VariableProxy* result = scope->NewTemporary(FACTORY->result_symbol());
   Processor processor(result);
   processor.Process(body);
   if (processor.HasStackOverflow()) return false;

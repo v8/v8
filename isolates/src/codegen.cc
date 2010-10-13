@@ -168,7 +168,7 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
   // Allocate and install the code.
   CodeDesc desc;
   masm->GetCode(&desc);
-  Handle<Code> code = Factory::NewCode(desc, flags, masm->CodeObject());
+  Handle<Code> code = FACTORY->NewCode(desc, flags, masm->CodeObject());
 
 #ifdef ENABLE_DISASSEMBLER
   bool print_code = Isolate::Current()->bootstrapper()->IsActive()
@@ -261,10 +261,12 @@ Handle<Code> CodeGenerator::ComputeCallInitialize(
     // that it needs so we need to ensure it is generated already.
     ComputeCallInitialize(argc, NOT_IN_LOOP);
   }
+  Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(
-      Isolate::Current()->stub_cache()->ComputeCallInitialize(argc,
-                                                              in_loop,
-                                                              Code::CALL_IC),
+      isolate,
+      isolate->stub_cache()->ComputeCallInitialize(argc,
+                                                   in_loop,
+                                                   Code::CALL_IC),
       Code);
 }
 
@@ -280,11 +282,12 @@ Handle<Code> CodeGenerator::ComputeKeyedCallInitialize(
     // that it needs so we need to ensure it is generated already.
     ComputeKeyedCallInitialize(argc, NOT_IN_LOOP);
   }
+  Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(
-      Isolate::Current()->stub_cache()->
-          ComputeCallInitialize(argc,
-                                in_loop,
-                                Code::KEYED_CALL_IC),
+      isolate,
+      isolate->stub_cache()->ComputeCallInitialize(argc,
+                                                   in_loop,
+                                                   Code::KEYED_CALL_IC),
       Code);
 }
 
@@ -311,7 +314,7 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
   if (globals == 0) return;
 
   // Compute array of global variable and function declarations.
-  Handle<FixedArray> array = Factory::NewFixedArray(2 * globals, TENURED);
+  Handle<FixedArray> array = FACTORY->NewFixedArray(2 * globals, TENURED);
   for (int j = 0, i = 0; i < length; i++) {
     Declaration* node = declarations->at(i);
     Variable* var = node->proxy()->var();

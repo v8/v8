@@ -94,7 +94,7 @@ static void InitializeBuildingBlocks(
           buf[j] = gen() % 65536;
         }
         building_blocks[i] =
-            Factory::NewStringFromTwoByte(Vector<const uc16>(buf, len));
+            FACTORY->NewStringFromTwoByte(Vector<const uc16>(buf, len));
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -106,7 +106,7 @@ static void InitializeBuildingBlocks(
           buf[j] = gen() % 128;
         }
         building_blocks[i] =
-            Factory::NewStringFromAscii(Vector<const char>(buf, len));
+            FACTORY->NewStringFromAscii(Vector<const char>(buf, len));
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -118,7 +118,7 @@ static void InitializeBuildingBlocks(
           buf[j] = gen() % 65536;
         }
         Resource* resource = new Resource(Vector<const uc16>(buf, len));
-        building_blocks[i] = Factory::NewExternalStringFromTwoByte(resource);
+        building_blocks[i] = FACTORY->NewExternalStringFromTwoByte(resource);
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -130,7 +130,7 @@ static void InitializeBuildingBlocks(
           buf[j] = gen() % 128;
         }
         building_blocks[i] =
-            Factory::NewStringFromAscii(Vector<const char>(buf, len));
+            FACTORY->NewStringFromAscii(Vector<const char>(buf, len));
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -145,9 +145,9 @@ static void InitializeBuildingBlocks(
 static Handle<String> ConstructLeft(
     Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS],
     int depth) {
-  Handle<String> answer = Factory::NewStringFromAscii(CStrVector(""));
+  Handle<String> answer = FACTORY->NewStringFromAscii(CStrVector(""));
   for (int i = 0; i < depth; i++) {
-    answer = Factory::NewConsString(
+    answer = FACTORY->NewConsString(
         answer,
         building_blocks[i % NUMBER_OF_BUILDING_BLOCKS]);
   }
@@ -158,9 +158,9 @@ static Handle<String> ConstructLeft(
 static Handle<String> ConstructRight(
     Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS],
     int depth) {
-  Handle<String> answer = Factory::NewStringFromAscii(CStrVector(""));
+  Handle<String> answer = FACTORY->NewStringFromAscii(CStrVector(""));
   for (int i = depth - 1; i >= 0; i--) {
-    answer = Factory::NewConsString(
+    answer = FACTORY->NewConsString(
         building_blocks[i % NUMBER_OF_BUILDING_BLOCKS],
         answer);
   }
@@ -177,7 +177,7 @@ static Handle<String> ConstructBalancedHelper(
     return building_blocks[from % NUMBER_OF_BUILDING_BLOCKS];
   }
   if (to - from == 2) {
-    return Factory::NewConsString(
+    return FACTORY->NewConsString(
         building_blocks[from % NUMBER_OF_BUILDING_BLOCKS],
         building_blocks[(from+1) % NUMBER_OF_BUILDING_BLOCKS]);
   }
@@ -185,7 +185,7 @@ static Handle<String> ConstructBalancedHelper(
     ConstructBalancedHelper(building_blocks, from, from + ((to - from) / 2));
   Handle<String> part2 =
     ConstructBalancedHelper(building_blocks, from + ((to - from) / 2), to);
-  return Factory::NewConsString(part1, part2);
+  return FACTORY->NewConsString(part1, part2);
 }
 
 
@@ -286,12 +286,12 @@ TEST(DeepAscii) {
     foo[i] = "foo "[i % 4];
   }
   Handle<String> string =
-      Factory::NewStringFromAscii(Vector<const char>(foo, DEEP_ASCII_DEPTH));
-  Handle<String> foo_string = Factory::NewStringFromAscii(CStrVector("foo"));
+      FACTORY->NewStringFromAscii(Vector<const char>(foo, DEEP_ASCII_DEPTH));
+  Handle<String> foo_string = FACTORY->NewStringFromAscii(CStrVector("foo"));
   for (int i = 0; i < DEEP_ASCII_DEPTH; i += 10) {
-    string = Factory::NewConsString(string, foo_string);
+    string = FACTORY->NewConsString(string, foo_string);
   }
-  Handle<String> flat_string = Factory::NewConsString(string, foo_string);
+  Handle<String> flat_string = FACTORY->NewConsString(string, foo_string);
   FlattenString(flat_string);
 
   for (int i = 0; i < 500; i++) {
@@ -459,10 +459,10 @@ TEST(CachedHashOverflow) {
   Handle<Smi> fortytwo(Smi::FromInt(42));
   Handle<Smi> thirtyseven(Smi::FromInt(37));
   Handle<Object> results[] = {
-      Factory::undefined_value(),
+      FACTORY->undefined_value(),
       fortytwo,
-      Factory::undefined_value(),
-      Factory::undefined_value(),
+      FACTORY->undefined_value(),
+      FACTORY->undefined_value(),
       thirtyseven,
       fortytwo,
       thirtyseven  // Bug yielded 42 here.

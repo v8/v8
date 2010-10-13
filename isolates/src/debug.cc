@@ -83,16 +83,19 @@ static void PrintLn(v8::Local<v8::Value> value) {
 
 
 static Handle<Code> ComputeCallDebugBreak(int argc, Code::Kind kind) {
+  Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(
-      Isolate::Current()->stub_cache()->ComputeCallDebugBreak(argc, kind),
+      isolate,
+      isolate->stub_cache()->ComputeCallDebugBreak(argc, kind),
       Code);
 }
 
 
 static Handle<Code> ComputeCallDebugPrepareStepIn(int argc,  Code::Kind kind) {
+  Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(
-      Isolate::Current()->stub_cache()->ComputeCallDebugPrepareStepIn(
-          argc, kind),
+      isolate,
+      isolate->stub_cache()->ComputeCallDebugPrepareStepIn(argc, kind),
       Code);
 }
 
@@ -656,7 +659,7 @@ void ScriptCache::Add(Handle<Script> script) {
 
 
 Handle<FixedArray> ScriptCache::GetScripts() {
-  Handle<FixedArray> instances = Factory::NewFixedArray(occupancy());
+  Handle<FixedArray> instances = FACTORY->NewFixedArray(occupancy());
   int count = 0;
   for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
     ASSERT(entry->value != NULL);
@@ -776,7 +779,7 @@ bool Debug::CompileDebuggerScript(int index) {
   Handle<String> source_code =
       Isolate::Current()->bootstrapper()->NativesSourceLookup(index);
   Vector<const char> name = Natives::GetScriptName(index);
-  Handle<String> script_name = Factory::NewStringFromAscii(name);
+  Handle<String> script_name = FACTORY->NewStringFromAscii(name);
 
   // Compile the script.
   bool allow_natives_syntax = FLAG_allow_natives_syntax;
@@ -800,7 +803,7 @@ bool Debug::CompileDebuggerScript(int index) {
   Handle<Context> context = Isolate::Current()->global_context();
   bool caught_exception = false;
   Handle<JSFunction> function =
-      Factory::NewFunctionFromSharedFunctionInfo(function_info, context);
+      FACTORY->NewFunctionFromSharedFunctionInfo(function_info, context);
   Handle<Object> result =
       Execution::TryCall(function, Handle<Object>(context->global()),
                          0, NULL, &caught_exception);
@@ -852,7 +855,7 @@ bool Debug::Load() {
   isolate->set_context(*context);
 
   // Expose the builtins object in the debugger context.
-  Handle<String> key = Factory::LookupAsciiSymbol("builtins");
+  Handle<String> key = FACTORY->LookupAsciiSymbol("builtins");
   Handle<GlobalObject> global = Handle<GlobalObject>(context->global());
   SetProperty(global, key, Handle<Object>(global->builtins()), NONE);
 
@@ -1031,7 +1034,7 @@ Object* Debug::Break(RUNTIME_CALLING_CONVENTION) {
 // which is triggered.
 Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
   int break_points_hit_count = 0;
-  Handle<JSArray> break_points_hit = Factory::NewJSArray(1);
+  Handle<JSArray> break_points_hit = FACTORY->NewJSArray(1);
 
   // If there are multiple break points they are in a FixedArray.
   ASSERT(!break_point_objects->IsUndefined());
@@ -1053,7 +1056,7 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
 
   // Return undefined if no break points were triggered.
   if (break_points_hit_count == 0) {
-    return Factory::undefined_value();
+    return FACTORY->undefined_value();
   }
   return break_points_hit;
 }
@@ -1070,10 +1073,10 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   Handle<JSFunction> check_break_point =
     Handle<JSFunction>(JSFunction::cast(
       debug_context()->global()->GetProperty(
-          *Factory::LookupAsciiSymbol("IsBreakPointTriggered"))));
+          *FACTORY->LookupAsciiSymbol("IsBreakPointTriggered"))));
 
   // Get the break id as an object.
-  Handle<Object> break_id = Factory::NewNumberFromInt(Debug::break_id());
+  Handle<Object> break_id = FACTORY->NewNumberFromInt(Debug::break_id());
 
   // Call HandleBreakPointx.
   bool caught_exception = false;
@@ -1562,7 +1565,7 @@ Handle<Object> Debug::GetSourceBreakLocations(
     return Handle<Object>(HEAP->undefined_value());
   }
   Handle<FixedArray> locations =
-      Factory::NewFixedArray(debug_info->GetBreakPointCount());
+      FACTORY->NewFixedArray(debug_info->GetBreakPointCount());
   int count = 0;
   for (int i = 0; i < debug_info->break_points()->length(); i++) {
     if (!debug_info->break_points()->get(i)->IsUndefined()) {
@@ -1702,7 +1705,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
   if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
 
   // Create the debug info object.
-  Handle<DebugInfo> debug_info = Factory::NewDebugInfo(shared);
+  Handle<DebugInfo> debug_info = FACTORY->NewDebugInfo(shared);
 
   // Add debug info to the list.
   DebugInfoListNode* node = new DebugInfoListNode(*debug_info);
@@ -1884,7 +1887,7 @@ void Debug::ClearMirrorCache() {
 
   // Clear the mirror cache.
   Handle<String> function_name =
-      Factory::LookupSymbol(CStrVector("ClearMirrorCache"));
+      FACTORY->LookupSymbol(CStrVector("ClearMirrorCache"));
   Handle<Object> fun(Isolate::Current()->global()->GetProperty(*function_name));
   ASSERT(fun->IsJSFunction());
   bool caught_exception;
@@ -1945,7 +1948,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   // If the script cache is not active just return an empty array.
   ASSERT(script_cache_ != NULL);
   if (script_cache_ == NULL) {
-    Factory::NewFixedArray(0);
+    FACTORY->NewFixedArray(0);
   }
 
   // Perform GC to get unreferenced scripts evicted from the cache before
@@ -2003,13 +2006,13 @@ Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
   ASSERT(isolate_->context() == *isolate_->debug()->debug_context());
 
   // Create the execution state object.
-  Handle<String> constructor_str = Factory::LookupSymbol(constructor_name);
+  Handle<String> constructor_str = FACTORY->LookupSymbol(constructor_name);
   Handle<Object> constructor(
       isolate_->global()->GetProperty(*constructor_str));
   ASSERT(constructor->IsJSFunction());
   if (!constructor->IsJSFunction()) {
     *caught_exception = true;
-    return Factory::undefined_value();
+    return FACTORY->undefined_value();
   }
   Handle<Object> js_object = Execution::TryCall(
       Handle<JSFunction>::cast(constructor),
@@ -2022,7 +2025,7 @@ Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
 Handle<Object> Debugger::MakeExecutionState(bool* caught_exception) {
   ASSERT(Isolate::Current() == isolate_);
   // Create the execution state object.
-  Handle<Object> break_id = Factory::NewNumberFromInt(
+  Handle<Object> break_id = FACTORY->NewNumberFromInt(
       isolate_->debug()->break_id());
   const int argc = 1;
   Object** argv[argc] = { break_id.location() };
@@ -2055,8 +2058,8 @@ Handle<Object> Debugger::MakeExceptionEvent(Handle<Object> exec_state,
   const int argc = 3;
   Object** argv[argc] = { exec_state.location(),
                           exception.location(),
-                          uncaught ? Factory::true_value().location() :
-                                     Factory::false_value().location()};
+                          uncaught ? FACTORY->true_value().location() :
+                                     FACTORY->false_value().location()};
   return MakeJSObject(CStrVector("MakeExceptionEvent"),
                       argc, argv, caught_exception);
 }
@@ -2083,8 +2086,8 @@ Handle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
   const int argc = 3;
   Object** argv[argc] = { exec_state.location(),
                           script_wrapper.location(),
-                          before ? Factory::true_value().location() :
-                                   Factory::false_value().location() };
+                          before ? FACTORY->true_value().location() :
+                                   FACTORY->false_value().location() };
 
   return MakeJSObject(CStrVector("MakeCompileEvent"),
                       argc,
@@ -2242,7 +2245,7 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   // Get the function UpdateScriptBreakPoints (defined in debug-debugger.js).
   Handle<Object> update_script_break_points =
       Handle<Object>(isolate_->debug()->debug_context()->global()->GetProperty(
-          *Factory::LookupAsciiSymbol("UpdateScriptBreakPoints")));
+          *FACTORY->LookupAsciiSymbol("UpdateScriptBreakPoints")));
   if (!update_script_break_points->IsJSFunction()) {
     return;
   }
@@ -2624,7 +2627,7 @@ void Debugger::SetEventListener(Handle<Object> callback,
     event_listener_ = Handle<Object>::cast(
         isolate_->global_handles()->Create(*callback));
     if (data.is_null()) {
-      data = Factory::undefined_value();
+      data = FACTORY->undefined_value();
     }
     event_listener_data_ = Handle<Object>::cast(
         isolate_->global_handles()->Create(*data));
@@ -2769,14 +2772,14 @@ Handle<Object> Debugger::Call(Handle<JSFunction> fun,
   // Enter the debugger.
   EnterDebugger debugger;
   if (debugger.FailedToEnter()) {
-    return Factory::undefined_value();
+    return FACTORY->undefined_value();
   }
 
   // Create the execution state.
   bool caught_exception = false;
   Handle<Object> exec_state = MakeExecutionState(&caught_exception);
   if (caught_exception) {
-    return Factory::undefined_value();
+    return FACTORY->undefined_value();
   }
 
   static const int kArgc = 2;

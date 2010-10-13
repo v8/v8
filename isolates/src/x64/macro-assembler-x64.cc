@@ -1418,7 +1418,7 @@ void MacroAssembler::AbortIfNotNumber(Register object) {
   Condition is_smi = CheckSmi(object);
   j(is_smi, &ok);
   Cmp(FieldOperand(object, HeapObject::kMapOffset),
-      Factory::heap_number_map());
+      FACTORY->heap_number_map());
   Assert(equal, "Operand not a number");
   bind(&ok);
 }
@@ -1628,7 +1628,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(kScratchRegister);
   if (FLAG_debug_code) {
     movq(kScratchRegister,
-         Factory::undefined_value(),
+         FACTORY->undefined_value(),
          RelocInfo::EMBEDDED_OBJECT);
     cmpq(Operand(rsp, 0), kScratchRegister);
     Check(not_equal, "code object not properly patched");
@@ -1784,7 +1784,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // Check the context is a global context.
   if (FLAG_debug_code) {
     Cmp(FieldOperand(scratch, HeapObject::kMapOffset),
-        Factory::global_context_map());
+        FACTORY->global_context_map());
     Check(equal, "JSGlobalObject::global_context should be a global context.");
   }
 

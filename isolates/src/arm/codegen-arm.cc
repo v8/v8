@@ -1711,7 +1711,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // Load applicand.apply onto the stack. This will usually
   // give us a megamorphic load site. Not super, but it works.
   Load(applicand);
-  Handle<String> name = Factory::LookupAsciiSymbol("apply");
+  Handle<String> name = FACTORY->LookupAsciiSymbol("apply");
   frame_->Dup();
   frame_->CallLoadIC(name, RelocInfo::CODE_TARGET);
   frame_->EmitPush(r0);
@@ -1992,7 +1992,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
   // If we have a function or a constant, we need to initialize the variable.
   Expression* val = NULL;
   if (node->mode() == Variable::CONST) {
-    val = new Literal(Factory::the_hole_value());
+    val = new Literal(FACTORY->the_hole_value());
   } else {
     val = node->fun();  // NULL if we don't have a function
   }
@@ -4462,13 +4462,13 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
 
   // Functions have class 'Function'.
   function.Bind();
-  __ mov(tos, Operand(Factory::function_class_symbol()));
+  __ mov(tos, Operand(FACTORY->function_class_symbol()));
   frame_->EmitPush(tos);
   leave.Jump();
 
   // Objects with a non-function constructor have class 'Object'.
   non_function_constructor.Bind();
-  __ mov(tos, Operand(Factory::Object_symbol()));
+  __ mov(tos, Operand(FACTORY->Object_symbol()));
   frame_->EmitPush(tos);
   leave.Jump();
 
@@ -5099,7 +5099,7 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
     Label entry, loop;
     // The use of ip to store the valueOf symbol asumes that it is not otherwise
     // used in the loop below.
-    __ mov(ip, Operand(Factory::value_of_symbol()));
+    __ mov(ip, Operand(FACTORY->value_of_symbol()));
     __ jmp(&entry);
     __ bind(&loop);
     __ ldr(scratch2_, MemOperand(map_result_, 0));
@@ -5430,7 +5430,7 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
     // Interleave operations for better latency.
     __ ldr(r2, ContextOperand(cp, Context::GLOBAL_INDEX));
     __ add(r3, r0, Operand(JSRegExpResult::kSize));
-    __ mov(r4, Operand(Factory::empty_fixed_array()));
+    __ mov(r4, Operand(FACTORY->empty_fixed_array()));
     __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalContextOffset));
     __ str(r3, FieldMemOperand(r0, JSObject::kElementsOffset));
     __ ldr(r2, ContextOperand(r2, Context::REGEXP_RESULT_MAP_INDEX));
@@ -5450,13 +5450,13 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
     // r5: Number of elements in array, untagged.
 
     // Set map.
-    __ mov(r2, Operand(Factory::fixed_array_map()));
+    __ mov(r2, Operand(FACTORY->fixed_array_map()));
     __ str(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
     // Set FixedArray length.
     __ mov(r6, Operand(r5, LSL, kSmiTagSize));
     __ str(r6, FieldMemOperand(r3, FixedArray::kLengthOffset));
     // Fill contents of fixed-array with the-hole.
-    __ mov(r2, Operand(Factory::the_hole_value()));
+    __ mov(r2, Operand(FACTORY->the_hole_value()));
     __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
     // Fill fixed array elements with hole.
     // r0: JSArray, tagged.
@@ -6842,7 +6842,7 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
       // Check the map. The null map used below is patched by the inline cache
       // code.  Therefore we can't use a LoadRoot call.
       __ ldr(scratch, FieldMemOperand(receiver, HeapObject::kMapOffset));
-      __ mov(scratch2, Operand(Factory::null_value()));
+      __ mov(scratch2, Operand(FACTORY->null_value()));
       __ cmp(scratch, scratch2);
       deferred->Branch(ne);
 
@@ -6904,7 +6904,7 @@ void CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
       Label check_inlined_codesize;
       masm_->bind(&check_inlined_codesize);
 #endif
-      __ mov(scratch0, Operand(Factory::null_value()));
+      __ mov(scratch0, Operand(FACTORY->null_value()));
       __ cmp(scratch0, scratch1);
       deferred->Branch(ne);
 
@@ -6997,7 +6997,7 @@ void CodeGenerator::EmitKeyedLoad() {
       Label check_inlined_codesize;
       masm_->bind(&check_inlined_codesize);
 #endif
-      __ mov(scratch2, Operand(Factory::null_value()));
+      __ mov(scratch2, Operand(FACTORY->null_value()));
       __ cmp(scratch1, scratch2);
       deferred->Branch(ne);
 
@@ -7133,7 +7133,7 @@ void CodeGenerator::EmitKeyedStore(StaticType* key_type,
       // comparison to always fail so that we will hit the IC call in the
       // deferred code which will allow the debugger to break for fast case
       // stores.
-      __ mov(scratch3, Operand(Factory::fixed_array_map()));
+      __ mov(scratch3, Operand(FACTORY->fixed_array_map()));
       __ cmp(scratch2, scratch3);
       deferred->Branch(ne);
 

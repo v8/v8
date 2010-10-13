@@ -225,7 +225,7 @@ static void SetGlobalProperty(const char* name, Local<Value> value) {
 
 
 static Handle<v8::internal::String> NewString(const char* s) {
-  return i::Factory::NewStringFromAscii(i::CStrVector(s));
+  return FACTORY->NewStringFromAscii(i::CStrVector(s));
 }
 
 

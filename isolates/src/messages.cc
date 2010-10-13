@@ -69,8 +69,8 @@ Handle<Object> MessageHandler::MakeMessageObject(
     Handle<JSArray> stack_frames) {
   // Build error message object
   v8::HandleScope scope;  // Instantiate a closeable HandleScope for EscapeFrom.
-  Handle<Object> type_str = Factory::LookupAsciiSymbol(type);
-  Handle<Object> array = Factory::NewJSArray(args.length());
+  Handle<Object> type_str = FACTORY->LookupAsciiSymbol(type);
+  Handle<Object> array = FACTORY->NewJSArray(args.length());
   for (int i = 0; i < args.length(); i++)
     SetElement(Handle<JSArray>::cast(array), i, args[i]);
 
@@ -84,15 +84,15 @@ Handle<Object> MessageHandler::MakeMessageObject(
     script = GetScriptWrapper(loc->script());
   } else {
     start = end = 0;
-    script = Factory::undefined_value();
+    script = FACTORY->undefined_value();
   }
   Handle<Object> start_handle(Smi::FromInt(start));
   Handle<Object> end_handle(Smi::FromInt(end));
   Handle<Object> stack_trace_val = stack_trace.is_null()
-    ? Factory::undefined_value()
+    ? FACTORY->undefined_value()
     : Handle<Object>::cast(stack_trace);
   Handle<Object> stack_frames_val =  stack_frames.is_null()
-    ? Factory::undefined_value()
+    ? FACTORY->undefined_value()
     : Handle<Object>::cast(stack_frames);
   const int argc = 7;
   Object** argv[argc] = { type_str.location(),
@@ -113,7 +113,7 @@ Handle<Object> MessageHandler::MakeMessageObject(
   // Format the message.
   bool caught_exception = false;
   Handle<Object> message =
-      Execution::Call(fun, Factory::undefined_value(), argc, argv,
+      Execution::Call(fun, FACTORY->undefined_value(), argc, argv,
                       &caught_exception);
 
   // If creating the message (in JS code) resulted in an exception, we
@@ -130,7 +130,7 @@ void MessageHandler::ReportMessage(MessageLocation* loc,
                                    Handle<Object> message) {
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
 
-  v8::NeanderArray global_listeners(Factory::message_listeners());
+  v8::NeanderArray global_listeners(FACTORY->message_listeners());
   int global_length = global_listeners.length();
   if (global_length == 0) {
     DefaultMessageReport(loc, message);
@@ -150,7 +150,7 @@ void MessageHandler::ReportMessage(MessageLocation* loc,
 
 
 Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
-  Handle<String> fmt_str = Factory::LookupAsciiSymbol("FormatMessage");
+  Handle<String> fmt_str = FACTORY->LookupAsciiSymbol("FormatMessage");
   Handle<JSFunction> fun =
       Handle<JSFunction>(
           JSFunction::cast(
@@ -163,7 +163,7 @@ Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
           Isolate::Current()->js_builtins_object(), 1, argv, &caught_exception);
 
   if (caught_exception || !result->IsString()) {
-    return Factory::LookupAsciiSymbol("<error>");
+    return FACTORY->LookupAsciiSymbol("<error>");
   }
   Handle<String> result_string = Handle<String>::cast(result);
   // A string that has been obtained from JS code in this way is

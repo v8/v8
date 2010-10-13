@@ -223,7 +223,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(
 
   // Allocate function.
   Handle<SharedFunctionInfo> result =
-      Factory::NewSharedFunctionInfo(
+      FACTORY->NewSharedFunctionInfo(
           lit->name(),
           lit->materialized_literal_count(),
           code,
@@ -293,7 +293,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     }
 
     // Create a script object describing the script to be compiled.
-    Handle<Script> script = Factory::NewScript(source);
+    Handle<Script> script = FACTORY->NewScript(source);
     if (natives == NATIVES_CODE) {
       script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
     }
@@ -358,7 +358,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
 
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
-    Handle<Script> script = Factory::NewScript(source);
+    Handle<Script> script = FACTORY->NewScript(source);
     result = MakeFunctionInfo(isolate,
                               is_global,
                               true,
@@ -526,7 +526,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
 
   // Create a shared function info object.
   Handle<SharedFunctionInfo> result =
-      Factory::NewSharedFunctionInfo(literal->name(),
+      FACTORY->NewSharedFunctionInfo(literal->name(),
                                      literal->materialized_literal_count(),
                                      code,
                                      scope_info);

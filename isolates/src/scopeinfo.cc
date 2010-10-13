@@ -50,7 +50,7 @@ static int CompareLocal(Variable* const* v, Variable* const* w) {
 
 template<class Allocator>
 ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
-    : function_name_(Factory::empty_symbol()),
+    : function_name_(FACTORY->empty_symbol()),
       calls_eval_(scope->calls_eval()),
       parameters_(scope->num_parameters()),
       stack_slots_(scope->num_stack_slots()),
@@ -141,7 +141,7 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
              context_slots_.length());
       ASSERT(var->slot()->index() - Context::MIN_CONTEXT_SLOTS ==
              context_modes_.length());
-      context_slots_.Add(Factory::empty_symbol());
+      context_slots_.Add(FACTORY->empty_symbol());
       context_modes_.Add(Variable::INTERNAL);
     }
   }
@@ -239,7 +239,7 @@ static Object** ReadList(Object** p,
 
 template<class Allocator>
 ScopeInfo<Allocator>::ScopeInfo(SerializedScopeInfo* data)
-  : function_name_(Factory::empty_symbol()),
+  : function_name_(FACTORY->empty_symbol()),
     parameters_(4),
     stack_slots_(8),
     context_slots_(8),
@@ -310,7 +310,7 @@ Handle<SerializedScopeInfo> ScopeInfo<Allocator>::Serialize() {
                stack_slots_.length();
 
   Handle<SerializedScopeInfo> data(
-      SerializedScopeInfo::cast(*Factory::NewFixedArray(length, TENURED)));
+      SerializedScopeInfo::cast(*FACTORY->NewFixedArray(length, TENURED)));
   AssertNoAllocation nogc;
 
   Object** p0 = data->data_start();
