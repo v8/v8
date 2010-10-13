@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -3601,9 +3601,17 @@ Object* FixedArray::AddKeysFromJSArray(JSArray* array) {
 
 Object* FixedArray::UnionOfKeys(FixedArray* other) {
   int len0 = length();
+#ifdef DEBUG
+  if (FLAG_enable_slow_asserts) {
+    for (int i = 0; i < len0; i++) {
+      ASSERT(get(i)->IsString() || get(i)->IsNumber());
+    }
+  }
+#endif
   int len1 = other->length();
-  // Optimize if either is empty.
-  if (len0 == 0) return other;
+  // Optimize if 'other' is empty.
+  // We cannot optimize if 'this' is empty, as other may have holes
+  // or non keys.
   if (len1 == 0) return this;
 
   // Compute how many elements are not in this.
@@ -3623,14 +3631,18 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
   FixedArray* result = FixedArray::cast(obj);
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len0; i++) {
-    result->set(i, get(i), mode);
+    Object* e = get(i);
+    ASSERT(e->IsString() || e->IsNumber());
+    result->set(i, e, mode);
   }
   // Fill in the extra keys.
   int index = 0;
   for (int y = 0; y < len1; y++) {
     Object* value = other->get(y);
     if (!value->IsTheHole() && !HasKey(this, value)) {
-      result->set(len0 + index, other->get(y), mode);
+      Object* e = other->get(y);
+      ASSERT(e->IsString() || e->IsNumber());
+      result->set(len0 + index, e, mode);
       index++;
     }
   }
@@ -5224,6 +5236,13 @@ Object* Oddball::Initialize(const char* to_string, Object* to_number) {
   set_to_string(String::cast(symbol));
   set_to_number(to_number);
   return this;
+}
+
+
+String* SharedFunctionInfo::DebugName() {
+  Object* n = name();
+  if (!n->IsString() || String::cast(n)->length() == 0) return inferred_name();
+  return String::cast(n);
 }
 
 

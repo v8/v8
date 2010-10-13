@@ -1,3 +1,13 @@
+2010-10-13: Version 2.5.0
+
+        Fixed a bug in the handling of conditional expressions in test
+        contexts in compiler for top-level code.
+
+        Added "//@ sourceURL" information to the StackTrace API.
+
+        Exposed RegExp construction through the API.
+
+
 2010-10-04: Version 2.4.8
 
         Fixed a bug in ResumeProfilerEx causing it to not always write out the
