@@ -2712,6 +2712,7 @@ Handle<Object> Debugger::Call(Handle<JSFunction> fun,
 
 
 static void StubMessageHandler2(const v8::Debug::Message& message) {
+  PrintF("XXX\n");
   // Simply ignore message.
 }
 
