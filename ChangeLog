@@ -1,4 +1,4 @@
-2010-10-13: Version 2.5.0
+2010-10-13: Version 2.4.9
 
         Fixed a bug in the handling of conditional expressions in test
         contexts in compiler for top-level code.
