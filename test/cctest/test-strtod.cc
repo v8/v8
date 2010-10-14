@@ -154,20 +154,20 @@ TEST(Strtod) {
   CHECK_EQ(0.0, StrtodChar("", 1324));
   CHECK_EQ(0.0, StrtodChar("000000000", 123));
   CHECK_EQ(0.0, StrtodChar("2", -324));
-  CHECK_EQ(3e-324, StrtodChar("3", -324));
+  CHECK_EQ(4e-324, StrtodChar("3", -324));
   // It would be more readable to put non-zero literals on the left side (i.e.
   //   CHECK_EQ(1e-325, StrtodChar("1", -325))), but then Gcc complains that
   // they are truncated to zero.
   CHECK_EQ(0.0, StrtodChar("1", -325));
   CHECK_EQ(0.0, StrtodChar("1", -325));
   CHECK_EQ(0.0, StrtodChar("20000", -328));
-  CHECK_EQ(30000e-328, StrtodChar("30000", -328));
+  CHECK_EQ(40000e-328, StrtodChar("30000", -328));
   CHECK_EQ(0.0, StrtodChar("10000", -329));
   CHECK_EQ(0.0, StrtodChar("90000", -329));
   CHECK_EQ(0.0, StrtodChar("000000001", -325));
   CHECK_EQ(0.0, StrtodChar("000000001", -325));
   CHECK_EQ(0.0, StrtodChar("0000000020000", -328));
-  CHECK_EQ(30000e-328, StrtodChar("00000030000", -328));
+  CHECK_EQ(40000e-328, StrtodChar("00000030000", -328));
   CHECK_EQ(0.0, StrtodChar("0000000010000", -329));
   CHECK_EQ(0.0, StrtodChar("0000000090000", -329));
 
