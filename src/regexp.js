@@ -186,10 +186,10 @@ function RegExpExec(string) {
       %_IsRegExpEquivalent(cache.regExp, this) &&
       %_ObjectEquals(cache.subject, string)) {
     if (cache.answerSaved) {
-      // If this regexp is not global, cache.lastIndex is zero, so we only get 
+      // If this regexp is global, cache.lastIndex is zero, so we only get
       // here if this.lastIndex is zero, and resulting this.lastIndex
       // must be zero too, so no change is necessary.
-      if (this.global) this.lastIndex = lastMatchInfo[CAPTURE1];
+      if (!this.global) this.lastIndex = lastMatchInfo[CAPTURE1];
       return %_RegExpCloneResult(cache.answer);
     } else {
       saveAnswer = true;
