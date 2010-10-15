@@ -297,7 +297,7 @@ function RegExpTest(string) {
       %_ObjectEquals(cache.subject, string) &&
       %_ObjectEquals(0, lastIndex)) {
     // The regexp.lastIndex value must be 0 for non-global RegExps, and for
-    // global RegExps we only cache negative results, which gives a resulting 
+    // global RegExps we only cache negative results, which gives a resulting
     // lastIndex of zero as well.
     if (global) this.lastIndex = 0;
     return cache.answer;
