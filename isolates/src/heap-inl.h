@@ -45,7 +45,7 @@ void PromotionQueue::insert(HeapObject* target, int size) {
 
 
 void Heap::UpdateOldSpaceLimits() {
-  int old_gen_size = PromotedSpaceSize();
+  intptr_t old_gen_size = PromotedSpaceSize();
   old_gen_promotion_limit_ =
       old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
   old_gen_allocation_limit_ =

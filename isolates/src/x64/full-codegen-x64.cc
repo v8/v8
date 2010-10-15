@@ -100,7 +100,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     // Copy any necessary parameters into the context.
     int num_parameters = scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
-      Slot* slot = scope()->parameter(i)->slot();
+      Slot* slot = scope()->parameter(i)->AsSlot();
       if (slot != NULL && slot->type() == Slot::CONTEXT) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
             (num_parameters - 1 - i) * kPointerSize;
@@ -119,7 +119,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
 
   // Possibly allocate an arguments object.
-  Variable* arguments = scope()->arguments()->AsVariable();
+  Variable* arguments = scope()->arguments();
   if (arguments != NULL) {
     // Arguments object must be allocated after the context object, in
     // case the "arguments" or ".arguments" variables are in the context.
@@ -143,9 +143,8 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ CallStub(&stub);
     // Store new arguments object in both "arguments" and ".arguments" slots.
     __ movq(rcx, rax);
-    Move(arguments->slot(), rax, rbx, rdx);
-    Slot* dot_arguments_slot =
-        scope()->arguments_shadow()->AsVariable()->slot();
+    Move(arguments->AsSlot(), rax, rbx, rdx);
+    Slot* dot_arguments_slot = scope()->arguments_shadow()->AsSlot();
     Move(dot_arguments_slot, rcx, rbx, rdx);
   }
 
@@ -519,7 +518,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
                                         FunctionLiteral* function) {
   Comment cmnt(masm_, "[ Declaration");
   ASSERT(variable != NULL);  // Must have been resolved.
-  Slot* slot = variable->slot();
+  Slot* slot = variable->AsSlot();
   Property* prop = variable->AsProperty();
 
   if (slot != NULL) {
@@ -769,7 +768,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Get the current entry of the array into register rbx.
   __ movq(rbx, Operand(rsp, 2 * kPointerSize));
-  SmiIndex index = __ SmiToIndex(rax, rax, kPointerSizeLog2);
+  SmiIndex index = masm()->SmiToIndex(rax, rax, kPointerSizeLog2);
   __ movq(rbx, FieldOperand(rbx,
                             index.reg,
                             index.scale,
@@ -962,7 +961,7 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
     EmitLoadGlobalSlotCheckExtensions(slot, typeof_state, slow);
     __ jmp(done);
   } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
-    Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
+    Slot* potential_slot = slot->var()->local_if_not_shadowed()->AsSlot();
     Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
     if (potential_slot != NULL) {
       // Generate fast case for locals that rewrite to slots.
@@ -988,7 +987,7 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
           // variables. Then load the argument from the arguments
           // object using keyed load.
           __ movq(rdx,
-                  ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
+                  ContextSlotOperandCheckExtensions(obj_proxy->var()->AsSlot(),
                                                     slow));
           __ Move(rax, key_literal->handle());
           Handle<Code> ic(Isolate::Current()->builtins()->builtin(
@@ -1006,7 +1005,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
   // Four cases: non-this global variables, lookup slots, all other
   // types of slots, and parameters that rewrite to explicit property
   // accesses on the arguments object.
-  Slot* slot = var->slot();
+  Slot* slot = var->AsSlot();
   Property* property = var->AsProperty();
 
   if (var->is_global() && !var->is_this()) {
@@ -1063,7 +1062,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
     // Assert that the object is in a slot.
     Variable* object_var = property->obj()->AsVariableProxy()->AsVariable();
     ASSERT_NOT_NULL(object_var);
-    Slot* object_slot = object_var->slot();
+    Slot* object_slot = object_var->AsSlot();
     ASSERT_NOT_NULL(object_slot);
 
     // Load the object.
@@ -1416,7 +1415,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
   Label done, stub_call, smi_case;
   __ pop(rdx);
   __ movq(rcx, rax);
-  Condition smi = __ CheckBothSmi(rdx, rax);
+  Condition smi = masm()->CheckBothSmi(rdx, rax);
   __ j(smi, &smi_case);
 
   __ bind(&stub_call);
@@ -1541,7 +1540,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
   // Left-hand sides that rewrite to explicit property accesses do not reach
   // here.
   ASSERT(var != NULL);
-  ASSERT(var->is_global() || var->slot() != NULL);
+  ASSERT(var->is_global() || var->AsSlot() != NULL);
 
   if (var->is_global()) {
     ASSERT(!var->is_this());
@@ -1558,7 +1557,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // Perform the assignment for non-const variables and for initialization
     // of const variables.  Const assignments are simply skipped.
     Label done;
-    Slot* slot = var->slot();
+    Slot* slot = var->AsSlot();
     switch (slot->type()) {
       case Slot::PARAMETER:
       case Slot::LOCAL:
@@ -1826,14 +1825,14 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Push global object as receiver for the call IC lookup.
     __ push(CodeGenerator::GlobalObject());
     EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
-  } else if (var != NULL && var->slot() != NULL &&
-             var->slot()->type() == Slot::LOOKUP) {
+  } else if (var != NULL && var->AsSlot() != NULL &&
+             var->AsSlot()->type() == Slot::LOOKUP) {
     // Call to a lookup slot (dynamically introduced variable).
     Label slow, done;
 
     // Generate code for loading from variables potentially shadowed
     // by eval-introduced variables.
-    EmitDynamicLoadFromSlotFastCase(var->slot(),
+    EmitDynamicLoadFromSlotFastCase(var->AsSlot(),
                                     NOT_INSIDE_TYPEOF,
                                     &slow,
                                     &done);
@@ -1981,8 +1980,8 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  Condition positive_smi = __ CheckPositiveSmi(rax);
-  Split(positive_smi, if_true, if_false, fall_through);
+  Condition non_negative_smi = masm()->CheckNonNegativeSmi(rax);
+  Split(non_negative_smi, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
 }
@@ -2821,8 +2820,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         context()->Plug(true);
       } else if (var != NULL &&
                  !var->is_global() &&
-                 var->slot() != NULL &&
-                 var->slot()->type() != Slot::LOOKUP) {
+                 var->AsSlot() != NULL &&
+                 var->AsSlot()->type() != Slot::LOOKUP) {
         // Result of deleting non-global, non-dynamic variables is false.
         // The subexpression does not have side effects.
         context()->Plug(false);
@@ -3114,13 +3113,13 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     EmitCallIC(ic, RelocInfo::CODE_TARGET);
     context()->Plug(rax);
   } else if (proxy != NULL &&
-             proxy->var()->slot() != NULL &&
-             proxy->var()->slot()->type() == Slot::LOOKUP) {
+             proxy->var()->AsSlot() != NULL &&
+             proxy->var()->AsSlot()->type() == Slot::LOOKUP) {
     Label done, slow;
 
     // Generate code for loading from variables potentially shadowed
     // by eval-introduced variables.
-    Slot* slot = proxy->var()->slot();
+    Slot* slot = proxy->var()->AsSlot();
     EmitDynamicLoadFromSlotFastCase(slot, INSIDE_TYPEOF, &slow, &done);
 
     __ bind(&slow);

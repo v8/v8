@@ -337,8 +337,10 @@ TEST(DisasmIa320) {
   // 0xD9 instructions
   __ nop();
 
+  __ fld(1);
   __ fld1();
   __ fldz();
+  __ fldpi();
   __ fabs();
   __ fchs();
   __ fprem();

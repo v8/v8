@@ -207,9 +207,7 @@ enum NopMarkerTypes {
 
 class CodeGenerator: public AstVisitor {
  public:
-  // Takes a function literal, generates code for it. This function should only
-  // be called by compiler.cc.
-  static Handle<Code> MakeCode(CompilationInfo* info);
+  static bool MakeCode(CompilationInfo* info);
 
   // Printing of AST, etc. as requested by flags.
   static void MakeCodePrologue(CompilationInfo* info);
@@ -307,9 +305,9 @@ class CodeGenerator: public AstVisitor {
   int NumberOfSlot(Slot* slot);
 
   // State
-  bool has_cc() const  { return cc_reg_ != al; }
-  JumpTarget* true_target() const  { return state_->true_target(); }
-  JumpTarget* false_target() const  { return state_->false_target(); }
+  bool has_cc() const { return cc_reg_ != al; }
+  JumpTarget* true_target() const { return state_->true_target(); }
+  JumpTarget* false_target() const { return state_->false_target(); }
 
   // Track loop nesting level.
   int loop_nesting() const { return loop_nesting_; }

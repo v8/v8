@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1206,7 +1206,11 @@ String* JSObject::constructor_name() {
   if (map()->constructor()->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(map()->constructor());
     String* name = String::cast(constructor->shared()->name());
-    return name->length() > 0 ? name : constructor->shared()->inferred_name();
+    if (name->length() > 0) return name;
+    String* inferred_name = constructor->shared()->inferred_name();
+    if (inferred_name->length() > 0) return inferred_name;
+    Object* proto = GetPrototype();
+    if (proto->IsJSObject()) return JSObject::cast(proto)->constructor_name();
   }
   // If the constructor is not present, return "Object".
   return GetHeap()->Object_symbol();
@@ -2149,58 +2153,31 @@ PropertyAttributes JSObject::GetLocalPropertyAttribute(String* name) {
 }
 
 
-bool NormalizedMapCache::IsCacheable(JSObject* object) {
-  // Caching for global objects is not worth it (there are too few of them).
-  return !object->IsGlobalObject();
-}
-
-
 Object* NormalizedMapCache::Get(JSObject* obj, PropertyNormalizationMode mode) {
-  Object* result;
-
   Map* fast = obj->map();
-  if (!IsCacheable(obj)) {
-    result = fast->CopyNormalized(mode);
-    if (result->IsFailure()) return result;
-  } else {
-    int index = Hash(fast) % kEntries;
-    result = get(index);
-
-    if (result->IsMap() && CheckHit(Map::cast(result), fast, mode)) {
+  int index = Hash(fast) % kEntries;
+  Object* result = get(index);
+  if (result->IsMap() && CheckHit(Map::cast(result), fast, mode)) {
 #ifdef DEBUG
-      if (FLAG_enable_slow_asserts) {
-        // Make sure that the new slow map has exactly the same hash as the
-        // original fast map. This way we can use hash to check if a slow map
-        // is already in the hash (see Contains method).
-        ASSERT(Hash(fast) == Hash(Map::cast(result)));
-        // The cached map should match newly created normalized map bit-by-bit.
-        Object* fresh = fast->CopyNormalized(mode);
-        if (!fresh->IsFailure()) {
-          ASSERT(memcmp(Map::cast(fresh)->address(),
-                        Map::cast(result)->address(),
-                        Map::kSize) == 0);
-        }
+    if (FLAG_enable_slow_asserts) {
+      // The cached map should match newly created normalized map bit-by-bit.
+      Object* fresh = fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
+      if (!fresh->IsFailure()) {
+        ASSERT(memcmp(Map::cast(fresh)->address(),
+                      Map::cast(result)->address(),
+                      Map::kSize) == 0);
       }
-#endif
-      return result;
     }
-
-    result = fast->CopyNormalized(mode);
-    if (result->IsFailure()) return result;
-    set(index, result);
+#endif
+    return result;
   }
+
+  result = fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
+  if (result->IsFailure()) return result;
+  set(index, result);
   COUNTERS->normalized_maps()->Increment();
 
   return result;
-}
-
-
-bool NormalizedMapCache::Contains(Map* map) {
-  // If the map is present in the cache it can only be at one place:
-  // at the index calculated from the hash. We assume that a slow map has the
-  // same hash as a fast map it has been generated from.
-  int index = Hash(map) % kEntries;
-  return get(index) == map;
 }
 
 
@@ -2234,7 +2211,7 @@ bool NormalizedMapCache::CheckHit(Map* slow,
                                   Map* fast,
                                   PropertyNormalizationMode mode) {
 #ifdef DEBUG
-  slow->NormalizedMapVerify();
+  slow->SharedMapVerify();
 #endif
   return
     slow->constructor() == fast->constructor() &&
@@ -2244,18 +2221,17 @@ bool NormalizedMapCache::CheckHit(Map* slow,
                                     fast->inobject_properties()) &&
     slow->instance_type() == fast->instance_type() &&
     slow->bit_field() == fast->bit_field() &&
-    slow->bit_field2() == fast->bit_field2();
+    (slow->bit_field2() & ~(1<<Map::kIsShared)) == fast->bit_field2();
 }
 
 
 Object* JSObject::UpdateMapCodeCache(String* name, Code* code) {
-  Heap* heap = GetHeap();
-  if (!HasFastProperties() &&
-      NormalizedMapCache::IsCacheable(this) &&
-      heap->isolate()->context()->global_context()->normalized_map_cache()->
-          Contains(map())) {
-    // Replace the map with the identical copy that can be safely modified.
-    Object* obj = map()->CopyNormalized(KEEP_INOBJECT_PROPERTIES);
+  if (map()->is_shared()) {
+    // Fast case maps are never marked as shared.
+    ASSERT(!HasFastProperties());
+    // Replace the map with an identical copy that can be safely modified.
+    Object* obj = map()->CopyNormalized(KEEP_INOBJECT_PROPERTIES,
+                                        UNIQUE_NORMALIZED_MAP);
     if (obj->IsFailure()) return obj;
     COUNTERS->normalized_maps()->Increment();
 
@@ -3268,12 +3244,14 @@ Object* Map::CopyDropDescriptors() {
   }
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
+  Map::cast(result)->set_is_shared(false);
   Map::cast(result)->ClearCodeCache(heap);
   return result;
 }
 
 
-Object* Map::CopyNormalized(PropertyNormalizationMode mode) {
+Object* Map::CopyNormalized(PropertyNormalizationMode mode,
+                            NormalizedMapSharingMode sharing) {
   int new_instance_size = instance_size();
   if (mode == CLEAR_INOBJECT_PROPERTIES) {
     new_instance_size -= inobject_properties() * kPointerSize;
@@ -3292,8 +3270,12 @@ Object* Map::CopyNormalized(PropertyNormalizationMode mode) {
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
 
+  Map::cast(result)->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
+
 #ifdef DEBUG
-  Map::cast(result)->NormalizedMapVerify();
+  if (Map::cast(result)->is_shared()) {
+    Map::cast(result)->SharedMapVerify();
+  }
 #endif
 
   return result;
@@ -3706,9 +3688,17 @@ Object* FixedArray::AddKeysFromJSArray(JSArray* array) {
 Object* FixedArray::UnionOfKeys(FixedArray* other) {
   Heap* heap = GetHeap();
   int len0 = length();
+#ifdef DEBUG
+  if (FLAG_enable_slow_asserts) {
+    for (int i = 0; i < len0; i++) {
+      ASSERT(get(i)->IsString() || get(i)->IsNumber());
+    }
+  }
+#endif
   int len1 = other->length();
-  // Optimize if either is empty.
-  if (len0 == 0) return other;
+  // Optimize if 'other' is empty.
+  // We cannot optimize if 'this' is empty, as other may have holes
+  // or non keys.
   if (len1 == 0) return this;
 
   // Compute how many elements are not in this.
@@ -3728,14 +3718,18 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
   FixedArray* result = FixedArray::cast(obj);
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len0; i++) {
-    result->set(i, get(i), mode);
+    Object* e = get(i);
+    ASSERT(e->IsString() || e->IsNumber());
+    result->set(i, e, mode);
   }
   // Fill in the extra keys.
   int index = 0;
   for (int y = 0; y < len1; y++) {
     Object* value = other->get(y);
     if (!value->IsTheHole() && !HasKey(this, value)) {
-      result->set(len0 + index, other->get(y), mode);
+      Object* e = other->get(y);
+      ASSERT(e->IsString() || e->IsNumber());
+      result->set(len0 + index, e, mode);
       index++;
     }
   }
@@ -5348,6 +5342,13 @@ Object* Oddball::Initialize(const char* to_string,
   set_to_number(to_number);
   set_kind(kind);
   return this;
+}
+
+
+String* SharedFunctionInfo::DebugName() {
+  Object* n = name();
+  if (!n->IsString() || String::cast(n)->length() == 0) return inferred_name();
+  return String::cast(n);
 }
 
 
@@ -8897,6 +8898,11 @@ Object* StringDictionary::TransformPropertiesToFastFor(
   int inobject_props = obj->map()->inobject_properties();
   int number_of_allocated_fields =
       number_of_fields + unused_property_fields - inobject_props;
+  if (number_of_allocated_fields < 0) {
+    // There is enough inobject space for all fields (including unused).
+    number_of_allocated_fields = 0;
+    unused_property_fields = inobject_props - number_of_fields;
+  }
 
   // Allocate the fixed array for the fields.
   Object* fields = heap->AllocateFixedArray(number_of_allocated_fields);

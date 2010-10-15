@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -197,6 +197,14 @@ enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
 enum PropertyNormalizationMode {
   CLEAR_INOBJECT_PROPERTIES,
   KEEP_INOBJECT_PROPERTIES
+};
+
+
+// NormalizedMapSharingMode is used to specify whether a map may be shared
+// by different objects with normalized properties.
+enum NormalizedMapSharingMode {
+  UNIQUE_NORMALIZED_MAP,
+  SHARED_NORMALIZED_MAP
 };
 
 
@@ -2523,11 +2531,7 @@ class NormalizedMapCache: public FixedArray {
  public:
   static const int kEntries = 64;
 
-  static bool IsCacheable(JSObject* object);
-
   Object* Get(JSObject* object, PropertyNormalizationMode mode);
-
-  bool Contains(Map* map);
 
   void Clear();
 
@@ -3023,7 +3027,6 @@ class Code: public HeapObject {
   void CodePrint();
   void CodeVerify();
 #endif
-
   // Layout description.
   static const int kInstructionSizeOffset = HeapObject::kHeaderSize;
   static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
@@ -3032,8 +3035,7 @@ class Code: public HeapObject {
   // Add padding to align the instruction start following right after
   // the Code object header.
   static const int kHeaderSize =
-      (kKindSpecificFlagsOffset + kIntSize + kCodeAlignmentMask) &
-          ~kCodeAlignmentMask;
+      CODE_POINTER_ALIGN(kKindSpecificFlagsOffset + kIntSize);
 
   // Byte offsets within kKindSpecificFlagsOffset.
   static const int kStubMajorKeyOffset = kKindSpecificFlagsOffset + 1;
@@ -3186,6 +3188,13 @@ class Map: public HeapObject {
 
   inline bool attached_to_shared_function_info();
 
+  // Tells whether the map is shared between objects that may have different
+  // behavior. If true, the map should never be modified, instead a clone
+  // should be created and modified.
+  inline void set_is_shared(bool value);
+
+  inline bool is_shared();
+
   // Tells whether the instance needs security checks when accessing its
   // properties.
   inline void set_is_access_check_needed(bool access_check_needed);
@@ -3207,7 +3216,8 @@ class Map: public HeapObject {
 
   MUST_USE_RESULT Object* CopyDropDescriptors();
 
-  MUST_USE_RESULT Object* CopyNormalized(PropertyNormalizationMode mode);
+  MUST_USE_RESULT Object* CopyNormalized(PropertyNormalizationMode mode,
+                                         NormalizedMapSharingMode sharing);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
@@ -3271,7 +3281,7 @@ class Map: public HeapObject {
 #ifdef DEBUG
   void MapPrint();
   void MapVerify();
-  void NormalizedMapVerify();
+  void SharedMapVerify();
 #endif
 
   inline int visitor_id();
@@ -3340,6 +3350,7 @@ class Map: public HeapObject {
   static const int kHasFastElements = 2;
   static const int kStringWrapperSafeForDefaultValueOf = 3;
   static const int kAttachedToSharedFunctionInfo = 4;
+  static const int kIsShared = 5;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;
@@ -3545,7 +3556,7 @@ class SharedFunctionInfo: public HeapObject {
   //  Important: inobject slack tracking is not attempted during the snapshot
   //  creation.
 
-  static const int kGenerousAllocationCount = 16;
+  static const int kGenerousAllocationCount = 8;
 
   // [construction_count]: Counter for constructor calls made during
   // the tracking phase.
@@ -3628,6 +3639,9 @@ class SharedFunctionInfo: public HeapObject {
   // all functions are anonymous but are assigned to object
   // properties.
   DECL_ACCESSORS(inferred_name, String)
+
+  // The function's name if it is non-empty, otherwise the inferred name.
+  String* DebugName();
 
   // Position of the 'function' token in the script source.
   inline int function_token_position();

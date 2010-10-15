@@ -125,7 +125,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   PostponeInterruptsScope postpone;
   RegExpCompileData parse_result;
   FlatStringReader reader(pattern);
-  if (!ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
+  if (!Parser::ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
     ThrowRegExpException(re,
                          pattern,
@@ -211,13 +211,12 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                     int index,
                                     Handle<JSArray> last_match_info) {
   Isolate* isolate = re->GetIsolate();
-  RuntimeState* runtime_state = isolate->runtime_state();
 
   Handle<String> needle(String::cast(re->DataAt(JSRegExp::kAtomPatternIndex)));
 
   uint32_t start_index = index;
 
-  int value = Runtime::StringMatch(runtime_state, subject, needle, start_index);
+  int value = Runtime::StringMatch(isolate, subject, needle, start_index);
   if (value == -1) return isolate->factory()->null_value();
   ASSERT(last_match_info->HasFastElements());
 
@@ -271,7 +270,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
 
   RegExpCompileData compile_data;
   FlatStringReader reader(pattern);
-  if (!ParseRegExp(&reader, flags.is_multiline(), &compile_data)) {
+  if (!Parser::ParseRegExp(&reader, flags.is_multiline(), &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
     ThrowRegExpException(re,

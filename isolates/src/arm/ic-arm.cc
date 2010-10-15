@@ -972,7 +972,8 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 
 bool LoadIC::PatchInlinedContextualLoad(Address address,
                                         Object* map,
-                                        Object* cell) {
+                                        Object* cell,
+                                        bool is_dont_delete) {
   // TODO(<bug#>): implement this.
   return false;
 }
@@ -1587,8 +1588,9 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // Check that the receiver isn't a smi.
   __ BranchOnSmi(r1, &slow);
 
-  // Check that the key is a smi.
-  __ BranchOnNotSmi(r0, &slow);
+  // Check that the key is an array index, that is Uint32.
+  __ tst(r0, Operand(kSmiTagMask | kSmiSignMask));
+  __ b(ne, &slow);
 
   // Get the map of the receiver.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));

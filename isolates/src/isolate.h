@@ -40,7 +40,6 @@
 #include "heap.h"
 #include "regexp-stack.h"
 #include "runtime.h"
-#include "string-search.h"
 #include "zone.h"
 #include "../include/v8-debug.h"
 
@@ -255,6 +254,9 @@ class HashMap;
   /* SerializerDeserializer state. */                                          \
   V(Object*, serialize_partial_snapshot_cache, kPartialSnapshotCacheCapacity)  \
   V(int, jsregexp_static_offsets_vector, kJSRegexpStaticOffsetsVectorSize)     \
+  V(int, bad_char_shift_table, kUC16AlphabetSize)                              \
+  V(int, good_suffix_shift_table, (kBMMaxShift + 1))                           \
+  V(int, suffix_table, (kBMMaxShift + 1))                                      \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
 typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
@@ -635,6 +637,9 @@ class Isolate {
   char* RestoreThread(char* from);
 
   static const char* const kStackOverflowMessage;
+
+  static const int kUC16AlphabetSize = 256; // See StringSearchBase.
+  static const int kBMMaxShift = 250;       // See StringSearchBase.
 
   // Accessors.
 #define GLOBAL_ACCESSOR(type, name, initialvalue)                              \

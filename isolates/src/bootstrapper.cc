@@ -1032,8 +1032,11 @@ bool Genesis::InstallNatives() {
   // global object.
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  SetProperty(builtins, FACTORY->LookupAsciiSymbol("global"),
-              Handle<Object>(global_context()->global()), attributes);
+  Handle<String> global_symbol = FACTORY->LookupAsciiSymbol("global");
+  SetProperty(builtins,
+              global_symbol,
+              Handle<Object>(global_context()->global()),
+              attributes);
 
   // Setup the reference from the global object to the builtins object.
   JSGlobalObject::cast(global_context()->global())->set_builtins(*builtins);

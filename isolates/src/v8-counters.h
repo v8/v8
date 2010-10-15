@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -45,14 +45,7 @@ namespace internal {
   /* Total compilation times. */                                      \
   HT(compile, V8.Compile)                                             \
   HT(compile_eval, V8.CompileEval)                                    \
-  HT(compile_lazy, V8.CompileLazy)                                    \
-  /* Individual compiler passes. */                                   \
-  HT(rewriting, V8.Rewriting)                                         \
-  HT(usage_analysis, V8.UsageAnalysis)                                \
-  HT(variable_allocation, V8.VariableAllocation)                      \
-  HT(ast_optimization, V8.ASTOptimization)                            \
-  HT(code_generation, V8.CodeGeneration)                              \
-  HT(deferred_code_generation, V8.DeferredCodeGeneration)
+  HT(compile_lazy, V8.CompileLazy)
 
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
@@ -161,6 +154,8 @@ namespace internal {
   SC(named_load_inline_miss, V8.NamedLoadInlineMiss)                  \
   SC(named_load_global_inline, V8.NamedLoadGlobalInline)              \
   SC(named_load_global_inline_miss, V8.NamedLoadGlobalInlineMiss)     \
+  SC(dont_delete_hint_hit, V8.DontDeleteHintHit)                      \
+  SC(dont_delete_hint_miss, V8.DontDeleteHintMiss)                    \
   SC(named_load_global_stub, V8.NamedLoadGlobalStub)                  \
   SC(named_load_global_stub_miss, V8.NamedLoadGlobalStubMiss)         \
   SC(keyed_store_field, V8.KeyedStoreField)                           \

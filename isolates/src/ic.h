@@ -312,7 +312,8 @@ class LoadIC: public IC {
 
   static bool PatchInlinedContextualLoad(Address address,
                                          Object* map,
-                                         Object* cell);
+                                         Object* cell,
+                                         bool is_dont_delete);
 
   friend class IC;
 };

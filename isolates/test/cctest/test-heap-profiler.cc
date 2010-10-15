@@ -594,7 +594,7 @@ TEST(HeapSnapshotObjectSizes) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "x");
   CHECK_NE(NULL, x);
   const v8::HeapGraphNode* x_prototype =
-      GetProperty(x, v8::HeapGraphEdge::kProperty, "prototype");
+      GetProperty(x, v8::HeapGraphEdge::kProperty, "__proto__");
   CHECK_NE(NULL, x_prototype);
   const v8::HeapGraphNode* x1 =
       GetProperty(x, v8::HeapGraphEdge::kProperty, "a");
@@ -606,7 +606,7 @@ TEST(HeapSnapshotObjectSizes) {
       x->GetSelfSize() * 3,
       x->GetReachableSize() - x_prototype->GetReachableSize());
   CHECK_EQ(
-      x->GetSelfSize() * 3 + x_prototype->GetSelfSize(), x->GetRetainedSize());
+      x->GetSelfSize() * 3, x->GetRetainedSize());
   CHECK_EQ(
       x1->GetSelfSize() * 2,
       x1->GetReachableSize() - x_prototype->GetReachableSize());
@@ -651,7 +651,6 @@ TEST(HeapSnapshotCodeObjects) {
   CompileAndRunScript(
       "function lazy(x) { return x - 1; }\n"
       "function compiled(x) { return x + 1; }\n"
-      "var inferred = function(x) { return x; }\n"
       "var anonymous = (function() { return function() { return 0; } })();\n"
       "compiled(1)");
   const v8::HeapSnapshot* snapshot =
@@ -666,18 +665,12 @@ TEST(HeapSnapshotCodeObjects) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "lazy");
   CHECK_NE(NULL, lazy);
   CHECK_EQ(v8::HeapGraphNode::kClosure, lazy->GetType());
-  const v8::HeapGraphNode* inferred =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "inferred");
-  CHECK_NE(NULL, inferred);
-  CHECK_EQ(v8::HeapGraphNode::kClosure, inferred->GetType());
-  v8::String::AsciiValue inferred_name(inferred->GetName());
-  CHECK_EQ("inferred", *inferred_name);
   const v8::HeapGraphNode* anonymous =
       GetProperty(global, v8::HeapGraphEdge::kProperty, "anonymous");
   CHECK_NE(NULL, anonymous);
   CHECK_EQ(v8::HeapGraphNode::kClosure, anonymous->GetType());
   v8::String::AsciiValue anonymous_name(anonymous->GetName());
-  CHECK_EQ("(anonymous function)", *anonymous_name);
+  CHECK_EQ("", *anonymous_name);
 
   // Find references to code.
   const v8::HeapGraphNode* compiled_code =
@@ -787,6 +780,7 @@ TEST(HeapSnapshotsDiff) {
   CompileAndRunScript(
       "function A() {}\n"
       "function B(x) { this.x = x; }\n"
+      "function A2(a) { for (var i = 0; i < a; ++i) this[i] = i; }\n"
       "var a = new A();\n"
       "var b = new B(a);");
   const v8::HeapSnapshot* snapshot1 =
@@ -795,7 +789,7 @@ TEST(HeapSnapshotsDiff) {
   CompileAndRunScript(
       "delete a;\n"
       "b.x = null;\n"
-      "var a = new A();\n"
+      "var a = new A2(20);\n"
       "var b2 = new B(a);");
   const v8::HeapSnapshot* snapshot2 =
       v8::HeapProfiler::TakeSnapshot(v8::String::New("s2"));
@@ -811,7 +805,7 @@ TEST(HeapSnapshotsDiff) {
     const v8::HeapGraphNode* node = prop->GetToNode();
     if (node->GetType() == v8::HeapGraphNode::kObject) {
       v8::String::AsciiValue node_name(node->GetName());
-      if (strcmp(*node_name, "A") == 0) {
+      if (strcmp(*node_name, "A2") == 0) {
         CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::kProperty, "a"));
         CHECK(!found_A);
         found_A = true;
@@ -846,6 +840,19 @@ TEST(HeapSnapshotsDiff) {
   CHECK(found_A_del);
   CHECK_NE_UINT64_T(0, s1_A_id);
   CHECK(s1_A_id != s2_A_id);
+}
+
+
+TEST(HeapSnapshotRootPreservedAfterSorting) {
+  v8::HandleScope scope;
+  LocalContext env;
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("s"));
+  const v8::HeapGraphNode* root1 = snapshot->GetRoot();
+  const_cast<i::HeapSnapshot*>(reinterpret_cast<const i::HeapSnapshot*>(
+      snapshot))->GetSortedEntriesList();
+  const v8::HeapGraphNode* root2 = snapshot->GetRoot();
+  CHECK_EQ(root1, root2);
 }
 
 

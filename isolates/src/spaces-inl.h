@@ -495,7 +495,7 @@ Object* NewSpace::AllocateRawInternal(int size_in_bytes,
 }
 
 
-int LargeObjectSpace::Available() {
+intptr_t LargeObjectSpace::Available() {
   return LargeObjectChunk::ObjectSizeFor(
       heap()->isolate()->memory_allocator()->Available());
 }

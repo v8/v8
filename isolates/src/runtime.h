@@ -447,7 +447,56 @@ namespace internal {
 //---------------------------------------------------------------------------
 // Runtime provides access to all C++ runtime functions.
 
-class RuntimeState;
+class RuntimeState {
+ public:
+
+  StaticResource<StringInputBuffer>* string_input_buffer() {
+    return &string_input_buffer_;
+  }
+  unibrow::Mapping<unibrow::ToUppercase, 128>* to_upper_mapping() {
+    return &to_upper_mapping_;
+  }
+  unibrow::Mapping<unibrow::ToLowercase, 128>* to_lower_mapping() {
+    return &to_lower_mapping_;
+  }
+  StringInputBuffer* string_input_buffer_compare_bufx() {
+    return &string_input_buffer_compare_bufx_;
+  }
+  StringInputBuffer* string_input_buffer_compare_bufy() {
+    return &string_input_buffer_compare_bufy_;
+  }
+  StringInputBuffer* string_locale_compare_buf1() {
+    return &string_locale_compare_buf1_;
+  }
+  StringInputBuffer* string_locale_compare_buf2() {
+    return &string_locale_compare_buf2_;
+  }
+  int* smi_lexicographic_compare_x_elms() {
+    return smi_lexicographic_compare_x_elms_;
+  }
+  int* smi_lexicographic_compare_y_elms() {
+    return smi_lexicographic_compare_y_elms_;
+  }
+
+ private:
+  RuntimeState() {}
+  // Non-reentrant string buffer for efficient general use in the runtime.
+  StaticResource<StringInputBuffer> string_input_buffer_;
+  unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
+  unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;
+  StringInputBuffer string_input_buffer_compare_bufx_;
+  StringInputBuffer string_input_buffer_compare_bufy_;
+  StringInputBuffer string_locale_compare_buf1_;
+  StringInputBuffer string_locale_compare_buf2_;
+  int smi_lexicographic_compare_x_elms_[10];
+  int smi_lexicographic_compare_y_elms_[10];
+
+  friend class Isolate;
+  friend class Runtime;
+
+  DISALLOW_COPY_AND_ASSIGN(RuntimeState);
+};
+
 
 class Runtime : public AllStatic {
  public:
@@ -501,7 +550,7 @@ class Runtime : public AllStatic {
   static Function* FunctionForId(FunctionId id);
 
   // General-purpose helper functions for runtime system.
-  static int StringMatch(RuntimeState* runtime_state,
+  static int StringMatch(Isolate* isolate,
                          Handle<String> sub,
                          Handle<String> pat,
                          int index);

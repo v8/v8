@@ -56,7 +56,7 @@ class Label BASE_EMBEDDED {
 
   INLINE(void Unuse())            { pos_ = 0; }
 
-  INLINE(bool is_bound()  const)  { return pos_ <  0; }
+  INLINE(bool is_bound() const)  { return pos_ <  0; }
   INLINE(bool is_unused() const)  { return pos_ == 0; }
   INLINE(bool is_linked() const)  { return pos_ >  0; }
 
@@ -231,10 +231,10 @@ class RelocInfo BASE_EMBEDDED {
   static inline int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
-  byte* pc() const  { return pc_; }
+  byte* pc() const { return pc_; }
   void set_pc(byte* pc) { pc_ = pc; }
   Mode rmode() const {  return rmode_; }
-  intptr_t data() const  { return data_; }
+  intptr_t data() const { return data_; }
 
   // Apply a relocation by delta bytes
   INLINE(void apply(intptr_t delta));
@@ -389,7 +389,7 @@ class RelocIterator: public Malloced {
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
 
   // Iteration
-  bool done() const  { return done_; }
+  bool done() const { return done_; }
   void next();
 
   // Return pointer valid until next next().

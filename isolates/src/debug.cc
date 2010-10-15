@@ -1070,10 +1070,12 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   if (!break_point_object->IsJSObject()) return true;
 
   // Get the function CheckBreakPoint (defined in debug.js).
+  Handle<String> is_break_point_triggered_symbol =
+      FACTORY->LookupAsciiSymbol("IsBreakPointTriggered");
   Handle<JSFunction> check_break_point =
     Handle<JSFunction>(JSFunction::cast(
-      debug_context()->global()->GetProperty(
-          *FACTORY->LookupAsciiSymbol("IsBreakPointTriggered"))));
+        debug_context()->global()->GetProperty(
+            *is_break_point_triggered_symbol)));
 
   // Get the break id as an object.
   Handle<Object> break_id = FACTORY->NewNumberFromInt(Debug::break_id());
@@ -2243,9 +2245,11 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   // script. Make sure that these break points are set.
 
   // Get the function UpdateScriptBreakPoints (defined in debug-debugger.js).
+  Handle<String> update_script_break_points_symbol =
+      FACTORY->LookupAsciiSymbol("UpdateScriptBreakPoints");
   Handle<Object> update_script_break_points =
       Handle<Object>(isolate_->debug()->debug_context()->global()->GetProperty(
-          *FACTORY->LookupAsciiSymbol("UpdateScriptBreakPoints")));
+          *update_script_break_points_symbol));
   if (!update_script_break_points->IsJSFunction()) {
     return;
   }

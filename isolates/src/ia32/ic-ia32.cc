@@ -885,8 +885,8 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   __ test(edx, Immediate(kSmiTagMask));
   __ j(zero, &slow, not_taken);
 
-  // Check that the key is a smi.
-  __ test(eax, Immediate(kSmiTagMask));
+  // Check that the key is an array index, that is Uint32.
+  __ test(eax, Immediate(kSmiTagMask | kSmiSignMask));
   __ j(not_zero, &slow, not_taken);
 
   // Get the map of the receiver.
@@ -1665,17 +1665,37 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 
 
 // One byte opcode for mov ecx,0xXXXXXXXX.
+// Marks inlined contextual loads using all kinds of cells. Generated
+// code has the hole check:
+//   mov reg, <cell>
+//   mov reg, (<cell>, value offset)
+//   cmp reg, <the hole>
+//   je  slow
+//   ;; use reg
 static const byte kMovEcxByte = 0xB9;
+
+// One byte opcode for mov edx,0xXXXXXXXX.
+// Marks inlined contextual loads using only "don't delete"
+// cells. Generated code doesn't have the hole check:
+//   mov reg, <cell>
+//   mov reg, (<cell>, value offset)
+//   ;; use reg
+static const byte kMovEdxByte = 0xBA;
 
 bool LoadIC::PatchInlinedContextualLoad(Address address,
                                         Object* map,
-                                        Object* cell) {
+                                        Object* cell,
+                                        bool is_dont_delete) {
   // The address of the instruction following the call.
   Address mov_instruction_address =
       address + Assembler::kCallTargetAddressOffset;
-  // If the instruction following the call is not a cmp eax, nothing
-  // was inlined.
-  if (*mov_instruction_address != kMovEcxByte) return false;
+  // If the instruction following the call is not a mov ecx/edx,
+  // nothing was inlined.
+  byte b = *mov_instruction_address;
+  if (b != kMovEcxByte && b != kMovEdxByte) return false;
+  // If we don't have the hole check generated, we can only support
+  // "don't delete" cells.
+  if (b == kMovEdxByte && !is_dont_delete) return false;
 
   Address delta_address = mov_instruction_address + 1;
   // The delta to the start of the map check instruction.

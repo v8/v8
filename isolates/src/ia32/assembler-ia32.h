@@ -65,15 +65,15 @@ namespace internal {
 // and best performance in optimized code.
 //
 struct Register {
-  bool is_valid() const  { return 0 <= code_ && code_ < 8; }
-  bool is(Register reg) const  { return code_ == reg.code_; }
+  bool is_valid() const { return 0 <= code_ && code_ < 8; }
+  bool is(Register reg) const { return code_ == reg.code_; }
   // eax, ebx, ecx and edx are byte registers, the rest are not.
-  bool is_byte_register() const  { return code_ <= 3; }
-  int code() const  {
+  bool is_byte_register() const { return code_ <= 3; }
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
-  int bit() const  {
+  int bit() const {
     ASSERT(is_valid());
     return 1 << code_;
   }
@@ -94,8 +94,8 @@ const Register no_reg = { -1 };
 
 
 struct XMMRegister {
-  bool is_valid() const  { return 0 <= code_ && code_ < 8; }
-  int code() const  {
+  bool is_valid() const { return 0 <= code_ && code_ < 8; }
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
@@ -377,6 +377,7 @@ class CpuFeatures {
   bool IsSupported(CpuFeature f) const {
     if (f == SSE2 && !FLAG_enable_sse2) return false;
     if (f == SSE3 && !FLAG_enable_sse3) return false;
+    if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
     if (f == CMOV && !FLAG_enable_cmov) return false;
     if (f == RDTSC && !FLAG_enable_rdtsc) return false;
     return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
@@ -871,9 +872,9 @@ class Assembler : public Malloced {
   // Used for inline tables, e.g., jump-tables.
   void dd(uint32_t data, RelocInfo::Mode reloc_info);
 
-  int pc_offset() const  { return pc_ - buffer_; }
+  int pc_offset() const { return pc_ - buffer_; }
   int current_statement_position() const { return current_statement_position_; }
-  int current_position() const  { return current_position_; }
+  int current_position() const { return current_position_; }
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting

@@ -136,10 +136,13 @@ void CodeEntry::CopyData(const CodeEntry& source) {
 
 uint32_t CodeEntry::GetCallUid() const {
   uint32_t hash = ComputeIntegerHash(tag_);
-  hash ^= static_cast<int32_t>(reinterpret_cast<intptr_t>(name_prefix_));
-  hash ^= static_cast<int32_t>(reinterpret_cast<intptr_t>(name_));
-  hash ^= static_cast<int32_t>(reinterpret_cast<intptr_t>(resource_name_));
-  hash ^= static_cast<int32_t>(line_number_);
+  hash ^= ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)));
+  hash ^= ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)));
+  hash ^= ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)));
+  hash ^= ComputeIntegerHash(line_number_);
   return hash;
 }
 
@@ -444,9 +447,10 @@ void CodeMap::AddAlias(Address start, CodeEntry* entry, Address code_start) {
   CodeTree::Locator locator;
   if (tree_.Find(code_start, &locator)) {
     const CodeEntryInfo& code_info = locator.value();
-    entry->CopyData(*code_info.entry);
-    tree_.Insert(start, &locator);
-    locator.set_value(CodeEntryInfo(entry, code_info.size));
+    if (tree_.Insert(start, &locator)) {
+      entry->CopyData(*code_info.entry);
+      locator.set_value(CodeEntryInfo(entry, code_info.size));
+    }
   }
 }
 
@@ -950,7 +954,7 @@ void HeapEntry::PaintAllReachable() {
 
 
 void HeapEntry::Print(int max_depth, int indent) {
-  OS::Print("%6d %6d %6d [%ld] ",
+  OS::Print("%6d %6d %6d [%llu] ",
             self_size(), ReachableSize(), RetainedSize(), id_);
   if (type() != kString) {
     OS::Print("%s %.40s\n", TypeAsString(), name_);
@@ -999,6 +1003,7 @@ const char* HeapEntry::TypeAsString() {
     case kString: return "/string/";
     case kCode: return "/code/";
     case kArray: return "/array/";
+    case kRegExp: return "/regexp/";
     default: return "???";
   }
 }
@@ -1235,7 +1240,7 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       type_(type),
       title_(title),
       uid_(uid),
-      root_entry_index_(-1),
+      root_entry_(NULL),
       raw_entries_(NULL),
       entries_sorted_(false) {
   STATIC_ASSERT(
@@ -1274,19 +1279,24 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
                                   int children_count,
                                   int retainers_count) {
   if (object == kInternalRootObject) {
-    ASSERT(root_entry_index_ == -1);
-    root_entry_index_ = entries_.length();
+    ASSERT(root_entry_ == NULL);
     ASSERT(retainers_count == 0);
-    return AddEntry(
+    root_entry_ = AddEntry(
         HeapEntry::kInternal, "", 0, 0, children_count, retainers_count);
+    return root_entry_;
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
-    String* name = String::cast(shared->name())->length() > 0 ?
-        String::cast(shared->name()) : shared->inferred_name();
     return AddEntry(object,
                     HeapEntry::kClosure,
-                    collection_->GetFunctionName(name),
+                    collection_->GetName(String::cast(shared->name())),
+                    children_count,
+                    retainers_count);
+  } else if (object->IsJSRegExp()) {
+    JSRegExp* re = JSRegExp::cast(object);
+    return AddEntry(object,
+                    HeapEntry::kRegExp,
+                    collection_->GetName(re->Pattern()),
                     children_count,
                     retainers_count);
   } else if (object->IsJSObject()) {
@@ -1340,6 +1350,7 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
 bool HeapSnapshot::WillAddEntry(HeapObject* object) {
   return object == kInternalRootObject
       || object->IsJSFunction()
+      || object->IsJSRegExp()
       || object->IsJSObject()
       || object->IsString()
       || object->IsCode()
@@ -1904,12 +1915,19 @@ void HeapSnapshotGenerator::ExtractReferences(HeapObject* obj) {
     ExtractPropertyReferences(js_obj, entry);
     ExtractElementReferences(js_obj, entry);
     SetPropertyReference(
-        obj, entry, HEAP->prototype_symbol(), js_obj->map()->prototype());
+        obj, entry, HEAP->Proto_symbol(), js_obj->GetPrototype());
+    if (obj->IsJSFunction()) {
+      JSFunction* js_fun = JSFunction::cast(obj);
+      if (js_fun->has_prototype()) {
+        SetPropertyReference(
+            obj, entry, HEAP->prototype_symbol(), js_fun->prototype());
+      }
+    }
   } else if (obj->IsString()) {
     if (obj->IsConsString()) {
       ConsString* cs = ConsString::cast(obj);
-      SetElementReference(obj, entry, 0, cs->first());
-      SetElementReference(obj, entry, 1, cs->second());
+      SetInternalReference(obj, entry, "1", cs->first());
+      SetInternalReference(obj, entry, "2", cs->second());
     }
   } else if (obj->IsCode() || obj->IsSharedFunctionInfo() || obj->IsScript()) {
     IndexedReferencesExtractor refs_extractor(this, obj, entry);
@@ -2054,7 +2072,9 @@ void HeapSnapshotGenerator::SetPropertyReference(HeapObject* parent_obj,
                                                  Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry != NULL) {
-    filler_->SetNamedReference(HeapGraphEdge::kProperty,
+    HeapGraphEdge::Type type = reference_name->length() > 0 ?
+        HeapGraphEdge::kProperty : HeapGraphEdge::kInternal;
+    filler_->SetNamedReference(type,
                                parent_obj,
                                parent_entry,
                                collection_->GetName(reference_name),
@@ -2094,6 +2114,11 @@ HeapSnapshotsComparator::~HeapSnapshotsComparator() {
 
 HeapSnapshotsDiff* HeapSnapshotsComparator::Compare(HeapSnapshot* snapshot1,
                                                     HeapSnapshot* snapshot2) {
+  snapshot1->ClearPaint();
+  snapshot1->root()->PaintAllReachable();
+  snapshot2->ClearPaint();
+  snapshot2->root()->PaintAllReachable();
+
   List<HeapEntry*>* entries1 = snapshot1->GetSortedEntriesList();
   List<HeapEntry*>* entries2 = snapshot2->GetSortedEntriesList();
   int i = 0, j = 0;
@@ -2102,8 +2127,14 @@ HeapSnapshotsDiff* HeapSnapshotsComparator::Compare(HeapSnapshot* snapshot1,
     uint64_t id1 = entries1->at(i)->id();
     uint64_t id2 = entries2->at(j)->id();
     if (id1 == id2) {
-      i++;
-      j++;
+      HeapEntry* entry1 = entries1->at(i++);
+      HeapEntry* entry2 = entries2->at(j++);
+      if (entry1->painted_reachable() != entry2->painted_reachable()) {
+        if (entry1->painted_reachable())
+          deleted_entries.Add(entry1);
+        else
+          added_entries.Add(entry2);
+      }
     } else if (id1 < id2) {
       HeapEntry* entry = entries1->at(i++);
       deleted_entries.Add(entry);
@@ -2121,35 +2152,17 @@ HeapSnapshotsDiff* HeapSnapshotsComparator::Compare(HeapSnapshot* snapshot1,
     added_entries.Add(entry);
   }
 
-  snapshot1->ClearPaint();
-  snapshot1->root()->PaintAllReachable();
-  snapshot2->ClearPaint();
-  snapshot2->root()->PaintAllReachable();
-  int reachable_deleted_entries = 0, reachable_added_entries = 0;
-  for (int i = 0; i < deleted_entries.length(); ++i) {
-    HeapEntry* entry = deleted_entries[i];
-    if (entry->painted_reachable()) ++reachable_deleted_entries;
-  }
-  for (int i = 0; i < added_entries.length(); ++i) {
-    HeapEntry* entry = added_entries[i];
-    if (entry->painted_reachable()) ++reachable_added_entries;
-  }
-
   HeapSnapshotsDiff* diff = new HeapSnapshotsDiff(snapshot1, snapshot2);
   diffs_.Add(diff);
-  diff->CreateRoots(reachable_added_entries, reachable_deleted_entries);
+  diff->CreateRoots(added_entries.length(), deleted_entries.length());
 
-  int del_child_index = 0, deleted_entry_index = 1;
   for (int i = 0; i < deleted_entries.length(); ++i) {
     HeapEntry* entry = deleted_entries[i];
-    if (entry->painted_reachable())
-      diff->AddDeletedEntry(del_child_index++, deleted_entry_index++, entry);
+    diff->AddDeletedEntry(i, i + 1, entry);
   }
-  int add_child_index = 0, added_entry_index = 1;
   for (int i = 0; i < added_entries.length(); ++i) {
     HeapEntry* entry = added_entries[i];
-    if (entry->painted_reachable())
-      diff->AddAddedEntry(add_child_index++, added_entry_index++, entry);
+    diff->AddAddedEntry(i, i + 1, entry);
   }
   return diff;
 }
@@ -2357,7 +2370,8 @@ void HeapSnapshotJSONSerializer::SerializeNodes() {
             "," JSON_S("string")
             "," JSON_S("object")
             "," JSON_S("code")
-            "," JSON_S("closure"))
+            "," JSON_S("closure")
+            "," JSON_S("regexp"))
         "," JSON_S("string")
         "," JSON_S("number")
         "," JSON_S("number")

@@ -25,38 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --max-new-space-size=256
+#include "v8.h"
+#include "string-search.h"
 
+namespace v8 {
+namespace internal {
 
-// Check that a mod where the stub code hits a failure in heap number
-// allocation still works.
+// Storage for constants used by string-search.
 
-function f(x) {
-  return x % 3;
-}
+// Now in Isolate:
+// bad_char_shift_table()
+// good_suffix_shift_table()
+// suffix_table()
 
-function testMod() {
-  for (var i = 0; i < 40000; i++) {
-    assertEquals(-1 / 0, 1 / f(-3));
-  }
-}
+//int StringSearchBase::kBadCharShiftTable[kUC16AlphabetSize];
+//int StringSearchBase::kGoodSuffixShiftTable[kBMMaxShift + 1];
+//int StringSearchBase::kSuffixTable[kBMMaxShift + 1];
 
-testMod();
-
-
-// Check that an add where the stub code hits a failure in heap number
-// allocation still works.
-
-function g(x, y) {
-  return x + y;
-}
-
-function testAdd() {
-  var lhs = 17.42;
-  var rhs = 42.17;
-  for (var i = 0; i < 40000; i++) {
-    assertEquals(59.59, g(lhs, rhs));
-  }
-}
-
-testAdd();
+}}  // namespace v8::internal

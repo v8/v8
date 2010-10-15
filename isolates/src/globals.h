@@ -214,8 +214,8 @@ const intptr_t kMapAlignmentBits = kObjectAlignmentBits + 3;
 const intptr_t kMapAlignment = (1 << kMapAlignmentBits);
 const intptr_t kMapAlignmentMask = kMapAlignment - 1;
 
-// Desired alignment for generated code.
-// Code entry points are aligned to 32 bytes (cache line size in some CPUs).
+// Desired alignment for generated code is 32 bytes (to improve cache line
+// utilization).
 const int kCodeAlignmentBits = 5;
 const intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 const intptr_t kCodeAlignmentMask = kCodeAlignment - 1;

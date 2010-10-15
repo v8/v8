@@ -303,7 +303,10 @@ void LoadIC::ClearInlinedVersion(Address address) {
   // value).  The offset can be patched to anything.
   Heap* heap = HEAP;
   PatchInlinedLoad(address, heap->null_value(), 0);
-  PatchInlinedContextualLoad(address, heap->null_value(), heap->null_value());
+  PatchInlinedContextualLoad(address,
+                             heap->null_value(),
+                             heap->null_value(),
+                             true);
 }
 
 
@@ -874,7 +877,10 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
     JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(
         lookup.holder()->property_dictionary()->ValueAt(
             lookup.GetDictionaryEntry()));
-    if (PatchInlinedContextualLoad(address(), map, cell)) {
+    if (PatchInlinedContextualLoad(address(),
+                                   map,
+                                   cell,
+                                   lookup.IsDontDelete())) {
       set_target(megamorphic_stub());
       TRACE_IC_NAMED("[LoadIC : inline contextual patch %s]\n", name);
       ASSERT(cell->value() != isolate()->heap()->the_hole_value());
@@ -1615,18 +1621,17 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
 // Static IC stub generators.
 //
 
-static Object* CompileFunction(Object* result,
-                               Handle<Object> object,
-                               InLoopFlag in_loop) {
+static JSFunction* CompileFunction(JSFunction* function,
+                                   InLoopFlag in_loop) {
   // Compile now with optimization.
   HandleScope scope;
-  Handle<JSFunction> function = Handle<JSFunction>(JSFunction::cast(result));
+  Handle<JSFunction> function_handle(function);
   if (in_loop == IN_LOOP) {
-    CompileLazyInLoop(function, object, CLEAR_EXCEPTION);
+    CompileLazyInLoop(function_handle, CLEAR_EXCEPTION);
   } else {
-    CompileLazy(function, object, CLEAR_EXCEPTION);
+    CompileLazy(function_handle, CLEAR_EXCEPTION);
   }
-  return *function;
+  return *function_handle;
 }
 
 
@@ -1650,7 +1655,7 @@ Object* CallIC_Miss(RUNTIME_CALLING_CONVENTION) {
   if (!result->IsJSFunction() || JSFunction::cast(result)->is_compiled()) {
     return result;
   }
-  return CompileFunction(result, args.at<Object>(0), ic.target()->ic_in_loop());
+  return CompileFunction(JSFunction::cast(result), ic.target()->ic_in_loop());
 }
 
 
@@ -1667,7 +1672,7 @@ Object* KeyedCallIC_Miss(RUNTIME_CALLING_CONVENTION) {
   if (!result->IsJSFunction() || JSFunction::cast(result)->is_compiled()) {
     return result;
   }
-  return CompileFunction(result, args.at<Object>(0), ic.target()->ic_in_loop());
+  return CompileFunction(JSFunction::cast(result), ic.target()->ic_in_loop());
 }
 
 

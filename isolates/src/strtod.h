@@ -25,24 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test Math.sin and Math.abs.
+#ifndef V8_STRTOD_H_
+#define V8_STRTOD_H_
 
-assertEquals(1, Math.abs(1));  // Positive SMI.
-assertEquals(1, Math.abs(-1));  // Negative SMI.
-assertEquals(0.5, Math.abs(0.5));  // Positive double.
-assertEquals(0.5, Math.abs(-0.5));  // Negative double.
-assertEquals('Infinity', Math.abs(Number('+Infinity').toString()));
-assertEquals('Infinity', Math.abs(Number('-Infinity').toString()));
-assertEquals('NaN', Math.abs(NaN).toString());
-assertEquals('NaN', Math.abs(-NaN).toString());
+namespace v8 {
+namespace internal {
 
-var minusZero = 1 / (-1 / 0);
-function isMinusZero(x) {
-  return x === 0 && 1 / x < 0;
-}
+// The buffer must only contain digits in the range [0-9]. It must not
+// contain a dot or a sign. It must not start with '0', and must not be empty.
+double Strtod(Vector<char> buffer, int exponent);
 
-assertTrue(!isMinusZero(0));
-assertTrue(isMinusZero(minusZero));
-assertEquals(0, Math.abs(minusZero));
-assertTrue(!isMinusZero(Math.abs(minusZero)));
-assertTrue(!isMinusZero(Math.abs(0.0)));
+} }  // namespace v8::internal
+
+#endif  // V8_STRTOD_H_

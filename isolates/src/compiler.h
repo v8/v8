@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,127 +30,117 @@
 
 #include "ast.h"
 #include "frame-element.h"
-#include "parser.h"
 #include "register-allocator.h"
 #include "zone.h"
 
 namespace v8 {
 namespace internal {
 
+class ScriptDataImpl;
+
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
 class CompilationInfo BASE_EMBEDDED {
  public:
-  // Lazy compilation of a JSFunction.
-  CompilationInfo(Handle<JSFunction> closure,
-                  int loop_nesting,
-                  Handle<Object> receiver)
-      : closure_(closure),
-        function_(NULL),
-        is_eval_(false),
-        loop_nesting_(loop_nesting),
-        receiver_(receiver) {
-    Initialize();
-    ASSERT(!closure_.is_null() &&
-           shared_info_.is_null() &&
-           script_.is_null());
+  explicit CompilationInfo(Handle<Script> script);
+  explicit CompilationInfo(Handle<SharedFunctionInfo> shared_info);
+  explicit CompilationInfo(Handle<JSFunction> closure);
+
+  Isolate* isolate() {
+    ASSERT(Isolate::Current() == isolate_);
+    return isolate_;
   }
+  bool is_lazy() const { return (flags_ & IsLazy::mask()) != 0; }
+  bool is_eval() const { return (flags_ & IsEval::mask()) != 0; }
+  bool is_global() const { return (flags_ & IsGlobal::mask()) != 0; }
+  bool is_json() const { return (flags_ & IsJson::mask()) != 0; }
+  bool is_in_loop() const { return (flags_ & IsInLoop::mask()) != 0; }
+  FunctionLiteral* function() const { return function_; }
+  Scope* scope() const { return scope_; }
+  Handle<Code> code() const { return code_; }
+  Handle<JSFunction> closure() const { return closure_; }
+  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  Handle<Script> script() const { return script_; }
+  v8::Extension* extension() const { return extension_; }
+  ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
+  Handle<Context> calling_context() const { return calling_context_; }
 
-  // Lazy compilation based on SharedFunctionInfo.
-  explicit CompilationInfo(Handle<SharedFunctionInfo> shared_info)
-      : shared_info_(shared_info),
-        function_(NULL),
-        is_eval_(false),
-        loop_nesting_(0) {
-    Initialize();
-    ASSERT(closure_.is_null() &&
-           !shared_info_.is_null() &&
-           script_.is_null());
+  void MarkAsEval() {
+    ASSERT(!is_lazy());
+    flags_ |= IsEval::encode(true);
   }
-
-  // Eager compilation.
-  CompilationInfo(FunctionLiteral* literal, Handle<Script> script, bool is_eval)
-      : script_(script),
-        function_(literal),
-        is_eval_(is_eval),
-        loop_nesting_(0) {
-    Initialize();
-    ASSERT(closure_.is_null() &&
-           shared_info_.is_null() &&
-           !script_.is_null());
+  void MarkAsGlobal() {
+    ASSERT(!is_lazy());
+    flags_ |= IsGlobal::encode(true);
   }
-
-  // We can only get a JSFunction if we actually have one.
-  Handle<JSFunction> closure() { return closure_; }
-
-  // We can get a SharedFunctionInfo from a JSFunction or if we actually
-  // have one.
-  Handle<SharedFunctionInfo> shared_info() {
-    if (!closure().is_null()) {
-      return Handle<SharedFunctionInfo>(closure()->shared());
-    } else {
-      return shared_info_;
-    }
+  void MarkAsJson() {
+    ASSERT(!is_lazy());
+    flags_ |= IsJson::encode(true);
   }
-
-  // We can always get a script.  Either we have one or we can get a shared
-  // function info.
-  Handle<Script> script() {
-    if (!script_.is_null()) {
-      return script_;
-    } else {
-      ASSERT(shared_info()->script()->IsScript());
-      return Handle<Script>(Script::cast(shared_info()->script()));
-    }
+  void MarkAsInLoop() {
+    ASSERT(is_lazy());
+    flags_ |= IsInLoop::encode(true);
   }
-
-  // There should always be a function literal, but it may be set after
-  // construction (for lazy compilation).
-  FunctionLiteral* function() { return function_; }
-  void set_function(FunctionLiteral* literal) { function_ = literal; }
-
-  // Simple accessors.
-  bool is_eval() { return is_eval_; }
-  int loop_nesting() { return loop_nesting_; }
-  bool has_receiver() { return !receiver_.is_null(); }
-  Handle<Object> receiver() { return receiver_; }
-
-  bool has_this_properties() { return has_this_properties_; }
-  void set_has_this_properties(bool flag) { has_this_properties_ = flag; }
-
-  bool has_global_object() {
-    return !closure().is_null() && (closure()->context()->global() != NULL);
+  void SetFunction(FunctionLiteral* literal) {
+    ASSERT(function_ == NULL);
+    function_ = literal;
   }
-
-  GlobalObject* global_object() {
-    return has_global_object() ? closure()->context()->global() : NULL;
+  void SetScope(Scope* scope) {
+    ASSERT(scope_ == NULL);
+    scope_ = scope;
   }
-
-  bool has_globals() { return has_globals_; }
-  void set_has_globals(bool flag) { has_globals_ = flag; }
-
-  // Derived accessors.
-  Scope* scope() { return function()->scope(); }
+  void SetCode(Handle<Code> code) { code_ = code; }
+  void SetExtension(v8::Extension* extension) {
+    ASSERT(!is_lazy());
+    extension_ = extension;
+  }
+  void SetPreParseData(ScriptDataImpl* pre_parse_data) {
+    ASSERT(!is_lazy());
+    pre_parse_data_ = pre_parse_data;
+  }
+  void SetCallingContext(Handle<Context> context) {
+    ASSERT(is_eval());
+    calling_context_ = context;
+  }
 
  private:
-  void Initialize() {
-    has_this_properties_ = false;
-    has_globals_ = false;
-  }
+  Isolate* isolate_;
 
+  // Flags using template class BitField<type, start, length>.  All are
+  // false by default.
+  //
+  // Compilation is either eager or lazy.
+  class IsLazy:   public BitField<bool, 0, 1> {};
+  // Flags that can be set for eager compilation.
+  class IsEval:   public BitField<bool, 1, 1> {};
+  class IsGlobal: public BitField<bool, 2, 1> {};
+  class IsJson:   public BitField<bool, 3, 1> {};
+  // Flags that can be set for lazy compilation.
+  class IsInLoop: public BitField<bool, 4, 1> {};
+
+  unsigned flags_;
+
+  // Fields filled in by the compilation pipeline.
+  // AST filled in by the parser.
+  FunctionLiteral* function_;
+  // The scope of the function literal as a convenience.  Set to indidicate
+  // that scopes have been analyzed.
+  Scope* scope_;
+  // The compiled code.
+  Handle<Code> code_;
+
+  // Possible initial inputs to the compilation process.
   Handle<JSFunction> closure_;
   Handle<SharedFunctionInfo> shared_info_;
   Handle<Script> script_;
 
-  FunctionLiteral* function_;
+  // Fields possibly needed for eager compilation, NULL by default.
+  v8::Extension* extension_;
+  ScriptDataImpl* pre_parse_data_;
 
-  bool is_eval_;
-  int loop_nesting_;
-
-  Handle<Object> receiver_;
-
-  bool has_this_properties_;
-  bool has_globals_;
+  // The context of the caller is needed for eval code, and will be a null
+  // handle otherwise.
+  Handle<Context> calling_context_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
@@ -163,13 +153,13 @@ class CompilationInfo BASE_EMBEDDED {
 // functions, they will be compiled and allocated as part of the compilation
 // of the source code.
 
-// Please note this interface returns shared function infos.
-// This means you need to call Factory::NewFunctionFromSharedFunctionInfo
-// before you have a real function with a context.
+// Please note this interface returns shared function infos.  This means you
+// need to call Factory::NewFunctionFromSharedFunctionInfo before you have a
+// real function with a context.
 
 class Compiler : public AllStatic {
  public:
-  enum ValidationState { VALIDATE_JSON, DONT_VALIDATE_JSON };
+  enum ValidationState { DONT_VALIDATE_JSON, VALIDATE_JSON };
 
   // All routines return a JSFunction.
   // If an error occurs an exception is raised and
@@ -191,17 +181,14 @@ class Compiler : public AllStatic {
                                                 bool is_global,
                                                 ValidationState validation);
 
-  // Compile from function info (used for lazy compilation). Returns
-  // true on success and false if the compilation resulted in a stack
-  // overflow.
+  // Compile from function info (used for lazy compilation). Returns true on
+  // success and false if the compilation resulted in a stack overflow.
   static bool CompileLazy(CompilationInfo* info);
 
-  // Compile a shared function info object (the function is possibly
-  // lazily compiled). Called recursively from a backend code
-  // generator 'caller' to build the shared function info.
+  // Compile a shared function info object (the function is possibly lazily
+  // compiled).
   static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
-                                                      Handle<Script> script,
-                                                      AstVisitor* caller);
+                                                      Handle<Script> script);
 
   // Set the function info for a newly compiled function.
   static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
@@ -209,21 +196,16 @@ class Compiler : public AllStatic {
                               bool is_toplevel,
                               Handle<Script> script);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  static bool MakeCodeForLiveEdit(CompilationInfo* info);
+#endif
+
  private:
   static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                         Handle<String> name,
-                                        Handle<String> inferred_name,
                                         int start_position,
-                                        Handle<Script> script,
-                                        Handle<Code> code);
+                                        CompilationInfo* info);
 };
-
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
-Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info);
-
-#endif
 
 
 // During compilation we need a global list of handles to constants

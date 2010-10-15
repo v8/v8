@@ -167,8 +167,8 @@ void MarkCompactCollector::Finish() {
   // reclaiming the waste and free list blocks).
   static const int kFragmentationLimit = 15;        // Percent.
   static const int kFragmentationAllowed = 1 * MB;  // Absolute.
-  int old_gen_recoverable = 0;
-  int old_gen_used = 0;
+  intptr_t old_gen_recoverable = 0;
+  intptr_t old_gen_used = 0;
 
   OldSpaces spaces;
   for (OldSpace* space = spaces.next(); space != NULL; space = spaces.next()) {
@@ -2060,8 +2060,10 @@ class MapCompact {
 
 #ifdef DEBUG
       if (FLAG_gc_verbose) {
-        PrintF("update %p : %p -> %p\n", obj->address(),
-              map, new_map);
+        PrintF("update %p : %p -> %p\n",
+               obj->address(),
+               reinterpret_cast<void*>(map),
+               reinterpret_cast<void*>(new_map));
       }
 #endif
     }
@@ -2119,8 +2121,8 @@ void MarkCompactCollector::SweepSpaces() {
                              &UpdatePointerToNewGen,
                              heap_->WATERMARK_SHOULD_BE_VALID);
 
-  int live_maps_size = heap_->map_space()->Size();
-  int live_maps = live_maps_size / Map::kSize;
+  intptr_t live_maps_size = heap_->map_space()->Size();
+  int live_maps = static_cast<int>(live_maps_size / Map::kSize);
   ASSERT(live_map_objects_size_ == live_maps_size);
 
   if (heap_->map_space()->NeedsCompaction(live_maps)) {
@@ -2577,7 +2579,10 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsJSFunction()) {
-    PROFILE(FunctionMoveEvent(old_addr, new_addr));
+    PROFILE(FunctionMoveEvent(heap_, old_addr, new_addr));
+    PROFILE(FunctionCreateEventFromMove(heap_,
+                                        JSFunction::cast(copied_to),
+                                        obj));
   }
   HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
 
@@ -2669,7 +2674,10 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsJSFunction()) {
-    PROFILE(FunctionMoveEvent(old_addr, new_addr));
+    PROFILE(FunctionMoveEvent(heap_, old_addr, new_addr));
+    PROFILE(FunctionCreateEventFromMove(heap_,
+                                        JSFunction::cast(copied_to),
+                                        obj));
   }
   HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
 

@@ -404,11 +404,28 @@ void Logger::IntEvent(const char* name, int value) {
 }
 
 
+void Logger::IntPtrTEvent(const char* name, intptr_t value) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (FLAG_log) UncheckedIntPtrTEvent(name, value);
+#endif
+}
+
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::UncheckedIntEvent(const char* name, int value) {
   if (!log_->IsEnabled()) return;
   LogMessageBuilder msg(this);
   msg.Append("%s,%d\n", name, value);
+  msg.WriteToLogFile();
+}
+#endif
+
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
+  if (!log_->IsEnabled()) return;
+  LogMessageBuilder msg(this);
+  msg.Append("%s,%" V8_PTR_PREFIX "d\n", name, value);
   msg.WriteToLogFile();
 }
 #endif
@@ -891,13 +908,17 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
 
 void Logger::FunctionCreateEvent(JSFunction* function) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
+  // This function can be called from GC iterators (during Scavenge,
+  // MC, and MS), so marking bits can be set on objects. That's
+  // why unchecked accessors are used here.
+  static Address prev_code = NULL;
   if (!log_->IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg(this);
   msg.Append("%s,", log_events_[FUNCTION_CREATION_EVENT]);
   msg.AppendAddress(function->address());
   msg.Append(',');
-  msg.AppendAddress(function->code()->address(), prev_code_);
-  prev_code_ = function->code()->address();
+  msg.AppendAddress(function->unchecked_code()->address(), prev_code);
+  prev_code = function->unchecked_code()->address();
   if (FLAG_compress_log) {
     ASSERT(compression_helper_ != NULL);
     if (!compression_helper_->HandleMessage(&msg)) return;
@@ -908,7 +929,19 @@ void Logger::FunctionCreateEvent(JSFunction* function) {
 }
 
 
-void Logger::FunctionMoveEvent(Address from, Address to) {
+void Logger::FunctionCreateEventFromMove(Heap* heap,
+                                         JSFunction* function,
+                                         HeapObject*) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (function->unchecked_code() !=
+      heap->isolate()->builtins()->builtin(Builtins::LazyCompile)) {
+    FunctionCreateEvent(function);
+  }
+#endif
+}
+
+
+void Logger::FunctionMoveEvent(Heap* heap, Address from, Address to) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   MoveEventInternal(FUNCTION_MOVE_EVENT, from, to);
 #endif
@@ -1010,11 +1043,12 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 
 
 void Logger::HeapSampleStats(const char* space, const char* kind,
-                             int capacity, int used) {
+                             intptr_t capacity, intptr_t used) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!log_->IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg(this);
-  msg.Append("heap-sample-stats,\"%s\",\"%s\",%d,%d\n",
+  msg.Append("heap-sample-stats,\"%s\",\"%s\","
+                 "%" V8_PTR_PREFIX "d,%" V8_PTR_PREFIX "d\n",
              space, kind, capacity, used);
   msg.WriteToLogFile();
 #endif

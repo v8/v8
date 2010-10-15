@@ -92,13 +92,13 @@ struct Register {
     Register r = { code };
     return r;
   }
-  bool is_valid() const  { return 0 <= code_ && code_ < 16; }
-  bool is(Register reg) const  { return code_ == reg.code_; }
-  int code() const  {
+  bool is_valid() const { return 0 <= code_ && code_ < 16; }
+  bool is(Register reg) const { return code_ == reg.code_; }
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
-  int bit() const  {
+  int bit() const {
     return 1 << code_;
   }
 
@@ -138,8 +138,8 @@ const Register no_reg = { -1 };
 
 
 struct XMMRegister {
-  bool is_valid() const  { return 0 <= code_ && code_ < 16; }
-  int code() const  {
+  bool is_valid() const { return 0 <= code_ && code_ < 16; }
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
@@ -1195,9 +1195,9 @@ class Assembler : public Malloced {
   void RecordStatementPosition(int pos);
   bool WriteRecordedPositions();
 
-  int pc_offset() const  { return static_cast<int>(pc_ - buffer_); }
+  int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
   int current_statement_position() const { return current_statement_position_; }
-  int current_position() const  { return current_position_; }
+  int current_position() const { return current_position_; }
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting

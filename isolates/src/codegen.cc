@@ -203,10 +203,9 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
 }
 
 
-// Generate the code. Takes a function literal, generates code for it, assemble
-// all the pieces into a Code object. This function is only to be called by
-// the compiler.cc code.
-Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
+// Generate the code.  Compile the AST and assemble all the pieces into a
+// Code object.
+bool CodeGenerator::MakeCode(CompilationInfo* info) {
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
@@ -221,12 +220,14 @@ Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
   cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Isolate::Current()->has_pending_exception());
-    return Handle<Code>::null();
+    return false;
   }
 
-  InLoopFlag in_loop = (cgen.loop_nesting() != 0) ? IN_LOOP : NOT_IN_LOOP;
+  InLoopFlag in_loop = info->is_in_loop() ? IN_LOOP : NOT_IN_LOOP;
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, in_loop);
-  return MakeCodeEpilogue(cgen.masm(), flags, info);
+  Handle<Code> code = MakeCodeEpilogue(cgen.masm(), flags, info);
+  info->SetCode(code);  // May be an empty handle.
+  return !code.is_null();
 }
 
 
@@ -297,7 +298,7 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
   for (int i = 0; i < length; i++) {
     Declaration* node = declarations->at(i);
     Variable* var = node->proxy()->var();
-    Slot* slot = var->slot();
+    Slot* slot = var->AsSlot();
 
     // If it was not possible to allocate the variable at compile
     // time, we need to "declare" it at runtime to make sure it
@@ -318,7 +319,7 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
   for (int j = 0, i = 0; i < length; i++) {
     Declaration* node = declarations->at(i);
     Variable* var = node->proxy()->var();
-    Slot* slot = var->slot();
+    Slot* slot = var->AsSlot();
 
     if ((slot != NULL && slot->type() == Slot::LOOKUP) || !var->is_global()) {
       // Skip - already processed.
@@ -333,9 +334,12 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
         }
       } else {
         Handle<SharedFunctionInfo> function =
-            Compiler::BuildFunctionInfo(node->fun(), script(), this);
+            Compiler::BuildFunctionInfo(node->fun(), script());
         // Check for stack-overflow exception.
-        if (HasStackOverflow()) return;
+        if (function.is_null()) {
+          SetStackOverflow();
+          return;
+        }
         array->set(j++, *function);
       }
     }

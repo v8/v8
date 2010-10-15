@@ -502,7 +502,8 @@ class HeapEntry BASE_EMBEDDED {
     kString = v8::HeapGraphNode::kString,
     kObject = v8::HeapGraphNode::kObject,
     kCode = v8::HeapGraphNode::kCode,
-    kClosure = v8::HeapGraphNode::kClosure
+    kClosure = v8::HeapGraphNode::kClosure,
+    kRegExp = v8::HeapGraphNode::kRegExp
   };
 
   HeapEntry() { }
@@ -662,7 +663,7 @@ class HeapSnapshot {
   Type type() { return type_; }
   const char* title() { return title_; }
   unsigned uid() { return uid_; }
-  HeapEntry* root() { return entries_[root_entry_index_]; }
+  HeapEntry* root() { return root_entry_; }
 
   void AllocateEntries(
       int entries_count, int children_count, int retainers_count);
@@ -704,7 +705,7 @@ class HeapSnapshot {
   Type type_;
   const char* title_;
   unsigned uid_;
-  int root_entry_index_;
+  HeapEntry* root_entry_;
   char* raw_entries_;
   List<HeapEntry*> entries_;
   bool entries_sorted_;
@@ -745,7 +746,8 @@ class HeapObjectsMap {
   }
 
   static uint32_t AddressHash(Address addr) {
-    return static_cast<int32_t>(reinterpret_cast<intptr_t>(addr));
+    return ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr)));
   }
 
   bool initial_fill_mode_;
@@ -888,7 +890,8 @@ class HeapEntriesMap {
   };
 
   uint32_t Hash(HeapObject* object) {
-    return static_cast<uint32_t>(reinterpret_cast<intptr_t>(object));
+    return ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(object)));
   }
   static bool HeapObjectsMatch(void* key1, void* key2) { return key1 == key2; }
 
@@ -995,7 +998,8 @@ class HeapSnapshotJSONSerializer {
   }
 
   INLINE(static uint32_t ObjectHash(const void* key)) {
-    return static_cast<int32_t>(reinterpret_cast<intptr_t>(key));
+    return ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key)));
   }
 
   void EnumerateNodes();

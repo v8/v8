@@ -161,6 +161,7 @@ class Logger {
 
   // Emits an event with an int value -> (name, value).
   void IntEvent(const char* name, int value);
+  void IntPtrTEvent(const char* name, intptr_t value);
 
   // Emits an event with an handle value -> (name, location).
   void HandleEvent(const char* name, Object** location);
@@ -220,8 +221,11 @@ class Logger {
   void CodeDeleteEvent(Address from);
   // Emits a function object create event.
   void FunctionCreateEvent(JSFunction* function);
+  void FunctionCreateEventFromMove(Heap* heap,
+                                   JSFunction* function,
+                                   HeapObject*);
   // Emits a function move event.
-  void FunctionMoveEvent(Address from, Address to);
+  void FunctionMoveEvent(Heap* heap, Address from, Address to);
   // Emits a function delete event.
   void FunctionDeleteEvent(Address from);
 
@@ -239,7 +243,7 @@ class Logger {
   void HeapSampleJSProducerEvent(const char* constructor,
                                  Address* stack);
   void HeapSampleStats(const char* space, const char* kind,
-                       int capacity, int used);
+                       intptr_t capacity, intptr_t used);
 
   void SharedLibraryEvent(const char* library_path,
                           uintptr_t start,
@@ -329,6 +333,7 @@ class Logger {
 
   // Logs an IntEvent regardless of whether FLAG_log is true.
   void UncheckedIntEvent(const char* name, int value);
+  void UncheckedIntPtrTEvent(const char* name, intptr_t value);
 
   // Returns whether profiler's sampler is active.
   bool IsProfilerSamplerActive();

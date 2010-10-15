@@ -2347,6 +2347,19 @@ bool Map::attached_to_shared_function_info() {
 }
 
 
+void Map::set_is_shared(bool value) {
+  if (value) {
+    set_bit_field2(bit_field2() | (1 << kIsShared));
+  } else {
+    set_bit_field2(bit_field2() & ~(1 << kIsShared));
+  }
+}
+
+bool Map::is_shared() {
+  return ((1 << kIsShared) & bit_field2()) != 0;
+}
+
+
 JSFunction* Map::unchecked_constructor() {
   return reinterpret_cast<JSFunction*>(READ_FIELD(this, kConstructorOffset));
 }

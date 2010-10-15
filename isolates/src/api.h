@@ -173,6 +173,8 @@ class Utils {
       v8::internal::Handle<v8::internal::JSFunction> obj);
   static inline Local<String> ToLocal(
       v8::internal::Handle<v8::internal::String> obj);
+  static inline Local<RegExp> ToLocal(
+      v8::internal::Handle<v8::internal::JSRegExp> obj);
   static inline Local<Object> ToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<Array> ToLocal(
@@ -208,6 +210,8 @@ class Utils {
       OpenHandle(const ObjectTemplate* that);
   static inline v8::internal::Handle<v8::internal::Object>
       OpenHandle(const Data* data);
+  static inline v8::internal::Handle<v8::internal::JSRegExp>
+      OpenHandle(const RegExp* data);
   static inline v8::internal::Handle<v8::internal::JSObject>
       OpenHandle(const v8::Object* data);
   static inline v8::internal::Handle<v8::internal::JSArray>
@@ -264,6 +268,7 @@ MAKE_TO_LOCAL(ToLocal, Context, Context)
 MAKE_TO_LOCAL(ToLocal, Object, Value)
 MAKE_TO_LOCAL(ToLocal, JSFunction, Function)
 MAKE_TO_LOCAL(ToLocal, String, String)
+MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
 MAKE_TO_LOCAL(ToLocal, Proxy, External)
@@ -296,6 +301,7 @@ MAKE_OPEN_HANDLE(ObjectTemplate, ObjectTemplateInfo)
 MAKE_OPEN_HANDLE(Signature, SignatureInfo)
 MAKE_OPEN_HANDLE(TypeSwitch, TypeSwitchInfo)
 MAKE_OPEN_HANDLE(Data, Object)
+MAKE_OPEN_HANDLE(RegExp, JSRegExp)
 MAKE_OPEN_HANDLE(Object, JSObject)
 MAKE_OPEN_HANDLE(Array, JSArray)
 MAKE_OPEN_HANDLE(String, String)

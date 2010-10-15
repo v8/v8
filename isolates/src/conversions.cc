@@ -34,6 +34,7 @@
 #include "dtoa.h"
 #include "factory.h"
 #include "scanner.h"
+#include "strtod.h"
 
 namespace v8 {
 namespace internal {
@@ -102,8 +103,6 @@ static bool SubStringEquals(Iterator* current,
   return true;
 }
 
-
-extern "C" double gay_strtod(const char* s00, const char** se);
 
 // Maximum number of significant digits in decimal representation.
 // The longest possible double in decimal representation is
@@ -369,8 +368,9 @@ static double InternalStringToInt(ScannerCharacterClasses* character_classes,
     }
 
     ASSERT(buffer_pos < kBufferSize);
-    buffer[buffer_pos++] = '\0';
-    return sign ? -gay_strtod(buffer, NULL) : gay_strtod(buffer, NULL);
+    buffer[buffer_pos] = '\0';
+    Vector<char> buffer_vector(buffer, buffer_pos);
+    return sign ? -Strtod(buffer_vector, 0) : Strtod(buffer_vector, 0);
   }
 
   // The following code causes accumulating rounding error for numbers greater
@@ -484,7 +484,6 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
       return JUNK_STRING_VALUE;
     }
   } else if (*current == '-') {
-    buffer[buffer_pos++] = '-';
     ++current;
     if (!AdvanceToNonspace(character_classes, &current, end)) {
       return JUNK_STRING_VALUE;
@@ -503,8 +502,8 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
       return JUNK_STRING_VALUE;
     }
 
-    ASSERT(buffer_pos == 0 || buffer[0] == '-');
-    return buffer_pos > 0 ? -V8_INFINITY : V8_INFINITY;
+    ASSERT(buffer_pos == 0);
+    return sign ? -V8_INFINITY : V8_INFINITY;
   }
 
   bool leading_zero = false;
@@ -521,7 +520,6 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
         return JUNK_STRING_VALUE;  // "0x".
       }
 
-      bool sign = (buffer_pos > 0 && buffer[0] == '-');
       return InternalStringToIntDouble<4>(character_classes,
                                           current,
                                           end,
@@ -559,6 +557,9 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
   }
 
   if (*current == '.') {
+    if (octal && !allow_trailing_junk) return JUNK_STRING_VALUE;
+    if (octal) goto parsing_done;
+
     ++current;
     if (current == end) {
       if (significant_digits == 0 && !leading_zero) {
@@ -579,16 +580,16 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
       }
     }
 
-    ASSERT(buffer_pos < kBufferSize);
-    buffer[buffer_pos++] = '.';
+    // We don't emit a '.', but adjust the exponent instead.
     fractional_part = true;
 
-    // There is the fractional part.
+    // There is a fractional part.
     while (*current >= '0' && *current <= '9') {
       if (significant_digits < kMaxSignificantDigits) {
         ASSERT(buffer_pos < kBufferSize);
         buffer[buffer_pos++] = static_cast<char>(*current);
         significant_digits++;
+        exponent--;
       } else {
         // Ignore insignificant digits in the fractional part.
         nonzero_digit_dropped = nonzero_digit_dropped || *current != '0';
@@ -665,60 +666,25 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
   exponent += insignificant_digits;
 
   if (octal) {
-    bool sign = buffer[0] == '-';
-    int start_pos = (sign ? 1 : 0);
-
     return InternalStringToIntDouble<3>(character_classes,
-                                        buffer + start_pos,
+                                        buffer,
                                         buffer + buffer_pos,
                                         sign,
                                         allow_trailing_junk);
   }
 
   if (nonzero_digit_dropped) {
-    if (insignificant_digits) buffer[buffer_pos++] = '.';
     buffer[buffer_pos++] = '1';
-  }
-
-  // If the number has no more than kMaxDigitsInInt digits and doesn't have
-  // fractional part it could be parsed faster (without checks for
-  // spaces, overflow, etc.).
-  const int kMaxDigitsInInt = 9 * sizeof(int) / 4;  // NOLINT
-
-  if (exponent != 0) {
-    ASSERT(buffer_pos < kBufferSize);
-    buffer[buffer_pos++] = 'e';
-    if (exponent < 0) {
-      ASSERT(buffer_pos < kBufferSize);
-      buffer[buffer_pos++] = '-';
-      exponent = -exponent;
-    }
-    if (exponent > 999) exponent = 999;  // Result will be Infinity or 0 or -0.
-
-    const int exp_digits = 3;
-    for (int i = 0; i < exp_digits; i++) {
-      buffer[buffer_pos + exp_digits - 1 - i] = '0' + exponent % 10;
-      exponent /= 10;
-    }
-    ASSERT(exponent == 0);
-    buffer_pos += exp_digits;
-  } else if (!fractional_part && significant_digits <= kMaxDigitsInInt) {
-    if (significant_digits == 0) return SignedZero(sign);
-    ASSERT(buffer_pos > 0);
-    int num = 0;
-    int start_pos = (buffer[0] == '-' ? 1 : 0);
-    for (int i = start_pos; i < buffer_pos; i++) {
-      ASSERT(buffer[i] >= '0' && buffer[i] <= '9');
-      num = 10 * num + (buffer[i] - '0');
-    }
-    return static_cast<double>(start_pos == 0 ? num : -num);
+    exponent--;
   }
 
   ASSERT(buffer_pos < kBufferSize);
   buffer[buffer_pos] = '\0';
 
-  return gay_strtod(buffer, NULL);
+  double converted = Strtod(Vector<char>(buffer, buffer_pos), exponent);
+  return sign? -converted: converted;
 }
+
 
 double StringToDouble(String* str, int flags, double empty_string_val) {
   ScannerCharacterClasses* character_classes =

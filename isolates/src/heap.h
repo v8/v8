@@ -328,31 +328,31 @@ class Heap {
   // semi space.  The young generation consists of two semi spaces and
   // we reserve twice the amount needed for those in order to ensure
   // that new space can be aligned to its size.
-  int MaxReserved() {
+  intptr_t MaxReserved() {
     return 4 * reserved_semispace_size_ + max_old_generation_size_;
   }
   int MaxSemiSpaceSize() { return max_semispace_size_; }
   int ReservedSemiSpaceSize() { return reserved_semispace_size_; }
   int InitialSemiSpaceSize() { return initial_semispace_size_; }
-  int MaxOldGenerationSize() { return max_old_generation_size_; }
+  intptr_t MaxOldGenerationSize() { return max_old_generation_size_; }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
-  int Capacity();
+  intptr_t Capacity();
 
   // Returns the amount of memory currently committed for the heap.
-  int CommittedMemory();
+  intptr_t CommittedMemory();
 
   // Returns the available bytes in space w/o growing.
   // Heap doesn't guarantee that it can allocate an object that requires
   // all available bytes. Check MaxHeapObjectSize() instead.
-  int Available();
+  intptr_t Available();
 
   // Returns the maximum object size in paged space.
   inline int MaxObjectSizeInPagedSpace();
 
   // Returns of size of all objects residing in the heap.
-  int SizeOfObjects();
+  intptr_t SizeOfObjects();
 
   // Return the starting address and a mask for the new space.  And-masking an
   // address with the mask will result in the start address of the new space
@@ -1142,7 +1142,7 @@ class Heap {
   int get_max_gc_pause() { return max_gc_pause_; }
 
   // Returns maximum size of objects alive after GC.
-  int get_max_alive_after_gc() { return max_alive_after_gc_; }
+  intptr_t get_max_alive_after_gc() { return max_alive_after_gc_; }
 
   // Returns minimal interval between two subsequent collections.
   int get_min_in_mutator() { return min_in_mutator_; }
@@ -1168,8 +1168,8 @@ class Heap {
   int reserved_semispace_size_;
   int max_semispace_size_;
   int initial_semispace_size_;
-  int max_old_generation_size_;
-  size_t code_range_size_;
+  intptr_t max_old_generation_size_;
+  intptr_t code_range_size_;
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
@@ -1197,7 +1197,7 @@ class Heap {
   HeapState gc_state_;
 
   // Returns the size of object residing in non new spaces.
-  int PromotedSpaceSize();
+  intptr_t PromotedSpaceSize();
 
   // Returns the amount of external memory registered since last global gc.
   int PromotedExternalMemorySize();
@@ -1234,16 +1234,16 @@ class Heap {
   // Limit that triggers a global GC on the next (normally caused) GC.  This
   // is checked when we have already decided to do a GC to help determine
   // which collector to invoke.
-  int old_gen_promotion_limit_;
+  intptr_t old_gen_promotion_limit_;
 
   // Limit that triggers a global GC as soon as is reasonable.  This is
   // checked before expanding a paged space in the old generation and on
   // every allocation in large object space.
-  int old_gen_allocation_limit_;
+  intptr_t old_gen_allocation_limit_;
 
   // Limit on the amount of externally allocated memory allowed
   // between global GCs. If reached a global GC is forced.
-  int external_allocation_limit_;
+  intptr_t external_allocation_limit_;
 
   // The amount of external memory registered through the API kept alive
   // by global handles
@@ -1332,8 +1332,8 @@ class Heap {
                                 GCTracer* tracer,
                                 CollectionPolicy collectionPolicy);
 
-  static const int kMinimumPromotionLimit = 2 * MB;
-  static const int kMinimumAllocationLimit = 8 * MB;
+  static const intptr_t kMinimumPromotionLimit = 2 * MB;
+  static const intptr_t kMinimumAllocationLimit = 8 * MB;
 
   inline void UpdateOldSpaceLimits();
 
@@ -1469,13 +1469,13 @@ class Heap {
   int max_gc_pause_;
 
   // Maximum size of objects alive after GC.
-  int max_alive_after_gc_;
+  intptr_t max_alive_after_gc_;
 
   // Minimal interval between two subsequent collections.
   int min_in_mutator_;
 
   // Size of objects alive after last GC.
-  int alive_after_last_gc_;
+  intptr_t alive_after_last_gc_;
 
   double last_gc_end_timestamp_;
 
@@ -1523,24 +1523,24 @@ class HeapStats {
   int* start_marker;                    //  0
   int* new_space_size;                  //  1
   int* new_space_capacity;              //  2
-  int* old_pointer_space_size;          //  3
-  int* old_pointer_space_capacity;      //  4
-  int* old_data_space_size;             //  5
-  int* old_data_space_capacity;         //  6
-  int* code_space_size;                 //  7
-  int* code_space_capacity;             //  8
-  int* map_space_size;                  //  9
-  int* map_space_capacity;              // 10
-  int* cell_space_size;                 // 11
-  int* cell_space_capacity;             // 12
-  int* lo_space_size;                   // 13
+  intptr_t* old_pointer_space_size;          //  3
+  intptr_t* old_pointer_space_capacity;      //  4
+  intptr_t* old_data_space_size;             //  5
+  intptr_t* old_data_space_capacity;         //  6
+  intptr_t* code_space_size;                 //  7
+  intptr_t* code_space_capacity;             //  8
+  intptr_t* map_space_size;                  //  9
+  intptr_t* map_space_capacity;              // 10
+  intptr_t* cell_space_size;                 // 11
+  intptr_t* cell_space_capacity;             // 12
+  intptr_t* lo_space_size;                   // 13
   int* global_handle_count;             // 14
   int* weak_global_handle_count;        // 15
   int* pending_global_handle_count;     // 16
   int* near_death_global_handle_count;  // 17
   int* destroyed_global_handle_count;   // 18
-  int* memory_allocator_size;           // 19
-  int* memory_allocator_capacity;       // 20
+  intptr_t* memory_allocator_size;           // 19
+  intptr_t* memory_allocator_capacity;       // 20
   int* objects_per_type;                // 21
   int* size_per_type;                   // 22
   int* os_error;                        // 23
@@ -1957,7 +1957,7 @@ class GCTracer BASE_EMBEDDED {
   }
 
   double start_time_;  // Timestamp set in the constructor.
-  int start_size_;  // Size of objects in heap set in constructor.
+  intptr_t start_size_;  // Size of objects in heap set in constructor.
   GarbageCollector collector_;  // Type of collector.
 
   // A count (including this one, eg, the first collection is 1) of the
@@ -1989,18 +1989,18 @@ class GCTracer BASE_EMBEDDED {
 
   // Total amount of space either wasted or contained in one of free lists
   // before the current GC.
-  int in_free_list_or_wasted_before_gc_;
+  intptr_t in_free_list_or_wasted_before_gc_;
 
   // Difference between space used in the heap at the beginning of the current
   // collection and the end of the previous collection.
-  int allocated_since_last_gc_;
+  intptr_t allocated_since_last_gc_;
 
   // Amount of time spent in mutator that is time elapsed between end of the
   // previous collection and the beginning of the current one.
   double spent_in_mutator_;
 
   // Size of objects promoted during the current collection.
-  int promoted_objects_size_;
+  intptr_t promoted_objects_size_;
 
   Heap* heap_;
 };

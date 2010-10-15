@@ -53,12 +53,6 @@ namespace v8 {
 namespace internal {
 
 
-RuntimeState::RuntimeState()
-    : algorithm_(SIMPLE_SEARCH) {
-  memset(bad_char_occurrence_, 0,
-         sizeof(bad_char_occurrence_[0]) * kBMAlphabetSize);
-}
-
 #define RUNTIME_ASSERT(value) \
   if (!(value)) return isolate->ThrowIllegalOperation();
 
@@ -671,8 +665,8 @@ static Object* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
   Handle<JSArray> desc = isolate->factory()->NewJSArrayWithElements(elms);
   LookupResult result;
-  CONVERT_CHECKED(JSObject, obj, args[0]);
-  CONVERT_CHECKED(String, name, args[1]);
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_CHECKED(String, name, 1);
 
   // This could be an element.
   uint32_t index;
@@ -686,10 +680,12 @@ static Object* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
         // 15.5.5.2. Note that this might be a string object with elements
         // other than the actual string value. This is covered by the
         // subsequent cases.
-        JSValue* js_value = JSValue::cast(obj);
-        String* str = String::cast(js_value->value());
+        Handle<JSValue> js_value = Handle<JSValue>::cast(obj);
+        Handle<String> str(String::cast(js_value->value()));
+        Handle<String> substr = SubString(str, index, index+1, NOT_TENURED);
+
         elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-        elms->set(VALUE_INDEX, str->SubString(index, index+1));
+        elms->set(VALUE_INDEX, *substr);
         elms->set(WRITABLE_INDEX, heap->false_value());
         elms->set(ENUMERABLE_INDEX,  heap->false_value());
         elms->set(CONFIGURABLE_INDEX, heap->false_value());
@@ -697,13 +693,15 @@ static Object* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
       }
 
       case JSObject::INTERCEPTED_ELEMENT:
-      case JSObject::FAST_ELEMENT:
+      case JSObject::FAST_ELEMENT: {
         elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-        elms->set(VALUE_INDEX, obj->GetElement(index));
+        Handle<Object> element = GetElement(Handle<Object>(obj), index);
+        elms->set(VALUE_INDEX, *element);
         elms->set(WRITABLE_INDEX, heap->true_value());
         elms->set(ENUMERABLE_INDEX,  heap->true_value());
         elms->set(CONFIGURABLE_INDEX, heap->true_value());
         return *desc;
+      }
 
       case JSObject::DICTIONARY_ELEMENT: {
         NumberDictionary* dictionary = obj->element_dictionary();
@@ -738,7 +736,7 @@ static Object* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
   }
 
   // Use recursive implementation to also traverse hidden prototypes
-  GetOwnPropertyImplementation(obj, name, &result);
+  GetOwnPropertyImplementation(*obj, *name, &result);
 
   if (!result.IsProperty()) {
     return heap->undefined_value();
@@ -749,7 +747,8 @@ static Object* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
       // Property that is internally implemented as a callback or
       // an API defined callback.
       Object* value = obj->GetPropertyWithCallback(
-          obj, structure, name, result.holder());
+          *obj, structure, *name, result.holder());
+      if (value->IsFailure()) return value;
       elms->set(IS_ACCESSOR_INDEX, heap->false_value());
       elms->set(VALUE_INDEX, value);
       elms->set(WRITABLE_INDEX, heap->ToBoolean(!result.IsReadOnly()));
@@ -2695,7 +2694,7 @@ static Object* Runtime_StringReplaceRegExpWithString(
 // Perform string match of pattern on subject, starting at start index.
 // Caller must ensure that 0 <= start_index <= sub->length(),
 // and should check that pat->length() + start_index <= sub->length()
-int Runtime::StringMatch(RuntimeState* runtime_state,
+int Runtime::StringMatch(Isolate* isolate,
                          Handle<String> sub,
                          Handle<String> pat,
                          int start_index) {
@@ -2722,24 +2721,24 @@ int Runtime::StringMatch(RuntimeState* runtime_state,
   if (seq_pat->IsAsciiRepresentation()) {
     Vector<const char> pat_vector = seq_pat->ToAsciiVector();
     if (seq_sub->IsAsciiRepresentation()) {
-      return StringSearch(runtime_state,
+      return SearchString(isolate,
                           seq_sub->ToAsciiVector(),
                           pat_vector,
                           start_index);
     }
-    return StringSearch(runtime_state,
+    return SearchString(isolate,
                         seq_sub->ToUC16Vector(),
                         pat_vector,
                         start_index);
   }
   Vector<const uc16> pat_vector = seq_pat->ToUC16Vector();
   if (seq_sub->IsAsciiRepresentation()) {
-    return StringSearch(runtime_state,
+    return SearchString(isolate,
                         seq_sub->ToAsciiVector(),
                         pat_vector,
                         start_index);
   }
-  return StringSearch(runtime_state,
+  return SearchString(isolate,
                       seq_sub->ToUC16Vector(),
                       pat_vector,
                       start_index);
@@ -2760,7 +2759,7 @@ static Object* Runtime_StringIndexOf(RUNTIME_CALLING_CONVENTION) {
 
   RUNTIME_ASSERT(start_index <= static_cast<uint32_t>(sub->length()));
   int position =
-      Runtime::StringMatch(isolate->runtime_state(), sub, pat, start_index);
+      Runtime::StringMatch(isolate, sub, pat, start_index);
   return Smi::FromInt(position);
 }
 
@@ -3007,68 +3006,40 @@ static void SetLastMatchInfoNoCaptures(Handle<String> subject,
 }
 
 
-template <typename schar, typename pchar>
-static bool SearchStringMultiple(RuntimeState* state,
-                                 Vector<schar> subject,
-                                 String* pattern,
-                                 Vector<pchar> pattern_string,
+template <typename SubjectChar, typename PatternChar>
+static bool SearchStringMultiple(Isolate* isolate,
+                                 Vector<const SubjectChar> subject,
+                                 Vector<const PatternChar> pattern,
+                                 String* pattern_string,
                                  FixedArrayBuilder* builder,
                                  int* match_pos) {
   int pos = *match_pos;
   int subject_length = subject.length();
-  int pattern_length = pattern_string.length();
+  int pattern_length = pattern.length();
   int max_search_start = subject_length - pattern_length;
-  bool is_ascii = (sizeof(schar) == 1);
-  StringSearchStrategy strategy =
-      InitializeStringSearch(state, pattern_string, is_ascii);
-  switch (strategy) {
-    case SEARCH_FAIL: break;
-    case SEARCH_SHORT:
-      while (pos <= max_search_start) {
-        if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
-          *match_pos = pos;
-          return false;
-        }
-        // Position of end of previous match.
-        int match_end = pos + pattern_length;
-        int new_pos = SimpleIndexOf(subject, pattern_string, match_end);
-        if (new_pos >= 0) {
-          // A match.
-          if (new_pos > match_end) {
-            ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                      match_end,
-                                                      new_pos);
-          }
-          pos = new_pos;
-          builder->Add(pattern);
-        } else {
-          break;
-        }
+  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
+  while (pos <= max_search_start) {
+    if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
+      *match_pos = pos;
+      return false;
+    }
+    // Position of end of previous match.
+    int match_end = pos + pattern_length;
+    int new_pos = search.Search(subject, match_end);
+    if (new_pos >= 0) {
+      // A match.
+      if (new_pos > match_end) {
+        ReplacementStringBuilder::AddSubjectSlice(builder,
+            match_end,
+            new_pos);
       }
+      pos = new_pos;
+      builder->Add(pattern_string);
+    } else {
       break;
-    case SEARCH_LONG:
-      while (pos  <= max_search_start) {
-        if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
-          *match_pos = pos;
-          return false;
-        }
-        int match_end = pos + pattern_length;
-        int new_pos = ComplexIndexOf(state, subject, pattern_string, match_end);
-        if (new_pos >= 0) {
-          // A match has been found.
-          if (new_pos > match_end) {
-            ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                      match_end,
-                                                      new_pos);
-          }
-          pos = new_pos;
-          builder->Add(pattern);
-        } else {
-         break;
-        }
-      }
-      break;
+    }
   }
+
   if (pos < max_search_start) {
     ReplacementStringBuilder::AddSubjectSlice(builder,
                                               pos + pattern_length,
@@ -3079,7 +3050,7 @@ static bool SearchStringMultiple(RuntimeState* state,
 }
 
 
-static bool SearchStringMultiple(RuntimeState* state,
+static bool SearchStringMultiple(Isolate* isolate,
                                  Handle<String> subject,
                                  Handle<String> pattern,
                                  Handle<JSArray> last_match_info,
@@ -3096,34 +3067,34 @@ static bool SearchStringMultiple(RuntimeState* state,
     if (subject->IsAsciiRepresentation()) {
       Vector<const char> subject_vector = subject->ToAsciiVector();
       if (pattern->IsAsciiRepresentation()) {
-        if (SearchStringMultiple(state,
+        if (SearchStringMultiple(isolate,
                                  subject_vector,
-                                 *pattern,
                                  pattern->ToAsciiVector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       } else {
-        if (SearchStringMultiple(state,
+        if (SearchStringMultiple(isolate,
                                  subject_vector,
-                                 *pattern,
                                  pattern->ToUC16Vector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       }
     } else {
       Vector<const uc16> subject_vector = subject->ToUC16Vector();
       if (pattern->IsAsciiRepresentation()) {
-        if (SearchStringMultiple(state,
+        if (SearchStringMultiple(isolate,
                                  subject_vector,
-                                 *pattern,
                                  pattern->ToAsciiVector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       } else {
-        if (SearchStringMultiple(state,
+        if (SearchStringMultiple(isolate,
                                  subject_vector,
-                                 *pattern,
                                  pattern->ToUC16Vector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       }
@@ -3355,7 +3326,7 @@ static Object* Runtime_RegExpExecMultiple(RUNTIME_CALLING_CONVENTION) {
     Handle<String> pattern(
         String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex)));
     if (!pattern->IsFlat()) FlattenString(pattern);
-    if (SearchStringMultiple(isolate->runtime_state(), subject, pattern,
+    if (SearchStringMultiple(isolate, subject, pattern,
                              last_match_info, &builder)) {
       return *builder.ToJSArray(result_array);
     }
@@ -4985,46 +4956,24 @@ static Object* Runtime_StringTrim(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-template <typename schar, typename pchar>
-void FindStringIndices(RuntimeState* state,
-                       Vector<const schar> subject,
-                       Vector<const pchar> pattern,
+template <typename SubjectChar, typename PatternChar>
+void FindStringIndices(Isolate* isolate,
+                       Vector<const SubjectChar> subject,
+                       Vector<const PatternChar> pattern,
                        ZoneList<int>* indices,
                        unsigned int limit) {
   ASSERT(limit > 0);
   // Collect indices of pattern in subject, and the end-of-string index.
   // Stop after finding at most limit values.
-  StringSearchStrategy strategy =
-      InitializeStringSearch(state, pattern, sizeof(schar) == 1);
-  switch (strategy) {
-    case SEARCH_FAIL: return;
-    case SEARCH_SHORT: {
-      int pattern_length = pattern.length();
-      int index = 0;
-      while (limit > 0) {
-        index = SimpleIndexOf(subject, pattern, index);
-        if (index < 0) return;
-        indices->Add(index);
-        index += pattern_length;
-        limit--;
-      }
-      return;
-    }
-    case SEARCH_LONG: {
-      int pattern_length = pattern.length();
-      int index = 0;
-      while (limit > 0) {
-        index = ComplexIndexOf(state, subject, pattern, index);
-        if (index < 0) return;
-        indices->Add(index);
-        index += pattern_length;
-        limit--;
-      }
-      return;
-    }
-    default:
-      UNREACHABLE();
-      return;
+  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
+  int pattern_length = pattern.length();
+  int index = 0;
+  while (limit > 0) {
+    index = search.Search(subject, index);
+    if (index < 0) return;
+    indices->Add(index);
+    index += pattern_length;
+    limit--;
   }
 }
 
@@ -5062,13 +5011,13 @@ static Object* Runtime_StringSplit(RUNTIME_CALLING_CONVENTION) {
     if (subject->IsAsciiRepresentation()) {
       Vector<const char> subject_vector = subject->ToAsciiVector();
       if (pattern->IsAsciiRepresentation()) {
-        FindStringIndices(isolate->runtime_state(),
+        FindStringIndices(isolate,
                           subject_vector,
                           pattern->ToAsciiVector(),
                           &indices,
                           limit);
       } else {
-        FindStringIndices(isolate->runtime_state(),
+        FindStringIndices(isolate,
                           subject_vector,
                           pattern->ToUC16Vector(),
                           &indices,
@@ -5077,13 +5026,13 @@ static Object* Runtime_StringSplit(RUNTIME_CALLING_CONVENTION) {
     } else {
       Vector<const uc16> subject_vector = subject->ToUC16Vector();
       if (pattern->IsAsciiRepresentation()) {
-        FindStringIndices(isolate->runtime_state(),
+        FindStringIndices(isolate,
                           subject_vector,
                           pattern->ToAsciiVector(),
                           &indices,
                           limit);
       } else {
-        FindStringIndices(isolate->runtime_state(),
+        FindStringIndices(isolate,
                           subject_vector,
                           pattern->ToUC16Vector(),
                           &indices,
@@ -6698,7 +6647,7 @@ static Object* Runtime_LazyCompile(RUNTIME_CALLING_CONVENTION) {
   // this means that things called through constructors are never known to
   // be in loops.  We compile them as if they are in loops here just in case.
   ASSERT(!function->is_compiled());
-  if (!CompileLazyInLoop(function, Handle<Object>::null(), KEEP_EXCEPTION)) {
+  if (!CompileLazyInLoop(function, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
 
@@ -7088,7 +7037,7 @@ static void PrintObject(Object* obj) {
   } else if (obj->IsFalse()) {
     PrintF("<false>");
   } else {
-    PrintF("%p", obj);
+    PrintF("%p", reinterpret_cast<void*>(obj));
   }
 }
 
@@ -7861,16 +7810,18 @@ static Object* Runtime_ArrayConcat(RUNTIME_CALLING_CONVENTION) {
     // The backing storage array must have non-existing elements to
     // preserve holes across concat operations.
     storage = isolate->factory()->NewFixedArrayWithHoles(result_length);
-    result->set_map(*isolate->factory()->GetFastElementsMap(
-        Handle<Map>(result->map())));
+    Handle<Map> fast_map =
+        isolate->factory()->GetFastElementsMap(Handle<Map>(result->map()));
+    result->set_map(*fast_map);
   } else {
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
                   isolate->factory()->NewNumberDictionary(at_least_space_for));
-    result->set_map(*isolate->factory()->GetSlowElementsMap(
-        Handle<Map>(result->map())));
+    Handle<Map> slow_map =
+        isolate->factory()->GetSlowElementsMap(Handle<Map>(result->map()));
+    result->set_map(*slow_map);
   }
 
   Handle<Object> len =
@@ -9481,10 +9432,9 @@ static Handle<Context> CopyWithContextChain(Handle<Context> context_chain,
   // Recursively copy the with contexts.
   Handle<Context> previous(context_chain->previous());
   Handle<JSObject> extension(JSObject::cast(context_chain->extension()));
-  return context_chain->GetIsolate()->factory()->NewWithContext(
-      CopyWithContextChain(function_context, previous),
-      extension,
-      context_chain->IsCatchContext());
+  Handle<Context> context = CopyWithContextChain(function_context, previous);
+  return context->GetIsolate()->factory()->NewWithContext(
+      context, extension, context_chain->IsCatchContext());
 }
 
 

@@ -91,7 +91,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
   do {
     if (FLAG_trace_contexts) {
-      PrintF(" - looking in context %p", *context);
+      PrintF(" - looking in context %p", reinterpret_cast<void*>(*context));
       if (context->IsGlobalContext()) PrintF(" (global context)");
       PrintF("\n");
     }
@@ -111,7 +111,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       if (*attributes != ABSENT) {
         // property found
         if (FLAG_trace_contexts) {
-          PrintF("=> found property in context object %p\n", *extension);
+          PrintF("=> found property in context object %p\n",
+                 reinterpret_cast<void*>(*extension));
         }
         return extension;
       }
