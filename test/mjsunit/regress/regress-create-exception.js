@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --max-new-space-size=128
+// Flags: --max-new-space-size=256
 
 // Check for GC bug constructing exceptions.
 var v = [1, 2, 3, 4]
@@ -34,7 +34,7 @@ Object.preventExtensions(v);
 
 function foo() {
   var re = /2147483647/;  // Equal to 0x7fffffff.
-  for  (var i = 0; i < 7000; i++) {
+  for  (var i = 0; i < 10000; i++) {
     var ok = false;
     try {
       var j = 1;
