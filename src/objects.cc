@@ -6477,7 +6477,7 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
         // When we set the is_extensible flag to false we always force
         // the element into dictionary mode (and force them to stay there).
         if (!map()->is_extensible()) {
-          Handle<Object> number(Heap::NumberFromUint32(index));
+          Handle<Object> number(Factory::NewNumberFromUint(index));
           Handle<String> index_string(Factory::NumberToString(number));
           Handle<Object> args[1] = { index_string };
           return Top::Throw(*Factory::NewTypeError("object_not_extensible",
