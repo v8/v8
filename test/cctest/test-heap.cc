@@ -1029,6 +1029,9 @@ TEST(TestInternalWeakLists) {
     ctx[i]->Exit();
   }
 
+  // Force compilation cache cleanup.
+  Heap::CollectAllGarbage(true);
+
   // Dispose the global contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i].Dispose();
