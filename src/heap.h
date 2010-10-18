@@ -696,8 +696,7 @@ class Heap : public AllStatic {
 
   // Performs garbage collection operation.
   // Returns whether required_space bytes are available after the collection.
-  static bool CollectGarbage(int required_space,
-                             AllocationSpace space,
+  static void CollectGarbage(AllocationSpace space,
                              CollectionPolicy collectionPolicy = NORMAL);
 
   // Performs a full garbage collection. Force compaction if the
@@ -717,7 +716,7 @@ class Heap : public AllStatic {
 
 #ifdef DEBUG
   // Utility used with flag gc-greedy.
-  static bool GarbageCollectionGreedyCheck();
+  static void GarbageCollectionGreedyCheck();
 #endif
 
   static void AddGCPrologueCallback(

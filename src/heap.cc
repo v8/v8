@@ -420,7 +420,7 @@ void Heap::CollectAllGarbage(bool force_compaction,
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
   MarkCompactCollector::SetForceCompaction(force_compaction);
-  CollectGarbage(0, OLD_POINTER_SPACE, collectionPolicy);
+  CollectGarbage(OLD_POINTER_SPACE, collectionPolicy);
   MarkCompactCollector::SetForceCompaction(false);
 }
 
@@ -431,8 +431,7 @@ void Heap::CollectAllAvailableGarbage() {
 }
 
 
-bool Heap::CollectGarbage(int requested_size,
-                          AllocationSpace space,
+void Heap::CollectGarbage(AllocationSpace space,
                           CollectionPolicy collectionPolicy) {
   // The VM is in the GC state until exiting this function.
   VMState state(GC);
@@ -470,24 +469,6 @@ bool Heap::CollectGarbage(int requested_size,
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_gc) HeapProfiler::WriteSample();
 #endif
-
-  switch (space) {
-    case NEW_SPACE:
-      return new_space_.Available() >= requested_size;
-    case OLD_POINTER_SPACE:
-      return old_pointer_space_->Available() >= requested_size;
-    case OLD_DATA_SPACE:
-      return old_data_space_->Available() >= requested_size;
-    case CODE_SPACE:
-      return code_space_->Available() >= requested_size;
-    case MAP_SPACE:
-      return map_space_->Available() >= requested_size;
-    case CELL_SPACE:
-      return cell_space_->Available() >= requested_size;
-    case LO_SPACE:
-      return lo_space_->Available() >= requested_size;
-  }
-  return false;
 }
 
 
@@ -542,27 +523,27 @@ void Heap::ReserveSpace(
   while (gc_performed) {
     gc_performed = false;
     if (!new_space->ReserveSpace(new_space_size)) {
-      Heap::CollectGarbage(new_space_size, NEW_SPACE);
+      Heap::CollectGarbage(NEW_SPACE);
       gc_performed = true;
     }
     if (!old_pointer_space->ReserveSpace(pointer_space_size)) {
-      Heap::CollectGarbage(pointer_space_size, OLD_POINTER_SPACE);
+      Heap::CollectGarbage(OLD_POINTER_SPACE);
       gc_performed = true;
     }
     if (!(old_data_space->ReserveSpace(data_space_size))) {
-      Heap::CollectGarbage(data_space_size, OLD_DATA_SPACE);
+      Heap::CollectGarbage(OLD_DATA_SPACE);
       gc_performed = true;
     }
     if (!(code_space->ReserveSpace(code_space_size))) {
-      Heap::CollectGarbage(code_space_size, CODE_SPACE);
+      Heap::CollectGarbage(CODE_SPACE);
       gc_performed = true;
     }
     if (!(map_space->ReserveSpace(map_space_size))) {
-      Heap::CollectGarbage(map_space_size, MAP_SPACE);
+      Heap::CollectGarbage(MAP_SPACE);
       gc_performed = true;
     }
     if (!(cell_space->ReserveSpace(cell_space_size))) {
-      Heap::CollectGarbage(cell_space_size, CELL_SPACE);
+      Heap::CollectGarbage(CELL_SPACE);
       gc_performed = true;
     }
     // We add a slack-factor of 2 in order to have space for a series of
@@ -574,7 +555,7 @@ void Heap::ReserveSpace(
     large_object_size += cell_space_size + map_space_size + code_space_size +
         data_space_size + pointer_space_size;
     if (!(lo_space->ReserveSpace(large_object_size))) {
-      Heap::CollectGarbage(large_object_size, LO_SPACE);
+      Heap::CollectGarbage(LO_SPACE);
       gc_performed = true;
     }
   }
@@ -3431,7 +3412,7 @@ bool Heap::IdleNotification() {
       HistogramTimerScope scope(&Counters::gc_context);
       CollectAllGarbage(false);
     } else {
-      CollectGarbage(0, NEW_SPACE);
+      CollectGarbage(NEW_SPACE);
     }
     new_space_.Shrink();
     last_gc_count = gc_count_;
@@ -4937,11 +4918,11 @@ int DescriptorLookupCache::results_[DescriptorLookupCache::kLength];
 
 
 #ifdef DEBUG
-bool Heap::GarbageCollectionGreedyCheck() {
+void Heap::GarbageCollectionGreedyCheck() {
   ASSERT(FLAG_gc_greedy);
-  if (Bootstrapper::IsActive()) return true;
-  if (disallow_allocation_failure()) return true;
-  return CollectGarbage(0, NEW_SPACE);
+  if (Bootstrapper::IsActive()) return;
+  if (disallow_allocation_failure()) return;
+  CollectGarbage(NEW_SPACE);
 }
 #endif
 
