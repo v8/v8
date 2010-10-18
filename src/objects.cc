@@ -8591,7 +8591,9 @@ Object* NumberDictionary::Set(uint32_t key,
   details = PropertyDetails(details.attributes(),
                             details.type(),
                             DetailsAt(entry).index());
-  SetEntry(entry, NumberDictionaryShape::AsObject(key), value, details);
+  Object* object_key = NumberDictionaryShape::AsObject(key);
+  if (object_key->IsFailure()) return object_key;
+  SetEntry(entry, object_key, value, details);
   return this;
 }
 
