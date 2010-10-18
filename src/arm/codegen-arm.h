@@ -447,9 +447,6 @@ class CodeGenerator: public AstVisitor {
   void Branch(bool if_true, JumpTarget* target);
   void CheckStack();
 
-  static InlineFunctionGenerator FindInlineFunctionGenerator(
-      Runtime::FunctionId function_id);
-
   bool CheckForInlineRuntimeCall(CallRuntime* node);
 
   static Handle<Code> ComputeLazyCompile(int argc);

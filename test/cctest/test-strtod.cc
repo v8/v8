@@ -4,30 +4,32 @@
 
 #include "v8.h"
 
-#include "platform.h"
 #include "cctest.h"
 #include "strtod.h"
 
 using namespace v8::internal;
 
-static const int kBufferSize = 100;
+static Vector<const char> StringToVector(const char* str) {
+  return Vector<const char>(str, StrLength(str));
+}
+
+
+static double StrtodChar(const char* str, int exponent) {
+  return Strtod(StringToVector(str), exponent);
+}
 
 
 TEST(Strtod) {
-  char buffer_array[kBufferSize];
-  Vector<char> buffer(buffer_array, kBufferSize);
-  Vector<char> vector;
+  Vector<const char> vector;
 
-  OS::StrNCpy(buffer, "0", kBufferSize);
-  vector = Vector<char>(buffer_array, strlen(buffer_array));
+  vector = StringToVector("0");
   CHECK_EQ(0.0, Strtod(vector, 1));
   CHECK_EQ(0.0, Strtod(vector, 2));
   CHECK_EQ(0.0, Strtod(vector, -2));
   CHECK_EQ(0.0, Strtod(vector, -999));
   CHECK_EQ(0.0, Strtod(vector, +999));
 
-  OS::StrNCpy(buffer, "1", kBufferSize);
-  vector = Vector<char>(buffer_array, strlen(buffer_array));
+  vector = StringToVector("1");
   CHECK_EQ(1.0, Strtod(vector, 0));
   CHECK_EQ(10.0, Strtod(vector, 1));
   CHECK_EQ(100.0, Strtod(vector, 2));
@@ -46,8 +48,7 @@ TEST(Strtod) {
   CHECK_EQ(1e-25, Strtod(vector, -25));
   CHECK_EQ(1e-39, Strtod(vector, -39));
 
-  OS::StrNCpy(buffer, "2", kBufferSize);
-  vector = Vector<char>(buffer_array, strlen(buffer_array));
+  vector = StringToVector("2");
   CHECK_EQ(2.0, Strtod(vector, 0));
   CHECK_EQ(20.0, Strtod(vector, 1));
   CHECK_EQ(200.0, Strtod(vector, 2));
@@ -66,8 +67,7 @@ TEST(Strtod) {
   CHECK_EQ(2e-25, Strtod(vector, -25));
   CHECK_EQ(2e-39, Strtod(vector, -39));
 
-  OS::StrNCpy(buffer, "9", kBufferSize);
-  vector = Vector<char>(buffer_array, strlen(buffer_array));
+  vector = StringToVector("9");
   CHECK_EQ(9.0, Strtod(vector, 0));
   CHECK_EQ(90.0, Strtod(vector, 1));
   CHECK_EQ(900.0, Strtod(vector, 2));
@@ -86,8 +86,7 @@ TEST(Strtod) {
   CHECK_EQ(9e-25, Strtod(vector, -25));
   CHECK_EQ(9e-39, Strtod(vector, -39));
 
-  OS::StrNCpy(buffer, "12345", kBufferSize);
-  vector = Vector<char>(buffer_array, strlen(buffer_array));
+  vector = StringToVector("12345");
   CHECK_EQ(12345.0, Strtod(vector, 0));
   CHECK_EQ(123450.0, Strtod(vector, 1));
   CHECK_EQ(1234500.0, Strtod(vector, 2));
@@ -109,8 +108,7 @@ TEST(Strtod) {
   CHECK_EQ(12345e-25, Strtod(vector, -25));
   CHECK_EQ(12345e-39, Strtod(vector, -39));
 
-  OS::StrNCpy(buffer, "12345678901234", kBufferSize);
-  vector = Vector<char>(buffer_array, strlen(buffer_array));
+  vector = StringToVector("12345678901234");
   CHECK_EQ(12345678901234.0, Strtod(vector, 0));
   CHECK_EQ(123456789012340.0, Strtod(vector, 1));
   CHECK_EQ(1234567890123400.0, Strtod(vector, 2));
@@ -132,8 +130,7 @@ TEST(Strtod) {
   CHECK_EQ(12345678901234e-25, Strtod(vector, -25));
   CHECK_EQ(12345678901234e-39, Strtod(vector, -39));
 
-  OS::StrNCpy(buffer, "123456789012345", kBufferSize);
-  vector = Vector<char>(buffer_array, strlen(buffer_array));
+  vector = StringToVector("123456789012345");
   CHECK_EQ(123456789012345.0, Strtod(vector, 0));
   CHECK_EQ(1234567890123450.0, Strtod(vector, 1));
   CHECK_EQ(12345678901234500.0, Strtod(vector, 2));
@@ -152,4 +149,53 @@ TEST(Strtod) {
   CHECK_EQ(123456789012345e-23, Strtod(vector, -23));
   CHECK_EQ(123456789012345e-25, Strtod(vector, -25));
   CHECK_EQ(123456789012345e-39, Strtod(vector, -39));
+
+  CHECK_EQ(0.0, StrtodChar("0", 12345));
+  CHECK_EQ(0.0, StrtodChar("", 1324));
+  CHECK_EQ(0.0, StrtodChar("000000000", 123));
+  CHECK_EQ(0.0, StrtodChar("2", -324));
+  CHECK_EQ(4e-324, StrtodChar("3", -324));
+  // It would be more readable to put non-zero literals on the left side (i.e.
+  //   CHECK_EQ(1e-325, StrtodChar("1", -325))), but then Gcc complains that
+  // they are truncated to zero.
+  CHECK_EQ(0.0, StrtodChar("1", -325));
+  CHECK_EQ(0.0, StrtodChar("1", -325));
+  CHECK_EQ(0.0, StrtodChar("20000", -328));
+  CHECK_EQ(40000e-328, StrtodChar("30000", -328));
+  CHECK_EQ(0.0, StrtodChar("10000", -329));
+  CHECK_EQ(0.0, StrtodChar("90000", -329));
+  CHECK_EQ(0.0, StrtodChar("000000001", -325));
+  CHECK_EQ(0.0, StrtodChar("000000001", -325));
+  CHECK_EQ(0.0, StrtodChar("0000000020000", -328));
+  CHECK_EQ(40000e-328, StrtodChar("00000030000", -328));
+  CHECK_EQ(0.0, StrtodChar("0000000010000", -329));
+  CHECK_EQ(0.0, StrtodChar("0000000090000", -329));
+
+  // It would be more readable to put the literals (and not V8_INFINITY) on the
+  // left side (i.e. CHECK_EQ(1e309, StrtodChar("1", 309))), but then Gcc
+  // complains that the floating constant exceeds range of 'double'.
+  CHECK_EQ(V8_INFINITY, StrtodChar("1", 309));
+  CHECK_EQ(1e308, StrtodChar("1", 308));
+  CHECK_EQ(1234e305, StrtodChar("1234", 305));
+  CHECK_EQ(1234e304, StrtodChar("1234", 304));
+  CHECK_EQ(V8_INFINITY, StrtodChar("18", 307));
+  CHECK_EQ(17e307, StrtodChar("17", 307));
+  CHECK_EQ(V8_INFINITY, StrtodChar("0000001", 309));
+  CHECK_EQ(1e308, StrtodChar("00000001", 308));
+  CHECK_EQ(1234e305, StrtodChar("00000001234", 305));
+  CHECK_EQ(1234e304, StrtodChar("000000001234", 304));
+  CHECK_EQ(V8_INFINITY, StrtodChar("0000000018", 307));
+  CHECK_EQ(17e307, StrtodChar("0000000017", 307));
+  CHECK_EQ(V8_INFINITY, StrtodChar("1000000", 303));
+  CHECK_EQ(1e308, StrtodChar("100000", 303));
+  CHECK_EQ(1234e305, StrtodChar("123400000", 300));
+  CHECK_EQ(1234e304, StrtodChar("123400000", 299));
+  CHECK_EQ(V8_INFINITY, StrtodChar("180000000", 300));
+  CHECK_EQ(17e307, StrtodChar("170000000", 300));
+  CHECK_EQ(V8_INFINITY, StrtodChar("00000001000000", 303));
+  CHECK_EQ(1e308, StrtodChar("000000000000100000", 303));
+  CHECK_EQ(1234e305, StrtodChar("00000000123400000", 300));
+  CHECK_EQ(1234e304, StrtodChar("0000000123400000", 299));
+  CHECK_EQ(V8_INFINITY, StrtodChar("00000000180000000", 300));
+  CHECK_EQ(17e307, StrtodChar("00000000170000000", 300));
 }

@@ -43,6 +43,14 @@ static const int kMaxExactDoubleIntegerDecimalDigits = 15;
 // 2^64 = 18446744073709551616
 // Any integer with at most 19 digits will hence fit into a 64bit datatype.
 static const int kMaxUint64DecimalDigits = 19;
+// Max double: 1.7976931348623157 x 10^308
+// Min non-zero double: 4.9406564584124654 x 10^-324
+// Any x >= 10^309 is interpreted as +infinity.
+// Any x <= 10^-324 is interpreted as 0.
+// Note that 2.5e-324 (despite being smaller than the min double) will be read
+// as non-zero (equal to the min non-zero double).
+static const int kMaxDecimalPower = 309;
+static const int kMinDecimalPower = -324;
 
 static const double exact_powers_of_ten[] = {
   1.0,  // 10^0
@@ -76,26 +84,50 @@ static const int kExactPowersOfTenSize = ARRAY_SIZE(exact_powers_of_ten);
 
 extern "C" double gay_strtod(const char* s00, const char** se);
 
-static double old_strtod(Vector<char> buffer, int exponent) {
+static double old_strtod(Vector<const char> buffer, int exponent) {
   char gay_buffer[1024];
   Vector<char> gay_buffer_vector(gay_buffer, sizeof(gay_buffer));
-  buffer.start()[buffer.length()] = '\0';
-  OS::SNPrintF(gay_buffer_vector, "%se%d", buffer.start(), exponent);
+  int pos = 0;
+  for (int i = 0; i < buffer.length(); ++i) {
+    gay_buffer_vector[pos++] = buffer[i];
+  }
+  gay_buffer_vector[pos++] = 'e';
+  if (exponent < 0) {
+    gay_buffer_vector[pos++] = '-';
+    exponent = -exponent;
+  }
+  const int kNumberOfExponentDigits = 5;
+  for (int i = kNumberOfExponentDigits - 1; i >= 0; i--) {
+    gay_buffer_vector[pos + i] = exponent % 10 + '0';
+    exponent /= 10;
+  }
+  pos += kNumberOfExponentDigits;
+  gay_buffer_vector[pos] = '\0';
   return gay_strtod(gay_buffer, NULL);
 }
 
 
-static Vector<char> TrimTrailingZeros(Vector<char> buffer) {
-  for (int i = buffer.length() - 1; i >= 0; --i) {
+static Vector<const char> TrimLeadingZeros(Vector<const char> buffer) {
+  for (int i = 0; i < buffer.length(); i++) {
     if (buffer[i] != '0') {
-      return Vector<char>(buffer.start(), i + 1);
+      return Vector<const char>(buffer.start() + i, buffer.length() - i);
     }
   }
-  return Vector<char>(buffer.start(), 0);
+  return Vector<const char>(buffer.start(), 0);
 }
 
 
-uint64_t ReadUint64(Vector<char> buffer) {
+static Vector<const char> TrimTrailingZeros(Vector<const char> buffer) {
+  for (int i = buffer.length() - 1; i >= 0; --i) {
+    if (buffer[i] != '0') {
+      return Vector<const char>(buffer.start(), i + 1);
+    }
+  }
+  return Vector<const char>(buffer.start(), 0);
+}
+
+
+uint64_t ReadUint64(Vector<const char> buffer) {
   ASSERT(buffer.length() <= kMaxUint64DecimalDigits);
   uint64_t result = 0;
   for (int i = 0; i < buffer.length(); ++i) {
@@ -107,10 +139,13 @@ uint64_t ReadUint64(Vector<char> buffer) {
 }
 
 
-double Strtod(Vector<char> buffer, int exponent) {
-  Vector<char> trimmed = TrimTrailingZeros(buffer);
+double Strtod(Vector<const char> buffer, int exponent) {
+  Vector<const char> left_trimmed = TrimLeadingZeros(buffer);
+  Vector<const char> trimmed = TrimTrailingZeros(left_trimmed);
+  exponent += left_trimmed.length() - trimmed.length();
   if (trimmed.length() == 0) return 0.0;
-  exponent += buffer.length() - trimmed.length();
+  if (exponent + trimmed.length() - 1 >= kMaxDecimalPower) return V8_INFINITY;
+  if (exponent + trimmed.length() <= kMinDecimalPower) return 0.0;
   if (trimmed.length() <= kMaxExactDoubleIntegerDecimalDigits) {
     // The trimmed input fits into a double.
     // If the 10^exponent (resp. 10^-exponent) fits into a double too then we
