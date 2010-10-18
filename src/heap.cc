@@ -54,6 +54,7 @@ namespace internal {
 
 String* Heap::hidden_symbol_;
 Object* Heap::roots_[Heap::kRootListLength];
+Object* Heap::global_contexts_list_;
 
 NewSpace Heap::new_space_;
 OldSpace* Heap::old_pointer_space_ = NULL;
@@ -1015,6 +1016,9 @@ void Heap::Scavenge() {
     }
   }
 
+  // Scavenge object reachable from the global contexts list directly.
+  scavenge_visitor.VisitPointer(BitCast<Object**>(&global_contexts_list_));
+
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
   UpdateNewSpaceReferencesInExternalStringTable(
@@ -1082,6 +1086,44 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 }
 
 
+void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
+  Object* head = undefined_value();
+  Context* tail = NULL;
+  Object* candidate = global_contexts_list_;
+  while (!candidate->IsUndefined()) {
+    // Check whether to keep the candidate in the list.
+    Context* candidate_context = reinterpret_cast<Context*>(candidate);
+    Object* retain = retainer->RetainAs(candidate);
+    if (retain != NULL) {
+      if (head->IsUndefined()) {
+        // First element in the list.
+        head = candidate_context;
+      } else {
+        // Subsequent elements in the list.
+        ASSERT(tail != NULL);
+        tail->set_unchecked(Context::NEXT_CONTEXT_LINK,
+                            candidate_context,
+                            UPDATE_WRITE_BARRIER);
+      }
+      // Retained context is new tail.
+      tail = candidate_context;
+    }
+    // Move to next element in the list.
+    candidate = candidate_context->get(Context::NEXT_CONTEXT_LINK);
+  }
+
+  // Terminate the list if there is one or more elements.
+  if (tail != NULL) {
+    tail->set_unchecked(Context::NEXT_CONTEXT_LINK,
+                        Heap::undefined_value(),
+                        UPDATE_WRITE_BARRIER);
+  }
+
+  // Update the head of the list of contexts.
+  Heap::global_contexts_list_ = head;
+}
+
+
 class NewSpaceScavenger : public StaticNewSpaceVisitor<NewSpaceScavenger> {
  public:
   static inline void VisitPointer(Object** p) {
@@ -1138,6 +1180,9 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitShortcutCandidate, &EvacuateShortcutCandidate);
     table_.Register(kVisitByteArray, &EvacuateByteArray);
     table_.Register(kVisitFixedArray, &EvacuateFixedArray);
+    table_.Register(kVisitGlobalContext,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                        VisitSpecialized<Context::kSize>);
 
     typedef ObjectEvacuationStrategy<POINTER_OBJECT> PointerObject;
 
@@ -1628,7 +1673,9 @@ bool Heap::CreateInitialMaps() {
 
   obj = AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
-  set_global_context_map(Map::cast(obj));
+  Map* global_context_map = Map::cast(obj);
+  global_context_map->set_visitor_id(StaticVisitorBase::kVisitGlobalContext);
+  set_global_context_map(global_context_map);
 
   obj = AllocateMap(SHARED_FUNCTION_INFO_TYPE,
                     SharedFunctionInfo::kAlignedSize);
@@ -4217,6 +4264,8 @@ bool Heap::Setup(bool create_heap_objects) {
 
     // Create initial objects
     if (!CreateInitialObjects()) return false;
+
+    global_contexts_list_ = undefined_value();
   }
 
   LOG(IntPtrTEvent("heap-capacity", Capacity()));

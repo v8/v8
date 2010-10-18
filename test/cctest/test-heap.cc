@@ -954,6 +954,7 @@ TEST(Regression39128) {
   CHECK(page->IsRegionDirty(clone_addr + (object_size - kPointerSize)));
 }
 
+
 TEST(TestCodeFlushing) {
   i::FLAG_allow_natives_syntax = true;
   // If we do not flush code this test is invalid.
@@ -996,4 +997,89 @@ TEST(TestCodeFlushing) {
   CompileRun("foo()");
   CHECK(function->shared()->is_compiled());
   CHECK(function->is_compiled());
+}
+
+
+// Count the number of global contexts in the weak list of global contexts.
+static int CountGlobalContexts() {
+  int count = 0;
+  Object* object = Heap::global_contexts_list();
+  while (!object->IsUndefined()) {
+    count++;
+    object = Context::cast(object)->get(Context::NEXT_CONTEXT_LINK);
+  }
+  return count;
+}
+
+
+TEST(TestInternalWeakLists) {
+  static const int kNumTestContexts = 10;
+
+  v8::HandleScope scope;
+  v8::Persistent<v8::Context> ctx[kNumTestContexts];
+
+  CHECK_EQ(0, CountGlobalContexts());
+
+  // Create a number of global contests which gets linked together.
+  for (int i = 0; i < kNumTestContexts; i++) {
+    ctx[i] = v8::Context::New();
+    CHECK_EQ(i + 1, CountGlobalContexts());
+
+    ctx[i]->Enter();
+    ctx[i]->Exit();
+  }
+
+  // Dispose the global contexts one by one.
+  for (int i = 0; i < kNumTestContexts; i++) {
+    ctx[i].Dispose();
+    ctx[i].Clear();
+
+    // Scavenge treats these references as strong.
+    for (int j = 0; j < 10; j++) {
+      Heap::PerformScavenge();
+      CHECK_EQ(kNumTestContexts - i, CountGlobalContexts());
+    }
+
+    // Mark compact handles the weak references.
+    Heap::CollectAllGarbage(true);
+    CHECK_EQ(kNumTestContexts - i - 1, CountGlobalContexts());
+  }
+
+  CHECK_EQ(0, CountGlobalContexts());
+}
+
+
+// Count the number of global contexts in the weak list of global contexts
+// causing a GC after the specified number of elements.
+static int CountGlobalContextsWithGC(int n) {
+  int count = 0;
+  Handle<Object> object(Heap::global_contexts_list());
+  while (!object->IsUndefined()) {
+    count++;
+    if (count == n) Heap::CollectAllGarbage(true);
+    object =
+        Handle<Object>(Context::cast(*object)->get(Context::NEXT_CONTEXT_LINK));
+  }
+  return count;
+}
+
+
+TEST(TestInternalWeakListsTraverseWithGC) {
+  static const int kNumTestContexts = 10;
+
+  v8::HandleScope scope;
+  v8::Persistent<v8::Context> ctx[kNumTestContexts];
+
+  CHECK_EQ(0, CountGlobalContexts());
+
+  // Create an number of contexts and check the length of the weak list both
+  // with and without GCs while iterating the list.
+  for (int i = 0; i < kNumTestContexts; i++) {
+    ctx[i] = v8::Context::New();
+    CHECK_EQ(i + 1, CountGlobalContexts());
+    CHECK_EQ(i + 1, CountGlobalContextsWithGC(i / 2 + 1));
+
+    ctx[i]->Enter();
+    ctx[i]->Exit();
+  }
 }

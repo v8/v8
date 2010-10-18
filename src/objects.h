@@ -1751,6 +1751,7 @@ class FixedArray: public HeapObject {
   // Setters with less debug checks for the GC to use.
   inline void set_unchecked(int index, Smi* value);
   inline void set_null_unchecked(int index);
+  inline void set_unchecked(int index, Object* value, WriteBarrierMode mode);
 
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();

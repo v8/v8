@@ -1470,6 +1470,15 @@ void FixedArray::set_unchecked(int index, Smi* value) {
 }
 
 
+void FixedArray::set_unchecked(int index,
+                               Object* value,
+                               WriteBarrierMode mode) {
+  int offset = kHeaderSize + index * kPointerSize;
+  WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(this, offset, mode);
+}
+
+
 void FixedArray::set_null_unchecked(int index) {
   ASSERT(index >= 0 && index < this->length());
   ASSERT(!Heap::InNewSpace(Heap::null_value()));
