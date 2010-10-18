@@ -152,11 +152,13 @@ uint64_t ReadUint64(Vector<const char> buffer) {
 static bool DoubleStrtod(Vector<const char> trimmed,
                          int exponent,
                          double* result) {
-#if defined(V8_TARGET_ARCH_IA32) && !defined(WIN32)
+#if (defined(V8_TARGET_ARCH_IA32) || defined(USE_SIMULATOR)) && !defined(WIN32)
   // On x86 the floating-point stack can be 64 or 80 bits wide. If it is
   // 80 bits wide (as is the case on Linux) then double-rounding occurs and the
   // result is not accurate.
   // We know that Windows32 uses 64 bits and is therefore accurate.
+  // Note that the ARM simulator is compiled for 32bits. It therefore exhibits
+  // the same problem.
   return false;
 #endif
   if (trimmed.length() <= kMaxExactDoubleIntegerDecimalDigits) {
