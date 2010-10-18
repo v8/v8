@@ -563,17 +563,24 @@ class Sampler {
   void Start();
   void Stop();
 
-  // Is the sampler used for profiling.
-  inline bool IsProfiling() { return profiling_; }
+  // Is the sampler used for profiling?
+  bool IsProfiling() const { return profiling_; }
+
+  // Is the sampler running in sync with the JS thread? On platforms
+  // where the sampler is implemented with a thread that wakes up
+  // every now and then, having a synchronous sampler implies
+  // suspending/resuming the JS thread.
+  bool IsSynchronous() const { return synchronous_; }
 
   // Whether the sampler is running (that is, consumes resources).
-  inline bool IsActive() { return active_; }
+  bool IsActive() const { return active_; }
 
   class PlatformData;
 
  private:
   const int interval_;
   const bool profiling_;
+  const bool synchronous_;
   bool active_;
   PlatformData* data_;  // Platform specific data.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);

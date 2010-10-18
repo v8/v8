@@ -191,11 +191,12 @@ class Ticker: public Sampler {
 
   ~Ticker() { if (IsActive()) Stop(); }
 
-  void SampleStack(TickSample* sample) {
+  virtual void SampleStack(TickSample* sample) {
+    ASSERT(IsSynchronous());
     StackTracer::Trace(sample);
   }
 
-  void Tick(TickSample* sample) {
+  virtual void Tick(TickSample* sample) {
     if (profiler_) profiler_->Insert(sample);
     if (window_) window_->AddState(sample->state);
   }

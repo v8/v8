@@ -748,6 +748,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   USE(info);
   if (signal != SIGPROF) return;
   if (active_sampler_ == NULL) return;
+  if (!IsVmThread()) return;
 
   TickSample sample_obj;
   TickSample* sample = CpuProfiler::TickSampleEvent();
@@ -755,6 +756,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 
   // We always sample the VM state.
   sample->state = VMState::current_state();
+
   // If profiling, we extract the current pc and sp.
   if (active_sampler_->IsProfiling()) {
     // Extracting the sample from the context is extremely machine dependent.
@@ -783,9 +785,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     // Implement this on MIPS.
     UNIMPLEMENTED();
 #endif
-    if (IsVmThread()) {
-      active_sampler_->SampleStack(sample);
-    }
+    active_sampler_->SampleStack(sample);
   }
 
   active_sampler_->Tick(sample);
@@ -806,7 +806,10 @@ class Sampler::PlatformData : public Malloced {
 
 
 Sampler::Sampler(int interval, bool profiling)
-    : interval_(interval), profiling_(profiling), active_(false) {
+    : interval_(interval),
+      profiling_(profiling),
+      synchronous_(profiling),
+      active_(false) {
   data_ = new PlatformData();
 }
 
