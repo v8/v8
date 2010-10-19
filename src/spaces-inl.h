@@ -407,8 +407,7 @@ void MemoryAllocator::UnprotectChunkFromPage(Page* page) {
 
 bool PagedSpace::Contains(Address addr) {
   Page* p = Page::FromAddress(addr);
-  ASSERT(p->is_valid());
-
+  if (!p->is_valid()) return false;
   return MemoryAllocator::IsPageInSpace(p, this);
 }
 
