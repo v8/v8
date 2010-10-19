@@ -845,14 +845,15 @@ void* OS::Allocate(const size_t requested,
                    bool is_executable) {
   // The address range used to randomize RWX allocations in OS::Allocate
   // Try not to map pages into the default range that windows loads DLLs
+  // Use a multiple of 64k to prevent committing unused memory.
   // Note: This does not guarantee RWX regions will be within the
   // range kAllocationRandomAddressMin to kAllocationRandomAddressMax
 #ifdef V8_HOST_ARCH_64_BIT
   static const intptr_t kAllocationRandomAddressMin = 0x0000000080000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x000004FFFFFFFFFF;
+  static const intptr_t kAllocationRandomAddressMax = 0x000003FFFFFF0000;
 #else
   static const intptr_t kAllocationRandomAddressMin = 0x04000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x4FFFFFFF;
+  static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
 #endif
 
   // VirtualAlloc rounds allocated size to page size automatically.
