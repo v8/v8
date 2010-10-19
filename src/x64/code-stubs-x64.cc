@@ -2123,7 +2123,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ JumpIfNotBothSmi(rax, rdx, &non_smi);
     __ subq(rdx, rax);
     __ j(no_overflow, &smi_done);
-    __ neg(rdx);  // Correct sign in case of overflow.
+    __ not_(rdx);  // Correct sign in case of overflow. rdx cannot be 0 here.
     __ bind(&smi_done);
     __ movq(rax, rdx);
     __ ret(0);

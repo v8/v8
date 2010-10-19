@@ -361,24 +361,19 @@ const CodeGenerator::InlineFunctionGenerator
 #undef INLINE_FUNCTION_GENERATOR_ADDRESS
 
 
-CodeGenerator::InlineFunctionGenerator
-  CodeGenerator::FindInlineFunctionGenerator(Runtime::FunctionId id) {
-    return kInlineFunctionGenerators[
-      static_cast<int>(id) - static_cast<int>(Runtime::kFirstInlineFunction)];
-}
-
-
 bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
   ZoneList<Expression*>* args = node->arguments();
   Handle<String> name = node->name();
   Runtime::Function* function = node->function();
   if (function != NULL && function->intrinsic_type == Runtime::INLINE) {
-    InlineFunctionGenerator generator =
-        FindInlineFunctionGenerator(function->function_id);
-    if (generator != NULL) {
-      ((*this).*(generator))(args);
-      return true;
-    }
+    int lookup_index = static_cast<int>(function->function_id) -
+        static_cast<int>(Runtime::kFirstInlineFunction);
+    ASSERT(lookup_index >= 0);
+    ASSERT(static_cast<size_t>(lookup_index) <
+           ARRAY_SIZE(kInlineFunctionGenerators));
+    InlineFunctionGenerator generator = kInlineFunctionGenerators[lookup_index];
+    (this->*generator)(args);
+    return true;
   }
   return false;
 }

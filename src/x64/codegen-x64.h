@@ -584,9 +584,6 @@ class CodeGenerator: public AstVisitor {
 
   void CheckStack();
 
-  static InlineFunctionGenerator FindInlineFunctionGenerator(
-      Runtime::FunctionId function_id);
-
   bool CheckForInlineRuntimeCall(CallRuntime* node);
 
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);

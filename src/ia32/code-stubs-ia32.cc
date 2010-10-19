@@ -2638,7 +2638,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ j(not_zero, &non_smi, not_taken);
     __ sub(edx, Operand(eax));  // Return on the result of the subtraction.
     __ j(no_overflow, &smi_done);
-    __ neg(edx);  // Correct sign in case of overflow.
+    __ not_(edx);  // Correct sign in case of overflow. edx is never 0 here.
     __ bind(&smi_done);
     __ mov(eax, edx);
     __ ret(0);
