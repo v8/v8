@@ -1399,6 +1399,7 @@ void Genesis::InstallJSFunctionResultCaches() {
   global_context()->set_jsfunction_result_caches(*caches);
 }
 
+
 void Genesis::InitializeNormalizedMapCaches() {
   Handle<FixedArray> array(
       FACTORY->NewFixedArray(NormalizedMapCache::kEntries, TENURED));
@@ -1406,12 +1407,12 @@ void Genesis::InitializeNormalizedMapCaches() {
 }
 
 
-
 bool Bootstrapper::InstallExtensions(Handle<Context> global_context,
                                      v8::ExtensionConfiguration* extensions) {
+  Isolate* isolate = Isolate::Current();
   BootstrapperActive active;
-  SaveContext saved_context;
-  Isolate::Current()->set_context(*global_context);
+  SaveContext saved_context(isolate);
+  isolate->set_context(*global_context);
   if (!Genesis::InstallExtensions(global_context, extensions)) return false;
   Genesis::InstallSpecialObjects(global_context);
   return true;
@@ -1749,7 +1750,7 @@ Genesis::Genesis(Handle<Object> global_object,
   // Before creating the roots we must save the context and restore it
   // on all function exits.
   HandleScope scope;
-  SaveContext saved_context;
+  SaveContext saved_context(isolate);
 
   Handle<Context> new_context = Snapshot::NewContextFromSnapshot();
   if (!new_context.is_null()) {

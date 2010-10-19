@@ -38,8 +38,4 @@ namespace internal {
 // good_suffix_shift_table()
 // suffix_table()
 
-//int StringSearchBase::kBadCharShiftTable[kUC16AlphabetSize];
-//int StringSearchBase::kGoodSuffixShiftTable[kBMMaxShift + 1];
-//int StringSearchBase::kSuffixTable[kBMMaxShift + 1];
-
 }}  // namespace v8::internal

@@ -104,9 +104,7 @@ static v8::Handle<v8::Context> GetDebugEventContext(Isolate* isolate) {
   Handle<Context> context = isolate->debug()->debugger_entry()->GetContext();
   // Isolate::context() may have been NULL when "script collected" event
   // occured.
-  if (*context == NULL) {
-    return v8::Local<v8::Context>();
-  }
+  if (context.is_null()) return v8::Local<v8::Context>();
   Handle<Context> global_context(context->global_context());
   return v8::Utils::ToLocal(global_context);
 }
@@ -851,7 +849,7 @@ bool Debug::Load() {
           NULL);
 
   // Use the debugger context.
-  SaveContext save;
+  SaveContext save(isolate);
   isolate->set_context(*context);
 
   // Expose the builtins object in the debugger context.

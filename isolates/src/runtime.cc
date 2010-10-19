@@ -8140,7 +8140,7 @@ static Object* Runtime_DebugGetPropertyDetails(RUNTIME_CALLING_CONVENTION) {
   // into the embedding application can occour, and the embedding application
   // could have the assumption that its own global context is the current
   // context and not some internal debugger context.
-  SaveContext save;
+  SaveContext save(isolate);
   if (isolate->debug()->InDebugger()) {
     isolate->set_context(*isolate->debug()->debugger_entry()->GetContext());
   }
@@ -9527,7 +9527,7 @@ static Object* Runtime_DebugEvaluate(RUNTIME_CALLING_CONVENTION) {
     save = save->prev();
   }
   ASSERT(save != NULL);
-  SaveContext savex;
+  SaveContext savex(isolate);
   isolate->set_context(*(save->context()));
 
   // Create the (empty) function replacing the function on the stack frame for
@@ -9626,7 +9626,7 @@ static Object* Runtime_DebugEvaluateGlobal(RUNTIME_CALLING_CONVENTION) {
   DisableBreak disable_break_save(disable_break);
 
   // Enter the top context from before the debugger was invoked.
-  SaveContext save;
+  SaveContext save(isolate);
   SaveContext* top = &save;
   while (top != NULL && *top->context() == *isolate->debug()->debug_context()) {
     top = top->prev();

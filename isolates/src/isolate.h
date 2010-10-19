@@ -638,8 +638,8 @@ class Isolate {
 
   static const char* const kStackOverflowMessage;
 
-  static const int kUC16AlphabetSize = 256; // See StringSearchBase.
-  static const int kBMMaxShift = 250;       // See StringSearchBase.
+  static const int kUC16AlphabetSize = 256;  // See StringSearchBase.
+  static const int kBMMaxShift = 250;        // See StringSearchBase.
 
   // Accessors.
 #define GLOBAL_ACCESSOR(type, name, initialvalue)                              \
@@ -1045,13 +1045,14 @@ class Isolate {
 // versions of GCC. See V8 issue 122 for details.
 class SaveContext BASE_EMBEDDED {
  public:
-  SaveContext()
-      : context_(Isolate::Current()->context()),
+  explicit SaveContext(Isolate* isolate) : prev_(isolate->save_context()) {
+    if (isolate->context() != NULL) {
+      context_ = Handle<Context>(isolate->context());
 #if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
-        dummy_(Isolate::Current()->context()),
+      dummy_ = Handle<Context>(isolate->context());
 #endif
-        prev_(Isolate::Current()->save_context()) {
-    Isolate::Current()->set_save_context(this);
+    }
+    isolate->set_save_context(this);
 
     // If there is no JS frame under the current C frame, use the value 0.
     JavaScriptFrameIterator it;
@@ -1059,8 +1060,15 @@ class SaveContext BASE_EMBEDDED {
   }
 
   ~SaveContext() {
-    Isolate::Current()->set_context(*context_);
-    Isolate::Current()->set_save_context(prev_);
+    if (context_.is_null()) {
+      Isolate* isolate = Isolate::Current();
+      isolate->set_context(NULL);
+      isolate->set_save_context(prev_);
+    } else {
+      Isolate* isolate = context_->GetIsolate();
+      isolate->set_context(*context_);
+      isolate->set_save_context(prev_);
+    }
   }
 
   Handle<Context> context() { return context_; }

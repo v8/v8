@@ -37,15 +37,18 @@
 namespace v8 {
 namespace internal {
 
-template<class T>
-Handle<T>::Handle(T* obj) {
-  ASSERT(!obj->IsFailure());
-  location_ = HandleScope::CreateHandle(obj, Isolate::Current());
+inline Isolate* GetIsolateForHandle(Object* obj) {
+  return Isolate::Current();
+}
+
+inline Isolate* GetIsolateForHandle(HeapObject* obj) {
+  return obj->GetIsolate();
 }
 
 template<class T>
-Handle<T>::Handle(HeapObject* obj) {
-  location_ = HandleScope::CreateHandle<T>(obj, obj->GetIsolate());
+Handle<T>::Handle(T* obj) {
+  ASSERT(!obj->IsFailure());
+  location_ = HandleScope::CreateHandle(obj, GetIsolateForHandle(obj));
 }
 
 

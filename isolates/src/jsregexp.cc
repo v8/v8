@@ -98,7 +98,8 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
   Handle<JSArray> array = isolate->factory()->NewJSArray(2);
   SetElement(array, 0, pattern);
   SetElement(array, 1, error_text);
-  Handle<Object> regexp_err = isolate->factory()->NewSyntaxError(message, array);
+  Handle<Object> regexp_err = isolate->factory()->NewSyntaxError(message,
+                                                                 array);
   isolate->Throw(*regexp_err);
 }
 

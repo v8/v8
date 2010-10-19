@@ -427,8 +427,9 @@ Isolate* Heap::isolate() {
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0", true);\
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
-    ISOLATE->heap()->CollectGarbage(Failure::cast(__object__)->requested(),\
-                         Failure::cast(__object__)->allocation_space());  \
+    ISOLATE->heap()->CollectGarbage(                                      \
+       Failure::cast(__object__)->requested(),                            \
+       Failure::cast(__object__)->allocation_space());                    \
     __object__ = FUNCTION_CALL;                                           \
     if (!__object__->IsFailure()) RETURN_VALUE;                           \
     if (__object__->IsOutOfMemoryFailure()) {                             \

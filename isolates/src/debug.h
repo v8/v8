@@ -850,7 +850,8 @@ class EnterDebugger BASE_EMBEDDED {
   EnterDebugger()
       : isolate_(Isolate::Current()),
         prev_(isolate_->debug()->debugger_entry()),
-        has_js_frames_(!it_.done()) {
+        has_js_frames_(!it_.done()),
+        save_(isolate_) {
     Debug* debug = isolate_->debug();
     ASSERT(prev_ != NULL || !debug->is_interrupt_pending(PREEMPT));
     ASSERT(prev_ != NULL || !debug->is_interrupt_pending(DEBUGBREAK));

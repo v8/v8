@@ -69,6 +69,8 @@ static Handle<Object> Invoke(bool construct,
                              int argc,
                              Object*** args,
                              bool* has_pending_exception) {
+  Isolate* isolate = func->GetIsolate();
+
   // Entering JavaScript.
   VMState state(JS);
 
@@ -106,7 +108,7 @@ static Handle<Object> Invoke(bool construct,
   {
     // Save and restore context around invocation and block the
     // allocation of handles without explicit handle scopes.
-    SaveContext save;
+    SaveContext save(isolate);
     NoHandleAllocation na;
     JSEntryFunction entry = FUNCTION_CAST<JSEntryFunction>(code->entry());
 
@@ -126,13 +128,13 @@ static Handle<Object> Invoke(bool construct,
   *has_pending_exception = value->IsException();
   ASSERT(*has_pending_exception == Isolate::Current()->has_pending_exception());
   if (*has_pending_exception) {
-    Isolate::Current()->ReportPendingMessages();
+    isolate->ReportPendingMessages();
     return Handle<Object>();
   } else {
-    Isolate::Current()->clear_pending_message();
+    isolate->clear_pending_message();
   }
 
-  return Handle<Object>(value);
+  return Handle<Object>(value, isolate);
 }
 
 
