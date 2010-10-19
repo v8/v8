@@ -251,6 +251,7 @@ class CpuProfiler {
                               String* source, int line);
   static void CodeCreateEvent(Logger::LogEventsAndTags tag,
                               Code* code, int args_count);
+  static void CodeMovingGCEvent() {}
   static void CodeMoveEvent(Address from, Address to);
   static void CodeDeleteEvent(Address from);
   static void FunctionCreateEvent(JSFunction* function);

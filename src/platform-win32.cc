@@ -1218,6 +1218,10 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
+void OS::SignalCodeMovingGC() {
+}
+
+
 // Walk the stack using the facilities in dbghelp.dll and tlhelp32.dll
 
 // Switch off warning 4748 (/GS can not protect parameters and local variables

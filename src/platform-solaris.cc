@@ -256,6 +256,10 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
+void OS::SignalCodeMovingGC() {
+}
+
+
 struct StackWalker {
   Vector<OS::StackFrame>& frames;
   int index;

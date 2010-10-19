@@ -662,6 +662,10 @@ void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
 void Heap::PerformGarbageCollection(GarbageCollector collector,
                                     GCTracer* tracer,
                                     CollectionPolicy collectionPolicy) {
+  if (collector != SCAVENGER) {
+    PROFILE(CodeMovingGCEvent());
+  }
+
   VerifySymbolTable();
   if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
     ASSERT(!allocation_allowed_);

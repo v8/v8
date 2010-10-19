@@ -245,6 +245,10 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
+void OS::SignalCodeMovingGC() {
+}
+
+
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
   // MacOSX requires all these to install so we can assume they are present.
   // These constants are defined by the CPUid instructions.
