@@ -1523,8 +1523,7 @@ class RegExpTree: public ZoneObject {
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success) = 0;
   virtual bool IsTextElement() { return false; }
-  virtual bool IsAnchoredAtStart() { return false; }
-  virtual bool IsAnchoredAtEnd() { return false; }
+  virtual bool IsAnchored() { return false; }
   virtual int min_match() = 0;
   virtual int max_match() = 0;
   // Returns the interval of registers used for captures within this
@@ -1549,8 +1548,7 @@ class RegExpDisjunction: public RegExpTree {
   virtual RegExpDisjunction* AsDisjunction();
   virtual Interval CaptureRegisters();
   virtual bool IsDisjunction();
-  virtual bool IsAnchoredAtStart();
-  virtual bool IsAnchoredAtEnd();
+  virtual bool IsAnchored();
   virtual int min_match() { return min_match_; }
   virtual int max_match() { return max_match_; }
   ZoneList<RegExpTree*>* alternatives() { return alternatives_; }
@@ -1570,8 +1568,7 @@ class RegExpAlternative: public RegExpTree {
   virtual RegExpAlternative* AsAlternative();
   virtual Interval CaptureRegisters();
   virtual bool IsAlternative();
-  virtual bool IsAnchoredAtStart();
-  virtual bool IsAnchoredAtEnd();
+  virtual bool IsAnchored();
   virtual int min_match() { return min_match_; }
   virtual int max_match() { return max_match_; }
   ZoneList<RegExpTree*>* nodes() { return nodes_; }
@@ -1598,8 +1595,7 @@ class RegExpAssertion: public RegExpTree {
                              RegExpNode* on_success);
   virtual RegExpAssertion* AsAssertion();
   virtual bool IsAssertion();
-  virtual bool IsAnchoredAtStart();
-  virtual bool IsAnchoredAtEnd();
+  virtual bool IsAnchored();
   virtual int min_match() { return 0; }
   virtual int max_match() { return 0; }
   Type type() { return type_; }
@@ -1772,8 +1768,7 @@ class RegExpCapture: public RegExpTree {
                             RegExpCompiler* compiler,
                             RegExpNode* on_success);
   virtual RegExpCapture* AsCapture();
-  virtual bool IsAnchoredAtStart();
-  virtual bool IsAnchoredAtEnd();
+  virtual bool IsAnchored();
   virtual Interval CaptureRegisters();
   virtual bool IsCapture();
   virtual int min_match() { return body_->min_match(); }
@@ -1805,7 +1800,7 @@ class RegExpLookahead: public RegExpTree {
   virtual RegExpLookahead* AsLookahead();
   virtual Interval CaptureRegisters();
   virtual bool IsLookahead();
-  virtual bool IsAnchoredAtStart();
+  virtual bool IsAnchored();
   virtual int min_match() { return 0; }
   virtual int max_match() { return 0; }
   RegExpTree* body() { return body_; }
