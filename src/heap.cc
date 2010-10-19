@@ -606,19 +606,14 @@ void Heap::ClearJSFunctionResultCaches() {
 }
 
 
-class ClearThreadNormalizedMapCachesVisitor: public ThreadVisitor {
-  virtual void VisitThread(ThreadLocalTop* top) {
-    Context* context = top->context_;
-    if (context == NULL) return;
-    context->global()->global_context()->normalized_map_cache()->Clear();
-  }
-};
-
-
 void Heap::ClearNormalizedMapCaches() {
   if (Bootstrapper::IsActive()) return;
-  ClearThreadNormalizedMapCachesVisitor visitor;
-  ThreadManager::IterateArchivedThreads(&visitor);
+
+  Object* context = global_contexts_list_;
+  while (!context->IsUndefined()) {
+    Context::cast(context)->normalized_map_cache()->Clear();
+    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+  }
 }
 
 
