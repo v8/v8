@@ -154,7 +154,8 @@ void Log::OpenFile(const char* name) {
     // Open a file for logging the contents of code objects so that
     // they can be disassembled later.
     size_t name_len = strlen(name);
-    ScopedVector<char> code_name(name_len + sizeof(kCodeLogExt));
+    ScopedVector<char> code_name(
+        static_cast<int>(name_len + sizeof(kCodeLogExt)));
     memcpy(code_name.start(), name, name_len);
     memcpy(code_name.start() + name_len, kCodeLogExt, sizeof(kCodeLogExt));
     output_code_handle_ = OS::FOpen(code_name.start(), OS::LogFileOpenMode);
