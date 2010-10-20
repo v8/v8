@@ -926,8 +926,7 @@ void Logger::FunctionCreateEvent(JSFunction* function) {
 }
 
 
-void Logger::FunctionCreateEventFromMove(JSFunction* function,
-                                         HeapObject*) {
+void Logger::FunctionCreateEventFromMove(JSFunction* function) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (function->unchecked_code() != Builtins::builtin(Builtins::LazyCompile)) {
     FunctionCreateEvent(function);
