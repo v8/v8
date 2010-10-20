@@ -468,6 +468,7 @@ void Heap::CollectGarbage(AllocationSpace space,
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_gc) HeapProfiler::WriteSample();
+  if (CpuProfiler::is_profiling()) CpuProfiler::ProcessMovedFunctions();
 #endif
 }
 
@@ -1216,7 +1217,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     if (Logger::is_logging() || CpuProfiler::is_profiling()) {
       if (target->IsJSFunction()) {
         PROFILE(FunctionMoveEvent(source->address(), target->address()));
-        PROFILE(FunctionCreateEventFromMove(JSFunction::cast(target), source));
+        PROFILE(FunctionCreateEventFromMove(JSFunction::cast(target)));
       }
     }
 #endif
