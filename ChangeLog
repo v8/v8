@@ -3,15 +3,15 @@
         Fixed bug causing spurious out of memory exceptions
         (issue http://crbug.com/54580).
 
-        Fix compilation error on Solaris platform (issue 901).
+        Fixed compilation error on Solaris platform (issue 901).
 
-        Fix error in strtod (string to floating point number conversion)
+        Fixed error in strtod (string to floating point number conversion)
         due to glibc's use of 80-bit floats in the FPU on 32-bit linux.
 
-        Adjust randomized allocations of executable memory to have 64k
+        Adjusted randomized allocations of executable memory to have 64k
         granularity (issue http://crbug.com/56036).
 
-        Support profiling using kernel perf_events on linux.  Add ll_prof
+        Supported profiling using kernel perf_events on linux.  Added ll_prof
         script to tools and --ll-prof flag to V8.
 
 
