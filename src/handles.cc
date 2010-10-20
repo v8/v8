@@ -210,6 +210,14 @@ void TransformToFastProperties(Handle<JSObject> object,
 }
 
 
+void NumberDictionarySet(Handle<NumberDictionary> dictionary,
+                         uint32_t index,
+                         Handle<Object> value,
+                         PropertyDetails details) {
+  CALL_HEAP_FUNCTION_VOID(dictionary->Set(index, *value, details));
+}
+
+
 void FlattenString(Handle<String> string) {
   CALL_HEAP_FUNCTION_VOID(string->TryFlatten());
 }
