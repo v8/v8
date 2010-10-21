@@ -1891,6 +1891,20 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
+  if (!FLAG_inline_new) {
+    if (FLAG_debug_code) {
+      // Trash the registers to simulate an allocation failure.
+      movl(result, Immediate(0x7091));
+      if (result_end.is_valid()) {
+        movl(result_end, Immediate(0x7191));
+      }
+      if (scratch.is_valid()) {
+        movl(scratch, Immediate(0x7291));
+      }
+    }
+    jmp(gc_required);
+    return;
+  }
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
@@ -1935,6 +1949,19 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
+  if (!FLAG_inline_new) {
+    if (FLAG_debug_code) {
+      // Trash the registers to simulate an allocation failure.
+      movl(result, Immediate(0x7091));
+      movl(result_end, Immediate(0x7191));
+      if (scratch.is_valid()) {
+        movl(scratch, Immediate(0x7291));
+      }
+      // Register element_count is not modified by the function.
+    }
+    jmp(gc_required);
+    return;
+  }
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
@@ -1964,6 +1991,21 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
+  if (!FLAG_inline_new) {
+    if (FLAG_debug_code) {
+      // Trash the registers to simulate an allocation failure.
+      movl(result, Immediate(0x7091));
+      movl(result_end, Immediate(0x7191));
+      if (scratch.is_valid()) {
+        movl(scratch, Immediate(0x7291));
+      }
+      // object_size is left unchanged by this function.
+    }
+    jmp(gc_required);
+    return;
+  }
+  ASSERT(!result.is(result_end));
+
   // Load address of new object into result.
   LoadAllocationTopHelper(result, result_end, scratch, flags);
 

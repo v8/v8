@@ -1465,6 +1465,10 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&attempt_to_grow_elements);
+      if (!FLAG_inline_new) {
+        __ jmp(&call_builtin);
+      }
+
       ExternalReference new_space_allocation_top =
           ExternalReference::new_space_allocation_top_address();
       ExternalReference new_space_allocation_limit =
