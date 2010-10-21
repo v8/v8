@@ -1216,8 +1216,8 @@ HeapObject* JSObject::elements() {
 
 void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
   ASSERT(map()->has_fast_elements() ==
-         (value->map() == HEAP->fixed_array_map() ||
-          value->map() == HEAP->fixed_cow_array_map()));
+         (value->map() == GetHeap()->fixed_array_map() ||
+          value->map() == GetHeap()->fixed_cow_array_map()));
   // In the assert below Dictionary is covered under FixedArray.
   ASSERT(value->IsFixedArray() || value->IsPixelArray() ||
          value->IsExternalArray());
@@ -1227,14 +1227,14 @@ void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
 
 
 void JSObject::initialize_properties() {
-  ASSERT(!HEAP->InNewSpace(HEAP->empty_fixed_array()));
+  ASSERT(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
   WRITE_FIELD(this, kPropertiesOffset, GetHeap()->empty_fixed_array());
 }
 
 
 void JSObject::initialize_elements() {
   ASSERT(map()->has_fast_elements());
-  ASSERT(!HEAP->InNewSpace(HEAP->empty_fixed_array()));
+  ASSERT(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
   WRITE_FIELD(this, kElementsOffset, GetHeap()->empty_fixed_array());
 }
 
@@ -1586,10 +1586,10 @@ int DescriptorArray::Search(String* name) {
 
 
 int DescriptorArray::SearchWithCache(String* name) {
-  int number = HEAP->isolate()->descriptor_lookup_cache()->Lookup(this, name);
+  int number = GetIsolate()->descriptor_lookup_cache()->Lookup(this, name);
   if (number == DescriptorLookupCache::kAbsent) {
     number = Search(name);
-    HEAP->isolate()->descriptor_lookup_cache()->Update(this, name, number);
+    GetIsolate()->descriptor_lookup_cache()->Update(this, name, number);
   }
   return number;
 }
@@ -2859,7 +2859,8 @@ void SharedFunctionInfo::set_scope_info(SerializedScopeInfo* value,
 
 
 bool SharedFunctionInfo::is_compiled() {
-  return code() != HEAP->isolate()->builtins()->builtin(Builtins::LazyCompile);
+  return code() !=
+      Isolate::Current()->builtins()->builtin(Builtins::LazyCompile);
 }
 
 
@@ -2994,7 +2995,7 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code() != HEAP->isolate()->builtins()->builtin(Builtins::LazyCompile);
+  return code() != GetIsolate()->builtins()->builtin(Builtins::LazyCompile);
 }
 
 
@@ -3271,12 +3272,13 @@ bool JSObject::AllowsSetElementsLength() {
 Object* JSObject::EnsureWritableFastElements() {
   ASSERT(HasFastElements());
   FixedArray* elems = FixedArray::cast(elements());
-  if (elems->map() != HEAP->fixed_cow_array_map()) return elems;
-  Object* writable_elems = HEAP->CopyFixedArrayWithMap(elems,
-                                                       HEAP->fixed_array_map());
+  Isolate* isolate = GetIsolate();
+  if (elems->map() != isolate->heap()->fixed_cow_array_map()) return elems;
+  Object* writable_elems = isolate->heap()->CopyFixedArrayWithMap(
+      elems, isolate->heap()->fixed_array_map());
   if (writable_elems->IsFailure()) return writable_elems;
   set_elements(FixedArray::cast(writable_elems));
-  COUNTERS->cow_arrays_converted()->Increment();
+  isolate->counters()->cow_arrays_converted()->Increment();
   return writable_elems;
 }
 

@@ -1157,14 +1157,14 @@ Object* HeapNumber::HeapNumberToBoolean() {
   if (u.bits.exp == 2047) {
     // Detect NaN for IEEE double precision floating point.
     if ((u.bits.man_low | u.bits.man_high) != 0)
-      return HEAP->false_value();
+      return GetHeap()->false_value();
   }
   if (u.bits.exp == 0) {
     // Detect +0, and -0 for IEEE double precision floating point.
     if ((u.bits.man_low | u.bits.man_high) == 0)
-      return HEAP->false_value();
+      return GetHeap()->false_value();
   }
-  return HEAP->true_value();
+  return GetHeap()->true_value();
 }
 
 
@@ -2319,7 +2319,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = map()->instance_size() - new_instance_size;
   ASSERT(instance_size_delta >= 0);
-  HEAP->CreateFillerObjectAt(this->address() + new_instance_size,
+  heap->CreateFillerObjectAt(this->address() + new_instance_size,
                              instance_size_delta);
 
   set_map(new_map);
@@ -3257,7 +3257,7 @@ Object* Map::CopyNormalized(PropertyNormalizationMode mode,
     new_instance_size -= inobject_properties() * kPointerSize;
   }
 
-  Object* result = HEAP->AllocateMap(instance_type(), new_instance_size);
+  Object* result = GetHeap()->AllocateMap(instance_type(), new_instance_size);
   if (result->IsFailure()) return result;
 
   if (mode != CLEAR_INOBJECT_PROPERTIES) {

@@ -1025,12 +1025,13 @@ void Heap::Scavenge() {
 }
 
 
-String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Object** p) {
+String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
+                                                                Object** p) {
   MapWord first_word = HeapObject::cast(*p)->map_word();
 
   if (!first_word.IsForwardingAddress()) {
     // Unreachable external string can be finalized.
-    HEAP->FinalizeExternalString(String::cast(*p));
+    heap->FinalizeExternalString(String::cast(*p));
     return NULL;
   }
 
@@ -1051,7 +1052,7 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 
   for (Object** p = start; p < end; ++p) {
     ASSERT(InFromSpace(*p));
-    String* target = updater_func(p);
+    String* target = updater_func(this, p);
 
     if (target == NULL) continue;
 
@@ -2149,7 +2150,7 @@ Object* Heap::AllocateConsString(String* first, String* second) {
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
-    Isolate::Current()->context()->mark_out_of_memory();
+    isolate()->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
 
@@ -2273,7 +2274,7 @@ Object* Heap::AllocateExternalStringFromAscii(
     ExternalAsciiString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    Isolate::Current()->context()->mark_out_of_memory();
+    isolate()->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
 
@@ -2294,7 +2295,7 @@ Object* Heap::AllocateExternalStringFromTwoByte(
     ExternalTwoByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    Isolate::Current()->context()->mark_out_of_memory();
+    isolate()->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
 
@@ -2627,7 +2628,7 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
 
   JSObject* boilerplate =
-      Isolate::Current()->context()->global_context()->arguments_boilerplate();
+      isolate()->context()->global_context()->arguments_boilerplate();
 
   // Check that the size of the boilerplate matches our
   // expectations. The ArgumentsAccessStub::GenerateNewObject relies
@@ -3492,7 +3493,7 @@ bool Heap::IdleNotification() {
 
 void Heap::Print() {
   if (!HasBeenSetup()) return;
-  Isolate::Current()->PrintStack();
+  isolate()->PrintStack();
   AllSpaces spaces;
   for (Space* space = spaces.next(); space != NULL; space = spaces.next())
     space->Print();
@@ -4450,7 +4451,7 @@ bool Heap::Setup(bool create_heap_objects) {
 
 void Heap::SetStackLimits() {
   ASSERT(isolate_ != NULL);
-  ASSERT(isolate_ == Isolate::Current());
+  ASSERT(isolate_ == isolate());
   // On 64 bit machines, pointers are generally out of range of Smis.  We write
   // something that looks like an out of range Smi to the GC.
 

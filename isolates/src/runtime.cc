@@ -1464,12 +1464,12 @@ static Object* Runtime_RegExpCloneResult(RUNTIME_CALLING_CONVENTION) {
   // Having the original JSRegExpResult map guarantees that we have
   // fast elements and no properties except the two in-object properties.
   ASSERT(result->HasFastElements());
-  ASSERT(result->properties() == HEAP->empty_fixed_array());
+  ASSERT(result->properties() == isolate->heap()->empty_fixed_array());
   ASSERT_EQ(2, regexp_result_map->inobject_properties());
 
-  Object* new_array_alloc = HEAP->AllocateRaw(JSRegExpResult::kSize,
-                                              NEW_SPACE,
-                                              OLD_POINTER_SPACE);
+  Object* new_array_alloc = isolate->heap()->AllocateRaw(JSRegExpResult::kSize,
+                                                         NEW_SPACE,
+                                                         OLD_POINTER_SPACE);
   if (new_array_alloc->IsFailure()) return new_array_alloc;
 
   // Set HeapObject map to JSRegExpResult map.
@@ -1482,8 +1482,8 @@ static Object* Runtime_RegExpCloneResult(RUNTIME_CALLING_CONVENTION) {
 
   // Copy JSObject elements as copy-on-write.
   FixedArray* elements = FixedArray::cast(result->elements());
-  if (elements != HEAP->empty_fixed_array()) {
-    elements->set_map(HEAP->fixed_cow_array_map());
+  if (elements != isolate->heap()->empty_fixed_array()) {
+    elements->set_map(isolate->heap()->fixed_cow_array_map());
   }
   new_array->set_elements(elements);
 
@@ -6429,7 +6429,8 @@ static Object* Runtime_DateYMDFromTime(RUNTIME_CALLING_CONVENTION) {
   int year, month, day;
   DateYMDFromTime(static_cast<int>(floor(t / 86400000)), year, month, day);
 
-  RUNTIME_ASSERT(res_array->elements()->map() == HEAP->fixed_array_map());
+  RUNTIME_ASSERT(res_array->elements()->map() ==
+                 isolate->heap()->fixed_array_map());
   FixedArray* elms = FixedArray::cast(res_array->elements());
   RUNTIME_ASSERT(elms->length() == 3);
 
@@ -7877,8 +7878,8 @@ static Object* Runtime_MoveArrayContents(RUNTIME_CALLING_CONVENTION) {
   CONVERT_CHECKED(JSArray, to, args[1]);
   HeapObject* new_elements = from->elements();
   Object* new_map;
-  if (new_elements->map() == HEAP->fixed_array_map() ||
-      new_elements->map() == HEAP->fixed_cow_array_map()) {
+  if (new_elements->map() == isolate->heap()->fixed_array_map() ||
+      new_elements->map() == isolate->heap()->fixed_cow_array_map()) {
     new_map = to->map()->GetFastElementsMap();
   } else {
     new_map = to->map()->GetSlowElementsMap();

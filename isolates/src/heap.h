@@ -214,7 +214,8 @@ class HeapStats;
 class Isolate;
 
 
-typedef String* (*ExternalStringTableUpdaterCallback)(Object** pointer);
+typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
+                                                      Object** pointer);
 
 typedef bool (*DirtyRegionCallback)(Heap* heap,
                                     Address start,
@@ -1372,6 +1373,7 @@ class Heap {
   void Scavenge();
 
   static String* UpdateNewSpaceReferenceInExternalStringTableEntry(
+      Heap* heap,
       Object** pointer);
 
   Address DoScavenge(ObjectVisitor* scavenge_visitor, Address new_space_front);
