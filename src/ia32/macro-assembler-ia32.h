@@ -480,15 +480,16 @@ class MacroAssembler: public Assembler {
   void CallCFunction(ExternalReference function, int num_arguments);
   void CallCFunction(Register function, int num_arguments);
 
-  void PushHandleScope(Register scratch);
+  // Prepares stack to put arguments (aligns and so on). Reserves
+  // space for return value if needed (assumes the return value is a handle).
+  // Uses callee-saved esi to restore stack state after call. Arguments must be
+  // stored in ApiParameterOperand(0), ApiParameterOperand(1) etc.
+  void PrepareCallApiFunction(int stack_space, int argc);
 
-  // Pops a handle scope using the specified scratch register and
-  // ensuring that saved register is left unchanged.
-  void PopHandleScope(Register saved, Register scratch);
-
-  // As PopHandleScope, but does not perform a GC.  Instead, returns a
-  // retry after GC failure object if GC is necessary.
-  Object* TryPopHandleScope(Register saved, Register scratch);
+  // Tail call an API function (jump). Allocates HandleScope, extracts
+  // returned value from handle and propagates exceptions.
+  // Clobbers ebx, esi, edi and caller-save registers.
+  void CallApiFunctionAndReturn(ApiFunction* function, int argc);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext);
@@ -638,6 +639,9 @@ static inline Operand FieldOperand(Register object,
                                    int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
 }
+
+// Generates an Operand for saving parameters after PrepareCallApiFunction.
+Operand ApiParameterOperand(int index);
 
 
 #ifdef GENERATED_CODE_COVERAGE

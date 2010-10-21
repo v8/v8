@@ -816,18 +816,17 @@ class MacroAssembler: public Assembler {
                        int num_arguments,
                        int result_size);
 
-  void PushHandleScope(Register scratch);
-
-  // Pops a handle scope using the specified scratch register and
-  // ensuring that saved register is left unchanged.
-  void PopHandleScope(Register saved, Register scratch);
-
-  // As PopHandleScope, but does not perform a GC.  Instead, returns a
-  // retry after GC failure object if GC is necessary.
-  Object* TryPopHandleScope(Register saved, Register scratch);
-
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext, int result_size);
+
+  // Prepares stack to put arguments (aligns and so on).
+  // Uses calle-saved esi to restore stack state after call.
+  void PrepareCallApiFunction(int stack_space);
+
+  // Tail call an API function (jump). Allocates HandleScope, extracts
+  // returned value from handle and propogates exceptions.
+  // Clobbers ebx, edi and caller-save registers.
+  void CallApiFunctionAndReturn(ApiFunction* function);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],

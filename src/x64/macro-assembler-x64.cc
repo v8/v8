@@ -469,76 +469,89 @@ static int Offset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-void MacroAssembler::PushHandleScope(Register scratch) {
-  ExternalReference extensions_address =
-      ExternalReference::handle_scope_extensions_address();
-  const int kExtensionsOffset = 0;
-  const int kNextOffset = Offset(
-      ExternalReference::handle_scope_next_address(),
-      extensions_address);
-  const int kLimitOffset = Offset(
-      ExternalReference::handle_scope_limit_address(),
-      extensions_address);
-
-  // Push the number of extensions, smi-tagged so the gc will ignore it.
-  movq(kScratchRegister, extensions_address);
-  movq(scratch, Operand(kScratchRegister, kExtensionsOffset));
-  movq(Operand(kScratchRegister, kExtensionsOffset), Immediate(0));
-  Integer32ToSmi(scratch, scratch);
-  push(scratch);
-  // Push next and limit pointers which will be wordsize aligned and
-  // hence automatically smi tagged.
-  push(Operand(kScratchRegister, kNextOffset));
-  push(Operand(kScratchRegister, kLimitOffset));
+void MacroAssembler::PrepareCallApiFunction(int stack_space) {
+  EnterApiExitFrame(stack_space, 0);
 }
 
 
-Object* MacroAssembler::PopHandleScopeHelper(Register saved,
-                                             Register scratch,
-                                             bool gc_allowed) {
-  ExternalReference extensions_address =
-      ExternalReference::handle_scope_extensions_address();
-  const int kExtensionsOffset = 0;
-  const int kNextOffset = Offset(
-      ExternalReference::handle_scope_next_address(),
-      extensions_address);
-  const int kLimitOffset = Offset(
-      ExternalReference::handle_scope_limit_address(),
-      extensions_address);
-
-  Object* result = NULL;
+void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function) {
+  Label empty_result;
+  Label prologue;
+  Label promote_scheduled_exception;
+  Label delete_allocated_handles;
+  Label leave_exit_frame;
   Label write_back;
-  movq(kScratchRegister, extensions_address);
-  cmpq(Operand(kScratchRegister, kExtensionsOffset), Immediate(0));
-  j(equal, &write_back);
-  push(saved);
-  if (gc_allowed) {
-    CallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
-  } else {
-    result = TryCallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
-    if (result->IsFailure()) return result;
-  }
-  pop(saved);
-  movq(kScratchRegister, extensions_address);
 
-  bind(&write_back);
-  pop(Operand(kScratchRegister, kLimitOffset));
-  pop(Operand(kScratchRegister, kNextOffset));
-  pop(scratch);
-  SmiToInteger32(scratch, scratch);
-  movq(Operand(kScratchRegister, kExtensionsOffset), scratch);
+  ExternalReference next_address =
+      ExternalReference::handle_scope_next_address();
+  const int kNextOffset = 0;
+  const int kLimitOffset = Offset(
+      ExternalReference::handle_scope_limit_address(),
+      next_address);
+  const int kLevelOffset = Offset(
+      ExternalReference::handle_scope_level_address(),
+      next_address);
+  ExternalReference scheduled_exception_address =
+      ExternalReference::scheduled_exception_address();
 
-  return result;
-}
+  // Allocate HandleScope in callee-save registers.
+  Register prev_next_address_reg = r14;
+  Register prev_limit_reg = rbx;
+  Register base_reg = kSmiConstantRegister;
+  movq(base_reg, next_address);
+  movq(prev_next_address_reg, Operand(base_reg, kNextOffset));
+  movq(prev_limit_reg, Operand(base_reg, kLimitOffset));
+  addl(Operand(base_reg, kLevelOffset), Immediate(1));
+  // Call the api function!
+  movq(rax,
+       reinterpret_cast<int64_t>(function->address()),
+       RelocInfo::RUNTIME_ENTRY);
+  call(rax);
 
+#ifdef _WIN64
+  // rax keeps a pointer to v8::Handle, unpack it.
+  movq(rax, Operand(rax, 0));
+#endif
+  // Check if the result handle holds 0.
+  testq(rax, rax);
+  j(zero, &empty_result);
+  // It was non-zero.  Dereference to get the result value.
+  movq(rax, Operand(rax, 0));
+  bind(&prologue);
 
-void MacroAssembler::PopHandleScope(Register saved, Register scratch) {
-  PopHandleScopeHelper(saved, scratch, true);
-}
+  // No more valid handles (the result handle was the last one). Restore
+  // previous handle scope.
+  subl(Operand(base_reg, kLevelOffset), Immediate(1));
+  movq(Operand(base_reg, kNextOffset), prev_next_address_reg);
+  cmpq(prev_limit_reg, Operand(base_reg, kLimitOffset));
+  j(not_equal, &delete_allocated_handles);
+  bind(&leave_exit_frame);
+  InitializeSmiConstantRegister();
 
+  // Check if the function scheduled an exception.
+  movq(rsi, scheduled_exception_address);
+  Cmp(Operand(rsi, 0), Factory::the_hole_value());
+  j(not_equal, &promote_scheduled_exception);
 
-Object* MacroAssembler::TryPopHandleScope(Register saved, Register scratch) {
-  return PopHandleScopeHelper(saved, scratch, false);
+  LeaveExitFrame();
+  ret(0);
+
+  bind(&promote_scheduled_exception);
+  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+
+  bind(&empty_result);
+  // It was zero; the result is undefined.
+  Move(rax, Factory::undefined_value());
+  jmp(&prologue);
+
+  // HandleScope limit has changed. Delete allocated extensions.
+  bind(&delete_allocated_handles);
+  movq(Operand(base_reg, kLimitOffset), prev_limit_reg);
+  movq(prev_limit_reg, rax);
+  movq(rax, ExternalReference::delete_handle_scope_extensions());
+  call(rax);
+  movq(rax, prev_limit_reg);
+  jmp(&leave_exit_frame);
 }
 
 

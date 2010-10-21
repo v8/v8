@@ -1035,7 +1035,6 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   Handle<AccessorInfo> callback_handle(callback);
 
   __ EnterInternalFrame();
-  __ PushHandleScope(scratch2);
   // Push the stack address where the list of arguments ends.
   __ mov(scratch2, esp);
   __ sub(Operand(scratch2), Immediate(2 * kPointerSize));
@@ -1066,17 +1065,6 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   // garbage collection but instead return the allocation failure
   // object.
   Object* result = masm()->TryCallStub(&stub);
-  if (result->IsFailure()) {
-    *failure = Failure::cast(result);
-    return false;
-  }
-
-  // We need to avoid using eax since that now holds the result.
-  Register tmp = scratch2.is(eax) ? reg : scratch2;
-  // Emitting PopHandleScope may try to allocate.  Do not allow the
-  // assembler to perform a garbage collection but instead return a
-  // failure object.
-  result = masm()->TryPopHandleScope(eax, tmp);
   if (result->IsFailure()) {
     *failure = Failure::cast(result);
     return false;

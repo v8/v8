@@ -337,6 +337,11 @@ void ExternalReferenceTable::PopulateTable() {
       3,
       "V8::Random");
 
+  Add(ExternalReference::delete_handle_scope_extensions().address(),
+      RUNTIME_ENTRY,
+      3,
+      "HandleScope::DeleteExtensions");
+
   // Miscellaneous
   Add(ExternalReference::the_hole_value_location().address(),
       UNCLASSIFIED,
@@ -457,6 +462,18 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       29,
       "TranscendentalCache::caches()");
+  Add(ExternalReference::handle_scope_next_address().address(),
+      UNCLASSIFIED,
+      30,
+      "HandleScope::next");
+  Add(ExternalReference::handle_scope_limit_address().address(),
+      UNCLASSIFIED,
+      31,
+      "HandleScope::limit");
+  Add(ExternalReference::handle_scope_level_address().address(),
+      UNCLASSIFIED,
+      32,
+      "HandleScope::level");
 }
 
 

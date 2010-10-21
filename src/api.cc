@@ -457,16 +457,34 @@ void V8::DisposeGlobal(i::Object** obj) {
 // --- H a n d l e s ---
 
 
-HandleScope::HandleScope() : is_closed_(false) {
+HandleScope::HandleScope()
+    : prev_next_(i::HandleScope::current_.next),
+      prev_limit_(i::HandleScope::current_.limit),
+      is_closed_(false) {
   API_ENTRY_CHECK("HandleScope::HandleScope");
-  i::HandleScope::Enter(&previous_);
+  i::HandleScope::current_.level++;
 }
 
 
 HandleScope::~HandleScope() {
   if (!is_closed_) {
-    i::HandleScope::Leave(&previous_);
+    Leave();
   }
+}
+
+
+void HandleScope::Leave() {
+  i::HandleScope::current_.level--;
+  ASSERT(i::HandleScope::current_.level >= 0);
+  i::HandleScope::current_.next = prev_next_;
+  if (i::HandleScope::current_.limit != prev_limit_) {
+    i::HandleScope::current_.limit = prev_limit_;
+    i::HandleScope::DeleteExtensions();
+  }
+
+#ifdef DEBUG
+  i::HandleScope::ZapRange(prev_next_, prev_limit_);
+#endif
 }
 
 
@@ -553,7 +571,7 @@ i::Object** v8::HandleScope::RawClose(i::Object** value) {
     result = *value;
   }
   is_closed_ = true;
-  i::HandleScope::Leave(&previous_);
+  Leave();
 
   if (value == NULL) {
     return NULL;

@@ -2547,7 +2547,6 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   Handle<AccessorInfo> callback_handle(callback);
 
   __ EnterInternalFrame();
-  __ PushHandleScope(scratch2);
   // Push the stack address where the list of arguments ends.
   __ movq(scratch2, rsp);
   __ subq(scratch2, Immediate(2 * kPointerSize));
@@ -2601,17 +2600,6 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   // Discard allocated slot.
   __ addq(rsp, Immediate(kPointerSize));
 #endif
-
-  // We need to avoid using rax since that now holds the result.
-  Register tmp = scratch2.is(rax) ? reg : scratch2;
-  // Emitting PopHandleScope may try to allocate.  Do not allow the
-  // assembler to perform a garbage collection but instead return a
-  // failure object.
-  result = masm()->TryPopHandleScope(rax, tmp);
-  if (result->IsFailure()) {
-    *failure = Failure::cast(result);
-    return false;
-  }
   __ LeaveInternalFrame();
 
   __ ret(0);

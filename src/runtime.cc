@@ -9951,13 +9951,6 @@ static Object* Runtime_Abort(Arguments args) {
 }
 
 
-static Object* Runtime_DeleteHandleScopeExtensions(Arguments args) {
-  ASSERT(args.length() == 0);
-  HandleScope::DeleteExtensions();
-  return Heap::undefined_value();
-}
-
-
 static Object* CacheMiss(FixedArray* cache_obj, int index, Object* key_obj) {
   ASSERT(index % 2 == 0);  // index of the key
   ASSERT(index >= JSFunctionResultCache::kEntriesIndex);

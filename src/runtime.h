@@ -297,8 +297,6 @@ namespace internal {
   F(Log, 2, 1) \
   /* ES5 */ \
   F(LocalKeys, 1, 1) \
-  /* Handle scopes */ \
-  F(DeleteHandleScopeExtensions, 0, 1) \
   /* Cache suport */ \
   F(GetFromCache, 2, 1) \
   \
