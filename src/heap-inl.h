@@ -35,16 +35,6 @@
 namespace v8 {
 namespace internal {
 
-void Heap::UpdateOldSpaceLimits() {
-  intptr_t old_gen_size = PromotedSpaceSize();
-  old_gen_promotion_limit_ =
-      old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
-  old_gen_allocation_limit_ =
-      old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
-  old_gen_exhausted_ = false;
-}
-
-
 int Heap::MaxObjectSizeInPagedSpace() {
   return Page::kMaxHeapObjectSize;
 }
@@ -421,7 +411,7 @@ void Heap::SetLastScriptId(Object* last_script_id) {
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
     Counters::gc_last_resort_from_handles.Increment();                    \
-    Heap::CollectAllAvailableGarbage();                                   \
+    Heap::CollectAllGarbage(false);                                       \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
       __object__ = FUNCTION_CALL;                                         \

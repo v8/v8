@@ -693,20 +693,13 @@ class Heap : public AllStatic {
   static void GarbageCollectionPrologue();
   static void GarbageCollectionEpilogue();
 
-  enum CollectionPolicy { NORMAL, AGGRESSIVE };
-
   // Performs garbage collection operation.
   // Returns whether required_space bytes are available after the collection.
-  static void CollectGarbage(AllocationSpace space,
-                             CollectionPolicy collectionPolicy = NORMAL);
+  static void CollectGarbage(AllocationSpace space);
 
   // Performs a full garbage collection. Force compaction if the
   // parameter is true.
-  static void CollectAllGarbage(bool force_compaction,
-                                CollectionPolicy collectionPolicy = NORMAL);
-
-  // Last hope GC, should try to squeeze as much as possible.
-  static void CollectAllAvailableGarbage();
+  static void CollectAllGarbage(bool force_compaction);
 
   // Notify the heap that a context has been disposed.
   static int NotifyContextDisposed() { return ++contexts_disposed_; }
@@ -1242,13 +1235,7 @@ class Heap : public AllStatic {
 
   // Performs garbage collection
   static void PerformGarbageCollection(GarbageCollector collector,
-                                       GCTracer* tracer,
-                                       CollectionPolicy collectionPolicy);
-
-  static const intptr_t kMinimumPromotionLimit = 2 * MB;
-  static const intptr_t kMinimumAllocationLimit = 8 * MB;
-
-  inline static void UpdateOldSpaceLimits();
+                                       GCTracer* tracer);
 
   // Allocate an uninitialized object in map space.  The behavior is identical
   // to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that (a) it doesn't
