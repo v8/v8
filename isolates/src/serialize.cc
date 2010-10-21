@@ -246,14 +246,14 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
 
   // Stat counters
   struct StatsRefTableEntry {
-    StatsCounter* counter;
+    StatsCounter* (Counters::*counter)();
     uint16_t id;
     const char* name;
   };
 
   const StatsRefTableEntry stats_ref_table[] = {
 #define COUNTER_ENTRY(name, caption) \
-  { COUNTERS->name(), \
+  { &Counters::name,    \
     Counters::k_##name, \
     "Counters::" #name },
 
@@ -262,34 +262,28 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
 #undef COUNTER_ENTRY
   };  // end of stats_ref_table[].
 
+  Counters* counters = isolate->counters();
   for (size_t i = 0; i < ARRAY_SIZE(stats_ref_table); ++i) {
-    Add(reinterpret_cast<Address>(
-            GetInternalPointer(stats_ref_table[i].counter)),
+    Add(reinterpret_cast<Address>(GetInternalPointer(
+            (counters->*(stats_ref_table[i].counter))())),
         STATS_COUNTER,
         stats_ref_table[i].id,
         stats_ref_table[i].name);
   }
 
   // Top addresses
-  const char* top_address_format = "Isolate::%s";
 
   const char* AddressNames[] = {
-#define C(name) #name,
+#define C(name) "Isolate::" #name,
     ISOLATE_ADDRESS_LIST(C)
     ISOLATE_ADDRESS_LIST_PROF(C)
     NULL
 #undef C
   };
 
-  int top_format_length = StrLength(top_address_format) - 2;
   for (uint16_t i = 0; i < Isolate::k_isolate_address_count; ++i) {
-    const char* address_name = AddressNames[i];
-    Vector<char> name =
-        Vector<char>::New(top_format_length + StrLength(address_name) + 1);
-    const char* chars = name.start();
-    OS::SNPrintF(name, top_address_format, address_name);
     Add(isolate->get_address_from_id((Isolate::AddressId)i),
-        TOP_ADDRESS, i, chars);
+        TOP_ADDRESS, i, AddressNames[i]);
   }
 
   // Extensions
@@ -538,7 +532,8 @@ bool Serializer::too_late_to_enable_now_ = false;
 
 
 Deserializer::Deserializer(SnapshotByteSource* source)
-    : source_(source),
+    : isolate_(NULL),
+      source_(source),
       external_reference_decoder_(NULL) {
 }
 
@@ -617,27 +612,28 @@ HeapObject* Deserializer::GetAddressFromStart(int space) {
 
 
 void Deserializer::Deserialize() {
+  isolate_ = Isolate::Current();
   // Don't GC while deserializing - just expand the heap.
   AlwaysAllocateScope always_allocate;
   // Don't use the free lists while deserializing.
   LinearAllocationScope allocate_linearly;
   // No active threads.
-  ASSERT_EQ(NULL,
-      Isolate::Current()->thread_manager()->FirstThreadStateInUse());
+  ASSERT_EQ(NULL, isolate_->thread_manager()->FirstThreadStateInUse());
   // No active handles.
-  ASSERT(Isolate::Current()->handle_scope_implementer()->blocks()->is_empty());
+  ASSERT(isolate_->handle_scope_implementer()->blocks()->is_empty());
   // Make sure the entire partial snapshot cache is traversed, filling it with
   // valid object pointers.
-  Isolate::Current()->set_serialize_partial_snapshot_cache_length(
+  isolate_->set_serialize_partial_snapshot_cache_length(
       Isolate::kPartialSnapshotCacheCapacity);
   ASSERT_EQ(NULL, external_reference_decoder_);
   external_reference_decoder_ = new ExternalReferenceDecoder();
-  HEAP->IterateStrongRoots(this, VISIT_ONLY_STRONG);
-  HEAP->IterateWeakRoots(this, VISIT_ALL);
+  isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
+  isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
 }
 
 
 void Deserializer::DeserializePartial(Object** root) {
+  isolate_ = Isolate::Current();
   // Don't GC while deserializing - just expand the heap.
   AlwaysAllocateScope always_allocate;
   // Don't use the free lists while deserializing.
@@ -686,11 +682,11 @@ void Deserializer::ReadObject(int space_number,
   }
   ReadChunk(current, limit, space_number, address);
 
-  if (space == space->heap()->map_space()) {
+  if (space_number == MAP_SPACE) {
     ASSERT(size == Map::kSize);
     HeapObject* obj = HeapObject::FromAddress(address);
     Map* map = reinterpret_cast<Map*>(obj);
-    map->set_heap(space->heap());
+    map->set_heap(isolate_->heap());
   }
 }
 
@@ -701,20 +697,20 @@ void Deserializer::ReadObject(int space_number,
 #define ASSIGN_DEST_SPACE(space_number)                                        \
   Space* dest_space;                                                           \
   if (space_number == NEW_SPACE) {                                             \
-    dest_space = HEAP->new_space();                                            \
+    dest_space = isolate->heap()->new_space();                                \
   } else if (space_number == OLD_POINTER_SPACE) {                              \
-    dest_space = HEAP->old_pointer_space();                                    \
+    dest_space = isolate->heap()->old_pointer_space();                         \
   } else if (space_number == OLD_DATA_SPACE) {                                 \
-    dest_space = HEAP->old_data_space();                                       \
+    dest_space = isolate->heap()->old_data_space();                            \
   } else if (space_number == CODE_SPACE) {                                     \
-    dest_space = HEAP->code_space();                                           \
+    dest_space = isolate->heap()->code_space();                                \
   } else if (space_number == MAP_SPACE) {                                      \
-    dest_space = HEAP->map_space();                                            \
+    dest_space = isolate->heap()->map_space();                                 \
   } else if (space_number == CELL_SPACE) {                                     \
-    dest_space = HEAP->cell_space();                                           \
+    dest_space = isolate->heap()->cell_space();                                \
   } else {                                                                     \
     ASSERT(space_number >= LO_SPACE);                                          \
-    dest_space = HEAP->lo_space();                                             \
+    dest_space = isolate->heap()->lo_space();                                  \
   }
 
 
@@ -725,7 +721,7 @@ void Deserializer::ReadChunk(Object** current,
                              Object** limit,
                              int source_space,
                              Address address) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* const isolate = isolate_;
   while (current < limit) {
     int data = source_->Get();
     switch (data) {
@@ -754,7 +750,7 @@ void Deserializer::ReadChunk(Object** current,
             ReadObject(space_number, dest_space, &new_object);                 \
           } else if (where == kRootArray) {                                    \
             int root_id = source_->GetInt();                                   \
-            new_object = HEAP->roots_address()[root_id];                       \
+            new_object = isolate->heap()->roots_address()[root_id];            \
           } else if (where == kPartialSnapshotCache) {                         \
             int cache_index = source_->GetInt();                               \
             new_object = isolate->serialize_partial_snapshot_cache()           \
@@ -800,7 +796,7 @@ void Deserializer::ReadChunk(Object** current,
           }                                                                    \
         }                                                                      \
         if (emit_write_barrier) {                                              \
-          HEAP->RecordWrite(address, static_cast<int>(                         \
+          isolate->heap()->RecordWrite(address, static_cast<int>(              \
               reinterpret_cast<Address>(current) - address));                  \
         }                                                                      \
         if (!current_was_incremented) {                                        \
@@ -965,7 +961,7 @@ void Deserializer::ReadChunk(Object** current,
         Vector<const char> source_vector = Natives::GetScriptSource(index);
         NativesExternalStringResource* resource =
             new NativesExternalStringResource(
-                Isolate::Current()->bootstrapper(), source_vector.start());
+                isolate->bootstrapper(), source_vector.start());
         *current++ = reinterpret_cast<Object*>(resource);
         break;
       }

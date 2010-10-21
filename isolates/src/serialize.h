@@ -313,6 +313,9 @@ class Deserializer: public SerializerDeserializer {
   Address Allocate(int space_number, Space* space, int size);
   void ReadObject(int space_number, Space* space, Object** write_back);
 
+  // Cached current isolate.
+  Isolate* isolate_;
+
   // Keep track of the pages in the paged spaces.
   // (In large object space we are keeping track of individual objects
   // rather than pages.)  In new space we just need the address of the
