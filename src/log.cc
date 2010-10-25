@@ -1378,8 +1378,10 @@ void Logger::LogCodeInfo() {
 void Logger::LowLevelCodeCreateEvent(Code* code, LogMessageBuilder* msg) {
   if (!FLAG_ll_prof || Log::output_code_handle_ == NULL) return;
   int pos = static_cast<int>(ftell(Log::output_code_handle_));
-  fwrite(code->instruction_start(), 1, code->instruction_size(),
-         Log::output_code_handle_);
+  int rv = fwrite(code->instruction_start(), 1, code->instruction_size(),
+                  Log::output_code_handle_);
+  ASSERT(static_cast<size_t>(code->instruction_size()) == rv);
+  USE(rv);
   msg->Append(",%d", pos);
 }
 
