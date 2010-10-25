@@ -512,7 +512,7 @@ static void CheckSymbols(const char** strings) {
     CHECK(a->IsSymbol());
     Object* b;
     MaybeObject* maybe_b = Heap::LookupAsciiSymbol(string);
-    if (!maybe_maybe_b->ToObject(&b)) continue;
+    if (!maybe_b->ToObject(&b)) continue;
     CHECK_EQ(b, a);
     CHECK(String::cast(b)->IsEqualTo(CStrVector(string)));
   }

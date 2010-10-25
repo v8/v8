@@ -846,7 +846,7 @@ MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCells(
           name,
           scratch,
           miss);
-      if (result->IsFailure()) return t;
+      if (result->IsFailure()) return result;
     }
     ASSERT(current->IsJSObject());
     current = JSObject::cast(current->GetPrototype());
