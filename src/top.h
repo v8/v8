@@ -29,6 +29,7 @@
 #define V8_TOP_H_
 
 #include "frames-inl.h"
+#include "simulator.h"
 
 namespace v8 {
 namespace internal {
@@ -102,6 +103,10 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Stack.
   Address c_entry_fp_;  // the frame pointer of the top c entry frame
   Address handler_;   // try-blocks are chained through the stack
+
+#ifdef USE_SIMULATOR
+  assembler::arm::Simulator* simulator_;
+#endif  // USE_SIMULATOR
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   Address js_entry_sp_;  // the stack pointer of the bottom js entry frame

@@ -93,6 +93,14 @@ namespace internal {
 #error Target architecture mips is only supported on mips and ia32 host
 #endif
 
+// Determine whether we are running in a simulated environment.
+#if (defined(V8_TARGET_ARCH_ARM) && !defined(V8_HOST_ARCH_ARM))
+#define USE_SIMULATOR 1
+#endif
+#if (defined(V8_TARGET_ARCH_MIPS) && !defined(V8_HOST_ARCH_MIPS))
+#define USE_SIMULATOR 1
+#endif
+
 // Define unaligned read for the target architectures supporting it.
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
 #define V8_TARGET_CAN_READ_UNALIGNED 1

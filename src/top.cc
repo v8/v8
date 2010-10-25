@@ -66,6 +66,9 @@ v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
 void ThreadLocalTop::Initialize() {
   c_entry_fp_ = 0;
   handler_ = 0;
+#ifdef USE_SIMULATOR
+  simulator_ = assembler::arm::Simulator::current();
+#endif  // USE_SIMULATOR
 #ifdef ENABLE_LOGGING_AND_PROFILING
   js_entry_sp_ = 0;
 #endif
@@ -1060,6 +1063,11 @@ char* Top::ArchiveThread(char* to) {
 
 char* Top::RestoreThread(char* from) {
   memcpy(reinterpret_cast<char*>(&thread_local_), from, sizeof(thread_local_));
+  // This might be just paranoia, but it seems to be needed in case a
+  // thread_local_ is restored on a separate OS thread.
+#ifdef USE_SIMULATOR
+  thread_local_.simulator_ = assembler::arm::Simulator::current();
+#endif
   return from + sizeof(thread_local_);
 }
 
