@@ -559,7 +559,12 @@ void Logger::LogRuntime(Vector<const char> format, JSArray* args) {
     if (c == '%' && i <= format.length() - 2) {
       i++;
       ASSERT('0' <= format[i] && format[i] <= '9');
-      Object* obj = args->GetElement(format[i] - '0');
+      MaybeObject* maybe = args->GetElement(format[i] - '0');
+      Object* obj;
+      if (!maybe->ToObject(&obj)) {
+        msg.Append("<exception>");
+        continue;
+      }
       i++;
       switch (format[i]) {
         case 's':

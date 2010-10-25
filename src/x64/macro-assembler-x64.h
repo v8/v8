@@ -773,7 +773,7 @@ class MacroAssembler: public Assembler {
   // Call a code stub and return the code object called.  Try to generate
   // the code if necessary.  Do not perform a GC but instead return a retry
   // after GC failure.
-  Object* TryCallStub(CodeStub* stub);
+  MUST_USE_RESULT MaybeObject* TryCallStub(CodeStub* stub);
 
   // Tail call a code stub (jump).
   void TailCallStub(CodeStub* stub);
@@ -781,7 +781,7 @@ class MacroAssembler: public Assembler {
   // Tail call a code stub (jump) and return the code object called.  Try to
   // generate the code if necessary.  Do not perform a GC but instead return
   // a retry after GC failure.
-  Object* TryTailCallStub(CodeStub* stub);
+  MUST_USE_RESULT MaybeObject* TryTailCallStub(CodeStub* stub);
 
   // Return from a code stub after popping its arguments.
   void StubReturn(int argc);
@@ -792,13 +792,15 @@ class MacroAssembler: public Assembler {
   // Call a runtime function, returning the CodeStub object called.
   // Try to generate the stub code if necessary.  Do not perform a GC
   // but instead return a retry after GC failure.
-  Object* TryCallRuntime(Runtime::Function* f, int num_arguments);
+  MUST_USE_RESULT MaybeObject* TryCallRuntime(Runtime::Function* f,
+                                              int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId id, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
-  Object* TryCallRuntime(Runtime::FunctionId id, int num_arguments);
+  MUST_USE_RESULT MaybeObject* TryCallRuntime(Runtime::FunctionId id,
+                                              int num_arguments);
 
   // Convenience function: call an external reference.
   void CallExternalReference(const ExternalReference& ext,

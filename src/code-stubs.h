@@ -106,7 +106,7 @@ class CodeStub BASE_EMBEDDED {
   // Retrieve the code for the stub if already generated.  Do not
   // generate the code if not already generated and instead return a
   // retry after GC Failure object.
-  Object* TryGetCode();
+  MUST_USE_RESULT MaybeObject* TryGetCode();
 
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));

@@ -107,11 +107,22 @@ void Top::IterateThread(ThreadVisitor* v, char* t) {
 
 
 void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
-  v->VisitPointer(&(thread->pending_exception_));
+  // Visit the roots from the top for a given thread.
+  Object *pending;
+  // The pending exception can sometimes be a failure.  We can't show
+  // that to the GC, which only understands objects.
+  if (thread->pending_exception_->ToObject(&pending)) {
+    v->VisitPointer(&pending);
+    thread->pending_exception_ = pending;  // In case GC updated it.
+  }
   v->VisitPointer(&(thread->pending_message_obj_));
   v->VisitPointer(BitCast<Object**>(&(thread->pending_message_script_)));
   v->VisitPointer(BitCast<Object**>(&(thread->context_)));
-  v->VisitPointer(&(thread->scheduled_exception_));
+  Object* scheduled;
+  if (thread->scheduled_exception_->ToObject(&scheduled)) {
+    v->VisitPointer(&scheduled);
+    thread->scheduled_exception_ = scheduled;
+  }
 
   for (v8::TryCatch* block = thread->TryCatchHandler();
        block != NULL;
@@ -688,7 +699,7 @@ Failure* Top::Throw(Object* exception, MessageLocation* location) {
 }
 
 
-Failure* Top::ReThrow(Object* exception, MessageLocation* location) {
+Failure* Top::ReThrow(MaybeObject* exception, MessageLocation* location) {
   // Set the exception being re-thrown.
   set_pending_exception(exception);
   return Failure::Exception();
@@ -710,8 +721,8 @@ void Top::ScheduleThrow(Object* exception) {
 }
 
 
-Object* Top::PromoteScheduledException() {
-  Object* thrown = scheduled_exception();
+Failure* Top::PromoteScheduledException() {
+  MaybeObject* thrown = scheduled_exception();
   clear_scheduled_exception();
   // Re-throw the exception to avoid getting repeated error reporting.
   return ReThrow(thrown);
@@ -794,19 +805,23 @@ bool Top::ShouldReturnException(bool* is_caught_externally,
 }
 
 
-void Top::DoThrow(Object* exception,
+void Top::DoThrow(MaybeObject* exception,
                   MessageLocation* location,
                   const char* message) {
   ASSERT(!has_pending_exception());
 
   HandleScope scope;
-  Handle<Object> exception_handle(exception);
+  Object* exception_object = Smi::FromInt(0);
+  bool is_object = exception->ToObject(&exception_object);
+  Handle<Object> exception_handle(exception_object);
 
   // Determine reporting and whether the exception is caught externally.
   bool is_caught_externally = false;
   bool is_out_of_memory = exception == Failure::OutOfMemoryException();
   bool is_termination_exception = exception == Heap::termination_exception();
   bool catchable_by_javascript = !is_termination_exception && !is_out_of_memory;
+  // Only real objects can be caught by JS.
+  ASSERT(!catchable_by_javascript || is_object);
   bool should_return_exception =
       ShouldReturnException(&is_caught_externally, catchable_by_javascript);
   bool report_exception = catchable_by_javascript && should_return_exception;
@@ -842,6 +857,7 @@ void Top::DoThrow(Object* exception,
               stack_trace_for_uncaught_exceptions_frame_limit,
               stack_trace_for_uncaught_exceptions_options);
       }
+      ASSERT(is_object);  // Can't use the handle unless there's a real object.
       message_obj = MessageHandler::MakeMessageObject("uncaught_exception",
           location, HandleVector<Object>(&exception_handle, 1), stack_trace,
           stack_trace_object);
@@ -867,7 +883,13 @@ void Top::DoThrow(Object* exception,
   // NOTE: Notifying the debugger or generating the message
   // may have caused new exceptions. For now, we just ignore
   // that and set the pending exception to the original one.
-  set_pending_exception(*exception_handle);
+  if (is_object) {
+    set_pending_exception(*exception_handle);
+  } else {
+    // Failures are not on the heap so they neither need nor work with handles.
+    ASSERT(exception_handle->IsFailure());
+    set_pending_exception(exception);
+  }
 }
 
 
@@ -889,7 +911,10 @@ void Top::ReportPendingMessages() {
       thread_local_.TryCatchHandler()->exception_ = Heap::null_value();
     }
   } else {
-    Handle<Object> exception(pending_exception());
+    // At this point all non-object (failure) exceptions have
+    // been dealt with so this shouldn't fail.
+    Object* pending_exception_object = pending_exception()->ToObjectUnchecked();
+    Handle<Object> exception(pending_exception_object);
     thread_local_.external_caught_exception_ = false;
     if (external_caught) {
       thread_local_.TryCatchHandler()->can_continue_ = true;
@@ -983,13 +1008,13 @@ void Top::SetCaptureStackTraceForUncaughtExceptions(
 
 bool Top::is_out_of_memory() {
   if (has_pending_exception()) {
-    Object* e = pending_exception();
+    MaybeObject* e = pending_exception();
     if (e->IsFailure() && Failure::cast(e)->IsOutOfMemoryException()) {
       return true;
     }
   }
   if (has_scheduled_exception()) {
-    Object* e = scheduled_exception();
+    MaybeObject* e = scheduled_exception();
     if (e->IsFailure() && Failure::cast(e)->IsOutOfMemoryException()) {
       return true;
     }

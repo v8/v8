@@ -1507,7 +1507,8 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                i::Object** argv[],
                                                bool* has_pending_exception) {
   i::Handle<i::String> fmt_str = i::Factory::LookupAsciiSymbol(name);
-  i::Object* object_fun = i::Top::builtins()->GetProperty(*fmt_str);
+  i::Object* object_fun =
+      i::Top::builtins()->GetPropertyNoExceptionThrown(*fmt_str);
   i::Handle<i::JSFunction> fun =
       i::Handle<i::JSFunction>(i::JSFunction::cast(object_fun));
   i::Handle<i::Object> value =
@@ -1623,7 +1624,8 @@ Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::JSArray> self = Utils::OpenHandle(this);
-  i::Handle<i::JSObject> obj(i::JSObject::cast(self->GetElement(index)));
+  i::Object* raw_object = self->GetElementNoExceptionThrown(index);
+  i::Handle<i::JSObject> obj(i::JSObject::cast(raw_object));
   return scope.Close(Utils::StackFrameToLocal(obj));
 }
 
@@ -2539,10 +2541,12 @@ Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   self_obj->LookupRealNamedPropertyInPrototypes(*key_obj, &lookup);
   if (lookup.IsProperty()) {
     PropertyAttributes attributes;
-    i::Handle<i::Object> result(self_obj->GetProperty(*self_obj,
-                                                      &lookup,
-                                                      *key_obj,
-                                                      &attributes));
+    i::Object* property =
+        self_obj->GetProperty(*self_obj,
+                              &lookup,
+                              *key_obj,
+                              &attributes)->ToObjectUnchecked();
+    i::Handle<i::Object> result(property);
     return Utils::ToLocal(result);
   }
   return Local<Value>();  // No real property was found in prototype chain.
@@ -2558,10 +2562,12 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   self_obj->LookupRealNamedProperty(*key_obj, &lookup);
   if (lookup.IsProperty()) {
     PropertyAttributes attributes;
-    i::Handle<i::Object> result(self_obj->GetProperty(*self_obj,
-                                                      &lookup,
-                                                      *key_obj,
-                                                      &attributes));
+    i::Object* property =
+        self_obj->GetProperty(*self_obj,
+                              &lookup,
+                              *key_obj,
+                              &attributes)->ToObjectUnchecked();
+    i::Handle<i::Object> result(property);
     return Utils::ToLocal(result);
   }
   return Local<Value>();  // No real property was found in prototype chain.

@@ -976,12 +976,13 @@ void MacroAssembler::CallStub(CodeStub* stub) {
 }
 
 
-Object* MacroAssembler::TryCallStub(CodeStub* stub) {
+MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
-  Object* result = stub->TryGetCode();
-  if (!result->IsFailure()) {
-    call(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
+  Object* result;
+  { MaybeObject* maybe_result = stub->TryGetCode();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
   }
+  call(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
   return result;
 }
 
@@ -992,12 +993,13 @@ void MacroAssembler::TailCallStub(CodeStub* stub) {
 }
 
 
-Object* MacroAssembler::TryTailCallStub(CodeStub* stub) {
+MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
-  Object* result = stub->TryGetCode();
-  if (!result->IsFailure()) {
-    jmp(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
+  Object* result;
+  { MaybeObject* maybe_result = stub->TryGetCode();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
   }
+  jmp(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
   return result;
 }
 
@@ -1040,8 +1042,8 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
 }
 
 
-Object* MacroAssembler::TryCallRuntime(Runtime::FunctionId id,
-                                       int num_arguments) {
+MaybeObject* MacroAssembler::TryCallRuntime(Runtime::FunctionId id,
+                                            int num_arguments) {
   return TryCallRuntime(Runtime::FunctionForId(id), num_arguments);
 }
 
@@ -1066,8 +1068,8 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 }
 
 
-Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
-                                       int num_arguments) {
+MaybeObject* MacroAssembler::TryCallRuntime(Runtime::Function* f,
+                                            int num_arguments) {
   if (f->nargs >= 0 && f->nargs != num_arguments) {
     IllegalOperation(num_arguments);
     // Since we did not call the stub, there was no allocation failure.
