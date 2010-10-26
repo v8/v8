@@ -374,14 +374,13 @@ class Isolate {
   }
 
   // Returns the isolate inside which the current thread is running.
-  static Isolate* Current() {
-    Isolate* tls_isolate = reinterpret_cast<Isolate*>(
-        Thread::GetThreadLocal(isolate_key_));
-    ASSERT(tls_isolate != NULL);
-    return tls_isolate;
+  INLINE(static Isolate* Current()) {
+    Isolate* isolate = UncheckedCurrent();
+    ASSERT(isolate != NULL);
+    return isolate;
   }
 
-  static Isolate* UncheckedCurrent() {
+  INLINE(static Isolate* UncheckedCurrent()) {
     return reinterpret_cast<Isolate*>(Thread::GetThreadLocal(isolate_key_));
   }
 
