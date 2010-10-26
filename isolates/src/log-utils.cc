@@ -120,7 +120,7 @@ int LogDynamicBuffer::WriteInternal(const char* data, int data_size) {
 }
 
 // Must be the same message as in Logger::PauseProfiler.
-const char* Log::kDynamicBufferSeal = "profiler,\"pause\"\n";
+const char* const Log::kDynamicBufferSeal = "profiler,\"pause\"\n";
 
 Log::Log(Logger* logger)
   : write_to_file_(false),
@@ -439,11 +439,11 @@ void LogMessageBuilder::WriteToLogFile() {
 
 // Formatting string for back references to the whole line. E.g. "#2" means
 // "the second line above".
-const char* LogRecordCompressor::kLineBackwardReferenceFormat = "#%d";
+const char* const LogRecordCompressor::kLineBackwardReferenceFormat = "#%d";
 
 // Formatting string for back references. E.g. "#2:10" means
 // "the second line above, start from char 10 (0-based)".
-const char* LogRecordCompressor::kBackwardReferenceFormat = "#%d:%d";
+const char* const LogRecordCompressor::kBackwardReferenceFormat = "#%d:%d";
 
 
 LogRecordCompressor::~LogRecordCompressor() {

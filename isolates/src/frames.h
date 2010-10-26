@@ -43,31 +43,35 @@ int JSCallerSavedCode(int n);
 // Forward declarations.
 class StackFrameIterator;
 class ThreadLocalTop;
+class Isolate;
 
-
-class PcToCodeCache : AllStatic {
+class PcToCodeCache {
  public:
   struct PcToCodeCacheEntry {
     Address pc;
     Code* code;
   };
 
-  static PcToCodeCacheEntry* cache(int index) {
-    return &cache_[index];
-  }
+  explicit PcToCodeCache(Isolate* isolate) : isolate_(isolate) {}
 
-  static Code* GcSafeFindCodeForPc(Address pc);
-  static Code* GcSafeCastToCode(HeapObject* object, Address pc);
+  Code* GcSafeFindCodeForPc(Address pc);
+  Code* GcSafeCastToCode(HeapObject* object, Address pc);
 
-  static void FlushPcToCodeCache() {
+  void Flush() {
     memset(&cache_[0], 0, sizeof(cache_));
   }
 
-  static PcToCodeCacheEntry* GetCacheEntry(Address pc);
+  PcToCodeCacheEntry* GetCacheEntry(Address pc);
 
  private:
+  PcToCodeCacheEntry* cache(int index) { return &cache_[index]; }
+
+  Isolate* isolate_;
+
   static const int kPcToCodeCacheSize = 1024;
-  static PcToCodeCacheEntry cache_[kPcToCodeCacheSize];
+  PcToCodeCacheEntry cache_[kPcToCodeCacheSize];
+
+  DISALLOW_COPY_AND_ASSIGN(PcToCodeCache);
 };
 
 
@@ -189,12 +193,12 @@ class StackFrame BASE_EMBEDDED {
   virtual Code* unchecked_code() const = 0;
 
   // Get the code associated with this frame.
-  Code* code() const { return GetContainingCode(pc()); }
+  Code* LookupCode(Isolate* isolate) const {
+    return GetContainingCode(isolate, pc());
+  }
 
   // Get the code object that contains the given pc.
-  Code* GetContainingCode(Address pc) const {
-    return PcToCodeCache::GetCacheEntry(pc)->code;
-  }
+  static inline Code* GetContainingCode(Isolate* isolate, Address pc);
 
   virtual void Iterate(ObjectVisitor* v) const = 0;
   static void IteratePc(ObjectVisitor* v, Address* pc_address, Code* holder);

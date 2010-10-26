@@ -344,13 +344,14 @@ Logger::Logger()
 }
 
 #define DECLARE_LONG_EVENT(ignore1, long_name, ignore2) long_name,
-const char* kLongLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
+static const char* const kLongLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
   LOG_EVENTS_AND_TAGS_LIST(DECLARE_LONG_EVENT)
 };
 #undef DECLARE_LONG_EVENT
 
 #define DECLARE_SHORT_EVENT(ignore1, ignore2, short_name) short_name,
-const char* kCompressedLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
+static const char* const
+kCompressedLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
   LOG_EVENTS_AND_TAGS_LIST(DECLARE_SHORT_EVENT)
 };
 #undef DECLARE_SHORT_EVENT
@@ -911,14 +912,13 @@ void Logger::FunctionCreateEvent(JSFunction* function) {
   // This function can be called from GC iterators (during Scavenge,
   // MC, and MS), so marking bits can be set on objects. That's
   // why unchecked accessors are used here.
-  static Address prev_code = NULL;
   if (!log_->IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg(this);
   msg.Append("%s,", log_events_[FUNCTION_CREATION_EVENT]);
   msg.AppendAddress(function->address());
   msg.Append(',');
-  msg.AppendAddress(function->unchecked_code()->address(), prev_code);
-  prev_code = function->unchecked_code()->address();
+  msg.AppendAddress(function->unchecked_code()->address(), prev_code_);
+  prev_code_ = function->unchecked_code()->address();
   if (FLAG_compress_log) {
     ASSERT(compression_helper_ != NULL);
     if (!compression_helper_->HandleMessage(&msg)) return;

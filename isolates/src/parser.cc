@@ -4040,7 +4040,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
     top_scope_->ForceEagerCompilation();
   }
 
-  Runtime::Function* function = Runtime::FunctionForSymbol(name);
+  const Runtime::Function* function = Runtime::FunctionForSymbol(name);
 
   // Check for built-in IS_VAR macro.
   if (function != NULL &&

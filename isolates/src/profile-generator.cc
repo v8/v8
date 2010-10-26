@@ -122,7 +122,7 @@ const char* StringsStorage::GetName(String* name) {
 }
 
 
-const char* CodeEntry::kEmptyNamePrefix = "";
+const char* const CodeEntry::kEmptyNamePrefix = "";
 
 
 void CodeEntry::CopyData(const CodeEntry& source) {
@@ -760,10 +760,12 @@ void SampleRateCalculator::UpdateMeasurements(double current_time) {
 }
 
 
-const char* ProfileGenerator::kAnonymousFunctionName = "(anonymous function)";
-const char* ProfileGenerator::kProgramEntryName = "(program)";
-const char* ProfileGenerator::kGarbageCollectorEntryName =
-  "(garbage collector)";
+const char* const ProfileGenerator::kAnonymousFunctionName =
+    "(anonymous function)";
+const char* const ProfileGenerator::kProgramEntryName =
+    "(program)";
+const char* const ProfileGenerator::kGarbageCollectorEntryName =
+    "(garbage collector)";
 
 
 ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)

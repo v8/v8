@@ -35,8 +35,6 @@
 namespace v8 {
 namespace internal {
 
-PcToCodeCache::PcToCodeCacheEntry
-    PcToCodeCache::cache_[PcToCodeCache::kPcToCodeCacheSize];
 
 int SafeStackFrameIterator::active_count_ = 0;
 
@@ -426,7 +424,7 @@ void ExitFrame::SetCallerFp(Address caller_fp) {
 void ExitFrame::Iterate(ObjectVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
   // the calling frame.
-  IteratePc(v, pc_address(), code());
+  IteratePc(v, pc_address(), LookupCode(Isolate::Current()));
   v->VisitPointer(&code_slot());
 }
 
@@ -760,14 +758,14 @@ void EntryFrame::Iterate(ObjectVisitor* v) const {
   ASSERT(!it.done());
   StackHandler* handler = it.handler();
   ASSERT(handler->is_entry());
-  handler->Iterate(v, code());
+  handler->Iterate(v, LookupCode(Isolate::Current()));
 #ifdef DEBUG
   // Make sure that the entry frame does not contain more than one
   // stack handler.
   it.Advance();
   ASSERT(it.done());
 #endif
-  IteratePc(v, pc_address(), code());
+  IteratePc(v, pc_address(), LookupCode(Isolate::Current()));
 }
 
 
@@ -784,7 +782,7 @@ void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
     v->VisitPointers(base, reinterpret_cast<Object**>(address));
     base = reinterpret_cast<Object**>(address + StackHandlerConstants::kSize);
     // Traverse the pointers in the handler itself.
-    handler->Iterate(v, code());
+    handler->Iterate(v, LookupCode(Isolate::Current()));
   }
   v->VisitPointers(base, limit);
 }
@@ -792,7 +790,7 @@ void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
 
 void JavaScriptFrame::Iterate(ObjectVisitor* v) const {
   IterateExpressions(v);
-  IteratePc(v, pc_address(), code());
+  IteratePc(v, pc_address(), LookupCode(Isolate::Current()));
 
   // Traverse callee-saved registers, receiver, and parameters.
   const int kBaseOffset = JavaScriptFrameConstants::kSavedRegistersOffset;
@@ -807,7 +805,7 @@ void InternalFrame::Iterate(ObjectVisitor* v) const {
   // Internal frames only have object pointers on the expression stack
   // as they never have any arguments.
   IterateExpressions(v);
-  IteratePc(v, pc_address(), code());
+  IteratePc(v, pc_address(), LookupCode(Isolate::Current()));
 }
 
 
@@ -837,7 +835,7 @@ Code* PcToCodeCache::GcSafeCastToCode(HeapObject* object, Address pc) {
 
 
 Code* PcToCodeCache::GcSafeFindCodeForPc(Address pc) {
-  Heap* heap = HEAP;
+  Heap* heap = isolate_->heap();
   // Check if the pc points into a large object chunk.
   LargeObjectChunk* chunk = heap->lo_space()->FindChunkContainingPc(pc);
   if (chunk != NULL) return GcSafeCastToCode(chunk->GetObject(), pc);

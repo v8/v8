@@ -191,7 +191,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
 
     if (options & StackTrace::kLineNumber) {
       int script_line_offset = script->line_offset()->value();
-      int position = frame->code()->SourcePosition(frame->pc());
+      int position = frame->LookupCode(this)->SourcePosition(frame->pc());
       int line_number = GetScriptLineNumber(script, position);
       // line_number is already shifted by the script_line_offset.
       int relative_line_number = line_number - script_line_offset;
@@ -549,7 +549,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
     HandleScope scope;
     // Find code position if recorded in relocation info.
     JavaScriptFrame* frame = it.frame();
-    int pos = frame->code()->SourcePosition(frame->pc());
+    int pos = frame->LookupCode(this)->SourcePosition(frame->pc());
     Handle<Object> pos_obj(Smi::FromInt(pos));
     // Fetch function and receiver.
     Handle<JSFunction> fun(JSFunction::cast(frame->function()));
@@ -580,7 +580,7 @@ void Isolate::ComputeLocation(MessageLocation* target) {
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined())) {
-      int pos = frame->code()->SourcePosition(frame->pc());
+      int pos = frame->LookupCode(this)->SourcePosition(frame->pc());
       // Compute the location from the function and the reloc info.
       Handle<Script> casted_script(Script::cast(script));
       *target = MessageLocation(casted_script, pos, pos + 1);

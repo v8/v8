@@ -351,7 +351,7 @@ class Logger {
   SlidingStateWindow* sliding_state_window_;
 
   // An array of log events names.
-  const char** log_events_;
+  const char* const* log_events_;
 
   // An instance of helper created if log compression is enabled.
   CompressionHelper* compression_helper_;

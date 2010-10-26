@@ -544,10 +544,10 @@ class Runtime : public AllStatic {
                                                   Object* dictionary);
 
   // Get the intrinsic function with the given name, which must be a symbol.
-  static Function* FunctionForSymbol(Handle<String> name);
+  static const Function* FunctionForSymbol(Handle<String> name);
 
   // Get the intrinsic function with the given FunctionId.
-  static Function* FunctionForId(FunctionId id);
+  static const Function* FunctionForId(FunctionId id);
 
   // General-purpose helper functions for runtime system.
   static int StringMatch(Isolate* isolate,

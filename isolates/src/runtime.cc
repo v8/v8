@@ -7404,7 +7404,7 @@ static Object* Runtime_AllocateInNewSpace(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_ASSERT(IsAligned(size, kPointerSize));
   RUNTIME_ASSERT(size > 0);
   Heap* heap = isolate->heap();
-  static const int kMinFreeNewSpaceAfterGC = heap->InitialSemiSpaceSize() * 3/4;
+  const int kMinFreeNewSpaceAfterGC = heap->InitialSemiSpaceSize() * 3/4;
   RUNTIME_ASSERT(size <= kMinFreeNewSpaceAfterGC);
   Object* allocation = heap->new_space()->AllocateRaw(size);
   if (!allocation->IsFailure()) {
@@ -8408,7 +8408,8 @@ static Object* Runtime_GetFrameDetails(RUNTIME_CALLING_CONVENTION) {
   Handle<Object> frame_id(WrapFrameId(it.frame()->id()), isolate);
 
   // Find source position.
-  int position = it.frame()->code()->SourcePosition(it.frame()->pc());
+  int position =
+      it.frame()->LookupCode(isolate)->SourcePosition(it.frame()->pc());
 
   // Check for constructor frame.
   bool constructor = it.frame()->IsConstructor();
@@ -9481,9 +9482,8 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
 }
 
 
-static const char* source_str =
+static const char kSourceStr[] =
     "(function(arguments,__source__){return eval(__source__);})";
-static const int source_str_length = StrLength(source_str);
 
 
 // Evaluate a piece of JavaScript in the context of a stack frame for
@@ -9566,11 +9566,10 @@ static Object* Runtime_DebugEvaluate(RUNTIME_CALLING_CONVENTION) {
   // 'arguments'. This it to have access to what would have been 'arguments' in
   // the function being debugged.
   // function(arguments,__source__) {return eval(__source__);}
-  ASSERT(source_str_length == StrLength(source_str));
 
   Handle<String> function_source =
       isolate->factory()->NewStringFromAscii(
-          Vector<const char>(source_str, source_str_length));
+          Vector<const char>(kSourceStr, sizeof(kSourceStr) - 1));
   Handle<SharedFunctionInfo> shared =
       Compiler::CompileEval(function_source,
                             context,
@@ -10346,7 +10345,7 @@ static Object* Runtime_CollectStackTrace(RUNTIME_CALLING_CONVENTION) {
       Object* recv = frame->receiver();
       Object* fun = frame->function();
       Address pc = frame->pc();
-      Address start = frame->code()->address();
+      Address start = frame->LookupCode(isolate)->address();
       Smi* offset = Smi::FromInt(static_cast<int>(pc - start));
       FixedArray* elements = FixedArray::cast(result->elements());
       if (cursor + 2 < elements->length()) {
@@ -10560,7 +10559,7 @@ static Object* Runtime_IS_VAR(RUNTIME_CALLING_CONVENTION) {
   { Runtime::kInline##name, Runtime::INLINE,     \
     "_" #name, NULL, number_of_args, result_size },
 
-Runtime::Function kIntrinsicFunctions[] = {
+static const Runtime::Function kIntrinsicFunctions[] = {
   RUNTIME_FUNCTION_LIST(F)
   INLINE_FUNCTION_LIST(I)
   INLINE_RUNTIME_FUNCTION_LIST(I)
@@ -10586,7 +10585,7 @@ Object* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
 }
 
 
-Runtime::Function* Runtime::FunctionForSymbol(Handle<String> name) {
+const Runtime::Function* Runtime::FunctionForSymbol(Handle<String> name) {
   Heap* heap = HEAP;
   int entry = heap->intrinsic_function_names()->FindEntry(*name);
   if (entry != kNotFound) {
@@ -10598,7 +10597,7 @@ Runtime::Function* Runtime::FunctionForSymbol(Handle<String> name) {
 }
 
 
-Runtime::Function* Runtime::FunctionForId(Runtime::FunctionId id) {
+const Runtime::Function* Runtime::FunctionForId(Runtime::FunctionId id) {
   return &(kIntrinsicFunctions[static_cast<int>(id)]);
 }
 

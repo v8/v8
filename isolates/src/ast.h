@@ -1149,20 +1149,20 @@ class CallNew: public Expression {
 class CallRuntime: public Expression {
  public:
   CallRuntime(Handle<String> name,
-              Runtime::Function* function,
+              const Runtime::Function* function,
               ZoneList<Expression*>* arguments)
       : name_(name), function_(function), arguments_(arguments) { }
 
   DECLARE_NODE_TYPE(CallRuntime)
 
   Handle<String> name() const { return name_; }
-  Runtime::Function* function() const { return function_; }
+  const Runtime::Function* function() const { return function_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
   bool is_jsruntime() const { return function_ == NULL; }
 
  private:
   Handle<String> name_;
-  Runtime::Function* function_;
+  const Runtime::Function* function_;
   ZoneList<Expression*>* arguments_;
 };
 

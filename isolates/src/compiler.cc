@@ -169,8 +169,9 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
       if (!it.done()) {
         script->set_eval_from_shared(
             JSFunction::cast(it.frame()->function())->shared());
+        Code* code = it.frame()->LookupCode(isolate);
         int offset = static_cast<int>(
-            it.frame()->pc() - it.frame()->code()->instruction_start());
+            it.frame()->pc() - code->instruction_start());
         script->set_eval_from_instructions_offset(Smi::FromInt(offset));
       }
     }

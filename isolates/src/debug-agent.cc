@@ -206,8 +206,8 @@ void DebuggerAgentSession::Shutdown() {
 }
 
 
-const char* DebuggerAgentUtil::kContentLength = "Content-Length";
-int DebuggerAgentUtil::kContentLengthSize =
+const char* const DebuggerAgentUtil::kContentLength = "Content-Length";
+const int DebuggerAgentUtil::kContentLengthSize =
     StrLength(kContentLength);
 
 

@@ -49,6 +49,7 @@ class Version {
   static const char* GetVersion() { return version_string_; }
 
  private:
+  // NOTE: can't make these really const because of test-version.cc.
   static int major_;
   static int minor_;
   static int build_;

@@ -163,7 +163,7 @@ class Log {
   static const int kMaxDynamicBufferSize = 50 * 1024 * 1024;
 
   // Message to "seal" dynamic buffer with.
-  static const char* kDynamicBufferSeal;
+  static const char* const kDynamicBufferSeal;
 
   // mutex_ is a Mutex used for enforcing exclusive
   // access to the formatting buffer and the log file or log memory buffer.
@@ -210,8 +210,8 @@ class LogRecordCompressor {
   static const int kNoCompressionWindowSize = 2;
 
   // Formatting strings for back references.
-  static const char* kLineBackwardReferenceFormat;
-  static const char* kBackwardReferenceFormat;
+  static const char* const kLineBackwardReferenceFormat;
+  static const char* const kBackwardReferenceFormat;
 
   static int GetBackwardReferenceSize(int distance, int pos);
 

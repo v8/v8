@@ -171,7 +171,7 @@ class OS {
   static FILE* FOpen(const char* path, const char* mode);
 
   // Log file open mode is platform-dependent due to line ends issues.
-  static const char* LogFileOpenMode;
+  static const char* const LogFileOpenMode;
 
   // Print output to console. This is mostly used for debugging output.
   // On platforms that has standard terminal output, the output

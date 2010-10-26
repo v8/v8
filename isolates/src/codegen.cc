@@ -379,7 +379,7 @@ CodeGenerator::InlineFunctionGenerator
 bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
   ZoneList<Expression*>* args = node->arguments();
   Handle<String> name = node->name();
-  Runtime::Function* function = node->function();
+  const Runtime::Function* function = node->function();
   if (function != NULL && function->intrinsic_type == Runtime::INLINE) {
     InlineFunctionGenerator generator =
         FindInlineFunctionGenerator(function->function_id);

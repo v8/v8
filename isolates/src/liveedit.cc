@@ -1148,7 +1148,7 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
     Handle<SharedFunctionInfo> shared(
         SharedFunctionInfo::cast(wrapper->value()));
 
-    if (frame->code() == shared->code()) {
+    if (frame->LookupCode(Isolate::Current()) == shared->code()) {
       SetElement(result, i, Handle<Smi>(Smi::FromInt(status)));
       return true;
     }
@@ -1198,21 +1198,22 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   ASSERT(bottom_js_frame->is_java_script());
 
   // Check the nature of the top frame.
-  if (pre_top_frame->code()->is_inline_cache_stub() &&
-      pre_top_frame->code()->ic_state() == DEBUG_BREAK) {
+  Code* pre_top_frame_code = pre_top_frame->LookupCode(Isolate::Current());
+  if (pre_top_frame_code->is_inline_cache_stub() &&
+      pre_top_frame_code->ic_state() == DEBUG_BREAK) {
     // OK, we can drop inline cache calls.
     *mode = Debug::FRAME_DROPPED_IN_IC_CALL;
-  } else if (pre_top_frame->code() ==
+  } else if (pre_top_frame_code ==
              Isolate::Current()->debug()->debug_break_slot()) {
     // OK, we can drop debug break slot.
     *mode = Debug::FRAME_DROPPED_IN_DEBUG_SLOT_CALL;
-  } else if (pre_top_frame->code() ==
+  } else if (pre_top_frame_code ==
       Isolate::Current()->builtins()->builtin(
           Builtins::FrameDropper_LiveEdit)) {
     // OK, we can drop our own code.
     *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
-  } else if (pre_top_frame->code()->kind() == Code::STUB &&
-      pre_top_frame->code()->major_key()) {
+  } else if (pre_top_frame_code->kind() == Code::STUB &&
+      pre_top_frame_code->major_key()) {
     // Entry from our unit tests, it's fine, we support this case.
     *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
   } else {

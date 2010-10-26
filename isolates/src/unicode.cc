@@ -1570,7 +1570,7 @@ int CanonicalizationRange::Convert(uchar c,
 }
 
 
-uchar UnicodeData::kMaxCodePoint = 65533;
+const uchar UnicodeData::kMaxCodePoint = 65533;
 
 int UnicodeData::GetByteCount() {
   return kUppercaseTable0Size * sizeof(int32_t)  // NOLINT

@@ -88,12 +88,12 @@ void MarkCompactCollector::CollectGarbage() {
     heap_->MarkMapPointersAsEncoded(true);
     UpdatePointers();
     heap_->MarkMapPointersAsEncoded(false);
-    PcToCodeCache::FlushPcToCodeCache();
+    heap_->isolate()->pc_to_code_cache()->Flush();
 
     RelocateObjects();
   } else {
     SweepSpaces();
-    PcToCodeCache::FlushPcToCodeCache();
+    heap_->isolate()->pc_to_code_cache()->Flush();
   }
 
   Finish();

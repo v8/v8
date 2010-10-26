@@ -33,7 +33,6 @@
 #include "builtins.h"
 #include "contexts.h"
 #include "execution.h"
-#include "frames-inl.h"
 #include "frames.h"
 #include "global-handles.h"
 #include "handles.h"
@@ -705,6 +704,8 @@ class Isolate {
     return scanner_character_classes_;
   }
 
+  PcToCodeCache* pc_to_code_cache() { return pc_to_code_cache_; }
+
   StringInputBuffer* write_input_buffer() { return write_input_buffer_; }
 
   GlobalHandles* global_handles() { return global_handles_; }
@@ -975,6 +976,7 @@ class Isolate {
   PreallocatedStorage in_use_list_;
   PreallocatedStorage free_list_;
   bool preallocated_storage_preallocated_;
+  PcToCodeCache* pc_to_code_cache_;
   StringInputBuffer* write_input_buffer_;
   GlobalHandles* global_handles_;
   ContextSwitcher* context_switcher_;
@@ -1198,5 +1200,6 @@ inline void Context::mark_out_of_memory() {
 //                 they're needed.
 #include "allocation-inl.h"
 #include "zone-inl.h"
+#include "frames-inl.h"
 
 #endif  // V8_ISOLATE_H_

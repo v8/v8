@@ -108,8 +108,8 @@ class DebuggerAgentSession: public Thread {
 // Utility methods factored out to be used by the D8 shell as well.
 class DebuggerAgentUtil {
  public:
-  static const char* kContentLength;
-  static int kContentLengthSize;
+  static const char* const kContentLength;
+  static const int kContentLengthSize;
 
   static SmartPointer<char> ReceiveMessage(const Socket* conn);
   static bool SendConnectMessage(const Socket* conn,
