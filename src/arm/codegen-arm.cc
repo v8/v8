@@ -4536,6 +4536,7 @@ void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
     runtime.set_entry_frame(frame_);
 
     Register heap_number_map = r6;
+    Register new_heap_number = r5;
     __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
 
     // Get the double value from the heap number into vfp register d0.
@@ -4545,8 +4546,12 @@ void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
 
     // Calculate the square root of d0 and place result in a heap number object.
     __ vsqrt(d0, d0);
-    __ AllocateHeapNumberWithValue(
-        tos, d0, scratch1, scratch2, heap_number_map, runtime.entry_label());
+    __ AllocateHeapNumberWithValue(new_heap_number,
+                                   d0,
+                                   scratch1, scratch2,
+                                   heap_number_map,
+                                   runtime.entry_label());
+    __ mov(tos, Operand(new_heap_number));
     done.Jump();
 
     runtime.Bind();
