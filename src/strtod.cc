@@ -125,20 +125,20 @@ static double old_strtod(Vector<const char> buffer, int exponent) {
 static Vector<const char> TrimLeadingZeros(Vector<const char> buffer) {
   for (int i = 0; i < buffer.length(); i++) {
     if (buffer[i] != '0') {
-      return Vector<const char>(buffer.start() + i, buffer.length() - i);
+      return buffer.SubVector(i, buffer.length());
     }
   }
-  return Vector<const char>(buffer.start(), 0);
+  return buffer.SubVector(0, 0);
 }
 
 
 static Vector<const char> TrimTrailingZeros(Vector<const char> buffer) {
   for (int i = buffer.length() - 1; i >= 0; --i) {
     if (buffer[i] != '0') {
-      return Vector<const char>(buffer.start(), i + 1);
+      return buffer.SubVector(0, i + 1);
     }
   }
-  return Vector<const char>(buffer.start(), 0);
+  return buffer.SubVector(0, 0);
 }
 
 
