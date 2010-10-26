@@ -4718,39 +4718,127 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
 
 namespace {
 
+static const uintptr_t kOneInEveryByte = kUintptrAllBitsSet / 0xFF;
+
+
+// Given a word and two range boundaries returns a word with high bit
+// set in every byte iff the corresponding input byte was strictly in
+// the range (m, n). All the other bits in the result are cleared.
+// This function is only useful when it can be inlined and the
+// boundaries are statically known.
+// Requires: all bytes in the input word and the boundaries must be
+// ascii (less than 0x7F).
+static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
+  // Every byte in an ascii string is less than or equal to 0x7F.
+  ASSERT((w & (kOneInEveryByte * 0x7F)) == w);
+  // Use strict inequalities since in edge cases the function could be
+  // further simplified.
+  ASSERT(0 < m && m < n && n < 0x7F);
+  // Has high bit set in every w byte less than n.
+  uintptr_t tmp1 = kOneInEveryByte * (0x7F + n) - w;
+  // Has high bit set in every w byte greater than m.
+  uintptr_t tmp2 = w + kOneInEveryByte * (0x7F - m);
+  return (tmp1 & tmp2 & (kOneInEveryByte * 0x80));
+}
+
+
+enum AsciiCaseConversion {
+  ASCII_TO_LOWER,
+  ASCII_TO_UPPER
+};
+
+
+template <AsciiCaseConversion dir>
+struct FastAsciiConverter {
+  static bool Convert(char* dst, char* src, int length) {
+#ifdef DEBUG
+    char* saved_dst = dst;
+    char* saved_src = src;
+#endif
+    // We rely on the distance between upper and lower case letters
+    // being a known power of 2.
+    ASSERT('a' - 'A' == (1 << 5));
+    // Boundaries for the range of input characters than require conversion.
+    const char lo = (dir == ASCII_TO_LOWER) ? 'A' - 1 : 'a' - 1;
+    const char hi = (dir == ASCII_TO_LOWER) ? 'Z' + 1 : 'z' + 1;
+    bool changed = false;
+    char* const limit = src + length;
+#ifdef V8_HOST_CAN_READ_UNALIGNED
+    // Process the prefix of the input that requires no conversion one
+    // (machine) word at a time.
+    while (src <= limit - sizeof(uintptr_t)) {
+      uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+      if (AsciiRangeMask(w, lo, hi) != 0) {
+        changed = true;
+        break;
+      }
+      *reinterpret_cast<uintptr_t*>(dst) = w;
+      src += sizeof(uintptr_t);
+      dst += sizeof(uintptr_t);
+    }
+    // Process the remainder of the input performing conversion when
+    // required one word at a time.
+    while (src <= limit - sizeof(uintptr_t)) {
+      uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+      uintptr_t m = AsciiRangeMask(w, lo, hi);
+      // The mask has high (7th) bit set in every byte that needs
+      // conversion and we know that the distance between cases is
+      // 1 << 5.
+      *reinterpret_cast<uintptr_t*>(dst) = w ^ (m >> 2);
+      src += sizeof(uintptr_t);
+      dst += sizeof(uintptr_t);
+    }
+#endif
+    // Process the last few bytes of the input (or the whole input if
+    // unaligned access is not supported).
+    while (src < limit) {
+      char c = *src;
+      if (lo < c && c < hi) {
+        c ^= (1 << 5);
+        changed = true;
+      }
+      *dst = c;
+      ++src;
+      ++dst;
+    }
+#ifdef DEBUG
+    CheckConvert(saved_dst, saved_src, length, changed);
+#endif
+    return changed;
+  }
+
+#ifdef DEBUG
+  static void CheckConvert(char* dst, char* src, int length, bool changed) {
+    bool expected_changed = false;
+    for (int i = 0; i < length; i++) {
+      if (dst[i] == src[i]) continue;
+      expected_changed = true;
+      if (dir == ASCII_TO_LOWER) {
+        ASSERT('A' <= src[i] && src[i] <= 'Z');
+        ASSERT(dst[i] == src[i] + ('a' - 'A'));
+      } else {
+        ASSERT(dir == ASCII_TO_UPPER);
+        ASSERT('a' <= src[i] && src[i] <= 'z');
+        ASSERT(dst[i] == src[i] - ('a' - 'A'));
+      }
+    }
+    ASSERT(expected_changed == changed);
+  }
+#endif
+};
+
+
 struct ToLowerTraits {
   typedef unibrow::ToLowercase UnibrowConverter;
 
-  static bool ConvertAscii(char* dst, char* src, int length) {
-    bool changed = false;
-    for (int i = 0; i < length; ++i) {
-      char c = src[i];
-      if ('A' <= c && c <= 'Z') {
-        c += ('a' - 'A');
-        changed = true;
-      }
-      dst[i] = c;
-    }
-    return changed;
-  }
+  typedef FastAsciiConverter<ASCII_TO_LOWER> AsciiConverter;
 };
 
 
 struct ToUpperTraits {
   typedef unibrow::ToUppercase UnibrowConverter;
 
-  static bool ConvertAscii(char* dst, char* src, int length) {
-    bool changed = false;
-    for (int i = 0; i < length; ++i) {
-      char c = src[i];
-      if ('a' <= c && c <= 'z') {
-        c -= ('a' - 'A');
-        changed = true;
-      }
-      dst[i] = c;
-    }
-    return changed;
-  }
+  typedef FastAsciiConverter<ASCII_TO_UPPER> AsciiConverter;
 };
 
 }  // namespace
@@ -4780,7 +4868,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
       if (!maybe_o->ToObject(&o)) return maybe_o;
     }
     SeqAsciiString* result = SeqAsciiString::cast(o);
-    bool has_changed_character = ConvertTraits::ConvertAscii(
+    bool has_changed_character = ConvertTraits::AsciiConverter::Convert(
         result->GetChars(), SeqAsciiString::cast(s)->GetChars(), length);
     return has_changed_character ? result : s;
   }
