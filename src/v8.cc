@@ -69,7 +69,11 @@ bool V8::Initialize(Deserializer* des) {
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
+#if defined(V8_TARGET_ARCH_ARM)
   ::assembler::arm::Simulator::Initialize();
+#elif defined(V8_TARGET_ARCH_MIPS)
+  ::assembler::mips::Simulator::Initialize();
+#endif
 #endif
 
   { // NOLINT

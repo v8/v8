@@ -67,8 +67,12 @@ void ThreadLocalTop::Initialize() {
   c_entry_fp_ = 0;
   handler_ = 0;
 #ifdef USE_SIMULATOR
+#ifdef V8_TARGET_ARCH_ARM
   simulator_ = assembler::arm::Simulator::current();
-#endif  // USE_SIMULATOR
+#elif V8_TARGET_ARCH_MIPS
+  simulator_ = assembler::mips::Simulator::current();
+#endif
+#endif
 #ifdef ENABLE_LOGGING_AND_PROFILING
   js_entry_sp_ = 0;
 #endif
@@ -1066,7 +1070,11 @@ char* Top::RestoreThread(char* from) {
   // This might be just paranoia, but it seems to be needed in case a
   // thread_local_ is restored on a separate OS thread.
 #ifdef USE_SIMULATOR
+#ifdef V8_TARGET_ARCH_ARM
   thread_local_.simulator_ = assembler::arm::Simulator::current();
+#elif V8_TARGET_ARCH_MIPS
+  thread_local_.simulator_ = assembler::mips::Simulator::current();
+#endif
 #endif
   return from + sizeof(thread_local_);
 }
