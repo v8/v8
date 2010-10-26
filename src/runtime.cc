@@ -3538,12 +3538,12 @@ static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   if (((unchecked & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0) &&
       is_element) {
     // Normalize the elements to enable attributes on the property.
-    js_object->NormalizeElements();
-    NumberDictionary* dictionary = js_object->element_dictionary();
+    NormalizeElements(js_object);
+    Handle<NumberDictionary> dictionary(js_object->element_dictionary());
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
     PropertyDetails details = PropertyDetails(attr, NORMAL);
-    dictionary->Set(index, *obj_value, details);
+    NumberDictionarySet(dictionary, index, obj_value, details);
   }
 
   LookupResult result;
@@ -3557,7 +3557,7 @@ static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   // new attributes.
   if (result.IsProperty() && attr != result.GetAttributes()) {
     // New attributes - normalize to avoid writing to instance descriptor
-    js_object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+    NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
     return js_object->IgnoreAttributesAndSetLocalProperty(*name,
@@ -4154,7 +4154,7 @@ static Object* Runtime_ToSlowProperties(Arguments args) {
   Handle<Object> object = args.at<Object>(0);
   if (object->IsJSObject()) {
     Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-    js_object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+    NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
   }
   return *object;
 }
