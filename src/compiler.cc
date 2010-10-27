@@ -176,7 +176,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // Only allow non-global compiles for eval.
   ASSERT(info->is_eval() || info->is_global());
 
-  if (!Parser::Parse(info)) return Handle<SharedFunctionInfo>::null();
+  if (!ParserApi::Parse(info)) return Handle<SharedFunctionInfo>::null();
 
   // Measure how long it takes to do the compilation; only take the
   // rest of the function into account to avoid overlap with the
@@ -281,7 +281,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     if (pre_data == NULL
         && FLAG_lazy
         && source_length >= FLAG_min_preparse_length) {
-      pre_data = Parser::PartialPreParse(source, NULL, extension);
+      pre_data = ParserApi::PartialPreParse(source, NULL, extension);
     }
 
     // Create a script object describing the script to be compiled.
@@ -364,7 +364,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   Counters::total_compile_size.Increment(compiled_size);
 
   // Generate the AST for the lazily compiled function.
-  if (Parser::Parse(info)) {
+  if (ParserApi::Parse(info)) {
     // Measure how long it takes to do the lazy compilation; only take the
     // rest of the function into account to avoid overlap with the lazy
     // parsing statistics.
