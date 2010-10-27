@@ -5559,6 +5559,11 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   }
   frame_->Push(&clone);
 
+  // Mark all computed expressions that are bound to a key that
+  // is shadowed by a later occurrence of the same key. For the
+  // marked expressions, no store code is emitted.
+  node->CalculateEmitStore();
+
   for (int i = 0; i < node->properties()->length(); i++) {
     ObjectLiteral::Property* property = node->properties()->at(i);
     switch (property->kind()) {
@@ -5573,24 +5578,32 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           // Duplicate the object as the IC receiver.
           frame_->Dup();
           Load(property->value());
-          Result ignored =
-              frame_->CallStoreIC(Handle<String>::cast(key), false);
-          // A test eax instruction following the store IC call would
-          // indicate the presence of an inlined version of the
-          // store. Add a nop to indicate that there is no such
-          // inlined version.
-          __ nop();
+          if (property->emit_store()) {
+            Result ignored =
+                frame_->CallStoreIC(Handle<String>::cast(key), false);
+            // A test eax instruction following the store IC call would
+            // indicate the presence of an inlined version of the
+            // store. Add a nop to indicate that there is no such
+            // inlined version.
+            __ nop();
+          } else {
+            frame_->Drop(2);
+          }
           break;
         }
         // Fall through
       }
       case ObjectLiteral::Property::PROTOTYPE: {
-        // Duplicate the object as an argument to the runtime call.
-        frame_->Dup();
-        Load(property->key());
-        Load(property->value());
-        Result ignored = frame_->CallRuntime(Runtime::kSetProperty, 3);
-        // Ignore the result.
+          // Duplicate the object as an argument to the runtime call.
+          frame_->Dup();
+          Load(property->key());
+          Load(property->value());
+          if (property->emit_store()) {
+            // Ignore the result.
+            Result ignored = frame_->CallRuntime(Runtime::kSetProperty, 3);
+          } else {
+            frame_->Drop(3);
+          }
         break;
       }
       case ObjectLiteral::Property::SETTER: {
