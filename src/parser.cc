@@ -1382,56 +1382,6 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
 }
 
 
-FunctionLiteral* Parser::ParseJson(Handle<String> source) {
-  CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
-
-  HistogramTimerScope timer(&Counters::parse);
-  Counters::total_parse_size.Increment(source->length());
-
-  // Initialize parser state.
-  source->TryFlatten(TENURED);
-  scanner_.Initialize(source, JSON);
-  ASSERT(target_stack_ == NULL);
-
-  FunctionLiteral* result = NULL;
-  Handle<String> no_name = factory()->EmptySymbol();
-
-  {
-    Scope* scope = factory()->NewScope(top_scope_, Scope::GLOBAL_SCOPE, false);
-    LexicalScope lexical_scope(this, scope);
-    TemporaryScope temp_scope(this);
-    bool ok = true;
-    Expression* expression = ParseJson(&ok);
-    if (ok) {
-      ZoneListWrapper<Statement> statement = factory()->NewList<Statement>(1);
-      statement.Add(new ExpressionStatement(expression));
-      result = NEW(FunctionLiteral(
-          no_name,
-          top_scope_,
-          statement.elements(),
-          temp_scope.materialized_literal_count(),
-          temp_scope.expected_property_count(),
-          temp_scope.only_simple_this_property_assignments(),
-          temp_scope.this_property_assignments(),
-          0,
-          0,
-          source->length(),
-          false,
-          temp_scope.ContainsLoops()));
-    } else if (scanner().stack_overflow()) {
-      Top::StackOverflow();
-    }
-  }
-
-  // Make sure the target stack is empty.
-  ASSERT(target_stack_ == NULL);
-
-  // If there was a syntax error we have to get rid of the AST
-  // and it is not safe to do so before the scope has been deleted.
-  if (result == NULL) zone_scope.DeleteOnExit();
-  return result;
-}
-
 void Parser::ReportMessage(const char* type, Vector<const char*> args) {
   Scanner::Location source_location = scanner_.location();
   ReportMessageAt(source_location, type, args);
@@ -4281,144 +4231,164 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 // ----------------------------------------------------------------------------
 // JSON
 
-Expression* Parser::ParseJson(bool* ok) {
-  Expression* result = ParseJsonValue(CHECK_OK);
-  Expect(Token::EOS, CHECK_OK);
+Handle<Object> JsonParser::ParseJson(Handle<String> source) {
+  source->TryFlatten();
+  scanner_.Initialize(source, JSON);
+  Handle<Object> result = ParseJsonValue();
+  if (result.is_null() || scanner_.Next() != Token::EOS) {
+    if (scanner_.stack_overflow()) {
+      // Scanner failed.
+      Top::StackOverflow();
+    } else {
+      // Parse failed. Scanner's current token is the unexpected token.
+      Token::Value token = scanner_.current_token();
+
+      const char* message;
+      const char* name_opt = NULL;
+
+      switch (token) {
+        case Token::EOS:
+          message = "unexpected_eos";
+          break;
+        case Token::NUMBER:
+          message = "unexpected_token_number";
+          break;
+        case Token::STRING:
+          message = "unexpected_token_string";
+          break;
+        case Token::IDENTIFIER:
+          message = "unexpected_token_identifier";
+          break;
+        default:
+          message = "unexpected_token";
+          name_opt = Token::String(token);
+          ASSERT(name_opt != NULL);
+          break;
+      }
+
+      Scanner::Location source_location = scanner_.location();
+      MessageLocation location(Factory::NewScript(source),
+                               source_location.beg_pos,
+                               source_location.end_pos);
+      int argc = (name_opt == NULL) ? 0 : 1;
+      Handle<JSArray> array = Factory::NewJSArray(argc);
+      if (name_opt != NULL) {
+        SetElement(array,
+                   0,
+                   Factory::NewStringFromUtf8(CStrVector(name_opt)));
+      }
+      Handle<Object> result = Factory::NewSyntaxError(message, array);
+      Top::Throw(*result, &location);
+      return Handle<Object>::null();
+    }
+  }
   return result;
 }
 
 
+Handle<String> JsonParser::GetString() {
+  int literal_length = scanner_.literal_length();
+  if (literal_length == 0) {
+    return Factory::empty_string();
+  }
+  const char* literal_string = scanner_.literal_string();
+  Vector<const char> literal(literal_string, literal_length);
+  return Factory::NewStringFromUtf8(literal);
+}
+
+
 // Parse any JSON value.
-Expression* Parser::ParseJsonValue(bool* ok) {
-  Token::Value token = peek();
+Handle<Object> JsonParser::ParseJsonValue() {
+  Token::Value token = scanner_.Next();
   switch (token) {
     case Token::STRING: {
-      Consume(Token::STRING);
-      int literal_length = scanner_.literal_length();
-      const char* literal_string = scanner_.literal_string();
-      if (literal_length == 0) {
-        return NEW(Literal(Factory::empty_string()));
-      }
-      Vector<const char> literal(literal_string, literal_length);
-      return NEW(Literal(Factory::NewStringFromUtf8(literal, TENURED)));
+      return GetString();
     }
     case Token::NUMBER: {
-      Consume(Token::NUMBER);
-      ASSERT(scanner_.literal_length() > 0);
       double value = StringToDouble(scanner_.literal(),
                                     NO_FLAGS,  // Hex, octal or trailing junk.
                                     OS::nan_value());
-      return NewNumberLiteral(value);
+      return Factory::NewNumber(value);
     }
     case Token::FALSE_LITERAL:
-      Consume(Token::FALSE_LITERAL);
-      return NEW(Literal(Factory::false_value()));
+      return Factory::false_value();
     case Token::TRUE_LITERAL:
-      Consume(Token::TRUE_LITERAL);
-      return NEW(Literal(Factory::true_value()));
+      return Factory::true_value();
     case Token::NULL_LITERAL:
-      Consume(Token::NULL_LITERAL);
-      return NEW(Literal(Factory::null_value()));
-    case Token::LBRACE: {
-      Expression* result = ParseJsonObject(CHECK_OK);
-      return result;
-    }
-    case Token::LBRACK: {
-      Expression* result = ParseJsonArray(CHECK_OK);
-      return result;
-    }
+      return Factory::null_value();
+    case Token::LBRACE:
+      return ParseJsonObject();
+    case Token::LBRACK:
+      return ParseJsonArray();
     default:
-      *ok = false;
-      ReportUnexpectedToken(token);
-      return NULL;
+      return ReportUnexpectedToken();
   }
 }
 
 
 // Parse a JSON object. Scanner must be right after '{' token.
-Expression* Parser::ParseJsonObject(bool* ok) {
-  Consume(Token::LBRACE);
-  ZoneListWrapper<ObjectLiteral::Property> properties =
-      factory()->NewList<ObjectLiteral::Property>(4);
-  int boilerplate_properties = 0;
-  if (peek() != Token::RBRACE) {
+Handle<Object> JsonParser::ParseJsonObject() {
+  Handle<JSFunction> object_constructor(
+      Top::global_context()->object_function());
+  Handle<JSObject> json_object = Factory::NewJSObject(object_constructor);
+  if (scanner_.peek() == Token::RBRACE) {
+    scanner_.Next();
+  } else {
     do {
-      Expect(Token::STRING, CHECK_OK);
-      Handle<String> key = GetSymbol(CHECK_OK);
-      Expect(Token::COLON, CHECK_OK);
-      Expression* value = ParseJsonValue(CHECK_OK);
-      Literal* key_literal;
+      if (scanner_.Next() != Token::STRING) {
+        return ReportUnexpectedToken();
+      }
+      Handle<String> key = GetString();
+      if (scanner_.Next() != Token::COLON) {
+        return ReportUnexpectedToken();
+      }
+      Handle<Object> value = ParseJsonValue();
+      if (value.is_null()) return Handle<Object>::null();
       uint32_t index;
       if (key->AsArrayIndex(&index)) {
-        key_literal = NewNumberLiteral(index);
+        SetElement(json_object, index, value);
       } else {
-        key_literal = NEW(Literal(key));
+        SetProperty(json_object, key, value, NONE);
       }
-      ObjectLiteral::Property* property =
-          NEW(ObjectLiteral::Property(key_literal, value));
-      properties.Add(property);
-
-      if (IsBoilerplateProperty(property)) {
-        boilerplate_properties++;
-      }
-    } while (Check(Token::COMMA));
+    } while (scanner_.Next() == Token::COMMA);
+    if (scanner_.current_token() != Token::RBRACE) {
+      return ReportUnexpectedToken();
+    }
   }
-  Expect(Token::RBRACE, CHECK_OK);
-
-  int literal_index = temp_scope_->NextMaterializedLiteralIndex();
-  if (is_pre_parsing_) return NULL;
-
-  Handle<FixedArray> constant_properties =
-        Factory::NewFixedArray(boilerplate_properties * 2, TENURED);
-  bool is_simple = true;
-  bool fast_elements = true;
-  int depth = 1;
-  BuildObjectLiteralConstantProperties(properties.elements(),
-                                       constant_properties,
-                                       &is_simple,
-                                       &fast_elements,
-                                       &depth);
-  return new ObjectLiteral(constant_properties,
-                           properties.elements(),
-                           literal_index,
-                           is_simple,
-                           fast_elements,
-                           depth);
+  return json_object;
 }
 
 
 // Parse a JSON array. Scanner must be right after '[' token.
-Expression* Parser::ParseJsonArray(bool* ok) {
-  Consume(Token::LBRACK);
+Handle<Object> JsonParser::ParseJsonArray() {
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  ZoneList<Handle<Object> > elements(4);
 
-  ZoneListWrapper<Expression> values = factory()->NewList<Expression>(4);
-  if (peek() != Token::RBRACK) {
+  Token::Value token = scanner_.peek();
+  if (token == Token::RBRACK) {
+    scanner_.Next();
+  } else {
     do {
-      Expression* exp = ParseJsonValue(CHECK_OK);
-      values.Add(exp);
-    } while (Check(Token::COMMA));
+      Handle<Object> element = ParseJsonValue();
+      if (element.is_null()) return Handle<Object>::null();
+      elements.Add(element);
+      token = scanner_.Next();
+    } while (token == Token::COMMA);
+    if (token != Token::RBRACK) {
+      return ReportUnexpectedToken();
+    }
   }
-  Expect(Token::RBRACK, CHECK_OK);
 
-  // Update the scope information before the pre-parsing bailout.
-  int literal_index = temp_scope_->NextMaterializedLiteralIndex();
+  // Allocate a fixed array with all the elements.
+  Handle<FixedArray> fast_elements =
+      Factory::NewFixedArray(elements.length());
 
-  if (is_pre_parsing_) return NULL;
+  for (int i = 0, n = elements.length(); i < n; i++) {
+    fast_elements->set(i, *elements[i]);
+  }
 
-  // Allocate a fixed array with all the literals.
-  Handle<FixedArray> literals =
-      Factory::NewFixedArray(values.length(), TENURED);
-
-  bool is_simple;
-  int depth;
-  BuildArrayLiteralBoilerplateLiterals(values.elements(),
-                                       literals,
-                                       &is_simple,
-                                       &depth);
-  return NEW(ArrayLiteral(literals, values.elements(),
-                          literal_index, is_simple, depth));
+  return Factory::NewJSArrayWithElements(fast_elements);
 }
-
 
 // ----------------------------------------------------------------------------
 // Regular expressions
@@ -5368,11 +5338,7 @@ bool Parser::Parse(CompilationInfo* info) {
       ASSERT(Top::has_pending_exception());
     } else {
       Handle<String> source = Handle<String>(String::cast(script->source()));
-      // JSON is always global.
-      ASSERT(!info->is_json() || info->is_global());
-      result = info->is_json()
-          ? parser.ParseJson(source)
-          : parser.ParseProgram(source, info->is_global());
+      result = parser.ParseProgram(source, info->is_global());
     }
   }
 
