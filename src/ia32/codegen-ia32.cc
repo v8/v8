@@ -153,7 +153,8 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm)
       in_safe_int32_mode_(false),
       safe_int32_mode_enabled_(true),
       function_return_is_shadowed_(false),
-      in_spilled_code_(false) {
+      in_spilled_code_(false),
+      jit_cookie_((FLAG_mask_constants_with_cookie) ? V8::Random() : 0) {
 }
 
 
@@ -5363,16 +5364,16 @@ void CodeGenerator::VisitLiteral(Literal* node) {
 void CodeGenerator::PushUnsafeSmi(Handle<Object> value) {
   ASSERT(value->IsSmi());
   int bits = reinterpret_cast<int>(*value);
-  __ push(Immediate(bits & 0x0000FFFF));
-  __ or_(Operand(esp, 0), Immediate(bits & 0xFFFF0000));
+  __ push(Immediate(bits ^ jit_cookie_));
+  __ xor_(Operand(esp, 0), Immediate(jit_cookie_));
 }
 
 
 void CodeGenerator::StoreUnsafeSmiToLocal(int offset, Handle<Object> value) {
   ASSERT(value->IsSmi());
   int bits = reinterpret_cast<int>(*value);
-  __ mov(Operand(ebp, offset), Immediate(bits & 0x0000FFFF));
-  __ or_(Operand(ebp, offset), Immediate(bits & 0xFFFF0000));
+  __ mov(Operand(ebp, offset), Immediate(bits ^ jit_cookie_));
+  __ xor_(Operand(ebp, offset), Immediate(jit_cookie_));
 }
 
 
@@ -5380,8 +5381,8 @@ void CodeGenerator::MoveUnsafeSmi(Register target, Handle<Object> value) {
   ASSERT(target.is_valid());
   ASSERT(value->IsSmi());
   int bits = reinterpret_cast<int>(*value);
-  __ Set(target, Immediate(bits & 0x0000FFFF));
-  __ or_(target, bits & 0xFFFF0000);
+  __ Set(target, Immediate(bits ^ jit_cookie_));
+  __ xor_(target, jit_cookie_);
 }
 
 
