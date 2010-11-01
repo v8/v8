@@ -291,7 +291,6 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
 
   // Check scratch register is valid, extra and extra2 are unused.
   ASSERT(!scratch.is(no_reg));
-  ASSERT(extra.is(no_reg));
   ASSERT(extra2.is(no_reg));
 
   // Check that the receiver isn't a smi.
