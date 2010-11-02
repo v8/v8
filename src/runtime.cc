@@ -8891,12 +8891,6 @@ static MaybeObject* Runtime_DebugPrintScopes(Arguments args) {
 }
 
 
-static MaybeObject* Runtime_GetCFrames(Arguments args) {
-  // See bug 906.
-  return Heap::undefined_value();
-}
-
-
 static MaybeObject* Runtime_GetThreadCount(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);

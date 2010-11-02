@@ -325,7 +325,6 @@ namespace internal {
   F(GetScopeCount, 2, 1) \
   F(GetScopeDetails, 3, 1) \
   F(DebugPrintScopes, 0, 1) \
-  F(GetCFrames, 1, 1) \
   F(GetThreadCount, 1, 1) \
   F(GetThreadDetails, 2, 1) \
   F(SetDisableBreak, 1, 1) \
