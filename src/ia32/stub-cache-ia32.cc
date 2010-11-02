@@ -905,7 +905,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
         MaybeObject* maybe_lookup_result = Heap::LookupSymbol(name);
         Object* lookup_result = NULL;  // Initialization to please compiler.
         if (!maybe_lookup_result->ToObject(&lookup_result)) {
-          set_failure(Failure::cast(lookup_result));
+          set_failure(Failure::cast(maybe_lookup_result));
           return reg;
         }
         name = String::cast(lookup_result);
@@ -1077,7 +1077,7 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   Object* result = NULL;  // Initialization to please compiler.
   { MaybeObject* try_call_result = masm()->TryCallStub(&stub);
     if (!try_call_result->ToObject(&result)) {
-      *failure = Failure::cast(result);
+      *failure = Failure::cast(try_call_result);
       return false;
     }
   }
