@@ -177,6 +177,152 @@ class ScriptDataImpl : public ScriptData {
 };
 
 
+class ParserLog BASE_EMBEDDED {
+ public:
+  virtual ~ParserLog() { }
+
+  // Records the occurrence of a function.
+  virtual void LogFunction(int start, int end, int literals, int properties) {}
+  // Records the occurrence of a symbol in the source. The vector holds the
+  // UTF-8 encoded symbol content.
+  virtual void LogSymbol(int start, Vector<const char> symbol) {}
+  // Records the occurrence of a symbol in the source. The symbol pointer
+  // points to the UTF-8 encoded symbol content.
+  virtual void LogSymbol(int start, const char* symbol, int length) {}
+  // Return the current position in the function entry log.
+  virtual int function_position() { return 0; }
+  // Return the current position in the symbol entry log.
+  // Notice: Functions and symbols are currently logged separately.
+  virtual int symbol_position() { return 0; }
+  // Return the number of distinct symbols logged.
+  virtual int symbol_ids() { return 0; }
+  // Pauses recording. The Log-functions above will do nothing during pausing.
+  // Pauses can be nested.
+  virtual void PauseRecording() {}
+  // Ends a recording pause.
+  virtual void ResumeRecording() {}
+  // Extracts a representation of the logged data that can be used by
+  // ScriptData.
+  virtual Vector<unsigned> ExtractData() {
+    return Vector<unsigned>();
+  };
+};
+
+
+// Record only functions.
+class PartialParserRecorder: public ParserLog {
+ public:
+  PartialParserRecorder();
+
+  virtual void LogFunction(int start, int end, int literals, int properties) {
+    function_store_.Add(start);
+    function_store_.Add(end);
+    function_store_.Add(literals);
+    function_store_.Add(properties);
+  }
+
+  // Logs an error message and marks the log as containing an error.
+  // Further logging will be ignored, and ExtractData will return a vector
+  // representing the error only.
+  void LogMessage(int start,
+                  int end,
+                  const char* message,
+                  const char* argument_opt) {
+    Scanner::Location location(start, end);
+    Vector<const char*> arguments;
+    if (argument_opt != NULL) {
+      arguments = Vector<const char*>(&argument_opt, 1);
+    }
+    this->LogMessage(location, message, arguments);
+  }
+
+  virtual int function_position() { return function_store_.size(); }
+
+  virtual void LogMessage(Scanner::Location loc,
+                          const char* message,
+                          Vector<const char*> args);
+
+  virtual Vector<unsigned> ExtractData();
+
+  virtual void PauseRecording() {
+    pause_count_++;
+    is_recording_ = false;
+  }
+
+  virtual void ResumeRecording() {
+    ASSERT(pause_count_ > 0);
+    if (--pause_count_ == 0) is_recording_ = !has_error();
+  }
+
+ protected:
+  bool has_error() {
+    return static_cast<bool>(preamble_[ScriptDataImpl::kHasErrorOffset]);
+  }
+
+  bool is_recording() {
+    return is_recording_;
+  }
+
+  void WriteString(Vector<const char> str);
+
+  Collector<unsigned> function_store_;
+  unsigned preamble_[ScriptDataImpl::kHeaderSize];
+  bool is_recording_;
+  int pause_count_;
+
+#ifdef DEBUG
+  int prev_start_;
+#endif
+};
+
+
+// Record both functions and symbols.
+class CompleteParserRecorder: public PartialParserRecorder {
+ public:
+  CompleteParserRecorder();
+
+  virtual void LogSymbol(int start, Vector<const char> literal);
+
+  virtual void LogSymbol(int start, const char* symbol, int length) {
+    LogSymbol(start, Vector<const char>(symbol, length));
+  }
+
+  virtual Vector<unsigned> ExtractData();
+
+  virtual int symbol_position() { return symbol_store_.size(); }
+  virtual int symbol_ids() { return symbol_id_; }
+
+ private:
+  static int vector_hash(Vector<const char> string) {
+    int hash = 0;
+    for (int i = 0; i < string.length(); i++) {
+      int c = string[i];
+      hash += c;
+      hash += (hash << 10);
+      hash ^= (hash >> 6);
+    }
+    return hash;
+  }
+
+  static bool vector_compare(void* a, void* b) {
+    Vector<const char>* string1 = reinterpret_cast<Vector<const char>* >(a);
+    Vector<const char>* string2 = reinterpret_cast<Vector<const char>* >(b);
+    int length = string1->length();
+    if (string2->length() != length) return false;
+    return memcmp(string1->start(), string2->start(), length) == 0;
+  }
+
+  // Write a non-negative number to the symbol store.
+  void WriteNumber(int number);
+
+  Collector<byte> symbol_store_;
+  Collector<Vector<const char> > symbol_entries_;
+  HashMap symbol_table_;
+  int symbol_id_;
+};
+
+
+
 class ParserApi {
  public:
   // Parses the source code represented by the compilation info and sets its
@@ -433,10 +579,6 @@ class Parser {
          v8::Extension* extension, ParserMode is_pre_parsing,
          ParserFactory* factory, ParserLog* log, ScriptDataImpl* pre_data);
   virtual ~Parser() { }
-
-  // Pre-parse the program from the character stream; returns true on
-  // success, false if a stack-overflow happened during parsing.
-  bool PreParseProgram(Handle<String> source, unibrow::CharacterStream* stream);
 
   void ReportMessage(const char* message, Vector<const char*> args);
   virtual void ReportMessageAt(Scanner::Location loc,
