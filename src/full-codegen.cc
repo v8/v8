@@ -1225,13 +1225,6 @@ int FullCodeGenerator::TryCatch::Exit(int stack_depth) {
 }
 
 
-void FullCodeGenerator::EmitRegExpCloneResult(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kRegExpCloneResult, 1);
-  context()->Plug(result_register());
-}
-
 #undef __
 
 
