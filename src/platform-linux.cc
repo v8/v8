@@ -828,8 +828,17 @@ class Sampler::PlatformData : public Malloced {
       syscall(SYS_tgkill, vm_tgid_, vm_tid_, SIGPROF);
       // Convert ms to us and subtract 100 us to compensate delays
       // occuring during signal delivery.
-      int result = usleep(sampler_->interval_ * 1000 - 100);
-      ASSERT(result == 0 || errno == EINTR);
+      const useconds_t interval = sampler_->interval_ * 1000 - 100;
+      int result = usleep(interval);
+#ifdef DEBUG
+      if (result != 0 && errno != EINTR) {
+        fprintf(stderr,
+                "SignalSender usleep error; interval = %u, errno = %d\n",
+                interval,
+                errno);
+        ASSERT(result == 0 || errno == EINTR);
+      }
+#endif
       USE(result);
     }
   }
@@ -862,6 +871,7 @@ Sampler::Sampler(int interval, bool profiling)
 
 
 Sampler::~Sampler() {
+  ASSERT(!data_->signal_sender_launched_);
   delete data_;
 }
 
