@@ -379,7 +379,7 @@ bool GlobalHandles::PostGarbageCollectionProcessing() {
   // At the same time deallocate all DESTROYED nodes.
   ASSERT(Heap::gc_state() == Heap::NOT_IN_GC);
   const int initial_post_gc_processing_count = ++post_gc_processing_count;
-  bool next_gc_could_collect_more = false;
+  bool next_gc_likely_to_collect_more = false;
   Node** p = &head_;
   while (*p != NULL) {
     if ((*p)->PostGarbageCollectionProcessing()) {
@@ -400,7 +400,7 @@ bool GlobalHandles::PostGarbageCollectionProcessing() {
       }
       node->set_next_free(first_deallocated());
       set_first_deallocated(node);
-      next_gc_could_collect_more = true;
+      next_gc_likely_to_collect_more = true;
     } else {
       p = (*p)->next_addr();
     }
@@ -410,7 +410,7 @@ bool GlobalHandles::PostGarbageCollectionProcessing() {
     first_deallocated()->set_next(head());
   }
 
-  return next_gc_could_collect_more;
+  return next_gc_likely_to_collect_more;
 }
 
 
