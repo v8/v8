@@ -262,7 +262,6 @@ class KeywordMatcher {
 };
 
 
-enum ParserMode { PARSE, PREPARSE };
 enum ParserLanguage { JAVASCRIPT, JSON };
 
 
