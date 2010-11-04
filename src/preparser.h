@@ -186,8 +186,7 @@ class PreParser {
   Expression ParseLeftHandSideExpression(bool* ok);
   Expression ParseNewExpression(bool* ok);
   Expression ParseMemberExpression(bool* ok);
-  Expression ParseNewPrefix(int* new_count, bool* ok);
-  Expression ParseMemberWithNewPrefixesExpression(int* new_count, bool* ok);
+  Expression ParseMemberWithNewPrefixesExpression(unsigned new_count, bool* ok);
   Expression ParsePrimaryExpression(bool* ok);
   Expression ParseArrayLiteral(bool* ok);
   Expression ParseObjectLiteral(bool* ok);
@@ -965,9 +964,8 @@ Expression PreParser<Scanner, Log>::ParseLeftHandSideExpression(bool* ok) {
 }
 
 
-
 template <typename Scanner, typename Log>
-Expression PreParser<Scanner, Log>::ParseNewPrefix(int* new_count, bool* ok) {
+Expression PreParser<Scanner, Log>::ParseNewExpression(bool* ok) {
   // NewExpression ::
   //   ('new')+ MemberExpression
 
@@ -979,38 +977,25 @@ Expression PreParser<Scanner, Log>::ParseNewPrefix(int* new_count, bool* ok) {
   // many we have parsed. This information is then passed on to the
   // member expression parser, which is only allowed to match argument
   // lists as long as it has 'new' prefixes left
-  Expect(Token::NEW, CHECK_OK);
-  *new_count++;
+  unsigned new_count = 0;
+  do {
+    Consume(Token::NEW);
+    new_count++;
+  } while (peek() == Token::NEW);
 
-  if (peek() == Token::NEW) {
-    ParseNewPrefix(new_count, CHECK_OK);
-  } else {
-    ParseMemberWithNewPrefixesExpression(new_count, CHECK_OK);
-  }
-
-  if (*new_count > 0) {
-    *new_count--;
-  }
-  return kUnknownExpression;
-}
-
-
-template <typename Scanner, typename Log>
-Expression PreParser<Scanner, Log>::ParseNewExpression(bool* ok) {
-  int new_count = 0;
-  return ParseNewPrefix(&new_count, ok);
+  return ParseMemberWithNewPrefixesExpression(new_count, ok);
 }
 
 
 template <typename Scanner, typename Log>
 Expression PreParser<Scanner, Log>::ParseMemberExpression(bool* ok) {
-  return ParseMemberWithNewPrefixesExpression(NULL, ok);
+  return ParseMemberWithNewPrefixesExpression(0, ok);
 }
 
 
 template <typename Scanner, typename Log>
 Expression PreParser<Scanner, Log>::ParseMemberWithNewPrefixesExpression(
-    int* new_count, bool* ok) {
+    unsigned new_count, bool* ok) {
   // MemberExpression ::
   //   (PrimaryExpression | FunctionLiteral)
   //     ('[' Expression ']' | '.' Identifier | Arguments)*
@@ -1051,10 +1036,10 @@ Expression PreParser<Scanner, Log>::ParseMemberWithNewPrefixesExpression(
         break;
       }
       case Token::LPAREN: {
-        if ((new_count == NULL) || *new_count == 0) return result;
+        if (new_count == 0) return result;
         // Consume one of the new prefixes (already parsed).
         ParseArguments(CHECK_OK);
-        *new_count--;
+        new_count--;
         result = kUnknownExpression;
         break;
       }

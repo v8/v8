@@ -253,6 +253,7 @@ TEST(StandAlonePreParser) {
       "var x = 42;",
       "function foo(x, y) { return x + y; }",
       "native function foo(); return %ArgleBargle(glop);",
+      "var x = new new Function('this.x = 42');",
       NULL
   };
 
