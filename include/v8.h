@@ -111,7 +111,6 @@ class Arguments;
 class Object;
 class Heap;
 class Top;
-
 }
 
 
@@ -1039,7 +1038,7 @@ class String : public Primitive {
    */
   V8EXPORT bool IsExternalAscii() const;
 
-  class V8EXPORT ExternalStringResourceBase {
+  class V8EXPORT ExternalStringResourceBase {  // NOLINT
    public:
     virtual ~ExternalStringResourceBase() {}
 
@@ -3244,8 +3243,8 @@ class V8EXPORT Locker {
 /**
  * An interface for exporting data from V8, using "push" model.
  */
-class V8EXPORT OutputStream {
-public:
+class V8EXPORT OutputStream {  // NOLINT
+ public:
   enum OutputEncoding {
     kAscii = 0  // 7-bit ASCII.
   };
@@ -3275,6 +3274,8 @@ public:
 
 namespace internal {
 
+const int kPointerSize = sizeof(void*);  // NOLINT
+const int kIntSize = sizeof(int);  // NOLINT
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
@@ -3310,19 +3311,19 @@ template <> struct SmiConstants<8> {
   }
 };
 
-const int kSmiShiftSize = SmiConstants<sizeof(void*)>::kSmiShiftSize;
-const int kSmiValueSize = SmiConstants<sizeof(void*)>::kSmiValueSize;
+const int kSmiShiftSize = SmiConstants<kPointerSize>::kSmiShiftSize;
+const int kSmiValueSize = SmiConstants<kPointerSize>::kSmiValueSize;
 
 template <size_t ptr_size> struct InternalConstants;
 
 // Internal constants for 32-bit systems.
 template <> struct InternalConstants<4> {
-  static const int kStringResourceOffset = 3 * sizeof(void*);
+  static const int kStringResourceOffset = 3 * kPointerSize;
 };
 
 // Internal constants for 64-bit systems.
 template <> struct InternalConstants<8> {
-  static const int kStringResourceOffset = 3 * sizeof(void*);
+  static const int kStringResourceOffset = 3 * kPointerSize;
 };
 
 /**
@@ -3336,12 +3337,12 @@ class Internals {
   // These values match non-compiler-dependent values defined within
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;
-  static const int kMapInstanceTypeOffset = sizeof(void*) + sizeof(int);
+  static const int kMapInstanceTypeOffset = kPointerSize + kIntSize;
   static const int kStringResourceOffset =
-      InternalConstants<sizeof(void*)>::kStringResourceOffset;
+      InternalConstants<kPointerSize>::kStringResourceOffset;
 
-  static const int kProxyProxyOffset = sizeof(void*);
-  static const int kJSObjectHeaderSize = 3 * sizeof(void*);
+  static const int kProxyProxyOffset = kPointerSize;
+  static const int kJSObjectHeaderSize = 3 * kPointerSize;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
@@ -3359,7 +3360,7 @@ class Internals {
   }
 
   static inline int SmiValue(internal::Object* value) {
-    return SmiConstants<sizeof(void*)>::SmiToInt(value);
+    return SmiConstants<kPointerSize>::SmiToInt(value);
   }
 
   static inline int GetInstanceType(internal::Object* obj) {
@@ -3388,10 +3389,9 @@ class Internals {
     uint8_t* addr = reinterpret_cast<uint8_t*>(ptr) + offset - kHeapObjectTag;
     return *reinterpret_cast<T*>(addr);
   }
-
 };
 
-}
+}  // namespace internal
 
 
 template <class T>
@@ -3551,7 +3551,7 @@ Local<Value> Object::UncheckedGetInternalField(int index) {
     // If the object is a plain JSObject, which is the common case,
     // we know where to find the internal fields and can return the
     // value directly.
-    int offset = I::kJSObjectHeaderSize + (sizeof(void*) * index);
+    int offset = I::kJSObjectHeaderSize + (internal::kPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
     O** result = HandleScope::CreateHandle(value);
     return Local<Value>(reinterpret_cast<Value*>(result));
@@ -3587,7 +3587,7 @@ void* Object::GetPointerFromInternalField(int index) {
     // If the object is a plain JSObject, which is the common case,
     // we know where to find the internal fields and can return the
     // value directly.
-    int offset = I::kJSObjectHeaderSize + (sizeof(void*) * index);
+    int offset = I::kJSObjectHeaderSize + (internal::kPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
     return I::GetExternalPointer(value);
   }
