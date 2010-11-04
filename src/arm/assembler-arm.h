@@ -448,6 +448,7 @@ class Operand BASE_EMBEDDED {
   // Return true of this operand fits in one instruction so that no
   // 2-instruction solution with a load into the ip register is necessary.
   bool is_single_instruction() const;
+  bool must_use_constant_pool() const;
 
   inline int32_t immediate() const {
     ASSERT(!rm_.is_valid());

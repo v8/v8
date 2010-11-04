@@ -749,15 +749,15 @@ static bool fits_shifter(uint32_t imm32,
 // if they can be encoded in the ARM's 12 bits of immediate-offset instruction
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
-static bool MustUseConstantPool(RelocInfo::Mode rmode) {
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+bool Operand::must_use_constant_pool() const {
+  if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG
     if (!Serializer::enabled()) {
       Serializer::TooLateToEnableNow();
     }
 #endif  // def DEBUG
     return Serializer::enabled();
-  } else if (rmode == RelocInfo::NONE) {
+  } else if (rmode_ == RelocInfo::NONE) {
     return false;
   }
   return true;
@@ -766,7 +766,7 @@ static bool MustUseConstantPool(RelocInfo::Mode rmode) {
 
 bool Operand::is_single_instruction() const {
   if (rm_.is_valid()) return true;
-  if (MustUseConstantPool(rmode_)) return false;
+  if (must_use_constant_pool()) return false;
   uint32_t dummy1, dummy2;
   return fits_shifter(imm32_, &dummy1, &dummy2, NULL);
 }
@@ -782,7 +782,7 @@ void Assembler::addrmod1(Instr instr,
     // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if (MustUseConstantPool(x.rmode_) ||
+    if (x.must_use_constant_pool() ||
         !fits_shifter(x.imm32_, &rotate_imm, &immed_8, &instr)) {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
@@ -791,8 +791,7 @@ void Assembler::addrmod1(Instr instr,
       CHECK(!rn.is(ip));  // rn should never be ip, or will be trashed
       Condition cond = static_cast<Condition>(instr & CondMask);
       if ((instr & ~CondMask) == 13*B21) {  // mov, S not set
-        if (MustUseConstantPool(x.rmode_) ||
-            !CpuFeatures::IsSupported(ARMv7)) {
+        if (x.must_use_constant_pool() || !CpuFeatures::IsSupported(ARMv7)) {
           RecordRelocInfo(x.rmode_, x.imm32_);
           ldr(rd, MemOperand(pc, 0), cond);
         } else {
@@ -803,7 +802,7 @@ void Assembler::addrmod1(Instr instr,
       } else {
         // If this is not a mov or mvn instruction we may still be able to avoid
         // a constant pool entry by using mvn or movw.
-        if (!MustUseConstantPool(x.rmode_) &&
+        if (!x.must_use_constant_pool() &&
             (instr & kMovMvnMask) != kMovMvnPattern) {
           mov(ip, x, LeaveCC, cond);
         } else {
@@ -1336,7 +1335,7 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
     // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if (MustUseConstantPool(src.rmode_) ||
+    if (src.must_use_constant_pool() ||
         !fits_shifter(src.imm32_, &rotate_imm, &immed_8, NULL)) {
       // Immediate operand cannot be encoded, load it first to register ip.
       RecordRelocInfo(src.rmode_, src.imm32_);
