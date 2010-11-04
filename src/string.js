@@ -567,7 +567,7 @@ function StringSplit(separator, limit) {
   %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
 
   if (length === 0) {
-    if (splitMatch(separator, subject, 0, 0) != null) {
+    if (DoRegExpExec(separator, subject, 0, 0) != null) {
       return [];
     }
     return [subject];
