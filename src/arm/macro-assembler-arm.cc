@@ -129,7 +129,7 @@ void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
     // address is loaded. The mov method will automatically record
     // positions when pc is the target, since this is not the case here
     // we have to do it explicitly.
-    WriteRecordedPositions();
+    positions_recorder()->WriteRecordedPositions();
 
     mov(ip, Operand(target, rmode), LeaveCC, cond);
     blx(ip, cond);

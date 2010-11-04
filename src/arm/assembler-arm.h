@@ -1117,13 +1117,9 @@ class Assembler : public Malloced {
   // Use --debug_code to enable.
   void RecordComment(const char* msg);
 
-  void RecordPosition(int pos);
-  void RecordStatementPosition(int pos);
-  bool WriteRecordedPositions();
-
   int pc_offset() const { return pc_ - buffer_; }
-  int current_position() const { return current_position_; }
-  int current_statement_position() const { return current_statement_position_; }
+
+  PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   bool can_peephole_optimize(int instructions) {
     if (!FLAG_peephole_optimization) return false;
@@ -1259,12 +1255,6 @@ class Assembler : public Malloced {
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
-  // source position information
-  int current_position_;
-  int current_statement_position_;
-  int written_position_;
-  int written_statement_position_;
-
   // Code emission
   inline void CheckBuffer();
   void GrowBuffer();
@@ -1290,7 +1280,20 @@ class Assembler : public Malloced {
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockConstPoolScope;
+
+  PositionsRecorder positions_recorder_;
+  friend class PositionsRecorder;
+  friend class EnsureSpace;
 };
+
+
+class EnsureSpace BASE_EMBEDDED {
+ public:
+  EnsureSpace(Assembler* assembler) {
+    assembler->CheckBuffer();
+  }
+};
+
 
 } }  // namespace v8::internal
 
