@@ -2072,7 +2072,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     int arg_count = args->length();
     { PreserveStatementPositionScope pos_scope(masm()->positions_recorder());
       VisitForStackValue(fun);
-      __ push(Immediate(Factory::undefined_value()));  // Reserved receiver slot.
+      // Reserved receiver slot.
+      __ push(Immediate(Factory::undefined_value()));
 
       // Push the arguments.
       for (int i = 0; i < arg_count; i++) {

@@ -1796,7 +1796,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     ZoneList<Expression*>* args = expr->arguments();
     int arg_count = args->length();
     { PreserveStatementPositionScope pos_scope(masm()->positions_recorder());
-
       VisitForStackValue(fun);
       __ PushRoot(Heap::kUndefinedValueRootIndex);  // Reserved receiver slot.
 

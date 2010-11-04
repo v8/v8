@@ -629,7 +629,7 @@ class PositionsRecorder BASE_EMBEDDED {
 
 class PreserveStatementPositionScope BASE_EMBEDDED {
  public:
-  PreserveStatementPositionScope(PositionsRecorder* positions_recorder)
+  explicit PreserveStatementPositionScope(PositionsRecorder* positions_recorder)
       : positions_recorder_(positions_recorder),
         statement_position_(positions_recorder->current_statement_position()) {}
 

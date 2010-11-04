@@ -1290,7 +1290,7 @@ class Assembler : public Malloced {
 
 class EnsureSpace BASE_EMBEDDED {
  public:
-  EnsureSpace(Assembler* assembler) {
+  explicit EnsureSpace(Assembler* assembler) {
     assembler->CheckBuffer();
   }
 };

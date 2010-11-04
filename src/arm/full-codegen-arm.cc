@@ -1766,7 +1766,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     int arg_count = args->length();
 
     { PreserveStatementPositionScope pos_scope(masm()->positions_recorder());
-
       VisitForStackValue(fun);
       __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
       __ push(r2);  // Reserved receiver slot.
