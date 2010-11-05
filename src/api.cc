@@ -43,7 +43,6 @@
 #include "serialize.h"
 #include "snapshot.h"
 #include "top.h"
-#include "utils.h"
 #include "v8threads.h"
 #include "version.h"
 
