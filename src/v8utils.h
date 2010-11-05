@@ -184,7 +184,7 @@ class StringBuilder {
   StringBuilder(char* buffer, int size)
       : buffer_(buffer, size), position_(0) { }
 
-  ~StringBuilder() { if (!is_finalized()) buffer_.Dispose(); }
+  ~StringBuilder() { if (!is_finalized()) Finalize(); }
 
   int size() const { return buffer_.length(); }
 
