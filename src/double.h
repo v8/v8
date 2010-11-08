@@ -83,8 +83,16 @@ class Double {
   }
 
   double NextDouble() const {
-    if (d64_ == kInfinity) return kInfinity;
-    return Double(d64_ + 1).value();
+    if (d64_ == kInfinity) return Double(kInfinity).value();
+    if (Sign() < 0 && Significand() == 0) {
+      // -0.0
+      return 0.0;
+    }
+    if (Sign() < 0) {
+      return Double(d64_ - 1).value();
+    } else {
+      return Double(d64_ + 1).value();
+    }
   }
 
   int Exponent() const {
