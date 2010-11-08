@@ -705,12 +705,21 @@ class Heap : public AllStatic {
   static void GarbageCollectionEpilogue();
 
   // Performs garbage collection operation.
-  // Returns whether required_space bytes are available after the collection.
-  static void CollectGarbage(AllocationSpace space);
+  // Returns whether there is a chance that another major GC could
+  // collect more garbage.
+  static bool CollectGarbage(AllocationSpace space, GarbageCollector collector);
+
+  // Performs garbage collection operation.
+  // Returns whether there is a chance that another major GC could
+  // collect more garbage.
+  inline static bool CollectGarbage(AllocationSpace space);
 
   // Performs a full garbage collection. Force compaction if the
   // parameter is true.
   static void CollectAllGarbage(bool force_compaction);
+
+  // Last hope GC, should try to squeeze as much as possible.
+  static void CollectAllAvailableGarbage();
 
   // Notify the heap that a context has been disposed.
   static int NotifyContextDisposed() { return ++contexts_disposed_; }
@@ -1246,7 +1255,9 @@ class Heap : public AllStatic {
   static GarbageCollector SelectGarbageCollector(AllocationSpace space);
 
   // Performs garbage collection
-  static void PerformGarbageCollection(GarbageCollector collector,
+  // Returns whether there is a chance another major GC could
+  // collect more garbage.
+  static bool PerformGarbageCollection(GarbageCollector collector,
                                        GCTracer* tracer);
 
   // Allocate an uninitialized object in map space.  The behavior is identical

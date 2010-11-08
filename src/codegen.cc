@@ -70,9 +70,10 @@ void CodeGenerator::ProcessDeferred() {
     DeferredCode* code = deferred_.RemoveLast();
     ASSERT(masm_ == code->masm());
     // Record position of deferred code stub.
-    masm_->RecordStatementPosition(code->statement_position());
+    masm_->positions_recorder()->RecordStatementPosition(
+        code->statement_position());
     if (code->position() != RelocInfo::kNoPosition) {
-      masm_->RecordPosition(code->position());
+      masm_->positions_recorder()->RecordPosition(code->position());
     }
     // Generate the code.
     Comment cmnt(masm_, code->comment());
@@ -402,10 +403,10 @@ bool CodeGenerator::RecordPositions(MacroAssembler* masm,
                                     int pos,
                                     bool right_here) {
   if (pos != RelocInfo::kNoPosition) {
-    masm->RecordStatementPosition(pos);
-    masm->RecordPosition(pos);
+    masm->positions_recorder()->RecordStatementPosition(pos);
+    masm->positions_recorder()->RecordPosition(pos);
     if (right_here) {
-      return masm->WriteRecordedPositions();
+      return masm->positions_recorder()->WriteRecordedPositions();
     }
   }
   return false;
@@ -435,7 +436,7 @@ void CodeGenerator::CodeForDoWhileConditionPosition(DoWhileStatement* stmt) {
 
 void CodeGenerator::CodeForSourcePosition(int pos) {
   if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
-    masm()->RecordPosition(pos);
+    masm()->positions_recorder()->RecordPosition(pos);
   }
 }
 

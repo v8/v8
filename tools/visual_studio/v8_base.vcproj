@@ -882,6 +882,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\scanner-base.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\scanner-base.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\scanner.cc"
 				>
 			</File>

@@ -95,6 +95,7 @@ SOURCES = {
     register-allocator.cc
     rewriter.cc
     runtime.cc
+    scanner-base.cc
     scanner.cc
     scopeinfo.cc
     scopes.cc

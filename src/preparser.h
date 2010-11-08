@@ -31,7 +31,6 @@
 #include "unicode.h"
 
 namespace v8 {
-namespace internal {
 namespace preparser {
 
 // Preparsing checks a JavaScript program and emits preparse-data that helps
@@ -46,6 +45,8 @@ namespace preparser {
 // rather it is to speed up properly written and correct programs.
 // That means that contextual checks (like a label being declared where
 // it is used) are generally omitted.
+
+namespace i = v8::internal;
 
 enum StatementType {
   kUnknownStatement
@@ -92,7 +93,7 @@ class PreParser {
     log_ = log;
     Scope top_scope(&scope_, kTopLevelScope);
     bool ok = true;
-    ParseSourceElements(Token::EOS, &ok);
+    ParseSourceElements(i::Token::EOS, &ok);
     bool stack_overflow = scanner_->stack_overflow();
     if (!ok && !stack_overflow) {
       ReportUnexpectedToken(scanner_->current_token());
@@ -144,7 +145,7 @@ class PreParser {
   // simple this-property assignments.
 
   // Report syntax error
-  void ReportUnexpectedToken(Token::Value token);
+  void ReportUnexpectedToken(i::Token::Value token);
   void ReportMessageAt(int start_pos,
                        int end_pos,
                        const char* type,
@@ -186,8 +187,7 @@ class PreParser {
   Expression ParseLeftHandSideExpression(bool* ok);
   Expression ParseNewExpression(bool* ok);
   Expression ParseMemberExpression(bool* ok);
-  Expression ParseNewPrefix(int* new_count, bool* ok);
-  Expression ParseMemberWithNewPrefixesExpression(int* new_count, bool* ok);
+  Expression ParseMemberWithNewPrefixesExpression(unsigned new_count, bool* ok);
   Expression ParsePrimaryExpression(bool* ok);
   Expression ParseArrayLiteral(bool* ok);
   Expression ParseObjectLiteral(bool* ok);
@@ -206,24 +206,24 @@ class PreParser {
   Expression GetStringSymbol();
 
 
-  Token::Value peek() { return scanner_->peek(); }
-  Token::Value Next() {
-    Token::Value next = scanner_->Next();
+  i::Token::Value peek() { return scanner_->peek(); }
+  i::Token::Value Next() {
+    i::Token::Value next = scanner_->Next();
     return next;
   }
 
-  void Consume(Token::Value token) {
+  void Consume(i::Token::Value token) {
     Next();
   }
 
-  void Expect(Token::Value token, bool* ok) {
+  void Expect(i::Token::Value token, bool* ok) {
     if (Next() != token) {
       *ok = false;
     }
   }
 
-  bool Check(Token::Value token) {
-    Token::Value next = peek();
+  bool Check(i::Token::Value token) {
+    i::Token::Value next = peek();
     if (next == token) {
       Consume(next);
       return true;
@@ -232,7 +232,7 @@ class PreParser {
   }
   void ExpectSemicolon(bool* ok);
 
-  static int Precedence(Token::Value tok, bool accept_IN);
+  static int Precedence(i::Token::Value tok, bool accept_IN);
 
   Scanner* scanner_;
   PreParserLog* log_;
@@ -249,31 +249,31 @@ class PreParser {
 
 
 template <typename Scanner, typename Log>
-void PreParser<Scanner, Log>::ReportUnexpectedToken(Token::Value token) {
+void PreParser<Scanner, Log>::ReportUnexpectedToken(i::Token::Value token) {
   // We don't report stack overflows here, to avoid increasing the
   // stack depth even further.  Instead we report it after parsing is
   // over, in ParseProgram.
-  if (token == Token::ILLEGAL && scanner_->stack_overflow()) {
+  if (token == i::Token::ILLEGAL && scanner_->stack_overflow()) {
     return;
   }
   typename Scanner::Location source_location = scanner_->location();
 
   // Four of the tokens are treated specially
   switch (token) {
-  case Token::EOS:
+  case i::Token::EOS:
     return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
                            "unexpected_eos", NULL);
-  case Token::NUMBER:
+  case i::Token::NUMBER:
     return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
                            "unexpected_token_number", NULL);
-  case Token::STRING:
+  case i::Token::STRING:
     return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
                            "unexpected_token_string", NULL);
-  case Token::IDENTIFIER:
+  case i::Token::IDENTIFIER:
     return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
                            "unexpected_token_identifier", NULL);
   default:
-    const char* name = Token::String(token);
+    const char* name = i::Token::String(token);
     ReportMessageAt(source_location.beg_pos, source_location.end_pos,
                     "unexpected_token", name);
   }
@@ -321,57 +321,57 @@ Statement PreParser<Scanner, Log>::ParseStatement(bool* ok) {
 
   // Keep the source position of the statement
   switch (peek()) {
-    case Token::LBRACE:
+    case i::Token::LBRACE:
       return ParseBlock(ok);
 
-    case Token::CONST:
-    case Token::VAR:
+    case i::Token::CONST:
+    case i::Token::VAR:
       return ParseVariableStatement(ok);
 
-    case Token::SEMICOLON:
+    case i::Token::SEMICOLON:
       Next();
       return kUnknownStatement;
 
-    case Token::IF:
+    case i::Token::IF:
       return  ParseIfStatement(ok);
 
-    case Token::DO:
+    case i::Token::DO:
       return ParseDoWhileStatement(ok);
 
-    case Token::WHILE:
+    case i::Token::WHILE:
       return ParseWhileStatement(ok);
 
-    case Token::FOR:
+    case i::Token::FOR:
       return ParseForStatement(ok);
 
-    case Token::CONTINUE:
+    case i::Token::CONTINUE:
       return ParseContinueStatement(ok);
 
-    case Token::BREAK:
+    case i::Token::BREAK:
       return ParseBreakStatement(ok);
 
-    case Token::RETURN:
+    case i::Token::RETURN:
       return ParseReturnStatement(ok);
 
-    case Token::WITH:
+    case i::Token::WITH:
       return ParseWithStatement(ok);
 
-    case Token::SWITCH:
+    case i::Token::SWITCH:
       return ParseSwitchStatement(ok);
 
-    case Token::THROW:
+    case i::Token::THROW:
       return ParseThrowStatement(ok);
 
-    case Token::TRY:
+    case i::Token::TRY:
       return ParseTryStatement(ok);
 
-    case Token::FUNCTION:
+    case i::Token::FUNCTION:
       return ParseFunctionDeclaration(ok);
 
-    case Token::NATIVE:
+    case i::Token::NATIVE:
       return ParseNativeDeclaration(ok);
 
-    case Token::DEBUGGER:
+    case i::Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
 
     default:
@@ -384,7 +384,7 @@ template <typename Scanner, typename Log>
 Statement PreParser<Scanner, Log>::ParseFunctionDeclaration(bool* ok) {
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
-  Expect(Token::FUNCTION, CHECK_OK);
+  Expect(i::Token::FUNCTION, CHECK_OK);
   ParseIdentifier(CHECK_OK);
   ParseFunctionLiteral(CHECK_OK);
   return kUnknownStatement;
@@ -397,20 +397,20 @@ Statement PreParser<Scanner, Log>::ParseFunctionDeclaration(bool* ok) {
 // callback provided by the extension.
 template <typename Scanner, typename Log>
 Statement PreParser<Scanner, Log>::ParseNativeDeclaration(bool* ok) {
-  Expect(Token::NATIVE, CHECK_OK);
-  Expect(Token::FUNCTION, CHECK_OK);
+  Expect(i::Token::NATIVE, CHECK_OK);
+  Expect(i::Token::FUNCTION, CHECK_OK);
   ParseIdentifier(CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
-  bool done = (peek() == Token::RPAREN);
+  Expect(i::Token::LPAREN, CHECK_OK);
+  bool done = (peek() == i::Token::RPAREN);
   while (!done) {
     ParseIdentifier(CHECK_OK);
-    done = (peek() == Token::RPAREN);
+    done = (peek() == i::Token::RPAREN);
     if (!done) {
-      Expect(Token::COMMA, CHECK_OK);
+      Expect(i::Token::COMMA, CHECK_OK);
     }
   }
-  Expect(Token::RPAREN, CHECK_OK);
-  Expect(Token::SEMICOLON, CHECK_OK);
+  Expect(i::Token::RPAREN, CHECK_OK);
+  Expect(i::Token::SEMICOLON, CHECK_OK);
   return kUnknownStatement;
 }
 
@@ -423,11 +423,11 @@ Statement PreParser<Scanner, Log>::ParseBlock(bool* ok) {
   // Note that a Block does not introduce a new execution scope!
   // (ECMA-262, 3rd, 12.2)
   //
-  Expect(Token::LBRACE, CHECK_OK);
-  while (peek() != Token::RBRACE) {
+  Expect(i::Token::LBRACE, CHECK_OK);
+  while (peek() != i::Token::RBRACE) {
     ParseStatement(CHECK_OK);
   }
-  Expect(Token::RBRACE, CHECK_OK);
+  Expect(i::Token::RBRACE, CHECK_OK);
   return kUnknownStatement;
 }
 
@@ -455,10 +455,10 @@ Statement PreParser<Scanner, Log>::ParseVariableDeclarations(bool accept_IN,
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
 
-  if (peek() == Token::VAR) {
-    Consume(Token::VAR);
-  } else if (peek() == Token::CONST) {
-    Consume(Token::CONST);
+  if (peek() == i::Token::VAR) {
+    Consume(i::Token::VAR);
+  } else if (peek() == i::Token::CONST) {
+    Consume(i::Token::CONST);
   } else {
     *ok = false;
     return 0;
@@ -469,14 +469,14 @@ Statement PreParser<Scanner, Log>::ParseVariableDeclarations(bool accept_IN,
   int nvars = 0;  // the number of variables declared
   do {
     // Parse variable name.
-    if (nvars > 0) Consume(Token::COMMA);
+    if (nvars > 0) Consume(i::Token::COMMA);
     ParseIdentifier(CHECK_OK);
     nvars++;
-    if (peek() == Token::ASSIGN) {
-      Expect(Token::ASSIGN, CHECK_OK);
+    if (peek() == i::Token::ASSIGN) {
+      Expect(i::Token::ASSIGN, CHECK_OK);
       ParseAssignmentExpression(accept_IN, CHECK_OK);
     }
-  } while (peek() == Token::COMMA);
+  } while (peek() == i::Token::COMMA);
 
   if (num_decl != NULL) *num_decl = nvars;
   return kUnknownStatement;
@@ -491,8 +491,8 @@ Statement PreParser<Scanner, Log>::ParseExpressionOrLabelledStatement(
   //   Identifier ':' Statement
 
   Expression expr = ParseExpression(true, CHECK_OK);
-  if (peek() == Token::COLON && expr == kIdentifierExpression) {
-    Consume(Token::COLON);
+  if (peek() == i::Token::COLON && expr == kIdentifierExpression) {
+    Consume(i::Token::COLON);
     return ParseStatement(ok);
   }
   // Parsed expression statement.
@@ -506,12 +506,12 @@ Statement PreParser<Scanner, Log>::ParseIfStatement(bool* ok) {
   // IfStatement ::
   //   'if' '(' Expression ')' Statement ('else' Statement)?
 
-  Expect(Token::IF, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
+  Expect(i::Token::IF, CHECK_OK);
+  Expect(i::Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
+  Expect(i::Token::RPAREN, CHECK_OK);
   ParseStatement(CHECK_OK);
-  if (peek() == Token::ELSE) {
+  if (peek() == i::Token::ELSE) {
     Next();
     ParseStatement(CHECK_OK);
   }
@@ -524,12 +524,12 @@ Statement PreParser<Scanner, Log>::ParseContinueStatement(bool* ok) {
   // ContinueStatement ::
   //   'continue' [no line terminator] Identifier? ';'
 
-  Expect(Token::CONTINUE, CHECK_OK);
-  Token::Value tok = peek();
+  Expect(i::Token::CONTINUE, CHECK_OK);
+  i::Token::Value tok = peek();
   if (!scanner_->has_line_terminator_before_next() &&
-      tok != Token::SEMICOLON &&
-      tok != Token::RBRACE &&
-      tok != Token::EOS) {
+      tok != i::Token::SEMICOLON &&
+      tok != i::Token::RBRACE &&
+      tok != i::Token::EOS) {
     ParseIdentifier(CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
@@ -542,12 +542,12 @@ Statement PreParser<Scanner, Log>::ParseBreakStatement(bool* ok) {
   // BreakStatement ::
   //   'break' [no line terminator] Identifier? ';'
 
-  Expect(Token::BREAK, CHECK_OK);
-  Token::Value tok = peek();
+  Expect(i::Token::BREAK, CHECK_OK);
+  i::Token::Value tok = peek();
   if (!scanner_->has_line_terminator_before_next() &&
-      tok != Token::SEMICOLON &&
-      tok != Token::RBRACE &&
-      tok != Token::EOS) {
+      tok != i::Token::SEMICOLON &&
+      tok != i::Token::RBRACE &&
+      tok != i::Token::EOS) {
     ParseIdentifier(CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
@@ -563,18 +563,18 @@ Statement PreParser<Scanner, Log>::ParseReturnStatement(bool* ok) {
   // Consume the return token. It is necessary to do the before
   // reporting any errors on it, because of the way errors are
   // reported (underlining).
-  Expect(Token::RETURN, CHECK_OK);
+  Expect(i::Token::RETURN, CHECK_OK);
 
   // An ECMAScript program is considered syntactically incorrect if it
   // contains a return statement that is not within the body of a
   // function. See ECMA-262, section 12.9, page 67.
   // This is not handled during preparsing.
 
-  Token::Value tok = peek();
+  i::Token::Value tok = peek();
   if (!scanner_->has_line_terminator_before_next() &&
-      tok != Token::SEMICOLON &&
-      tok != Token::RBRACE &&
-      tok != Token::EOS) {
+      tok != i::Token::SEMICOLON &&
+      tok != i::Token::RBRACE &&
+      tok != i::Token::EOS) {
     ParseExpression(true, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
@@ -586,10 +586,10 @@ template <typename Scanner, typename Log>
 Statement PreParser<Scanner, Log>::ParseWithStatement(bool* ok) {
   // WithStatement ::
   //   'with' '(' Expression ')' Statement
-  Expect(Token::WITH, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
+  Expect(i::Token::WITH, CHECK_OK);
+  Expect(i::Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
+  Expect(i::Token::RPAREN, CHECK_OK);
 
   scope_->EnterWith();
   ParseStatement(CHECK_OK);
@@ -603,27 +603,27 @@ Statement PreParser<Scanner, Log>::ParseSwitchStatement(bool* ok) {
   // SwitchStatement ::
   //   'switch' '(' Expression ')' '{' CaseClause* '}'
 
-  Expect(Token::SWITCH, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
+  Expect(i::Token::SWITCH, CHECK_OK);
+  Expect(i::Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
+  Expect(i::Token::RPAREN, CHECK_OK);
 
-  Expect(Token::LBRACE, CHECK_OK);
-  Token::Value token = peek();
-  while (token != Token::RBRACE) {
-    if (token == Token::CASE) {
-      Expect(Token::CASE, CHECK_OK);
+  Expect(i::Token::LBRACE, CHECK_OK);
+  i::Token::Value token = peek();
+  while (token != i::Token::RBRACE) {
+    if (token == i::Token::CASE) {
+      Expect(i::Token::CASE, CHECK_OK);
       ParseExpression(true, CHECK_OK);
-      Expect(Token::COLON, CHECK_OK);
-    } else if (token == Token::DEFAULT) {
-      Expect(Token::DEFAULT, CHECK_OK);
-      Expect(Token::COLON, CHECK_OK);
+      Expect(i::Token::COLON, CHECK_OK);
+    } else if (token == i::Token::DEFAULT) {
+      Expect(i::Token::DEFAULT, CHECK_OK);
+      Expect(i::Token::COLON, CHECK_OK);
     } else {
       ParseStatement(CHECK_OK);
     }
     token = peek();
   }
-  Expect(Token::RBRACE, CHECK_OK);
+  Expect(i::Token::RBRACE, CHECK_OK);
 
   return kUnknownStatement;
 }
@@ -634,12 +634,12 @@ Statement PreParser<Scanner, Log>::ParseDoWhileStatement(bool* ok) {
   // DoStatement ::
   //   'do' Statement 'while' '(' Expression ')' ';'
 
-  Expect(Token::DO, CHECK_OK);
+  Expect(i::Token::DO, CHECK_OK);
   ParseStatement(CHECK_OK);
-  Expect(Token::WHILE, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
+  Expect(i::Token::WHILE, CHECK_OK);
+  Expect(i::Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
+  Expect(i::Token::RPAREN, CHECK_OK);
   return kUnknownStatement;
 }
 
@@ -649,10 +649,10 @@ Statement PreParser<Scanner, Log>::ParseWhileStatement(bool* ok) {
   // WhileStatement ::
   //   'while' '(' Expression ')' Statement
 
-  Expect(Token::WHILE, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
+  Expect(i::Token::WHILE, CHECK_OK);
+  Expect(i::Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
+  Expect(i::Token::RPAREN, CHECK_OK);
   ParseStatement(CHECK_OK);
   return kUnknownStatement;
 }
@@ -663,26 +663,26 @@ Statement PreParser<Scanner, Log>::ParseForStatement(bool* ok) {
   // ForStatement ::
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
 
-  Expect(Token::FOR, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
-  if (peek() != Token::SEMICOLON) {
-    if (peek() == Token::VAR || peek() == Token::CONST) {
+  Expect(i::Token::FOR, CHECK_OK);
+  Expect(i::Token::LPAREN, CHECK_OK);
+  if (peek() != i::Token::SEMICOLON) {
+    if (peek() == i::Token::VAR || peek() == i::Token::CONST) {
       int decl_count;
       ParseVariableDeclarations(false, &decl_count, CHECK_OK);
-      if (peek() == Token::IN && decl_count == 1) {
-        Expect(Token::IN, CHECK_OK);
+      if (peek() == i::Token::IN && decl_count == 1) {
+        Expect(i::Token::IN, CHECK_OK);
         ParseExpression(true, CHECK_OK);
-        Expect(Token::RPAREN, CHECK_OK);
+        Expect(i::Token::RPAREN, CHECK_OK);
 
         ParseStatement(CHECK_OK);
         return kUnknownStatement;
       }
     } else {
       ParseExpression(false, CHECK_OK);
-      if (peek() == Token::IN) {
-        Expect(Token::IN, CHECK_OK);
+      if (peek() == i::Token::IN) {
+        Expect(i::Token::IN, CHECK_OK);
         ParseExpression(true, CHECK_OK);
-        Expect(Token::RPAREN, CHECK_OK);
+        Expect(i::Token::RPAREN, CHECK_OK);
 
         ParseStatement(CHECK_OK);
         return kUnknownStatement;
@@ -691,17 +691,17 @@ Statement PreParser<Scanner, Log>::ParseForStatement(bool* ok) {
   }
 
   // Parsed initializer at this point.
-  Expect(Token::SEMICOLON, CHECK_OK);
+  Expect(i::Token::SEMICOLON, CHECK_OK);
 
-  if (peek() != Token::SEMICOLON) {
+  if (peek() != i::Token::SEMICOLON) {
     ParseExpression(true, CHECK_OK);
   }
-  Expect(Token::SEMICOLON, CHECK_OK);
+  Expect(i::Token::SEMICOLON, CHECK_OK);
 
-  if (peek() != Token::RPAREN) {
+  if (peek() != i::Token::RPAREN) {
     ParseExpression(true, CHECK_OK);
   }
-  Expect(Token::RPAREN, CHECK_OK);
+  Expect(i::Token::RPAREN, CHECK_OK);
 
   ParseStatement(CHECK_OK);
   return kUnknownStatement;
@@ -713,7 +713,7 @@ Statement PreParser<Scanner, Log>::ParseThrowStatement(bool* ok) {
   // ThrowStatement ::
   //   'throw' [no line terminator] Expression ';'
 
-  Expect(Token::THROW, CHECK_OK);
+  Expect(i::Token::THROW, CHECK_OK);
   if (scanner_->has_line_terminator_before_next()) {
     typename Scanner::Location pos = scanner_->location();
     ReportMessageAt(pos.beg_pos, pos.end_pos,
@@ -744,21 +744,21 @@ Statement PreParser<Scanner, Log>::ParseTryStatement(bool* ok) {
   // In preparsing, allow any number of catch/finally blocks, including zero
   // of both.
 
-  Expect(Token::TRY, CHECK_OK);
+  Expect(i::Token::TRY, CHECK_OK);
 
   ParseBlock(CHECK_OK);
 
   bool catch_or_finally_seen = false;
-  if (peek() == Token::CATCH) {
-    Expect(Token::CATCH, CHECK_OK);
-    Expect(Token::LPAREN, CHECK_OK);
+  if (peek() == i::Token::CATCH) {
+    Expect(i::Token::CATCH, CHECK_OK);
+    Expect(i::Token::LPAREN, CHECK_OK);
     ParseIdentifier(CHECK_OK);
-    Expect(Token::RPAREN, CHECK_OK);
+    Expect(i::Token::RPAREN, CHECK_OK);
     ParseBlock(CHECK_OK);
     catch_or_finally_seen = true;
   }
-  if (peek() == Token::FINALLY) {
-    Expect(Token::FINALLY, CHECK_OK);
+  if (peek() == i::Token::FINALLY) {
+    Expect(i::Token::FINALLY, CHECK_OK);
     ParseBlock(CHECK_OK);
     catch_or_finally_seen = true;
   }
@@ -777,7 +777,7 @@ Statement PreParser<Scanner, Log>::ParseDebuggerStatement(bool* ok) {
   // DebuggerStatement ::
   //   'debugger' ';'
 
-  Expect(Token::DEBUGGER, CHECK_OK);
+  Expect(i::Token::DEBUGGER, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return kUnknownStatement;
 }
@@ -791,8 +791,8 @@ Expression PreParser<Scanner, Log>::ParseExpression(bool accept_IN, bool* ok) {
   //   Expression ',' AssignmentExpression
 
   Expression result = ParseAssignmentExpression(accept_IN, CHECK_OK);
-  while (peek() == Token::COMMA) {
-    Expect(Token::COMMA, CHECK_OK);
+  while (peek() == i::Token::COMMA) {
+    Expect(i::Token::COMMA, CHECK_OK);
     ParseAssignmentExpression(accept_IN, CHECK_OK);
     result = kUnknownExpression;
   }
@@ -810,15 +810,15 @@ Expression PreParser<Scanner, Log>::ParseAssignmentExpression(bool accept_IN,
 
   Expression expression = ParseConditionalExpression(accept_IN, CHECK_OK);
 
-  if (!Token::IsAssignmentOp(peek())) {
+  if (!i::Token::IsAssignmentOp(peek())) {
     // Parsed conditional expression only (no assignment).
     return expression;
   }
 
-  Token::Value op = Next();  // Get assignment operator.
+  i::Token::Value op = Next();  // Get assignment operator.
   ParseAssignmentExpression(accept_IN, CHECK_OK);
 
-  if ((op == Token::ASSIGN) && (expression == kThisPropertyExpression)) {
+  if ((op == i::Token::ASSIGN) && (expression == kThisPropertyExpression)) {
     scope_->AddProperty();
   }
 
@@ -836,24 +836,24 @@ Expression PreParser<Scanner, Log>::ParseConditionalExpression(bool accept_IN,
 
   // We start using the binary expression parser for prec >= 4 only!
   Expression expression = ParseBinaryExpression(4, accept_IN, CHECK_OK);
-  if (peek() != Token::CONDITIONAL) return expression;
-  Consume(Token::CONDITIONAL);
+  if (peek() != i::Token::CONDITIONAL) return expression;
+  Consume(i::Token::CONDITIONAL);
   // In parsing the first assignment expression in conditional
   // expressions we always accept the 'in' keyword; see ECMA-262,
   // section 11.12, page 58.
   ParseAssignmentExpression(true, CHECK_OK);
-  Expect(Token::COLON, CHECK_OK);
+  Expect(i::Token::COLON, CHECK_OK);
   ParseAssignmentExpression(accept_IN, CHECK_OK);
   return kUnknownExpression;
 }
 
 
 template <typename Scanner, typename Log>
-int PreParser<Scanner, Log>::Precedence(Token::Value tok, bool accept_IN) {
-  if (tok == Token::IN && !accept_IN)
+int PreParser<Scanner, Log>::Precedence(i::Token::Value tok, bool accept_IN) {
+  if (tok == i::Token::IN && !accept_IN)
     return 0;  // 0 precedence will terminate binary expression parsing
 
-  return Token::Precedence(tok);
+  return i::Token::Precedence(tok);
 }
 
 
@@ -889,8 +889,8 @@ Expression PreParser<Scanner, Log>::ParseUnaryExpression(bool* ok) {
   //   '~' UnaryExpression
   //   '!' UnaryExpression
 
-  Token::Value op = peek();
-  if (Token::IsUnaryOp(op) || Token::IsCountOp(op)) {
+  i::Token::Value op = peek();
+  if (i::Token::IsUnaryOp(op) || i::Token::IsCountOp(op)) {
     op = Next();
     ParseUnaryExpression(ok);
     return kUnknownExpression;
@@ -907,7 +907,7 @@ Expression PreParser<Scanner, Log>::ParsePostfixExpression(bool* ok) {
 
   Expression expression = ParseLeftHandSideExpression(CHECK_OK);
   if (!scanner_->has_line_terminator_before_next() &&
-      Token::IsCountOp(peek())) {
+      i::Token::IsCountOp(peek())) {
     Next();
     return kUnknownExpression;
   }
@@ -921,7 +921,7 @@ Expression PreParser<Scanner, Log>::ParseLeftHandSideExpression(bool* ok) {
   //   (NewExpression | MemberExpression) ...
 
   Expression result;
-  if (peek() == Token::NEW) {
+  if (peek() == i::Token::NEW) {
     result = ParseNewExpression(CHECK_OK);
   } else {
     result = ParseMemberExpression(CHECK_OK);
@@ -929,10 +929,10 @@ Expression PreParser<Scanner, Log>::ParseLeftHandSideExpression(bool* ok) {
 
   while (true) {
     switch (peek()) {
-      case Token::LBRACK: {
-        Consume(Token::LBRACK);
+      case i::Token::LBRACK: {
+        Consume(i::Token::LBRACK);
         ParseExpression(true, CHECK_OK);
-        Expect(Token::RBRACK, CHECK_OK);
+        Expect(i::Token::RBRACK, CHECK_OK);
         if (result == kThisExpression) {
           result = kThisPropertyExpression;
         } else {
@@ -941,14 +941,14 @@ Expression PreParser<Scanner, Log>::ParseLeftHandSideExpression(bool* ok) {
         break;
       }
 
-      case Token::LPAREN: {
+      case i::Token::LPAREN: {
         ParseArguments(CHECK_OK);
         result = kUnknownExpression;
         break;
       }
 
-      case Token::PERIOD: {
-        Consume(Token::PERIOD);
+      case i::Token::PERIOD: {
+        Consume(i::Token::PERIOD);
         ParseIdentifierName(CHECK_OK);
         if (result == kThisExpression) {
           result = kThisPropertyExpression;
@@ -965,9 +965,8 @@ Expression PreParser<Scanner, Log>::ParseLeftHandSideExpression(bool* ok) {
 }
 
 
-
 template <typename Scanner, typename Log>
-Expression PreParser<Scanner, Log>::ParseNewPrefix(int* new_count, bool* ok) {
+Expression PreParser<Scanner, Log>::ParseNewExpression(bool* ok) {
   // NewExpression ::
   //   ('new')+ MemberExpression
 
@@ -979,47 +978,34 @@ Expression PreParser<Scanner, Log>::ParseNewPrefix(int* new_count, bool* ok) {
   // many we have parsed. This information is then passed on to the
   // member expression parser, which is only allowed to match argument
   // lists as long as it has 'new' prefixes left
-  Expect(Token::NEW, CHECK_OK);
-  *new_count++;
+  unsigned new_count = 0;
+  do {
+    Consume(i::Token::NEW);
+    new_count++;
+  } while (peek() == i::Token::NEW);
 
-  if (peek() == Token::NEW) {
-    ParseNewPrefix(new_count, CHECK_OK);
-  } else {
-    ParseMemberWithNewPrefixesExpression(new_count, CHECK_OK);
-  }
-
-  if (*new_count > 0) {
-    *new_count--;
-  }
-  return kUnknownExpression;
-}
-
-
-template <typename Scanner, typename Log>
-Expression PreParser<Scanner, Log>::ParseNewExpression(bool* ok) {
-  int new_count = 0;
-  return ParseNewPrefix(&new_count, ok);
+  return ParseMemberWithNewPrefixesExpression(new_count, ok);
 }
 
 
 template <typename Scanner, typename Log>
 Expression PreParser<Scanner, Log>::ParseMemberExpression(bool* ok) {
-  return ParseMemberWithNewPrefixesExpression(NULL, ok);
+  return ParseMemberWithNewPrefixesExpression(0, ok);
 }
 
 
 template <typename Scanner, typename Log>
 Expression PreParser<Scanner, Log>::ParseMemberWithNewPrefixesExpression(
-    int* new_count, bool* ok) {
+    unsigned new_count, bool* ok) {
   // MemberExpression ::
   //   (PrimaryExpression | FunctionLiteral)
   //     ('[' Expression ']' | '.' Identifier | Arguments)*
 
   // Parse the initial primary or function expression.
   Expression result = NULL;
-  if (peek() == Token::FUNCTION) {
-    Consume(Token::FUNCTION);
-    if (peek() == Token::IDENTIFIER) {
+  if (peek() == i::Token::FUNCTION) {
+    Consume(i::Token::FUNCTION);
+    if (peek() == i::Token::IDENTIFIER) {
       ParseIdentifier(CHECK_OK);
     }
     result = ParseFunctionLiteral(CHECK_OK);
@@ -1029,10 +1015,10 @@ Expression PreParser<Scanner, Log>::ParseMemberWithNewPrefixesExpression(
 
   while (true) {
     switch (peek()) {
-      case Token::LBRACK: {
-        Consume(Token::LBRACK);
+      case i::Token::LBRACK: {
+        Consume(i::Token::LBRACK);
         ParseExpression(true, CHECK_OK);
-        Expect(Token::RBRACK, CHECK_OK);
+        Expect(i::Token::RBRACK, CHECK_OK);
         if (result == kThisExpression) {
           result = kThisPropertyExpression;
         } else {
@@ -1040,8 +1026,8 @@ Expression PreParser<Scanner, Log>::ParseMemberWithNewPrefixesExpression(
         }
         break;
       }
-      case Token::PERIOD: {
-        Consume(Token::PERIOD);
+      case i::Token::PERIOD: {
+        Consume(i::Token::PERIOD);
         ParseIdentifierName(CHECK_OK);
         if (result == kThisExpression) {
           result = kThisPropertyExpression;
@@ -1050,11 +1036,11 @@ Expression PreParser<Scanner, Log>::ParseMemberWithNewPrefixesExpression(
         }
         break;
       }
-      case Token::LPAREN: {
-        if ((new_count == NULL) || *new_count == 0) return result;
+      case i::Token::LPAREN: {
+        if (new_count == 0) return result;
         // Consume one of the new prefixes (already parsed).
         ParseArguments(CHECK_OK);
-        *new_count--;
+        new_count--;
         result = kUnknownExpression;
         break;
       }
@@ -1082,55 +1068,55 @@ Expression PreParser<Scanner, Log>::ParsePrimaryExpression(bool* ok) {
 
   Expression result = kUnknownExpression;
   switch (peek()) {
-    case Token::THIS: {
+    case i::Token::THIS: {
       Next();
       result = kThisExpression;
       break;
     }
 
-    case Token::IDENTIFIER: {
+    case i::Token::IDENTIFIER: {
       ParseIdentifier(CHECK_OK);
       result = kIdentifierExpression;
       break;
     }
 
-    case Token::NULL_LITERAL:
-    case Token::TRUE_LITERAL:
-    case Token::FALSE_LITERAL:
-    case Token::NUMBER: {
+    case i::Token::NULL_LITERAL:
+    case i::Token::TRUE_LITERAL:
+    case i::Token::FALSE_LITERAL:
+    case i::Token::NUMBER: {
       Next();
       break;
     }
-    case Token::STRING: {
+    case i::Token::STRING: {
       Next();
       result = GetStringSymbol();
       break;
     }
 
-    case Token::ASSIGN_DIV:
+    case i::Token::ASSIGN_DIV:
       result = ParseRegExpLiteral(true, CHECK_OK);
       break;
 
-    case Token::DIV:
+    case i::Token::DIV:
       result = ParseRegExpLiteral(false, CHECK_OK);
       break;
 
-    case Token::LBRACK:
+    case i::Token::LBRACK:
       result = ParseArrayLiteral(CHECK_OK);
       break;
 
-    case Token::LBRACE:
+    case i::Token::LBRACE:
       result = ParseObjectLiteral(CHECK_OK);
       break;
 
-    case Token::LPAREN:
-      Consume(Token::LPAREN);
+    case i::Token::LPAREN:
+      Consume(i::Token::LPAREN);
       result = ParseExpression(true, CHECK_OK);
-      Expect(Token::RPAREN, CHECK_OK);
+      Expect(i::Token::RPAREN, CHECK_OK);
       if (result == kIdentifierExpression) result = kUnknownExpression;
       break;
 
-    case Token::MOD:
+    case i::Token::MOD:
       result = ParseV8Intrinsic(CHECK_OK);
       break;
 
@@ -1149,16 +1135,16 @@ template <typename Scanner, typename Log>
 Expression PreParser<Scanner, Log>::ParseArrayLiteral(bool* ok) {
   // ArrayLiteral ::
   //   '[' Expression? (',' Expression?)* ']'
-  Expect(Token::LBRACK, CHECK_OK);
-  while (peek() != Token::RBRACK) {
-    if (peek() != Token::COMMA) {
+  Expect(i::Token::LBRACK, CHECK_OK);
+  while (peek() != i::Token::RBRACK) {
+    if (peek() != i::Token::COMMA) {
       ParseAssignmentExpression(true, CHECK_OK);
     }
-    if (peek() != Token::RBRACK) {
-      Expect(Token::COMMA, CHECK_OK);
+    if (peek() != i::Token::RBRACK) {
+      Expect(i::Token::COMMA, CHECK_OK);
     }
   }
-  Expect(Token::RBRACK, CHECK_OK);
+  Expect(i::Token::RBRACK, CHECK_OK);
 
   scope_->NextMaterializedLiteralIndex();
   return kUnknownExpression;
@@ -1173,40 +1159,40 @@ Expression PreParser<Scanner, Log>::ParseObjectLiteral(bool* ok) {
   //     | (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
   //    )*[','] '}'
 
-  Expect(Token::LBRACE, CHECK_OK);
-  while (peek() != Token::RBRACE) {
-    Token::Value next = peek();
+  Expect(i::Token::LBRACE, CHECK_OK);
+  while (peek() != i::Token::RBRACE) {
+    i::Token::Value next = peek();
     switch (next) {
-      case Token::IDENTIFIER: {
+      case i::Token::IDENTIFIER: {
         bool is_getter = false;
         bool is_setter = false;
         ParseIdentifierOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
-        if ((is_getter || is_setter) && peek() != Token::COLON) {
-            Token::Value name = Next();
-            if (name != Token::IDENTIFIER &&
-                name != Token::NUMBER &&
-                name != Token::STRING &&
-                !Token::IsKeyword(name)) {
+        if ((is_getter || is_setter) && peek() != i::Token::COLON) {
+            i::Token::Value name = Next();
+            if (name != i::Token::IDENTIFIER &&
+                name != i::Token::NUMBER &&
+                name != i::Token::STRING &&
+                !i::Token::IsKeyword(name)) {
               *ok = false;
               return kUnknownExpression;
             }
             ParseFunctionLiteral(CHECK_OK);
-            if (peek() != Token::RBRACE) {
-              Expect(Token::COMMA, CHECK_OK);
+            if (peek() != i::Token::RBRACE) {
+              Expect(i::Token::COMMA, CHECK_OK);
             }
             continue;  // restart the while
         }
         break;
       }
-      case Token::STRING:
+      case i::Token::STRING:
         Consume(next);
         GetStringSymbol();
         break;
-      case Token::NUMBER:
+      case i::Token::NUMBER:
         Consume(next);
         break;
       default:
-        if (Token::IsKeyword(next)) {
+        if (i::Token::IsKeyword(next)) {
           Consume(next);
         } else {
           // Unexpected token.
@@ -1215,13 +1201,13 @@ Expression PreParser<Scanner, Log>::ParseObjectLiteral(bool* ok) {
         }
     }
 
-    Expect(Token::COLON, CHECK_OK);
+    Expect(i::Token::COLON, CHECK_OK);
     ParseAssignmentExpression(true, CHECK_OK);
 
     // TODO(1240767): Consider allowing trailing comma.
-    if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
+    if (peek() != i::Token::RBRACE) Expect(i::Token::COMMA, CHECK_OK);
   }
-  Expect(Token::RBRACE, CHECK_OK);
+  Expect(i::Token::RBRACE, CHECK_OK);
 
   scope_->NextMaterializedLiteralIndex();
   return kUnknownExpression;
@@ -1260,16 +1246,16 @@ Arguments PreParser<Scanner, Log>::ParseArguments(bool* ok) {
   // Arguments ::
   //   '(' (AssignmentExpression)*[','] ')'
 
-  Expect(Token::LPAREN, CHECK_OK);
-  bool done = (peek() == Token::RPAREN);
+  Expect(i::Token::LPAREN, CHECK_OK);
+  bool done = (peek() == i::Token::RPAREN);
   int argc = 0;
   while (!done) {
     ParseAssignmentExpression(true, CHECK_OK);
     argc++;
-    done = (peek() == Token::RPAREN);
-    if (!done) Expect(Token::COMMA, CHECK_OK);
+    done = (peek() == i::Token::RPAREN);
+    if (!done) Expect(i::Token::COMMA, CHECK_OK);
   }
-  Expect(Token::RPAREN, CHECK_OK);
+  Expect(i::Token::RPAREN, CHECK_OK);
   return argc;
 }
 
@@ -1286,18 +1272,18 @@ Expression PreParser<Scanner, Log>::ParseFunctionLiteral(bool* ok) {
 
   //  FormalParameterList ::
   //    '(' (Identifier)*[','] ')'
-  Expect(Token::LPAREN, CHECK_OK);
-  bool done = (peek() == Token::RPAREN);
+  Expect(i::Token::LPAREN, CHECK_OK);
+  bool done = (peek() == i::Token::RPAREN);
   while (!done) {
     ParseIdentifier(CHECK_OK);
-    done = (peek() == Token::RPAREN);
+    done = (peek() == i::Token::RPAREN);
     if (!done) {
-      Expect(Token::COMMA, CHECK_OK);
+      Expect(i::Token::COMMA, CHECK_OK);
     }
   }
-  Expect(Token::RPAREN, CHECK_OK);
+  Expect(i::Token::RPAREN, CHECK_OK);
 
-  Expect(Token::LBRACE, CHECK_OK);
+  Expect(i::Token::LBRACE, CHECK_OK);
   int function_block_pos = scanner_->location().beg_pos;
 
   // Determine if the function will be lazily compiled.
@@ -1308,19 +1294,19 @@ Expression PreParser<Scanner, Log>::ParseFunctionLiteral(bool* ok) {
 
   if (is_lazily_compiled) {
     log_->PauseRecording();
-    ParseSourceElements(Token::RBRACE, ok);
+    ParseSourceElements(i::Token::RBRACE, ok);
     log_->ResumeRecording();
     if (!*ok) return kUnknownExpression;
 
-    Expect(Token::RBRACE, CHECK_OK);
+    Expect(i::Token::RBRACE, CHECK_OK);
 
     int end_pos = scanner_->location().end_pos;
     log_->LogFunction(function_block_pos, end_pos,
                       function_scope.materialized_literal_count(),
                       function_scope.expected_properties());
   } else {
-    ParseSourceElements(Token::RBRACE, CHECK_OK);
-    Expect(Token::RBRACE, CHECK_OK);
+    ParseSourceElements(i::Token::RBRACE, CHECK_OK);
+    Expect(i::Token::RBRACE, CHECK_OK);
   }
   return kUnknownExpression;
 }
@@ -1331,7 +1317,7 @@ Expression PreParser<Scanner, Log>::ParseV8Intrinsic(bool* ok) {
   // CallRuntime ::
   //   '%' Identifier Arguments
 
-  Expect(Token::MOD, CHECK_OK);
+  Expect(i::Token::MOD, CHECK_OK);
   ParseIdentifier(CHECK_OK);
   ParseArguments(CHECK_OK);
 
@@ -1343,17 +1329,17 @@ template <typename Scanner, typename Log>
 void PreParser<Scanner, Log>::ExpectSemicolon(bool* ok) {
   // Check for automatic semicolon insertion according to
   // the rules given in ECMA-262, section 7.9, page 21.
-  Token::Value tok = peek();
-  if (tok == Token::SEMICOLON) {
+  i::Token::Value tok = peek();
+  if (tok == i::Token::SEMICOLON) {
     Next();
     return;
   }
   if (scanner_->has_line_terminator_before_next() ||
-      tok == Token::RBRACE ||
-      tok == Token::EOS) {
+      tok == i::Token::RBRACE ||
+      tok == i::Token::EOS) {
     return;
   }
-  Expect(Token::SEMICOLON, ok);
+  Expect(i::Token::SEMICOLON, ok);
 }
 
 
@@ -1383,21 +1369,21 @@ Expression PreParser<Scanner, Log>::GetStringSymbol() {
 
 template <typename Scanner, typename Log>
 Identifier PreParser<Scanner, Log>::ParseIdentifier(bool* ok) {
-  Expect(Token::IDENTIFIER, ok);
+  Expect(i::Token::IDENTIFIER, ok);
   return GetIdentifierSymbol();
 }
 
 
 template <typename Scanner, typename Log>
 Identifier PreParser<Scanner, Log>::ParseIdentifierName(bool* ok) {
-  Token::Value next = Next();
-  if (Token::IsKeyword(next)) {
+  i::Token::Value next = Next();
+  if (i::Token::IsKeyword(next)) {
     int pos = scanner_->location().beg_pos;
-    const char* keyword = Token::String(next);
+    const char* keyword = i::Token::String(next);
     log_->LogSymbol(pos, keyword, strlen(keyword));
     return kUnknownExpression;
   }
-  if (next == Token::IDENTIFIER) {
+  if (next == i::Token::IDENTIFIER) {
     return GetIdentifierSymbol();
   }
   *ok = false;
@@ -1413,7 +1399,7 @@ template <typename Scanner, typename Log>
 Identifier PreParser<Scanner, Log>::ParseIdentifierOrGetOrSet(bool* is_get,
                                                    bool* is_set,
                                                    bool* ok) {
-  Expect(Token::IDENTIFIER, CHECK_OK);
+  Expect(i::Token::IDENTIFIER, CHECK_OK);
   if (scanner_->literal_length() == 3) {
     const char* token = scanner_->literal_string();
     *is_get = strncmp(token, "get", 3) == 0;
@@ -1423,6 +1409,6 @@ Identifier PreParser<Scanner, Log>::ParseIdentifierOrGetOrSet(bool* is_get,
 }
 
 #undef CHECK_OK
-} } }  // v8::internal::preparser
+} }  // v8::preparser
 
 #endif  // V8_PREPARSER_H

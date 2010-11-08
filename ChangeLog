@@ -1,6 +1,15 @@
+2010-11-08: Version 2.5.5
+
+        Added more aggressive GC of external objects in near out-of-memory
+        situations.
+
+        Fixed a bug that gave the incorrect result for String.split called
+        on the empty string (issue 924).
+
+
 2010-11-03: Version 2.5.4
 
-	Improved V8 VFPv3 runtime detection to address issue 914.
+        Improved V8 VFPv3 runtime detection to address issue 914.
 
 
 2010-11-01: Version 2.5.3

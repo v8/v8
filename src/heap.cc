@@ -429,7 +429,31 @@ void Heap::CollectAllGarbage(bool force_compaction) {
 }
 
 
-void Heap::CollectGarbage(AllocationSpace space) {
+void Heap::CollectAllAvailableGarbage() {
+  // Since we are ignoring the return value, the exact choice of space does
+  // not matter, so long as we do not specify NEW_SPACE, which would not
+  // cause a full GC.
+  MarkCompactCollector::SetForceCompaction(true);
+
+  // Major GC would invoke weak handle callbacks on weakly reachable
+  // handles, but won't collect weakly reachable objects until next
+  // major GC.  Therefore if we collect aggressively and weak handle callback
+  // has been invoked, we rerun major GC to release objects which become
+  // garbage.
+  // Note: as weak callbacks can execute arbitrary code, we cannot
+  // hope that eventually there will be no weak callbacks invocations.
+  // Therefore stop recollecting after several attempts.
+  const int kMaxNumberOfAttempts = 7;
+  for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
+    if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR)) {
+      break;
+    }
+  }
+  MarkCompactCollector::SetForceCompaction(false);
+}
+
+
+bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
   // The VM is in the GC state until exiting this function.
   VMState state(GC);
 
@@ -442,13 +466,14 @@ void Heap::CollectGarbage(AllocationSpace space) {
   allocation_timeout_ = Max(6, FLAG_gc_interval);
 #endif
 
+  bool next_gc_likely_to_collect_more = false;
+
   { GCTracer tracer;
     GarbageCollectionPrologue();
     // The GC count was incremented in the prologue.  Tell the tracer about
     // it.
     tracer.set_gc_count(gc_count_);
 
-    GarbageCollector collector = SelectGarbageCollector(space);
     // Tell the tracer which collector we've selected.
     tracer.set_collector(collector);
 
@@ -456,7 +481,8 @@ void Heap::CollectGarbage(AllocationSpace space) {
         ? &Counters::gc_scavenger
         : &Counters::gc_compactor;
     rate->Start();
-    PerformGarbageCollection(collector, &tracer);
+    next_gc_likely_to_collect_more =
+        PerformGarbageCollection(collector, &tracer);
     rate->Stop();
 
     GarbageCollectionEpilogue();
@@ -467,6 +493,8 @@ void Heap::CollectGarbage(AllocationSpace space) {
   if (FLAG_log_gc) HeapProfiler::WriteSample();
   if (CpuProfiler::is_profiling()) CpuProfiler::ProcessMovedFunctions();
 #endif
+
+  return next_gc_likely_to_collect_more;
 }
 
 
@@ -653,8 +681,10 @@ void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
   survival_rate_ = survival_rate;
 }
 
-void Heap::PerformGarbageCollection(GarbageCollector collector,
+bool Heap::PerformGarbageCollection(GarbageCollector collector,
                                     GCTracer* tracer) {
+  bool next_gc_likely_to_collect_more = false;
+
   if (collector != SCAVENGER) {
     PROFILE(CodeMovingGCEvent());
   }
@@ -720,7 +750,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   if (collector == MARK_COMPACTOR) {
     DisableAssertNoAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-    GlobalHandles::PostGarbageCollectionProcessing();
+    next_gc_likely_to_collect_more =
+        GlobalHandles::PostGarbageCollectionProcessing();
   }
 
   // Update relocatables.
@@ -747,6 +778,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     global_gc_epilogue_callback_();
   }
   VerifySymbolTable();
+
+  return next_gc_likely_to_collect_more;
 }
 
 

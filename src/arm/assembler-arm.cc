@@ -317,7 +317,8 @@ static const Instr kLdrStrOffsetMask = 0x00000fff;
 static const int kMinimalBufferSize = 4*KB;
 static byte* spare_buffer_ = NULL;
 
-Assembler::Assembler(void* buffer, int buffer_size) {
+Assembler::Assembler(void* buffer, int buffer_size)
+    : positions_recorder_(this) {
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
@@ -354,10 +355,6 @@ Assembler::Assembler(void* buffer, int buffer_size) {
   no_const_pool_before_ = 0;
   last_const_pool_end_ = 0;
   last_bound_pos_ = 0;
-  current_statement_position_ = RelocInfo::kNoPosition;
-  current_position_ = RelocInfo::kNoPosition;
-  written_statement_position_ = current_statement_position_;
-  written_position_ = current_position_;
 }
 
 
@@ -752,15 +749,15 @@ static bool fits_shifter(uint32_t imm32,
 // if they can be encoded in the ARM's 12 bits of immediate-offset instruction
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
-static bool MustUseConstantPool(RelocInfo::Mode rmode) {
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+bool Operand::must_use_constant_pool() const {
+  if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG
     if (!Serializer::enabled()) {
       Serializer::TooLateToEnableNow();
     }
 #endif  // def DEBUG
     return Serializer::enabled();
-  } else if (rmode == RelocInfo::NONE) {
+  } else if (rmode_ == RelocInfo::NONE) {
     return false;
   }
   return true;
@@ -769,7 +766,7 @@ static bool MustUseConstantPool(RelocInfo::Mode rmode) {
 
 bool Operand::is_single_instruction() const {
   if (rm_.is_valid()) return true;
-  if (MustUseConstantPool(rmode_)) return false;
+  if (must_use_constant_pool()) return false;
   uint32_t dummy1, dummy2;
   return fits_shifter(imm32_, &dummy1, &dummy2, NULL);
 }
@@ -785,7 +782,7 @@ void Assembler::addrmod1(Instr instr,
     // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if (MustUseConstantPool(x.rmode_) ||
+    if (x.must_use_constant_pool() ||
         !fits_shifter(x.imm32_, &rotate_imm, &immed_8, &instr)) {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
@@ -794,8 +791,7 @@ void Assembler::addrmod1(Instr instr,
       CHECK(!rn.is(ip));  // rn should never be ip, or will be trashed
       Condition cond = static_cast<Condition>(instr & CondMask);
       if ((instr & ~CondMask) == 13*B21) {  // mov, S not set
-        if (MustUseConstantPool(x.rmode_) ||
-            !CpuFeatures::IsSupported(ARMv7)) {
+        if (x.must_use_constant_pool() || !CpuFeatures::IsSupported(ARMv7)) {
           RecordRelocInfo(x.rmode_, x.imm32_);
           ldr(rd, MemOperand(pc, 0), cond);
         } else {
@@ -806,7 +802,7 @@ void Assembler::addrmod1(Instr instr,
       } else {
         // If this is not a mov or mvn instruction we may still be able to avoid
         // a constant pool entry by using mvn or movw.
-        if (!MustUseConstantPool(x.rmode_) &&
+        if (!x.must_use_constant_pool() &&
             (instr & kMovMvnMask) != kMovMvnPattern) {
           mov(ip, x, LeaveCC, cond);
         } else {
@@ -999,7 +995,7 @@ void Assembler::bl(int branch_offset, Condition cond) {
 
 
 void Assembler::blx(int branch_offset) {  // v5 and above
-  WriteRecordedPositions();
+  positions_recorder()->WriteRecordedPositions();
   ASSERT((branch_offset & 1) == 0);
   int h = ((branch_offset & 2) >> 1)*B24;
   int imm24 = branch_offset >> 2;
@@ -1009,14 +1005,14 @@ void Assembler::blx(int branch_offset) {  // v5 and above
 
 
 void Assembler::blx(Register target, Condition cond) {  // v5 and above
-  WriteRecordedPositions();
+  positions_recorder()->WriteRecordedPositions();
   ASSERT(!target.is(pc));
   emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | 3*B4 | target.code());
 }
 
 
 void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
-  WriteRecordedPositions();
+  positions_recorder()->WriteRecordedPositions();
   ASSERT(!target.is(pc));  // use of pc is actually allowed, but discouraged
   emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | B4 | target.code());
 }
@@ -1114,7 +1110,7 @@ void Assembler::orr(Register dst, Register src1, const Operand& src2,
 
 void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   if (dst.is(pc)) {
-    WriteRecordedPositions();
+    positions_recorder()->WriteRecordedPositions();
   }
   // Don't allow nop instructions in the form mov rn, rn to be generated using
   // the mov instruction. They must be generated using nop(int)
@@ -1339,7 +1335,7 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
     // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if (MustUseConstantPool(src.rmode_) ||
+    if (src.must_use_constant_pool() ||
         !fits_shifter(src.imm32_, &rotate_imm, &immed_8, NULL)) {
       // Immediate operand cannot be encoded, load it first to register ip.
       RecordRelocInfo(src.rmode_, src.imm32_);
@@ -1359,7 +1355,7 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
 // Load/Store instructions.
 void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
   if (dst.is(pc)) {
-    WriteRecordedPositions();
+    positions_recorder()->WriteRecordedPositions();
   }
   addrmod2(cond | B26 | L, dst, src);
 
@@ -2377,14 +2373,14 @@ void Assembler::BlockConstPoolFor(int instructions) {
 
 // Debugging.
 void Assembler::RecordJSReturn() {
-  WriteRecordedPositions();
+  positions_recorder()->WriteRecordedPositions();
   CheckBuffer();
   RecordRelocInfo(RelocInfo::JS_RETURN);
 }
 
 
 void Assembler::RecordDebugBreakSlot() {
-  WriteRecordedPositions();
+  positions_recorder()->WriteRecordedPositions();
   CheckBuffer();
   RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
 }
@@ -2395,47 +2391,6 @@ void Assembler::RecordComment(const char* msg) {
     CheckBuffer();
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
-}
-
-
-void Assembler::RecordPosition(int pos) {
-  if (pos == RelocInfo::kNoPosition) return;
-  ASSERT(pos >= 0);
-  current_position_ = pos;
-}
-
-
-void Assembler::RecordStatementPosition(int pos) {
-  if (pos == RelocInfo::kNoPosition) return;
-  ASSERT(pos >= 0);
-  current_statement_position_ = pos;
-}
-
-
-bool Assembler::WriteRecordedPositions() {
-  bool written = false;
-
-  // Write the statement position if it is different from what was written last
-  // time.
-  if (current_statement_position_ != written_statement_position_) {
-    CheckBuffer();
-    RecordRelocInfo(RelocInfo::STATEMENT_POSITION, current_statement_position_);
-    written_statement_position_ = current_statement_position_;
-    written = true;
-  }
-
-  // Write the position if it is different from what was written last time and
-  // also different from the written statement position.
-  if (current_position_ != written_position_ &&
-      current_position_ != written_statement_position_) {
-    CheckBuffer();
-    RecordRelocInfo(RelocInfo::POSITION, current_position_);
-    written_position_ = current_position_;
-    written = true;
-  }
-
-  // Return whether something was written.
-  return written;
 }
 
 

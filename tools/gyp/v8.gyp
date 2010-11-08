@@ -426,6 +426,8 @@
         '../../src/rewriter.h',
         '../../src/runtime.cc',
         '../../src/runtime.h',
+        '../../src/scanner-base.cc',
+        '../../src/scanner-base.h',
         '../../src/scanner.cc',
         '../../src/scanner.h',
         '../../src/scopeinfo.cc',

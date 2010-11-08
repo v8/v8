@@ -253,6 +253,7 @@ TEST(StandAlonePreParser) {
       "var x = 42;",
       "function foo(x, y) { return x + y; }",
       "native function foo(); return %ArgleBargle(glop);",
+      "var x = new new Function('this.x = 42');",
       NULL
   };
 
@@ -262,7 +263,7 @@ TEST(StandAlonePreParser) {
     i::CompleteParserRecorder log;
     i::Scanner scanner;
     scanner.Initialize(i::Handle<i::String>::null(), &stream, i::JAVASCRIPT);
-    i::preparser::PreParser<i::Scanner, i::CompleteParserRecorder> preparser;
+    v8::preparser::PreParser<i::Scanner, i::CompleteParserRecorder> preparser;
     bool result = preparser.PreParseProgram(&scanner, &log, true);
     CHECK(result);
     i::ScriptDataImpl data(log.ExtractData());

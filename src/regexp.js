@@ -237,7 +237,6 @@ function RegExpTest(string) {
   } else {
     s = ToString(string);
   }
-  var length = s.length;
 
   var lastIndex = this.lastIndex;
 
@@ -247,7 +246,7 @@ function RegExpTest(string) {
   
   var global = this.global;
   if (global) {
-    if (i < 0 || i > length) {
+    if (i < 0 || i > s.length) {
       this.lastIndex = 0;
       return false;
     }
@@ -269,13 +268,6 @@ function RegExpTest(string) {
                                + (this.multiline ? 'm' : ''));
     }
     if (!regexp_val.test(s)) return false;
-  }
-
-  var length = s.length;
-
-  if (i < 0 || i > length) {
-    this.lastIndex = 0;
-    return false;
   }
 
   %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);

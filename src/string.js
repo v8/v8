@@ -162,9 +162,6 @@ function StringMatch(regexp) {
   var subject = TO_STRING_INLINE(this);
   if (IS_REGEXP(regexp)) {
     if (!regexp.global) return regexp.exec(subject);
-
-    var saveAnswer = false;
-
     %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
     // lastMatchInfo is defined in regexp.js.
     return %StringMatch(subject, regexp, lastMatchInfo);
@@ -562,12 +559,10 @@ function StringSplit(separator, limit) {
     return result;
   }
 
-  var saveAnswer = false;
-
   %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
 
   if (length === 0) {
-    if (splitMatch(separator, subject, 0, 0) != null) {
+    if (DoRegExpExec(separator, subject, 0, 0) != null) {
       return [];
     }
     return [subject];
