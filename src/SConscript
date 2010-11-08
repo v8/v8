@@ -40,6 +40,7 @@ SOURCES = {
     api.cc
     assembler.cc
     ast.cc
+    bignum.cc
     bootstrapper.cc
     builtins.cc
     cached-powers.cc

@@ -82,6 +82,11 @@ class Double {
     return d64_;
   }
 
+  double NextDouble() const {
+    if (d64_ == kInfinity) return kInfinity;
+    return Double(d64_ + 1).value();
+  }
+
   int Exponent() const {
     if (IsDenormal()) return kDenormalExponent;
 
@@ -120,19 +125,20 @@ class Double {
         ((d64 & kSignificandMask) != 0);
   }
 
-
   bool IsInfinite() const {
     uint64_t d64 = AsUint64();
     return ((d64 & kExponentMask) == kExponentMask) &&
         ((d64 & kSignificandMask) == 0);
   }
 
-
   int Sign() const {
     uint64_t d64 = AsUint64();
     return (d64 & kSignMask) == 0? 1: -1;
   }
 
+  DiyFp UpperBoundary() const {
+    return DiyFp(Significand() * 2 + 1, Exponent() - 1);
+  }
 
   // Returns the two boundaries of this.
   // The bigger boundary (m_plus) is normalized. The lower boundary has the same
