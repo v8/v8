@@ -2557,6 +2557,7 @@ ACCESSORS(InterceptorInfo, data, Object, kDataOffset)
 
 ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
 ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
+ACCESSORS(CallHandlerInfo, call_stub_cache, Object, kCallStubCacheOffset)
 
 ACCESSORS(TemplateInfo, tag, Object, kTagOffset)
 ACCESSORS(TemplateInfo, property_list, Object, kPropertyListOffset)
