@@ -38,23 +38,9 @@
 #ifndef V8_H_
 #define V8_H_
 
-#include <stdio.h>
+#include "v8stdint.h"
 
 #ifdef _WIN32
-// When compiling on MinGW stdint.h is available.
-#ifdef __MINGW32__
-#include <stdint.h>
-#else  // __MINGW32__
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-typedef short int16_t;  // NOLINT
-typedef unsigned short uint16_t;  // NOLINT
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef __int64 int64_t;
-typedef unsigned __int64 uint64_t;
-// intptr_t and friends are defined in crtdefs.h through stdio.h.
-#endif  // __MINGW32__
 
 // Setup for Windows DLL export/import. When building the V8 DLL the
 // BUILDING_V8_SHARED needs to be defined. When building a program which uses
@@ -75,8 +61,6 @@ typedef unsigned __int64 uint64_t;
 #endif  // BUILDING_V8_SHARED
 
 #else  // _WIN32
-
-#include <stdint.h>
 
 // Setup for Linux shared library export. There is no need to distinguish
 // between building or using the V8 shared library, but we should not
@@ -127,7 +111,6 @@ class Arguments;
 class Object;
 class Heap;
 class Isolate;
-
 }
 
 
@@ -1054,7 +1037,7 @@ class String : public Primitive {
    */
   V8EXPORT bool IsExternalAscii() const;
 
-  class V8EXPORT ExternalStringResourceBase {
+  class V8EXPORT ExternalStringResourceBase {  // NOLINT
    public:
     virtual ~ExternalStringResourceBase() {}
 
@@ -1789,18 +1772,19 @@ class Arguments {
   inline bool IsConstructCall() const;
   inline Local<Value> Data() const;
  private:
+  static const int kDataIndex = 0;
+  static const int kCalleeIndex = -1;
+  static const int kHolderIndex = -2;
+
   friend class ImplementationUtilities;
-  inline Arguments(Local<Value> data,
-                   Local<Object> holder,
-                   Local<Function> callee,
-                   bool is_construct_call,
-                   void** values, int length);
-  Local<Value> data_;
-  Local<Object> holder_;
-  Local<Function> callee_;
-  bool is_construct_call_;
-  void** values_;
+  inline Arguments(internal::Object** implicit_args,
+                   internal::Object** values,
+                   int length,
+                   bool is_construct_call);
+  internal::Object** implicit_args_;
+  internal::Object** values_;
   int length_;
+  bool is_construct_call_;
 };
 
 
@@ -3353,8 +3337,8 @@ class V8EXPORT Locker {
 /**
  * An interface for exporting data from V8, using "push" model.
  */
-class V8EXPORT OutputStream {
-public:
+class V8EXPORT OutputStream {  // NOLINT
+ public:
   enum OutputEncoding {
     kAscii = 0  // 7-bit ASCII.
   };
@@ -3384,6 +3368,8 @@ public:
 
 namespace internal {
 
+const int kPointerSize = sizeof(void*);  // NOLINT
+const int kIntSize = sizeof(int);  // NOLINT
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
@@ -3419,19 +3405,19 @@ template <> struct SmiConstants<8> {
   }
 };
 
-const int kSmiShiftSize = SmiConstants<sizeof(void*)>::kSmiShiftSize;
-const int kSmiValueSize = SmiConstants<sizeof(void*)>::kSmiValueSize;
+const int kSmiShiftSize = SmiConstants<kPointerSize>::kSmiShiftSize;
+const int kSmiValueSize = SmiConstants<kPointerSize>::kSmiValueSize;
 
 template <size_t ptr_size> struct InternalConstants;
 
 // Internal constants for 32-bit systems.
 template <> struct InternalConstants<4> {
-  static const int kStringResourceOffset = 3 * sizeof(void*);
+  static const int kStringResourceOffset = 3 * kPointerSize;
 };
 
 // Internal constants for 64-bit systems.
 template <> struct InternalConstants<8> {
-  static const int kStringResourceOffset = 3 * sizeof(void*);
+  static const int kStringResourceOffset = 3 * kPointerSize;
 };
 
 /**
@@ -3445,12 +3431,12 @@ class Internals {
   // These values match non-compiler-dependent values defined within
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;
-  static const int kMapInstanceTypeOffset = 2 * sizeof(void*) + sizeof(int);
+  static const int kMapInstanceTypeOffset = 2 * kPointerSize + kIntSize;
   static const int kStringResourceOffset =
-      InternalConstants<sizeof(void*)>::kStringResourceOffset;
+      InternalConstants<kPointerSize>::kStringResourceOffset;
 
-  static const int kProxyProxyOffset = sizeof(void*);
-  static const int kJSObjectHeaderSize = 3 * sizeof(void*);
+  static const int kProxyProxyOffset = kPointerSize;
+  static const int kJSObjectHeaderSize = 3 * kPointerSize;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
@@ -3468,7 +3454,7 @@ class Internals {
   }
 
   static inline int SmiValue(internal::Object* value) {
-    return SmiConstants<sizeof(void*)>::SmiToInt(value);
+    return SmiConstants<kPointerSize>::SmiToInt(value);
   }
 
   static inline int GetInstanceType(internal::Object* obj) {
@@ -3497,10 +3483,9 @@ class Internals {
     uint8_t* addr = reinterpret_cast<uint8_t*>(ptr) + offset - kHeapObjectTag;
     return *reinterpret_cast<T*>(addr);
   }
-
 };
 
-}
+}  // namespace internal
 
 
 template <class T>
@@ -3564,14 +3549,13 @@ void Persistent<T>::ClearWeak() {
 }
 
 
-Arguments::Arguments(v8::Local<v8::Value> data,
-                     v8::Local<v8::Object> holder,
-                     v8::Local<v8::Function> callee,
-                     bool is_construct_call,
-                     void** values, int length)
-    : data_(data), holder_(holder), callee_(callee),
-      is_construct_call_(is_construct_call),
-      values_(values), length_(length) { }
+Arguments::Arguments(internal::Object** implicit_args,
+                     internal::Object** values, int length,
+                     bool is_construct_call)
+    : implicit_args_(implicit_args),
+      values_(values),
+      length_(length),
+      is_construct_call_(is_construct_call) { }
 
 
 Local<Value> Arguments::operator[](int i) const {
@@ -3581,7 +3565,8 @@ Local<Value> Arguments::operator[](int i) const {
 
 
 Local<Function> Arguments::Callee() const {
-  return callee_;
+  return Local<Function>(reinterpret_cast<Function*>(
+      &implicit_args_[kCalleeIndex]));
 }
 
 
@@ -3591,12 +3576,13 @@ Local<Object> Arguments::This() const {
 
 
 Local<Object> Arguments::Holder() const {
-  return holder_;
+  return Local<Object>(reinterpret_cast<Object*>(
+      &implicit_args_[kHolderIndex]));
 }
 
 
 Local<Value> Arguments::Data() const {
-  return data_;
+  return Local<Value>(reinterpret_cast<Value*>(&implicit_args_[kDataIndex]));
 }
 
 
@@ -3659,7 +3645,7 @@ Local<Value> Object::UncheckedGetInternalField(int index) {
     // If the object is a plain JSObject, which is the common case,
     // we know where to find the internal fields and can return the
     // value directly.
-    int offset = I::kJSObjectHeaderSize + (sizeof(void*) * index);
+    int offset = I::kJSObjectHeaderSize + (internal::kPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
     O** result = HandleScope::CreateHandle(value);
     return Local<Value>(reinterpret_cast<Value*>(result));
@@ -3695,7 +3681,7 @@ void* Object::GetPointerFromInternalField(int index) {
     // If the object is a plain JSObject, which is the common case,
     // we know where to find the internal fields and can return the
     // value directly.
-    int offset = I::kJSObjectHeaderSize + (sizeof(void*) * index);
+    int offset = I::kJSObjectHeaderSize + (internal::kPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
     return I::GetExternalPointer(value);
   }

@@ -770,12 +770,21 @@ class Heap {
   void GarbageCollectionEpilogue();
 
   // Performs garbage collection operation.
-  // Returns whether required_space bytes are available after the collection.
-  void CollectGarbage(AllocationSpace space);
+  // Returns whether there is a chance that another major GC could
+  // collect more garbage.
+  bool CollectGarbage(AllocationSpace space, GarbageCollector collector);
+
+  // Performs garbage collection operation.
+  // Returns whether there is a chance that another major GC could
+  // collect more garbage.
+  inline bool CollectGarbage(AllocationSpace space);
 
   // Performs a full garbage collection. Force compaction if the
   // parameter is true.
   void CollectAllGarbage(bool force_compaction);
+
+  // Last hope GC, should try to squeeze as much as possible.
+  void CollectAllAvailableGarbage();
 
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed() { return ++contexts_disposed_; }
@@ -1340,7 +1349,9 @@ class Heap {
   GarbageCollector SelectGarbageCollector(AllocationSpace space);
 
   // Performs garbage collection
-  void PerformGarbageCollection(GarbageCollector collector,
+  // Returns whether there is a chance another major GC could
+  // collect more garbage.
+  bool PerformGarbageCollection(GarbageCollector collector,
                                 GCTracer* tracer);
 
   static const intptr_t kMinimumPromotionLimit = 2 * MB;

@@ -544,8 +544,8 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // Probe the stub cache.
   Code::Flags flags =
       Code::ComputeFlags(kind, NOT_IN_LOOP, MONOMORPHIC, NORMAL, argc);
-  Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, r1, r2, r3,
-                                                  no_reg);
+  Isolate::Current()->stub_cache()->GenerateProbe(
+      masm, flags, r1, r2, r3, r4, r5);
 
   // If the stub cache probing failed, the receiver might be a value.
   // For value objects, we use the map of the prototype objects for
@@ -584,8 +584,8 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
 
   // Probe the stub cache for the value object.
   __ bind(&probe);
-  Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, r1, r2, r3,
-                                                  no_reg);
+  Isolate::Current()->stub_cache()->GenerateProbe(
+      masm, flags, r1, r2, r3, r4, r5);
 
   __ bind(&miss);
 }
@@ -860,8 +860,8 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
-  Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, r0, r2, r3,
-                                                  no_reg);
+  Isolate::Current()->stub_cache()->GenerateProbe(
+      masm, flags, r0, r2, r3, r4, r5);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);
@@ -2166,8 +2166,9 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
-  Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, r1, r2, r3,
-                                                  no_reg);
+
+  Isolate::Current()->stub_cache()->GenerateProbe(
+      masm, flags, r1, r2, r3, r4, r5);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);

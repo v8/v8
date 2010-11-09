@@ -1482,66 +1482,6 @@ static MaybeObject* Runtime_RegExpConstructResult(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-static MaybeObject* Runtime_RegExpCloneResult(RUNTIME_CALLING_CONVENTION) {
-  ASSERT(args.length() == 1);
-  Map* regexp_result_map;
-  {
-    AssertNoAllocation no_gc;
-    HandleScope handles;
-    regexp_result_map = isolate->global_context()->regexp_result_map();
-  }
-  if (!args[0]->IsJSArray()) return args[0];
-
-  JSArray* result = JSArray::cast(args[0]);
-  // Arguments to RegExpCloneResult should always be fresh RegExp exec call
-  // results (either a fresh JSRegExpResult or null).
-  // If the argument is not a JSRegExpResult, or isn't unmodified, just return
-  // the argument uncloned.
-  if (result->map() != regexp_result_map) return result;
-
-  // Having the original JSRegExpResult map guarantees that we have
-  // fast elements and no properties except the two in-object properties.
-  ASSERT(result->HasFastElements());
-  ASSERT(result->properties() == isolate->heap()->empty_fixed_array());
-  ASSERT_EQ(2, regexp_result_map->inobject_properties());
-
-  Object* new_array_alloc;
-  { MaybeObject* maybe_new_array_alloc = isolate->heap()->AllocateRaw(
-      JSRegExpResult::kSize, NEW_SPACE, OLD_POINTER_SPACE);
-    if (!maybe_new_array_alloc->ToObject(&new_array_alloc)) {
-      return maybe_new_array_alloc;
-    }
-  }
-
-  // Set HeapObject map to JSRegExpResult map.
-  reinterpret_cast<HeapObject*>(new_array_alloc)->set_map(regexp_result_map);
-
-  JSArray* new_array = JSArray::cast(new_array_alloc);
-
-  // Copy JSObject properties.
-  new_array->set_properties(result->properties());  // Empty FixedArray.
-
-  // Copy JSObject elements as copy-on-write.
-  FixedArray* elements = FixedArray::cast(result->elements());
-  if (elements != isolate->heap()->empty_fixed_array()) {
-    elements->set_map(isolate->heap()->fixed_cow_array_map());
-  }
-  new_array->set_elements(elements);
-
-  // Copy JSArray length.
-  new_array->set_length(result->length());
-
-  // Copy JSRegExpResult in-object property fields input and index.
-  new_array->FastPropertyAtPut(JSRegExpResult::kIndexIndex,
-                               result->FastPropertyAt(
-                                   JSRegExpResult::kIndexIndex));
-  new_array->FastPropertyAtPut(JSRegExpResult::kInputIndex,
-                               result->FastPropertyAt(
-                                   JSRegExpResult::kInputIndex));
-  return new_array;
-}
-
-
 static MaybeObject* Runtime_RegExpInitializeObject(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   AssertNoAllocation no_alloc;
@@ -9287,13 +9227,6 @@ static MaybeObject* Runtime_DebugPrintScopes(RUNTIME_CALLING_CONVENTION) {
     it.DebugPrint();
   }
 #endif
-  return isolate->heap()->undefined_value();
-}
-
-
-static MaybeObject* Runtime_GetCFrames(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
-  // See bug 906.
   return isolate->heap()->undefined_value();
 }
 

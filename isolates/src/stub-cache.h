@@ -234,13 +234,15 @@ class StubCache {
   void Clear();
 
   // Generate code for probing the stub cache table.
-  // If extra != no_reg it might be used as am extra scratch register.
+  // Arguments extra and extra2 may be used to pass additional scratch
+  // registers. Set to no_reg if not needed.
   void GenerateProbe(MacroAssembler* masm,
                      Code::Flags flags,
                      Register receiver,
                      Register name,
                      Register scratch,
-                     Register extra);
+                     Register extra,
+                     Register extra2 = no_reg);
 
   enum Table {
     kPrimary,

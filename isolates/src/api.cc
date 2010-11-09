@@ -42,7 +42,6 @@
 #include "profile-generator-inl.h"
 #include "serialize.h"
 #include "snapshot.h"
-#include "utils.h"
 #include "v8threads.h"
 #include "version.h"
 

@@ -1880,6 +1880,7 @@ bool Debug::IsDebugGlobal(GlobalObject* global) {
 
 
 void Debug::ClearMirrorCache() {
+  PostponeInterruptsScope postpone;
   HandleScope scope;
   ASSERT(Isolate::Current()->context() == *Debug::debug_context());
 

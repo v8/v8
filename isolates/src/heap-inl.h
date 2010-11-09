@@ -344,6 +344,11 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
+bool Heap::CollectGarbage(AllocationSpace space) {
+  return CollectGarbage(space, SelectGarbageCollector(space));
+}
+
+
 MaybeObject* Heap::PrepareForCompare(String* str) {
   // Always flatten small strings and force flattening of long strings
   // after we have accumulated a certain amount we failed to flatten.
@@ -432,7 +437,7 @@ Isolate* Heap::isolate() {
     }                                                                     \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
     ISOLATE->counters()->gc_last_resort_from_handles()->Increment();      \
-    ISOLATE->heap()->CollectAllGarbage(false);                            \
+    ISOLATE->heap()->CollectAllAvailableGarbage();                        \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
       __maybe_object__ = FUNCTION_CALL;                                   \
