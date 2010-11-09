@@ -281,6 +281,11 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                                          FixedArray::BodyDescriptor,
                                          void>::Visit);
 
+    table_.Register(kVisitGlobalContext,
+                    &FixedBodyVisitor<StaticMarkingVisitor,
+                                      Context::MarkCompactBodyDescriptor,
+                                      void>::Visit);
+
     table_.Register(kVisitSharedFunctionInfo, &VisitSharedFunctionInfo);
 
     table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
@@ -584,6 +589,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                   SLOT_ADDR(object,
                             JSFunction::kCodeEntryOffset + kPointerSize),
                   SLOT_ADDR(object, JSFunction::kSize));
+
 #undef SLOT_ADDR
   }
 
@@ -756,6 +762,21 @@ class SymbolTableCleaner : public ObjectVisitor {
   }
  private:
   int pointers_removed_;
+};
+
+
+// Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
+// are retained.
+class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
+ public:
+  virtual Object* RetainAs(Object* object) {
+    MapWord first_word = HeapObject::cast(object)->map_word();
+    if (first_word.IsMarked()) {
+      return object;
+    } else {
+      return NULL;
+    }
+  }
 };
 
 
@@ -1088,12 +1109,16 @@ void MarkCompactCollector::MarkLiveObjects() {
   // Prune the symbol table removing all symbols only pointed to by the
   // symbol table.  Cannot use symbol_table() here because the symbol
   // table is marked.
-  SymbolTable* symbol_table = HEAP->raw_unchecked_symbol_table();
+  SymbolTable* symbol_table = heap_->raw_unchecked_symbol_table();
   SymbolTableCleaner v;
   symbol_table->IterateElements(&v);
   symbol_table->ElementsRemoved(v.PointersRemoved());
   heap_->external_string_table_.Iterate(&v);
   heap_->external_string_table_.CleanUp();
+
+  // Process the weak references.
+  MarkCompactWeakObjectRetainer mark_compact_object_retainer;
+  heap_->ProcessWeakReferences(&mark_compact_object_retainer);
 
   // Remove object groups after marking phase.
   heap_->isolate_->global_handles()->RemoveObjectGroups();
@@ -1265,10 +1290,10 @@ void EncodeFreeRegion(Address free_start, int free_size) {
 // Try to promote all objects in new space.  Heap numbers and sequential
 // strings are promoted to the code space, large objects to large object space,
 // and all others to the old space.
-inline Object* MCAllocateFromNewSpace(Heap* heap,
-                                      HeapObject* object,
-                                      int object_size) {
-  Object* forwarded;
+inline MaybeObject* MCAllocateFromNewSpace(Heap* heap,
+                                           HeapObject* object,
+                                           int object_size) {
+  MaybeObject* forwarded;
   if (object_size > heap->MaxObjectSizeInPagedSpace()) {
     forwarded = Failure::Exception();
   } else {
@@ -1277,45 +1302,49 @@ inline Object* MCAllocateFromNewSpace(Heap* heap,
            target_space == heap->old_data_space());
     forwarded = target_space->MCAllocateRaw(object_size);
   }
-  if (forwarded->IsFailure()) {
-    forwarded = heap->new_space()->MCAllocateRaw(object_size);
+  Object* result;
+  if (!forwarded->ToObject(&result)) {
+    result = heap->new_space()->MCAllocateRaw(object_size)->ToObjectUnchecked();
   }
-  return forwarded;
+  return result;
 }
 
 
 // Allocation functions for the paged spaces call the space's MCAllocateRaw.
-inline Object* MCAllocateFromOldPointerSpace(Heap* heap,
-                                             HeapObject* ignore,
-                                             int object_size) {
+MUST_USE_RESULT inline MaybeObject* MCAllocateFromOldPointerSpace(
+    Heap *heap,
+    HeapObject* ignore,
+    int object_size) {
   return heap->old_pointer_space()->MCAllocateRaw(object_size);
 }
 
 
-inline Object* MCAllocateFromOldDataSpace(Heap* heap,
-                                          HeapObject* ignore,
-                                          int object_size) {
+MUST_USE_RESULT inline MaybeObject* MCAllocateFromOldDataSpace(
+    Heap* heap,
+    HeapObject* ignore,
+    int object_size) {
   return heap->old_data_space()->MCAllocateRaw(object_size);
 }
 
 
-inline Object* MCAllocateFromCodeSpace(Heap* heap,
-                                       HeapObject* ignore,
-                                       int object_size) {
+MUST_USE_RESULT inline MaybeObject* MCAllocateFromCodeSpace(
+    Heap* heap,
+    HeapObject* ignore,
+    int object_size) {
   return heap->code_space()->MCAllocateRaw(object_size);
 }
 
 
-inline Object* MCAllocateFromMapSpace(Heap* heap,
-                                      HeapObject* ignore,
-                                      int object_size) {
+MUST_USE_RESULT inline MaybeObject* MCAllocateFromMapSpace(
+    Heap* heap,
+    HeapObject* ignore,
+    int object_size) {
   return heap->map_space()->MCAllocateRaw(object_size);
 }
 
 
-inline Object* MCAllocateFromCellSpace(Heap* heap,
-                                       HeapObject* ignore,
-                                       int object_size) {
+MUST_USE_RESULT inline MaybeObject* MCAllocateFromCellSpace(
+    Heap* heap, HeapObject* ignore, int object_size) {
   return heap->cell_space()->MCAllocateRaw(object_size);
 }
 
@@ -1395,9 +1424,8 @@ inline void EncodeForwardingAddressesInRange(MarkCompactCollector* collector,
       collector->tracer()->decrement_marked_count();
       object_size = object->Size();
 
-      Object* forwarded = Alloc(collector->heap(), object, object_size);
-      // Allocation cannot fail, because we are compacting the space.
-      ASSERT(!forwarded->IsFailure());
+      Object* forwarded =
+          Alloc(collector->heap(), object, object_size)->ToObjectUnchecked();
       Encode(collector->heap(), object, object_size, forwarded, offset);
 
 #ifdef DEBUG
@@ -1574,8 +1602,9 @@ static bool TryPromoteObject(Heap* heap, HeapObject* object, int object_size) {
   Object* result;
 
   if (object_size > heap->MaxObjectSizeInPagedSpace()) {
-    result = heap->lo_space()->AllocateRawFixedArray(object_size);
-    if (!result->IsFailure()) {
+    MaybeObject* maybe_result =
+        heap->lo_space()->AllocateRawFixedArray(object_size);
+    if (maybe_result->ToObject(&result)) {
       HeapObject* target = HeapObject::cast(result);
       MigrateObject(heap, target->address(), object->address(), object_size,
                     true);
@@ -1588,8 +1617,8 @@ static bool TryPromoteObject(Heap* heap, HeapObject* object, int object_size) {
 
     ASSERT(target_space == heap->old_pointer_space() ||
            target_space == heap->old_data_space());
-    result = target_space->AllocateRaw(object_size);
-    if (!result->IsFailure()) {
+    MaybeObject* maybe_result = target_space->AllocateRaw(object_size);
+    if (maybe_result->ToObject(&result)) {
       HeapObject* target = HeapObject::cast(result);
       MigrateObject(heap,
                     target->address(),
@@ -1638,10 +1667,8 @@ static void SweepNewSpace(Heap* heap, NewSpace* space) {
       }
 
       // Promotion failed. Just migrate object to another semispace.
-      Object* target = space->AllocateRaw(size);
-
       // Allocation cannot fail at this point: semispaces are of equal size.
-      ASSERT(!target->IsFailure());
+      Object* target = space->AllocateRaw(size)->ToObjectUnchecked();
 
       MigrateObject(heap,
                     HeapObject::cast(target)->address(),
@@ -1689,6 +1716,9 @@ static void SweepNewSpace(Heap* heap, NewSpace* space) {
       updating_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
     }
   }
+
+  // Update pointer from the global contexts list.
+  updating_visitor.VisitPointer(heap->global_contexts_list_address());
 
   // Update pointers from external string table.
   heap->UpdateNewSpaceReferencesInExternalStringTable(
@@ -2301,6 +2331,9 @@ void MarkCompactCollector::UpdatePointers() {
   heap_->IterateRoots(&updating_visitor, VISIT_ONLY_STRONG);
   heap_->isolate_->global_handles()->IterateWeakRoots(&updating_visitor);
 
+  // Update the pointer to the head of the weak list of global contexts.
+  updating_visitor.VisitPointer(&heap_->global_contexts_list_);
+
   int live_maps_size = IterateLiveObjects(
       heap_->map_space(), &MarkCompactCollector::UpdatePointersInOldObject);
   int live_pointer_olds_size = IterateLiveObjects(
@@ -2581,9 +2614,7 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsJSFunction()) {
     PROFILE(FunctionMoveEvent(heap_, old_addr, new_addr));
-    PROFILE(FunctionCreateEventFromMove(heap_,
-                                        JSFunction::cast(copied_to),
-                                        obj));
+    PROFILE(FunctionCreateEventFromMove(heap_, JSFunction::cast(copied_to)));
   }
   HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
 
@@ -2676,9 +2707,7 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsJSFunction()) {
     PROFILE(FunctionMoveEvent(heap_, old_addr, new_addr));
-    PROFILE(FunctionCreateEventFromMove(heap_,
-                                        JSFunction::cast(copied_to),
-                                        obj));
+    PROFILE(FunctionCreateEventFromMove(heap_, JSFunction::cast(copied_to)));
   }
   HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
 

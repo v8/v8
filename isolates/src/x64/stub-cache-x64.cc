@@ -800,13 +800,16 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 // Generate code to check that a global property cell is empty. Create
 // the property cell at compilation time if no cell exists for the
 // property.
-static Object* GenerateCheckPropertyCell(MacroAssembler* masm,
-                                         GlobalObject* global,
-                                         String* name,
-                                         Register scratch,
-                                         Label* miss) {
-  Object* probe = global->EnsurePropertyCell(name);
-  if (probe->IsFailure()) return probe;
+MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCell(
+    MacroAssembler* masm,
+    GlobalObject* global,
+    String* name,
+    Register scratch,
+    Label* miss) {
+  Object* probe;
+  { MaybeObject* maybe_probe = global->EnsurePropertyCell(name);
+    if (!maybe_probe->ToObject(&probe)) return maybe_probe;
+  }
   JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(probe);
   ASSERT(cell->value()->IsTheHole());
   __ Move(scratch, Handle<Object>(cell));
@@ -883,20 +886,23 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
 }
 
 
-Object* CallStubCompiler::GenerateMissBranch() {
-  Object* obj = Isolate::Current()->stub_cache()->
-      ComputeCallMiss(arguments().immediate(), kind_);
-  if (obj->IsFailure()) return obj;
+MaybeObject* CallStubCompiler::GenerateMissBranch() {
+  Object* obj;
+  { MaybeObject* maybe_obj = Isolate::Current()->stub_cache()->
+        ComputeCallMiss(arguments().immediate(), kind_);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
   __ Jump(Handle<Code>(Code::cast(obj)), RelocInfo::CODE_TARGET);
   return obj;
 }
 
 
-Object* CallStubCompiler::CompileCallConstant(Object* object,
-                                              JSObject* holder,
-                                              JSFunction* function,
-                                              String* name,
-                                              StubCompiler::CheckType check) {
+MaybeObject* CallStubCompiler::CompileCallConstant(
+    Object* object,
+    JSObject* holder,
+    JSFunction* function,
+    String* name,
+    StubCompiler::CheckType check) {
   // ----------- S t a t e -------------
   // rcx                 : function name
   // rsp[0]              : return address
@@ -910,8 +916,10 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   SharedFunctionInfo* function_info = function->shared();
   if (function_info->HasCustomCallGenerator()) {
     const int id = function_info->custom_call_generator_id();
-    Object* result = CompileCustomCall(
+    MaybeObject* maybe_result = CompileCustomCall(
         id, object, holder,  NULL, function, name);
+    Object* result;
+    if (!maybe_result->ToObject(&result)) return maybe_result;
     // undefined means bail out to regular compiler.
     if (!result->IsUndefined()) return result;
   }
@@ -1039,18 +1047,20 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
   // Handle call cache miss.
   __ bind(&miss_in_smi_check);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = GenerateMissBranch();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
   // Return the generated code.
   return GetCode(function);
 }
 
 
-Object* CallStubCompiler::CompileCallField(JSObject* object,
-                                           JSObject* holder,
-                                           int index,
-                                           String* name) {
+MaybeObject* CallStubCompiler::CompileCallField(JSObject* object,
+                                                JSObject* holder,
+                                                int index,
+                                                String* name) {
   // ----------- S t a t e -------------
   // rcx                 : function name
   // rsp[0]              : return address
@@ -1094,19 +1104,21 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = GenerateMissBranch();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
   // Return the generated code.
   return GetCode(FIELD, name);
 }
 
 
-Object* CallStubCompiler::CompileArrayPushCall(Object* object,
-                                               JSObject* holder,
-                                               JSGlobalPropertyCell* cell,
-                                               JSFunction* function,
-                                               String* name) {
+MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
+                                                    JSObject* holder,
+                                                    JSGlobalPropertyCell* cell,
+                                                    JSFunction* function,
+                                                    String* name) {
   // ----------- S t a t e -------------
   //  -- rcx                 : name
   //  -- rsp[0]              : return address
@@ -1196,6 +1208,10 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&attempt_to_grow_elements);
+      if (!FLAG_inline_new) {
+        __ jmp(&call_builtin);
+      }
+
       ExternalReference new_space_allocation_top =
           ExternalReference::new_space_allocation_top_address();
       ExternalReference new_space_allocation_limit =
@@ -1252,19 +1268,21 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   }
 
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = GenerateMissBranch();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
   // Return the generated code.
   return GetCode(function);
 }
 
 
-Object* CallStubCompiler::CompileArrayPopCall(Object* object,
-                                              JSObject* holder,
-                                              JSGlobalPropertyCell* cell,
-                                              JSFunction* function,
-                                              String* name) {
+MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
+                                                   JSObject* holder,
+                                                   JSGlobalPropertyCell* cell,
+                                                   JSFunction* function,
+                                                   String* name) {
   // ----------- S t a t e -------------
   //  -- rcx                 : name
   //  -- rsp[0]              : return address
@@ -1334,19 +1352,22 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
                                1);
 
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = GenerateMissBranch();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
   // Return the generated code.
   return GetCode(function);
 }
 
 
-Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
-                                                  JSObject* holder,
-                                                  JSGlobalPropertyCell* cell,
-                                                  JSFunction* function,
-                                                  String* name) {
+MaybeObject* CallStubCompiler::CompileStringCharAtCall(
+    Object* object,
+    JSObject* holder,
+    JSGlobalPropertyCell* cell,
+    JSFunction* function,
+    String* name) {
   // ----------- S t a t e -------------
   //  -- rcx                 : function name
   //  -- rsp[0]              : return address
@@ -1406,15 +1427,17 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = GenerateMissBranch();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
   // Return the generated code.
   return GetCode(function);
 }
 
 
-Object* CallStubCompiler::CompileStringCharCodeAtCall(
+MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
     Object* object,
     JSObject* holder,
     JSGlobalPropertyCell* cell,
@@ -1476,15 +1499,17 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = GenerateMissBranch();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
   // Return the generated code.
   return GetCode(function);
 }
 
 
-Object* CallStubCompiler::CompileStringFromCharCodeCall(
+MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
     Object* object,
     JSObject* holder,
     JSGlobalPropertyCell* cell,
@@ -1545,29 +1570,31 @@ Object* CallStubCompiler::CompileStringFromCharCodeCall(
 
   __ bind(&miss);
   // rcx: function name.
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = GenerateMissBranch();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
   // Return the generated code.
   return (cell == NULL) ? GetCode(function) : GetCode(NORMAL, name);
 }
 
 
-Object* CallStubCompiler::CompileMathFloorCall(Object* object,
-                                               JSObject* holder,
-                                               JSGlobalPropertyCell* cell,
-                                               JSFunction* function,
-                                               String* name) {
+MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
+                                                    JSObject* holder,
+                                                    JSGlobalPropertyCell* cell,
+                                                    JSFunction* function,
+                                                    String* name) {
   // TODO(872): implement this.
   return HEAP->undefined_value();
 }
 
 
-Object* CallStubCompiler::CompileMathAbsCall(Object* object,
-                                             JSObject* holder,
-                                             JSGlobalPropertyCell* cell,
-                                             JSFunction* function,
-                                             String* name) {
+MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
+                                                  JSObject* holder,
+                                                  JSGlobalPropertyCell* cell,
+                                                  JSFunction* function,
+                                                  String* name) {
   // ----------- S t a t e -------------
   //  -- rcx                 : function name
   //  -- rsp[0]              : return address
@@ -1658,17 +1685,19 @@ Object* CallStubCompiler::CompileMathAbsCall(Object* object,
 
   __ bind(&miss);
   // rcx: function name.
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = GenerateMissBranch();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
   // Return the generated code.
   return (cell == NULL) ? GetCode(function) : GetCode(NORMAL, name);
 }
 
 
-Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
-                                                 JSObject* holder,
-                                                 String* name) {
+MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
+                                                      JSObject* holder,
+                                                      String* name) {
   // ----------- S t a t e -------------
   // rcx                 : function name
   // rsp[0]              : return address
@@ -1724,19 +1753,21 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   // Handle load cache miss.
   __ bind(&miss);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = GenerateMissBranch();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
   // Return the generated code.
   return GetCode(INTERCEPTOR, name);
 }
 
 
-Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
-                                            GlobalObject* holder,
-                                            JSGlobalPropertyCell* cell,
-                                            JSFunction* function,
-                                            String* name) {
+MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
+                                                 GlobalObject* holder,
+                                                 JSGlobalPropertyCell* cell,
+                                                 JSFunction* function,
+                                                 String* name) {
   // ----------- S t a t e -------------
   // rcx                 : function name
   // rsp[0]              : return address
@@ -1750,8 +1781,10 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   SharedFunctionInfo* function_info = function->shared();
   if (function_info->HasCustomCallGenerator()) {
     const int id = function_info->custom_call_generator_id();
-    Object* result = CompileCustomCall(
+    MaybeObject* maybe_result = CompileCustomCall(
         id, object, holder, cell, function, name);
+    Object* result;
+    if (!maybe_result->ToObject(&result)) return maybe_result;
     // undefined means bail out to regular compiler.
     if (!result->IsUndefined()) return result;
   }
@@ -1787,18 +1820,20 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // Handle call cache miss.
   __ bind(&miss);
   __ IncrementCounter(COUNTERS->call_global_inline_miss(), 1);
-  Object* obj = GenerateMissBranch();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = GenerateMissBranch();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
   // Return the generated code.
   return GetCode(NORMAL, name);
 }
 
 
-Object* LoadStubCompiler::CompileLoadCallback(String* name,
-                                              JSObject* object,
-                                              JSObject* holder,
-                                              AccessorInfo* callback) {
+MaybeObject* LoadStubCompiler::CompileLoadCallback(String* name,
+                                                   JSObject* object,
+                                                   JSObject* holder,
+                                                   AccessorInfo* callback) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
   //  -- rcx    : name
@@ -1822,10 +1857,10 @@ Object* LoadStubCompiler::CompileLoadCallback(String* name,
 }
 
 
-Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
-                                              JSObject* holder,
-                                              Object* value,
-                                              String* name) {
+MaybeObject* LoadStubCompiler::CompileLoadConstant(JSObject* object,
+                                                   JSObject* holder,
+                                                   Object* value,
+                                                   String* name) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
   //  -- rcx    : name
@@ -1842,9 +1877,9 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
 }
 
 
-Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
-                                                 JSObject* object,
-                                                 JSObject* last) {
+MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
+                                                      JSObject* object,
+                                                      JSObject* last) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
   //  -- rcx    : name
@@ -1863,11 +1898,11 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
   // If the last object in the prototype chain is a global object,
   // check that the global property cell is empty.
   if (last->IsGlobalObject()) {
-    Object* cell = GenerateCheckPropertyCell(masm(),
-                                             GlobalObject::cast(last),
-                                             name,
-                                             rdx,
-                                             &miss);
+    MaybeObject* cell = GenerateCheckPropertyCell(masm(),
+                                                  GlobalObject::cast(last),
+                                                  name,
+                                                  rdx,
+                                                  &miss);
     if (cell->IsFailure()) {
       miss.Unuse();
       return cell;
@@ -1887,10 +1922,10 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
 }
 
 
-Object* LoadStubCompiler::CompileLoadField(JSObject* object,
-                                           JSObject* holder,
-                                           int index,
-                                           String* name) {
+MaybeObject* LoadStubCompiler::CompileLoadField(JSObject* object,
+                                                JSObject* holder,
+                                                int index,
+                                                String* name) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
   //  -- rcx    : name
@@ -1907,9 +1942,9 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
 }
 
 
-Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
-                                                 JSObject* holder,
-                                                 String* name) {
+MaybeObject* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
+                                                      JSObject* holder,
+                                                      String* name) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
   //  -- rcx    : name
@@ -1941,11 +1976,11 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 }
 
 
-Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
-                                            GlobalObject* holder,
-                                            JSGlobalPropertyCell* cell,
-                                            String* name,
-                                            bool is_dont_delete) {
+MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
+                                                 GlobalObject* holder,
+                                                 JSGlobalPropertyCell* cell,
+                                                 String* name,
+                                                 bool is_dont_delete) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
   //  -- rcx    : name
@@ -1989,10 +2024,11 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
-                                                   JSObject* receiver,
-                                                   JSObject* holder,
-                                                   AccessorInfo* callback) {
+MaybeObject* KeyedLoadStubCompiler::CompileLoadCallback(
+    String* name,
+    JSObject* receiver,
+    JSObject* holder,
+    AccessorInfo* callback) {
   // ----------- S t a t e -------------
   //  -- rax     : key
   //  -- rdx     : receiver
@@ -2023,7 +2059,7 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
+MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
@@ -2047,10 +2083,10 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
-                                                   JSObject* receiver,
-                                                   JSObject* holder,
-                                                   Object* value) {
+MaybeObject* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
+                                                        JSObject* receiver,
+                                                        JSObject* holder,
+                                                        Object* value) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
@@ -2075,7 +2111,7 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
+MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
@@ -2099,9 +2135,9 @@ Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
-                                                      JSObject* holder,
-                                                      String* name) {
+MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
+                                                           JSObject* holder,
+                                                           String* name) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
@@ -2136,7 +2172,7 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
+MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
@@ -2160,9 +2196,9 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
 }
 
 
-Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
-                                                AccessorInfo* callback,
-                                                String* name) {
+MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
+                                                     AccessorInfo* callback,
+                                                     String* name) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
@@ -2211,10 +2247,10 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
 }
 
 
-Object* StoreStubCompiler::CompileStoreField(JSObject* object,
-                                             int index,
-                                             Map* transition,
-                                             String* name) {
+MaybeObject* StoreStubCompiler::CompileStoreField(JSObject* object,
+                                                  int index,
+                                                  Map* transition,
+                                                  String* name) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
@@ -2242,8 +2278,8 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
 }
 
 
-Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
-                                                   String* name) {
+MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
+                                                        String* name) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
@@ -2291,9 +2327,9 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 }
 
 
-Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
-                                              JSGlobalPropertyCell* cell,
-                                              String* name) {
+MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
+                                                   JSGlobalPropertyCell* cell,
+                                                   String* name) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
@@ -2327,10 +2363,10 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
-                                                JSObject* receiver,
-                                                JSObject* holder,
-                                                int index) {
+MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
+                                                     JSObject* receiver,
+                                                     JSObject* holder,
+                                                     int index) {
   // ----------- S t a t e -------------
   //  -- rax     : key
   //  -- rdx     : receiver
@@ -2355,10 +2391,10 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
 }
 
 
-Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
-                                                  int index,
-                                                  Map* transition,
-                                                  String* name) {
+MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
+                                                       int index,
+                                                       Map* transition,
+                                                       String* name) {
   // ----------- S t a t e -------------
   //  -- rax     : value
   //  -- rcx     : key
@@ -2553,7 +2589,6 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   Handle<AccessorInfo> callback_handle(callback);
 
   __ EnterInternalFrame();
-  __ PushHandleScope(scratch2);
   // Push the stack address where the list of arguments ends.
   __ movq(scratch2, rsp);
   __ subq(scratch2, Immediate(2 * kPointerSize));
@@ -2598,7 +2633,7 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   // already generated).  Do not allow the assembler to perform a
   // garbage collection but instead return the allocation failure
   // object.
-  Object* result = masm()->TryCallStub(&stub);
+  MaybeObject* result = masm()->TryCallStub(&stub);
   if (result->IsFailure()) {
     *failure = Failure::cast(result);
     return false;
@@ -2607,17 +2642,6 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   // Discard allocated slot.
   __ addq(rsp, Immediate(kPointerSize));
 #endif
-
-  // We need to avoid using rax since that now holds the result.
-  Register tmp = scratch2.is(rax) ? reg : scratch2;
-  // Emitting PopHandleScope may try to allocate.  Do not allow the
-  // assembler to perform a garbage collection but instead return a
-  // failure object.
-  result = masm()->TryPopHandleScope(rax, tmp);
-  if (result->IsFailure()) {
-    *failure = Failure::cast(result);
-    return false;
-  }
   __ LeaveInternalFrame();
 
   __ ret(0);
@@ -2665,12 +2689,12 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
         !current->IsJSGlobalObject() &&
         !current->IsJSGlobalProxy()) {
       if (!name->IsSymbol()) {
-        Object* lookup_result = HEAP->LookupSymbol(name);
+        MaybeObject* lookup_result = HEAP->LookupSymbol(name);
         if (lookup_result->IsFailure()) {
           set_failure(Failure::cast(lookup_result));
           return reg;
         } else {
-          name = String::cast(lookup_result);
+          name = String::cast(lookup_result->ToObjectUnchecked());
         }
       }
       ASSERT(current->property_dictionary()->FindEntry(name) ==
@@ -2752,11 +2776,11 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
   current = object;
   while (current != holder) {
     if (current->IsGlobalObject()) {
-      Object* cell = GenerateCheckPropertyCell(masm(),
-                                               GlobalObject::cast(current),
-                                               name,
-                                               scratch1,
-                                               miss);
+      MaybeObject* cell = GenerateCheckPropertyCell(masm(),
+                                                    GlobalObject::cast(current),
+                                                    name,
+                                                    scratch1,
+                                                    miss);
       if (cell->IsFailure()) {
         set_failure(Failure::cast(cell));
         return reg;
@@ -2818,7 +2842,7 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
 
 // Specialized stub for constructing objects from functions which only have only
 // simple assignments of the form this.x = ...; in their body.
-Object* ConstructStubCompiler::CompileConstructStub(
+MaybeObject* ConstructStubCompiler::CompileConstructStub(
     SharedFunctionInfo* shared) {
   // ----------- S t a t e -------------
   //  -- rax : argc

@@ -439,9 +439,10 @@ TEST(DisasmIa320) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(desc,
-                                  Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(HEAP->undefined_value()));
+  Object* code = HEAP->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();

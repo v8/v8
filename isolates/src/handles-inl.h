@@ -67,36 +67,41 @@ inline T* Handle<T>::operator*() const {
 }
 
 
-// Helper class to zero out the number of extensions in the handle
-// scope data after it has been saved.
-// This is only necessary for HandleScope constructor to get the right
-// order of effects.
-class HandleScopeDataTransfer {
- public:
-  typedef v8::ImplementationUtilities::HandleScopeData Data;
-
-  explicit HandleScopeDataTransfer(Data* data) : data_(data) {}
-  ~HandleScopeDataTransfer() { data_->extensions = 0; }
-
-  // Called before the destructor to get the data to save.
-  Data* data() { return data_; }
-
- private:
-  Data* data_;
-
-  DISALLOW_COPY_AND_ASSIGN(HandleScopeDataTransfer);
-};
-
-
-HandleScope::HandleScope()
-    : previous_(*HandleScopeDataTransfer(
-        Isolate::Current()->handle_scope_data()).data()) {
+HandleScope::HandleScope() {
+  Isolate* isolate = Isolate::Current();
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate->handle_scope_data();
+  isolate_ = isolate;
+  prev_next_ = current->next;
+  prev_limit_ = current->limit;
+  current->level++;
 }
 
 
-HandleScope::HandleScope(Isolate* isolate)
-    : previous_(*HandleScopeDataTransfer(isolate->handle_scope_data()).data()) {
+HandleScope::HandleScope(Isolate* isolate) {
   ASSERT(isolate == Isolate::Current());
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate->handle_scope_data();
+  isolate_ = isolate;
+  prev_next_ = current->next;
+  prev_limit_ = current->limit;
+  current->level++;
+}
+
+
+HandleScope::~HandleScope() {
+  ASSERT(isolate_ == Isolate::Current());
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate_->handle_scope_data();
+  current->next = prev_next_;
+  current->level--;
+  if (current->limit != prev_limit_) {
+    current->limit = prev_limit_;
+    DeleteExtensions(isolate_);
+  }
+#ifdef DEBUG
+  ZapRange(prev_next_, prev_limit_);
+#endif
 }
 
 
@@ -119,47 +124,27 @@ T** HandleScope::CreateHandle(T* value, Isolate* isolate) {
 }
 
 
-void HandleScope::Enter(
-    v8::ImplementationUtilities::HandleScopeData* previous) {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      Isolate::Current()->handle_scope_data();
-  *previous = *current;
-  current->extensions = 0;
-}
-
-
-void HandleScope::Leave(
-    const v8::ImplementationUtilities::HandleScopeData* previous) {
-  Isolate* isolate = previous->isolate;
-  ASSERT(isolate == Isolate::Current());
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
-  if (current->extensions > 0) {
-    DeleteExtensions(isolate);
-  }
-  *current = *previous;
-#ifdef DEBUG
-  ZapRange(current->next, current->limit);
-#endif
-}
-
-
 #ifdef DEBUG
 inline NoHandleAllocation::NoHandleAllocation() {
   v8::ImplementationUtilities::HandleScopeData* current =
       Isolate::Current()->handle_scope_data();
-  extensions_ = current->extensions;
+
   // Shrink the current handle scope to make it impossible to do
   // handle allocations without an explicit handle scope.
   current->limit = current->next;
-  current->extensions = -1;
+
+  level_ = current->level;
+  current->level = 0;
 }
 
 
 inline NoHandleAllocation::~NoHandleAllocation() {
   // Restore state in current handle scope to re-enable handle
   // allocations.
-  Isolate::Current()->handle_scope_data()->extensions = extensions_;
+  v8::ImplementationUtilities::HandleScopeData* data =
+      Isolate::Current()->handle_scope_data();
+  ASSERT_EQ(0, data->level);
+  data->level = level_;
 }
 #endif
 

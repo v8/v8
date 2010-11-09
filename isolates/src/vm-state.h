@@ -46,20 +46,16 @@ class VMState BASE_EMBEDDED {
 
   // Used for debug asserts.
   static bool is_outermost_external() {
-    VMState* state = reinterpret_cast<VMState*>(
-        *Isolate::Current()->vm_state());
-    return state == NULL;
+    return Isolate::Current()->current_vm_state() == 0;
   }
 
   static StateTag current_state() {
-    VMState* state = reinterpret_cast<VMState*>(
-        *Isolate::Current()->vm_state());
+    VMState* state = Isolate::Current()->current_vm_state();
     return state ? state->state() : EXTERNAL;
   }
 
   static Address external_callback() {
-    VMState* state = reinterpret_cast<VMState*>(
-        *Isolate::Current()->vm_state());
+    VMState* state = Isolate::Current()->current_vm_state();
     return state ? state->external_callback_ : NULL;
   }
 
@@ -69,6 +65,7 @@ class VMState BASE_EMBEDDED {
   VMState* previous_;
   Address external_callback_;
   Isolate* isolate_;
+
 #else
  public:
   explicit VMState(StateTag state) {}

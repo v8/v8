@@ -97,7 +97,7 @@ static void InitializeVM() {
 }
 
 
-static Object* GetGlobalProperty(const char* name) {
+static MaybeObject* GetGlobalProperty(const char* name) {
   Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
   return Isolate::Current()->context()->global()->GetProperty(*symbol);
 }
@@ -139,7 +139,7 @@ static double Inc(int x) {
   Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
-  return GetGlobalProperty("result")->Number();
+  return GetGlobalProperty("result")->ToObjectChecked()->Number();
 }
 
 
@@ -160,7 +160,7 @@ static double Add(int x, int y) {
   Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
-  return GetGlobalProperty("result")->Number();
+  return GetGlobalProperty("result")->ToObjectChecked()->Number();
 }
 
 
@@ -180,7 +180,7 @@ static double Abs(int x) {
   Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
-  return GetGlobalProperty("result")->Number();
+  return GetGlobalProperty("result")->ToObjectChecked()->Number();
 }
 
 
@@ -201,7 +201,7 @@ static double Sum(int n) {
   Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
-  return GetGlobalProperty("result")->Number();
+  return GetGlobalProperty("result")->ToObjectChecked()->Number();
 }
 
 
@@ -255,7 +255,7 @@ TEST(Stuff) {
   Handle<JSObject> global(Isolate::Current()->context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
-  CHECK_EQ(511.0, GetGlobalProperty("r")->Number());
+  CHECK_EQ(511.0, GetGlobalProperty("r")->ToObjectChecked()->Number());
 }
 
 
@@ -271,7 +271,8 @@ TEST(UncaughtThrow) {
   Handle<Object> result =
       Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(has_pending_exception);
-  CHECK_EQ(42.0, Isolate::Current()->pending_exception()->Number());
+  CHECK_EQ(42.0, Isolate::Current()->pending_exception()->
+           ToObjectChecked()->Number());
 }
 
 
@@ -296,10 +297,10 @@ TEST(C2JSFrames) {
   Execution::Call(fun0, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 
-  Handle<Object> fun1 =
-      Handle<Object>(
-          Isolate::Current()->context()->global()->GetProperty(
-              *FACTORY->LookupAsciiSymbol("foo")));
+  Object* foo_symbol = FACTORY->LookupAsciiSymbol("foo")->ToObjectChecked();
+  MaybeObject* fun1_object = Isolate::Current()->context()->global()->
+      GetProperty(String::cast(foo_symbol));
+  Handle<Object> fun1(fun1_object->ToObjectChecked());
   CHECK(fun1->IsJSFunction());
 
   Object** argv[1] = {

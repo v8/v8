@@ -76,9 +76,9 @@ VMState::VMState(StateTag state)
 #endif
   state_ = state;
   // Save the previous state.
-  previous_ = reinterpret_cast<VMState*>(*isolate_->vm_state());
+  previous_ = isolate_->current_vm_state();
   // Install the new state.
-  OS::ReleaseStore(isolate_->vm_state(), reinterpret_cast<AtomicWord>(this));
+  isolate_->set_current_vm_state(this);
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
@@ -94,10 +94,10 @@ VMState::VMState(StateTag state)
     if (state_ == EXTERNAL) {
       // We are leaving V8.
       ASSERT((previous_ != NULL) && (previous_->state_ != EXTERNAL));
-      Heap::Protect();
+      isolate_->heap()->Protect();
     } else if ((previous_ == NULL) || (previous_->state_ == EXTERNAL)) {
       // We are entering V8.
-      Heap::Unprotect();
+      isolate_->heap()->Unprotect();
     }
   }
 #endif
@@ -108,8 +108,7 @@ VMState::~VMState() {
   ASSERT(isolate_ == Isolate::Current());
   if (disabled_) return;
   // Return to the previous state.
-  OS::ReleaseStore(isolate_->vm_state(),
-                   reinterpret_cast<AtomicWord>(previous_));
+  isolate_->set_current_vm_state(previous_);
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
@@ -125,10 +124,10 @@ VMState::~VMState() {
     if (state_ == EXTERNAL) {
       // We are reentering V8.
       ASSERT((previous_ != NULL) && (previous_->state_ != EXTERNAL));
-      Heap::Unprotect();
+      isolate_->heap()->Unprotect();
     } else if ((previous_ == NULL) || (previous_->state_ == EXTERNAL)) {
       // We are leaving V8.
-      Heap::Protect();
+      isolate_->heap()->Protect();
     }
   }
 #endif  // ENABLE_HEAP_PROTECTION

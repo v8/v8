@@ -167,7 +167,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // lookups.
   Context* context_;
   int thread_id_;
-  Object* pending_exception_;
+  MaybeObject* pending_exception_;
   bool has_pending_message_;
   const char* pending_message_;
   Object* pending_message_obj_;
@@ -177,7 +177,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Use a separate value for scheduled exceptions to preserve the
   // invariants that hold about pending_exception.  We may want to
   // unify them later.
-  Object* scheduled_exception_;
+  MaybeObject* scheduled_exception_;
   bool external_caught_exception_;
   SaveContext* save_context_;
   v8::TryCatch* catcher_;
@@ -185,8 +185,21 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Stack.
   Address c_entry_fp_;  // the frame pointer of the top c entry frame
   Address handler_;   // try-blocks are chained through the stack
+
+#ifdef USE_SIMULATOR
+#ifdef V8_TARGET_ARCH_ARM
+  assembler::arm::Simulator* simulator_;
+#elif V8_TARGET_ARCH_MIPS
+  assembler::mips::Simulator* simulator_;
+#endif
+#endif  // USE_SIMULATOR
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
   Address js_entry_sp_;  // the stack pointer of the bottom js entry frame
+#endif
+
+#ifdef ENABLE_VMSTATE_TRACKING
+  VMState* current_vm_state_;
 #endif
 
   // Generated code scratch locations.
@@ -448,20 +461,20 @@ class Isolate {
   void set_thread_id(int id) { thread_local_top_.thread_id_ = id; }
 
   // Interface to pending exception.
-  Object* pending_exception() {
+  MaybeObject* pending_exception() {
     ASSERT(has_pending_exception());
     return thread_local_top_.pending_exception_;
   }
   bool external_caught_exception() {
     return thread_local_top_.external_caught_exception_;
   }
-  void set_pending_exception(Object* exception) {
+  void set_pending_exception(MaybeObject* exception) {
     thread_local_top_.pending_exception_ = exception;
   }
   void clear_pending_exception() {
     thread_local_top_.pending_exception_ = heap_.the_hole_value();
   }
-  Object** pending_exception_address() {
+  MaybeObject** pending_exception_address() {
     return &thread_local_top_.pending_exception_;
   }
   bool has_pending_exception() {
@@ -483,10 +496,10 @@ class Isolate {
     return &thread_local_top_.external_caught_exception_;
   }
 
-  Object** scheduled_exception_address() {
+  MaybeObject** scheduled_exception_address() {
     return &thread_local_top_.scheduled_exception_;
   }
-  Object* scheduled_exception() {
+  MaybeObject* scheduled_exception() {
     ASSERT(has_scheduled_exception());
     return thread_local_top_.scheduled_exception_;
   }
@@ -522,6 +535,16 @@ class Isolate {
   }
   inline Address* js_entry_sp_address() {
     return &thread_local_top_.js_entry_sp_;
+  }
+#endif
+
+#ifdef ENABLE_VMSTATE_TRACKING
+  VMState* current_vm_state() {
+    return thread_local_top_.current_vm_state_;
+  }
+
+  void set_current_vm_state(VMState* state) {
+    thread_local_top_.current_vm_state_ = state;
   }
 #endif
 
@@ -589,14 +612,14 @@ class Isolate {
   // Re-throw an exception.  This involves no error reporting since
   // error reporting was handled when the exception was thrown
   // originally.
-  Failure* ReThrow(Object* exception, MessageLocation* location = NULL);
+  Failure* ReThrow(MaybeObject* exception, MessageLocation* location = NULL);
   void ScheduleThrow(Object* exception);
   void ReportPendingMessages();
   Failure* ThrowIllegalOperation();
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
-  Object* PromoteScheduledException();
-  void DoThrow(Object* exception,
+  Failure* PromoteScheduledException();
+  void DoThrow(MaybeObject* exception,
                MessageLocation* location,
                const char* message);
   bool ShouldReturnException(bool* is_caught_externally,
@@ -741,10 +764,6 @@ class Isolate {
 
   AstSentinels* ast_sentinels() { return ast_sentinels_; }
 
-  InlineRuntimeFunctionsTable* inline_runtime_functions_table() {
-    return inline_runtime_functions_table_;
-  }
-
   RuntimeState* runtime_state() { return &runtime_state_; }
 
   StringInputBuffer* liveedit_compare_substrings_buf1() {
@@ -824,9 +843,6 @@ class Isolate {
     simulator_redirection_ = redirection;
   }
 #endif
-
-  /* A stack of VM states. */
-  AtomicWord* vm_state() { return &vm_state_; }
 
   Factory* factory() { return reinterpret_cast<Factory*>(this); }
 
@@ -981,7 +997,6 @@ class Isolate {
   ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
   AstSentinels* ast_sentinels_;
-  InlineRuntimeFunctionsTable* inline_runtime_functions_table_;
   RuntimeState runtime_state_;
   StringInputBuffer liveedit_compare_substrings_buf1_;
   StringInputBuffer liveedit_compare_substrings_buf2_;
@@ -999,7 +1014,6 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   ZoneObjectList frame_element_constant_list_;
   ZoneObjectList result_constant_list_;
-  AtomicWord vm_state_;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
   bool simulator_initialized_;

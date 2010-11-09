@@ -120,10 +120,14 @@ void CpuFeatures::Probe() {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(desc,
-                                  Code::ComputeFlags(Code::STUB),
-                                  Handle<Code>::null());
+  Object* code;
+  { MaybeObject* maybe_code = HEAP->CreateCode(desc,
+                                               Code::ComputeFlags(Code::STUB),
+                                               Handle<Code>::null());
+    if (!maybe_code->ToObject(&code)) return;
+  }
   if (!code->IsCode()) return;
+
   PROFILE(CodeCreateEvent(Logger::BUILTIN_TAG,
                           Code::cast(code), "CpuFeatures::Probe"));
   typedef uint64_t (*F0)();

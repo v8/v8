@@ -206,7 +206,7 @@ LIBRARY_FLAGS = {
     },
     'simulator:arm': {
       'CCFLAGS':      ['-m32'],
-      'LINKFLAGS':    ['-m32']
+      'LINKFLAGS':    ['-m32'],
     },
     'arch:mips': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
@@ -217,7 +217,7 @@ LIBRARY_FLAGS = {
     },
     'simulator:mips': {
       'CCFLAGS':      ['-m32'],
-      'LINKFLAGS':    ['-m32']
+      'LINKFLAGS':    ['-m32'],
     },
     'arch:x64': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
@@ -663,17 +663,17 @@ SIMPLE_OPTIONS = {
   'toolchain': {
     'values': ['gcc', 'msvc'],
     'default': TOOLCHAIN_GUESS,
-    'help': 'the toolchain to use (' + TOOLCHAIN_GUESS + ')'
+    'help': 'the toolchain to use (%s)' % TOOLCHAIN_GUESS
   },
   'os': {
     'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd', 'solaris'],
     'default': OS_GUESS,
-    'help': 'the os to build for (' + OS_GUESS + ')'
+    'help': 'the os to build for (%s)' % OS_GUESS
   },
   'arch': {
     'values':['arm', 'ia32', 'x64', 'mips'],
     'default': ARCH_GUESS,
-    'help': 'the architecture to build for (' + ARCH_GUESS + ')'
+    'help': 'the architecture to build for (%s)' % ARCH_GUESS
   },
   'regexp': {
     'values': ['native', 'interpreted'],

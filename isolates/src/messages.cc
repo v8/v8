@@ -154,7 +154,8 @@ Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
   Handle<JSFunction> fun =
       Handle<JSFunction>(
           JSFunction::cast(
-              Isolate::Current()->js_builtins_object()->GetProperty(*fmt_str)));
+              Isolate::Current()->js_builtins_object()->
+              GetPropertyNoExceptionThrown(*fmt_str)));
   Object** argv[1] = { data.location() };
 
   bool caught_exception;

@@ -126,17 +126,20 @@ Log::Log(Logger* logger)
   : write_to_file_(false),
     is_stopped_(false),
     output_handle_(NULL),
+    output_code_handle_(NULL),
     output_buffer_(NULL),
     mutex_(NULL),
     message_buffer_(NULL),
     logger_(logger) {
 }
 
-static void addIsolateIdIfNeeded(StringStream* stream) {
+
+static void AddIsolateIdIfNeeded(StringStream* stream) {
   Isolate* isolate = Isolate::Current();
   if (isolate->IsDefaultIsolate()) return;
   stream->Add("isolate-%p-", isolate);
 }
+
 
 void Log::Initialize() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -182,7 +185,7 @@ void Log::Initialize() {
         // placeholders.
         HeapStringAllocator allocator;
         StringStream stream(&allocator);
-        addIsolateIdIfNeeded(&stream);
+        AddIsolateIdIfNeeded(&stream);
         for (const char* p = FLAG_logfile; *p; p++) {
           if (*p == '%') {
             p++;
@@ -230,10 +233,23 @@ void Log::OpenStdout() {
 }
 
 
+static const char kCodeLogExt[] = ".code";
+
+
 void Log::OpenFile(const char* name) {
   ASSERT(!IsEnabled());
   output_handle_ = OS::FOpen(name, OS::LogFileOpenMode);
   write_to_file_ = true;
+  if (FLAG_ll_prof) {
+    // Open a file for logging the contents of code objects so that
+    // they can be disassembled later.
+    size_t name_len = strlen(name);
+    ScopedVector<char> code_name(
+        static_cast<int>(name_len + sizeof(kCodeLogExt)));
+    memcpy(code_name.start(), name, name_len);
+    memcpy(code_name.start() + name_len, kCodeLogExt, sizeof(kCodeLogExt));
+    output_code_handle_ = OS::FOpen(code_name.start(), OS::LogFileOpenMode);
+  }
 }
 
 
@@ -250,6 +266,8 @@ void Log::Close() {
   if (write_to_file_) {
     if (output_handle_ != NULL) fclose(output_handle_);
     output_handle_ = NULL;
+    if (output_code_handle_ != NULL) fclose(output_code_handle_);
+    output_code_handle_ = NULL;
   } else {
     delete output_buffer_;
     output_buffer_ = NULL;

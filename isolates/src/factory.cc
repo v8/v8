@@ -505,7 +505,7 @@ Handle<Object> Factory::NewError(const char* maker,
                                  Handle<JSArray> args) {
   Handle<String> make_str = LookupAsciiSymbol(maker);
   Handle<Object> fun_obj(
-      isolate()->js_builtins_object()->GetProperty(*make_str));
+      isolate()->js_builtins_object()->GetPropertyNoExceptionThrown(*make_str));
   // If the builtins haven't been properly configured yet this error
   // constructor may not have been defined.  Bail out.
   if (!fun_obj->IsJSFunction())
@@ -532,10 +532,9 @@ Handle<Object> Factory::NewError(Handle<String> message) {
 Handle<Object> Factory::NewError(const char* constructor,
                                  Handle<String> message) {
   Handle<String> constr = LookupAsciiSymbol(constructor);
-  Handle<JSFunction> fun =
-      Handle<JSFunction>(
-          JSFunction::cast(
-              isolate()->js_builtins_object()->GetProperty(*constr)));
+  Handle<JSFunction> fun = Handle<JSFunction>(
+      JSFunction::cast(isolate()->js_builtins_object()->
+                       GetPropertyNoExceptionThrown(*constr)));
   Object** argv[1] = { Handle<Object>::cast(message).location() };
 
   // Invoke the JavaScript factory method. If an exception is thrown while
@@ -641,12 +640,13 @@ Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
 }
 
 
-static inline Object* DoCopyInsert(DescriptorArray* array,
-                                   String* key,
-                                   Object* value,
-                                   PropertyAttributes attributes) {
+MUST_USE_RESULT static inline MaybeObject* DoCopyInsert(
+    DescriptorArray* array,
+    String* key,
+    Object* value,
+    PropertyAttributes attributes) {
   CallbacksDescriptor desc(key, value, attributes);
-  Object* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
+  MaybeObject* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
   return obj;
 }
 
@@ -1018,11 +1018,15 @@ Handle<MapCache> Factory::NewMapCache(int at_least_space_for) {
 }
 
 
-static Object* UpdateMapCacheWith(Context* context,
-                                  FixedArray* keys,
-                                  Map* map) {
-  Object* result = MapCache::cast(context->map_cache())->Put(keys, map);
-  if (!result->IsFailure()) context->set_map_cache(MapCache::cast(result));
+MUST_USE_RESULT static MaybeObject* UpdateMapCacheWith(Context* context,
+                                                       FixedArray* keys,
+                                                       Map* map) {
+  Object* result;
+  { MaybeObject* maybe_result =
+        MapCache::cast(context->map_cache())->Put(keys, map);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  context->set_map_cache(MapCache::cast(result));
   return result;
 }
 

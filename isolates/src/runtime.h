@@ -166,6 +166,9 @@ namespace internal {
   F(RegExpConstructResult, 3, 1) \
   F(RegExpCloneResult, 1, 1) \
   \
+  /* JSON */ \
+  F(ParseJson, 1, 1) \
+  \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \
   F(StringIndexOf, 3, 1) \
@@ -224,7 +227,7 @@ namespace internal {
   /* Numbers */ \
   \
   /* Globals */ \
-  F(CompileString, 2, 1) \
+  F(CompileString, 1, 1) \
   F(GlobalPrint, 1, 1) \
   \
   /* Eval */ \
@@ -269,7 +272,7 @@ namespace internal {
   F(Throw, 1, 1) \
   F(ReThrow, 1, 1) \
   F(ThrowReferenceError, 1, 1) \
-  F(StackGuard, 1, 1) \
+  F(StackGuard, 0, 1) \
   F(PromoteScheduledException, 0, 1) \
   \
   /* Contexts */ \
@@ -299,8 +302,6 @@ namespace internal {
   F(Log, 2, 1) \
   /* ES5 */ \
   F(LocalKeys, 1, 1) \
-  /* Handle scopes */ \
-  F(DeleteHandleScopeExtensions, 0, 1) \
   /* Cache suport */ \
   F(GetFromCache, 2, 1) \
   \
@@ -540,8 +541,8 @@ class Runtime : public AllStatic {
   // Returns failure if an allocation fails.  In this case, it must be
   // retried with a new, empty StringDictionary, not with the same one.
   // Alternatively, heap initialization can be completely restarted.
-  static Object* InitializeIntrinsicFunctionNames(Heap* heap,
-                                                  Object* dictionary);
+  MUST_USE_RESULT static MaybeObject* InitializeIntrinsicFunctionNames(
+      Heap* heap, Object* dictionary);
 
   // Get the intrinsic function with the given name, which must be a symbol.
   static const Function* FunctionForSymbol(Handle<String> name);
@@ -562,30 +563,35 @@ class Runtime : public AllStatic {
 
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
-  static Object* GetElementOrCharAt(Isolate* isolate,
-                                    Handle<Object> object,
-                                    uint32_t index);
-  static Object* GetElement(Handle<Object> object, uint32_t index);
+  MUST_USE_RESULT static MaybeObject* GetElementOrCharAt(Isolate* isolate,
+                                                         Handle<Object> object,
+                                                         uint32_t index);
+  MUST_USE_RESULT static MaybeObject* GetElement(Handle<Object> object,
+                                                 uint32_t index);
 
-  static Object* SetObjectProperty(Isolate* isolate,
-                                   Handle<Object> object,
-                                   Handle<Object> key,
-                                   Handle<Object> value,
-                                   PropertyAttributes attr);
+  MUST_USE_RESULT static MaybeObject* SetObjectProperty(
+      Isolate* isolate,
+      Handle<Object> object,
+      Handle<Object> key,
+      Handle<Object> value,
+      PropertyAttributes attr);
 
-  static Object* ForceSetObjectProperty(Isolate* isolate,
-                                        Handle<JSObject> object,
-                                        Handle<Object> key,
-                                        Handle<Object> value,
-                                        PropertyAttributes attr);
+  MUST_USE_RESULT static MaybeObject* ForceSetObjectProperty(
+      Isolate* isolate,
+      Handle<JSObject> object,
+      Handle<Object> key,
+      Handle<Object> value,
+      PropertyAttributes attr);
 
-  static Object* ForceDeleteObjectProperty(Isolate* isolate,
-                                           Handle<JSObject> object,
-                                           Handle<Object> key);
+  MUST_USE_RESULT static MaybeObject* ForceDeleteObjectProperty(
+      Isolate* isolate,
+      Handle<JSObject> object,
+      Handle<Object> key);
 
-  static Object* GetObjectProperty(Isolate* isolate,
-                                   Handle<Object> object,
-                                   Handle<Object> key);
+  MUST_USE_RESULT static MaybeObject* GetObjectProperty(
+      Isolate* isolate,
+      Handle<Object> object,
+      Handle<Object> key);
 
   // This function is used in FunctionNameUsing* tests.
   static Object* FindSharedFunctionInfoInScript(Isolate* isolate,

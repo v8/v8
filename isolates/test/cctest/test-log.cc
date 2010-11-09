@@ -337,8 +337,8 @@ TEST(ProfLazyMode) {
 }
 
 
-// Profiling multiple threads that use V8 is currently only available on Linux.
-#ifdef __linux__
+// BUG(913). Need to implement support for profiling multiple VM threads.
+#if 0
 
 namespace {
 
@@ -475,7 +475,7 @@ TEST(ProfMultipleThreads) {
   CHECK(!sampler.WasSampleStackCalled());
   nonJsThread.WaitForRunning();
   nonJsThread.SendSigProf();
-  CHECK(sampler.WaitForTick());
+  CHECK(!sampler.WaitForTick());
   CHECK(!sampler.WasSampleStackCalled());
   sampler.Stop();
 

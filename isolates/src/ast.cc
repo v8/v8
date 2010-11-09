@@ -142,6 +142,7 @@ bool FunctionLiteral::AllowsLazyCompilation() {
 
 
 ObjectLiteral::Property::Property(Literal* key, Expression* value) {
+  emit_store_ = true;
   key_ = key;
   value_ = value;
   Object* k = *key->handle();
@@ -158,6 +159,7 @@ ObjectLiteral::Property::Property(Literal* key, Expression* value) {
 
 
 ObjectLiteral::Property::Property(bool is_getter, FunctionLiteral* value) {
+  emit_store_ = true;
   key_ = new Literal(value->name());
   value_ = value;
   kind_ = is_getter ? GETTER : SETTER;
@@ -168,6 +170,78 @@ bool ObjectLiteral::Property::IsCompileTimeValue() {
   return kind_ == CONSTANT ||
       (kind_ == MATERIALIZED_LITERAL &&
        CompileTimeValue::IsCompileTimeValue(value_));
+}
+
+
+void ObjectLiteral::Property::set_emit_store(bool emit_store) {
+  emit_store_ = emit_store;
+}
+
+
+bool ObjectLiteral::Property::emit_store() {
+  return emit_store_;
+}
+
+
+bool IsEqualString(void* first, void* second) {
+  Handle<String> h1(reinterpret_cast<String**>(first));
+  Handle<String> h2(reinterpret_cast<String**>(second));
+  return (*h1)->Equals(*h2);
+}
+
+bool IsEqualSmi(void* first, void* second) {
+  Handle<Smi> h1(reinterpret_cast<Smi**>(first));
+  Handle<Smi> h2(reinterpret_cast<Smi**>(second));
+  return (*h1)->value() == (*h2)->value();
+}
+
+void ObjectLiteral::CalculateEmitStore() {
+  HashMap properties(&IsEqualString);
+  HashMap elements(&IsEqualSmi);
+  for (int i = this->properties()->length() - 1; i >= 0; i--) {
+    ObjectLiteral::Property* property = this->properties()->at(i);
+    Literal* literal = property->key();
+    Handle<Object> handle = literal->handle();
+
+    if (handle->IsNull()) {
+      continue;
+    }
+
+    uint32_t hash;
+    HashMap* table;
+    void* key;
+    uint32_t index;
+    if (handle->IsSymbol()) {
+      Handle<String> name(String::cast(*handle));
+      ASSERT(!name->AsArrayIndex(&index));
+      key = name.location();
+      hash = name->Hash();
+      table = &properties;
+    } else if (handle->ToArrayIndex(&index)) {
+      key = handle.location();
+      hash = index;
+      table = &elements;
+    } else {
+      ASSERT(handle->IsNumber());
+      double num = handle->Number();
+      char arr[100];
+      Vector<char> buffer(arr, ARRAY_SIZE(arr));
+      const char* str = DoubleToCString(num, buffer);
+      Handle<String> name = FACTORY->NewStringFromAscii(CStrVector(str));
+      key = name.location();
+      hash = name->Hash();
+      table = &properties;
+    }
+    // If the key of a computed property is in the table, do not emit
+    // a store for the property later.
+    if (property->kind() == ObjectLiteral::Property::COMPUTED) {
+      if (table->Lookup(literal, hash, false) != NULL) {
+        property->set_emit_store(false);
+      }
+    }
+    // Add key to the table.
+    table->Lookup(literal, hash, true);
+  }
 }
 
 
@@ -400,39 +474,70 @@ Interval RegExpQuantifier::CaptureRegisters() {
 }
 
 
-bool RegExpAssertion::IsAnchored() {
+bool RegExpAssertion::IsAnchoredAtStart() {
   return type() == RegExpAssertion::START_OF_INPUT;
 }
 
 
-bool RegExpAlternative::IsAnchored() {
+bool RegExpAssertion::IsAnchoredAtEnd() {
+  return type() == RegExpAssertion::END_OF_INPUT;
+}
+
+
+bool RegExpAlternative::IsAnchoredAtStart() {
   ZoneList<RegExpTree*>* nodes = this->nodes();
   for (int i = 0; i < nodes->length(); i++) {
     RegExpTree* node = nodes->at(i);
-    if (node->IsAnchored()) { return true; }
+    if (node->IsAnchoredAtStart()) { return true; }
     if (node->max_match() > 0) { return false; }
   }
   return false;
 }
 
 
-bool RegExpDisjunction::IsAnchored() {
+bool RegExpAlternative::IsAnchoredAtEnd() {
+  ZoneList<RegExpTree*>* nodes = this->nodes();
+  for (int i = nodes->length() - 1; i >= 0; i--) {
+    RegExpTree* node = nodes->at(i);
+    if (node->IsAnchoredAtEnd()) { return true; }
+    if (node->max_match() > 0) { return false; }
+  }
+  return false;
+}
+
+
+bool RegExpDisjunction::IsAnchoredAtStart() {
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
   for (int i = 0; i < alternatives->length(); i++) {
-    if (!alternatives->at(i)->IsAnchored())
+    if (!alternatives->at(i)->IsAnchoredAtStart())
       return false;
   }
   return true;
 }
 
 
-bool RegExpLookahead::IsAnchored() {
-  return is_positive() && body()->IsAnchored();
+bool RegExpDisjunction::IsAnchoredAtEnd() {
+  ZoneList<RegExpTree*>* alternatives = this->alternatives();
+  for (int i = 0; i < alternatives->length(); i++) {
+    if (!alternatives->at(i)->IsAnchoredAtEnd())
+      return false;
+  }
+  return true;
 }
 
 
-bool RegExpCapture::IsAnchored() {
-  return body()->IsAnchored();
+bool RegExpLookahead::IsAnchoredAtStart() {
+  return is_positive() && body()->IsAnchoredAtStart();
+}
+
+
+bool RegExpCapture::IsAnchoredAtStart() {
+  return body()->IsAnchoredAtStart();
+}
+
+
+bool RegExpCapture::IsAnchoredAtEnd() {
+  return body()->IsAnchoredAtEnd();
 }
 
 

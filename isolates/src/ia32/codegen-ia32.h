@@ -624,9 +624,6 @@ class CodeGenerator: public AstVisitor {
 
   void CheckStack();
 
-  static InlineFunctionGenerator FindInlineFunctionGenerator(
-      Runtime::FunctionId function_id);
-
   bool CheckForInlineRuntimeCall(CallRuntime* node);
 
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
@@ -787,6 +784,11 @@ class CodeGenerator: public AstVisitor {
   // called from spilled code, because they do not leave the virtual frame
   // in a spilled state.
   bool in_spilled_code_;
+
+  // A cookie that is used for JIT IMM32 Encoding.  Initialized to a
+  // random number when the command-line
+  // FLAG_mask_constants_with_cookie is true, zero otherwise.
+  int jit_cookie_;
 
   friend class VirtualFrame;
   friend class Isolate;

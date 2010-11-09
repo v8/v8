@@ -209,7 +209,7 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
 }
 
 
-Object* CompilationCacheScript::TryTablePut(
+MaybeObject* CompilationCacheScript::TryTablePut(
     Handle<String> source,
     Handle<SharedFunctionInfo> function_info) {
   Handle<CompilationCacheTable> table = GetFirstTable();
@@ -265,7 +265,7 @@ Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
 }
 
 
-Object* CompilationCacheEval::TryTablePut(
+MaybeObject* CompilationCacheEval::TryTablePut(
     Handle<String> source,
     Handle<Context> context,
     Handle<SharedFunctionInfo> function_info) {
@@ -323,7 +323,7 @@ Handle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
 }
 
 
-Object* CompilationCacheRegExp::TryTablePut(
+MaybeObject* CompilationCacheRegExp::TryTablePut(
     Handle<String> source,
     JSRegExp::Flags flags,
     Handle<FixedArray> data) {

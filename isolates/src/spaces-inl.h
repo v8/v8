@@ -412,8 +412,7 @@ void MemoryAllocator::UnprotectChunkFromPage(Page* page) {
 
 bool PagedSpace::Contains(Address addr) {
   Page* p = Page::FromAddress(addr);
-  ASSERT(p->is_valid());
-
+  if (!p->is_valid()) return false;
   return heap()->isolate()->memory_allocator()->IsPageInSpace(p, this);
 }
 
@@ -436,7 +435,7 @@ HeapObject* PagedSpace::AllocateLinearly(AllocationInfo* alloc_info,
 
 
 // Raw allocation.
-Object* PagedSpace::AllocateRaw(int size_in_bytes) {
+MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
   ASSERT(HasBeenSetup());
   ASSERT_OBJECT_SIZE(size_in_bytes);
   HeapObject* object = AllocateLinearly(&allocation_info_, size_in_bytes);
@@ -445,12 +444,12 @@ Object* PagedSpace::AllocateRaw(int size_in_bytes) {
   object = SlowAllocateRaw(size_in_bytes);
   if (object != NULL) return object;
 
-  return Failure::RetryAfterGC(size_in_bytes, identity());
+  return Failure::RetryAfterGC(identity());
 }
 
 
 // Reallocating (and promoting) objects during a compacting collection.
-Object* PagedSpace::MCAllocateRaw(int size_in_bytes) {
+MaybeObject* PagedSpace::MCAllocateRaw(int size_in_bytes) {
   ASSERT(HasBeenSetup());
   ASSERT_OBJECT_SIZE(size_in_bytes);
   HeapObject* object = AllocateLinearly(&mc_forwarding_info_, size_in_bytes);
@@ -459,7 +458,7 @@ Object* PagedSpace::MCAllocateRaw(int size_in_bytes) {
   object = SlowMCAllocateRaw(size_in_bytes);
   if (object != NULL) return object;
 
-  return Failure::RetryAfterGC(size_in_bytes, identity());
+  return Failure::RetryAfterGC(identity());
 }
 
 
@@ -477,10 +476,10 @@ HeapObject* LargeObjectChunk::GetObject() {
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
 
-Object* NewSpace::AllocateRawInternal(int size_in_bytes,
-                                      AllocationInfo* alloc_info) {
+MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes,
+                                           AllocationInfo* alloc_info) {
   Address new_top = alloc_info->top + size_in_bytes;
-  if (new_top > alloc_info->limit) return Failure::RetryAfterGC(size_in_bytes);
+  if (new_top > alloc_info->limit) return Failure::RetryAfterGC();
 
   Object* obj = HeapObject::FromAddress(alloc_info->top);
   alloc_info->top = new_top;

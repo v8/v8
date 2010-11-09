@@ -101,9 +101,9 @@ class MacroAssembler: public Assembler {
   // dirty. |object| is the object being stored into, |value| is the
   // object being stored. If |offset| is zero, then the |scratch|
   // register contains the array index into the elements array
-  // represented as a Smi. All registers are clobbered by the
-  // operation. RecordWrite filters out smis so it does not update the
-  // write barrier if the value is a smi.
+  // represented as an untagged 32-bit integer. All registers are
+  // clobbered by the operation. RecordWrite filters out smis so it
+  // does not update the write barrier if the value is a smi.
   void RecordWrite(Register object,
                    int offset,
                    Register value,
@@ -122,7 +122,7 @@ class MacroAssembler: public Assembler {
   // The value is known to not be a smi.
   // object is the object being stored into, value is the object being stored.
   // If offset is zero, then the scratch register contains the array index into
-  // the elements array represented as a Smi.
+  // the elements array represented as an untagged 32-bit integer.
   // All registers are clobbered by the operation.
   void RecordWriteNonSmi(Register object,
                          int offset,
@@ -773,7 +773,7 @@ class MacroAssembler: public Assembler {
   // Call a code stub and return the code object called.  Try to generate
   // the code if necessary.  Do not perform a GC but instead return a retry
   // after GC failure.
-  Object* TryCallStub(CodeStub* stub);
+  MUST_USE_RESULT MaybeObject* TryCallStub(CodeStub* stub);
 
   // Tail call a code stub (jump).
   void TailCallStub(CodeStub* stub);
@@ -781,24 +781,26 @@ class MacroAssembler: public Assembler {
   // Tail call a code stub (jump) and return the code object called.  Try to
   // generate the code if necessary.  Do not perform a GC but instead return
   // a retry after GC failure.
-  Object* TryTailCallStub(CodeStub* stub);
+  MUST_USE_RESULT MaybeObject* TryTailCallStub(CodeStub* stub);
 
   // Return from a code stub after popping its arguments.
   void StubReturn(int argc);
 
   // Call a runtime routine.
-  void CallRuntime(Runtime::Function* f, int num_arguments);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
 
   // Call a runtime function, returning the CodeStub object called.
   // Try to generate the stub code if necessary.  Do not perform a GC
   // but instead return a retry after GC failure.
-  Object* TryCallRuntime(Runtime::Function* f, int num_arguments);
+  MUST_USE_RESULT MaybeObject* TryCallRuntime(const Runtime::Function* f,
+                                              int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId id, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
-  Object* TryCallRuntime(Runtime::FunctionId id, int num_arguments);
+  MUST_USE_RESULT MaybeObject* TryCallRuntime(Runtime::FunctionId id,
+                                              int num_arguments);
 
   // Convenience function: call an external reference.
   void CallExternalReference(const ExternalReference& ext,
@@ -816,18 +818,17 @@ class MacroAssembler: public Assembler {
                        int num_arguments,
                        int result_size);
 
-  void PushHandleScope(Register scratch);
-
-  // Pops a handle scope using the specified scratch register and
-  // ensuring that saved register is left unchanged.
-  void PopHandleScope(Register saved, Register scratch);
-
-  // As PopHandleScope, but does not perform a GC.  Instead, returns a
-  // retry after GC failure object if GC is necessary.
-  Object* TryPopHandleScope(Register saved, Register scratch);
-
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext, int result_size);
+
+  // Prepares stack to put arguments (aligns and so on).
+  // Uses calle-saved esi to restore stack state after call.
+  void PrepareCallApiFunction(int stack_space);
+
+  // Tail call an API function (jump). Allocates HandleScope, extracts
+  // returned value from handle and propogates exceptions.
+  // Clobbers ebx, edi and caller-save registers.
+  void CallApiFunctionAndReturn(ApiFunction* function);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],

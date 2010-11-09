@@ -153,7 +153,9 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm)
       in_safe_int32_mode_(false),
       safe_int32_mode_enabled_(true),
       function_return_is_shadowed_(false),
-      in_spilled_code_(false) {
+      in_spilled_code_(false),
+      jit_cookie_(FLAG_mask_constants_with_cookie ?
+                  V8::Random(Isolate::Current()) : 0) {
 }
 
 
@@ -5367,16 +5369,16 @@ void CodeGenerator::VisitLiteral(Literal* node) {
 void CodeGenerator::PushUnsafeSmi(Handle<Object> value) {
   ASSERT(value->IsSmi());
   int bits = reinterpret_cast<int>(*value);
-  __ push(Immediate(bits & 0x0000FFFF));
-  __ or_(Operand(esp, 0), Immediate(bits & 0xFFFF0000));
+  __ push(Immediate(bits ^ jit_cookie_));
+  __ xor_(Operand(esp, 0), Immediate(jit_cookie_));
 }
 
 
 void CodeGenerator::StoreUnsafeSmiToLocal(int offset, Handle<Object> value) {
   ASSERT(value->IsSmi());
   int bits = reinterpret_cast<int>(*value);
-  __ mov(Operand(ebp, offset), Immediate(bits & 0x0000FFFF));
-  __ or_(Operand(ebp, offset), Immediate(bits & 0xFFFF0000));
+  __ mov(Operand(ebp, offset), Immediate(bits ^ jit_cookie_));
+  __ xor_(Operand(ebp, offset), Immediate(jit_cookie_));
 }
 
 
@@ -5384,8 +5386,8 @@ void CodeGenerator::MoveUnsafeSmi(Register target, Handle<Object> value) {
   ASSERT(target.is_valid());
   ASSERT(value->IsSmi());
   int bits = reinterpret_cast<int>(*value);
-  __ Set(target, Immediate(bits & 0x0000FFFF));
-  __ or_(target, bits & 0xFFFF0000);
+  __ Set(target, Immediate(bits ^ jit_cookie_));
+  __ xor_(target, jit_cookie_);
 }
 
 
@@ -5563,6 +5565,11 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   }
   frame_->Push(&clone);
 
+  // Mark all computed expressions that are bound to a key that
+  // is shadowed by a later occurrence of the same key. For the
+  // marked expressions, no store code is emitted.
+  node->CalculateEmitStore();
+
   for (int i = 0; i < node->properties()->length(); i++) {
     ObjectLiteral::Property* property = node->properties()->at(i);
     switch (property->kind()) {
@@ -5577,24 +5584,32 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           // Duplicate the object as the IC receiver.
           frame_->Dup();
           Load(property->value());
-          Result ignored =
-              frame_->CallStoreIC(Handle<String>::cast(key), false);
-          // A test eax instruction following the store IC call would
-          // indicate the presence of an inlined version of the
-          // store. Add a nop to indicate that there is no such
-          // inlined version.
-          __ nop();
+          if (property->emit_store()) {
+            Result ignored =
+                frame_->CallStoreIC(Handle<String>::cast(key), false);
+            // A test eax instruction following the store IC call would
+            // indicate the presence of an inlined version of the
+            // store. Add a nop to indicate that there is no such
+            // inlined version.
+            __ nop();
+          } else {
+            frame_->Drop(2);
+          }
           break;
         }
         // Fall through
       }
       case ObjectLiteral::Property::PROTOTYPE: {
-        // Duplicate the object as an argument to the runtime call.
-        frame_->Dup();
-        Load(property->key());
-        Load(property->value());
-        Result ignored = frame_->CallRuntime(Runtime::kSetProperty, 3);
-        // Ignore the result.
+          // Duplicate the object as an argument to the runtime call.
+          frame_->Dup();
+          Load(property->key());
+          Load(property->value());
+          if (property->emit_store()) {
+            // Ignore the result.
+            Result ignored = frame_->CallRuntime(Runtime::kSetProperty, 3);
+          } else {
+            frame_->Drop(3);
+          }
         break;
       }
       case ObjectLiteral::Property::SETTER: {

@@ -880,7 +880,7 @@ void PagedSpace::MarkAllPagesClean() {
 }
 
 
-Object* PagedSpace::FindObject(Address addr) {
+MaybeObject* PagedSpace::FindObject(Address addr) {
   // Note: this function can only be called before or after mark-compact GC
   // because it accesses map pointers.
   ASSERT(!heap()->mark_compact_collector()->in_use());
@@ -1820,7 +1820,7 @@ int OldSpaceFreeList::Free(Address start, int size_in_bytes) {
 }
 
 
-Object* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
+MaybeObject* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
   ASSERT(0 < size_in_bytes);
   ASSERT(size_in_bytes <= kMaxBlockSize);
   ASSERT(IsAligned(size_in_bytes, kPointerSize));
@@ -1844,7 +1844,7 @@ Object* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
   if (cur == kEnd) {
     // No large enough size in list.
     *wasted_bytes = 0;
-    return Failure::RetryAfterGC(size_in_bytes, owner_);
+    return Failure::RetryAfterGC(owner_);
   }
   ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
   int rem = cur - index;
@@ -1940,9 +1940,9 @@ void FixedSizeFreeList::Free(Address start) {
 }
 
 
-Object* FixedSizeFreeList::Allocate() {
+MaybeObject* FixedSizeFreeList::Allocate() {
   if (head_ == NULL) {
-    return Failure::RetryAfterGC(object_size_, owner_);
+    return Failure::RetryAfterGC(owner_);
   }
 
   ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
@@ -2202,9 +2202,10 @@ HeapObject* OldSpace::SlowAllocateRaw(int size_in_bytes) {
   // is currently forbidden.
   if (!heap()->linear_allocation()) {
     int wasted_bytes;
-    Object* result = free_list_.Allocate(size_in_bytes, &wasted_bytes);
+    Object* result;
+    MaybeObject* maybe = free_list_.Allocate(size_in_bytes, &wasted_bytes);
     accounting_stats_.WasteBytes(wasted_bytes);
-    if (!result->IsFailure()) {
+    if (maybe->ToObject(&result)) {
       accounting_stats_.AllocateBytes(size_in_bytes);
 
       HeapObject* obj = HeapObject::cast(result);
@@ -2505,8 +2506,9 @@ HeapObject* FixedSpace::SlowAllocateRaw(int size_in_bytes) {
   // that is currently forbidden.  The fixed space free list implicitly assumes
   // that all free blocks are of the fixed size.
   if (!heap()->linear_allocation()) {
-    Object* result = free_list_.Allocate();
-    if (!result->IsFailure()) {
+    Object* result;
+    MaybeObject* maybe = free_list_.Allocate();
+    if (maybe->ToObject(&result)) {
       accounting_stats_.AllocateBytes(size_in_bytes);
       HeapObject* obj = HeapObject::cast(result);
       Page* p = Page::FromAddress(obj->address());
@@ -2758,23 +2760,23 @@ void LargeObjectSpace::Unprotect() {
 #endif
 
 
-Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
-                                              int object_size,
-                                              Executability executable) {
+MaybeObject* LargeObjectSpace::AllocateRawInternal(int requested_size,
+                                                   int object_size,
+                                                   Executability executable) {
   ASSERT(0 < object_size && object_size <= requested_size);
 
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->always_allocate() &&
       heap()->OldGenerationAllocationLimitReached()) {
-    return Failure::RetryAfterGC(requested_size, identity());
+    return Failure::RetryAfterGC(identity());
   }
 
   size_t chunk_size;
   LargeObjectChunk* chunk =
       LargeObjectChunk::New(requested_size, &chunk_size, executable);
   if (chunk == NULL) {
-    return Failure::RetryAfterGC(requested_size, identity());
+    return Failure::RetryAfterGC(identity());
   }
 
   size_ += static_cast<int>(chunk_size);
@@ -2797,7 +2799,7 @@ Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
 }
 
 
-Object* LargeObjectSpace::AllocateRawCode(int size_in_bytes) {
+MaybeObject* LargeObjectSpace::AllocateRawCode(int size_in_bytes) {
   ASSERT(0 < size_in_bytes);
   return AllocateRawInternal(size_in_bytes,
                              size_in_bytes,
@@ -2805,7 +2807,7 @@ Object* LargeObjectSpace::AllocateRawCode(int size_in_bytes) {
 }
 
 
-Object* LargeObjectSpace::AllocateRawFixedArray(int size_in_bytes) {
+MaybeObject* LargeObjectSpace::AllocateRawFixedArray(int size_in_bytes) {
   ASSERT(0 < size_in_bytes);
   return AllocateRawInternal(size_in_bytes,
                              size_in_bytes,
@@ -2813,7 +2815,7 @@ Object* LargeObjectSpace::AllocateRawFixedArray(int size_in_bytes) {
 }
 
 
-Object* LargeObjectSpace::AllocateRaw(int size_in_bytes) {
+MaybeObject* LargeObjectSpace::AllocateRaw(int size_in_bytes) {
   ASSERT(0 < size_in_bytes);
   return AllocateRawInternal(size_in_bytes,
                              size_in_bytes,
@@ -2822,7 +2824,7 @@ Object* LargeObjectSpace::AllocateRaw(int size_in_bytes) {
 
 
 // GC support
-Object* LargeObjectSpace::FindObject(Address a) {
+MaybeObject* LargeObjectSpace::FindObject(Address a) {
   for (LargeObjectChunk* chunk = first_chunk_;
        chunk != NULL;
        chunk = chunk->next()) {

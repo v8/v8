@@ -1,4 +1,47 @@
-2010-10-13: Version 2.5.0
+2010-10-27: Version 2.5.2
+
+        Improved sampler resolution on Linux.
+
+        Allowed forcing the use of a simulator from the build script
+        independently of the host architecture.
+
+        Fixed FreeBSD port (Issue 912).
+
+        Made windows-tick-processor respect D8_PATH.
+
+        Implemented --noinline-new flag fully on IA32, X64 and ARM platforms.
+
+
+2010-10-20: Version 2.5.1
+
+        Fixed bug causing spurious out of memory exceptions
+        (issue http://crbug.com/54580).
+
+        Fixed compilation error on Solaris platform (issue 901).
+
+        Fixed error in strtod (string to floating point number conversion)
+        due to glibc's use of 80-bit floats in the FPU on 32-bit linux.
+
+        Adjusted randomized allocations of executable memory to have 64k
+        granularity (issue http://crbug.com/56036).
+
+        Supported profiling using kernel perf_events on linux.  Added ll_prof
+        script to tools and --ll-prof flag to V8.
+
+
+2010-10-18: Version 2.5.0
+
+        Fixed bug in cache handling of lastIndex on global regexps
+        (issue http://crbug.com/58740).
+
+        Added USE_SIMULATOR macro that explicitly indicates that we wish to use
+        the simulator as the execution engine (by Mark Lam <mark.lam@palm.com>
+	from Hewlett-Packard Development Company, LP).
+
+        Fixed compilation error on ARM with gcc 4.4 (issue 894).
+
+
+2010-10-13: Version 2.4.9
 
         Fixed a bug in the handling of conditional expressions in test
         contexts in compiler for top-level code.

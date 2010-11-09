@@ -1301,7 +1301,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
   try {
     try {
       // Convert the JSON string to an object.
-      request = %CompileString('(' + json_request + ')', false)();
+      request = %CompileString('(' + json_request + ')')();
 
       // Create an initial response.
       response = this.createResponse(request);
@@ -2118,7 +2118,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
   }
   var script_id = request.arguments.script_id;
   var preview_only = !!request.arguments.preview_only;
-  
+
   var scripts = %DebugGetLoadedScripts();
 
   var the_script = null;
@@ -2139,11 +2139,11 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
   }
 
   var new_source = request.arguments.new_source;
-  
+
   var result_description = Debug.LiveEdit.SetScriptSource(the_script,
       new_source, preview_only, change_log);
   response.body = {change_log: change_log, result: result_description};
-  
+
   if (!preview_only && !this.running_ && result_description.stack_modified) {
     response.body.stepin_recommended = true;
   }

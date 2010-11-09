@@ -126,7 +126,8 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   PostponeInterruptsScope postpone;
   RegExpCompileData parse_result;
   FlatStringReader reader(pattern);
-  if (!Parser::ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
+  if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
+                                 &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
     ThrowRegExpException(re,
                          pattern,
@@ -271,7 +272,8 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
 
   RegExpCompileData compile_data;
   FlatStringReader reader(pattern);
-  if (!Parser::ParseRegExp(&reader, flags.is_multiline(), &compile_data)) {
+  if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
+                                 &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
     ThrowRegExpException(re,
@@ -5197,7 +5199,10 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
                                                     &compiler,
                                                     compiler.accept());
   RegExpNode* node = captured_body;
-  if (!data->tree->IsAnchored()) {
+  bool is_end_anchored = data->tree->IsAnchoredAtEnd();
+  bool is_start_anchored = data->tree->IsAnchoredAtStart();
+  int max_length = data->tree->max_match();
+  if (!is_start_anchored) {
     // Add a .*? at the beginning, outside the body capture, unless
     // this expression is anchored at the beginning.
     RegExpNode* loop_node =
@@ -5252,6 +5257,15 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
   EmbeddedVector<byte, 1024> codes;
   RegExpMacroAssemblerIrregexp macro_assembler(codes);
 #endif  // V8_INTERPRETED_REGEXP
+
+  // Inserted here, instead of in Assembler, because it depends on information
+  // in the AST that isn't replicated in the Node structure.
+  static const int kMaxBacksearchLimit = 1024;
+  if (is_end_anchored &&
+      !is_start_anchored &&
+      max_length < kMaxBacksearchLimit) {
+    macro_assembler.SetCurrentPositionFromEnd(max_length);
+  }
 
   return compiler.Assemble(&macro_assembler,
                            node,

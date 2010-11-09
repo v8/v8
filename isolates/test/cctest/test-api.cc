@@ -430,8 +430,8 @@ THREADED_TEST(ScriptMakingExternalString) {
     LocalContext env;
     Local<String> source = String::New(two_byte_source);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+    HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
     bool success = source->MakeExternal(new TestResource(two_byte_source));
     CHECK(success);
     Local<Script> script = Script::Compile(source);
@@ -455,8 +455,8 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     LocalContext env;
     Local<String> source = v8_str(c_source);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+    HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
     bool success = source->MakeExternal(
         new TestAsciiResource(i::StrDup(c_source)));
     CHECK(success);
@@ -478,8 +478,8 @@ TEST(MakingExternalStringConditions) {
   LocalContext env;
 
   // Free some space in the new space so that we can check freshness.
-  HEAP->CollectGarbage(0, i::NEW_SPACE);
-  HEAP->CollectGarbage(0, i::NEW_SPACE);
+  HEAP->CollectGarbage(i::NEW_SPACE);
+  HEAP->CollectGarbage(i::NEW_SPACE);
 
   uint16_t* two_byte_string = AsciiToTwoByteString("small");
   Local<String> small_string = String::New(two_byte_string);
@@ -488,8 +488,8 @@ TEST(MakingExternalStringConditions) {
   // We should refuse to externalize newly created small string.
   CHECK(!small_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
-  HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-  HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+  HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+  HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
   // Old space strings should be accepted.
   CHECK(small_string->CanMakeExternal());
 
@@ -524,15 +524,15 @@ TEST(MakingExternalAsciiStringConditions) {
   LocalContext env;
 
   // Free some space in the new space so that we can check freshness.
-  HEAP->CollectGarbage(0, i::NEW_SPACE);
-  HEAP->CollectGarbage(0, i::NEW_SPACE);
+  HEAP->CollectGarbage(i::NEW_SPACE);
+  HEAP->CollectGarbage(i::NEW_SPACE);
 
   Local<String> small_string = String::New("small");
   // We should refuse to externalize newly created small string.
   CHECK(!small_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
-  HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-  HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+  HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+  HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
   // Old space strings should be accepted.
   CHECK(small_string->CanMakeExternal());
 
@@ -564,8 +564,8 @@ THREADED_TEST(UsingExternalString) {
         String::NewExternal(new TestResource(two_byte_string));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+    HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
     i::Handle<i::String> isymbol = FACTORY->SymbolFromString(istring);
     CHECK(isymbol->IsSymbol());
   }
@@ -582,8 +582,8 @@ THREADED_TEST(UsingExternalAsciiString) {
         new TestAsciiResource(i::StrDup(one_byte_string)));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-    HEAP->CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+    HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
     i::Handle<i::String> isymbol = FACTORY->SymbolFromString(istring);
     CHECK(isymbol->IsSymbol());
   }
@@ -601,12 +601,12 @@ THREADED_TEST(ScavengeExternalString) {
     Local<String> string =
         String::NewExternal(new TestResource(two_byte_string));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-    HEAP->CollectGarbage(0, i::NEW_SPACE);
+    HEAP->CollectGarbage(i::NEW_SPACE);
     in_new_space = HEAP->InNewSpace(*istring);
     CHECK(in_new_space || HEAP->old_data_space()->Contains(*istring));
     CHECK_EQ(0, TestResource::dispose_count);
   }
-  HEAP->CollectGarbage(0, in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
+  HEAP->CollectGarbage(in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
   CHECK_EQ(1, TestResource::dispose_count);
 }
 
@@ -620,12 +620,12 @@ THREADED_TEST(ScavengeExternalAsciiString) {
     Local<String> string = String::NewExternal(
         new TestAsciiResource(i::StrDup(one_byte_string)));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-    HEAP->CollectGarbage(0, i::NEW_SPACE);
+    HEAP->CollectGarbage(i::NEW_SPACE);
     in_new_space = HEAP->InNewSpace(*istring);
     CHECK(in_new_space || HEAP->old_data_space()->Contains(*istring));
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  HEAP->CollectGarbage(0, in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
+  HEAP->CollectGarbage(in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
 
@@ -9304,7 +9304,7 @@ class RegExpStringModificationTest {
     i::Handle<i::String> input_name =
         FACTORY->NewStringFromAscii(i::Vector<const char>("input", 5));
     i::Isolate::Current()->global_context()->global()->
-        SetProperty(*input_name, *input_, NONE);
+        SetProperty(*input_name, *input_, NONE)->ToObjectChecked();
 
 
     MorphThread morph_thread(i::Isolate::Current(), this);
@@ -9777,7 +9777,7 @@ THREADED_TEST(PixelArray) {
   // Set the elements to be the pixels.
   // jsobj->set_elements(*pixels);
   obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
-  CHECK_EQ(1, i::Smi::cast(jsobj->GetElement(1))->value());
+  CHECK_EQ(1, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   obj->Set(v8_str("field"), v8::Int32::New(1503));
   context->Global()->Set(v8_str("pixels"), obj);
   v8::Handle<v8::Value> result = CompileRun("pixels.field");
@@ -9829,27 +9829,34 @@ THREADED_TEST(PixelArray) {
 
   i::Handle<i::Smi> value(i::Smi::FromInt(2));
   i::SetElement(jsobj, 1, value);
-  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(1))->value());
+  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(256);
   i::SetElement(jsobj, 1, value);
-  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(1))->value());
+  CHECK_EQ(255,
+           i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(-1);
   i::SetElement(jsobj, 1, value);
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1))->value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[i] = (i * 65) - 109;"
                       "}"
                       "pixels[1] + pixels[6];");
   CHECK_EQ(255, result->Int32Value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(0))->value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1))->value());
-  CHECK_EQ(21, i::Smi::cast(jsobj->GetElement(2))->value());
-  CHECK_EQ(86, i::Smi::cast(jsobj->GetElement(3))->value());
-  CHECK_EQ(151, i::Smi::cast(jsobj->GetElement(4))->value());
-  CHECK_EQ(216, i::Smi::cast(jsobj->GetElement(5))->value());
-  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(6))->value());
-  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(7))->value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(0)->ToObjectChecked())->value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
+  CHECK_EQ(21,
+           i::Smi::cast(jsobj->GetElement(2)->ToObjectChecked())->value());
+  CHECK_EQ(86,
+           i::Smi::cast(jsobj->GetElement(3)->ToObjectChecked())->value());
+  CHECK_EQ(151,
+           i::Smi::cast(jsobj->GetElement(4)->ToObjectChecked())->value());
+  CHECK_EQ(216,
+           i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
+  CHECK_EQ(255,
+           i::Smi::cast(jsobj->GetElement(6)->ToObjectChecked())->value());
+  CHECK_EQ(255,
+           i::Smi::cast(jsobj->GetElement(7)->ToObjectChecked())->value());
   result = CompileRun("var sum = 0;"
                       "for (var i = 0; i < 8; i++) {"
                       "  sum += pixels[i];"
@@ -9862,49 +9869,50 @@ THREADED_TEST(PixelArray) {
                       "}"
                       "pixels[1] + pixels[6];");
   CHECK_EQ(8, result->Int32Value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(0))->value());
-  CHECK_EQ(1, i::Smi::cast(jsobj->GetElement(1))->value());
-  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(2))->value());
-  CHECK_EQ(3, i::Smi::cast(jsobj->GetElement(3))->value());
-  CHECK_EQ(4, i::Smi::cast(jsobj->GetElement(4))->value());
-  CHECK_EQ(6, i::Smi::cast(jsobj->GetElement(5))->value());
-  CHECK_EQ(7, i::Smi::cast(jsobj->GetElement(6))->value());
-  CHECK_EQ(8, i::Smi::cast(jsobj->GetElement(7))->value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(0)->ToObjectChecked())->value());
+  CHECK_EQ(1, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
+  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(2)->ToObjectChecked())->value());
+  CHECK_EQ(3, i::Smi::cast(jsobj->GetElement(3)->ToObjectChecked())->value());
+  CHECK_EQ(4, i::Smi::cast(jsobj->GetElement(4)->ToObjectChecked())->value());
+  CHECK_EQ(6, i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
+  CHECK_EQ(7, i::Smi::cast(jsobj->GetElement(6)->ToObjectChecked())->value());
+  CHECK_EQ(8, i::Smi::cast(jsobj->GetElement(7)->ToObjectChecked())->value());
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[7] = undefined;"
                       "}"
                       "pixels[7];");
   CHECK_EQ(0, result->Int32Value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(7))->value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(7)->ToObjectChecked())->value());
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[6] = '2.3';"
                       "}"
                       "pixels[6];");
   CHECK_EQ(2, result->Int32Value());
-  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(6))->value());
+  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(6)->ToObjectChecked())->value());
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[5] = NaN;"
                       "}"
                       "pixels[5];");
   CHECK_EQ(0, result->Int32Value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[8] = Infinity;"
                       "}"
                       "pixels[8];");
   CHECK_EQ(255, result->Int32Value());
-  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(8))->value());
+  CHECK_EQ(255,
+           i::Smi::cast(jsobj->GetElement(8)->ToObjectChecked())->value());
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  pixels[9] = -Infinity;"
                       "}"
                       "pixels[9];");
   CHECK_EQ(0, result->Int32Value());
-  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(9))->value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(9)->ToObjectChecked())->value());
 
   result = CompileRun("pixels[3] = 33;"
                       "delete pixels[3];"
@@ -10014,7 +10022,8 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   obj->SetIndexedPropertiesToExternalArrayData(array_data,
                                                array_type,
                                                kElementCount);
-  CHECK_EQ(1, static_cast<int>(jsobj->GetElement(1)->Number()));
+  CHECK_EQ(
+      1, static_cast<int>(jsobj->GetElement(1)->ToObjectChecked()->Number()));
   obj->Set(v8_str("field"), v8::Int32::New(1503));
   context->Global()->Set(v8_str("ext_array"), obj);
   v8::Handle<v8::Value> result = CompileRun("ext_array.field");
@@ -10153,14 +10162,16 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                       "}"
                       "ext_array[7];");
   CHECK_EQ(0, result->Int32Value());
-  CHECK_EQ(0, static_cast<int>(jsobj->GetElement(7)->Number()));
+  CHECK_EQ(
+      0, static_cast<int>(jsobj->GetElement(7)->ToObjectChecked()->Number()));
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  ext_array[6] = '2.3';"
                       "}"
                       "ext_array[6];");
   CHECK_EQ(2, result->Int32Value());
-  CHECK_EQ(2, static_cast<int>(jsobj->GetElement(6)->Number()));
+  CHECK_EQ(
+      2, static_cast<int>(jsobj->GetElement(6)->ToObjectChecked()->Number()));
 
   if (array_type != v8::kExternalFloatArray) {
     // Though the specification doesn't state it, be explicit about
@@ -10173,7 +10184,8 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                         "}"
                         "ext_array[5];");
     CHECK_EQ(0, result->Int32Value());
-    CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+    CHECK_EQ(0,
+             i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
 
     result = CompileRun("for (var i = 0; i < 8; i++) {"
                         "  ext_array[i] = 5;"
@@ -10183,7 +10195,8 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                         "}"
                         "ext_array[5];");
     CHECK_EQ(0, result->Int32Value());
-    CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+    CHECK_EQ(0,
+             i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
 
     result = CompileRun("for (var i = 0; i < 8; i++) {"
                         "  ext_array[i] = 5;"
@@ -10193,7 +10206,8 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                         "}"
                         "ext_array[5];");
     CHECK_EQ(0, result->Int32Value());
-    CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+    CHECK_EQ(0,
+             i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
   }
 
   result = CompileRun("ext_array[3] = 33;"

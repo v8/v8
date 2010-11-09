@@ -93,6 +93,7 @@ class CompressionHelper;
   V(CODE_CREATION_EVENT,            "code-creation",          "cc")       \
   V(CODE_MOVE_EVENT,                "code-move",              "cm")       \
   V(CODE_DELETE_EVENT,              "code-delete",            "cd")       \
+  V(CODE_MOVING_GC,                 "code-moving-gc",         "cg")       \
   V(FUNCTION_CREATION_EVENT,        "function-creation",      "fc")       \
   V(FUNCTION_MOVE_EVENT,            "function-move",          "fm")       \
   V(FUNCTION_DELETE_EVENT,          "function-delete",        "fd")       \
@@ -213,6 +214,7 @@ class Logger {
   void CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name,
                        String* source, int line);
   void CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count);
+  void CodeMovingGCEvent();
   // Emits a code create event for a RegExp.
   void RegExpCodeCreateEvent(Code* code, String* source);
   // Emits a code move event.
@@ -221,9 +223,7 @@ class Logger {
   void CodeDeleteEvent(Address from);
   // Emits a function object create event.
   void FunctionCreateEvent(JSFunction* function);
-  void FunctionCreateEventFromMove(Heap* heap,
-                                   JSFunction* function,
-                                   HeapObject*);
+  void FunctionCreateEventFromMove(Heap* heap, JSFunction* function);
   // Emits a function move event.
   void FunctionMoveEvent(Heap* heap, Address from, Address to);
   // Emits a function delete event.
@@ -322,6 +322,12 @@ class Logger {
 
   // Used for logging stubs found in the snapshot.
   void LogCodeObject(Object* code_object);
+
+  // Emits general information about generated code.
+  void LogCodeInfo();
+
+  // Handles code creation when low-level profiling is active.
+  void LowLevelCodeCreateEvent(Code* code, LogMessageBuilder* msg);
 
   // Emits a profiler tick event. Used by the profiler thread.
   void TickEvent(TickSample* sample, bool overflow);

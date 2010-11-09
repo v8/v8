@@ -406,25 +406,36 @@ bool Object::IsExternalFloatArray() {
 }
 
 
-bool Object::IsFailure() {
+bool MaybeObject::IsFailure() {
   return HAS_FAILURE_TAG(this);
 }
 
 
-bool Object::IsRetryAfterGC() {
+bool MaybeObject::IsRetryAfterGC() {
   return HAS_FAILURE_TAG(this)
     && Failure::cast(this)->type() == Failure::RETRY_AFTER_GC;
 }
 
 
-bool Object::IsOutOfMemoryFailure() {
+bool MaybeObject::IsOutOfMemory() {
   return HAS_FAILURE_TAG(this)
     && Failure::cast(this)->IsOutOfMemoryException();
 }
 
 
-bool Object::IsException() {
+bool MaybeObject::IsException() {
   return this == Failure::Exception();
+}
+
+
+bool MaybeObject::IsTheHole() {
+  return !IsFailure() && ToObjectUnchecked()->IsTheHole();
+}
+
+
+Failure* Failure::cast(MaybeObject* obj) {
+  ASSERT(HAS_FAILURE_TAG(obj));
+  return reinterpret_cast<Failure*>(obj);
 }
 
 
@@ -501,6 +512,7 @@ bool Object::IsCode() {
 
 
 bool Object::IsOddball() {
+  ASSERT(HEAP->is_safe_to_read_maps());
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() == ODDBALL_TYPE;
 }
@@ -696,13 +708,13 @@ bool Object::IsUndefined() {
 }
 
 
-bool Object::IsTheHole() {
-  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kTheHole;
+bool Object::IsNull() {
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kNull;
 }
 
 
-bool Object::IsNull() {
-  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kNull;
+bool Object::IsTheHole() {
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kTheHole;
 }
 
 
@@ -724,7 +736,7 @@ double Object::Number() {
 }
 
 
-Object* Object::ToSmi() {
+MaybeObject* Object::ToSmi() {
   if (IsSmi()) return this;
   if (IsHeapNumber()) {
     double value = HeapNumber::cast(this)->value();
@@ -742,18 +754,27 @@ bool Object::HasSpecificClassOf(String* name) {
 }
 
 
-Object* Object::GetElement(uint32_t index) {
+MaybeObject* Object::GetElement(uint32_t index) {
   return GetElementWithReceiver(this, index);
 }
 
 
-Object* Object::GetProperty(String* key) {
+Object* Object::GetElementNoExceptionThrown(uint32_t index) {
+  MaybeObject* maybe = GetElementWithReceiver(this, index);
+  ASSERT(!maybe->IsFailure());
+  Object* result = NULL;  // Initialization to please compiler.
+  maybe->ToObject(&result);
+  return result;
+}
+
+
+MaybeObject* Object::GetProperty(String* key) {
   PropertyAttributes attributes;
   return GetPropertyWithReceiver(this, key, &attributes);
 }
 
 
-Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
+MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
   return GetPropertyWithReceiver(this, key, attributes);
 }
 
@@ -862,15 +883,6 @@ bool Failure::IsOutOfMemoryException() const {
 }
 
 
-int Failure::requested() const {
-  const int kShiftBits =
-      kFailureTypeTagSize + kSpaceTagSize - kObjectAlignmentBits;
-  STATIC_ASSERT(kShiftBits >= 0);
-  ASSERT(type() == RETRY_AFTER_GC);
-  return static_cast<int>(value() >> kShiftBits);
-}
-
-
 AllocationSpace Failure::allocation_space() const {
   ASSERT_EQ(RETRY_AFTER_GC, type());
   return static_cast<AllocationSpace>((value() >> kFailureTypeTagSize)
@@ -899,20 +911,14 @@ intptr_t Failure::value() const {
 }
 
 
-Failure* Failure::RetryAfterGC(int requested_bytes) {
-  // Assert that the space encoding fits in the three bytes allotted for it.
-  ASSERT((LAST_SPACE & ~kSpaceTagMask) == 0);
-  uintptr_t requested =
-      static_cast<uintptr_t>(requested_bytes >> kObjectAlignmentBits);
-  int tag_bits = kSpaceTagSize + kFailureTypeTagSize + kFailureTagSize;
-  if (((requested << tag_bits) >> tag_bits) != requested) {
-    // No room for entire requested size in the bits. Round down to
-    // maximally representable size.
-    requested = static_cast<intptr_t>(
-                    (~static_cast<uintptr_t>(0)) >> (tag_bits + 1));
-  }
-  int value = static_cast<int>(requested << kSpaceTagSize) | NEW_SPACE;
-  return Construct(RETRY_AFTER_GC, value);
+Failure* Failure::RetryAfterGC() {
+  return RetryAfterGC(NEW_SPACE);
+}
+
+
+Failure* Failure::RetryAfterGC(AllocationSpace space) {
+  ASSERT((space & ~kSpaceTagMask) == 0);
+  return Construct(RETRY_AFTER_GC, space);
 }
 
 
@@ -1239,9 +1245,11 @@ void JSObject::initialize_elements() {
 }
 
 
-Object* JSObject::ResetElements() {
-  Object* obj = map()->GetFastElementsMap();
-  if (obj->IsFailure()) return obj;
+MaybeObject* JSObject::ResetElements() {
+  Object* obj;
+  { MaybeObject* maybe_obj = map()->GetFastElementsMap();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
   set_map(Map::cast(obj));
   initialize_elements();
   return this;
@@ -1541,10 +1549,20 @@ void FixedArray::set_unchecked(int index, Smi* value) {
 }
 
 
-void FixedArray::set_null_unchecked(int index) {
+void FixedArray::set_unchecked(Heap* heap,
+                               int index,
+                               Object* value,
+                               WriteBarrierMode mode) {
+  int offset = kHeaderSize + index * kPointerSize;
+  WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(heap, this, offset, mode);
+}
+
+
+void FixedArray::set_null_unchecked(Heap* heap, int index) {
   ASSERT(index >= 0 && index < this->length());
-  ASSERT(!HEAP->InNewSpace(HEAP->null_value()));
-  WRITE_FIELD(this, kHeaderSize + index * kPointerSize, HEAP->null_value());
+  ASSERT(!HEAP->InNewSpace(heap->null_value()));
+  WRITE_FIELD(this, kHeaderSize + index * kPointerSize, heap->null_value());
 }
 
 
@@ -1701,6 +1719,30 @@ void DescriptorArray::Swap(int first, int second) {
 }
 
 
+template<typename Shape, typename Key>
+int HashTable<Shape, Key>::FindEntry(Key key) {
+  return FindEntry(GetIsolate(), key);
+}
+
+
+// Find entry for key otherwise return kNotFound.
+template<typename Shape, typename Key>
+int HashTable<Shape, Key>::FindEntry(Isolate* isolate, Key key) {
+  uint32_t capacity = Capacity();
+  uint32_t entry = FirstProbe(Shape::Hash(key), capacity);
+  uint32_t count = 1;
+  // EnsureCapacity will guarantee the hash table is never full.
+  while (true) {
+    Object* element = KeyAt(entry);
+    if (element == isolate->heap()->undefined_value()) break;  // Empty entry.
+    if (element != isolate->heap()->null_value() &&
+        Shape::IsMatch(key, element)) return entry;
+    entry = NextProbe(entry, count++, capacity);
+  }
+  return kNotFound;
+}
+
+
 bool NumberDictionary::requires_slow_elements() {
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return false;
@@ -1743,7 +1785,6 @@ CAST_ACCESSOR(ExternalAsciiString)
 CAST_ACCESSOR(ExternalTwoByteString)
 CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(Smi)
-CAST_ACCESSOR(Failure)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(Oddball)
@@ -1816,7 +1857,7 @@ bool String::Equals(String* other) {
 }
 
 
-Object* String::TryFlatten(PretenureFlag pretenure) {
+MaybeObject* String::TryFlatten(PretenureFlag pretenure) {
   if (!StringShape(this).IsCons()) return this;
   ConsString* cons = ConsString::cast(this);
   if (cons->second()->length() == 0) return cons->first();
@@ -1825,8 +1866,12 @@ Object* String::TryFlatten(PretenureFlag pretenure) {
 
 
 String* String::TryFlattenGetString(PretenureFlag pretenure) {
-  Object* flat = TryFlatten(pretenure);
-  return flat->IsFailure() ? this : String::cast(flat);
+  MaybeObject* flat = TryFlatten(pretenure);
+  Object* successfully_flattened;
+  if (flat->ToObject(&successfully_flattened)) {
+    return String::cast(successfully_flattened);
+  }
+  return this;
 }
 
 
@@ -1994,7 +2039,9 @@ void JSFunctionResultCache::MakeZeroSize() {
 void JSFunctionResultCache::Clear() {
   int cache_size = Smi::cast(get(kCacheSizeIndex))->value();
   Object** entries_start = RawField(this, OffsetOfElementAt(kEntriesIndex));
-  MemsetPointer(entries_start, GetHeap()->the_hole_value(), cache_size);
+  MemsetPointer(entries_start,
+                GetHeap()->the_hole_value(),
+                cache_size - kEntriesIndex);
   MakeZeroSize();
 }
 
@@ -2553,10 +2600,12 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 }
 
 
-Object* Map::GetFastElementsMap() {
+MaybeObject* Map::GetFastElementsMap() {
   if (has_fast_elements()) return this;
-  Object* obj = CopyDropTransitions();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = CopyDropTransitions();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(true);
   COUNTERS->map_slow_to_fast_elements()->Increment();
@@ -2564,10 +2613,12 @@ Object* Map::GetFastElementsMap() {
 }
 
 
-Object* Map::GetSlowElementsMap() {
+MaybeObject* Map::GetSlowElementsMap() {
   if (!has_fast_elements()) return this;
-  Object* obj = CopyDropTransitions();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = CopyDropTransitions();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(false);
   COUNTERS->map_fast_to_slow_elements()->Increment();
@@ -3269,14 +3320,18 @@ bool JSObject::AllowsSetElementsLength() {
 }
 
 
-Object* JSObject::EnsureWritableFastElements() {
+MaybeObject* JSObject::EnsureWritableFastElements() {
   ASSERT(HasFastElements());
   FixedArray* elems = FixedArray::cast(elements());
   Isolate* isolate = GetIsolate();
   if (elems->map() != isolate->heap()->fixed_cow_array_map()) return elems;
-  Object* writable_elems = isolate->heap()->CopyFixedArrayWithMap(
+  Object* writable_elems;
+  { MaybeObject* maybe_writable_elems = isolate->heap()->CopyFixedArrayWithMap(
       elems, isolate->heap()->fixed_array_map());
-  if (writable_elems->IsFailure()) return writable_elems;
+    if (!maybe_writable_elems->ToObject(&writable_elems)) {
+      return maybe_writable_elems;
+    }
+  }
   set_elements(FixedArray::cast(writable_elems));
   isolate->counters()->cow_arrays_converted()->Increment();
   return writable_elems;
@@ -3421,13 +3476,18 @@ bool JSObject::HasHiddenPropertiesObject() {
 Object* JSObject::GetHiddenPropertiesObject() {
   ASSERT(!IsJSGlobalProxy());
   PropertyAttributes attributes;
-  return GetLocalPropertyPostInterceptor(this,
-                                         GetHeap()->hidden_symbol(),
-                                         &attributes);
+  // You can't install a getter on a property indexed by the hidden symbol,
+  // so we can be sure that GetLocalPropertyPostInterceptor returns a real
+  // object.
+  Object* result =
+      GetLocalPropertyPostInterceptor(this,
+                                      GetHeap()->hidden_symbol(),
+                                      &attributes)->ToObjectUnchecked();
+  return result;
 }
 
 
-Object* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
+MaybeObject* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
   ASSERT(!IsJSGlobalProxy());
   return SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
                                     hidden_obj,
@@ -3496,6 +3556,51 @@ void Dictionary<Shape, Key>::SetEntry(int entry,
 }
 
 
+bool NumberDictionaryShape::IsMatch(uint32_t key, Object* other) {
+  ASSERT(other->IsNumber());
+  return key == static_cast<uint32_t>(other->Number());
+}
+
+
+uint32_t NumberDictionaryShape::Hash(uint32_t key) {
+  return ComputeIntegerHash(key);
+}
+
+
+uint32_t NumberDictionaryShape::HashForObject(uint32_t key, Object* other) {
+  ASSERT(other->IsNumber());
+  return ComputeIntegerHash(static_cast<uint32_t>(other->Number()));
+}
+
+
+MaybeObject* NumberDictionaryShape::AsObject(uint32_t key) {
+  return Isolate::Current()->heap()->NumberFromUint32(key);
+}
+
+
+bool StringDictionaryShape::IsMatch(String* key, Object* other) {
+  // We know that all entries in a hash table had their hash keys created.
+  // Use that knowledge to have fast failure.
+  if (key->Hash() != String::cast(other)->Hash()) return false;
+  return key->Equals(String::cast(other));
+}
+
+
+uint32_t StringDictionaryShape::Hash(String* key) {
+  return key->Hash();
+}
+
+
+uint32_t StringDictionaryShape::HashForObject(String* key, Object* other) {
+  return String::cast(other)->Hash();
+}
+
+
+MaybeObject* StringDictionaryShape::AsObject(String* key) {
+  return key;
+}
+
+
 void Map::ClearCodeCache(Heap* heap) {
   // No write barrier is needed since empty_fixed_array is not in new space.
   // Please note this function is used during marking:
@@ -3534,7 +3639,7 @@ void JSArray::SetContent(FixedArray* storage) {
 }
 
 
-Object* FixedArray::Copy() {
+MaybeObject* FixedArray::Copy() {
   if (length() == 0) return this;
   return GetHeap()->CopyFixedArray(this);
 }

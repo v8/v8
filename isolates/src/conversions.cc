@@ -369,7 +369,7 @@ static double InternalStringToInt(ScannerCharacterClasses* character_classes,
 
     ASSERT(buffer_pos < kBufferSize);
     buffer[buffer_pos] = '\0';
-    Vector<char> buffer_vector(buffer, buffer_pos);
+    Vector<const char> buffer_vector(buffer, buffer_pos);
     return sign ? -Strtod(buffer_vector, 0) : Strtod(buffer_vector, 0);
   }
 
@@ -681,7 +681,7 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
   ASSERT(buffer_pos < kBufferSize);
   buffer[buffer_pos] = '\0';
 
-  double converted = Strtod(Vector<char>(buffer, buffer_pos), exponent);
+  double converted = Strtod(Vector<const char>(buffer, buffer_pos), exponent);
   return sign? -converted: converted;
 }
 

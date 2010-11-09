@@ -308,6 +308,18 @@ void Isolate::ThreadDataTable::Remove(Isolate* isolate, ThreadId thread_id) {
 }
 
 
+#ifdef DEBUG
+#define TRACE_ISOLATE(tag)                                              \
+  do {                                                                  \
+    if (FLAG_trace_isolates) {                                          \
+      PrintF("Isolate %p " #tag "\n", reinterpret_cast<void*>(this));   \
+    }                                                                   \
+  } while (false)
+#else
+#define TRACE_ISOLATE(tag)
+#endif
+
+
 Isolate::Isolate()
     : state_(UNINITIALIZED),
       entry_stack_(NULL),
@@ -343,12 +355,12 @@ Isolate::Isolate()
       context_switcher_(NULL),
       thread_manager_(NULL),
       ast_sentinels_(NULL),
-      inline_runtime_functions_table_(NULL),
       string_tracker_(NULL),
       regexp_stack_(NULL),
       frame_element_constant_list_(0),
-      result_constant_list_(0),
-      vm_state_(0) {
+      result_constant_list_(0) {
+  TRACE_ISOLATE(constructor);
+
   memset(isolate_addresses_, 0,
       sizeof(isolate_addresses_[0]) * (k_isolate_address_count + 1));
 
@@ -378,7 +390,7 @@ Isolate::Isolate()
   producer_heap_profile_ = NULL;
 #endif
 
-  handle_scope_data_.Initialize(this);
+  handle_scope_data_.Initialize();
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value)                        \
   name##_ = (initial_value);
@@ -392,6 +404,8 @@ Isolate::Isolate()
 }
 
 void Isolate::TearDown() {
+  TRACE_ISOLATE(tear_down);
+
   // Temporarily set this isolate as current so that various parts of
   // the isolate can access it in their destructors without having a
   // direct pointer. We don't use Enter/Exit here to avoid
@@ -413,6 +427,8 @@ void Isolate::TearDown() {
 
 void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
+    TRACE_ISOLATE(deinit);
+
     OProfileAgent::TearDown();
     if (FLAG_preemption) {
       v8::Locker locker;
@@ -445,6 +461,8 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 
 
 Isolate::~Isolate() {
+  TRACE_ISOLATE(destructor);
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
   delete producer_heap_profile_;
   producer_heap_profile_ = NULL;
@@ -455,9 +473,6 @@ Isolate::~Isolate() {
 
   delete regexp_stack_;
   regexp_stack_ = NULL;
-
-  delete inline_runtime_functions_table_;
-  inline_runtime_functions_table_ = NULL;
 
   delete ast_sentinels_;
   ast_sentinels_ = NULL;
@@ -520,6 +535,8 @@ Isolate::~Isolate() {
 bool Isolate::PreInit() {
   if (state_ != UNINITIALIZED) return true;
 
+  TRACE_ISOLATE(preinit);
+
   ASSERT(Isolate::Current() == this);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -565,7 +582,6 @@ bool Isolate::PreInit() {
   handle_scope_implementer_ = new HandleScopeImplementer();
   stub_cache_ = new StubCache(this);
   ast_sentinels_ = new AstSentinels();
-  inline_runtime_functions_table_ = new InlineRuntimeFunctionsTable();
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
 
@@ -595,6 +611,8 @@ void Isolate::InitializeThreadLocal() {
 bool Isolate::Init(Deserializer* des) {
   ASSERT(state_ != INITIALIZED);
 
+  TRACE_ISOLATE(init);
+
   bool create_heap_objects = des == NULL;
 
 #ifdef DEBUG
@@ -614,8 +632,12 @@ bool Isolate::Init(Deserializer* des) {
   OS::Setup();
 
   // Initialize other runtime facilities
-#if !V8_HOST_ARCH_ARM && V8_TARGET_ARCH_ARM
+#if defined(USE_SIMULATOR)
+#if defined(V8_TARGET_ARCH_ARM)
   ::assembler::arm::Simulator::Initialize();
+#elif defined(V8_TARGET_ARCH_MIPS)
+  ::assembler::mips::Simulator::Initialize();
+#endif
 #endif
 
   { // NOLINT

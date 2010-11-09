@@ -62,7 +62,6 @@
 //   ComputeCallInitializeInLoop
 //   ProcessDeclarations
 //   DeclareGlobals
-//   FindInlineRuntimeLUT
 //   CheckForInlineRuntimeCall
 //   AnalyzeCondition
 //   CodeForFunctionPosition
@@ -71,38 +70,6 @@
 //   CodeForDoWhileConditionPosition
 //   CodeForSourcePosition
 
-namespace v8 {
-namespace internal {
-
-class InlineRuntimeFunctionsTable {
- public:
-  enum {
-#define LUT_ENTRY(name, argc, resize) __##name,
-    INLINE_RUNTIME_FUNCTION_LIST(LUT_ENTRY)
-    kInlineRuntimeFunctionsTableSize
-#undef LUT_ENTRY
-  };
-
-  struct Entry {
-    void (CodeGenerator::*method)(ZoneList<Expression*>*);
-    const char* name;
-    int nargs;
-  };
-
-  Entry* entries() { return entries_; }
-
- private:
-  InlineRuntimeFunctionsTable();
-
-  Entry entries_[kInlineRuntimeFunctionsTableSize];
-
-  friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(InlineRuntimeFunctionsTable);
-};
-
-}  // namespace internal
-}  // namespace v8
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/codegen-ia32.h"

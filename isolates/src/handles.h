@@ -111,9 +111,7 @@ class HandleScope {
   inline HandleScope();
   explicit inline HandleScope(Isolate* isolate);
 
-  ~HandleScope() {
-    Leave(&previous_);
-  }
+  inline ~HandleScope();
 
   // Counts the number of allocated handles.
   static int NumberOfHandles();
@@ -125,9 +123,9 @@ class HandleScope {
   // Deallocates any extensions used by the current scope.
   static void DeleteExtensions(Isolate* isolate);
 
-  static Address current_extensions_address();
   static Address current_next_address();
   static Address current_limit_address();
+  static Address current_level_address();
 
  private:
   // Prevent heap allocation or illegal handle scopes.
@@ -136,16 +134,9 @@ class HandleScope {
   void* operator new(size_t size);
   void operator delete(void* size_t);
 
-  const v8::ImplementationUtilities::HandleScopeData previous_;
-
-  // Pushes a fresh handle scope to be used when allocating new handles.
-  static inline void Enter(
-      v8::ImplementationUtilities::HandleScopeData* previous);
-
-  // Re-establishes the previous scope state. Should be called only
-  // once, and only for the current scope.
-  static inline void Leave(
-      const v8::ImplementationUtilities::HandleScopeData* previous);
+  Isolate* isolate_;
+  Object** prev_next_;
+  Object** prev_limit_;
 
   // Extend the handle scope making room for more handles.
   static internal::Object** Extend();
@@ -170,6 +161,10 @@ void NormalizeProperties(Handle<JSObject> object,
 void NormalizeElements(Handle<JSObject> object);
 void TransformToFastProperties(Handle<JSObject> object,
                                int unused_property_fields);
+void NumberDictionarySet(Handle<NumberDictionary> dictionary,
+                         uint32_t index,
+                         Handle<Object> value,
+                         PropertyDetails details);
 
 // Flattens a string.
 void FlattenString(Handle<String> str);
@@ -335,7 +330,7 @@ class NoHandleAllocation BASE_EMBEDDED {
   inline NoHandleAllocation();
   inline ~NoHandleAllocation();
  private:
-  int extensions_;
+  int level_;
 #endif
 };
 

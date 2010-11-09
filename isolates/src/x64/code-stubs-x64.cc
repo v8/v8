@@ -1415,20 +1415,8 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
         __ j(equal, &done);
       }
       __ SmiNeg(rax, rax, &done);
+      __ jmp(&slow);  // zero, if not handled above, and Smi::kMinValue.
 
-      // Either zero or Smi::kMinValue, neither of which become a smi when
-      // negated. We handle negative zero here if required. We always enter
-      // the runtime system if we have Smi::kMinValue.
-      if (negative_zero_ == kStrictNegativeZero) {
-        __ SmiCompare(rax, Smi::FromInt(0));
-        __ j(not_equal, &slow);
-        __ Move(rax, FACTORY->minus_zero_value());
-        __ jmp(&done);
-      } else  {
-        __ SmiCompare(rax, Smi::FromInt(Smi::kMinValue));
-        __ j(equal, &slow);
-        __ jmp(&done);
-      }
       // Try floating point case.
       __ bind(&try_float);
     } else if (FLAG_debug_code) {
@@ -2138,7 +2126,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ JumpIfNotBothSmi(rax, rdx, &non_smi);
     __ subq(rdx, rax);
     __ j(no_overflow, &smi_done);
-    __ neg(rdx);  // Correct sign in case of overflow.
+    __ not_(rdx);  // Correct sign in case of overflow. rdx cannot be 0 here.
     __ bind(&smi_done);
     __ movq(rax, rdx);
     __ ret(0);
@@ -2409,16 +2397,7 @@ void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
 
 
 void StackCheckStub::Generate(MacroAssembler* masm) {
-  // Because builtins always remove the receiver from the stack, we
-  // have to fake one to avoid underflowing the stack. The receiver
-  // must be inserted below the return address on the stack so we
-  // temporarily store that in a register.
-  __ pop(rax);
-  __ Push(Smi::FromInt(0));
-  __ push(rax);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kStackGuard, 1, 1);
+  __ TailCallRuntime(Runtime::kStackGuard, 0, 1);
 }
 
 
@@ -2509,11 +2488,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 
 
 void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
-  Label empty_result;
-  Label prologue;
-  Label promote_scheduled_exception;
-  __ EnterApiExitFrame(kStackSpace, 0);
-  ASSERT_EQ(kArgc, 4);
+  __ PrepareCallApiFunction(kStackSpace);
 #ifdef _WIN64
   // All the parameters should be set up by a caller.
 #else
@@ -2522,35 +2497,7 @@ void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
   // Second parameter register rdi should be set with pointer to AccessorInfo
   // by a caller.
 #endif
-  // Call the api function!
-  __ movq(rax,
-          reinterpret_cast<int64_t>(fun()->address()),
-          RelocInfo::RUNTIME_ENTRY);
-  __ call(rax);
-  // Check if the function scheduled an exception.
-  ExternalReference scheduled_exception_address =
-      ExternalReference::scheduled_exception_address();
-  __ movq(rsi, scheduled_exception_address);
-  __ Cmp(Operand(rsi, 0), FACTORY->the_hole_value());
-  __ j(not_equal, &promote_scheduled_exception);
-#ifdef _WIN64
-  // rax keeps a pointer to v8::Handle, unpack it.
-  __ movq(rax, Operand(rax, 0));
-#endif
-  // Check if the result handle holds 0.
-  __ testq(rax, rax);
-  __ j(zero, &empty_result);
-  // It was non-zero.  Dereference to get the result value.
-  __ movq(rax, Operand(rax, 0));
-  __ bind(&prologue);
-  __ LeaveExitFrame();
-  __ ret(0);
-  __ bind(&promote_scheduled_exception);
-  __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
-  __ bind(&empty_result);
-  // It was zero; the result is undefined.
-  __ Move(rax, FACTORY->undefined_value());
-  __ jmp(&prologue);
+  __ CallApiFunctionAndReturn(fun());
 }
 
 

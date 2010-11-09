@@ -208,10 +208,11 @@ inline Heap* _inline_get_heap_();
   V(closure_symbol, "(closure)")
 
 
-// Forward declaration of the GCTracer class.
+// Forward declarations.
 class GCTracer;
 class HeapStats;
 class Isolate;
+class WeakObjectRetainer;
 
 
 typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
@@ -399,62 +400,62 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateJSObject(JSFunction* constructor,
-      PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT MaybeObject* AllocateJSObject(
+      JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates and initializes a new global object based on a constructor.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateGlobalObject(JSFunction* constructor);
+  MUST_USE_RESULT MaybeObject* AllocateGlobalObject(JSFunction* constructor);
 
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
   // Returns failure if allocation failed.
-  MUST_USE_RESULT Object* CopyJSObject(JSObject* source);
+  MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source);
 
   // Allocates the function prototype.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateFunctionPrototype(JSFunction* function);
+  MUST_USE_RESULT MaybeObject* AllocateFunctionPrototype(JSFunction* function);
 
   // Reinitialize an JSGlobalProxy based on a constructor.  The object
   // must have the same size as objects allocated using the
   // constructor.  The object is reinitialized and behaves as an
   // object that has been freshly allocated using the constructor.
-  MUST_USE_RESULT Object* ReinitializeJSGlobalProxy(JSFunction* constructor,
-                                                    JSGlobalProxy* global);
+  MUST_USE_RESULT MaybeObject* ReinitializeJSGlobalProxy(
+      JSFunction* constructor, JSGlobalProxy* global);
 
   // Allocates and initializes a new JavaScript object based on a map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateJSObjectFromMap(
+  MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMap(
       Map* map, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a heap object based on the map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT Object* Allocate(Map* map, AllocationSpace space);
+  MUST_USE_RESULT MaybeObject* Allocate(Map* map, AllocationSpace space);
 
   // Allocates a JS Map in the heap.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateMap(InstanceType instance_type,
-                                      int instance_size);
+  MUST_USE_RESULT MaybeObject* AllocateMap(InstanceType instance_type,
+                                           int instance_size);
 
   // Allocates a partial map for bootstrapping.
-  MUST_USE_RESULT Object* AllocatePartialMap(InstanceType instance_type,
-                                             int instance_size);
+  MUST_USE_RESULT MaybeObject* AllocatePartialMap(InstanceType instance_type,
+                                                  int instance_size);
 
   // Allocate a map for the specified function
-  MUST_USE_RESULT Object* AllocateInitialMap(JSFunction* fun);
+  MUST_USE_RESULT MaybeObject* AllocateInitialMap(JSFunction* fun);
 
   // Allocates an empty code cache.
-  MUST_USE_RESULT Object* AllocateCodeCache();
+  MUST_USE_RESULT MaybeObject* AllocateCodeCache();
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
@@ -477,13 +478,13 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateStringFromAscii(
+  MUST_USE_RESULT MaybeObject* AllocateStringFromAscii(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
-  MUST_USE_RESULT Object* AllocateStringFromUtf8(
+  MUST_USE_RESULT MaybeObject* AllocateStringFromUtf8(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
-  MUST_USE_RESULT Object* AllocateStringFromTwoByte(
+  MUST_USE_RESULT MaybeObject* AllocateStringFromTwoByte(
       Vector<const uc16> str,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -491,18 +492,16 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT inline Object* AllocateSymbol(Vector<const char> str,
-                                                int chars,
-                                                uint32_t hash_field);
+  MUST_USE_RESULT inline MaybeObject* AllocateSymbol(Vector<const char> str,
+                                                     int chars,
+                                                     uint32_t hash_field);
 
-  MUST_USE_RESULT Object* AllocateInternalSymbol(
-      unibrow::CharacterStream* buffer,
-      int chars,
-      uint32_t hash_field);
+  MUST_USE_RESULT MaybeObject* AllocateInternalSymbol(
+      unibrow::CharacterStream* buffer, int chars, uint32_t hash_field);
 
-  MUST_USE_RESULT Object* AllocateExternalSymbol(Vector<const char> str,
-                                                 int chars);
-
+  MUST_USE_RESULT MaybeObject* AllocateExternalSymbol(
+      Vector<const char> str,
+      int chars);
 
   // Allocates and partially initializes a String.  There are two String
   // encodings: ASCII and two byte.  These functions allocate a string of the
@@ -511,10 +510,10 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateRawAsciiString(
+  MUST_USE_RESULT MaybeObject* AllocateRawAsciiString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
-  MUST_USE_RESULT Object* AllocateRawTwoByteString(
+  MUST_USE_RESULT MaybeObject* AllocateRawTwoByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -522,104 +521,107 @@ class Heap {
   // A cache is used for ascii codes.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed. Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* LookupSingleCharacterStringFromCode(uint16_t code);
+  MUST_USE_RESULT MaybeObject* LookupSingleCharacterStringFromCode(
+      uint16_t code);
 
   // Allocate a byte array of the specified length
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateByteArray(int length,
-                                            PretenureFlag pretenure);
+  MUST_USE_RESULT MaybeObject* AllocateByteArray(int length,
+                                                 PretenureFlag pretenure);
 
   // Allocate a non-tenured byte array of the specified length
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateByteArray(int length);
+  MUST_USE_RESULT MaybeObject* AllocateByteArray(int length);
 
   // Allocate a pixel array of the specified length
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocatePixelArray(int length,
-                                             uint8_t* external_pointer,
-                                             PretenureFlag pretenure);
+  MUST_USE_RESULT MaybeObject* AllocatePixelArray(int length,
+                                                  uint8_t* external_pointer,
+                                                  PretenureFlag pretenure);
 
   // Allocates an external array of the specified length and type.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateExternalArray(int length,
-                                                ExternalArrayType array_type,
-                                                void* external_pointer,
-                                                PretenureFlag pretenure);
+  MUST_USE_RESULT MaybeObject* AllocateExternalArray(
+      int length,
+      ExternalArrayType array_type,
+      void* external_pointer,
+      PretenureFlag pretenure);
 
   // Allocate a tenured JS global property cell.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateJSGlobalPropertyCell(Object* value);
+  MUST_USE_RESULT MaybeObject* AllocateJSGlobalPropertyCell(Object* value);
 
   // Allocates a fixed array initialized with undefined values
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateFixedArray(int length,
-                                             PretenureFlag pretenure);
+  MUST_USE_RESULT MaybeObject* AllocateFixedArray(int length,
+                                                  PretenureFlag pretenure);
   // Allocates a fixed array initialized with undefined values
-  MUST_USE_RESULT Object* AllocateFixedArray(int length);
+  MUST_USE_RESULT MaybeObject* AllocateFixedArray(int length);
 
   // Allocates an uninitialized fixed array. It must be filled by the caller.
   //
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateUninitializedFixedArray(int length);
+  MUST_USE_RESULT MaybeObject* AllocateUninitializedFixedArray(int length);
 
   // Make a copy of src and return it. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
-  MUST_USE_RESULT inline Object* CopyFixedArray(FixedArray* src);
+  MUST_USE_RESULT inline MaybeObject* CopyFixedArray(FixedArray* src);
 
   // Make a copy of src, set the map, and return the copy. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
-  MUST_USE_RESULT Object* CopyFixedArrayWithMap(FixedArray* src, Map* map);
+  MUST_USE_RESULT MaybeObject* CopyFixedArrayWithMap(FixedArray* src, Map* map);
 
   // Allocates a fixed array initialized with the hole values.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateFixedArrayWithHoles(
+  MUST_USE_RESULT MaybeObject* AllocateFixedArrayWithHoles(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
   // AllocateHashTable is identical to AllocateFixedArray except
   // that the resulting object has hash_table_map as map.
-  MUST_USE_RESULT Object* AllocateHashTable(
+  MUST_USE_RESULT MaybeObject* AllocateHashTable(
       int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a global (but otherwise uninitialized) context.
-  MUST_USE_RESULT Object* AllocateGlobalContext();
+  MUST_USE_RESULT MaybeObject* AllocateGlobalContext();
 
   // Allocate a function context.
-  MUST_USE_RESULT Object* AllocateFunctionContext(int length,
-                                                  JSFunction* closure);
+  MUST_USE_RESULT MaybeObject* AllocateFunctionContext(int length,
+                                                       JSFunction* closure);
 
   // Allocate a 'with' context.
-  MUST_USE_RESULT Object* AllocateWithContext(Context* previous,
-                                              JSObject* extension,
-                                              bool is_catch_context);
+  MUST_USE_RESULT MaybeObject* AllocateWithContext(Context* previous,
+                                                   JSObject* extension,
+                                                   bool is_catch_context);
 
   // Allocates a new utility object in the old generation.
-  MUST_USE_RESULT Object* AllocateStruct(InstanceType type);
+  MUST_USE_RESULT MaybeObject* AllocateStruct(InstanceType type);
 
   // Allocates a function initialized with a shared part.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateFunction(Map* function_map,
-                                           SharedFunctionInfo* shared,
-                                           Object* prototype,
-                                           PretenureFlag pretenure = TENURED);
+  MUST_USE_RESULT MaybeObject* AllocateFunction(
+      Map* function_map,
+      SharedFunctionInfo* shared,
+      Object* prototype,
+      PretenureFlag pretenure = TENURED);
 
   // Indicies for direct access into argument objects.
   static const int kArgumentsObjectSize =
@@ -631,49 +633,52 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateArgumentsObject(Object* callee, int length);
+  MUST_USE_RESULT MaybeObject* AllocateArgumentsObject(
+      Object* callee, int length);
 
   // Same as NewNumberFromDouble, but may return a preallocated/immutable
   // number object (e.g., minus_zero_value_, nan_value_)
-  MUST_USE_RESULT Object* NumberFromDouble(
+  MUST_USE_RESULT MaybeObject* NumberFromDouble(
       double value, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocated a HeapNumber from value.
-  MUST_USE_RESULT Object* AllocateHeapNumber(double value,
-                                             PretenureFlag pretenure);
+  MUST_USE_RESULT MaybeObject* AllocateHeapNumber(
+      double value,
+      PretenureFlag pretenure);
   // pretenure = NOT_TENURED
-  MUST_USE_RESULT Object* AllocateHeapNumber(double value);
+  MUST_USE_RESULT MaybeObject* AllocateHeapNumber(double value);
 
   // Converts an int into either a Smi or a HeapNumber object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT inline Object* NumberFromInt32(int32_t value);
+  MUST_USE_RESULT inline MaybeObject* NumberFromInt32(int32_t value);
 
   // Converts an int into either a Smi or a HeapNumber object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT inline Object* NumberFromUint32(uint32_t value);
+  MUST_USE_RESULT inline MaybeObject* NumberFromUint32(uint32_t value);
 
   // Allocates a new proxy object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateProxy(Address proxy,
-                                        PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT MaybeObject* AllocateProxy(
+      Address proxy, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a new SharedFunctionInfo object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateSharedFunctionInfo(Object* name);
+  MUST_USE_RESULT MaybeObject* AllocateSharedFunctionInfo(Object* name);
 
   // Allocates a new cons string object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateConsString(String* first, String* second);
+  MUST_USE_RESULT MaybeObject* AllocateConsString(String* first,
+                                                  String* second);
 
   // Allocates a new sub string object which is a substring of an underlying
   // string buffer stretching from the index start (inclusive) to the index
@@ -681,7 +686,7 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateSubString(
+  MUST_USE_RESULT MaybeObject* AllocateSubString(
       String* buffer,
       int start,
       int end,
@@ -692,9 +697,9 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT Object* AllocateExternalStringFromAscii(
+  MUST_USE_RESULT MaybeObject* AllocateExternalStringFromAscii(
       ExternalAsciiString::Resource* resource);
-  MUST_USE_RESULT Object* AllocateExternalStringFromTwoByte(
+  MUST_USE_RESULT MaybeObject* AllocateExternalStringFromTwoByte(
       ExternalTwoByteString::Resource* resource);
 
   // Finalizes an external string by deleting the associated external
@@ -706,9 +711,9 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT inline Object* AllocateRaw(int size_in_bytes,
-                                             AllocationSpace space,
-                                             AllocationSpace retry_space);
+  MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes,
+                                                  AllocationSpace space,
+                                                  AllocationSpace retry_space);
 
   // Initialize a filler object to keep the ability to iterate over the heap
   // when shortening objects.
@@ -720,29 +725,28 @@ class Heap {
   // self_reference. This allows generated code to reference its own Code
   // object by containing this pointer.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT Object* CreateCode(const CodeDesc& desc,
-                                     Code::Flags flags,
-                                     Handle<Object> self_reference);
+  MUST_USE_RESULT MaybeObject* CreateCode(const CodeDesc& desc,
+                                          Code::Flags flags,
+                                          Handle<Object> self_reference);
 
-  MUST_USE_RESULT Object* CopyCode(Code* code);
+  MUST_USE_RESULT MaybeObject* CopyCode(Code* code);
 
   // Copy the code and scope info part of the code object, but insert
   // the provided data as the relocation information.
-  MUST_USE_RESULT Object* CopyCode(Code* code, Vector<byte> reloc_info);
+  MUST_USE_RESULT MaybeObject* CopyCode(Code* code, Vector<byte> reloc_info);
 
   // Finds the symbol for string in the symbol table.
   // If not found, a new symbol is added to the table and returned.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT Object* LookupSymbol(Vector<const char> str);
-  MUST_USE_RESULT Object* LookupAsciiSymbol(const char* str) {
+  MUST_USE_RESULT MaybeObject* LookupSymbol(Vector<const char> str);
+  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(const char* str) {
     return LookupSymbol(CStrVector(str));
   }
-  MUST_USE_RESULT Object* LookupSymbol(String* str);
-  MUST_USE_RESULT bool LookupSymbolIfExists(String* str, String** symbol);
-  MUST_USE_RESULT bool LookupTwoCharsSymbolIfExists(String* str,
-                                                    String** symbol);
+  MUST_USE_RESULT MaybeObject* LookupSymbol(String* str);
+  bool LookupSymbolIfExists(String* str, String** symbol);
+  bool LookupTwoCharsSymbolIfExists(String* str, String** symbol);
 
   // Compute the matching symbol map for a string if possible.
   // NULL is returned if string is in new space or not flattened.
@@ -755,7 +759,7 @@ class Heap {
   // string might stay non-flat even when not a failure is returned.
   //
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT inline Object* PrepareForCompare(String* str);
+  MUST_USE_RESULT inline MaybeObject* PrepareForCompare(String* str);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Object* ToBoolean(bool condition);
@@ -765,21 +769,13 @@ class Heap {
   void GarbageCollectionPrologue();
   void GarbageCollectionEpilogue();
 
-  enum CollectionPolicy { NORMAL, AGGRESSIVE };
-
   // Performs garbage collection operation.
   // Returns whether required_space bytes are available after the collection.
-  bool CollectGarbage(int required_space,
-                      AllocationSpace space,
-                      CollectionPolicy collectionPolicy = NORMAL);
+  void CollectGarbage(AllocationSpace space);
 
   // Performs a full garbage collection. Force compaction if the
   // parameter is true.
-  void CollectAllGarbage(bool force_compaction,
-                        CollectionPolicy collectionPolicy = NORMAL);
-
-  // Last hope GC, should try to squeeze as much as possible.
-  void CollectAllAvailableGarbage();
+  void CollectAllGarbage(bool force_compaction);
 
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed() { return ++contexts_disposed_; }
@@ -792,7 +788,7 @@ class Heap {
 
 #ifdef DEBUG
   // Utility used with flag gc-greedy.
-  bool GarbageCollectionGreedyCheck();
+  void GarbageCollectionGreedyCheck();
 #endif
 
   void AddGCPrologueCallback(
@@ -841,6 +837,11 @@ class Heap {
   // The hidden_symbol is special because it is the empty string, but does
   // not match the empty string.
   String* hidden_symbol() { return hidden_symbol_; }
+
+  void set_global_contexts_list(Object* object) {
+    global_contexts_list_ = object;
+  }
+  Object* global_contexts_list() { return global_contexts_list_; }
 
   // Iterates over all roots in the heap.
   void IterateRoots(ObjectVisitor* v, VisitMode mode);
@@ -947,6 +948,11 @@ class Heap {
   // Generated code can embed this address to get access to the roots.
   Object** roots_address() { return roots_; }
 
+  // Get address of global contexts list for serialization support.
+  Object** global_contexts_list_address() {
+    return &global_contexts_list_;
+  }
+
 #ifdef DEBUG
   void Print();
   void PrintHandles();
@@ -971,8 +977,9 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT Object* CreateSymbol(const char* str, int length, int hash);
-  MUST_USE_RESULT Object* CreateSymbol(String* str);
+  MUST_USE_RESULT MaybeObject* CreateSymbol(
+      const char* str, int length, int hash);
+  MUST_USE_RESULT MaybeObject* CreateSymbol(String* str);
 
   // Write barrier support for address[offset] = o.
   inline void RecordWrite(Address address, int offset);
@@ -1044,9 +1051,9 @@ class Heap {
   inline int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
 
   // Allocate uninitialized fixed array.
-  MUST_USE_RESULT Object* AllocateRawFixedArray(int length);
-  MUST_USE_RESULT Object* AllocateRawFixedArray(int length,
-                                                PretenureFlag pretenure);
+  MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length);
+  MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length,
+                                                     PretenureFlag pretenure);
 
   // True if we have reached the allocation limit in the old generation that
   // should force the next GC (caused normally) to be a full one.
@@ -1089,8 +1096,8 @@ class Heap {
     kRootListLength
   };
 
-  MUST_USE_RESULT Object* NumberToString(Object* number,
-                                         bool check_number_string_cache = true);
+  MUST_USE_RESULT MaybeObject* NumberToString(
+      Object* number, bool check_number_string_cache = true);
 
   Map* MapForExternalArrayType(ExternalArrayType array_type);
   RootListIndex RootIndexForExternalArrayType(
@@ -1124,6 +1131,8 @@ class Heap {
 
   void UpdateNewSpaceReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
+
+  void ProcessWeakReferences(WeakObjectRetainer* retainer);
 
   // Helper function that governs the promotion policy from new space to
   // old.  If the object's old address lies below the new space's age
@@ -1259,6 +1268,8 @@ class Heap {
 
   Object* roots_[kRootListLength];
 
+  Object* global_contexts_list_;
+
   struct StringTypeTable {
     InstanceType type;
     int size;
@@ -1330,8 +1341,7 @@ class Heap {
 
   // Performs garbage collection
   void PerformGarbageCollection(GarbageCollector collector,
-                                GCTracer* tracer,
-                                CollectionPolicy collectionPolicy);
+                                GCTracer* tracer);
 
   static const intptr_t kMinimumPromotionLimit = 2 * MB;
   static const intptr_t kMinimumAllocationLimit = 8 * MB;
@@ -1342,10 +1352,10 @@ class Heap {
   // to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that (a) it doesn't
   // have to test the allocation space argument and (b) can reduce code size
   // (since both AllocateRaw and AllocateRawMap are inlined).
-  MUST_USE_RESULT inline Object* AllocateRawMap();
+  MUST_USE_RESULT inline MaybeObject* AllocateRawMap();
 
   // Allocate an uninitialized object in the global property cell space.
-  MUST_USE_RESULT inline Object* AllocateRawCell();
+  MUST_USE_RESULT inline MaybeObject* AllocateRawCell();
 
   // Initializes a JSObject based on its map.
   void InitializeJSObjectFromMap(JSObject* obj,
@@ -1364,10 +1374,12 @@ class Heap {
 
   void CreateFixedStubs();
 
-  Object* CreateOddball(const char* to_string, Object* to_number, byte kind);
+  MaybeObject* CreateOddball(const char* to_string,
+                             Object* to_number,
+                             byte kind);
 
   // Allocate empty fixed array.
-  Object* AllocateEmptyFixedArray();
+  MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
 
   // Performs a minor collection in new generation.
   void Scavenge();
@@ -1403,15 +1415,16 @@ class Heap {
   // other parts of the VM could use it. Specifically, a function that creates
   // instances of type JS_FUNCTION_TYPE benefit from the use of this function.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT inline Object* InitializeFunction(JSFunction* function,
-                                                    SharedFunctionInfo* shared,
-                                                    Object* prototype);
+  MUST_USE_RESULT inline MaybeObject* InitializeFunction(
+      JSFunction* function,
+      SharedFunctionInfo* shared,
+      Object* prototype);
 
   GCTracer* tracer_;
 
 
   // Initializes the number to string cache based on the max semispace size.
-  Object* InitializeNumberStringCache();
+  MUST_USE_RESULT MaybeObject* InitializeNumberStringCache();
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
@@ -2014,7 +2027,7 @@ class TranscendentalCache {
 
   // Returns a heap number with f(input), where f is a math function specified
   // by the 'type' argument.
-  MUST_USE_RESULT inline Object* Get(Type type, double input);
+  MUST_USE_RESULT inline MaybeObject* Get(Type type, double input);
 
   // The cache contains raw Object pointers.  This method disposes of
   // them before a garbage collection.
@@ -2026,7 +2039,7 @@ class TranscendentalCache {
 
     explicit SubCache(Type t);
 
-    MUST_USE_RESULT inline Object* Get(double input);
+    MUST_USE_RESULT inline MaybeObject* Get(double input);
 
     inline double Calculate(double input) {
       switch (type_) {
@@ -2097,6 +2110,18 @@ class TranscendentalCache {
 
   SubCache* caches_[kNumberOfCaches];
   DISALLOW_COPY_AND_ASSIGN(TranscendentalCache);
+};
+
+
+// Abstract base class for checking whether a weak object should be retained.
+class WeakObjectRetainer {
+ public:
+  virtual ~WeakObjectRetainer() {}
+
+  // Return whether this object should be retained. If NULL is returned the
+  // object has no references. Otherwise the address of the retained object
+  // should be returned as in some GC situations the object has been moved.
+  virtual Object* RetainAs(Object* object) = 0;
 };
 
 

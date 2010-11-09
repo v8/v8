@@ -1000,7 +1000,7 @@ void VirtualFrame::SyncRange(int begin, int end) {
 //------------------------------------------------------------------------------
 // Virtual frame stub and IC calling functions.
 
-Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+Result VirtualFrame::CallRuntime(const Runtime::Function* f, int arg_count) {
   PrepareForCall(arg_count, arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(f, arg_count);

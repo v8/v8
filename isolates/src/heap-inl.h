@@ -44,38 +44,28 @@ void PromotionQueue::insert(HeapObject* target, int size) {
 }
 
 
-void Heap::UpdateOldSpaceLimits() {
-  intptr_t old_gen_size = PromotedSpaceSize();
-  old_gen_promotion_limit_ =
-      old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
-  old_gen_allocation_limit_ =
-      old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
-  old_gen_exhausted_ = false;
-}
-
-
 int Heap::MaxObjectSizeInPagedSpace() {
   return Page::kMaxHeapObjectSize;
 }
 
 
-Object* Heap::AllocateSymbol(Vector<const char> str,
-                             int chars,
-                             uint32_t hash_field) {
+MaybeObject* Heap::AllocateSymbol(Vector<const char> str,
+                                  int chars,
+                                  uint32_t hash_field) {
   unibrow::Utf8InputBuffer<> buffer(str.start(),
                                     static_cast<unsigned>(str.length()));
   return AllocateInternalSymbol(&buffer, chars, hash_field);
 }
 
 
-Object* Heap::CopyFixedArray(FixedArray* src) {
+MaybeObject* Heap::CopyFixedArray(FixedArray* src) {
   return CopyFixedArrayWithMap(src, src->map());
 }
 
 
-Object* Heap::AllocateRaw(int size_in_bytes,
-                          AllocationSpace space,
-                          AllocationSpace retry_space) {
+MaybeObject* Heap::AllocateRaw(int size_in_bytes,
+                               AllocationSpace space,
+                               AllocationSpace retry_space) {
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   ASSERT(space != NEW_SPACE ||
          retry_space == OLD_POINTER_SPACE ||
@@ -85,12 +75,12 @@ Object* Heap::AllocateRaw(int size_in_bytes,
   if (FLAG_gc_interval >= 0 &&
       !disallow_allocation_failure_ &&
       Heap::allocation_timeout_-- <= 0) {
-    return Failure::RetryAfterGC(size_in_bytes, space);
+    return Failure::RetryAfterGC(space);
   }
   isolate_->counters()->objs_since_last_full()->Increment();
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
-  Object* result;
+  MaybeObject* result;
   if (NEW_SPACE == space) {
     result = new_space_.AllocateRaw(size_in_bytes);
     if (always_allocate() && result->IsFailure()) {
@@ -119,14 +109,14 @@ Object* Heap::AllocateRaw(int size_in_bytes,
 }
 
 
-Object* Heap::NumberFromInt32(int32_t value) {
+MaybeObject* Heap::NumberFromInt32(int32_t value) {
   if (Smi::IsValid(value)) return Smi::FromInt(value);
   // Bypass NumberFromDouble to avoid various redundant checks.
   return AllocateHeapNumber(FastI2D(value));
 }
 
 
-Object* Heap::NumberFromUint32(uint32_t value) {
+MaybeObject* Heap::NumberFromUint32(uint32_t value) {
   if ((int32_t)value >= 0 && Smi::IsValid((int32_t)value)) {
     return Smi::FromInt((int32_t)value);
   }
@@ -153,12 +143,12 @@ void Heap::FinalizeExternalString(String* string) {
 }
 
 
-Object* Heap::AllocateRawMap() {
+MaybeObject* Heap::AllocateRawMap() {
 #ifdef DEBUG
   isolate_->counters()->objs_since_last_full()->Increment();
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
-  Object* result = map_space_->AllocateRaw(Map::kSize);
+  MaybeObject* result = map_space_->AllocateRaw(Map::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
 #ifdef DEBUG
   if (!result->IsFailure()) {
@@ -171,12 +161,12 @@ Object* Heap::AllocateRawMap() {
 }
 
 
-Object* Heap::AllocateRawCell() {
+MaybeObject* Heap::AllocateRawCell() {
 #ifdef DEBUG
   isolate_->counters()->objs_since_last_full()->Increment();
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
-  Object* result = cell_space_->AllocateRaw(JSGlobalPropertyCell::kSize);
+  MaybeObject* result = cell_space_->AllocateRaw(JSGlobalPropertyCell::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
   return result;
 }
@@ -354,14 +344,14 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
-Object* Heap::PrepareForCompare(String* str) {
+MaybeObject* Heap::PrepareForCompare(String* str) {
   // Always flatten small strings and force flattening of long strings
   // after we have accumulated a certain amount we failed to flatten.
   static const int kMaxAlwaysFlattenLength = 32;
   static const int kFlattenLongThreshold = 16*KB;
 
   const int length = str->length();
-  Object* obj = str->TryFlatten();
+  MaybeObject* obj = str->TryFlatten();
   if (length <= kMaxAlwaysFlattenLength ||
       unflattened_strings_length_ >= kFlattenLongThreshold) {
     return obj;
@@ -407,44 +397,49 @@ Isolate* Heap::isolate() {
       reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(4)->heap()) + 4);
 }
 
+
+#ifdef DEBUG
 #define GC_GREEDY_CHECK() \
-  ASSERT(!FLAG_gc_greedy || HEAP->GarbageCollectionGreedyCheck())
+  if (FLAG_gc_greedy) HEAP->GarbageCollectionGreedyCheck()
+#else
+#define GC_GREEDY_CHECK() { }
+#endif
 
 
 // Calls the FUNCTION_CALL function and retries it up to three times
 // to guarantee that any allocations performed during the call will
 // succeed if there's enough memory.
 
-// Warning: Do not use the identifiers __object__ or __scope__ in a
-// call to this macro.
+// Warning: Do not use the identifiers __object__, __maybe_object__ or
+// __scope__ in a call to this macro.
 
 #define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)\
   do {                                                                    \
     GC_GREEDY_CHECK();                                                    \
-    Object* __object__ = FUNCTION_CALL;                                   \
-    if (!__object__->IsFailure()) RETURN_VALUE;                           \
-    if (__object__->IsOutOfMemoryFailure()) {                             \
+    MaybeObject* __maybe_object__ = FUNCTION_CALL;                        \
+    Object* __object__ = NULL;                                            \
+    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
+    if (__maybe_object__->IsOutOfMemory()) {                              \
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0", true);\
     }                                                                     \
-    if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
-    ISOLATE->heap()->CollectGarbage(                                      \
-       Failure::cast(__object__)->requested(),                            \
-       Failure::cast(__object__)->allocation_space());                    \
-    __object__ = FUNCTION_CALL;                                           \
-    if (!__object__->IsFailure()) RETURN_VALUE;                           \
-    if (__object__->IsOutOfMemoryFailure()) {                             \
+    if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
+    ISOLATE->heap()->CollectGarbage(Failure::cast(__maybe_object__)->     \
+                             allocation_space());                         \
+    __maybe_object__ = FUNCTION_CALL;                                     \
+    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
+    if (__maybe_object__->IsOutOfMemory()) {                              \
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_1", true);\
     }                                                                     \
-    if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
+    if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
     ISOLATE->counters()->gc_last_resort_from_handles()->Increment();      \
-    ISOLATE->heap()->CollectAllAvailableGarbage();                        \
+    ISOLATE->heap()->CollectAllGarbage(false);                            \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
-      __object__ = FUNCTION_CALL;                                         \
+      __maybe_object__ = FUNCTION_CALL;                                   \
     }                                                                     \
-    if (!__object__->IsFailure()) RETURN_VALUE;                           \
-    if (__object__->IsOutOfMemoryFailure() ||                             \
-        __object__->IsRetryAfterGC()) {                                   \
+    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
+    if (__maybe_object__->IsOutOfMemory() ||                              \
+        __maybe_object__->IsRetryAfterGC()) {                             \
       /* TODO(1181417): Fix this. */                                      \
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_2", true);\
     }                                                                     \
@@ -543,7 +538,7 @@ void Heap::CompletelyClearInstanceofCache() {
 }
 
 
-Object* TranscendentalCache::Get(Type type, double input) {
+MaybeObject* TranscendentalCache::Get(Type type, double input) {
   SubCache* cache = caches_[type];
   if (cache == NULL) {
     caches_[type] = cache = new SubCache(type);
@@ -557,7 +552,7 @@ Address TranscendentalCache::cache_array_address() {
 }
 
 
-Object* TranscendentalCache::SubCache::Get(double input) {
+MaybeObject* TranscendentalCache::SubCache::Get(double input) {
   Converter c;
   c.dbl = input;
   int hash = Hash(c);
@@ -569,13 +564,14 @@ Object* TranscendentalCache::SubCache::Get(double input) {
     return e.output;
   }
   double answer = Calculate(input);
-  Object* heap_number = isolate_->heap()->AllocateHeapNumber(answer);
-  if (!heap_number->IsFailure()) {
-    elements_[hash].in[0] = c.integers[0];
-    elements_[hash].in[1] = c.integers[1];
-    elements_[hash].output = heap_number;
-  }
   isolate_->counters()->transcendental_cache_miss()->Increment();
+  Object* heap_number;
+  { MaybeObject* maybe_heap_number = HEAP->AllocateHeapNumber(answer);
+    if (!maybe_heap_number->ToObject(&heap_number)) return maybe_heap_number;
+  }
+  elements_[hash].in[0] = c.integers[0];
+  elements_[hash].in[1] = c.integers[1];
+  elements_[hash].output = heap_number;
   return heap_number;
 }
 

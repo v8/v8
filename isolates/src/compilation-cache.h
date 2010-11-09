@@ -94,7 +94,7 @@ class CompilationCacheScript : public CompilationSubCache {
   void Put(Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
  private:
-  MUST_USE_RESULT Object* TryTablePut(
+  MUST_USE_RESULT MaybeObject* TryTablePut(
       Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
   // Note: Returns a new hash table if operation results in expansion.
@@ -127,7 +127,7 @@ class CompilationCacheEval: public CompilationSubCache {
            Handle<SharedFunctionInfo> function_info);
 
  private:
-  MUST_USE_RESULT Object* TryTablePut(
+  MUST_USE_RESULT MaybeObject* TryTablePut(
       Handle<String> source,
       Handle<Context> context,
       Handle<SharedFunctionInfo> function_info);
@@ -154,7 +154,7 @@ class CompilationCacheRegExp: public CompilationSubCache {
            JSRegExp::Flags flags,
            Handle<FixedArray> data);
  private:
-  MUST_USE_RESULT Object* TryTablePut(Handle<String> source,
+  MUST_USE_RESULT MaybeObject* TryTablePut(Handle<String> source,
                                       JSRegExp::Flags flags,
                                       Handle<FixedArray> data);
 

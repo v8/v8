@@ -58,7 +58,7 @@ static void CheckSmi(int value, const char* string) {
 
 
 static void CheckNumber(double value, const char* string) {
-  Object* obj = HEAP->NumberFromDouble(value);
+  Object* obj = HEAP->NumberFromDouble(value)->ToObjectChecked();
   CHECK(obj->IsNumber());
   bool exc;
   Object* print_string = *Execution::ToString(Handle<Object>(obj), &exc);
@@ -76,9 +76,10 @@ static void CheckFindCodeObject() {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(desc,
-                                  Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(HEAP->undefined_value()));
+  Object* code = HEAP->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
   CHECK(code->IsCode());
 
   HeapObject* obj = HeapObject::cast(code);
@@ -89,9 +90,10 @@ static void CheckFindCodeObject() {
     CHECK_EQ(code, found);
   }
 
-  Object* copy = HEAP->CreateCode(desc,
-                                  Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(HEAP->undefined_value()));
+  Object* copy = HEAP->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
   CHECK(copy->IsCode());
   HeapObject* obj_copy = HeapObject::cast(copy);
   Object* not_right = HEAP->FindCodeObject(obj_copy->address() +
@@ -104,40 +106,42 @@ TEST(HeapObjects) {
   InitializeVM();
 
   v8::HandleScope sc;
-  Object* value = HEAP->NumberFromDouble(1.000123);
+  Object* value = HEAP->NumberFromDouble(1.000123)->ToObjectChecked();
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(1.000123, value->Number());
 
-  value = HEAP->NumberFromDouble(1.0);
+  value = HEAP->NumberFromDouble(1.0)->ToObjectChecked();
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(1.0, value->Number());
 
-  value = HEAP->NumberFromInt32(1024);
+  value = HEAP->NumberFromInt32(1024)->ToObjectChecked();
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(1024.0, value->Number());
 
-  value = HEAP->NumberFromInt32(Smi::kMinValue);
+  value = HEAP->NumberFromInt32(Smi::kMinValue)->ToObjectChecked();
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMinValue, Smi::cast(value)->value());
 
-  value = HEAP->NumberFromInt32(Smi::kMaxValue);
+  value = HEAP->NumberFromInt32(Smi::kMaxValue)->ToObjectChecked();
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMaxValue, Smi::cast(value)->value());
 
 #ifndef V8_TARGET_ARCH_X64
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
-  value = HEAP->NumberFromInt32(Smi::kMinValue - 1);
+  value = HEAP->NumberFromInt32(Smi::kMinValue - 1)->ToObjectChecked();
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(static_cast<double>(Smi::kMinValue - 1), value->Number());
 #endif
 
-  value = HEAP->NumberFromUint32(static_cast<uint32_t>(Smi::kMaxValue) + 1);
+  MaybeObject* maybe_value =
+      HEAP->NumberFromUint32(static_cast<uint32_t>(Smi::kMaxValue) + 1);
+  value = maybe_value->ToObjectChecked();
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(Smi::kMaxValue) + 1),
@@ -178,13 +182,11 @@ TEST(Tagging) {
   int request = 24;
   CHECK_EQ(request, static_cast<int>(OBJECT_POINTER_ALIGN(request)));
   CHECK(Smi::FromInt(42)->IsSmi());
-  CHECK(Failure::RetryAfterGC(request, NEW_SPACE)->IsFailure());
-  CHECK_EQ(request, Failure::RetryAfterGC(request, NEW_SPACE)->requested());
+  CHECK(Failure::RetryAfterGC(NEW_SPACE)->IsFailure());
   CHECK_EQ(NEW_SPACE,
-           Failure::RetryAfterGC(request, NEW_SPACE)->allocation_space());
+           Failure::RetryAfterGC(NEW_SPACE)->allocation_space());
   CHECK_EQ(OLD_POINTER_SPACE,
-           Failure::RetryAfterGC(request,
-                                 OLD_POINTER_SPACE)->allocation_space());
+           Failure::RetryAfterGC(OLD_POINTER_SPACE)->allocation_space());
   CHECK(Failure::Exception()->IsFailure());
   CHECK(Smi::FromInt(Smi::kMinValue)->IsSmi());
   CHECK(Smi::FromInt(Smi::kMaxValue)->IsSmi());
@@ -196,8 +198,7 @@ TEST(GarbageCollection) {
 
   v8::HandleScope sc;
   // Check GC.
-  int free_bytes = HEAP->MaxObjectSizeInPagedSpace();
-  CHECK(HEAP->CollectGarbage(free_bytes, NEW_SPACE));
+  HEAP->CollectGarbage(NEW_SPACE);
 
   Handle<String> name = FACTORY->LookupAsciiSymbol("theFunction");
   Handle<String> prop_name = FACTORY->LookupAsciiSymbol("theSlot");
@@ -212,24 +213,24 @@ TEST(GarbageCollection) {
     Handle<Map> initial_map =
         FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     function->set_initial_map(*initial_map);
-    Isolate::Current()->context()->global()->SetProperty(*name, *function,
-                                                         NONE);
+    Isolate::Current()->context()->global()->SetProperty(
+        *name, *function, NONE)->ToObjectChecked();
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = FACTORY->NewJSObject(function);
-    obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
-    obj->SetProperty(*prop_namex, Smi::FromInt(24), NONE);
+    obj->SetProperty(*prop_name, Smi::FromInt(23), NONE)->ToObjectChecked();
+    obj->SetProperty(*prop_namex, Smi::FromInt(24), NONE)->ToObjectChecked();
 
     CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
     CHECK_EQ(Smi::FromInt(24), obj->GetProperty(*prop_namex));
   }
 
-  CHECK(HEAP->CollectGarbage(free_bytes, NEW_SPACE));
+  HEAP->CollectGarbage(NEW_SPACE);
 
   // Function should be alive.
   CHECK(Isolate::Current()->context()->global()->HasLocalProperty(*name));
   // Check function is retained.
-  Object* func_value =
-      Isolate::Current()->context()->global()->GetProperty(*name);
+  Object* func_value = Isolate::Current()->context()->global()->
+      GetProperty(*name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
 
@@ -237,20 +238,21 @@ TEST(GarbageCollection) {
     HandleScope inner_scope;
     // Allocate another object, make it reachable from global.
     Handle<JSObject> obj = FACTORY->NewJSObject(function);
-    Isolate::Current()->context()->global()->SetProperty(*obj_name, *obj, NONE);
-    obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
+    Isolate::Current()->context()->global()->
+        SetProperty(*obj_name, *obj, NONE)->ToObjectChecked();
+    obj->SetProperty(*prop_name, Smi::FromInt(23), NONE)->ToObjectChecked();
   }
 
   // After gc, it should survive.
-  CHECK(HEAP->CollectGarbage(free_bytes, NEW_SPACE));
+  HEAP->CollectGarbage(NEW_SPACE);
 
   CHECK(Isolate::Current()->context()->global()->HasLocalProperty(*obj_name));
-  CHECK(Isolate::Current()->context()->global()->GetProperty(*obj_name)->
-      IsJSObject());
-  JSObject* obj =
-      JSObject::cast(Isolate::Current()->context()->global()->
-          GetProperty(*obj_name));
-  CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
+  CHECK(Isolate::Current()->context()->global()->
+        GetProperty(*obj_name)->ToObjectChecked()->IsJSObject());
+  Object* obj = Isolate::Current()->context()->global()->
+      GetProperty(*obj_name)->ToObjectChecked();
+  JSObject* js_obj = JSObject::cast(obj);
+  CHECK_EQ(Smi::FromInt(23), js_obj->GetProperty(*prop_name));
 }
 
 
@@ -307,7 +309,7 @@ TEST(GlobalHandles) {
   }
 
   // after gc, it should survive
-  CHECK(HEAP->CollectGarbage(0, NEW_SPACE));
+  HEAP->CollectGarbage(NEW_SPACE);
 
   CHECK((*h1)->IsString());
   CHECK((*h2)->IsHeapNumber());
@@ -390,8 +392,8 @@ TEST(WeakGlobalHandlesMark) {
     h2 = global_handles->Create(*u);
   }
 
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
-  CHECK(HEAP->CollectGarbage(0, NEW_SPACE));
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+  HEAP->CollectGarbage(NEW_SPACE);
   // Make sure the object is promoted.
 
   global_handles->MakeWeak(h2.location(),
@@ -400,7 +402,7 @@ TEST(WeakGlobalHandlesMark) {
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
   CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
   CHECK((*h1)->IsString());
 
@@ -435,7 +437,7 @@ TEST(DeleteWeakGlobalHandle) {
   CHECK(!WeakPointerCleared);
 
   // Mark-compact treats weak reference properly.
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
   CHECK(WeakPointerCleared);
 }
@@ -506,12 +508,14 @@ static const char* not_so_random_string_table[] = {
 
 static void CheckSymbols(const char** strings) {
   for (const char* string = *strings; *strings != 0; string = *strings++) {
-    Object* a = HEAP->LookupAsciiSymbol(string);
+    Object* a;
+    MaybeObject* maybe_a = HEAP->LookupAsciiSymbol(string);
     // LookupAsciiSymbol may return a failure if a GC is needed.
-    if (a->IsFailure()) continue;
+    if (!maybe_a->ToObject(&a)) continue;
     CHECK(a->IsSymbol());
-    Object* b = HEAP->LookupAsciiSymbol(string);
-    if (b->IsFailure()) continue;
+    Object* b;
+    MaybeObject* maybe_b = HEAP->LookupAsciiSymbol(string);
+    if (!maybe_b->ToObject(&b)) continue;
     CHECK_EQ(b, a);
     CHECK(String::cast(b)->IsEqualTo(CStrVector(string)));
   }
@@ -539,10 +543,12 @@ TEST(FunctionAllocation) {
 
   Handle<String> prop_name = FACTORY->LookupAsciiSymbol("theSlot");
   Handle<JSObject> obj = FACTORY->NewJSObject(function);
-  obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
+  obj->SetProperty(*prop_name, Smi::FromInt(23), NONE)->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
   // Check that we can add properties to function objects.
-  function->SetProperty(*prop_name, Smi::FromInt(24), NONE);
+  function->SetProperty(*prop_name,
+                        Smi::FromInt(24),
+                        NONE)->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(24), function->GetProperty(*prop_name));
 }
 
@@ -552,9 +558,9 @@ TEST(ObjectProperties) {
 
   v8::HandleScope sc;
   String* object_symbol = String::cast(HEAP->Object_symbol());
-  JSFunction* object_function =
-      JSFunction::cast(Isolate::Current()->context()->global()->
-          GetProperty(object_symbol));
+  Object* raw_object = Isolate::Current()->context()->global()->
+      GetProperty(object_symbol)->ToObjectChecked();
+  JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
   Handle<JSObject> obj = FACTORY->NewJSObject(constructor);
   Handle<String> first = FACTORY->LookupAsciiSymbol("first");
@@ -564,7 +570,7 @@ TEST(ObjectProperties) {
   CHECK(!obj->HasLocalProperty(*first));
 
   // add first
-  obj->SetProperty(*first, Smi::FromInt(1), NONE);
+  obj->SetProperty(*first, Smi::FromInt(1), NONE)->ToObjectChecked();
   CHECK(obj->HasLocalProperty(*first));
 
   // delete first
@@ -572,8 +578,8 @@ TEST(ObjectProperties) {
   CHECK(!obj->HasLocalProperty(*first));
 
   // add first and then second
-  obj->SetProperty(*first, Smi::FromInt(1), NONE);
-  obj->SetProperty(*second, Smi::FromInt(2), NONE);
+  obj->SetProperty(*first, Smi::FromInt(1), NONE)->ToObjectChecked();
+  obj->SetProperty(*second, Smi::FromInt(2), NONE)->ToObjectChecked();
   CHECK(obj->HasLocalProperty(*first));
   CHECK(obj->HasLocalProperty(*second));
 
@@ -585,8 +591,8 @@ TEST(ObjectProperties) {
   CHECK(!obj->HasLocalProperty(*second));
 
   // add first and then second
-  obj->SetProperty(*first, Smi::FromInt(1), NONE);
-  obj->SetProperty(*second, Smi::FromInt(2), NONE);
+  obj->SetProperty(*first, Smi::FromInt(1), NONE)->ToObjectChecked();
+  obj->SetProperty(*second, Smi::FromInt(2), NONE)->ToObjectChecked();
   CHECK(obj->HasLocalProperty(*first));
   CHECK(obj->HasLocalProperty(*second));
 
@@ -600,14 +606,14 @@ TEST(ObjectProperties) {
   // check string and symbol match
   static const char* string1 = "fisk";
   Handle<String> s1 = FACTORY->NewStringFromAscii(CStrVector(string1));
-  obj->SetProperty(*s1, Smi::FromInt(1), NONE);
+  obj->SetProperty(*s1, Smi::FromInt(1), NONE)->ToObjectChecked();
   Handle<String> s1_symbol = FACTORY->LookupAsciiSymbol(string1);
   CHECK(obj->HasLocalProperty(*s1_symbol));
 
   // check symbol and string match
   static const char* string2 = "fugl";
   Handle<String> s2_symbol = FACTORY->LookupAsciiSymbol(string2);
-  obj->SetProperty(*s2_symbol, Smi::FromInt(1), NONE);
+  obj->SetProperty(*s2_symbol, Smi::FromInt(1), NONE)->ToObjectChecked();
   Handle<String> s2 = FACTORY->NewStringFromAscii(CStrVector(string2));
   CHECK(obj->HasLocalProperty(*s2));
 }
@@ -628,7 +634,7 @@ TEST(JSObjectMaps) {
   Handle<JSObject> obj = FACTORY->NewJSObject(function);
 
   // Set a propery
-  obj->SetProperty(*prop_name, Smi::FromInt(23), NONE);
+  obj->SetProperty(*prop_name, Smi::FromInt(23), NONE)->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
 
   // Check the map has changed
@@ -641,34 +647,31 @@ TEST(JSArray) {
 
   v8::HandleScope sc;
   Handle<String> name = FACTORY->LookupAsciiSymbol("Array");
+  Object* raw_object = Isolate::Current()->context()->global()->
+      GetProperty(*name)->ToObjectChecked();
   Handle<JSFunction> function = Handle<JSFunction>(
-      JSFunction::cast(Isolate::Current()->context()->global()->
-          GetProperty(*name)));
+      JSFunction::cast(raw_object));
 
   // Allocate the object.
   Handle<JSObject> object = FACTORY->NewJSObject(function);
   Handle<JSArray> array = Handle<JSArray>::cast(object);
-  Object* ok = array->Initialize(0);
   // We just initialized the VM, no heap allocation failure yet.
-  CHECK(!ok->IsFailure());
+  Object* ok = array->Initialize(0)->ToObjectChecked();
 
   // Set array length to 0.
-  ok = array->SetElementsLength(Smi::FromInt(0));
-  CHECK(!ok->IsFailure());
+  ok = array->SetElementsLength(Smi::FromInt(0))->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(0), array->length());
   CHECK(array->HasFastElements());  // Must be in fast mode.
 
   // array[length] = name.
-  ok = array->SetElement(0, *name);
-  CHECK(!ok->IsFailure());
+  ok = array->SetElement(0, *name)->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(1), array->length());
   CHECK_EQ(array->GetElement(0), *name);
 
   // Set array length with larger than smi value.
   Handle<Object> length =
       FACTORY->NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
-  ok = array->SetElementsLength(*length);
-  CHECK(!ok->IsFailure());
+  ok = array->SetElementsLength(*length)->ToObjectChecked();
 
   uint32_t int_length = 0;
   CHECK(length->ToArrayIndex(&int_length));
@@ -676,8 +679,7 @@ TEST(JSArray) {
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
-  ok = array->SetElement(int_length, *name);
-  CHECK(!ok->IsFailure());
+  ok = array->SetElement(int_length, *name)->ToObjectChecked();
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
@@ -691,22 +693,20 @@ TEST(JSObjectCopy) {
 
   v8::HandleScope sc;
   String* object_symbol = String::cast(HEAP->Object_symbol());
-  JSFunction* object_function =
-      JSFunction::cast(Isolate::Current()->context()->global()->
-          GetProperty(object_symbol));
+  Object* raw_object = Isolate::Current()->context()->global()->
+      GetProperty(object_symbol)->ToObjectChecked();
+  JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
   Handle<JSObject> obj = FACTORY->NewJSObject(constructor);
   Handle<String> first = FACTORY->LookupAsciiSymbol("first");
   Handle<String> second = FACTORY->LookupAsciiSymbol("second");
 
-  obj->SetProperty(*first, Smi::FromInt(1), NONE);
-  obj->SetProperty(*second, Smi::FromInt(2), NONE);
+  obj->SetProperty(*first, Smi::FromInt(1), NONE)->ToObjectChecked();
+  obj->SetProperty(*second, Smi::FromInt(2), NONE)->ToObjectChecked();
 
-  Object* ok = obj->SetElement(0, *first);
-  CHECK(!ok->IsFailure());
+  Object* ok = obj->SetElement(0, *first)->ToObjectChecked();
 
-  ok = obj->SetElement(1, *second);
-  CHECK(!ok->IsFailure());
+  ok = obj->SetElement(1, *second)->ToObjectChecked();
 
   // Make the clone.
   Handle<JSObject> clone = Copy(obj);
@@ -719,13 +719,11 @@ TEST(JSObjectCopy) {
   CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*second));
 
   // Flip the values.
-  clone->SetProperty(*first, Smi::FromInt(2), NONE);
-  clone->SetProperty(*second, Smi::FromInt(1), NONE);
+  clone->SetProperty(*first, Smi::FromInt(2), NONE)->ToObjectChecked();
+  clone->SetProperty(*second, Smi::FromInt(1), NONE)->ToObjectChecked();
 
-  ok = clone->SetElement(0, *second);
-  CHECK(!ok->IsFailure());
-  ok = clone->SetElement(1, *first);
-  CHECK(!ok->IsFailure());
+  ok = clone->SetElement(0, *second)->ToObjectChecked();
+  ok = clone->SetElement(1, *first)->ToObjectChecked();
 
   CHECK_EQ(obj->GetElement(1), clone->GetElement(0));
   CHECK_EQ(obj->GetElement(0), clone->GetElement(1));
@@ -826,8 +824,7 @@ TEST(Iteration) {
 TEST(LargeObjectSpaceContains) {
   InitializeVM();
 
-  int free_bytes = HEAP->MaxObjectSizeInPagedSpace();
-  CHECK(HEAP->CollectGarbage(free_bytes, NEW_SPACE));
+  HEAP->CollectGarbage(NEW_SPACE);
 
   Address current_top = HEAP->new_space()->top();
   Page* page = Page::FromAddress(current_top);
@@ -852,7 +849,7 @@ TEST(LargeObjectSpaceContains) {
       kPointerSize;
   CHECK_EQ(bytes_to_allocate, FixedArray::SizeFor(n_elements));
   FixedArray* array = FixedArray::cast(
-      HEAP->AllocateFixedArray(n_elements));
+      HEAP->AllocateFixedArray(n_elements)->ToObjectChecked());
 
   int index = n_elements - 1;
   CHECK_EQ(flags_ptr,
@@ -925,7 +922,7 @@ TEST(Regression39128) {
   Address* limit_addr = new_space->allocation_limit_address();
   while ((*limit_addr - *top_addr) > allocation_amount) {
     CHECK(!HEAP->always_allocate());
-    Object* array = HEAP->AllocateFixedArray(allocation_len);
+    Object* array = HEAP->AllocateFixedArray(allocation_len)->ToObjectChecked();
     CHECK(!array->IsFailure());
     CHECK(new_space->Contains(array));
   }
@@ -936,12 +933,11 @@ TEST(Regression39128) {
   CHECK(fixed_array_len < FixedArray::kMaxLength);
 
   CHECK(!HEAP->always_allocate());
-  Object* array = HEAP->AllocateFixedArray(fixed_array_len);
+  Object* array = HEAP->AllocateFixedArray(fixed_array_len)->ToObjectChecked();
   CHECK(!array->IsFailure());
   CHECK(new_space->Contains(array));
 
-  Object* object = HEAP->AllocateJSObjectFromMap(*my_map);
-  CHECK(!object->IsFailure());
+  Object* object = HEAP->AllocateJSObjectFromMap(*my_map)->ToObjectChecked();
   CHECK(new_space->Contains(object));
   JSObject* jsobject = JSObject::cast(object);
   CHECK_EQ(0, FixedArray::cast(jsobject->elements())->length());
@@ -955,8 +951,7 @@ TEST(Regression39128) {
   // in old pointer space.
   Address old_pointer_space_top = HEAP->old_pointer_space()->top();
   AlwaysAllocateScope aa_scope;
-  Object* clone_obj = HEAP->CopyJSObject(jsobject);
-  CHECK(!object->IsFailure());
+  Object* clone_obj = HEAP->CopyJSObject(jsobject)->ToObjectChecked();
   JSObject* clone = JSObject::cast(clone_obj);
   if (clone->address() != old_pointer_space_top) {
     // Alas, got allocated from free list, we cannot do checks.
@@ -970,6 +965,7 @@ TEST(Regression39128) {
   // Check that region covering inobject property 1 is marked dirty.
   CHECK(page->IsRegionDirty(clone_addr + (object_size - kPointerSize)));
 }
+
 
 TEST(TestCodeFlushing) {
   i::FLAG_allow_natives_syntax = true;
@@ -989,8 +985,8 @@ TEST(TestCodeFlushing) {
   CompileRun(source);
 
   // Check function is compiled.
-  Object* func_value =
-      Isolate::Current()->context()->global()->GetProperty(*foo_name);
+  Object* func_value = Isolate::Current()->context()->global()->
+      GetProperty(*foo_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
   CHECK(function->shared()->is_compiled());
@@ -1014,4 +1010,96 @@ TEST(TestCodeFlushing) {
   CompileRun("foo()");
   CHECK(function->shared()->is_compiled());
   CHECK(function->is_compiled());
+}
+
+
+// Count the number of global contexts in the weak list of global contexts.
+static int CountGlobalContexts() {
+  int count = 0;
+  Object* object = HEAP->global_contexts_list();
+  while (!object->IsUndefined()) {
+    count++;
+    object = Context::cast(object)->get(Context::NEXT_CONTEXT_LINK);
+  }
+  return count;
+}
+
+
+TEST(TestInternalWeakLists) {
+  v8::V8::Initialize();
+
+  static const int kNumTestContexts = 10;
+
+  v8::HandleScope scope;
+  v8::Persistent<v8::Context> ctx[kNumTestContexts];
+
+  CHECK_EQ(0, CountGlobalContexts());
+
+  // Create a number of global contests which gets linked together.
+  for (int i = 0; i < kNumTestContexts; i++) {
+    ctx[i] = v8::Context::New();
+    CHECK_EQ(i + 1, CountGlobalContexts());
+
+    ctx[i]->Enter();
+    ctx[i]->Exit();
+  }
+
+  // Force compilation cache cleanup.
+  HEAP->CollectAllGarbage(true);
+
+  // Dispose the global contexts one by one.
+  for (int i = 0; i < kNumTestContexts; i++) {
+    ctx[i].Dispose();
+    ctx[i].Clear();
+
+    // Scavenge treats these references as strong.
+    for (int j = 0; j < 10; j++) {
+      HEAP->PerformScavenge();
+      CHECK_EQ(kNumTestContexts - i, CountGlobalContexts());
+    }
+
+    // Mark compact handles the weak references.
+    HEAP->CollectAllGarbage(true);
+    CHECK_EQ(kNumTestContexts - i - 1, CountGlobalContexts());
+  }
+
+  CHECK_EQ(0, CountGlobalContexts());
+}
+
+
+// Count the number of global contexts in the weak list of global contexts
+// causing a GC after the specified number of elements.
+static int CountGlobalContextsWithGC(int n) {
+  int count = 0;
+  Handle<Object> object(HEAP->global_contexts_list());
+  while (!object->IsUndefined()) {
+    count++;
+    if (count == n) HEAP->CollectAllGarbage(true);
+    object =
+        Handle<Object>(Context::cast(*object)->get(Context::NEXT_CONTEXT_LINK));
+  }
+  return count;
+}
+
+
+TEST(TestInternalWeakListsTraverseWithGC) {
+  v8::V8::Initialize();
+
+  static const int kNumTestContexts = 10;
+
+  v8::HandleScope scope;
+  v8::Persistent<v8::Context> ctx[kNumTestContexts];
+
+  CHECK_EQ(0, CountGlobalContexts());
+
+  // Create an number of contexts and check the length of the weak list both
+  // with and without GCs while iterating the list.
+  for (int i = 0; i < kNumTestContexts; i++) {
+    ctx[i] = v8::Context::New();
+    CHECK_EQ(i + 1, CountGlobalContexts());
+    CHECK_EQ(i + 1, CountGlobalContextsWithGC(i / 2 + 1));
+
+    ctx[i]->Enter();
+    ctx[i]->Exit();
+  }
 }

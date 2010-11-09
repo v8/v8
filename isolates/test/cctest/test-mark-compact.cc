@@ -84,8 +84,7 @@ TEST(Promotion) {
   int array_size =
       (HEAP->MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
       (kPointerSize * 4);
-  Object* obj = HEAP->AllocateFixedArray(array_size);
-  CHECK(!obj->IsFailure());
+  Object* obj = HEAP->AllocateFixedArray(array_size)->ToObjectChecked();
 
   Handle<FixedArray> array(FixedArray::cast(obj));
 
@@ -93,7 +92,7 @@ TEST(Promotion) {
   CHECK(HEAP->InSpace(*array, NEW_SPACE));
 
   // Call the m-c collector, so array becomes an old object.
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
   // Array now sits in the old space
   CHECK(HEAP->InSpace(*array, OLD_POINTER_SPACE));
@@ -110,12 +109,12 @@ TEST(NoPromotion) {
   v8::HandleScope sc;
 
   // Do a mark compact GC to shrink the heap.
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
   // Allocate a big Fixed array in the new space.
   int size = (HEAP->MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
       kPointerSize;
-  Object* obj = HEAP->AllocateFixedArray(size);
+  Object* obj = HEAP->AllocateFixedArray(size)->ToObjectChecked();
 
   Handle<FixedArray> array(FixedArray::cast(obj));
 
@@ -125,15 +124,17 @@ TEST(NoPromotion) {
   // Allocate objects in the old space until out of memory.
   FixedArray* host = *array;
   while (true) {
-    Object* obj = HEAP->AllocateFixedArray(100, TENURED);
-    if (obj->IsFailure()) break;
+    Object* obj;
+    { MaybeObject* maybe_obj = HEAP->AllocateFixedArray(100, TENURED);
+      if (!maybe_obj->ToObject(&obj)) break;
+    }
 
     host->set(0, obj);
     host = FixedArray::cast(obj);
   }
 
   // Call mark compact GC, and it should pass.
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
   // array should not be promoted because the old space is full.
   CHECK(HEAP->InSpace(*array, NEW_SPACE));
@@ -145,68 +146,78 @@ TEST(MarkCompactCollector) {
 
   v8::HandleScope sc;
   // call mark-compact when heap is empty
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
   // keep allocating garbage in new space until it fails
   const int ARRAY_SIZE = 100;
   Object* array;
+  MaybeObject* maybe_array;
   do {
-    array = HEAP->AllocateFixedArray(ARRAY_SIZE);
-  } while (!array->IsFailure());
-  CHECK(HEAP->CollectGarbage(0, NEW_SPACE));
+    maybe_array = HEAP->AllocateFixedArray(ARRAY_SIZE);
+  } while (maybe_array->ToObject(&array));
+  HEAP->CollectGarbage(NEW_SPACE);
 
-  array = HEAP->AllocateFixedArray(ARRAY_SIZE);
-  CHECK(!array->IsFailure());
+  array = HEAP->AllocateFixedArray(ARRAY_SIZE)->ToObjectChecked();
 
   // keep allocating maps until it fails
   Object* mapp;
+  MaybeObject* maybe_mapp;
   do {
-    mapp = HEAP->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  } while (!mapp->IsFailure());
-  CHECK(HEAP->CollectGarbage(0, MAP_SPACE));
-  mapp = HEAP->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  CHECK(!mapp->IsFailure());
+    maybe_mapp = HEAP->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  } while (maybe_mapp->ToObject(&mapp));
+  HEAP->CollectGarbage(MAP_SPACE);
+  mapp = HEAP->AllocateMap(JS_OBJECT_TYPE,
+                           JSObject::kHeaderSize)->ToObjectChecked();
 
   // allocate a garbage
-  String* func_name = String::cast(HEAP->LookupAsciiSymbol("theFunction"));
-  SharedFunctionInfo* function_share =
-    SharedFunctionInfo::cast(HEAP->AllocateSharedFunctionInfo(func_name));
-  JSFunction* function =
-    JSFunction::cast(HEAP->AllocateFunction(*Isolate::Current()->function_map(),
-                                            function_share,
-                                            HEAP->undefined_value()));
+  String* func_name =
+      String::cast(HEAP->LookupAsciiSymbol("theFunction")->ToObjectChecked());
+  SharedFunctionInfo* function_share = SharedFunctionInfo::cast(
+      HEAP->AllocateSharedFunctionInfo(func_name)->ToObjectChecked());
+  JSFunction* function = JSFunction::cast(
+      HEAP->AllocateFunction(*Isolate::Current()->function_map(),
+                             function_share,
+                             HEAP->undefined_value())->ToObjectChecked());
   Map* initial_map =
-      Map::cast(HEAP->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize));
+      Map::cast(HEAP->AllocateMap(JS_OBJECT_TYPE,
+                                  JSObject::kHeaderSize)->ToObjectChecked());
   function->set_initial_map(initial_map);
   Isolate::Current()->context()->global()->SetProperty(func_name,
                                                        function,
-                                                       NONE);
+                                                       NONE)->ToObjectChecked();
 
-  JSObject* obj = JSObject::cast(HEAP->AllocateJSObject(function));
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  JSObject* obj = JSObject::cast(
+      HEAP->AllocateJSObject(function)->ToObjectChecked());
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
-  func_name = String::cast(HEAP->LookupAsciiSymbol("theFunction"));
+  func_name =
+      String::cast(HEAP->LookupAsciiSymbol("theFunction")->ToObjectChecked());
   CHECK(Isolate::Current()->context()->global()->HasLocalProperty(func_name));
-  Object* func_value =
-      Isolate::Current()->context()->global()->GetProperty(func_name);
+  Object* func_value = Isolate::Current()->context()->global()->
+      GetProperty(func_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   function = JSFunction::cast(func_value);
 
-  obj = JSObject::cast(HEAP->AllocateJSObject(function));
-  String* obj_name = String::cast(HEAP->LookupAsciiSymbol("theObject"));
-  Isolate::Current()->context()->global()->SetProperty(obj_name, obj, NONE);
-  String* prop_name = String::cast(HEAP->LookupAsciiSymbol("theSlot"));
-  obj->SetProperty(prop_name, Smi::FromInt(23), NONE);
+  obj = JSObject::cast(HEAP->AllocateJSObject(function)->ToObjectChecked());
+  String* obj_name =
+      String::cast(HEAP->LookupAsciiSymbol("theObject")->ToObjectChecked());
+  Isolate::Current()->context()->global()->SetProperty(
+      obj_name, obj, NONE)->ToObjectChecked();
+  String* prop_name =
+      String::cast(HEAP->LookupAsciiSymbol("theSlot")->ToObjectChecked());
+  obj->SetProperty(prop_name, Smi::FromInt(23), NONE)->ToObjectChecked();
 
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
-  obj_name = String::cast(HEAP->LookupAsciiSymbol("theObject"));
+  obj_name =
+      String::cast(HEAP->LookupAsciiSymbol("theObject")->ToObjectChecked());
   CHECK(Isolate::Current()->context()->global()->HasLocalProperty(obj_name));
-  CHECK(Isolate::Current()->context()->global()->GetProperty(obj_name)->
-      IsJSObject());
+  CHECK(Isolate::Current()->context()->global()->
+        GetProperty(obj_name)->ToObjectChecked()->IsJSObject());
   obj = JSObject::cast(Isolate::Current()->context()->global()->
-      GetProperty(obj_name));
-  prop_name = String::cast(HEAP->LookupAsciiSymbol("theSlot"));
+                       GetProperty(obj_name)->ToObjectChecked());
+  prop_name =
+      String::cast(HEAP->LookupAsciiSymbol("theSlot")->ToObjectChecked());
   CHECK(obj->GetProperty(prop_name) == Smi::FromInt(23));
 }
 
@@ -268,7 +279,7 @@ TEST(GCCallback) {
   CHECK_EQ(0, gc_starts);
   CHECK_EQ(gc_ends, gc_starts);
 
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
   CHECK_EQ(1, gc_starts);
   CHECK_EQ(gc_ends, gc_starts);
 }
@@ -288,9 +299,9 @@ TEST(ObjectGroups) {
   v8::HandleScope handle_scope;
 
   Handle<Object> g1s1 =
-    global_handles->Create(HEAP->AllocateFixedArray(1));
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g1s2 =
-    global_handles->Create(HEAP->AllocateFixedArray(1));
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
   global_handles->MakeWeak(g1s1.location(),
                            reinterpret_cast<void*>(1234),
                            &WeakPointerCallback);
@@ -299,9 +310,9 @@ TEST(ObjectGroups) {
                            &WeakPointerCallback);
 
   Handle<Object> g2s1 =
-    global_handles->Create(HEAP->AllocateFixedArray(1));
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g2s2 =
-    global_handles->Create(HEAP->AllocateFixedArray(1));
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
   global_handles->MakeWeak(g2s1.location(),
                            reinterpret_cast<void*>(1234),
                            &WeakPointerCallback);
@@ -322,7 +333,7 @@ TEST(ObjectGroups) {
     global_handles->AddGroup(g2_objects, 2);
   }
   // Do a full GC
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
   // All object should be alive.
   CHECK_EQ(0, NumberOfWeakCalls);
@@ -340,7 +351,7 @@ TEST(ObjectGroups) {
     global_handles->AddGroup(g2_objects, 2);
   }
 
-  CHECK(HEAP->CollectGarbage(0, OLD_POINTER_SPACE));
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
   // All objects should be gone. 5 global handles in total.
   CHECK_EQ(5, NumberOfWeakCalls);

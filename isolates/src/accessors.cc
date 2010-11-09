@@ -50,7 +50,7 @@ static C* FindInPrototypeChain(Object* obj, bool* found_it) {
 
 
 // Entry point that never should be called.
-Object* Accessors::IllegalSetter(JSObject*, Object*, void*) {
+MaybeObject* Accessors::IllegalSetter(JSObject*, Object*, void*) {
   UNREACHABLE();
   return NULL;
 }
@@ -62,7 +62,7 @@ Object* Accessors::IllegalGetAccessor(Object* object, void*) {
 }
 
 
-Object* Accessors::ReadOnlySetAccessor(JSObject*, Object* value, void*) {
+MaybeObject* Accessors::ReadOnlySetAccessor(JSObject*, Object* value, void*) {
   // According to ECMA-262, section 8.6.2.2, page 28, setting
   // read-only properties must be silently ignored.
   return value;
@@ -74,7 +74,7 @@ Object* Accessors::ReadOnlySetAccessor(JSObject*, Object* value, void*) {
 //
 
 
-Object* Accessors::ArrayGetLength(Object* object, void*) {
+MaybeObject* Accessors::ArrayGetLength(Object* object, void*) {
   // Traverse the prototype chain until we reach an array.
   bool found_it = false;
   JSArray* holder = FindInPrototypeChain<JSArray>(object, &found_it);
@@ -96,7 +96,7 @@ Object* Accessors::FlattenNumber(Object* value) {
 }
 
 
-Object* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
+MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
   value = FlattenNumber(value);
 
   // Need to call methods that may trigger GC.
@@ -145,7 +145,7 @@ const AccessorDescriptor Accessors::ArrayLength = {
 //
 
 
-Object* Accessors::StringGetLength(Object* object, void*) {
+MaybeObject* Accessors::StringGetLength(Object* object, void*) {
   Object* value = object;
   if (object->IsJSValue()) value = JSValue::cast(object)->value();
   if (value->IsString()) return Smi::FromInt(String::cast(value)->length());
@@ -167,7 +167,7 @@ const AccessorDescriptor Accessors::StringLength = {
 //
 
 
-Object* Accessors::ScriptGetSource(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetSource(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
   return Script::cast(script)->source();
 }
@@ -185,7 +185,7 @@ const AccessorDescriptor Accessors::ScriptSource = {
 //
 
 
-Object* Accessors::ScriptGetName(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetName(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
   return Script::cast(script)->name();
 }
@@ -203,7 +203,7 @@ const AccessorDescriptor Accessors::ScriptName = {
 //
 
 
-Object* Accessors::ScriptGetId(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetId(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
   return Script::cast(script)->id();
 }
@@ -221,7 +221,7 @@ const AccessorDescriptor Accessors::ScriptId = {
 //
 
 
-Object* Accessors::ScriptGetLineOffset(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetLineOffset(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
   return Script::cast(script)->line_offset();
 }
@@ -239,7 +239,7 @@ const AccessorDescriptor Accessors::ScriptLineOffset = {
 //
 
 
-Object* Accessors::ScriptGetColumnOffset(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetColumnOffset(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
   return Script::cast(script)->column_offset();
 }
@@ -257,7 +257,7 @@ const AccessorDescriptor Accessors::ScriptColumnOffset = {
 //
 
 
-Object* Accessors::ScriptGetData(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetData(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
   return Script::cast(script)->data();
 }
@@ -275,7 +275,7 @@ const AccessorDescriptor Accessors::ScriptData = {
 //
 
 
-Object* Accessors::ScriptGetType(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetType(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
   return Script::cast(script)->type();
 }
@@ -293,7 +293,7 @@ const AccessorDescriptor Accessors::ScriptType = {
 //
 
 
-Object* Accessors::ScriptGetCompilationType(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetCompilationType(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
   return Script::cast(script)->compilation_type();
 }
@@ -311,7 +311,7 @@ const AccessorDescriptor Accessors::ScriptCompilationType = {
 //
 
 
-Object* Accessors::ScriptGetLineEnds(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetLineEnds(Object* object, void*) {
   HandleScope scope;
   Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
   InitScriptLineEnds(script);
@@ -335,7 +335,7 @@ const AccessorDescriptor Accessors::ScriptLineEnds = {
 //
 
 
-Object* Accessors::ScriptGetContextData(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetContextData(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
   return Script::cast(script)->context_data();
 }
@@ -353,7 +353,7 @@ const AccessorDescriptor Accessors::ScriptContextData = {
 //
 
 
-Object* Accessors::ScriptGetEvalFromScript(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetEvalFromScript(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
   if (!Script::cast(script)->eval_from_shared()->IsUndefined()) {
     Handle<SharedFunctionInfo> eval_from_shared(
@@ -380,7 +380,7 @@ const AccessorDescriptor Accessors::ScriptEvalFromScript = {
 //
 
 
-Object* Accessors::ScriptGetEvalFromScriptPosition(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetEvalFromScriptPosition(Object* object, void*) {
   HandleScope scope;
   Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
 
@@ -411,7 +411,7 @@ const AccessorDescriptor Accessors::ScriptEvalFromScriptPosition = {
 //
 
 
-Object* Accessors::ScriptGetEvalFromFunctionName(Object* object, void*) {
+MaybeObject* Accessors::ScriptGetEvalFromFunctionName(Object* object, void*) {
   Object* script = JSValue::cast(object)->value();
   Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(
       Script::cast(script)->eval_from_shared()));
@@ -438,35 +438,44 @@ const AccessorDescriptor Accessors::ScriptEvalFromFunctionName = {
 //
 
 
-Object* Accessors::FunctionGetPrototype(Object* object, void*) {
+MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
   bool found_it = false;
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
   if (!found_it) return HEAP->undefined_value();
   if (!function->has_prototype()) {
-    Object* prototype = HEAP->AllocateFunctionPrototype(function);
-    if (prototype->IsFailure()) return prototype;
-    Object* result = function->SetPrototype(prototype);
-    if (result->IsFailure()) return result;
+    Object* prototype;
+    { MaybeObject* maybe_prototype = HEAP->AllocateFunctionPrototype(function);
+      if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
+    }
+    Object* result;
+    { MaybeObject* maybe_result = function->SetPrototype(prototype);
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+    }
   }
   return function->prototype();
 }
 
 
-Object* Accessors::FunctionSetPrototype(JSObject* object,
-                                        Object* value,
-                                        void*) {
+MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
+                                             Object* value,
+                                             void*) {
   bool found_it = false;
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
   if (!found_it) return HEAP->undefined_value();
   if (function->has_initial_map()) {
     // If the function has allocated the initial map
     // replace it with a copy containing the new prototype.
-    Object* new_map = function->initial_map()->CopyDropTransitions();
-    if (new_map->IsFailure()) return new_map;
+    Object* new_map;
+    { MaybeObject* maybe_new_map =
+          function->initial_map()->CopyDropTransitions();
+      if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
+    }
     function->set_initial_map(Map::cast(new_map));
   }
-  Object* prototype = function->SetPrototype(value);
-  if (prototype->IsFailure()) return prototype;
+  Object* prototype;
+  { MaybeObject* maybe_prototype = function->SetPrototype(value);
+    if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
+  }
   ASSERT(function->prototype() == value);
   return function;
 }
@@ -484,7 +493,7 @@ const AccessorDescriptor Accessors::FunctionPrototype = {
 //
 
 
-Object* Accessors::FunctionGetLength(Object* object, void*) {
+MaybeObject* Accessors::FunctionGetLength(Object* object, void*) {
   bool found_it = false;
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
   if (!found_it) return Smi::FromInt(0);
@@ -516,7 +525,7 @@ const AccessorDescriptor Accessors::FunctionLength = {
 //
 
 
-Object* Accessors::FunctionGetName(Object* object, void*) {
+MaybeObject* Accessors::FunctionGetName(Object* object, void*) {
   bool found_it = false;
   JSFunction* holder = FindInPrototypeChain<JSFunction>(object, &found_it);
   if (!found_it) return HEAP->undefined_value();
@@ -536,7 +545,7 @@ const AccessorDescriptor Accessors::FunctionName = {
 //
 
 
-Object* Accessors::FunctionGetArguments(Object* object, void*) {
+MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
   HandleScope scope;
   bool found_it = false;
   JSFunction* holder = FindInPrototypeChain<JSFunction>(object, &found_it);
@@ -595,8 +604,9 @@ const AccessorDescriptor Accessors::FunctionArguments = {
 //
 
 
-Object* Accessors::FunctionGetCaller(Object* object, void*) {
+MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   HandleScope scope;
+  AssertNoAllocation no_alloc;
   bool found_it = false;
   JSFunction* holder = FindInPrototypeChain<JSFunction>(object, &found_it);
   if (!found_it) return HEAP->undefined_value();
@@ -634,7 +644,7 @@ const AccessorDescriptor Accessors::FunctionCaller = {
 //
 
 
-Object* Accessors::ObjectGetPrototype(Object* receiver, void*) {
+MaybeObject* Accessors::ObjectGetPrototype(Object* receiver, void*) {
   Object* current = receiver->GetPrototype();
   while (current->IsJSObject() &&
          JSObject::cast(current)->map()->is_hidden_prototype()) {
@@ -644,9 +654,9 @@ Object* Accessors::ObjectGetPrototype(Object* receiver, void*) {
 }
 
 
-Object* Accessors::ObjectSetPrototype(JSObject* receiver,
-                                      Object* value,
-                                      void*) {
+MaybeObject* Accessors::ObjectSetPrototype(JSObject* receiver,
+                                           Object* value,
+                                           void*) {
   const bool skip_hidden_prototypes = true;
   // To be consistent with other Set functions, return the value.
   return receiver->SetPrototype(value, skip_hidden_prototypes);

@@ -140,6 +140,9 @@ DEFINE_bool(stack_trace_on_abort, true,
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(trace, false, "trace function calls")
 DEFINE_bool(defer_negation, true, "defer negation operation")
+DEFINE_bool(mask_constants_with_cookie,
+            true,
+            "use random jit cookie to mask large constants")
 
 // codegen.cc
 DEFINE_bool(lazy, true, "use lazy compilation")
@@ -361,6 +364,8 @@ DEFINE_bool(collect_heap_spill_statistics, false,
             "report heap spill statistics along with heap_stats "
             "(requires heap_stats)")
 
+DEFINE_bool(trace_isolates, false, "trace isolate state changes")
+
 // Regexp
 DEFINE_bool(regexp_possessive_quantifier,
             false,
@@ -412,6 +417,7 @@ DEFINE_bool(sliding_state_window, false,
             "Update sliding state window counters.")
 DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
 DEFINE_bool(oprofile, false, "Enable JIT agent for OProfile.")
+DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
 
 //
 // Heap protection flags
