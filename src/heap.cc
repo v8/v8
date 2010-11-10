@@ -83,16 +83,19 @@ int Heap::max_semispace_size_  = 2*MB;
 intptr_t Heap::max_old_generation_size_ = 192*MB;
 int Heap::initial_semispace_size_ = 128*KB;
 intptr_t Heap::code_range_size_ = 0;
+intptr_t Heap::max_executable_size_ = max_old_generation_size_;
 #elif defined(V8_TARGET_ARCH_X64)
 int Heap::max_semispace_size_  = 16*MB;
 intptr_t Heap::max_old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
 intptr_t Heap::code_range_size_ = 512*MB;
+intptr_t Heap::max_executable_size_ = 256*MB;
 #else
 int Heap::max_semispace_size_  = 8*MB;
 intptr_t Heap::max_old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
 intptr_t Heap::code_range_size_ = 0;
+intptr_t Heap::max_executable_size_ = 128*MB;
 #endif
 
 // The snapshot semispace size will be the default semispace size if
@@ -170,6 +173,12 @@ intptr_t Heap::CommittedMemory() {
       map_space_->CommittedMemory() +
       cell_space_->CommittedMemory() +
       lo_space_->Size();
+}
+
+intptr_t Heap::CommittedMemoryExecutable() {
+  if (!HasBeenSetup()) return 0;
+
+  return MemoryAllocator::SizeExecutable();
 }
 
 
@@ -4313,7 +4322,9 @@ static bool heap_configured = false;
 // TODO(1236194): Since the heap size is configurable on the command line
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
-bool Heap::ConfigureHeap(int max_semispace_size, int max_old_gen_size) {
+bool Heap::ConfigureHeap(int max_semispace_size,
+                         int max_old_gen_size,
+                         int max_executable_size) {
   if (HasBeenSetup()) return false;
 
   if (max_semispace_size > 0) max_semispace_size_ = max_semispace_size;
@@ -4334,6 +4345,15 @@ bool Heap::ConfigureHeap(int max_semispace_size, int max_old_gen_size) {
   }
 
   if (max_old_gen_size > 0) max_old_generation_size_ = max_old_gen_size;
+  if (max_executable_size > 0) {
+    max_executable_size_ = RoundUp(max_executable_size, Page::kPageSize);
+  }
+
+  // The max executable size must be less than or equal to the max old
+  // generation size.
+  if (max_executable_size_ > max_old_generation_size_) {
+    max_executable_size_ = max_old_generation_size_;
+  }
 
   // The new space size must be a power of two to support single-bit testing
   // for containment.
@@ -4351,8 +4371,9 @@ bool Heap::ConfigureHeap(int max_semispace_size, int max_old_gen_size) {
 
 
 bool Heap::ConfigureHeapDefault() {
-  return ConfigureHeap(
-      FLAG_max_new_space_size * (KB / 2), FLAG_max_old_space_size * MB);
+  return ConfigureHeap(FLAG_max_new_space_size / 2 * KB,
+                       FLAG_max_old_space_size * MB,
+                       FLAG_max_executable_size * MB);
 }
 
 
@@ -4435,7 +4456,7 @@ bool Heap::Setup(bool create_heap_objects) {
   // space.  The chunk is double the size of the requested reserved
   // new space size to ensure that we can find a pair of semispaces that
   // are contiguous and aligned to their size.
-  if (!MemoryAllocator::Setup(MaxReserved())) return false;
+  if (!MemoryAllocator::Setup(MaxReserved(), MaxExecutableSize())) return false;
   void* chunk =
       MemoryAllocator::ReserveInitialChunk(4 * reserved_semispace_size_);
   if (chunk == NULL) return false;

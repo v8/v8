@@ -280,6 +280,8 @@
         '../../src/ast.cc',
         '../../src/ast-inl.h',
         '../../src/ast.h',
+        '../../src/bignum.cc',
+        '../../src/bignum.h',
         '../../src/bootstrapper.cc',
         '../../src/bootstrapper.h',
         '../../src/builtins.cc',

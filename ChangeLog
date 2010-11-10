@@ -1,3 +1,12 @@
+2010-11-10: Version 2.5.6
+
+        Added support for VFP rounding modes to the ARM simulator.
+
+        Fixed multiplication overflow bug (issue 927).
+
+        Added a limit for the amount of executable memory (issue 925).
+
+
 2010-11-08: Version 2.5.5
 
         Added more aggressive GC of external objects in near out-of-memory

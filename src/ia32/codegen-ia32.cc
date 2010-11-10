@@ -8578,9 +8578,11 @@ void CodeGenerator::Int32BinaryOperation(BinaryOperation* node) {
       }
       right.Unuse();
       frame_->Push(&left);
-      if (!node->to_int32()) {
-        // If ToInt32 is called on the result of ADD, SUB, or MUL, we don't
+      if (!node->to_int32() || op == Token::MUL) {
+        // If ToInt32 is called on the result of ADD, SUB, we don't
         // care about overflows.
+        // Result of MUL can be non-representable precisely in double so
+        // we have to check for overflow.
         unsafe_bailout_->Branch(overflow);
       }
       break;

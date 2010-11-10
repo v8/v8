@@ -482,8 +482,8 @@ int CEntryStub::MinorKey() {
 }
 
 
-bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
-  Object* cache = info()->load_stub_cache();
+// Implementation of CodeStub::GetCustomCache.
+static bool GetCustomCacheHelper(Object* cache, Code** code_out) {
   if (cache->IsUndefined()) {
     return false;
   } else {
@@ -493,8 +493,23 @@ bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
 }
 
 
+bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
+  return GetCustomCacheHelper(info()->load_stub_cache(), code_out);
+}
+
+
 void ApiGetterEntryStub::SetCustomCache(Code* value) {
   info()->set_load_stub_cache(value);
+}
+
+
+bool ApiCallEntryStub::GetCustomCache(Code** code_out) {
+  return GetCustomCacheHelper(info()->call_stub_cache(), code_out);
+}
+
+
+void ApiCallEntryStub::SetCustomCache(Code* value) {
+  info()->set_call_stub_cache(value);
 }
 
 

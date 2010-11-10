@@ -521,7 +521,6 @@ class Assembler : public Malloced {
   void push(const Immediate& x);
   void push(Register src);
   void push(const Operand& src);
-  void push(Label* label, RelocInfo::Mode relocation_mode);
 
   void pop(Register dst);
   void pop(const Operand& dst);
