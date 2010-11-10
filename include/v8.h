@@ -2348,12 +2348,15 @@ class V8EXPORT ResourceConstraints {
   void set_max_young_space_size(int value) { max_young_space_size_ = value; }
   int max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(int value) { max_old_space_size_ = value; }
+  int max_executable_size() { return max_executable_size_; }
+  void set_max_executable_size(int value) { max_executable_size_ = value; }
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
  private:
   int max_young_space_size_;
   int max_old_space_size_;
+  int max_executable_size_;
   uint32_t* stack_limit_;
 };
 
@@ -2485,13 +2488,18 @@ class V8EXPORT HeapStatistics {
  public:
   HeapStatistics();
   size_t total_heap_size() { return total_heap_size_; }
+  size_t total_heap_size_executable() { return total_heap_size_executable_; }
   size_t used_heap_size() { return used_heap_size_; }
 
  private:
   void set_total_heap_size(size_t size) { total_heap_size_ = size; }
+  void set_total_heap_size_executable(size_t size) {
+    total_heap_size_executable_ = size;
+  }
   void set_used_heap_size(size_t size) { used_heap_size_ = size; }
 
   size_t total_heap_size_;
+  size_t total_heap_size_executable_;
   size_t used_heap_size_;
 
   friend class V8;
