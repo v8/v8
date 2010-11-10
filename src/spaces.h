@@ -492,7 +492,7 @@ class MemoryAllocator : public AllStatic {
  public:
   // Initializes its internal bookkeeping structures.
   // Max capacity of the total space and executable memory limit.
-  static bool Setup(int max_capacity, int capacity_executable);
+  static bool Setup(intptr_t max_capacity, intptr_t capacity_executable);
 
   // Deletes valid chunks.
   static void TearDown();
