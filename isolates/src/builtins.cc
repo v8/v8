@@ -1038,7 +1038,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
     LOG(ApiObjectAccess("call", JSObject::cast(*args.receiver())));
     ASSERT(raw_holder->IsJSObject());
 
-    CustomArguments custom;
+    CustomArguments custom(isolate);
     v8::ImplementationUtilities::PrepareArgumentsData(custom.end(),
         data_obj, *function, raw_holder);
 
@@ -1116,7 +1116,7 @@ BUILTIN(FastHandleApiCall) {
   VerifyTypeCheck(checked_holder, function);
 #endif
 
-  CustomArguments custom;
+  CustomArguments custom(isolate);
   v8::ImplementationUtilities::PrepareArgumentsData(custom.end(),
       *data, *function, *checked_holder);
 
@@ -1188,7 +1188,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
 
     LOG(ApiObjectAccess("call non-function", obj));
 
-    CustomArguments custom;
+    CustomArguments custom(isolate);
     v8::ImplementationUtilities::PrepareArgumentsData(custom.end(),
         call_data->data(), constructor, obj);
     v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(

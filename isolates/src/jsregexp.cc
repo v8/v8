@@ -110,8 +110,9 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
 Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                    Handle<String> pattern,
                                    Handle<String> flag_str) {
+  Isolate* isolate = re->GetIsolate();
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
-  CompilationCache* compilation_cache = re->GetIsolate()->compilation_cache();
+  CompilationCache* compilation_cache = isolate->compilation_cache();
   Handle<FixedArray> cached = compilation_cache->LookupRegExp(pattern, flags);
   bool in_cache = !cached.is_null();
   LOG(RegExpCompileEvent(re, in_cache));
@@ -125,7 +126,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
   PostponeInterruptsScope postpone;
   RegExpCompileData parse_result;
-  FlatStringReader reader(pattern);
+  FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
                                  &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
@@ -145,7 +146,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     RegExpAtom* atom = parse_result.tree->AsAtom();
     Vector<const uc16> atom_pattern = atom->data();
     Handle<String> atom_string =
-        re->GetIsolate()->factory()->NewStringFromTwoByte(atom_pattern);
+        isolate->factory()->NewStringFromTwoByte(atom_pattern);
     AtomCompile(re, pattern, flags, atom_string);
   } else {
     IrregexpInitialize(re, pattern, flags, parse_result.capture_count);
@@ -252,13 +253,14 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii) {
 
 bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   // Compile the RegExp.
+  Isolate* isolate = re->GetIsolate();
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
   PostponeInterruptsScope postpone;
   Object* entry = re->DataAt(JSRegExp::code_index(is_ascii));
   if (entry->IsJSObject()) {
     // If it's a JSObject, a previous compilation failed and threw this object.
     // Re-throw the object without trying again.
-    re->GetIsolate()->Throw(entry);
+    isolate->Throw(entry);
     return false;
   }
   ASSERT(entry->IsTheHole());
@@ -271,7 +273,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   }
 
   RegExpCompileData compile_data;
-  FlatStringReader reader(pattern);
+  FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
                                  &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
@@ -290,7 +292,6 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
                             is_ascii);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
-    Isolate* isolate = re->GetIsolate();
     Handle<JSArray> array = isolate->factory()->NewJSArray(2);
     SetElement(array, 0, pattern);
     SetElement(array,

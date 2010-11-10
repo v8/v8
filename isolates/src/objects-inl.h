@@ -3652,17 +3652,18 @@ MaybeObject* FixedArray::Copy() {
 }
 
 
-Relocatable::Relocatable() {
-  Isolate* isolate = Isolate::Current();
+Relocatable::Relocatable(Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
+  isolate_ = isolate;
   prev_ = isolate->relocatable_top();
   isolate->set_relocatable_top(this);
 }
 
 
 Relocatable::~Relocatable() {
-  Isolate* isolate = Isolate::Current();
-  ASSERT_EQ(isolate->relocatable_top(), this);
-  isolate->set_relocatable_top(prev_);
+  ASSERT(isolate_ == Isolate::Current());
+  ASSERT_EQ(isolate_->relocatable_top(), this);
+  isolate_->set_relocatable_top(prev_);
 }
 
 

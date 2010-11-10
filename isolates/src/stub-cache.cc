@@ -946,11 +946,12 @@ MaybeObject* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION) {
   Address getter_address = v8::ToCData<Address>(callback->getter());
   v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
   ASSERT(fun != NULL);
-  CustomArguments custom_args(callback->data(),
+  CustomArguments custom_args(isolate,
+                              callback->data(),
                               JSObject::cast(args[0]),
                               JSObject::cast(args[1]));
   v8::AccessorInfo info(custom_args.end());
-  HandleScope scope;
+  HandleScope scope(isolate);
   v8::Handle<v8::Value> result;
   {
     // Leaving JavaScript.
@@ -975,9 +976,9 @@ MaybeObject* StoreCallbackProperty(RUNTIME_CALLING_CONVENTION) {
   ASSERT(fun != NULL);
   Handle<String> name = args.at<String>(2);
   Handle<Object> value = args.at<Object>(3);
-  HandleScope scope;
+  HandleScope scope(isolate);
   LOG(ApiNamedPropertyAccess("store", recv, *name));
-  CustomArguments custom_args(callback->data(), recv, recv);
+  CustomArguments custom_args(isolate, callback->data(), recv, recv);
   v8::AccessorInfo info(custom_args.end());
   {
     // Leaving JavaScript.

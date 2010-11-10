@@ -171,7 +171,7 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
     return value;
   }
 
-  Heap* heap = name->GetHeap();
+  Isolate* isolate = name->GetIsolate();
 
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
@@ -183,7 +183,7 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
     JSObject* holder_handle = JSObject::cast(holder);
     Handle<String> key(name);
     LOG(ApiNamedPropertyAccess("load", self, name));
-    CustomArguments args(data->data(), self, holder_handle);
+    CustomArguments args(isolate, data->data(), self, holder_handle);
     v8::AccessorInfo info(args.end());
     v8::Handle<v8::Value> result;
     {
@@ -193,7 +193,7 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
     }
     RETURN_IF_SCHEDULED_EXCEPTION();
     if (result.IsEmpty()) {
-      return heap->undefined_value();
+      return isolate->heap()->undefined_value();
     }
     return *v8::Utils::OpenHandle(*result);
   }
@@ -206,7 +206,7 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
                                                   JSFunction::cast(getter));
     }
     // Getter is not a function.
-    return heap->undefined_value();
+    return isolate->heap()->undefined_value();
   }
 
   UNREACHABLE();
@@ -1591,7 +1591,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   if (!interceptor->setter()->IsUndefined()) {
     LOG(ApiNamedPropertyAccess("interceptor-named-set", this, name));
-    CustomArguments args(interceptor->data(), this, this);
+    CustomArguments args(isolate, interceptor->data(), this, this);
     v8::AccessorInfo info(args.end());
     v8::NamedPropertySetter setter =
         v8::ToCData<v8::NamedPropertySetter>(interceptor->setter());
@@ -1660,7 +1660,7 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     if (call_fun == NULL) return value;
     Handle<String> key(name);
     LOG(ApiNamedPropertyAccess("store", this, name));
-    CustomArguments args(data->data(), this, JSObject::cast(holder));
+    CustomArguments args(isolate, data->data(), this, JSObject::cast(holder));
     v8::AccessorInfo info(args.end());
     {
       // Leaving JavaScript.
@@ -2100,16 +2100,18 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
       JSObject* receiver,
       String* name,
       bool continue_search) {
+  Isolate* isolate = GetIsolate();
+
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
 
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
-  CustomArguments args(interceptor->data(), receiver, this);
+  CustomArguments args(isolate, interceptor->data(), receiver, this);
   v8::AccessorInfo info(args.end());
   if (!interceptor->query()->IsUndefined()) {
     v8::NamedPropertyQuery query =
@@ -2491,7 +2493,8 @@ MaybeObject* JSObject::DeletePropertyPostInterceptor(String* name,
 
 
 MaybeObject* JSObject::DeletePropertyWithInterceptor(String* name) {
-  HandleScope scope;
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<String> name_handle(name);
   Handle<JSObject> this_handle(this);
@@ -2499,7 +2502,7 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(String* name) {
     v8::NamedPropertyDeleter deleter =
         v8::ToCData<v8::NamedPropertyDeleter>(interceptor->deleter());
     LOG(ApiNamedPropertyAccess("interceptor-named-delete", *this_handle, name));
-    CustomArguments args(interceptor->data(), this, this);
+    CustomArguments args(isolate, interceptor->data(), this, this);
     v8::AccessorInfo info(args.end());
     v8::Handle<v8::Boolean> result;
     {
@@ -2567,7 +2570,7 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
       v8::ToCData<v8::IndexedPropertyDeleter>(interceptor->deleter());
   Handle<JSObject> this_handle(this);
   LOG(ApiIndexedPropertyAccess("interceptor-indexed-delete", this, index));
-  CustomArguments args(interceptor->data(), this, this);
+  CustomArguments args(isolate, interceptor->data(), this, this);
   v8::AccessorInfo info(args.end());
   v8::Handle<v8::Boolean> result;
   {
@@ -4724,15 +4727,17 @@ void Relocatable::Iterate(ObjectVisitor* v, Relocatable* top) {
 }
 
 
-FlatStringReader::FlatStringReader(Handle<String> str)
-    : str_(str.location()),
+FlatStringReader::FlatStringReader(Isolate* isolate, Handle<String> str)
+    : Relocatable(isolate),
+      str_(str.location()),
       length_(str->length()) {
   PostGarbageCollection();
 }
 
 
-FlatStringReader::FlatStringReader(Vector<const char> input)
-    : str_(0),
+FlatStringReader::FlatStringReader(Isolate* isolate, Vector<const char> input)
+    : Relocatable(isolate),
+      str_(0),
       is_ascii_(true),
       length_(input.length()),
       start_(input.start()) { }
@@ -6330,14 +6335,15 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
 
 
 bool JSObject::HasElementWithInterceptor(JSObject* receiver, uint32_t index) {
+  Isolate* isolate = GetIsolate();
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
-  CustomArguments args(interceptor->data(), receiver, this);
+  CustomArguments args(isolate, interceptor->data(), receiver, this);
   v8::AccessorInfo info(args.end());
   if (!interceptor->query()->IsUndefined()) {
     v8::IndexedPropertyQuery query =
@@ -6502,18 +6508,19 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
 
 MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
                                                  Object* value) {
+  Isolate* isolate = GetIsolate();
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSObject> this_handle(this);
-  Handle<Object> value_handle(value);
+  Handle<Object> value_handle(value, isolate);
   if (!interceptor->setter()->IsUndefined()) {
     v8::IndexedPropertySetter setter =
         v8::ToCData<v8::IndexedPropertySetter>(interceptor->setter());
     LOG(ApiIndexedPropertyAccess("interceptor-indexed-set", this, index));
-    CustomArguments args(interceptor->data(), this, this);
+    CustomArguments args(isolate, interceptor->data(), this, this);
     v8::AccessorInfo info(args.end());
     v8::Handle<v8::Value> result;
     {
@@ -6535,7 +6542,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
                                               Object* structure,
                                               uint32_t index,
                                               Object* holder) {
-  Heap* heap = GetHeap();
+  Isolate* isolate = GetIsolate();
   ASSERT(!structure->IsProxy());
 
   // api style callbacks.
@@ -6543,13 +6550,13 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     AccessorInfo* data = AccessorInfo::cast(structure);
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
-    HandleScope scope;
+    HandleScope scope(isolate);
     Handle<JSObject> self(JSObject::cast(receiver));
     Handle<JSObject> holder_handle(JSObject::cast(holder));
-    Handle<Object> number = FACTORY->NewNumberFromUint(index);
-    Handle<String> key(FACTORY->NumberToString(number));
+    Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
+    Handle<String> key(isolate->factory()->NumberToString(number));
     LOG(ApiNamedPropertyAccess("load", *self, *key));
-    CustomArguments args(data->data(), *self, *holder_handle);
+    CustomArguments args(isolate, data->data(), *self, *holder_handle);
     v8::AccessorInfo info(args.end());
     v8::Handle<v8::Value> result;
     {
@@ -6558,7 +6565,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
       result = call_fun(v8::Utils::ToLocal(key), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION();
-    if (result.IsEmpty()) return heap->undefined_value();
+    if (result.IsEmpty()) return isolate->heap()->undefined_value();
     return *v8::Utils::OpenHandle(*result);
   }
 
@@ -6570,7 +6577,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
                                                   JSFunction::cast(getter));
     }
     // Getter is not a function.
-    return heap->undefined_value();
+    return isolate->heap()->undefined_value();
   }
 
   UNREACHABLE();
@@ -6604,7 +6611,7 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key(isolate->factory()->NumberToString(number));
     LOG(ApiNamedPropertyAccess("store", this, *key));
-    CustomArguments args(data->data(), this, JSObject::cast(holder));
+    CustomArguments args(isolate, data->data(), this, JSObject::cast(holder));
     v8::AccessorInfo info(args.end());
     {
       // Leaving JavaScript.
@@ -6622,8 +6629,8 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
     if (setter->IsJSFunction()) {
      return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
     } else {
-      Handle<Object> holder_handle(holder);
-      Handle<Object> key(FACTORY->NewNumberFromUint(index));
+      Handle<Object> holder_handle(holder, isolate);
+      Handle<Object> key(isolate->factory()->NewNumberFromUint(index));
       Handle<Object> args[2] = { key, holder_handle };
       return isolate->Throw(
           *isolate->factory()->NewTypeError("no_setter_in_callback",
@@ -6930,10 +6937,11 @@ MaybeObject* JSObject::GetElementPostInterceptor(JSObject* receiver,
 
 MaybeObject* JSObject::GetElementWithInterceptor(JSObject* receiver,
                                                  uint32_t index) {
+  Isolate* isolate = GetIsolate();
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
   Handle<JSObject> this_handle(receiver);
   Handle<JSObject> holder_handle(this);
@@ -6942,7 +6950,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(JSObject* receiver,
     v8::IndexedPropertyGetter getter =
         v8::ToCData<v8::IndexedPropertyGetter>(interceptor->getter());
     LOG(ApiIndexedPropertyAccess("interceptor-indexed-get", this, index));
-    CustomArguments args(interceptor->data(), receiver, this);
+    CustomArguments args(isolate, interceptor->data(), receiver, this);
     v8::AccessorInfo info(args.end());
     v8::Handle<v8::Value> result;
     {
@@ -7252,8 +7260,9 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
     JSObject* receiver,
     String* name,
     PropertyAttributes* attributes) {
+  Isolate* isolate = GetIsolate();
   InterceptorInfo* interceptor = GetNamedInterceptor();
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<JSObject> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
@@ -7262,7 +7271,7 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
     v8::NamedPropertyGetter getter =
         v8::ToCData<v8::NamedPropertyGetter>(interceptor->getter());
     LOG(ApiNamedPropertyAccess("interceptor-named-get", *holder_handle, name));
-    CustomArguments args(interceptor->data(), receiver, this);
+    CustomArguments args(isolate, interceptor->data(), receiver, this);
     v8::AccessorInfo info(args.end());
     v8::Handle<v8::Value> result;
     {

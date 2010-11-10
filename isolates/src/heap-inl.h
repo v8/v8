@@ -571,7 +571,8 @@ MaybeObject* TranscendentalCache::SubCache::Get(double input) {
   double answer = Calculate(input);
   isolate_->counters()->transcendental_cache_miss()->Increment();
   Object* heap_number;
-  { MaybeObject* maybe_heap_number = HEAP->AllocateHeapNumber(answer);
+  { MaybeObject* maybe_heap_number =
+        isolate_->heap()->AllocateHeapNumber(answer);
     if (!maybe_heap_number->ToObject(&heap_number)) return maybe_heap_number;
   }
   elements_[hash].in[0] = c.integers[0];

@@ -662,7 +662,8 @@ void CustomArguments::IterateInstance(ObjectVisitor* v) {
 v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
                                                  Handle<JSObject> object) {
   Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
-  CustomArguments args(interceptor->data(), *receiver, *object);
+  CustomArguments args(receiver->GetIsolate(),
+                       interceptor->data(), *receiver, *object);
   v8::AccessorInfo info(args.end());
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {
@@ -683,7 +684,8 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
 v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
                                                    Handle<JSObject> object) {
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
-  CustomArguments args(interceptor->data(), *receiver, *object);
+  CustomArguments args(receiver->GetIsolate(),
+                       interceptor->data(), *receiver, *object);
   v8::AccessorInfo info(args.end());
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {

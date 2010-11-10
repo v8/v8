@@ -5081,7 +5081,7 @@ class ExternalTwoByteString: public ExternalString {
 // iterating or updating after gc.
 class Relocatable BASE_EMBEDDED {
  public:
-  inline Relocatable();
+  explicit inline Relocatable(Isolate* isolate);
   inline virtual ~Relocatable();
   virtual void IterateInstance(ObjectVisitor* v) { }
   virtual void PostGarbageCollection() { }
@@ -5094,6 +5094,7 @@ class Relocatable BASE_EMBEDDED {
   static void Iterate(ObjectVisitor* v, Relocatable* top);
   static char* Iterate(ObjectVisitor* v, char* t);
  private:
+  Isolate* isolate_;
   Relocatable* prev_;
 };
 
@@ -5103,8 +5104,8 @@ class Relocatable BASE_EMBEDDED {
 // must be valid as long as the reader is being used.
 class FlatStringReader : public Relocatable {
  public:
-  explicit FlatStringReader(Handle<String> str);
-  explicit FlatStringReader(Vector<const char> input);
+  FlatStringReader(Isolate* isolate, Handle<String> str);
+  FlatStringReader(Isolate* isolate, Vector<const char> input);
   void PostGarbageCollection();
   inline uc32 Get(int index);
   int length() { return length_; }
