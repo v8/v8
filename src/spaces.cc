@@ -270,9 +270,9 @@ void CodeRange::TearDown() {
 // -----------------------------------------------------------------------------
 // MemoryAllocator
 //
-intptr_t MemoryAllocator::capacity_   = 0;
+intptr_t MemoryAllocator::capacity_ = 0;
 intptr_t MemoryAllocator::capacity_executable_ = 0;
-intptr_t MemoryAllocator::size_       = 0;
+intptr_t MemoryAllocator::size_ = 0;
 intptr_t MemoryAllocator::size_executable_ = 0;
 
 List<MemoryAllocator::MemoryAllocationCallbackRegistration>
