@@ -4349,6 +4349,12 @@ bool Heap::ConfigureHeap(int max_semispace_size,
     max_executable_size_ = RoundUp(max_executable_size, Page::kPageSize);
   }
 
+  // The max executable size must be less than or equal to the max old
+  // generation size.
+  if (max_executable_size_ > max_old_generation_size_) {
+    max_executable_size_ = max_old_generation_size_;
+  }
+
   // The new space size must be a power of two to support single-bit testing
   // for containment.
   max_semispace_size_ = RoundUpToPowerOf2(max_semispace_size_);
