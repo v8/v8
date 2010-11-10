@@ -464,9 +464,6 @@ class FullCodeGenerator: public AstVisitor {
   // in v8::internal::Context.
   void LoadContextField(Register dst, int context_index);
 
-  // Create an operand for a context field.
-  MemOperand ContextOperand(Register context, int context_index);
-
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)

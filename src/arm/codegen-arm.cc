@@ -557,7 +557,7 @@ void CodeGenerator::Load(Expression* expr) {
 
 void CodeGenerator::LoadGlobal() {
   Register reg = frame_->GetTOSRegister();
-  __ ldr(reg, GlobalObject());
+  __ ldr(reg, GlobalObjectOperand());
   frame_->EmitPush(reg);
 }
 
@@ -5135,11 +5135,11 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
     __ b(eq, &false_result);
     __ ldr(scratch1_, FieldMemOperand(scratch1_, HeapObject::kMapOffset));
     __ ldr(scratch2_,
-           CodeGenerator::ContextOperand(cp, Context::GLOBAL_INDEX));
+           ContextOperand(cp, Context::GLOBAL_INDEX));
     __ ldr(scratch2_,
            FieldMemOperand(scratch2_, GlobalObject::kGlobalContextOffset));
     __ ldr(scratch2_,
-           CodeGenerator::ContextOperand(
+           ContextOperand(
                scratch2_, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
     __ cmp(scratch1_, scratch2_);
     __ b(ne, &false_result);
@@ -5825,7 +5825,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     // Prepare stack for calling JS runtime function.
     // Push the builtins object found in the current global object.
     Register scratch = VirtualFrame::scratch0();
-    __ ldr(scratch, GlobalObject());
+    __ ldr(scratch, GlobalObjectOperand());
     Register builtins = frame_->GetTOSRegister();
     __ ldr(builtins, FieldMemOperand(scratch, GlobalObject::kBuiltinsOffset));
     frame_->EmitPush(builtins);

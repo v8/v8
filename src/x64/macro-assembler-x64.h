@@ -982,6 +982,17 @@ static inline Operand FieldOperand(Register object,
 }
 
 
+static inline Operand ContextOperand(Register context, int index) {
+  return Operand(context, Context::SlotOffset(index));
+}
+
+
+static inline Operand GlobalObjectOperand() {
+  return ContextOperand(rsi, Context::GLOBAL_INDEX);
+}
+
+
+
 #ifdef GENERATED_CODE_COVERAGE
 extern void LogGeneratedCodeCoverage(const char* file_line);
 #define CODE_COVERAGE_STRINGIFY(x) #x

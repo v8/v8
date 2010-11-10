@@ -642,6 +642,17 @@ static inline Operand FieldOperand(Register object,
   return Operand(object, index, scale, offset - kHeapObjectTag);
 }
 
+
+static inline Operand ContextOperand(Register context, int index) {
+  return Operand(context, Context::SlotOffset(index));
+}
+
+
+static inline Operand GlobalObjectOperand() {
+  return ContextOperand(esi, Context::GLOBAL_INDEX);
+}
+
+
 // Generates an Operand for saving parameters after PrepareCallApiFunction.
 Operand ApiParameterOperand(int index);
 

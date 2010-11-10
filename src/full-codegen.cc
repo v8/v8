@@ -301,11 +301,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 }
 
 
-MemOperand FullCodeGenerator::ContextOperand(Register context, int index) {
-  return CodeGenerator::ContextOperand(context, index);
-}
-
-
 int FullCodeGenerator::SlotOffset(Slot* slot) {
   ASSERT(slot != NULL);
   // Offset is negative because higher indexes are at lower addresses.
