@@ -278,16 +278,14 @@ TEST(RegressChromium62639) {
   i::StackGuard::SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
-  char buffer[4096];
-  const char* program_template = "var x = '%01024d';  // filler\n"
-                                 "escape: function() {}";
+  const char* program = "var x = 'something';\n"
+                        "escape: function() {}";
   // Fails parsing expecting an identifier after "function".
   // Before fix, didn't check *ok after Expect(Token::Identifier, ok),
   // and then used the invalid currently scanned literal. This always
   // failed in debug mode, and sometimes crashed in release mode.
 
-  snprintf(buffer, sizeof(buffer), program_template, 0);
-  unibrow::Utf8InputBuffer<256> stream(buffer, strlen(buffer));
+  unibrow::Utf8InputBuffer<256> stream(program, strlen(program));
   i::ScriptDataImpl* data =
       i::ParserApi::PreParse(i::Handle<i::String>::null(), &stream, NULL);
   CHECK(data->HasError());
