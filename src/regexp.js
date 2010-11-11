@@ -193,20 +193,16 @@ function RegExpExec(string) {
   var matchIndices = %_RegExpExec(this, s, i, lastMatchInfo);
 
   if (matchIndices === null) {
-    if (global) {
-      this.lastIndex = 0;
-    }
+    if (global) this.lastIndex = 0;
     return null;
   }
 
   // Successful match.
   lastMatchInfoOverride = null;
-  var result = BuildResultFromMatchInfo(matchIndices, s);
-
   if (global) {
     this.lastIndex = lastMatchInfo[CAPTURE1];
   }
-  return result;
+  return BuildResultFromMatchInfo(matchIndices, s);
 }
 
 
@@ -244,43 +240,44 @@ function RegExpTest(string) {
   // algorithm, step 5) even if the value is discarded for non-global RegExps.
   var i = TO_INTEGER(lastIndex);
   
-  var global = this.global;
-  if (global) {
+  if (this.global) {
     if (i < 0 || i > s.length) {
       this.lastIndex = 0;
       return false;
     }
-  } else {
-    i = 0;
-  }
-
-  // Remove irrelevant preceeding '.*' in a test regexp. The expression
-  // checks whether this.source starts with '.*' and that the third
-  // char is not a '?'
-  if (%_StringCharCodeAt(this.source, 0) == 46 &&  // '.'
-      %_StringCharCodeAt(this.source, 1) == 42 &&  // '*'
-      %_StringCharCodeAt(this.source, 2) != 63) {  // '?'
-    if (!%_ObjectEquals(regexp_key, this)) {
-      regexp_key = this;
-      regexp_val = new $RegExp(this.source.substring(2, this.source.length),
-                               (global ? 'g' : '')
-                               + (this.ignoreCase ? 'i' : '')
-                               + (this.multiline ? 'm' : ''));
+    %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
+    // matchIndices is either null or the lastMatchInfo array.
+    var matchIndices = %_RegExpExec(this, s, i, lastMatchInfo);
+    if (matchIndices === null) {
+      this.lastIndex = 0;
+      return false;
     }
-    if (!regexp_val.test(s)) return false;
+    lastMatchInfoOverride = null;
+    this.lastIndex = lastMatchInfo[CAPTURE1];
+    return true;    
+  } else {
+    // Non-global regexp.
+    // Remove irrelevant preceeding '.*' in a non-global test regexp. 
+    // The expression checks whether this.source starts with '.*' and 
+    // that the third char is not a '?'.
+    if (%_StringCharCodeAt(this.source, 0) == 46 &&  // '.'
+        %_StringCharCodeAt(this.source, 1) == 42 &&  // '*'
+        %_StringCharCodeAt(this.source, 2) != 63) {  // '?'
+      if (!%_ObjectEquals(regexp_key, this)) {
+        regexp_key = this;
+        regexp_val = new $RegExp(this.source.substring(2, this.source.length),
+                                 (this.ignoreCase ? 'i' : '')
+                                 + (this.multiline ? 'm' : ''));
+      }
+      if (!regexp_val.test(s)) return false;
+    }    
+    %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
+    // matchIndices is either null or the lastMatchInfo array.
+    var matchIndices = %_RegExpExec(this, s, 0, lastMatchInfo);
+    if (matchIndices === null) return false;
+    lastMatchInfoOverride = null;
+    return true;
   }
-
-  %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
-  // matchIndices is either null or the lastMatchInfo array.
-  var matchIndices = %_RegExpExec(this, s, i, lastMatchInfo);
-
-  if (matchIndices === null) {
-    if (global) this.lastIndex = 0;
-    return false;
-  }
-  lastMatchInfoOverride = null;
-  if (global) this.lastIndex = lastMatchInfo[CAPTURE1];
-  return true;
 }
 
 
