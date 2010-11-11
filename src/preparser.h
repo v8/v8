@@ -1370,6 +1370,7 @@ Expression PreParser<Scanner, Log>::GetStringSymbol() {
 template <typename Scanner, typename Log>
 Identifier PreParser<Scanner, Log>::ParseIdentifier(bool* ok) {
   Expect(i::Token::IDENTIFIER, ok);
+  if (!*ok) return kUnknownIdentifier;
   return GetIdentifierSymbol();
 }
 
