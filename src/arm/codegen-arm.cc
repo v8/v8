@@ -43,6 +43,7 @@
 #include "register-allocator-inl.h"
 #include "runtime.h"
 #include "scopes.h"
+#include "stub-cache.h"
 #include "virtual-frame-inl.h"
 #include "virtual-frame-arm-inl.h"
 
@@ -4232,7 +4233,7 @@ void CodeGenerator::VisitCall(Call* node) {
     // Setup the name register and call the IC initialization code.
     __ mov(r2, Operand(var->name()));
     InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-    Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
+    Handle<Code> stub = StubCache::ComputeCallInitialize(arg_count, in_loop);
     CodeForSourcePosition(node->position());
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
                            arg_count + 1);
@@ -4326,7 +4327,8 @@ void CodeGenerator::VisitCall(Call* node) {
         // Set the name register and call the IC initialization code.
         __ mov(r2, Operand(name));
         InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-        Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
+        Handle<Code> stub =
+            StubCache::ComputeCallInitialize(arg_count, in_loop);
         CodeForSourcePosition(node->position());
         frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
         __ ldr(cp, frame_->Context());
@@ -4361,7 +4363,8 @@ void CodeGenerator::VisitCall(Call* node) {
         frame_->EmitPop(r2);  // Function name.
 
         InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-        Handle<Code> stub = ComputeKeyedCallInitialize(arg_count, in_loop);
+        Handle<Code> stub =
+            StubCache::ComputeKeyedCallInitialize(arg_count, in_loop);
         CodeForSourcePosition(node->position());
         frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
         __ ldr(cp, frame_->Context());
@@ -5843,7 +5846,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     // Call the JS runtime function.
     __ mov(r2, Operand(node->name()));
     InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-    Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
+    Handle<Code> stub = StubCache::ComputeCallInitialize(arg_count, in_loop);
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
     __ ldr(cp, frame_->Context());
     frame_->EmitPush(r0);
