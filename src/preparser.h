@@ -750,15 +750,18 @@ Statement PreParser<Scanner, Log>::ParseTryStatement(bool* ok) {
 
   bool catch_or_finally_seen = false;
   if (peek() == i::Token::CATCH) {
-    Expect(i::Token::CATCH, CHECK_OK);
+    Consume(i::Token::CATCH);
     Expect(i::Token::LPAREN, CHECK_OK);
     ParseIdentifier(CHECK_OK);
     Expect(i::Token::RPAREN, CHECK_OK);
-    ParseBlock(CHECK_OK);
+    scope_->EnterWith();
+    ParseBlock(ok);
+    scope_->LeaveWith();
+    if (!*ok) return kUnknownStatement;
     catch_or_finally_seen = true;
   }
   if (peek() == i::Token::FINALLY) {
-    Expect(i::Token::FINALLY, CHECK_OK);
+    Consume(i::Token::FINALLY);
     ParseBlock(CHECK_OK);
     catch_or_finally_seen = true;
   }

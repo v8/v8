@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "v8.h"
 
@@ -277,7 +278,6 @@ TEST(RegressChromium62639) {
   i::StackGuard::SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
-  // Ensure that the source code is so big that it triggers preparsing.
   char buffer[4096];
   const char* program_template = "var x = '%01024d';  // filler\n"
                                  "escape: function() {}";
@@ -291,5 +291,42 @@ TEST(RegressChromium62639) {
   i::ScriptDataImpl* data =
       i::ParserApi::PreParse(i::Handle<i::String>::null(), &stream, NULL);
   CHECK(data->HasError());
+  delete data;
+}
+
+
+TEST(Regress928) {
+  // Preparsing didn't consider the catch clause of a try statement
+  // as with-content, which made it assume that a function inside
+  // the block could be lazily compiled, and an extra, unexpected,
+  // entry was added to the data.
+  int marker;
+  i::StackGuard::SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  const char* program =
+      "try { } catch (e) { var foo = function () { /* first */ } }"
+      "var bar = function () { /* second */ }";
+
+  unibrow::Utf8InputBuffer<256> stream(program, strlen(program));
+  i::ScriptDataImpl* data =
+      i::ParserApi::PartialPreParse(i::Handle<i::String>::null(),
+                                    &stream, NULL);
+  CHECK(!data->HasError());
+
+  data->Initialize();
+
+  int first_function = strstr(program, "function") - program;
+  int first_lbrace = first_function + strlen("function () ");
+  CHECK_EQ('{', program[first_lbrace]);
+  i::FunctionEntry entry1 = data->GetFunctionEntry(first_lbrace);
+  CHECK(!entry1.is_valid());
+
+  int second_function = strstr(program + first_lbrace, "function") - program;
+  int second_lbrace = second_function + strlen("function () ");
+  CHECK_EQ('{', program[second_lbrace]);
+  i::FunctionEntry entry2 = data->GetFunctionEntry(second_lbrace);
+  CHECK(entry2.is_valid());
+  CHECK_EQ('}', program[entry2.end_pos() - 1]);
   delete data;
 }
