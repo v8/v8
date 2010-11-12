@@ -189,6 +189,9 @@ class StackGuard : public AllStatic {
   static uintptr_t climit() {
     return thread_local_.climit_;
   }
+  static uintptr_t real_climit() {
+    return thread_local_.real_climit_;
+  }
   static uintptr_t jslimit() {
     return thread_local_.jslimit_;
   }
