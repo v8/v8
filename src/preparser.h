@@ -29,6 +29,7 @@
 #define V8_PREPARSER_H
 
 #include "unicode.h"
+#include "utils.h"
 
 namespace v8 {
 namespace preparser {
@@ -1384,7 +1385,7 @@ Identifier PreParser<Scanner, Log>::ParseIdentifierName(bool* ok) {
   if (i::Token::IsKeyword(next)) {
     int pos = scanner_->location().beg_pos;
     const char* keyword = i::Token::String(next);
-    log_->LogSymbol(pos, keyword, strlen(keyword));
+    log_->LogSymbol(pos, keyword, i::StrLength(keyword));
     return kUnknownExpression;
   }
   if (next == i::Token::IDENTIFIER) {
