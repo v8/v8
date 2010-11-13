@@ -591,7 +591,7 @@ class MemoryAllocator : public AllStatic {
   static intptr_t Size() { return size_; }
 
   // Returns the maximum available executable bytes of heaps.
-  static int AvailableExecutable() {
+  static intptr_t AvailableExecutable() {
     if (capacity_executable_ < size_executable_) return 0;
     return capacity_executable_ - size_executable_;
   }
