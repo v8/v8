@@ -449,35 +449,4 @@ int CEntryStub::MinorKey() {
 }
 
 
-// Implementation of CodeStub::GetCustomCache.
-static bool GetCustomCacheHelper(Object* cache, Code** code_out) {
-  if (cache->IsUndefined()) {
-    return false;
-  } else {
-    *code_out = Code::cast(cache);
-    return true;
-  }
-}
-
-
-bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
-  return GetCustomCacheHelper(info()->load_stub_cache(), code_out);
-}
-
-
-void ApiGetterEntryStub::SetCustomCache(Code* value) {
-  info()->set_load_stub_cache(value);
-}
-
-
-bool ApiCallEntryStub::GetCustomCache(Code** code_out) {
-  return GetCustomCacheHelper(info()->call_stub_cache(), code_out);
-}
-
-
-void ApiCallEntryStub::SetCustomCache(Code* value) {
-  info()->set_call_stub_cache(value);
-}
-
-
 } }  // namespace v8::internal

@@ -327,7 +327,7 @@ MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub) {
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
+  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
@@ -456,10 +456,37 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
 }
 
 
+MaybeObject* MacroAssembler::TryTailCallExternalReference(
+    const ExternalReference& ext, int num_arguments, int result_size) {
+  // ----------- S t a t e -------------
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : argument num_arguments - 1
+  //  ...
+  //  -- rsp[8 * num_arguments] : argument 0 (receiver)
+  // -----------------------------------
+
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  Set(rax, num_arguments);
+  return TryJumpToExternalReference(ext, result_size);
+}
+
+
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                                      int num_arguments,
                                      int result_size) {
   TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
+}
+
+
+MaybeObject* MacroAssembler::TryTailCallRuntime(Runtime::FunctionId fid,
+                                                int num_arguments,
+                                                int result_size) {
+  return TryTailCallExternalReference(ExternalReference(fid),
+                                      num_arguments,
+                                      result_size);
 }
 
 
@@ -471,12 +498,24 @@ static int Offset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-void MacroAssembler::PrepareCallApiFunction(int stack_space) {
-  EnterApiExitFrame(stack_space, 0);
+void MacroAssembler::PrepareCallApiFunction(int stack_space, int argc) {
+#ifdef _WIN64
+  // We need to prepare a slot for result handle on stack and put
+  // a pointer to it into 1st arg register.
+  int register_based_args = argc > 3 ? 3 : argc;
+  EnterApiExitFrame(stack_space, argc - register_based_args + 1);
+
+  int return_value_slot = (argc > 3 ? argc - 3 + 1 : 4);
+  // rcx must be used to pass the pointer to the return value slot.
+  lea(rcx, Operand(rsp, return_value_slot * kPointerSize));
+#else
+  EnterApiExitFrame(stack_space, argc);
+#endif
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function) {
+MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
+    ApiFunction* function) {
   Label empty_result;
   Label prologue;
   Label promote_scheduled_exception;
@@ -539,7 +578,11 @@ void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function) {
   ret(0);
 
   bind(&promote_scheduled_exception);
-  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  MaybeObject* result = TryTailCallRuntime(Runtime::kPromoteScheduledException,
+                                           0, 1);
+  if (result->IsFailure()) {
+    return result;
+  }
 
   bind(&empty_result);
   // It was zero; the result is undefined.
@@ -554,6 +597,8 @@ void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function) {
   call(rax);
   movq(rax, prev_limit_reg);
   jmp(&leave_exit_frame);
+
+  return result;
 }
 
 
@@ -563,6 +608,15 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   movq(rbx, ext);
   CEntryStub ces(result_size);
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+MaybeObject* MacroAssembler::TryJumpToExternalReference(
+    const ExternalReference& ext, int result_size) {
+  // Set the entry point and jump to the C entry runtime stub.
+  movq(rbx, ext);
+  CEntryStub ces(result_size);
+  return TryTailCallStub(&ces);
 }
 
 
@@ -1741,6 +1795,10 @@ void MacroAssembler::EnterApiExitFrame(int stack_space,
   // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   lea(r12, Operand(rbp, (stack_space * kPointerSize) + offset));
+
+#ifndef _WIN64
+  ASSERT(argc <= 6);  // EnterApiExitFrame supports only register based args.
+#endif
 
   EnterExitFrameEpilogue(result_size, argc);
 }

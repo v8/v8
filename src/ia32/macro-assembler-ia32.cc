@@ -1110,10 +1110,29 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
 }
 
 
+MaybeObject* MacroAssembler::TryTailCallExternalReference(
+    const ExternalReference& ext, int num_arguments, int result_size) {
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  Set(eax, Immediate(num_arguments));
+  return TryJumpToExternalReference(ext);
+}
+
+
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                                      int num_arguments,
                                      int result_size) {
   TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
+}
+
+
+MaybeObject* MacroAssembler::TryTailCallRuntime(Runtime::FunctionId fid,
+                                                int num_arguments,
+                                                int result_size) {
+  return TryTailCallExternalReference(
+      ExternalReference(fid), num_arguments, result_size);
 }
 
 
@@ -1144,7 +1163,8 @@ void MacroAssembler::PrepareCallApiFunction(int stack_space, int argc) {
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function, int argc) {
+MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
+                                                         int argc) {
   if (!kPassHandlesDirectly) {
     // The argument slots are filled as follows:
     //
@@ -1213,7 +1233,11 @@ void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function, int argc) {
   LeaveExitFrame();
   ret(0);
   bind(&promote_scheduled_exception);
-  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  MaybeObject* result =
+      TryTailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  if (result->IsFailure()) {
+    return result;
+  }
   bind(&empty_handle);
   // It was zero; the result is undefined.
   mov(eax, Factory::undefined_value());
@@ -1227,6 +1251,8 @@ void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function, int argc) {
   call(Operand(eax));
   mov(eax, edi);
   jmp(&leave_exit_frame);
+
+  return result;
 }
 
 
@@ -1235,6 +1261,15 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext) {
   mov(ebx, Immediate(ext));
   CEntryStub ces(1);
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+MaybeObject* MacroAssembler::TryJumpToExternalReference(
+    const ExternalReference& ext) {
+  // Set the entry point and jump to the C entry runtime stub.
+  mov(ebx, Immediate(ext));
+  CEntryStub ces(1);
+  return TryTailCallStub(&ces);
 }
 
 

@@ -813,22 +813,38 @@ class MacroAssembler: public Assembler {
                                  int num_arguments,
                                  int result_size);
 
+  MUST_USE_RESULT MaybeObject* TryTailCallExternalReference(
+      const ExternalReference& ext, int num_arguments, int result_size);
+
   // Convenience function: tail call a runtime routine (jump).
   void TailCallRuntime(Runtime::FunctionId fid,
                        int num_arguments,
                        int result_size);
 
+  MUST_USE_RESULT  MaybeObject* TryTailCallRuntime(Runtime::FunctionId fid,
+                                                   int num_arguments,
+                                                   int result_size);
+
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext, int result_size);
 
-  // Prepares stack to put arguments (aligns and so on).
-  // Uses calle-saved esi to restore stack state after call.
-  void PrepareCallApiFunction(int stack_space);
+  // Jump to a runtime routine.
+  MaybeObject* TryJumpToExternalReference(const ExternalReference& ext,
+                                          int result_size);
 
-  // Tail call an API function (jump). Allocates HandleScope, extracts
-  // returned value from handle and propogates exceptions.
-  // Clobbers ebx, edi and caller-save registers.
-  void CallApiFunctionAndReturn(ApiFunction* function);
+  // Prepares stack to put arguments (aligns and so on).
+  // Uses callee-saved rsi to restore stack state after call. WIN64 calling
+  // convention requires to put the pointer to the return value slot into rcx
+  // (rcx must be preserverd until TryCallApiFunctionAndReturn). argc is number
+  // of arguments to be passed in C-function. stack_space * kPointerSize bytes
+  // will be removed from stack after the call. Saves context (rsi).
+  void PrepareCallApiFunction(int stack_space, int argc);
+
+  // Calls an API function. Allocates HandleScope, extracts
+  // returned value from handle and propagates exceptions.
+  // Clobbers r12, r14, rbx and caller-save registers. Restores context.
+  MUST_USE_RESULT MaybeObject* TryCallApiFunctionAndReturn(
+      ApiFunction* function);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],

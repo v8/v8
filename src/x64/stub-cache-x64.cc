@@ -1844,7 +1844,7 @@ MaybeObject* LoadStubCompiler::CompileLoadCallback(String* name,
   Label miss;
 
   Failure* failure = Failure::InternalError();
-  bool success = GenerateLoadCallback(object, holder, rax, rcx, rbx, rdx, rdi,
+  bool success = GenerateLoadCallback(object, holder, rax, rcx, rdx, rbx, rdi,
                                       callback, name, &miss, &failure);
   if (!success) {
     miss.Unuse();
@@ -2585,19 +2585,21 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
 
   Handle<AccessorInfo> callback_handle(callback);
 
-  __ EnterInternalFrame();
-  // Push the stack address where the list of arguments ends.
-  __ movq(scratch2, rsp);
-  __ subq(scratch2, Immediate(2 * kPointerSize));
-  __ push(scratch2);
+  // Insert additional parameters into the stack frame above return address.
+  ASSERT(!scratch2.is(reg));
+  __ pop(scratch2);  // Get return address to place it below.
+
   __ push(receiver);  // receiver
+  ASSERT(!scratch3.is(reg));
+  __ movq(scratch3, rsp);
   __ push(reg);  // holder
   if (Heap::InNewSpace(callback_handle->data())) {
-    __ Move(scratch2, callback_handle);
-    __ push(FieldOperand(scratch2, AccessorInfo::kDataOffset));  // data
+    __ Move(scratch1, callback_handle);
+    __ push(FieldOperand(scratch1, AccessorInfo::kDataOffset));  // data
   } else {
     __ Push(Handle<Object>(callback_handle->data()));
   }
+  __ push(scratch3);
   __ push(name_reg);  // name
   // Save a pointer to where we pushed the arguments pointer.
   // This will be passed as the const AccessorInfo& to the C++ callback.
@@ -2607,42 +2609,38 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   Register accessor_info_arg = r8;
   Register name_arg = rdx;
 #else
-  Register accessor_info_arg = rdx;  // temporary, copied to rsi by the stub.
+  Register accessor_info_arg = rsi;
   Register name_arg = rdi;
 #endif
 
-  __ movq(accessor_info_arg, rsp);
-  __ addq(accessor_info_arg, Immediate(4 * kPointerSize));
+  ASSERT(!name_arg.is(scratch2));
   __ movq(name_arg, rsp);
+  __ push(scratch2);  // Restore return address.
 
   // Do call through the api.
-  ASSERT_EQ(5, ApiGetterEntryStub::kStackSpace);
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
-  ApiGetterEntryStub stub(callback_handle, &fun);
-#ifdef _WIN64
-  // We need to prepare a slot for result handle on stack and put
-  // a pointer to it into 1st arg register.
-  __ push(Immediate(0));
-  __ movq(rcx, rsp);
-#endif
+
+  // 3 elements array for v8::Agruments::values_, handler for name and pointer
+  // to the values (it considered as smi in GC).
+  const int kStackSpace = 5;
+  const int kApiArgc = 2;
+
+  __ PrepareCallApiFunction(kStackSpace, kApiArgc);
+
+  // The context register (rsi) has been saved in PrepareCallApiFunction and
+  // could be used to pass arguments.
+  __ lea(accessor_info_arg, Operand(name_arg, 1 * kPointerSize));
+
   // Emitting a stub call may try to allocate (if the code is not
   // already generated).  Do not allow the assembler to perform a
   // garbage collection but instead return the allocation failure
   // object.
-  MaybeObject* result = masm()->TryCallStub(&stub);
+  MaybeObject* result = masm()->TryCallApiFunctionAndReturn(&fun);
   if (result->IsFailure()) {
     *failure = Failure::cast(result);
     return false;
   }
-#ifdef _WIN64
-  // Discard allocated slot.
-  __ addq(rsp, Immediate(kPointerSize));
-#endif
-  __ LeaveInternalFrame();
-
-  __ ret(0);
-
   return true;
 }
 

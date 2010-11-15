@@ -460,10 +460,22 @@ class MacroAssembler: public Assembler {
                                  int num_arguments,
                                  int result_size);
 
+  // Tail call of a runtime routine (jump). Try to generate the code if
+  // necessary. Do not perform a GC but instead return a retry after GC failure.
+  MUST_USE_RESULT MaybeObject* TryTailCallExternalReference(
+      const ExternalReference& ext, int num_arguments, int result_size);
+
   // Convenience function: tail call a runtime routine (jump).
   void TailCallRuntime(Runtime::FunctionId fid,
                        int num_arguments,
                        int result_size);
+
+  // Convenience function: tail call a runtime routine (jump). Try to generate
+  // the code if necessary. Do not perform a GC but instead return a retry after
+  // GC failure.
+  MUST_USE_RESULT MaybeObject* TryTailCallRuntime(Runtime::FunctionId fid,
+                                                  int num_arguments,
+                                                  int result_size);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],
@@ -485,16 +497,19 @@ class MacroAssembler: public Assembler {
   // Prepares stack to put arguments (aligns and so on). Reserves
   // space for return value if needed (assumes the return value is a handle).
   // Uses callee-saved esi to restore stack state after call. Arguments must be
-  // stored in ApiParameterOperand(0), ApiParameterOperand(1) etc.
+  // stored in ApiParameterOperand(0), ApiParameterOperand(1) etc. Saves
+  // context (esi).
   void PrepareCallApiFunction(int stack_space, int argc);
 
   // Calls an API function. Allocates HandleScope, extracts
   // returned value from handle and propagates exceptions.
-  // Clobbers ebx, esi, edi and caller-save registers.
-  void CallApiFunctionAndReturn(ApiFunction* function, int argc);
+  // Clobbers ebx, edi and caller-save registers. Restores context.
+  MaybeObject* TryCallApiFunctionAndReturn(ApiFunction* function, int argc);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext);
+
+  MaybeObject* TryJumpToExternalReference(const ExternalReference& ext);
 
 
   // ---------------------------------------------------------------------------

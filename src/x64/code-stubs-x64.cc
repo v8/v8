@@ -2483,20 +2483,6 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 }
 
 
-void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
-  __ PrepareCallApiFunction(kStackSpace);
-#ifdef _WIN64
-  // All the parameters should be set up by a caller.
-#else
-  // Set 1st parameter register with property name.
-  __ movq(rsi, rdx);
-  // Second parameter register rdi should be set with pointer to AccessorInfo
-  // by a caller.
-#endif
-  __ CallApiFunctionAndReturn(fun());
-}
-
-
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
