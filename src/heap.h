@@ -1558,6 +1558,7 @@ class PagedSpaces BASE_EMBEDDED {
 class SpaceIterator : public Malloced {
  public:
   SpaceIterator();
+  explicit SpaceIterator(HeapObjectCallback size_func);
   virtual ~SpaceIterator();
 
   bool has_next();
@@ -1568,17 +1569,31 @@ class SpaceIterator : public Malloced {
 
   int current_space_;  // from enum AllocationSpace.
   ObjectIterator* iterator_;  // object iterator for the current space.
+  HeapObjectCallback size_func_;
 };
 
 
-// A HeapIterator provides iteration over the whole heap It aggregates a the
-// specific iterators for the different spaces as these can only iterate over
-// one space only.
+// A HeapIterator provides iteration over the whole heap. It
+// aggregates the specific iterators for the different spaces as
+// these can only iterate over one space only.
+//
+// HeapIterator can skip free list nodes (that is, de-allocated heap
+// objects that still remain in the heap). As implementation of free
+// nodes filtering uses GC marks, it can't be used during MS/MC GC
+// phases. Also, it is forbidden to interrupt iteration in this mode,
+// as this will leave heap objects marked (and thus, unusable).
+class FreeListNodesFilter;
 
 class HeapIterator BASE_EMBEDDED {
  public:
-  explicit HeapIterator();
-  virtual ~HeapIterator();
+  enum FreeListNodesFiltering {
+    kNoFiltering,
+    kPreciseFiltering
+  };
+
+  HeapIterator();
+  explicit HeapIterator(FreeListNodesFiltering filtering);
+  ~HeapIterator();
 
   HeapObject* next();
   void reset();
@@ -1586,10 +1601,12 @@ class HeapIterator BASE_EMBEDDED {
  private:
   // Perform the initialization.
   void Init();
-
   // Perform all necessary shutdown (destruction) work.
   void Shutdown();
+  HeapObject* NextObject();
 
+  FreeListNodesFiltering filtering_;
+  FreeListNodesFilter* filter_;
   // Space iterator for iterating all the spaces.
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.

@@ -1898,6 +1898,18 @@ MaybeObject* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
 }
 
 
+void OldSpaceFreeList::MarkNodes() {
+  for (int i = 0; i < kFreeListsLength; i++) {
+    Address cur_addr = free_[i].head_node_;
+    while (cur_addr != NULL) {
+      FreeListNode* cur_node = FreeListNode::FromAddress(cur_addr);
+      cur_addr = cur_node->next();
+      cur_node->SetMark();
+    }
+  }
+}
+
+
 #ifdef DEBUG
 bool OldSpaceFreeList::Contains(FreeListNode* node) {
   for (int i = 0; i < kFreeListsLength; i++) {
@@ -1954,6 +1966,16 @@ MaybeObject* FixedSizeFreeList::Allocate() {
   head_ = node->next();
   available_ -= object_size_;
   return node;
+}
+
+
+void FixedSizeFreeList::MarkNodes() {
+  Address cur_addr = head_;
+  while (cur_addr != NULL && cur_addr != tail_) {
+    FreeListNode* cur_node = FreeListNode::FromAddress(cur_addr);
+    cur_addr = cur_node->next();
+    cur_node->SetMark();
+  }
 }
 
 
@@ -2711,13 +2733,15 @@ LargeObjectSpace::LargeObjectSpace(AllocationSpace id)
     : Space(id, NOT_EXECUTABLE),  // Managed on a per-allocation basis
       first_chunk_(NULL),
       size_(0),
-      page_count_(0) {}
+      page_count_(0),
+      objects_size_(0) {}
 
 
 bool LargeObjectSpace::Setup() {
   first_chunk_ = NULL;
   size_ = 0;
   page_count_ = 0;
+  objects_size_ = 0;
   return true;
 }
 
@@ -2740,6 +2764,7 @@ void LargeObjectSpace::TearDown() {
 
   size_ = 0;
   page_count_ = 0;
+  objects_size_ = 0;
 }
 
 
@@ -2786,6 +2811,7 @@ MaybeObject* LargeObjectSpace::AllocateRawInternal(int requested_size,
   }
 
   size_ += static_cast<int>(chunk_size);
+  objects_size_ += requested_size;
   page_count_++;
   chunk->set_next(first_chunk_);
   chunk->set_size(chunk_size);
@@ -2948,6 +2974,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       // Free the chunk.
       MarkCompactCollector::ReportDeleteIfNeeded(object);
       size_ -= static_cast<int>(chunk_size);
+      objects_size_ -= object->Size();
       page_count_--;
       ObjectSpace space = kObjectSpaceLoSpace;
       if (executable == EXECUTABLE) space = kObjectSpaceCodeSpace;
@@ -3052,7 +3079,8 @@ void LargeObjectSpace::ReportStatistics() {
     CollectHistogramInfo(obj);
   }
 
-  PrintF("  number of objects %d\n", num_objects);
+  PrintF("  number of objects %d, "
+         "size of objects %" V8_PTR_PREFIX "d\n", num_objects, objects_size_);
   if (num_objects > 0) ReportHistogram(false);
 }
 
