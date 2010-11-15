@@ -79,23 +79,32 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
 #if defined(ANDROID)
-int Heap::max_semispace_size_  = 2*MB;
+static const int default_max_semispace_size_  = 2*MB;
 intptr_t Heap::max_old_generation_size_ = 192*MB;
 int Heap::initial_semispace_size_ = 128*KB;
 intptr_t Heap::code_range_size_ = 0;
 intptr_t Heap::max_executable_size_ = max_old_generation_size_;
 #elif defined(V8_TARGET_ARCH_X64)
-int Heap::max_semispace_size_  = 16*MB;
+static const int default_max_semispace_size_  = 16*MB;
 intptr_t Heap::max_old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
 intptr_t Heap::code_range_size_ = 512*MB;
 intptr_t Heap::max_executable_size_ = 256*MB;
 #else
-int Heap::max_semispace_size_  = 8*MB;
+static const int default_max_semispace_size_  = 8*MB;
 intptr_t Heap::max_old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
 intptr_t Heap::code_range_size_ = 0;
 intptr_t Heap::max_executable_size_ = 128*MB;
+#endif
+
+// Allow build-time customization of the max semispace size. Building
+// V8 with snapshots and a non-default max semispace size is much
+// easier if you can define it as part of the build environment.
+#if defined(V8_MAX_SEMISPACE_SIZE)
+int Heap::max_semispace_size_ = V8_MAX_SEMISPACE_SIZE;
+#else
+int Heap::max_semispace_size_ = default_max_semispace_size_;
 #endif
 
 // The snapshot semispace size will be the default semispace size if
