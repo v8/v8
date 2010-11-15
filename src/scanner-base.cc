@@ -27,6 +27,7 @@
 
 // Features shared by parsing and pre-parsing scanners.
 
+#include "../include/v8stdint.h"
 #include "scanner-base.h"
 
 namespace v8 {

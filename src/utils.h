@@ -31,7 +31,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "globals.h"
 #include "checks.h"
+#include "allocation.h"
 
 namespace v8 {
 namespace internal {

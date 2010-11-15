@@ -3282,8 +3282,8 @@ class V8EXPORT OutputStream {  // NOLINT
 
 namespace internal {
 
-const int kPointerSize = sizeof(void*);  // NOLINT
-const int kIntSize = sizeof(int);  // NOLINT
+static const int kApiPointerSize = sizeof(void*);  // NOLINT
+static const int kApiIntSize = sizeof(int);  // NOLINT
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
@@ -3319,19 +3319,19 @@ template <> struct SmiConstants<8> {
   }
 };
 
-const int kSmiShiftSize = SmiConstants<kPointerSize>::kSmiShiftSize;
-const int kSmiValueSize = SmiConstants<kPointerSize>::kSmiValueSize;
+const int kSmiShiftSize = SmiConstants<kApiPointerSize>::kSmiShiftSize;
+const int kSmiValueSize = SmiConstants<kApiPointerSize>::kSmiValueSize;
 
 template <size_t ptr_size> struct InternalConstants;
 
 // Internal constants for 32-bit systems.
 template <> struct InternalConstants<4> {
-  static const int kStringResourceOffset = 3 * kPointerSize;
+  static const int kStringResourceOffset = 3 * kApiPointerSize;
 };
 
 // Internal constants for 64-bit systems.
 template <> struct InternalConstants<8> {
-  static const int kStringResourceOffset = 3 * kPointerSize;
+  static const int kStringResourceOffset = 3 * kApiPointerSize;
 };
 
 /**
@@ -3345,12 +3345,12 @@ class Internals {
   // These values match non-compiler-dependent values defined within
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;
-  static const int kMapInstanceTypeOffset = kPointerSize + kIntSize;
+  static const int kMapInstanceTypeOffset = kApiPointerSize + kApiIntSize;
   static const int kStringResourceOffset =
-      InternalConstants<kPointerSize>::kStringResourceOffset;
+      InternalConstants<kApiPointerSize>::kStringResourceOffset;
 
-  static const int kProxyProxyOffset = kPointerSize;
-  static const int kJSObjectHeaderSize = 3 * kPointerSize;
+  static const int kProxyProxyOffset = kApiPointerSize;
+  static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
@@ -3368,7 +3368,7 @@ class Internals {
   }
 
   static inline int SmiValue(internal::Object* value) {
-    return SmiConstants<kPointerSize>::SmiToInt(value);
+    return SmiConstants<kApiPointerSize>::SmiToInt(value);
   }
 
   static inline int GetInstanceType(internal::Object* obj) {
@@ -3559,7 +3559,7 @@ Local<Value> Object::UncheckedGetInternalField(int index) {
     // If the object is a plain JSObject, which is the common case,
     // we know where to find the internal fields and can return the
     // value directly.
-    int offset = I::kJSObjectHeaderSize + (internal::kPointerSize * index);
+    int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
     O** result = HandleScope::CreateHandle(value);
     return Local<Value>(reinterpret_cast<Value*>(result));
@@ -3595,7 +3595,7 @@ void* Object::GetPointerFromInternalField(int index) {
     // If the object is a plain JSObject, which is the common case,
     // we know where to find the internal fields and can return the
     // value directly.
-    int offset = I::kJSObjectHeaderSize + (internal::kPointerSize * index);
+    int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
     return I::GetExternalPointer(value);
   }

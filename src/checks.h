@@ -30,8 +30,6 @@
 
 #include <string.h>
 
-#include "../include/v8stdint.h"
-
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 void API_Fatal(const char* location, const char* format, ...);
 
