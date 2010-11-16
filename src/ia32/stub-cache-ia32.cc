@@ -506,7 +506,7 @@ static bool GenerateFastApiCall(MacroAssembler* masm,
   __ mov(ApiParameterOperand(2), eax);  // v8::Arguments::values_.
   __ Set(ApiParameterOperand(3), Immediate(argc));  // v8::Arguments::length_.
   // v8::Arguments::is_construct_call_.
-  __ mov(ApiParameterOperand(4), Immediate(0));
+  __ Set(ApiParameterOperand(4), Immediate(0));
 
   // v8::InvocationCallback's argument.
   __ lea(eax, ApiParameterOperand(1));

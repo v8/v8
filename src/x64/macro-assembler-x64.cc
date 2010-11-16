@@ -498,18 +498,17 @@ static int Offset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-void MacroAssembler::PrepareCallApiFunction(int stack_space, int argc) {
+void MacroAssembler::PrepareCallApiFunction(int stack_space,
+                                            int arg_stack_space) {
 #ifdef _WIN64
   // We need to prepare a slot for result handle on stack and put
   // a pointer to it into 1st arg register.
-  int register_based_args = argc > 3 ? 3 : argc;
-  EnterApiExitFrame(stack_space, argc - register_based_args + 1);
+  EnterApiExitFrame(stack_space, arg_stack_space + 1);
 
-  int return_value_slot = (argc > 3 ? argc - 3 + 1 : 4);
   // rcx must be used to pass the pointer to the return value slot.
-  lea(rcx, Operand(rsp, return_value_slot * kPointerSize));
+  lea(rcx, StackSpaceOperand(arg_stack_space));
 #else
-  EnterApiExitFrame(stack_space, argc);
+  EnterApiExitFrame(stack_space, arg_stack_space);
 #endif
 }
 
@@ -1744,22 +1743,15 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   store_rax(context_address);
 }
 
-void MacroAssembler::EnterExitFrameEpilogue(int result_size,
-                                            int argc) {
+
+void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space) {
 #ifdef _WIN64
-  // Reserve space on stack for result and argument structures, if necessary.
-  int result_stack_space = (result_size < 2) ? 0 : result_size * kPointerSize;
-  // Reserve space for the Arguments object.  The Windows 64-bit ABI
-  // requires us to pass this structure as a pointer to its location on
-  // the stack.  The structure contains 2 values.
-  int argument_stack_space = argc * kPointerSize;
-  // We also need backing space for 4 parameters, even though
-  // we only pass one or two parameter, and it is in a register.
-  int argument_mirror_space = 4 * kPointerSize;
-  int total_stack_space =
-      argument_mirror_space + argument_stack_space + result_stack_space;
-  subq(rsp, Immediate(total_stack_space));
+  const int kShaddowSpace = 4;
+  arg_stack_space += kShaddowSpace;
 #endif
+  if (arg_stack_space > 0) {
+    subq(rsp, Immediate(arg_stack_space * kPointerSize));
+  }
 
   // Get the required frame alignment for the OS.
   static const int kFrameAlignment = OS::ActivationFrameAlignment();
@@ -1774,7 +1766,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int result_size,
 }
 
 
-void MacroAssembler::EnterExitFrame(int result_size) {
+void MacroAssembler::EnterExitFrame(int arg_stack_space) {
   EnterExitFramePrologue(true);
 
   // Setup argv in callee-saved register r12. It is reused in LeaveExitFrame,
@@ -1782,13 +1774,12 @@ void MacroAssembler::EnterExitFrame(int result_size) {
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   lea(r12, Operand(rbp, r14, times_pointer_size, offset));
 
-  EnterExitFrameEpilogue(result_size, 2);
+  EnterExitFrameEpilogue(arg_stack_space);
 }
 
 
 void MacroAssembler::EnterApiExitFrame(int stack_space,
-                                       int argc,
-                                       int result_size) {
+                                       int arg_stack_space) {
   EnterExitFramePrologue(false);
 
   // Setup argv in callee-saved register r12. It is reused in LeaveExitFrame,
@@ -1796,11 +1787,7 @@ void MacroAssembler::EnterApiExitFrame(int stack_space,
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   lea(r12, Operand(rbp, (stack_space * kPointerSize) + offset));
 
-#ifndef _WIN64
-  ASSERT(argc <= 6);  // EnterApiExitFrame supports only register based args.
-#endif
-
-  EnterExitFrameEpilogue(result_size, argc);
+  EnterExitFrameEpilogue(arg_stack_space);
 }
 
 

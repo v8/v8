@@ -155,11 +155,13 @@ class MacroAssembler: public Assembler {
   // debug mode. Expects the number of arguments in register rax and
   // sets up the number of arguments in register rdi and the pointer
   // to the first argument in register rsi.
-  void EnterExitFrame(int result_size = 1);
+  //
+  // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
+  // accessible via StackSpaceOperand.
+  void EnterExitFrame(int arg_stack_space = 0);
 
   void EnterApiExitFrame(int stack_space,
-                         int argc,
-                         int result_size = 1);
+                         int arg_stack_space);
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax:rdx (untouched) and the pointer to the first
@@ -838,7 +840,12 @@ class MacroAssembler: public Assembler {
   // (rcx must be preserverd until TryCallApiFunctionAndReturn). argc is number
   // of arguments to be passed in C-function. stack_space * kPointerSize bytes
   // will be removed from stack after the call. Saves context (rsi).
-  void PrepareCallApiFunction(int stack_space, int argc);
+  // Clobbers rax. Allocates arg_stack_space * kPointerSize inside the exit
+  // frame (not GCed).
+  //
+  // Assumes stack_space GCed references on top of the stack and return address.
+  // After call they will be removed.
+  void PrepareCallApiFunction(int stack_space, int arg_stack_space);
 
   // Calls an API function. Allocates HandleScope, extracts
   // returned value from handle and propagates exceptions.
@@ -935,7 +942,10 @@ class MacroAssembler: public Assembler {
   void LeaveFrame(StackFrame::Type type);
 
   void EnterExitFramePrologue(bool save_rax);
-  void EnterExitFrameEpilogue(int result_size, int argc);
+
+  // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
+  // accessible via StackSpaceOperand.
+  void EnterExitFrameEpilogue(int arg_stack_space);
 
   // Allocation support helpers.
   // Loads the top of new-space into the result register.
@@ -1005,6 +1015,17 @@ static inline Operand ContextOperand(Register context, int index) {
 
 static inline Operand GlobalObjectOperand() {
   return ContextOperand(rsi, Context::GLOBAL_INDEX);
+}
+
+
+// Provides access to exit frame stack space (not GCed).
+static inline Operand StackSpaceOperand(int index) {
+#ifdef _WIN64
+  const int kShaddowSpace = 4;
+  return Operand(rsp, (index + kShaddowSpace) * kPointerSize);
+#else
+  return Operand(rsp, index * kPointerSize);
+#endif
 }
 
 
