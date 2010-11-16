@@ -408,7 +408,7 @@ void MacroAssembler::LeaveExitFrame() {
 
   // Push the return address to get ready to return.
   push(ecx);
-  
+
   LeaveExitFrameEpilogue();
 }
 

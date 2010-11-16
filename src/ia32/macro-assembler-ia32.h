@@ -609,7 +609,7 @@ class MacroAssembler: public Assembler {
 
   void EnterExitFramePrologue();
   void EnterExitFrameEpilogue(int argc);
-  
+
   void LeaveExitFrameEpilogue();
 
   // Allocation support helpers.
