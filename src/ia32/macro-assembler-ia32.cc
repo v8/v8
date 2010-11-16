@@ -392,13 +392,8 @@ void MacroAssembler::EnterExitFrame() {
 }
 
 
-void MacroAssembler::EnterApiExitFrame(int stack_space,
-                                       int argc) {
+void MacroAssembler::EnterApiExitFrame(int argc) {
   EnterExitFramePrologue();
-
-  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  lea(esi, Operand(ebp, (stack_space * kPointerSize) + offset));
-
   EnterExitFrameEpilogue(argc);
 }
 
@@ -411,6 +406,13 @@ void MacroAssembler::LeaveExitFrame() {
   // Pop the arguments and the receiver from the caller stack.
   lea(esp, Operand(esi, 1 * kPointerSize));
 
+  // Push the return address to get ready to return.
+  push(ecx);
+  
+  LeaveExitFrameEpilogue();
+}
+
+void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(Top::k_context_address);
   mov(esi, Operand::StaticVariable(context_address));
@@ -418,12 +420,17 @@ void MacroAssembler::LeaveExitFrame() {
   mov(Operand::StaticVariable(context_address), Immediate(0));
 #endif
 
-  // Push the return address to get ready to return.
-  push(ecx);
-
   // Clear the top frame.
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
   mov(Operand::StaticVariable(c_entry_fp_address), Immediate(0));
+}
+
+
+void MacroAssembler::LeaveApiExitFrame() {
+  mov(esp, Operand(ebp));
+  pop(ebp);
+
+  LeaveExitFrameEpilogue();
 }
 
 
@@ -1151,21 +1158,15 @@ Operand ApiParameterOperand(int index) {
 }
 
 
-void MacroAssembler::PrepareCallApiFunction(int stack_space, int argc) {
+void MacroAssembler::PrepareCallApiFunction(int argc, Register scratch) {
   if (kPassHandlesDirectly) {
-    EnterApiExitFrame(stack_space, argc);
+    EnterApiExitFrame(argc);
     // When handles as passed directly we don't have to allocate extra
     // space for and pass an out parameter.
   } else {
     // We allocate two additional slots: return value and pointer to it.
-    EnterApiExitFrame(stack_space, argc + 2);
-  }
-}
+    EnterApiExitFrame(argc + 2);
 
-
-MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
-                                                         int argc) {
-  if (!kPassHandlesDirectly) {
     // The argument slots are filled as follows:
     //
     //   n + 1: output cell
@@ -1177,11 +1178,19 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
     // Note that this is one more "argument" than the function expects
     // so the out cell will have to be popped explicitly after returning
     // from the function. The out cell contains Handle.
-    lea(eax, Operand(esp, (argc + 1) * kPointerSize));  // pointer to out cell.
-    mov(Operand(esp, 0 * kPointerSize), eax);  // output.
-    mov(Operand(esp, (argc + 1) * kPointerSize), Immediate(0));  // out cell.
-  }
 
+    // pointer to out cell.
+    lea(scratch, Operand(esp, (argc + 1) * kPointerSize));
+    mov(Operand(esp, 0 * kPointerSize), scratch);  // output.
+    if (FLAG_debug_code) {
+      mov(Operand(esp, (argc + 1) * kPointerSize), Immediate(0));  // out cell.
+    }
+  }
+}
+
+
+MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
+                                                         int stack_space) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address();
   ExternalReference limit_address =
@@ -1230,8 +1239,8 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
   cmp(Operand::StaticVariable(scheduled_exception_address),
          Immediate(Factory::the_hole_value()));
   j(not_equal, &promote_scheduled_exception, not_taken);
-  LeaveExitFrame();
-  ret(0);
+  LeaveApiExitFrame();
+  ret(stack_space * kPointerSize);
   bind(&promote_scheduled_exception);
   MaybeObject* result =
       TryTailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);

@@ -123,12 +123,16 @@ class MacroAssembler: public Assembler {
   // to the first argument in register esi.
   void EnterExitFrame();
 
-  void EnterApiExitFrame(int stack_space, int argc);
+  void EnterApiExitFrame(int argc);
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
   // argument in register esi.
   void LeaveExitFrame();
+
+  // Leave the current exit frame. Expects the return value in
+  // register eax (untouched).
+  void LeaveApiExitFrame();
 
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
@@ -499,12 +503,14 @@ class MacroAssembler: public Assembler {
   // Uses callee-saved esi to restore stack state after call. Arguments must be
   // stored in ApiParameterOperand(0), ApiParameterOperand(1) etc. Saves
   // context (esi).
-  void PrepareCallApiFunction(int stack_space, int argc);
+  void PrepareCallApiFunction(int argc, Register scratch);
 
   // Calls an API function. Allocates HandleScope, extracts
   // returned value from handle and propagates exceptions.
   // Clobbers ebx, edi and caller-save registers. Restores context.
-  MaybeObject* TryCallApiFunctionAndReturn(ApiFunction* function, int argc);
+  // On return removes stack_space * kPointerSize (GCed).
+  MaybeObject* TryCallApiFunctionAndReturn(ApiFunction* function,
+                                           int stack_space);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext);
@@ -603,6 +609,8 @@ class MacroAssembler: public Assembler {
 
   void EnterExitFramePrologue();
   void EnterExitFrameEpilogue(int argc);
+  
+  void LeaveExitFrameEpilogue();
 
   // Allocation support helpers.
   void LoadAllocationTopHelper(Register result,

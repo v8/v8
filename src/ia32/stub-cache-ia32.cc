@@ -499,8 +499,7 @@ static bool GenerateFastApiCall(MacroAssembler* masm,
   // it's not controlled by GC.
   const int kApiStackSpace = 4;
 
-  __ PrepareCallApiFunction(argc + kFastApiCallArguments + 1,
-                            kApiArgc + kApiStackSpace);
+  __ PrepareCallApiFunction(kApiArgc + kApiStackSpace, ebx);
 
   __ mov(ApiParameterOperand(1), eax);  // v8::Arguments::implicit_args_.
   __ add(Operand(eax), Immediate(argc * kPointerSize));
@@ -518,7 +517,7 @@ static bool GenerateFastApiCall(MacroAssembler* masm,
   // garbage collection but instead return the allocation failure
   // object.
   MaybeObject* result =
-      masm->TryCallApiFunctionAndReturn(&fun, kApiArgc + kApiStackSpace);
+      masm->TryCallApiFunctionAndReturn(&fun, argc + kFastApiCallArguments + 1);
   if (result->IsFailure()) {
     *failure = Failure::cast(result);
     return false;
@@ -1109,7 +1108,7 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   const int kStackSpace = 5;
   const int kApiArgc = 2;
 
-  __ PrepareCallApiFunction(kStackSpace, kApiArgc);
+  __ PrepareCallApiFunction(kApiArgc, eax);
   __ mov(ApiParameterOperand(0), ebx);  // name.
   __ add(Operand(ebx), Immediate(kPointerSize));
   __ mov(ApiParameterOperand(1), ebx);  // arguments pointer.
@@ -1118,7 +1117,7 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   // already generated).  Do not allow the assembler to perform a
   // garbage collection but instead return the allocation failure
   // object.
-  MaybeObject* result = masm()->TryCallApiFunctionAndReturn(&fun, kApiArgc);
+  MaybeObject* result = masm()->TryCallApiFunctionAndReturn(&fun, kStackSpace);
   if (result->IsFailure()) {
     *failure = Failure::cast(result);
     return false;
@@ -2169,7 +2168,10 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
 
       if (depth != kInvalidProtoDepth) {
         __ IncrementCounter(&Counters::call_const_fast_api, 1);
-        ReserveSpaceForFastApiCall(masm(), eax);
+
+        // Allocate space for v8::Arguments implicit values. Must be initialized
+        // before to call any runtime function.
+        __ sub(Operand(esp), Immediate(kFastApiCallArguments * kPointerSize));
       }
 
       // Check that the maps haven't changed.
@@ -2249,6 +2251,12 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
 
   if (depth != kInvalidProtoDepth) {
     Failure* failure;
+    // Move the return address on top of the stack.
+    __ mov(eax, Operand(esp, 3 * kPointerSize));
+    __ mov(Operand(esp, 0 * kPointerSize), eax);
+
+    // esp[2 * kPointerSize] is uninitialized, esp[3 * kPointerSize] contains
+    // duplicate of return address and will be overwritten.
     bool success = GenerateFastApiCall(masm(), optimization, argc, &failure);
     if (!success) {
       return failure;
@@ -2260,7 +2268,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
   // Handle call cache miss.
   __ bind(&miss);
   if (depth != kInvalidProtoDepth) {
-    FreeSpaceForFastApiCall(masm(), eax);
+    __ add(Operand(esp), Immediate(kFastApiCallArguments * kPointerSize));
   }
   __ bind(&miss_in_smi_check);
   Object* obj;
