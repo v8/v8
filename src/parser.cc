@@ -36,7 +36,6 @@
 #include "messages.h"
 #include "parser.h"
 #include "platform.h"
-#include "prescanner.h"
 #include "preparser.h"
 #include "runtime.h"
 #include "scopeinfo.h"
@@ -4668,21 +4667,9 @@ ScriptDataImpl* ParserApi::PreParse(Handle<String> source,
                                     unibrow::CharacterStream* stream,
                                     v8::Extension* extension) {
   Handle<Script> no_script;
-  int length = 0;
-  SafeStringInputBuffer safe_stream;
-  if (!source.is_null()) {
-    length = source->length();
-    safe_stream.Reset(source.location());
-    stream = &safe_stream;
-  } else {
-    length = stream->Length();
-  }
-  typedef preparser::Scanner<CharacterStreamUTF16Buffer, UTF8Buffer> PreScanner;
-  preparser::PreParser<PreScanner, CompleteParserRecorder> parser;
-  CharacterStreamUTF16Buffer buffer;
-  buffer.Initialize(source, stream, 0, length);
-  PreScanner scanner;
-  scanner.Initialize(&buffer);
+  preparser::PreParser<Scanner, CompleteParserRecorder> parser;
+  Scanner scanner;
+  scanner.Initialize(source, stream, JAVASCRIPT);
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   CompleteParserRecorder recorder;
   if (!parser.PreParseProgram(&scanner, &recorder, allow_lazy)) {
