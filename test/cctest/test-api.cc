@@ -38,6 +38,7 @@
 #include "utils.h"
 #include "cctest.h"
 #include "parser.h"
+#include "unicode-inl.h"
 
 static const bool kLogThreading = true;
 

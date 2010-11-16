@@ -33,7 +33,7 @@
 #include "conversions-inl.h"
 #include "dtoa.h"
 #include "factory.h"
-#include "scanner.h"
+#include "scanner-base.h"
 #include "strtod.h"
 
 namespace v8 {
@@ -121,7 +121,7 @@ static const double JUNK_STRING_VALUE = OS::nan_value();
 template <class Iterator, class EndMark>
 static inline bool AdvanceToNonspace(Iterator* current, EndMark end) {
   while (*current != end) {
-    if (!Scanner::kIsWhiteSpace.get(**current)) return true;
+    if (!ScannerConstants::kIsWhiteSpace.get(**current)) return true;
     ++*current;
   }
   return false;

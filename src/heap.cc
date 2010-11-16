@@ -38,7 +38,7 @@
 #include "mark-compact.h"
 #include "natives.h"
 #include "objects-visiting.h"
-#include "scanner.h"
+#include "scanner-base.h"
 #include "scopeinfo.h"
 #include "snapshot.h"
 #include "v8threads.h"
@@ -3249,7 +3249,8 @@ MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> string,
   const uc32 kMaxSupportedChar = 0xFFFF;
   // Count the number of characters in the UTF-8 string and check if
   // it is an ASCII string.
-  Access<Scanner::Utf8Decoder> decoder(Scanner::utf8_decoder());
+  Access<ScannerConstants::Utf8Decoder>
+      decoder(ScannerConstants::utf8_decoder());
   decoder->Reset(string.start(), string.length());
   int chars = 0;
   bool is_ascii = true;

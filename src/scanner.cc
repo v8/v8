@@ -30,22 +30,10 @@
 #include "ast.h"
 #include "handles.h"
 #include "scanner.h"
+#include "unicode-inl.h"
 
 namespace v8 {
 namespace internal {
-
-// ----------------------------------------------------------------------------
-// Character predicates
-
-
-unibrow::Predicate<IdentifierStart, 128> Scanner::kIsIdentifierStart;
-unibrow::Predicate<IdentifierPart, 128> Scanner::kIsIdentifierPart;
-unibrow::Predicate<unibrow::LineTerminator, 128> Scanner::kIsLineTerminator;
-unibrow::Predicate<unibrow::WhiteSpace, 128> Scanner::kIsWhiteSpace;
-
-
-StaticResource<Scanner::Utf8Decoder> Scanner::utf8_decoder_;
-
 
 // ----------------------------------------------------------------------------
 // UTF8Buffer
@@ -358,9 +346,9 @@ bool Scanner::SkipJavaScriptWhiteSpace() {
   while (true) {
     // We treat byte-order marks (BOMs) as whitespace for better
     // compatibility with Spidermonkey and other JavaScript engines.
-    while (kIsWhiteSpace.get(c0_) || IsByteOrderMark(c0_)) {
+    while (ScannerConstants::kIsWhiteSpace.get(c0_) || IsByteOrderMark(c0_)) {
       // IsWhiteSpace() includes line terminators!
-      if (kIsLineTerminator.get(c0_)) {
+      if (ScannerConstants::kIsLineTerminator.get(c0_)) {
         // Ignore line terminators, but remember them. This is necessary
         // for automatic semicolon insertion.
         has_line_terminator_before_next_ = true;
@@ -400,7 +388,7 @@ Token::Value Scanner::SkipSingleLineComment() {
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
   // ECMA-262, section 7.4, page 12).
-  while (c0_ >= 0 && !kIsLineTerminator.get(c0_)) {
+  while (c0_ >= 0 && !ScannerConstants::kIsLineTerminator.get(c0_)) {
     Advance();
   }
 
@@ -631,7 +619,7 @@ Token::Value Scanner::ScanJsonIdentifier(const char* text,
     Advance();
     text++;
   }
-  if (kIsIdentifierPart.get(c0_)) return Token::ILLEGAL;
+  if (ScannerConstants::kIsIdentifierPart.get(c0_)) return Token::ILLEGAL;
   literal.Complete();
   return token;
 }
@@ -854,7 +842,7 @@ void Scanner::ScanJavaScript() {
         break;
 
       default:
-        if (kIsIdentifierStart.get(c0_)) {
+        if (ScannerConstants::kIsIdentifierStart.get(c0_)) {
           token = ScanIdentifier();
         } else if (IsDecimalDigit(c0_)) {
           token = ScanNumber(false);
@@ -937,7 +925,7 @@ void Scanner::ScanEscape() {
   Advance();
 
   // Skip escaped newlines.
-  if (kIsLineTerminator.get(c)) {
+  if (ScannerConstants::kIsLineTerminator.get(c)) {
     // Allow CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
     // Allow LF+CR newlines in multiline string literals.
@@ -979,7 +967,8 @@ Token::Value Scanner::ScanString() {
   Advance();  // consume quote
 
   LiteralScope literal(this);
-  while (c0_ != quote && c0_ >= 0 && !kIsLineTerminator.get(c0_)) {
+  while (c0_ != quote && c0_ >= 0
+         && !ScannerConstants::kIsLineTerminator.get(c0_)) {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
@@ -1092,7 +1081,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   // not be an identifier start or a decimal digit; see ECMA-262
   // section 7.8.3, page 17 (note that we read only one decimal digit
   // if the value is 0).
-  if (IsDecimalDigit(c0_) || kIsIdentifierStart.get(c0_))
+  if (IsDecimalDigit(c0_) || ScannerConstants::kIsIdentifierStart.get(c0_))
     return Token::ILLEGAL;
 
   literal.Complete();
@@ -1114,7 +1103,7 @@ uc32 Scanner::ScanIdentifierUnicodeEscape() {
 
 
 Token::Value Scanner::ScanIdentifier() {
-  ASSERT(kIsIdentifierStart.get(c0_));
+  ASSERT(ScannerConstants::kIsIdentifierStart.get(c0_));
 
   LiteralScope literal(this);
   KeywordMatcher keyword_match;
@@ -1123,7 +1112,7 @@ Token::Value Scanner::ScanIdentifier() {
   if (c0_ == '\\') {
     uc32 c = ScanIdentifierUnicodeEscape();
     // Only allow legal identifier start characters.
-    if (!kIsIdentifierStart.get(c)) return Token::ILLEGAL;
+    if (!ScannerConstants::kIsIdentifierStart.get(c)) return Token::ILLEGAL;
     AddChar(c);
     keyword_match.Fail();
   } else {
@@ -1133,11 +1122,11 @@ Token::Value Scanner::ScanIdentifier() {
   }
 
   // Scan the rest of the identifier characters.
-  while (kIsIdentifierPart.get(c0_)) {
+  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       // Only allow legal identifier part characters.
-      if (!kIsIdentifierPart.get(c)) return Token::ILLEGAL;
+      if (!ScannerConstants::kIsIdentifierPart.get(c)) return Token::ILLEGAL;
       AddChar(c);
       keyword_match.Fail();
     } else {
@@ -1151,17 +1140,6 @@ Token::Value Scanner::ScanIdentifier() {
   return keyword_match.token();
 }
 
-
-
-bool Scanner::IsIdentifier(unibrow::CharacterStream* buffer) {
-  // Checks whether the buffer contains an identifier (no escape).
-  if (!buffer->has_more()) return false;
-  if (!kIsIdentifierStart.get(buffer->GetNext())) return false;
-  while (buffer->has_more()) {
-    if (!kIsIdentifierPart.get(buffer->GetNext())) return false;
-  }
-  return true;
-}
 
 
 bool Scanner::ScanRegExpPattern(bool seen_equal) {
@@ -1181,10 +1159,10 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
     AddChar('=');
 
   while (c0_ != '/' || in_character_class) {
-    if (kIsLineTerminator.get(c0_) || c0_ < 0) return false;
+    if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
     if (c0_ == '\\') {  // escaped character
       AddCharAdvance();
-      if (kIsLineTerminator.get(c0_) || c0_ < 0) return false;
+      if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
       AddCharAdvance();
     } else {  // unescaped character
       if (c0_ == '[') in_character_class = true;
@@ -1202,7 +1180,7 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
 bool Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this);
-  while (kIsIdentifierPart.get(c0_)) {
+  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       if (c != static_cast<uc32>(unibrow::Utf8::kBadChar)) {

@@ -251,16 +251,9 @@ class Scanner {
 
   bool stack_overflow() { return stack_overflow_; }
 
-  static StaticResource<Utf8Decoder>* utf8_decoder() { return &utf8_decoder_; }
-
   // Tells whether the buffer contains an identifier (no escapes).
   // Used for checking if a property name is an identifier.
   static bool IsIdentifier(unibrow::CharacterStream* buffer);
-
-  static unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
-  static unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
-  static unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
-  static unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
 
   static const int kCharacterLookaheadBufferSize = 1;
   static const int kNoEndPosition = 1;
@@ -391,7 +384,6 @@ class Scanner {
   UTF8Buffer literal_buffer_;
 
   bool stack_overflow_;
-  static StaticResource<Utf8Decoder> utf8_decoder_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;

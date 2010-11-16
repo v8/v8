@@ -30,11 +30,36 @@
 #ifndef V8_SCANNER_BASE_H_
 #define V8_SCANNER_BASE_H_
 
+#include "globals.h"
+#include "checks.h"
+#include "allocation.h"
 #include "token.h"
-#include "unicode.h"
+#include "unicode-inl.h"
+#include "char-predicates.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
+
+class ScannerConstants : AllStatic {
+ public:
+  typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
+
+  static StaticResource<Utf8Decoder>* utf8_decoder() {
+    return &utf8_decoder_;
+  }
+
+  static unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
+  static unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
+  static unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
+  static unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
+
+  static bool IsIdentifier(unibrow::CharacterStream* buffer);
+
+ private:
+  static StaticResource<Utf8Decoder> utf8_decoder_;
+};
+
 
 class KeywordMatcher {
 //  Incrementally recognize keywords.
@@ -45,7 +70,8 @@ class KeywordMatcher {
 //      return switch this throw true try typeof var void while with
 //
 //  *: Actually "future reserved keywords". These are the only ones we
-//     recognized, the remaining are allowed as identifiers.
+//     recognize, the remaining are allowed as identifiers.
+//     In ES5 strict mode, we should disallow all reserved keywords.
  public:
   KeywordMatcher()
       : state_(INITIAL),
@@ -154,10 +180,6 @@ class KeywordMatcher {
   int counter_;
   Token::Value keyword_token_;
 };
-
-
-
-
 
 
 } }  // namespace v8::internal
