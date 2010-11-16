@@ -453,7 +453,7 @@ void Heap::CollectAllAvailableGarbage() {
 
 bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
   // The VM is in the GC state until exiting this function.
-  VMState state(GC);
+  VMState state(isolate_, GC);
 
 #ifdef DEBUG
   // Reset the allocation timeout to the GC interval, but make sure to

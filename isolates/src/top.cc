@@ -443,15 +443,15 @@ bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
 
   if (!callback) return false;
 
-  HandleScope scope;
-  Handle<JSObject> receiver_handle(receiver);
-  Handle<Object> key_handle(key);
-  Handle<Object> data(AccessCheckInfo::cast(data_obj)->data());
+  HandleScope scope(this);
+  Handle<JSObject> receiver_handle(receiver, this);
+  Handle<Object> key_handle(key, this);
+  Handle<Object> data(AccessCheckInfo::cast(data_obj)->data(), this);
   LOG(ApiNamedSecurityCheck(key));
   bool result = false;
   {
     // Leaving JavaScript.
-    VMState state(EXTERNAL);
+    VMState state(this, EXTERNAL);
     result = callback(v8::Utils::ToLocal(receiver_handle),
                       v8::Utils::ToLocal(key_handle),
                       type,
@@ -486,14 +486,14 @@ bool Isolate::MayIndexedAccess(JSObject* receiver,
 
   if (!callback) return false;
 
-  HandleScope scope;
-  Handle<JSObject> receiver_handle(receiver);
-  Handle<Object> data(AccessCheckInfo::cast(data_obj)->data());
+  HandleScope scope(this);
+  Handle<JSObject> receiver_handle(receiver, this);
+  Handle<Object> data(AccessCheckInfo::cast(data_obj)->data(), this);
   LOG(ApiIndexedSecurityCheck(index));
   bool result = false;
   {
     // Leaving JavaScript.
-    VMState state(EXTERNAL);
+    VMState state(this, EXTERNAL);
     result = callback(v8::Utils::ToLocal(receiver_handle),
                       index,
                       type,

@@ -36,7 +36,7 @@ namespace internal {
 class VMState BASE_EMBEDDED {
 #ifdef ENABLE_VMSTATE_TRACKING
  public:
-  inline VMState(StateTag state);
+  inline VMState(Isolate* isolate, StateTag state);
   inline ~VMState();
 
   StateTag state() { return state_; }
@@ -60,15 +60,15 @@ class VMState BASE_EMBEDDED {
   }
 
  private:
+  Isolate* isolate_;
   bool disabled_;
   StateTag state_;
   VMState* previous_;
   Address external_callback_;
-  Isolate* isolate_;
 
 #else
  public:
-  explicit VMState(StateTag state) {}
+  VMState(Isolate* isolate, StateTag state) {}
 #endif
 };
 

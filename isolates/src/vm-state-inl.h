@@ -55,13 +55,16 @@ inline const char* StateToString(StateTag state) {
   }
 }
 
-VMState::VMState(StateTag state)
-    : disabled_(true),
+VMState::VMState(Isolate* isolate, StateTag state)
+    : isolate_(isolate),
+      disabled_(true),
       state_(OTHER),
-      external_callback_(NULL),
-      isolate_(Isolate::Current()) {
+      external_callback_(NULL) {
+  ASSERT(isolate == Isolate::Current());
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!LOGGER->is_logging() && !CpuProfiler::is_profiling()) {
+  if (!isolate_->logger()->is_logging() &&
+      !CpuProfiler::is_profiling(isolate_)) {
     return;
   }
 #endif

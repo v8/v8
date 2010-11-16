@@ -265,7 +265,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
   COUNTERS->total_compile_size()->Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
-  VMState state(COMPILER);
+  VMState state(isolate, COMPILER);
 
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
@@ -331,31 +331,30 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
 Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
                                                  Handle<Context> context,
                                                  bool is_global) {
+  Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
-  COUNTERS->total_eval_size()->Increment(source_length);
-  COUNTERS->total_compile_size()->Increment(source_length);
+  isolate->counters()->total_eval_size()->Increment(source_length);
+  isolate->counters()->total_compile_size()->Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
-  VMState state(COMPILER);
+  VMState state(isolate, COMPILER);
 
   // Do a lookup in the compilation cache; if the entry is not there, invoke
   // the compiler and add the result to the cache.
   Handle<SharedFunctionInfo> result;
-  CompilationCache* compilation_cache =
-      context->GetIsolate()->compilation_cache();
+  CompilationCache* compilation_cache = isolate->compilation_cache();
   result = compilation_cache->LookupEval(source, context, is_global);
 
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
-    Handle<Script> script = FACTORY->NewScript(source);
+    Handle<Script> script = isolate->factory()->NewScript(source);
     CompilationInfo info(script);
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
     info.SetCallingContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
-      CompilationCache* compilation_cache =
-          context->GetIsolate()->compilation_cache();
+      CompilationCache* compilation_cache = isolate->compilation_cache();
       compilation_cache->PutEval(source, context, is_global, result);
     }
   }
@@ -368,7 +367,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
-  VMState state(COMPILER);
+  VMState state(info->isolate(), COMPILER);
 
   PostponeInterruptsScope postpone;
 

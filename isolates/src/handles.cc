@@ -661,9 +661,9 @@ void CustomArguments::IterateInstance(ObjectVisitor* v) {
 // Compute the property keys from the interceptor.
 v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
                                                  Handle<JSObject> object) {
+  Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
-  CustomArguments args(receiver->GetIsolate(),
-                       interceptor->data(), *receiver, *object);
+  CustomArguments args(isolate, interceptor->data(), *receiver, *object);
   v8::AccessorInfo info(args.end());
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {
@@ -672,7 +672,7 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
     LOG(ApiObjectAccess("interceptor-named-enum", *object));
     {
       // Leaving JavaScript.
-      VMState state(EXTERNAL);
+      VMState state(isolate, EXTERNAL);
       result = enum_fun(info);
     }
   }
@@ -683,9 +683,9 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
 // Compute the element keys from the interceptor.
 v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
                                                    Handle<JSObject> object) {
+  Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
-  CustomArguments args(receiver->GetIsolate(),
-                       interceptor->data(), *receiver, *object);
+  CustomArguments args(isolate, interceptor->data(), *receiver, *object);
   v8::AccessorInfo info(args.end());
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {
@@ -694,7 +694,7 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
     LOG(ApiObjectAccess("interceptor-indexed-enum", *object));
     {
       // Leaving JavaScript.
-      VMState state(EXTERNAL);
+      VMState state(isolate, EXTERNAL);
       result = enum_fun(info);
     }
   }

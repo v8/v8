@@ -138,10 +138,12 @@ class GlobalHandles {
 #endif
   class Pool;
  private:
-  GlobalHandles();
+  explicit GlobalHandles(Isolate* isolate);
 
   // Internal node structure, one for each global handle.
   class Node;
+
+  Isolate* isolate_;
 
   // Field always containing the number of weak and near-death handles.
   int number_of_weak_handles_;

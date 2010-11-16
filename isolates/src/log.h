@@ -77,6 +77,7 @@ class LogMessageBuilder;
 class CompressionHelper;
 
 #undef LOG
+// TODO(isolates): pass isolate pointer here.
 #ifdef ENABLE_LOGGING_AND_PROFILING
 #define LOG(Call)                                   \
   do {                                              \

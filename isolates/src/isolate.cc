@@ -576,7 +576,7 @@ bool Isolate::PreInit() {
   scanner_character_classes_ = new ScannerCharacterClasses();
   pc_to_code_cache_ = new PcToCodeCache(this);
   write_input_buffer_ = new StringInputBuffer();
-  global_handles_ = new GlobalHandles();
+  global_handles_ = new GlobalHandles(this);
   bootstrapper_ = new Bootstrapper();
   cpu_features_ = new CpuFeatures();
   handle_scope_implementer_ = new HandleScopeImplementer();

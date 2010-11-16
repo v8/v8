@@ -1051,7 +1051,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
     v8::Handle<v8::Value> value;
     {
       // Leaving JavaScript.
-      VMState state(EXTERNAL);
+      VMState state(isolate, EXTERNAL);
 #ifdef ENABLE_LOGGING_AND_PROFILING
       state.set_external_callback(v8::ToCData<Address>(callback_obj));
 #endif
@@ -1131,7 +1131,7 @@ BUILTIN(FastHandleApiCall) {
   v8::Handle<v8::Value> value;
   {
     // Leaving JavaScript.
-    VMState state(EXTERNAL);
+    VMState state(isolate, EXTERNAL);
 #ifdef ENABLE_LOGGING_AND_PROFILING
     state.set_external_callback(v8::ToCData<Address>(callback_obj));
 #endif
@@ -1199,7 +1199,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
     v8::Handle<v8::Value> value;
     {
       // Leaving JavaScript.
-      VMState state(EXTERNAL);
+      VMState state(isolate, EXTERNAL);
 #ifdef ENABLE_LOGGING_AND_PROFILING
       state.set_external_callback(v8::ToCData<Address>(callback_obj));
 #endif

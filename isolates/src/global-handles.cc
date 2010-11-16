@@ -149,7 +149,8 @@ class GlobalHandles::Node : public Malloced {
   // Returns the callback for this weak handle.
   WeakReferenceCallback callback() { return callback_; }
 
-  bool PostGarbageCollectionProcessing(GlobalHandles* global_handles) {
+  bool PostGarbageCollectionProcessing(Isolate* isolate,
+                                       GlobalHandles* global_handles) {
     if (state_ != Node::PENDING) return false;
     LOG(HandleEvent("GlobalHandle::Processing", handle().location()));
     WeakReferenceCallback func = callback();
@@ -177,7 +178,7 @@ class GlobalHandles::Node : public Malloced {
       ASSERT(!object_->IsExternalTwoByteString() ||
              ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.
-      VMState state(EXTERNAL);
+      VMState state(isolate, EXTERNAL);
       func(object, par);
     }
     // Absense of explicit cleanup or revival of weak handle
@@ -276,8 +277,9 @@ class GlobalHandles::Pool {
 };
 
 
-GlobalHandles::GlobalHandles()
-    : number_of_weak_handles_(0),
+GlobalHandles::GlobalHandles(Isolate* isolate)
+    : isolate_(isolate),
+      number_of_weak_handles_(0),
       number_of_global_object_weak_handles_(0),
       head_(NULL),
       first_free_(NULL),
@@ -295,7 +297,7 @@ GlobalHandles::~GlobalHandles() {
 
 
 Handle<Object> GlobalHandles::Create(Object* value) {
-  COUNTERS->global_handles()->Increment();
+  isolate_->counters()->global_handles()->Increment();
   Node* result;
   if (first_free()) {
     // Take the first node in the free list.
@@ -319,7 +321,7 @@ Handle<Object> GlobalHandles::Create(Object* value) {
 
 
 void GlobalHandles::Destroy(Object** location) {
-  COUNTERS->global_handles()->Decrement();
+  isolate_->counters()->global_handles()->Decrement();
   if (location == NULL) return;
   Node* node = Node::FromLocation(location);
   node->Destroy(this);
@@ -391,12 +393,12 @@ bool GlobalHandles::PostGarbageCollectionProcessing() {
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
   // At the same time deallocate all DESTROYED nodes.
-  ASSERT(HEAP->gc_state() == Heap::NOT_IN_GC);
+  ASSERT(isolate_->heap()->gc_state() == Heap::NOT_IN_GC);
   const int initial_post_gc_processing_count = ++post_gc_processing_count_;
   bool next_gc_likely_to_collect_more = false;
   Node** p = &head_;
   while (*p != NULL) {
-    if ((*p)->PostGarbageCollectionProcessing(this)) {
+    if ((*p)->PostGarbageCollectionProcessing(isolate_, this)) {
       if (initial_post_gc_processing_count != post_gc_processing_count_) {
         // Weak callback triggered another GC and another round of
         // PostGarbageCollection processing.  The current node might

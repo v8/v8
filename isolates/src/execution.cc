@@ -72,7 +72,7 @@ static Handle<Object> Invoke(bool construct,
   Isolate* isolate = func->GetIsolate();
 
   // Entering JavaScript.
-  VMState state(JS);
+  VMState state(isolate, JS);
 
   // Placeholder for return value.
   MaybeObject* value = reinterpret_cast<Object*>(kZapValue);

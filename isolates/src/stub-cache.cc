@@ -955,7 +955,7 @@ MaybeObject* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION) {
   v8::Handle<v8::Value> result;
   {
     // Leaving JavaScript.
-    VMState state(EXTERNAL);
+    VMState state(isolate, EXTERNAL);
 #ifdef ENABLE_LOGGING_AND_PROFILING
     state.set_external_callback(getter_address);
 #endif
@@ -982,7 +982,7 @@ MaybeObject* StoreCallbackProperty(RUNTIME_CALLING_CONVENTION) {
   v8::AccessorInfo info(custom_args.end());
   {
     // Leaving JavaScript.
-    VMState state(EXTERNAL);
+    VMState state(isolate, EXTERNAL);
 #ifdef ENABLE_LOGGING_AND_PROFILING
     state.set_external_callback(setter_address);
 #endif
@@ -1025,7 +1025,7 @@ MaybeObject* LoadPropertyWithInterceptorOnly(RUNTIME_CALLING_CONVENTION) {
     v8::Handle<v8::Value> r;
     {
       // Leaving JavaScript.
-      VMState state(EXTERNAL);
+      VMState state(isolate, EXTERNAL);
       r = getter(v8::Utils::ToLocal(name_handle), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION();
@@ -1065,6 +1065,8 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
   Handle<JSObject> holder_handle = args->at<JSObject>(3);
   ASSERT(args->length() == 5);  // Last arg is data object.
 
+  Isolate* isolate = receiver_handle->GetIsolate();
+
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
   v8::NamedPropertyGetter getter =
       FUNCTION_CAST<v8::NamedPropertyGetter>(getter_address);
@@ -1074,11 +1076,11 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
     // Use the interceptor getter.
     v8::AccessorInfo info(args->arguments() -
                           kAccessorInfoOffsetInInterceptorArgs);
-    HandleScope scope;
+    HandleScope scope(isolate);
     v8::Handle<v8::Value> r;
     {
       // Leaving JavaScript.
-      VMState state(EXTERNAL);
+      VMState state(isolate, EXTERNAL);
       r = getter(v8::Utils::ToLocal(name_handle), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION();

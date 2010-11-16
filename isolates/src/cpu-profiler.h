@@ -226,6 +226,8 @@ class ProfilerEventsProcessor : public Thread {
 namespace v8 {
 namespace internal {
 
+
+// TODO(isolates): isolatify this class.
 class CpuProfiler {
  public:
   static void Setup();
@@ -270,7 +272,10 @@ class CpuProfiler {
   static void SetterCallbackEvent(String* name, Address entry_point);
 
   static INLINE(bool is_profiling()) {
-    Isolate* isolate = Isolate::Current();
+    return is_profiling(Isolate::Current());
+  }
+
+  static INLINE(bool is_profiling(Isolate* isolate)) {
     return isolate->cpu_profiler() != NULL &&
            isolate->cpu_profiler()->processor_ != NULL;
   }
