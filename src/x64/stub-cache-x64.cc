@@ -500,7 +500,7 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 // Number of pointers to be reserved on stack for fast API call.
 static const int kFastApiCallArguments = 3;
 
-// Reserves space for the extra arguments to FastHandleApiCall in the
+// Reserves space for the extra arguments to API function in the
 // caller's frame.
 //
 // These arguments are set by CheckPrototypes and GenerateFastApiCall.
@@ -535,7 +535,7 @@ static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
 }
 
 
-// Generates call to FastHandleApiCall builtin.
+// Generates call to API function.
 static bool GenerateFastApiCall(MacroAssembler* masm,
                                 const CallOptimization& optimization,
                                 int argc,
@@ -559,7 +559,7 @@ static bool GenerateFastApiCall(MacroAssembler* masm,
   __ Move(rdi, Handle<JSFunction>(function));
   __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-  // Pass the additional arguments FastHandleApiCall expects.
+  // Pass the additional arguments.
   __ movq(Operand(rsp, 2 * kPointerSize), rdi);
   Object* call_data = optimization.api_call_info()->data();
   Handle<CallHandlerInfo> api_call_info_handle(optimization.api_call_info());
@@ -589,7 +589,7 @@ static bool GenerateFastApiCall(MacroAssembler* masm,
   // it's not controlled by GC.
   const int kApiStackSpace = 4;
 
-  __ PrepareCallApiFunction(argc + kFastApiCallArguments + 1, kApiStackSpace);
+  __ PrepareCallApiFunction(kApiStackSpace);
 
   __ movq(StackSpaceOperand(0), rbx);  // v8::Arguments::implicit_args_.
   __ addq(rbx, Immediate(argc * kPointerSize));
@@ -605,7 +605,7 @@ static bool GenerateFastApiCall(MacroAssembler* masm,
   // garbage collection but instead return the allocation failure
   // object.
   MaybeObject* result =
-      masm->TryCallApiFunctionAndReturn(&fun);
+      masm->TryCallApiFunctionAndReturn(&fun, argc + kFastApiCallArguments + 1);
   if (result->IsFailure()) {
     *failure = Failure::cast(result);
     return false;
@@ -992,7 +992,9 @@ MaybeObject* CallStubCompiler::CompileCallConstant(
 
       if (depth != kInvalidProtoDepth) {
         __ IncrementCounter(&Counters::call_const_fast_api, 1);
-        ReserveSpaceForFastApiCall(masm(), rax);
+        // Allocate space for v8::Arguments implicit values. Must be initialized
+        // before to call any runtime function.
+        __ subq(rsp, Immediate(kFastApiCallArguments * kPointerSize));
       }
 
       // Check that the maps haven't changed.
@@ -1071,6 +1073,12 @@ MaybeObject* CallStubCompiler::CompileCallConstant(
 
   if (depth != kInvalidProtoDepth) {
     Failure* failure;
+    // Move the return address on top of the stack.
+    __ movq(rax, Operand(rsp, 3 * kPointerSize));
+    __ movq(Operand(rsp, 0 * kPointerSize), rax);
+
+    // rsp[2 * kPointerSize] is uninitialized, rsp[3 * kPointerSize] contains
+    // duplicate of return address and will be overwritten.
     bool success = GenerateFastApiCall(masm(), optimization, argc, &failure);
     if (!success) {
       return failure;
@@ -1082,7 +1090,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(
   // Handle call cache miss.
   __ bind(&miss);
   if (depth != kInvalidProtoDepth) {
-    FreeSpaceForFastApiCall(masm(), rax);
+    __ addq(rsp, Immediate(kFastApiCallArguments * kPointerSize));
   }
 
   // Handle call cache miss.
@@ -2633,8 +2641,6 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   __ pop(scratch2);  // Get return address to place it below.
 
   __ push(receiver);  // receiver
-  ASSERT(!scratch3.is(reg));
-  __ movq(scratch3, rsp);
   __ push(reg);  // holder
   if (Heap::InNewSpace(callback_handle->data())) {
     __ Move(scratch1, callback_handle);
@@ -2642,7 +2648,6 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   } else {
     __ Push(Handle<Object>(callback_handle->data()));
   }
-  __ push(scratch3);
   __ push(name_reg);  // name
   // Save a pointer to where we pushed the arguments pointer.
   // This will be passed as the const AccessorInfo& to the C++ callback.
@@ -2664,22 +2669,27 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
 
-  // 3 elements array for v8::Agruments::values_, handler for name and pointer
-  // to the values (it considered as smi in GC).
-  const int kStackSpace = 5;
-  const int kApiArgc = 2;
+  // 3 elements array for v8::Agruments::values_ and handler for name.
+  const int kStackSpace = 4;
 
-  __ PrepareCallApiFunction(kStackSpace, kApiArgc);
+  // Allocate v8::AccessorInfo in non-GCed stack space.
+  const int kArgStackSpace = 1;
+
+  __ PrepareCallApiFunction(kArgStackSpace);
+  __ lea(rax, Operand(name_arg, 3 * kPointerSize));
+
+  // v8::AccessorInfo::args_.
+  __ movq(StackSpaceOperand(0), rax);
 
   // The context register (rsi) has been saved in PrepareCallApiFunction and
   // could be used to pass arguments.
-  __ lea(accessor_info_arg, Operand(name_arg, 1 * kPointerSize));
+  __ lea(accessor_info_arg, StackSpaceOperand(0));
 
   // Emitting a stub call may try to allocate (if the code is not
   // already generated).  Do not allow the assembler to perform a
   // garbage collection but instead return the allocation failure
   // object.
-  MaybeObject* result = masm()->TryCallApiFunctionAndReturn(&fun);
+  MaybeObject* result = masm()->TryCallApiFunctionAndReturn(&fun, kStackSpace);
   if (result->IsFailure()) {
     *failure = Failure::cast(result);
     return false;

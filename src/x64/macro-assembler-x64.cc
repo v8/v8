@@ -498,23 +498,22 @@ static int Offset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-void MacroAssembler::PrepareCallApiFunction(int stack_space,
-                                            int arg_stack_space) {
+void MacroAssembler::PrepareCallApiFunction(int arg_stack_space) {
 #ifdef _WIN64
   // We need to prepare a slot for result handle on stack and put
   // a pointer to it into 1st arg register.
-  EnterApiExitFrame(stack_space, arg_stack_space + 1);
+  EnterApiExitFrame(arg_stack_space + 1);
 
   // rcx must be used to pass the pointer to the return value slot.
   lea(rcx, StackSpaceOperand(arg_stack_space));
 #else
-  EnterApiExitFrame(stack_space, arg_stack_space);
+  EnterApiExitFrame(arg_stack_space);
 #endif
 }
 
 
 MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
-    ApiFunction* function) {
+    ApiFunction* function, int stack_space) {
   Label empty_result;
   Label prologue;
   Label promote_scheduled_exception;
@@ -537,7 +536,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   // Allocate HandleScope in callee-save registers.
   Register prev_next_address_reg = r14;
   Register prev_limit_reg = rbx;
-  Register base_reg = kSmiConstantRegister;
+  Register base_reg = r12;
   movq(base_reg, next_address);
   movq(prev_next_address_reg, Operand(base_reg, kNextOffset));
   movq(prev_limit_reg, Operand(base_reg, kLimitOffset));
@@ -566,15 +565,14 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   cmpq(prev_limit_reg, Operand(base_reg, kLimitOffset));
   j(not_equal, &delete_allocated_handles);
   bind(&leave_exit_frame);
-  InitializeSmiConstantRegister();
 
   // Check if the function scheduled an exception.
   movq(rsi, scheduled_exception_address);
   Cmp(Operand(rsi, 0), Factory::the_hole_value());
   j(not_equal, &promote_scheduled_exception);
 
-  LeaveExitFrame();
-  ret(0);
+  LeaveApiExitFrame();
+  ret(stack_space * kPointerSize);
 
   bind(&promote_scheduled_exception);
   MaybeObject* result = TryTailCallRuntime(Runtime::kPromoteScheduledException,
@@ -1778,20 +1776,13 @@ void MacroAssembler::EnterExitFrame(int arg_stack_space) {
 }
 
 
-void MacroAssembler::EnterApiExitFrame(int stack_space,
-                                       int arg_stack_space) {
+void MacroAssembler::EnterApiExitFrame(int arg_stack_space) {
   EnterExitFramePrologue(false);
-
-  // Setup argv in callee-saved register r12. It is reused in LeaveExitFrame,
-  // so it must be retained across the C-call.
-  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  lea(r12, Operand(rbp, (stack_space * kPointerSize) + offset));
-
   EnterExitFrameEpilogue(arg_stack_space);
 }
 
 
-void MacroAssembler::LeaveExitFrame(int result_size) {
+void MacroAssembler::LeaveExitFrame() {
   // Registers:
   // r12 : argv
 
@@ -1803,6 +1794,22 @@ void MacroAssembler::LeaveExitFrame(int result_size) {
   // from the caller stack.
   lea(rsp, Operand(r12, 1 * kPointerSize));
 
+  // Push the return address to get ready to return.
+  push(rcx);
+
+  LeaveExitFrameEpilogue();
+}
+
+
+void MacroAssembler::LeaveApiExitFrame() {
+  movq(rsp, rbp);
+  pop(rbp);
+
+  LeaveExitFrameEpilogue();
+}
+
+
+void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(Top::k_context_address);
   movq(kScratchRegister, context_address);
@@ -1810,9 +1817,6 @@ void MacroAssembler::LeaveExitFrame(int result_size) {
 #ifdef DEBUG
   movq(Operand(kScratchRegister, 0), Immediate(0));
 #endif
-
-  // Push the return address to get ready to return.
-  push(rcx);
 
   // Clear the top frame.
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);

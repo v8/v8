@@ -160,14 +160,18 @@ class MacroAssembler: public Assembler {
   // accessible via StackSpaceOperand.
   void EnterExitFrame(int arg_stack_space = 0);
 
-  void EnterApiExitFrame(int stack_space,
-                         int arg_stack_space);
+  // Enter specific kind of exit frame. Allocates arg_stack_space * kPointerSize
+  // memory (not GCed) on the stack accessible via StackSpaceOperand.
+  void EnterApiExitFrame(int arg_stack_space);
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax:rdx (untouched) and the pointer to the first
   // argument in register rsi.
-  void LeaveExitFrame(int result_size = 1);
+  void LeaveExitFrame();
 
+  // Leave the current exit frame. Expects/provides the return value in
+  // register rax (untouched).
+  void LeaveApiExitFrame();
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -835,23 +839,18 @@ class MacroAssembler: public Assembler {
                                           int result_size);
 
   // Prepares stack to put arguments (aligns and so on).
-  // Uses callee-saved rsi to restore stack state after call. WIN64 calling
-  // convention requires to put the pointer to the return value slot into rcx
-  // (rcx must be preserverd until TryCallApiFunctionAndReturn). argc is number
-  // of arguments to be passed in C-function. stack_space * kPointerSize bytes
-  // will be removed from stack after the call. Saves context (rsi).
-  // Clobbers rax. Allocates arg_stack_space * kPointerSize inside the exit
-  // frame (not GCed).
-  //
-  // Assumes stack_space GCed references on top of the stack and return address.
-  // After call they will be removed.
-  void PrepareCallApiFunction(int stack_space, int arg_stack_space);
+  // WIN64 calling convention requires to put the pointer to the return value
+  // slot into rcx (rcx must be preserverd until TryCallApiFunctionAndReturn).
+  // Saves context (rsi). Clobbers rax. Allocates arg_stack_space * kPointerSize
+  // inside the exit frame (not GCed) accessible via StackSpaceOperand.
+  void PrepareCallApiFunction(int arg_stack_space);
 
   // Calls an API function. Allocates HandleScope, extracts
   // returned value from handle and propagates exceptions.
   // Clobbers r12, r14, rbx and caller-save registers. Restores context.
+  // On return removes stack_space * kPointerSize (GCed).
   MUST_USE_RESULT MaybeObject* TryCallApiFunctionAndReturn(
-      ApiFunction* function);
+      ApiFunction* function, int stack_space);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],
@@ -946,6 +945,8 @@ class MacroAssembler: public Assembler {
   // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
   // accessible via StackSpaceOperand.
   void EnterExitFrameEpilogue(int arg_stack_space);
+
+  void LeaveExitFrameEpilogue();
 
   // Allocation support helpers.
   // Loads the top of new-space into the result register.

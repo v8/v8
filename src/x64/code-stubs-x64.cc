@@ -2582,7 +2582,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &failure_returned);
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(result_size_);
+  __ LeaveExitFrame();
   __ ret(0);
 
   // Handling of failure.
