@@ -41,6 +41,7 @@ SOURCES = {
     assembler.cc
     ast.cc
     bignum.cc
+    bignum-dtoa.cc
     bootstrapper.cc
     builtins.cc
     cached-powers.cc
