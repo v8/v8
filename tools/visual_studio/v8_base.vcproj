@@ -1141,6 +1141,22 @@
 				RelativePath="..\..\src\zone.h"
 				>
 			</File>
+			<File
+				RelativePath="..\..\src\extensions\externalize-string-extension.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\extensions\externalize-string-extension.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\extensions\gc-extension.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\extensions\gc-extension.h"
+				>
+			</File>
 			<Filter
 				Name="third party"
 				>

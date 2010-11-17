@@ -119,6 +119,8 @@ SOURCES = {
     version.cc
     virtual-frame.cc
     zone.cc
+    extensions/gc-extension.cc
+    extensions/externalize-string-extension.cc
     """),
   'arch:arm': Split("""
     jump-target-light.cc
