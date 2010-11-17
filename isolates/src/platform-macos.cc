@@ -644,8 +644,8 @@ static void* SamplerEntry(void* arg) {
 Sampler::Sampler(Isolate* isolate, int interval, bool profiling)
     : isolate_(isolate),
       interval_(interval),
-      profiling_(profiling),
       synchronous_(profiling),
+      profiling_(profiling),
       active_(false) {
   data_ = new PlatformData(this);
 }
