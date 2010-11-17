@@ -41,6 +41,25 @@
 namespace v8 {
 namespace internal {
 
+// Interface through which the scanner reads characters from the input source.
+class UTF16Buffer {
+ public:
+  UTF16Buffer();
+  virtual ~UTF16Buffer() {}
+
+  virtual void PushBack(uc32 ch) = 0;
+  // Returns a value < 0 when the buffer end is reached.
+  virtual uc32 Advance() = 0;
+  virtual void SeekForward(int pos) = 0;
+
+  int pos() const { return pos_; }
+
+ protected:
+  int pos_;  // Current position in the buffer.
+  int end_;  // Position where scanning should stop (EOF).
+};
+
+
 class ScannerConstants : AllStatic {
  public:
   typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;

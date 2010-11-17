@@ -38,7 +38,7 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // UTF8Buffer
 
-UTF8Buffer::UTF8Buffer() : buffer_(kInitialCapacity) { }
+UTF8Buffer::UTF8Buffer() : buffer_(kInitialCapacity), recording_(false) { }
 
 
 UTF8Buffer::~UTF8Buffer() {}
@@ -122,55 +122,6 @@ void CharacterStreamUTF16Buffer::SeekForward(int pos) {
   stream_->Seek(pos);
 }
 
-
-// ExternalStringUTF16Buffer
-template <typename StringType, typename CharType>
-ExternalStringUTF16Buffer<StringType, CharType>::ExternalStringUTF16Buffer()
-    : raw_data_(NULL) { }
-
-
-template <typename StringType, typename CharType>
-void ExternalStringUTF16Buffer<StringType, CharType>::Initialize(
-     Handle<StringType> data,
-     int start_position,
-     int end_position) {
-  ASSERT(!data.is_null());
-  raw_data_ = data->resource()->data();
-
-  ASSERT(end_position <= data->length());
-  if (start_position > 0) {
-    SeekForward(start_position);
-  }
-  end_ =
-      end_position != Scanner::kNoEndPosition ? end_position : data->length();
-}
-
-
-template <typename StringType, typename CharType>
-uc32 ExternalStringUTF16Buffer<StringType, CharType>::Advance() {
-  if (pos_ < end_) {
-    return raw_data_[pos_++];
-  } else {
-    // note: currently the following increment is necessary to avoid a
-    // test-parser problem!
-    pos_++;
-    return static_cast<uc32>(-1);
-  }
-}
-
-
-template <typename StringType, typename CharType>
-void ExternalStringUTF16Buffer<StringType, CharType>::PushBack(uc32 ch) {
-  pos_--;
-  ASSERT(pos_ >= Scanner::kCharacterLookaheadBufferSize);
-  ASSERT(raw_data_[pos_ - Scanner::kCharacterLookaheadBufferSize] == ch);
-}
-
-
-template <typename StringType, typename CharType>
-void ExternalStringUTF16Buffer<StringType, CharType>::SeekForward(int pos) {
-  pos_ = pos;
-}
 
 // ----------------------------------------------------------------------------
 // Scanner::LiteralScope
@@ -297,7 +248,7 @@ void Scanner::StartLiteral() {
 }
 
 
-void Scanner::AddChar(uc32 c) {
+void Scanner::AddLiteralChar(uc32 c) {
   literal_buffer_.AddChar(c);
 }
 
@@ -312,8 +263,8 @@ void Scanner::DropLiteral() {
 }
 
 
-void Scanner::AddCharAdvance() {
-  AddChar(c0_);
+void Scanner::AddLiteralCharAdvance() {
+  AddLiteralChar(c0_);
   Advance();
 }
 
@@ -525,29 +476,29 @@ Token::Value Scanner::ScanJsonString() {
     // Check for control character (0x00-0x1f) or unterminated string (<0).
     if (c0_ < 0x20) return Token::ILLEGAL;
     if (c0_ != '\\') {
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     } else {
       Advance();
       switch (c0_) {
         case '"':
         case '\\':
         case '/':
-          AddChar(c0_);
+          AddLiteralChar(c0_);
           break;
         case 'b':
-          AddChar('\x08');
+          AddLiteralChar('\x08');
           break;
         case 'f':
-          AddChar('\x0c');
+          AddLiteralChar('\x0c');
           break;
         case 'n':
-          AddChar('\x0a');
+          AddLiteralChar('\x0a');
           break;
         case 'r':
-          AddChar('\x0d');
+          AddLiteralChar('\x0d');
           break;
         case 't':
-          AddChar('\x09');
+          AddLiteralChar('\x09');
           break;
         case 'u': {
           uc32 value = 0;
@@ -559,7 +510,7 @@ Token::Value Scanner::ScanJsonString() {
             }
             value = value * 16 + digit;
           }
-          AddChar(value);
+          AddLiteralChar(value);
           break;
         }
         default:
@@ -579,31 +530,31 @@ Token::Value Scanner::ScanJsonString() {
 
 Token::Value Scanner::ScanJsonNumber() {
   LiteralScope literal(this);
-  if (c0_ == '-') AddCharAdvance();
+  if (c0_ == '-') AddLiteralCharAdvance();
   if (c0_ == '0') {
-    AddCharAdvance();
+    AddLiteralCharAdvance();
     // Prefix zero is only allowed if it's the only digit before
     // a decimal point or exponent.
     if ('0' <= c0_ && c0_ <= '9') return Token::ILLEGAL;
   } else {
     if (c0_ < '1' || c0_ > '9') return Token::ILLEGAL;
     do {
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     } while (c0_ >= '0' && c0_ <= '9');
   }
   if (c0_ == '.') {
-    AddCharAdvance();
+    AddLiteralCharAdvance();
     if (c0_ < '0' || c0_ > '9') return Token::ILLEGAL;
     do {
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     } while (c0_ >= '0' && c0_ <= '9');
   }
   if (AsciiAlphaToLower(c0_) == 'e') {
-    AddCharAdvance();
-    if (c0_ == '-' || c0_ == '+') AddCharAdvance();
+    AddLiteralCharAdvance();
+    if (c0_ == '-' || c0_ == '+') AddLiteralCharAdvance();
     if (c0_ < '0' || c0_ > '9') return Token::ILLEGAL;
     do {
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     } while (c0_ >= '0' && c0_ <= '9');
   }
   literal.Complete();
@@ -958,7 +909,7 @@ void Scanner::ScanEscape() {
   // According to ECMA-262, 3rd, 7.8.4 (p 18ff) these
   // should be illegal, but they are commonly handled
   // as non-escaped characters by JS VMs.
-  AddChar(c);
+  AddLiteralChar(c);
 }
 
 
@@ -975,7 +926,7 @@ Token::Value Scanner::ScanString() {
       if (c0_ < 0) return Token::ILLEGAL;
       ScanEscape();
     } else {
-      AddChar(c);
+      AddLiteralChar(c);
     }
   }
   if (c0_ != quote) return Token::ILLEGAL;
@@ -1006,7 +957,7 @@ Token::Value Scanner::Select(uc32 next, Token::Value then, Token::Value else_) {
 // Returns true if any decimal digits were scanned, returns false otherwise.
 void Scanner::ScanDecimalDigits() {
   while (IsDecimalDigit(c0_))
-    AddCharAdvance();
+    AddLiteralCharAdvance();
 }
 
 
@@ -1018,25 +969,25 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   LiteralScope literal(this);
   if (seen_period) {
     // we have already seen a decimal point of the float
-    AddChar('.');
+    AddLiteralChar('.');
     ScanDecimalDigits();  // we know we have at least one digit
 
   } else {
     // if the first character is '0' we must check for octals and hex
     if (c0_ == '0') {
-      AddCharAdvance();
+      AddLiteralCharAdvance();
 
       // either 0, 0exxx, 0Exxx, 0.xxx, an octal number, or a hex number
       if (c0_ == 'x' || c0_ == 'X') {
         // hex number
         kind = HEX;
-        AddCharAdvance();
+        AddLiteralCharAdvance();
         if (!IsHexDigit(c0_)) {
           // we must have at least one hex digit after 'x'/'X'
           return Token::ILLEGAL;
         }
         while (IsHexDigit(c0_)) {
-          AddCharAdvance();
+          AddLiteralCharAdvance();
         }
       } else if ('0' <= c0_ && c0_ <= '7') {
         // (possible) octal number
@@ -1047,7 +998,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
             break;
           }
           if (c0_  < '0' || '7'  < c0_) break;
-          AddCharAdvance();
+          AddLiteralCharAdvance();
         }
       }
     }
@@ -1056,7 +1007,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     if (kind == DECIMAL) {
       ScanDecimalDigits();  // optional
       if (c0_ == '.') {
-        AddCharAdvance();
+        AddLiteralCharAdvance();
         ScanDecimalDigits();  // optional
       }
     }
@@ -1067,9 +1018,9 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     ASSERT(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
     if (kind == OCTAL) return Token::ILLEGAL;  // no exponent for octals allowed
     // scan exponent
-    AddCharAdvance();
+    AddLiteralCharAdvance();
     if (c0_ == '+' || c0_ == '-')
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     if (!IsDecimalDigit(c0_)) {
       // we must have at least one decimal digit after 'e'/'E'
       return Token::ILLEGAL;
@@ -1113,10 +1064,10 @@ Token::Value Scanner::ScanIdentifier() {
     uc32 c = ScanIdentifierUnicodeEscape();
     // Only allow legal identifier start characters.
     if (!ScannerConstants::kIsIdentifierStart.get(c)) return Token::ILLEGAL;
-    AddChar(c);
+    AddLiteralChar(c);
     keyword_match.Fail();
   } else {
-    AddChar(c0_);
+    AddLiteralChar(c0_);
     keyword_match.AddChar(c0_);
     Advance();
   }
@@ -1127,10 +1078,10 @@ Token::Value Scanner::ScanIdentifier() {
       uc32 c = ScanIdentifierUnicodeEscape();
       // Only allow legal identifier part characters.
       if (!ScannerConstants::kIsIdentifierPart.get(c)) return Token::ILLEGAL;
-      AddChar(c);
+      AddLiteralChar(c);
       keyword_match.Fail();
     } else {
-      AddChar(c0_);
+      AddLiteralChar(c0_);
       keyword_match.AddChar(c0_);
       Advance();
     }
@@ -1156,18 +1107,18 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
   // constructor.
   LiteralScope literal(this);
   if (seen_equal)
-    AddChar('=');
+    AddLiteralChar('=');
 
   while (c0_ != '/' || in_character_class) {
     if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
     if (c0_ == '\\') {  // escaped character
-      AddCharAdvance();
+      AddLiteralCharAdvance();
       if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     } else {  // unescaped character
       if (c0_ == '[') in_character_class = true;
       if (c0_ == ']') in_character_class = false;
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     }
   }
   Advance();  // consume '/'
@@ -1186,11 +1137,11 @@ bool Scanner::ScanRegExpFlags() {
       if (c != static_cast<uc32>(unibrow::Utf8::kBadChar)) {
         // We allow any escaped character, unlike the restriction on
         // IdentifierPart when it is used to build an IdentifierName.
-        AddChar(c);
+        AddLiteralChar(c);
         continue;
       }
     }
-    AddCharAdvance();
+    AddLiteralCharAdvance();
   }
   literal.Complete();
 
