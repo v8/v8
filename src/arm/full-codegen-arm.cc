@@ -172,19 +172,16 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
 
   // Check the stack for overflow or break request.
-  // Put the lr setup instruction in the delay slot.  The kInstrSize is
-  // added to the implicit 8 byte offset that always applies to operations
-  // with pc and gives a return address 12 bytes down.
   { Comment cmnt(masm_, "[ Stack check");
     __ LoadRoot(r2, Heap::kStackLimitRootIndex);
-    __ add(lr, pc, Operand(Assembler::kInstrSize));
     __ cmp(sp, Operand(r2));
     StackCheckStub stub;
-    __ mov(pc,
+    __ mov(ip,
            Operand(reinterpret_cast<intptr_t>(stub.GetCode().location()),
                    RelocInfo::CODE_TARGET),
            LeaveCC,
            lo);
+    __ Call(ip, lo);
   }
 
   if (FLAG_trace) {
