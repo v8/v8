@@ -4339,9 +4339,12 @@ void CodeGenerator::VisitCall(Call* node) {
       // -------------------------------------------
       // JavaScript example: 'array[index](1, 2, 3)'
       // -------------------------------------------
+
+      // Load the receiver and name of the function.
       Load(property->obj());
+      Load(property->key());
+
       if (property->is_synthetic()) {
-        Load(property->key());
         EmitKeyedLoad();
         // Put the function below the receiver.
         // Use the global receiver.
@@ -4351,22 +4354,28 @@ void CodeGenerator::VisitCall(Call* node) {
         CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
         frame_->EmitPush(r0);
       } else {
+        // Swap the name of the function and the receiver on the stack to follow
+        // the calling convention for call ICs.
+        Register key = frame_->PopToRegister();
+        Register receiver = frame_->PopToRegister(key);
+        frame_->EmitPush(key);
+        frame_->EmitPush(receiver);
+
         // Load the arguments.
         int arg_count = args->length();
         for (int i = 0; i < arg_count; i++) {
           Load(args->at(i));
         }
 
-        // Set the name register and call the IC initialization code.
-        Load(property->key());
-        frame_->SpillAll();
-        frame_->EmitPop(r2);  // Function name.
-
+        // Load the key into r2 and call the IC initialization code.
         InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
         Handle<Code> stub =
             StubCache::ComputeKeyedCallInitialize(arg_count, in_loop);
         CodeForSourcePosition(node->position());
+        frame_->SpillAll();
+        __ ldr(r2, frame_->ElementAt(arg_count + 1));
         frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
+        frame_->Drop();  // Drop the key still on the stack.
         __ ldr(cp, frame_->Context());
         frame_->EmitPush(r0);
       }
