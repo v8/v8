@@ -36,7 +36,6 @@
 #include "execution.h"
 #include "global-handles.h"
 #include "natives.h"
-#include "string-search.h"
 #include "runtime.h"
 #include "stub-cache.h"
 
@@ -509,21 +508,22 @@ void InitScriptLineEnds(Handle<Script> script) {
 }
 
 
-template <typename SourceChar>
-static Handle<FixedArray> CalculateLineEnds(Vector<const SourceChar> src,
-                                            bool with_last_line) {
-  const int src_len = src.length();
-  StringSearch<char, SourceChar> search(CStrVector("\n"));
+Handle<FixedArray> CalculateLineEnds(Handle<String> src,
+                                     bool with_imaginary_last_new_line) {
+  const int src_len = src->length();
+  Handle<String> new_line = Factory::NewStringFromAscii(CStrVector("\n"));
 
   // Pass 1: Identify line count.
   int line_count = 0;
   int position = 0;
   while (position != -1 && position < src_len) {
-    position = search.Search(src, position);
+    position = Runtime::StringMatch(src, new_line, position);
     if (position != -1) {
       position++;
+    }
+    if (position != -1) {
       line_count++;
-    } else if (with_last_line) {
+    } else if (with_imaginary_last_new_line) {
       // Even if the last line misses a line end, it is counted.
       line_count++;
     }
@@ -534,10 +534,10 @@ static Handle<FixedArray> CalculateLineEnds(Vector<const SourceChar> src,
   int array_index = 0;
   position = 0;
   while (position != -1 && position < src_len) {
-    position = search.Search(src, position);
+    position = Runtime::StringMatch(src, new_line, position);
     if (position != -1) {
       array->set(array_index++, Smi::FromInt(position++));
-    } else if (with_last_line) {
+    } else if (with_imaginary_last_new_line) {
       // If the script does not end with a line ending add the final end
       // position as just past the last line ending.
       array->set(array_index++, Smi::FromInt(src_len));
@@ -546,20 +546,6 @@ static Handle<FixedArray> CalculateLineEnds(Vector<const SourceChar> src,
   ASSERT(array_index == line_count);
 
   return array;
-}
-
-Handle<FixedArray> CalculateLineEnds(Handle<String> src,
-                                     bool with_last_line) {
-  if (!src->IsFlat()) FlattenString(src);
-  AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
-  // Extract flattened substring of cons string before determining asciiness.
-  String* seq_src = *src;
-  if (seq_src->IsConsString()) seq_src = ConsString::cast(seq_src)->first();
-  // Dispatch on type of strings.
-  if (seq_src->IsAsciiRepresentation()) {
-    return CalculateLineEnds(seq_src->ToAsciiVector(), with_last_line);
-  }
-  return CalculateLineEnds(seq_src->ToUC16Vector(), with_last_line);
 }
 
 
