@@ -2318,7 +2318,7 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
                                   &miss,
                                   &failure);
   if (!success) {
-    return false;
+    return failure;
   }
 
   // Restore receiver.
