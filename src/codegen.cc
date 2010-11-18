@@ -252,39 +252,6 @@ bool CodeGenerator::ShouldGenerateLog(Expression* type) {
 #endif
 
 
-Handle<Code> CodeGenerator::ComputeCallInitialize(
-    int argc,
-    InLoopFlag in_loop) {
-  if (in_loop == IN_LOOP) {
-    // Force the creation of the corresponding stub outside loops,
-    // because it may be used when clearing the ICs later - it is
-    // possible for a series of IC transitions to lose the in-loop
-    // information, and the IC clearing code can't generate a stub
-    // that it needs so we need to ensure it is generated already.
-    ComputeCallInitialize(argc, NOT_IN_LOOP);
-  }
-  CALL_HEAP_FUNCTION(
-      StubCache::ComputeCallInitialize(argc, in_loop, Code::CALL_IC),
-      Code);
-}
-
-
-Handle<Code> CodeGenerator::ComputeKeyedCallInitialize(
-    int argc,
-    InLoopFlag in_loop) {
-  if (in_loop == IN_LOOP) {
-    // Force the creation of the corresponding stub outside loops,
-    // because it may be used when clearing the ICs later - it is
-    // possible for a series of IC transitions to lose the in-loop
-    // information, and the IC clearing code can't generate a stub
-    // that it needs so we need to ensure it is generated already.
-    ComputeKeyedCallInitialize(argc, NOT_IN_LOOP);
-  }
-  CALL_HEAP_FUNCTION(
-      StubCache::ComputeCallInitialize(argc, in_loop, Code::KEYED_CALL_IC),
-      Code);
-}
-
 void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
   int globals = 0;
@@ -479,37 +446,6 @@ int CEntryStub::MinorKey() {
 #else
   return 0;
 #endif
-}
-
-
-// Implementation of CodeStub::GetCustomCache.
-static bool GetCustomCacheHelper(Object* cache, Code** code_out) {
-  if (cache->IsUndefined()) {
-    return false;
-  } else {
-    *code_out = Code::cast(cache);
-    return true;
-  }
-}
-
-
-bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
-  return GetCustomCacheHelper(info()->load_stub_cache(), code_out);
-}
-
-
-void ApiGetterEntryStub::SetCustomCache(Code* value) {
-  info()->set_load_stub_cache(value);
-}
-
-
-bool ApiCallEntryStub::GetCustomCache(Code** code_out) {
-  return GetCustomCacheHelper(info()->call_stub_cache(), code_out);
-}
-
-
-void ApiCallEntryStub::SetCustomCache(Code* value) {
-  info()->set_call_stub_cache(value);
 }
 
 

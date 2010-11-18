@@ -352,10 +352,6 @@ class CodeGenerator: public AstVisitor {
     return FieldOperand(array, index_as_smi, times_half_pointer_size, offset);
   }
 
-  static Operand ContextOperand(Register context, int index) {
-    return Operand(context, Context::SlotOffset(index));
-  }
-
  private:
   // Type of a member function that generates inline code for a native function.
   typedef void (CodeGenerator::*InlineFunctionGenerator)
@@ -441,10 +437,6 @@ class CodeGenerator: public AstVisitor {
                                             JumpTarget* slow);
 
   // Expressions
-  static Operand GlobalObject() {
-    return ContextOperand(esi, Context::GLOBAL_INDEX);
-  }
-
   void LoadCondition(Expression* expr,
                      ControlDestination* destination,
                      bool force_control);
@@ -627,10 +619,6 @@ class CodeGenerator: public AstVisitor {
   bool CheckForInlineRuntimeCall(CallRuntime* node);
 
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
-
-  static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
-
-  static Handle<Code> ComputeKeyedCallInitialize(int argc, InLoopFlag in_loop);
 
   // Declare global variables and functions in the given array of
   // name/value pairs.

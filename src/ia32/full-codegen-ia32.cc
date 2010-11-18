@@ -36,6 +36,7 @@
 #include "full-codegen.h"
 #include "parser.h"
 #include "scopes.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -954,7 +955,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
 
   // All extension objects were empty and it is safe to use a global
   // load IC call.
-  __ mov(eax, CodeGenerator::GlobalObject());
+  __ mov(eax, GlobalObjectOperand());
   __ mov(ecx, slot->var()->name());
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
@@ -1057,7 +1058,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in ecx and the global
     // object on the stack.
-    __ mov(eax, CodeGenerator::GlobalObject());
+    __ mov(eax, GlobalObjectOperand());
     __ mov(ecx, var->name());
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
@@ -1834,7 +1835,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // assignment.  Right-hand-side value is passed in eax, variable name in
     // ecx, and the global object on the stack.
     __ mov(ecx, var->name());
-    __ mov(edx, CodeGenerator::GlobalObject());
+    __ mov(edx, GlobalObjectOperand());
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
@@ -2005,7 +2006,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Record source position of the IC call.
   SetSourcePosition(expr->position(), FORCED_POSITION);
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-  Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
+  Handle<Code> ic = StubCache::ComputeCallInitialize(arg_count, in_loop);
   EmitCallIC(ic, mode);
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
@@ -2016,25 +2017,32 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
 void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
                                             Expression* key,
                                             RelocInfo::Mode mode) {
-  // Code common for calls using the IC.
+  // Load the key.
+  VisitForAccumulatorValue(key);
+
+  // Swap the name of the function and the receiver on the stack to follow
+  // the calling convention for call ICs.
+  __ pop(ecx);
+  __ push(eax);
+  __ push(ecx);
+
+  // Load the arguments.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
   { PreserveStatementPositionScope scope(masm()->positions_recorder());
     for (int i = 0; i < arg_count; i++) {
       VisitForStackValue(args->at(i));
     }
-    VisitForAccumulatorValue(key);
-    __ mov(ecx, eax);
   }
   // Record source position of the IC call.
   SetSourcePosition(expr->position(), FORCED_POSITION);
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-  Handle<Code> ic = CodeGenerator::ComputeKeyedCallInitialize(
-      arg_count, in_loop);
+  Handle<Code> ic = StubCache::ComputeKeyedCallInitialize(arg_count, in_loop);
+  __ mov(ecx, Operand(esp, (arg_count + 1) * kPointerSize));  // Key.
   EmitCallIC(ic, mode);
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  context()->Plug(eax);
+  context()->DropAndPlug(1, eax);  // Drop the key still on the stack.
 }
 
 
@@ -2109,7 +2117,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     context()->DropAndPlug(1, eax);
   } else if (var != NULL && !var->is_this() && var->is_global()) {
     // Push global object as receiver for the call IC.
-    __ push(CodeGenerator::GlobalObject());
+    __ push(GlobalObjectOperand());
     EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
   } else if (var != NULL && var->AsSlot() != NULL &&
              var->AsSlot()->type() == Slot::LOOKUP) {
@@ -2144,7 +2152,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Push function.
       __ push(eax);
       // Push global receiver.
-      __ mov(ebx, CodeGenerator::GlobalObject());
+      __ mov(ebx, GlobalObjectOperand());
       __ push(FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
       __ bind(&call);
     }
@@ -2178,7 +2186,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         // Push result (function).
         __ push(eax);
         // Push Global receiver.
-        __ mov(ecx, CodeGenerator::GlobalObject());
+        __ mov(ecx, GlobalObjectOperand());
         __ push(FieldOperand(ecx, GlobalObject::kGlobalReceiverOffset));
         EmitCallWithStub(expr);
       } else {
@@ -2199,7 +2207,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       VisitForStackValue(fun);
     }
     // Load global receiver object.
-    __ mov(ebx, CodeGenerator::GlobalObject());
+    __ mov(ebx, GlobalObjectOperand());
     __ push(FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
     // Emit function call.
     EmitCallWithStub(expr);
@@ -3089,7 +3097,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
   if (expr->is_jsruntime()) {
     // Prepare for calling JS runtime function.
-    __ mov(eax, CodeGenerator::GlobalObject());
+    __ mov(eax, GlobalObjectOperand());
     __ push(FieldOperand(eax, GlobalObject::kBuiltinsOffset));
   }
 
@@ -3103,7 +3111,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     // Call the JS runtime function via a call IC.
     __ Set(ecx, Immediate(expr->name()));
     InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-    Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
+    Handle<Code> ic = StubCache::ComputeCallInitialize(arg_count, in_loop);
     EmitCallIC(ic, RelocInfo::CODE_TARGET);
     // Restore context register.
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
@@ -3140,7 +3148,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
         } else if (var->is_global()) {
-          __ push(CodeGenerator::GlobalObject());
+          __ push(GlobalObjectOperand());
           __ push(Immediate(var->name()));
         } else {
           // Non-global variable.  Call the runtime to look up the context
@@ -3418,7 +3426,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
 
   if (proxy != NULL && !proxy->var()->is_this() && proxy->var()->is_global()) {
     Comment cmnt(masm_, "Global variable");
-    __ mov(eax, CodeGenerator::GlobalObject());
+    __ mov(eax, GlobalObjectOperand());
     __ mov(ecx, Immediate(proxy->name()));
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     // Use a regular load, not a contextual load, to avoid a reference

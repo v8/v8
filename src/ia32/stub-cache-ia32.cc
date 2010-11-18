@@ -486,31 +486,42 @@ static bool GenerateFastApiCall(MacroAssembler* masm,
            Immediate(Handle<Object>(call_data)));
   }
 
-  // Prepare arguments for ApiCallEntryStub.
+  // Prepare arguments.
   __ lea(eax, Operand(esp, 3 * kPointerSize));
-  __ lea(ebx, Operand(esp, (argc + 3) * kPointerSize));
-  __ Set(edx, Immediate(argc));
 
   Object* callback = optimization.api_call_info()->callback();
   Address api_function_address = v8::ToCData<Address>(callback);
   ApiFunction fun(api_function_address);
 
-  ApiCallEntryStub stub(api_call_info_handle, &fun);
+  const int kApiArgc = 1;  // API function gets reference to the v8::Arguments.
 
-  __ EnterInternalFrame();
+  // Allocate the v8::Arguments structure in the arguments' space since
+  // it's not controlled by GC.
+  const int kApiStackSpace = 4;
+
+  __ PrepareCallApiFunction(kApiArgc + kApiStackSpace, ebx);
+
+  __ mov(ApiParameterOperand(1), eax);  // v8::Arguments::implicit_args_.
+  __ add(Operand(eax), Immediate(argc * kPointerSize));
+  __ mov(ApiParameterOperand(2), eax);  // v8::Arguments::values_.
+  __ Set(ApiParameterOperand(3), Immediate(argc));  // v8::Arguments::length_.
+  // v8::Arguments::is_construct_call_.
+  __ Set(ApiParameterOperand(4), Immediate(0));
+
+  // v8::InvocationCallback's argument.
+  __ lea(eax, ApiParameterOperand(1));
+  __ mov(ApiParameterOperand(0), eax);
 
   // Emitting a stub call may try to allocate (if the code is not
   // already generated).  Do not allow the assembler to perform a
   // garbage collection but instead return the allocation failure
   // object.
-  MaybeObject* result = masm->TryCallStub(&stub);
+  MaybeObject* result =
+      masm->TryCallApiFunctionAndReturn(&fun, argc + kFastApiCallArguments + 1);
   if (result->IsFailure()) {
     *failure = Failure::cast(result);
     return false;
   }
-
-  __ LeaveInternalFrame();
-  __ ret((argc + 4) * kPointerSize);
   return true;
 }
 
@@ -1063,44 +1074,55 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
 
   Handle<AccessorInfo> callback_handle(callback);
 
-  __ EnterInternalFrame();
-  // Push the stack address where the list of arguments ends.
-  __ lea(scratch2, Operand(esp, -2 * kPointerSize));
-  __ push(scratch2);
+  // Insert additional parameters into the stack frame above return address.
+  ASSERT(!scratch3.is(reg));
+  __ pop(scratch3);  // Get return address to place it below.
+
   __ push(receiver);  // receiver
+  __ mov(scratch2, Operand(esp));
+  ASSERT(!scratch2.is(reg));
   __ push(reg);  // holder
   // Push data from AccessorInfo.
   if (Heap::InNewSpace(callback_handle->data())) {
-    __ mov(scratch2, Immediate(callback_handle));
-    __ push(FieldOperand(scratch2, AccessorInfo::kDataOffset));
+    __ mov(scratch1, Immediate(callback_handle));
+    __ push(FieldOperand(scratch1, AccessorInfo::kDataOffset));
   } else {
     __ push(Immediate(Handle<Object>(callback_handle->data())));
   }
-  __ push(name_reg);  // name
+
   // Save a pointer to where we pushed the arguments pointer.
   // This will be passed as the const AccessorInfo& to the C++ callback.
-  STATIC_ASSERT(ApiGetterEntryStub::kStackSpace == 5);
-  __ lea(eax, Operand(esp, 4 * kPointerSize));
-  __ mov(ebx, esp);
+  __ push(scratch2);
+
+  __ push(name_reg);  // name
+  __ mov(ebx, esp);  // esp points to reference to name (handler).
+
+  __ push(scratch3);  // Restore return address.
 
   // Do call through the api.
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
-  ApiGetterEntryStub stub(callback_handle, &fun);
+
+  // 3 elements array for v8::Agruments::values_, handler for name and pointer
+  // to the values (it considered as smi in GC).
+  const int kStackSpace = 5;
+  const int kApiArgc = 2;
+
+  __ PrepareCallApiFunction(kApiArgc, eax);
+  __ mov(ApiParameterOperand(0), ebx);  // name.
+  __ add(Operand(ebx), Immediate(kPointerSize));
+  __ mov(ApiParameterOperand(1), ebx);  // arguments pointer.
+
   // Emitting a stub call may try to allocate (if the code is not
   // already generated).  Do not allow the assembler to perform a
   // garbage collection but instead return the allocation failure
   // object.
-  Object* result = NULL;  // Initialization to please compiler.
-  { MaybeObject* try_call_result = masm()->TryCallStub(&stub);
-    if (!try_call_result->ToObject(&result)) {
-      *failure = Failure::cast(try_call_result);
-      return false;
-    }
+  MaybeObject* result = masm()->TryCallApiFunctionAndReturn(&fun, kStackSpace);
+  if (result->IsFailure()) {
+    *failure = Failure::cast(result);
+    return false;
   }
-  __ LeaveInternalFrame();
 
-  __ ret(0);
   return true;
 }
 
@@ -2146,7 +2168,10 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
 
       if (depth != kInvalidProtoDepth) {
         __ IncrementCounter(&Counters::call_const_fast_api, 1);
-        ReserveSpaceForFastApiCall(masm(), eax);
+
+        // Allocate space for v8::Arguments implicit values. Must be initialized
+        // before to call any runtime function.
+        __ sub(Operand(esp), Immediate(kFastApiCallArguments * kPointerSize));
       }
 
       // Check that the maps haven't changed.
@@ -2226,6 +2251,12 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
 
   if (depth != kInvalidProtoDepth) {
     Failure* failure;
+    // Move the return address on top of the stack.
+    __ mov(eax, Operand(esp, 3 * kPointerSize));
+    __ mov(Operand(esp, 0 * kPointerSize), eax);
+
+    // esp[2 * kPointerSize] is uninitialized, esp[3 * kPointerSize] contains
+    // duplicate of return address and will be overwritten.
     bool success = GenerateFastApiCall(masm(), optimization, argc, &failure);
     if (!success) {
       return failure;
@@ -2237,7 +2268,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
   // Handle call cache miss.
   __ bind(&miss);
   if (depth != kInvalidProtoDepth) {
-    FreeSpaceForFastApiCall(masm(), eax);
+    __ add(Operand(esp), Immediate(kFastApiCallArguments * kPointerSize));
   }
   __ bind(&miss_in_smi_check);
   Object* obj;

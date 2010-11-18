@@ -282,6 +282,8 @@
         '../../src/ast.h',
         '../../src/bignum.cc',
         '../../src/bignum.h',
+        '../../src/bignum-dtoa.cc',
+        '../../src/bignum-dtoa.h',
         '../../src/bootstrapper.cc',
         '../../src/bootstrapper.h',
         '../../src/builtins.cc',
@@ -484,6 +486,10 @@
         '../../src/zone-inl.h',
         '../../src/zone.cc',
         '../../src/zone.h',
+	'../../src/extensions/externalize-string-extension.cc',
+	'../../src/extensions/externalize-string-extension.h',
+	'../../src/extensions/gc-extension.cc',
+	'../../src/extensions/gc-extension.h',
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {

@@ -37,6 +37,7 @@
 #include "parser.h"
 #include "platform.h"
 #include "preparser.h"
+#include "prescanner.h"
 #include "runtime.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
@@ -1692,11 +1693,13 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
   //   Identifier ':' Statement
-
+  bool starts_with_idenfifier = (peek() == Token::IDENTIFIER);
   Expression* expr = ParseExpression(true, CHECK_OK);
-  if (peek() == Token::COLON && expr &&
+  if (peek() == Token::COLON && starts_with_idenfifier && expr &&
       expr->AsVariableProxy() != NULL &&
       !expr->AsVariableProxy()->is_this()) {
+    // Expression is a single identifier, and not, e.g., a parenthesized
+    // identifier.
     VariableProxy* var = expr->AsVariableProxy();
     Handle<String> label = var->name();
     // TODO(1240780): We don't check for redeclaration of labels
@@ -4635,6 +4638,57 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 }
 
 
+static ScriptDataImpl* DoPreParse(UTF16Buffer* stream,
+                                  bool allow_lazy,
+                                  PartialParserRecorder* recorder) {
+  typedef preparser::Scanner<UTF16Buffer, UTF8Buffer> PreScanner;
+  PreScanner scanner;
+  scanner.Initialize(stream);
+  preparser::PreParser<PreScanner, PartialParserRecorder> preparser;
+  if (!preparser.PreParseProgram(&scanner, recorder, allow_lazy)) {
+    Top::StackOverflow();
+    return NULL;
+  }
+
+  // Extract the accumulated data from the recorder as a single
+  // contiguous vector that we are responsible for disposing.
+  Vector<unsigned> store = recorder->ExtractData();
+  return new ScriptDataImpl(store);
+}
+
+
+// Create an UTF16Buffer for the preparser to use as input,
+// and preparse the source.
+static ScriptDataImpl* DoPreParse(Handle<String> source,
+                                  unibrow::CharacterStream* stream,
+                                  bool allow_lazy,
+                                  PartialParserRecorder* recorder) {
+  if (source.is_null()) {
+    CharacterStreamUTF16Buffer buffer;
+    int length = stream->Length();
+    buffer.Initialize(source, stream, 0, length);
+    return DoPreParse(&buffer, allow_lazy, recorder);
+  } else if (source->IsExternalAsciiString()) {
+    ExternalStringUTF16Buffer<ExternalAsciiString, char> buffer;
+    int length = source->length();
+    buffer.Initialize(Handle<ExternalAsciiString>::cast(source), 0, length);
+    return DoPreParse(&buffer, allow_lazy, recorder);
+  } else if (source->IsExternalTwoByteString()) {
+    ExternalStringUTF16Buffer<ExternalTwoByteString, uint16_t> buffer;
+    int length = source->length();
+    buffer.Initialize(Handle<ExternalTwoByteString>::cast(source), 0, length);
+    return DoPreParse(&buffer, allow_lazy, recorder);
+  } else {
+    CharacterStreamUTF16Buffer buffer;
+    SafeStringInputBuffer input;
+    input.Reset(0, source.location());
+    int length = source->length();
+    buffer.Initialize(source, &input, 0, length);
+    return DoPreParse(&buffer, allow_lazy, recorder);
+  }
+}
+
+
 // Preparse, but only collect data that is immediately useful,
 // even if the preparser data is only used once.
 ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
@@ -4647,19 +4701,9 @@ ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
     // If we don't allow lazy compilation, the log data will be empty.
     return NULL;
   }
-  preparser::PreParser<Scanner, PartialParserRecorder> parser;
-  Scanner scanner;
-  scanner.Initialize(source, stream, JAVASCRIPT);
   PartialParserRecorder recorder;
-  if (!parser.PreParseProgram(&scanner, &recorder, allow_lazy)) {
-    Top::StackOverflow();
-    return NULL;
-  }
 
-  // Extract the accumulated data from the recorder as a single
-  // contiguous vector that we are responsible for disposing.
-  Vector<unsigned> store = recorder.ExtractData();
-  return new ScriptDataImpl(store);
+  return DoPreParse(source, stream, allow_lazy, &recorder);
 }
 
 
@@ -4667,19 +4711,9 @@ ScriptDataImpl* ParserApi::PreParse(Handle<String> source,
                                     unibrow::CharacterStream* stream,
                                     v8::Extension* extension) {
   Handle<Script> no_script;
-  preparser::PreParser<Scanner, CompleteParserRecorder> parser;
-  Scanner scanner;
-  scanner.Initialize(source, stream, JAVASCRIPT);
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   CompleteParserRecorder recorder;
-  if (!parser.PreParseProgram(&scanner, &recorder, allow_lazy)) {
-    Top::StackOverflow();
-    return NULL;
-  }
-  // Extract the accumulated data from the recorder as a single
-  // contiguous vector that we are responsible for disposing.
-  Vector<unsigned> store = recorder.ExtractData();
-  return new ScriptDataImpl(store);
+  return DoPreParse(source, stream, allow_lazy, &recorder);
 }
 
 

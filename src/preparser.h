@@ -29,6 +29,7 @@
 #define V8_PREPARSER_H
 
 #include "unicode.h"
+#include "utils.h"
 
 namespace v8 {
 namespace preparser {
@@ -750,15 +751,18 @@ Statement PreParser<Scanner, Log>::ParseTryStatement(bool* ok) {
 
   bool catch_or_finally_seen = false;
   if (peek() == i::Token::CATCH) {
-    Expect(i::Token::CATCH, CHECK_OK);
+    Consume(i::Token::CATCH);
     Expect(i::Token::LPAREN, CHECK_OK);
     ParseIdentifier(CHECK_OK);
     Expect(i::Token::RPAREN, CHECK_OK);
-    ParseBlock(CHECK_OK);
+    scope_->EnterWith();
+    ParseBlock(ok);
+    scope_->LeaveWith();
+    if (!*ok) return kUnknownStatement;
     catch_or_finally_seen = true;
   }
   if (peek() == i::Token::FINALLY) {
-    Expect(i::Token::FINALLY, CHECK_OK);
+    Consume(i::Token::FINALLY);
     ParseBlock(CHECK_OK);
     catch_or_finally_seen = true;
   }
@@ -1370,6 +1374,7 @@ Expression PreParser<Scanner, Log>::GetStringSymbol() {
 template <typename Scanner, typename Log>
 Identifier PreParser<Scanner, Log>::ParseIdentifier(bool* ok) {
   Expect(i::Token::IDENTIFIER, ok);
+  if (!*ok) return kUnknownIdentifier;
   return GetIdentifierSymbol();
 }
 
@@ -1380,7 +1385,7 @@ Identifier PreParser<Scanner, Log>::ParseIdentifierName(bool* ok) {
   if (i::Token::IsKeyword(next)) {
     int pos = scanner_->location().beg_pos;
     const char* keyword = i::Token::String(next);
-    log_->LogSymbol(pos, keyword, strlen(keyword));
+    log_->LogSymbol(pos, keyword, i::StrLength(keyword));
     return kUnknownExpression;
   }
   if (next == i::Token::IDENTIFIER) {

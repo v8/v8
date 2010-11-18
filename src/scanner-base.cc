@@ -27,10 +27,38 @@
 
 // Features shared by parsing and pre-parsing scanners.
 
+#include "../include/v8stdint.h"
 #include "scanner-base.h"
 
 namespace v8 {
 namespace internal {
+
+// ----------------------------------------------------------------------------
+// Character predicates
+
+unibrow::Predicate<IdentifierStart, 128> ScannerConstants::kIsIdentifierStart;
+unibrow::Predicate<IdentifierPart, 128> ScannerConstants::kIsIdentifierPart;
+unibrow::Predicate<unibrow::WhiteSpace, 128> ScannerConstants::kIsWhiteSpace;
+unibrow::Predicate<unibrow::LineTerminator, 128>
+  ScannerConstants::kIsLineTerminator;
+
+StaticResource<ScannerConstants::Utf8Decoder> ScannerConstants::utf8_decoder_;
+
+// Compound predicates.
+
+bool ScannerConstants::IsIdentifier(unibrow::CharacterStream* buffer) {
+  // Checks whether the buffer contains an identifier (no escape).
+  if (!buffer->has_more()) return false;
+  if (!kIsIdentifierStart.get(buffer->GetNext())) {
+    return false;
+  }
+  while (buffer->has_more()) {
+    if (!kIsIdentifierPart.get(buffer->GetNext())) {
+      return false;
+    }
+  }
+  return true;
+}
 
 // ----------------------------------------------------------------------------
 // Keyword Matcher

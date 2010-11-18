@@ -568,10 +568,10 @@ void CodeGenerator::Load(Expression* expr) {
 
 void CodeGenerator::LoadGlobal() {
   if (in_spilled_code()) {
-    frame_->EmitPush(GlobalObject());
+    frame_->EmitPush(GlobalObjectOperand());
   } else {
     Result temp = allocator_->Allocate();
-    __ movq(temp.reg(), GlobalObject());
+    __ movq(temp.reg(), GlobalObjectOperand());
     frame_->Push(&temp);
   }
 }
@@ -580,7 +580,7 @@ void CodeGenerator::LoadGlobal() {
 void CodeGenerator::LoadGlobalReceiver() {
   Result temp = allocator_->Allocate();
   Register reg = temp.reg();
-  __ movq(reg, GlobalObject());
+  __ movq(reg, GlobalObjectOperand());
   __ movq(reg, FieldOperand(reg, GlobalObject::kGlobalReceiverOffset));
   frame_->Push(&temp);
 }
@@ -5592,6 +5592,18 @@ void CodeGenerator::VisitCall(Call* node) {
         // Push the receiver onto the frame.
         Load(property->obj());
 
+        // Load the name of the function.
+        Load(property->key());
+
+        // Swap the name of the function and the receiver on the stack to follow
+        // the calling convention for call ICs.
+        Result key = frame_->Pop();
+        Result receiver = frame_->Pop();
+        frame_->Push(&key);
+        frame_->Push(&receiver);
+        key.Unuse();
+        receiver.Unuse();
+
         // Load the arguments.
         int arg_count = args->length();
         for (int i = 0; i < arg_count; i++) {
@@ -5599,14 +5611,13 @@ void CodeGenerator::VisitCall(Call* node) {
           frame_->SpillTop();
         }
 
-        // Load the name of the function.
-        Load(property->key());
-
-        // Call the IC initialization code.
+        // Place the key on top of stack and call the IC initialization code.
+        frame_->PushElementAt(arg_count + 1);
         CodeForSourcePosition(node->position());
         Result result = frame_->CallKeyedCallIC(RelocInfo::CODE_TARGET,
                                                 arg_count,
                                                 loop_nesting());
+        frame_->Drop();  // Drop the key still on the stack.
         frame_->RestoreContextRegister();
         frame_->Push(&result);
       }
@@ -6062,7 +6073,7 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
     __ movq(scratch2_,
             FieldOperand(scratch2_, GlobalObject::kGlobalContextOffset));
     __ cmpq(scratch1_,
-            CodeGenerator::ContextOperand(
+            ContextOperand(
                 scratch2_, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
     __ j(not_equal, &false_result);
     // Set the bit in the map to indicate that it has been checked safe for
@@ -7219,7 +7230,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     // Push the builtins object found in the current global object.
     Result temp = allocator()->Allocate();
     ASSERT(temp.is_valid());
-    __ movq(temp.reg(), GlobalObject());
+    __ movq(temp.reg(), GlobalObjectOperand());
     __ movq(temp.reg(),
             FieldOperand(temp.reg(), GlobalObject::kBuiltinsOffset));
     frame_->Push(&temp);

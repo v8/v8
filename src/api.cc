@@ -115,7 +115,6 @@ static void DefaultFatalErrorHandler(const char* location,
 }
 
 
-
 static FatalErrorCallback& GetFatalErrorHandler() {
   if (exception_behavior == NULL) {
     exception_behavior = DefaultFatalErrorHandler;
@@ -123,6 +122,10 @@ static FatalErrorCallback& GetFatalErrorHandler() {
   return exception_behavior;
 }
 
+
+void i::FatalProcessOutOfMemory(const char* location) {
+  i::V8::FatalProcessOutOfMemory(location, false);
+}
 
 
 // When V8 cannot allocated memory FatalProcessOutOfMemory is called.

@@ -132,7 +132,7 @@ class ScriptDataImpl : public ScriptData {
   unsigned version() { return store_[kVersionOffset]; }
 
   static const unsigned kMagicNumber = 0xBadDead;
-  static const unsigned kCurrentVersion = 4;
+  static const unsigned kCurrentVersion = 5;
 
   static const int kMagicOffset = 0;
   static const int kVersionOffset = 1;

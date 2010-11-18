@@ -42,25 +42,35 @@ class UTF8Buffer {
   ~UTF8Buffer();
 
   inline void AddChar(uc32 c) {
-    if (static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
-      buffer_.Add(static_cast<char>(c));
-    } else {
-      AddCharSlow(c);
+    if (recording_) {
+      if (static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
+        buffer_.Add(static_cast<char>(c));
+      } else {
+        AddCharSlow(c);
+      }
     }
   }
 
   void StartLiteral() {
     buffer_.StartSequence();
+    recording_ = true;
   }
 
   Vector<const char> EndLiteral() {
-    buffer_.Add(kEndMarker);
-    Vector<char> sequence = buffer_.EndSequence();
-    return Vector<const char>(sequence.start(), sequence.length());
+    if (recording_) {
+      recording_ = false;
+      buffer_.Add(kEndMarker);
+      Vector<char> sequence = buffer_.EndSequence();
+      return Vector<const char>(sequence.start(), sequence.length());
+    }
+    return Vector<const char>();
   }
 
   void DropLiteral() {
-    buffer_.DropSequence();
+    if (recording_) {
+      recording_ = false;
+      buffer_.DropSequence();
+    }
   }
 
   void Reset() {
@@ -79,27 +89,8 @@ class UTF8Buffer {
  private:
   static const int kInitialCapacity = 256;
   SequenceCollector<char, 4> buffer_;
-
+  bool recording_;
   void AddCharSlow(uc32 c);
-};
-
-
-// Interface through which the scanner reads characters from the input source.
-class UTF16Buffer {
- public:
-  UTF16Buffer();
-  virtual ~UTF16Buffer() {}
-
-  virtual void PushBack(uc32 ch) = 0;
-  // Returns a value < 0 when the buffer end is reached.
-  virtual uc32 Advance() = 0;
-  virtual void SeekForward(int pos) = 0;
-
-  int pos() const { return pos_; }
-
- protected:
-  int pos_;  // Current position in the buffer.
-  int end_;  // Position where scanning should stop (EOF).
 };
 
 
@@ -251,16 +242,9 @@ class Scanner {
 
   bool stack_overflow() { return stack_overflow_; }
 
-  static StaticResource<Utf8Decoder>* utf8_decoder() { return &utf8_decoder_; }
-
   // Tells whether the buffer contains an identifier (no escapes).
   // Used for checking if a property name is an identifier.
   static bool IsIdentifier(unibrow::CharacterStream* buffer);
-
-  static unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
-  static unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
-  static unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
-  static unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
 
   static const int kCharacterLookaheadBufferSize = 1;
   static const int kNoEndPosition = 1;
@@ -280,8 +264,8 @@ class Scanner {
 
   // Literal buffer support
   inline void StartLiteral();
-  inline void AddChar(uc32 ch);
-  inline void AddCharAdvance();
+  inline void AddLiteralChar(uc32 ch);
+  inline void AddLiteralCharAdvance();
   inline void TerminateLiteral();
   // Stops scanning of a literal, e.g., due to an encountered error.
   inline void DropLiteral();
@@ -391,11 +375,60 @@ class Scanner {
   UTF8Buffer literal_buffer_;
 
   bool stack_overflow_;
-  static StaticResource<Utf8Decoder> utf8_decoder_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
 };
+
+
+// ExternalStringUTF16Buffer
+template <typename StringType, typename CharType>
+ExternalStringUTF16Buffer<StringType, CharType>::ExternalStringUTF16Buffer()
+    : raw_data_(NULL) { }
+
+
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::Initialize(
+     Handle<StringType> data,
+     int start_position,
+     int end_position) {
+  ASSERT(!data.is_null());
+  raw_data_ = data->resource()->data();
+
+  ASSERT(end_position <= data->length());
+  if (start_position > 0) {
+    SeekForward(start_position);
+  }
+  end_ =
+      end_position != Scanner::kNoEndPosition ? end_position : data->length();
+}
+
+
+template <typename StringType, typename CharType>
+uc32 ExternalStringUTF16Buffer<StringType, CharType>::Advance() {
+  if (pos_ < end_) {
+    return raw_data_[pos_++];
+  } else {
+    // note: currently the following increment is necessary to avoid a
+    // test-parser problem!
+    pos_++;
+    return static_cast<uc32>(-1);
+  }
+}
+
+
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::PushBack(uc32 ch) {
+  pos_--;
+  ASSERT(pos_ >= Scanner::kCharacterLookaheadBufferSize);
+  ASSERT(raw_data_[pos_ - Scanner::kCharacterLookaheadBufferSize] == ch);
+}
+
+
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::SeekForward(int pos) {
+  pos_ = pos;
+}
 
 } }  // namespace v8::internal
 
