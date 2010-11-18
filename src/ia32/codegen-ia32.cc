@@ -154,7 +154,7 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm)
       safe_int32_mode_enabled_(true),
       function_return_is_shadowed_(false),
       in_spilled_code_(false),
-      jit_cookie_((FLAG_mask_constants_with_cookie) ? V8::Random() : 0) {
+      jit_cookie_((FLAG_mask_constants_with_cookie) ? V8::RandomPrivate() : 0) {
 }
 
 
