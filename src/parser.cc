@@ -728,7 +728,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 
   // Initialize parser state.
   source->TryFlatten();
-  scanner_.Initialize(source, JAVASCRIPT);
+  scanner_.Initialize(source);
   ASSERT(target_stack_ == NULL);
   if (pre_data_ != NULL) pre_data_->Initialize();
 
@@ -791,8 +791,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
 
   // Initialize parser state.
   source->TryFlatten();
-  scanner_.Initialize(source, info->start_position(), info->end_position(),
-                      JAVASCRIPT);
+  scanner_.Initialize(source, info->start_position(), info->end_position());
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
 
@@ -3613,7 +3612,7 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 
 Handle<Object> JsonParser::ParseJson(Handle<String> source) {
   source->TryFlatten();
-  scanner_.Initialize(source, JSON);
+  scanner_.Initialize(source);
   Handle<Object> result = ParseJsonValue();
   if (result.is_null() || scanner_.Next() != Token::EOS) {
     if (scanner_.stack_overflow()) {
@@ -4641,10 +4640,9 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 static ScriptDataImpl* DoPreParse(UTF16Buffer* stream,
                                   bool allow_lazy,
                                   PartialParserRecorder* recorder) {
-  typedef preparser::Scanner<UTF16Buffer, UTF8Buffer> PreScanner;
-  PreScanner scanner;
+  preparser::Scanner scanner;
   scanner.Initialize(stream);
-  preparser::PreParser<PreScanner, PartialParserRecorder> preparser;
+  preparser::PreParser<preparser::Scanner, PartialParserRecorder> preparser;
   if (!preparser.PreParseProgram(&scanner, recorder, allow_lazy)) {
     Top::StackOverflow();
     return NULL;

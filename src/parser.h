@@ -682,7 +682,7 @@ class Parser {
   Expression* ParseV8Intrinsic(bool* ok);
 
   INLINE(Token::Value peek()) { return scanner_.peek(); }
-  INLINE(Token::Value Next()) { return scanner_.Next(); }
+  INLINE(Token::Value Next()) { return scanner_.NextCheckStack(); }
   INLINE(void Consume(Token::Value token));
   void Expect(Token::Value token, bool* ok);
   bool Check(Token::Value token);
@@ -760,7 +760,7 @@ class Parser {
   ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
-  Scanner scanner_;
+  V8JavaScriptScanner scanner_;
 
   Scope* top_scope_;
   int with_nesting_level_;
@@ -852,7 +852,7 @@ class JsonParser BASE_EMBEDDED {
   // Converts the currently parsed literal to a JavaScript String.
   Handle<String> GetString();
 
-  Scanner scanner_;
+  JsonScanner scanner_;
 };
 } }  // namespace v8::internal
 

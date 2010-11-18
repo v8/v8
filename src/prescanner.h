@@ -40,19 +40,6 @@ namespace i = v8::internal;
 
 typedef int uc32;
 
-int HexValue(uc32 c) {
-  int res = c | 0x20;  // Uppercase letters.
-  int is_digit = (c & 0x10) >> 4;  // 0 if non-digit, 1 if digit.
-  // What to add to digits to make them consecutive with 'a'-'f' letters.
-  int kDelta = 'a' - '9' - 1;
-  // What to subtract to digits and letters to get them back to the range 0..15.
-  int kStart = '0' + kDelta;
-  res -= kStart;
-  res += kDelta * is_digit;
-  return res;
-}
-
-
 class PreScannerStackGuard {
  public:
   explicit PreScannerStackGuard(int max_size)
@@ -72,7 +59,6 @@ class PreScannerStackGuard {
 // Scanner for preparsing.
 // InputStream is a source of UC16 characters with limited push-back.
 // LiteralsBuffer is a collector of (UTF-8) characters used to capture literals.
-template <typename InputStream, typename LiteralsBuffer>
 class Scanner {
  public:
   enum LiteralType {
@@ -96,7 +82,7 @@ class Scanner {
 
   Scanner();
 
-  void Initialize(InputStream* stream);
+  void Initialize(i::UTF16Buffer* stream);
 
   // Returns the next token.
   i::Token::Value Next();
@@ -150,7 +136,6 @@ class Scanner {
   const char* next_literal_string() const {
     return next_.literal_chars;
   }
-
 
   // Returns the length of the next token (that would be returned if
   // Next() were called).
@@ -250,15 +235,15 @@ class Scanner {
   bool has_line_terminator_before_next_;
 
   // Source.
-  InputStream* source_;
+  i::UTF16Buffer* source_;
 
   // Buffer to hold literal values (identifiers, strings, numerals, regexps and
   // regexp flags) using '\x00'-terminated UTF-8 encoding.
   // Handles allocation internally.
   // Notice that the '\x00' termination is meaningless for strings and regexps
   // which may contain the zero-character, but can be used as terminator for
-  // identifiers, numerals and regexp flags.
-  LiteralsBuffer literal_buffer_;
+  // identifiers, numerals and regexp flags.Collector
+  i::LiteralCollector literal_buffer_;
 
   bool stack_overflow_;
 
@@ -270,21 +255,18 @@ class Scanner {
 // ----------------------------------------------------------------------------
 // Scanner::LiteralScope
 
-template <typename InputStream, typename LiteralsBuffer>
-Scanner<InputStream, LiteralsBuffer>::LiteralScope::LiteralScope(
+Scanner::LiteralScope::LiteralScope(
     Scanner* self, LiteralType type)
     : scanner_(self), complete_(false) {
   self->StartLiteral(type);
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-Scanner<InputStream, LiteralsBuffer>::LiteralScope::~LiteralScope() {
+Scanner::LiteralScope::~LiteralScope() {
   if (!complete_) scanner_->DropLiteral();
 }
 
-template <typename InputStream, typename LiteralsBuffer>
-void Scanner<InputStream, LiteralsBuffer>::LiteralScope::Complete() {
+void Scanner::LiteralScope::Complete() {
   scanner_->TerminateLiteral();
   complete_ = true;
 }
@@ -292,16 +274,14 @@ void Scanner<InputStream, LiteralsBuffer>::LiteralScope::Complete() {
 
 // ----------------------------------------------------------------------------
 // Scanner.
-template <typename InputStream, typename LiteralsBuffer>
-Scanner<InputStream, LiteralsBuffer>::Scanner()
+Scanner::Scanner()
     : stack_guard_(kMaxStackSize),
       has_line_terminator_before_next_(false),
       source_(NULL),
       stack_overflow_(false) {}
 
 
-template <typename InputStream, typename LiteralsBuffer>
-void Scanner<InputStream, LiteralsBuffer>::Initialize(InputStream* stream) {
+void Scanner::Initialize(i::UTF16Buffer* stream) {
   source_ = stream;
 
   // Initialize current_ to not refer to a literal.
@@ -321,8 +301,7 @@ void Scanner<InputStream, LiteralsBuffer>::Initialize(InputStream* stream) {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-i::Token::Value Scanner<InputStream, LiteralsBuffer>::Next() {
+i::Token::Value Scanner::Next() {
   // BUG 1215673: Find a thread safe way to set a stack limit in
   // pre-parse mode. Otherwise, we cannot safely pre-parse from other
   // threads.
@@ -339,8 +318,7 @@ i::Token::Value Scanner<InputStream, LiteralsBuffer>::Next() {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-void Scanner<InputStream, LiteralsBuffer>::StartLiteral(LiteralType type) {
+void Scanner::StartLiteral(LiteralType type) {
   // Only record string and literal identifiers when preparsing.
   // Those are the ones that are recorded as symbols. Numbers and
   // regexps are not recorded.
@@ -350,28 +328,24 @@ void Scanner<InputStream, LiteralsBuffer>::StartLiteral(LiteralType type) {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-void Scanner<InputStream, LiteralsBuffer>::AddLiteralChar(uc32 c) {
+void Scanner::AddLiteralChar(uc32 c) {
   literal_buffer_.AddChar(c);
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-void Scanner<InputStream, LiteralsBuffer>::TerminateLiteral() {
+void Scanner::TerminateLiteral() {
   i::Vector<const char> chars = literal_buffer_.EndLiteral();
   next_.literal_chars = chars.start();
   next_.literal_length = chars.length();
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-void Scanner<InputStream, LiteralsBuffer>::DropLiteral() {
+void Scanner::DropLiteral() {
   literal_buffer_.DropLiteral();
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-void Scanner<InputStream, LiteralsBuffer>::AddLiteralCharAdvance() {
+void Scanner::AddLiteralCharAdvance() {
   AddLiteralChar(c0_);
   Advance();
 }
@@ -389,8 +363,7 @@ static inline bool IsByteOrderMark(uc32 c) {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-bool Scanner<InputStream, LiteralsBuffer>::SkipWhiteSpace() {
+bool Scanner::SkipWhiteSpace() {
   int start_position = source_pos();
 
   while (true) {
@@ -431,8 +404,7 @@ bool Scanner<InputStream, LiteralsBuffer>::SkipWhiteSpace() {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-i::Token::Value Scanner<InputStream, LiteralsBuffer>::SkipSingleLineComment() {
+i::Token::Value Scanner::SkipSingleLineComment() {
   Advance();
 
   // The line terminator at the end of the line is not considered
@@ -448,8 +420,7 @@ i::Token::Value Scanner<InputStream, LiteralsBuffer>::SkipSingleLineComment() {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-i::Token::Value Scanner<InputStream, LiteralsBuffer>::SkipMultiLineComment() {
+i::Token::Value Scanner::SkipMultiLineComment() {
   ASSERT(c0_ == '*');
   Advance();
 
@@ -474,8 +445,7 @@ i::Token::Value Scanner<InputStream, LiteralsBuffer>::SkipMultiLineComment() {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-i::Token::Value Scanner<InputStream, LiteralsBuffer>::ScanHtmlComment() {
+i::Token::Value Scanner::ScanHtmlComment() {
   // Check for <!-- comments.
   ASSERT(c0_ == '!');
   Advance();
@@ -490,8 +460,7 @@ i::Token::Value Scanner<InputStream, LiteralsBuffer>::ScanHtmlComment() {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-void Scanner<InputStream, LiteralsBuffer>::Scan() {
+void Scanner::Scan() {
   next_.literal_length = 0;
   i::Token::Value token;
   do {
@@ -731,8 +700,7 @@ void Scanner<InputStream, LiteralsBuffer>::Scan() {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-void Scanner<InputStream, LiteralsBuffer>::SeekForward(int pos) {
+void Scanner::SeekForward(int pos) {
   source_->SeekForward(pos - 1);
   Advance();
   // This function is only called to seek to the location
@@ -743,15 +711,14 @@ void Scanner<InputStream, LiteralsBuffer>::SeekForward(int pos) {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-uc32 Scanner<InputStream, LiteralsBuffer>::ScanHexEscape(uc32 c, int length) {
+uc32 Scanner::ScanHexEscape(uc32 c, int length) {
   ASSERT(length <= 4);  // prevent overflow
 
   uc32 digits[4];
   uc32 x = 0;
   for (int i = 0; i < length; i++) {
     digits[i] = c0_;
-    int d = HexValue(c0_);
+    int d = i::HexValue(c0_);
     if (d < 0) {
       // According to ECMA-262, 3rd, 7.8.4, page 18, these hex escapes
       // should be illegal, but other JS VMs just return the
@@ -774,8 +741,7 @@ uc32 Scanner<InputStream, LiteralsBuffer>::ScanHexEscape(uc32 c, int length) {
 
 // Octal escapes of the forms '\0xx' and '\xxx' are not a part of
 // ECMA-262. Other JS VMs support them.
-template <typename InputStream, typename LiteralsBuffer>
-uc32 Scanner<InputStream, LiteralsBuffer>::ScanOctalEscape(
+uc32 Scanner::ScanOctalEscape(
     uc32 c, int length) {
   uc32 x = c - '0';
   for (int i = 0; i < length; i++) {
@@ -790,8 +756,7 @@ uc32 Scanner<InputStream, LiteralsBuffer>::ScanOctalEscape(
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-void Scanner<InputStream, LiteralsBuffer>::ScanEscape() {
+void Scanner::ScanEscape() {
   uc32 c = c0_;
   Advance();
 
@@ -833,8 +798,7 @@ void Scanner<InputStream, LiteralsBuffer>::ScanEscape() {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-i::Token::Value Scanner<InputStream, LiteralsBuffer>::ScanString() {
+i::Token::Value Scanner::ScanString() {
   uc32 quote = c0_;
   Advance();  // consume quote
 
@@ -858,16 +822,14 @@ i::Token::Value Scanner<InputStream, LiteralsBuffer>::ScanString() {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-i::Token::Value Scanner<InputStream, LiteralsBuffer>::Select(
+i::Token::Value Scanner::Select(
     i::Token::Value tok) {
   Advance();
   return tok;
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-i::Token::Value Scanner<InputStream, LiteralsBuffer>::Select(
+i::Token::Value Scanner::Select(
     uc32 next,
     i::Token::Value then,
     i::Token::Value else_) {
@@ -882,15 +844,13 @@ i::Token::Value Scanner<InputStream, LiteralsBuffer>::Select(
 
 
 // Returns true if any decimal digits were scanned, returns false otherwise.
-template <typename InputStream, typename LiteralsBuffer>
-void Scanner<InputStream, LiteralsBuffer>::ScanDecimalDigits() {
+void Scanner::ScanDecimalDigits() {
   while (i::IsDecimalDigit(c0_))
     AddLiteralCharAdvance();
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-i::Token::Value Scanner<InputStream, LiteralsBuffer>::ScanNumber(
+i::Token::Value Scanner::ScanNumber(
     bool seen_period) {
   // c0_ is the first digit of the number or the fraction.
   ASSERT(i::IsDecimalDigit(c0_));
@@ -973,8 +933,7 @@ i::Token::Value Scanner<InputStream, LiteralsBuffer>::ScanNumber(
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-uc32 Scanner<InputStream, LiteralsBuffer>::ScanIdentifierUnicodeEscape() {
+uc32 Scanner::ScanIdentifierUnicodeEscape() {
   Advance();
   if (c0_ != 'u') return unibrow::Utf8::kBadChar;
   Advance();
@@ -986,8 +945,7 @@ uc32 Scanner<InputStream, LiteralsBuffer>::ScanIdentifierUnicodeEscape() {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-i::Token::Value Scanner<InputStream, LiteralsBuffer>::ScanIdentifier() {
+i::Token::Value Scanner::ScanIdentifier() {
   ASSERT(i::ScannerConstants::kIsIdentifierStart.get(c0_));
 
   LiteralScope literal(this, kLiteralIdentifier);
@@ -1030,8 +988,7 @@ i::Token::Value Scanner<InputStream, LiteralsBuffer>::ScanIdentifier() {
 }
 
 
-template <typename InputStream, typename LiteralsBuffer>
-bool Scanner<InputStream, LiteralsBuffer>::ScanRegExpPattern(bool seen_equal) {
+bool Scanner::ScanRegExpPattern(bool seen_equal) {
   // Scan: ('/' | '/=') RegularExpressionBody '/' RegularExpressionFlags
   bool in_character_class = false;
 
@@ -1070,8 +1027,7 @@ bool Scanner<InputStream, LiteralsBuffer>::ScanRegExpPattern(bool seen_equal) {
   return true;
 }
 
-template <typename InputStream, typename LiteralsBuffer>
-bool Scanner<InputStream, LiteralsBuffer>::ScanRegExpFlags() {
+bool Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this, kLiteralRegExpFlags);
   while (i::ScannerConstants::kIsIdentifierPart.get(c0_)) {
