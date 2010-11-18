@@ -197,8 +197,13 @@ class V8EXPORT HeapGraphEdge {
     kContextVariable = 0,  // A variable from a function context.
     kElement = 1,          // An element of an array.
     kProperty = 2,         // A named object property.
-    kInternal = 3          // A link that can't be accessed from JS,
-                           // thus, its name isn't a real property name.
+    kInternal = 3,         // A link that can't be accessed from JS,
+                           // thus, its name isn't a real property name
+                           // (e.g. parts of a ConsString).
+    kHidden = 4,           // A link that is needed for proper sizes
+                           // calculation, but may be hidden from user.
+    kShortcut = 5          // A link that must not be followed during
+                           // sizes calculation.
   };
 
   /** Returns edge type (see HeapGraphEdge::Type). */
@@ -240,7 +245,7 @@ class V8EXPORT HeapGraphPath {
 class V8EXPORT HeapGraphNode {
  public:
   enum Type {
-    kInternal = 0,   // Internal node, a virtual one, for housekeeping.
+    kHidden = 0,     // Hidden node, may be filtered when shown to user.
     kArray = 1,      // An array of elements.
     kString = 2,     // A string.
     kObject = 3,     // A JS object (except for arrays and strings).

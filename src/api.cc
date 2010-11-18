@@ -4669,9 +4669,11 @@ Handle<Value> HeapGraphEdge::GetName() const {
     case i::HeapGraphEdge::kContextVariable:
     case i::HeapGraphEdge::kInternal:
     case i::HeapGraphEdge::kProperty:
+    case i::HeapGraphEdge::kShortcut:
       return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
           edge->name())));
     case i::HeapGraphEdge::kElement:
+    case i::HeapGraphEdge::kHidden:
       return Handle<Number>(ToApi<Number>(i::Factory::NewNumberFromInt(
           edge->index())));
     default: UNREACHABLE();
