@@ -598,8 +598,8 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 int argc) {
   // Get the function and setup the context.
   JSFunction* function = optimization.constant_function();
-  __ mov(r7, Operand(Handle<JSFunction>(function)));
-  __ ldr(cp, FieldMemOperand(r7, JSFunction::kContextOffset));
+  __ mov(r5, Operand(Handle<JSFunction>(function)));
+  __ ldr(cp, FieldMemOperand(r5, JSFunction::kContextOffset));
 
   // Pass the additional arguments FastHandleApiCall expects.
   bool info_loaded = false;
@@ -607,18 +607,18 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   if (Heap::InNewSpace(callback)) {
     info_loaded = true;
     __ Move(r0, Handle<CallHandlerInfo>(optimization.api_call_info()));
-    __ ldr(r6, FieldMemOperand(r0, CallHandlerInfo::kCallbackOffset));
+    __ ldr(r7, FieldMemOperand(r0, CallHandlerInfo::kCallbackOffset));
   } else {
-    __ Move(r6, Handle<Object>(callback));
+    __ Move(r7, Handle<Object>(callback));
   }
   Object* call_data = optimization.api_call_info()->data();
   if (Heap::InNewSpace(call_data)) {
     if (!info_loaded) {
       __ Move(r0, Handle<CallHandlerInfo>(optimization.api_call_info()));
     }
-    __ ldr(r5, FieldMemOperand(r0, CallHandlerInfo::kDataOffset));
+    __ ldr(r6, FieldMemOperand(r0, CallHandlerInfo::kDataOffset));
   } else {
-    __ Move(r5, Handle<Object>(call_data));
+    __ Move(r6, Handle<Object>(call_data));
   }
 
   __ add(sp, sp, Operand(1 * kPointerSize));
@@ -1082,10 +1082,9 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
 
   // Push the arguments on the JS stack of the caller.
   __ push(receiver);  // Receiver.
-  __ push(reg);  // Holder.
-  __ mov(ip, Operand(Handle<AccessorInfo>(callback)));  // callback data
-  __ ldr(reg, FieldMemOperand(ip, AccessorInfo::kDataOffset));
-  __ Push(ip, reg, name_reg);
+  __ mov(scratch3, Operand(Handle<AccessorInfo>(callback)));  // callback data
+  __ ldr(ip, FieldMemOperand(scratch3, AccessorInfo::kDataOffset));
+  __ Push(reg, ip, scratch3, name_reg);
 
   // Do tail-call to the runtime system.
   ExternalReference load_callback_property =
@@ -1208,15 +1207,15 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
       // holder_reg is either receiver or scratch1.
       if (!receiver.is(holder_reg)) {
         ASSERT(scratch1.is(holder_reg));
-        __ Push(receiver, holder_reg, scratch2);
-        __ ldr(scratch1,
-               FieldMemOperand(holder_reg, AccessorInfo::kDataOffset));
-        __ Push(scratch1, name_reg);
+        __ Push(receiver, holder_reg);
+        __ ldr(scratch3,
+               FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
+        __ Push(scratch3, scratch2, name_reg);
       } else {
         __ push(receiver);
-        __ ldr(scratch1,
-               FieldMemOperand(holder_reg, AccessorInfo::kDataOffset));
-        __ Push(holder_reg, scratch2, scratch1, name_reg);
+        __ ldr(scratch3,
+               FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
+        __ Push(holder_reg, scratch3, scratch2, name_reg);
       }
 
       ExternalReference ref =
