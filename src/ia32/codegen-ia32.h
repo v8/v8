@@ -710,6 +710,7 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateHasCachedArrayIndex(ZoneList<Expression*>* args);
   void GenerateGetCachedArrayIndex(ZoneList<Expression*>* args);
+  void GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args);
 
   // Simple condition analysis.
   enum ConditionAnalysis {

@@ -7217,6 +7217,11 @@ void CodeGenerator::GenerateGetCachedArrayIndex(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args) {
+  frame_->Push(Factory::undefined_value());
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) {
     return;

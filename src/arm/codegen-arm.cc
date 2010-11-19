@@ -5816,6 +5816,15 @@ void CodeGenerator::GenerateGetCachedArrayIndex(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+  Load(args->at(0));
+  Register value = frame_->PopToRegister();
+  __ LoadRoot(value, Heap::kUndefinedValueRootIndex);
+  frame_->EmitPush(value);
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
