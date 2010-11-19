@@ -118,8 +118,12 @@ void Scanner::LiteralScope::Complete() {
 // ----------------------------------------------------------------------------
 // V8JavaScriptScanner
 
-void V8JavaScriptScanner::Initialize(Handle<String> source) {
+void V8JavaScriptScanner::Initialize(Handle<String> source,
+                                     int literal_flags) {
   source_ = stream_initializer_.Init(source, NULL, 0, source->length());
+  // Need to capture identifiers in order to recognize "get" and "set"
+  // in object literals.
+  literal_flags_ = literal_flags | kLiteralIdentifier;
   Init();
   // Skip initial whitespace allowing HTML comment ends just like
   // after a newline and scan first token.
@@ -130,9 +134,11 @@ void V8JavaScriptScanner::Initialize(Handle<String> source) {
 
 
 void V8JavaScriptScanner::Initialize(Handle<String> source,
-                                     unibrow::CharacterStream* stream) {
+                                     unibrow::CharacterStream* stream,
+                                     int literal_flags) {
   source_ = stream_initializer_.Init(source, stream,
                                      0, UTF16Buffer::kNoEndPosition);
+  literal_flags_ = literal_flags | kLiteralIdentifier;
   Init();
   // Skip initial whitespace allowing HTML comment ends just like
   // after a newline and scan first token.
@@ -144,9 +150,11 @@ void V8JavaScriptScanner::Initialize(Handle<String> source,
 
 void V8JavaScriptScanner::Initialize(Handle<String> source,
                                      int start_position,
-                                     int end_position) {
+                                     int end_position,
+                                     int literal_flags) {
   source_ = stream_initializer_.Init(source, NULL,
                                      start_position, end_position);
+  literal_flags_ = literal_flags | kLiteralIdentifier;
   Init();
   // Skip initial whitespace allowing HTML comment ends just like
   // after a newline and scan first token.

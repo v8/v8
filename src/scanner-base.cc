@@ -480,7 +480,7 @@ void JavaScriptScanner::Scan() {
 
       default:
         if (ScannerConstants::kIsIdentifierStart.get(c0_)) {
-          token = ScanIdentifier();
+          token = ScanIdentifierOrKeyword();
         } else if (IsDecimalDigit(c0_)) {
           token = ScanNumber(false);
         } else if (SkipWhiteSpace()) {
@@ -559,7 +559,7 @@ Token::Value JavaScriptScanner::ScanString() {
   uc32 quote = c0_;
   Advance();  // consume quote
 
-  LiteralScope literal(this);
+  LiteralScope literal(this, kLiteralString);
   while (c0_ != quote && c0_ >= 0
          && !ScannerConstants::kIsLineTerminator.get(c0_)) {
     uc32 c = c0_;
@@ -590,7 +590,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
 
   enum { DECIMAL, HEX, OCTAL } kind = DECIMAL;
 
-  LiteralScope literal(this);
+  LiteralScope literal(this, kLiteralNumber);
   if (seen_period) {
     // we have already seen a decimal point of the float
     AddLiteralChar('.');
@@ -677,25 +677,44 @@ uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
 }
 
 
-Token::Value JavaScriptScanner::ScanIdentifier() {
+Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
   ASSERT(ScannerConstants::kIsIdentifierStart.get(c0_));
-
-  LiteralScope literal(this);
+  LiteralScope literal(this, kLiteralIdentifier);
   KeywordMatcher keyword_match;
-
   // Scan identifier start character.
   if (c0_ == '\\') {
     uc32 c = ScanIdentifierUnicodeEscape();
     // Only allow legal identifier start characters.
     if (!ScannerConstants::kIsIdentifierStart.get(c)) return Token::ILLEGAL;
     AddLiteralChar(c);
-    keyword_match.Fail();
-  } else {
-    AddLiteralChar(c0_);
-    keyword_match.AddChar(c0_);
-    Advance();
+    return ScanIdentifierSuffix(&literal);
   }
 
+  uc32 first_char = c0_;
+  Advance();
+  AddLiteralChar(first_char);
+  if (!keyword_match.AddChar(first_char)) {
+    return ScanIdentifierSuffix(&literal);
+  }
+
+  // Scan the rest of the identifier characters.
+  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
+    if (c0_ != '\\') {
+      uc32 next_char = c0_;
+      Advance();
+      AddLiteralChar(next_char);
+      if (keyword_match.AddChar(next_char)) continue;
+    }
+    // Fallthrough if no loner able to complete keyword.
+    return ScanIdentifierSuffix(&literal);
+  }
+  literal.Complete();
+
+  return keyword_match.token();
+}
+
+
+Token::Value JavaScriptScanner::ScanIdentifierSuffix(LiteralScope* literal) {
   // Scan the rest of the identifier characters.
   while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
     if (c0_ == '\\') {
@@ -703,18 +722,15 @@ Token::Value JavaScriptScanner::ScanIdentifier() {
       // Only allow legal identifier part characters.
       if (!ScannerConstants::kIsIdentifierPart.get(c)) return Token::ILLEGAL;
       AddLiteralChar(c);
-      keyword_match.Fail();
     } else {
       AddLiteralChar(c0_);
-      keyword_match.AddChar(c0_);
       Advance();
     }
   }
-  literal.Complete();
+  literal->Complete();
 
-  return keyword_match.token();
+  return Token::IDENTIFIER;
 }
-
 
 
 bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
@@ -729,7 +745,7 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
   // Scan regular expression body: According to ECMA-262, 3rd, 7.8.5,
   // the scanner should pass uninterpreted bodies to the RegExp
   // constructor.
-  LiteralScope literal(this);
+  LiteralScope literal(this, kLiteralRegExp);
   if (seen_equal)
     AddLiteralChar('=');
 
@@ -752,9 +768,10 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
   return true;
 }
 
+
 bool JavaScriptScanner::ScanRegExpFlags() {
   // Scan regular expression flags.
-  LiteralScope literal(this);
+  LiteralScope literal(this, kLiteralRegExpFlags);
   while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
@@ -868,9 +885,7 @@ void KeywordMatcher::Step(unibrow::uchar input) {
       break;
     case IN:
       token_ = Token::IDENTIFIER;
-      if (MatchKeywordStart(input, "instanceof", 2, Token::INSTANCEOF)) {
-        return;
-      }
+      if (MatchKeywordStart(input, "instanceof", 2, Token::INSTANCEOF)) return;
       break;
     case N:
       if (MatchKeywordStart(input, "native", 1, Token::NATIVE)) return;

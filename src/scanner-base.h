@@ -327,6 +327,42 @@ class Scanner {
 
 class JavaScriptScanner : public Scanner {
  public:
+
+  // Bit vector representing set of types of literals.
+  enum LiteralType {
+    kNoLiterals = 0,
+    kLiteralNumber = 1,
+    kLiteralIdentifier = 2,
+    kLiteralString = 4,
+    kLiteralRegExp = 8,
+    kLiteralRegExpFlags = 16,
+    kAllLiterals = 31
+  };
+
+  // A LiteralScope that disables recording of some types of JavaScript
+  // literals. If the scanner is configured to not record the specific
+  // type of literal, the scope will not call StartLiteral.
+  class LiteralScope {
+   public:
+    LiteralScope(JavaScriptScanner* self, LiteralType type)
+        : scanner_(self), complete_(false) {
+      if (scanner_->RecordsLiteral(type)) {
+        scanner_->StartLiteral();
+      }
+    }
+     ~LiteralScope() {
+       if (!complete_) scanner_->DropLiteral();
+     }
+    void Complete() {
+      scanner_->TerminateLiteral();
+      complete_ = true;
+    }
+
+   private:
+    JavaScriptScanner* scanner_;
+    bool complete_;
+  };
+
   JavaScriptScanner();
 
   // Returns the next token.
@@ -354,6 +390,11 @@ class JavaScriptScanner : public Scanner {
   // tokens, which is what it is used for.
   void SeekForward(int pos);
 
+  // Whether this scanner records the given literal type or not.
+  bool RecordsLiteral(LiteralType type) {
+    return (literal_flags_ & type) != 0;
+  }
+
  protected:
   bool SkipWhiteSpace();
   Token::Value SkipSingleLineComment();
@@ -364,7 +405,8 @@ class JavaScriptScanner : public Scanner {
 
   void ScanDecimalDigits();
   Token::Value ScanNumber(bool seen_period);
-  Token::Value ScanIdentifier();
+  Token::Value ScanIdentifierOrKeyword();
+  Token::Value ScanIdentifierSuffix(LiteralScope* literal);
 
   void ScanEscape();
   Token::Value ScanString();
@@ -376,6 +418,7 @@ class JavaScriptScanner : public Scanner {
   // If the escape sequence cannot be decoded the result is kBadChar.
   uc32 ScanIdentifierUnicodeEscape();
 
+  int literal_flags_;
   bool has_line_terminator_before_next_;
 };
 
@@ -404,10 +447,11 @@ class KeywordMatcher {
 
   Token::Value token() { return token_; }
 
-  inline void AddChar(unibrow::uchar input) {
+  inline bool AddChar(unibrow::uchar input) {
     if (state_ != UNMATCHABLE) {
       Step(input);
     }
+    return state_ != UNMATCHABLE;
   }
 
   void Fail() {
@@ -458,23 +502,23 @@ class KeywordMatcher {
                                 const char* keyword,
                                 int position,
                                 Token::Value token_if_match) {
-    if (input == static_cast<unibrow::uchar>(keyword[position])) {
-      state_ = KEYWORD_PREFIX;
-      this->keyword_ = keyword;
-      this->counter_ = position + 1;
-      this->keyword_token_ = token_if_match;
-      return true;
+    if (input != static_cast<unibrow::uchar>(keyword[position])) {
+      return false;
     }
-    return false;
+    state_ = KEYWORD_PREFIX;
+    this->keyword_ = keyword;
+    this->counter_ = position + 1;
+    this->keyword_token_ = token_if_match;
+    return true;
   }
 
   // If input equals match character, transition to new state and return true.
   inline bool MatchState(unibrow::uchar input, char match, State new_state) {
-    if (input == static_cast<unibrow::uchar>(match)) {
-      state_ = new_state;
-      return true;
+    if (input != static_cast<unibrow::uchar>(match)) {
+      return false;
     }
-    return false;
+    state_ = new_state;
+    return true;
   }
 
   inline bool MatchKeyword(unibrow::uchar input,

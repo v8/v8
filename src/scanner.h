@@ -108,11 +108,13 @@ class V8JavaScriptScanner : public JavaScriptScanner {
   Token::Value NextCheckStack();
 
   // Initialize the Scanner to scan source.
-  void Initialize(Handle<String> source);
+  void Initialize(Handle<String> source, int literal_flags = kAllLiterals);
   void Initialize(Handle<String> source,
-                  unibrow::CharacterStream* stream);
+                  unibrow::CharacterStream* stream,
+                  int literal_flags = kAllLiterals);
   void Initialize(Handle<String> source,
-                  int start_position, int end_position);
+                  int start_position, int end_position,
+                  int literal_flags = kAllLiterals);
 
  protected:
   StreamInitializer stream_initializer_;

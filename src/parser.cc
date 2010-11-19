@@ -37,7 +37,6 @@
 #include "parser.h"
 #include "platform.h"
 #include "preparser.h"
-#include "prescanner.h"
 #include "runtime.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
@@ -4637,12 +4636,15 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 }
 
 
-static ScriptDataImpl* DoPreParse(UTF16Buffer* stream,
+// Create a Scanner for the preparser to use as input, and preparse the source.
+static ScriptDataImpl* DoPreParse(Handle<String> source,
+                                  unibrow::CharacterStream* stream,
                                   bool allow_lazy,
-                                  PartialParserRecorder* recorder) {
-  preparser::Scanner scanner;
-  scanner.Initialize(stream);
-  preparser::PreParser<preparser::Scanner, PartialParserRecorder> preparser;
+                                  PartialParserRecorder* recorder,
+                                  int literal_flags) {
+  V8JavaScriptScanner scanner;
+  scanner.Initialize(source, stream, literal_flags);
+  preparser::PreParser<JavaScriptScanner, PartialParserRecorder> preparser;
   if (!preparser.PreParseProgram(&scanner, recorder, allow_lazy)) {
     Top::StackOverflow();
     return NULL;
@@ -4655,44 +4657,11 @@ static ScriptDataImpl* DoPreParse(UTF16Buffer* stream,
 }
 
 
-// Create an UTF16Buffer for the preparser to use as input,
-// and preparse the source.
-static ScriptDataImpl* DoPreParse(Handle<String> source,
-                                  unibrow::CharacterStream* stream,
-                                  bool allow_lazy,
-                                  PartialParserRecorder* recorder) {
-  if (source.is_null()) {
-    CharacterStreamUTF16Buffer buffer;
-    int length = stream->Length();
-    buffer.Initialize(source, stream, 0, length);
-    return DoPreParse(&buffer, allow_lazy, recorder);
-  } else if (source->IsExternalAsciiString()) {
-    ExternalStringUTF16Buffer<ExternalAsciiString, char> buffer;
-    int length = source->length();
-    buffer.Initialize(Handle<ExternalAsciiString>::cast(source), 0, length);
-    return DoPreParse(&buffer, allow_lazy, recorder);
-  } else if (source->IsExternalTwoByteString()) {
-    ExternalStringUTF16Buffer<ExternalTwoByteString, uint16_t> buffer;
-    int length = source->length();
-    buffer.Initialize(Handle<ExternalTwoByteString>::cast(source), 0, length);
-    return DoPreParse(&buffer, allow_lazy, recorder);
-  } else {
-    CharacterStreamUTF16Buffer buffer;
-    SafeStringInputBuffer input;
-    input.Reset(0, source.location());
-    int length = source->length();
-    buffer.Initialize(source, &input, 0, length);
-    return DoPreParse(&buffer, allow_lazy, recorder);
-  }
-}
-
-
 // Preparse, but only collect data that is immediately useful,
 // even if the preparser data is only used once.
 ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
                                            unibrow::CharacterStream* stream,
                                            v8::Extension* extension) {
-  Handle<Script> no_script;
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   if (!allow_lazy) {
     // Partial preparsing is only about lazily compiled functions.
@@ -4701,7 +4670,8 @@ ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
   }
   PartialParserRecorder recorder;
 
-  return DoPreParse(source, stream, allow_lazy, &recorder);
+  return DoPreParse(source, stream, allow_lazy, &recorder,
+                    JavaScriptScanner::kNoLiterals);
 }
 
 
@@ -4711,7 +4681,10 @@ ScriptDataImpl* ParserApi::PreParse(Handle<String> source,
   Handle<Script> no_script;
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   CompleteParserRecorder recorder;
-  return DoPreParse(source, stream, allow_lazy, &recorder);
+  int kPreParseLiteralsFlags =
+      JavaScriptScanner::kLiteralString | JavaScriptScanner::kLiteralIdentifier;
+  return DoPreParse(source, stream, allow_lazy,
+                    &recorder, kPreParseLiteralsFlags);
 }
 
 
