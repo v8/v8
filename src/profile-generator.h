@@ -528,12 +528,19 @@ class HeapEntry BASE_EMBEDDED {
   const char* name() { return name_; }
   uint64_t id() { return id_; }
   int self_size() { return self_size_; }
+  int retained_size() { return retained_size_; }
+  void add_retained_size(int size) { retained_size_ += size; }
+  void set_retained_size(int value) { retained_size_ = value; }
+  int ordered_index() { return ordered_index_; }
+  void set_ordered_index(int value) { ordered_index_ = value; }
 
   Vector<HeapGraphEdge> children() {
     return Vector<HeapGraphEdge>(children_arr(), children_count_); }
   Vector<HeapGraphEdge*> retainers() {
     return Vector<HeapGraphEdge*>(retainers_arr(), retainers_count_); }
   List<HeapGraphPath*>* GetRetainingPaths();
+  HeapEntry* dominator() { return dominator_; }
+  void set_dominator(HeapEntry* entry) { dominator_ = entry; }
 
   void clear_paint() { painted_ = kUnpainted; }
   bool painted_reachable() { return painted_ == kPainted; }
@@ -551,6 +558,13 @@ class HeapEntry BASE_EMBEDDED {
   void ApplyAndPaintAllReachable(Visitor* visitor);
   void PaintAllReachable();
 
+  bool is_leaf() { return painted_ == kLeaf; }
+  void set_leaf() { painted_ = kLeaf; }
+  bool is_non_leaf() { return painted_ == kNonLeaf; }
+  void set_non_leaf() { painted_ = kNonLeaf; }
+  bool is_processed() { return painted_ == kProcessed; }
+  void set_processed() { painted_ = kProcessed; }
+
   void SetIndexedReference(HeapGraphEdge::Type type,
                            int child_index,
                            int index,
@@ -564,14 +578,19 @@ class HeapEntry BASE_EMBEDDED {
   void SetUnidirElementReference(int child_index, int index, HeapEntry* entry);
 
   int EntrySize() { return EntriesSize(1, children_count_, retainers_count_); }
-  int ReachableSize();
-  int RetainedSize();
+  int RetainedSize(bool exact);
+  List<HeapGraphPath*>* CalculateRetainingPaths();
 
   void Print(int max_depth, int indent);
 
   static int EntriesSize(int entries_count,
                          int children_count,
                          int retainers_count);
+  static uint32_t Hash(HeapEntry* entry) {
+    return ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(entry)));
+  }
+  static bool Match(void* entry1, void* entry2) { return entry1 == entry2; }
 
  private:
   HeapGraphEdge* children_arr() {
@@ -580,53 +599,37 @@ class HeapEntry BASE_EMBEDDED {
   HeapGraphEdge** retainers_arr() {
     return reinterpret_cast<HeapGraphEdge**>(children_arr() + children_count_);
   }
+  void CalculateExactRetainedSize();
+  void FindRetainingPaths(CachedHeapGraphPath* prev_path,
+                          List<HeapGraphPath*>* retaining_paths);
   const char* TypeAsString();
 
   unsigned painted_: 2;
   unsigned type_: 3;
-  // The calculated data is stored in HeapSnapshot in HeapEntryCalculatedData
-  // entries. See AddCalculatedData and GetCalculatedData.
-  int calculated_data_index_: 27;
-  int self_size_;
-  int children_count_;
+  int children_count_: 27;
   int retainers_count_;
+  int self_size_;
+  union {
+    int ordered_index_;  // Used during dominator tree building.
+    int retained_size_;  // At that moment, there is no retained size yet.
+  };
+  HeapEntry* dominator_;
   HeapSnapshot* snapshot_;
   const char* name_;
   uint64_t id_;
 
+  // Paints used for exact retained sizes calculation.
   static const unsigned kUnpainted = 0;
   static const unsigned kPainted = 1;
   static const unsigned kPaintedReachableFromOthers = 2;
-  static const int kNoCalculatedData = -1;
+  // Paints used for approximate retained sizes calculation.
+  static const unsigned kLeaf = 0;
+  static const unsigned kNonLeaf = 1;
+  static const unsigned kProcessed = 2;
+
+  static const int kExactRetainedSizeTag = 1;
 
   DISALLOW_COPY_AND_ASSIGN(HeapEntry);
-};
-
-
-class HeapEntryCalculatedData {
- public:
-  HeapEntryCalculatedData()
-      : retaining_paths_(NULL),
-        reachable_size_(kUnknownSize),
-        retained_size_(kUnknownSize) {
-  }
-  void Dispose();
-
-  List<HeapGraphPath*>* GetRetainingPaths(HeapEntry* entry);
-  int ReachableSize(HeapEntry* entry);
-  int RetainedSize(HeapEntry* entry);
-
- private:
-  void CalculateSizes(HeapEntry* entry);
-  void FindRetainingPaths(HeapEntry* entry, CachedHeapGraphPath* prev_path);
-
-  List<HeapGraphPath*>* retaining_paths_;
-  int reachable_size_;
-  int retained_size_;
-
-  static const int kUnknownSize = -1;
-
-  // Allow generated copy constructor and assignment operator.
 };
 
 
@@ -687,12 +690,10 @@ class HeapSnapshot {
                       int size,
                       int children_count,
                       int retainers_count);
-  int AddCalculatedData();
-  HeapEntryCalculatedData& GetCalculatedData(int index) {
-    return calculated_data_[index];
-  }
+  void ApproximateRetainedSizes();
   void ClearPaint();
   HeapSnapshotsDiff* CompareWith(HeapSnapshot* snapshot);
+  List<HeapGraphPath*>* GetRetainingPaths(HeapEntry* entry);
   List<HeapEntry*>* GetSortedEntriesList();
   template<class Visitor>
   void IterateEntries(Visitor* visitor) { entries_.Iterate(visitor); }
@@ -710,6 +711,10 @@ class HeapSnapshot {
                       int children_count,
                       int retainers_count);
   HeapEntry* GetNextEntryToInit();
+  void BuildDominatorTree(const Vector<HeapEntry*>& entries,
+                          Vector<HeapEntry*>* dominators);
+  void FillReversePostorderIndexes(Vector<HeapEntry*>* entries);
+  void SetEntriesDominators();
 
   HeapSnapshotsCollection* collection_;
   Type type_;
@@ -720,7 +725,7 @@ class HeapSnapshot {
   char* raw_entries_;
   List<HeapEntry*> entries_;
   bool entries_sorted_;
-  List<HeapEntryCalculatedData> calculated_data_;
+  HashMap retaining_paths_;
 #ifdef DEBUG
   int raw_entries_size_;
 #endif

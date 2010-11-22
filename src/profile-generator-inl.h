@@ -105,22 +105,6 @@ void CodeMap::DeleteCode(Address addr) {
 }
 
 
-template<class Visitor>
-void HeapEntriesMap::UpdateEntries(Visitor* visitor) {
-  for (HashMap::Entry* p = entries_.Start();
-       p != NULL;
-       p = entries_.Next(p)) {
-    EntryInfo* entry_info = reinterpret_cast<EntryInfo*>(p->value);
-    entry_info->entry = visitor->GetEntry(
-        reinterpret_cast<HeapObject*>(p->key),
-        entry_info->children_count,
-        entry_info->retainers_count);
-    entry_info->children_count = 0;
-    entry_info->retainers_count = 0;
-  }
-}
-
-
 CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
   switch (tag) {
     case GC:
@@ -134,6 +118,22 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
     case EXTERNAL:
       return program_entry_;
     default: return NULL;
+  }
+}
+
+
+template<class Visitor>
+void HeapEntriesMap::UpdateEntries(Visitor* visitor) {
+  for (HashMap::Entry* p = entries_.Start();
+       p != NULL;
+       p = entries_.Next(p)) {
+    EntryInfo* entry_info = reinterpret_cast<EntryInfo*>(p->value);
+    entry_info->entry = visitor->GetEntry(
+        reinterpret_cast<HeapObject*>(p->key),
+        entry_info->children_count,
+        entry_info->retainers_count);
+    entry_info->children_count = 0;
+    entry_info->retainers_count = 0;
   }
 }
 

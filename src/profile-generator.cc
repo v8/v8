@@ -869,12 +869,13 @@ void HeapEntry::Init(HeapSnapshot* snapshot,
   snapshot_ = snapshot;
   type_ = type;
   painted_ = kUnpainted;
-  calculated_data_index_ = kNoCalculatedData;
   name_ = name;
   id_ = id;
   self_size_ = self_size;
+  retained_size_ = 0;
   children_count_ = children_count;
   retainers_count_ = retainers_count;
+  dominator_ = NULL;
 }
 
 
@@ -904,30 +905,16 @@ void HeapEntry::SetUnidirElementReference(
 }
 
 
-int HeapEntry::ReachableSize() {
-  if (calculated_data_index_ == kNoCalculatedData) {
-    calculated_data_index_ = snapshot_->AddCalculatedData();
+int HeapEntry::RetainedSize(bool exact) {
+  if (exact && (retained_size_ & kExactRetainedSizeTag) == 0) {
+    CalculateExactRetainedSize();
   }
-  return snapshot_->GetCalculatedData(
-      calculated_data_index_).ReachableSize(this);
-}
-
-
-int HeapEntry::RetainedSize() {
-  if (calculated_data_index_ == kNoCalculatedData) {
-    calculated_data_index_ = snapshot_->AddCalculatedData();
-  }
-  return snapshot_->GetCalculatedData(
-      calculated_data_index_).RetainedSize(this);
+  return retained_size_ & (~kExactRetainedSizeTag);
 }
 
 
 List<HeapGraphPath*>* HeapEntry::GetRetainingPaths() {
-  if (calculated_data_index_ == kNoCalculatedData) {
-    calculated_data_index_ = snapshot_->AddCalculatedData();
-  }
-  return snapshot_->GetCalculatedData(
-      calculated_data_index_).GetRetainingPaths(this);
+  return snapshot_->GetRetainingPaths(this);
 }
 
 
@@ -965,8 +952,7 @@ void HeapEntry::PaintAllReachable() {
 
 
 void HeapEntry::Print(int max_depth, int indent) {
-  OS::Print("%6d %6d %6d [%llu] ",
-            self_size(), ReachableSize(), RetainedSize(), id_);
+  OS::Print("%6d %6d [%llu] ", self_size(), RetainedSize(false), id_);
   if (type() != kString) {
     OS::Print("%s %.40s\n", TypeAsString(), name_);
   } else {
@@ -1036,44 +1022,6 @@ int HeapEntry::EntriesSize(int entries_count,
 }
 
 
-static void DeleteHeapGraphPath(HeapGraphPath** path_ptr) {
-  delete *path_ptr;
-}
-
-void HeapEntryCalculatedData::Dispose() {
-  if (retaining_paths_ != NULL) retaining_paths_->Iterate(DeleteHeapGraphPath);
-  delete retaining_paths_;
-}
-
-
-int HeapEntryCalculatedData::ReachableSize(HeapEntry* entry) {
-  if (reachable_size_ == kUnknownSize) CalculateSizes(entry);
-  return reachable_size_;
-}
-
-
-int HeapEntryCalculatedData::RetainedSize(HeapEntry* entry) {
-  if (retained_size_ == kUnknownSize) CalculateSizes(entry);
-  return retained_size_;
-}
-
-
-class ReachableSizeCalculator {
- public:
-  ReachableSizeCalculator()
-      : reachable_size_(0) {
-  }
-
-  int reachable_size() const { return reachable_size_; }
-
-  void Apply(HeapEntry* entry) {
-    reachable_size_ += entry->self_size();
-  }
-
- private:
-  int reachable_size_;
-};
-
 class RetainedSizeCalculator {
  public:
   RetainedSizeCalculator()
@@ -1092,20 +1040,17 @@ class RetainedSizeCalculator {
   int retained_size_;
 };
 
-void HeapEntryCalculatedData::CalculateSizes(HeapEntry* entry) {
+void HeapEntry::CalculateExactRetainedSize() {
   // To calculate retained size, first we paint all reachable nodes in
-  // one color (and calculate reachable size as a byproduct), then we
-  // paint (or re-paint) all nodes reachable from other nodes with a
-  // different color. Then we consider only nodes painted with the
-  // first color for calculating the retained size.
-  entry->snapshot()->ClearPaint();
-  ReachableSizeCalculator rch_size_calc;
-  entry->ApplyAndPaintAllReachable(&rch_size_calc);
-  reachable_size_ = rch_size_calc.reachable_size();
+  // one color, then we paint (or re-paint) all nodes reachable from
+  // other nodes with a different color. Then we sum up self sizes of
+  // nodes painted with the first color.
+  snapshot()->ClearPaint();
+  PaintAllReachable();
 
   List<HeapEntry*> list(10);
-  HeapEntry* root = entry->snapshot()->root();
-  if (entry != root) {
+  HeapEntry* root = snapshot()->root();
+  if (this != root) {
     list.Add(root);
     root->paint_reachable_from_others();
   }
@@ -1115,7 +1060,7 @@ void HeapEntryCalculatedData::CalculateSizes(HeapEntry* entry) {
     for (int i = 0; i < children.length(); ++i) {
       if (children[i].type() == HeapGraphEdge::kShortcut) continue;
       HeapEntry* child = children[i].to();
-      if (child != entry && child->not_painted_reachable_from_others()) {
+      if (child != this && child->not_painted_reachable_from_others()) {
         list.Add(child);
         child->paint_reachable_from_others();
       }
@@ -1123,8 +1068,10 @@ void HeapEntryCalculatedData::CalculateSizes(HeapEntry* entry) {
   }
 
   RetainedSizeCalculator ret_size_calc;
-  entry->snapshot()->IterateEntries(&ret_size_calc);
+  snapshot()->IterateEntries(&ret_size_calc);
   retained_size_ = ret_size_calc.reained_size();
+  ASSERT((retained_size_ & kExactRetainedSizeTag) == 0);
+  retained_size_ |= kExactRetainedSizeTag;
 }
 
 
@@ -1162,32 +1109,28 @@ class CachedHeapGraphPath {
 };
 
 
-List<HeapGraphPath*>* HeapEntryCalculatedData::GetRetainingPaths(
-    HeapEntry* entry) {
-  if (retaining_paths_ == NULL) retaining_paths_ = new List<HeapGraphPath*>(4);
-  if (retaining_paths_->length() == 0 && entry->retainers().length() != 0) {
-    CachedHeapGraphPath path;
-    FindRetainingPaths(entry, &path);
-  }
-  return retaining_paths_;
+List<HeapGraphPath*>* HeapEntry::CalculateRetainingPaths() {
+  List<HeapGraphPath*>* retaining_paths = new List<HeapGraphPath*>(4);
+  CachedHeapGraphPath path;
+  FindRetainingPaths(&path, retaining_paths);
+  return retaining_paths;
 }
 
 
-void HeapEntryCalculatedData::FindRetainingPaths(
-    HeapEntry* entry,
-    CachedHeapGraphPath* prev_path) {
-  Vector<HeapGraphEdge*> retainers = entry->retainers();
-  for (int i = 0; i < retainers.length(); ++i) {
-    HeapGraphEdge* ret_edge = retainers[i];
+void HeapEntry::FindRetainingPaths(CachedHeapGraphPath* prev_path,
+                                   List<HeapGraphPath*>* retaining_paths) {
+  Vector<HeapGraphEdge*> rets = retainers();
+  for (int i = 0; i < rets.length(); ++i) {
+    HeapGraphEdge* ret_edge = rets[i];
     if (prev_path->ContainsNode(ret_edge->From())) continue;
-    if (ret_edge->From() != entry->snapshot()->root()) {
+    if (ret_edge->From() != snapshot()->root()) {
       CachedHeapGraphPath path(*prev_path);
       path.Add(ret_edge);
-      FindRetainingPaths(ret_edge->From(), &path);
+      ret_edge->From()->FindRetainingPaths(&path, retaining_paths);
     } else {
       HeapGraphPath* ret_path = new HeapGraphPath(*prev_path->path());
       ret_path->Set(0, ret_edge);
-      retaining_paths_->Add(ret_path);
+      retaining_paths->Add(ret_path);
     }
   }
 }
@@ -1247,12 +1190,12 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
-  static const int kExpectedHeapEntrySize = 32;
+  static const int kExpectedHeapEntrySize = 36;
 };
 
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
-  static const int kExpectedHeapEntrySize = 40;
+  static const int kExpectedHeapEntrySize = 48;
 };
 
 }  // namespace
@@ -1268,7 +1211,8 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       root_entry_(NULL),
       gc_roots_entry_(NULL),
       raw_entries_(NULL),
-      entries_sorted_(false) {
+      entries_sorted_(false),
+      retaining_paths_(HeapEntry::Match) {
   STATIC_ASSERT(
       sizeof(HeapGraphEdge) ==
       SnapshotSizeConstants<sizeof(void*)>::kExpectedHeapGraphEdgeSize);  // NOLINT
@@ -1278,13 +1222,20 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
 }
 
 
-static void DisposeCalculatedData(HeapEntryCalculatedData* cdata) {
-  cdata->Dispose();
+static void DeleteHeapGraphPath(HeapGraphPath** path_ptr) {
+  delete *path_ptr;
 }
 
 HeapSnapshot::~HeapSnapshot() {
   DeleteArray(raw_entries_);
-  calculated_data_.Iterate(DisposeCalculatedData);
+  for (HashMap::Entry* p = retaining_paths_.Start();
+       p != NULL;
+       p = retaining_paths_.Next(p)) {
+    List<HeapGraphPath*>* list =
+        reinterpret_cast<List<HeapGraphPath*>*>(p->value);
+    list->Iterate(DeleteHeapGraphPath);
+    delete list;
+  }
 }
 
 
@@ -1400,12 +1351,6 @@ void HeapSnapshot::ClearPaint() {
 }
 
 
-int HeapSnapshot::AddCalculatedData() {
-  calculated_data_.Add(HeapEntryCalculatedData());
-  return calculated_data_.length() - 1;
-}
-
-
 HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
                                   HeapEntry::Type type,
                                   const char* name,
@@ -1432,6 +1377,144 @@ HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
 }
 
 
+void HeapSnapshot::FillReversePostorderIndexes(Vector<HeapEntry*>* entries) {
+  ClearPaint();
+  int current_entry = 0;
+  List<HeapEntry*> nodes_to_visit;
+  nodes_to_visit.Add(root());
+  root()->paint_reachable();
+  while (!nodes_to_visit.is_empty()) {
+    HeapEntry* entry = nodes_to_visit.last();
+    Vector<HeapGraphEdge> children = entry->children();
+    bool has_new_edges = false;
+    for (int i = 0; i < children.length(); ++i) {
+      if (children[i].type() == HeapGraphEdge::kShortcut) continue;
+      HeapEntry* child = children[i].to();
+      if (!child->painted_reachable()) {
+        nodes_to_visit.Add(child);
+        child->paint_reachable();
+        has_new_edges = true;
+      }
+    }
+    if (!has_new_edges) {
+      entry->set_ordered_index(current_entry);
+      entries->at(current_entry++) = entry;
+      nodes_to_visit.RemoveLast();
+    }
+  }
+  entries->Truncate(current_entry);
+}
+
+
+static int Intersect(int i1, int i2, const Vector<HeapEntry*>& dominators) {
+  int finger1 = i1, finger2 = i2;
+  while (finger1 != finger2) {
+    while (finger1 < finger2) finger1 = dominators[finger1]->ordered_index();
+    while (finger2 < finger1) finger2 = dominators[finger2]->ordered_index();
+  }
+  return finger1;
+}
+
+// The algorithm is based on the article:
+// K. Cooper, T. Harvey and K. Kennedy "A Simple, Fast Dominance Algorithm"
+// Softw. Pract. Exper. 4 (2001), pp. 1–10.
+void HeapSnapshot::BuildDominatorTree(const Vector<HeapEntry*>& entries,
+                                      Vector<HeapEntry*>* dominators) {
+  if (entries.length() == 0) return;
+  const int root_index = entries.length() - 1;
+  for (int i = 0; i < root_index; ++i) dominators->at(i) = NULL;
+  dominators->at(root_index) = entries[root_index];
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    for (int i = root_index - 1; i >= 0; --i) {
+      HeapEntry* new_idom = NULL;
+      Vector<HeapGraphEdge*> rets = entries[i]->retainers();
+      int j = 0;
+      for (; j < rets.length(); ++j) {
+        if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
+        HeapEntry* ret = rets[j]->From();
+        if (dominators->at(ret->ordered_index()) != NULL) {
+          new_idom = ret;
+          break;
+        }
+      }
+      for (++j; j < rets.length(); ++j) {
+        if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
+        HeapEntry* ret = rets[j]->From();
+        if (dominators->at(ret->ordered_index()) != NULL) {
+          new_idom = entries[Intersect(ret->ordered_index(),
+                                       new_idom->ordered_index(),
+                                       *dominators)];
+        }
+      }
+      if (new_idom != NULL && dominators->at(i) != new_idom) {
+        dominators->at(i) = new_idom;
+        changed = true;
+      }
+    }
+  }
+}
+
+
+void HeapSnapshot::SetEntriesDominators() {
+  // This array is used for maintaining reverse postorder of nodes.
+  ScopedVector<HeapEntry*> ordered_entries(entries_.length());
+  FillReversePostorderIndexes(&ordered_entries);
+  ScopedVector<HeapEntry*> dominators(ordered_entries.length());
+  BuildDominatorTree(ordered_entries, &dominators);
+  for (int i = 0; i < ordered_entries.length(); ++i) {
+    ASSERT(dominators[i] != NULL);
+    ordered_entries[i]->set_dominator(dominators[i]);
+  }
+  // For nodes unreachable from root, set dominator to itself.
+  for (int i = 0; i < entries_.length(); ++i) {
+    HeapEntry* entry = entries_[i];
+    if (entry->dominator() == NULL) entry->set_dominator(entry);
+  }
+}
+
+
+void HeapSnapshot::ApproximateRetainedSizes() {
+  SetEntriesDominators();
+  // As for the dominators tree we only know parent nodes, not
+  // children, to sum up total sizes we traverse the tree level by
+  // level upwards, starting from leaves.
+  for (int i = 0; i < entries_.length(); ++i) {
+    HeapEntry* entry = entries_[i];
+    entry->set_retained_size(entry->self_size());
+    entry->set_leaf();
+  }
+  while (true) {
+    bool onlyLeaves = true;
+    for (int i = 0; i < entries_.length(); ++i) {
+      HeapEntry *entry = entries_[i], *dominator = entry->dominator();
+      if (!entry->is_processed() && dominator != entry) {
+        dominator->set_non_leaf();
+        onlyLeaves = false;
+      }
+    }
+    if (onlyLeaves) break;
+
+    for (int i = 0; i < entries_.length(); ++i) {
+      HeapEntry *entry = entries_[i], *dominator = entry->dominator();
+      if (entry->is_leaf() && dominator != entry) {
+        dominator->add_retained_size(entry->retained_size());
+      }
+    }
+
+    // Mark all current leaves as processed, reset non-leaves back to leaves.
+    for (int i = 0; i < entries_.length(); ++i) {
+      HeapEntry* entry = entries_[i];
+      if (entry->is_leaf())
+        entry->set_processed();
+      else if (entry->is_non_leaf())
+        entry->set_leaf();
+    }
+  }
+}
+
+
 HeapEntry* HeapSnapshot::GetNextEntryToInit() {
   if (entries_.length() > 0) {
     HeapEntry* last_entry = entries_.last();
@@ -1448,6 +1531,16 @@ HeapEntry* HeapSnapshot::GetNextEntryToInit() {
 
 HeapSnapshotsDiff* HeapSnapshot::CompareWith(HeapSnapshot* snapshot) {
   return collection_->CompareSnapshots(this, snapshot);
+}
+
+
+List<HeapGraphPath*>* HeapSnapshot::GetRetainingPaths(HeapEntry* entry) {
+  HashMap::Entry* p =
+      retaining_paths_.Lookup(entry, HeapEntry::Hash(entry), true);
+  if (p->value == NULL) {
+    p->value = entry->CalculateRetainingPaths();
+  }
+  return reinterpret_cast<List<HeapGraphPath*>*>(p->value);
 }
 
 
@@ -1896,6 +1989,8 @@ void HeapSnapshotGenerator::GenerateSnapshot() {
   }
   SetRootGcRootsReference();
   Heap::IterateRoots(&extractor, VISIT_ONLY_STRONG);
+
+  snapshot_->ApproximateRetainedSizes();
 }
 
 
@@ -2471,6 +2566,10 @@ void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
   writer_->AddNumber(entry->id());
   writer_->AddCharacter(',');
   writer_->AddNumber(entry->self_size());
+  writer_->AddCharacter(',');
+  writer_->AddNumber(entry->RetainedSize(false));
+  writer_->AddCharacter(',');
+  writer_->AddNumber(GetNodeId(entry->dominator()));
   Vector<HeapGraphEdge> children = entry->children();
   writer_->AddCharacter(',');
   writer_->AddNumber(children.length());
@@ -2494,6 +2593,8 @@ void HeapSnapshotJSONSerializer::SerializeNodes() {
         "," JSON_S("name")
         "," JSON_S("id")
         "," JSON_S("self_size")
+        "," JSON_S("retained_size")
+        "," JSON_S("dominator")
         "," JSON_S("children_count")
         "," JSON_S("children"))
     "," JSON_S("types") ":" JSON_A(
@@ -2507,6 +2608,8 @@ void HeapSnapshotJSONSerializer::SerializeNodes() {
             "," JSON_S("regexp")
             "," JSON_S("number"))
         "," JSON_S("string")
+        "," JSON_S("number")
+        "," JSON_S("number")
         "," JSON_S("number")
         "," JSON_S("number")
         "," JSON_S("number")
@@ -2529,7 +2632,8 @@ void HeapSnapshotJSONSerializer::SerializeNodes() {
 #undef JSON_O
 #undef JSON_A
 
-  const int node_fields_count = 5;  // type,name,id,self_size,children_count.
+  const int node_fields_count = 7;
+  // type,name,id,self_size,retained_size,dominator,children_count.
   const int edge_fields_count = 3;  // type,name|index,to_node.
   List<HashMap::Entry*> sorted_nodes;
   SortHashMap(&nodes_, &sorted_nodes);

@@ -4763,15 +4763,9 @@ int HeapGraphNode::GetSelfSize() const {
 }
 
 
-int HeapGraphNode::GetReachableSize() const {
-  IsDeadCheck("v8::HeapSnapshot::GetReachableSize");
-  return ToInternal(this)->ReachableSize();
-}
-
-
-int HeapGraphNode::GetRetainedSize() const {
+int HeapGraphNode::GetRetainedSize(bool exact) const {
   IsDeadCheck("v8::HeapSnapshot::GetRetainedSize");
-  return ToInternal(this)->RetainedSize();
+  return ToInternal(this)->RetainedSize(exact);
 }
 
 
@@ -4811,6 +4805,12 @@ const HeapGraphPath* HeapGraphNode::GetRetainingPath(int index) const {
   IsDeadCheck("v8::HeapSnapshot::GetRetainingPath");
   return reinterpret_cast<const HeapGraphPath*>(
       ToInternal(this)->GetRetainingPaths()->at(index));
+}
+
+
+const HeapGraphNode* HeapGraphNode::GetDominatorNode() const {
+  IsDeadCheck("v8::HeapSnapshot::GetDominatorNode");
+  return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->dominator());
 }
 
 
