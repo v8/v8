@@ -870,7 +870,7 @@ void HeapEntry::Init(HeapSnapshot* snapshot,
   type_ = type;
   painted_ = kUnpainted;
   name_ = name;
-  id_ = id;
+  *(reinterpret_cast<uint64_t*>(&id_)) = id;
   self_size_ = self_size;
   retained_size_ = 0;
   children_count_ = children_count;
@@ -952,7 +952,7 @@ void HeapEntry::PaintAllReachable() {
 
 
 void HeapEntry::Print(int max_depth, int indent) {
-  OS::Print("%6d %6d [%llu] ", self_size(), RetainedSize(false), id_);
+  OS::Print("%6d %6d [%llu] ", self_size(), RetainedSize(false), id());
   if (type() != kString) {
     OS::Print("%s %.40s\n", TypeAsString(), name_);
   } else {
