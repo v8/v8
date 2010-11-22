@@ -122,11 +122,6 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
 }
 
 
-inline uint64_t HeapEntry::id() {
-  return *(reinterpret_cast<uint64_t*>(&id_));
-}
-
-
 template<class Visitor>
 void HeapEntriesMap::UpdateEntries(Visitor* visitor) {
   for (HashMap::Entry* p = entries_.Start();
