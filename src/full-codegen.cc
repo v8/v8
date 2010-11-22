@@ -1168,14 +1168,14 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
     SetStackOverflow();
     return;
   }
-  EmitNewClosure(function_info);
+  EmitNewClosure(function_info, expr->pretenure());
 }
 
 
 void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
     SharedFunctionInfoLiteral* expr) {
   Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
-  EmitNewClosure(expr->shared_function_info());
+  EmitNewClosure(expr->shared_function_info(), false);
 }
 
 

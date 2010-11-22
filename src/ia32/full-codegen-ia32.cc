@@ -880,17 +880,23 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 }
 
 
-void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info) {
+void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
+                                       bool pretenure) {
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && info->num_literals() == 0) {
+  if (scope()->is_function_scope() &&
+      info->num_literals() == 0 &&
+      !pretenure) {
     FastNewClosureStub stub;
     __ push(Immediate(info));
     __ CallStub(&stub);
   } else {
     __ push(esi);
     __ push(Immediate(info));
-    __ CallRuntime(Runtime::kNewClosure, 2);
+    __ push(Immediate(pretenure
+                      ? Factory::true_value()
+                      : Factory::false_value()));
+    __ CallRuntime(Runtime::kNewClosure, 3);
   }
   context()->Plug(eax);
 }

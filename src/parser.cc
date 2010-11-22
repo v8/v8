@@ -2276,6 +2276,12 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     temp_scope_->AddProperty();
   }
 
+  // If we assign a function literal to a property we pretenure the
+  // literal so it can be added as a constant function property.
+  if (property != NULL && right->AsFunctionLiteral() != NULL) {
+    right->AsFunctionLiteral()->set_pretenure(true);
+  }
+
   if (fni_ != NULL) {
     // Check if the right hand side is a call to avoid inferring a
     // name if we're dealing with "a = function(){...}();"-like
