@@ -526,7 +526,7 @@ class HeapEntry BASE_EMBEDDED {
   HeapSnapshot* snapshot() { return snapshot_; }
   Type type() { return static_cast<Type>(type_); }
   const char* name() { return name_; }
-  uint64_t id() { return id_; }
+  uint64_t id();
   int self_size() { return self_size_; }
   int retained_size() { return retained_size_; }
   void add_retained_size(int size) { retained_size_ += size; }
@@ -615,8 +615,15 @@ class HeapEntry BASE_EMBEDDED {
   };
   HeapEntry* dominator_;
   HeapSnapshot* snapshot_;
-  const char* name_;
+#ifdef WIN32
+  struct Id {
+    uint32_t id1_;
+    uint32_t id2_;
+  } id_;  // This is to avoid extra padding of 64-bit value on MSVC.
+#else
   uint64_t id_;
+#endif
+  const char* name_;
 
   // Paints used for exact retained sizes calculation.
   static const unsigned kUnpainted = 0;
