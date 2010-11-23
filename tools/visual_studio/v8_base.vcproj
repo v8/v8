@@ -762,6 +762,22 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\preparser.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\preparser.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\preparse-data.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\preparse-data.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\profile-generator.cc"
 				>
 			</File>
