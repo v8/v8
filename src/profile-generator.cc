@@ -870,16 +870,17 @@ void HeapEntry::Init(HeapSnapshot* snapshot,
   type_ = type;
   painted_ = kUnpainted;
   name_ = name;
-#ifdef WIN32
-  *(reinterpret_cast<uint64_t*>(&id_)) = id;
-#else
-  id_ = id;
-#endif
   self_size_ = self_size;
   retained_size_ = 0;
   children_count_ = children_count;
   retainers_count_ = retainers_count;
   dominator_ = NULL;
+
+  union {
+    uint64_t set_id;
+    Id stored_id;
+  } id_adaptor = {id};
+  id_ = id_adaptor.stored_id;
 }
 
 

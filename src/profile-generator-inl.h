@@ -122,15 +122,13 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
 }
 
 
-#ifdef WIN32
 inline uint64_t HeapEntry::id() {
-  return *(reinterpret_cast<uint64_t*>(&id_));
+  union {
+    Id stored_id;
+    uint64_t returned_id;
+  } id_adaptor = {id_};
+  return id_adaptor.returned_id;
 }
-#else
-inline uint64_t HeapEntry::id() {
-  return id_;
-}
-#endif
 
 
 template<class Visitor>

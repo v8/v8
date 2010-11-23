@@ -615,14 +615,10 @@ class HeapEntry BASE_EMBEDDED {
   };
   HeapEntry* dominator_;
   HeapSnapshot* snapshot_;
-#ifdef WIN32
   struct Id {
     uint32_t id1_;
     uint32_t id2_;
-  } id_;  // This is to avoid extra padding of 64-bit value on MSVC.
-#else
-  uint64_t id_;
-#endif
+  } id_;  // This is to avoid extra padding of 64-bit value.
   const char* name_;
 
   // Paints used for exact retained sizes calculation.
