@@ -1064,6 +1064,8 @@ void AggregatedHeapSnapshotGenerator::FillHeapSnapshot(HeapSnapshot* snapshot) {
 
   // Fill up references.
   IterateRetainers<AllocatingRetainersIterator>(&entries_map);
+
+  snapshot->SetDominatorsToSelf();
 }
 
 

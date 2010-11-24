@@ -1462,6 +1462,14 @@ void HeapSnapshot::BuildDominatorTree(const Vector<HeapEntry*>& entries,
 }
 
 
+void HeapSnapshot::SetDominatorsToSelf() {
+  for (int i = 0; i < entries_.length(); ++i) {
+    HeapEntry* entry = entries_[i];
+    if (entry->dominator() == NULL) entry->set_dominator(entry);
+  }
+}
+
+
 void HeapSnapshot::SetEntriesDominators() {
   // This array is used for maintaining reverse postorder of nodes.
   ScopedVector<HeapEntry*> ordered_entries(entries_.length());
@@ -1473,10 +1481,7 @@ void HeapSnapshot::SetEntriesDominators() {
     ordered_entries[i]->set_dominator(dominators[i]);
   }
   // For nodes unreachable from root, set dominator to itself.
-  for (int i = 0; i < entries_.length(); ++i) {
-    HeapEntry* entry = entries_[i];
-    if (entry->dominator() == NULL) entry->set_dominator(entry);
-  }
+  SetDominatorsToSelf();
 }
 
 

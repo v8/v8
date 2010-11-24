@@ -700,6 +700,7 @@ class HeapSnapshot {
   List<HeapEntry*>* GetSortedEntriesList();
   template<class Visitor>
   void IterateEntries(Visitor* visitor) { entries_.Iterate(visitor); }
+  void SetDominatorsToSelf();
 
   void Print(int max_depth);
   void PrintEntriesSize();
