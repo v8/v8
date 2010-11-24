@@ -6392,7 +6392,7 @@ static void TrySettingInlineConstructStub(Handle<JSFunction> function) {
   }
   if (function->shared()->CanGenerateInlineConstructor(*prototype)) {
     ConstructStubCompiler compiler;
-    MaybeObject* code = compiler.CompileConstructStub(function->shared());
+    MaybeObject* code = compiler.CompileConstructStub(*function);
     if (!code->IsFailure()) {
       function->shared()->set_construct_stub(
           Code::cast(code->ToObjectUnchecked()));
@@ -6460,7 +6460,6 @@ static MaybeObject* Runtime_NewObject(Arguments args) {
     // track one initial_map at a time, so we force the completion before the
     // function is called as a constructor for the first time.
     shared->CompleteInobjectSlackTracking();
-    TrySettingInlineConstructStub(function);
   }
 
   bool first_allocation = !shared->live_objects_may_exist();
