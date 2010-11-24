@@ -718,7 +718,7 @@ class ConstructStubCompiler: public StubCompiler {
  public:
   explicit ConstructStubCompiler() {}
 
-  Object* CompileConstructStub(SharedFunctionInfo* shared);
+  Object* CompileConstructStub(JSFunction* shared);
 
  private:
   Object* GetCode();

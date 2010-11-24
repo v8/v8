@@ -1825,7 +1825,6 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
 
 void MacroAssembler::LoadAllocationTopHelper(Register result,
-                                             Register result_end,
                                              Register scratch,
                                              AllocationFlags flags) {
   ExternalReference new_space_allocation_top =
@@ -1847,7 +1846,6 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
   // Move address of new object to result. Use scratch register if available,
   // and keep address in scratch until call to UpdateAllocationTopHelper.
   if (scratch.is_valid()) {
-    ASSERT(!scratch.is(result_end));
     movq(scratch, new_space_allocation_top);
     movq(result, Operand(scratch, 0));
   } else if (result.is(rax)) {
@@ -1894,7 +1892,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  LoadAllocationTopHelper(result, result_end, scratch, flags);
+  LoadAllocationTopHelper(result, scratch, flags);
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
@@ -1938,7 +1936,7 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  LoadAllocationTopHelper(result, result_end, scratch, flags);
+  LoadAllocationTopHelper(result, scratch, flags);
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
@@ -1965,7 +1963,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
                                         Label* gc_required,
                                         AllocationFlags flags) {
   // Load address of new object into result.
-  LoadAllocationTopHelper(result, result_end, scratch, flags);
+  LoadAllocationTopHelper(result, scratch, flags);
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =

@@ -2553,8 +2553,7 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
 }
 
 
-Object* ConstructStubCompiler::CompileConstructStub(
-    SharedFunctionInfo* shared) {
+Object* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   // ----------- S t a t e -------------
   //  -- r0    : argc
   //  -- r1    : constructor
@@ -2638,6 +2637,7 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // r7: undefined
   // Fill the initialized properties with a constant value or a passed argument
   // depending on the this.x = ...; assignment in the function.
+  SharedFunctionInfo* shared = function->shared();
   for (int i = 0; i < shared->this_property_assignments_count(); i++) {
     if (shared->IsThisPropertyAssignmentArgument(i)) {
       Label not_passed, next;
@@ -2662,8 +2662,9 @@ Object* ConstructStubCompiler::CompileConstructStub(
   }
 
   // Fill the unused in-object property fields with undefined.
+  ASSERT(function->has_initial_map());
   for (int i = shared->this_property_assignments_count();
-       i < shared->CalculateInObjectProperties();
+       i < function->initial_map()->inobject_properties();
        i++) {
       __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
   }
