@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CHECKS_H_
-#define V8_CHECKS_H_
+#ifndef V8_V8CHECKS_H_
+#define V8_V8CHECKS_H_
 
 #include "checks.h"
 
@@ -61,4 +61,4 @@ void CheckEqualsHelper(const char* file,
 
 #define ASSERT_SIZE_TAG_ALIGNED(size) ASSERT((size & HeapObjectTagMask()) == 0)
 
-#endif  // V8_CHECKS_H_
+#endif  // V8_V8CHECKS_H_

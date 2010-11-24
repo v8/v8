@@ -28,6 +28,7 @@
 #include "../include/v8stdint.h"
 #include "globals.h"
 #include "checks.h"
+#include "utils.h"
 #include "allocation.h"
 
 #include "hashmap.h"
