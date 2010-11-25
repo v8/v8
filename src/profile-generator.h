@@ -1073,6 +1073,9 @@ class HeapSnapshotJSONSerializer {
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshotJSONSerializer);
 };
 
+
+String* GetConstructorNameForHeapProfile(JSObject* object);
+
 } }  // namespace v8::internal
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

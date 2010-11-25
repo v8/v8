@@ -1295,8 +1295,8 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
   } else if (object->IsJSObject()) {
     return AddEntry(object,
                     HeapEntry::kObject,
-                    collection_->GetName(
-                        JSObject::cast(object)->constructor_name()),
+                    collection_->GetName(GetConstructorNameForHeapProfile(
+                        JSObject::cast(object))),
                     children_count,
                     retainers_count);
   } else if (object->IsString()) {
@@ -2767,6 +2767,12 @@ void HeapSnapshotJSONSerializer::SortHashMap(
   for (HashMap::Entry* p = map->Start(); p != NULL; p = map->Next(p))
     sorted_entries->Add(p);
   sorted_entries->Sort(SortUsingEntryValue);
+}
+
+
+String* GetConstructorNameForHeapProfile(JSObject* object) {
+  if (object->IsJSFunction()) return Heap::closure_symbol();
+  return object->constructor_name();
 }
 
 } }  // namespace v8::internal
