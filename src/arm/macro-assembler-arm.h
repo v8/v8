@@ -264,6 +264,14 @@ class MacroAssembler: public Assembler {
 
   void LoadContext(Register dst, int context_chain_length);
 
+  void LoadGlobalFunction(int index, Register function);
+
+  // Load the initial map from the global function. The registers
+  // function and map can be the same, function is then overwritten.
+  void LoadGlobalFunctionInitialMap(Register function,
+                                    Register map,
+                                    Register scratch);
+
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
