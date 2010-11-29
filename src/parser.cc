@@ -593,7 +593,8 @@ Parser::Parser(Handle<Script> script,
       allow_natives_syntax_(allow_natives_syntax),
       extension_(extension),
       pre_data_(pre_data),
-      fni_(NULL) {
+      fni_(NULL),
+      stack_overflow_(false) {
 }
 
 
@@ -643,7 +644,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
           source->length(),
           false,
           temp_scope.ContainsLoops());
-    } else if (scanner().stack_overflow()) {
+    } else if (stack_overflow_) {
       Top::StackOverflow();
     }
   }
@@ -693,7 +694,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
     // Make sure the results agree.
     ASSERT(ok == (result != NULL));
     // The only errors should be stack overflows.
-    ASSERT(ok || scanner_.stack_overflow());
+    ASSERT(ok || stack_overflow_);
   }
 
   // Make sure the target stack is empty.
@@ -2590,25 +2591,24 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
   // We don't report stack overflows here, to avoid increasing the
   // stack depth even further.  Instead we report it after parsing is
   // over, in ParseProgram/ParseJson.
-  if (token == Token::ILLEGAL && scanner().stack_overflow())
-    return;
+  if (token == Token::ILLEGAL && stack_overflow_) return;
   // Four of the tokens are treated specially
   switch (token) {
-  case Token::EOS:
-    return ReportMessage("unexpected_eos", Vector<const char*>::empty());
-  case Token::NUMBER:
-    return ReportMessage("unexpected_token_number",
-                         Vector<const char*>::empty());
-  case Token::STRING:
-    return ReportMessage("unexpected_token_string",
-                         Vector<const char*>::empty());
-  case Token::IDENTIFIER:
-    return ReportMessage("unexpected_token_identifier",
-                         Vector<const char*>::empty());
-  default:
-    const char* name = Token::String(token);
-    ASSERT(name != NULL);
-    ReportMessage("unexpected_token", Vector<const char*>(&name, 1));
+    case Token::EOS:
+      return ReportMessage("unexpected_eos", Vector<const char*>::empty());
+    case Token::NUMBER:
+      return ReportMessage("unexpected_token_number",
+                           Vector<const char*>::empty());
+    case Token::STRING:
+      return ReportMessage("unexpected_token_string",
+                           Vector<const char*>::empty());
+    case Token::IDENTIFIER:
+      return ReportMessage("unexpected_token_identifier",
+                           Vector<const char*>::empty());
+    default:
+      const char* name = Token::String(token);
+      ASSERT(name != NULL);
+      ReportMessage("unexpected_token", Vector<const char*>(&name, 1));
   }
 }
 
@@ -3498,9 +3498,10 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 Handle<Object> JsonParser::ParseJson(Handle<String> source) {
   source->TryFlatten();
   scanner_.Initialize(source);
+  stack_overflow_ = false;
   Handle<Object> result = ParseJsonValue();
   if (result.is_null() || scanner_.Next() != Token::EOS) {
-    if (scanner_.stack_overflow()) {
+    if (stack_overflow_) {
       // Scanner failed.
       Top::StackOverflow();
     } else {
@@ -3598,6 +3599,10 @@ Handle<Object> JsonParser::ParseJsonObject() {
   if (scanner_.peek() == Token::RBRACE) {
     scanner_.Next();
   } else {
+    if (StackLimitCheck().HasOverflowed()) {
+      stack_overflow_ = true;
+      return Handle<Object>::null();
+    }
     do {
       if (scanner_.Next() != Token::STRING) {
         return ReportUnexpectedToken();
@@ -3632,6 +3637,10 @@ Handle<Object> JsonParser::ParseJsonArray() {
   if (token == Token::RBRACK) {
     scanner_.Next();
   } else {
+    if (StackLimitCheck().HasOverflowed()) {
+      stack_overflow_ = true;
+      return Handle<Object>::null();
+    }
     do {
       Handle<Object> element = ParseJsonValue();
       if (element.is_null()) return Handle<Object>::null();
@@ -4531,8 +4540,11 @@ static ScriptDataImpl* DoPreParse(Handle<String> source,
                                   int literal_flags) {
   V8JavaScriptScanner scanner;
   scanner.Initialize(source, stream, literal_flags);
-  preparser::PreParser preparser;
-  if (!preparser.PreParseProgram(&scanner, recorder, allow_lazy)) {
+  intptr_t stack_limit = StackGuard::real_climit();
+  if (!preparser::PreParser::PreParseProgram(&scanner,
+                                             recorder,
+                                             allow_lazy,
+                                             stack_limit)) {
     Top::StackOverflow();
     return NULL;
   }
