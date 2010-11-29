@@ -104,7 +104,7 @@ PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
 }
 
 
-PreParser::PreParser::Statement PreParser::ParseStatement(bool* ok) {
+PreParser::Statement PreParser::ParseStatement(bool* ok) {
   // Statement ::
   //   Block
   //   VariableStatement
