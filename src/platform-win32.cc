@@ -54,11 +54,6 @@
 #define _WIN32_WINNT 0x501
 #endif
 
-// Required before stdlib.h inclusion for cryptographically strong rand_s.
-#ifndef _CRT_RAND_S
-#define _CRT_RAND_S
-#endif  // _CRT_RAND_S
-
 #include <windows.h>
 
 #include <time.h>  // For LocalOffset() implementation.
@@ -589,8 +584,11 @@ char* Time::LocalTimezone() {
 
 void OS::Setup() {
   // Seed the random number generator.
-  unsigned int seed;
-  CHECK_EQ(rand_s(&seed), 0);
+  // Convert the current time to a 64-bit integer first, before converting it
+  // to an unsigned. Going directly can cause an overflow and the seed to be
+  // set to all ones. The seed will be identical for different instances that
+  // call this setup code within the same millisecond.
+  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srand(static_cast<unsigned int>(seed));
 }
 
