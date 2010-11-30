@@ -66,7 +66,7 @@ TEST(Positions) {
       if (mode == RelocInfo::POSITION) {
         CHECK_EQ(pc, it.rinfo()->pc());
         CHECK_EQ(mode, it.rinfo()->rmode());
-        CHECK_EQ(static_cast<intptr_t>(pos), it.rinfo()->data());
+        CHECK_EQ(pos, static_cast<int>(it.rinfo()->data()));
         it.next();
       }
     }
@@ -83,7 +83,7 @@ TEST(Positions) {
       if (mode == RelocInfo::STATEMENT_POSITION) {
         CHECK_EQ(pc, it.rinfo()->pc());
         CHECK_EQ(mode, it.rinfo()->rmode());
-        CHECK_EQ(static_cast<intptr_t>(pos), it.rinfo()->data());
+        CHECK_EQ(pos, static_cast<int>(it.rinfo()->data()));
         it.next();
       }
     }
@@ -99,7 +99,7 @@ TEST(Positions) {
           RelocInfo::STATEMENT_POSITION : RelocInfo::POSITION;
       CHECK_EQ(pc, it.rinfo()->pc());
       CHECK_EQ(mode, it.rinfo()->rmode());
-      CHECK_EQ(static_cast<intptr_t>(pos), it.rinfo()->data());
+      CHECK_EQ(pos, static_cast<int>(it.rinfo()->data()));
       it.next();
     }
     CHECK(it.done());
