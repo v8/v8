@@ -224,13 +224,7 @@ void FlattenString(Handle<String> string) {
 
 
 Handle<String> FlattenGetString(Handle<String> string) {
-  Handle<String> result;
-  CALL_AND_RETRY(string->TryFlatten(),
-                 { result = Handle<String>(String::cast(__object__));
-                   break; },
-                 return Handle<String>());
-  ASSERT(string->IsFlat());
-  return result;
+  CALL_HEAP_FUNCTION(string->TryFlatten(), String);
 }
 
 
