@@ -350,12 +350,8 @@ void RelocIterator::next() {
       Advance();
       // Check if we want source positions.
       if (mode_mask_ & RelocInfo::kPositionMask) {
-        // Check if we want this type of source position.
-        if (SetMode(DebugInfoModeFromTag(GetPositionTypeTag()))) {
-          // Finally read the data before returning.
-          ReadTaggedData();
-          return;
-        }
+        ReadTaggedData();
+        if (SetMode(DebugInfoModeFromTag(GetPositionTypeTag()))) return;
       }
     } else {
       ASSERT(tag == kDefaultTag);

@@ -69,6 +69,7 @@ SOURCES = {
     'test-parsing.cc',
     'test-profile-generator.cc',
     'test-regexp.cc',
+    'test-reloc-info.cc',
     'test-serialize.cc',
     'test-sockets.cc',
     'test-spaces.cc',
