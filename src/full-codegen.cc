@@ -558,10 +558,9 @@ void FullCodeGenerator::SetStatementPosition(int pos) {
 }
 
 
-void FullCodeGenerator::SetSourcePosition(
-    int pos, PositionRecordingType recording_type) {
+void FullCodeGenerator::SetSourcePosition(int pos) {
   if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
-    masm_->positions_recorder()->RecordPosition(pos, recording_type);
+    masm_->positions_recorder()->RecordPosition(pos);
   }
 }
 
