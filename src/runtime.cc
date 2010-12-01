@@ -4521,7 +4521,9 @@ static MaybeObject* Runtime_URIUnescape(Arguments args) {
 }
 
 
-static const char* const JsonQuotes[128] = {
+static const unsigned int kQuoteTableLength = 128u;
+
+static const char* const JsonQuotes[kQuoteTableLength] = {
     "\\u0000", "\\u0001", "\\u0002", "\\u0003",
     "\\u0004", "\\u0005", "\\u0006", "\\u0007",
     "\\b", "\\t", "\\n", "\\u000b",
@@ -4557,7 +4559,7 @@ static const char* const JsonQuotes[128] = {
 };
 
 
-static const byte JsonQuoteLengths[128] = {
+static const byte JsonQuoteLengths[kQuoteTableLength] = {
     6, 6, 6, 6, 6, 6, 6, 6,
     2, 2, 2, 6, 2, 2, 6, 6,
     6, 6, 6, 6, 6, 6, 6, 6,
@@ -4606,15 +4608,13 @@ MaybeObject* AllocateRawString<SeqAsciiString>(int length) {
 
 
 template <typename Char, typename StringType>
-static MaybeObject* QuoteJsonString(String* original,
-                                    Vector<const Char> characters) {
+static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
   int length = characters.length();
   int quoted_length = 0;
   for (int i = 0; i < length; i++) {
     unsigned int c = characters[i];
     if (sizeof(Char) > 1u) {
-      quoted_length +=
-          (c >= sizeof(JsonQuoteLengths)) ? 1 : JsonQuoteLengths[c];
+      quoted_length += (c >= kQuoteTableLength) ? 1 : JsonQuoteLengths[c];
     } else {
       quoted_length += JsonQuoteLengths[c];
     }
@@ -4644,7 +4644,7 @@ static MaybeObject* QuoteJsonString(String* original,
   const Char* end = read_cursor + length;
   while (read_cursor < end) {
     Char c = *(read_cursor++);
-    if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= sizeof(JsonQuotes)) {
+    if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
       *(write_cursor++) = c;
     } else {
       const char* replacement = JsonQuotes[static_cast<unsigned>(c)];
@@ -4675,9 +4675,9 @@ static MaybeObject* Runtime_QuoteJSONString(Arguments args) {
     ASSERT(str->IsFlat());
   }
   if (str->IsTwoByteRepresentation()) {
-    return QuoteJsonString<uc16, SeqTwoByteString>(str, str->ToUC16Vector());
+    return QuoteJsonString<uc16, SeqTwoByteString>(str->ToUC16Vector());
   } else {
-    return QuoteJsonString<char, SeqAsciiString>(str, str->ToAsciiVector());
+    return QuoteJsonString<char, SeqAsciiString>(str->ToAsciiVector());
   }
 }
 
