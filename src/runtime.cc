@@ -4521,6 +4521,167 @@ static MaybeObject* Runtime_URIUnescape(Arguments args) {
 }
 
 
+static const char* const JsonQuotes[128] = {
+    "\\u0000", "\\u0001", "\\u0002", "\\u0003",
+    "\\u0004", "\\u0005", "\\u0006", "\\u0007",
+    "\\b", "\\t", "\\n", "\\u000b",
+    "\\f", "\\r", "\\u000e", "\\u000f",
+    "\\u0010", "\\u0011", "\\u0012", "\\u0013",
+    "\\u0014", "\\u0015", "\\u0016", "\\u0017",
+    "\\u0018", "\\u0019", "\\u001a", "\\u001b",
+    "\\u001c", "\\u001d", "\\u001e", "\\u001f",
+    NULL, NULL, "\\\"", NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    "\\\\", NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
+
+static const byte JsonQuoteLengths[128] = {
+    6, 6, 6, 6, 6, 6, 6, 6,
+    2, 2, 2, 6, 2, 2, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    1, 1, 2, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 2, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+};
+
+
+template <typename Char>
+Char* WriteString(Char* dst, const char* src_string) {
+  char c;
+  for (c = *src_string; c; c = *src_string) {
+    *dst = c;
+    dst++;
+    src_string++;
+  }
+  return dst;
+}
+
+
+template <typename StringType>
+MaybeObject* AllocateRawString(int length);
+
+
+template <>
+MaybeObject* AllocateRawString<SeqTwoByteString>(int length) {
+  return Heap::AllocateRawTwoByteString(length);
+}
+
+
+template <>
+MaybeObject* AllocateRawString<SeqAsciiString>(int length) {
+  return Heap::AllocateRawAsciiString(length);
+}
+
+
+template <typename Char, typename StringType>
+static MaybeObject* QuoteJsonString(String* original,
+                                    Vector<const Char> characters) {
+  int length = characters.length();
+  int quoted_length = 0;
+  for (int i = 0; i < length; i++) {
+    unsigned int c = characters[i];
+    if (sizeof(Char) > 1u) {
+      quoted_length +=
+          (c >= sizeof(JsonQuoteLengths)) ? 1 : JsonQuoteLengths[c];
+    } else {
+      quoted_length += JsonQuoteLengths[c];
+    }
+  }
+  if (quoted_length == length) {
+    return Heap::undefined_value();
+  }
+  Counters::quote_json_char_count.Increment(length);
+
+  // Add space for quotes.
+  quoted_length += 2;
+
+  MaybeObject* new_alloc = AllocateRawString<StringType>(quoted_length);
+  Object* new_object;
+  if (!new_alloc->ToObject(&new_object)) {
+    Counters::quote_json_char_recount.Increment(length);
+    return new_alloc;
+  }
+  StringType* new_string = StringType::cast(new_object);
+
+
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  Char* write_cursor = reinterpret_cast<Char*>(
+      new_string->address() + SeqAsciiString::kHeaderSize);
+  *(write_cursor++) = '"';
+  const Char* read_cursor = characters.start();
+  const Char* end = read_cursor + length;
+  while (read_cursor < end) {
+    Char c = *(read_cursor++);
+    if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= sizeof(JsonQuotes)) {
+      *(write_cursor++) = c;
+    } else {
+      const char* replacement = JsonQuotes[static_cast<unsigned>(c)];
+      if (!replacement) {
+        *(write_cursor++) = c;
+      } else {
+        write_cursor = WriteString(write_cursor, replacement);
+      }
+    }
+  }
+  *(write_cursor++) = '"';
+  ASSERT_EQ(SeqAsciiString::kHeaderSize + quoted_length * sizeof(Char),
+            reinterpret_cast<Address>(write_cursor) - new_string->address());
+  return new_string;
+}
+
+
+static MaybeObject* Runtime_QuoteJSONString(Arguments args) {
+  NoHandleAllocation ha;
+  CONVERT_CHECKED(String, str, args[0]);
+  if (!str->IsFlat()) {
+    MaybeObject* try_flatten = str->TryFlatten();
+    Object* flat;
+    if (!try_flatten->ToObject(&flat)) {
+      return try_flatten;
+    }
+    str = String::cast(flat);
+    ASSERT(str->IsFlat());
+  }
+  if (str->IsTwoByteRepresentation()) {
+    return QuoteJsonString<uc16, SeqTwoByteString>(str, str->ToUC16Vector());
+  } else {
+    return QuoteJsonString<char, SeqAsciiString>(str, str->ToAsciiVector());
+  }
+}
+
+
 static MaybeObject* Runtime_StringParseInt(Arguments args) {
   NoHandleAllocation ha;
 

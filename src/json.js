@@ -66,34 +66,10 @@ function JSONParse(text, reviver) {
   }
 }
 
-var characterQuoteCache = {
-  '\b': '\\b',  // ASCII 8, Backspace
-  '\t': '\\t',  // ASCII 9, Tab
-  '\n': '\\n',  // ASCII 10, Newline
-  '\f': '\\f',  // ASCII 12, Formfeed
-  '\r': '\\r',  // ASCII 13, Carriage Return
-  '\"': '\\"',
-  '\\': '\\\\'
-};
-
-function QuoteSingleJSONCharacter(c) {
-  if (c in characterQuoteCache) {
-    return characterQuoteCache[c];
-  }
-  var charCode = c.charCodeAt(0);
-  var result;
-  if (charCode < 16) result = '\\u000';
-  else if (charCode < 256) result = '\\u00';
-  else if (charCode < 4096) result = '\\u0';
-  else result = '\\u';
-  result += charCode.toString(16);
-  characterQuoteCache[c] = result;
-  return result;
-}
-
 function QuoteJSONString(str) {
-  var quotable = /[\\\"\x00-\x1f]/g;
-  return '"' + str.replace(quotable, QuoteSingleJSONCharacter) + '"';
+  var quoted_str = %QuoteJSONString(str);
+  if (IS_STRING(quoted_str)) return quoted_str;
+  return '"' + str + '"';
 }
 
 function StackContains(stack, val) {

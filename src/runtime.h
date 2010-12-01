@@ -100,6 +100,7 @@ namespace internal {
   F(CharFromCode, 1, 1) \
   F(URIEscape, 1, 1) \
   F(URIUnescape, 1, 1) \
+  F(QuoteJSONString, 1, 1) \
   \
   F(NumberToString, 1, 1) \
   F(NumberToStringSkipCache, 1, 1) \
