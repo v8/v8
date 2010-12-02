@@ -1544,6 +1544,29 @@ HeapSnapshotsDiff* HeapSnapshot::CompareWith(HeapSnapshot* snapshot) {
 }
 
 
+HeapEntry* HeapSnapshot::GetEntryById(uint64_t id) {
+  // GetSortedEntriesList is used in diff algorithm and sorts
+  // entries by their id.
+  List<HeapEntry*>* entries_by_id = GetSortedEntriesList();
+
+  // Perform a binary search by id.
+  int low = 0;
+  int high = entries_by_id->length() - 1;
+  while (low <= high) {
+    int mid =
+        (static_cast<unsigned int>(low) + static_cast<unsigned int>(high)) >> 1;
+    uint64_t mid_id = entries_by_id->at(mid)->id();
+    if (mid_id > id)
+      high = mid - 1;
+    else if (mid_id < id)
+      low = mid + 1;
+    else
+      return entries_by_id->at(mid);
+  }
+  return NULL;
+}
+
+
 List<HeapGraphPath*>* HeapSnapshot::GetRetainingPaths(HeapEntry* entry) {
   HashMap::Entry* p =
       retaining_paths_.Lookup(entry, HeapEntry::Hash(entry), true);

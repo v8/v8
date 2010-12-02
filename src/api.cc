@@ -4872,6 +4872,13 @@ const HeapGraphNode* HeapSnapshot::GetRoot() const {
 }
 
 
+const HeapGraphNode* HeapSnapshot::GetNodeById(uint64_t id) const {
+  IsDeadCheck("v8::HeapSnapshot::GetNodeById");
+  return reinterpret_cast<const HeapGraphNode*>(
+      ToInternal(this)->GetEntryById(id));
+}
+
+
 const HeapSnapshotsDiff* HeapSnapshot::CompareWith(
     const HeapSnapshot* snapshot) const {
   IsDeadCheck("v8::HeapSnapshot::CompareWith");
