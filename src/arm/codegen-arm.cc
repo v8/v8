@@ -5750,6 +5750,20 @@ void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateMathLog(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  Load(args->at(0));
+  if (CpuFeatures::IsSupported(VFP3)) {
+    TranscendentalCacheStub stub(TranscendentalCache::LOG);
+    frame_->SpillAllButCopyTOSToR0();
+    frame_->CallStub(&stub, 1);
+  } else {
+    frame_->CallRuntime(Runtime::kMath_log, 1);
+  }
+  frame_->EmitPush(r0);
+}
+
+
 void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
 

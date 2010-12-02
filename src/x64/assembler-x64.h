@@ -1046,6 +1046,7 @@ class Assembler : public Malloced {
   void fld1();
   void fldz();
   void fldpi();
+  void fldln2();
 
   void fld_s(const Operand& adr);
   void fld_d(const Operand& adr);
@@ -1100,6 +1101,7 @@ class Assembler : public Malloced {
 
   void fsin();
   void fcos();
+  void fyl2x();
 
   void frndint();
 

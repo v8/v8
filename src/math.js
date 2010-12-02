@@ -113,7 +113,7 @@ function MathFloor(x) {
 // ECMA 262 - 15.8.2.10
 function MathLog(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %Math_log(x);
+  return %_MathLog(x);
 }
 
 // ECMA 262 - 15.8.2.11

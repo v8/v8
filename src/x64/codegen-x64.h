@@ -664,14 +664,16 @@ class CodeGenerator: public AstVisitor {
   void GenerateMathSin(ZoneList<Expression*>* args);
   void GenerateMathCos(ZoneList<Expression*>* args);
   void GenerateMathSqrt(ZoneList<Expression*>* args);
+  void GenerateMathLog(ZoneList<Expression*>* args);
 
+  // Check whether two RegExps are equivalent.
   void GenerateIsRegExpEquivalent(ZoneList<Expression*>* args);
 
   void GenerateHasCachedArrayIndex(ZoneList<Expression*>* args);
   void GenerateGetCachedArrayIndex(ZoneList<Expression*>* args);
   void GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args);
 
-// Simple condition analysis.
+  // Simple condition analysis.
   enum ConditionAnalysis {
     ALWAYS_TRUE,
     ALWAYS_FALSE,
