@@ -4404,6 +4404,7 @@ CharacterRange RegExpParser::ParseClassAtom(uc16* char_class) {
 RegExpTree* RegExpParser::ParseCharacterClass() {
   static const char* kUnterminated = "Unterminated character class";
   static const char* kRangeOutOfOrder = "Range out of order in character class";
+  static const char* kInvalidRange = "Invalid character range";
 
   ASSERT_EQ(current(), '[');
   Advance();
@@ -4412,12 +4413,28 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
     is_negated = true;
     Advance();
   }
+  // A CharacterClass is a sequence of single characters, character class
+  // escapes or ranges. Ranges are on the form "x-y" where x and y are
+  // single characters (and not character class escapes like \s).
+  // A "-" may occur at the start or end of the character class (just after
+  // "[" or "[^", or just before "]") without being considered part of a
+  // range. A "-" may also appear as the beginning or end of a range.
+  // I.e., [--+] is valid, so is [!--].
+
   ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
   while (has_more() && current() != ']') {
     uc16 char_class = 0;
     CharacterRange first = ParseClassAtom(&char_class CHECK_FAILED);
     if (char_class) {
       CharacterRange::AddClassEscape(char_class, ranges);
+      if (current() == '-') {
+        Advance();
+        ranges->Add(CharacterRange::Singleton('-'));
+        if (current() != ']') {
+          ReportError(CStrVector(kInvalidRange) CHECK_FAILED);
+        }
+        break;
+      }
       continue;
     }
     if (current() == '-') {
@@ -4433,10 +4450,7 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
       }
       CharacterRange next = ParseClassAtom(&char_class CHECK_FAILED);
       if (char_class) {
-        ranges->Add(first);
-        ranges->Add(CharacterRange::Singleton('-'));
-        CharacterRange::AddClassEscape(char_class, ranges);
-        continue;
+        ReportError(CStrVector(kInvalidRange) CHECK_FAILED);
       }
       if (first.from() > next.to()) {
         return ReportError(CStrVector(kRangeOutOfOrder) CHECK_FAILED);
