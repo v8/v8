@@ -4619,9 +4619,6 @@ static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
       quoted_length += JsonQuoteLengths[c];
     }
   }
-  if (quoted_length == length) {
-    return Heap::undefined_value();
-  }
   Counters::quote_json_char_count.Increment(length);
 
   // Add space for quotes.
@@ -4641,17 +4638,22 @@ static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
       new_string->address() + SeqAsciiString::kHeaderSize);
   *(write_cursor++) = '"';
   const Char* read_cursor = characters.start();
-  const Char* end = read_cursor + length;
-  while (read_cursor < end) {
-    Char c = *(read_cursor++);
-    if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
-      *(write_cursor++) = c;
-    } else {
-      const char* replacement = JsonQuotes[static_cast<unsigned>(c)];
-      if (!replacement) {
+  if (quoted_length == length + 2) {
+    CopyChars(write_cursor, read_cursor, length);
+    write_cursor += length;
+  } else {
+    const Char* end = read_cursor + length;
+    while (read_cursor < end) {
+      Char c = *(read_cursor++);
+      if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
         *(write_cursor++) = c;
       } else {
-        write_cursor = WriteString(write_cursor, replacement);
+        const char* replacement = JsonQuotes[static_cast<unsigned>(c)];
+        if (!replacement) {
+          *(write_cursor++) = c;
+        } else {
+          write_cursor = WriteString(write_cursor, replacement);
+        }
       }
     }
   }
@@ -4680,6 +4682,7 @@ static MaybeObject* Runtime_QuoteJSONString(Arguments args) {
     return QuoteJsonString<char, SeqAsciiString>(str->ToAsciiVector());
   }
 }
+
 
 
 static MaybeObject* Runtime_StringParseInt(Arguments args) {
