@@ -1650,41 +1650,64 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
 }
 
 
-int ActionNode::EatsAtLeast(int still_to_find, int recursion_depth) {
+int ActionNode::EatsAtLeast(int still_to_find,
+                            int recursion_depth,
+                            bool not_at_start) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
   if (type_ == POSITIVE_SUBMATCH_SUCCESS) return 0;  // Rewinds input!
-  return on_success()->EatsAtLeast(still_to_find, recursion_depth + 1);
+  return on_success()->EatsAtLeast(still_to_find,
+                                   recursion_depth + 1,
+                                   not_at_start);
 }
 
 
-int AssertionNode::EatsAtLeast(int still_to_find, int recursion_depth) {
+int AssertionNode::EatsAtLeast(int still_to_find,
+                               int recursion_depth,
+                               bool not_at_start) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
-  return on_success()->EatsAtLeast(still_to_find, recursion_depth + 1);
+  // If we know we are not at the start and we are asked "how many characters
+  // will you match if you succeed?" then we can answer anything since false
+  // implies false.  So lets just return the max answer (still_to_find) since
+  // that won't prevent us from preloading a lot of characters for the other
+  // branches in the node graph.
+  if (type() == AT_START && not_at_start) return still_to_find;
+  return on_success()->EatsAtLeast(still_to_find,
+                                   recursion_depth + 1,
+                                   not_at_start);
 }
 
 
-int BackReferenceNode::EatsAtLeast(int still_to_find, int recursion_depth) {
+int BackReferenceNode::EatsAtLeast(int still_to_find,
+                                   int recursion_depth,
+                                   bool not_at_start) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
-  return on_success()->EatsAtLeast(still_to_find, recursion_depth + 1);
+  return on_success()->EatsAtLeast(still_to_find,
+                                   recursion_depth + 1,
+                                   not_at_start);
 }
 
 
-int TextNode::EatsAtLeast(int still_to_find, int recursion_depth) {
+int TextNode::EatsAtLeast(int still_to_find,
+                          int recursion_depth,
+                          bool not_at_start) {
   int answer = Length();
   if (answer >= still_to_find) return answer;
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return answer;
+  // We are not at start after this node so we set the last argument to 'true'.
   return answer + on_success()->EatsAtLeast(still_to_find - answer,
-                                            recursion_depth + 1);
+                                            recursion_depth + 1,
+                                            true);
 }
 
 
 int NegativeLookaheadChoiceNode::EatsAtLeast(int still_to_find,
-                                             int recursion_depth) {
+                                             int recursion_depth,
+                                             bool not_at_start) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
   // Alternative 0 is the negative lookahead, alternative 1 is what comes
   // afterwards.
   RegExpNode* node = alternatives_->at(1).node();
-  return node->EatsAtLeast(still_to_find, recursion_depth + 1);
+  return node->EatsAtLeast(still_to_find, recursion_depth + 1, not_at_start);
 }
 
 
@@ -1702,7 +1725,8 @@ void NegativeLookaheadChoiceNode::GetQuickCheckDetails(
 
 int ChoiceNode::EatsAtLeastHelper(int still_to_find,
                                   int recursion_depth,
-                                  RegExpNode* ignore_this_node) {
+                                  RegExpNode* ignore_this_node,
+                                  bool not_at_start) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
   int min = 100;
   int choice_count = alternatives_->length();
@@ -1710,20 +1734,31 @@ int ChoiceNode::EatsAtLeastHelper(int still_to_find,
     RegExpNode* node = alternatives_->at(i).node();
     if (node == ignore_this_node) continue;
     int node_eats_at_least = node->EatsAtLeast(still_to_find,
-                                               recursion_depth + 1);
+                                               recursion_depth + 1,
+                                               not_at_start);
     if (node_eats_at_least < min) min = node_eats_at_least;
   }
   return min;
 }
 
 
-int LoopChoiceNode::EatsAtLeast(int still_to_find, int recursion_depth) {
-  return EatsAtLeastHelper(still_to_find, recursion_depth, loop_node_);
+int LoopChoiceNode::EatsAtLeast(int still_to_find,
+                                int recursion_depth,
+                                bool not_at_start) {
+  return EatsAtLeastHelper(still_to_find,
+                           recursion_depth,
+                           loop_node_,
+                           not_at_start);
 }
 
 
-int ChoiceNode::EatsAtLeast(int still_to_find, int recursion_depth) {
-  return EatsAtLeastHelper(still_to_find, recursion_depth, NULL);
+int ChoiceNode::EatsAtLeast(int still_to_find,
+                            int recursion_depth,
+                            bool not_at_start) {
+  return EatsAtLeastHelper(still_to_find,
+                           recursion_depth,
+                           NULL,
+                           not_at_start);
 }
 
 
@@ -2630,8 +2665,9 @@ void LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 }
 
 
-int ChoiceNode::CalculatePreloadCharacters(RegExpCompiler* compiler) {
-  int preload_characters = EatsAtLeast(4, 0);
+int ChoiceNode::CalculatePreloadCharacters(RegExpCompiler* compiler,
+                                           bool not_at_start) {
+  int preload_characters = EatsAtLeast(4, 0, not_at_start);
   if (compiler->macro_assembler()->CanReadUnaligned()) {
     bool ascii = compiler->ascii();
     if (ascii) {
@@ -2839,7 +2875,9 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   int first_normal_choice = greedy_loop ? 1 : 0;
 
-  int preload_characters = CalculatePreloadCharacters(compiler);
+  int preload_characters =
+      CalculatePreloadCharacters(compiler,
+                                 current_trace->at_start() == Trace::FALSE);
   bool preload_is_current =
       (current_trace->characters_preloaded() == preload_characters);
   bool preload_has_checked_bounds = preload_is_current;
