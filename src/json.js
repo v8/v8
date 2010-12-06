@@ -195,75 +195,100 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
   }
 }
 
-function BasicSerializeArray(value, stack) {
+
+function BasicSerializeArray(value, stack, builder) {
   if (StackContains(stack, value)) {
     throw MakeTypeError('circular_structure', []);
   }
   stack.push(value);
-  var partial = [];
+  builder.push("[");
   var len = value.length;
   for (var i = 0; i < len; i++) {
-    var strP = BasicJSONSerialize($String(i), value, stack);
-    if (IS_UNDEFINED(strP)) strP = "null";
-    partial.push(strP);
+    var before = builder.length;
+    BasicJSONSerialize($String(i), value, stack, builder);
+    if (before == builder.length) builder.push("null");
+    builder.push(",");
   }
   stack.pop();
-  return "[" + partial.join() + "]";
+  if (builder.pop() != ",") {
+    builder.push("[]");  // Zero length array. Push "[" back on.
+  } else {
+    builder.push("]");
+  }
+
 }
 
-function BasicSerializeObject(value, stack) {
+
+function BasicSerializeObject(value, stack, builder) {
   if (StackContains(stack, value)) {
     throw MakeTypeError('circular_structure', []);
   }
   stack.push(value);
-  var partial = [];
+  builder.push("{");
   for (var p in value) {
     if (ObjectHasOwnProperty.call(value, p)) {
-      var strP = BasicJSONSerialize(p, value, stack);
-      if (!IS_UNDEFINED(strP)) partial.push(%QuoteJSONString(p) + ":" + strP);
+      builder.push(%QuoteJSONString(p), ":");
+      var before = builder.length;
+      BasicJSONSerialize(p, value, stack, builder);
+      if (before == builder.length) {
+        builder.pop();
+        builder.pop();
+      } else {
+        builder.push(",");
+      }
     }
   }
   stack.pop();
-  return "{" + partial.join() + "}";
+  if (builder.pop() != ",") {
+    builder.push("{}");  // Object has no own properties. Push "{" back on.
+  } else {
+    builder.push("}");
+  }
 }
 
-function BasicJSONSerialize(key, holder, stack) {
+
+function BasicJSONSerialize(key, holder, stack, builder) {
   var value = holder[key];
   if (IS_OBJECT(value) && value) {
     var toJSON = value.toJSON;
     if (IS_FUNCTION(toJSON)) value = toJSON.call(value, key);
   }
-  // Unwrap value if necessary
-  if (IS_OBJECT(value)) {
+  if (IS_STRING(value)) {
+    builder.push(%QuoteJSONString(value));
+  } else if (IS_NUMBER(value)) {
+    builder.push(($isFinite(value) ? %_NumberToString(value) : "null"));
+  } else if (IS_BOOLEAN(value)) {
+    builder.push((value ? "true" : "false"));
+  } else if (IS_OBJECT(value)) {
+    // Unwrap value if necessary
     if (IS_NUMBER_WRAPPER(value)) {
-      value = $Number(value);
+      value = %_ValueOf(value);
+      builder.push(($isFinite(value) ? %_NumberToString(value) : "null"));      
     } else if (IS_STRING_WRAPPER(value)) {
-      value = $String(value);
+      builder.push(%QuoteJSONString(%_ValueOf(value)));
     } else if (IS_BOOLEAN_WRAPPER(value)) {
-      value =  %_ValueOf(value);
-    }
-  }
-  switch (typeof value) {
-    case "string":
-      return %QuoteJSONString(value);
-    case "object":
+      builder.push((%_ValueOf(value) ? "true" : "false")); 
+    } else {
+      // Regular non-wrapped object
       if (!value) {
-        return "null";
+        builder.push("null");
       } else if (IS_ARRAY(value)) {
-        return BasicSerializeArray(value, stack);
+        BasicSerializeArray(value, stack, builder);
       } else {
-        return BasicSerializeObject(value, stack);
+        BasicSerializeObject(value, stack, builder);
       }
-    case "number":
-      return $isFinite(value) ? $String(value) : "null";
-    case "boolean":
-      return value ? "true" : "false";
+    }
   }
 }
 
 function JSONStringify(value, replacer, space) {
   if (IS_UNDEFINED(replacer) && IS_UNDEFINED(space)) {
-    return BasicJSONSerialize('', {'': value}, []);
+    var builder = [];
+    BasicJSONSerialize('', {'': value}, [], builder);
+    if (builder.length == 0) return;
+    var result = %_FastAsciiArrayJoin(builder, "");
+    if (!IS_UNDEFINED(result)) return result;
+    return %StringBuilderConcat(builder, builder.length, "");
   }
   if (IS_OBJECT(space)) {
     // Unwrap 'space' if it is wrapped
