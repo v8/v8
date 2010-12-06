@@ -205,7 +205,7 @@ function BasicSerializeArray(value, stack, builder) {
   var len = value.length;
   for (var i = 0; i < len; i++) {
     var before = builder.length;
-    BasicJSONSerialize($String(i), value, stack, builder);
+    BasicJSONSerialize(i, value, stack, builder);
     if (before == builder.length) builder.push("null");
     builder.push(",");
   }
@@ -226,8 +226,9 @@ function BasicSerializeObject(value, stack, builder) {
   stack.push(value);
   builder.push("{");
   for (var p in value) {
-    if (ObjectHasOwnProperty.call(value, p)) {
-      builder.push(%QuoteJSONString(p), ":");
+    if (%HasLocalProperty(value, p)) {
+      builder.push(%QuoteJSONString(p));
+      builder.push(":");
       var before = builder.length;
       BasicJSONSerialize(p, value, stack, builder);
       if (before == builder.length) {
@@ -251,7 +252,7 @@ function BasicJSONSerialize(key, holder, stack, builder) {
   var value = holder[key];
   if (IS_OBJECT(value) && value) {
     var toJSON = value.toJSON;
-    if (IS_FUNCTION(toJSON)) value = toJSON.call(value, key);
+    if (IS_FUNCTION(toJSON)) value = toJSON.call(value, $String(key));
   }
   if (IS_STRING(value)) {
     builder.push(%QuoteJSONString(value));
