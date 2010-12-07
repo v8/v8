@@ -94,7 +94,7 @@ static int sampler_threshold_size_factor = kSamplerThresholdSizeFactorInit;
 // the window might contain stale pointers. The window is updated on
 // scavenges and (parts of it) cleared on mark-sweep and
 // mark-sweep-compact.
-static JSFunction* sampler_window[kSamplerWindowSize] = { NULL, };
+static Object* sampler_window[kSamplerWindowSize] = { NULL, };
 static int sampler_window_position = 0;
 static int sampler_window_weight[kSamplerWindowSize] = { 0, };
 
@@ -220,7 +220,7 @@ static void ClearSampleBufferNewSpaceEntries() {
 static int LookupSample(JSFunction* function) {
   int weight = 0;
   for (int i = 0; i < kSamplerWindowSize; i++) {
-    JSFunction* sample = sampler_window[i];
+    Object* sample = sampler_window[i];
     if (sample != NULL) {
       if (function == sample) {
         weight += sampler_window_weight[i];
@@ -351,7 +351,7 @@ void RuntimeProfiler::TearDown() {
 
 
 Object** RuntimeProfiler::SamplerWindowAddress() {
-  return reinterpret_cast<Object**>(sampler_window);
+  return sampler_window;
 }
 
 
