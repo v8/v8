@@ -5967,7 +5967,7 @@ int Code::SourceStatementPosition(Address pc) {
 
 uint8_t* Code::GetSafepointEntry(Address pc) {
   SafepointTable table(this);
-  unsigned pc_offset = pc - instruction_start();
+  unsigned pc_offset = static_cast<unsigned>(pc - instruction_start());
   for (unsigned i = 0; i < table.length(); i++) {
     // TODO(kasperl): Replace the linear search with binary search.
     if (table.GetPcOffset(i) == pc_offset) return table.GetEntry(i);

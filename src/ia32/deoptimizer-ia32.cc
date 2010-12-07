@@ -352,7 +352,7 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   // function code and AST id of the bailout.
   output_offset -= kPointerSize;
   input_offset -= kPointerSize;
-  uint32_t value;
+  intptr_t value;
   if (is_bottommost) {
     value = input_->GetFrameSlot(input_offset);
   } else {
@@ -376,7 +376,7 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
     value = output_[frame_index - 1]->GetFp();
   }
   output_frame->SetFrameSlot(output_offset, value);
-  unsigned fp_value = top_address + output_offset;
+  intptr_t fp_value = top_address + output_offset;
   ASSERT(!is_bottommost || input_->GetRegister(ebp.code()) == fp_value);
   output_frame->SetFp(fp_value);
   if (is_topmost) output_frame->SetRegister(ebp.code(), fp_value);

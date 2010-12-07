@@ -337,12 +337,13 @@ void TypeFeedbackOracle::CollectPositions(Code* code,
               target->check_type() != RECEIVER_MAP_CHECK) continue;
           if (state != MONOMORPHIC && state != MEGAMORPHIC) continue;
         }
-        code_positions->Add(info->pc() - code->instruction_start());
+        code_positions->Add(
+            static_cast<int>(info->pc() - code->instruction_start()));
         source_positions->Add(position);
       }
     } else {
       ASSERT(RelocInfo::IsPosition(mode));
-      position = info->data();
+      position = static_cast<int>(info->data());
     }
   }
 }

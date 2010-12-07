@@ -655,7 +655,7 @@ void JavaScriptFrame::GetFunctions(List<JSFunction*>* functions) {
 void JavaScriptFrame::Summarize(List<FrameSummary>* functions) {
   ASSERT(functions->length() == 0);
   Code* code_pointer = code();
-  int offset = pc() - code_pointer->address();
+  int offset = static_cast<int>(pc() - code_pointer->address());
   FrameSummary summary(receiver(),
                        JSFunction::cast(function()),
                        code_pointer,
@@ -779,7 +779,7 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
 
   SafepointTable table(code);
-  unsigned pc_offset = pc() - code->instruction_start();
+  unsigned pc_offset = static_cast<unsigned>(pc() - code->instruction_start());
   for (unsigned i = 0; i < table.length(); i++) {
     if (table.GetPcOffset(i) == pc_offset) {
       *deopt_index = table.GetDeoptimizationIndex(i);

@@ -293,13 +293,13 @@ class FrameDescription {
     free(description);
   }
 
-  uint32_t GetFrameSize() const { return frame_size_; }
+  intptr_t GetFrameSize() const { return frame_size_; }
 
   JSFunction* GetFunction() const { return function_; }
 
   unsigned GetOffsetFromSlotIndex(Deoptimizer* deoptimizer, int slot_index);
 
-  uint32_t GetFrameSlot(unsigned offset) {
+  intptr_t GetFrameSlot(unsigned offset) {
     return *GetFrameSlotPointer(offset);
   }
 
@@ -307,11 +307,11 @@ class FrameDescription {
     return *reinterpret_cast<double*>(GetFrameSlotPointer(offset));
   }
 
-  void SetFrameSlot(unsigned offset, uint32_t value) {
+  void SetFrameSlot(unsigned offset, intptr_t value) {
     *GetFrameSlotPointer(offset) = value;
   }
 
-  uint32_t GetRegister(unsigned n) const {
+  intptr_t GetRegister(unsigned n) const {
     ASSERT(n < ARRAY_SIZE(registers_));
     return registers_[n];
   }
@@ -321,7 +321,7 @@ class FrameDescription {
     return double_registers_[n];
   }
 
-  void SetRegister(unsigned n, uint32_t value) {
+  void SetRegister(unsigned n, intptr_t value) {
     ASSERT(n < ARRAY_SIZE(registers_));
     registers_[n] = value;
   }
@@ -331,19 +331,19 @@ class FrameDescription {
     double_registers_[n] = value;
   }
 
-  uint32_t GetTop() const { return top_; }
-  void SetTop(uint32_t top) { top_ = top; }
+  intptr_t GetTop() const { return top_; }
+  void SetTop(intptr_t top) { top_ = top; }
 
-  uint32_t GetPc() const { return pc_; }
-  void SetPc(uint32_t pc) { pc_ = pc; }
+  intptr_t GetPc() const { return pc_; }
+  void SetPc(intptr_t pc) { pc_ = pc; }
 
-  uint32_t GetFp() const { return fp_; }
-  void SetFp(uint32_t fp) { fp_ = fp; }
+  intptr_t GetFp() const { return fp_; }
+  void SetFp(intptr_t fp) { fp_ = fp; }
 
   Smi* GetState() const { return state_; }
   void SetState(Smi* state) { state_ = state; }
 
-  void SetContinuation(uint32_t pc) { continuation_ = pc; }
+  void SetContinuation(intptr_t pc) { continuation_ = pc; }
 
   static int registers_offset() {
     return OFFSET_OF(FrameDescription, registers_);
@@ -376,22 +376,22 @@ class FrameDescription {
  private:
   static const uint32_t kZapUint32 = 0xbeeddead;
 
-  uint32_t frame_size_;  // Number of bytes.
+  uintptr_t frame_size_;  // Number of bytes.
   JSFunction* function_;
-  uint32_t registers_[Register::kNumRegisters];
+  intptr_t registers_[Register::kNumRegisters];
   double double_registers_[DoubleRegister::kNumAllocatableRegisters];
-  uint32_t top_;
-  uint32_t pc_;
-  uint32_t fp_;
+  intptr_t top_;
+  intptr_t pc_;
+  intptr_t fp_;
   Smi* state_;
 
   // Continuation is the PC where the execution continues after
   // deoptimizing.
-  uint32_t continuation_;
+  intptr_t continuation_;
 
-  uint32_t* GetFrameSlotPointer(unsigned offset) {
+  intptr_t* GetFrameSlotPointer(unsigned offset) {
     ASSERT(offset < frame_size_);
-    return reinterpret_cast<uint32_t*>(
+    return reinterpret_cast<intptr_t*>(
         reinterpret_cast<Address>(this) + frame_content_offset() + offset);
   }
 };

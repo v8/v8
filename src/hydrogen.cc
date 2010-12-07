@@ -1164,7 +1164,7 @@ void HValueMap::Kill(int flags) {
 
 
 HValue* HValueMap::Lookup(HValue* value) const {
-  uint32_t hash = value->Hashcode();
+  uint32_t hash = static_cast<uint32_t>(value->Hashcode());
   uint32_t pos = Bound(hash);
   if (array_[pos].value != NULL) {
     if (array_[pos].value->Equals(value)) return array_[pos].value;
@@ -1252,7 +1252,7 @@ void HValueMap::Insert(HValue* value) {
   if (count_ >= array_size_ >> 1) Resize(array_size_ << 1);
   ASSERT(count_ < array_size_);
   count_++;
-  uint32_t pos = Bound(value->Hashcode());
+  uint32_t pos = Bound(static_cast<uint32_t>(value->Hashcode()));
   if (array_[pos].value == NULL) {
     array_[pos].value = value;
     array_[pos].next = kNil;

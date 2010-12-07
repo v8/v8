@@ -6865,7 +6865,7 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(Arguments args) {
     // Use linear search of the unoptimized code's stack check table to find
     // the AST id matching the PC.
     Address start = unoptimized->instruction_start();
-    unsigned target_pc_offset = frame->pc() - start;
+    unsigned target_pc_offset = static_cast<unsigned>(frame->pc() - start);
     Address table_cursor = start + unoptimized->stack_check_table_start();
     uint32_t table_length = Memory::uint32_at(table_cursor);
     table_cursor += kIntSize;
