@@ -35,12 +35,10 @@
 #include "v8.h"
 
 #include "arguments.h"
-#include "deoptimizer.h"
 #include "execution.h"
 #include "ic-inl.h"
 #include "factory.h"
 #include "runtime.h"
-#include "runtime-profiler.h"
 #include "serialize.h"
 #include "stub-cache.h"
 #include "regexp-stack.h"
@@ -62,10 +60,6 @@
 
 namespace v8 {
 namespace internal {
-
-
-const double DoubleConstant::min_int = kMinInt;
-const double DoubleConstant::one_half = 0.5;
 
 
 // -----------------------------------------------------------------------------
@@ -216,7 +210,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
 #endif
   Counters::reloc_info_count.Increment();
   ASSERT(rinfo->pc() - last_pc_ >= 0);
-  ASSERT(RelocInfo::NUMBER_OF_MODES <= kMaxRelocModes);
+  ASSERT(RelocInfo::NUMBER_OF_MODES < kMaxRelocModes);
   // Use unsigned delta-encoding for pc.
   uint32_t pc_delta = static_cast<uint32_t>(rinfo->pc() - last_pc_);
   RelocInfo::Mode rmode = rinfo->rmode();
@@ -392,7 +386,7 @@ void RelocIterator::next() {
 RelocIterator::RelocIterator(Code* code, int mode_mask) {
   rinfo_.pc_ = code->instruction_start();
   rinfo_.data_ = 0;
-  // Relocation info is read backwards.
+  // relocation info is read backwards
   pos_ = code->relocation_start() + code->relocation_size();
   end_ = code->relocation_start();
   done_ = false;
@@ -405,7 +399,7 @@ RelocIterator::RelocIterator(Code* code, int mode_mask) {
 RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
   rinfo_.pc_ = desc.buffer;
   rinfo_.data_ = 0;
-  // Relocation info is read backwards.
+  // relocation info is read backwards
   pos_ = desc.buffer + desc.buffer_size;
   end_ = pos_ - desc.reloc_size;
   done_ = false;
@@ -437,8 +431,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "debug break";
     case RelocInfo::CODE_TARGET:
       return "code target";
-    case RelocInfo::GLOBAL_PROPERTY_CELL:
-      return "global property cell";
     case RelocInfo::RUNTIME_ENTRY:
       return "runtime entry";
     case RelocInfo::JS_RETURN:
@@ -484,13 +476,6 @@ void RelocInfo::Print() {
     PrintF(" (%s)  (%p)", Code::Kind2String(code->kind()), target_address());
   } else if (IsPosition(rmode_)) {
     PrintF("  (%" V8_PTR_PREFIX "d)", data());
-  } else if (rmode_ == RelocInfo::RUNTIME_ENTRY) {
-    // Depotimization bailouts are stored as runtime entries.
-    int id = Deoptimizer::GetDeoptimizationId(
-        target_address(), Deoptimizer::EAGER);
-    if (id != Deoptimizer::kNotDeoptimizationEntry) {
-      PrintF("  (deoptimization bailout %d)", id);
-    }
   }
 
   PrintF("\n");
@@ -503,9 +488,6 @@ void RelocInfo::Verify() {
   switch (rmode_) {
     case EMBEDDED_OBJECT:
       Object::VerifyPointer(target_object());
-      break;
-    case GLOBAL_PROPERTY_CELL:
-      Object::VerifyPointer(target_cell());
       break;
     case DEBUG_BREAK:
 #ifndef ENABLE_DEBUGGER_SUPPORT
@@ -613,23 +595,6 @@ ExternalReference ExternalReference::transcendental_cache_array_address() {
 }
 
 
-ExternalReference ExternalReference::new_deoptimizer_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(Deoptimizer::New)));
-}
-
-
-ExternalReference ExternalReference::compute_output_frames_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(Deoptimizer::ComputeOutputFrames)));
-}
-
-
-ExternalReference ExternalReference::global_contexts_list() {
-  return ExternalReference(Heap::global_contexts_list_address());
-}
-
-
 ExternalReference ExternalReference::keyed_lookup_cache_keys() {
   return ExternalReference(KeyedLookupCache::keys_address());
 }
@@ -707,18 +672,6 @@ ExternalReference ExternalReference::handle_scope_limit_address() {
 
 ExternalReference ExternalReference::scheduled_exception_address() {
   return ExternalReference(Top::scheduled_exception_address());
-}
-
-
-ExternalReference ExternalReference::address_of_min_int() {
-  return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::min_int)));
-}
-
-
-ExternalReference ExternalReference::address_of_one_half() {
-  return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::one_half)));
 }
 
 

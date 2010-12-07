@@ -57,14 +57,12 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // write barrier because the allocated object is in new space.
   __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
   __ LoadRoot(rcx, Heap::kTheHoleValueRootIndex);
-  __ LoadRoot(rdi, Heap::kUndefinedValueRootIndex);
   __ movq(FieldOperand(rax, JSObject::kPropertiesOffset), rbx);
   __ movq(FieldOperand(rax, JSObject::kElementsOffset), rbx);
   __ movq(FieldOperand(rax, JSFunction::kPrototypeOrInitialMapOffset), rcx);
   __ movq(FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset), rdx);
   __ movq(FieldOperand(rax, JSFunction::kContextOffset), rsi);
   __ movq(FieldOperand(rax, JSFunction::kLiteralsOffset), rbx);
-  __ movq(FieldOperand(rax, JSFunction::kNextFunctionLinkOffset), rdi);
 
   // Initialize the code pointer in the function to be the one
   // found in the shared function info object.
@@ -982,14 +980,6 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
 Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
   GenericBinaryOpStub stub(key, type_info);
   return stub.GetCode();
-}
-
-
-Handle<Code> GetTypeRecordingBinaryOpStub(int key,
-    TRBinaryOpIC::TypeInfo type_info,
-    TRBinaryOpIC::TypeInfo result_type_info) {
-  UNIMPLEMENTED();
-  return Handle<Code>::null();
 }
 
 
@@ -2010,90 +2000,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #endif  // V8_INTERPRETED_REGEXP
-}
-
-
-void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
-  const int kMaxInlineLength = 100;
-  Label slowcase;
-  Label done;
-  __ movq(r8, Operand(rsp, kPointerSize * 3));
-  __ JumpIfNotSmi(r8, &slowcase);
-  __ SmiToInteger32(rbx, r8);
-  __ cmpl(rbx, Immediate(kMaxInlineLength));
-  __ j(above, &slowcase);
-  // Smi-tagging is equivalent to multiplying by 2.
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  // Allocate RegExpResult followed by FixedArray with size in ebx.
-  // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
-  // Elements:  [Map][Length][..elements..]
-  __ AllocateInNewSpace(JSRegExpResult::kSize + FixedArray::kHeaderSize,
-                        times_pointer_size,
-                        rbx,  // In: Number of elements.
-                        rax,  // Out: Start of allocation (tagged).
-                        rcx,  // Out: End of allocation.
-                        rdx,  // Scratch register
-                        &slowcase,
-                        TAG_OBJECT);
-  // rax: Start of allocated area, object-tagged.
-  // rbx: Number of array elements as int32.
-  // r8: Number of array elements as smi.
-
-  // Set JSArray map to global.regexp_result_map().
-  __ movq(rdx, ContextOperand(rsi, Context::GLOBAL_INDEX));
-  __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalContextOffset));
-  __ movq(rdx, ContextOperand(rdx, Context::REGEXP_RESULT_MAP_INDEX));
-  __ movq(FieldOperand(rax, HeapObject::kMapOffset), rdx);
-
-  // Set empty properties FixedArray.
-  __ Move(FieldOperand(rax, JSObject::kPropertiesOffset),
-          Factory::empty_fixed_array());
-
-  // Set elements to point to FixedArray allocated right after the JSArray.
-  __ lea(rcx, Operand(rax, JSRegExpResult::kSize));
-  __ movq(FieldOperand(rax, JSObject::kElementsOffset), rcx);
-
-  // Set input, index and length fields from arguments.
-  __ movq(r8, Operand(rsp, kPointerSize * 1));
-  __ movq(FieldOperand(rax, JSRegExpResult::kInputOffset), r8);
-  __ movq(r8, Operand(rsp, kPointerSize * 2));
-  __ movq(FieldOperand(rax, JSRegExpResult::kIndexOffset), r8);
-  __ movq(r8, Operand(rsp, kPointerSize * 3));
-  __ movq(FieldOperand(rax, JSArray::kLengthOffset), r8);
-
-  // Fill out the elements FixedArray.
-  // rax: JSArray.
-  // rcx: FixedArray.
-  // rbx: Number of elements in array as int32.
-
-  // Set map.
-  __ Move(FieldOperand(rcx, HeapObject::kMapOffset),
-          Factory::fixed_array_map());
-  // Set length.
-  __ Integer32ToSmi(rdx, rbx);
-  __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rdx);
-  // Fill contents of fixed-array with the-hole.
-  __ Move(rdx, Factory::the_hole_value());
-  __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
-  // Fill fixed array elements with hole.
-  // rax: JSArray.
-  // rbx: Number of elements in array that remains to be filled, as int32.
-  // rcx: Start of elements in FixedArray.
-  // rdx: the hole.
-  Label loop;
-  __ testl(rbx, rbx);
-  __ bind(&loop);
-  __ j(less_equal, &done);  // Jump if ecx is negative or zero.
-  __ subl(rbx, Immediate(1));
-  __ movq(Operand(rcx, rbx, times_pointer_size, 0), rdx);
-  __ jmp(&loop);
-
-  __ bind(&done);
-  __ ret(3 * kPointerSize);
-
-  __ bind(&slowcase);
-  __ TailCallRuntime(Runtime::kRegExpConstructResult, 3, 1);
 }
 
 
@@ -4082,25 +3988,6 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // tagged as a small integer.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
-}
-
-void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
-  UNIMPLEMENTED();
-}
-
-
-void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
-  UNIMPLEMENTED();
-}
-
-
-void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
-  UNIMPLEMENTED();
-}
-
-
-void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
-  UNIMPLEMENTED();
 }
 
 #undef __

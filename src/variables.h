@@ -146,8 +146,6 @@ class Variable: public ZoneObject {
   }
 
   bool IsStackAllocated() const;
-  bool IsParameter() const;  // Includes 'this'.
-  bool IsStackLocal() const;
 
   bool is_dynamic() const {
     return (mode_ == DYNAMIC ||

@@ -170,18 +170,17 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     }
   }
 
-  if (FLAG_trace) {
-    __ CallRuntime(Runtime::kTraceEnter, 0);
-  }
-
   { Comment cmnt(masm_, "[ Stack check");
-    PrepareForBailout(info->function(), NO_REGISTERS);
     NearLabel ok;
     __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
     __ j(above_equal, &ok);
     StackCheckStub stub;
     __ CallStub(&stub);
     __ bind(&ok);
+  }
+
+  if (FLAG_trace) {
+    __ CallRuntime(Runtime::kTraceEnter, 0);
   }
 
   { Comment cmnt(masm_, "[ Body");
@@ -195,20 +194,6 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
     EmitReturnSequence();
   }
-}
-
-
-void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
-  Comment cmnt(masm_, "[ Stack check");
-  NearLabel ok;
-  __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
-  __ j(above_equal, &ok);
-  StackCheckStub stub;
-  __ CallStub(&stub);
-  __ bind(&ok);
-  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
-  PrepareForBailoutForId(stmt->OsrEntryId(), NO_REGISTERS);
-  RecordStackCheck(stmt->OsrEntryId());
 }
 
 
@@ -276,7 +261,6 @@ void FullCodeGenerator::StackValueContext::Plug(Slot* slot) const {
 
 void FullCodeGenerator::TestContext::Plug(Slot* slot) const {
   codegen()->Move(result_register(), slot);
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
   codegen()->DoTest(true_label_, false_label_, fall_through_);
 }
 
@@ -298,16 +282,12 @@ void FullCodeGenerator::StackValueContext::Plug(
 
 
 void FullCodeGenerator::TestContext::Plug(Heap::RootListIndex index) const {
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG,
-                                          true,
-                                          true_label_,
-                                          false_label_);
   if (index == Heap::kUndefinedValueRootIndex ||
       index == Heap::kNullValueRootIndex ||
       index == Heap::kFalseValueRootIndex) {
-    if (false_label_ != fall_through_) __ jmp(false_label_);
+    __ jmp(false_label_);
   } else if (index == Heap::kTrueValueRootIndex) {
-    if (true_label_ != fall_through_) __ jmp(true_label_);
+    __ jmp(true_label_);
   } else {
     __ LoadRoot(result_register(), index);
     codegen()->DoTest(true_label_, false_label_, fall_through_);
@@ -331,26 +311,22 @@ void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
 
 
 void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG,
-                                          true,
-                                          true_label_,
-                                          false_label_);
   ASSERT(!lit->IsUndetectableObject());  // There are no undetectable literals.
   if (lit->IsUndefined() || lit->IsNull() || lit->IsFalse()) {
-    if (false_label_ != fall_through_) __ jmp(false_label_);
+    __ jmp(false_label_);
   } else if (lit->IsTrue() || lit->IsJSObject()) {
-    if (true_label_ != fall_through_) __ jmp(true_label_);
+    __ jmp(true_label_);
   } else if (lit->IsString()) {
     if (String::cast(*lit)->length() == 0) {
-      if (false_label_ != fall_through_) __ jmp(false_label_);
+      __ jmp(false_label_);
     } else {
-      if (true_label_ != fall_through_) __ jmp(true_label_);
+      __ jmp(true_label_);
     }
   } else if (lit->IsSmi()) {
     if (Smi::cast(*lit)->value() == 0) {
-      if (false_label_ != fall_through_) __ jmp(false_label_);
+      __ jmp(false_label_);
     } else {
-      if (true_label_ != fall_through_) __ jmp(true_label_);
+      __ jmp(true_label_);
     }
   } else {
     // For simplicity we always test the accumulator register.
@@ -390,14 +366,13 @@ void FullCodeGenerator::TestContext::DropAndPlug(int count,
   // For simplicity we always test the accumulator register.
   __ Drop(count);
   __ Move(result_register(), reg);
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
   codegen()->DoTest(true_label_, false_label_, fall_through_);
 }
 
 
 void FullCodeGenerator::EffectContext::Plug(Label* materialize_true,
                                             Label* materialize_false) const {
-  ASSERT(materialize_true == materialize_false);
+  ASSERT_EQ(materialize_true, materialize_false);
   __ bind(materialize_true);
 }
 
@@ -430,8 +405,8 @@ void FullCodeGenerator::StackValueContext::Plug(
 
 void FullCodeGenerator::TestContext::Plug(Label* materialize_true,
                                           Label* materialize_false) const {
-  ASSERT(materialize_true == true_label_);
   ASSERT(materialize_false == false_label_);
+  ASSERT(materialize_true == true_label_);
 }
 
 
@@ -454,7 +429,6 @@ void FullCodeGenerator::StackValueContext::Plug(bool flag) const {
 
 
 void FullCodeGenerator::TestContext::Plug(bool flag) const {
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
   if (flag) {
     if (true_label_ != fall_through_) __ jmp(true_label_);
   } else {
@@ -543,13 +517,6 @@ void FullCodeGenerator::Move(Slot* dst,
     int offset = FixedArray::kHeaderSize + dst->index() * kPointerSize;
     __ RecordWrite(scratch1, offset, src, scratch2);
   }
-}
-
-
-void FullCodeGenerator::PrepareForBailoutBeforeSplit(State state,
-                                                     bool should_normalize,
-                                                     Label* if_true,
-                                                     Label* if_false) {
 }
 
 
@@ -842,15 +809,23 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   EmitAssignment(stmt->each());
 
   // Generate code for the body of the loop.
+  Label stack_limit_hit, stack_check_done;
   Visit(stmt->body());
+
+  __ StackLimitCheck(&stack_limit_hit);
+  __ bind(&stack_check_done);
 
   // Generate code for going to the next element by incrementing the
   // index (smi) stored on top of the stack.
   __ bind(loop_statement.continue_target());
   __ SmiAddConstant(Operand(rsp, 0 * kPointerSize), Smi::FromInt(1));
-
-  EmitStackCheck(stmt);
   __ jmp(&loop);
+
+  // Slow case for the stack limit check.
+  StackCheckStub stack_check_stub;
+  __ bind(&stack_limit_hit);
+  __ CallStub(&stack_check_stub);
+  __ jmp(&stack_check_done);
 
   // Remove the pointers stored on the stack.
   __ bind(loop_statement.break_target());
@@ -1731,14 +1706,13 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
   if (key->IsPropertyName()) {
     VisitForAccumulatorValue(expr->obj());
     EmitNamedPropertyLoad(expr);
-    context()->Plug(rax);
   } else {
     VisitForStackValue(expr->obj());
     VisitForAccumulatorValue(expr->key());
     __ pop(rdx);
     EmitKeyedPropertyLoad(expr);
-    context()->Plug(rax);
   }
+  context()->Plug(rax);
 }
 
 
@@ -2688,12 +2662,11 @@ void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitRegExpConstructResult(ZoneList<Expression*>* args) {
-  RegExpConstructResultStub stub;
   ASSERT(args->length() == 3);
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
   VisitForStackValue(args->at(2));
-  __ CallStub(&stub);
+  __ CallRuntime(Runtime::kRegExpConstructResult, 3);
   context()->Plug(rax);
 }
 
@@ -2955,7 +2928,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::ADD: {
       Comment cmt(masm_, "[ UnaryOperation (ADD)");
       VisitForAccumulatorValue(expr->expression());
-      Label no_conversion;
+      NearLabel no_conversion;
       Condition is_smi = masm_->CheckSmi(result_register());
       __ j(is_smi, &no_conversion);
       __ push(result_register());
@@ -3108,10 +3081,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ SmiAddConstant(rax, rax, Smi::FromInt(1));
     }
   }
-
-  // Record position before stub call.
-  SetSourcePosition(expr->position());
-
   // Call stub for +1/-1.
   GenericBinaryOpStub stub(expr->binary_op(),
                            NO_OVERWRITE,
@@ -3448,9 +3417,6 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
   ASSERT(mode == RelocInfo::CODE_TARGET ||
          mode == RelocInfo::CODE_TARGET_CONTEXT);
   __ call(ic, mode);
-
-  // Crankshaft doesn't need patching of inlined loads and stores.
-  if (V8::UseCrankshaft()) return;
 
   // If we're calling a (keyed) load or store stub, we have to mark
   // the call as containing no inlined code so we will not attempt to

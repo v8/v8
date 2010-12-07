@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -168,6 +168,13 @@ void MacroAssembler::Ret(Condition cond) {
 #else
   mov(pc, Operand(lr), LeaveCC, cond);
 #endif
+}
+
+
+void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
+  LoadRoot(ip, Heap::kStackLimitRootIndex);
+  cmp(sp, Operand(ip));
+  b(lo, on_stack_overflow);
 }
 
 
@@ -440,34 +447,6 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
-// Push and pop all registers that can hold pointers.
-void MacroAssembler::PushSafepointRegisters() {
-  // Safepoints expect a block of contiguous register values starting with r0:
-  ASSERT(((1 << kNumSafepointSavedRegisters) - 1) == kSafepointSavedRegisters);
-  // Safepoints expect a block of kNumSafepointRegisters values on the
-  // stack, so adjust the stack for unsaved registers.
-  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  ASSERT(num_unsaved >= 0);
-  sub(sp, sp, Operand(num_unsaved * kPointerSize));
-  stm(db_w, sp, kSafepointSavedRegisters);
-}
-
-
-void MacroAssembler::PopSafepointRegisters() {
-  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  ldm(ia_w, sp, kSafepointSavedRegisters);
-  add(sp, sp, Operand(num_unsaved * kPointerSize));
-}
-
-
-int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
-  // The registers are pushed starting with the highest encoding,
-  // which means that lowest encodings are closest to the stack pointer.
-  ASSERT(reg_code >= 0 && reg_code < kNumSafepointRegisters);
-  return reg_code;
-}
-
-
 void MacroAssembler::Ldrd(Register dst1, Register dst2,
                           const MemOperand& src, Condition cond) {
   ASSERT(src.rm().is(no_reg));
@@ -536,17 +515,18 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::EnterExitFrame(bool save_doubles) {
+void MacroAssembler::EnterExitFrame() {
+  // Compute the argv pointer and keep it in a callee-saved register.
   // r0 is argc.
+  add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
+  sub(r6, r6, Operand(kPointerSize));
+
   // Compute callee's stack pointer before making changes and save it as
   // ip register so that it is restored as sp register on exit, thereby
   // popping the args.
 
   // ip = sp + kPointerSize * #args;
   add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
-
-  // Compute the argv pointer and keep it in a callee-saved register.
-  sub(r6, ip, Operand(kPointerSize));
 
   // Prepare the stack to be aligned when calling into C. After this point there
   // are 5 pushes before the call into C, so the stack needs to be aligned after
@@ -578,28 +558,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles) {
   // Setup argc and the builtin function in callee-saved registers.
   mov(r4, Operand(r0));
   mov(r5, Operand(r1));
-
-  // Optionally save all double registers.
-  if (save_doubles) {
-    // TODO(regis): Use vstrm instruction.
-    // The stack alignment code above made sp unaligned, so add space for one
-    // more double register and use aligned addresses.
-    ASSERT(kDoubleSize == frame_alignment);
-    // Mark the frame as containing doubles by pushing a non-valid return
-    // address, i.e. 0.
-    ASSERT(ExitFrameConstants::kMarkerOffset == -2 * kPointerSize);
-    mov(ip, Operand(0));  // Marker and alignment word.
-    push(ip);
-    int space = DwVfpRegister::kNumRegisters * kDoubleSize + kPointerSize;
-    sub(sp, sp, Operand(space));
-    for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
-      DwVfpRegister reg = DwVfpRegister::from_code(i);
-      vstr(reg, sp, i * kDoubleSize + kPointerSize);
-    }
-    // Note that d0 will be accessible at fp - 2*kPointerSize -
-    // DwVfpRegister::kNumRegisters * kDoubleSize, since the code slot and the
-    // alignment word were pushed after the fp.
-  }
 }
 
 
@@ -634,18 +592,7 @@ int MacroAssembler::ActivationFrameAlignment() {
 }
 
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles) {
-  // Optionally restore all double registers.
-  if (save_doubles) {
-    // TODO(regis): Use vldrm instruction.
-    for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
-      DwVfpRegister reg = DwVfpRegister::from_code(i);
-      // Register d15 is just below the marker.
-      const int offset = ExitFrameConstants::kMarkerOffset;
-      vldr(reg, fp, (i - DwVfpRegister::kNumRegisters) * kDoubleSize + offset);
-    }
-  }
-
+void MacroAssembler::LeaveExitFrame() {
   // Clear top frame.
   mov(r3, Operand(0, RelocInfo::NONE));
   mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
@@ -809,15 +756,7 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   // Invoke the cached code.
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  if (V8::UseCrankshaft()) {
-    // TODO(kasperl): For now, we always call indirectly through the
-    // code field in the function to allow recompilation to take effect
-    // without changing any of the call sites.
-    ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
-    InvokeCode(r3, expected, actual, flag);
-  } else {
-    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
-  }
+  InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
 }
 
 
@@ -1572,16 +1511,6 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 
 void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
   CallRuntime(Runtime::FunctionForId(fid), num_arguments);
-}
-
-
-void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
-  Runtime::Function* function = Runtime::FunctionForId(id);
-  mov(r0, Operand(function->nargs));
-  mov(r1, Operand(ExternalReference(function)));
-  CEntryStub stub(1);
-  stub.SaveDoubles();
-  CallStub(&stub);
 }
 
 

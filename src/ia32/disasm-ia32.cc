@@ -1171,14 +1171,6 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                             NameOfXMMRegister(regop),
                             NameOfXMMRegister(rm));
              data++;
-          } else if (*data == 0xDB) {
-             data++;
-             int mod, regop, rm;
-             get_modrm(*data, &mod, &regop, &rm);
-             AppendToBuffer("pand %s,%s",
-                            NameOfXMMRegister(regop),
-                            NameOfXMMRegister(rm));
-             data++;
           } else if (*data == 0x73) {
              data++;
              int mod, regop, rm;

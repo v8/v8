@@ -42,57 +42,10 @@ class Node;
 
 class BitVector: public ZoneObject {
  public:
-  // Iterator for the elements of this BitVector.
-  class Iterator BASE_EMBEDDED {
-   public:
-    explicit Iterator(BitVector* target)
-        : target_(target),
-          current_index_(0),
-          current_value_(target->data_[0]),
-          current_(-1) {
-      ASSERT(target->data_length_ > 0);
-      Advance();
-    }
-    ~Iterator() { }
+  BitVector() : length_(0), data_length_(0), data_(NULL) { }
 
-    bool Done() const { return current_index_ >= target_->data_length_; }
-    void Advance();
-
-    int Current() const {
-      ASSERT(!Done());
-      return current_;
-    }
-
-   private:
-    uint32_t SkipZeroBytes(uint32_t val) {
-      while ((val & 0xFF) == 0) {
-        val >>= 8;
-        current_ += 8;
-      }
-      return val;
-    }
-    uint32_t SkipZeroBits(uint32_t val) {
-      while ((val & 0x1) == 0) {
-        val >>= 1;
-        current_++;
-      }
-      return val;
-    }
-
-    BitVector* target_;
-    int current_index_;
-    uint32_t current_value_;
-    int current_;
-
-    friend class BitVector;
-  };
-
-  explicit BitVector(int length)
-      : length_(length),
-        data_length_(SizeFor(length)),
-        data_(Zone::NewArray<uint32_t>(data_length_)) {
-    ASSERT(length > 0);
-    Clear();
+  explicit BitVector(int length) {
+    ExpandTo(length);
   }
 
   BitVector(const BitVector& other)
@@ -102,8 +55,12 @@ class BitVector: public ZoneObject {
     CopyFrom(other);
   }
 
-  static int SizeFor(int length) {
-    return 1 + ((length - 1) / 32);
+  void ExpandTo(int length) {
+    ASSERT(length > 0);
+    length_ = length;
+    data_length_ = SizeFor(length);
+    data_ = Zone::NewArray<uint32_t>(data_length_);
+    Clear();
   }
 
   BitVector& operator=(const BitVector& rhs) {
@@ -118,7 +75,7 @@ class BitVector: public ZoneObject {
     }
   }
 
-  bool Contains(int i) const {
+  bool Contains(int i) {
     ASSERT(i >= 0 && i < length());
     uint32_t block = data_[i / 32];
     return (block & (1U << (i % 32))) != 0;
@@ -139,17 +96,6 @@ class BitVector: public ZoneObject {
     for (int i = 0; i < data_length_; i++) {
       data_[i] |= other.data_[i];
     }
-  }
-
-  bool UnionIsChanged(const BitVector& other) {
-    ASSERT(other.length() == length());
-    bool changed = false;
-    for (int i = 0; i < data_length_; i++) {
-      uint32_t old_data = data_[i];
-      data_[i] |= other.data_[i];
-      if (data_[i] != old_data) changed = true;
-    }
-    return changed;
   }
 
   void Intersect(const BitVector& other) {
@@ -193,99 +139,13 @@ class BitVector: public ZoneObject {
 #endif
 
  private:
+  static int SizeFor(int length) {
+    return 1 + ((length - 1) / 32);
+  }
+
   int length_;
   int data_length_;
   uint32_t* data_;
-};
-
-
-// An implementation of a sparse set whose elements are drawn from integers
-// in the range [0..universe_size[.  It supports constant-time Contains,
-// destructive Add, and destructuve Remove operations and linear-time (in
-// the number of elements) destructive Union.
-class SparseSet: public ZoneObject {
- public:
-  // Iterator for sparse set elements.  Elements should not be added or
-  // removed during iteration.
-  class Iterator BASE_EMBEDDED {
-   public:
-    explicit Iterator(SparseSet* target) : target_(target), current_(0) {
-      ASSERT(++target->iterator_count_ > 0);
-    }
-    ~Iterator() {
-      ASSERT(target_->iterator_count_-- > 0);
-    }
-    bool Done() const { return current_ >= target_->dense_.length(); }
-    void Advance() {
-      ASSERT(!Done());
-      ++current_;
-    }
-    int Current() {
-      ASSERT(!Done());
-      return target_->dense_[current_];
-    }
-
-   private:
-    SparseSet* target_;
-    int current_;
-
-    friend class SparseSet;
-  };
-
-  explicit SparseSet(int universe_size)
-      : dense_(4),
-        sparse_(Zone::NewArray<int>(universe_size)) {
-#ifdef DEBUG
-    size_ = universe_size;
-    iterator_count_ = 0;
-#endif
-  }
-
-  bool Contains(int n) const {
-    ASSERT(0 <= n && n < size_);
-    int dense_index = sparse_[n];
-    return (0 <= dense_index) &&
-        (dense_index < dense_.length()) &&
-        (dense_[dense_index] == n);
-  }
-
-  void Add(int n) {
-    ASSERT(0 <= n && n < size_);
-    ASSERT(iterator_count_ == 0);
-    if (!Contains(n)) {
-      sparse_[n] = dense_.length();
-      dense_.Add(n);
-    }
-  }
-
-  void Remove(int n) {
-    ASSERT(0 <= n && n < size_);
-    ASSERT(iterator_count_ == 0);
-    if (Contains(n)) {
-      int dense_index = sparse_[n];
-      int last = dense_.RemoveLast();
-      if (dense_index < dense_.length()) {
-        dense_[dense_index] = last;
-        sparse_[last] = dense_index;
-      }
-    }
-  }
-
-  void Union(const SparseSet& other) {
-    for (int i = 0; i < other.dense_.length(); ++i) {
-      Add(other.dense_[i]);
-    }
-  }
-
- private:
-  // The set is implemented as a pair of a growable dense list and an
-  // uninitialized sparse array.
-  ZoneList<int> dense_;
-  int* sparse_;
-#ifdef DEBUG
-  int size_;
-  int iterator_count_;
-#endif
 };
 
 
@@ -338,12 +198,10 @@ class WorkList BASE_EMBEDDED {
 // is guaranteed to be a smi.
 class AssignedVariablesAnalyzer : public AstVisitor {
  public:
-  static bool Analyze(CompilationInfo* info);
+  explicit AssignedVariablesAnalyzer() : info_(NULL) { }
+  bool Analyze(CompilationInfo* info);
 
  private:
-  AssignedVariablesAnalyzer(CompilationInfo* info, int bits);
-  bool Analyze();
-
   Variable* FindSmiLoopVariable(ForStatement* stmt);
 
   int BitIndex(Variable* var);

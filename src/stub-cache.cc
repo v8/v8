@@ -31,7 +31,6 @@
 #include "arguments.h"
 #include "ic-inl.h"
 #include "stub-cache.h"
-#include "vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -426,27 +425,6 @@ MaybeObject* StubCache::ComputeKeyedLoadFunctionPrototype(
 }
 
 
-MaybeObject* StubCache::ComputeKeyedLoadSpecialized(JSObject* receiver) {
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, NORMAL);
-  String* name = Heap::KeyedLoadSpecialized_symbol();
-  Object* code = receiver->map()->FindInCodeCache(name, flags);
-  if (code->IsUndefined()) {
-    KeyedLoadStubCompiler compiler;
-    { MaybeObject* maybe_code = compiler.CompileLoadSpecialized(receiver);
-      if (!maybe_code->ToObject(&code)) return maybe_code;
-    }
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), 0));
-    Object* result;
-    { MaybeObject* maybe_result =
-          receiver->UpdateMapCodeCache(name, Code::cast(code));
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-  }
-  return code;
-}
-
-
 MaybeObject* StubCache::ComputeStoreField(String* name,
                                           JSObject* receiver,
                                           int field_index,
@@ -461,27 +439,6 @@ MaybeObject* StubCache::ComputeStoreField(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
-    Object* result;
-    { MaybeObject* maybe_result =
-          receiver->UpdateMapCodeCache(name, Code::cast(code));
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-  }
-  return code;
-}
-
-
-MaybeObject* StubCache::ComputeKeyedStoreSpecialized(JSObject* receiver) {
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, NORMAL);
-  String* name = Heap::KeyedStoreSpecialized_symbol();
-  Object* code = receiver->map()->FindInCodeCache(name, flags);
-  if (code->IsUndefined()) {
-    KeyedStoreStubCompiler compiler;
-    { MaybeObject* maybe_code = compiler.CompileStoreSpecialized(receiver);
-      if (!maybe_code->ToObject(&code)) return maybe_code;
-    }
-    PROFILE(CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(code), 0));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -604,13 +561,13 @@ MaybeObject* StubCache::ComputeCallConstant(int argc,
   JSObject* map_holder = IC::GetCodeCacheHolder(object, cache_holder);
 
   // Compute check type based on receiver/holder.
-  CheckType check = RECEIVER_MAP_CHECK;
+  StubCompiler::CheckType check = StubCompiler::RECEIVER_MAP_CHECK;
   if (object->IsString()) {
-    check = STRING_CHECK;
+    check = StubCompiler::STRING_CHECK;
   } else if (object->IsNumber()) {
-    check = NUMBER_CHECK;
+    check = StubCompiler::NUMBER_CHECK;
   } else if (object->IsBoolean()) {
-    check = BOOLEAN_CHECK;
+    check = StubCompiler::BOOLEAN_CHECK;
   }
 
   Code::Flags flags =
@@ -632,7 +589,6 @@ MaybeObject* StubCache::ComputeCallConstant(int argc,
           compiler.CompileCallConstant(object, holder, function, name, check);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    Code::cast(code)->set_check_type(check);
     ASSERT_EQ(flags, Code::cast(code)->flags());
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
@@ -997,48 +953,6 @@ void StubCache::Clear() {
 }
 
 
-void StubCache::CollectMatchingMaps(ZoneMapList* types,
-                                    String* name,
-                                    Code::Flags flags) {
-  for (int i = 0; i < kPrimaryTableSize; i++) {
-    if (primary_[i].key == name) {
-      Map* map = primary_[i].value->FindFirstMap();
-      // Map can be NULL, if the stub is constant function call
-      // with a primitive receiver.
-      if (map == NULL) continue;
-
-      int offset = PrimaryOffset(name, flags, map);
-      if (entry(primary_, offset) == &primary_[i]) {
-        types->Add(Handle<Map>(map));
-      }
-    }
-  }
-
-  for (int i = 0; i < kSecondaryTableSize; i++) {
-    if (secondary_[i].key == name) {
-      Map* map = secondary_[i].value->FindFirstMap();
-      // Map can be NULL, if the stub is constant function call
-      // with a primitive receiver.
-      if (map == NULL) continue;
-
-      // Lookup in primary table and skip duplicates.
-      int primary_offset = PrimaryOffset(name, flags, map);
-      Entry* primary_entry = entry(primary_, primary_offset);
-      if (primary_entry->key == name) {
-        Map* primary_map = primary_entry->value->FindFirstMap();
-        if (map == primary_map) continue;
-      }
-
-      // Lookup in secondary table and add matches.
-      int offset = SecondaryOffset(name, flags, primary_offset);
-      if (entry(secondary_, offset) == &secondary_[i]) {
-        types->Add(Handle<Map>(map));
-      }
-    }
-  }
-}
-
-
 // ------------------------------------------------------------------------
 // StubCompiler implementation.
 
@@ -1056,7 +970,9 @@ MaybeObject* LoadCallbackProperty(Arguments args) {
   {
     // Leaving JavaScript.
     VMState state(EXTERNAL);
-    ExternalCallbackScope call_scope(getter_address);
+#ifdef ENABLE_LOGGING_AND_PROFILING
+    state.set_external_callback(getter_address);
+#endif
     result = fun(v8::Utils::ToLocal(args.at<String>(4)), info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION();
@@ -1080,7 +996,9 @@ MaybeObject* StoreCallbackProperty(Arguments args) {
   {
     // Leaving JavaScript.
     VMState state(EXTERNAL);
-    ExternalCallbackScope call_scope(setter_address);
+#ifdef ENABLE_LOGGING_AND_PROFILING
+    state.set_external_callback(setter_address);
+#endif
     fun(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION();

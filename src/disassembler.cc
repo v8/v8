@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,7 +30,6 @@
 #include "code-stubs.h"
 #include "codegen-inl.h"
 #include "debug.h"
-#include "deoptimizer.h"
 #include "disasm.h"
 #include "disassembler.h"
 #include "macro-assembler.h"
@@ -278,15 +277,6 @@ static int DecodeIt(FILE* f,
         } else {
           out.AddFormatted(" %s", Code::Kind2String(kind));
         }
-      } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
-        // A runtime entry reloinfo might be a deoptimization bailout.
-        Address addr = relocinfo.target_address();
-        int id = Deoptimizer::GetDeoptimizationId(addr, Deoptimizer::EAGER);
-        if (id == Deoptimizer::kNotDeoptimizationEntry) {
-          out.AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
-        } else {
-          out.AddFormatted("    ;; deoptimization bailout %d", id);
-        }
       } else {
         out.AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
       }
@@ -309,17 +299,8 @@ int Disassembler::Decode(FILE* f, byte* begin, byte* end) {
 
 // Called by Code::CodePrint.
 void Disassembler::Decode(FILE* f, Code* code) {
-  int decode_size = (code->kind() == Code::OPTIMIZED_FUNCTION)
-      ? static_cast<int>(code->safepoint_table_start())
-      : code->instruction_size();
-  // If there might be a stack check table, stop before reaching it.
-  if (code->kind() == Code::FUNCTION) {
-    decode_size =
-        Min(decode_size, static_cast<int>(code->stack_check_table_start()));
-  }
-
-  byte* begin = code->instruction_start();
-  byte* end = begin + decode_size;
+  byte* begin = Code::cast(code)->instruction_start();
+  byte* end = begin + Code::cast(code)->instruction_size();
   V8NameConverter v8NameConverter(code);
   DecodeIt(f, v8NameConverter, begin, end);
 }

@@ -34,7 +34,6 @@
 #include "frames-inl.h"
 #include "hashmap.h"
 #include "log-inl.h"
-#include "vm-state-inl.h"
 
 #include "../include/v8-profiler.h"
 
@@ -224,7 +223,7 @@ void ProfilerEventsProcessor::RegExpCodeCreateEvent(
 void ProfilerEventsProcessor::AddCurrentStack() {
   TickSampleEventRecord record;
   TickSample* sample = &record.sample;
-  sample->state = Top::current_vm_state();
+  sample->state = VMState::current_state();
   sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
   sample->frames_count = 0;
   for (StackTraceFrameIterator it;
@@ -315,7 +314,6 @@ void ProfilerEventsProcessor::Run() {
 
 
 CpuProfiler* CpuProfiler::singleton_ = NULL;
-Atomic32 CpuProfiler::is_profiling_ = false;
 
 void CpuProfiler::StartProfiling(const char* title) {
   ASSERT(singleton_ != NULL);
@@ -437,7 +435,7 @@ void CpuProfiler::FunctionCreateEvent(JSFunction* function) {
   }
   singleton_->processor_->FunctionCreateEvent(
       function->address(),
-      function->shared()->code()->address(),
+      function->code()->address(),
       security_token_id);
 }
 
@@ -527,7 +525,6 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     Logger::logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
     processor_ = new ProfilerEventsProcessor(generator_);
-    NoBarrier_Store(&is_profiling_, true);
     processor_->Start();
     // Enumerate stuff we already have in the heap.
     if (Heap::HasBeenSetup()) {
@@ -542,9 +539,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
       Logger::LogAccessorCallbacks();
     }
     // Enable stack sampling.
-    Sampler* sampler = reinterpret_cast<Sampler*>(Logger::ticker_);
-    if (!sampler->IsActive()) sampler->Start();
-    sampler->IncreaseProfilingDepth();
+    reinterpret_cast<Sampler*>(Logger::ticker_)->Start();
   }
 }
 
@@ -575,15 +570,12 @@ CpuProfile* CpuProfiler::StopCollectingProfile(Object* security_token,
 
 void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
   if (profiles_->IsLastProfile(title)) {
-    Sampler* sampler = reinterpret_cast<Sampler*>(Logger::ticker_);
-    sampler->DecreaseProfilingDepth();
-    sampler->Stop();
+    reinterpret_cast<Sampler*>(Logger::ticker_)->Stop();
     processor_->Stop();
     processor_->Join();
     delete processor_;
     delete generator_;
     processor_ = NULL;
-    NoBarrier_Store(&is_profiling_, false);
     generator_ = NULL;
     Logger::logging_nesting_ = saved_logging_nesting_;
   }

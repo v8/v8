@@ -50,7 +50,6 @@ SOURCES = {
     'test-dataflow.cc',
     'test-debug.cc',
     'test-decls.cc',
-    'test-deoptimization.cc',
     'test-diy-fp.cc',
     'test-double.cc',
     'test-dtoa.cc',

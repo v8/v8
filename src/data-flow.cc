@@ -33,6 +33,7 @@
 namespace v8 {
 namespace internal {
 
+
 #ifdef DEBUG
 void BitVector::Print() {
   bool first = true;
@@ -49,39 +50,13 @@ void BitVector::Print() {
 #endif
 
 
-void BitVector::Iterator::Advance() {
-  current_++;
-  uint32_t val = current_value_;
-  while (val == 0) {
-    current_index_++;
-    if (Done()) return;
-    val = target_->data_[current_index_];
-    current_ = current_index_ << 5;
-  }
-  val = SkipZeroBytes(val);
-  val = SkipZeroBits(val);
-  current_value_ = val >> 1;
-}
-
-
 bool AssignedVariablesAnalyzer::Analyze(CompilationInfo* info) {
+  info_ = info;
   Scope* scope = info->scope();
-  int size = scope->num_parameters() + scope->num_stack_slots();
-  if (size == 0) return true;
-  AssignedVariablesAnalyzer analyzer(info, size);
-  return analyzer.Analyze();
-}
-
-
-AssignedVariablesAnalyzer::AssignedVariablesAnalyzer(CompilationInfo* info,
-                                                     int size)
-    : info_(info), av_(size) {
-}
-
-
-bool AssignedVariablesAnalyzer::Analyze() {
-  ASSERT(av_.length() > 0);
-  VisitStatements(info_->function()->body());
+  int variables = scope->num_parameters() + scope->num_stack_slots();
+  if (variables == 0) return true;
+  av_.ExpandTo(variables);
+  VisitStatements(info->function()->body());
   return !HasStackOverflow();
 }
 
@@ -340,6 +315,11 @@ void AssignedVariablesAnalyzer::VisitConditional(Conditional* expr) {
   av_.Clear();
   Visit(expr->else_expression());
   av_.Union(result);
+}
+
+
+void AssignedVariablesAnalyzer::VisitSlot(Slot* expr) {
+  UNREACHABLE();
 }
 
 

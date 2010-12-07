@@ -222,6 +222,11 @@ void AstOptimizer::VisitConditional(Conditional* node) {
 }
 
 
+void AstOptimizer::VisitSlot(Slot* node) {
+  USE(node);
+}
+
+
 void AstOptimizer::VisitVariableProxy(VariableProxy* node) {
   Variable* var = node->AsVariable();
   if (var != NULL) {
@@ -681,7 +686,7 @@ void AstOptimizer::VisitThisFunction(ThisFunction* node) {
 
 class Processor: public AstVisitor {
  public:
-  explicit Processor(Variable* result)
+  explicit Processor(VariableProxy* result)
       : result_(result),
         result_assigned_(false),
         is_set_(false),
@@ -692,7 +697,7 @@ class Processor: public AstVisitor {
   bool result_assigned() const { return result_assigned_; }
 
  private:
-  Variable* result_;
+  VariableProxy* result_;
 
   // We are not tracking result usage via the result_'s use
   // counts (we leave the accurate computation to the
@@ -709,8 +714,7 @@ class Processor: public AstVisitor {
 
   Expression* SetResult(Expression* value) {
     result_assigned_ = true;
-    VariableProxy* result_proxy = new VariableProxy(result_);
-    return new Assignment(Token::ASSIGN, result_proxy, value,
+    return new Assignment(Token::ASSIGN, result_, value,
                           RelocInfo::kNoPosition);
   }
 
@@ -865,6 +869,12 @@ void Processor::VisitConditional(Conditional* node) {
 }
 
 
+void Processor::VisitSlot(Slot* node) {
+  USE(node);
+  UNREACHABLE();
+}
+
+
 void Processor::VisitVariableProxy(VariableProxy* node) {
   USE(node);
   UNREACHABLE();
@@ -989,15 +999,12 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
 
   ZoneList<Statement*>* body = function->body();
   if (!body->is_empty()) {
-    Variable* result = scope->NewTemporary(Factory::result_symbol());
+    VariableProxy* result = scope->NewTemporary(Factory::result_symbol());
     Processor processor(result);
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
 
-    if (processor.result_assigned()) {
-      VariableProxy* result_proxy = new VariableProxy(result);
-      body->Add(new ReturnStatement(result_proxy));
-    }
+    if (processor.result_assigned()) body->Add(new ReturnStatement(result));
   }
 
   return true;

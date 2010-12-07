@@ -30,7 +30,6 @@
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
-#include "atomicops.h"
 #include "circular-queue.h"
 #include "unbound-queue.h"
 
@@ -270,7 +269,7 @@ class CpuProfiler {
   static void SetterCallbackEvent(String* name, Address entry_point);
 
   static INLINE(bool is_profiling()) {
-    return NoBarrier_Load(&is_profiling_);
+    return singleton_ != NULL && singleton_->processor_ != NULL;
   }
 
  private:
@@ -291,7 +290,6 @@ class CpuProfiler {
   int saved_logging_nesting_;
 
   static CpuProfiler* singleton_;
-  static Atomic32 is_profiling_;
 
 #else
   static INLINE(bool is_profiling()) { return false; }

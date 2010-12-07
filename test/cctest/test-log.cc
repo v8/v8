@@ -16,7 +16,6 @@
 #include "cpu-profiler.h"
 #include "v8threads.h"
 #include "cctest.h"
-#include "vm-state-inl.h"
 
 using v8::internal::Address;
 using v8::internal::EmbeddedVector;
@@ -247,8 +246,7 @@ class LogBufferMatcher {
 
 
 static void CheckThatProfilerWorks(LogBufferMatcher* matcher) {
-  CHECK(i::RuntimeProfiler::IsEnabled() ||
-        !LoggerTestHelper::IsSamplerActive());
+  CHECK(!LoggerTestHelper::IsSamplerActive());
   LoggerTestHelper::ResetSamplesTaken();
 
   Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 0);
@@ -274,8 +272,7 @@ static void CheckThatProfilerWorks(LogBufferMatcher* matcher) {
   }
 
   Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 0);
-  CHECK(i::RuntimeProfiler::IsEnabled() ||
-        !LoggerTestHelper::IsSamplerActive());
+  CHECK(!LoggerTestHelper::IsSamplerActive());
 
   // Wait 50 msecs to allow Profiler thread to process the last
   // tick sample it has got.
@@ -294,12 +291,8 @@ static void CheckThatProfilerWorks(LogBufferMatcher* matcher) {
 TEST(ProfLazyMode) {
   ScopedLoggerInitializer initialize_logger(true);
 
-  if (!i::V8::UseCrankshaft()) return;
-
-  // No sampling should happen prior to resuming profiler unless we
-  // are runtime profiling.
-  CHECK(i::RuntimeProfiler::IsEnabled() ||
-        !LoggerTestHelper::IsSamplerActive());
+  // No sampling should happen prior to resuming profiler.
+  CHECK(!LoggerTestHelper::IsSamplerActive());
 
   LogBufferMatcher matcher;
   // Nothing must be logged until profiling is resumed.
@@ -410,7 +403,7 @@ class LoopingNonJsThread : public LoopingThread {
 class TestSampler : public v8::internal::Sampler {
  public:
   TestSampler()
-      : Sampler(0, true, true),
+      : Sampler(0, true),
         semaphore_(v8::internal::OS::CreateSemaphore(0)),
         was_sample_stack_called_(false) {
   }
@@ -438,38 +431,30 @@ class TestSampler : public v8::internal::Sampler {
 }  // namespace
 
 TEST(ProfMultipleThreads) {
-  TestSampler* sampler = NULL;
-  {
-    v8::Locker locker;
-    sampler = new TestSampler();
-    sampler->Start();
-    CHECK(sampler->IsActive());
-  }
-
   LoopingJsThread jsThread;
   jsThread.Start();
   LoopingNonJsThread nonJsThread;
   nonJsThread.Start();
 
-  CHECK(!sampler->WasSampleStackCalled());
+  TestSampler sampler;
+  sampler.Start();
+  CHECK(!sampler.WasSampleStackCalled());
   jsThread.WaitForRunning();
   jsThread.SendSigProf();
-  CHECK(sampler->WaitForTick());
-  CHECK(sampler->WasSampleStackCalled());
-  sampler->Reset();
-  CHECK(!sampler->WasSampleStackCalled());
+  CHECK(sampler.WaitForTick());
+  CHECK(sampler.WasSampleStackCalled());
+  sampler.Reset();
+  CHECK(!sampler.WasSampleStackCalled());
   nonJsThread.WaitForRunning();
   nonJsThread.SendSigProf();
-  CHECK(!sampler->WaitForTick());
-  CHECK(!sampler->WasSampleStackCalled());
-  sampler->Stop();
+  CHECK(!sampler.WaitForTick());
+  CHECK(!sampler.WasSampleStackCalled());
+  sampler.Stop();
 
   jsThread.Stop();
   nonJsThread.Stop();
   jsThread.Join();
   nonJsThread.Join();
-
-  delete sampler;
 }
 
 #endif  // __linux__

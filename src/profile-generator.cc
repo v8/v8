@@ -603,8 +603,8 @@ CpuProfile* CpuProfilesCollection::GetProfile(int security_token_id,
   }
   List<CpuProfile*>* list = GetProfilesList(security_token_id);
   if (list->at(index) == NULL) {
-    (*list)[index] =
-        unabridged_list->at(index)->FilteredClone(security_token_id);
+      list->at(index) =
+          unabridged_list->at(index)->FilteredClone(security_token_id);
   }
   return list->at(index);
 }
@@ -653,7 +653,7 @@ List<CpuProfile*>* CpuProfilesCollection::Profiles(int security_token_id) {
   const int current_count = unabridged_list->length();
   for (int i = 0; i < current_count; ++i) {
     if (list->at(i) == NULL) {
-      (*list)[i] = unabridged_list->at(i)->FilteredClone(security_token_id);
+      list->at(i) = unabridged_list->at(i)->FilteredClone(security_token_id);
     }
   }
   return list;
@@ -1403,7 +1403,7 @@ void HeapSnapshot::FillReversePostorderIndexes(Vector<HeapEntry*>* entries) {
     }
     if (!has_new_edges) {
       entry->set_ordered_index(current_entry);
-      (*entries)[current_entry++] = entry;
+      entries->at(current_entry++) = entry;
       nodes_to_visit.RemoveLast();
     }
   }
@@ -1427,8 +1427,8 @@ void HeapSnapshot::BuildDominatorTree(const Vector<HeapEntry*>& entries,
                                       Vector<HeapEntry*>* dominators) {
   if (entries.length() == 0) return;
   const int root_index = entries.length() - 1;
-  for (int i = 0; i < root_index; ++i) (*dominators)[i] = NULL;
-  (*dominators)[root_index] = entries[root_index];
+  for (int i = 0; i < root_index; ++i) dominators->at(i) = NULL;
+  dominators->at(root_index) = entries[root_index];
   bool changed = true;
   while (changed) {
     changed = false;
@@ -1454,7 +1454,7 @@ void HeapSnapshot::BuildDominatorTree(const Vector<HeapEntry*>& entries,
         }
       }
       if (new_idom != NULL && dominators->at(i) != new_idom) {
-        (*dominators)[i] = new_idom;
+        dominators->at(i) = new_idom;
         changed = true;
       }
     }

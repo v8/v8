@@ -36,5 +36,4 @@ function f() {
   }
 }
 
-var result = f();
-if (result != 42) print("Wrong result: " + result);
+print(f());

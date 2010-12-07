@@ -95,13 +95,13 @@ TEST(MemoryAllocator) {
 
   OldSpace faked_space(Heap::MaxReserved(), OLD_POINTER_SPACE, NOT_EXECUTABLE);
   int total_pages = 0;
-  int requested = MemoryAllocator::kPagesPerChunk;
+  int requested = 2;
   int allocated;
-  // If we request n pages, we should get n or n - 1.
+  // If we request two pages, we should get one or two.
   Page* first_page =
       MemoryAllocator::AllocatePages(requested, &allocated, &faked_space);
   CHECK(first_page->is_valid());
-  CHECK(allocated == requested || allocated == requested - 1);
+  CHECK(allocated > 0 && allocated <= 2);
   total_pages += allocated;
 
   Page* last_page = first_page;
@@ -110,11 +110,11 @@ TEST(MemoryAllocator) {
     last_page = p;
   }
 
-  // Again, we should get n or n - 1 pages.
+  // Again, we should get one or two pages.
   Page* others =
       MemoryAllocator::AllocatePages(requested, &allocated, &faked_space);
   CHECK(others->is_valid());
-  CHECK(allocated == requested || allocated == requested - 1);
+  CHECK(allocated > 0 && allocated <= 2);
   total_pages += allocated;
 
   MemoryAllocator::SetNextPage(last_page, others);
@@ -129,10 +129,11 @@ TEST(MemoryAllocator) {
   CHECK(second_page->is_valid());
 
   // Freeing pages at the first chunk starting at or after the second page
-  // should free the entire second chunk.  It will return the page it was passed
-  // (since the second page was in the first chunk).
+  // should free the entire second chunk.  It will return the last page in the
+  // first chunk (if the second page was in the first chunk) or else an
+  // invalid page (if the second page was the start of the second chunk).
   Page* free_return = MemoryAllocator::FreePages(second_page);
-  CHECK(free_return == second_page);
+  CHECK(free_return == last_page || !free_return->is_valid());
   MemoryAllocator::SetNextPage(first_page, free_return);
 
   // Freeing pages in the first chunk starting at the first page should free

@@ -25,7 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test global variable loads.
+// Flags: --fast-compiler
+
+// Test global variable loads with the fast compiler.
 var g1 = 42;
 var g2 = 43;
 var g3 = 44;

@@ -67,14 +67,6 @@ char* ReadLine(const char* prompt);
 byte* ReadBytes(const char* filename, int* size, bool verbose = true);
 
 
-// Append size chars from str to the file given by filename.
-// The file is overwritten. Returns the number of chars written.
-int AppendChars(const char* filename,
-                const char* str,
-                int size,
-                bool verbose = true);
-
-
 // Write size chars from str to the file given by filename.
 // The file is overwritten. Returns the number of chars written.
 int WriteChars(const char* filename,
@@ -224,9 +216,6 @@ class StringBuilder {
 
   // Add formatted contents to the builder just like printf().
   void AddFormatted(const char* format, ...);
-
-  // Add formatted contents like printf based on a va_list.
-  void AddFormattedList(const char* format, va_list list);
 
   // Add character padding to the builder. If count is non-positive,
   // nothing is added to the builder.

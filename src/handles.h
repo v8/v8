@@ -342,8 +342,6 @@ bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
 
 bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag);
 
-bool CompileOptimized(Handle<JSFunction> function, int osr_ast_id);
-
 class NoHandleAllocation BASE_EMBEDDED {
  public:
 #ifndef DEBUG

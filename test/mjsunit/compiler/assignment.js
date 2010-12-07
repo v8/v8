@@ -264,13 +264,6 @@ function bar_loop() {
 bar_loop();
 
 
-// Test assignment in test context.
-function test_assign(x, y) { if (x = y) return x; }
-
-assertEquals(42, test_assign(0, 42));
-
-assertEquals("undefined", typeof test_assign(42, 0));
-
 // Test for assignment using a keyed store ic:
 function store_i_in_element_i_of_object_i() {
   var i = new Object();

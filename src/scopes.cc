@@ -291,11 +291,13 @@ void Scope::RemoveUnresolved(VariableProxy* var) {
 }
 
 
-Variable* Scope::NewTemporary(Handle<String> name) {
-  Variable* var =
-      new Variable(this, name, Variable::TEMPORARY, true, Variable::NORMAL);
+VariableProxy* Scope::NewTemporary(Handle<String> name) {
+  Variable* var = new Variable(this, name, Variable::TEMPORARY, true,
+                               Variable::NORMAL);
+  VariableProxy* tmp = new VariableProxy(name, false, false);
+  tmp->BindTo(var);
   temps_.Add(var);
-  return var;
+  return tmp;
 }
 
 
@@ -859,13 +861,11 @@ void Scope::AllocateParameterLocals() {
           // allocated.
           arguments_shadow_->is_accessed_from_inner_scope_ = true;
         }
-        Property* rewrite =
+        var->rewrite_ =
             new Property(new VariableProxy(arguments_shadow_),
                          new Literal(Handle<Object>(Smi::FromInt(i))),
                          RelocInfo::kNoPosition,
                          Property::SYNTHETIC);
-        rewrite->set_is_arguments_access(true);
-        var->rewrite_ = rewrite;
       }
     }
 

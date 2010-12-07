@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -183,6 +183,13 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
+void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
+  cmp(esp,
+      Operand::StaticVariable(ExternalReference::address_of_stack_limit()));
+  j(below, on_stack_overflow);
+}
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
   Set(eax, Immediate(0));
@@ -357,20 +364,9 @@ void MacroAssembler::EnterExitFramePrologue() {
 }
 
 
-void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
-  // Optionally save all XMM registers.
-  if (save_doubles) {
-    CpuFeatures::Scope scope(SSE2);
-    int space = XMMRegister::kNumRegisters * kDoubleSize + argc * kPointerSize;
-    sub(Operand(esp), Immediate(space));
-    int offset = -2 * kPointerSize;
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      XMMRegister reg = XMMRegister::from_code(i);
-      movdbl(Operand(ebp, offset - ((i + 1) * kDoubleSize)), reg);
-    }
-  } else {
-    sub(Operand(esp), Immediate(argc * kPointerSize));
-  }
+void MacroAssembler::EnterExitFrameEpilogue(int argc) {
+  // Reserve space for arguments.
+  sub(Operand(esp), Immediate(argc * kPointerSize));
 
   // Get the required frame alignment for the OS.
   static const int kFrameAlignment = OS::ActivationFrameAlignment();
@@ -384,7 +380,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
 }
 
 
-void MacroAssembler::EnterExitFrame(bool save_doubles) {
+void MacroAssembler::EnterExitFrame() {
   EnterExitFramePrologue();
 
   // Setup argc and argv in callee-saved registers.
@@ -392,27 +388,17 @@ void MacroAssembler::EnterExitFrame(bool save_doubles) {
   mov(edi, Operand(eax));
   lea(esi, Operand(ebp, eax, times_4, offset));
 
-  EnterExitFrameEpilogue(2, save_doubles);
+  EnterExitFrameEpilogue(2);
 }
 
 
 void MacroAssembler::EnterApiExitFrame(int argc) {
   EnterExitFramePrologue();
-  EnterExitFrameEpilogue(argc, false);
+  EnterExitFrameEpilogue(argc);
 }
 
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles) {
-  // Optionally restore all XMM registers.
-  if (save_doubles) {
-    CpuFeatures::Scope scope(SSE2);
-    int offset = -2 * kPointerSize;
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      XMMRegister reg = XMMRegister::from_code(i);
-      movdbl(reg, Operand(ebp, offset - ((i + 1) * kDoubleSize)));
-    }
-  }
-
+void MacroAssembler::LeaveExitFrame() {
   // Get the return address from the stack and restore the frame pointer.
   mov(ecx, Operand(ebp, 1 * kPointerSize));
   mov(ebp, Operand(ebp, 0 * kPointerSize));
@@ -1112,16 +1098,6 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
 }
 
 
-void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
-  Runtime::Function* function = Runtime::FunctionForId(id);
-  Set(eax, Immediate(function->nargs));
-  mov(ebx, Immediate(ExternalReference(function)));
-  CEntryStub ces(1);
-  ces.SaveDoubles();
-  CallStub(&ces);
-}
-
-
 MaybeObject* MacroAssembler::TryCallRuntime(Runtime::FunctionId id,
                                             int num_arguments) {
   return TryCallRuntime(Runtime::FunctionForId(id), num_arguments);
@@ -1360,8 +1336,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Handle<Code> code_constant,
                                     const Operand& code_operand,
                                     Label* done,
-                                    InvokeFlag flag,
-                                    PostCallGenerator* post_call_generator) {
+                                    InvokeFlag flag) {
   bool definitely_matches = false;
   Label invoke;
   if (expected.is_immediate()) {
@@ -1412,7 +1387,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
     if (flag == CALL_FUNCTION) {
       call(adaptor, RelocInfo::CODE_TARGET);
-      if (post_call_generator != NULL) post_call_generator->Generate();
       jmp(done);
     } else {
       jmp(adaptor, RelocInfo::CODE_TARGET);
@@ -1425,14 +1399,11 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 void MacroAssembler::InvokeCode(const Operand& code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
-                                InvokeFlag flag,
-                                PostCallGenerator* post_call_generator) {
+                                InvokeFlag flag) {
   Label done;
-  InvokePrologue(expected, actual, Handle<Code>::null(), code,
-                 &done, flag, post_call_generator);
+  InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag);
   if (flag == CALL_FUNCTION) {
     call(code);
-    if (post_call_generator != NULL) post_call_generator->Generate();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     jmp(code);
@@ -1445,15 +1416,12 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
-                                InvokeFlag flag,
-                                PostCallGenerator* post_call_generator) {
+                                InvokeFlag flag) {
   Label done;
   Operand dummy(eax);
-  InvokePrologue(expected, actual, code, dummy, &done,
-                 flag, post_call_generator);
+  InvokePrologue(expected, actual, code, dummy, &done, flag);
   if (flag == CALL_FUNCTION) {
     call(code, rmode);
-    if (post_call_generator != NULL) post_call_generator->Generate();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     jmp(code, rmode);
@@ -1464,8 +1432,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 
 void MacroAssembler::InvokeFunction(Register fun,
                                     const ParameterCount& actual,
-                                    InvokeFlag flag,
-                                    PostCallGenerator* post_call_generator) {
+                                    InvokeFlag flag) {
   ASSERT(fun.is(edi));
   mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
@@ -1474,37 +1441,25 @@ void MacroAssembler::InvokeFunction(Register fun,
 
   ParameterCount expected(ebx);
   InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
-             expected, actual, flag, post_call_generator);
+             expected, actual, flag);
 }
 
 
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
-                                    InvokeFlag flag,
-                                    PostCallGenerator* post_call_generator) {
+                                    InvokeFlag flag) {
   ASSERT(function->is_compiled());
   // Get the function and setup the context.
   mov(edi, Immediate(Handle<JSFunction>(function)));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-
+  // Invoke the cached code.
+  Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  if (V8::UseCrankshaft()) {
-    // TODO(kasperl): For now, we always call indirectly through the
-    // code field in the function to allow recompilation to take effect
-    // without changing any of the call sites.
-    InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
-               expected, actual, flag, post_call_generator);
-  } else {
-    Handle<Code> code(function->code());
-    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET,
-               flag, post_call_generator);
-  }
+  InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
 }
 
 
-void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
-                                   InvokeFlag flag,
-                                   PostCallGenerator* post_call_generator) {
+void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   // Calls are not allowed in some stubs.
   ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 
@@ -1514,7 +1469,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   ParameterCount expected(0);
   GetBuiltinFunction(edi, id);
   InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
-             expected, expected, flag, post_call_generator);
+           expected, expected, flag);
 }
 
 void MacroAssembler::GetBuiltinFunction(Register target,
@@ -1576,15 +1531,6 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
     Abort("Global functions must have initial map");
     bind(&ok);
   }
-}
-
-
-int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
-  // The registers are pushed starting with the lowest encoding,
-  // which means that lowest encodings are furthest away from
-  // the stack pointer.
-  ASSERT(reg_code >= 0 && reg_code < kNumSafepointRegisters);
-  return kNumSafepointRegisters - reg_code - 1;
 }
 
 

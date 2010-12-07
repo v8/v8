@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --fast-compiler
+
 function Test() {
   this.result = 0;
   this.x = 0;
@@ -90,14 +92,6 @@ Test.prototype.test9 = function() {
        | a;             // 1.1
 }
 
-Test.prototype.test10 = function() {
-  this.z = (a >> b) | (c >> c);
-}
-
-Test.prototype.test11 = function(x) {
-  this.z = x >> x;
-}
-
 var t = new Test();
 
 t.test0();
@@ -131,13 +125,3 @@ t.test9();
 assertEquals(14, t.x);
 assertEquals(6, t.y);
 assertEquals(15, t.z);
-
-a = "2";
-t.test11(a);
-assertEquals(0, t.z);
-
-a = 4;
-b = "1";
-c = 2;
-t.test10();
-assertEquals(2, t.z);

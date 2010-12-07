@@ -30,7 +30,7 @@
 
 // Scenario: some function is being edited; the outer function has to have its
 // positions patched. Accoring to a special markup of function text
-// corresponding byte-code PCs should coincide before change and after it.
+// corresponding byte-code PCs should conicide before change and after it.
 
 Debug = debug.Debug
 
@@ -62,65 +62,32 @@ function ReadMarkerPositions(func) {
 function ReadPCMap(func, positions) {
   var res = new Array();
   for (var i = 0; i < positions.length; i++) {
-    var pc = Debug.LiveEdit.GetPcFromSourcePos(func, positions[i]);
-
-    if (typeof pc === 'undefined') {
-      // Function was marked for recompilation and it's code was replaced with a
-      // stub. This can happen at any time especially if we are running with
-      // --stress-opt. There is no way to get PCs now.
-      return;
-    }
-
-    res.push(pc);
+    res.push(Debug.LiveEdit.GetPcFromSourcePos(func, positions[i]));
   }
-
   return res;
 }
 
-function ApplyPatch(orig_animal, new_animal) {
-  var res = ChooseAnimal();
-  assertEquals(orig_animal + "15", res);
+var res = ChooseAnimal();
+assertEquals("Cat15", res);
 
-  var script = Debug.findScript(ChooseAnimal);
+var markerPositionsBefore = ReadMarkerPositions(ChooseAnimal);
+var pcArrayBefore = ReadPCMap(ChooseAnimal, markerPositionsBefore);
 
-  var orig_string = "'" + orig_animal + "'";
-  var patch_string = "'" + new_animal + "'";
-  var patch_pos = script.source.indexOf(orig_string);
+var script = Debug.findScript(ChooseAnimal);
 
-  var change_log = new Array();
+var orig_animal = "'Cat'";
+var patch_pos = script.source.indexOf(orig_animal);
+var new_animal_patch = "'Capybara'";
 
-  Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script,
-                                               patch_pos,
-                                               orig_string.length,
-                                               patch_string,
-                                               change_log);
+var change_log = new Array();
+Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+print("Change log: " + JSON.stringify(change_log) + "\n");
 
-  print("Change log: " + JSON.stringify(change_log) + "\n");
+var res = ChooseAnimal();
+assertEquals("Capybara15", res);
 
-  var markerPositions = ReadMarkerPositions(ChooseAnimal);
-  var pcArray = ReadPCMap(ChooseAnimal, markerPositions);
+var markerPositionsAfter = ReadMarkerPositions(ChooseAnimal);
+var pcArrayAfter = ReadPCMap(ChooseAnimal, markerPositionsAfter);
 
-  var res = ChooseAnimal();
-  assertEquals(new_animal + "15", res);
+assertArrayEquals(pcArrayBefore, pcArrayAfter);
 
-  return pcArray;
-}
-
-var pcArray1 = ApplyPatch('Cat', 'Dog');
-
-// When we patched function for the first time it was deoptimized.
-// Check that after the second patch maping between sources position and
-// pcs will not change.
-
-var pcArray2 = ApplyPatch('Dog', 'Capybara');
-
-print(pcArray1);
-print(pcArray2);
-
-// Function can be marked for recompilation at any point (especially if we are
-// running with --stress-opt). When we mark function for recompilation we
-// replace it's code with stub. So there is no reliable way to get PCs for
-// function.
-if (pcArray1 && pcArray2) {
-  assertArrayEquals(pcArray1, pcArray2);
-}

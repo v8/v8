@@ -43,6 +43,9 @@ class RegisterAllocator;
 class RegisterFile;
 class RuntimeCallHelper;
 
+enum InitState { CONST_INIT, NOT_CONST_INIT };
+enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
+
 
 // -------------------------------------------------------------------------
 // Reference support
@@ -307,9 +310,6 @@ class CodeGenerator: public AstVisitor {
                                        Code::Flags flags,
                                        CompilationInfo* info);
 
-  // Print the code after compiling it.
-  static void PrintCode(Handle<Code> code, CompilationInfo* info);
-
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static bool ShouldGenerateLog(Expression* type);
 #endif
@@ -398,9 +398,8 @@ class CodeGenerator: public AstVisitor {
   // Node visitors.
   void VisitStatements(ZoneList<Statement*>* statements);
 
-  virtual void VisitSlot(Slot* node);
 #define DEF_VISIT(type) \
-  virtual void Visit##type(type* node);
+  void Visit##type(type* node);
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
@@ -784,7 +783,6 @@ class CodeGenerator: public AstVisitor {
   friend class FastCodeGenerator;
   friend class FullCodeGenerator;
   friend class FullCodeGenSyntaxChecker;
-  friend class LCodeGen;
 
   friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
 

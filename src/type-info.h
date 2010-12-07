@@ -29,53 +29,47 @@
 #define V8_TYPE_INFO_H_
 
 #include "globals.h"
-#include "zone.h"
-#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {
 
-//         Unknown
-//           |   |
-//           |   \--------------|
-//      Primitive             Non-primitive
-//           |   \--------|     |
-//         Number      String   |
-//         /    |         |     |
-//    Double  Integer32   |    /
-//        |      |       /    /
-//        |     Smi     /    /
-//        |      |     /    /
-//        |      |    /    /
-//        Uninitialized.--/
+//        Unknown
+//           |
+//      PrimitiveType
+//           |   \--------|
+//         Number      String
+//         /    |         |
+//    Double  Integer32   |
+//        |      |       /
+//        |     Smi     /
+//        |     /      /
+//        Uninitialized.
 
 class TypeInfo {
  public:
-  TypeInfo() : type_(kUninitialized) { }
+  TypeInfo() : type_(kUnknownType) { }
 
-  static TypeInfo Unknown() { return TypeInfo(kUnknown); }
+  static inline TypeInfo Unknown();
   // We know it's a primitive type.
-  static TypeInfo Primitive() { return TypeInfo(kPrimitive); }
+  static inline TypeInfo Primitive();
   // We know it's a number of some sort.
-  static TypeInfo Number() { return TypeInfo(kNumber); }
-  // We know it's a signed 32 bit integer.
-  static TypeInfo Integer32() { return TypeInfo(kInteger32); }
+  static inline TypeInfo Number();
+  // We know it's signed 32 bit integer.
+  static inline TypeInfo Integer32();
   // We know it's a Smi.
-  static TypeInfo Smi() { return TypeInfo(kSmi); }
+  static inline TypeInfo Smi();
   // We know it's a heap number.
-  static TypeInfo Double() { return TypeInfo(kDouble); }
+  static inline TypeInfo Double();
   // We know it's a string.
-  static TypeInfo String() { return TypeInfo(kString); }
-  // We know it's a non-primitive (object) type.
-  static TypeInfo NonPrimitive() { return TypeInfo(kNonPrimitive); }
+  static inline TypeInfo String();
   // We haven't started collecting info yet.
-  static TypeInfo Uninitialized() { return TypeInfo(kUninitialized); }
+  static inline TypeInfo Uninitialized();
 
   // Return compact representation.  Very sensitive to enum values below!
-  // Compacting drops information about primitive types and strings types.
+  // Compacting drops information about primtive types and strings types.
   // We use the compact representation when we only care about number types.
   int ThreeBitRepresentation() {
-    ASSERT(type_ != kUninitialized);
+    ASSERT(type_ != kUninitializedType);
     int answer = type_ & 0xf;
     answer = answer > 6 ? answer - 2 : answer;
     ASSERT(answer >= 0);
@@ -88,12 +82,12 @@ class TypeInfo {
     Type t = static_cast<Type>(three_bit_representation > 4 ?
                                three_bit_representation + 2 :
                                three_bit_representation);
-    t = (t == kUnknown) ? t : static_cast<Type>(t | kPrimitive);
-    ASSERT(t == kUnknown ||
-           t == kNumber ||
-           t == kInteger32 ||
-           t == kSmi ||
-           t == kDouble);
+    t = (t == kUnknownType) ? t : static_cast<Type>(t | kPrimitiveType);
+    ASSERT(t == kUnknownType ||
+           t == kNumberType ||
+           t == kInteger32Type ||
+           t == kSmiType ||
+           t == kDoubleType);
     return TypeInfo(t);
   }
 
@@ -103,14 +97,13 @@ class TypeInfo {
 
   static TypeInfo FromInt(int bit_representation) {
     Type t = static_cast<Type>(bit_representation);
-    ASSERT(t == kUnknown ||
-           t == kPrimitive ||
-           t == kNumber ||
-           t == kInteger32 ||
-           t == kSmi ||
-           t == kDouble ||
-           t == kString ||
-           t == kNonPrimitive);
+    ASSERT(t == kUnknownType ||
+           t == kPrimitiveType ||
+           t == kNumberType ||
+           t == kInteger32Type ||
+           t == kSmiType ||
+           t == kDoubleType ||
+           t == kStringType);
     return TypeInfo(t);
   }
 
@@ -120,98 +113,82 @@ class TypeInfo {
   }
 
 
-  // Integer32 is an integer that can be represented as either a signed
-  // 32-bit integer or as an unsigned 32-bit integer. It has to be
-  // in the range [-2^31, 2^32 - 1]. We also have to check for negative 0
-  // as it is not an Integer32.
+  // Integer32 is an integer that can be represented as a signed
+  // 32-bit integer. It has to be in the range [-2^31, 2^31 - 1].
+  // We also have to check for negative 0 as it is not an Integer32.
   static inline bool IsInt32Double(double value) {
     const DoubleRepresentation minus_zero(-0.0);
     DoubleRepresentation rep(value);
     if (rep.bits == minus_zero.bits) return false;
-    if (value >= kMinInt && value <= kMaxInt &&
-        value == static_cast<int32_t>(value)) {
-      return true;
+    if (value >= kMinInt && value <= kMaxInt) {
+      if (value == static_cast<int32_t>(value)) return true;
     }
     return false;
   }
 
   static TypeInfo TypeFromValue(Handle<Object> value);
 
-  bool Equals(const TypeInfo& other) {
-    return type_ == other.type_;
-  }
-
   inline bool IsUnknown() {
-    ASSERT(type_ != kUninitialized);
-    return type_ == kUnknown;
-  }
-
-  inline bool IsPrimitive() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kPrimitive) == kPrimitive);
+    return type_ == kUnknownType;
   }
 
   inline bool IsNumber() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kNumber) == kNumber);
+    ASSERT(type_ != kUninitializedType);
+    return ((type_ & kNumberType) == kNumberType);
   }
 
   inline bool IsSmi() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kSmi) == kSmi);
+    ASSERT(type_ != kUninitializedType);
+    return ((type_ & kSmiType) == kSmiType);
   }
 
   inline bool IsInteger32() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kInteger32) == kInteger32);
+    ASSERT(type_ != kUninitializedType);
+    return ((type_ & kInteger32Type) == kInteger32Type);
   }
 
   inline bool IsDouble() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kDouble) == kDouble);
+    ASSERT(type_ != kUninitializedType);
+    return ((type_ & kDoubleType) == kDoubleType);
   }
 
   inline bool IsString() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kString) == kString);
-  }
-
-  inline bool IsNonPrimitive() {
-    ASSERT(type_ != kUninitialized);
-    return ((type_ & kNonPrimitive) == kNonPrimitive);
+    ASSERT(type_ != kUninitializedType);
+    return ((type_ & kStringType) == kStringType);
   }
 
   inline bool IsUninitialized() {
-    return type_ == kUninitialized;
+    return type_ == kUninitializedType;
   }
 
   const char* ToString() {
     switch (type_) {
-      case kUnknown: return "Unknown";
-      case kPrimitive: return "Primitive";
-      case kNumber: return "Number";
-      case kInteger32: return "Integer32";
-      case kSmi: return "Smi";
-      case kDouble: return "Double";
-      case kString: return "String";
-      case kNonPrimitive: return "Object";
-      case kUninitialized: return "Uninitialized";
+      case kUnknownType: return "UnknownType";
+      case kPrimitiveType: return "PrimitiveType";
+      case kNumberType: return "NumberType";
+      case kInteger32Type: return "Integer32Type";
+      case kSmiType: return "SmiType";
+      case kDoubleType: return "DoubleType";
+      case kStringType: return "StringType";
+      case kUninitializedType:
+        UNREACHABLE();
+        return "UninitializedType";
     }
     UNREACHABLE();
     return "Unreachable code";
   }
 
  private:
+  // We use 6 bits to represent the types.
   enum Type {
-    kUnknown = 0,          // 0000000
-    kPrimitive = 0x10,     // 0010000
-    kNumber = 0x11,        // 0010001
-    kInteger32 = 0x13,     // 0010011
-    kSmi = 0x17,           // 0010111
-    kDouble = 0x19,        // 0011001
-    kString = 0x30,        // 0110000
-    kNonPrimitive = 0x40,  // 1000000
-    kUninitialized = 0x7f  // 1111111
+    kUnknownType = 0,          // 000000
+    kPrimitiveType = 0x10,     // 010000
+    kNumberType = 0x11,        // 010001
+    kInteger32Type = 0x13,     // 010011
+    kSmiType = 0x17,           // 010111
+    kDoubleType = 0x19,        // 011001
+    kStringType = 0x30,        // 110000
+    kUninitializedType = 0x3f  // 111111
   };
   explicit inline TypeInfo(Type t) : type_(t) { }
 
@@ -219,63 +196,44 @@ class TypeInfo {
 };
 
 
-// Forward declarations.
-class Assignment;
-class BinaryOperation;
-class Call;
-class CompareOperation;
-class CompilationInfo;
-class Property;
-class CaseClause;
+TypeInfo TypeInfo::Unknown() {
+  return TypeInfo(kUnknownType);
+}
 
-class TypeFeedbackOracle BASE_EMBEDDED {
- public:
-  enum Side {
-    LEFT,
-    RIGHT,
-    RESULT
-  };
 
-  explicit TypeFeedbackOracle(Handle<Code> code);
+TypeInfo TypeInfo::Primitive() {
+  return TypeInfo(kPrimitiveType);
+}
 
-  bool LoadIsMonomorphic(Property* expr);
-  bool StoreIsMonomorphic(Assignment* expr);
-  bool CallIsMonomorphic(Call* expr);
 
-  Handle<Map> LoadMonomorphicReceiverType(Property* expr);
-  Handle<Map> StoreMonomorphicReceiverType(Assignment* expr);
-  Handle<Map> CallMonomorphicReceiverType(Call* expr);
+TypeInfo TypeInfo::Number() {
+  return TypeInfo(kNumberType);
+}
 
-  ZoneMapList* LoadReceiverTypes(Property* expr, Handle<String> name);
-  ZoneMapList* StoreReceiverTypes(Assignment* expr, Handle<String> name);
-  ZoneMapList* CallReceiverTypes(Call* expr, Handle<String> name);
 
-  bool LoadIsBuiltin(Property* expr, Builtins::Name id);
+TypeInfo TypeInfo::Integer32() {
+  return TypeInfo(kInteger32Type);
+}
 
-  // Get type information for arithmetic operations and compares.
-  TypeInfo BinaryType(BinaryOperation* expr, Side side);
-  TypeInfo CompareType(CompareOperation* expr, Side side);
-  TypeInfo SwitchType(CaseClause* clause);
 
- private:
-  void Initialize(Handle<Code> code);
+TypeInfo TypeInfo::Smi() {
+  return TypeInfo(kSmiType);
+}
 
-  bool IsMonomorphic(int pos) { return GetElement(map_, pos)->IsMap(); }
 
-  ZoneMapList* CollectReceiverTypes(int position,
-                                    Handle<String> name,
-                                    Code::Flags flags);
+TypeInfo TypeInfo::Double() {
+  return TypeInfo(kDoubleType);
+}
 
-  void PopulateMap(Handle<Code> code);
 
-  void CollectPositions(Code* code,
-                        List<int>* code_positions,
-                        List<int>* source_positions);
+TypeInfo TypeInfo::String() {
+  return TypeInfo(kStringType);
+}
 
-  Handle<JSObject> map_;
 
-  DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
-};
+TypeInfo TypeInfo::Uninitialized() {
+  return TypeInfo(kUninitializedType);
+}
 
 } }  // namespace v8::internal
 

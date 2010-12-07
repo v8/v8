@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 
 // A light-weight IA32 Assembler.
 
@@ -64,36 +64,7 @@ namespace internal {
 // and best performance in optimized code.
 //
 struct Register {
-  static const int kNumAllocatableRegisters = 5;
-  static const int kNumRegisters = 8;
-
-  static int ToAllocationIndex(Register reg) {
-    ASSERT(reg.code() < 4 || reg.code() == 7);
-    return (reg.code() == 7) ? 4 : reg.code();
-  }
-
-  static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    return (index == 4) ? from_code(7) : from_code(index);
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    const char* const names[] = {
-      "eax",
-      "ecx",
-      "edx",
-      "ebx",
-      "edi"
-    };
-    return names[index];
-  }
-
-  static Register from_code(int code) {
-    Register r = { code };
-    return r;
-  }
-  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
+  bool is_valid() const { return 0 <= code_ && code_ < 8; }
   bool is(Register reg) const { return code_ == reg.code_; }
   // eax, ebx, ecx and edx are byte registers, the rest are not.
   bool is_byte_register() const { return code_ <= 3; }
@@ -122,40 +93,7 @@ const Register no_reg = { -1 };
 
 
 struct XMMRegister {
-  static const int kNumAllocatableRegisters = 7;
-  static const int kNumRegisters = 8;
-
-  static int ToAllocationIndex(XMMRegister reg) {
-    ASSERT(reg.code() != 0);
-    return reg.code() - 1;
-  }
-
-  static XMMRegister FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    return from_code(index + 1);
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    const char* const names[] = {
-      "xmm1",
-      "xmm2",
-      "xmm3",
-      "xmm4",
-      "xmm5",
-      "xmm6",
-      "xmm7"
-    };
-    return names[index];
-  }
-
-  static XMMRegister from_code(int code) {
-    XMMRegister r = { code };
-    return r;
-  }
-
-  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
-  bool is(XMMRegister reg) const { return code_ == reg.code_; }
+  bool is_valid() const { return 0 <= code_ && code_ < 8; }
   int code() const {
     ASSERT(is_valid());
     return code_;
@@ -163,7 +101,6 @@ struct XMMRegister {
 
   int code_;
 };
-
 
 const XMMRegister xmm0 = { 0 };
 const XMMRegister xmm1 = { 1 };
@@ -173,17 +110,6 @@ const XMMRegister xmm4 = { 4 };
 const XMMRegister xmm5 = { 5 };
 const XMMRegister xmm6 = { 6 };
 const XMMRegister xmm7 = { 7 };
-
-
-typedef XMMRegister DoubleRegister;
-
-
-// Index of register used in pusha/popa.
-// Order of pushed registers: EAX, ECX, EDX, EBX, ESP, EBP, ESI, and EDI
-inline int EspIndexForPushAll(Register reg) {
-  return Register::kNumRegisters - 1 - reg.code();
-}
-
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -276,7 +202,6 @@ class Immediate BASE_EMBEDDED {
   inline explicit Immediate(const ExternalReference& ext);
   inline explicit Immediate(Handle<Object> handle);
   inline explicit Immediate(Smi* value);
-  inline explicit Immediate(Address addr);
 
   static Immediate CodeRelativeOffset(Label* label) {
     return Immediate(label);
@@ -354,11 +279,6 @@ class Operand BASE_EMBEDDED {
                              const ExternalReference& arr) {
     return Operand(index, scale, reinterpret_cast<int32_t>(arr.address()),
                    RelocInfo::EXTERNAL_REFERENCE);
-  }
-
-  static Operand Cell(Handle<JSGlobalPropertyCell> cell) {
-    return Operand(reinterpret_cast<int32_t>(cell.location()),
-                   RelocInfo::GLOBAL_PROPERTY_CELL);
   }
 
   // Returns true if this Operand is a wrapper for the specified register.
@@ -449,12 +369,9 @@ class Displacement BASE_EMBEDDED {
 //   }
 class CpuFeatures : public AllStatic {
  public:
-  // Detect features of the target CPU. If the portable flag is set,
-  // the method sets safe defaults if the serializer is enabled
-  // (snapshots must be portable).
-  static void Probe(bool portable);
-  static void Clear() { supported_ = 0; }
-
+  // Detect features of the target CPU. Set safe defaults if the serializer
+  // is enabled (snapshots must be portable).
+  static void Probe();
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
     if (f == SSE2 && !FLAG_enable_sse2) return false;
@@ -567,11 +484,6 @@ class Assembler : public Malloced {
   // The debug break slot must be able to contain a call instruction.
   static const int kDebugBreakSlotLength = kCallInstructionLength;
 
-  // One byte opcode for test eax,0xXXXXXXXX.
-  static const byte kTestEaxByte = 0xA9;
-  // One byte opcode for test al, 0xXX.
-  static const byte kTestAlByte = 0xA8;
-
   // ---------------------------------------------------------------------------
   // Code generation
   //
@@ -607,7 +519,6 @@ class Assembler : public Malloced {
   void popfd();
 
   void push(const Immediate& x);
-  void push_imm32(int32_t imm32);
   void push(Register src);
   void push(const Operand& src);
 
@@ -907,7 +818,6 @@ class Assembler : public Malloced {
   void movd(XMMRegister dst, const Operand& src);
   void movsd(XMMRegister dst, XMMRegister src);
 
-  void pand(XMMRegister dst, XMMRegister src);
   void pxor(XMMRegister dst, XMMRegister src);
   void ptest(XMMRegister dst, XMMRegister src);
 
@@ -935,13 +845,12 @@ class Assembler : public Malloced {
   void RecordDebugBreakSlot();
 
   // Record a comment relocation entry that can be used by a disassembler.
-  // Use --code-comments to enable.
+  // Use --debug_code to enable.
   void RecordComment(const char* msg);
 
-  // Writes a single byte or word of data in the code stream.  Used for
-  // inline tables, e.g., jump-tables.
-  void db(uint8_t data);
-  void dd(uint32_t data);
+  // Writes a single word of data in the code stream.
+  // Used for inline tables, e.g., jump-tables.
+  void dd(uint32_t data, RelocInfo::Mode reloc_info);
 
   int pc_offset() const { return pc_ - buffer_; }
 
@@ -969,8 +878,8 @@ class Assembler : public Malloced {
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
   void emit_sse_operand(Register dst, XMMRegister src);
 
-  byte* addr_at(int pos)  { return buffer_ + pos; }
  private:
+  byte* addr_at(int pos)  { return buffer_ + pos; }
   byte byte_at(int pos)  { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
   uint32_t long_at(int pos)  {

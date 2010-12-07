@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,13 +29,12 @@
 
 #include "codegen-inl.h"
 #include "compiler.h"
-#include "debug.h"
 #include "full-codegen.h"
-#include "liveedit.h"
 #include "macro-assembler.h"
-#include "prettyprinter.h"
 #include "scopes.h"
 #include "stub-cache.h"
+#include "debug.h"
+#include "liveedit.h"
 
 namespace v8 {
 namespace internal {
@@ -167,6 +166,10 @@ void BreakableStatementChecker::VisitConditional(Conditional* expr) {
 }
 
 
+void BreakableStatementChecker::VisitSlot(Slot* expr) {
+}
+
+
 void BreakableStatementChecker::VisitVariableProxy(VariableProxy* expr) {
 }
 
@@ -280,9 +283,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
     int len = String::cast(script->source())->length();
     Counters::total_full_codegen_source_size.Increment(len);
   }
-  if (FLAG_trace_codegen) {
-    PrintF("Full Compiler - ");
-  }
   CodeGenerator::MakeCodePrologue(info);
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
@@ -293,102 +293,11 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
     ASSERT(!Top::has_pending_exception());
     return false;
   }
-  unsigned table_offset = cgen.EmitStackCheckTable();
 
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
-  code->set_optimizable(info->IsOptimizable());
-  cgen.PopulateDeoptimizationData(code);
-  code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
-  code->set_allow_osr_at_loop_nesting_level(0);
-  code->set_stack_check_table_start(table_offset);
-  CodeGenerator::PrintCode(code, info);
   info->SetCode(code);  // may be an empty handle.
   return !code.is_null();
-}
-
-
-unsigned FullCodeGenerator::EmitStackCheckTable() {
-  // The stack check table consists of a length (in number of entries)
-  // field, and then a sequence of entries.  Each entry is a pair of AST id
-  // and code-relative pc offset.
-  masm()->Align(kIntSize);
-  masm()->RecordComment("[ Stack check table");
-  unsigned offset = masm()->pc_offset();
-  unsigned length = stack_checks_.length();
-  __ dd(length);
-  for (unsigned i = 0; i < length; ++i) {
-    __ dd(stack_checks_[i].id);
-    __ dd(stack_checks_[i].pc_and_state);
-  }
-  masm()->RecordComment("]");
-  return offset;
-}
-
-
-void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
-  // Fill in the deoptimization information.
-  ASSERT(info_->HasDeoptimizationSupport() || bailout_entries_.is_empty());
-  if (!info_->HasDeoptimizationSupport()) return;
-  int length = bailout_entries_.length();
-  Handle<DeoptimizationOutputData> data =
-      Factory::NewDeoptimizationOutputData(length, TENURED);
-  for (int i = 0; i < length; i++) {
-    data->SetAstId(i, Smi::FromInt(bailout_entries_[i].id));
-    data->SetPcAndState(i, Smi::FromInt(bailout_entries_[i].pc_and_state));
-  }
-  code->set_deoptimization_data(*data);
-}
-
-
-void FullCodeGenerator::PrepareForBailout(AstNode* node, State state) {
-  PrepareForBailoutForId(node->id(), state);
-}
-
-
-void FullCodeGenerator::RecordJSReturnSite(Call* call) {
-  // We record the offset of the function return so we can rebuild the frame
-  // if the function was inlined, i.e., this is the return address in the
-  // inlined function's frame.
-  //
-  // The state is ignored.  We defensively set it to TOS_REG, which is the
-  // real state of the unoptimized code at the return site.
-  PrepareForBailoutForId(call->ReturnId(), TOS_REG);
-#ifdef DEBUG
-  // In debug builds, mark the return so we can verify that this function
-  // was called.
-  ASSERT(!call->return_is_recorded_);
-  call->return_is_recorded_ = true;
-#endif
-}
-
-
-void FullCodeGenerator::PrepareForBailoutForId(int id, State state) {
-  // There's no need to prepare this code for bailouts from already optimized
-  // code or code that can't be optimized.
-  if (!FLAG_deopt || !info_->HasDeoptimizationSupport()) return;
-  unsigned pc_and_state =
-      StateField::encode(state) | PcField::encode(masm_->pc_offset());
-  BailoutEntry entry = { id, pc_and_state };
-#ifdef DEBUG
-  // Assert that we don't have multiple bailout entries for the same node.
-  for (int i = 0; i < bailout_entries_.length(); i++) {
-    if (bailout_entries_.at(i).id == entry.id) {
-      AstPrinter printer;
-      PrintF("%s", printer.PrintProgram(info_->function()));
-      UNREACHABLE();
-    }
-  }
-#endif  // DEBUG
-  bailout_entries_.Add(entry);
-}
-
-
-void FullCodeGenerator::RecordStackCheck(int ast_id) {
-  // The pc offset does not need to be encoded and packed together with a
-  // state.
-  BailoutEntry entry = { ast_id, masm_->pc_offset() };
-  stack_checks_.Add(entry);
 }
 
 
@@ -426,11 +335,13 @@ void FullCodeGenerator::EffectContext::Plug(Register reg) const {
 
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(Register reg) const {
+  // Move value into place.
   __ Move(result_register(), reg);
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(Register reg) const {
+  // Move value into place.
   __ push(reg);
 }
 
@@ -438,7 +349,6 @@ void FullCodeGenerator::StackValueContext::Plug(Register reg) const {
 void FullCodeGenerator::TestContext::Plug(Register reg) const {
   // For simplicity we always test the accumulator register.
   __ Move(result_register(), reg);
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
   codegen()->DoTest(true_label_, false_label_, fall_through_);
 }
 
@@ -460,7 +370,6 @@ void FullCodeGenerator::StackValueContext::PlugTOS() const {
 void FullCodeGenerator::TestContext::PlugTOS() const {
   // For simplicity we always test the accumulator register.
   __ pop(result_register());
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
   codegen()->DoTest(true_label_, false_label_, fall_through_);
 }
 
@@ -705,8 +614,7 @@ void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   switch (op) {
     case Token::COMMA:
       VisitForEffect(left);
-      if (context()->IsTest()) ForwardBailoutToChild(expr);
-      context()->HandleExpression(right);
+      Visit(right);
       break;
 
     case Token::OR:
@@ -762,8 +670,7 @@ void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
   context()->EmitLogicalLeft(expr, &eval_right, &done);
 
   __ bind(&eval_right);
-  if (context()->IsTest()) ForwardBailoutToChild(expr);
-  context()->HandleExpression(expr->right());
+  Visit(expr->right());
 
   __ bind(&done);
 }
@@ -785,17 +692,15 @@ void FullCodeGenerator::AccumulatorValueContext::EmitLogicalLeft(
     BinaryOperation* expr,
     Label* eval_right,
     Label* done) const {
-  HandleExpression(expr->left());
+  codegen()->Visit(expr->left());
   // We want the value in the accumulator for the test, and on the stack in case
   // we need it.
   __ push(result_register());
   Label discard, restore;
   if (expr->op() == Token::OR) {
-    codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     codegen()->DoTest(&restore, &discard, &restore);
   } else {
     ASSERT(expr->op() == Token::AND);
-    codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     codegen()->DoTest(&discard, &restore, &restore);
   }
   __ bind(&restore);
@@ -816,11 +721,9 @@ void FullCodeGenerator::StackValueContext::EmitLogicalLeft(
   __ push(result_register());
   Label discard;
   if (expr->op() == Token::OR) {
-    codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     codegen()->DoTest(done, &discard, &discard);
   } else {
     ASSERT(expr->op() == Token::AND);
-    codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     codegen()->DoTest(&discard, done, &discard);
   }
   __ bind(&discard);
@@ -842,66 +745,12 @@ void FullCodeGenerator::TestContext::EmitLogicalLeft(BinaryOperation* expr,
 }
 
 
-void FullCodeGenerator::ForwardBailoutToChild(Expression* expr) {
-  if (!info_->HasDeoptimizationSupport()) return;
-  ASSERT(context()->IsTest());
-  ASSERT(expr == forward_bailout_stack_->expr());
-  forward_bailout_pending_ = forward_bailout_stack_;
-}
-
-
-void FullCodeGenerator::EffectContext::HandleExpression(
-    Expression* expr) const {
-  codegen()->HandleInNonTestContext(expr, NO_REGISTERS);
-}
-
-
-void FullCodeGenerator::AccumulatorValueContext::HandleExpression(
-    Expression* expr) const {
-  codegen()->HandleInNonTestContext(expr, TOS_REG);
-}
-
-
-void FullCodeGenerator::StackValueContext::HandleExpression(
-    Expression* expr) const {
-  codegen()->HandleInNonTestContext(expr, NO_REGISTERS);
-}
-
-
-void FullCodeGenerator::TestContext::HandleExpression(Expression* expr) const {
-  codegen()->VisitInTestContext(expr);
-}
-
-
-void FullCodeGenerator::HandleInNonTestContext(Expression* expr, State state) {
-  ASSERT(forward_bailout_pending_ == NULL);
-  AstVisitor::Visit(expr);
-  PrepareForBailout(expr, state);
-  // Forwarding bailouts to children is a one shot operation. It
-  // should have been processed at this point.
-  ASSERT(forward_bailout_pending_ == NULL);
-}
-
-
-void FullCodeGenerator::VisitInTestContext(Expression* expr) {
-  ForwardBailoutStack stack(expr, forward_bailout_pending_);
-  ForwardBailoutStack* saved = forward_bailout_stack_;
-  forward_bailout_pending_ = NULL;
-  forward_bailout_stack_ = &stack;
-  AstVisitor::Visit(expr);
-  forward_bailout_stack_ = saved;
-}
-
-
 void FullCodeGenerator::VisitBlock(Block* stmt) {
   Comment cmnt(masm_, "[ Block");
   Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
-
-  PrepareForBailoutForId(stmt->EntryId(), TOS_REG);
   VisitStatements(stmt->statements());
   __ bind(nested_statement.break_target());
-  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 
 
@@ -937,7 +786,6 @@ void FullCodeGenerator::VisitIfStatement(IfStatement* stmt) {
     Visit(stmt->then_statement());
   }
   __ bind(&done);
-  PrepareForBailoutForId(stmt->id(), NO_REGISTERS);
 }
 
 
@@ -1024,71 +872,83 @@ void FullCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
 void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Comment cmnt(masm_, "[ DoWhileStatement");
   SetStatementPosition(stmt);
-  Label body, stack_check;
+  Label body, stack_limit_hit, stack_check_success, done;
 
   Iteration loop_statement(this, stmt);
   increment_loop_depth();
 
   __ bind(&body);
   Visit(stmt->body());
+
+  // Check stack before looping.
+  __ bind(loop_statement.continue_target());
+  __ StackLimitCheck(&stack_limit_hit);
+  __ bind(&stack_check_success);
 
   // Record the position of the do while condition and make sure it is
   // possible to break on the condition.
-  __ bind(loop_statement.continue_target());
-  PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
   SetExpressionPosition(stmt->cond(), stmt->condition_position());
-  VisitForControl(stmt->cond(),
-                  &stack_check,
-                  loop_statement.break_target(),
-                  &stack_check);
-
-  // Check stack before looping.
-  __ bind(&stack_check);
-  EmitStackCheck(stmt);
-  __ jmp(&body);
-
-  __ bind(loop_statement.break_target());
-  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
-  decrement_loop_depth();
-}
-
-
-void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
-  Comment cmnt(masm_, "[ WhileStatement");
-  Label test, body;
-
-  Iteration loop_statement(this, stmt);
-  increment_loop_depth();
-
-  // Emit the test at the bottom of the loop.
-  __ jmp(&test);
-
-  __ bind(&body);
-  Visit(stmt->body());
-
-  // Emit the statement position here as this is where the while
-  // statement code starts.
-  __ bind(loop_statement.continue_target());
-  SetStatementPosition(stmt);
-
-  // Check stack before looping.
-  EmitStackCheck(stmt);
-
-  __ bind(&test);
   VisitForControl(stmt->cond(),
                   &body,
                   loop_statement.break_target(),
                   loop_statement.break_target());
 
   __ bind(loop_statement.break_target());
-  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
+  __ jmp(&done);
+
+  __ bind(&stack_limit_hit);
+  StackCheckStub stack_stub;
+  __ CallStub(&stack_stub);
+  __ jmp(&stack_check_success);
+
+  __ bind(&done);
+  decrement_loop_depth();
+}
+
+
+void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
+  Comment cmnt(masm_, "[ WhileStatement");
+  Label body, stack_limit_hit, stack_check_success, done;
+
+  Iteration loop_statement(this, stmt);
+  increment_loop_depth();
+
+  // Emit the test at the bottom of the loop.
+  __ jmp(loop_statement.continue_target());
+
+  __ bind(&body);
+  Visit(stmt->body());
+  __ bind(loop_statement.continue_target());
+
+  // Emit the statement position here as this is where the while
+  // statement code starts.
+  SetStatementPosition(stmt);
+
+  // Check stack before looping.
+  __ StackLimitCheck(&stack_limit_hit);
+  __ bind(&stack_check_success);
+
+  VisitForControl(stmt->cond(),
+                  &body,
+                  loop_statement.break_target(),
+                  loop_statement.break_target());
+
+  __ bind(loop_statement.break_target());
+  __ jmp(&done);
+
+  __ bind(&stack_limit_hit);
+  StackCheckStub stack_stub;
+  __ CallStub(&stack_stub);
+  __ jmp(&stack_check_success);
+
+  __ bind(&done);
   decrement_loop_depth();
 }
 
 
 void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   Comment cmnt(masm_, "[ ForStatement");
-  Label test, body;
+  Label test, body, stack_limit_hit, stack_check_success;
 
   Iteration loop_statement(this, stmt);
   if (stmt->init() != NULL) {
@@ -1099,25 +959,30 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   // Emit the test at the bottom of the loop (even if empty).
   __ jmp(&test);
 
+    __ bind(&stack_limit_hit);
+  StackCheckStub stack_stub;
+  __ CallStub(&stack_stub);
+  __ jmp(&stack_check_success);
+
   __ bind(&body);
   Visit(stmt->body());
 
   __ bind(loop_statement.continue_target());
-  PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
 
   SetStatementPosition(stmt);
   if (stmt->next() != NULL) {
     Visit(stmt->next());
   }
 
+  __ bind(&test);
   // Emit the statement position here as this is where the for
   // statement code starts.
   SetStatementPosition(stmt);
 
   // Check stack before looping.
-  EmitStackCheck(stmt);
+  __ StackLimitCheck(&stack_limit_hit);
+  __ bind(&stack_check_success);
 
-  __ bind(&test);
   if (stmt->cond() != NULL) {
     VisitForControl(stmt->cond(),
                     &body,
@@ -1128,7 +993,6 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   }
 
   __ bind(loop_statement.break_target());
-  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
   decrement_loop_depth();
 }
 
@@ -1266,19 +1130,24 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
                     for_test->false_label(),
                     NULL);
   } else {
-    context()->HandleExpression(expr->then_expression());
+    Visit(expr->then_expression());
     __ jmp(&done);
   }
 
   __ bind(&false_case);
-  if (context()->IsTest()) ForwardBailoutToChild(expr);
   SetExpressionPosition(expr->else_expression(),
                         expr->else_expression_position());
-  context()->HandleExpression(expr->else_expression());
+  Visit(expr->else_expression());
   // If control flow falls through Visit, merge it with true case here.
   if (!context()->IsTest()) {
     __ bind(&done);
   }
+}
+
+
+void FullCodeGenerator::VisitSlot(Slot* expr) {
+  // Slots do not appear directly in the AST.
+  UNREACHABLE();
 }
 
 

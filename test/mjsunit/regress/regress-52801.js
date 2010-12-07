@@ -67,3 +67,5 @@ assertEquals(5, re.lastIndex);  // Fails if caching.
 re.lastIndex = 0;
 re.exec(str);
 assertEquals(5, re.lastIndex);  // Fails if caching.
+
+
