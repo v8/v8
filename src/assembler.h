@@ -38,10 +38,19 @@
 #include "runtime.h"
 #include "top.h"
 #include "token.h"
-#include "objects.h"
 
 namespace v8 {
 namespace internal {
+
+
+// -----------------------------------------------------------------------------
+// Common double constants.
+
+class DoubleConstant: public AllStatic {
+ public:
+  static const double min_int;
+  static const double one_half;
+};
 
 
 // -----------------------------------------------------------------------------
@@ -174,6 +183,8 @@ class RelocInfo BASE_EMBEDDED {
     CODE_TARGET,  // Code target which is not any of the above.
     EMBEDDED_OBJECT,
 
+    GLOBAL_PROPERTY_CELL,
+
     // Everything after runtime_entry (inclusive) is not GC'ed.
     RUNTIME_ENTRY,
     JS_RETURN,  // Marks start of the ExitJSFrame code.
@@ -254,6 +265,10 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Handle<Object> target_object_handle(Assembler* origin));
   INLINE(Object** target_object_address());
   INLINE(void set_target_object(Object* target));
+  INLINE(JSGlobalPropertyCell* target_cell());
+  INLINE(Handle<JSGlobalPropertyCell> target_cell_handle());
+  INLINE(void set_target_cell(JSGlobalPropertyCell* cell));
+
 
   // Read the address of the word containing the target_address in an
   // instruction stream.  What this means exactly is architecture-independent.
@@ -484,6 +499,11 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference transcendental_cache_array_address();
   static ExternalReference delete_handle_scope_extensions();
 
+  // Deoptimization support.
+  static ExternalReference new_deoptimizer_function();
+  static ExternalReference compute_output_frames_function();
+  static ExternalReference global_contexts_list();
+
   // Static data in the keyed lookup cache.
   static ExternalReference keyed_lookup_cache_keys();
   static ExternalReference keyed_lookup_cache_field_offsets();
@@ -525,6 +545,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference handle_scope_level_address();
 
   static ExternalReference scheduled_exception_address();
+
+  // Static variables containing common double constants.
+  static ExternalReference address_of_min_int();
+  static ExternalReference address_of_one_half();
 
   Address address() const {return reinterpret_cast<Address>(address_);}
 

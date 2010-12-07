@@ -66,6 +66,7 @@ namespace internal {
   \
   F(IsInPrototypeChain, 2, 1) \
   F(SetHiddenPrototype, 2, 1) \
+  F(SetMathFunctionId, 2, 1) \
   \
   F(IsConstructCall, 0, 1) \
   \
@@ -79,6 +80,11 @@ namespace internal {
   F(GetConstructorDelegate, 1, 1) \
   F(NewArgumentsFast, 3, 1) \
   F(LazyCompile, 1, 1) \
+  F(LazyRecompile, 1, 1) \
+  F(NotifyDeoptimized, 1, 1) \
+  F(NotifyOSR, 0, 1) \
+  F(DeoptimizeFunction, 1, 1)             \
+  F(CompileForOnStackReplacement, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \
   \
@@ -109,6 +115,7 @@ namespace internal {
   F(NumberToJSUint32, 1, 1) \
   F(NumberToJSInt32, 1, 1) \
   F(NumberToSmi, 1, 1) \
+  F(AllocateHeapNumber, 0, 1) \
   \
   /* Arithmetic operations */ \
   F(NumberAdd, 2, 1) \
@@ -350,6 +357,7 @@ namespace internal {
   F(LiveEditGatherCompileInfo, 2, 1) \
   F(LiveEditReplaceScript, 3, 1) \
   F(LiveEditReplaceFunctionCode, 2, 1) \
+  F(LiveEditFunctionSourceUpdated, 1, 1) \
   F(LiveEditFunctionSetScript, 2, 1) \
   F(LiveEditReplaceRefToNestedFunction, 3, 1) \
   F(LiveEditPatchFunctionPositions, 2, 1) \
