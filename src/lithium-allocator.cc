@@ -1784,11 +1784,9 @@ bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
     TraceAlloc("Assigning reg %d to live range %d\n", max_reg, current->id());
     current->set_assigned_register(max_reg, mode_ == XMM_REGISTERS);
   } else {
-    // Split the interval at the nearest gap and never split an interval at its
-    // start position.
-    LifetimePosition pos =
-        LifetimePosition::FromInstructionIndex(
-            chunk_->NearestGapPos(free_pos[max_reg].InstructionIndex()));
+    // Split the interval before first use position of max_reg and never split
+    // it interval at its start position.
+    LifetimePosition pos = free_pos[max_reg];
     if (pos.Value() <= current->Start().Value()) return false;
     LiveRange* second_range = Split(current, pos);
     AddToUnhandledSorted(second_range);
@@ -1871,9 +1869,7 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
 void LAllocator::SplitAndSpillIntersecting(LiveRange* current) {
   ASSERT(current->HasRegisterAssigned());
   int reg = current->assigned_register();
-  LifetimePosition split_pos =
-      LifetimePosition::FromInstructionIndex(
-          chunk_->NearestGapPos(current->Start().InstructionIndex()));
+  LifetimePosition split_pos = current->Start();
   for (int i = 0; i < active_live_ranges_.length(); ++i) {
     LiveRange* range = active_live_ranges_[i];
     if (range->assigned_register() == reg) {
@@ -2012,8 +2008,6 @@ void LAllocator::SplitAndSpill(LiveRange* range,
 
 
 void LAllocator::SplitAndSpill(LiveRange* range, LifetimePosition at) {
-  at = LifetimePosition::FromInstructionIndex(
-      chunk_->NearestGapPos(at.InstructionIndex()));
   LiveRange* second_part = Split(range, at);
   Spill(second_part);
 }

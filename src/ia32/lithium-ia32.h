@@ -1890,7 +1890,6 @@ class LChunk: public ZoneObject {
   LGap* GetGapAt(int index) const;
   bool IsGapAt(int index) const;
   int NearestGapPos(int index) const;
-  int NearestNextGapPos(int index) const;
   void MarkEmptyBlocks();
   const ZoneList<LPointerMap*>* pointer_maps() const { return &pointer_maps_; }
   LLabel* GetLabel(int block_id) const {

@@ -460,12 +460,6 @@ int LChunk::NearestGapPos(int index) const {
 }
 
 
-int LChunk::NearestNextGapPos(int index) const {
-  while (!IsGapAt(index)) index++;
-  return index;
-}
-
-
 void LChunk::AddGapMove(int index, LOperand* from, LOperand* to) {
   GetGapAt(index)->GetOrCreateParallelMove(LGap::START)->AddMove(from, to);
 }
