@@ -39,6 +39,7 @@
 #include "runtime.h"
 #include "string-search.h"
 #include "stub-cache.h"
+#include "vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -797,7 +798,7 @@ bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
 static bool CompileLazyHelper(CompilationInfo* info,
                               ClearExceptionFlag flag) {
   // Compile the source information to a code object.
-  ASSERT(!info->shared_info()->is_compiled());
+  ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
   bool result = Compiler::CompileLazy(info);
   ASSERT(result != Top::has_pending_exception());
   if (!result && flag == CLEAR_EXCEPTION) Top::clear_pending_exception();
@@ -814,36 +815,47 @@ bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
 
 bool CompileLazy(Handle<JSFunction> function,
                  ClearExceptionFlag flag) {
+  bool result = true;
   if (function->shared()->is_compiled()) {
-    function->set_code(function->shared()->code());
-    PROFILE(FunctionCreateEvent(*function));
+    function->ReplaceCode(function->shared()->code());
     function->shared()->set_code_age(0);
-    return true;
   } else {
     CompilationInfo info(function);
-    bool result = CompileLazyHelper(&info, flag);
+    result = CompileLazyHelper(&info, flag);
     ASSERT(!result || function->is_compiled());
-    PROFILE(FunctionCreateEvent(*function));
-    return result;
   }
+  if (result && function->is_compiled()) {
+    PROFILE(FunctionCreateEvent(*function));
+  }
+  return result;
 }
 
 
 bool CompileLazyInLoop(Handle<JSFunction> function,
                        ClearExceptionFlag flag) {
+  bool result = true;
   if (function->shared()->is_compiled()) {
-    function->set_code(function->shared()->code());
-    PROFILE(FunctionCreateEvent(*function));
+    function->ReplaceCode(function->shared()->code());
     function->shared()->set_code_age(0);
-    return true;
   } else {
     CompilationInfo info(function);
     info.MarkAsInLoop();
-    bool result = CompileLazyHelper(&info, flag);
+    result = CompileLazyHelper(&info, flag);
     ASSERT(!result || function->is_compiled());
-    PROFILE(FunctionCreateEvent(*function));
-    return result;
   }
+  if (result && function->is_compiled()) {
+    PROFILE(FunctionCreateEvent(*function));
+  }
+  return result;
+}
+
+
+bool CompileOptimized(Handle<JSFunction> function, int osr_ast_id) {
+  CompilationInfo info(function);
+  info.SetOptimizing(osr_ast_id);
+  bool result = CompileLazyHelper(&info, KEEP_EXCEPTION);
+  if (result) PROFILE(FunctionCreateEvent(*function));
+  return result;
 }
 
 
