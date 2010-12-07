@@ -461,7 +461,14 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     ScriptDataImpl* pre_data = input_pre_data;
     if (pre_data == NULL
         && source_length >= FLAG_min_preparse_length) {
-      pre_data = ParserApi::PartialPreParse(source, NULL, extension);
+      if (source->IsExternalTwoByteString()) {
+        ExternalTwoByteStringUC16CharacterStream stream(
+            Handle<ExternalTwoByteString>::cast(source), 0, source->length());
+        pre_data = ParserApi::PartialPreParse(&stream, extension);
+      } else {
+        GenericStringUC16CharacterStream stream(source, 0, source->length());
+        pre_data = ParserApi::PartialPreParse(&stream, extension);
+      }
     }
 
     // Create a script object describing the script to be compiled.

@@ -1165,14 +1165,22 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 
 
 ScriptData* ScriptData::PreCompile(const char* input, int length) {
-  unibrow::Utf8InputBuffer<> buf(input, length);
-  return i::ParserApi::PreParse(i::Handle<i::String>(), &buf, NULL);
+  i::Utf8ToUC16CharacterStream stream(
+      reinterpret_cast<const unsigned char*>(input), length);
+  return i::ParserApi::PreParse(&stream, NULL);
 }
 
 
 ScriptData* ScriptData::PreCompile(v8::Handle<String> source) {
   i::Handle<i::String> str = Utils::OpenHandle(*source);
-  return i::ParserApi::PreParse(str, NULL, NULL);
+  if (str->IsExternalTwoByteString()) {
+    i::ExternalTwoByteStringUC16CharacterStream stream(
+      i::Handle<i::ExternalTwoByteString>::cast(str), 0, str->length());
+    return i::ParserApi::PreParse(&stream, NULL);
+  } else {
+    i::GenericStringUC16CharacterStream stream(str, 0, str->length());
+    return i::ParserApi::PreParse(&stream, NULL);
+  }
 }
 
 
