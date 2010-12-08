@@ -512,7 +512,6 @@ void JavaScriptScanner::SeekForward(int pos) {
     has_line_terminator_before_next_ = false;
   }
   Scan();
-  ASSERT_EQ(Token::RBRACE, next_.token);
 }
 
 

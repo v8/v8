@@ -41,43 +41,76 @@ namespace internal {
 // UTF16Buffer based on a v8::UnicodeInputStream.
 class InputStreamUTF16Buffer : public UC16CharacterStream {
  public:
+  /* The InputStreamUTF16Buffer maintains an internal buffer
+   * that is filled in chunks from the UC16CharacterStream.
+   * It also maintains unlimited pushback capability, but optimized
+   * for small pushbacks.
+   * The pushback_buffer_ pointer points to the limit of pushbacks
+   * in the current buffer. There is room for a few pushback'ed chars before
+   * the buffer containing the most recently read chunk. If this is overflowed,
+   * an external buffer is allocated/reused to hold further pushbacks, and
+   * pushback_buffer_ and buffer_cursor_/buffer_end_ now points to the
+   * new buffer. When this buffer is read to the end again, the cursor is
+   * switched back to the internal buffer
+   */
   explicit InputStreamUTF16Buffer(v8::UnicodeInputStream* stream)
       : UC16CharacterStream(),
         stream_(stream),
-        pushback_active_(false) {
+        pushback_buffer_(buffer_),
+        pushback_buffer_end_cache_(NULL),
+        pushback_buffer_backing_(NULL),
+        pushback_buffer_backing_size_(0) {
     buffer_cursor_ = buffer_end_ = buffer_ + kPushBackSize;
   }
 
-  virtual ~InputStreamUTF16Buffer() { }
+  virtual ~InputStreamUTF16Buffer() {
+    if (pushback_buffer_backing_ != NULL) {
+      DeleteArray(pushback_buffer_backing_);
+    }
+  }
 
   virtual void PushBack(uc16 ch) {
     ASSERT(pos_ > 0);
-    if (buffer_cursor_ > buffer_) {
-      // While we can stay within the buffer, just do so.
-      *--buffer_cursor_ = ch;
-      pos_--;
-      return;
-    }
-    if (!pushback_active_) {
-      // Push back the entire buffer to the stream and let the
-      // stream handle pushbacks from now.
-      // We leave buffer_cursor_ == buffer_end_, so the next read
-      // will fill the buffer from the current position.
-      // This should happen exceedingly rarely.
-      while (buffer_end_ > buffer_) {
-        stream_->PushBack(*--buffer_end_);
+    if (buffer_cursor_ <= pushback_buffer_) {
+      // No more room in the current buffer to do pushbacks.
+      if (pushback_buffer_end_cache_ == NULL) {
+        // We have overflowed the pushback space at the beginning of buffer_.
+        // Switch to using a separate allocated pushback buffer.
+        if (pushback_buffer_backing_ == NULL) {
+          // Allocate a buffer the first time we need it.
+          pushback_buffer_backing_ = NewArray<uc16>(kPushBackSize);
+          pushback_buffer_backing_size_ = kPushBackSize;
+        }
+        pushback_buffer_ = pushback_buffer_backing_;
+        pushback_buffer_end_cache_ = buffer_end_;
+        buffer_end_ = pushback_buffer_backing_ + pushback_buffer_backing_size_;
+        buffer_cursor_ = buffer_end_ - 1;
+      } else {
+        // Hit the bottom of the allocated pushback buffer.
+        // Double the buffer and continue.
+        uc16* new_buffer = NewArray<uc16>(pushback_buffer_backing_size_ * 2);
+        memcpy(new_buffer + pushback_buffer_backing_size_,
+               pushback_buffer_backing_,
+               pushback_buffer_backing_size_);
+        DeleteArray(pushback_buffer_backing_);
+        buffer_cursor_ = new_buffer + pushback_buffer_backing_size_;
+        pushback_buffer_backing_ = pushback_buffer_ = new_buffer;
+        buffer_end_ = pushback_buffer_backing_ + pushback_buffer_backing_size_;
       }
-      buffer_cursor_ = buffer_end_;
-      pushback_active_ = true;
     }
-    stream_->PushBack(ch);
+    pushback_buffer_[buffer_cursor_ - pushback_buffer_- 1] = ch;
     pos_--;
   }
 
  protected:
   virtual bool ReadBlock() {
+    if (pushback_buffer_end_cache_ != NULL) {
+      buffer_cursor_ = buffer_;
+      buffer_end_ = pushback_buffer_end_cache_;
+      pushback_buffer_end_cache_ = NULL;
+      return buffer_end_ > buffer_cursor_;
+    }
     // Copy the top of the buffer into the pushback area.
-    pushback_active_ = false;
     int32_t value;
     uc16* buffer_start = buffer_ + kPushBackSize;
     buffer_cursor_ = buffer_end_ = buffer_start;
@@ -107,8 +140,14 @@ class InputStreamUTF16Buffer : public UC16CharacterStream {
   // then kBufferSize chars of read-ahead.
   // The pushback buffer is only used if pushing back characters past
   // the start of a block.
-  uc16 buffer_[kBufferSize + kPushBackSize];
-  bool pushback_active_;
+  uc16 buffer_[kPushBackSize + kBufferSize];
+  // Limit of pushbacks before new allocation is necessary.
+  uc16* pushback_buffer_;
+  // Only if that pushback buffer at the start of buffer_ isn't sufficient
+  // is the following used.
+  const uc16* pushback_buffer_end_cache_;
+  uc16* pushback_buffer_backing_;
+  unsigned pushback_buffer_backing_size_;
 };
 
 
@@ -134,7 +173,6 @@ void FatalProcessOutOfMemory(const char* reason) {
 }
 
 bool EnableSlowAsserts() { return true; }
-
 
 }  // namespace internal.
 
