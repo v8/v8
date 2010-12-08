@@ -193,8 +193,8 @@ int main(int argc, char* argv[]) {
   FILE* input = stdin;
   if (argc > 1) {
     char* arg = argv[1];
-    FILE* file = fopen(arg, "rb");
-    if (!file) return EXIT_FAILURE;
+    input = fopen(arg, "rb");
+    if (input == NULL) return EXIT_FAILURE;
   }
   int status = 0;
   do {
