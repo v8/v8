@@ -1351,6 +1351,9 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       return AssignEnvironment(DefineAsRegister(result));
     case kMathSqrt:
       return DefineSameAsFirst(result);
+    case kMathPowHalf:
+      Abort("MathPowHalf LUnaryMathOperation not implemented");
+      return NULL;
     default:
       UNREACHABLE();
       return NULL;
@@ -1545,6 +1548,12 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     ASSERT(instr->representation().IsTagged());
     return DoArithmeticT(Token::ADD, instr);
   }
+}
+
+
+LInstruction* LChunkBuilder::DoPower(HPower* instr) {
+  Abort("LPower instruction not implemented on ARM");
+  return NULL;
 }
 
 
