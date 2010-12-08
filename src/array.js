@@ -159,25 +159,23 @@ function Join(array, length, separator, convert) {
 }
 
 
-function ConvertToString(e) {
-  if (e == null) return '';
-  else return ToString(e);
+function ConvertToString(x) {
+  if (IS_STRING(x)) return x;
+  if (IS_NUMBER(x)) return %_NumberToString(x);
+  if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
+  return (IS_NULL_OR_UNDEFINED(x)) ? '' : %ToString(%DefaultString(x));
 }
 
 
 function ConvertToLocaleString(e) {
-  if (e == null) {
-    return '';
-  } else {
-    // e_obj's toLocaleString might be overwritten, check if it is a function.
-    // Call ToString if toLocaleString is not a function.
-    // See issue 877615.
-    var e_obj = ToObject(e);
-    if (IS_FUNCTION(e_obj.toLocaleString))
-      return ToString(e_obj.toLocaleString());
-    else
-      return ToString(e);
-  }
+  // e_obj's toLocaleString might be overwritten, check if it is a function.
+  // Call ConvertToString if toLocaleString is not a function.
+  // See issue 877615.
+  var e_obj = ToObject(e);
+  if (IS_FUNCTION(e_obj.toLocaleString))
+    return ToString(e_obj.toLocaleString());
+  else
+    return ConvertToString(e);
 }
 
 
@@ -365,14 +363,13 @@ function ArrayJoin(separator) {
   if (IS_UNDEFINED(separator)) {
     separator = ',';
   } else if (!IS_STRING(separator)) {
-    separator = ToString(separator);
+    separator = NonStringToString(separator);
   }
 
   var result = %_FastAsciiArrayJoin(this, separator);
   if (!IS_UNDEFINED(result)) return result;
 
-  var length = TO_UINT32(this.length);
-  return Join(this, length, separator, ConvertToString);
+  return Join(this, TO_UINT32(this.length), separator, ConvertToString);
 }
 
 
