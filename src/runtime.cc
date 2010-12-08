@@ -5977,37 +5977,6 @@ static MaybeObject* Runtime_Math_log(Arguments args) {
 }
 
 
-// Helper function to compute x^y, where y is known to be an
-// integer. Uses binary decomposition to limit the number of
-// multiplications; see the discussion in "Hacker's Delight" by Henry
-// S. Warren, Jr., figure 11-6, page 213.
-static double powi(double x, int y) {
-  ASSERT(y != kMinInt);
-  unsigned n = (y < 0) ? -y : y;
-  double m = x;
-  double p = 1;
-  while (true) {
-    if ((n & 1) != 0) p *= m;
-    n >>= 1;
-    if (n == 0) {
-      if (y < 0) {
-        // Unfortunately, we have to be careful when p has reached
-        // infinity in the computation, because sometimes the higher
-        // internal precision in the pow() implementation would have
-        // given us a finite p. This happens very rarely.
-        double result = 1.0 / p;
-        return (result == 0 && isinf(p))
-            ? pow(x, static_cast<double>(y))  // Avoid pow(double, int).
-            : result;
-      } else {
-        return p;
-      }
-    }
-    m *= m;
-  }
-}
-
-
 static MaybeObject* Runtime_Math_pow(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -6019,31 +5988,11 @@ static MaybeObject* Runtime_Math_pow(Arguments args) {
   // custom powi() function than the generic pow().
   if (args[1]->IsSmi()) {
     int y = Smi::cast(args[1])->value();
-    return Heap::NumberFromDouble(powi(x, y));
+    return Heap::NumberFromDouble(power_double_int(x, y));
   }
 
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-
-  if (!isinf(x)) {
-    if (y == 0.5) {
-      // It's not uncommon to use Math.pow(x, 0.5) to compute the
-      // square root of a number. To speed up such computations, we
-      // explictly check for this case and use the sqrt() function
-      // which is faster than pow().
-      return Heap::AllocateHeapNumber(sqrt(x));
-    } else if (y == -0.5) {
-      // Optimized using Math.pow(x, -0.5) == 1 / Math.pow(x, 0.5).
-      return Heap::AllocateHeapNumber(1.0 / sqrt(x));
-    }
-  }
-
-  if (y == 0) {
-    return Smi::FromInt(1);
-  } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
-    return Heap::nan_value();
-  } else {
-    return Heap::AllocateHeapNumber(pow(x, y));
-  }
+  return Heap::AllocateHeapNumber(power_double_double(x, y));
 }
 
 // Fast version of Math.pow if we know that y is not an integer and
@@ -6054,11 +6003,11 @@ static MaybeObject* Runtime_Math_pow_cfunction(Arguments args) {
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
   if (y == 0) {
-      return Smi::FromInt(1);
+    return Smi::FromInt(1);
   } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
-      return Heap::nan_value();
+    return Heap::nan_value();
   } else {
-      return Heap::AllocateHeapNumber(pow(x, y));
+    return Heap::AllocateHeapNumber(pow(x, y));
   }
 }
 

@@ -67,6 +67,7 @@ class LGapNode;
 //     LLoadKeyedGeneric
 //     LModI
 //     LMulI
+//     LPower
 //     LShiftI
 //     LSubI
 //   LCallConstantFunction
@@ -229,6 +230,7 @@ class LGapNode;
   V(ObjectLiteral)                              \
   V(OsrEntry)                                   \
   V(Parameter)                                  \
+  V(Power)                                      \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
   V(Return)                                     \
@@ -1151,6 +1153,16 @@ class LAddI: public LBinaryOperation {
 
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
+};
+
+
+class LPower: public LBinaryOperation {
+ public:
+  LPower(LOperand* left, LOperand* right)
+      : LBinaryOperation(left, right) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(Power, "power")
+  DECLARE_HYDROGEN_ACCESSOR(Power)
 };
 
 

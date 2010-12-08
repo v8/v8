@@ -4093,6 +4093,42 @@ bool HGraphBuilder::TryMathFunctionInline(Call* expr) {
         return true;
       }
       break;
+    case kMathPow:
+      if (argument_count == 3) {
+        HValue* right = Pop();
+        HValue* left = Pop();
+        Pop();  // Pop receiver.
+        // Use sqrt() if exponent is 0.5 or -0.5.
+        if (right->IsConstant() && HConstant::cast(right)->HasDoubleValue()) {
+          double exponent = HConstant::cast(right)->DoubleValue();
+          if (exponent == 0.5) {
+            PushAndAdd(new HUnaryMathOperation(left, kMathPowHalf));
+            return true;
+          } else if (exponent == -0.5) {
+            HConstant* double_one =
+                new HConstant(Handle<Object>(Smi::FromInt(1)),
+                              Representation::Double());
+            AddInstruction(double_one);
+            HUnaryMathOperation* square_root =
+                new HUnaryMathOperation(left, kMathPowHalf);
+            AddInstruction(square_root);
+            PushAndAdd(new HDiv(double_one, square_root));
+            return true;
+          } else if (exponent == 2.0) {
+            PushAndAdd(new HMul(left, left));
+            return true;
+          }
+        } else if (right->IsConstant() &&
+            HConstant::cast(right)->HasInteger32Value() &&
+            HConstant::cast(right)->Integer32Value() == 2) {
+          PushAndAdd(new HMul(left, left));
+          return true;
+        }
+
+        PushAndAdd(new HPower(left, right));
+        return true;
+      }
+      break;
     default:
       // Either not a special math function or not yet supported for inlining.
       break;
@@ -5020,9 +5056,9 @@ void HGraphBuilder::GenerateCallFunction(int argument_count) {
 // Fast call to math functions.
 void HGraphBuilder::GenerateMathPow(int argument_count) {
   ASSERT_EQ(2, argument_count);
-  PushArgumentsForStubCall(argument_count);
-  PushAndAdd(new HCallStub(CodeStub::MathPow, argument_count),
-             RelocInfo::kNoPosition);
+  HValue* right = Pop();
+  HValue* left = Pop();
+  PushAndAdd(new HPower(left, right));
 }
 
 
