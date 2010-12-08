@@ -168,14 +168,18 @@ function ConvertToString(x) {
 
 
 function ConvertToLocaleString(e) {
-  // e_obj's toLocaleString might be overwritten, check if it is a function.
-  // Call ConvertToString if toLocaleString is not a function.
-  // See issue 877615.
-  var e_obj = ToObject(e);
-  if (IS_FUNCTION(e_obj.toLocaleString))
-    return ToString(e_obj.toLocaleString());
-  else
-    return ConvertToString(e);
+  if (e == null) {
+    return '';
+  } else {
+    // e_obj's toLocaleString might be overwritten, check if it is a function.
+    // Call ToString if toLocaleString is not a function.
+    // See issue 877615.
+    var e_obj = ToObject(e);
+    if (IS_FUNCTION(e_obj.toLocaleString))
+      return ToString(e_obj.toLocaleString());
+    else
+      return ToString(e);
+  }
 }
 
 
