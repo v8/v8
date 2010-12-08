@@ -160,6 +160,7 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
                                              Object* structure,
                                              String* name,
                                              Object* holder) {
+  Isolate* isolate = name->GetIsolate();
   // To accommodate both the old and the new api we switch on the
   // data structure used to store the callbacks.  Eventually proxy
   // callbacks should be phased out.
@@ -167,11 +168,9 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
     AccessorDescriptor* callback =
         reinterpret_cast<AccessorDescriptor*>(Proxy::cast(structure)->proxy());
     MaybeObject* value = (callback->getter)(receiver, callback->data);
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return value;
   }
-
-  Isolate* isolate = name->GetIsolate();
 
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
@@ -191,7 +190,7 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
       VMState state(isolate, EXTERNAL);
       result = call_fun(v8::Utils::ToLocal(key), info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) {
       return isolate->heap()->undefined_value();
     }
@@ -1607,14 +1606,14 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
                       v8::Utils::ToLocal(value_unhole),
                       info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
   }
   MaybeObject* raw_result =
       this_handle->SetPropertyPostInterceptor(*name_handle,
                                               *value_handle,
                                               attributes);
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
 }
 
@@ -1647,7 +1646,7 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     AccessorDescriptor* callback =
         reinterpret_cast<AccessorDescriptor*>(Proxy::cast(structure)->proxy());
     MaybeObject* obj = (callback->setter)(this,  value, callback->data);
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (obj->IsFailure()) return obj;
     return *value_handle;
   }
@@ -1669,7 +1668,7 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
                v8::Utils::ToLocal(value_handle),
                info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
   }
 
@@ -2510,7 +2509,7 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(String* name) {
       VMState state(isolate, EXTERNAL);
       result = deleter(v8::Utils::ToLocal(name_handle), info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       ASSERT(result->IsBoolean());
       return *v8::Utils::OpenHandle(*result);
@@ -2518,7 +2517,7 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(String* name) {
   }
   MaybeObject* raw_result =
       this_handle->DeletePropertyPostInterceptor(*name_handle, NORMAL_DELETION);
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
 }
 
@@ -2578,14 +2577,14 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
     VMState state(isolate, EXTERNAL);
     result = deleter(index, info);
   }
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (!result.IsEmpty()) {
     ASSERT(result->IsBoolean());
     return *v8::Utils::OpenHandle(*result);
   }
   MaybeObject* raw_result =
       this_handle->DeleteElementPostInterceptor(index, NORMAL_DELETION);
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
 }
 
@@ -6528,12 +6527,12 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
       VMState state(isolate, EXTERNAL);
       result = setter(index, v8::Utils::ToLocal(value_handle), info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *value_handle;
   }
   MaybeObject* raw_result =
       this_handle->SetElementWithoutInterceptor(index, *value_handle);
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
 }
 
@@ -6564,7 +6563,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
       VMState state(isolate, EXTERNAL);
       result = call_fun(v8::Utils::ToLocal(key), info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) return isolate->heap()->undefined_value();
     return *v8::Utils::OpenHandle(*result);
   }
@@ -6620,7 +6619,7 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
                v8::Utils::ToLocal(value_handle),
                info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return *value_handle;
   }
 
@@ -6958,13 +6957,13 @@ MaybeObject* JSObject::GetElementWithInterceptor(JSObject* receiver,
       VMState state(isolate, EXTERNAL);
       result = getter(index, info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
   }
 
   MaybeObject* raw_result =
       holder_handle->GetElementPostInterceptor(*this_handle, index);
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
 }
 
@@ -7279,7 +7278,7 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
       VMState state(isolate, EXTERNAL);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       *attributes = NONE;
       return *v8::Utils::OpenHandle(*result);
@@ -7290,7 +7289,7 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
       *receiver_handle,
       *name_handle,
       attributes);
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return result;
 }
 

@@ -961,7 +961,7 @@ MaybeObject* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION) {
 #endif
     result = fun(v8::Utils::ToLocal(args.at<String>(4)), info);
   }
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (result.IsEmpty()) return HEAP->undefined_value();
   return *v8::Utils::OpenHandle(*result);
 }
@@ -988,7 +988,7 @@ MaybeObject* StoreCallbackProperty(RUNTIME_CALLING_CONVENTION) {
 #endif
     fun(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), info);
   }
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
 }
 
@@ -1021,20 +1021,20 @@ MaybeObject* LoadPropertyWithInterceptorOnly(RUNTIME_CALLING_CONVENTION) {
     // Use the interceptor getter.
     v8::AccessorInfo info(args.arguments() -
                           kAccessorInfoOffsetInInterceptorArgs);
-    HandleScope scope;
+    HandleScope scope(isolate);
     v8::Handle<v8::Value> r;
     {
       // Leaving JavaScript.
       VMState state(isolate, EXTERNAL);
       r = getter(v8::Utils::ToLocal(name_handle), info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
       return *v8::Utils::OpenHandle(*r);
     }
   }
 
-  return HEAP->no_interceptor_result_sentinel();
+  return isolate->heap()->no_interceptor_result_sentinel();
 }
 
 
@@ -1083,7 +1083,7 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
       VMState state(isolate, EXTERNAL);
       r = getter(v8::Utils::ToLocal(name_handle), info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
       *attrs = NONE;
       return *v8::Utils::OpenHandle(*r);
@@ -1094,7 +1094,7 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
       *receiver_handle,
       *name_handle,
       attrs);
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return result;
 }
 
@@ -1121,7 +1121,7 @@ MaybeObject* LoadPropertyWithInterceptorForCall(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   PropertyAttributes attr;
   MaybeObject* result = LoadWithInterceptor(&args, &attr);
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   // This is call IC. In this case, we simply return the undefined result which
   // will lead to an exception when trying to invoke the result as a
   // function.

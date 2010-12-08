@@ -268,8 +268,8 @@ static bool InitializeHelper() {
 }
 
 
-static inline bool EnsureInitialized(const char* location) {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+static inline bool EnsureInitializedForIsolate(i::Isolate* isolate,
+                                               const char* location) {
   if (isolate != NULL) {
     if (isolate->IsDefaultIsolate()) {
       if (i::V8::IsRunning()) {
@@ -287,6 +287,10 @@ static inline bool EnsureInitialized(const char* location) {
   return ApiCheck(InitializeHelper(), location, "Error initializing V8");
 }
 
+static inline bool EnsureInitialized(const char* location) {
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  return EnsureInitializedForIsolate(isolate, location);
+}
 
 #ifdef DEBUG
 void ImplementationUtilities::ZapHandleRange(i::Object** begin,
@@ -303,8 +307,11 @@ v8::Handle<v8::Primitive> ImplementationUtilities::Undefined() {
 
 
 v8::Handle<v8::Primitive> ImplementationUtilities::Null() {
-  if (!EnsureInitialized("v8::Null()")) return v8::Handle<v8::Primitive>();
-  return v8::Handle<Primitive>(ToApi<Primitive>(FACTORY->null_value()));
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  if (!EnsureInitializedForIsolate(isolate, "v8::Null()"))
+      return v8::Handle<v8::Primitive>();
+  return v8::Handle<Primitive>(
+      ToApi<Primitive>(isolate->factory()->null_value()));
 }
 
 
@@ -512,8 +519,15 @@ int HandleScope::NumberOfHandles() {
 }
 
 
-i::Object** v8::HandleScope::CreateHandle(i::Object* value) {
+i::Object** HandleScope::CreateHandle(i::Object* value) {
   return i::HandleScope::CreateHandle(value, i::Isolate::Current());
+}
+
+
+i::Object** HandleScope::CreateHandle(i::HeapObject* value) {
+  ASSERT(value->IsHeapObject());
+  return reinterpret_cast<i::Object**>(
+      i::HandleScope::CreateHandle(value, value->GetIsolate()));
 }
 
 
@@ -3857,12 +3871,14 @@ Local<Number> v8::Number::New(double value) {
 
 
 Local<Integer> v8::Integer::New(int32_t value) {
-  EnsureInitialized("v8::Integer::New()");
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  EnsureInitializedForIsolate(isolate, "v8::Integer::New()");
   if (i::Smi::IsValid(value)) {
-    return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value)));
+    return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value),
+                                                      isolate));
   }
   ENTER_V8;
-  i::Handle<i::Object> result = FACTORY->NewNumber(value);
+  i::Handle<i::Object> result = isolate->factory()->NewNumber(value);
   return Utils::IntegerToLocal(result);
 }
 

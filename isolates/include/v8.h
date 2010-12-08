@@ -110,6 +110,7 @@ namespace internal {
 class Arguments;
 class Object;
 class Heap;
+class HeapObject;
 class Isolate;
 }
 
@@ -437,6 +438,8 @@ class V8EXPORT HandleScope {
    * Creates a new handle with the given value.
    */
   static internal::Object** CreateHandle(internal::Object* value);
+  // Faster version, uses HeapObject to obtain the current Isolate.
+  static internal::Object** CreateHandle(internal::HeapObject* value);
 
  private:
   // Make it impossible to create heap-allocated or illegal handle
@@ -3483,6 +3486,15 @@ class Internals {
     uint8_t* addr = reinterpret_cast<uint8_t*>(ptr) + offset - kHeapObjectTag;
     return *reinterpret_cast<T*>(addr);
   }
+
+ static inline bool CanCastToHeapObject(void*) { return false; }
+ static inline bool CanCastToHeapObject(Context*) { return true; }
+ static inline bool CanCastToHeapObject(String*) { return true; }
+ static inline bool CanCastToHeapObject(Object*) { return true; }
+ static inline bool CanCastToHeapObject(Message*) { return true; }
+ static inline bool CanCastToHeapObject(StackTrace*) { return true; }
+ static inline bool CanCastToHeapObject(StackFrame*) { return true; }
+
 };
 
 }  // namespace internal
@@ -3499,7 +3511,12 @@ Local<T>::Local() : Handle<T>() { }
 template <class T>
 Local<T> Local<T>::New(Handle<T> that) {
   if (that.IsEmpty()) return Local<T>();
-  internal::Object** p = reinterpret_cast<internal::Object**>(*that);
+  T* that_ptr = *that;
+  internal::Object** p = reinterpret_cast<internal::Object**>(that_ptr);
+  if (internal::Internals::CanCastToHeapObject(that_ptr)) {
+    return Local<T>(reinterpret_cast<T*>(
+      HandleScope::CreateHandle(reinterpret_cast<internal::HeapObject*>(*p))));
+  }
   return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(*p)));
 }
 

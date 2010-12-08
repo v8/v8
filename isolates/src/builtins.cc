@@ -1063,7 +1063,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
       result = *reinterpret_cast<Object**>(*value);
     }
 
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!is_construct || result->IsJSObject()) return result;
   }
 
@@ -1126,7 +1126,7 @@ BUILTIN(FastHandleApiCall) {
       args_length - 1,
       is_construct);
 
-  HandleScope scope;
+  HandleScope scope(isolate);
   Object* result;
   v8::Handle<v8::Value> value;
   {
@@ -1146,7 +1146,7 @@ BUILTIN(FastHandleApiCall) {
     result = *reinterpret_cast<Object**>(*value);
   }
 
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return result;
 }
 
@@ -1212,7 +1212,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
     }
   }
   // Check for exceptions and return result.
-  RETURN_IF_SCHEDULED_EXCEPTION();
+  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return result;
 }
 

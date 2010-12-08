@@ -106,10 +106,9 @@ class DebuggerAgent;
 // of handles to the actual constants.
 typedef ZoneList<Handle<Object> > ZoneObjectList;
 
-// TODO(isolates): pass isolate pointer here.
-#define RETURN_IF_SCHEDULED_EXCEPTION()              \
-  if (Isolate::Current()->has_scheduled_exception()) \
-      return Isolate::Current()->PromoteScheduledException()
+#define RETURN_IF_SCHEDULED_EXCEPTION(isolate)    \
+  if (isolate->has_scheduled_exception())         \
+      return isolate->PromoteScheduledException()
 
 #define ISOLATE_ADDRESS_LIST(C)            \
   C(handler_address)                       \
