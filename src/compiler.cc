@@ -116,13 +116,26 @@ static bool AlwaysFullCompiler() {
 static void FinishOptimization(Handle<JSFunction> function, int64_t start) {
   int opt_count = function->shared()->opt_count();
   function->shared()->set_opt_count(opt_count + 1);
-  if (!FLAG_trace_opt) return;
-
   double ms = static_cast<double>(OS::Ticks() - start) / 1000;
-  PrintF("[optimizing: ");
-  function->PrintName();
-  PrintF(" / %" V8PRIxPTR, reinterpret_cast<intptr_t>(*function));
-  PrintF(" - took %0.3f ms]\n", ms);
+  if (FLAG_trace_opt) {
+    PrintF("[optimizing: ");
+    function->PrintName();
+    PrintF(" / %" V8PRIxPTR, reinterpret_cast<intptr_t>(*function));
+    PrintF(" - took %0.3f ms]\n", ms);
+  }
+  if (FLAG_trace_opt_stats) {
+    static double compilation_time = 0.0;
+    static int compiled_functions = 0;
+    static int code_size = 0;
+
+    compilation_time += ms;
+    compiled_functions++;
+    code_size += function->shared()->SourceSize();
+    PrintF("Compiled: %d functions with %d byte source size in %fms.\n",
+           compiled_functions,
+           code_size,
+           compilation_time);
+  }
 }
 
 

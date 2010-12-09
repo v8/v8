@@ -194,6 +194,7 @@ DEFINE_bool(mask_constants_with_cookie,
 // codegen.cc
 DEFINE_bool(lazy, true, "use lazy compilation")
 DEFINE_bool(trace_opt, false, "trace lazy optimization")
+DEFINE_bool(trace_opt_stats, false, "trace lazy optimization statistics")
 DEFINE_bool(opt, true, "use adaptive optimizations")
 DEFINE_bool(opt_eagerly, false, "be more eager when adaptively optimizing")
 DEFINE_bool(always_opt, false, "always try to optimize functions")
