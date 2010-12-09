@@ -435,7 +435,6 @@ class IterationStatement: public BreakableStatement {
   virtual IterationStatement* AsIterationStatement() { return this; }
 
   Statement* body() const { return body_; }
-  void set_body(Statement* stmt) { body_ = stmt; }
 
   // Bailout support.
   int OsrEntryId() const { return osr_entry_id_; }
@@ -532,11 +531,8 @@ class ForStatement: public IterationStatement {
   }
 
   Statement* init() const { return init_; }
-  void set_init(Statement* stmt) { init_ = stmt; }
   Expression* cond() const { return cond_; }
-  void set_cond(Expression* expr) { cond_ = expr; }
   Statement* next() const { return next_; }
-  void set_next(Statement* stmt) { next_ = stmt; }
 
   bool may_have_function_literal() const {
     return may_have_function_literal_;
@@ -748,9 +744,7 @@ class IfStatement: public Statement {
 
   Expression* condition() const { return condition_; }
   Statement* then_statement() const { return then_statement_; }
-  void set_then_statement(Statement* stmt) { then_statement_ = stmt; }
   Statement* else_statement() const { return else_statement_; }
-  void set_else_statement(Statement* stmt) { else_statement_ = stmt; }
 
  private:
   Expression* condition_;
