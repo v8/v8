@@ -1230,7 +1230,8 @@ static const bool kReturnHandlesDirectly = false;
 
 
 Operand ApiParameterOperand(int index) {
-  return Operand(esp, (index + (kReturnHandlesDirectly ? 0 : 1)) * kPointerSize);
+  return Operand(
+      esp, (index + (kReturnHandlesDirectly ? 0 : 1)) * kPointerSize);
 }
 
 
