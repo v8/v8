@@ -1951,7 +1951,7 @@ TRBinaryOpIC::State TRBinaryOpIC::ToState(TypeInfo type_info) {
 
 
 TRBinaryOpIC::TypeInfo TRBinaryOpIC::JoinTypes(TRBinaryOpIC::TypeInfo x,
-                                           TRBinaryOpIC::TypeInfo y) {
+                                               TRBinaryOpIC::TypeInfo y) {
   if (x == UNINITIALIZED) return y;
   if (y == UNINITIALIZED) return x;
   if (x == STRING && y == STRING) return STRING;
@@ -2041,6 +2041,11 @@ MaybeObject* TypeRecordingBinaryOp_Patch(Arguments args) {
              TRBinaryOpIC::GetName(result_type),
              Token::Name(op));
     }
+
+    // Activate inlined smi code.
+    if (previous_type == TRBinaryOpIC::UNINITIALIZED) {
+      PatchInlinedSmiCode(ic.address());
+    }
   }
 
   Handle<JSBuiltinsObject> builtins = Top::builtins();
@@ -2127,8 +2132,9 @@ const char* CompareIC::GetStateName(State state) {
 }
 
 
-CompareIC::State CompareIC::TargetState(Handle<Object> x, Handle<Object> y) {
-  State state = GetState();
+CompareIC::State CompareIC::TargetState(State state,
+                                        Handle<Object> x,
+                                        Handle<Object> y) {
   if (state != UNINITIALIZED) return GENERIC;
   if (x->IsSmi() && y->IsSmi()) return SMIS;
   if (x->IsNumber() && y->IsNumber()) return HEAP_NUMBERS;

@@ -582,7 +582,7 @@ class CompareIC: public IC {
   static const char* GetStateName(State state);
 
  private:
-  State TargetState(Handle<Object> x, Handle<Object> y);
+  State TargetState(State state, Handle<Object> x, Handle<Object> y);
 
   bool strict() const { return op_ == Token::EQ_STRICT; }
   Condition GetCondition() const { return ComputeCondition(op_); }
@@ -591,6 +591,8 @@ class CompareIC: public IC {
   Token::Value op_;
 };
 
+// Helper for TRBinaryOpIC and CompareIC.
+void PatchInlinedSmiCode(Address address);
 
 } }  // namespace v8::internal
 
