@@ -536,7 +536,7 @@ class FullCodeGenerator: public AstVisitor {
   // Helper for calling an IC stub.
   void EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode);
 
-  // Helper for calling an IC stub with a patch site. Passing NULL for patch_site
+  // Calling an IC stub with a patch site. Passing NULL for patch_site
   // indicates no inlined smi code and emits a nop after the IC call.
   void EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site);
 
