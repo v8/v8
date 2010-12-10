@@ -615,7 +615,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     } else {
       flag |= READ_ONLY;
     }
-    var value;  // Default value is undefined.
+    var value = void 0;  // Default value is undefined.
     if (desc.hasValue()) {
       value = desc.getValue();
     } else if (!IS_UNDEFINED(current)) {
