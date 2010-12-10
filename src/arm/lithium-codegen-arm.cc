@@ -136,7 +136,7 @@ bool LCodeGen::GeneratePrologue() {
       Label loop;
       __ bind(&loop);
       __ push(r2);
-      __ sub(r0, r0, Operand(1));
+      __ sub(r0, r0, Operand(1), SetCC);
       __ b(ne, &loop);
     } else {
       __ sub(sp,  sp, Operand(slots * kPointerSize));
