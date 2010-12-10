@@ -1395,15 +1395,17 @@ class LNumberTagI: public LUnaryOperation {
 
 class LNumberTagD: public LUnaryOperation {
  public:
-  explicit LNumberTagD(LOperand* value, LOperand* temp)
-      : LUnaryOperation(value), temp_(temp) { }
+  LNumberTagD(LOperand* value, LOperand* temp1, LOperand* temp2)
+      : LUnaryOperation(value), temp1_(temp1), temp2_(temp2) { }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagD, "number-tag-d")
 
-  LOperand* temp() const { return temp_; }
+  LOperand* temp1() const { return temp1_; }
+  LOperand* temp2() const { return temp2_; }
 
  private:
-  LOperand* temp_;
+  LOperand* temp1_;
+  LOperand* temp2_;
 };
 
 

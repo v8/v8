@@ -1691,11 +1691,13 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   } else if (from.IsDouble()) {
     if (to.IsTagged()) {
       LOperand* value = UseRegister(instr->value());
-      LOperand* temp = TempRegister();
+      LOperand* temp1 = TempRegister();
+      LOperand* temp2 = TempRegister();
 
-      // Make sure that temp and result_temp are different registers.
+      // Make sure that the temp and result_temp registers are
+      // different.
       LUnallocated* result_temp = TempRegister();
-      LInstruction* result = new LNumberTagD(value, temp);
+      LInstruction* result = new LNumberTagD(value, temp1, temp2);
       Define(result, result_temp);
       return AssignPointerMap(result);
     } else {

@@ -1733,13 +1733,14 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
 
   DoubleRegister input_reg = ToDoubleRegister(instr->input());
   Register reg = ToRegister(instr->result());
-  Register tmp = ToRegister(instr->temp());
+  Register temp1 = ToRegister(instr->temp1());
+  Register temp2 = ToRegister(instr->temp2());
   Register scratch = r9;
 
   DeferredNumberTagD* deferred = new DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(reg, tmp, ip, scratch, deferred->entry());
+    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry());
   } else {
     __ jmp(deferred->entry());
   }
