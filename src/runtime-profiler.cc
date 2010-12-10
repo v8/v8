@@ -272,9 +272,10 @@ void RuntimeProfiler::OptimizeNow() {
   // have a sample of the function, we mark it for optimizations
   // (eagerly or lazily).
   JSFunction* samples[kSamplerFrameCount];
-  int count = 0;
+  int sample_count = 0;
+  int frame_count = 0;
   for (JavaScriptFrameIterator it;
-       count < kSamplerFrameCount && !it.done();
+       frame_count++ < kSamplerFrameCount && !it.done();
        it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     JSFunction* function = JSFunction::cast(frame->function());
@@ -304,7 +305,7 @@ void RuntimeProfiler::OptimizeNow() {
 
     // Do not record non-optimizable functions.
     if (!IsOptimizable(function)) continue;
-    samples[count++] = function;
+    samples[sample_count++] = function;
 
     int function_size = function->shared()->SourceSize();
     int threshold_size_factor = (function_size > kSizeLimit)
@@ -335,7 +336,7 @@ void RuntimeProfiler::OptimizeNow() {
   // Add the collected functions as samples. It's important not to do
   // this as part of collecting them because this will interfere with
   // the sample lookup in case of recursive functions.
-  for (int i = 0; i < count; i++) {
+  for (int i = 0; i < sample_count; i++) {
     AddSample(samples[i], kSamplerFrameWeight[i]);
   }
 }
