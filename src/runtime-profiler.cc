@@ -350,7 +350,30 @@ void RuntimeProfiler::OptimizeSoon(JSFunction* function) {
 }
 
 
+static void UpdateStateRatio(SamplerState current_state) {
+  static const int kStateWindowSize = 128;
+  static SamplerState state_window[kStateWindowSize];
+  static int state_window_position = 0;
+  static int state_counts[2] = { kStateWindowSize, 0 };
+
+  SamplerState old_state = state_window[state_window_position];
+  state_counts[old_state]--;
+  state_window[state_window_position] = current_state;
+  state_counts[current_state]++;
+  ASSERT(IsPowerOf2(kStateWindowSize));
+  state_window_position = (state_window_position + 1) &
+      (kStateWindowSize - 1);
+  NoBarrier_Store(&js_ratio, state_counts[IN_JS_STATE] * 100 /
+                  kStateWindowSize);
+}
+
+
 void RuntimeProfiler::NotifyTick() {
+  // Record state sample.
+  SamplerState state = Top::IsInJSState()
+      ? IN_JS_STATE
+      : IN_NON_JS_STATE;
+  UpdateStateRatio(state);
   StackGuard::RequestRuntimeProfilerTick();
 }
 
@@ -404,24 +427,6 @@ int RuntimeProfiler::SamplerWindowSize() {
 }
 
 
-static void AddStateSample(SamplerState current_state) {
-  static const int kStateWindowSize = 128;
-  static SamplerState state_window[kStateWindowSize];
-  static int state_window_position = 0;
-  static int state_counts[2] = { kStateWindowSize, 0 };
-
-  SamplerState old_state = state_window[state_window_position];
-  state_counts[old_state]--;
-  state_window[state_window_position] = current_state;
-  state_counts[current_state]++;
-  ASSERT(IsPowerOf2(kStateWindowSize));
-  state_window_position = (state_window_position + 1) &
-      (kStateWindowSize - 1);
-  NoBarrier_Store(&js_ratio, state_counts[IN_JS_STATE] * 100 /
-                  kStateWindowSize);
-}
-
-
 bool RuntimeProfilerRateLimiter::SuspendIfNecessary() {
   static const int kNonJSTicksThreshold = 100;
   // We suspend the runtime profiler thread when not running
@@ -431,10 +436,8 @@ bool RuntimeProfilerRateLimiter::SuspendIfNecessary() {
       !CpuProfiler::is_profiling() &&
       !(FLAG_prof && FLAG_prof_auto)) {
     if (Top::IsInJSState()) {
-      AddStateSample(IN_JS_STATE);
       non_js_ticks_ = 0;
     } else {
-      AddStateSample(IN_NON_JS_STATE);
       if (non_js_ticks_ < kNonJSTicksThreshold) {
         ++non_js_ticks_;
       } else {
