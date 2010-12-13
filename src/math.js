@@ -265,7 +265,6 @@ function SetupMath() {
   %SetMathFunctionId($Math.abs, 4);
   %SetMathFunctionId($Math.sqrt, 0xd);
   %SetMathFunctionId($Math.pow, 0xe);
-  %SetMathFunctionId($Math.log, 5);
   // TODO(erikcorry): Set the id of the other functions so they can be
   // optimized.
 };

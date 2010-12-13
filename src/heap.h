@@ -2054,9 +2054,8 @@ class TranscendentalCache {
 
   // Allow access to the caches_ array as an ExternalReference.
   friend class ExternalReference;
-  // Inline implementation of the cache.
+  // Inline implementation of the caching.
   friend class TranscendentalCacheStub;
-  friend class TranscendentalCacheSSE2Stub;
 
   static TranscendentalCache* caches_[kNumberOfCaches];
   Element elements_[kCacheSize];

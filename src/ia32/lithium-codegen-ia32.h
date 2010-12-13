@@ -176,7 +176,6 @@ class LCodeGen BASE_EMBEDDED {
   void DoMathRound(LUnaryMathOperation* instr);
   void DoMathSqrt(LUnaryMathOperation* instr);
   void DoMathPowHalf(LUnaryMathOperation* instr);
-  void DoMathLog(LUnaryMathOperation* instr);
 
   // Support for recording safepoint and position information.
   void RecordSafepoint(LPointerMap* pointers, int deoptimization_index);

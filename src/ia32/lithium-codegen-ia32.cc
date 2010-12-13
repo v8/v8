@@ -2235,13 +2235,6 @@ void LCodeGen::DoPower(LPower* instr) {
 }
 
 
-void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
-  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
-  TranscendentalCacheSSE2Stub stub(TranscendentalCache::LOG);
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-}
-
-
 void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
   switch (instr->op()) {
     case kMathAbs:
@@ -2259,10 +2252,6 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
     case kMathPowHalf:
       DoMathPowHalf(instr);
       break;
-    case kMathLog:
-      DoMathLog(instr);
-      break;
-
     default:
       UNREACHABLE();
   }
