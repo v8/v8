@@ -142,8 +142,6 @@ TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr, Side side) {
   CompareIC::State state = static_cast<CompareIC::State>(code->compare_state());
   switch (state) {
     case CompareIC::UNINITIALIZED:
-       // Uninitialized state means never executed.
-      return unknown;
     case CompareIC::SMIS:
       return TypeInfo::Smi();
     case CompareIC::HEAP_NUMBERS:
@@ -186,8 +184,6 @@ TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr, Side side) {
 
     switch (type) {
       case TRBinaryOpIC::UNINITIALIZED:
-        // Uninitialized state means never executed.
-        return unknown;
       case TRBinaryOpIC::SMI:
         switch (result_type) {
           case TRBinaryOpIC::UNINITIALIZED:
@@ -228,8 +224,6 @@ TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
   CompareIC::State state = static_cast<CompareIC::State>(code->compare_state());
   switch (state) {
     case CompareIC::UNINITIALIZED:
-      // Uninitialized state means never executed.
-      return unknown;
     case CompareIC::SMIS:
       return TypeInfo::Smi();
     case CompareIC::HEAP_NUMBERS:

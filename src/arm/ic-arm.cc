@@ -2360,8 +2360,10 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
 void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   HandleScope scope;
   Handle<Code> rewritten;
+#ifdef DEBUG
   State previous_state = GetState();
-  State state = TargetState(previous_state, x, y);
+#endif
+  State state = TargetState(x, y);
   if (state == GENERIC) {
     CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS, r1, r0);
     rewritten = stub.GetCode();
@@ -2380,12 +2382,6 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   }
 #endif
 }
-
-
-void PatchInlinedSmiCode(Address address) {
-  UNIMPLEMENTED();
-}
-
 
 } }  // namespace v8::internal
 

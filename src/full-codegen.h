@@ -38,9 +38,6 @@
 namespace v8 {
 namespace internal {
 
-// Forward declarations.
-class JumpPatchSite;
-
 // AST node visitor which can tell whether a given statement will be breakable
 // when the code is compiled by the full compiler in the debugger. This means
 // that there will be an IC (load/store/call) in the code generated for the
@@ -535,10 +532,6 @@ class FullCodeGenerator: public AstVisitor {
 
   // Helper for calling an IC stub.
   void EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode);
-
-  // Calling an IC stub with a patch site. Passing NULL for patch_site
-  // indicates no inlined smi code and emits a nop after the IC call.
-  void EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site);
 
   // Set fields in the stack frame. Offsets are the frame pointer relative
   // offsets defined in, e.g., StandardFrameConstants.

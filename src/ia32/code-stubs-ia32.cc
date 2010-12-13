@@ -1366,8 +1366,8 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
   if (op_ == Token::DIV || op_ == Token::MOD) {
     left = eax;
     right = ebx;
-    __ mov(ebx, eax);
-    __ mov(eax, edx);
+      __ mov(ebx, eax);
+      __ mov(eax, edx);
   }
 
 

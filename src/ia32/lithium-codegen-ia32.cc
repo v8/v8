@@ -315,13 +315,6 @@ void LCodeGen::CallCode(Handle<Code> code,
     __ call(code, mode);
     RecordSafepoint(&no_pointers, Safepoint::kNoDeoptimizationIndex);
   }
-
-  // Signal that we don't inline smi code before these stubs in the
-  // optimizing code generator.
-  if (code->kind() == Code::TYPE_RECORDING_BINARY_OP_IC ||
-      code->kind() == Code::COMPARE_IC) {
-    __ nop();
-  }
 }
 
 
