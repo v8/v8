@@ -4689,6 +4689,13 @@ static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
   if (!new_alloc->ToObject(&new_object)) {
     return new_alloc;
   }
+  if (!Heap::new_space()->Contains(new_object)) {
+    // Even if our string is small enough to fit in new space we still have to
+    // handle it being allocated in old space as may happen in the third
+    // attempt.  See CALL_AND_RETRY in heap-inl.h and similar code in
+    // CEntryStub::GenerateCore.  
+    return SlowQuoteJsonString<Char, StringType>(characters);
+  }
   StringType* new_string = StringType::cast(new_object);
   ASSERT(Heap::new_space()->Contains(new_string));
 
