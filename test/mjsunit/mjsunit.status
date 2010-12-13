@@ -56,6 +56,8 @@ regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 debug-liveedit-check-stack: SKIP
 debug-liveedit-patch-positions-replace: SKIP
 
+# Issue 969, flaky in debug mode, hits assertion in deoptimzer-ia32.cc
+array-splice: PASS, SKIP if $mode == debug
 
 ##############################################################################
 [ $arch == arm ]
