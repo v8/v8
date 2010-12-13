@@ -4947,7 +4947,8 @@ const HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
 
 
 const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
-                                               HeapSnapshot::Type type) {
+                                               HeapSnapshot::Type type,
+                                               ActivityControl* control) {
   IsDeadCheck("v8::HeapProfiler::TakeSnapshot");
   i::HeapSnapshot::Type internal_type = i::HeapSnapshot::kFull;
   switch (type) {
@@ -4961,7 +4962,8 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
       UNREACHABLE();
   }
   return reinterpret_cast<const HeapSnapshot*>(
-      i::HeapProfiler::TakeSnapshot(*Utils::OpenHandle(*title), internal_type));
+      i::HeapProfiler::TakeSnapshot(
+          *Utils::OpenHandle(*title), internal_type, control));
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
