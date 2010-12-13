@@ -2133,13 +2133,16 @@ const char* CompareIC::GetStateName(State state) {
 
 
 CompareIC::State CompareIC::TargetState(State state,
+                                        bool has_inlined_smi_code,
                                         Handle<Object> x,
                                         Handle<Object> y) {
-  if (state != UNINITIALIZED) return GENERIC;
-  if (x->IsSmi() && y->IsSmi()) return SMIS;
-  if (x->IsNumber() && y->IsNumber()) return HEAP_NUMBERS;
+  if (!has_inlined_smi_code && state != UNINITIALIZED) return GENERIC;
+  if (state == UNINITIALIZED && x->IsSmi() && y->IsSmi()) return SMIS;
+  if ((state == UNINITIALIZED || (state == SMIS && has_inlined_smi_code)) &&
+      x->IsNumber() && y->IsNumber()) return HEAP_NUMBERS;
   if (op_ != Token::EQ && op_ != Token::EQ_STRICT) return GENERIC;
-  if (x->IsJSObject() && y->IsJSObject()) return OBJECTS;
+  if (state == UNINITIALIZED &&
+      x->IsJSObject() && y->IsJSObject()) return OBJECTS;
   return GENERIC;
 }
 
