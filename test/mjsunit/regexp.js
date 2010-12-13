@@ -202,6 +202,17 @@ assertFalse(re.test('\n'));
 assertFalse(re.test('a'));
 assertFalse(re.test('Z'));
 
+// First - is treated as range operator, second as literal minus.
+// This follows the specification in parsing, but doesn't throw on
+// the \s at the beginning of the range.
+re = /[\s-0-9]/;
+assertTrue(re.test(' '));
+assertTrue(re.test('\xA0'));
+assertTrue(re.test('-'));
+assertTrue(re.test('0'));
+assertTrue(re.test('9'));
+assertFalse(re.test('1'));
+
 // Test beginning and end of line assertions with or without the
 // multiline flag.
 re = /^\d+/;
@@ -647,3 +658,4 @@ assertEquals(4, re.exec("zimzamzumba").index);
 assertEquals(["bc"], re.exec("zimzomzumbc"));
 assertFalse(re.test("c"));
 assertFalse(re.test(""));
+
