@@ -575,11 +575,13 @@ class ForInStatement: public IterationStatement {
   Expression* enumerable() const { return enumerable_; }
 
   // Bailout support.
+  int AssignmentId() const { return assignment_id_; }
   virtual int ContinueId() const { return EntryId(); }
 
  private:
   Expression* each_;
   Expression* enumerable_;
+  int assignment_id_;
 };
 
 
@@ -1426,7 +1428,9 @@ class IncrementOperation: public Expression {
 class CountOperation: public Expression {
  public:
   CountOperation(bool is_prefix, IncrementOperation* increment, int pos)
-      : is_prefix_(is_prefix), increment_(increment), pos_(pos) { }
+      : is_prefix_(is_prefix), increment_(increment), pos_(pos),
+        assignment_id_(GetNextId()) {
+  }
 
   DECLARE_NODE_TYPE(CountOperation)
 
@@ -1446,10 +1450,14 @@ class CountOperation: public Expression {
 
   virtual bool IsInlineable() const;
 
+  // Bailout support.
+  int AssignmentId() const { return assignment_id_; }
+
  private:
   bool is_prefix_;
   IncrementOperation* increment_;
   int pos_;
+  int assignment_id_;
 };
 
 
@@ -1579,7 +1587,8 @@ class Assignment: public Expression {
   }
 
   // Bailout support.
-  int compound_bailout_id() const { return compound_bailout_id_; }
+  int CompoundLoadId() const { return compound_load_id_; }
+  int AssignmentId() const { return assignment_id_; }
 
  private:
   Token::Value op_;
@@ -1587,7 +1596,8 @@ class Assignment: public Expression {
   Expression* value_;
   int pos_;
   BinaryOperation* binary_operation_;
-  int compound_bailout_id_;
+  int compound_load_id_;
+  int assignment_id_;
 
   bool block_start_;
   bool block_end_;
