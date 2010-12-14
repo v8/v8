@@ -3127,14 +3127,15 @@ int String::Write(uint16_t* buffer,
     // using StringInputBuffer or Get(i) to access the characters.
     str->TryFlatten();
   }
-  int end = length;
-  if ( (length == -1) || (length > str->length() - start) )
-    end = str->length() - start;
+  int end = start + length;
+  if ((length == -1) || (length > str->length() - start) )
+    end = str->length();
   if (end < 0) return 0;
   i::String::WriteToFlat(*str, buffer, start, end);
-  if (length == -1 || end < length)
-    buffer[end] = '\0';
-  return end;
+  if (length == -1 || end - start < length) {
+    buffer[end - start] = '\0';
+  }
+  return end - start;
 }
 
 
