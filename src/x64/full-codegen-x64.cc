@@ -1415,6 +1415,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     case VARIABLE:
       EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
                              expr->op());
+      context()->Plug(rax);
       break;
     case NAMED_PROPERTY:
       EmitNamedPropertyAssignment(expr);
