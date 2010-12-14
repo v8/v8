@@ -102,6 +102,7 @@ namespace internal {
   F(CharFromCode, 1, 1) \
   F(URIEscape, 1, 1) \
   F(URIUnescape, 1, 1) \
+  F(QuoteJSONString, 1, 1) \
   \
   F(NumberToString, 1, 1) \
   F(NumberToStringSkipCache, 1, 1) \
@@ -177,7 +178,7 @@ namespace internal {
   F(StringReplaceRegExpWithString, 4, 1) \
   F(StringMatch, 3, 1) \
   F(StringTrim, 3, 1) \
-  F(StringToArray, 1, 1) \
+  F(StringToArray, 2, 1) \
   F(NewStringWrapper, 1, 1) \
   \
   /* Numbers */ \
@@ -264,7 +265,7 @@ namespace internal {
   F(CreateCatchExtensionObject, 2, 1) \
   \
   /* Statements */ \
-  F(NewClosure, 2, 1) \
+  F(NewClosure, 3, 1) \
   F(NewObject, 1, 1) \
   F(NewObjectFromBound, 2, 1) \
   F(FinalizeInstanceSize, 1, 1) \
@@ -417,9 +418,11 @@ namespace internal {
   F(MathSin, 1, 1)                                                           \
   F(MathCos, 1, 1)                                                           \
   F(MathSqrt, 1, 1)                                                          \
+  F(MathLog, 1, 1)                                                           \
   F(IsRegExpEquivalent, 2, 1)                                                \
   F(HasCachedArrayIndex, 1, 1)                                               \
-  F(GetCachedArrayIndex, 1, 1)
+  F(GetCachedArrayIndex, 1, 1)                                               \
+  F(FastAsciiArrayJoin, 2, 1)
 
 
 // ----------------------------------------------------------------------------

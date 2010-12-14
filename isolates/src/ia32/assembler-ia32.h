@@ -537,7 +537,6 @@ class Assembler : public Malloced {
   void push(const Immediate& x);
   void push(Register src);
   void push(const Operand& src);
-  void push(Label* label, RelocInfo::Mode relocation_mode);
 
   void pop(Register dst);
   void pop(const Operand& dst);
@@ -737,6 +736,7 @@ class Assembler : public Malloced {
   void fld1();
   void fldz();
   void fldpi();
+  void fldln2();
 
   void fld_s(const Operand& adr);
   void fld_d(const Operand& adr);
@@ -761,6 +761,7 @@ class Assembler : public Malloced {
   void fchs();
   void fcos();
   void fsin();
+  void fyl2x();
 
   void fadd(int i);
   void fsub(int i);

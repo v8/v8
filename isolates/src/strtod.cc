@@ -422,9 +422,9 @@ double Strtod(Vector<const char> buffer, int exponent) {
     int significant_exponent;
     TrimToMaxSignificantDigits(trimmed, exponent,
                                significant_buffer, &significant_exponent);
-    trimmed =
-        Vector<const char>(significant_buffer, kMaxSignificantDecimalDigits);
-    exponent = significant_exponent;
+    return Strtod(Vector<const char>(significant_buffer,
+                                     kMaxSignificantDecimalDigits),
+                  significant_exponent);
   }
   if (exponent + trimmed.length() - 1 >= kMaxDecimalPower) return V8_INFINITY;
   if (exponent + trimmed.length() <= kMinDecimalPower) return 0.0;

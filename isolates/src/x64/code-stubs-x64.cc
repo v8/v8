@@ -80,8 +80,9 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ pop(rdx);
   __ push(rsi);
   __ push(rdx);
+  __ Push(FACTORY->false_value());
   __ push(rcx);  // Restore return address.
-  __ TailCallRuntime(Runtime::kNewClosure, 2, 1);
+  __ TailCallRuntime(Runtime::kNewClosure, 3, 1);
 }
 
 
@@ -1108,6 +1109,7 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
     // Add more cases when necessary.
     case TranscendentalCache::SIN: return Runtime::kMath_sin;
     case TranscendentalCache::COS: return Runtime::kMath_cos;
+    case TranscendentalCache::LOG: return Runtime::kMath_log;
     default:
       UNIMPLEMENTED();
       return Runtime::kAbort;
@@ -1122,73 +1124,76 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm,
   // rcx: Pointer to cache entry. Must be preserved.
   // st(0): Input double
   Label done;
-  ASSERT(type_ == TranscendentalCache::SIN ||
-         type_ == TranscendentalCache::COS);
-  // More transcendental types can be added later.
+  if (type_ == TranscendentalCache::SIN || type_ == TranscendentalCache::COS) {
+    // Both fsin and fcos require arguments in the range +/-2^63 and
+    // return NaN for infinities and NaN. They can share all code except
+    // the actual fsin/fcos operation.
+    Label in_range;
+    // If argument is outside the range -2^63..2^63, fsin/cos doesn't
+    // work. We must reduce it to the appropriate range.
+    __ movq(rdi, rbx);
+    // Move exponent and sign bits to low bits.
+    __ shr(rdi, Immediate(HeapNumber::kMantissaBits));
+    // Remove sign bit.
+    __ andl(rdi, Immediate((1 << HeapNumber::kExponentBits) - 1));
+    int supported_exponent_limit = (63 + HeapNumber::kExponentBias);
+    __ cmpl(rdi, Immediate(supported_exponent_limit));
+    __ j(below, &in_range);
+    // Check for infinity and NaN. Both return NaN for sin.
+    __ cmpl(rdi, Immediate(0x7ff));
+    __ j(equal, on_nan_result);
 
-  // Both fsin and fcos require arguments in the range +/-2^63 and
-  // return NaN for infinities and NaN. They can share all code except
-  // the actual fsin/fcos operation.
-  Label in_range;
-  // If argument is outside the range -2^63..2^63, fsin/cos doesn't
-  // work. We must reduce it to the appropriate range.
-  __ movq(rdi, rbx);
-  // Move exponent and sign bits to low bits.
-  __ shr(rdi, Immediate(HeapNumber::kMantissaBits));
-  // Remove sign bit.
-  __ andl(rdi, Immediate((1 << HeapNumber::kExponentBits) - 1));
-  int supported_exponent_limit = (63 + HeapNumber::kExponentBias);
-  __ cmpl(rdi, Immediate(supported_exponent_limit));
-  __ j(below, &in_range);
-  // Check for infinity and NaN. Both return NaN for sin.
-  __ cmpl(rdi, Immediate(0x7ff));
-  __ j(equal, on_nan_result);
+    // Use fpmod to restrict argument to the range +/-2*PI.
+    __ fldpi();
+    __ fadd(0);
+    __ fld(1);
+    // FPU Stack: input, 2*pi, input.
+    {
+      Label no_exceptions;
+      __ fwait();
+      __ fnstsw_ax();
+      // Clear if Illegal Operand or Zero Division exceptions are set.
+      __ testl(rax, Immediate(5));  // #IO and #ZD flags of FPU status word.
+      __ j(zero, &no_exceptions);
+      __ fnclex();
+      __ bind(&no_exceptions);
+    }
 
-  // Use fpmod to restrict argument to the range +/-2*PI.
-  __ fldpi();
-  __ fadd(0);
-  __ fld(1);
-  // FPU Stack: input, 2*pi, input.
-  {
-    Label no_exceptions;
-    __ fwait();
-    __ fnstsw_ax();
-    // Clear if Illegal Operand or Zero Division exceptions are set.
-    __ testl(rax, Immediate(5));  // #IO and #ZD flags of FPU status word.
-    __ j(zero, &no_exceptions);
-    __ fnclex();
-    __ bind(&no_exceptions);
+    // Compute st(0) % st(1)
+    {
+      NearLabel partial_remainder_loop;
+      __ bind(&partial_remainder_loop);
+      __ fprem1();
+      __ fwait();
+      __ fnstsw_ax();
+      __ testl(rax, Immediate(0x400));  // Check C2 bit of FPU status word.
+      // If C2 is set, computation only has partial result. Loop to
+      // continue computation.
+      __ j(not_zero, &partial_remainder_loop);
   }
-
-  // Compute st(0) % st(1)
-  {
-    NearLabel partial_remainder_loop;
-    __ bind(&partial_remainder_loop);
-    __ fprem1();
-    __ fwait();
-    __ fnstsw_ax();
-    __ testl(rax, Immediate(0x400));  // Check C2 bit of FPU status word.
-    // If C2 is set, computation only has partial result. Loop to
-    // continue computation.
-    __ j(not_zero, &partial_remainder_loop);
+    // FPU Stack: input, 2*pi, input % 2*pi
+    __ fstp(2);
+    // FPU Stack: input % 2*pi, 2*pi,
+    __ fstp(0);
+    // FPU Stack: input % 2*pi
+    __ bind(&in_range);
+    switch (type_) {
+      case TranscendentalCache::SIN:
+        __ fsin();
+        break;
+      case TranscendentalCache::COS:
+        __ fcos();
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ bind(&done);
+  } else {
+    ASSERT(type_ == TranscendentalCache::LOG);
+    __ fldln2();
+    __ fxch();
+    __ fyl2x();
   }
-  // FPU Stack: input, 2*pi, input % 2*pi
-  __ fstp(2);
-  // FPU Stack: input % 2*pi, 2*pi,
-  __ fstp(0);
-  // FPU Stack: input % 2*pi
-  __ bind(&in_range);
-  switch (type_) {
-    case TranscendentalCache::SIN:
-      __ fsin();
-      break;
-    case TranscendentalCache::COS:
-      __ fcos();
-      break;
-    default:
-      UNREACHABLE();
-  }
-  __ bind(&done);
 }
 
 
@@ -2487,20 +2492,6 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 }
 
 
-void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
-  __ PrepareCallApiFunction(kStackSpace);
-#ifdef _WIN64
-  // All the parameters should be set up by a caller.
-#else
-  // Set 1st parameter register with property name.
-  __ movq(rsi, rdx);
-  // Second parameter register rdi should be set with pointer to AccessorInfo
-  // by a caller.
-#endif
-  __ CallApiFunctionAndReturn(fun());
-}
-
-
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
@@ -2553,19 +2544,19 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 #ifdef _WIN64
   // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9
   // Store Arguments object on stack, below the 4 WIN64 ABI parameter slots.
-  __ movq(Operand(rsp, 4 * kPointerSize), r14);  // argc.
-  __ movq(Operand(rsp, 5 * kPointerSize), r12);  // argv.
+  __ movq(StackSpaceOperand(0), r14);  // argc.
+  __ movq(StackSpaceOperand(1), r12);  // argv.
   if (result_size_ < 2) {
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax).
-    __ lea(rcx, Operand(rsp, 4 * kPointerSize));
+    __ lea(rcx, StackSpaceOperand(0));
     __ movq(rdx, ExternalReference::isolate_address());
   } else {
     ASSERT_EQ(2, result_size_);
     // Pass a pointer to the result location as the first argument.
-    __ lea(rcx, Operand(rsp, 6 * kPointerSize));
+    __ lea(rcx, StackSpaceOperand(2));
     // Pass a pointer to the Arguments object as the second argument.
-    __ lea(rdx, Operand(rsp, 4 * kPointerSize));
+    __ lea(rdx, StackSpaceOperand(0));
     __ movq(r8, ExternalReference::isolate_address());
   }
 
@@ -2603,7 +2594,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &failure_returned);
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(result_size_);
+  __ LeaveExitFrame();
   __ ret(0);
 
   // Handling of failure.
@@ -2709,7 +2700,12 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // builtin once.
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(result_size_);
+#ifdef _WIN64
+  int arg_stack_space = (result_size_ < 2 ? 2 : 4);
+#else
+  int arg_stack_space = 0;
+#endif
+  __ EnterExitFrame(arg_stack_space);
 
   // rax: Holds the context at this point, but should not be used.
   //      On entry to code generated by GenerateCore, it must hold

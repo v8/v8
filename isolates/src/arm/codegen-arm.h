@@ -194,14 +194,6 @@ enum ArgumentsAllocationMode {
 };
 
 
-// Different nop operations are used by the code generator to detect certain
-// states of the generated code.
-enum NopMarkerTypes {
-  NON_MARKING_NOP = 0,
-  PROPERTY_ACCESS_INLINED
-};
-
-
 // -------------------------------------------------------------------------
 // CodeGenerator
 
@@ -279,10 +271,6 @@ class CodeGenerator: public AstVisitor {
     return inlined_write_barrier_size_ + 4;
   }
 
-  static MemOperand ContextOperand(Register context, int index) {
-    return MemOperand(context, Context::SlotOffset(index));
-  }
-
  private:
   // Type of a member function that generates inline code for a native function.
   typedef void (CodeGenerator::*InlineFunctionGenerator)
@@ -349,10 +337,6 @@ class CodeGenerator: public AstVisitor {
                                                JumpTarget* slow);
 
   // Expressions
-  static MemOperand GlobalObject()  {
-    return ContextOperand(cp, Context::GLOBAL_INDEX);
-  }
-
   void LoadCondition(Expression* x,
                      JumpTarget* true_target,
                      JumpTarget* false_target,
@@ -452,16 +436,13 @@ class CodeGenerator: public AstVisitor {
   static Handle<Code> ComputeLazyCompile(int argc);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
-  static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
-
-  static Handle<Code> ComputeKeyedCallInitialize(int argc, InLoopFlag in_loop);
-
   // Declare global variables and functions in the given array of
   // name/value pairs.
   void DeclareGlobals(Handle<FixedArray> pairs);
 
   // Instantiate the function based on the shared function info.
-  void InstantiateFunction(Handle<SharedFunctionInfo> function_info);
+  void InstantiateFunction(Handle<SharedFunctionInfo> function_info,
+                           bool pretenure);
 
   // Support for type checks.
   void GenerateIsSmi(ZoneList<Expression*>* args);
@@ -535,11 +516,13 @@ class CodeGenerator: public AstVisitor {
   void GenerateMathSin(ZoneList<Expression*>* args);
   void GenerateMathCos(ZoneList<Expression*>* args);
   void GenerateMathSqrt(ZoneList<Expression*>* args);
+  void GenerateMathLog(ZoneList<Expression*>* args);
 
   void GenerateIsRegExpEquivalent(ZoneList<Expression*>* args);
 
   void GenerateHasCachedArrayIndex(ZoneList<Expression*>* args);
   void GenerateGetCachedArrayIndex(ZoneList<Expression*>* args);
+  void GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args);
 
   // Simple condition analysis.
   enum ConditionAnalysis {

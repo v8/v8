@@ -393,13 +393,8 @@ void MacroAssembler::EnterExitFrame() {
 }
 
 
-void MacroAssembler::EnterApiExitFrame(int stack_space,
-                                       int argc) {
+void MacroAssembler::EnterApiExitFrame(int argc) {
   EnterExitFramePrologue();
-
-  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  lea(esi, Operand(ebp, (stack_space * kPointerSize) + offset));
-
   EnterExitFrameEpilogue(argc);
 }
 
@@ -412,6 +407,13 @@ void MacroAssembler::LeaveExitFrame() {
   // Pop the arguments and the receiver from the caller stack.
   lea(esp, Operand(esi, 1 * kPointerSize));
 
+  // Push the return address to get ready to return.
+  push(ecx);
+
+  LeaveExitFrameEpilogue();
+}
+
+void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(Isolate::k_context_address);
   mov(esi, Operand::StaticVariable(context_address));
@@ -419,12 +421,17 @@ void MacroAssembler::LeaveExitFrame() {
   mov(Operand::StaticVariable(context_address), Immediate(0));
 #endif
 
-  // Push the return address to get ready to return.
-  push(ecx);
-
   // Clear the top frame.
   ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address);
   mov(Operand::StaticVariable(c_entry_fp_address), Immediate(0));
+}
+
+
+void MacroAssembler::LeaveApiExitFrame() {
+  mov(esp, Operand(ebp));
+  pop(ebp);
+
+  LeaveExitFrameEpilogue();
 }
 
 
@@ -532,7 +539,6 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
 
 void MacroAssembler::LoadAllocationTopHelper(Register result,
-                                             Register result_end,
                                              Register scratch,
                                              AllocationFlags flags) {
   ExternalReference new_space_allocation_top =
@@ -554,7 +560,6 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
   if (scratch.is(no_reg)) {
     mov(result, Operand::StaticVariable(new_space_allocation_top));
   } else {
-    ASSERT(!scratch.is(result_end));
     mov(Operand(scratch), Immediate(new_space_allocation_top));
     mov(result, Operand(scratch, 0));
   }
@@ -603,7 +608,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  LoadAllocationTopHelper(result, result_end, scratch, flags);
+  LoadAllocationTopHelper(result, scratch, flags);
 
   Register top_reg = result_end.is_valid() ? result_end : result;
 
@@ -659,7 +664,7 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  LoadAllocationTopHelper(result, result_end, scratch, flags);
+  LoadAllocationTopHelper(result, scratch, flags);
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
@@ -700,7 +705,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  LoadAllocationTopHelper(result, result_end, scratch, flags);
+  LoadAllocationTopHelper(result, scratch, flags);
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
@@ -882,6 +887,57 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
   // Set the map. The other fields are left uninitialized.
   mov(FieldOperand(result, HeapObject::kMapOffset),
       Immediate(FACTORY->cons_ascii_string_map()));
+}
+
+// All registers must be distinct.  Only current_string needs valid contents
+// on entry.  All registers may be invalid on exit.  result_operand is
+// unchanged, padding_chars is updated correctly.
+void MacroAssembler::AppendStringToTopOfNewSpace(
+    Register current_string,  // Tagged pointer to string to copy.
+    Register current_string_length,
+    Register result_pos,
+    Register scratch,
+    Register new_padding_chars,
+    Operand operand_result,
+    Operand operand_padding_chars,
+    Label* bailout) {
+  mov(current_string_length,
+      FieldOperand(current_string, String::kLengthOffset));
+  shr(current_string_length, 1);
+  sub(current_string_length, operand_padding_chars);
+  mov(new_padding_chars, current_string_length);
+  add(Operand(current_string_length), Immediate(kObjectAlignmentMask));
+  and_(Operand(current_string_length), Immediate(~kObjectAlignmentMask));
+  sub(new_padding_chars, Operand(current_string_length));
+  neg(new_padding_chars);
+  // We need an allocation even if current_string_length is 0, to fetch
+  // result_pos.  Consider using a faster fetch of result_pos in that case.
+  AllocateInNewSpace(current_string_length, result_pos, scratch, no_reg,
+                     bailout, NO_ALLOCATION_FLAGS);
+  sub(result_pos, operand_padding_chars);
+  mov(operand_padding_chars, new_padding_chars);
+
+  Register scratch_2 = new_padding_chars;  // Used to compute total length.
+  // Copy string to the end of result.
+  mov(current_string_length,
+      FieldOperand(current_string, String::kLengthOffset));
+  mov(scratch, operand_result);
+  mov(scratch_2, current_string_length);
+  add(scratch_2, FieldOperand(scratch, String::kLengthOffset));
+  mov(FieldOperand(scratch, String::kLengthOffset), scratch_2);
+  shr(current_string_length, 1);
+  lea(current_string,
+      FieldOperand(current_string, SeqAsciiString::kHeaderSize));
+  // Loop condition: while (--current_string_length >= 0).
+  Label copy_loop;
+  Label copy_loop_entry;
+  jmp(&copy_loop_entry);
+  bind(&copy_loop);
+  mov_b(scratch, Operand(current_string, current_string_length, times_1, 0));
+  mov_b(Operand(result_pos, current_string_length, times_1, 0), scratch);
+  bind(&copy_loop_entry);
+  sub(Operand(current_string_length), Immediate(1));
+  j(greater_equal, &copy_loop);
 }
 
 
@@ -1113,10 +1169,29 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
 }
 
 
+MaybeObject* MacroAssembler::TryTailCallExternalReference(
+    const ExternalReference& ext, int num_arguments, int result_size) {
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  Set(eax, Immediate(num_arguments));
+  return TryJumpToExternalReference(ext);
+}
+
+
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                                      int num_arguments,
                                      int result_size) {
   TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
+}
+
+
+MaybeObject* MacroAssembler::TryTailCallRuntime(Runtime::FunctionId fid,
+                                                int num_arguments,
+                                                int result_size) {
+  return TryTailCallExternalReference(
+      ExternalReference(fid), num_arguments, result_size);
 }
 
 
@@ -1135,20 +1210,15 @@ Operand ApiParameterOperand(int index) {
 }
 
 
-void MacroAssembler::PrepareCallApiFunction(int stack_space, int argc) {
+void MacroAssembler::PrepareCallApiFunction(int argc, Register scratch) {
   if (kPassHandlesDirectly) {
-    EnterApiExitFrame(stack_space, argc);
+    EnterApiExitFrame(argc);
     // When handles as passed directly we don't have to allocate extra
     // space for and pass an out parameter.
   } else {
     // We allocate two additional slots: return value and pointer to it.
-    EnterApiExitFrame(stack_space, argc + 2);
-  }
-}
+    EnterApiExitFrame(argc + 2);
 
-
-void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function, int argc) {
-  if (!kPassHandlesDirectly) {
     // The argument slots are filled as follows:
     //
     //   n + 1: output cell
@@ -1160,11 +1230,19 @@ void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function, int argc) {
     // Note that this is one more "argument" than the function expects
     // so the out cell will have to be popped explicitly after returning
     // from the function. The out cell contains Handle.
-    lea(eax, Operand(esp, (argc + 1) * kPointerSize));  // pointer to out cell.
-    mov(Operand(esp, 0 * kPointerSize), eax);  // output.
-    mov(Operand(esp, (argc + 1) * kPointerSize), Immediate(0));  // out cell.
-  }
 
+    // pointer to out cell.
+    lea(scratch, Operand(esp, (argc + 1) * kPointerSize));
+    mov(Operand(esp, 0 * kPointerSize), scratch);  // output.
+    if (FLAG_debug_code) {
+      mov(Operand(esp, (argc + 1) * kPointerSize), Immediate(0));  // out cell.
+    }
+  }
+}
+
+
+MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
+                                                         int stack_space) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address();
   ExternalReference limit_address =
@@ -1213,10 +1291,14 @@ void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function, int argc) {
   cmp(Operand::StaticVariable(scheduled_exception_address),
       Immediate(FACTORY->the_hole_value()));
   j(not_equal, &promote_scheduled_exception, not_taken);
-  LeaveExitFrame();
-  ret(0);
+  LeaveApiExitFrame();
+  ret(stack_space * kPointerSize);
   bind(&promote_scheduled_exception);
-  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  MaybeObject* result =
+      TryTailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  if (result->IsFailure()) {
+    return result;
+  }
   bind(&empty_handle);
   // It was zero; the result is undefined.
   mov(eax, FACTORY->undefined_value());
@@ -1226,12 +1308,13 @@ void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function, int argc) {
   bind(&delete_allocated_handles);
   mov(Operand::StaticVariable(limit_address), edi);
   mov(edi, eax);
-  ASSERT(argc >= 1);
   mov(Operand(esp, 0), Immediate(ExternalReference::isolate_address()));
   mov(eax, Immediate(ExternalReference::delete_handle_scope_extensions()));
   call(Operand(eax));
   mov(eax, edi);
   jmp(&leave_exit_frame);
+
+  return result;
 }
 
 
@@ -1240,6 +1323,15 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext) {
   mov(ebx, Immediate(ext));
   CEntryStub ces(1);
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+MaybeObject* MacroAssembler::TryJumpToExternalReference(
+    const ExternalReference& ext) {
+  // Set the entry point and jump to the C entry runtime stub.
+  mov(ebx, Immediate(ext));
+  CEntryStub ces(1);
+  return TryTailCallStub(&ces);
 }
 
 

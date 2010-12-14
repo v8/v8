@@ -1541,6 +1541,11 @@ class Object : public Value {
    */
   V8EXPORT Local<String> ObjectProtoToString();
 
+  /**
+   * Returns the name of the function invoked as a constructor for this object.
+   */
+  V8EXPORT Local<String> GetConstructorName();
+
   /** Gets the number of internal fields for this Object. */
   V8EXPORT int InternalFieldCount();
   /** Gets the value in an internal field. */
@@ -2350,12 +2355,15 @@ class V8EXPORT ResourceConstraints {
   void set_max_young_space_size(int value) { max_young_space_size_ = value; }
   int max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(int value) { max_old_space_size_ = value; }
+  int max_executable_size() { return max_executable_size_; }
+  void set_max_executable_size(int value) { max_executable_size_ = value; }
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
  private:
   int max_young_space_size_;
   int max_old_space_size_;
+  int max_executable_size_;
   uint32_t* stack_limit_;
 };
 
@@ -2487,13 +2495,18 @@ class V8EXPORT HeapStatistics {
  public:
   HeapStatistics();
   size_t total_heap_size() { return total_heap_size_; }
+  size_t total_heap_size_executable() { return total_heap_size_executable_; }
   size_t used_heap_size() { return used_heap_size_; }
 
  private:
   void set_total_heap_size(size_t size) { total_heap_size_ = size; }
+  void set_total_heap_size_executable(size_t size) {
+    total_heap_size_executable_ = size;
+  }
   void set_used_heap_size(size_t size) { used_heap_size_ = size; }
 
   size_t total_heap_size_;
+  size_t total_heap_size_executable_;
   size_t used_heap_size_;
 
   friend class V8;
@@ -3371,8 +3384,8 @@ class V8EXPORT OutputStream {  // NOLINT
 
 namespace internal {
 
-const int kPointerSize = sizeof(void*);  // NOLINT
-const int kIntSize = sizeof(int);  // NOLINT
+static const int kApiPointerSize = sizeof(void*);  // NOLINT
+static const int kApiIntSize = sizeof(int);  // NOLINT
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
@@ -3408,19 +3421,19 @@ template <> struct SmiConstants<8> {
   }
 };
 
-const int kSmiShiftSize = SmiConstants<kPointerSize>::kSmiShiftSize;
-const int kSmiValueSize = SmiConstants<kPointerSize>::kSmiValueSize;
+const int kSmiShiftSize = SmiConstants<kApiPointerSize>::kSmiShiftSize;
+const int kSmiValueSize = SmiConstants<kApiPointerSize>::kSmiValueSize;
 
 template <size_t ptr_size> struct InternalConstants;
 
 // Internal constants for 32-bit systems.
 template <> struct InternalConstants<4> {
-  static const int kStringResourceOffset = 3 * kPointerSize;
+  static const int kStringResourceOffset = 3 * kApiPointerSize;
 };
 
 // Internal constants for 64-bit systems.
 template <> struct InternalConstants<8> {
-  static const int kStringResourceOffset = 3 * kPointerSize;
+  static const int kStringResourceOffset = 3 * kApiPointerSize;
 };
 
 /**
@@ -3434,12 +3447,12 @@ class Internals {
   // These values match non-compiler-dependent values defined within
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;
-  static const int kMapInstanceTypeOffset = 2 * kPointerSize + kIntSize;
+  static const int kMapInstanceTypeOffset = 2 * kApiPointerSize + kApiIntSize;
   static const int kStringResourceOffset =
-      InternalConstants<kPointerSize>::kStringResourceOffset;
+      InternalConstants<kApiPointerSize>::kStringResourceOffset;
 
-  static const int kProxyProxyOffset = kPointerSize;
-  static const int kJSObjectHeaderSize = 3 * kPointerSize;
+  static const int kProxyProxyOffset = kApiPointerSize;
+  static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
@@ -3457,7 +3470,7 @@ class Internals {
   }
 
   static inline int SmiValue(internal::Object* value) {
-    return SmiConstants<kPointerSize>::SmiToInt(value);
+    return SmiConstants<kApiPointerSize>::SmiToInt(value);
   }
 
   static inline int GetInstanceType(internal::Object* obj) {
@@ -3662,7 +3675,7 @@ Local<Value> Object::UncheckedGetInternalField(int index) {
     // If the object is a plain JSObject, which is the common case,
     // we know where to find the internal fields and can return the
     // value directly.
-    int offset = I::kJSObjectHeaderSize + (internal::kPointerSize * index);
+    int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
     O** result = HandleScope::CreateHandle(value);
     return Local<Value>(reinterpret_cast<Value*>(result));
@@ -3698,7 +3711,7 @@ void* Object::GetPointerFromInternalField(int index) {
     // If the object is a plain JSObject, which is the common case,
     // we know where to find the internal fields and can return the
     // value directly.
-    int offset = I::kJSObjectHeaderSize + (internal::kPointerSize * index);
+    int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
     return I::GetExternalPointer(value);
   }

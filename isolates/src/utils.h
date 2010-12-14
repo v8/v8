@@ -31,7 +31,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "globals.h"
 #include "checks.h"
+#include "allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -323,6 +325,8 @@ class Vector {
     ASSERT(0 <= index && index < length_);
     return start_[index];
   }
+
+  T& at(int i) const { return operator[](i); }
 
   T& first() { return start_[0]; }
 

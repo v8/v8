@@ -81,8 +81,9 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ pop(edx);
   __ push(esi);
   __ push(edx);
+  __ push(Immediate(FACTORY->false_value()));
   __ push(ecx);  // Restore return address.
-  __ TailCallRuntime(Runtime::kNewClosure, 2, 1);
+  __ TailCallRuntime(Runtime::kNewClosure, 3, 1);
 }
 
 
@@ -1333,6 +1334,7 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
     // Add more cases when necessary.
     case TranscendentalCache::SIN: return Runtime::kMath_sin;
     case TranscendentalCache::COS: return Runtime::kMath_cos;
+    case TranscendentalCache::LOG: return Runtime::kMath_log;
     default:
       UNIMPLEMENTED();
       return Runtime::kAbort;
@@ -1342,85 +1344,90 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 
 void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
   // Only free register is edi.
+  // Input value is on FP stack, and also in ebx/edx.  Address of result
+  // (a newly allocated HeapNumber) is in eax.
   NearLabel done;
-  ASSERT(type_ == TranscendentalCache::SIN ||
-         type_ == TranscendentalCache::COS);
-  // More transcendental types can be added later.
+  if (type_ == TranscendentalCache::SIN || type_ == TranscendentalCache::COS) {
+    // Both fsin and fcos require arguments in the range +/-2^63 and
+    // return NaN for infinities and NaN. They can share all code except
+    // the actual fsin/fcos operation.
+    NearLabel in_range;
+    // If argument is outside the range -2^63..2^63, fsin/cos doesn't
+    // work. We must reduce it to the appropriate range.
+    __ mov(edi, edx);
+    __ and_(Operand(edi), Immediate(0x7ff00000));  // Exponent only.
+    int supported_exponent_limit =
+        (63 + HeapNumber::kExponentBias) << HeapNumber::kExponentShift;
+    __ cmp(Operand(edi), Immediate(supported_exponent_limit));
+    __ j(below, &in_range, taken);
+    // Check for infinity and NaN. Both return NaN for sin.
+    __ cmp(Operand(edi), Immediate(0x7ff00000));
+    NearLabel non_nan_result;
+    __ j(not_equal, &non_nan_result, taken);
+    // Input is +/-Infinity or NaN. Result is NaN.
+    __ fstp(0);
+    // NaN is represented by 0x7ff8000000000000.
+    __ push(Immediate(0x7ff80000));
+    __ push(Immediate(0));
+    __ fld_d(Operand(esp, 0));
+    __ add(Operand(esp), Immediate(2 * kPointerSize));
+    __ jmp(&done);
 
-  // Both fsin and fcos require arguments in the range +/-2^63 and
-  // return NaN for infinities and NaN. They can share all code except
-  // the actual fsin/fcos operation.
-  NearLabel in_range;
-  // If argument is outside the range -2^63..2^63, fsin/cos doesn't
-  // work. We must reduce it to the appropriate range.
-  __ mov(edi, edx);
-  __ and_(Operand(edi), Immediate(0x7ff00000));  // Exponent only.
-  int supported_exponent_limit =
-      (63 + HeapNumber::kExponentBias) << HeapNumber::kExponentShift;
-  __ cmp(Operand(edi), Immediate(supported_exponent_limit));
-  __ j(below, &in_range, taken);
-  // Check for infinity and NaN. Both return NaN for sin.
-  __ cmp(Operand(edi), Immediate(0x7ff00000));
-  NearLabel non_nan_result;
-  __ j(not_equal, &non_nan_result, taken);
-  // Input is +/-Infinity or NaN. Result is NaN.
-  __ fstp(0);
-  // NaN is represented by 0x7ff8000000000000.
-  __ push(Immediate(0x7ff80000));
-  __ push(Immediate(0));
-  __ fld_d(Operand(esp, 0));
-  __ add(Operand(esp), Immediate(2 * kPointerSize));
-  __ jmp(&done);
+    __ bind(&non_nan_result);
 
-  __ bind(&non_nan_result);
+    // Use fpmod to restrict argument to the range +/-2*PI.
+    __ mov(edi, eax);  // Save eax before using fnstsw_ax.
+    __ fldpi();
+    __ fadd(0);
+    __ fld(1);
+    // FPU Stack: input, 2*pi, input.
+    {
+      NearLabel no_exceptions;
+      __ fwait();
+      __ fnstsw_ax();
+      // Clear if Illegal Operand or Zero Division exceptions are set.
+      __ test(Operand(eax), Immediate(5));
+      __ j(zero, &no_exceptions);
+      __ fnclex();
+      __ bind(&no_exceptions);
+    }
 
-  // Use fpmod to restrict argument to the range +/-2*PI.
-  __ mov(edi, eax);  // Save eax before using fnstsw_ax.
-  __ fldpi();
-  __ fadd(0);
-  __ fld(1);
-  // FPU Stack: input, 2*pi, input.
-  {
-    NearLabel no_exceptions;
-    __ fwait();
-    __ fnstsw_ax();
-    // Clear if Illegal Operand or Zero Division exceptions are set.
-    __ test(Operand(eax), Immediate(5));
-    __ j(zero, &no_exceptions);
-    __ fnclex();
-    __ bind(&no_exceptions);
+    // Compute st(0) % st(1)
+    {
+      NearLabel partial_remainder_loop;
+      __ bind(&partial_remainder_loop);
+      __ fprem1();
+      __ fwait();
+      __ fnstsw_ax();
+      __ test(Operand(eax), Immediate(0x400 /* C2 */));
+      // If C2 is set, computation only has partial result. Loop to
+      // continue computation.
+      __ j(not_zero, &partial_remainder_loop);
+    }
+    // FPU Stack: input, 2*pi, input % 2*pi
+    __ fstp(2);
+    __ fstp(0);
+    __ mov(eax, edi);  // Restore eax (allocated HeapNumber pointer).
+
+    // FPU Stack: input % 2*pi
+    __ bind(&in_range);
+    switch (type_) {
+      case TranscendentalCache::SIN:
+        __ fsin();
+        break;
+      case TranscendentalCache::COS:
+        __ fcos();
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ bind(&done);
+  } else {
+    ASSERT(type_ == TranscendentalCache::LOG);
+    __ fldln2();
+    __ fxch();
+    __ fyl2x();
   }
-
-  // Compute st(0) % st(1)
-  {
-    NearLabel partial_remainder_loop;
-    __ bind(&partial_remainder_loop);
-    __ fprem1();
-    __ fwait();
-    __ fnstsw_ax();
-    __ test(Operand(eax), Immediate(0x400 /* C2 */));
-    // If C2 is set, computation only has partial result. Loop to
-    // continue computation.
-    __ j(not_zero, &partial_remainder_loop);
-  }
-  // FPU Stack: input, 2*pi, input % 2*pi
-  __ fstp(2);
-  __ fstp(0);
-  __ mov(eax, edi);  // Restore eax (allocated HeapNumber pointer).
-
-  // FPU Stack: input % 2*pi
-  __ bind(&in_range);
-  switch (type_) {
-    case TranscendentalCache::SIN:
-      __ fsin();
-      break;
-    case TranscendentalCache::COS:
-      __ fcos();
-      break;
-    default:
-      UNREACHABLE();
-  }
-  __ bind(&done);
 }
 
 
@@ -3061,15 +3068,6 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 
   STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
   __ ret(0);
-}
-
-
-void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
-  __ PrepareCallApiFunction(kStackSpace, kArgc);
-  STATIC_ASSERT(kArgc == 2);
-  __ mov(ApiParameterOperand(0), ebx);  // name.
-  __ mov(ApiParameterOperand(1), eax);  // arguments pointer.
-  __ CallApiFunctionAndReturn(fun(), kArgc);
 }
 
 

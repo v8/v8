@@ -403,7 +403,7 @@ Handle<JSArray> LiveEdit::CompareStringsLinewise(Handle<String> s1,
 
 static void CompileScriptForTracker(Isolate* isolate, Handle<Script> script) {
   // TODO(635): support extensions.
-  PostponeInterruptsScope postpone;
+  PostponeInterruptsScope postpone(isolate);
 
   // Build AST.
   CompilationInfo info(script);

@@ -356,65 +356,6 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id,
 }
 
 
-Vector<unsigned> PartialParserRecorder::ExtractData() {
-  int function_size = function_store_.size();
-  int total_size = ScriptDataImpl::kHeaderSize + function_size;
-  Vector<unsigned> data = Vector<unsigned>::New(total_size);
-  preamble_[ScriptDataImpl::kFunctionsSizeOffset] = function_size;
-  preamble_[ScriptDataImpl::kSymbolCountOffset] = 0;
-  memcpy(data.start(), preamble_, sizeof(preamble_));
-  int symbol_start = ScriptDataImpl::kHeaderSize + function_size;
-  if (function_size > 0) {
-    function_store_.WriteTo(data.SubVector(ScriptDataImpl::kHeaderSize,
-                                           symbol_start));
-  }
-  return data;
-}
-
-
-void CompleteParserRecorder::LogSymbol(int start, Vector<const char> literal) {
-  if (!is_recording_) return;
-
-  int hash = vector_hash(literal);
-  HashMap::Entry* entry = symbol_table_.Lookup(&literal, hash, true);
-  int id = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-  if (id == 0) {
-    // Put (symbol_id_ + 1) into entry and increment it.
-    id = ++symbol_id_;
-    entry->value = reinterpret_cast<void*>(id);
-    Vector<Vector<const char> > symbol = symbol_entries_.AddBlock(1, literal);
-    entry->key = &symbol[0];
-  }
-  WriteNumber(id - 1);
-}
-
-
-Vector<unsigned> CompleteParserRecorder::ExtractData() {
-  int function_size = function_store_.size();
-  // Add terminator to symbols, then pad to unsigned size.
-  int symbol_size = symbol_store_.size();
-  int padding = sizeof(unsigned) - (symbol_size % sizeof(unsigned));
-  symbol_store_.AddBlock(padding, ScriptDataImpl::kNumberTerminator);
-  symbol_size += padding;
-  int total_size = ScriptDataImpl::kHeaderSize + function_size
-      + (symbol_size / sizeof(unsigned));
-  Vector<unsigned> data = Vector<unsigned>::New(total_size);
-  preamble_[ScriptDataImpl::kFunctionsSizeOffset] = function_size;
-  preamble_[ScriptDataImpl::kSymbolCountOffset] = symbol_id_;
-  memcpy(data.start(), preamble_, sizeof(preamble_));
-  int symbol_start = ScriptDataImpl::kHeaderSize + function_size;
-  if (function_size > 0) {
-    function_store_.WriteTo(data.SubVector(ScriptDataImpl::kHeaderSize,
-                                           symbol_start));
-  }
-  if (!has_error()) {
-    symbol_store_.WriteTo(
-        Vector<byte>::cast(data.SubVector(symbol_start, total_size)));
-  }
-  return data;
-}
-
-
 FunctionEntry ScriptDataImpl::GetFunctionEntry(int start) {
   // The current pre-data entry must be a FunctionEntry with the given
   // start position.
@@ -437,88 +378,48 @@ int ScriptDataImpl::GetSymbolIdentifier() {
 bool ScriptDataImpl::SanityCheck() {
   // Check that the header data is valid and doesn't specify
   // point to positions outside the store.
-  if (store_.length() < ScriptDataImpl::kHeaderSize) return false;
-  if (magic() != ScriptDataImpl::kMagicNumber) return false;
-  if (version() != ScriptDataImpl::kCurrentVersion) return false;
+  if (store_.length() < PreparseDataConstants::kHeaderSize) return false;
+  if (magic() != PreparseDataConstants::kMagicNumber) return false;
+  if (version() != PreparseDataConstants::kCurrentVersion) return false;
   if (has_error()) {
     // Extra sane sanity check for error message encoding.
-    if (store_.length() <= kHeaderSize + kMessageTextPos) return false;
-    if (Read(kMessageStartPos) > Read(kMessageEndPos)) return false;
-    unsigned arg_count = Read(kMessageArgCountPos);
-    int pos = kMessageTextPos;
+    if (store_.length() <= PreparseDataConstants::kHeaderSize
+                         + PreparseDataConstants::kMessageTextPos) {
+      return false;
+    }
+    if (Read(PreparseDataConstants::kMessageStartPos) >
+        Read(PreparseDataConstants::kMessageEndPos)) {
+      return false;
+    }
+    unsigned arg_count = Read(PreparseDataConstants::kMessageArgCountPos);
+    int pos = PreparseDataConstants::kMessageTextPos;
     for (unsigned int i = 0; i <= arg_count; i++) {
-      if (store_.length() <= kHeaderSize + pos) return false;
+      if (store_.length() <= PreparseDataConstants::kHeaderSize + pos) {
+        return false;
+      }
       int length = static_cast<int>(Read(pos));
       if (length < 0) return false;
       pos += 1 + length;
     }
-    if (store_.length() < kHeaderSize + pos) return false;
+    if (store_.length() < PreparseDataConstants::kHeaderSize + pos) {
+      return false;
+    }
     return true;
   }
   // Check that the space allocated for function entries is sane.
   int functions_size =
-      static_cast<int>(store_[ScriptDataImpl::kFunctionsSizeOffset]);
+      static_cast<int>(store_[PreparseDataConstants::kFunctionsSizeOffset]);
   if (functions_size < 0) return false;
   if (functions_size % FunctionEntry::kSize != 0) return false;
   // Check that the count of symbols is non-negative.
   int symbol_count =
-      static_cast<int>(store_[ScriptDataImpl::kSymbolCountOffset]);
+      static_cast<int>(store_[PreparseDataConstants::kSymbolCountOffset]);
   if (symbol_count < 0) return false;
   // Check that the total size has room for header and function entries.
   int minimum_size =
-      ScriptDataImpl::kHeaderSize + functions_size;
+      PreparseDataConstants::kHeaderSize + functions_size;
   if (store_.length() < minimum_size) return false;
   return true;
-}
-
-
-
-PartialParserRecorder::PartialParserRecorder()
-    : function_store_(0),
-      is_recording_(true),
-      pause_count_(0) {
-  preamble_[ScriptDataImpl::kMagicOffset] = ScriptDataImpl::kMagicNumber;
-  preamble_[ScriptDataImpl::kVersionOffset] = ScriptDataImpl::kCurrentVersion;
-  preamble_[ScriptDataImpl::kHasErrorOffset] = false;
-  preamble_[ScriptDataImpl::kFunctionsSizeOffset] = 0;
-  preamble_[ScriptDataImpl::kSymbolCountOffset] = 0;
-  preamble_[ScriptDataImpl::kSizeOffset] = 0;
-  ASSERT_EQ(6, ScriptDataImpl::kHeaderSize);
-#ifdef DEBUG
-  prev_start_ = -1;
-#endif
-}
-
-
-CompleteParserRecorder::CompleteParserRecorder()
-    : PartialParserRecorder(),
-      symbol_store_(0),
-      symbol_entries_(0),
-      symbol_table_(vector_compare),
-      symbol_id_(0) {
-}
-
-
-void PartialParserRecorder::WriteString(Vector<const char> str) {
-  function_store_.Add(str.length());
-  for (int i = 0; i < str.length(); i++) {
-    function_store_.Add(str[i]);
-  }
-}
-
-
-void CompleteParserRecorder::WriteNumber(int number) {
-  ASSERT(number >= 0);
-
-  int mask = (1 << 28) - 1;
-  for (int i = 28; i > 0; i -= 7) {
-    if (number > mask) {
-      symbol_store_.Add(static_cast<byte>(number >> i) | 0x80u);
-      number &= mask;
-    }
-    mask >>= 7;
-  }
-  symbol_store_.Add(static_cast<byte>(number));
 }
 
 
@@ -534,47 +435,26 @@ const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
   return result;
 }
 
-
-void PartialParserRecorder::LogMessage(Scanner::Location loc,
-                                       const char* message,
-                                       Vector<const char*> args) {
-  if (has_error()) return;
-  preamble_[ScriptDataImpl::kHasErrorOffset] = true;
-  function_store_.Reset();
-  STATIC_ASSERT(ScriptDataImpl::kMessageStartPos == 0);
-  function_store_.Add(loc.beg_pos);
-  STATIC_ASSERT(ScriptDataImpl::kMessageEndPos == 1);
-  function_store_.Add(loc.end_pos);
-  STATIC_ASSERT(ScriptDataImpl::kMessageArgCountPos == 2);
-  function_store_.Add(args.length());
-  STATIC_ASSERT(ScriptDataImpl::kMessageTextPos == 3);
-  WriteString(CStrVector(message));
-  for (int i = 0; i < args.length(); i++) {
-    WriteString(CStrVector(args[i]));
-  }
-  is_recording_ = false;
-}
-
-
 Scanner::Location ScriptDataImpl::MessageLocation() {
-  int beg_pos = Read(kMessageStartPos);
-  int end_pos = Read(kMessageEndPos);
+  int beg_pos = Read(PreparseDataConstants::kMessageStartPos);
+  int end_pos = Read(PreparseDataConstants::kMessageEndPos);
   return Scanner::Location(beg_pos, end_pos);
 }
 
 
 const char* ScriptDataImpl::BuildMessage() {
-  unsigned* start = ReadAddress(kMessageTextPos);
+  unsigned* start = ReadAddress(PreparseDataConstants::kMessageTextPos);
   return ReadString(start, NULL);
 }
 
 
 Vector<const char*> ScriptDataImpl::BuildArgs() {
-  int arg_count = Read(kMessageArgCountPos);
+  int arg_count = Read(PreparseDataConstants::kMessageArgCountPos);
   const char** array = NewArray<const char*>(arg_count);
   // Position after text found by skipping past length field and
   // length field content words.
-  int pos = kMessageTextPos + 1 + Read(kMessageTextPos);
+  int pos = PreparseDataConstants::kMessageTextPos + 1
+      + Read(PreparseDataConstants::kMessageTextPos);
   for (int i = 0; i < arg_count; i++) {
     int count = 0;
     array[i] = ReadString(ReadAddress(pos), &count);
@@ -585,12 +465,12 @@ Vector<const char*> ScriptDataImpl::BuildArgs() {
 
 
 unsigned ScriptDataImpl::Read(int position) {
-  return store_[ScriptDataImpl::kHeaderSize + position];
+  return store_[PreparseDataConstants::kHeaderSize + position];
 }
 
 
 unsigned* ScriptDataImpl::ReadAddress(int position) {
-  return &store_[ScriptDataImpl::kHeaderSize + position];
+  return &store_[PreparseDataConstants::kHeaderSize + position];
 }
 
 
@@ -703,9 +583,10 @@ Parser::Parser(Handle<Script> script,
                bool allow_natives_syntax,
                v8::Extension* extension,
                ScriptDataImpl* pre_data)
-    : symbol_cache_(pre_data ? pre_data->symbol_count() : 0),
+    : isolate_(script->GetIsolate()),
+      symbol_cache_(pre_data ? pre_data->symbol_count() : 0),
       script_(script),
-      scanner_(),
+      scanner_(isolate_),
       top_scope_(NULL),
       with_nesting_level_(0),
       temp_scope_(NULL),
@@ -713,7 +594,8 @@ Parser::Parser(Handle<Script> script,
       allow_natives_syntax_(allow_natives_syntax),
       extension_(extension),
       pre_data_(pre_data),
-      fni_(NULL) {
+      fni_(NULL),
+      stack_overflow_(false) {
 }
 
 
@@ -727,7 +609,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 
   // Initialize parser state.
   source->TryFlatten();
-  scanner_.Initialize(source, JAVASCRIPT);
+  scanner_.Initialize(source);
   ASSERT(target_stack_ == NULL);
   if (pre_data_ != NULL) pre_data_->Initialize();
 
@@ -763,7 +645,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
           source->length(),
           false,
           temp_scope.ContainsLoops());
-    } else if (scanner().stack_overflow()) {
+    } else if (stack_overflow_) {
       Isolate::Current()->StackOverflow();
     }
   }
@@ -790,8 +672,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
 
   // Initialize parser state.
   source->TryFlatten();
-  scanner_.Initialize(source, info->start_position(), info->end_position(),
-                      JAVASCRIPT);
+  scanner_.Initialize(source, info->start_position(), info->end_position());
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
 
@@ -814,7 +695,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
     // Make sure the results agree.
     ASSERT(ok == (result != NULL));
     // The only errors should be stack overflows.
-    ASSERT(ok || scanner_.stack_overflow());
+    ASSERT(ok || stack_overflow_);
   }
 
   // Make sure the target stack is empty.
@@ -1692,11 +1573,13 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
   //   Identifier ':' Statement
-
+  bool starts_with_idenfifier = (peek() == Token::IDENTIFIER);
   Expression* expr = ParseExpression(true, CHECK_OK);
-  if (peek() == Token::COLON && expr &&
+  if (peek() == Token::COLON && starts_with_idenfifier && expr &&
       expr->AsVariableProxy() != NULL &&
       !expr->AsVariableProxy()->is_this()) {
+    // Expression is a single identifier, and not, e.g., a parenthesized
+    // identifier.
     VariableProxy* var = expr->AsVariableProxy();
     Handle<String> label = var->name();
     // TODO(1240780): We don't check for redeclaration of labels
@@ -2275,6 +2158,12 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     temp_scope_->AddProperty();
   }
 
+  // If we assign a function literal to a property we pretenure the
+  // literal so it can be added as a constant function property.
+  if (property != NULL && right->AsFunctionLiteral() != NULL) {
+    right->AsFunctionLiteral()->set_pretenure(true);
+  }
+
   if (fni_ != NULL) {
     // Check if the right hand side is a call to avoid inferring a
     // name if we're dealing with "a = function(){...}();"-like
@@ -2703,25 +2592,24 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
   // We don't report stack overflows here, to avoid increasing the
   // stack depth even further.  Instead we report it after parsing is
   // over, in ParseProgram/ParseJson.
-  if (token == Token::ILLEGAL && scanner().stack_overflow())
-    return;
+  if (token == Token::ILLEGAL && stack_overflow_) return;
   // Four of the tokens are treated specially
   switch (token) {
-  case Token::EOS:
-    return ReportMessage("unexpected_eos", Vector<const char*>::empty());
-  case Token::NUMBER:
-    return ReportMessage("unexpected_token_number",
-                         Vector<const char*>::empty());
-  case Token::STRING:
-    return ReportMessage("unexpected_token_string",
-                         Vector<const char*>::empty());
-  case Token::IDENTIFIER:
-    return ReportMessage("unexpected_token_identifier",
-                         Vector<const char*>::empty());
-  default:
-    const char* name = Token::String(token);
-    ASSERT(name != NULL);
-    ReportMessage("unexpected_token", Vector<const char*>(&name, 1));
+    case Token::EOS:
+      return ReportMessage("unexpected_eos", Vector<const char*>::empty());
+    case Token::NUMBER:
+      return ReportMessage("unexpected_token_number",
+                           Vector<const char*>::empty());
+    case Token::STRING:
+      return ReportMessage("unexpected_token_string",
+                           Vector<const char*>::empty());
+    case Token::IDENTIFIER:
+      return ReportMessage("unexpected_token_identifier",
+                           Vector<const char*>::empty());
+    default:
+      const char* name = Token::String(token);
+      ASSERT(name != NULL);
+      ReportMessage("unexpected_token", Vector<const char*>(&name, 1));
   }
 }
 
@@ -3611,10 +3499,11 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 
 Handle<Object> JsonParser::ParseJson(Handle<String> source) {
   source->TryFlatten();
-  scanner_.Initialize(source, JSON);
+  scanner_.Initialize(source);
+  stack_overflow_ = false;
   Handle<Object> result = ParseJsonValue();
   if (result.is_null() || scanner_.Next() != Token::EOS) {
-    if (scanner_.stack_overflow()) {
+    if (stack_overflow_) {
       // Scanner failed.
       Isolate::Current()->StackOverflow();
     } else {
@@ -3706,12 +3595,18 @@ Handle<Object> JsonParser::ParseJsonValue() {
 
 // Parse a JSON object. Scanner must be right after '{' token.
 Handle<Object> JsonParser::ParseJsonObject() {
+  Isolate* isolate = Isolate::Current();
   Handle<JSFunction> object_constructor(
-      Isolate::Current()->global_context()->object_function());
-  Handle<JSObject> json_object = FACTORY->NewJSObject(object_constructor);
+      isolate->global_context()->object_function());
+  Handle<JSObject> json_object =
+      isolate->factory()->NewJSObject(object_constructor);
   if (scanner_.peek() == Token::RBRACE) {
     scanner_.Next();
   } else {
+    if (StackLimitCheck(isolate).HasOverflowed()) {
+      stack_overflow_ = true;
+      return Handle<Object>::null();
+    }
     do {
       if (scanner_.Next() != Token::STRING) {
         return ReportUnexpectedToken();
@@ -3746,6 +3641,10 @@ Handle<Object> JsonParser::ParseJsonArray() {
   if (token == Token::RBRACK) {
     scanner_.Next();
   } else {
+    if (StackLimitCheck(Isolate::Current()).HasOverflowed()) {
+      stack_overflow_ = true;
+      return Handle<Object>::null();
+    }
     do {
       Handle<Object> element = ParseJsonValue();
       if (element.is_null()) return Handle<Object>::null();
@@ -4486,6 +4385,7 @@ CharacterRange RegExpParser::ParseClassAtom(uc16* char_class) {
 RegExpTree* RegExpParser::ParseCharacterClass() {
   static const char* kUnterminated = "Unterminated character class";
   static const char* kRangeOutOfOrder = "Range out of order in character class";
+  static const char* kInvalidRange = "Invalid character range";
 
   ASSERT_EQ(current(), '[');
   Advance();
@@ -4494,12 +4394,28 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
     is_negated = true;
     Advance();
   }
+  // A CharacterClass is a sequence of single characters, character class
+  // escapes or ranges. Ranges are on the form "x-y" where x and y are
+  // single characters (and not character class escapes like \s).
+  // A "-" may occur at the start or end of the character class (just after
+  // "[" or "[^", or just before "]") without being considered part of a
+  // range. A "-" may also appear as the beginning or end of a range.
+  // I.e., [--+] is valid, so is [!--].
+
   ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
   while (has_more() && current() != ']') {
     uc16 char_class = 0;
     CharacterRange first = ParseClassAtom(&char_class CHECK_FAILED);
     if (char_class) {
       CharacterRange::AddClassEscape(char_class, ranges);
+      if (current() == '-') {
+        Advance();
+        ranges->Add(CharacterRange::Singleton('-'));
+        if (current() != ']') {
+          ReportError(CStrVector(kInvalidRange) CHECK_FAILED);
+        }
+        break;
+      }
       continue;
     }
     if (current() == '-') {
@@ -4515,10 +4431,7 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
       }
       CharacterRange next = ParseClassAtom(&char_class CHECK_FAILED);
       if (char_class) {
-        ranges->Add(first);
-        ranges->Add(CharacterRange::Singleton('-'));
-        CharacterRange::AddClassEscape(char_class, ranges);
-        continue;
+        ReportError(CStrVector(kInvalidRange) CHECK_FAILED);
       }
       if (first.from() > next.to()) {
         return ReportError(CStrVector(kRangeOutOfOrder) CHECK_FAILED);
@@ -4572,9 +4485,10 @@ bool ScriptDataImpl::HasError() {
 
 void ScriptDataImpl::Initialize() {
   // Prepares state for use.
-  if (store_.length() >= kHeaderSize) {
-    function_index_ = kHeaderSize;
-    int symbol_data_offset = kHeaderSize + store_[kFunctionsSizeOffset];
+  if (store_.length() >= PreparseDataConstants::kHeaderSize) {
+    function_index_ = PreparseDataConstants::kHeaderSize;
+    int symbol_data_offset = PreparseDataConstants::kHeaderSize
+        + store_[PreparseDataConstants::kFunctionsSizeOffset];
     if (store_.length() > symbol_data_offset) {
       symbol_data_ = reinterpret_cast<byte*>(&store_[symbol_data_offset]);
     } else {
@@ -4596,7 +4510,7 @@ int ScriptDataImpl::ReadNumber(byte** source) {
   byte* data = *source;
   if (data >= symbol_data_end_) return -1;
   byte input = *data;
-  if (input == kNumberTerminator) {
+  if (input == PreparseDataConstants::kNumberTerminator) {
     // End of stream marker.
     return -1;
   }
@@ -4613,31 +4527,46 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 }
 
 
+// Create a Scanner for the preparser to use as input, and preparse the source.
+static ScriptDataImpl* DoPreParse(Handle<String> source,
+                                  unibrow::CharacterStream* stream,
+                                  bool allow_lazy,
+                                  ParserRecorder* recorder,
+                                  int literal_flags) {
+  Isolate* isolate = Isolate::Current();
+  V8JavaScriptScanner scanner(isolate);
+  scanner.Initialize(source, stream, literal_flags);
+  intptr_t stack_limit = isolate->stack_guard()->real_climit();
+  if (!preparser::PreParser::PreParseProgram(&scanner,
+                                             recorder,
+                                             allow_lazy,
+                                             stack_limit)) {
+    isolate->StackOverflow();
+    return NULL;
+  }
+
+  // Extract the accumulated data from the recorder as a single
+  // contiguous vector that we are responsible for disposing.
+  Vector<unsigned> store = recorder->ExtractData();
+  return new ScriptDataImpl(store);
+}
+
+
 // Preparse, but only collect data that is immediately useful,
 // even if the preparser data is only used once.
 ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
                                            unibrow::CharacterStream* stream,
                                            v8::Extension* extension) {
-  Handle<Script> no_script;
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   if (!allow_lazy) {
     // Partial preparsing is only about lazily compiled functions.
     // If we don't allow lazy compilation, the log data will be empty.
     return NULL;
   }
-  preparser::PreParser<Scanner, PartialParserRecorder> parser;
-  Scanner scanner;
-  scanner.Initialize(source, stream, JAVASCRIPT);
   PartialParserRecorder recorder;
-  if (!parser.PreParseProgram(&scanner, &recorder, allow_lazy)) {
-    Isolate::Current()->StackOverflow();
-    return NULL;
-  }
 
-  // Extract the accumulated data from the recorder as a single
-  // contiguous vector that we are responsible for disposing.
-  Vector<unsigned> store = recorder.ExtractData();
-  return new ScriptDataImpl(store);
+  return DoPreParse(source, stream, allow_lazy, &recorder,
+                    JavaScriptScanner::kNoLiterals);
 }
 
 
@@ -4645,19 +4574,12 @@ ScriptDataImpl* ParserApi::PreParse(Handle<String> source,
                                     unibrow::CharacterStream* stream,
                                     v8::Extension* extension) {
   Handle<Script> no_script;
-  preparser::PreParser<Scanner, CompleteParserRecorder> parser;
-  Scanner scanner;
-  scanner.Initialize(source, stream, JAVASCRIPT);
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   CompleteParserRecorder recorder;
-  if (!parser.PreParseProgram(&scanner, &recorder, allow_lazy)) {
-    Isolate::Current()->StackOverflow();
-    return NULL;
-  }
-  // Extract the accumulated data from the recorder as a single
-  // contiguous vector that we are responsible for disposing.
-  Vector<unsigned> store = recorder.ExtractData();
-  return new ScriptDataImpl(store);
+  int kPreParseLiteralsFlags =
+      JavaScriptScanner::kLiteralString | JavaScriptScanner::kLiteralIdentifier;
+  return DoPreParse(source, stream, allow_lazy,
+                    &recorder, kPreParseLiteralsFlags);
 }
 
 

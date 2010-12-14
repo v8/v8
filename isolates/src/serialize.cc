@@ -286,10 +286,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
         TOP_ADDRESS, i, AddressNames[i]);
   }
 
-  // Extensions
-  Add(FUNCTION_ADDR(GCExtension::GC), EXTENSION, 1,
-      "GCExtension::GC");
-
   // Accessors
 #define ACCESSOR_DESCRIPTOR_DECLARATION(name) \
   Add((Address)&Accessors::name, \

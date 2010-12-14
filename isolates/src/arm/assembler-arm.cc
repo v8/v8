@@ -398,13 +398,6 @@ void Assembler::CodeTargetAlign() {
 }
 
 
-bool Assembler::IsNop(Instr instr, int type) {
-  // Check for mov rx, rx.
-  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
-  return instr == (al | 13*B21 | type*B12 | type);
-}
-
-
 bool Assembler::IsBranch(Instr instr) {
   return (instr & (B27 | B25)) == (B27 | B25);
 }
@@ -508,6 +501,13 @@ bool Assembler::IsStrRegFpNegOffset(Instr instr) {
 
 bool Assembler::IsLdrRegFpNegOffset(Instr instr) {
   return ((instr & kLdrStrInstrTypeMask) == kLdrRegFpNegOffsetPattern);
+}
+
+
+bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
+  // Check the instruction is indeed a
+  // ldr<cond> <Rd>, [pc +/- offset_12].
+  return (instr & 0x0f7f0000) == 0x051f0000;
 }
 
 
@@ -1115,8 +1115,8 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
     positions_recorder()->WriteRecordedPositions();
   }
   // Don't allow nop instructions in the form mov rn, rn to be generated using
-  // the mov instruction. They must be generated using nop(int)
-  // pseudo instructions.
+  // the mov instruction. They must be generated using nop(int/NopMarkerTypes)
+  // or MarkCode(int/NopMarkerTypes) pseudo instructions.
   ASSERT(!(src.is_reg() && src.rm().is(dst) && s == LeaveCC && cond == al));
   addrmod1(cond | 13*B21 | s, r0, dst, src);
 }
@@ -2146,6 +2146,7 @@ static Instr EncodeVCVT(const VFPType dst_type,
                         const int dst_code,
                         const VFPType src_type,
                         const int src_code,
+                        Assembler::ConversionMode mode,
                         const Condition cond) {
   ASSERT(src_type != dst_type);
   int D, Vd, M, Vm;
@@ -2164,7 +2165,7 @@ static Instr EncodeVCVT(const VFPType dst_type,
     if (IsIntegerVFPType(dst_type)) {
       opc2 = IsSignedVFPType(dst_type) ? 0x5 : 0x4;
       sz = IsDoubleVFPType(src_type) ? 0x1 : 0x0;
-      op = 1;  // round towards zero
+      op = mode;
     } else {
       ASSERT(IsIntegerVFPType(src_type));
       opc2 = 0x0;
@@ -2188,57 +2189,64 @@ static Instr EncodeVCVT(const VFPType dst_type,
 
 void Assembler::vcvt_f64_s32(const DwVfpRegister dst,
                              const SwVfpRegister src,
+                             ConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
-  emit(EncodeVCVT(F64, dst.code(), S32, src.code(), cond));
+  emit(EncodeVCVT(F64, dst.code(), S32, src.code(), mode, cond));
 }
 
 
 void Assembler::vcvt_f32_s32(const SwVfpRegister dst,
                              const SwVfpRegister src,
+                             ConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
-  emit(EncodeVCVT(F32, dst.code(), S32, src.code(), cond));
+  emit(EncodeVCVT(F32, dst.code(), S32, src.code(), mode, cond));
 }
 
 
 void Assembler::vcvt_f64_u32(const DwVfpRegister dst,
                              const SwVfpRegister src,
+                             ConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
-  emit(EncodeVCVT(F64, dst.code(), U32, src.code(), cond));
+  emit(EncodeVCVT(F64, dst.code(), U32, src.code(), mode, cond));
 }
 
 
 void Assembler::vcvt_s32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
+                             ConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
-  emit(EncodeVCVT(S32, dst.code(), F64, src.code(), cond));
+  emit(EncodeVCVT(S32, dst.code(), F64, src.code(), mode, cond));
 }
 
 
 void Assembler::vcvt_u32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
+                             ConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
-  emit(EncodeVCVT(U32, dst.code(), F64, src.code(), cond));
+  emit(EncodeVCVT(U32, dst.code(), F64, src.code(), mode, cond));
 }
 
 
 void Assembler::vcvt_f64_f32(const DwVfpRegister dst,
                              const SwVfpRegister src,
+                             ConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
-  emit(EncodeVCVT(F64, dst.code(), F32, src.code(), cond));
+  emit(EncodeVCVT(F64, dst.code(), F32, src.code(), mode, cond));
 }
 
 
 void Assembler::vcvt_f32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
+                             ConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
-  emit(EncodeVCVT(F32, dst.code(), F64, src.code(), cond));
+  emit(EncodeVCVT(F32, dst.code(), F64, src.code(), mode, cond));
 }
 
 
@@ -2331,6 +2339,16 @@ void Assembler::vcmp(const DwVfpRegister src1,
 }
 
 
+void Assembler::vmsr(Register dst, Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-652.
+  // cond(31-28) | 1110 (27-24) | 1110(23-20)| 0001 (19-16) |
+  // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
+  emit(cond | 0xE*B24 | 0xE*B20 |  B16 |
+       dst.code()*B12 | 0xA*B8 | B4);
+}
+
+
 void Assembler::vmrs(Register dst, Condition cond) {
   // Instruction details available in ARM DDI 0406A, A8-652.
   // cond(31-28) | 1110 (27-24) | 1111(23-20)| 0001 (19-16) |
@@ -2339,7 +2357,6 @@ void Assembler::vmrs(Register dst, Condition cond) {
   emit(cond | 0xE*B24 | 0xF*B20 |  B16 |
        dst.code()*B12 | 0xA*B8 | B4);
 }
-
 
 
 void Assembler::vsqrt(const DwVfpRegister dst,
@@ -2358,6 +2375,13 @@ void Assembler::nop(int type) {
   // This is mov rx, rx.
   ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
   emit(al | 13*B21 | type*B12 | type);
+}
+
+
+bool Assembler::IsNop(Instr instr, int type) {
+  // Check for mov rx, rx.
+  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
+  return instr == (al | 13*B21 | type*B12 | type);
 }
 
 

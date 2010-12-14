@@ -28,7 +28,8 @@
 #ifndef V8_DATEPARSER_H_
 #define V8_DATEPARSER_H_
 
-#include "scanner.h"
+#include "char-predicates-inl.h"
+#include "scanner-base.h"
 
 namespace v8 {
 namespace internal {
@@ -70,7 +71,7 @@ class DateParser : public AllStatic {
         : index_(0),
           buffer_(s),
           has_read_number_(false),
-          character_classes_(Isolate::Current()->scanner_character_classes()) {
+          scanner_constants_(Isolate::Current()->scanner_constants()) {
       Next();
     }
 
@@ -83,6 +84,18 @@ class DateParser : public AllStatic {
       int n;
       for (n = 0; IsAsciiDigit() && n < kMaxInt / 10 - 1; Next()) {
         n = n * 10 + ch_ - '0';
+      }
+      return n;
+    }
+
+    // Read a string of digits, take the first three or fewer as an unsigned
+    // number of milliseconds, and ignore any digits after the first three.
+    int ReadMilliseconds() {
+      has_read_number_ = true;
+      int n = 0;
+      int power;
+      for (power = 100; IsAsciiDigit(); Next(), power = power / 10) {
+        n = n + power * (ch_ - '0');
       }
       return n;
     }
@@ -100,10 +113,20 @@ class DateParser : public AllStatic {
     }
 
     // The skip methods return whether they actually skipped something.
-    bool Skip(uint32_t c) { return ch_ == c ?  (Next(), true) : false; }
+    bool Skip(uint32_t c) {
+      if (ch_ == c) {
+        Next();
+        return true;
+      }
+      return false;
+    }
 
     bool SkipWhiteSpace() {
-      return character_classes_->IsWhiteSpace(ch_) ? (Next(), true) : false;
+      if (scanner_constants_->IsWhiteSpace(ch_)) {
+        Next();
+        return true;
+      }
+      return false;
     }
 
     bool SkipParentheses() {
@@ -135,7 +158,7 @@ class DateParser : public AllStatic {
     Vector<Char> buffer_;
     bool has_read_number_;
     uint32_t ch_;
-    ScannerCharacterClasses* character_classes_;
+    ScannerConstants* scanner_constants_;
   };
 
   enum KeywordType { INVALID, MONTH_NAME, TIME_ZONE_NAME, AM_PM };

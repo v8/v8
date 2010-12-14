@@ -154,8 +154,8 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm)
       safe_int32_mode_enabled_(true),
       function_return_is_shadowed_(false),
       in_spilled_code_(false),
-      jit_cookie_(FLAG_mask_constants_with_cookie ?
-                  V8::Random(Isolate::Current()) : 0) {
+      jit_cookie_((FLAG_mask_constants_with_cookie) ?
+                  V8::RandomPrivate(Isolate::Current()) : 0) {
 }
 
 
@@ -687,10 +687,10 @@ void CodeGenerator::Load(Expression* expr) {
 
 void CodeGenerator::LoadGlobal() {
   if (in_spilled_code()) {
-    frame_->EmitPush(GlobalObject());
+    frame_->EmitPush(GlobalObjectOperand());
   } else {
     Result temp = allocator_->Allocate();
-    __ mov(temp.reg(), GlobalObject());
+    __ mov(temp.reg(), GlobalObjectOperand());
     frame_->Push(&temp);
   }
 }
@@ -699,7 +699,7 @@ void CodeGenerator::LoadGlobal() {
 void CodeGenerator::LoadGlobalReceiver() {
   Result temp = allocator_->Allocate();
   Register reg = temp.reg();
-  __ mov(reg, GlobalObject());
+  __ mov(reg, GlobalObjectOperand());
   __ mov(reg, FieldOperand(reg, GlobalObject::kGlobalReceiverOffset));
   frame_->Push(&temp);
 }
@@ -4902,7 +4902,8 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 
 
 Result CodeGenerator::InstantiateFunction(
-    Handle<SharedFunctionInfo> function_info) {
+    Handle<SharedFunctionInfo> function_info,
+    bool pretenure) {
   // The inevitable call will sync frame elements to memory anyway, so
   // we do it eagerly to allow us to push the arguments directly into
   // place.
@@ -4910,7 +4911,9 @@ Result CodeGenerator::InstantiateFunction(
 
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && function_info->num_literals() == 0) {
+  if (scope()->is_function_scope() &&
+      function_info->num_literals() == 0 &&
+      !pretenure) {
     FastNewClosureStub stub;
     frame()->EmitPush(Immediate(function_info));
     return frame()->CallStub(&stub, 1);
@@ -4919,7 +4922,10 @@ Result CodeGenerator::InstantiateFunction(
     // shared function info.
     frame()->EmitPush(esi);
     frame()->EmitPush(Immediate(function_info));
-    return frame()->CallRuntime(Runtime::kNewClosure, 2);
+    frame()->EmitPush(Immediate(pretenure
+                                ? FACTORY->true_value()
+                                : FACTORY->false_value()));
+    return frame()->CallRuntime(Runtime::kNewClosure, 3);
   }
 }
 
@@ -4935,7 +4941,7 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
     SetStackOverflow();
     return;
   }
-  Result result = InstantiateFunction(function_info);
+  Result result = InstantiateFunction(function_info, node->pretenure());
   frame()->Push(&result);
 }
 
@@ -4944,7 +4950,7 @@ void CodeGenerator::VisitSharedFunctionInfoLiteral(
     SharedFunctionInfoLiteral* node) {
   ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
-  Result result = InstantiateFunction(node->shared_function_info());
+  Result result = InstantiateFunction(node->shared_function_info(), false);
   frame()->Push(&result);
 }
 
@@ -6299,6 +6305,18 @@ void CodeGenerator::VisitCall(Call* node) {
         // Push the receiver onto the frame.
         Load(property->obj());
 
+        // Load the name of the function.
+        Load(property->key());
+
+        // Swap the name of the function and the receiver on the stack to follow
+        // the calling convention for call ICs.
+        Result key = frame_->Pop();
+        Result receiver = frame_->Pop();
+        frame_->Push(&key);
+        frame_->Push(&receiver);
+        key.Unuse();
+        receiver.Unuse();
+
         // Load the arguments.
         int arg_count = args->length();
         for (int i = 0; i < arg_count; i++) {
@@ -6306,15 +6324,14 @@ void CodeGenerator::VisitCall(Call* node) {
           frame_->SpillTop();
         }
 
-        // Load the name of the function.
-        Load(property->key());
-
-        // Call the IC initialization code.
+        // Place the key on top of stack and call the IC initialization code.
+        frame_->PushElementAt(arg_count + 1);
         CodeForSourcePosition(node->position());
         Result result =
             frame_->CallKeyedCallIC(RelocInfo::CODE_TARGET,
                                     arg_count,
                                     loop_nesting());
+        frame_->Drop();  // Drop the key still on the stack.
         frame_->RestoreContextRegister();
         frame_->Push(&result);
       }
@@ -6636,6 +6653,190 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+  Load(args->at(1));
+  Load(args->at(0));
+  Result array_result = frame_->Pop();
+  array_result.ToRegister(eax);
+  frame_->SpillAll();
+
+  Label bailout;
+  Label done;
+  // All aliases of the same register have disjoint lifetimes.
+  Register array = eax;
+  Register result_pos = no_reg;
+
+  Register index = edi;
+
+  Register current_string_length = ecx;  // Will be ecx when live.
+
+  Register current_string = edx;
+
+  Register scratch = ebx;
+
+  Register scratch_2 = esi;
+  Register new_padding_chars = scratch_2;
+
+  Operand separator = Operand(esp, 4 * kPointerSize);  // Already pushed.
+  Operand elements = Operand(esp, 3 * kPointerSize);
+  Operand result = Operand(esp, 2 * kPointerSize);
+  Operand padding_chars = Operand(esp, 1 * kPointerSize);
+  Operand array_length = Operand(esp, 0);
+  __ sub(Operand(esp), Immediate(4 * kPointerSize));
+
+  // Check that eax is a JSArray
+  __ test(array, Immediate(kSmiTagMask));
+  __ j(zero, &bailout);
+  __ CmpObjectType(array, JS_ARRAY_TYPE, scratch);
+  __ j(not_equal, &bailout);
+
+  // Check that the array has fast elements.
+  __ test_b(FieldOperand(scratch, Map::kBitField2Offset),
+            1 << Map::kHasFastElements);
+  __ j(zero, &bailout);
+
+  // If the array is empty, return the empty string.
+  __ mov(scratch, FieldOperand(array, JSArray::kLengthOffset));
+  __ sar(scratch, 1);
+  Label non_trivial;
+  __ j(not_zero, &non_trivial);
+  __ mov(result, FACTORY->empty_string());
+  __ jmp(&done);
+
+  __ bind(&non_trivial);
+  __ mov(array_length, scratch);
+
+  __ mov(scratch, FieldOperand(array, JSArray::kElementsOffset));
+  __ mov(elements, scratch);
+
+  // End of array's live range.
+  result_pos = array;
+  array = no_reg;
+
+
+  // Check that the separator is a flat ascii string.
+  __ mov(current_string, separator);
+  __ test(current_string, Immediate(kSmiTagMask));
+  __ j(zero, &bailout);
+  __ mov(scratch, FieldOperand(current_string, HeapObject::kMapOffset));
+  __ mov_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, Immediate(
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
+  __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
+  __ j(not_equal, &bailout);
+  // If the separator is the empty string, replace it with NULL.
+  // The test for NULL is quicker than the empty string test, in a loop.
+  __ cmp(FieldOperand(current_string, SeqAsciiString::kLengthOffset),
+         Immediate(0));
+  Label separator_checked;
+  __ j(not_zero, &separator_checked);
+  __ mov(separator, Immediate(0));
+  __ bind(&separator_checked);
+
+  // Check that elements[0] is a flat ascii string, and copy it in new space.
+  __ mov(scratch, elements);
+  __ mov(current_string, FieldOperand(scratch, FixedArray::kHeaderSize));
+  __ test(current_string, Immediate(kSmiTagMask));
+  __ j(zero, &bailout);
+  __ mov(scratch, FieldOperand(current_string, HeapObject::kMapOffset));
+  __ mov_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, Immediate(
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
+  __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
+  __ j(not_equal, &bailout);
+
+  // Allocate space to copy it.  Round up the size to the alignment granularity.
+  __ mov(current_string_length,
+         FieldOperand(current_string, String::kLengthOffset));
+  __ shr(current_string_length, 1);
+
+  // Live registers and stack values:
+  //   current_string_length: length of elements[0].
+
+  // New string result in new space = elements[0]
+  __ AllocateAsciiString(result_pos, current_string_length, scratch_2,
+                         index, no_reg, &bailout);
+  __ mov(result, result_pos);
+
+  // Adjust current_string_length to include padding bytes at end of string.
+  // Keep track of the number of padding bytes.
+  __ mov(new_padding_chars, current_string_length);
+  __ add(Operand(current_string_length), Immediate(kObjectAlignmentMask));
+  __ and_(Operand(current_string_length), Immediate(~kObjectAlignmentMask));
+  __ sub(new_padding_chars, Operand(current_string_length));
+  __ neg(new_padding_chars);
+  __ mov(padding_chars, new_padding_chars);
+
+  Label copy_loop_1_done;
+  Label copy_loop_1;
+  __ test(current_string_length, Operand(current_string_length));
+  __ j(zero, &copy_loop_1_done);
+  __ bind(&copy_loop_1);
+  __ sub(Operand(current_string_length), Immediate(kPointerSize));
+  __ mov(scratch, FieldOperand(current_string, current_string_length,
+                               times_1, SeqAsciiString::kHeaderSize));
+  __ mov(FieldOperand(result_pos, current_string_length,
+                      times_1, SeqAsciiString::kHeaderSize),
+         scratch);
+  __ j(not_zero, &copy_loop_1);
+  __ bind(&copy_loop_1_done);
+
+  __ mov(index, Immediate(1));
+  // Loop condition: while (index < length).
+  Label loop;
+  __ bind(&loop);
+  __ cmp(index, array_length);
+  __ j(greater_equal, &done);
+
+  // If the separator is the empty string, signalled by NULL, skip it.
+  Label separator_done;
+  __ mov(current_string, separator);
+  __ test(current_string, Operand(current_string));
+  __ j(zero, &separator_done);
+
+  // Append separator to result.  It is known to be a flat ascii string.
+  __ AppendStringToTopOfNewSpace(current_string, current_string_length,
+                                 result_pos, scratch, scratch_2, result,
+                                 padding_chars, &bailout);
+  __ bind(&separator_done);
+
+  // Add next element of array to the end of the result.
+  // Get current_string = array[index].
+  __ mov(scratch, elements);
+  __ mov(current_string, FieldOperand(scratch, index,
+                                      times_pointer_size,
+                                      FixedArray::kHeaderSize));
+  // If current != flat ascii string drop result, return undefined.
+  __ test(current_string, Immediate(kSmiTagMask));
+  __ j(zero, &bailout);
+  __ mov(scratch, FieldOperand(current_string, HeapObject::kMapOffset));
+  __ mov_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, Immediate(
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
+  __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
+  __ j(not_equal, &bailout);
+
+  // Append current to the result.
+  __ AppendStringToTopOfNewSpace(current_string, current_string_length,
+                                 result_pos, scratch, scratch_2, result,
+                                 padding_chars, &bailout);
+  __ add(Operand(index), Immediate(1));
+  __ jmp(&loop);  // End while (index < length).
+
+  __ bind(&bailout);
+  __ mov(result, FACTORY->undefined_value());
+  __ bind(&done);
+  __ mov(eax, result);
+  // Drop temp values from the stack, and restore context register.
+  __ add(Operand(esp), Immediate(4 * kPointerSize));
+
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  frame_->Drop(1);
+  frame_->Push(&array_result);
+}
+
+
 void CodeGenerator::GenerateIsRegExp(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
@@ -6783,8 +6984,8 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
     __ mov(scratch2_,
            FieldOperand(scratch2_, GlobalObject::kGlobalContextOffset));
     __ cmp(scratch1_,
-           CodeGenerator::ContextOperand(
-               scratch2_, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
+           ContextOperand(scratch2_,
+                          Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
     __ j(not_equal, &false_result);
     // Set the bit in the map to indicate that it has been checked safe for
     // default valueOf and set true result.
@@ -7799,6 +8000,15 @@ void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateMathLog(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  Load(args->at(0));
+  TranscendentalCacheStub stub(TranscendentalCache::LOG);
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
 // Generates the Math.sqrt method. Please note - this function assumes that
 // the callsite has executed ToNumber on the argument.
 void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
@@ -7939,7 +8149,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     // Push the builtins object found in the current global object.
     Result temp = allocator()->Allocate();
     ASSERT(temp.is_valid());
-    __ mov(temp.reg(), GlobalObject());
+    __ mov(temp.reg(), GlobalObjectOperand());
     __ mov(temp.reg(), FieldOperand(temp.reg(), GlobalObject::kBuiltinsOffset));
     frame_->Push(&temp);
   }
@@ -8583,9 +8793,11 @@ void CodeGenerator::Int32BinaryOperation(BinaryOperation* node) {
       }
       right.Unuse();
       frame_->Push(&left);
-      if (!node->to_int32()) {
-        // If ToInt32 is called on the result of ADD, SUB, or MUL, we don't
+      if (!node->to_int32() || op == Token::MUL) {
+        // If ToInt32 is called on the result of ADD, SUB, we don't
         // care about overflows.
+        // Result of MUL can be non-representable precisely in double so
+        // we have to check for overflow.
         unsafe_bailout_->Branch(overflow);
       }
       break;

@@ -82,7 +82,7 @@ class SaveContext;
 class StubCache;
 class StringInputBuffer;
 class StringTracker;
-class ScannerCharacterClasses;
+class ScannerConstants;
 class ThreadVisitor;  // Defined in v8threads.h
 class ThreadManager;
 class ThreadState;
@@ -721,8 +721,8 @@ class Isolate {
   }
   Zone* zone() { return &zone_; }
 
-  ScannerCharacterClasses* scanner_character_classes() {
-    return scanner_character_classes_;
+  ScannerConstants* scanner_constants() {
+    return scanner_constants_;
   }
 
   PcToCodeCache* pc_to_code_cache() { return pc_to_code_cache_; }
@@ -985,7 +985,7 @@ class Isolate {
   DescriptorLookupCache* descriptor_lookup_cache_;
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
-  ScannerCharacterClasses* scanner_character_classes_;
+  ScannerConstants* scanner_constants_;
   Zone zone_;
   PreallocatedStorage in_use_list_;
   PreallocatedStorage free_list_;
@@ -1156,18 +1156,19 @@ class StackLimitCheck BASE_EMBEDDED {
 // account.
 class PostponeInterruptsScope BASE_EMBEDDED {
  public:
-  PostponeInterruptsScope() {
-    StackGuard* stack_guard = Isolate::Current()->stack_guard();
-    stack_guard->thread_local_.postpone_interrupts_nesting_++;
-    stack_guard->DisableInterrupts();
+  PostponeInterruptsScope(Isolate* isolate)
+      : stack_guard_(isolate->stack_guard()) {
+    stack_guard_->thread_local_.postpone_interrupts_nesting_++;
+    stack_guard_->DisableInterrupts();
   }
 
   ~PostponeInterruptsScope() {
-    StackGuard* stack_guard = Isolate::Current()->stack_guard();
-    if (--stack_guard->thread_local_.postpone_interrupts_nesting_ == 0) {
-      stack_guard->EnableInterrupts();
+    if (--stack_guard_->thread_local_.postpone_interrupts_nesting_ == 0) {
+      stack_guard_->EnableInterrupts();
     }
   }
+ private:
+  StackGuard* stack_guard_;
 };
 
 

@@ -224,7 +224,9 @@ namespace internal {
   SC(math_sqrt, V8.MathSqrt)                                          \
   SC(math_tan, V8.MathTan)                                            \
   SC(transcendental_cache_hit, V8.TranscendentalCacheHit)             \
-  SC(transcendental_cache_miss, V8.TranscendentalCacheMiss)
+  SC(transcendental_cache_miss, V8.TranscendentalCacheMiss)           \
+  SC(quote_json_char_count, V8.QuoteJsonCharacterCount)               \
+  SC(quote_json_char_recount, V8.QuoteJsonCharacterReCount)           \
 
 
 // This file contains all the v8 counters that are in use.

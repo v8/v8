@@ -37,6 +37,7 @@
 #include "utils.h"
 #include "cctest.h"
 #include "parser.h"
+#include "unicode-inl.h"
 
 static const bool kLogThreading = true;
 
@@ -6322,7 +6323,7 @@ static void CheckInterceptorLoadIC(NamedPropertyGetter getter,
                                    int expected) {
   v8::HandleScope scope;
   v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
-  templ->SetNamedPropertyHandler(getter);
+  templ->SetNamedPropertyHandler(getter, 0, 0, 0, 0, v8_str("data"));
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
   v8::Handle<Value> value = CompileRun(source);
@@ -6333,7 +6334,8 @@ static void CheckInterceptorLoadIC(NamedPropertyGetter getter,
 static v8::Handle<Value> InterceptorLoadICGetter(Local<String> name,
                                                  const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
-  CHECK(v8_str("x")->Equals(name));
+  CHECK_EQ(v8_str("data"), info.Data());
+  CHECK_EQ(v8_str("x"), name);
   return v8::Integer::New(42);
 }
 
@@ -6731,7 +6733,8 @@ THREADED_TEST(InterceptorStoreIC) {
   v8::HandleScope scope;
   v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
   templ->SetNamedPropertyHandler(InterceptorLoadICGetter,
-                                 InterceptorStoreICSetter);
+                                 InterceptorStoreICSetter,
+                                 0, 0, 0, v8_str("data"));
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
   v8::Handle<Value> value = CompileRun(
@@ -7815,6 +7818,31 @@ THREADED_TEST(ObjectProtoToString) {
 }
 
 
+THREADED_TEST(ObjectGetConstructorName) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8_compile("function Parent() {};"
+             "function Child() {};"
+             "Child.prototype = new Parent();"
+             "var outer = { inner: function() { } };"
+             "var p = new Parent();"
+             "var c = new Child();"
+             "var x = new outer.inner();")->Run();
+
+  Local<v8::Value> p = context->Global()->Get(v8_str("p"));
+  CHECK(p->IsObject() && p->ToObject()->GetConstructorName()->Equals(
+      v8_str("Parent")));
+
+  Local<v8::Value> c = context->Global()->Get(v8_str("c"));
+  CHECK(c->IsObject() && c->ToObject()->GetConstructorName()->Equals(
+      v8_str("Child")));
+
+  Local<v8::Value> x = context->Global()->Get(v8_str("x"));
+  CHECK(x->IsObject() && x->ToObject()->GetConstructorName()->Equals(
+      v8_str("outer.inner")));
+}
+
+
 bool ApiTestFuzzer::fuzzing_ = false;
 i::Semaphore* ApiTestFuzzer::all_tests_done_=
   i::OS::CreateSemaphore(0);
@@ -8756,7 +8784,7 @@ TEST(PreCompileInvalidPreparseDataError) {
       v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK(!sd->HasError());
   // ScriptDataImpl private implementation details
-  const int kHeaderSize = i::ScriptDataImpl::kHeaderSize;
+  const int kHeaderSize = i::PreparseDataConstants::kHeaderSize;
   const int kFunctionEntrySize = i::FunctionEntry::kSize;
   const int kFunctionEntryStartOffset = 0;
   const int kFunctionEntryEndOffset = 1;
@@ -10655,7 +10683,7 @@ static uint32_t* stack_limit;
 
 static v8::Handle<Value> GetStackLimitCallback(const v8::Arguments& args) {
   stack_limit = reinterpret_cast<uint32_t*>(
-      i::Isolate::Current()->stack_guard()->climit());
+      i::Isolate::Current()->stack_guard()->real_climit());
   return v8::Undefined();
 }
 

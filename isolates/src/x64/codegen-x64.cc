@@ -568,10 +568,10 @@ void CodeGenerator::Load(Expression* expr) {
 
 void CodeGenerator::LoadGlobal() {
   if (in_spilled_code()) {
-    frame_->EmitPush(GlobalObject());
+    frame_->EmitPush(GlobalObjectOperand());
   } else {
     Result temp = allocator_->Allocate();
-    __ movq(temp.reg(), GlobalObject());
+    __ movq(temp.reg(), GlobalObjectOperand());
     frame_->Push(&temp);
   }
 }
@@ -580,7 +580,7 @@ void CodeGenerator::LoadGlobal() {
 void CodeGenerator::LoadGlobalReceiver() {
   Result temp = allocator_->Allocate();
   Register reg = temp.reg();
-  __ movq(reg, GlobalObject());
+  __ movq(reg, GlobalObjectOperand());
   __ movq(reg, FieldOperand(reg, GlobalObject::kGlobalReceiverOffset));
   frame_->Push(&temp);
 }
@@ -4245,7 +4245,8 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 
 
 void CodeGenerator::InstantiateFunction(
-    Handle<SharedFunctionInfo> function_info) {
+    Handle<SharedFunctionInfo> function_info,
+    bool pretenure) {
   // The inevitable call will sync frame elements to memory anyway, so
   // we do it eagerly to allow us to push the arguments directly into
   // place.
@@ -4253,7 +4254,9 @@ void CodeGenerator::InstantiateFunction(
 
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && function_info->num_literals() == 0) {
+  if (scope()->is_function_scope() &&
+      function_info->num_literals() == 0 &&
+      !pretenure) {
     FastNewClosureStub stub;
     frame_->Push(function_info);
     Result answer = frame_->CallStub(&stub, 1);
@@ -4263,7 +4266,10 @@ void CodeGenerator::InstantiateFunction(
     // shared function info.
     frame_->EmitPush(rsi);
     frame_->EmitPush(function_info);
-    Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
+    frame_->EmitPush(pretenure
+                     ? FACTORY->true_value()
+                     : FACTORY->false_value());
+    Result result = frame_->CallRuntime(Runtime::kNewClosure, 3);
     frame_->Push(&result);
   }
 }
@@ -4280,14 +4286,14 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
     SetStackOverflow();
     return;
   }
-  InstantiateFunction(function_info);
+  InstantiateFunction(function_info, node->pretenure());
 }
 
 
 void CodeGenerator::VisitSharedFunctionInfoLiteral(
     SharedFunctionInfoLiteral* node) {
   Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
-  InstantiateFunction(node->shared_function_info());
+  InstantiateFunction(node->shared_function_info(), false);
 }
 
 
@@ -5593,6 +5599,18 @@ void CodeGenerator::VisitCall(Call* node) {
         // Push the receiver onto the frame.
         Load(property->obj());
 
+        // Load the name of the function.
+        Load(property->key());
+
+        // Swap the name of the function and the receiver on the stack to follow
+        // the calling convention for call ICs.
+        Result key = frame_->Pop();
+        Result receiver = frame_->Pop();
+        frame_->Push(&key);
+        frame_->Push(&receiver);
+        key.Unuse();
+        receiver.Unuse();
+
         // Load the arguments.
         int arg_count = args->length();
         for (int i = 0; i < arg_count; i++) {
@@ -5600,14 +5618,13 @@ void CodeGenerator::VisitCall(Call* node) {
           frame_->SpillTop();
         }
 
-        // Load the name of the function.
-        Load(property->key());
-
-        // Call the IC initialization code.
+        // Place the key on top of stack and call the IC initialization code.
+        frame_->PushElementAt(arg_count + 1);
         CodeForSourcePosition(node->position());
         Result result = frame_->CallKeyedCallIC(RelocInfo::CODE_TARGET,
                                                 arg_count,
                                                 loop_nesting());
+        frame_->Drop();  // Drop the key still on the stack.
         frame_->RestoreContextRegister();
         frame_->Push(&result);
       }
@@ -6063,7 +6080,7 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
     __ movq(scratch2_,
             FieldOperand(scratch2_, GlobalObject::kGlobalContextOffset));
     __ cmpq(scratch1_,
-            CodeGenerator::ContextOperand(
+            ContextOperand(
                 scratch2_, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
     __ j(not_equal, &false_result);
     // Set the bit in the map to indicate that it has been checked safe for
@@ -7095,6 +7112,15 @@ void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateMathLog(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  Load(args->at(0));
+  TranscendentalCacheStub stub(TranscendentalCache::LOG);
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
 // Generates the Math.sqrt method. Please note - this function assumes that
 // the callsite has executed ToNumber on the argument.
 void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
@@ -7207,6 +7233,11 @@ void CodeGenerator::GenerateGetCachedArrayIndex(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args) {
+  frame_->Push(FACTORY->undefined_value());
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) {
     return;
@@ -7220,7 +7251,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     // Push the builtins object found in the current global object.
     Result temp = allocator()->Allocate();
     ASSERT(temp.is_valid());
-    __ movq(temp.reg(), GlobalObject());
+    __ movq(temp.reg(), GlobalObjectOperand());
     __ movq(temp.reg(),
             FieldOperand(temp.reg(), GlobalObject::kBuiltinsOffset));
     frame_->Push(&temp);

@@ -838,7 +838,7 @@ bool Debug::Load() {
   // Disable breakpoints and interrupts while compiling and running the
   // debugger scripts including the context creation code.
   DisableBreak disable(true);
-  PostponeInterruptsScope postpone;
+  PostponeInterruptsScope postpone(isolate);
 
   // Create the debugger context.
   HandleScope scope;
@@ -942,7 +942,7 @@ Object* Debug::Break(RUNTIME_CALLING_CONVENTION) {
   }
 
   // Postpone interrupt during breakpoint processing.
-  PostponeInterruptsScope postpone;
+  PostponeInterruptsScope postpone(isolate);
 
   // Get the debug info (create it if it does not exist).
   Handle<SharedFunctionInfo> shared =
@@ -1880,7 +1880,7 @@ bool Debug::IsDebugGlobal(GlobalObject* global) {
 
 
 void Debug::ClearMirrorCache() {
-  PostponeInterruptsScope postpone;
+  PostponeInterruptsScope postpone(isolate_);
   HandleScope scope;
   ASSERT(Isolate::Current()->context() == *Debug::debug_context());
 

@@ -1771,6 +1771,14 @@ void Assembler::fldz() {
 }
 
 
+void Assembler::fldln2() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xD9);
+  EMIT(0xED);
+}
+
+
 void Assembler::fld_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1898,6 +1906,14 @@ void Assembler::fsin() {
   last_pc_ = pc_;
   EMIT(0xD9);
   EMIT(0xFE);
+}
+
+
+void Assembler::fyl2x() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xD9);
+  EMIT(0xF1);
 }
 
 

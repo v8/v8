@@ -115,7 +115,6 @@ static void DefaultFatalErrorHandler(const char* location,
 }
 
 
-
 static FatalErrorCallback GetFatalErrorHandler() {
   i::Isolate* isolate = i::Isolate::Current();
   if (isolate->exception_behavior() == NULL) {
@@ -124,6 +123,10 @@ static FatalErrorCallback GetFatalErrorHandler() {
   return isolate->exception_behavior();
 }
 
+
+void i::FatalProcessOutOfMemory(const char* location) {
+  i::V8::FatalProcessOutOfMemory(location, false);
+}
 
 
 // When V8 cannot allocated memory FatalProcessOutOfMemory is called.
@@ -408,6 +411,7 @@ v8::Handle<Boolean> False() {
 ResourceConstraints::ResourceConstraints()
   : max_young_space_size_(0),
     max_old_space_size_(0),
+    max_executable_size_(0),
     stack_limit_(NULL) { }
 
 
@@ -416,9 +420,11 @@ bool SetResourceConstraints(ResourceConstraints* constraints) {
 
   int young_space_size = constraints->max_young_space_size();
   int old_gen_size = constraints->max_old_space_size();
-  if (young_space_size != 0 || old_gen_size != 0) {
+  int max_executable_size = constraints->max_executable_size();
+  if (young_space_size != 0 || old_gen_size != 0 || max_executable_size != 0) {
     bool result = isolate->heap()->ConfigureHeap(young_space_size / 2,
-                                                 old_gen_size);
+                                                 old_gen_size,
+                                                 max_executable_size);
     if (!result) return false;
   }
   if (constraints->stack_limit() != NULL) {
@@ -2485,6 +2491,15 @@ Local<String> v8::Object::ObjectProtoToString() {
 }
 
 
+Local<String> v8::Object::GetConstructorName() {
+  ON_BAILOUT("v8::Object::GetConstructorName()", return Local<v8::String>());
+  ENTER_V8;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::String> name(self->constructor_name());
+  return Utils::ToLocal(name);
+}
+
+
 bool v8::Object::Delete(v8::Handle<String> key) {
   ON_BAILOUT("v8::Object::Delete()", return false);
   ENTER_V8;
@@ -3246,11 +3261,15 @@ bool v8::V8::Dispose() {
 }
 
 
-HeapStatistics::HeapStatistics(): total_heap_size_(0), used_heap_size_(0) { }
+HeapStatistics::HeapStatistics(): total_heap_size_(0),
+                                  total_heap_size_executable_(0),
+                                  used_heap_size_(0) { }
 
 
 void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->set_total_heap_size(HEAP->CommittedMemory());
+  heap_statistics->set_total_heap_size_executable(
+      HEAP->CommittedMemoryExecutable());
   heap_statistics->set_used_heap_size(HEAP->SizeOfObjects());
 }
 
@@ -4703,9 +4722,11 @@ Handle<Value> HeapGraphEdge::GetName() const {
     case i::HeapGraphEdge::kContextVariable:
     case i::HeapGraphEdge::kInternal:
     case i::HeapGraphEdge::kProperty:
+    case i::HeapGraphEdge::kShortcut:
       return Handle<String>(ToApi<String>(FACTORY->LookupAsciiSymbol(
           edge->name())));
     case i::HeapGraphEdge::kElement:
+    case i::HeapGraphEdge::kHidden:
       return Handle<Number>(ToApi<Number>(FACTORY->NewNumberFromInt(
           edge->index())));
     default: UNREACHABLE();
@@ -4795,15 +4816,9 @@ int HeapGraphNode::GetSelfSize() const {
 }
 
 
-int HeapGraphNode::GetReachableSize() const {
-  IsDeadCheck("v8::HeapSnapshot::GetReachableSize");
-  return ToInternal(this)->ReachableSize();
-}
-
-
-int HeapGraphNode::GetRetainedSize() const {
+int HeapGraphNode::GetRetainedSize(bool exact) const {
   IsDeadCheck("v8::HeapSnapshot::GetRetainedSize");
-  return ToInternal(this)->RetainedSize();
+  return ToInternal(this)->RetainedSize(exact);
 }
 
 
@@ -4843,6 +4858,12 @@ const HeapGraphPath* HeapGraphNode::GetRetainingPath(int index) const {
   IsDeadCheck("v8::HeapSnapshot::GetRetainingPath");
   return reinterpret_cast<const HeapGraphPath*>(
       ToInternal(this)->GetRetainingPaths()->at(index));
+}
+
+
+const HeapGraphNode* HeapGraphNode::GetDominatorNode() const {
+  IsDeadCheck("v8::HeapSnapshot::GetDominatorNode");
+  return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->dominator());
 }
 
 
@@ -4892,6 +4913,13 @@ Handle<String> HeapSnapshot::GetTitle() const {
 const HeapGraphNode* HeapSnapshot::GetRoot() const {
   IsDeadCheck("v8::HeapSnapshot::GetHead");
   return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->root());
+}
+
+
+const HeapGraphNode* HeapSnapshot::GetNodeById(uint64_t id) const {
+  IsDeadCheck("v8::HeapSnapshot::GetNodeById");
+  return reinterpret_cast<const HeapGraphNode*>(
+      ToInternal(this)->GetEntryById(id));
 }
 
 

@@ -1125,13 +1125,6 @@ void MarkCompactCollector::MarkLiveObjects() {
 }
 
 
-static int CountMarkedCallback(HeapObject* obj) {
-  MapWord map_word = obj->map_word();
-  map_word.ClearMark();
-  return obj->SizeFromMap(map_word.ToMap());
-}
-
-
 #ifdef DEBUG
 void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
   live_bytes_ += obj->Size();
@@ -1178,7 +1171,7 @@ bool MarkCompactCollector::SafeIsMap(HeapObject* object) {
 
 
 void MarkCompactCollector::ClearNonLiveTransitions() {
-  HeapObjectIterator map_iterator(HEAP->map_space(), &CountMarkedCallback);
+  HeapObjectIterator map_iterator(HEAP->map_space(), &SizeOfMarkedObject);
   // Iterate over the map space, setting map transitions that go from
   // a marked map to an unmarked map to null transitions.  At the same time,
   // set all the prototype fields of maps back to their original value,
@@ -2723,6 +2716,13 @@ void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
     PROFILE(FunctionDeleteEvent(obj->address()));
   }
 #endif
+}
+
+
+int MarkCompactCollector::SizeOfMarkedObject(HeapObject* obj) {
+  MapWord map_word = obj->map_word();
+  map_word.ClearMark();
+  return obj->SizeFromMap(map_word.ToMap());
 }
 
 

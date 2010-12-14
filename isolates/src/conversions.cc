@@ -33,21 +33,11 @@
 #include "conversions-inl.h"
 #include "dtoa.h"
 #include "factory.h"
-#include "scanner.h"
+#include "scanner-base.h"
 #include "strtod.h"
 
 namespace v8 {
 namespace internal {
-
-int HexValue(uc32 c) {
-  if ('0' <= c && c <= '9')
-    return c - '0';
-  if ('a' <= c && c <= 'f')
-    return c - 'a' + 10;
-  if ('A' <= c && c <= 'F')
-    return c - 'A' + 10;
-  return -1;
-}
 
 namespace {
 
@@ -119,11 +109,11 @@ static const double JUNK_STRING_VALUE = OS::nan_value();
 
 // Returns true if a nonspace found and false if the end has reached.
 template <class Iterator, class EndMark>
-static inline bool AdvanceToNonspace(ScannerCharacterClasses* character_classes,
+static inline bool AdvanceToNonspace(ScannerConstants* scanner_constants,
                                      Iterator* current,
                                      EndMark end) {
   while (*current != end) {
-    if (!character_classes->IsWhiteSpace(**current)) return true;
+    if (!scanner_constants->IsWhiteSpace(**current)) return true;
     ++*current;
   }
   return false;
@@ -145,7 +135,7 @@ static double SignedZero(bool sign) {
 // Parsing integers with radix 2, 4, 8, 16, 32. Assumes current != end.
 template <int radix_log_2, class Iterator, class EndMark>
 static double InternalStringToIntDouble(
-    ScannerCharacterClasses* character_classes,
+    ScannerConstants* scanner_constants,
     Iterator current,
     EndMark end,
     bool sign,
@@ -172,7 +162,7 @@ static double InternalStringToIntDouble(
       digit = static_cast<char>(*current) - 'A' + 10;
     } else {
       if (allow_trailing_junk ||
-          !AdvanceToNonspace(character_classes, &current, end)) {
+          !AdvanceToNonspace(scanner_constants, &current, end)) {
         break;
       } else {
         return JUNK_STRING_VALUE;
@@ -204,7 +194,7 @@ static double InternalStringToIntDouble(
       }
 
       if (!allow_trailing_junk &&
-          AdvanceToNonspace(character_classes, &current, end)) {
+          AdvanceToNonspace(scanner_constants, &current, end)) {
         return JUNK_STRING_VALUE;
       }
 
@@ -248,14 +238,14 @@ static double InternalStringToIntDouble(
 
 
 template <class Iterator, class EndMark>
-static double InternalStringToInt(ScannerCharacterClasses* character_classes,
+static double InternalStringToInt(ScannerConstants* scanner_constants,
                                   Iterator current,
                                   EndMark end,
                                   int radix) {
   const bool allow_trailing_junk = true;
   const double empty_string_val = JUNK_STRING_VALUE;
 
-  if (!AdvanceToNonspace(character_classes, &current, end)) {
+  if (!AdvanceToNonspace(scanner_constants, &current, end)) {
     return empty_string_val;
   }
 
@@ -265,12 +255,12 @@ static double InternalStringToInt(ScannerCharacterClasses* character_classes,
   if (*current == '+') {
     // Ignore leading sign; skip following spaces.
     ++current;
-    if (!AdvanceToNonspace(character_classes, &current, end)) {
+    if (!AdvanceToNonspace(scanner_constants, &current, end)) {
       return JUNK_STRING_VALUE;
     }
   } else if (*current == '-') {
     ++current;
-    if (!AdvanceToNonspace(character_classes, &current, end)) {
+    if (!AdvanceToNonspace(scanner_constants, &current, end)) {
       return JUNK_STRING_VALUE;
     }
     sign = true;
@@ -323,21 +313,21 @@ static double InternalStringToInt(ScannerCharacterClasses* character_classes,
     switch (radix) {
       case 2:
         return InternalStringToIntDouble<1>(
-            character_classes, current, end, sign, allow_trailing_junk);
+            scanner_constants, current, end, sign, allow_trailing_junk);
       case 4:
         return InternalStringToIntDouble<2>(
-            character_classes, current, end, sign, allow_trailing_junk);
+            scanner_constants, current, end, sign, allow_trailing_junk);
       case 8:
         return InternalStringToIntDouble<3>(
-            character_classes, current, end, sign, allow_trailing_junk);
+            scanner_constants, current, end, sign, allow_trailing_junk);
 
       case 16:
         return InternalStringToIntDouble<4>(
-            character_classes, current, end, sign, allow_trailing_junk);
+            scanner_constants, current, end, sign, allow_trailing_junk);
 
       case 32:
         return InternalStringToIntDouble<5>(
-            character_classes, current, end, sign, allow_trailing_junk);
+            scanner_constants, current, end, sign, allow_trailing_junk);
       default:
         UNREACHABLE();
     }
@@ -363,7 +353,7 @@ static double InternalStringToInt(ScannerCharacterClasses* character_classes,
     }
 
     if (!allow_trailing_junk &&
-        AdvanceToNonspace(character_classes, &current, end)) {
+        AdvanceToNonspace(scanner_constants, &current, end)) {
       return JUNK_STRING_VALUE;
     }
 
@@ -429,7 +419,7 @@ static double InternalStringToInt(ScannerCharacterClasses* character_classes,
   } while (!done);
 
   if (!allow_trailing_junk &&
-      AdvanceToNonspace(character_classes, &current, end)) {
+      AdvanceToNonspace(scanner_constants, &current, end)) {
     return JUNK_STRING_VALUE;
   }
 
@@ -443,7 +433,7 @@ static double InternalStringToInt(ScannerCharacterClasses* character_classes,
 // 2. *current - gets the current character in the sequence.
 // 3. ++current (advances the position).
 template <class Iterator, class EndMark>
-static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
+static double InternalStringToDouble(ScannerConstants* scanner_constants,
                                      Iterator current,
                                      EndMark end,
                                      int flags,
@@ -456,7 +446,7 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
   // 'parsing_done'.
   // 4. 'current' is not dereferenced after the 'parsing_done' label.
   // 5. Code before 'parsing_done' may rely on 'current != end'.
-  if (!AdvanceToNonspace(character_classes, &current, end)) {
+  if (!AdvanceToNonspace(scanner_constants, &current, end)) {
     return empty_string_val;
   }
 
@@ -478,16 +468,12 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
   bool sign = false;
 
   if (*current == '+') {
-    // Ignore leading sign; skip following spaces.
+    // Ignore leading sign.
     ++current;
-    if (!AdvanceToNonspace(character_classes, &current, end)) {
-      return JUNK_STRING_VALUE;
-    }
+    if (current == end) return JUNK_STRING_VALUE;
   } else if (*current == '-') {
     ++current;
-    if (!AdvanceToNonspace(character_classes, &current, end)) {
-      return JUNK_STRING_VALUE;
-    }
+    if (current == end) return JUNK_STRING_VALUE;
     sign = true;
   }
 
@@ -498,7 +484,7 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
     }
 
     if (!allow_trailing_junk &&
-        AdvanceToNonspace(character_classes, &current, end)) {
+        AdvanceToNonspace(scanner_constants, &current, end)) {
       return JUNK_STRING_VALUE;
     }
 
@@ -520,7 +506,7 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
         return JUNK_STRING_VALUE;  // "0x".
       }
 
-      return InternalStringToIntDouble<4>(character_classes,
+      return InternalStringToIntDouble<4>(scanner_constants,
                                           current,
                                           end,
                                           sign,
@@ -658,7 +644,7 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
   }
 
   if (!allow_trailing_junk &&
-      AdvanceToNonspace(character_classes, &current, end)) {
+      AdvanceToNonspace(scanner_constants, &current, end)) {
     return JUNK_STRING_VALUE;
   }
 
@@ -666,7 +652,7 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
   exponent += insignificant_digits;
 
   if (octal) {
-    return InternalStringToIntDouble<3>(character_classes,
+    return InternalStringToIntDouble<3>(scanner_constants,
                                         buffer,
                                         buffer + buffer_pos,
                                         sign,
@@ -682,27 +668,27 @@ static double InternalStringToDouble(ScannerCharacterClasses* character_classes,
   buffer[buffer_pos] = '\0';
 
   double converted = Strtod(Vector<const char>(buffer, buffer_pos), exponent);
-  return sign? -converted: converted;
+  return sign ? -converted : converted;
 }
 
 
 double StringToDouble(String* str, int flags, double empty_string_val) {
-  ScannerCharacterClasses* character_classes =
-      Isolate::Current()->scanner_character_classes();
+  ScannerConstants* scanner_constants =
+      Isolate::Current()->scanner_constants();
   StringShape shape(str);
   if (shape.IsSequentialAscii()) {
     const char* begin = SeqAsciiString::cast(str)->GetChars();
     const char* end = begin + str->length();
-    return InternalStringToDouble(character_classes, begin, end, flags,
+    return InternalStringToDouble(scanner_constants, begin, end, flags,
                                   empty_string_val);
   } else if (shape.IsSequentialTwoByte()) {
     const uc16* begin = SeqTwoByteString::cast(str)->GetChars();
     const uc16* end = begin + str->length();
-    return InternalStringToDouble(character_classes, begin, end, flags,
+    return InternalStringToDouble(scanner_constants, begin, end, flags,
                                   empty_string_val);
   } else {
     StringInputBuffer buffer(str);
-    return InternalStringToDouble(character_classes,
+    return InternalStringToDouble(scanner_constants,
                                   StringInputBufferIterator(&buffer),
                                   StringInputBufferIterator::EndMarker(),
                                   flags,
@@ -712,20 +698,20 @@ double StringToDouble(String* str, int flags, double empty_string_val) {
 
 
 double StringToInt(String* str, int radix) {
-  ScannerCharacterClasses* character_classes =
-      Isolate::Current()->scanner_character_classes();
+  ScannerConstants* scanner_constants =
+      Isolate::Current()->scanner_constants();
   StringShape shape(str);
   if (shape.IsSequentialAscii()) {
     const char* begin = SeqAsciiString::cast(str)->GetChars();
     const char* end = begin + str->length();
-    return InternalStringToInt(character_classes, begin, end, radix);
+    return InternalStringToInt(scanner_constants, begin, end, radix);
   } else if (shape.IsSequentialTwoByte()) {
     const uc16* begin = SeqTwoByteString::cast(str)->GetChars();
     const uc16* end = begin + str->length();
-    return InternalStringToInt(character_classes, begin, end, radix);
+    return InternalStringToInt(scanner_constants, begin, end, radix);
   } else {
     StringInputBuffer buffer(str);
-    return InternalStringToInt(character_classes,
+    return InternalStringToInt(scanner_constants,
                                StringInputBufferIterator(&buffer),
                                StringInputBufferIterator::EndMarker(),
                                radix);
@@ -734,10 +720,10 @@ double StringToInt(String* str, int radix) {
 
 
 double StringToDouble(const char* str, int flags, double empty_string_val) {
-  ScannerCharacterClasses* character_classes =
-      Isolate::Current()->scanner_character_classes();
+  ScannerConstants* scanner_constants =
+      Isolate::Current()->scanner_constants();
   const char* end = str + StrLength(str);
-  return InternalStringToDouble(character_classes, str, end, flags,
+  return InternalStringToDouble(scanner_constants, str, end, flags,
                                 empty_string_val);
 }
 
@@ -745,18 +731,13 @@ double StringToDouble(const char* str, int flags, double empty_string_val) {
 double StringToDouble(Vector<const char> str,
                       int flags,
                       double empty_string_val) {
-  ScannerCharacterClasses* character_classes =
-      Isolate::Current()->scanner_character_classes();
+  ScannerConstants* scanner_constants =
+      Isolate::Current()->scanner_constants();
   const char* end = str.start() + str.length();
-  return InternalStringToDouble(character_classes, str.start(), end, flags,
+  return InternalStringToDouble(scanner_constants, str.start(), end, flags,
                                 empty_string_val);
 }
 
-
-extern "C" char* dtoa(double d, int mode, int ndigits,
-                      int* decpt, int* sign, char** rve);
-
-extern "C" void freedtoa(char* s);
 
 const char* DoubleToCString(double v, Vector<char> buffer) {
   StringBuilder builder(buffer.start(), buffer.length());
@@ -781,21 +762,13 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
     default: {
       int decimal_point;
       int sign;
-      char* decimal_rep;
-      bool used_gay_dtoa = false;
       const int kV8DtoaBufferCapacity = kBase10MaximalLength + 1;
-      char v8_dtoa_buffer[kV8DtoaBufferCapacity];
+      char decimal_rep[kV8DtoaBufferCapacity];
       int length;
 
-      if (DoubleToAscii(v, DTOA_SHORTEST, 0,
-                        Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
-                        &sign, &length, &decimal_point)) {
-        decimal_rep = v8_dtoa_buffer;
-      } else {
-        decimal_rep = dtoa(v, 0, 0, &decimal_point, &sign, NULL);
-        used_gay_dtoa = true;
-        length = StrLength(decimal_rep);
-      }
+      DoubleToAscii(v, DTOA_SHORTEST, 0,
+                    Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                    &sign, &length, &decimal_point);
 
       if (sign) builder.AddCharacter('-');
 
@@ -829,8 +802,6 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
         if (exponent < 0) exponent = -exponent;
         builder.AddFormatted("%d", exponent);
       }
-
-      if (used_gay_dtoa) freedtoa(decimal_rep);
     }
   }
   return builder.Finalize();
@@ -887,11 +858,9 @@ char* DoubleToFixedCString(double value, int f) {
       kMaxDigitsBeforePoint + kMaxDigitsAfterPoint + 1;
   char decimal_rep[kDecimalRepCapacity];
   int decimal_rep_length;
-  bool status = DoubleToAscii(value, DTOA_FIXED, f,
-                              Vector<char>(decimal_rep, kDecimalRepCapacity),
-                              &sign, &decimal_rep_length, &decimal_point);
-  USE(status);
-  ASSERT(status);
+  DoubleToAscii(value, DTOA_FIXED, f,
+                Vector<char>(decimal_rep, kDecimalRepCapacity),
+                &sign, &decimal_rep_length, &decimal_point);
 
   // Create a representation that is padded with zeros if needed.
   int zero_prefix_length = 0;
@@ -977,8 +946,6 @@ char* DoubleToExponentialCString(double value, int f) {
   // Find a sufficiently precise decimal representation of n.
   int decimal_point;
   int sign;
-  char* decimal_rep = NULL;
-  bool used_gay_dtoa = false;
   // f corresponds to the digits after the point. There is always one digit
   // before the point. The number of requested_digits equals hence f + 1.
   // And we have to add one character for the null-terminator.
@@ -986,31 +953,18 @@ char* DoubleToExponentialCString(double value, int f) {
   // Make sure that the buffer is big enough, even if we fall back to the
   // shortest representation (which happens when f equals -1).
   ASSERT(kBase10MaximalLength <= kMaxDigitsAfterPoint + 1);
-  char v8_dtoa_buffer[kV8DtoaBufferCapacity];
+  char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
   if (f == -1) {
-    if (DoubleToAscii(value, DTOA_SHORTEST, 0,
-                      Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
-                      &sign, &decimal_rep_length, &decimal_point)) {
-      f = decimal_rep_length - 1;
-      decimal_rep = v8_dtoa_buffer;
-    } else {
-      decimal_rep = dtoa(value, 0, 0, &decimal_point, &sign, NULL);
-      decimal_rep_length = StrLength(decimal_rep);
-      f = decimal_rep_length - 1;
-      used_gay_dtoa = true;
-    }
+    DoubleToAscii(value, DTOA_SHORTEST, 0,
+                  Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                  &sign, &decimal_rep_length, &decimal_point);
+    f = decimal_rep_length - 1;
   } else {
-    if (DoubleToAscii(value, DTOA_PRECISION, f + 1,
-                      Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
-                      &sign, &decimal_rep_length, &decimal_point)) {
-      decimal_rep = v8_dtoa_buffer;
-    } else {
-      decimal_rep = dtoa(value, 2, f + 1, &decimal_point, &sign, NULL);
-      decimal_rep_length = StrLength(decimal_rep);
-      used_gay_dtoa = true;
-    }
+    DoubleToAscii(value, DTOA_PRECISION, f + 1,
+                  Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                  &sign, &decimal_rep_length, &decimal_point);
   }
   ASSERT(decimal_rep_length > 0);
   ASSERT(decimal_rep_length <= f + 1);
@@ -1018,10 +972,6 @@ char* DoubleToExponentialCString(double value, int f) {
   int exponent = decimal_point - 1;
   char* result =
       CreateExponentialRepresentation(decimal_rep, exponent, negative, f+1);
-
-  if (used_gay_dtoa) {
-    freedtoa(decimal_rep);
-  }
 
   return result;
 }
@@ -1042,22 +992,14 @@ char* DoubleToPrecisionCString(double value, int p) {
   // Find a sufficiently precise decimal representation of n.
   int decimal_point;
   int sign;
-  char* decimal_rep = NULL;
-  bool used_gay_dtoa = false;
   // Add one for the terminating null character.
   const int kV8DtoaBufferCapacity = kMaximalDigits + 1;
-  char v8_dtoa_buffer[kV8DtoaBufferCapacity];
+  char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
-  if (DoubleToAscii(value, DTOA_PRECISION, p,
-                    Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
-                    &sign, &decimal_rep_length, &decimal_point)) {
-    decimal_rep = v8_dtoa_buffer;
-  } else {
-    decimal_rep = dtoa(value, 2, p, &decimal_point, &sign, NULL);
-    decimal_rep_length = StrLength(decimal_rep);
-    used_gay_dtoa = true;
-  }
+  DoubleToAscii(value, DTOA_PRECISION, p,
+                Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                &sign, &decimal_rep_length, &decimal_point);
   ASSERT(decimal_rep_length <= p);
 
   int exponent = decimal_point - 1;
@@ -1101,9 +1043,6 @@ char* DoubleToPrecisionCString(double value, int p) {
     result = builder.Finalize();
   }
 
-  if (used_gay_dtoa) {
-    freedtoa(decimal_rep);
-  }
   return result;
 }
 

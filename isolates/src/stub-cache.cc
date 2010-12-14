@@ -827,6 +827,36 @@ MaybeObject* StubCache::ComputeCallInitialize(int argc,
 }
 
 
+Handle<Code> StubCache::ComputeCallInitialize(int argc, InLoopFlag in_loop) {
+  if (in_loop == IN_LOOP) {
+    // Force the creation of the corresponding stub outside loops,
+    // because it may be used when clearing the ICs later - it is
+    // possible for a series of IC transitions to lose the in-loop
+    // information, and the IC clearing code can't generate a stub
+    // that it needs so we need to ensure it is generated already.
+    ComputeCallInitialize(argc, NOT_IN_LOOP);
+  }
+  CALL_HEAP_FUNCTION(isolate_,
+                     ComputeCallInitialize(argc, in_loop, Code::CALL_IC), Code);
+}
+
+
+Handle<Code> StubCache::ComputeKeyedCallInitialize(int argc,
+                                                   InLoopFlag in_loop) {
+  if (in_loop == IN_LOOP) {
+    // Force the creation of the corresponding stub outside loops,
+    // because it may be used when clearing the ICs later - it is
+    // possible for a series of IC transitions to lose the in-loop
+    // information, and the IC clearing code can't generate a stub
+    // that it needs so we need to ensure it is generated already.
+    ComputeKeyedCallInitialize(argc, NOT_IN_LOOP);
+  }
+  CALL_HEAP_FUNCTION(
+      isolate_,
+      ComputeCallInitialize(argc, in_loop, Code::KEYED_CALL_IC), Code);
+}
+
+
 MaybeObject* StubCache::ComputeCallPreMonomorphic(int argc,
                                                   InLoopFlag in_loop,
                                                   Code::Kind kind) {
@@ -942,15 +972,11 @@ MaybeObject* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   ASSERT(args[0]->IsJSObject());
   ASSERT(args[1]->IsJSObject());
-  AccessorInfo* callback = AccessorInfo::cast(args[2]);
+  AccessorInfo* callback = AccessorInfo::cast(args[3]);
   Address getter_address = v8::ToCData<Address>(callback->getter());
   v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
   ASSERT(fun != NULL);
-  CustomArguments custom_args(isolate,
-                              callback->data(),
-                              JSObject::cast(args[0]),
-                              JSObject::cast(args[1]));
-  v8::AccessorInfo info(custom_args.end());
+  v8::AccessorInfo info(&args[0]);
   HandleScope scope(isolate);
   v8::Handle<v8::Value> result;
   {

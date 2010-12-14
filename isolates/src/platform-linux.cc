@@ -875,7 +875,8 @@ Sampler::Sampler(Isolate* isolate, int interval, bool profiling)
       interval_(interval),
       synchronous_(profiling),
       profiling_(profiling),
-      active_(false) {
+      active_(false),
+      samples_taken_(0) {
   data_ = new PlatformData(this);
 }
 

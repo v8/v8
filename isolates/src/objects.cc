@@ -35,7 +35,7 @@
 #include "objects-inl.h"
 #include "objects-visiting.h"
 #include "macro-assembler.h"
-#include "scanner.h"
+#include "scanner-base.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
 #include "utils.h"
@@ -1189,9 +1189,6 @@ String* JSObject::class_name() {
 
 
 String* JSObject::constructor_name() {
-  if (IsJSFunction()) {
-    return GetHeap()->closure_symbol();
-  }
   if (map()->constructor()->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(map()->constructor());
     String* name = String::cast(constructor->shared()->name());
@@ -1232,8 +1229,8 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   // hidden symbols) and is not a real identifier.
   Isolate* isolate = GetHeap()->isolate();
   StringInputBuffer buffer(name);
-  if (!isolate->scanner_character_classes()->IsIdentifier(&buffer) &&
-      name != isolate->heap()->hidden_symbol()) {
+  if (!isolate->scanner_constants()->IsIdentifier(&buffer)
+      && name != HEAP->hidden_symbol()) {
     Object* obj;
     { MaybeObject* maybe_obj =
           NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
@@ -5178,10 +5175,10 @@ bool String::MarkAsUndetectable() {
 
 
 bool String::IsEqualTo(Vector<const char> str) {
-  Heap* heap = GetHeap();
+  Isolate* isolate = GetIsolate();
   int slen = length();
-  Access<Scanner::Utf8Decoder> decoder(heap->isolate()->
-      scanner_character_classes()->utf8_decoder());
+  Access<ScannerConstants::Utf8Decoder>
+      decoder(isolate->scanner_constants()->utf8_decoder());
   decoder->Reset(str.start(), str.length());
   int i;
   for (i = 0; i < slen && decoder->has_more(); i++) {

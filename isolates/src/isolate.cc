@@ -345,7 +345,7 @@ Isolate::Isolate()
       context_slot_cache_(NULL),
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
-      scanner_character_classes_(NULL),
+      scanner_constants_(NULL),
       in_use_list_(0),
       free_list_(0),
       preallocated_storage_preallocated_(false),
@@ -468,8 +468,8 @@ Isolate::~Isolate() {
   producer_heap_profile_ = NULL;
 #endif
 
-  delete scanner_character_classes_;
-  scanner_character_classes_ = NULL;
+  delete scanner_constants_;
+  scanner_constants_ = NULL;
 
   delete regexp_stack_;
   regexp_stack_ = NULL;
@@ -573,7 +573,7 @@ bool Isolate::PreInit() {
   keyed_lookup_cache_ = new KeyedLookupCache();
   context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
-  scanner_character_classes_ = new ScannerCharacterClasses();
+  scanner_constants_ = new ScannerConstants();
   pc_to_code_cache_ = new PcToCodeCache(this);
   write_input_buffer_ = new StringInputBuffer();
   global_handles_ = new GlobalHandles(this);

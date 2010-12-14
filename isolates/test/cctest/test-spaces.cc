@@ -94,12 +94,12 @@ TEST(Page) {
 TEST(MemoryAllocator) {
   OS::Setup();
   Isolate* isolate = Isolate::Current();
+  CHECK(HEAP->ConfigureHeapDefault());
+  CHECK(isolate->memory_allocator()->Setup(HEAP->MaxReserved(),
+                                           HEAP->MaxExecutableSize()));
 
-  CHECK(isolate->heap()->ConfigureHeapDefault());
-  CHECK(isolate->memory_allocator()->Setup(isolate->heap()->MaxReserved()));
-
-  OldSpace faked_space(isolate->heap(),
-                       isolate->heap()->MaxReserved(),
+  OldSpace faked_space(HEAP,
+                       HEAP->MaxReserved(),
                        OLD_POINTER_SPACE,
                        NOT_EXECUTABLE);
   int total_pages = 0;
@@ -158,7 +158,8 @@ TEST(MemoryAllocator) {
 TEST(NewSpace) {
   OS::Setup();
   CHECK(HEAP->ConfigureHeapDefault());
-  CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved()));
+  CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved(),
+                                                      HEAP->MaxExecutableSize()));
 
   NewSpace new_space(HEAP);
 
@@ -185,7 +186,8 @@ TEST(NewSpace) {
 TEST(OldSpace) {
   OS::Setup();
   CHECK(HEAP->ConfigureHeapDefault());
-  CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved()));
+  CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved(),
+                                                      HEAP->MaxExecutableSize()));
 
   OldSpace* s = new OldSpace(HEAP,
                              HEAP->MaxOldGenerationSize(),

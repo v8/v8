@@ -37,7 +37,6 @@ namespace v8 {
 namespace internal {
 
 bool CodeStub::FindCodeInCache(Code** code_out) {
-  if (has_custom_cache()) return GetCustomCache(code_out);
   int index = HEAP->code_stubs()->FindEntry(GetKey());
   if (index != NumberDictionary::kNotFound) {
     *code_out = Code::cast(HEAP->code_stubs()->ValueAt(index));
@@ -105,17 +104,14 @@ Handle<Code> CodeStub::GetCode() {
     Handle<Code> new_object = FACTORY->NewCode(desc, flags, masm.CodeObject());
     RecordCodeGeneration(*new_object, &masm);
 
-    if (has_custom_cache()) {
-      SetCustomCache(*new_object);
-    } else {
-      // Update the dictionary and the root in Heap.
-      Handle<NumberDictionary> dict =
-          FACTORY->DictionaryAtNumberPut(
-              Handle<NumberDictionary>(HEAP->code_stubs()),
-              GetKey(),
-              new_object);
-      HEAP->public_set_code_stubs(*dict);
-    }
+    // Update the dictionary and the root in Heap.
+    Handle<NumberDictionary> dict =
+        FACTORY->DictionaryAtNumberPut(
+            Handle<NumberDictionary>(HEAP->code_stubs()),
+            GetKey(),
+            new_object);
+    HEAP->public_set_code_stubs(*dict);
+
     code = *new_object;
   }
 
@@ -147,15 +143,11 @@ MaybeObject* CodeStub::TryGetCode() {
     code = Code::cast(new_object);
     RecordCodeGeneration(code, &masm);
 
-    if (has_custom_cache()) {
-      SetCustomCache(code);
-    } else {
-      // Try to update the code cache but do not fail if unable.
-      MaybeObject* maybe_new_object =
-          HEAP->code_stubs()->AtNumberPut(GetKey(), code);
-      if (maybe_new_object->ToObject(&new_object)) {
-        HEAP->public_set_code_stubs(NumberDictionary::cast(new_object));
-      }
+    // Try to update the code cache but do not fail if unable.
+    MaybeObject* maybe_new_object =
+        HEAP->code_stubs()->AtNumberPut(GetKey(), code);
+    if (maybe_new_object->ToObject(&new_object)) {
+      HEAP->public_set_code_stubs(NumberDictionary::cast(new_object));
     }
   }
 

@@ -190,6 +190,9 @@ class StackGuard {
   uintptr_t climit() {
     return thread_local_.climit_;
   }
+  uintptr_t real_climit() {
+    return thread_local_.real_climit_;
+  }
   uintptr_t jslimit() {
     return thread_local_.jslimit_;
   }
@@ -281,28 +284,6 @@ class StackGuard {
   DISALLOW_COPY_AND_ASSIGN(StackGuard);
 };
 
-
-class GCExtension : public v8::Extension {
- public:
-  GCExtension() : v8::Extension("v8/gc", kSource) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
-      v8::Handle<v8::String> name);
-  static v8::Handle<v8::Value> GC(const v8::Arguments& args);
- private:
-  static const char* const kSource;
-};
-
-
-class ExternalizeStringExtension : public v8::Extension {
- public:
-  ExternalizeStringExtension() : v8::Extension("v8/externalize", kSource) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
-      v8::Handle<v8::String> name);
-  static v8::Handle<v8::Value> Externalize(const v8::Arguments& args);
-  static v8::Handle<v8::Value> IsAscii(const v8::Arguments& args);
- private:
-  static const char* const kSource;
-};
 
 } }  // namespace v8::internal
 

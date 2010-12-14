@@ -921,6 +921,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   }
 
   ASSERT(!result.is(scratch1));
+  ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
 
   // Make object size into bytes.
@@ -929,38 +930,55 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   }
   ASSERT_EQ(0, object_size & kObjectAlignmentMask);
 
-  // Load address of new object into result and allocation top address into
-  // scratch1.
+  // Check relative positions of allocation top and limit addresses.
+  // The values must be adjacent in memory to allow the use of LDM.
+  // Also, assert that the registers are numbered such that the values
+  // are loaded in the correct order.
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address();
-  mov(scratch1, Operand(new_space_allocation_top));
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  intptr_t top   =
+      reinterpret_cast<intptr_t>(new_space_allocation_top.address());
+  intptr_t limit =
+      reinterpret_cast<intptr_t>(new_space_allocation_limit.address());
+  ASSERT((limit - top) == kPointerSize);
+  ASSERT(result.code() < ip.code());
+
+  // Set up allocation top address and object size registers.
+  Register topaddr = scratch1;
+  Register obj_size_reg = scratch2;
+  mov(topaddr, Operand(new_space_allocation_top));
+  mov(obj_size_reg, Operand(object_size));
+
+  // This code stores a temporary value in ip. This is OK, as the code below
+  // does not need ip for implicit literal generation.
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
-    ldr(result, MemOperand(scratch1));
-  } else if (FLAG_debug_code) {
-    // Assert that result actually contains top on entry. scratch2 is used
-    // immediately below so this use of scratch2 does not cause difference with
-    // respect to register content between debug and release mode.
-    ldr(scratch2, MemOperand(scratch1));
-    cmp(result, scratch2);
-    Check(eq, "Unexpected allocation top");
+    // Load allocation top into result and allocation limit into ip.
+    ldm(ia, topaddr, result.bit() | ip.bit());
+  } else {
+    if (FLAG_debug_code) {
+      // Assert that result actually contains top on entry. ip is used
+      // immediately below so this use of ip does not cause difference with
+      // respect to register content between debug and release mode.
+      ldr(ip, MemOperand(topaddr));
+      cmp(result, ip);
+      Check(eq, "Unexpected allocation top");
+    }
+    // Load allocation limit into ip. Result already contains allocation top.
+    ldr(ip, MemOperand(topaddr, limit - top));
   }
 
   // Calculate new top and bail out if new space is exhausted. Use result
   // to calculate the new top.
-  ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address();
-  mov(scratch2, Operand(new_space_allocation_limit));
-  ldr(scratch2, MemOperand(scratch2));
-  add(result, result, Operand(object_size));
-  cmp(result, Operand(scratch2));
+  add(scratch2, result, Operand(obj_size_reg));
+  cmp(scratch2, Operand(ip));
   b(hi, gc_required);
-  str(result, MemOperand(scratch1));
+  str(scratch2, MemOperand(topaddr));
 
-  // Tag and adjust back to start of new object.
+  // Tag object if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    sub(result, result, Operand(object_size - kHeapObjectTag));
-  } else {
-    sub(result, result, Operand(object_size));
+    add(result, result, Operand(kHeapObjectTag));
   }
 }
 
@@ -983,52 +1001,63 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   }
 
   ASSERT(!result.is(scratch1));
+  ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
 
-  // Load address of new object into result and allocation top address into
-  // scratch1.
+  // Check relative positions of allocation top and limit addresses.
+  // The values must be adjacent in memory to allow the use of LDM.
+  // Also, assert that the registers are numbered such that the values
+  // are loaded in the correct order.
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address();
-  mov(scratch1, Operand(new_space_allocation_top));
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  intptr_t top =
+      reinterpret_cast<intptr_t>(new_space_allocation_top.address());
+  intptr_t limit =
+      reinterpret_cast<intptr_t>(new_space_allocation_limit.address());
+  ASSERT((limit - top) == kPointerSize);
+  ASSERT(result.code() < ip.code());
+
+  // Set up allocation top address.
+  Register topaddr = scratch1;
+  mov(topaddr, Operand(new_space_allocation_top));
+
+  // This code stores a temporary value in ip. This is OK, as the code below
+  // does not need ip for implicit literal generation.
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
-    ldr(result, MemOperand(scratch1));
-  } else if (FLAG_debug_code) {
-    // Assert that result actually contains top on entry. scratch2 is used
-    // immediately below so this use of scratch2 does not cause difference with
-    // respect to register content between debug and release mode.
-    ldr(scratch2, MemOperand(scratch1));
-    cmp(result, scratch2);
-    Check(eq, "Unexpected allocation top");
+    // Load allocation top into result and allocation limit into ip.
+    ldm(ia, topaddr, result.bit() | ip.bit());
+  } else {
+    if (FLAG_debug_code) {
+      // Assert that result actually contains top on entry. ip is used
+      // immediately below so this use of ip does not cause difference with
+      // respect to register content between debug and release mode.
+      ldr(ip, MemOperand(topaddr));
+      cmp(result, ip);
+      Check(eq, "Unexpected allocation top");
+    }
+    // Load allocation limit into ip. Result already contains allocation top.
+    ldr(ip, MemOperand(topaddr, limit - top));
   }
 
   // Calculate new top and bail out if new space is exhausted. Use result
-  // to calculate the new top. Object size is in words so a shift is required to
-  // get the number of bytes
-  ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address();
-  mov(scratch2, Operand(new_space_allocation_limit));
-  ldr(scratch2, MemOperand(scratch2));
+  // to calculate the new top. Object size may be in words so a shift is
+  // required to get the number of bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
-    add(result, result, Operand(object_size, LSL, kPointerSizeLog2));
+    add(scratch2, result, Operand(object_size, LSL, kPointerSizeLog2));
   } else {
-    add(result, result, Operand(object_size));
+    add(scratch2, result, Operand(object_size));
   }
-  cmp(result, Operand(scratch2));
+  cmp(scratch2, Operand(ip));
   b(hi, gc_required);
 
   // Update allocation top. result temporarily holds the new top.
   if (FLAG_debug_code) {
-    tst(result, Operand(kObjectAlignmentMask));
+    tst(scratch2, Operand(kObjectAlignmentMask));
     Check(eq, "Unaligned allocation in new space");
   }
-  str(result, MemOperand(scratch1));
-
-  // Adjust back to start of new object.
-  if ((flags & SIZE_IN_WORDS) != 0) {
-    sub(result, result, Operand(object_size, LSL, kPointerSizeLog2));
-  } else {
-    sub(result, result, Operand(object_size));
-  }
+  str(scratch2, MemOperand(topaddr));
 
   // Tag object if requested.
   if ((flags & TAG_OBJECT) != 0) {
@@ -1691,6 +1720,33 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   } else {  // Slot is in the current function context.
     // The context may be an intermediate context, not a function context.
     ldr(dst, MemOperand(cp, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  }
+}
+
+
+void MacroAssembler::LoadGlobalFunction(int index, Register function) {
+  // Load the global or builtins object from the current context.
+  ldr(function, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  // Load the global context from the global or builtins object.
+  ldr(function, FieldMemOperand(function,
+                                GlobalObject::kGlobalContextOffset));
+  // Load the function from the global context.
+  ldr(function, MemOperand(function, Context::SlotOffset(index)));
+}
+
+
+void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
+                                                  Register map,
+                                                  Register scratch) {
+  // Load the initial map. The global functions all have initial maps.
+  ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+  if (FLAG_debug_code) {
+    Label ok, fail;
+    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, false);
+    b(&ok);
+    bind(&fail);
+    Abort("Global functions must have initial map");
+    bind(&ok);
   }
 }
 

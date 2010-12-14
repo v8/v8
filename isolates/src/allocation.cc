@@ -28,15 +28,26 @@
 #include <stdlib.h>
 
 #include "v8.h"
+/* TODO(isolates): this is what's included in bleeding_edge
+   including of v8.h was replaced with these in
+   http://codereview.chromium.org/5005001/
+   we need Isolate and Isolate needs a lot more so I'm including v8.h back.
+#include "../include/v8stdint.h"
+#include "globals.h"
+#include "checks.h"
+#include "allocation.h"
+#include "utils.h"
+*/
 
 namespace v8 {
 namespace internal {
 
-
 void* Malloced::New(size_t size) {
   ASSERT(NativeAllocationChecker::allocation_allowed());
   void* result = malloc(size);
-  if (result == NULL) V8::FatalProcessOutOfMemory("Malloced operator new");
+  if (result == NULL) {
+    v8::internal::FatalProcessOutOfMemory("Malloced operator new");
+  }
   return result;
 }
 
@@ -47,7 +58,7 @@ void Malloced::Delete(void* p) {
 
 
 void Malloced::FatalProcessOutOfMemory() {
-  V8::FatalProcessOutOfMemory("Out of memory");
+  v8::internal::FatalProcessOutOfMemory("Out of memory");
 }
 
 
@@ -82,7 +93,7 @@ void AllStatic::operator delete(void* p) {
 char* StrDup(const char* str) {
   int length = StrLength(str);
   char* result = NewArray<char>(length + 1);
-  memcpy(result, str, length * kCharSize);
+  memcpy(result, str, length);
   result[length] = '\0';
   return result;
 }
@@ -92,7 +103,7 @@ char* StrNDup(const char* str, int n) {
   int length = StrLength(str);
   if (n < length) length = n;
   char* result = NewArray<char>(length + 1);
-  memcpy(result, str, length * kCharSize);
+  memcpy(result, str, length);
   result[length] = '\0';
   return result;
 }
@@ -116,6 +127,7 @@ void* Isolate::PreallocatedStorageNew(size_t size) {
   }
   ASSERT(free_list_.next_ != &free_list_);
   ASSERT(free_list_.previous_ != &free_list_);
+
   size = (size + kPointerSize - 1) & ~(kPointerSize - 1);
   // Search for exact fit.
   for (PreallocatedStorage* storage = free_list_.next_;

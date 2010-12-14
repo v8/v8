@@ -33,6 +33,7 @@
 #include "register-allocator-inl.h"
 #include "scopes.h"
 #include "virtual-frame-inl.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -1112,7 +1113,8 @@ Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
   // The IC expects the name in ecx and the rest on the stack and
   // drops them all.
   InLoopFlag in_loop = loop_nesting > 0 ? IN_LOOP : NOT_IN_LOOP;
-  Handle<Code> ic = cgen()->ComputeCallInitialize(arg_count, in_loop);
+  Handle<Code> ic = Isolate::Current()->stub_cache()->ComputeCallInitialize(
+      arg_count, in_loop);
   // Spill args, receiver, and function.  The call will drop args and
   // receiver.
   Result name = Pop();
@@ -1130,7 +1132,9 @@ Result VirtualFrame::CallKeyedCallIC(RelocInfo::Mode mode,
   // The IC expects the name in ecx and the rest on the stack and
   // drops them all.
   InLoopFlag in_loop = loop_nesting > 0 ? IN_LOOP : NOT_IN_LOOP;
-  Handle<Code> ic = cgen()->ComputeKeyedCallInitialize(arg_count, in_loop);
+  Handle<Code> ic =
+      Isolate::Current()->stub_cache()->ComputeKeyedCallInitialize(arg_count,
+                                                                   in_loop);
   // Spill args, receiver, and function.  The call will drop args and
   // receiver.
   Result name = Pop();

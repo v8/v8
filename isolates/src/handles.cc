@@ -37,6 +37,7 @@
 #include "global-handles.h"
 #include "natives.h"
 #include "runtime.h"
+#include "string-search.h"
 #include "stub-cache.h"
 
 namespace v8 {
@@ -154,7 +155,7 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
 
 void SetExpectedNofProperties(Handle<JSFunction> func, int nof) {
   // If objects constructed from this function exist then changing
-  // 'estimated_nof_properties' is dangerous since the previois value might
+  // 'estimated_nof_properties' is dangerous since the previous value might
   // have been compiled into the fast construct stub. More over, the inobject
   // slack tracking logic might have adjusted the previous value, so even
   // passing the same value is risky.
@@ -241,14 +242,7 @@ void FlattenString(Handle<String> string) {
 
 
 Handle<String> FlattenGetString(Handle<String> string) {
-  Handle<String> result;
-  CALL_AND_RETRY(string->GetHeap()->isolate(),
-                 string->TryFlatten(),
-                 { result = Handle<String>(String::cast(__object__));
-                   break; },
-                 return Handle<String>());
-  ASSERT(string->IsFlat());
-  return result;
+  CALL_HEAP_FUNCTION(string->GetIsolate(), string->TryFlatten(), String);
 }
 
 
@@ -555,50 +549,67 @@ void InitScriptLineEnds(Handle<Script> script) {
 
   Handle<FixedArray> array = CalculateLineEnds(src, true);
 
+  if (*array != HEAP->empty_fixed_array()) {
+    array->set_map(HEAP->fixed_cow_array_map());
+  }
+
   script->set_line_ends(*array);
   ASSERT(script->line_ends()->IsFixedArray());
 }
 
 
-Handle<FixedArray> CalculateLineEnds(Handle<String> src,
-                                     bool with_imaginary_last_new_line) {
-  const int src_len = src->length();
-  Isolate* isolate = src->GetIsolate();
-  Handle<String> new_line =
-      isolate->factory()->NewStringFromAscii(CStrVector("\n"));
+template <typename SourceChar>
+static void CalculateLineEnds(Isolate* isolate,
+                              List<int>* line_ends,
+                              Vector<const SourceChar> src,
+                              bool with_last_line) {
+  const int src_len = src.length();
+  StringSearch<char, SourceChar> search(isolate, CStrVector("\n"));
 
-  // Pass 1: Identify line count.
-  int line_count = 0;
+  // Find and record line ends.
   int position = 0;
   while (position != -1 && position < src_len) {
-    position = Runtime::StringMatch(isolate, src, new_line, position);
+    position = search.Search(src, position);
     if (position != -1) {
+      line_ends->Add(position);
       position++;
-    }
-    if (position != -1) {
-      line_count++;
-    } else if (with_imaginary_last_new_line) {
+    } else if (with_last_line) {
       // Even if the last line misses a line end, it is counted.
-      line_count++;
+      line_ends->Add(src_len);
+      return;
     }
   }
+}
 
-  // Pass 2: Fill in line ends positions
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(line_count);
-  int array_index = 0;
-  position = 0;
-  while (position != -1 && position < src_len) {
-    position = Runtime::StringMatch(isolate, src, new_line, position);
-    if (position != -1) {
-      array->set(array_index++, Smi::FromInt(position++));
-    } else if (with_imaginary_last_new_line) {
-      // If the script does not end with a line ending add the final end
-      // position as just past the last line ending.
-      array->set(array_index++, Smi::FromInt(src_len));
+
+Handle<FixedArray> CalculateLineEnds(Handle<String> src,
+                                     bool with_last_line) {
+  src = FlattenGetString(src);
+  // Rough estimate of line count based on a roughly estimated average
+  // length of (unpacked) code.
+  int line_count_estimate = src->length() >> 4;
+  List<int> line_ends(line_count_estimate);
+  {
+    AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid.
+    Isolate* isolate = src->GetIsolate();
+    // Dispatch on type of strings.
+    if (src->IsAsciiRepresentation()) {
+      CalculateLineEnds(isolate,
+                        &line_ends,
+                        src->ToAsciiVector(),
+                        with_last_line);
+    } else {
+      CalculateLineEnds(isolate,
+                        &line_ends,
+                        src->ToUC16Vector(),
+                        with_last_line);
     }
   }
-  ASSERT(array_index == line_count);
-
+  int line_count = line_ends.length();
+  Handle<FixedArray> array = FACTORY->NewFixedArray(line_count);
+  for (int i = 0; i < line_count; i++) {
+    array->set(i, Smi::FromInt(line_ends[i]));
+  }
   return array;
 }
 
@@ -610,11 +621,11 @@ int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
   const int line_ends_len = line_ends_array->length();
 
-  if (!line_ends_len)
-    return -1;
+  if (!line_ends_len) return -1;
 
-  if ((Smi::cast(line_ends_array->get(0)))->value() >= code_pos)
+  if ((Smi::cast(line_ends_array->get(0)))->value() >= code_pos) {
     return script->line_offset()->value();
+  }
 
   int left = 0;
   int right = line_ends_len;

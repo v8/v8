@@ -36,6 +36,7 @@
 #include "full-codegen.h"
 #include "parser.h"
 #include "scopes.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -880,17 +881,23 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 }
 
 
-void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info) {
+void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
+                                       bool pretenure) {
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && info->num_literals() == 0) {
+  if (scope()->is_function_scope() &&
+      info->num_literals() == 0 &&
+      !pretenure) {
     FastNewClosureStub stub;
     __ push(Immediate(info));
     __ CallStub(&stub);
   } else {
     __ push(esi);
     __ push(Immediate(info));
-    __ CallRuntime(Runtime::kNewClosure, 2);
+    __ push(Immediate(pretenure
+                      ? FACTORY->true_value()
+                      : FACTORY->false_value()));
+    __ CallRuntime(Runtime::kNewClosure, 3);
   }
   context()->Plug(eax);
 }
@@ -955,7 +962,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
 
   // All extension objects were empty and it is safe to use a global
   // load IC call.
-  __ mov(eax, CodeGenerator::GlobalObject());
+  __ mov(eax, GlobalObjectOperand());
   __ mov(ecx, slot->var()->name());
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
       Builtins::LoadIC_Initialize));
@@ -1060,7 +1067,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in ecx and the global
     // object on the stack.
-    __ mov(eax, CodeGenerator::GlobalObject());
+    __ mov(eax, GlobalObjectOperand());
     __ mov(ecx, var->name());
     Handle<Code> ic(Isolate::Current()->builtins()->builtin(
         Builtins::LoadIC_Initialize));
@@ -1844,7 +1851,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // assignment.  Right-hand-side value is passed in eax, variable name in
     // ecx, and the global object on the stack.
     __ mov(ecx, var->name());
-    __ mov(edx, CodeGenerator::GlobalObject());
+    __ mov(edx, GlobalObjectOperand());
     Handle<Code> ic(Isolate::Current()->builtins()->builtin(
         Builtins::StoreIC_Initialize));
     EmitCallIC(ic, RelocInfo::CODE_TARGET);
@@ -2009,16 +2016,17 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Code common for calls using the IC.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
-  { PreserveStatementPositionScope scope(masm()->positions_recorder());
+  { PreservePositionScope scope(masm()->positions_recorder());
     for (int i = 0; i < arg_count; i++) {
       VisitForStackValue(args->at(i));
     }
     __ Set(ecx, Immediate(name));
   }
   // Record source position of the IC call.
-  SetSourcePosition(expr->position(), FORCED_POSITION);
+  SetSourcePosition(expr->position());
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-  Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
+  Handle<Code> ic = ISOLATE->stub_cache()->ComputeCallInitialize(arg_count,
+                                                                in_loop);
   EmitCallIC(ic, mode);
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
@@ -2029,25 +2037,33 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
 void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
                                             Expression* key,
                                             RelocInfo::Mode mode) {
-  // Code common for calls using the IC.
+  // Load the key.
+  VisitForAccumulatorValue(key);
+
+  // Swap the name of the function and the receiver on the stack to follow
+  // the calling convention for call ICs.
+  __ pop(ecx);
+  __ push(eax);
+  __ push(ecx);
+
+  // Load the arguments.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
-  { PreserveStatementPositionScope scope(masm()->positions_recorder());
+  { PreservePositionScope scope(masm()->positions_recorder());
     for (int i = 0; i < arg_count; i++) {
       VisitForStackValue(args->at(i));
     }
-    VisitForAccumulatorValue(key);
-    __ mov(ecx, eax);
   }
   // Record source position of the IC call.
-  SetSourcePosition(expr->position(), FORCED_POSITION);
+  SetSourcePosition(expr->position());
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-  Handle<Code> ic = CodeGenerator::ComputeKeyedCallInitialize(
-      arg_count, in_loop);
+  Handle<Code> ic = ISOLATE->stub_cache()->ComputeKeyedCallInitialize(arg_count,
+                                                                      in_loop);
+  __ mov(ecx, Operand(esp, (arg_count + 1) * kPointerSize));  // Key.
   EmitCallIC(ic, mode);
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  context()->Plug(eax);
+  context()->DropAndPlug(1, eax);  // Drop the key still on the stack.
 }
 
 
@@ -2055,13 +2071,13 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Code common for calls using the call stub.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
-  { PreserveStatementPositionScope scope(masm()->positions_recorder());
+  { PreservePositionScope scope(masm()->positions_recorder());
     for (int i = 0; i < arg_count; i++) {
       VisitForStackValue(args->at(i));
     }
   }
   // Record source position for debugger.
-  SetSourcePosition(expr->position(), FORCED_POSITION);
+  SetSourcePosition(expr->position());
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_VALUE);
   __ CallStub(&stub);
@@ -2083,7 +2099,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // arguments.
     ZoneList<Expression*>* args = expr->arguments();
     int arg_count = args->length();
-    { PreserveStatementPositionScope pos_scope(masm()->positions_recorder());
+    { PreservePositionScope pos_scope(masm()->positions_recorder());
       VisitForStackValue(fun);
       // Reserved receiver slot.
       __ push(Immediate(FACTORY->undefined_value()));
@@ -2113,7 +2129,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ mov(Operand(esp, (arg_count + 1) * kPointerSize), eax);
     }
     // Record source position for debugger.
-    SetSourcePosition(expr->position(), FORCED_POSITION);
+    SetSourcePosition(expr->position());
     InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
     CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_VALUE);
     __ CallStub(&stub);
@@ -2122,14 +2138,14 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     context()->DropAndPlug(1, eax);
   } else if (var != NULL && !var->is_this() && var->is_global()) {
     // Push global object as receiver for the call IC.
-    __ push(CodeGenerator::GlobalObject());
+    __ push(GlobalObjectOperand());
     EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
   } else if (var != NULL && var->AsSlot() != NULL &&
              var->AsSlot()->type() == Slot::LOOKUP) {
     // Call to a lookup slot (dynamically introduced variable).
     Label slow, done;
 
-    { PreserveStatementPositionScope scope(masm()->positions_recorder());
+    { PreservePositionScope scope(masm()->positions_recorder());
       // Generate code for loading from variables potentially shadowed
       // by eval-introduced variables.
       EmitDynamicLoadFromSlotFastCase(var->AsSlot(),
@@ -2157,7 +2173,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Push function.
       __ push(eax);
       // Push global receiver.
-      __ mov(ebx, CodeGenerator::GlobalObject());
+      __ mov(ebx, GlobalObjectOperand());
       __ push(FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
       __ bind(&call);
     }
@@ -2175,15 +2191,15 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Call to a keyed property.
       // For a synthetic property use keyed load IC followed by function call,
       // for a regular property use keyed EmitCallIC.
-      { PreserveStatementPositionScope scope(masm()->positions_recorder());
+      { PreservePositionScope scope(masm()->positions_recorder());
         VisitForStackValue(prop->obj());
       }
       if (prop->is_synthetic()) {
-        { PreserveStatementPositionScope scope(masm()->positions_recorder());
+        { PreservePositionScope scope(masm()->positions_recorder());
           VisitForAccumulatorValue(prop->key());
         }
         // Record source code position for IC call.
-        SetSourcePosition(prop->position(), FORCED_POSITION);
+        SetSourcePosition(prop->position());
         __ pop(edx);  // We do not need to keep the receiver.
 
         Handle<Code> ic(Isolate::Current()->builtins()->builtin(
@@ -2192,7 +2208,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         // Push result (function).
         __ push(eax);
         // Push Global receiver.
-        __ mov(ecx, CodeGenerator::GlobalObject());
+        __ mov(ecx, GlobalObjectOperand());
         __ push(FieldOperand(ecx, GlobalObject::kGlobalReceiverOffset));
         EmitCallWithStub(expr);
       } else {
@@ -2209,11 +2225,11 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         loop_depth() == 0) {
       lit->set_try_full_codegen(true);
     }
-    { PreserveStatementPositionScope scope(masm()->positions_recorder());
+    { PreservePositionScope scope(masm()->positions_recorder());
       VisitForStackValue(fun);
     }
     // Load global receiver object.
-    __ mov(ebx, CodeGenerator::GlobalObject());
+    __ mov(ebx, GlobalObjectOperand());
     __ push(FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
     // Emit function call.
     EmitCallWithStub(expr);
@@ -2918,6 +2934,16 @@ void FullCodeGenerator::EmitMathCos(ZoneList<Expression*>* args) {
 }
 
 
+void FullCodeGenerator::EmitMathLog(ZoneList<Expression*>* args) {
+  // Load the argument on the stack and call the stub.
+  TranscendentalCacheStub stub(TranscendentalCache::LOG);
+  ASSERT(args->length() == 1);
+  VisitForStackValue(args->at(0));
+  __ CallStub(&stub);
+  context()->Plug(eax);
+}
+
+
 void FullCodeGenerator::EmitMathSqrt(ZoneList<Expression*>* args) {
   // Load the argument on the stack and call the runtime function.
   ASSERT(args->length() == 1);
@@ -3092,6 +3118,190 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
 }
 
 
+void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
+  Label bailout;
+  Label done;
+
+  ASSERT(args->length() == 2);
+  // We will leave the separator on the stack until the end of the function.
+  VisitForStackValue(args->at(1));
+  // Load this to eax (= array)
+  VisitForAccumulatorValue(args->at(0));
+
+  // All aliases of the same register have disjoint lifetimes.
+  Register array = eax;
+  Register result_pos = no_reg;
+
+  Register index = edi;
+
+  Register current_string_length = ecx;  // Will be ecx when live.
+
+  Register current_string = edx;
+
+  Register scratch = ebx;
+
+  Register scratch_2 = esi;
+  Register new_padding_chars = scratch_2;
+
+  Operand separator = Operand(esp, 4 * kPointerSize);  // Already pushed.
+  Operand elements = Operand(esp, 3 * kPointerSize);
+  Operand result = Operand(esp, 2 * kPointerSize);
+  Operand padding_chars = Operand(esp, 1 * kPointerSize);
+  Operand array_length = Operand(esp, 0);
+  __ sub(Operand(esp), Immediate(4 * kPointerSize));
+
+
+  // Check that eax is a JSArray
+  __ test(array, Immediate(kSmiTagMask));
+  __ j(zero, &bailout);
+  __ CmpObjectType(array, JS_ARRAY_TYPE, scratch);
+  __ j(not_equal, &bailout);
+
+  // Check that the array has fast elements.
+  __ test_b(FieldOperand(scratch, Map::kBitField2Offset),
+            1 << Map::kHasFastElements);
+  __ j(zero, &bailout);
+
+  // If the array is empty, return the empty string.
+  __ mov(scratch, FieldOperand(array, JSArray::kLengthOffset));
+  __ sar(scratch, 1);
+  Label non_trivial;
+  __ j(not_zero, &non_trivial);
+  __ mov(result, FACTORY->empty_string());
+  __ jmp(&done);
+
+  __ bind(&non_trivial);
+  __ mov(array_length, scratch);
+
+  __ mov(scratch, FieldOperand(array, JSArray::kElementsOffset));
+  __ mov(elements, scratch);
+
+  // End of array's live range.
+  result_pos = array;
+  array = no_reg;
+
+
+  // Check that the separator is a flat ascii string.
+  __ mov(current_string, separator);
+  __ test(current_string, Immediate(kSmiTagMask));
+  __ j(zero, &bailout);
+  __ mov(scratch, FieldOperand(current_string, HeapObject::kMapOffset));
+  __ mov_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, Immediate(
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
+  __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
+  __ j(not_equal, &bailout);
+  // If the separator is the empty string, replace it with NULL.
+  // The test for NULL is quicker than the empty string test, in a loop.
+  __ cmp(FieldOperand(current_string, SeqAsciiString::kLengthOffset),
+         Immediate(0));
+  Label separator_checked;
+  __ j(not_zero, &separator_checked);
+  __ mov(separator, Immediate(0));
+  __ bind(&separator_checked);
+
+  // Check that elements[0] is a flat ascii string, and copy it in new space.
+  __ mov(scratch, elements);
+  __ mov(current_string, FieldOperand(scratch, FixedArray::kHeaderSize));
+  __ test(current_string, Immediate(kSmiTagMask));
+  __ j(zero, &bailout);
+  __ mov(scratch, FieldOperand(current_string, HeapObject::kMapOffset));
+  __ mov_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, Immediate(
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
+  __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
+  __ j(not_equal, &bailout);
+
+  // Allocate space to copy it.  Round up the size to the alignment granularity.
+  __ mov(current_string_length,
+         FieldOperand(current_string, String::kLengthOffset));
+  __ shr(current_string_length, 1);
+
+  // Live registers and stack values:
+  //   current_string_length: length of elements[0].
+
+  // New string result in new space = elements[0]
+  __ AllocateAsciiString(result_pos, current_string_length, scratch_2,
+                         index, no_reg, &bailout);
+  __ mov(result, result_pos);
+
+  // Adjust current_string_length to include padding bytes at end of string.
+  // Keep track of the number of padding bytes.
+  __ mov(new_padding_chars, current_string_length);
+  __ add(Operand(current_string_length), Immediate(kObjectAlignmentMask));
+  __ and_(Operand(current_string_length), Immediate(~kObjectAlignmentMask));
+  __ sub(new_padding_chars, Operand(current_string_length));
+  __ neg(new_padding_chars);
+  __ mov(padding_chars, new_padding_chars);
+
+  Label copy_loop_1_done;
+  Label copy_loop_1;
+  __ test(current_string_length, Operand(current_string_length));
+  __ j(zero, &copy_loop_1_done);
+  __ bind(&copy_loop_1);
+  __ sub(Operand(current_string_length), Immediate(kPointerSize));
+  __ mov(scratch, FieldOperand(current_string, current_string_length,
+                               times_1, SeqAsciiString::kHeaderSize));
+  __ mov(FieldOperand(result_pos, current_string_length,
+                      times_1, SeqAsciiString::kHeaderSize),
+         scratch);
+  __ j(not_zero, &copy_loop_1);
+  __ bind(&copy_loop_1_done);
+
+  __ mov(index, Immediate(1));
+  // Loop condition: while (index < length).
+  Label loop;
+  __ bind(&loop);
+  __ cmp(index, array_length);
+  __ j(greater_equal, &done);
+
+  // If the separator is the empty string, signalled by NULL, skip it.
+  Label separator_done;
+  __ mov(current_string, separator);
+  __ test(current_string, Operand(current_string));
+  __ j(zero, &separator_done);
+
+  // Append separator to result.  It is known to be a flat ascii string.
+  __ AppendStringToTopOfNewSpace(current_string, current_string_length,
+                                 result_pos, scratch, scratch_2, result,
+                                 padding_chars, &bailout);
+  __ bind(&separator_done);
+
+  // Add next element of array to the end of the result.
+  // Get current_string = array[index].
+  __ mov(scratch, elements);
+  __ mov(current_string, FieldOperand(scratch, index,
+                                      times_pointer_size,
+                                      FixedArray::kHeaderSize));
+  // If current != flat ascii string drop result, return undefined.
+  __ test(current_string, Immediate(kSmiTagMask));
+  __ j(zero, &bailout);
+  __ mov(scratch, FieldOperand(current_string, HeapObject::kMapOffset));
+  __ mov_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, Immediate(
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
+  __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
+  __ j(not_equal, &bailout);
+
+  // Append current to the result.
+  __ AppendStringToTopOfNewSpace(current_string, current_string_length,
+                                 result_pos, scratch, scratch_2, result,
+                                 padding_chars, &bailout);
+  __ add(Operand(index), Immediate(1));
+  __ jmp(&loop);  // End while (index < length).
+
+  __ bind(&bailout);
+  __ mov(result, FACTORY->undefined_value());
+  __ bind(&done);
+  __ mov(eax, result);
+  // Drop temp values from the stack, and restore context register.
+  __ add(Operand(esp), Immediate(5 * kPointerSize));
+
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  context()->Plug(eax);
+}
+
+
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   Handle<String> name = expr->name();
   if (name->length() > 0 && name->Get(0) == '_') {
@@ -3105,7 +3315,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
   if (expr->is_jsruntime()) {
     // Prepare for calling JS runtime function.
-    __ mov(eax, CodeGenerator::GlobalObject());
+    __ mov(eax, GlobalObjectOperand());
     __ push(FieldOperand(eax, GlobalObject::kBuiltinsOffset));
   }
 
@@ -3119,7 +3329,8 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     // Call the JS runtime function via a call IC.
     __ Set(ecx, Immediate(expr->name()));
     InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-    Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
+    Handle<Code> ic = ISOLATE->stub_cache()->ComputeCallInitialize(arg_count,
+                                                                   in_loop);
     EmitCallIC(ic, RelocInfo::CODE_TARGET);
     // Restore context register.
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
@@ -3156,7 +3367,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
         } else if (var->is_global()) {
-          __ push(CodeGenerator::GlobalObject());
+          __ push(GlobalObjectOperand());
           __ push(Immediate(var->name()));
         } else {
           // Non-global variable.  Call the runtime to look up the context
@@ -3436,7 +3647,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
 
   if (proxy != NULL && !proxy->var()->is_this() && proxy->var()->is_global()) {
     Comment cmnt(masm_, "Global variable");
-    __ mov(eax, CodeGenerator::GlobalObject());
+    __ mov(eax, GlobalObjectOperand());
     __ mov(ecx, Immediate(proxy->name()));
     Handle<Code> ic(Isolate::Current()->builtins()->builtin(
         Builtins::LoadIC_Initialize));

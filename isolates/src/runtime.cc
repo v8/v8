@@ -2110,11 +2110,7 @@ class ReplacementStringBuilder {
   }
 
   Handle<JSArray> GetParts() {
-    Handle<JSArray> result =
-        heap_->isolate()->factory()->NewJSArrayWithElements(
-            array_builder_.array());
-    result->set_length(Smi::FromInt(array_builder_.length()));
-    return result;
+    return array_builder_.ToJSArray();
   }
 
  private:
@@ -2700,7 +2696,7 @@ static MaybeObject* Runtime_StringReplaceRegExpWithString(
 
 // Perform string match of pattern on subject, starting at start index.
 // Caller must ensure that 0 <= start_index <= sub->length(),
-// and should check that pat->length() + start_index <= sub->length()
+// and should check that pat->length() + start_index <= sub->length().
 int Runtime::StringMatch(Isolate* isolate,
                          Handle<String> sub,
                          Handle<String> pat,
@@ -3332,7 +3328,7 @@ static MaybeObject* Runtime_RegExpExecMultiple(RUNTIME_CALLING_CONVENTION) {
   if (regexp->TypeTag() == JSRegExp::ATOM) {
     Handle<String> pattern(
         String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex)));
-    if (!pattern->IsFlat()) FlattenString(pattern);
+    ASSERT(pattern->IsFlat());
     if (SearchStringMultiple(isolate, subject, pattern,
                              last_match_info, &builder)) {
       return *builder.ToJSArray(result_array);
@@ -4730,6 +4726,174 @@ static MaybeObject* Runtime_URIUnescape(RUNTIME_CALLING_CONVENTION) {
 }
 
 
+static const unsigned int kQuoteTableLength = 128u;
+
+static const char* const JsonQuotes[kQuoteTableLength] = {
+    "\\u0000", "\\u0001", "\\u0002", "\\u0003",
+    "\\u0004", "\\u0005", "\\u0006", "\\u0007",
+    "\\b", "\\t", "\\n", "\\u000b",
+    "\\f", "\\r", "\\u000e", "\\u000f",
+    "\\u0010", "\\u0011", "\\u0012", "\\u0013",
+    "\\u0014", "\\u0015", "\\u0016", "\\u0017",
+    "\\u0018", "\\u0019", "\\u001a", "\\u001b",
+    "\\u001c", "\\u001d", "\\u001e", "\\u001f",
+    NULL, NULL, "\\\"", NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    "\\\\", NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
+
+static const byte JsonQuoteLengths[kQuoteTableLength] = {
+    6, 6, 6, 6, 6, 6, 6, 6,
+    2, 2, 2, 6, 2, 2, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    1, 1, 2, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 2, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+};
+
+
+template <typename Char>
+Char* WriteString(Char* dst, const char* src_string) {
+  char c;
+  for (c = *src_string; c; c = *src_string) {
+    *dst = c;
+    dst++;
+    src_string++;
+  }
+  return dst;
+}
+
+
+template <typename StringType>
+MaybeObject* AllocateRawString(int length);
+
+
+template <>
+MaybeObject* AllocateRawString<SeqTwoByteString>(int length) {
+  return HEAP->AllocateRawTwoByteString(length);
+}
+
+
+template <>
+MaybeObject* AllocateRawString<SeqAsciiString>(int length) {
+  return HEAP->AllocateRawAsciiString(length);
+}
+
+
+template <typename Char, typename StringType>
+static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
+  int length = characters.length();
+  int quoted_length = 0;
+  for (int i = 0; i < length; i++) {
+    unsigned int c = characters[i];
+    if (sizeof(Char) > 1u) {
+      quoted_length += (c >= kQuoteTableLength) ? 1 : JsonQuoteLengths[c];
+    } else {
+      quoted_length += JsonQuoteLengths[c];
+    }
+  }
+  COUNTERS->quote_json_char_count()->Increment(length);
+
+  // Add space for quotes.
+  quoted_length += 2;
+
+  MaybeObject* new_alloc = AllocateRawString<StringType>(quoted_length);
+  Object* new_object;
+  if (!new_alloc->ToObject(&new_object)) {
+    COUNTERS->quote_json_char_recount()->Increment(length);
+    return new_alloc;
+  }
+  StringType* new_string = StringType::cast(new_object);
+
+
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  Char* write_cursor = reinterpret_cast<Char*>(
+      new_string->address() + SeqAsciiString::kHeaderSize);
+  *(write_cursor++) = '"';
+  const Char* read_cursor = characters.start();
+  if (quoted_length == length + 2) {
+    CopyChars(write_cursor, read_cursor, length);
+    write_cursor += length;
+  } else {
+    const Char* end = read_cursor + length;
+    while (read_cursor < end) {
+      Char c = *(read_cursor++);
+      if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
+        *(write_cursor++) = c;
+      } else {
+        const char* replacement = JsonQuotes[static_cast<unsigned>(c)];
+        if (!replacement) {
+          *(write_cursor++) = c;
+        } else {
+          write_cursor = WriteString(write_cursor, replacement);
+        }
+      }
+    }
+  }
+  *(write_cursor++) = '"';
+  ASSERT_EQ(
+      static_cast<int64_t>(
+          SeqAsciiString::kHeaderSize + quoted_length * sizeof(Char)),
+      static_cast<int64_t>(
+          reinterpret_cast<Address>(write_cursor) - new_string->address()));
+  return new_string;
+}
+
+
+static MaybeObject* Runtime_QuoteJSONString(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+  NoHandleAllocation ha;
+  CONVERT_CHECKED(String, str, args[0]);
+  if (!str->IsFlat()) {
+    MaybeObject* try_flatten = str->TryFlatten();
+    Object* flat;
+    if (!try_flatten->ToObject(&flat)) {
+      return try_flatten;
+    }
+    str = String::cast(flat);
+    ASSERT(str->IsFlat());
+  }
+  if (str->IsTwoByteRepresentation()) {
+    return QuoteJsonString<uc16, SeqTwoByteString>(str->ToUC16Vector());
+  } else {
+    return QuoteJsonString<char, SeqAsciiString>(str->ToAsciiVector());
+  }
+}
+
+
+
 static MaybeObject* Runtime_StringParseInt(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   NoHandleAllocation ha;
@@ -5242,11 +5406,12 @@ static int CopyCachedAsciiCharsToArray(Heap* heap,
 static MaybeObject* Runtime_StringToArray(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(String, s, 0);
+  CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
 
   s->TryFlatten();
-  const int length = s->length();
+  const int length = static_cast<int>(Min<uint32_t>(s->length(), limit));
 
   Handle<FixedArray> elements;
   if (s->IsFlat() && s->IsAsciiRepresentation()) {
@@ -6626,17 +6791,20 @@ static MaybeObject* Runtime_NewArgumentsFast(RUNTIME_CALLING_CONVENTION) {
 static MaybeObject* Runtime_NewClosure(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
   CONVERT_ARG_CHECKED(Context, context, 0);
   CONVERT_ARG_CHECKED(SharedFunctionInfo, shared, 1);
+  CONVERT_BOOLEAN_CHECKED(pretenure, args[2]);
 
-  PretenureFlag pretenure = (context->global_context() == *context)
-      ? TENURED       // Allocate global closures in old space.
-      : NOT_TENURED;  // Allocate local closures in new space.
+  // Allocate global closures in old space and allocate local closures
+  // in new space. Additionally pretenure closures that are assigned
+  // directly to properties.
+  pretenure = pretenure || (context->global_context() == *context);
+  PretenureFlag pretenure_flag = pretenure ? TENURED : NOT_TENURED;
   Handle<JSFunction> result =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
                                                             context,
-                                                            pretenure);
+                                                            pretenure_flag);
   return *result;
 }
 
@@ -6676,7 +6844,7 @@ static void TrySettingInlineConstructStub(Isolate* isolate,
   }
   if (function->shared()->CanGenerateInlineConstructor(*prototype)) {
     ConstructStubCompiler compiler;
-    MaybeObject* code = compiler.CompileConstructStub(function->shared());
+    MaybeObject* code = compiler.CompileConstructStub(*function);
     if (!code->IsFailure()) {
       function->shared()->set_construct_stub(
           Code::cast(code->ToObjectUnchecked()));
@@ -6746,7 +6914,6 @@ static MaybeObject* Runtime_NewObject(RUNTIME_CALLING_CONVENTION) {
     // track one initial_map at a time, so we force the completion before the
     // function is called as a constructor for the first time.
     shared->CompleteInobjectSlackTracking();
-    TrySettingInlineConstructStub(isolate, function);
   }
 
   bool first_allocation = !shared->live_objects_may_exist();
@@ -10343,7 +10510,7 @@ static MaybeObject* Runtime_GetFunctionCodePositionFromSource(
 
   Handle<Code> code(function->code());
 
-  RelocIterator it(*code, 1 << RelocInfo::STATEMENT_POSITION);
+  RelocIterator it(*code, RelocInfo::ModeMask(RelocInfo::STATEMENT_POSITION));
   int closest_pc = 0;
   int distance = kMaxInt;
   while (!it.done()) {

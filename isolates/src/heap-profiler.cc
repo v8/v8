@@ -69,7 +69,8 @@ class Clusterizer : public AllStatic {
 JSObjectsCluster Clusterizer::Clusterize(HeapObject* obj, bool fine_grain) {
   if (obj->IsJSObject()) {
     JSObject* js_obj = JSObject::cast(obj);
-    String* constructor = JSObject::cast(js_obj)->constructor_name();
+    String* constructor = GetConstructorNameForHeapProfile(
+        JSObject::cast(js_obj));
     // Differentiate Object and Array instances.
     if (fine_grain && (constructor == HEAP->Object_symbol() ||
                        constructor == HEAP->Array_symbol())) {
@@ -716,7 +717,7 @@ static void StackWeakReferenceCallback(Persistent<Value> object,
 
 static void PrintProducerStackTrace(Object* obj, void* trace) {
   if (!obj->IsJSObject()) return;
-  String* constructor = JSObject::cast(obj)->constructor_name();
+  String* constructor = GetConstructorNameForHeapProfile(JSObject::cast(obj));
   SmartPointer<char> s_name(
       constructor->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL));
   LOG(HeapSampleJSProducerEvent(GetConstructorName(*s_name),
@@ -791,15 +792,13 @@ void AggregatedHeapSnapshotGenerator::CalculateStringsStats() {
 void AggregatedHeapSnapshotGenerator::CollectStats(HeapObject* obj) {
   InstanceType type = obj->map()->instance_type();
   ASSERT(0 <= type && type <= LAST_TYPE);
-  if (!FreeListNode::IsFreeListNode(obj)) {
-    agg_snapshot_->info()[type].increment_number(1);
-    agg_snapshot_->info()[type].increment_bytes(obj->Size());
-  }
+  agg_snapshot_->info()[type].increment_number(1);
+  agg_snapshot_->info()[type].increment_bytes(obj->Size());
 }
 
 
 void AggregatedHeapSnapshotGenerator::GenerateSnapshot() {
-  HeapIterator iterator;
+  HeapIterator iterator(HeapIterator::kPreciseFiltering);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     CollectStats(obj);
     agg_snapshot_->js_cons_profile()->CollectStats(obj);
@@ -891,7 +890,8 @@ static JSObjectsCluster HeapObjectAsCluster(HeapObject* object) {
     return JSObjectsCluster(String::cast(object));
   } else {
     JSObject* js_obj = JSObject::cast(object);
-    String* constructor = JSObject::cast(js_obj)->constructor_name();
+    String* constructor = GetConstructorNameForHeapProfile(
+        JSObject::cast(js_obj));
     return JSObjectsCluster(constructor, object);
   }
 }
@@ -932,10 +932,16 @@ class AllocatingRetainersIterator {
   void Call(const JSObjectsCluster& cluster,
             const NumberAndSizeInfo& number_and_size) {
     int child_index, retainer_index;
-    map_->CountReference(ClusterAsHeapObject(cluster), child_,
-                         &child_index, &retainer_index);
-    map_->Map(ClusterAsHeapObject(cluster))->SetElementReference(
-        child_index, number_and_size.number(), child_entry_, retainer_index);
+    map_->CountReference(ClusterAsHeapObject(cluster),
+                         child_,
+                         &child_index,
+                         &retainer_index);
+    map_->Map(ClusterAsHeapObject(cluster))->SetIndexedReference(
+        HeapGraphEdge::kElement,
+        child_index,
+        number_and_size.number(),
+        child_entry_,
+        retainer_index);
   }
 
  private:
@@ -1047,7 +1053,7 @@ void AggregatedHeapSnapshotGenerator::FillHeapSnapshot(HeapSnapshot* snapshot) {
     if (agg_snapshot_->info()[i].bytes() > 0) {
       AddEntryFromAggregatedSnapshot(snapshot,
                                      &root_child_index,
-                                     HeapEntry::kInternal,
+                                     HeapEntry::kHidden,
                                      agg_snapshot_->info()[i].name(),
                                      agg_snapshot_->info()[i].number(),
                                      agg_snapshot_->info()[i].bytes(),
@@ -1063,6 +1069,8 @@ void AggregatedHeapSnapshotGenerator::FillHeapSnapshot(HeapSnapshot* snapshot) {
 
   // Fill up references.
   IterateRetainers<AllocatingRetainersIterator>(&entries_map);
+
+  snapshot->SetDominatorsToSelf();
 }
 
 

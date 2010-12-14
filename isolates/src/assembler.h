@@ -418,7 +418,7 @@ class RelocIterator: public Malloced {
   // If the given mode is wanted, set it in rinfo_ and return true.
   // Else return false. Used for efficiently skipping unwanted modes.
   bool SetMode(RelocInfo::Mode mode) {
-    return (mode_mask_ & 1 << mode) ? (rinfo_.rmode_ = mode, true) : false;
+    return (mode_mask_ & (1 << mode)) ? (rinfo_.rmode_ = mode, true) : false;
   }
 
   byte* pos_;
@@ -589,23 +589,27 @@ class ExternalReference BASE_EMBEDDED {
 // -----------------------------------------------------------------------------
 // Position recording support
 
-enum PositionRecordingType { FORCED_POSITION, NORMAL_POSITION };
+struct PositionState {
+  PositionState() : current_position(RelocInfo::kNoPosition),
+                    written_position(RelocInfo::kNoPosition),
+                    current_statement_position(RelocInfo::kNoPosition),
+                    written_statement_position(RelocInfo::kNoPosition) {}
+
+  int current_position;
+  int written_position;
+
+  int current_statement_position;
+  int written_statement_position;
+};
+
 
 class PositionsRecorder BASE_EMBEDDED {
  public:
   explicit PositionsRecorder(Assembler* assembler)
-      : assembler_(assembler),
-        current_position_(RelocInfo::kNoPosition),
-        current_position_recording_type_(NORMAL_POSITION),
-        written_position_(RelocInfo::kNoPosition),
-        current_statement_position_(RelocInfo::kNoPosition),
-        written_statement_position_(RelocInfo::kNoPosition) { }
+      : assembler_(assembler) {}
 
-  // Set current position to pos. If recording_type is FORCED_POSITION then
-  // WriteRecordedPositions will write this position even if it is equal to
-  // statement position previously written for another pc.
-  void RecordPosition(int pos,
-                      PositionRecordingType recording_type = NORMAL_POSITION);
+  // Set current position to pos.
+  void RecordPosition(int pos);
 
   // Set current statement position to pos.
   void RecordStatementPosition(int pos);
@@ -613,37 +617,37 @@ class PositionsRecorder BASE_EMBEDDED {
   // Write recorded positions to relocation information.
   bool WriteRecordedPositions();
 
-  int current_position() const { return current_position_; }
+  int current_position() const { return state_.current_position; }
 
-  int current_statement_position() const { return current_statement_position_; }
+  int current_statement_position() const {
+    return state_.current_statement_position;
+  }
 
  private:
   Assembler* assembler_;
+  PositionState state_;
 
-  int current_position_;
-  PositionRecordingType current_position_recording_type_;
-  int written_position_;
+  friend class PreservePositionScope;
 
-  int current_statement_position_;
-  int written_statement_position_;
+  DISALLOW_COPY_AND_ASSIGN(PositionsRecorder);
 };
 
 
-class PreserveStatementPositionScope BASE_EMBEDDED {
+class PreservePositionScope BASE_EMBEDDED {
  public:
-  explicit PreserveStatementPositionScope(PositionsRecorder* positions_recorder)
+  explicit PreservePositionScope(PositionsRecorder* positions_recorder)
       : positions_recorder_(positions_recorder),
-        statement_position_(positions_recorder->current_statement_position()) {}
+        saved_state_(positions_recorder->state_) {}
 
-  ~PreserveStatementPositionScope() {
-    if (statement_position_ != RelocInfo::kNoPosition) {
-      positions_recorder_->RecordStatementPosition(statement_position_);
-    }
+  ~PreservePositionScope() {
+    positions_recorder_->state_ = saved_state_;
   }
 
  private:
   PositionsRecorder* positions_recorder_;
-  int statement_position_;
+  const PositionState saved_state_;
+
+  DISALLOW_COPY_AND_ASSIGN(PreservePositionScope);
 };
 
 

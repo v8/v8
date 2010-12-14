@@ -148,6 +148,9 @@ function Join(array, length, separator, convert) {
         }
       }
     }
+    elements.length = elements_length;
+    var result = %_FastAsciiArrayJoin(elements, "");
+    if (!IS_UNDEFINED(result)) return result;
     return %StringBuilderConcat(elements, elements_length, '');
   } finally {
     // Make sure to pop the visited array no matter what happens.
@@ -364,6 +367,10 @@ function ArrayJoin(separator) {
   } else if (!IS_STRING(separator)) {
     separator = ToString(separator);
   }
+
+  var result = %_FastAsciiArrayJoin(this, separator);
+  if (!IS_UNDEFINED(result)) return result;
+
   var length = TO_UINT32(this.length);
   return Join(this, length, separator, ConvertToString);
 }

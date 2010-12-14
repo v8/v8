@@ -74,7 +74,7 @@ TEST(Promotion) {
   // from new space.
   FLAG_gc_global = true;
   FLAG_always_compact = true;
-  HEAP->ConfigureHeap(2*256*KB, 4*MB);
+  HEAP->ConfigureHeap(2*256*KB, 4*MB, 4*MB);
 
   InitializeVM();
 
@@ -100,7 +100,7 @@ TEST(Promotion) {
 
 
 TEST(NoPromotion) {
-  HEAP->ConfigureHeap(2*256*KB, 4*MB);
+  HEAP->ConfigureHeap(2*256*KB, 4*MB, 4*MB);
 
   // Test the situation that some objects in new space are promoted to
   // the old space

@@ -207,6 +207,12 @@ int strncpy_s(char* strDest, size_t numberOfElements,
   return 0;
 }
 
+
+inline void MemoryBarrier() {
+  int barrier = 0;
+  __asm__ __volatile__("xchgl %%eax,%0 ":"=r" (barrier));
+}
+
 #endif  // __MINGW32__
 
 // Generate a pseudo-random number in the range 0-2^31-1. Usually
@@ -866,22 +872,24 @@ void* OS::Allocate(const size_t requested,
 
   // VirtualAlloc rounds allocated size to page size automatically.
   size_t msize = RoundUp(requested, static_cast<int>(GetPageSize()));
-  intptr_t address = NULL;
+  intptr_t address = 0;
 
   // Windows XP SP2 allows Data Excution Prevention (DEP).
   int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
 
   // For exectutable pages try and randomize the allocation address
-  if (prot == PAGE_EXECUTE_READWRITE && msize >= Page::kPageSize) {
-      address = (V8::Random() << kPageSizeBits) | kAllocationRandomAddressMin;
-      address &= kAllocationRandomAddressMax;
+  if (prot == PAGE_EXECUTE_READWRITE &&
+      msize >= static_cast<size_t>(Page::kPageSize)) {
+    address = (V8::RandomPrivate(Isolate::Current()) << kPageSizeBits)
+      | kAllocationRandomAddressMin;
+    address &= kAllocationRandomAddressMax;
   }
 
   LPVOID mbase = VirtualAlloc(reinterpret_cast<void *>(address),
                               msize,
                               MEM_COMMIT | MEM_RESERVE,
                               prot);
-  if (mbase == NULL && address != NULL)
+  if (mbase == NULL && address != 0)
     mbase = VirtualAlloc(NULL, msize, MEM_COMMIT | MEM_RESERVE, prot);
 
   if (mbase == NULL) {
@@ -1354,6 +1362,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 
 #else  // __MINGW32__
 void OS::LogSharedLibraryAddresses() { }
+void OS::SignalCodeMovingGC() { }
 int OS::StackWalk(Vector<OS::StackFrame> frames) { return 0; }
 #endif  // __MINGW32__
 
@@ -1915,7 +1924,8 @@ Sampler::Sampler(Isolate* isolate, int interval, bool profiling)
       interval_(interval),
       profiling_(profiling),
       synchronous_(profiling),
-      active_(false) {
+      active_(false),
+      samples_taken_(0) {
   data_ = new PlatformData(this);
 }
 

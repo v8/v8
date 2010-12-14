@@ -149,9 +149,9 @@ bool Compiler::MakeCodeForLiveEdit(CompilationInfo* info) {
 static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
-  PostponeInterruptsScope postpone;
-
   Isolate* isolate = info->isolate();
+  PostponeInterruptsScope postpone(isolate);
+
   ASSERT(!isolate->global_context().is_null());
   Handle<Script> script = info->script();
   script->set_context_data((*isolate->global_context())->data());
@@ -369,22 +369,23 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   // The VM is in the COMPILER state until exiting this function.
   VMState state(info->isolate(), COMPILER);
 
-  PostponeInterruptsScope postpone;
+  Isolate* isolate = info->isolate();
+  PostponeInterruptsScope postpone(isolate);
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
   int compiled_size = shared->end_position() - shared->start_position();
-  info->isolate()->counters()->total_compile_size()->Increment(compiled_size);
+  isolate->counters()->total_compile_size()->Increment(compiled_size);
 
   // Generate the AST for the lazily compiled function.
   if (ParserApi::Parse(info)) {
     // Measure how long it takes to do the lazy compilation; only take the
     // rest of the function into account to avoid overlap with the lazy
     // parsing statistics.
-    HistogramTimerScope timer(info->isolate()->counters()->compile_lazy());
+    HistogramTimerScope timer(isolate->counters()->compile_lazy());
 
     // Compile the code.
     if (!MakeCode(info)) {
-      info->isolate()->StackOverflow();
+      isolate->StackOverflow();
     } else {
       ASSERT(!info->code().is_null());
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG,

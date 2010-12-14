@@ -352,10 +352,6 @@ class CodeGenerator: public AstVisitor {
     return FieldOperand(array, index_as_smi, times_half_pointer_size, offset);
   }
 
-  static Operand ContextOperand(Register context, int index) {
-    return Operand(context, Context::SlotOffset(index));
-  }
-
  private:
   // Type of a member function that generates inline code for a native function.
   typedef void (CodeGenerator::*InlineFunctionGenerator)
@@ -441,10 +437,6 @@ class CodeGenerator: public AstVisitor {
                                             JumpTarget* slow);
 
   // Expressions
-  static Operand GlobalObject() {
-    return ContextOperand(esi, Context::GLOBAL_INDEX);
-  }
-
   void LoadCondition(Expression* expr,
                      ControlDestination* destination,
                      bool force_control);
@@ -628,16 +620,13 @@ class CodeGenerator: public AstVisitor {
 
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
-  static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
-
-  static Handle<Code> ComputeKeyedCallInitialize(int argc, InLoopFlag in_loop);
-
   // Declare global variables and functions in the given array of
   // name/value pairs.
   void DeclareGlobals(Handle<FixedArray> pairs);
 
   // Instantiate the function based on the shared function info.
-  Result InstantiateFunction(Handle<SharedFunctionInfo> function_info);
+  Result InstantiateFunction(Handle<SharedFunctionInfo> function_info,
+                             bool pretenure);
 
   // Support for types.
   void GenerateIsSmi(ZoneList<Expression*>* args);
@@ -716,12 +705,14 @@ class CodeGenerator: public AstVisitor {
   void GenerateMathSin(ZoneList<Expression*>* args);
   void GenerateMathCos(ZoneList<Expression*>* args);
   void GenerateMathSqrt(ZoneList<Expression*>* args);
+  void GenerateMathLog(ZoneList<Expression*>* args);
 
-  // Check whether two RegExps are equivalent
+  // Check whether two RegExps are equivalent.
   void GenerateIsRegExpEquivalent(ZoneList<Expression*>* args);
 
   void GenerateHasCachedArrayIndex(ZoneList<Expression*>* args);
   void GenerateGetCachedArrayIndex(ZoneList<Expression*>* args);
+  void GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args);
 
   // Simple condition analysis.
   enum ConditionAnalysis {

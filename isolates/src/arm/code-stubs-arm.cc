@@ -100,8 +100,9 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   // Create a new closure through the slower runtime call.
   __ bind(&gc);
-  __ Push(cp, r3);
-  __ TailCallRuntime(Runtime::kNewClosure, 2, 1);
+  __ LoadRoot(r4, Heap::kFalseValueRootIndex);
+  __ Push(cp, r3, r4);
+  __ TailCallRuntime(Runtime::kNewClosure, 3, 1);
 }
 
 
@@ -2292,6 +2293,7 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
     // Add more cases when necessary.
     case TranscendentalCache::SIN: return Runtime::kMath_sin;
     case TranscendentalCache::COS: return Runtime::kMath_cos;
+    case TranscendentalCache::LOG: return Runtime::kMath_log;
     default:
       UNIMPLEMENTED();
       return Runtime::kAbort;
