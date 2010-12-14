@@ -34,7 +34,7 @@ bugs: FAIL
 ##############################################################################
 # Too slow in debug mode with --stress-opt
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
-
+regress/regress-create-exception: PASS, SKIP if $mode == debug
 
 ##############################################################################
 # This one uses a built-in that's only present in debug mode. It takes
