@@ -50,4 +50,4 @@ F.prototype.foo = function () {
 
 var ctx = new F;
 
-for (var i = 0; i < 10000000; i++) ctx.foo();
+for (var i = 0; i < 10000; i++) ctx.foo();
