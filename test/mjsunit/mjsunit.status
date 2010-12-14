@@ -34,6 +34,7 @@ bugs: FAIL
 ##############################################################################
 # Too slow in debug mode with --stress-opt
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
+compiler/regress-funcaller: PASS, SKIP if $mode == debug
 regress/regress-create-exception: PASS, SKIP if $mode == debug
 
 ##############################################################################
