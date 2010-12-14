@@ -1,0 +1,252 @@
+# Copyright 2009 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+prefix es5conform
+def UNIMPLEMENTED = PASS || FAIL
+def FAIL_OK = FAIL, OKAY
+
+
+##############################################################################
+# Non UTF8 characters in test files.
+chapter10/10.4/10.4.2/10.4.2-3-c-2-s: FAIL_OK
+chapter10/10.4/10.4.2/10.4.2-3-c-1-s: FAIL_OK
+chapter10/10.4/10.4.2/10.4.2-2-c-1: FAIL_OK
+
+# We do not implement the error chekcs specified in the production rules
+# of 11.1.5 (Object initializer).
+# We are compatible with Safari and Firefox.
+chapter11/11.1/11.1.5: UNIMPLEMENTED
+
+# Delete returns true in eval even when it should return false.
+# Please see http://code.google.com/p/v8/issues/detail?id=759
+chapter11/11.4/11.4.1//11.4.1-4.a-5: FAIL
+chapter11/11.4/11.4.1//11.4.1-4.a-7: FAIL
+
+# We do not have a global object called 'global' as required by tests.
+chapter15/15.1: FAIL_OK
+
+# NOT IMPLEMENTED: bind
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-38: UNIMPLEMENTED
+
+# NaN is writable. We are compatible with JSC.
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-178: FAIL_OK
+# Infinity is writable. We are compatible with JSC.
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-179: FAIL_OK
+# undefined is writable. We are compatible with JSC.
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-180: FAIL_OK
+
+# Our Function object has an "arguments" property which is used as a
+# non-property in the test.
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-183: FAIL_OK
+
+# Our Function object has a "caller" property which is used as a
+# non-property in in the test.
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-184: FAIL_OK
+
+# Our function object has a name property which is used as a
+# non-property in the test.
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-188: FAIL_OK
+
+# NOT IMPLEMENTED: RegExp.prototype.source
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-212: UNIMPLEMENTED
+
+# NOT IMPLEMENTED: RegExp.prototype.global
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-213: UNIMPLEMENTED
+
+# NOT IMPLEMENTED: RegExp.prototype.ignoreCase
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-214: UNIMPLEMENTED
+
+# NOT IMPLEMENTED: RegExp.prototype.multiline
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-215: UNIMPLEMENTED
+
+# All of the tests below marked SUBSETFAIL (in 15.2.3.4) fail because 
+# the tests assumes that objects can not have more properties
+# than those described in the spec - but according to spec they can 
+# have additional properties.
+# All compareArray calls in these tests could be exchanged with a 
+# isSubsetOfArray call (I will upload a path to the es5conform site).
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-1: FAIL_OK
+
+# SUBSETFAIL + we do not implement all methods on Object.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-2: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-3: FAIL_OK
+
+# SUBSETFAIL + we do not implement Function.prototype.bind.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-4: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-5: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-6: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-7: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-8: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-9: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-11: FAIL_OK
+
+# We do not implement all methods on RegExp.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-13: FAIL
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-14: FAIL_OK
+
+# EvalError.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-15: FAIL
+
+# Rangeerror.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-16: FAIL
+
+# ReferenceError.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-17: FAIL
+
+# SyntaxError.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-18: FAIL
+
+# TypeError.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-19: FAIL
+
+# URIError.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-20: FAIL
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-22: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-23: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-24: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-25: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-26: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-27: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-28: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-29: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-30: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-31: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-32: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-33: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-34: FAIL_OK
+
+# SUBSETFAIL
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-35: FAIL_OK
+
+# NOT IMPLEMENTED: bind on Function.prototype.
+chapter15/15.3/15.3.4/15.3.4.5/15.3.4.5-0-1: UNIMPLEMENTED
+
+# Bad test - the spec does not say anything about throwing errors
+# on calling Array.prototype.indexOf with undefined as argument.
+chapter15/15.4/15.4.4/15.4.4.14/15.4.4.14-1-1: FAIL_OK
+
+# Bad test - the spec does not say anything about throwing errors
+# on calling Array.prototype.indexOf with null as argument.
+chapter15/15.4/15.4.4/15.4.4.14/15.4.4.14-1-2: FAIL_OK
+
+# Bad test - the test at the end should be "i === true".
+chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-8-10: FAIL_OK
+
+# Bad test - according to spec some returns a Boolean, not a number.
+chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-4-9: FAIL_OK
+
+# Bad test - uses unitialized variable a in precondition check.
+chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-9-3: FAIL_OK
+
+# We do not implement Array mapping functions correctly if array
+# entries are added for nonexistent entries smaller than length by
+# the callback function. We are compatible with JSC.
+# See http://code.google.com/p/v8/issues/detail?id=755
+chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-1: FAIL_OK
+
+# Bad tests, path in test file is wrong. This will crash the test
+# script so we mark it SKIP.
+chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-c-ii-4: SKIP
+chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-c-ii-4-s: SKIP
+
+# Bad test - deleting the property on o in callbackfn will
+# have no effect on the actual array on which reduceRight is called.
+chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-7: FAIL_OK
+
+# We do not implement trim correctly on null and undefined.
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-1-1: FAIL
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-1-2: FAIL
+
+# We do not correctly recognize \uFEFF as whitespace
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-10: FAIL
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-18: FAIL
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-34: FAIL
+
+# RegExp.prototype is not of type RegExp - we are bug compatible with JSC.
+chapter15/15.10/15.10.6/15.10.6: FAIL_OK
+
+# We do not have the properties of a RegExp instance on RegExp.prototype.
+# The spec says we should - but we are currently bug compatible with JSC.
+chapter15/15.10/15.10.7/15.10.7.1/15.10.7.1-1: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.1/15.10.7.1-2: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.2/15.10.7.2-1: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.2/15.10.7.2-2: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.3/15.10.7.3-1: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.3/15.10.7.3-2: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.4/15.10.7.4-1: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.4/15.10.7.4-2: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-1: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-2: FAIL_OK
+
+[ $arch == mips ]
+
+# Skip all tests on MIPS.
+*: SKIP
