@@ -45,7 +45,26 @@ class TranscendentalCacheStub: public CodeStub {
   void Generate(MacroAssembler* masm);
  private:
   TranscendentalCache::Type type_;
+
   Major MajorKey() { return TranscendentalCache; }
+  int MinorKey() { return type_; }
+  Runtime::FunctionId RuntimeFunction();
+  void GenerateOperation(MacroAssembler* masm);
+};
+
+
+// Check the transcendental cache, or generate the result, using SSE2.
+// The argument and result will be in xmm1.
+// Only supports TranscendentalCache::LOG at this point.
+class TranscendentalCacheSSE2Stub: public CodeStub {
+ public:
+  explicit TranscendentalCacheSSE2Stub(TranscendentalCache::Type type)
+      : type_(type) {}
+  void Generate(MacroAssembler* masm);
+ private:
+  TranscendentalCache::Type type_;
+
+  Major MajorKey() { return TranscendentalCacheSSE2; }
   int MinorKey() { return type_; }
   Runtime::FunctionId RuntimeFunction();
   void GenerateOperation(MacroAssembler* masm);

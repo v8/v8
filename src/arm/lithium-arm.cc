@@ -1354,6 +1354,9 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathPowHalf:
       Abort("MathPowHalf LUnaryMathOperation not implemented");
       return NULL;
+    case kMathLog:
+      Abort("MathLog LUnaryMathOperation not implemented");
+      return NULL;
     default:
       UNREACHABLE();
       return NULL;

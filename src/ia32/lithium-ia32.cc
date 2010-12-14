@@ -1355,22 +1355,28 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   MathFunctionId op = instr->op();
-  LOperand* input = UseRegisterAtStart(instr->value());
-  LInstruction* result = new LUnaryMathOperation(input);
-  switch (op) {
-    case kMathAbs:
-      return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
-    case kMathFloor:
-      return AssignEnvironment(DefineAsRegister(result));
-    case kMathRound:
-      return AssignEnvironment(DefineAsRegister(result));
-    case kMathSqrt:
-      return DefineSameAsFirst(result);
-    case kMathPowHalf:
-      return AssignEnvironment(DefineSameAsFirst(result));
-    default:
-      UNREACHABLE();
-      return NULL;
+  if (op == kMathLog) {
+    LOperand* input = UseFixedDouble(instr->value(), xmm1);
+    LInstruction* result = new LUnaryMathOperation(input);
+    return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
+  } else {
+    LOperand* input = UseRegisterAtStart(instr->value());
+    LInstruction* result = new LUnaryMathOperation(input);
+    switch (op) {
+      case kMathAbs:
+        return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
+      case kMathFloor:
+        return AssignEnvironment(DefineAsRegister(result));
+      case kMathRound:
+        return AssignEnvironment(DefineAsRegister(result));
+      case kMathSqrt:
+        return DefineSameAsFirst(result);
+      case kMathPowHalf:
+        return AssignEnvironment(DefineSameAsFirst(result));
+      default:
+        UNREACHABLE();
+        return NULL;
+    }
   }
 }
 

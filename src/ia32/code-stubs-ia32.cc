@@ -2683,6 +2683,143 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
 }
 
 
+void TranscendentalCacheSSE2Stub::Generate(MacroAssembler* masm) {
+  // Input on stack:
+  // esp[0]: return address.
+  // Input in registers:
+  // xmm1:   untagged double input argument.
+  // Output:
+  // xmm1:   untagged double result.
+  Label skip_cache;
+  Label call_runtime;
+
+  // Input is an untagged double in xmm1.
+  // Compute hash (the shifts are arithmetic):
+  //   h = (low ^ high); h ^= h >> 16; h ^= h >> 8; h = h & (cacheSize - 1);
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatures::Scope sse4_scope(SSE4_1);
+    __ pextrd(Operand(edx), xmm1, 0x1);  // copy xmm1[63..32] to edx.
+  } else {
+    __ pshufd(xmm0, xmm1, 0x1);
+    __ movd(Operand(edx), xmm0);
+  }
+  __ movd(Operand(ebx), xmm1);
+
+  // xmm1 = double value
+  // ebx = low 32 bits of double value
+  // edx = high 32 bits of double value
+  // Compute hash (the shifts are arithmetic):
+  //   h = (low ^ high); h ^= h >> 16; h ^= h >> 8; h = h & (cacheSize - 1);
+  __ mov(ecx, ebx);
+  __ xor_(ecx, Operand(edx));
+  __ mov(eax, ecx);
+  __ sar(eax, 16);
+  __ xor_(ecx, Operand(eax));
+  __ mov(eax, ecx);
+  __ sar(eax, 8);
+  __ xor_(ecx, Operand(eax));
+  ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
+  __ and_(Operand(ecx), Immediate(TranscendentalCache::kCacheSize - 1));
+
+  // xmm1 = double value.
+  // ebx = low 32 bits of double value.
+  // edx = high 32 bits of double value.
+  // ecx = TranscendentalCache::hash(double value).
+  __ mov(eax,
+         Immediate(ExternalReference::transcendental_cache_array_address()));
+  // Eax points to cache array.
+  __ mov(eax, Operand(eax, type_ * sizeof(TranscendentalCache::caches_[0])));
+  // Eax points to the cache for the type type_.
+  // If NULL, the cache hasn't been initialized yet, so go through runtime.
+  __ test(eax, Operand(eax));
+  __ j(zero, &call_runtime);
+#ifdef DEBUG
+  // Check that the layout of cache elements match expectations.
+  { TranscendentalCache::Element test_elem[2];
+    char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
+    char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
+    char* elem_in0  = reinterpret_cast<char*>(&(test_elem[0].in[0]));
+    char* elem_in1  = reinterpret_cast<char*>(&(test_elem[0].in[1]));
+    char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
+    CHECK_EQ(12, elem2_start - elem_start);  // Two uint_32's and a pointer.
+    CHECK_EQ(0, elem_in0 - elem_start);
+    CHECK_EQ(kIntSize, elem_in1 - elem_start);
+    CHECK_EQ(2 * kIntSize, elem_out - elem_start);
+  }
+#endif
+  // Find the address of the ecx'th entry in the cache, i.e., &eax[ecx*12].
+  __ lea(ecx, Operand(ecx, ecx, times_2, 0));
+  __ lea(ecx, Operand(eax, ecx, times_4, 0));
+  // Check if cache matches: Double value is stored in uint32_t[2] array.
+  NearLabel cache_miss;
+  __ cmp(ebx, Operand(ecx, 0));
+  __ j(not_equal, &cache_miss);
+  __ cmp(edx, Operand(ecx, kIntSize));
+  __ j(not_equal, &cache_miss);
+  // Cache hit!
+  __ mov(eax, Operand(ecx, 2 * kIntSize));
+  __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
+  __ Ret();
+
+  __ bind(&cache_miss);
+  // Update cache with new value.
+  // We are short on registers, so use no_reg as scratch.
+  // This gives slightly larger code.
+  __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
+  __ sub(Operand(esp), Immediate(kDoubleSize));
+  __ movdbl(Operand(esp, 0), xmm1);
+  __ fld_d(Operand(esp, 0));
+  __ add(Operand(esp), Immediate(kDoubleSize));
+  GenerateOperation(masm);
+  __ mov(Operand(ecx, 0), ebx);
+  __ mov(Operand(ecx, kIntSize), edx);
+  __ mov(Operand(ecx, 2 * kIntSize), eax);
+  __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+  __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
+  __ Ret();
+
+  __ bind(&skip_cache);
+  __ sub(Operand(esp), Immediate(kDoubleSize));
+  __ movdbl(Operand(esp, 0), xmm1);
+  __ fld_d(Operand(esp, 0));
+  GenerateOperation(masm);
+  __ fstp_d(Operand(esp, 0));
+  __ movdbl(xmm1, Operand(esp, 0));
+  __ add(Operand(esp), Immediate(kDoubleSize));
+  __ Ret();
+
+  __ bind(&call_runtime);
+  __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
+  __ push(eax);
+  __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm1);
+  __ CallRuntime(RuntimeFunction(), 1);
+  __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
+  __ Ret();
+}
+
+
+Runtime::FunctionId TranscendentalCacheSSE2Stub::RuntimeFunction() {
+  switch (type_) {
+    // Add more cases when necessary.
+    case TranscendentalCache::LOG: return Runtime::kMath_log;
+    default:
+      UNIMPLEMENTED();
+      return Runtime::kAbort;
+  }
+}
+
+
+void TranscendentalCacheSSE2Stub::GenerateOperation(MacroAssembler* masm) {
+  // Only free register is edi.
+  // Input value is on FP stack and in xmm1.
+
+  ASSERT(type_ == TranscendentalCache::LOG);
+  __ fldln2();
+  __ fxch();
+  __ fyl2x();
+}
+
+
 // Get the integer part of a heap number.  Surprisingly, all this bit twiddling
 // is faster than using the built-in instructions on floating point registers.
 // Trashes edi and ebx.  Dest is ecx.  Source cannot be ecx or one of the
