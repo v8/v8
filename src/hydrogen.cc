@@ -4080,7 +4080,8 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value, HBasicBlock* target) {
 
 bool HGraphBuilder::TryMathFunctionInline(Call* expr) {
   // Try to inline calls like Math.* as operations in the calling function.
-  MathFunctionId id = expr->target()->shared()->math_function_id();
+  if (!expr->target()->shared()->IsBuiltinMathFunction()) return false;
+  BuiltinFunctionId id = expr->target()->shared()->builtin_function_id();
   int argument_count = expr->arguments()->length() + 1;  // Plus receiver.
   switch (id) {
     case kMathRound:
@@ -4143,7 +4144,7 @@ bool HGraphBuilder::TryMathFunctionInline(Call* expr) {
       }
       break;
     default:
-      // Either not a special math function or not yet supported for inlining.
+      // Not yet supported for inlining.
       break;
   }
   return false;

@@ -66,7 +66,6 @@ namespace internal {
   \
   F(IsInPrototypeChain, 2, 1) \
   F(SetHiddenPrototype, 2, 1) \
-  F(SetMathFunctionId, 2, 1) \
   \
   F(IsConstructCall, 0, 1) \
   \

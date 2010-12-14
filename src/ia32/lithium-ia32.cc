@@ -1354,7 +1354,7 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 
 
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
-  MathFunctionId op = instr->op();
+  BuiltinFunctionId op = instr->op();
   if (op == kMathLog) {
     LOperand* input = UseFixedDouble(instr->value(), xmm1);
     LInstruction* result = new LUnaryMathOperation(input);

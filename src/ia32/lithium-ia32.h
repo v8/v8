@@ -670,7 +670,7 @@ class LUnaryMathOperation: public LUnaryOperation {
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
 
   virtual void PrintDataTo(StringStream* stream) const;
-  MathFunctionId op() const { return hydrogen()->op(); }
+  BuiltinFunctionId op() const { return hydrogen()->op(); }
 };
 
 

@@ -614,22 +614,6 @@ static MaybeObject* Runtime_SetHiddenPrototype(Arguments args) {
 }
 
 
-// Sets the magic number that identifies a function as one of the special
-// math functions that can be inlined.
-static MaybeObject* Runtime_SetMathFunctionId(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-  CONVERT_CHECKED(JSFunction, function, args[0]);
-  CONVERT_CHECKED(Smi, id, args[1]);
-  RUNTIME_ASSERT(id->value() >= 0);
-  RUNTIME_ASSERT(id->value() < SharedFunctionInfo::max_math_id_number());
-
-  function->shared()->set_math_function_id(id->value());
-
-  return Heap::undefined_value();
-}
-
-
 static MaybeObject* Runtime_IsConstructCall(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 0);
