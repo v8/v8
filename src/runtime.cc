@@ -9689,7 +9689,7 @@ static MaybeObject* Runtime_DebugEvaluate(Arguments args) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  ASSERT(args.length() == 4);
+  ASSERT(args.length() == 5);
   Object* check_result;
   { MaybeObject* maybe_check_result = Runtime_CheckExecutionState(args);
     if (!maybe_check_result->ToObject(&check_result)) {
@@ -9699,6 +9699,7 @@ static MaybeObject* Runtime_DebugEvaluate(Arguments args) {
   CONVERT_CHECKED(Smi, wrapped_id, args[1]);
   CONVERT_ARG_CHECKED(String, source, 2);
   CONVERT_BOOLEAN_CHECKED(disable_break, args[3]);
+  Handle<Object> additional_context(args[4]);
 
   // Handle the processing of break.
   DisableBreak disable_break_save(disable_break);
@@ -9748,6 +9749,11 @@ static MaybeObject* Runtime_DebugEvaluate(Arguments args) {
   Handle<Context> frame_context(Context::cast(frame->context()));
   Handle<Context> function_context(frame_context->fcontext());
   context = CopyWithContextChain(frame_context, context);
+
+  if (additional_context->IsJSObject()) {
+    context = Factory::NewWithContext(context,
+        Handle<JSObject>::cast(additional_context), false);
+  }
 
   // Wrap the evaluation statement in a new function compiled in the newly
   // created context. The function has one parameter which has to be called
@@ -9803,7 +9809,7 @@ static MaybeObject* Runtime_DebugEvaluateGlobal(Arguments args) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   Object* check_result;
   { MaybeObject* maybe_check_result = Runtime_CheckExecutionState(args);
     if (!maybe_check_result->ToObject(&check_result)) {
@@ -9812,6 +9818,7 @@ static MaybeObject* Runtime_DebugEvaluateGlobal(Arguments args) {
   }
   CONVERT_ARG_CHECKED(String, source, 1);
   CONVERT_BOOLEAN_CHECKED(disable_break, args[2]);
+  Handle<Object> additional_context(args[3]);
 
   // Handle the processing of break.
   DisableBreak disable_break_save(disable_break);
@@ -9830,11 +9837,24 @@ static MaybeObject* Runtime_DebugEvaluateGlobal(Arguments args) {
   // debugger was invoked.
   Handle<Context> context = Top::global_context();
 
+  bool is_global = true;
+
+  if (additional_context->IsJSObject()) {
+    // Create a function context first, than put 'with' context on top of it.
+    Handle<JSFunction> go_between = Factory::NewFunction(
+        Factory::empty_string(), Factory::undefined_value());
+    go_between->set_context(*context);
+    context =
+        Factory::NewFunctionContext(Context::MIN_CONTEXT_SLOTS, go_between);
+    context->set_extension(JSObject::cast(*additional_context));
+    is_global = false;
+  }
+
   // Compile the source to be evaluated.
   Handle<SharedFunctionInfo> shared =
       Compiler::CompileEval(source,
                             context,
-                            true);
+                            is_global);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Handle<JSFunction>(Factory::NewFunctionFromSharedFunctionInfo(shared,
