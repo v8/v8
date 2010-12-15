@@ -4409,10 +4409,25 @@ CharacterRange RegExpParser::ParseClassAtom(uc16* char_class) {
 }
 
 
+static const uc16 kNoCharClass = 0;
+
+// Adds range or pre-defined character class to character ranges.
+// If char_class is not kInvalidClass, it's interpreted as a class
+// escape (i.e., 's' means whitespace, from '\s').
+static inline void AddRangeOrEscape(ZoneList<CharacterRange>* ranges,
+                                    uc16 char_class,
+                                    CharacterRange range) {
+  if (char_class != kNoCharClass) {
+    CharacterRange::AddClassEscape(char_class, ranges);
+  } else {
+    ranges->Add(range);
+  }
+}
+
+
 RegExpTree* RegExpParser::ParseCharacterClass() {
   static const char* kUnterminated = "Unterminated character class";
   static const char* kRangeOutOfOrder = "Range out of order in character class";
-  static const char* kInvalidRange = "Invalid character range";
 
   ASSERT_EQ(current(), '[');
   Advance();
@@ -4421,30 +4436,10 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
     is_negated = true;
     Advance();
   }
-  // A CharacterClass is a sequence of single characters, character class
-  // escapes or ranges. Ranges are on the form "x-y" where x and y are
-  // single characters (and not character class escapes like \s).
-  // A "-" may occur at the start or end of the character class (just after
-  // "[" or "[^", or just before "]") without being considered part of a
-  // range. A "-" may also appear as the beginning or end of a range.
-  // I.e., [--+] is valid, so is [!--].
-
   ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
   while (has_more() && current() != ']') {
-    uc16 char_class = 0;
+    uc16 char_class = kNoCharClass;
     CharacterRange first = ParseClassAtom(&char_class CHECK_FAILED);
-    if (char_class) {
-      CharacterRange::AddClassEscape(char_class, ranges);
-      if (current() == '-') {
-        Advance();
-        ranges->Add(CharacterRange::Singleton('-'));
-        if (current() != ']') {
-          ReportError(CStrVector(kInvalidRange) CHECK_FAILED);
-        }
-        break;
-      }
-      continue;
-    }
     if (current() == '-') {
       Advance();
       if (current() == kEndMarker) {
@@ -4452,20 +4447,25 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
         // following code report an error.
         break;
       } else if (current() == ']') {
-        ranges->Add(first);
+        AddRangeOrEscape(ranges, char_class, first);
         ranges->Add(CharacterRange::Singleton('-'));
         break;
       }
-      CharacterRange next = ParseClassAtom(&char_class CHECK_FAILED);
-      if (char_class) {
-        ReportError(CStrVector(kInvalidRange) CHECK_FAILED);
+      uc16 char_class_2 = kNoCharClass;
+      CharacterRange next = ParseClassAtom(&char_class_2 CHECK_FAILED);
+      if (char_class != kNoCharClass || char_class_2 != kNoCharClass) {
+        // Either end is an escaped character class. Treat the '-' verbatim.
+        AddRangeOrEscape(ranges, char_class, first);
+        ranges->Add(CharacterRange::Singleton('-'));
+        AddRangeOrEscape(ranges, char_class_2, next);
+        continue;
       }
       if (first.from() > next.to()) {
         return ReportError(CStrVector(kRangeOutOfOrder) CHECK_FAILED);
       }
       ranges->Add(CharacterRange::Range(first.from(), next.to()));
     } else {
-      ranges->Add(first);
+      AddRangeOrEscape(ranges, char_class, first);
     }
   }
   if (!has_more()) {
