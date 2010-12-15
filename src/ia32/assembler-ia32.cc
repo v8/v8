@@ -2502,7 +2502,7 @@ void Assembler::pshufd(XMMRegister dst, XMMRegister src, int8_t shuffle) {
 
 
 void Assembler::pextrd(const Operand& dst, XMMRegister src, int8_t offset) {
-  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  ASSERT(CpuFeatures::IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x66);

@@ -2790,9 +2790,11 @@ void TranscendentalCacheSSE2Stub::Generate(MacroAssembler* masm) {
 
   __ bind(&call_runtime);
   __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
-  __ push(eax);
   __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm1);
+  __ EnterInternalFrame();
+  __ push(eax);
   __ CallRuntime(RuntimeFunction(), 1);
+  __ LeaveInternalFrame();
   __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
   __ Ret();
 }

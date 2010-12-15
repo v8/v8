@@ -47,6 +47,7 @@ namespace internal {
   V(Compare)                             \
   V(CompareIC)                           \
   V(MathPow)                             \
+  V(TranscendentalCacheSSE2)             \
   V(RecordWrite)                         \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
@@ -56,7 +57,6 @@ namespace internal {
   V(FastNewContext)                      \
   V(FastCloneShallowArray)               \
   V(TranscendentalCache)                 \
-  V(TranscendentalCacheSSE2)             \
   V(GenericUnaryOp)                      \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
