@@ -1650,7 +1650,7 @@ LInstruction* LChunkBuilder::DoIsNull(HIsNull* instr) {
 
 LInstruction* LChunkBuilder::DoIsObject(HIsObject* instr) {
   ASSERT(instr->value()->representation().IsTagged());
-  LOperand* value = UseRegisterAtStart(instr->value());
+  LOperand* value = UseRegister(instr->value());
 
   return DefineAsRegister(new LIsObject(value, TempRegister()));
 }

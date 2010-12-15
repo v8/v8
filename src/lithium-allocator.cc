@@ -585,17 +585,12 @@ void LAllocator::AddInitialIntervals(HBasicBlock* block,
   LifetimePosition start = LifetimePosition::FromInstructionIndex(
       block->first_instruction_index());
   LifetimePosition end = LifetimePosition::FromInstructionIndex(
-      block->last_instruction_index());
+      block->last_instruction_index()).NextInstruction();
   BitVector::Iterator iterator(live_out);
   while (!iterator.Done()) {
     int operand_index = iterator.Current();
     LiveRange* range = LiveRangeFor(operand_index);
-    if (!range->IsEmpty() &&
-        range->Start().Value() == end.NextInstruction().Value()) {
-      range->AddUseInterval(start, end.NextInstruction());
-    } else {
-      range->AddUseInterval(start, end);
-    }
+    range->AddUseInterval(start, end);
     iterator.Advance();
   }
 }
@@ -978,8 +973,8 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
               }
             }
           }
-          Use(block_start_position, curr_position, temp, NULL);
-          Define(curr_position.PrevInstruction(), temp, NULL);
+          Use(block_start_position, curr_position.InstructionEnd(), temp, NULL);
+          Define(curr_position, temp, NULL);
         }
       }
     }
@@ -1832,7 +1827,7 @@ bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
   // Register reg is available at the range start and is free until
   // the range end.
   ASSERT(pos.Value() >= current->End().Value());
-  TraceAlloc("Assigning reg %s to live range %d\n",
+  TraceAlloc("Assigning free reg %s to live range %d\n",
              RegisterName(reg),
              current->id());
   current->set_assigned_register(reg, mode_);
@@ -1922,7 +1917,7 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
 
   // Register reg is not blocked for the whole range.
   ASSERT(block_pos[reg].Value() >= current->End().Value());
-  TraceAlloc("Assigning reg %s to live range %d\n",
+  TraceAlloc("Assigning blocked reg %s to live range %d\n",
              RegisterName(reg),
              current->id());
   current->set_assigned_register(reg, mode_);
