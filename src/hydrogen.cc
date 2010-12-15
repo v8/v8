@@ -4533,26 +4533,25 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
     VISIT_FOR_VALUE(target);
 
-    HValue* value = Pop();
-    HInstruction* instr = BuildIncrement(value, inc);
-    AddInstruction(instr);
-
-    if (expr->is_prefix()) {
-      Push(instr);
-    } else {
-      Push(value);
-    }
+    // Match the full code generator stack by simulating an extra stack
+    // element for postfix operations in a non-effect context.
+    bool has_extra = expr->is_postfix() && !ast_context()->IsEffect();
+    HValue* before = has_extra ? Top() : Pop();
+    HInstruction* after = BuildIncrement(before, inc);
+    AddInstruction(after);
+    Push(after);
 
     if (var->is_global()) {
       HandleGlobalVariableAssignment(var,
-                                     instr,
+                                     after,
                                      expr->position(),
                                      expr->AssignmentId());
     } else {
       ASSERT(var->IsStackAllocated());
-      Bind(var, instr);
+      Bind(var, after);
     }
-    ast_context()->ReturnValue(Pop());
+    Drop(has_extra ? 2 : 1);
+    ast_context()->ReturnValue(expr->is_postfix() ? before : after);
 
   } else if (prop != NULL) {
     prop->RecordTypeFeedback(oracle());
@@ -4561,7 +4560,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       // Named property.
 
       // Match the full code generator stack by simulating an extra stack
-      // element for postfix operations in a value context.
+      // element for postfix operations in a non-effect context.
       bool has_extra = expr->is_postfix() && !ast_context()->IsEffect();
       if (has_extra) Push(graph_->GetConstantUndefined());
 
@@ -4602,7 +4601,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       // Keyed property.
 
       // Match the full code generator stack by simulate an extra stack element
-      // for postfix operations in a value context.
+      // for postfix operations in a non-effect context.
       bool has_extra = expr->is_postfix() && !ast_context()->IsEffect();
       if (has_extra) Push(graph_->GetConstantUndefined());
 
