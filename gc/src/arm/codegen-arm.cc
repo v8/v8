@@ -132,7 +132,9 @@ TypeInfoCodeGenState::~TypeInfoCodeGenState() {
 // -------------------------------------------------------------------------
 // CodeGenerator implementation
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
 int CodeGenerator::inlined_write_barrier_size_ = -1;
+#endif
 
 CodeGenerator::CodeGenerator(MacroAssembler* masm)
     : deferred_(8),
@@ -256,10 +258,12 @@ void CodeGenerator::Generate(CompilationInfo* info) {
           __ ldr(r1, frame_->ParameterAt(i));
           // Loads r2 with context; used below in RecordWrite.
           __ str(r1, SlotOperand(slot, r2));
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
           // Load the offset into r3.
           int slot_offset =
               FixedArray::kHeaderSize + slot->index() * kPointerSize;
           __ RecordWrite(r2, Operand(slot_offset), r3, r1);
+#endif
         }
       }
     }
@@ -3335,11 +3339,13 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       // We don't use tos any more after here.
       exit.Branch(eq);
       // scratch is loaded with context when calling SlotOperand above.
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
       int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
       // We need an extra register.  Until we have a way to do that in the
       // virtual frame we will cheat and ask for a free TOS register.
       Register scratch3 = frame_->GetTOSRegister();
       __ RecordWrite(scratch, Operand(offset), scratch2, scratch3);
+#endif
     }
     // If we definitely did not jump over the assignment, we do not need
     // to bind the exit label.  Doing so can defeat peephole
@@ -3727,8 +3733,10 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     int offset = i * kPointerSize + FixedArray::kHeaderSize;
     __ str(r0, FieldMemOperand(r1, offset));
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     // Update the write barrier for the array address.
     __ RecordWrite(r1, Operand(offset), r3, r2);
+#endif
   }
   ASSERT_EQ(original_height + 1, frame_->height());
 }
@@ -4548,11 +4556,13 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   leave.Branch(ne);
   // Store the value.
   __ str(value, FieldMemOperand(object, JSValue::kValueOffset));
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Update the write barrier.
   __ RecordWrite(object,
                  Operand(JSValue::kValueOffset - kHeapObjectTag),
                  scratch1,
                  scratch2);
+#endif
   // Leave.
   leave.Bind();
   frame_->EmitPush(value);
@@ -5606,6 +5616,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   __ str(tmp3, MemOperand(tmp1, index2));
   __ str(tmp2, MemOperand(tmp1, index1));
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   Label done;
   __ InNewSpace(tmp1, tmp2, eq, &done);
   // Possible optimization: do a check that both values are Smis
@@ -5619,6 +5630,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   __ CallStub(&recordWrite2);
 
   __ bind(&done);
+#endif
 
   deferred->BindExit();
   __ LoadRoot(tmp1, Heap::kUndefinedValueRootIndex);
@@ -6964,6 +6976,7 @@ void CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
       // Update the write barrier and record its size. We do not use
       // the RecordWrite macro here because we want the offset
       // addition instruction first to make it easy to patch.
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
       Label record_write_start, record_write_done;
       __ bind(&record_write_start);
       // Add offset into the object.
@@ -6989,6 +7002,7 @@ void CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
               masm()->InstructionsGeneratedSince(&record_write_start)));
       inlined_write_barrier_size_ =
           masm()->InstructionsGeneratedSince(&record_write_start);
+#endif
 
       // Make sure that the expected number of instructions are generated.
       ASSERT_EQ(GetInlinedNamedStoreInstructionsAfterPatch(),

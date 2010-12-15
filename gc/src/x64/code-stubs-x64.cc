@@ -1971,12 +1971,16 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Store last subject and last input.
   __ movq(rax, Operand(rsp, kSubjectOffset));
   __ movq(FieldOperand(rbx, RegExpImpl::kLastSubjectOffset), rax);
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ movq(rcx, rbx);
   __ RecordWrite(rcx, RegExpImpl::kLastSubjectOffset, rax, rdi);
+#endif
   __ movq(rax, Operand(rsp, kSubjectOffset));
   __ movq(FieldOperand(rbx, RegExpImpl::kLastInputOffset), rax);
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ movq(rcx, rbx);
   __ RecordWrite(rcx, RegExpImpl::kLastInputOffset, rax, rdi);
+#endif
 
   // Get the static offsets vector filled by the native regexp code.
   __ movq(rcx, ExternalReference::address_of_static_offsets_vector());

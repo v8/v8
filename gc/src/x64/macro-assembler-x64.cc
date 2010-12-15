@@ -73,7 +73,7 @@ void MacroAssembler::CompareRoot(Operand with, Heap::RootListIndex index) {
   cmpq(with, kScratchRegister);
 }
 
-
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register addr,
                                        Register scratch) {
@@ -214,6 +214,7 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
     movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
 }
+#endif
 
 void MacroAssembler::Assert(Condition cc, const char* msg) {
   if (FLAG_debug_code) Check(cc, msg);

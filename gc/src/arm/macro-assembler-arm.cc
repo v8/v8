@@ -335,6 +335,7 @@ void MacroAssembler::StoreRoot(Register source,
 }
 
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register address,
                                        Register scratch) {
@@ -438,7 +439,7 @@ void MacroAssembler::RecordWrite(Register object,
     mov(scratch, Operand(BitCast<int32_t>(kZapValue)));
   }
 }
-
+#endif
 
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {

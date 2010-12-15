@@ -61,6 +61,7 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // For page containing |object| mark region covering |addr| dirty.
   // RecordWriteHelper only works if the object is not in new
   // space.
@@ -95,6 +96,7 @@ class MacroAssembler: public Assembler {
   void RecordWrite(Register object,
                    Register address,
                    Register value);
+#endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------

@@ -81,6 +81,7 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // For page containing |object| mark region covering |addr| dirty.
   // RecordWriteHelper only works if the object is not in new
   // space.
@@ -128,6 +129,7 @@ class MacroAssembler: public Assembler {
                          int offset,
                          Register value,
                          Register scratch);
+#endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
@@ -1648,6 +1650,7 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
 }
 
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
 template <typename LabelType>
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
@@ -1682,7 +1685,7 @@ void MacroAssembler::InNewSpace(Register object,
     j(cc, branch);
   }
 }
-
+#endif
 
 template <typename LabelType>
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,

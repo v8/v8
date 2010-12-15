@@ -48,7 +48,7 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
       code_object_(Heap::undefined_value()) {
 }
 
-
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register addr,
                                        Register scratch) {
@@ -181,7 +181,7 @@ void MacroAssembler::RecordWrite(Register object,
     mov(value, Immediate(BitCast<int32_t>(kZapValue)));
   }
 }
-
+#endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {

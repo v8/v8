@@ -936,31 +936,6 @@ class MapWord BASE_EMBEDDED {
   // Return this map word but with its overflow bit cleared.
   inline void ClearOverflow();
 
-
-  // Compacting phase of a full compacting collection: the map word of live
-  // objects contains an encoding of the original map address along with the
-  // forwarding address (represented as an offset from the first live object
-  // in the same page as the (old) object address).
-
-  // Create a map word from a map address and a forwarding address offset.
-  static inline MapWord EncodeAddress(Address map_address, int offset);
-
-  // Return the map address encoded in this map word.
-  inline Address DecodeMapAddress(MapSpace* map_space);
-
-  // Return the forwarding offset encoded in this map word.
-  inline int DecodeOffset();
-
-
-  // During serialization: the map word is used to hold an encoded
-  // address, and possibly a mark bit (set and cleared with SetMark
-  // and ClearMark).
-
-  // Create a map word from an encoded address.
-  static inline MapWord FromEncodedAddress(Address address);
-
-  inline Address ToEncodedAddress();
-
   // Bits used by the marking phase of the garbage collector.
   //
   // The first word of a heap object is normally a map pointer. The last two
@@ -974,40 +949,6 @@ class MapWord BASE_EMBEDDED {
   static const int kMarkingMask = (1 << kMarkingBit);  // marking mask
   static const int kOverflowBit = 1;  // overflow bit
   static const int kOverflowMask = (1 << kOverflowBit);  // overflow mask
-
-  // Forwarding pointers and map pointer encoding. On 32 bit all the bits are
-  // used.
-  // +-----------------+------------------+-----------------+
-  // |forwarding offset|page offset of map|page index of map|
-  // +-----------------+------------------+-----------------+
-  //          ^                 ^                  ^
-  //          |                 |                  |
-  //          |                 |          kMapPageIndexBits
-  //          |         kMapPageOffsetBits
-  // kForwardingOffsetBits
-  static const int kMapPageOffsetBits = kPageSizeBits - kMapAlignmentBits;
-  static const int kForwardingOffsetBits = kPageSizeBits - kObjectAlignmentBits;
-#ifdef V8_HOST_ARCH_64_BIT
-  static const int kMapPageIndexBits = 16;
-#else
-  // Use all the 32-bits to encode on a 32-bit platform.
-  static const int kMapPageIndexBits =
-      32 - (kMapPageOffsetBits + kForwardingOffsetBits);
-#endif
-
-  static const int kMapPageIndexShift = 0;
-  static const int kMapPageOffsetShift =
-      kMapPageIndexShift + kMapPageIndexBits;
-  static const int kForwardingOffsetShift =
-      kMapPageOffsetShift + kMapPageOffsetBits;
-
-  // Bit masks covering the different parts the encoding.
-  static const uintptr_t kMapPageIndexMask =
-      (1 << kMapPageOffsetShift) - 1;
-  static const uintptr_t kMapPageOffsetMask =
-      ((1 << kForwardingOffsetShift) - 1) & ~kMapPageIndexMask;
-  static const uintptr_t kForwardingOffsetMask =
-      ~(kMapPageIndexMask | kMapPageOffsetMask);
 
  private:
   // HeapObject calls the private constructor and directly reads the value.

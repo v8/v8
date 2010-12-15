@@ -225,23 +225,6 @@ int Heap::GcSafeSizeOfOldObject(HeapObject* object) {
 }
 
 
-int Heap::GcSafeSizeOfOldObjectWithEncodedMap(HeapObject* object) {
-  ASSERT(!Heap::InNewSpace(object));  // Code only works for old objects.
-  ASSERT(MarkCompactCollector::are_map_pointers_encoded());
-  uint32_t marker = Memory::uint32_at(object->address());
-  if (marker == MarkCompactCollector::kSingleFreeEncoding) {
-    return kIntSize;
-  } else if (marker == MarkCompactCollector::kMultiFreeEncoding) {
-    return Memory::int_at(object->address() + kIntSize);
-  } else {
-    MapWord map_word = object->map_word();
-    Address map_address = map_word.DecodeMapAddress(Heap::map_space());
-    Map* map = reinterpret_cast<Map*>(HeapObject::FromAddress(map_address));
-    return object->SizeFromMap(map);
-  }
-}
-
-
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   // Is global GC requested?
   if (space != NEW_SPACE || FLAG_gc_global) {
@@ -3994,9 +3977,8 @@ void Heap::Verify() {
 
   new_space_.Verify();
 
-  VerifyPointersAndDirtyRegionsVisitor dirty_regions_visitor;
-  old_pointer_space_->Verify(&dirty_regions_visitor);
-  map_space_->Verify(&dirty_regions_visitor);
+  old_pointer_space_->Verify(&visitor);
+  map_space_->Verify(&visitor);
 
   VerifyPointersUnderWatermark(old_pointer_space_,
                                &IteratePointersInDirtyRegion);
@@ -4217,6 +4199,11 @@ uint32_t Heap::IterateDirtyRegions(
     Address area_end,
     DirtyRegionCallback visit_dirty_region,
     ObjectSlotCallback copy_object_func) {
+#ifndef ENABLE_CARDMARKING_WRITE_BARRIER
+  ASSERT(marks == Page::kAllRegionsDirtyMarks);
+  visit_dirty_region(area_start, area_end, copy_object_func);
+  return Page::kAllRegionsDirtyMarks;
+#else
   uint32_t newmarks = 0;
   uint32_t mask = 1;
 
@@ -4273,6 +4260,7 @@ uint32_t Heap::IterateDirtyRegions(
   }
 
   return newmarks;
+#endif
 }
 
 

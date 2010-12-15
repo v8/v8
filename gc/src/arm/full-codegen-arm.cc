@@ -117,11 +117,14 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         // Store it in the context.
         __ mov(r1, Operand(Context::SlotOffset(slot->index())));
         __ str(r0, MemOperand(cp, r1));
+
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
         // Update the write barrier. This clobbers all involved
         // registers, so we have to use two more registers to avoid
         // clobbering cp.
         __ mov(r2, Operand(cp));
         __ RecordWrite(r2, Operand(r1), r3, r0);
+#endif
       }
     }
   }
@@ -552,6 +555,8 @@ void FullCodeGenerator::Move(Slot* dst,
   ASSERT(!scratch1.is(src) && !scratch2.is(src));
   MemOperand location = EmitSlotSearch(dst, scratch1);
   __ str(src, location);
+
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Emit the write barrier code if the location is in the heap.
   if (dst->type() == Slot::CONTEXT) {
     __ RecordWrite(scratch1,
@@ -559,6 +564,7 @@ void FullCodeGenerator::Move(Slot* dst,
                    scratch2,
                    src);
   }
+#endif
 }
 
 
@@ -629,10 +635,13 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         } else if (function != NULL) {
           VisitForAccumulatorValue(function);
           __ str(result_register(), ContextOperand(cp, slot->index()));
+
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
           int offset = Context::SlotOffset(slot->index());
           // We know that we have written a function, which is not a smi.
           __ mov(r1, Operand(cp));
           __ RecordWrite(r1, Operand(offset), r2, result_register());
+#endif
         }
         break;
 
@@ -1352,9 +1361,11 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     int offset = FixedArray::kHeaderSize + (i * kPointerSize);
     __ str(result_register(), FieldMemOperand(r1, offset));
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     // Update the write barrier for the array store with r0 as the scratch
     // register.
     __ RecordWrite(r1, Operand(offset), r2, result_register());
+#endif
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
@@ -1640,10 +1651,12 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         }
         // Perform the assignment and issue the write barrier.
         __ str(result_register(), target);
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
         // RecordWrite may destroy all its register arguments.
         __ mov(r3, result_register());
         int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
         __ RecordWrite(r1, Operand(offset), r2, r3);
+#endif
         break;
       }
 
@@ -2545,9 +2558,11 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
 
   // Store the value.
   __ str(r0, FieldMemOperand(r1, JSValue::kValueOffset));
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Update the write barrier.  Save the value as it will be
   // overwritten by the write barrier code and is needed afterward.
   __ RecordWrite(r1, Operand(JSValue::kValueOffset - kHeapObjectTag), r2, r3);
+#endif
 
   __ bind(&done);
   context()->Plug(r0);

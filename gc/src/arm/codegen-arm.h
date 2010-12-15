@@ -270,8 +270,12 @@ class CodeGenerator: public AstVisitor {
   }
   static const int kInlinedKeyedStoreInstructionsAfterPatch = 5;
   static int GetInlinedNamedStoreInstructionsAfterPatch() {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     ASSERT(inlined_write_barrier_size_ != -1);
     return inlined_write_barrier_size_ + 4;
+#else
+    return 4;
+#endif
   }
 
  private:

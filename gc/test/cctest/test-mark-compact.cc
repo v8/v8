@@ -228,6 +228,8 @@ TEST(MarkCompactCollector) {
 }
 
 
+// TODO(gc): compaction of map space is temporary removed from GC.
+#if 0
 static Handle<Map> CreateMap() {
   return Factory::NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
 }
@@ -256,7 +258,7 @@ TEST(MapCompact) {
   // And now map pointers should be encodable again.
   CHECK(Heap::map_space()->MapPointersEncodable());
 }
-
+#endif
 
 static int gc_starts = 0;
 static int gc_ends = 0;

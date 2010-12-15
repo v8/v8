@@ -192,19 +192,23 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
 
 
 void Heap::RecordWrite(Address address, int offset) {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   if (new_space_.Contains(address)) return;
   ASSERT(!new_space_.FromSpaceContains(address));
   SLOW_ASSERT(Contains(address + offset));
   Page::FromAddress(address)->MarkRegionDirty(address + offset);
+#endif
 }
 
 
 void Heap::RecordWrites(Address address, int start, int len) {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   if (new_space_.Contains(address)) return;
   ASSERT(!new_space_.FromSpaceContains(address));
   Page* page = Page::FromAddress(address);
   page->SetRegionMarks(page->GetRegionMarks() |
       page->GetRegionMaskForSpan(address + start, len * kPointerSize));
+#endif
 }
 
 
@@ -253,6 +257,7 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
 void Heap::CopyBlockToOldSpaceAndUpdateRegionMarks(Address dst,
                                                    Address src,
                                                    int byte_size) {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   ASSERT(IsAligned(byte_size, kPointerSize));
 
   Page* page = Page::FromAddress(dst);
@@ -272,6 +277,9 @@ void Heap::CopyBlockToOldSpaceAndUpdateRegionMarks(Address dst,
   }
 
   page->SetRegionMarks(marks);
+#else
+  CopyBlock(dst, src, byte_size);
+#endif
 }
 
 
@@ -305,7 +313,11 @@ void Heap::MoveBlockToOldSpaceAndUpdateRegionMarks(Address dst,
   ASSERT((dst >= (src + byte_size)) ||
          ((OffsetFrom(src) - OffsetFrom(dst)) >= kPointerSize));
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   CopyBlockToOldSpaceAndUpdateRegionMarks(dst, src, byte_size);
+#else
+  MoveBlock(dst, src, byte_size);
+#endif
 }
 
 

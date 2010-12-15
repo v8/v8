@@ -795,6 +795,7 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_BARRIER(object, offset) \
   Heap::RecordWrite(object->address(), offset);
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
 // CONDITIONAL_WRITE_BARRIER must be issued after the actual
 // write due to the assert validating the written value.
 #define CONDITIONAL_WRITE_BARRIER(object, offset, mode) \
@@ -807,6 +808,9 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
            Page::FromAddress(object->address())->           \
                IsRegionDirty(object->address() + offset));  \
   }
+#else
+#define CONDITIONAL_WRITE_BARRIER(object, offset, mode)
+#endif
 
 #define READ_DOUBLE_FIELD(p, offset) \
   (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)))
@@ -1014,61 +1018,6 @@ void MapWord::SetOverflow() {
 
 void MapWord::ClearOverflow() {
   value_ &= ~kOverflowMask;
-}
-
-
-MapWord MapWord::EncodeAddress(Address map_address, int offset) {
-  // Offset is the distance in live bytes from the first live object in the
-  // same page. The offset between two objects in the same page should not
-  // exceed the object area size of a page.
-  ASSERT(0 <= offset && offset < Page::kObjectAreaSize);
-
-  uintptr_t compact_offset = offset >> kObjectAlignmentBits;
-  ASSERT(compact_offset < (1 << kForwardingOffsetBits));
-
-  Page* map_page = Page::FromAddress(map_address);
-  ASSERT_MAP_PAGE_INDEX(map_page->mc_page_index);
-
-  uintptr_t map_page_offset =
-      map_page->Offset(map_address) >> kMapAlignmentBits;
-
-  uintptr_t encoding =
-      (compact_offset << kForwardingOffsetShift) |
-      (map_page_offset << kMapPageOffsetShift) |
-      (map_page->mc_page_index << kMapPageIndexShift);
-  return MapWord(encoding);
-}
-
-
-Address MapWord::DecodeMapAddress(MapSpace* map_space) {
-  int map_page_index =
-      static_cast<int>((value_ & kMapPageIndexMask) >> kMapPageIndexShift);
-  ASSERT_MAP_PAGE_INDEX(map_page_index);
-
-  int map_page_offset = static_cast<int>(
-      ((value_ & kMapPageOffsetMask) >> kMapPageOffsetShift) <<
-      kMapAlignmentBits);
-
-  return (map_space->PageAddress(map_page_index) + map_page_offset);
-}
-
-
-int MapWord::DecodeOffset() {
-  // The offset field is represented in the kForwardingOffsetBits
-  // most-significant bits.
-  uintptr_t offset = (value_ >> kForwardingOffsetShift) << kObjectAlignmentBits;
-  ASSERT(offset < static_cast<uintptr_t>(Page::kObjectAreaSize));
-  return static_cast<int>(offset);
-}
-
-
-MapWord MapWord::FromEncodedAddress(Address address) {
-  return MapWord(reinterpret_cast<uintptr_t>(address));
-}
-
-
-Address MapWord::ToEncodedAddress() {
-  return reinterpret_cast<Address>(value_);
 }
 
 

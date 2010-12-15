@@ -130,7 +130,7 @@ class MacroAssembler: public Assembler {
                  Heap::RootListIndex index,
                  Condition cond = al);
 
-
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Check if object is in new space.
   // scratch can be object itself, but it will be clobbered.
   void InNewSpace(Register object,
@@ -164,6 +164,7 @@ class MacroAssembler: public Assembler {
   void RecordWrite(Register object,
                    Register address,
                    Register scratch);
+#endif
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {

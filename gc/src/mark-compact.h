@@ -261,57 +261,14 @@ class MarkCompactCollector: public AllStatic {
 
   // -----------------------------------------------------------------------
   // Phase 2: Sweeping to clear mark bits and free non-live objects for
-  // a non-compacting collection, or else computing and encoding
-  // forwarding addresses for a compacting collection.
+  // a non-compacting collection.
   //
   //  Before: Live objects are marked and non-live objects are unmarked.
   //
-  //   After: (Non-compacting collection.)  Live objects are unmarked,
-  //          non-live regions have been added to their space's free
-  //          list.
+  //   After: Live objects are unmarked, non-live regions have been added to
+  //          their space's free list. Active eden semispace is compacted by
+  //          evacuation.
   //
-  //   After: (Compacting collection.)  The forwarding address of live
-  //          objects in the paged spaces is encoded in their map word
-  //          along with their (non-forwarded) map pointer.
-  //
-  //          The forwarding address of live objects in the new space is
-  //          written to their map word's offset in the inactive
-  //          semispace.
-  //
-  //          Bookkeeping data is written to the page header of
-  //          eached paged-space page that contains live objects after
-  //          compaction:
-  //
-  //          The allocation watermark field is used to track the
-  //          relocation top address, the address of the first word
-  //          after the end of the last live object in the page after
-  //          compaction.
-  //
-  //          The Page::mc_page_index field contains the zero-based index of the
-  //          page in its space.  This word is only used for map space pages, in
-  //          order to encode the map addresses in 21 bits to free 11
-  //          bits per map word for the forwarding address.
-  //
-  //          The Page::mc_first_forwarded field contains the (nonencoded)
-  //          forwarding address of the first live object in the page.
-  //
-  //          In both the new space and the paged spaces, a linked list
-  //          of live regions is constructructed (linked through
-  //          pointers in the non-live region immediately following each
-  //          live region) to speed further passes of the collector.
-
-  // Encodes forwarding addresses of objects in compactable parts of the
-  // heap.
-  static void EncodeForwardingAddresses();
-
-  // Encodes the forwarding addresses of objects in new space.
-  static void EncodeForwardingAddressesInNewSpace();
-
-  // Function template to encode the forwarding addresses of objects in
-  // paged spaces, parameterized by allocation and non-live processing
-  // functions.
-  template<AllocationFunction Alloc, ProcessNonLiveFunction ProcessNonLive>
-  static void EncodeForwardingAddressesInPagedSpace(PagedSpace* space);
 
   // Iterates live objects in a space, passes live objects
   // to a callback function which returns the heap size of the object.
@@ -328,66 +285,6 @@ class MarkCompactCollector: public AllStatic {
   // for the large object space, clearing mark bits and adding unmarked
   // regions to each space's free list.
   static void SweepSpaces();
-
-  // -----------------------------------------------------------------------
-  // Phase 3: Updating pointers in live objects.
-  //
-  //  Before: Same as after phase 2 (compacting collection).
-  //
-  //   After: All pointers in live objects, including encoded map
-  //          pointers, are updated to point to their target's new
-  //          location.
-
-  friend class UpdatingVisitor;  // helper for updating visited objects
-
-  // Updates pointers in all spaces.
-  static void UpdatePointers();
-
-  // Updates pointers in an object in new space.
-  // Returns the heap size of the object.
-  static int UpdatePointersInNewObject(HeapObject* obj);
-
-  // Updates pointers in an object in old spaces.
-  // Returns the heap size of the object.
-  static int UpdatePointersInOldObject(HeapObject* obj);
-
-  // Calculates the forwarding address of an object in an old space.
-  static Address GetForwardingAddressInOldSpace(HeapObject* obj);
-
-  // -----------------------------------------------------------------------
-  // Phase 4: Relocating objects.
-  //
-  //  Before: Pointers to live objects are updated to point to their
-  //          target's new location.
-  //
-  //   After: Objects have been moved to their new addresses.
-
-  // Relocates objects in all spaces.
-  static void RelocateObjects();
-
-  // Converts a code object's inline target to addresses, convention from
-  // address to target happens in the marking phase.
-  static int ConvertCodeICTargetToAddress(HeapObject* obj);
-
-  // Relocate a map object.
-  static int RelocateMapObject(HeapObject* obj);
-
-  // Relocates an old object.
-  static int RelocateOldPointerObject(HeapObject* obj);
-  static int RelocateOldDataObject(HeapObject* obj);
-
-  // Relocate a property cell object.
-  static int RelocateCellObject(HeapObject* obj);
-
-  // Helper function.
-  static inline int RelocateOldNonCodeObject(HeapObject* obj,
-                                             PagedSpace* space);
-
-  // Relocates an object in the code space.
-  static int RelocateCodeObject(HeapObject* obj);
-
-  // Copy a new object.
-  static int RelocateNewObject(HeapObject* obj);
 
 #ifdef DEBUG
   // -----------------------------------------------------------------------

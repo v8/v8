@@ -2781,20 +2781,6 @@ void FixedSpace::ReportStatistics() {
 void MapSpace::PrepareForMarkCompact(bool will_compact) {
   // Call prepare of the super class.
   FixedSpace::PrepareForMarkCompact(will_compact);
-
-  if (will_compact) {
-    // Initialize map index entry.
-    int page_count = 0;
-    PageIterator it(this, PageIterator::ALL_PAGES);
-    while (it.has_next()) {
-      ASSERT_MAP_PAGE_INDEX(page_count);
-
-      Page* p = it.next();
-      ASSERT(p->mc_page_index == page_count);
-
-      page_addresses_[page_count++] = p->address();
-    }
-  }
 }
 
 

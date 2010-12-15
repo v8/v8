@@ -472,9 +472,11 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ tst(r0, Operand(kSmiTagMask));
     __ b(eq, &exit);
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     // Update the write barrier for the array address.
     // Pass the now unused name_reg as a scratch register.
     __ RecordWrite(receiver_reg, Operand(offset), name_reg, scratch);
+#endif
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
@@ -486,9 +488,11 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ tst(r0, Operand(kSmiTagMask));
     __ b(eq, &exit);
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     // Update the write barrier for the array address.
     // Ok to clobber receiver_reg and name_reg, since we return.
     __ RecordWrite(scratch, Operand(offset), name_reg, receiver_reg);
+#endif
   }
 
   // Return the value (register r0).
@@ -1432,7 +1436,10 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
                 Heap::kFixedArrayMapRootIndex, &call_builtin, true);
 
     if (argc == 1) {  // Otherwise fall through to call the builtin.
-      Label exit, with_write_barrier, attempt_to_grow_elements;
+      Label exit, attempt_to_grow_elements;
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
+      Label with_write_barrier;
+#endif
 
       // Get the array's length into r0 and calculate new length.
       __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1461,16 +1468,20 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
 
       // Check for a smi.
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
       __ BranchOnNotSmi(r4, &with_write_barrier);
+#endif
       __ bind(&exit);
       __ Drop(argc + 1);
       __ Ret();
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
       __ bind(&with_write_barrier);
       __ InNewSpace(elements, r4, eq, &exit);
       __ RecordWriteHelper(elements, end_elements, r4);
       __ Drop(argc + 1);
       __ Ret();
+#endif
 
       __ bind(&attempt_to_grow_elements);
       // r0: array's length + 1.
@@ -3041,9 +3052,11 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
   __ str(value_reg,
          MemOperand(scratch, key_reg, LSL, kPointerSizeLog2 - kSmiTagSize));
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ RecordWrite(scratch,
                  Operand(key_reg, LSL, kPointerSizeLog2 - kSmiTagSize),
                  receiver_reg , elements_reg);
+#endif
 
   // value_reg (r0) is preserved.
   // Done.

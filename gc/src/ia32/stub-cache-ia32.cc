@@ -818,10 +818,12 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     int offset = object->map()->instance_size() + (index * kPointerSize);
     __ mov(FieldOperand(receiver_reg, offset), eax);
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
     __ mov(name_reg, Operand(eax));
     __ RecordWrite(receiver_reg, offset, name_reg, scratch);
+#endif
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
@@ -829,10 +831,12 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ mov(scratch, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
     __ mov(FieldOperand(scratch, offset), eax);
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
     __ mov(name_reg, Operand(eax));
     __ RecordWrite(scratch, offset, name_reg, receiver_reg);
+#endif
   }
 
   // Return the value (register eax).
@@ -1478,7 +1482,10 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
     __ j(not_equal, &call_builtin);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label exit, with_write_barrier, attempt_to_grow_elements;
+      Label exit, attempt_to_grow_elements;
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
+      Label with_write_barrier;
+#endif
 
       // Get the array's length into eax and calculate new length.
       __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
@@ -1503,19 +1510,23 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ mov(ecx, Operand(esp, argc * kPointerSize));
       __ mov(Operand(edx, 0), ecx);
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
       // Check if value is a smi.
       __ test(ecx, Immediate(kSmiTagMask));
       __ j(not_zero, &with_write_barrier);
+#endif
 
       __ bind(&exit);
       __ ret((argc + 1) * kPointerSize);
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
       __ bind(&with_write_barrier);
 
       __ InNewSpace(ebx, ecx, equal, &exit);
 
       __ RecordWriteHelper(ebx, edx, ecx);
       __ ret((argc + 1) * kPointerSize);
+#endif
 
       __ bind(&attempt_to_grow_elements);
       if (!FLAG_inline_new) {
@@ -2683,7 +2694,9 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   // the value in register eax.
   __ mov(edx, Operand(eax));
   __ mov(FieldOperand(edi, ecx, times_2, FixedArray::kHeaderSize), eax);
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ RecordWrite(edi, 0, edx, ecx);
+#endif
 
   // Done.
   __ ret(0);

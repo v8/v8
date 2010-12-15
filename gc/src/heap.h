@@ -1252,13 +1252,11 @@ class Heap : public AllStatic {
   // Support for computing object sizes during GC.
   static HeapObjectCallback gc_safe_size_of_old_object_;
   static int GcSafeSizeOfOldObject(HeapObject* object);
-  static int GcSafeSizeOfOldObjectWithEncodedMap(HeapObject* object);
 
   // Update the GC state. Called from the mark-compact collector.
   static void MarkMapPointersAsEncoded(bool encoded) {
-    gc_safe_size_of_old_object_ = encoded
-        ? &GcSafeSizeOfOldObjectWithEncodedMap
-        : &GcSafeSizeOfOldObject;
+    ASSERT(!encoded);
+    gc_safe_size_of_old_object_ = &GcSafeSizeOfOldObject;
   }
 
   // Checks whether a global GC is necessary
@@ -1496,6 +1494,7 @@ class VerifyPointersVisitor: public ObjectVisitor {
 };
 
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
 // Visitor class to verify interior pointers in spaces that use region marks
 // to keep track of intergenerational references.
 // As VerifyPointersVisitor but also checks that dirty marks are set
@@ -1517,6 +1516,7 @@ class VerifyPointersAndDirtyRegionsVisitor: public ObjectVisitor {
     }
   }
 };
+#endif
 #endif
 
 

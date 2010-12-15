@@ -33,6 +33,7 @@
 using namespace v8::internal;
 
 static void VerifyRegionMarking(Address page_start) {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   Page* p = Page::FromAddress(page_start);
 
   p->SetRegionMarks(Page::kAllRegionsCleanMarks);
@@ -54,6 +55,7 @@ static void VerifyRegionMarking(Address page_start) {
        addr += kPointerSize) {
     CHECK(Page::FromAddress(addr)->IsRegionDirty(addr));
   }
+#endif
 }
 
 

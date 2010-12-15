@@ -269,8 +269,10 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
   __ movq(Operand(scratch1, 0), value);
 
   // Update write barrier. Make sure not to clobber the value.
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ movq(scratch0, value);
   __ RecordWrite(elements, scratch1, scratch0);
+#endif
 }
 
 
@@ -1087,8 +1089,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&non_smi_value);
   // Slow case that needs to retain rcx for use by RecordWrite.
   // Update write barrier for the elements array address.
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ movq(rdx, rax);
   __ RecordWriteNonSmi(rbx, 0, rdx, rcx);
+#endif
   __ ret(0);
 }
 
@@ -1759,7 +1763,9 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
   Address encoded_offsets_address = test_instruction_address + 1;
   int encoded_offsets = *reinterpret_cast<int*>(encoded_offsets_address);
   int delta_to_map_check = -(encoded_offsets & 0xFFFF);
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   int delta_to_record_write = encoded_offsets >> 16;
+#endif
 
   // Patch the map to check. The map address is the last 8 bytes of
   // the 10-byte immediate move instruction.
@@ -1778,6 +1784,7 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
          (offset == 0 && map == Heap::null_value()));
   *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Patch the offset in the write-barrier code. The offset is the
   // last 4 bytes of a 7 byte lea instruction.
   offset_address = map_check_address + delta_to_record_write + 3;
@@ -1787,6 +1794,7 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
          *reinterpret_cast<int*>(offset_address) == -1 ||
          (offset == 0 && map == Heap::null_value()));
   *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
+#endif
 
   return true;
 }

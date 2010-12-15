@@ -2063,24 +2063,18 @@ class MapSpace : public FixedSpace {
   MapSpace(intptr_t max_capacity, int max_map_space_pages, AllocationSpace id)
       : FixedSpace(max_capacity, id, Map::kSize, "map"),
         max_map_space_pages_(max_map_space_pages) {
-    ASSERT(max_map_space_pages < kMaxMapPageIndex);
   }
 
   // Prepares for a mark-compact GC.
   virtual void PrepareForMarkCompact(bool will_compact);
 
   // Given an index, returns the page address.
-  Address PageAddress(int page_index) { return page_addresses_[page_index]; }
-
-  static const int kMaxMapPageIndex = 1 << MapWord::kMapPageIndexBits;
+  // TODO(gc): this limit is artifical just to keep code compilable
+  static const int kMaxMapPageIndex = 1 << 16;
 
   // Are map pointers encodable into map word?
   bool MapPointersEncodable() {
-    if (!FLAG_use_big_map_space) {
-      ASSERT(CountPagesToTop() <= kMaxMapPageIndex);
-      return true;
-    }
-    return CountPagesToTop() <= max_map_space_pages_;
+    return false;
   }
 
   // Should be called after forced sweep to find out if map space needs
@@ -2150,9 +2144,6 @@ class MapSpace : public FixedSpace {
   }
 
   const int max_map_space_pages_;
-
-  // An array of page start address in a map space.
-  Address page_addresses_[kMaxMapPageIndex];
 
  public:
   TRACK_MEMORY("MapSpace")

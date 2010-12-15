@@ -114,12 +114,18 @@ Address Page::CachedAllocationWatermark() {
 
 
 uint32_t Page::GetRegionMarks() {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   return dirty_regions_;
+#else
+  return kAllRegionsDirtyMarks;
+#endif
 }
 
 
 void Page::SetRegionMarks(uint32_t marks) {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   dirty_regions_ = marks;
+#endif
 }
 
 

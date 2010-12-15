@@ -262,12 +262,14 @@ void CodeGenerator::Generate(CompilationInfo* info) {
           Result context = allocator_->Allocate();
           ASSERT(context.is_valid());
           __ movq(SlotOperand(slot, context.reg()), value.reg());
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
           int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
           Result scratch = allocator_->Allocate();
           ASSERT(scratch.is_valid());
           frame_->Spill(context.reg());
           frame_->Spill(value.reg());
           __ RecordWrite(context.reg(), offset, value.reg(), scratch.reg());
+#endif
         }
       }
     }
@@ -4653,6 +4655,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       Result start = allocator_->Allocate();
       ASSERT(start.is_valid());
       __ movq(SlotOperand(slot, start.reg()), value.reg());
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
       // RecordWrite may destroy the value registers.
       //
       // TODO(204): Avoid actually spilling when the value is not
@@ -4662,6 +4665,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       Result temp = allocator_->Allocate();
       ASSERT(temp.is_valid());
       __ RecordWrite(start.reg(), offset, value.reg(), temp.reg());
+#endif
       // The results start, value, and temp are unused by going out of
       // scope.
     }
@@ -5012,9 +5016,11 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
     // Update the write barrier for the array address.
     frame_->Spill(prop_value.reg());  // Overwritten by the write barrier.
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     Result scratch = allocator_->Allocate();
     ASSERT(scratch.is_valid());
     __ RecordWrite(elements.reg(), offset, prop_value.reg(), scratch.reg());
+#endif
   }
 }
 
@@ -6342,8 +6348,10 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   // The object register is also overwritten by the write barrier and
   // possibly aliased in the frame.
   frame_->Spill(object.reg());
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ RecordWrite(object.reg(), JSValue::kValueOffset, duplicate_value.reg(),
                  scratch.reg());
+#endif
   object.Unuse();
   scratch.Unuse();
   duplicate_value.Unuse();
@@ -6624,7 +6632,9 @@ void DeferredSearchCache::Generate() {
       FieldOperand(rcx, JSFunctionResultCache::kFingerOffset), r9);
   // Store key.
   __ movq(ArrayElement(rcx, r9), rbx);
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ RecordWrite(rcx, 0, rbx, r9);
+#endif
 
   // Store value.
   __ pop(rcx);  // restore the cache.
@@ -6634,7 +6644,9 @@ void DeferredSearchCache::Generate() {
   // Backup rax, because the RecordWrite macro clobbers its arguments.
   __ movq(rbx, rax);
   __ movq(ArrayElement(rcx, rdx), rax);
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ RecordWrite(rcx, 0, rbx, rdx);
+#endif
 
   if (!dst_.is(rax)) {
     __ movq(dst_, rax);
@@ -6800,6 +6812,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   __ movq(Operand(index2.reg(), 0), object.reg());
   __ movq(Operand(index1.reg(), 0), tmp2.reg());
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   Label done;
   __ InNewSpace(tmp1.reg(), tmp2.reg(), equal, &done);
   // Possible optimization: do a check that both values are Smis
@@ -6813,6 +6826,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   __ CallStub(&recordWrite2);
 
   __ bind(&done);
+#endif
 
   deferred->BindExit();
   frame_->Push(Factory::undefined_value());
@@ -8307,6 +8321,7 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 
     // Update the write barrier. To save instructions in the inlined
     // version we do not filter smis.
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     Label skip_write_barrier;
     __ InNewSpace(receiver.reg(), value.reg(), equal, &skip_write_barrier);
     int delta_to_record_write = masm_->SizeOfCodeGeneratedSince(&patch_site);
@@ -8318,6 +8333,11 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
       __ movq(scratch.reg(), BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     }
     __ bind(&skip_write_barrier);
+#else
+    // Use dummy delta to record write value to ensure proper
+    // testl encoding.
+    int delta_to_record_write = 0x0001;
+#endif
     value.Unuse();
     scratch.Unuse();
     receiver.Unuse();
@@ -8455,9 +8475,11 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     Result tmp2 = allocator_->Allocate();
     ASSERT(tmp2.is_valid());
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     // Determine whether the value is a constant before putting it in a
     // register.
     bool value_is_constant = result.is_constant();
+#endif
 
     // Make sure that value, key and receiver are in registers.
     result.ToRegister();
@@ -8497,6 +8519,7 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     // Check whether it is possible to omit the write barrier. If the elements
     // array is in new space or the value written is a smi we can safely update
     // the elements array without write barrier.
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     Label in_new_space;
     __ InNewSpace(tmp.reg(), tmp2.reg(), equal, &in_new_space);
     if (!value_is_constant) {
@@ -8504,6 +8527,8 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     }
 
     __ bind(&in_new_space);
+#endif
+
     // Bind the deferred code patch site to be able to locate the fixed
     // array map comparison.  When debugging, we patch this comparison to
     // always fail so that we will hit the IC call in the deferred code
@@ -8806,7 +8831,9 @@ ModuloFunction CreateModuloFunction() {
 #undef __
 
 void RecordWriteStub::Generate(MacroAssembler* masm) {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   masm->RecordWriteHelper(object_, addr_, scratch_);
+#endif
   masm->ret(0);
 }
 

@@ -263,9 +263,11 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
   __ add(scratch2, scratch2, Operand(kValueOffset - kHeapObjectTag));
   __ str(value, MemOperand(scratch2));
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Update the write barrier. Make sure not to clobber the value.
   __ mov(scratch1, value);
   __ RecordWrite(elements, scratch2, scratch1);
+#endif
 }
 
 
@@ -1052,6 +1054,7 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
         str_property_instr, offset - kHeapObjectTag);
     Assembler::instr_at_put(str_property_instr_address, str_property_instr);
 
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     // Patch the offset in the add instruction that is part of the
     // write barrier.
     Address add_offset_instr_address =
@@ -1061,6 +1064,7 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
     add_offset_instr = Assembler::SetAddRegisterImmediateOffset(
         add_offset_instr, offset - kHeapObjectTag);
     Assembler::instr_at_put(add_offset_instr_address, add_offset_instr);
+#endif
 
     // Indicate that code has changed.
     CPU::FlushICache(str_property_instr_address, 2 * Assembler::kInstrSize);
@@ -1826,9 +1830,12 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Skip write barrier if the written value is a smi.
   __ tst(value, Operand(kSmiTagMask));
   __ Ret(eq);
+
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Update write barrier for the elements array address.
   __ sub(r4, r5, Operand(elements));
   __ RecordWrite(elements, Operand(r4), r5, r6);
+#endif
 
   __ Ret();
 }

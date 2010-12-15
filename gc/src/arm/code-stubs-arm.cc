@@ -918,8 +918,10 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 
 
 void RecordWriteStub::Generate(MacroAssembler* masm) {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ add(offset_, object_, Operand(offset_));
   __ RecordWriteHelper(object_, offset_, scratch_);
+#endif
   __ Ret();
 }
 
@@ -3420,12 +3422,16 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ str(subject,
          FieldMemOperand(last_match_info_elements,
                          RegExpImpl::kLastSubjectOffset));
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ RecordWrite(r3, Operand(RegExpImpl::kLastSubjectOffset), r2, r7);
+#endif
   __ str(subject,
          FieldMemOperand(last_match_info_elements,
                          RegExpImpl::kLastInputOffset));
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ mov(r3, last_match_info_elements);
   __ RecordWrite(r3, Operand(RegExpImpl::kLastInputOffset), r2, r7);
+#endif
 
   // Get the static offsets vector filled by the native regexp code.
   ExternalReference address_of_static_offsets_vector =
