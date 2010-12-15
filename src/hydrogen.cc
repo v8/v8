@@ -3023,7 +3023,8 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // The array is expected in the bailout environment during computation
   // of the property values and is the value of the entire expression.
   PushAndAdd(literal);
-  HValue* elements = AddInstruction(new HLoadElements(literal));
+
+  HLoadElements* elements = NULL;
 
   for (int i = 0; i < length; i++) {
     Expression* subexpr = subexprs->at(i);
@@ -3034,6 +3035,13 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     VISIT_FOR_VALUE(subexpr);
     HValue* value = Pop();
     if (!Smi::IsValid(i)) BAILOUT("Non-smi key in array literal");
+
+    // Load the elements array before the first store.
+    if (elements == NULL)  {
+     elements = new HLoadElements(literal);
+     AddInstruction(elements);
+    }
+
     HValue* key = AddInstruction(new HConstant(Handle<Object>(Smi::FromInt(i)),
                                                Representation::Integer32()));
     AddInstruction(new HStoreKeyedFastElement(elements, key, value));
