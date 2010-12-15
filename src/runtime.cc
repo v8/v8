@@ -6876,12 +6876,17 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(Arguments args) {
     if (CompileOptimized(function, ast_id) && function->IsOptimized()) {
       DeoptimizationInputData* data = DeoptimizationInputData::cast(
           function->code()->deoptimization_data());
-      if (FLAG_trace_osr) {
-        PrintF("[on-stack replacement offset %d in optimized code]\n",
+      if (data->OsrPcOffset()->value() >= 0) {
+        if (FLAG_trace_osr) {
+          PrintF("[on-stack replacement offset %d in optimized code]\n",
                data->OsrPcOffset()->value());
+        }
+        ASSERT(data->OsrAstId()->value() == ast_id);
+      } else {
+        // We may never generate the desired OSR entry if we emit an
+        // early deoptimize.
+        succeeded = false;
       }
-      ASSERT(data->OsrAstId()->value() == ast_id);
-      ASSERT(data->OsrPcOffset()->value() >= 0);
     } else {
       succeeded = false;
     }

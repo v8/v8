@@ -745,10 +745,9 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
 
-  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
-
   // Keep the switch value on the stack until a case matches.
   VisitForStackValue(stmt->tag());
+  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
 
   ZoneList<CaseClause*>* clauses = stmt->cases();
   CaseClause* default_clause = NULL;  // Can occur anywhere in the list.
