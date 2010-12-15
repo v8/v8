@@ -251,6 +251,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 }
 
 
+void FullCodeGenerator::ClearAccumulator() {
+  __ Set(eax, Immediate(Smi::FromInt(0)));
+}
+
+
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   Comment cmnt(masm_, "[ Stack check");
   NearLabel ok;

@@ -198,6 +198,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 }
 
 
+void FullCodeGenerator::ClearAccumulator() {
+  __ xor(rax, rax);
+}
+
+
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   Comment cmnt(masm_, "[ Stack check");
   NearLabel ok;

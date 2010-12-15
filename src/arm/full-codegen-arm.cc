@@ -206,6 +206,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 }
 
 
+void FullCodeGenerator::ClearAccumulator() {
+  __ mov(r0, Operand(Smi::FromInt(0)));
+}
+
+
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   Comment cmnt(masm_, "[ Stack check");
   Label ok;

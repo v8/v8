@@ -286,6 +286,10 @@ class FullCodeGenerator: public AstVisitor {
 
   static const InlineFunctionGenerator kInlineFunctionGenerators[];
 
+  // A platform-specific utility to overwrite the accumulator register
+  // with a GC-safe value.
+  void ClearAccumulator();
+
   // Compute the frame pointer relative offset for a given local or
   // parameter slot.
   int SlotOffset(Slot* slot);
