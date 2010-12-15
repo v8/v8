@@ -1603,7 +1603,7 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
       UseFixedDouble(instr->right(), xmm2) :
       UseFixed(instr->right(), eax);
   LPower* result = new LPower(left, right);
-  return MarkAsCall(DefineFixedDouble(result, xmm1), instr,
+  return MarkAsCall(DefineFixedDouble(result, xmm3), instr,
                     CAN_DEOPTIMIZE_EAGERLY);
 }
 

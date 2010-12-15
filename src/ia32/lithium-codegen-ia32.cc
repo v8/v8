@@ -2262,47 +2262,55 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
 void LCodeGen::DoPower(LPower* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
+  DoubleRegister result_reg = ToDoubleRegister(instr->result());
   Representation exponent_type = instr->hydrogen()->right()->representation();
   if (exponent_type.IsDouble()) {
-    // Pass two doubles as arguments on the stack.
-    __ PrepareCallCFunction(4, eax);
+    // It is safe to use ebx directly since the instruction is marked
+    // as a call.
+    __ PrepareCallCFunction(4, ebx);
     __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
     __ movdbl(Operand(esp, 1 * kDoubleSize), ToDoubleRegister(right));
     __ CallCFunction(ExternalReference::power_double_double_function(), 4);
   } else if (exponent_type.IsInteger32()) {
+    // It is safe to use ebx directly since the instruction is marked
+    // as a call.
+    ASSERT(!ToRegister(right).is(ebx));
     __ PrepareCallCFunction(4, ebx);
     __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
     __ mov(Operand(esp, 1 * kDoubleSize), ToRegister(right));
     __ CallCFunction(ExternalReference::power_double_int_function(), 4);
   } else {
     ASSERT(exponent_type.IsTagged());
-    __ PrepareCallCFunction(4, ebx);
-    __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
+    CpuFeatures::Scope scope(SSE2);
     Register right_reg = ToRegister(right);
-    Label non_smi;
-    Label done;
+
+    Label non_smi, call;
     __ test(right_reg, Immediate(kSmiTagMask));
     __ j(not_zero, &non_smi);
     __ SmiUntag(right_reg);
-    __ mov(Operand(esp, 1 * kDoubleSize), ToRegister(right));
-    __ CallCFunction(ExternalReference::power_double_int_function(), 4);
-    __ jmp(&done);
+    __ cvtsi2sd(result_reg, Operand(right_reg));
+    __ jmp(&call);
 
     __ bind(&non_smi);
+    // It is safe to use ebx directly since the instruction is marked
+    // as a call.
+    ASSERT(!right_reg.is(ebx));
     __ CmpObjectType(right_reg, HEAP_NUMBER_TYPE , ebx);
     DeoptimizeIf(not_equal, instr->environment());
-    __ movdbl(xmm1, FieldOperand(right_reg, HeapNumber::kValueOffset));
-    __ movdbl(Operand(esp, 1 * kDoubleSize), xmm1);
-    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+    __ movdbl(result_reg, FieldOperand(right_reg, HeapNumber::kValueOffset));
 
-    __ bind(&done);
+    __ bind(&call);
+    __ PrepareCallCFunction(4, ebx);
+    __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
+    __ movdbl(Operand(esp, 1 * kDoubleSize), result_reg);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
   }
 
   // Return value is in st(0) on ia32.
   // Store it into the (fixed) result register.
   __ sub(Operand(esp), Immediate(kDoubleSize));
   __ fstp_d(Operand(esp, 0));
-  __ movdbl(ToDoubleRegister(instr->result()), Operand(esp, 0));
+  __ movdbl(result_reg, Operand(esp, 0));
   __ add(Operand(esp), Immediate(kDoubleSize));
 }
 
