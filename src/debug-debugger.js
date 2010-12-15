@@ -1858,15 +1858,18 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
   var additional_context_object;
   if (additional_context) {
     additional_context_object = {};
-    for (var key in additional_context) {
-      var context_value_handle = additional_context[key];
-      var context_value_mirror = LookupMirror(context_value_handle);
+    for (var i = 0; i < additional_context.length; i++) {
+      var mapping = additional_context[i];
+      if (!IS_STRING(mapping.name) || !IS_NUMBER(mapping.handle)) {
+        return response.failed("Context element #" + i + 
+            " must contain name:string and handle:number");
+      } 
+      var context_value_mirror = LookupMirror(mapping.handle);
       if (!context_value_mirror) {
-        return response.failed(
-            "Context object '" + key + "' #" + context_value_handle +
-                "# not found");
+        return response.failed("Context object '" + mapping.name +
+            "' #" + mapping.handle + "# not found");
       }
-      additional_context_object[key] = context_value_mirror.value(); 
+      additional_context_object[mapping.name] = context_value_mirror.value(); 
     }
   }
 

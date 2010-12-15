@@ -117,9 +117,9 @@ function evaluateViaProtocol(exec_state, expression, additional_context, frame_a
   request_json = {"seq":17,"type":"request","command":"evaluate", arguments: { "expression": expression } };
   frame_argument_adder(request_json.arguments);
   if (additional_context) {
-    var context_json = {}
+    var context_json = [];
     for (var key in additional_context) {
-      context_json[key] = Debug.MakeMirror(additional_context[key]).handle();
+      context_json.push({ name: key, handle: Debug.MakeMirror(additional_context[key]).handle() });
     }
     request_json.arguments.additional_context = context_json;
   }
