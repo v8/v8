@@ -78,6 +78,17 @@ test-sockets/Socket: SKIP
 
 
 ##############################################################################
+[ $arch == arm && $crankshaft ]
+
+# Tests that fail with crankshaft.
+test-deoptimization/DeoptimizeBinaryOperationMOD: FAIL
+
+# Tests that time out with crankshaft.
+test-debug/ThreadedDebugging: SKIP
+test-debug/DebugBreakLoop: SKIP
+
+
+##############################################################################
 [ $arch == mips ]
 test-accessors: SKIP
 test-alloc: SKIP
