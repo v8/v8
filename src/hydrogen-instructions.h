@@ -140,6 +140,7 @@ class LChunkBuilder;
 //         HHasCachedArrayIndex
 //         HHasInstanceType
 //         HIsNull
+//         HIsObject
 //         HIsSmi
 //       HValueOf
 //     HUnknownOSRValue
@@ -208,6 +209,7 @@ class LChunkBuilder;
   V(Goto)                                      \
   V(InstanceOf)                                \
   V(IsNull)                                    \
+  V(IsObject)                                  \
   V(IsSmi)                                     \
   V(HasInstanceType)                           \
   V(HasCachedArrayIndex)                       \
@@ -2097,6 +2099,14 @@ class HIsNull: public HUnaryPredicate {
 
  private:
   bool is_strict_;
+};
+
+
+class HIsObject: public HUnaryPredicate {
+ public:
+  explicit HIsObject(HValue* value) : HUnaryPredicate(value) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsObject, "is_object")
 };
 
 

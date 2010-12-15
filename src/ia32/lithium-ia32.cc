@@ -206,6 +206,13 @@ void LIsNullAndBranch::PrintDataTo(StringStream* stream) const {
 }
 
 
+void LIsObjectAndBranch::PrintDataTo(StringStream* stream) const {
+  stream->Add("if is_object(");
+  input()->PrintTo(stream);
+  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
+}
+
+
 void LIsSmiAndBranch::PrintDataTo(StringStream* stream) const {
   stream->Add("if is_smi(");
   input()->PrintTo(stream);
@@ -1251,6 +1258,17 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
                                   temp,
                                   first_id,
                                   second_id);
+    } else if (v->IsIsObject()) {
+      HIsObject* compare = HIsObject::cast(v);
+      ASSERT(compare->value()->representation().IsTagged());
+
+      LOperand* temp1 = TempRegister();
+      LOperand* temp2 = TempRegister();
+      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
+                                    temp1,
+                                    temp2,
+                                    first_id,
+                                    second_id);
     } else if (v->IsCompareJSObjectEq()) {
       HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
       return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
@@ -1627,6 +1645,14 @@ LInstruction* LChunkBuilder::DoIsNull(HIsNull* instr) {
 
   return DefineAsRegister(new LIsNull(value,
                                       instr->is_strict()));
+}
+
+
+LInstruction* LChunkBuilder::DoIsObject(HIsObject* instr) {
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+
+  return DefineAsRegister(new LIsObject(value, TempRegister()));
 }
 
 

@@ -4950,14 +4950,18 @@ void HGraphBuilder::GenerateIsRegExp(int argument_count, int ast_id) {
 }
 
 
-void HGraphBuilder::GenerateIsNonNegativeSmi(int argument_count,
-                                             int ast_id) {
-  BAILOUT("inlined runtime function: IsNonNegativeSmi");
+void HGraphBuilder::GenerateIsObject(int argument_count, int ast_id) {
+  ASSERT(argument_count == 1);
+
+  HValue* value = Pop();
+  HIsObject* test = new HIsObject(value);
+  ast_context()->ReturnInstruction(test, ast_id);
 }
 
 
-void HGraphBuilder::GenerateIsObject(int argument_count, int ast_id) {
-  BAILOUT("inlined runtime function: IsObject");
+void HGraphBuilder::GenerateIsNonNegativeSmi(int argument_count,
+                                             int ast_id) {
+  BAILOUT("inlined runtime function: IsNonNegativeSmi");
 }
 
 

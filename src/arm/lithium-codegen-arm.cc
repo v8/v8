@@ -1213,6 +1213,26 @@ void LCodeGen::DoIsNullAndBranch(LIsNullAndBranch* instr) {
 }
 
 
+Condition LCodeGen::EmitIsObject(Register input,
+                                 Register temp1,
+                                 Register temp2,
+                                 Label* is_not_object,
+                                 Label* is_object) {
+  Abort("EmitIsObject unimplemented.");
+  return ne;
+}
+
+
+void LCodeGen::DoIsObject(LIsObject* instr) {
+  Abort("DoIsObject unimplemented.");
+}
+
+
+void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
+  Abort("DoIsObjectAndBranch unimplemented.");
+}
+
+
 void LCodeGen::DoIsSmi(LIsSmi* instr) {
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
   Register result = ToRegister(instr->result());

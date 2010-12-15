@@ -1403,6 +1403,71 @@ void LCodeGen::DoIsNullAndBranch(LIsNullAndBranch* instr) {
 }
 
 
+Condition LCodeGen::EmitIsObject(Register input,
+                                 Register temp1,
+                                 Register temp2,
+                                 Label* is_not_object,
+                                 Label* is_object) {
+  ASSERT(!input.is(temp1));
+  ASSERT(!input.is(temp2));
+  ASSERT(!temp1.is(temp2));
+
+  __ test(input, Immediate(kSmiTagMask));
+  __ j(equal, is_not_object);
+
+  __ cmp(input, Factory::null_value());
+  __ j(equal, is_object);
+
+  __ mov(temp1, FieldOperand(input, HeapObject::kMapOffset));
+  // Undetectable objects behave like undefined.
+  __ movzx_b(temp2, FieldOperand(temp1, Map::kBitFieldOffset));
+  __ test(temp2, Immediate(1 << Map::kIsUndetectable));
+  __ j(not_zero, is_not_object);
+
+  __ movzx_b(temp2, FieldOperand(temp1, Map::kInstanceTypeOffset));
+  __ cmp(temp2, FIRST_JS_OBJECT_TYPE);
+  __ j(below, is_not_object);
+  __ cmp(temp2, LAST_JS_OBJECT_TYPE);
+  return below_equal;
+}
+
+
+void LCodeGen::DoIsObject(LIsObject* instr) {
+  Register reg = ToRegister(instr->input());
+  Register result = ToRegister(instr->result());
+  Register temp = ToRegister(instr->temp());
+  Label is_false, is_true, done;
+
+  Condition true_cond = EmitIsObject(reg, result, temp, &is_false, &is_true);
+  __ j(true_cond, &is_true);
+
+  __ bind(&is_false);
+  __ mov(result, Handle<Object>(Heap::false_value()));
+  __ jmp(&done);
+
+  __ bind(&is_true);
+  __ mov(result, Handle<Object>(Heap::true_value()));
+
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
+  Register reg = ToRegister(instr->input());
+  Register temp = ToRegister(instr->temp());
+  Register temp2 = ToRegister(instr->temp2());
+
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+  Label* true_label = chunk_->GetAssemblyLabel(true_block);
+  Label* false_label = chunk_->GetAssemblyLabel(false_block);
+
+  Condition true_cond = EmitIsObject(reg, temp, temp2, false_label, true_label);
+
+  EmitBranch(true_block, false_block, true_cond);
+}
+
+
 void LCodeGen::DoIsSmi(LIsSmi* instr) {
   Operand input = ToOperand(instr->input());
   Register result = ToRegister(instr->result());

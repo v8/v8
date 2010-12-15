@@ -121,6 +121,8 @@ class Translation;
 //     LInteger32ToDouble
 //     LIsNull
 //     LIsNullAndBranch
+//     LIsObject
+//     LIsObjectAndBranch
 //     LIsSmi
 //     LIsSmiAndBranch
 //     LLoadNamedField
@@ -203,6 +205,8 @@ class Translation;
   V(Integer32ToDouble)                          \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
+  V(IsObject)                                   \
+  V(IsObjectAndBranch)                          \
   V(IsSmi)                                      \
   V(IsSmiAndBranch)                             \
   V(HasInstanceType)                            \
@@ -737,6 +741,48 @@ class LIsNullAndBranch: public LIsNull {
 
  private:
   LOperand* temp_;
+  int true_block_id_;
+  int false_block_id_;
+};
+
+
+class LIsObject: public LUnaryOperation {
+ public:
+  LIsObject(LOperand* value, LOperand* temp)
+      : LUnaryOperation(value), temp_(temp) {}
+
+  DECLARE_CONCRETE_INSTRUCTION(IsObject, "is-object")
+
+  LOperand* temp() const { return temp_; }
+
+ private:
+  LOperand* temp_;
+};
+
+
+class LIsObjectAndBranch: public LIsObject {
+ public:
+  LIsObjectAndBranch(LOperand* value,
+                     LOperand* temp,
+                     LOperand* temp2,
+                     int true_block_id,
+                     int false_block_id)
+      : LIsObject(value, temp),
+        temp2_(temp2),
+        true_block_id_(true_block_id),
+        false_block_id_(false_block_id) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch, "is-object-and-branch")
+  virtual void PrintDataTo(StringStream* stream) const;
+  virtual bool IsControl() const { return true; }
+
+  int true_block_id() const { return true_block_id_; }
+  int false_block_id() const { return false_block_id_; }
+
+  LOperand* temp2() const { return temp2_; }
+
+ private:
+  LOperand* temp2_;
   int true_block_id_;
   int false_block_id_;
 };
