@@ -673,7 +673,7 @@ ExternalReference ExternalReference::new_space_start() {
 
 
 ExternalReference ExternalReference::write_buffer_top() {
-  return ExternalReference(WriteBuffer::Top());
+  return ExternalReference(WriteBuffer::TopAddress());
 }
 
 

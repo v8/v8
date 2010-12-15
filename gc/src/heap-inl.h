@@ -31,6 +31,7 @@
 #include "heap.h"
 #include "objects.h"
 #include "v8-counters.h"
+#include "write-buffer.h"
 
 namespace v8 {
 namespace internal {
@@ -192,23 +193,14 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
 
 
 void Heap::RecordWrite(Address address, int offset) {
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-  if (new_space_.Contains(address)) return;
-  ASSERT(!new_space_.FromSpaceContains(address));
-  SLOW_ASSERT(Contains(address + offset));
-  Page::FromAddress(address)->MarkRegionDirty(address + offset);
-#endif
+  WriteBuffer::Mark(address + offset);
 }
 
 
 void Heap::RecordWrites(Address address, int start, int len) {
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-  if (new_space_.Contains(address)) return;
-  ASSERT(!new_space_.FromSpaceContains(address));
-  Page* page = Page::FromAddress(address);
-  page->SetRegionMarks(page->GetRegionMarks() |
-      page->GetRegionMaskForSpan(address + start, len * kPointerSize));
-#endif
+  for (int i = 0; i < len; i++) {
+    WriteBuffer::Mark(address + start + i);
+  }
 }
 
 
