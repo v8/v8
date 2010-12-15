@@ -984,16 +984,24 @@ function PadInt(n, digits) {
 function DateToISOString() {
   var t = DATE_VALUE(this);
   if (NUMBER_IS_NAN(t)) return kInvalidDate;
-  return this.getUTCFullYear() + '-' + PadInt(this.getUTCMonth() + 1, 2) +
-      '-' + PadInt(this.getUTCDate(), 2) + 'T' + PadInt(this.getUTCHours(), 2) +
-      ':' + PadInt(this.getUTCMinutes(), 2) + ':' + PadInt(this.getUTCSeconds(), 2) +
+  return this.getUTCFullYear() + 
+      '-' + PadInt(this.getUTCMonth() + 1, 2) +
+      '-' + PadInt(this.getUTCDate(), 2) + 
+      'T' + PadInt(this.getUTCHours(), 2) +
+      ':' + PadInt(this.getUTCMinutes(), 2) + 
+      ':' + PadInt(this.getUTCSeconds(), 2) +
       '.' + PadInt(this.getUTCMilliseconds(), 3) +
       'Z';
 }
 
 
 function DateToJSON(key) {
-  return CheckJSONPrimitive(this.toISOString());
+  var o = ToObject(this);
+  var tv = DefaultNumber(o);
+  if (IS_NUMBER(tv) && !$isFinite(tv)) { 
+    return null; 
+  }
+  return o.toISOString();
 }
 
 

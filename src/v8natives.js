@@ -909,19 +909,13 @@ function BooleanValueOf() {
 }
 
 
-function BooleanToJSON(key) {
-  return CheckJSONPrimitive(this.valueOf());
-}
-
-
 // ----------------------------------------------------------------------------
 
 
 function SetupBoolean() {
   InstallFunctions($Boolean.prototype, DONT_ENUM, $Array(
     "toString", BooleanToString,
-    "valueOf", BooleanValueOf,
-    "toJSON", BooleanToJSON
+    "valueOf", BooleanValueOf
   ));
 }
 
@@ -1021,18 +1015,6 @@ function NumberToPrecision(precision) {
 }
 
 
-function CheckJSONPrimitive(val) {
-  if (!IsPrimitive(val))
-    throw MakeTypeError('result_not_primitive', ['toJSON', val]);
-  return val;
-}
-
-
-function NumberToJSON(key) {
-  return CheckJSONPrimitive(this.valueOf());
-}
-
-
 // ----------------------------------------------------------------------------
 
 function SetupNumber() {
@@ -1073,13 +1055,11 @@ function SetupNumber() {
     "valueOf", NumberValueOf,
     "toFixed", NumberToFixed,
     "toExponential", NumberToExponential,
-    "toPrecision", NumberToPrecision,
-    "toJSON", NumberToJSON
+    "toPrecision", NumberToPrecision
   ));
 }
 
 SetupNumber();
-
 
 
 // ----------------------------------------------------------------------------
