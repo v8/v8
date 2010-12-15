@@ -7676,6 +7676,13 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   __ test(tmp2.reg(), Immediate(kSmiTagMask));
   deferred->Branch(not_zero);
 
+  // Check that both indices are valid.
+  __ mov(tmp2.reg(), FieldOperand(object.reg(), JSArray::kLengthOffset));
+  __ cmp(tmp2.reg(), Operand(index1.reg()));
+  deferred->Branch(below_equal);
+  __ cmp(tmp2.reg(), Operand(index2.reg()));
+  deferred->Branch(below_equal);
+
   // Bring addresses into index1 and index2.
   __ lea(index1.reg(), FixedArrayElementOperand(tmp1.reg(), index1.reg()));
   __ lea(index2.reg(), FixedArrayElementOperand(tmp1.reg(), index2.reg()));

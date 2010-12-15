@@ -6782,6 +6782,13 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   Condition both_smi = masm()->CheckBothSmi(index1.reg(), index2.reg());
   deferred->Branch(NegateCondition(both_smi));
 
+  // Check that both indices are valid.
+  __ movq(tmp2.reg(), FieldOperand(object.reg(), JSArray::kLengthOffset));
+  __ cmpl(tmp2.reg(), index1.reg());
+  deferred->Branch(below_equal);
+  __ cmpl(tmp2.reg(), index2.reg());
+  deferred->Branch(below_equal);
+
   // Bring addresses into index1 and index2.
   __ SmiToInteger32(index1.reg(), index1.reg());
   __ lea(index1.reg(), FieldOperand(tmp1.reg(),

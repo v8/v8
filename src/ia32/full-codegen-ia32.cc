@@ -3108,6 +3108,13 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ test(temp, Immediate(kSmiTagMask));
   __ j(not_zero, &slow_case);
 
+  // Check that both indices are valid.
+  __ mov(temp, FieldOperand(object, JSArray::kLengthOffset));
+  __ cmp(temp, Operand(index_1));
+  __ j(below_equal, &slow_case);
+  __ cmp(temp, Operand(index_2));
+  __ j(below_equal, &slow_case);
+
   // Bring addresses into index1 and index2.
   __ lea(index_1, CodeGenerator::FixedArrayElementOperand(elements, index_1));
   __ lea(index_2, CodeGenerator::FixedArrayElementOperand(elements, index_2));
