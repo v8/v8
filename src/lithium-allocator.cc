@@ -296,13 +296,21 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result) {
   // position is contained in one of the intervals in the chain, we
   // split that interval and use the first part.
   UseInterval* current = FirstSearchIntervalForPosition(position);
+
+  // If the split position coincides with the beginning of a use interval
+  // we need to split use positons in a special way.
+  bool split_at_start = false;
+
   while (current != NULL) {
     if (current->Contains(position)) {
       current->SplitAt(position);
       break;
     }
     UseInterval* next = current->next();
-    if (next->start().Value() >= position.Value()) break;
+    if (next->start().Value() >= position.Value()) {
+      split_at_start = (next->start().Value() == position.Value());
+      break;
+    }
     current = next;
   }
 
@@ -319,9 +327,19 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result) {
   // position after it.
   UsePosition* use_after = first_pos_;
   UsePosition* use_before = NULL;
-  while (use_after != NULL && use_after->pos().Value() <= position.Value()) {
-    use_before = use_after;
-    use_after = use_after->next();
+  if (split_at_start) {
+    // The split position coincides with the beginning of a use interval (the
+    // end of a lifetime hole). Use at this position should be attributed to
+    // the split child because split child owns use interval covering it.
+    while (use_after != NULL && use_after->pos().Value() < position.Value()) {
+      use_before = use_after;
+      use_after = use_after->next();
+    }
+  } else {
+    while (use_after != NULL && use_after->pos().Value() <= position.Value()) {
+      use_before = use_after;
+      use_after = use_after->next();
+    }
   }
 
   // Partition original use positions to the two live ranges.
