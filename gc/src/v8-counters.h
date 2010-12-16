@@ -28,7 +28,9 @@
 #ifndef V8_V8_COUNTERS_H_
 #define V8_V8_COUNTERS_H_
 
+#include "allocation.h"
 #include "counters.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -105,7 +107,10 @@ namespace internal {
   SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)      \
   /* Number of code objects found from pc. */                         \
   SC(pc_to_code, V8.PcToCode)                                         \
-  SC(pc_to_code_cached, V8.PcToCodeCached)
+  SC(pc_to_code_cached, V8.PcToCodeCached)                            \
+  /* The write-buffer implementation of the write barrier. */         \
+  SC(write_buffer_compactions, V8.WriteBufferCompactions)             \
+  SC(write_buffer_overflows, V8.WriteBufferOverflows)
 
 
 #define STATS_COUNTER_LIST_2(SC)                                      \

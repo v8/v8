@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8-counters.h"
 #include "write-buffer.h"
 
 namespace v8 {
@@ -33,6 +34,8 @@ namespace internal {
 Address* WriteBuffer::top_ = NULL;
 Address* WriteBuffer::start_ = NULL;
 Address* WriteBuffer::limit_ = NULL;
+uintptr_t* WriteBuffer::hash_map_1_ = NULL;
+uintptr_t* WriteBuffer::hash_map_2_ = NULL;
 VirtualMemory* WriteBuffer::virtual_memory_ = NULL;
 
 void WriteBuffer::Setup() {
@@ -59,17 +62,71 @@ void WriteBuffer::Setup() {
                           kWriteBufferSize,
                           false);  // Not executable.
   top_ = start_;
+
+  hash_map_1_ = new uintptr_t[kHashMapLength];
+  hash_map_2_ = new uintptr_t[kHashMapLength];
 }
 
 
 void WriteBuffer::TearDown() {
   delete virtual_memory_;
+  delete[] hash_map_1_;
+  delete[] hash_map_2_;
   top_ = start_ = limit_ = NULL;
 }
 
 
 void WriteBuffer::Compact() {
-  top_ = start_;   // TODO(gc) fix.
+  memset(reinterpret_cast<void*>(hash_map_1_),
+         0,
+         sizeof(uintptr_t) * kHashMapLength);
+  memset(reinterpret_cast<void*>(hash_map_2_),
+         0,
+         sizeof(uintptr_t) * kHashMapLength);
+  Address* stop = top_;
+  top_ = start_;
+  // Goes through the addresses in the write buffer attempting to remove
+  // duplicates.  In the interest of speed this is a lossy operation.  Some
+  // duplicates will remain.  We have two hash tables with different hash
+  // functions to reduce the number of unnecessary clashes.
+  for (Address* current = start_; current < stop; current++) {
+    uintptr_t int_addr = reinterpret_cast<uintptr_t>(*current);
+    // Shift out the last bits including any tags.
+    int_addr >>= kPointerSizeLog2;
+    int hash1 =
+        ((int_addr ^ (int_addr >> kHashMapLengthLog2)) & (kHashMapLength - 1));
+    if (hash_map_1_[hash1] == int_addr) continue;
+    int hash2 =
+        ((int_addr - (int_addr >> kHashMapLengthLog2)) & (kHashMapLength - 1));
+    hash2 ^= hash2 >> (kHashMapLengthLog2 * 2);
+    if (hash_map_2_[hash2] == int_addr) continue;
+    if (hash_map_1_[hash1] == 0) {
+      hash_map_1_[hash1] = int_addr;
+    } else if (hash_map_2_[hash2] == 0) {
+      hash_map_2_[hash2] = int_addr;
+    } else {
+      // Rather than slowing down we just throw away some entries.  This will
+      // cause some duplicates to remain undetected.
+      hash_map_1_[hash1] = int_addr;
+      hash_map_2_[hash2] = 0;
+    }
+    ASSERT(top_ <= current);
+    ASSERT(top_ <= limit_);
+    *top_++ = reinterpret_cast<Address>(int_addr << kPointerSizeLog2);
+  }
+  Counters::write_buffer_compactions.Increment();
+  if (limit_ - top_ < top_ - start_) {
+    // Compression did not free up at least half.
+    // TODO(gc): Set an interrupt to do a GC on the next back edge.
+    // TODO(gc): Allocate the rest of new space to force a GC on the next
+    // allocation.
+    if (limit_ - top_ < (top_ - start_) >> 1) {
+      // Compression did not free up at least one quarter.
+      // TODO(gc): Set a flag to scan all of memory.
+      top_ = start_;
+      Counters::write_buffer_overflows.Increment();
+    }
+  }
 }
 
 } }  // namespace v8::internal

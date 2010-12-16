@@ -56,14 +56,18 @@ class WriteBuffer : public AllStatic {
     }
   }
 
-  static const int kWriteBufferOverflowBit = 1 << 15;
+  static const int kWriteBufferOverflowBit = 1 << 16;
   static const int kWriteBufferSize = kWriteBufferOverflowBit;
+  static const int kHashMapLengthLog2 = 12;
+  static const int kHashMapLength = 1 << kHashMapLengthLog2;
 
  private:
   static Address* top_;
   static Address* start_;
   static Address* limit_;
   static VirtualMemory* virtual_memory_;
+  static uintptr_t* hash_map_1_;
+  static uintptr_t* hash_map_2_;
 
   static void Compact();
 };
