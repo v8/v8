@@ -526,7 +526,7 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
     }
     if (a->start().Value() < b->start().Value()) {
       a = a->next();
-      if (a == NULL && a->start().Value() > other->End().Value()) break;
+      if (a == NULL || a->start().Value() > other->End().Value()) break;
       AdvanceLastProcessedMarker(a, advance_last_processed_up_to);
     } else {
       b = b->next();
