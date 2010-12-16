@@ -4979,6 +4979,7 @@ void Testing::SetStressRunType(Testing::StressType type) {
 }
 
 int Testing::GetStressRuns() {
+  if (internal::FLAG_stress_runs != 0) return internal::FLAG_stress_runs;
 #ifdef DEBUG
   // In debug mode the code runs much slower so stressing will only make two
   // runs.
