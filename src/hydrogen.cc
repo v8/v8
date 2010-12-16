@@ -3614,6 +3614,11 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
                                map,
                                &lookup,
                                true);
+  } else if (lookup.IsProperty() && lookup.type() == CONSTANT_FUNCTION) {
+    AddInstruction(new HCheckNonSmi(obj));
+    AddInstruction(new HCheckMap(obj, map));
+    Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
+    return new HConstant(function, Representation::Tagged());
   } else {
     return BuildLoadNamedGeneric(obj, expr);
   }
