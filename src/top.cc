@@ -283,7 +283,7 @@ void Top::Initialize() {
   ASSERT(runtime_profiler_semaphore_ == NULL);
   runtime_profiler_semaphore_ = OS::CreateSemaphore(0);
 #endif
-  
+
   InitializeThreadLocal();
 
   // Only preallocate on the first initialization.
@@ -305,7 +305,7 @@ void Top::TearDown() {
     delete runtime_profiler_semaphore_;
     runtime_profiler_semaphore_ = NULL;
 #endif
-    
+
     // Remove the external reference to the preallocated stack memory.
     if (preallocated_message_space != NULL) {
       delete preallocated_message_space;
