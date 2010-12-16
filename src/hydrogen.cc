@@ -3257,7 +3257,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
     }
 
     HBasicBlock* new_exit_block =
-        BuildTypeSwitch(&maps, &subgraphs, object, expr->id());
+        BuildTypeSwitch(&maps, &subgraphs, object, expr->AssignmentId());
     subgraph()->set_exit_block(new_exit_block);
   }
 
