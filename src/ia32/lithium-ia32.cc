@@ -1278,8 +1278,8 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
     } else if (v->IsInstanceOf()) {
       HInstanceOf* instance_of = HInstanceOf::cast(v);
       LInstruction* result =
-          new LInstanceOfAndBranch(Use(instance_of->left()),
-                                   Use(instance_of->right()),
+          new LInstanceOfAndBranch(UseFixed(instance_of->left(), eax),
+                                   UseFixed(instance_of->right(), edx),
                                    first_id,
                                    second_id);
       return MarkAsCall(result, instr);
@@ -1329,7 +1329,8 @@ LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
 
 LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
   LInstruction* result =
-      new LInstanceOf(Use(instr->left()), Use(instr->right()));
+      new LInstanceOf(UseFixed(instr->left(), eax),
+                      UseFixed(instr->right(), edx));
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 

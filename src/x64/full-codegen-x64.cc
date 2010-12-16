@@ -3336,7 +3336,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     case Token::INSTANCEOF: {
       VisitForStackValue(expr->right());
-      InstanceofStub stub;
+      InstanceofStub stub(InstanceofStub::kNoFlags);
       __ CallStub(&stub);
       __ testq(rax, rax);
        // The stub returns 0 for true.

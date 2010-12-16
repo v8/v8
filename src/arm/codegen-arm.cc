@@ -6469,7 +6469,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     case Token::INSTANCEOF: {
       Load(left);
       Load(right);
-      InstanceofStub stub;
+      InstanceofStub stub(InstanceofStub::kNoFlags);
       frame_->CallStub(&stub, 2);
       // At this point if instanceof succeeded then r0 == 0.
       __ tst(r0, Operand(r0));

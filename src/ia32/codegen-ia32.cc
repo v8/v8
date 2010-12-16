@@ -9140,7 +9140,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     case Token::INSTANCEOF: {
       if (!left_already_loaded) Load(left);
       Load(right);
-      InstanceofStub stub;
+      InstanceofStub stub(InstanceofStub::kNoFlags);
       Result answer = frame_->CallStub(&stub, 2);
       answer.ToRegister();
       __ test(answer.reg(), Operand(answer.reg()));

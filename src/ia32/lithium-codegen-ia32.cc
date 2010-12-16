@@ -1699,9 +1699,8 @@ void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
 
 
 void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
-  InstanceofStub stub;
-  __ push(ToOperand(instr->left()));
-  __ push(ToOperand(instr->right()));
+  // Object and function are in fixed registers eax and edx.
+  InstanceofStub stub(InstanceofStub::kArgsInRegisters);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 
   NearLabel true_value, done;
@@ -1719,9 +1718,7 @@ void LCodeGen::DoInstanceOfAndBranch(LInstanceOfAndBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
 
-  InstanceofStub stub;
-  __ push(ToOperand(instr->left()));
-  __ push(ToOperand(instr->right()));
+  InstanceofStub stub(InstanceofStub::kArgsInRegisters);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   __ test(eax, Operand(eax));
   EmitBranch(true_block, false_block, zero);
