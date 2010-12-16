@@ -350,6 +350,7 @@ void RuntimeProfiler::OptimizeSoon(JSFunction* function) {
 }
 
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
 static void UpdateStateRatio(SamplerState current_state) {
   static const int kStateWindowSize = 128;
   static SamplerState state_window[kStateWindowSize];
@@ -366,15 +367,18 @@ static void UpdateStateRatio(SamplerState current_state) {
   NoBarrier_Store(&js_ratio, state_counts[IN_JS_STATE] * 100 /
                   kStateWindowSize);
 }
+#endif
 
 
 void RuntimeProfiler::NotifyTick() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   // Record state sample.
   SamplerState state = Top::IsInJSState()
       ? IN_JS_STATE
       : IN_NON_JS_STATE;
   UpdateStateRatio(state);
   StackGuard::RequestRuntimeProfilerTick();
+#endif
 }
 
 
@@ -428,6 +432,7 @@ int RuntimeProfiler::SamplerWindowSize() {
 
 
 bool RuntimeProfilerRateLimiter::SuspendIfNecessary() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   static const int kNonJSTicksThreshold = 100;
   // We suspend the runtime profiler thread when not running
   // JavaScript. If the CPU profiler is active we must not do this
@@ -445,6 +450,7 @@ bool RuntimeProfilerRateLimiter::SuspendIfNecessary() {
       }
     }
   }
+#endif
   return false;
 }
 

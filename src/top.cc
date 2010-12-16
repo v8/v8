@@ -40,7 +40,9 @@
 namespace v8 {
 namespace internal {
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
 Semaphore* Top::runtime_profiler_semaphore_ = NULL;
+#endif
 ThreadLocalTop Top::thread_local_;
 Mutex* Top::break_access_ = OS::CreateMutex();
 
@@ -277,9 +279,11 @@ static bool initialized = false;
 void Top::Initialize() {
   CHECK(!initialized);
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
   ASSERT(runtime_profiler_semaphore_ == NULL);
   runtime_profiler_semaphore_ = OS::CreateSemaphore(0);
-
+#endif
+  
   InitializeThreadLocal();
 
   // Only preallocate on the first initialization.
@@ -297,9 +301,11 @@ void Top::Initialize() {
 
 void Top::TearDown() {
   if (initialized) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
     delete runtime_profiler_semaphore_;
     runtime_profiler_semaphore_ = NULL;
-
+#endif
+    
     // Remove the external reference to the preallocated stack memory.
     if (preallocated_message_space != NULL) {
       delete preallocated_message_space;
