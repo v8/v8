@@ -334,6 +334,9 @@ class Range: public ZoneObject {
     set_can_be_minus_zero(false);
   }
 
+  // Adds a constant to the lower and upper bound of the range.
+  void AddConstant(int32_t value);
+
   void StackUpon(Range* other) {
     Intersect(other);
     next_ = other;
@@ -353,7 +356,8 @@ class Range: public ZoneObject {
     set_can_be_minus_zero(b);
   }
 
-  void Add(int32_t value);
+  // Compute a new result range and return true, if the operation
+  // can overflow.
   bool AddAndCheckOverflow(Range* other);
   bool SubAndCheckOverflow(Range* other);
   bool MulAndCheckOverflow(Range* other);

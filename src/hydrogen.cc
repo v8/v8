@@ -1029,12 +1029,12 @@ void HRangeAnalysis::InferControlFlowRange(Token::Value op,
   } else if (op == Token::LT || op == Token::LTE) {
     new_range = range->CopyClearLower();
     if (op == Token::LT) {
-      new_range->Add(-1);
+      new_range->AddConstant(-1);
     }
   } else if (op == Token::GT || op == Token::GTE) {
     new_range = range->CopyClearUpper();
     if (op == Token::GT) {
-      new_range->Add(1);
+      new_range->AddConstant(1);
     }
   }
 
