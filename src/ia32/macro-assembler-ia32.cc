@@ -74,30 +74,6 @@ void MacroAssembler::RecordWriteHelper(Register object,
 }
 
 
-void MacroAssembler::InNewSpace(Register object,
-                                Register scratch,
-                                Condition cc,
-                                Label* branch) {
-  ASSERT(cc == equal || cc == not_equal);
-  if (Serializer::enabled()) {
-    // Can't do arithmetic on external references if it might get serialized.
-    mov(scratch, Operand(object));
-    // The mask isn't really an address.  We load it as an external reference in
-    // case the size of the new space is different between the snapshot maker
-    // and the running system.
-    and_(Operand(scratch), Immediate(ExternalReference::new_space_mask()));
-    cmp(Operand(scratch), Immediate(ExternalReference::new_space_start()));
-    j(cc, branch);
-  } else {
-    int32_t new_space_start = reinterpret_cast<int32_t>(
-        ExternalReference::new_space_start().address());
-    lea(scratch, Operand(object, -new_space_start));
-    and_(scratch, Heap::NewSpaceMask());
-    j(cc, branch);
-  }
-}
-
-
 void MacroAssembler::RecordWrite(Register object,
                                  int offset,
                                  Register value,
@@ -109,7 +85,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
-  Label done;
+  NearLabel done;
 
   // Skip barrier if writing a smi.
   ASSERT_EQ(0, kSmiTag);
