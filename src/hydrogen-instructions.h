@@ -94,13 +94,13 @@ class LChunkBuilder;
 //     HCallStub
 //     HConstant
 //     HControlInstruction
+//       HDeoptimize
 //       HGoto
 //       HUnaryControlInstruction
 //         HBranch
 //         HCompareMapAndBranch
 //         HReturn
 //         HThrow
-//     HDeoptimize
 //     HEnterInlined
 //     HFunctionLiteral
 //     HGlobalObject

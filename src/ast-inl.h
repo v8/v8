@@ -71,14 +71,16 @@ DoWhileStatement::DoWhileStatement(ZoneStringList* labels)
     : IterationStatement(labels),
       cond_(NULL),
       condition_position_(-1),
-      next_id_(GetNextId()) {
+      continue_id_(GetNextId()),
+      back_edge_id_(GetNextId()) {
 }
 
 
 WhileStatement::WhileStatement(ZoneStringList* labels)
     : IterationStatement(labels),
       cond_(NULL),
-      may_have_function_literal_(true) {
+      may_have_function_literal_(true),
+      body_id_(GetNextId()) {
 }
 
 
@@ -89,7 +91,8 @@ ForStatement::ForStatement(ZoneStringList* labels)
       next_(NULL),
       may_have_function_literal_(true),
       loop_variable_(NULL),
-      next_id_(GetNextId()) {
+      continue_id_(GetNextId()),
+      body_id_(GetNextId()) {
 }
 
 

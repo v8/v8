@@ -476,12 +476,14 @@ class DoWhileStatement: public IterationStatement {
   void set_condition_position(int pos) { condition_position_ = pos; }
 
   // Bailout support.
-  virtual int ContinueId() const { return next_id_; }
+  virtual int ContinueId() const { return continue_id_; }
+  int BackEdgeId() const { return back_edge_id_; }
 
  private:
   Expression* cond_;
   int condition_position_;
-  int next_id_;
+  int continue_id_;
+  int back_edge_id_;
 };
 
 
@@ -506,11 +508,13 @@ class WhileStatement: public IterationStatement {
 
   // Bailout support.
   virtual int ContinueId() const { return EntryId(); }
+  int BodyId() const { return body_id_; }
 
  private:
   Expression* cond_;
   // True if there is a function literal subexpression in the condition.
   bool may_have_function_literal_;
+  int body_id_;
 };
 
 
@@ -542,7 +546,8 @@ class ForStatement: public IterationStatement {
   }
 
   // Bailout support.
-  virtual int ContinueId() const { return next_id_; }
+  virtual int ContinueId() const { return continue_id_; }
+  int BodyId() const { return body_id_; }
 
   bool is_fast_smi_loop() { return loop_variable_ != NULL; }
   Variable* loop_variable() { return loop_variable_; }
@@ -555,7 +560,8 @@ class ForStatement: public IterationStatement {
   // True if there is a function literal subexpression in the condition.
   bool may_have_function_literal_;
   Variable* loop_variable_;
-  int next_id_;
+  int continue_id_;
+  int body_id_;
 };
 
 
@@ -735,7 +741,10 @@ class IfStatement: public Statement {
               Statement* else_statement)
       : condition_(condition),
         then_statement_(then_statement),
-        else_statement_(else_statement) { }
+        else_statement_(else_statement),
+        then_id_(GetNextId()),
+        else_id_(GetNextId()) {
+  }
 
   DECLARE_NODE_TYPE(IfStatement)
 
@@ -748,10 +757,15 @@ class IfStatement: public Statement {
   Statement* then_statement() const { return then_statement_; }
   Statement* else_statement() const { return else_statement_; }
 
+  int ThenId() const { return then_id_; }
+  int ElseId() const { return else_id_; }
+
  private:
   Expression* condition_;
   Statement* then_statement_;
   Statement* else_statement_;
+  int then_id_;
+  int else_id_;
 };
 
 
@@ -1376,6 +1390,9 @@ class BinaryOperation: public Expression {
                   int pos)
       : op_(op), left_(left), right_(right), pos_(pos), is_smi_only_(false) {
     ASSERT(Token::IsBinaryOp(op));
+    right_id_ = (op == Token::AND || op == Token::OR)
+        ? GetNextId()
+        : AstNode::kNoNumber;
   }
 
   // Create the binary operation corresponding to a compound assignment.
@@ -1396,12 +1413,18 @@ class BinaryOperation: public Expression {
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   bool IsSmiOnly() const { return is_smi_only_; }
 
+  // Bailout support.
+  int RightId() const { return right_id_; }
+
  private:
   Token::Value op_;
   Expression* left_;
   Expression* right_;
   int pos_;
   bool is_smi_only_;
+  // The short-circuit logical operations have an AST ID for their
+  // right-hand subexpression.
+  int right_id_;
 };
 
 
@@ -1526,7 +1549,10 @@ class Conditional: public Expression {
         then_expression_(then_expression),
         else_expression_(else_expression),
         then_expression_position_(then_expression_position),
-        else_expression_position_(else_expression_position) { }
+        else_expression_position_(else_expression_position),
+        then_id_(GetNextId()),
+        else_id_(GetNextId()) {
+  }
 
   DECLARE_NODE_TYPE(Conditional)
 
@@ -1536,8 +1562,11 @@ class Conditional: public Expression {
   Expression* then_expression() const { return then_expression_; }
   Expression* else_expression() const { return else_expression_; }
 
-  int then_expression_position() { return then_expression_position_; }
-  int else_expression_position() { return else_expression_position_; }
+  int then_expression_position() const { return then_expression_position_; }
+  int else_expression_position() const { return else_expression_position_; }
+
+  int ThenId() const { return then_id_; }
+  int ElseId() const { return else_id_; }
 
  private:
   Expression* condition_;
@@ -1545,6 +1574,8 @@ class Conditional: public Expression {
   Expression* else_expression_;
   int then_expression_position_;
   int else_expression_position_;
+  int then_id_;
+  int else_id_;
 };
 
 

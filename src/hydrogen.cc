@@ -64,9 +64,7 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       first_instruction_index_(-1),
       last_instruction_index_(-1),
       deleted_phis_(4),
-      is_inline_return_target_(false),
-      inverted_(false),
-      deopt_predecessor_(NULL) {
+      is_inline_return_target_(false) {
 }
 
 
@@ -1292,15 +1290,15 @@ void HStackCheckEliminator::Process() {
   for (int i = 0; i < graph_->blocks()->length(); i++) {
     HBasicBlock* block = graph_->blocks()->at(i);
     if (block->IsLoopHeader()) {
-      HBasicBlock* backedge = block->loop_information()->GetLastBackEdge();
-      HBasicBlock* dominator = backedge;
-      bool backedge_dominated_by_call = false;
-      while (dominator != block && !backedge_dominated_by_call) {
+      HBasicBlock* back_edge = block->loop_information()->GetLastBackEdge();
+      HBasicBlock* dominator = back_edge;
+      bool back_edge_dominated_by_call = false;
+      while (dominator != block && !back_edge_dominated_by_call) {
         HInstruction* instr = dominator->first();
-        while (instr != NULL && !backedge_dominated_by_call) {
+        while (instr != NULL && !back_edge_dominated_by_call) {
           if (instr->IsCall()) {
-            RemoveStackCheck(backedge);
-            backedge_dominated_by_call = true;
+            RemoveStackCheck(back_edge);
+            back_edge_dominated_by_call = true;
           }
           instr = instr->next();
         }
@@ -2053,38 +2051,29 @@ void TestContext::ReturnInstruction(HInstruction* instr, int ast_id) {
 
 
 void TestContext::BuildBranch(HValue* value) {
+  // We expect the graph to be in edge-split form: there is no edge that
+  // connects a branch node to a join node.  We conservatively ensure that
+  // property by always adding an empty block on the outgoing edges of this
+  // branch.
   HGraphBuilder* builder = owner();
-  HBasicBlock* materialize_true = builder->graph()->CreateBasicBlock();
-  HBasicBlock* materialize_false = builder->graph()->CreateBasicBlock();
-  HBranch* branch = new HBranch(materialize_true, materialize_false, value);
+  HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
+  HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
+  HBranch* branch = new HBranch(empty_true, empty_false, value);
   builder->CurrentBlock()->Finish(branch);
 
-  HBasicBlock* true_block = if_true();
-  HValue* true_value = invert_true()
-      ? builder->graph()->GetConstantFalse()
-      : builder->graph()->GetConstantTrue();
-  materialize_true->set_inverted(invert_true());
-  true_block->set_deopt_predecessor(materialize_true);
-
-  if (true_block->IsInlineReturnTarget()) {
-    materialize_true->AddLeaveInlined(true_value, true_block);
+  HValue* const no_return_value = NULL;
+  HBasicBlock* true_target = if_true();
+  if (true_target->IsInlineReturnTarget()) {
+    empty_true->AddLeaveInlined(no_return_value, true_target);
   } else {
-    materialize_true->last_environment()->Push(true_value);
-    materialize_true->Goto(true_block);
+    empty_true->Goto(true_target);
   }
 
-  HBasicBlock* false_block = if_false();
-  HValue* false_value = invert_false()
-      ? builder->graph()->GetConstantTrue()
-      : builder->graph()->GetConstantFalse();
-  materialize_false->set_inverted(invert_false());
-  false_block->set_deopt_predecessor(materialize_false);
-
-  if (false_block->IsInlineReturnTarget()) {
-    materialize_false->AddLeaveInlined(false_value, false_block);
+  HBasicBlock* false_target = if_false();
+  if (false_target->IsInlineReturnTarget()) {
+    empty_false->AddLeaveInlined(no_return_value, false_target);
   } else {
-    materialize_false->last_environment()->Push(false_value);
-    materialize_false->Goto(false_block);
+    empty_false->Goto(false_target);
   }
   builder->subgraph()->set_exit_block(NULL);
 }
@@ -2115,6 +2104,13 @@ void TestContext::BuildBranch(HValue* value) {
   do {                                          \
     VisitForValue(expr);                        \
     if (HasStackOverflow()) return;             \
+  } while (false)
+
+
+#define VISIT_FOR_CONTROL(expr, true_block, false_block)        \
+  do {                                                          \
+    VisitForControl(expr, true_block, false_block);             \
+    if (HasStackOverflow()) return;                             \
   } while (false)
 
 
@@ -2166,6 +2162,14 @@ void HGraphBuilder::VisitForEffect(Expression* expr) {
 
 void HGraphBuilder::VisitForValue(Expression* expr) {
   ValueContext for_value(this);
+  Visit(expr);
+}
+
+
+void HGraphBuilder::VisitForControl(Expression* expr,
+                                    HBasicBlock* true_block,
+                                    HBasicBlock* false_block) {
+  TestContext for_test(this, true_block, false_block);
   Visit(expr);
 }
 
@@ -2256,52 +2260,6 @@ void HGraphBuilder::AddToSubgraph(HSubgraph* graph, Statement* stmt) {
 void HGraphBuilder::AddToSubgraph(HSubgraph* graph, Expression* expr) {
   SubgraphScope scope(this, graph);
   VisitForValue(expr);
-}
-
-
-void HGraphBuilder::VisitCondition(Expression* expr,
-                                   HBasicBlock* true_block,
-                                   HBasicBlock* false_block,
-                                   bool invert_true,
-                                   bool invert_false) {
-  VisitForControl(expr, true_block, false_block, invert_true, invert_false);
-  CHECK_BAILOUT;
-#ifdef DEBUG
-  HValue* value = true_block->predecessors()->at(0)->last_environment()->Top();
-  true_block->set_cond(HConstant::cast(value)->handle());
-
-  value = false_block->predecessors()->at(0)->last_environment()->Top();
-  false_block->set_cond(HConstant::cast(value)->handle());
-#endif
-
-  true_block->SetJoinId(expr->id());
-  false_block->SetJoinId(expr->id());
-  true_block->last_environment()->Pop();
-  false_block->last_environment()->Pop();
-}
-
-
-void HGraphBuilder::AddConditionToSubgraph(HSubgraph* subgraph,
-                                           Expression* expr,
-                                           HSubgraph* true_graph,
-                                           HSubgraph* false_graph) {
-  SubgraphScope scope(this, subgraph);
-  VisitCondition(expr,
-                 true_graph->entry_block(),
-                 false_graph->entry_block(),
-                 false,
-                 false);
-}
-
-
-void HGraphBuilder::VisitForControl(Expression* expr,
-                                    HBasicBlock* true_block,
-                                    HBasicBlock* false_block,
-                                    bool invert_true,
-                                    bool invert_false) {
-  TestContext for_test(this, true_block, false_block,
-                       invert_true, invert_false);
-  Visit(expr);
 }
 
 
@@ -2484,19 +2442,24 @@ void HGraphBuilder::VisitEmptyStatement(EmptyStatement* stmt) {
 
 void HGraphBuilder::VisitIfStatement(IfStatement* stmt) {
   if (stmt->condition()->ToBooleanIsTrue()) {
+    AddSimulate(stmt->ThenId());
     Visit(stmt->then_statement());
   } else if (stmt->condition()->ToBooleanIsFalse()) {
+    AddSimulate(stmt->ElseId());
     Visit(stmt->else_statement());
   } else {
     HSubgraph* then_graph = CreateEmptySubgraph();
     HSubgraph* else_graph = CreateEmptySubgraph();
-    VisitCondition(stmt->condition(),
-                   then_graph->entry_block(),
-                   else_graph->entry_block(),
-                   false, false);
-    if (HasStackOverflow()) return;
+    VISIT_FOR_CONTROL(stmt->condition(),
+                      then_graph->entry_block(),
+                      else_graph->entry_block());
+
+    then_graph->entry_block()->SetJoinId(stmt->ThenId());
     ADD_TO_SUBGRAPH(then_graph, stmt->then_statement());
+
+    else_graph->entry_block()->SetJoinId(stmt->ElseId());
     ADD_TO_SUBGRAPH(else_graph, stmt->else_statement());
+
     current_subgraph_->AppendJoin(then_graph, else_graph, stmt);
   }
 }
@@ -2526,9 +2489,7 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
       TestContext* test = TestContext::cast(context);
       VisitForControl(stmt->expression(),
                       test->if_true(),
-                      test->if_false(),
-                      false,
-                      false);
+                      test->if_false());
     } else {
       HValue* return_value = NULL;
       if (context->IsEffect()) {
@@ -2771,8 +2732,14 @@ void HGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   } else {
     HSubgraph* go_back = CreateEmptySubgraph();
     HSubgraph* exit = CreateEmptySubgraph();
-    AddConditionToSubgraph(body_graph, stmt->cond(), go_back, exit);
-    if (HasStackOverflow()) return;
+    {
+      SubgraphScope scope(this, body_graph);
+      VISIT_FOR_CONTROL(stmt->cond(),
+                        go_back->entry_block(),
+                        exit->entry_block());
+      go_back->entry_block()->SetJoinId(stmt->BackEdgeId());
+      exit->entry_block()->SetJoinId(stmt->ExitId());
+    }
     current_subgraph_->AppendDoWhile(body_graph, stmt, go_back, exit);
   }
 }
@@ -2799,8 +2766,14 @@ void HGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
     cond_graph = CreateLoopHeaderSubgraph(environment());
     body_graph = CreateEmptySubgraph();
     exit_graph = CreateEmptySubgraph();
-    AddConditionToSubgraph(cond_graph, stmt->cond(), body_graph, exit_graph);
-    if (HasStackOverflow()) return;
+    {
+      SubgraphScope scope(this, cond_graph);
+      VISIT_FOR_CONTROL(stmt->cond(),
+                        body_graph->entry_block(),
+                        exit_graph->entry_block());
+      body_graph->entry_block()->SetJoinId(stmt->BodyId());
+      exit_graph->entry_block()->SetJoinId(stmt->ExitId());
+    }
     ADD_TO_SUBGRAPH(body_graph, stmt->body());
   }
 
@@ -2850,13 +2823,18 @@ void HGraphBuilder::VisitForStatement(ForStatement* stmt) {
     cond_graph = CreateLoopHeaderSubgraph(environment());
     body_graph = CreateEmptySubgraph();
     exit_graph = CreateEmptySubgraph();
-    AddConditionToSubgraph(cond_graph, stmt->cond(), body_graph, exit_graph);
-    if (HasStackOverflow()) return;
-    ADD_TO_SUBGRAPH(body_graph, stmt->body());
+    {
+      SubgraphScope scope(this, cond_graph);
+      VISIT_FOR_CONTROL(stmt->cond(),
+                        body_graph->entry_block(),
+                        exit_graph->entry_block());
+      body_graph->entry_block()->SetJoinId(stmt->BodyId());
+      exit_graph->entry_block()->SetJoinId(stmt->ExitId());
+    }
   } else {
     body_graph = CreateLoopHeaderSubgraph(environment());
-    ADD_TO_SUBGRAPH(body_graph, stmt->body());
   }
+  ADD_TO_SUBGRAPH(body_graph, stmt->body());
 
   HSubgraph* next_graph = NULL;
   body_graph->ResolveContinue(stmt);
@@ -2915,13 +2893,16 @@ void HGraphBuilder::VisitSharedFunctionInfoLiteral(
 void HGraphBuilder::VisitConditional(Conditional* expr) {
   HSubgraph* then_graph = CreateEmptySubgraph();
   HSubgraph* else_graph = CreateEmptySubgraph();
-  VisitCondition(expr->condition(),
-                 then_graph->entry_block(),
-                 else_graph->entry_block(),
-                 false, false);
-  if (HasStackOverflow()) return;
+  VISIT_FOR_CONTROL(expr->condition(),
+                    then_graph->entry_block(),
+                    else_graph->entry_block());
+
+  then_graph->entry_block()->SetJoinId(expr->ThenId());
   ADD_TO_SUBGRAPH(then_graph, expr->then_expression());
+
+  else_graph->entry_block()->SetJoinId(expr->ElseId());
   ADD_TO_SUBGRAPH(else_graph, expr->else_expression());
+
   current_subgraph_->AppendJoin(then_graph, else_graph, expr);
   ast_context()->ReturnValue(Pop());
 }
@@ -3979,10 +3960,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
     if_true->MarkAsInlineReturnTarget();
     if_false->MarkAsInlineReturnTarget();
     // AstContext constructor pushes on the context stack.
-    bool invert_true = TestContext::cast(ast_context())->invert_true();
-    bool invert_false = TestContext::cast(ast_context())->invert_false();
-    test_context = new TestContext(this, if_true, if_false,
-                                   invert_true, invert_false);
+    test_context = new TestContext(this, if_true, if_false);
     function_return_ = NULL;
   } else {
     // Inlined body is treated as if it occurs in the original call context.
@@ -4026,16 +4004,15 @@ bool HGraphBuilder::TryInline(Call* expr) {
       // simply jumping to the false target.
       //
       // TODO(3168478): refactor to avoid this.
-      HBasicBlock* materialize_true = graph()->CreateBasicBlock();
-      HBasicBlock* materialize_false = graph()->CreateBasicBlock();
+      HBasicBlock* empty_true = graph()->CreateBasicBlock();
+      HBasicBlock* empty_false = graph()->CreateBasicBlock();
       HBranch* branch =
-          new HBranch(materialize_true, materialize_false, return_value);
+          new HBranch(empty_true, empty_false, return_value);
       body->exit_block()->Finish(branch);
 
-      materialize_true->AddLeaveInlined(graph()->GetConstantTrue(),
-                                        test_context->if_true());
-      materialize_false->AddLeaveInlined(graph()->GetConstantFalse(),
-                                         test_context->if_false());
+      HValue* const no_return_value = NULL;
+      empty_true->AddLeaveInlined(no_return_value, test_context->if_true());
+      empty_false->AddLeaveInlined(no_return_value, test_context->if_false());
     }
     body->set_exit_block(NULL);
   }
@@ -4054,35 +4031,20 @@ bool HGraphBuilder::TryInline(Call* expr) {
     if_false->SetJoinId(expr->id());
     ASSERT(ast_context() == test_context);
     delete test_context;  // Destructor pops from expression context stack.
-    // Forward to the real test context.
 
-    // Discard the lingering branch value (which may be true or false,
-    // depending on whether the final condition was negated) and jump to the
-    // true target with a true branch value.
+    // Forward to the real test context.
+    HValue* const no_return_value = NULL;
     HBasicBlock* true_target = TestContext::cast(ast_context())->if_true();
-    bool invert_true = TestContext::cast(ast_context())->invert_true();
-    HValue* true_value = invert_true
-        ? graph()->GetConstantFalse()
-        : graph()->GetConstantTrue();
-    if_true->last_environment()->Pop();
     if (true_target->IsInlineReturnTarget()) {
-      if_true->AddLeaveInlined(true_value, true_target);
+      if_true->AddLeaveInlined(no_return_value, true_target);
     } else {
-      if_true->last_environment()->Push(true_value);
       if_true->Goto(true_target);
     }
 
-    // Do the same for the false target.
     HBasicBlock* false_target = TestContext::cast(ast_context())->if_false();
-    bool invert_false = TestContext::cast(ast_context())->invert_false();
-    HValue* false_value = invert_false
-        ? graph()->GetConstantTrue()
-        : graph()->GetConstantFalse();
-    if_false->last_environment()->Pop();
     if (false_target->IsInlineReturnTarget()) {
-      if_false->AddLeaveInlined(false_value, false_target);
+      if_false->AddLeaveInlined(no_return_value, false_target);
     } else {
-      if_false->last_environment()->Push(false_value);
       if_false->Goto(false_target);
     }
 
@@ -4109,7 +4071,7 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value, HBasicBlock* target) {
   ASSERT(target->IsInlineReturnTarget());
   AddInstruction(new HLeaveInlined);
   HEnvironment* outer = last_environment()->outer();
-  outer->Push(return_value);
+  if (return_value != NULL) outer->Push(return_value);
   UpdateEnvironment(outer);
   Goto(target);
 }
@@ -4495,19 +4457,19 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
       TestContext* context = TestContext::cast(ast_context());
       VisitForControl(expr->expression(),
                       context->if_false(),
-                      context->if_true(),
-                      !context->invert_false(),
-                      !context->invert_true());
+                      context->if_true());
     } else {
       HSubgraph* true_graph = CreateEmptySubgraph();
       HSubgraph* false_graph = CreateEmptySubgraph();
-      VisitCondition(expr->expression(),
-                     false_graph->entry_block(),
-                     true_graph->entry_block(),
-                     true, true);
-      if (HasStackOverflow()) return;
+      VISIT_FOR_CONTROL(expr->expression(),
+                        false_graph->entry_block(),
+                        true_graph->entry_block());
+      true_graph->entry_block()->SetJoinId(expr->expression()->id());
       true_graph->environment()->Push(graph_->GetConstantTrue());
+
+      false_graph->entry_block()->SetJoinId(expr->expression()->id());
       false_graph->environment()->Push(graph_->GetConstantFalse());
+
       current_subgraph_->AppendJoin(true_graph, false_graph, expr);
       ast_context()->ReturnValue(Pop());
     }
@@ -4771,18 +4733,14 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
       // Translate left subexpression.
       HBasicBlock* eval_right = graph()->CreateBasicBlock();
       if (is_logical_and) {
-        VisitForControl(expr->left(), eval_right, context->if_false(),
-                        false, context->invert_false());
+        VISIT_FOR_CONTROL(expr->left(), eval_right, context->if_false());
       } else {
-        VisitForControl(expr->left(), context->if_true(), eval_right,
-                        context->invert_true(), false);
+        VISIT_FOR_CONTROL(expr->left(), context->if_true(), eval_right);
       }
-      if (HasStackOverflow()) return;
-      eval_right->SetJoinId(expr->left()->id());
+      eval_right->SetJoinId(expr->RightId());
 
       // Translate right subexpression by visiting it in the same AST
       // context as the entire expression.
-      eval_right->last_environment()->Pop();
       subgraph()->set_exit_block(eval_right);
       Visit(expr->right());
 

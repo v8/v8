@@ -136,14 +136,6 @@ class HBasicBlock: public ZoneObject {
   bool IsInlineReturnTarget() const { return is_inline_return_target_; }
   void MarkAsInlineReturnTarget() { is_inline_return_target_ = true; }
 
-  // If this block is a successor of a branch, his flags tells whether the
-  // preceding branch was inverted or not.
-  bool inverted() { return inverted_; }
-  void set_inverted(bool b) { inverted_ = b; }
-
-  HBasicBlock* deopt_predecessor() { return deopt_predecessor_; }
-  void set_deopt_predecessor(HBasicBlock* block) { deopt_predecessor_ = block; }
-
   Handle<Object> cond() { return cond_; }
   void set_cond(Handle<Object> value) { cond_ = value; }
 
@@ -176,8 +168,6 @@ class HBasicBlock: public ZoneObject {
   ZoneList<int> deleted_phis_;
   SetOncePointer<HBasicBlock> parent_loop_header_;
   bool is_inline_return_target_;
-  bool inverted_;
-  HBasicBlock* deopt_predecessor_;
   Handle<Object> cond_;
 };
 
@@ -615,14 +605,10 @@ class TestContext: public AstContext {
  public:
   TestContext(HGraphBuilder* owner,
               HBasicBlock* if_true,
-              HBasicBlock* if_false,
-              bool invert_true,
-              bool invert_false)
+              HBasicBlock* if_false)
       : AstContext(owner, Expression::kTest),
         if_true_(if_true),
-        if_false_(if_false),
-        invert_true_(invert_true),
-        invert_false_(invert_false) {
+        if_false_(if_false) {
   }
 
   virtual void ReturnValue(HValue* value);
@@ -636,9 +622,6 @@ class TestContext: public AstContext {
   HBasicBlock* if_true() const { return if_true_; }
   HBasicBlock* if_false() const { return if_false_; }
 
-  bool invert_true() { return invert_true_; }
-  bool invert_false() { return invert_false_; }
-
  private:
   // Build the shared core part of the translation unpacking a value into
   // control flow.
@@ -646,8 +629,6 @@ class TestContext: public AstContext {
 
   HBasicBlock* if_true_;
   HBasicBlock* if_false_;
-  bool invert_true_;
-  bool invert_false_;
 };
 
 
@@ -723,10 +704,6 @@ class HGraphBuilder: public AstVisitor {
   void AddToSubgraph(HSubgraph* graph, ZoneList<Statement*>* stmts);
   void AddToSubgraph(HSubgraph* graph, Statement* stmt);
   void AddToSubgraph(HSubgraph* graph, Expression* expr);
-  void AddConditionToSubgraph(HSubgraph* subgraph,
-                              Expression* expr,
-                              HSubgraph* true_graph,
-                              HSubgraph* false_graph);
 
   HValue* Top() const { return environment()->Top(); }
   void Drop(int n) { environment()->Drop(n); }
@@ -736,17 +713,8 @@ class HGraphBuilder: public AstVisitor {
   void VisitForEffect(Expression* expr);
   void VisitForControl(Expression* expr,
                        HBasicBlock* true_block,
-                       HBasicBlock* false_block,
-                       bool invert_true,
-                       bool invert_false);
+                       HBasicBlock* false_block);
 
-  // Visit an expression in a 'condition' context, i.e., in a control
-  // context but not a subexpression of logical and, or, or not.
-  void VisitCondition(Expression* expr,
-                      HBasicBlock* true_graph,
-                      HBasicBlock* false_graph,
-                      bool invert_true,
-                      bool invert_false);
   // Visit an argument and wrap it in a PushArgument instruction.
   HValue* VisitArgument(Expression* expr);
   void VisitArgumentList(ZoneList<Expression*>* arguments);
