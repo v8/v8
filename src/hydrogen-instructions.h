@@ -1430,6 +1430,12 @@ class HUnaryMathOperation: public HUnaryOperation {
 
   DECLARE_CONCRETE_INSTRUCTION(UnaryMathOperation, "unary_math_operation")
 
+ protected:
+  virtual bool DataEquals(HValue* other) const {
+    HUnaryMathOperation* b = HUnaryMathOperation::cast(other);
+    return op_ == b->op();
+  }
+
  private:
   BuiltinFunctionId op_;
 };
@@ -2097,6 +2103,12 @@ class HIsNull: public HUnaryPredicate {
 
   DECLARE_CONCRETE_INSTRUCTION(IsNull, "is_null")
 
+ protected:
+  virtual bool DataEquals(HValue* other) const {
+    HIsNull* b = HIsNull::cast(other);
+    return is_strict_ == b->is_strict();
+  }
+
  private:
   bool is_strict_;
 };
@@ -2134,6 +2146,12 @@ class HHasInstanceType: public HUnaryPredicate {
 
   DECLARE_CONCRETE_INSTRUCTION(HasInstanceType, "has_instance_type")
 
+ protected:
+  virtual bool DataEquals(HValue* other) const {
+    HHasInstanceType* b = HHasInstanceType::cast(other);
+    return (from_ == b->from()) && (to_ == b->to());
+  }
+
  private:
   InstanceType from_;
   InstanceType to_;  // Inclusive range, not all combinations work.
@@ -2158,6 +2176,12 @@ class HClassOfTest: public HUnaryPredicate {
   virtual void PrintDataTo(StringStream* stream) const;
 
   Handle<String> class_name() const { return class_name_; }
+
+ protected:
+  virtual bool DataEquals(HValue* other) const {
+    HClassOfTest* b = HClassOfTest::cast(other);
+    return class_name_.is_identical_to(b->class_name_);
+  }
 
  private:
   Handle<String> class_name_;
