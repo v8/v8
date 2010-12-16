@@ -1337,7 +1337,7 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
 
 LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
   ++argument_count_;
-  LOperand* argument = Use(instr->argument());
+  LOperand* argument = UseOrConstant(instr->argument());
   return new LPushArgument(argument);
 }
 
