@@ -3500,7 +3500,8 @@ static MaybeObject* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_CHECKED(String, name, args[1]);
   CONVERT_CHECKED(Smi, flag_setter, args[2]);
-  CONVERT_CHECKED(JSFunction, fun, args[3]);
+  Object* fun = args[3];
+  RUNTIME_ASSERT(fun->IsJSFunction() || fun->IsUndefined());
   CONVERT_CHECKED(Smi, flag_attr, args[4]);
   int unchecked = flag_attr->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
@@ -3556,7 +3557,7 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   }
 
   LookupResult result;
-  js_object->LocalLookupRealNamedProperty(*name, &result);
+  js_object->LookupRealNamedProperty(*name, &result);
 
   // Take special care when attributes are different and there is already
   // a property. For simplicity we normalize the property which enables us
@@ -3564,7 +3565,8 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   // map. The current version of SetObjectProperty does not handle attributes
   // correctly in the case where a property is a field and is reset with
   // new attributes.
-  if (result.IsProperty() && attr != result.GetAttributes()) {
+  if (result.IsProperty() &&
+      (attr != result.GetAttributes() || result.type() == CALLBACKS)) {
     // New attributes - normalize to avoid writing to instance descriptor
     NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
     // Use IgnoreAttributes version since a readonly property may be

@@ -1368,7 +1368,7 @@ class JSObject: public HeapObject {
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
                                               bool is_getter,
-                                              JSFunction* fun,
+                                              Object* fun,
                                               PropertyAttributes attributes);
   Object* LookupAccessor(String* name, bool is_getter);
 

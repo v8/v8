@@ -563,7 +563,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     }
 
     // Step 7
-    if (desc.isConfigurable() ||  desc.isEnumerable() != current.isEnumerable())
+    if (desc.isConfigurable() || desc.isEnumerable() != current.isEnumerable())
       throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
     // Step 9
     if (IsDataDescriptor(current) != IsDataDescriptor(desc))
@@ -623,10 +623,12 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     }
     %DefineOrRedefineDataProperty(obj, p, value, flag);
   } else {
-    if (desc.hasGetter() && IS_FUNCTION(desc.getGet())) {
+    if (desc.hasGetter() &&
+        (IS_FUNCTION(desc.getGet()) || IS_UNDEFINED(desc.getGet()))) {
        %DefineOrRedefineAccessorProperty(obj, p, GETTER, desc.getGet(), flag);
     }
-    if (desc.hasSetter() && IS_FUNCTION(desc.getSet())) {
+    if (desc.hasSetter() &&
+        (IS_FUNCTION(desc.getSet()) || IS_UNDEFINED(desc.getSet()))) {
       %DefineOrRedefineAccessorProperty(obj, p, SETTER, desc.getSet(), flag);
     }
   }
