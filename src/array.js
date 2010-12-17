@@ -677,20 +677,52 @@ function ArraySort(comparefn) {
 
   function QuickSort(a, from, to) {
     // Insertion sort is faster for short arrays.
-    if (to - from <= 22) {
+    if (to - from <= 13) {
       InsertionSort(a, from, to);
       return;
     }
-    var pivot_index = $floor($random() * (to - from)) + from;
-    var pivot = a[pivot_index];
-    // Issue 95: Keep the pivot element out of the comparisons to avoid
-    // infinite recursion if comparefn(pivot, pivot) != 0.
-    %_SwapElements(a, from, pivot_index);
-    var low_end = from;   // Upper bound of the elements lower than pivot.
-    var high_start = to;  // Lower bound of the elements greater than pivot.
+
+    // Find a pivot as the median of first, last and middle element.
+    var v0 = a[from];
+    var v1 = a[to - 1];
+    var middle_index = from + ((to - from) >> 1);
+    var v2 = a[middle_index];
+    var c01 = comparefn(v0, v1);
+    if (c01 > 0) {
+      // v1 < v0, so swap them.
+      var tmp = v0;
+      v0 = v1;
+      v1 = tmp;
+    } // v0 <= v1.
+    var c02 = comparefn(v0, v2);
+    if (c02 >= 0) {
+      // v2 <= v0 <= v1.
+      var tmp = v0;
+      v0 = v2;
+      v2 = v1;
+      v1 = tmp;
+    } else {
+      // v0 <= v1 && v0 < v2
+      var c12 = comparefn(v1, v2);
+      if (c12 > 0) {
+        // v0 <= v2 < v1
+        var tmp = v1;
+        v1 = v2;
+        v2 = tmp;
+      }
+    }
+    // v0 <= v1 <= v2
+    a[from] = v0;
+    a[to - 1] = v2;
+    var pivot = v1;
+    var low_end = from + 1;   // Upper bound of the elements lower than pivot.
+    var high_start = to - 1;  // Lower bound of the elements greater than pivot.
+    a[middle_index] = a[low_end];
+    a[low_end] = pivot;
+
     // From low_end to i are elements equal to pivot.
     // From i to high_start are elements that haven't been compared yet.
-    for (var i = from + 1; i < high_start; ) {
+    for (var i = low_end + 1; i < high_start; ) {
       var element = a[i];
       var order = %_CallFunction(global_receiver, element, pivot, comparefn);
       if (order < 0) {
@@ -708,8 +740,8 @@ function ArraySort(comparefn) {
     QuickSort(a, high_start, to);
   }
 
-  // Copies elements in the range 0..length from obj's prototype chain
-  // to obj itself, if obj has holes. Returns one more than the maximal index
+  // Copy elements in the range 0..length from obj's prototype chain
+  // to obj itself, if obj has holes. Return one more than the maximal index
   // of a prototype property.
   function CopyFromPrototype(obj, length) {
     var max = 0;
