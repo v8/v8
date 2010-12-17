@@ -905,6 +905,8 @@ class HCompareMapAndBranch: public HUnaryControlInstruction {
   virtual HBasicBlock* FirstSuccessor() const { return true_destination_; }
   virtual HBasicBlock* SecondSuccessor() const { return false_destination_; }
 
+  virtual void PrintDataTo(StringStream* stream) const;
+
   Handle<Map> map() const { return map_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CompareMapAndBranch, "compare_map_and_branch")

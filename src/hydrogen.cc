@@ -3165,6 +3165,9 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
   if (lookup->type() == MAP_TRANSITION) {
     Handle<Map> transition(lookup->GetTransitionMapFromMap(*type));
     instr->set_transition(transition);
+    // TODO(fschneider): Record the new map type of the object in the IR to
+    // enable elimination of redundant checks after the transition store.
+    instr->SetFlag(HValue::kChangesMaps);
   }
   return instr;
 }
