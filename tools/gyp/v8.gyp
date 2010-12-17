@@ -74,7 +74,7 @@
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'Optimizations': '0',
+            'Optimization': '0',
             
             'conditions': [
               ['OS=="win" and component=="shared_library"', {
@@ -134,7 +134,7 @@
             },
             'msvs_settings': {
               'VCCLCompilerTool': {
-                'Optimizations': '2',
+                'Optimization': '2',
                 'InlineFunctionExpansion': '2',
                 'EnableIntrinsicFunctions': 'true',
                 'FavorSizeOrSpeed': '0',
