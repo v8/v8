@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1642,6 +1642,11 @@ class NewSpace : public Space {
   bool FromSpaceContains(Address a) { return from_space_.Contains(a); }
 
   virtual bool ReserveSpace(int bytes);
+
+  // Resizes a sequential string which must be the most recent thing that was
+  // allocated in new space.
+  template <typename StringType>
+  inline void ShrinkStringAtAllocationBoundary(String* string, int len);
 
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect the space by marking it read-only/writable.
