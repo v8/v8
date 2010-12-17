@@ -204,6 +204,14 @@ class POSIXSocket : public Socket {
   explicit POSIXSocket() {
     // Create the socket.
     socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (IsValid()) {
+      // Allow rapid reuse.
+      static const int kOn = 1;
+      int ret = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR,
+                           &kOn, sizeof(kOn));
+      ASSERT(ret == 0);
+      USE(ret);
+    }
   }
   explicit POSIXSocket(int socket): socket_(socket) { }
   virtual ~POSIXSocket() { Shutdown(); }
