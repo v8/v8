@@ -34,7 +34,7 @@ function testMul(a, b) {
   }
 }
 
-for (var i=0; i<10000000; i++) testMul(0,0);
+for (var i=0; i<1000000; i++) testMul(0,0);
 assertEquals(4611686018427388000, testMul(-0x40000000, -0x40000000));
 
 function testAdd(a, b) {
@@ -45,7 +45,7 @@ function testAdd(a, b) {
   }
 }
 
-for (var i=0; i<10000000; i++) testAdd(0,0);
+for (var i=0; i<1000000; i++) testAdd(0,0);
 assertEquals(-4294967296, testAdd(-0x40000000, -0x40000000));
 
 
@@ -58,5 +58,5 @@ function testSub(a, b) {
   }
 }
 
-for (var i=0; i<10000000; i++) testSub(0,0);
+for (var i=0; i<1000000; i++) testSub(0,0);
 assertEquals(-2147483650, testSub(-0x40000000, 1));
