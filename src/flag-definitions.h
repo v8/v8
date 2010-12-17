@@ -503,6 +503,8 @@ DEFINE_bool(print_code_stubs, false, "print code stubs")
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(print_code, false, "print generated code")
 DEFINE_bool(print_opt_code, false, "print optimized code")
+DEFINE_bool(print_unopt_code, false, "print unoptimized code before "
+            "printing optimized code based on it")
 DEFINE_bool(print_code_verbose, false, "print more information for code")
 DEFINE_bool(print_builtin_code, false, "print generated code for builtins")
 
