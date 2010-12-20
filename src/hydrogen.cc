@@ -4097,6 +4097,8 @@ bool HGraphBuilder::TryMathFunctionInline(Call* expr) {
     case kMathAbs:
     case kMathSqrt:
     case kMathLog:
+    case kMathSin:
+    case kMathCos:
       if (argument_count == 2) {
         HValue* argument = Pop();
         Drop(1);  // Receiver.

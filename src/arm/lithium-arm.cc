@@ -1375,6 +1375,12 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathLog:
       Abort("MathLog LUnaryMathOperation not implemented");
       return NULL;
+    case kMathCos:
+      Abort("MathCos LUnaryMathOperation not implemented");
+      return NULL;
+    case kMathSin:
+      Abort("MathSin LUnaryMathOperation not implemented");
+      return NULL;
     default:
       UNREACHABLE();
       return NULL;

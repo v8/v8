@@ -1968,6 +1968,8 @@ class GCTracer BASE_EMBEDDED {
 class TranscendentalCache {
  public:
   enum Type {ACOS, ASIN, ATAN, COS, EXP, LOG, SIN, TAN, kNumberOfCaches};
+  static const int kTranscendentalTypeBits = 3;
+  STATIC_ASSERT((1 << kTranscendentalTypeBits) >= kNumberOfCaches);
 
   explicit TranscendentalCache(Type t);
 

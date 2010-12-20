@@ -1547,7 +1547,7 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
-  Abort("LUnaryMathOperation unimplemented.");
+  Abort("DoMathAbs unimplemented.");
 }
 
 
@@ -1562,9 +1562,6 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
-  ASSERT(instr->op() == kMathFloor ||
-         instr->op() == kMathAbs);
-
   switch (instr->op()) {
     case kMathAbs:
       DoMathAbs(instr);
@@ -1576,6 +1573,7 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
       DoMathSqrt(instr);
       break;
     default:
+      Abort("Unimplemented type of LUnaryMathOperation.");
       UNREACHABLE();
   }
 }

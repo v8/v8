@@ -1389,6 +1389,8 @@ class HUnaryMathOperation: public HUnaryOperation {
       case kMathSqrt:
       case kMathPowHalf:
       case kMathLog:
+      case kMathSin:
+      case kMathCos:
         set_representation(Representation::Double());
         break;
       default:
@@ -1411,6 +1413,8 @@ class HUnaryMathOperation: public HUnaryOperation {
       case kMathSqrt:
       case kMathPowHalf:
       case kMathLog:
+      case kMathSin:
+      case kMathCos:
         return Representation::Double();
         break;
       case kMathAbs:
