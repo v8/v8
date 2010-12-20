@@ -3532,9 +3532,10 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
       maps.Add(map);
       HSubgraph* subgraph = CreateBranchSubgraph(environment());
       SubgraphScope scope(this, subgraph);
-      HInstruction* instr =
+      HLoadNamedField* instr =
           BuildLoadNamedField(object, expr, map, &lookup, false);
       instr->set_position(expr->position());
+      instr->ClearFlag(HValue::kUseGVN);  // Don't do GVN on polymorphic loads.
       PushAndAdd(instr);
       subgraphs.Add(subgraph);
     } else {
@@ -3573,11 +3574,11 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
 }
 
 
-HInstruction* HGraphBuilder::BuildLoadNamedField(HValue* object,
-                                                 Property* expr,
-                                                 Handle<Map> type,
-                                                 LookupResult* lookup,
-                                                 bool smi_and_map_check) {
+HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
+                                                    Property* expr,
+                                                    Handle<Map> type,
+                                                    LookupResult* lookup,
+                                                    bool smi_and_map_check) {
   if (smi_and_map_check) {
     AddInstruction(new HCheckNonSmi(object));
     AddInstruction(new HCheckMap(object, type));
