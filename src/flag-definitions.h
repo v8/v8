@@ -296,6 +296,9 @@ DEFINE_int(max_map_space_pages, MapSpace::kMaxMapPageIndex - 1,
 DEFINE_bool(h, false, "print this message")
 DEFINE_bool(new_snapshot, true, "use new snapshot implementation")
 
+// objects.cc
+DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
+
 // parser.cc
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")
 
