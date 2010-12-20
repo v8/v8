@@ -2488,7 +2488,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   Label runtime_call;
   Label runtime_call_clear_stack;
   Label skip_cache;
-  Label call_runtime;
   const bool tagged = (argument_type_ == TAGGED);
   if (tagged) {
     // Test that eax is a number.
@@ -2635,7 +2634,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ bind(&runtime_call);
     __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
   } else {  // UNTAGGED.
-    __ bind(&call_runtime);
+    __ bind(&runtime_call_clear_stack);
+    __ bind(&runtime_call);
     __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
     __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm1);
     __ EnterInternalFrame();
