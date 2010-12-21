@@ -412,7 +412,10 @@ class Heap : public AllStatic {
   MUST_USE_RESULT static MaybeObject* AllocateStringFromAscii(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
-  MUST_USE_RESULT static MaybeObject* AllocateStringFromUtf8(
+  MUST_USE_RESULT static inline MaybeObject* AllocateStringFromUtf8(
+      Vector<const char> str,
+      PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT static MaybeObject* AllocateStringFromUtf8Slow(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT static MaybeObject* AllocateStringFromTwoByte(

@@ -3307,8 +3307,8 @@ MaybeObject* Heap::AllocateStringFromAscii(Vector<const char> string,
 }
 
 
-MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> string,
-                                          PretenureFlag pretenure) {
+MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
+                                              PretenureFlag pretenure) {
   // V8 only supports characters in the Basic Multilingual Plane.
   const uc32 kMaxSupportedChar = 0xFFFF;
   // Count the number of characters in the UTF-8 string and check if
@@ -3317,16 +3317,10 @@ MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> string,
       decoder(ScannerConstants::utf8_decoder());
   decoder->Reset(string.start(), string.length());
   int chars = 0;
-  bool is_ascii = true;
   while (decoder->has_more()) {
-    uc32 r = decoder->GetNext();
-    if (r > String::kMaxAsciiCharCode) is_ascii = false;
+    decoder->GetNext();
     chars++;
   }
-
-  // If the string is ascii, we do not need to convert the characters
-  // since UTF8 is backwards compatible with ascii.
-  if (is_ascii) return AllocateStringFromAscii(string, pretenure);
 
   Object* result;
   { MaybeObject* maybe_result = AllocateRawTwoByteString(chars, pretenure);
