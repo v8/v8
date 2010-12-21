@@ -2059,7 +2059,6 @@ class TranscendentalCache {
   friend class ExternalReference;
   // Inline implementation of the cache.
   friend class TranscendentalCacheStub;
-  friend class TranscendentalCacheSSE2Stub;
 
   static TranscendentalCache* caches_[kNumberOfCaches];
   Element elements_[kCacheSize];
