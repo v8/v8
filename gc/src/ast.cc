@@ -32,6 +32,7 @@
 #include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -559,16 +560,18 @@ void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 static bool CallWithoutIC(Handle<JSFunction> target, int arity) {
+  SharedFunctionInfo* info = target->shared();
   if (target->NeedsArgumentsAdaption()) {
     // If the number of formal parameters of the target function
     // does not match the number of arguments we're passing, we
     // don't want to deal with it.
-    return target->shared()->formal_parameter_count() == arity;
+    return info->formal_parameter_count() == arity;
   } else {
     // If the target doesn't need arguments adaption, we can call
     // it directly, but we avoid to do so if it has a custom call
     // generator, because that is likely to generate better code.
-    return !target->shared()->HasCustomCallGenerator();
+    return !info->HasBuiltinFunctionId() ||
+        !CallStubCompiler::HasCustomCallGenerator(info->builtin_function_id());
   }
 }
 

@@ -206,6 +206,13 @@ void LIsNullAndBranch::PrintDataTo(StringStream* stream) const {
 }
 
 
+void LIsObjectAndBranch::PrintDataTo(StringStream* stream) const {
+  stream->Add("if is_object(");
+  input()->PrintTo(stream);
+  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
+}
+
+
 void LIsSmiAndBranch::PrintDataTo(StringStream* stream) const {
   stream->Add("if is_smi(");
   input()->PrintTo(stream);
@@ -1238,6 +1245,17 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
                                   temp,
                                   first_id,
                                   second_id);
+    } else if (v->IsIsObject()) {
+      HIsObject* compare = HIsObject::cast(v);
+      ASSERT(compare->value()->representation().IsTagged());
+
+      LOperand* temp1 = TempRegister();
+      LOperand* temp2 = TempRegister();
+      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
+                                    temp1,
+                                    temp2,
+                                    first_id,
+                                    second_id);
     } else if (v->IsCompareJSObjectEq()) {
       HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
       return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
@@ -1298,7 +1316,8 @@ LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
 
 LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
   LInstruction* result =
-      new LInstanceOf(Use(instr->left()), Use(instr->right()));
+      new LInstanceOf(UseFixed(instr->left(), r1),
+                      UseFixed(instr->right(), r0));
   return MarkAsCall(DefineFixed(result, r0), instr);
 }
 
@@ -1341,7 +1360,7 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 
 
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
-  MathFunctionId op = instr->op();
+  BuiltinFunctionId op = instr->op();
   LOperand* input = UseRegisterAtStart(instr->value());
   LInstruction* result = new LUnaryMathOperation(input);
   switch (op) {
@@ -1353,6 +1372,15 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       return DefineSameAsFirst(result);
     case kMathPowHalf:
       Abort("MathPowHalf LUnaryMathOperation not implemented");
+      return NULL;
+    case kMathLog:
+      Abort("MathLog LUnaryMathOperation not implemented");
+      return NULL;
+    case kMathCos:
+      Abort("MathCos LUnaryMathOperation not implemented");
+      return NULL;
+    case kMathSin:
+      Abort("MathSin LUnaryMathOperation not implemented");
       return NULL;
     default:
       UNREACHABLE();
@@ -1594,6 +1622,14 @@ LInstruction* LChunkBuilder::DoIsNull(HIsNull* instr) {
 
   return DefineAsRegister(new LIsNull(value,
                                       instr->is_strict()));
+}
+
+
+LInstruction* LChunkBuilder::DoIsObject(HIsObject* instr) {
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+
+  return DefineAsRegister(new LIsObject(value, TempRegister()));
 }
 
 

@@ -296,13 +296,21 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result) {
   // position is contained in one of the intervals in the chain, we
   // split that interval and use the first part.
   UseInterval* current = FirstSearchIntervalForPosition(position);
+
+  // If the split position coincides with the beginning of a use interval
+  // we need to split use positons in a special way.
+  bool split_at_start = false;
+
   while (current != NULL) {
     if (current->Contains(position)) {
       current->SplitAt(position);
       break;
     }
     UseInterval* next = current->next();
-    if (next->start().Value() >= position.Value()) break;
+    if (next->start().Value() >= position.Value()) {
+      split_at_start = (next->start().Value() == position.Value());
+      break;
+    }
     current = next;
   }
 
@@ -319,9 +327,19 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result) {
   // position after it.
   UsePosition* use_after = first_pos_;
   UsePosition* use_before = NULL;
-  while (use_after != NULL && use_after->pos().Value() <= position.Value()) {
-    use_before = use_after;
-    use_after = use_after->next();
+  if (split_at_start) {
+    // The split position coincides with the beginning of a use interval (the
+    // end of a lifetime hole). Use at this position should be attributed to
+    // the split child because split child owns use interval covering it.
+    while (use_after != NULL && use_after->pos().Value() < position.Value()) {
+      use_before = use_after;
+      use_after = use_after->next();
+    }
+  } else {
+    while (use_after != NULL && use_after->pos().Value() <= position.Value()) {
+      use_before = use_after;
+      use_after = use_after->next();
+    }
   }
 
   // Partition original use positions to the two live ranges.
@@ -508,7 +526,7 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
     }
     if (a->start().Value() < b->start().Value()) {
       a = a->next();
-      if (a == NULL && a->start().Value() > other->End().Value()) break;
+      if (a == NULL || a->start().Value() > other->End().Value()) break;
       AdvanceLastProcessedMarker(a, advance_last_processed_up_to);
     } else {
       b = b->next();
@@ -567,17 +585,12 @@ void LAllocator::AddInitialIntervals(HBasicBlock* block,
   LifetimePosition start = LifetimePosition::FromInstructionIndex(
       block->first_instruction_index());
   LifetimePosition end = LifetimePosition::FromInstructionIndex(
-      block->last_instruction_index());
+      block->last_instruction_index()).NextInstruction();
   BitVector::Iterator iterator(live_out);
   while (!iterator.Done()) {
     int operand_index = iterator.Current();
     LiveRange* range = LiveRangeFor(operand_index);
-    if (!range->IsEmpty() &&
-        range->Start().Value() == end.NextInstruction().Value()) {
-      range->AddUseInterval(start, end.NextInstruction());
-    } else {
-      range->AddUseInterval(start, end);
-    }
+    range->AddUseInterval(start, end);
     iterator.Advance();
   }
 }
@@ -960,8 +973,8 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
               }
             }
           }
-          Use(block_start_position, curr_position, temp, NULL);
-          Define(curr_position.PrevInstruction(), temp, NULL);
+          Use(block_start_position, curr_position.InstructionEnd(), temp, NULL);
+          Define(curr_position, temp, NULL);
         }
       }
     }
@@ -1814,7 +1827,7 @@ bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
   // Register reg is available at the range start and is free until
   // the range end.
   ASSERT(pos.Value() >= current->End().Value());
-  TraceAlloc("Assigning reg %s to live range %d\n",
+  TraceAlloc("Assigning free reg %s to live range %d\n",
              RegisterName(reg),
              current->id());
   current->set_assigned_register(reg, mode_);
@@ -1904,7 +1917,7 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
 
   // Register reg is not blocked for the whole range.
   ASSERT(block_pos[reg].Value() >= current->End().Value());
-  TraceAlloc("Assigning reg %s to live range %d\n",
+  TraceAlloc("Assigning blocked reg %s to live range %d\n",
              RegisterName(reg),
              current->id());
   current->set_assigned_register(reg, mode_);

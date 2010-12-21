@@ -6794,6 +6794,13 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   Condition both_smi = masm()->CheckBothSmi(index1.reg(), index2.reg());
   deferred->Branch(NegateCondition(both_smi));
 
+  // Check that both indices are valid.
+  __ movq(tmp2.reg(), FieldOperand(object.reg(), JSArray::kLengthOffset));
+  __ SmiCompare(tmp2.reg(), index1.reg());
+  deferred->Branch(below_equal);
+  __ SmiCompare(tmp2.reg(), index2.reg());
+  deferred->Branch(below_equal);
+
   // Bring addresses into index1 and index2.
   __ SmiToInteger32(index1.reg(), index1.reg());
   __ lea(index1.reg(), FieldOperand(tmp1.reg(),
@@ -7881,7 +7888,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     case Token::INSTANCEOF: {
       Load(left);
       Load(right);
-      InstanceofStub stub;
+      InstanceofStub stub(InstanceofStub::kNoFlags);
       Result answer = frame_->CallStub(&stub, 2);
       answer.ToRegister();
       __ testq(answer.reg(), answer.reg());

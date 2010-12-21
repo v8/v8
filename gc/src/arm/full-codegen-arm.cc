@@ -209,6 +209,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 }
 
 
+void FullCodeGenerator::ClearAccumulator() {
+  __ mov(r0, Operand(Smi::FromInt(0)));
+}
+
+
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   Comment cmnt(masm_, "[ Stack check");
   Label ok;
@@ -3440,7 +3445,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     case Token::INSTANCEOF: {
       VisitForStackValue(expr->right());
-      InstanceofStub stub;
+      InstanceofStub stub(InstanceofStub::kNoFlags);
       __ CallStub(&stub);
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
       // The stub returns 0 for true.

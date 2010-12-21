@@ -141,6 +141,7 @@ DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(use_osr, false, "use on-stack replacement")
 #endif
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
+DEFINE_int(stress_runs, 0, "number of stress runs")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
@@ -294,6 +295,9 @@ DEFINE_int(max_map_space_pages, MapSpace::kMaxMapPageIndex - 1,
 // mksnapshot.cc
 DEFINE_bool(h, false, "print this message")
 DEFINE_bool(new_snapshot, true, "use new snapshot implementation")
+
+// objects.cc
+DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
 
 // parser.cc
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")
@@ -502,6 +506,8 @@ DEFINE_bool(print_code_stubs, false, "print code stubs")
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(print_code, false, "print generated code")
 DEFINE_bool(print_opt_code, false, "print optimized code")
+DEFINE_bool(print_unopt_code, false, "print unoptimized code before "
+            "printing optimized code based on it")
 DEFINE_bool(print_code_verbose, false, "print more information for code")
 DEFINE_bool(print_builtin_code, false, "print generated code for builtins")
 
