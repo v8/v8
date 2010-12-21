@@ -1337,14 +1337,7 @@ void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
 
 
 void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
-  // We expect object and function in registers r1 and r0.
-  InstanceofStub stub(InstanceofStub::kArgsInRegisters);
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-
-  Label true_value, done;
-  __ tst(r0, r0);
-  __ mov(r0, Operand(Factory::false_value()), LeaveCC, eq);
-  __ mov(r0, Operand(Factory::true_value()), LeaveCC, ne);
+  Abort("DoInstanceOf unimplemented.");
 }
 
 

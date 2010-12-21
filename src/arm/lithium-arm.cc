@@ -1316,8 +1316,7 @@ LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
 
 LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
   LInstruction* result =
-      new LInstanceOf(UseFixed(instr->left(), r1),
-                      UseFixed(instr->right(), r0));
+      new LInstanceOf(Use(instr->left()), Use(instr->right()));
   return MarkAsCall(DefineFixed(result, r0), instr);
 }
 
