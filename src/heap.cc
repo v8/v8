@@ -2552,7 +2552,7 @@ MaybeObject* Heap::AllocateExternalStringFromTwoByte(
   // ASCII characters.  If yes, we use a different string map.
   static const size_t kAsciiCheckLengthLimit = 32;
   bool is_ascii = length <= kAsciiCheckLengthLimit &&
-      String::IsAscii(resource->data(), length);
+      String::IsAscii(resource->data(), static_cast<int>(length));
   Map* map = is_ascii ?
       Heap::external_string_with_ascii_data_map() : Heap::external_string_map();
   Object* result;
