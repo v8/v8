@@ -940,7 +940,7 @@ void LCodeGen::DoSubI(LSubI* instr) {
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
   ASSERT(instr->result()->IsRegister());
-  __ mov(ToRegister(instr->result()), instr->value());
+  __ Set(ToRegister(instr->result()), Immediate(instr->value()));
 }
 
 
@@ -973,7 +973,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
   ASSERT(instr->result()->IsRegister());
-  __ mov(ToRegister(instr->result()), Immediate(instr->value()));
+  __ Set(ToRegister(instr->result()), Immediate(instr->value()));
 }
 
 
