@@ -1391,7 +1391,7 @@ class BinaryOperation: public Expression {
       : op_(op), left_(left), right_(right), pos_(pos), is_smi_only_(false) {
     ASSERT(Token::IsBinaryOp(op));
     right_id_ = (op == Token::AND || op == Token::OR)
-        ? GetNextId()
+        ? static_cast<int>(GetNextId())
         : AstNode::kNoNumber;
   }
 
