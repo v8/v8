@@ -3722,6 +3722,11 @@ void HGraphBuilder::VisitProperty(Property* expr) {
     AddInstruction(new HCheckNonSmi(array));
     instr = new HArrayLength(array);
 
+  } else if (expr->IsFunctionPrototype()) {
+    HValue* function = Pop();
+    AddInstruction(new HCheckNonSmi(function));
+    instr = new HLoadFunctionPrototype(function);
+
   } else if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
     ZoneMapList* types = expr->GetReceiverTypes();

@@ -1447,6 +1447,50 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
 }
 
 
+void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
+  Register function = ToRegister(instr->function());
+  Register temp = ToRegister(instr->temporary());
+  Register result = ToRegister(instr->result());
+
+  // Check that the function really is a function. Load map into the
+  // result register.
+  __ CompareObjectType(function, result, temp, JS_FUNCTION_TYPE);
+  DeoptimizeIf(ne, instr->environment());
+
+  // Make sure that the function has an instance prototype.
+  Label non_instance;
+  __ ldrb(temp, FieldMemOperand(result, Map::kBitFieldOffset));
+  __ tst(temp, Operand(1 << Map::kHasNonInstancePrototype));
+  __ b(ne, &non_instance);
+
+  // Get the prototype or initial map from the function.
+  __ ldr(result,
+         FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // Check that the function has a prototype or an initial map.
+  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ cmp(result, ip);
+  DeoptimizeIf(eq, instr->environment());
+
+  // If the function does not have an initial map, we're done.
+  Label done;
+  __ CompareObjectType(result, temp, temp, MAP_TYPE);
+  __ b(ne, &done);
+
+  // Get the prototype from the initial map.
+  __ ldr(result, FieldMemOperand(result, Map::kPrototypeOffset));
+  __ jmp(&done);
+
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in initial map.
+  __ bind(&non_instance);
+  __ ldr(result, FieldMemOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  __ bind(&done);
+}
+
+
 void LCodeGen::DoLoadElements(LLoadElements* instr) {
   Abort("DoLoadElements unimplemented.");
 }

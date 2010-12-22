@@ -130,6 +130,7 @@ class LGapNode;
 //     LIsSmiAndBranch
 //     LLoadNamedField
 //     LLoadNamedGeneric
+//     LLoadFunctionPrototype
 //     LNumberTagD
 //     LNumberTagI
 //     LPushArgument
@@ -226,6 +227,7 @@ class LGapNode;
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
   V(LoadNamedGeneric)                           \
+  V(LoadFunctionPrototype)                      \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -1268,6 +1270,22 @@ class LLoadNamedGeneric: public LUnaryOperation {
 
   LOperand* object() const { return input(); }
   Handle<Object> name() const { return hydrogen()->name(); }
+};
+
+
+class LLoadFunctionPrototype: public LUnaryOperation {
+ public:
+  LLoadFunctionPrototype(LOperand* function, LOperand* temporary)
+      : LUnaryOperation(function), temporary_(temporary) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadFunctionPrototype, "load-function-prototype")
+  DECLARE_HYDROGEN_ACCESSOR(LoadFunctionPrototype)
+
+  LOperand* function() const { return input(); }
+  LOperand* temporary() const { return temporary_; }
+
+ private:
+  LOperand* temporary_;
 };
 
 

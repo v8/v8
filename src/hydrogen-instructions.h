@@ -76,7 +76,6 @@ class LChunkBuilder;
 //       HLoadKeyed
 //         HLoadKeyedFastElement
 //         HLoadKeyedGeneric
-//       HLoadNamedGeneric
 //       HPower
 //       HStoreNamed
 //         HStoreNamedField
@@ -132,6 +131,8 @@ class LChunkBuilder;
 //       HLoadElements
 //         HTypeofIs
 //       HLoadNamedField
+//       HLoadNamedGeneric
+//       HLoadFunctionPrototype
 //       HPushArgument
 //       HTypeof
 //       HUnaryMathOperation
@@ -221,6 +222,7 @@ class LChunkBuilder;
   V(LoadKeyedGeneric)                          \
   V(LoadNamedField)                            \
   V(LoadNamedGeneric)                          \
+  V(LoadFunctionPrototype)                     \
   V(Mod)                                       \
   V(Mul)                                       \
   V(ObjectLiteral)                             \
@@ -256,6 +258,7 @@ class LChunkBuilder;
   V(GlobalVars)                                \
   V(Maps)                                      \
   V(ArrayLengths)                              \
+  V(FunctionPrototypes)                        \
   V(OsrEntries)
 
 #define DECLARE_INSTRUCTION(type)                   \
@@ -2614,6 +2617,27 @@ class HLoadNamedGeneric: public HUnaryOperation {
 
  private:
   Handle<Object> name_;
+};
+
+
+class HLoadFunctionPrototype: public HUnaryOperation {
+ public:
+  explicit HLoadFunctionPrototype(HValue* function)
+      : HUnaryOperation(function) {
+    set_representation(Representation::Tagged());
+    SetFlagMask(kDependsOnFunctionPrototypes);
+  }
+
+  HValue* function() const { return OperandAt(0); }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadFunctionPrototype, "load_function_prototype")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
