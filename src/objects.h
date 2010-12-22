@@ -2327,6 +2327,10 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   // been enlarged.  If the return value is not a failure, the symbol
   // pointer *s is set to the symbol found.
   MUST_USE_RESULT MaybeObject* LookupSymbol(Vector<const char> str, Object** s);
+  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Vector<const char> str,
+                                                 Object** s);
+  MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(Vector<const uc16> str,
+                                                   Object** s);
   MUST_USE_RESULT MaybeObject* LookupString(String* key, Object** s);
 
   // Looks up a symbol that is equal to the given string and returns
@@ -5074,6 +5078,8 @@ class String: public HeapObject {
   // String equality operations.
   inline bool Equals(String* other);
   bool IsEqualTo(Vector<const char> str);
+  bool IsAsciiEqualTo(Vector<const char> str);
+  bool IsTwoByteEqualTo(Vector<const uc16> str);
 
   // Return a UTF8 representation of the string.  The string is null
   // terminated but may optionally contain nulls.  Length is returned
