@@ -43,15 +43,13 @@ int Heap::MaxObjectSizeInPagedSpace() {
 MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> str,
                                           PretenureFlag pretenure) {
   // Check for ASCII first since this is the common case.
-  for (int i = 0; i < str.length(); ++i) {
-    if (static_cast<uint8_t>(str[i]) > String::kMaxAsciiCharCodeU) {
-      // Non-ASCII and we need to decode.
-      return AllocateStringFromUtf8Slow(str, pretenure);
-    }
+  if (String::IsAscii(str.start(), str.length())) {
+    // If the string is ASCII, we do not need to convert the characters
+    // since UTF8 is backwards compatible with ASCII.
+    return AllocateStringFromAscii(str, pretenure);
   }
-  // If the string is ASCII, we do not need to convert the characters
-  // since UTF8 is backwards compatible with ASCII.
-  return AllocateStringFromAscii(str, pretenure);
+  // Non-ASCII and we need to decode.
+  return AllocateStringFromUtf8Slow(str, pretenure);
 }
 
 

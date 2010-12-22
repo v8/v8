@@ -5245,6 +5245,34 @@ class String: public HeapObject {
                           int from,
                           int to);
 
+  static inline bool IsAscii(const char* chars, int length) {
+    const char* limit = chars + length;
+#ifdef V8_HOST_CAN_READ_UNALIGNED
+    ASSERT(kMaxAsciiCharCode == 0x7F);
+    const uintptr_t non_ascii_mask = kUintptrAllBitsSet / 0xFF * 0x80;
+    while (chars <= limit - sizeof(uintptr_t)) {
+      if (*reinterpret_cast<const uintptr_t*>(chars) & non_ascii_mask) {
+        return false;
+      }
+      chars += sizeof(uintptr_t);
+    }
+#endif
+    while (chars < limit) {
+      if (static_cast<uint8_t>(*chars) > kMaxAsciiCharCodeU) return false;
+      ++chars;
+    }
+    return true;
+  }
+
+  static inline bool IsAscii(const uc16* chars, int length) {
+    const uc16* limit = chars + length;
+    while (chars < limit) {
+      if (*chars > kMaxAsciiCharCodeU) return false;
+      ++chars;
+    }
+    return true;
+  }
+
  protected:
   class ReadBlockBuffer {
    public:
