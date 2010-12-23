@@ -818,49 +818,6 @@ TEST(Iteration) {
 }
 
 
-TEST(LargeObjectSpaceContains) {
-  InitializeVM();
-
-  Heap::CollectGarbage(NEW_SPACE);
-
-  Address current_top = Heap::new_space()->top();
-  Page* page = Page::FromAddress(current_top);
-  Address current_page = page->address();
-  Address next_page = current_page + Page::kPageSize;
-  int bytes_to_page = static_cast<int>(next_page - current_top);
-  if (bytes_to_page <= FixedArray::kHeaderSize) {
-    // Alas, need to cross another page to be able to
-    // put desired value.
-    next_page += Page::kPageSize;
-    bytes_to_page = static_cast<int>(next_page - current_top);
-  }
-  CHECK(bytes_to_page > FixedArray::kHeaderSize);
-
-  intptr_t* flags_ptr = &Page::FromAddress(next_page)->flags_;
-  Address flags_addr = reinterpret_cast<Address>(flags_ptr);
-
-  int bytes_to_allocate =
-      static_cast<int>(flags_addr - current_top) + kPointerSize;
-
-  int n_elements = (bytes_to_allocate - FixedArray::kHeaderSize) /
-      kPointerSize;
-  CHECK_EQ(bytes_to_allocate, FixedArray::SizeFor(n_elements));
-  FixedArray* array = FixedArray::cast(
-      Heap::AllocateFixedArray(n_elements)->ToObjectChecked());
-
-  int index = n_elements - 1;
-  CHECK_EQ(flags_ptr,
-           HeapObject::RawField(array, FixedArray::OffsetOfElementAt(index)));
-  array->set(index, Smi::FromInt(0));
-  // This chould have turned next page into LargeObjectPage:
-  // CHECK(Page::FromAddress(next_page)->IsLargeObjectPage());
-
-  HeapObject* addr = HeapObject::FromAddress(next_page + 2 * kPointerSize);
-  CHECK(Heap::new_space()->Contains(addr));
-  CHECK(!Heap::lo_space()->Contains(addr));
-}
-
-
 TEST(EmptyHandleEscapeFrom) {
   InitializeVM();
 

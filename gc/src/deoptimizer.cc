@@ -39,8 +39,8 @@
 namespace v8 {
 namespace internal {
 
-LargeObjectChunk* Deoptimizer::eager_deoptimization_entry_code_ = NULL;
-LargeObjectChunk* Deoptimizer::lazy_deoptimization_entry_code_ = NULL;
+MemoryChunk* Deoptimizer::eager_deoptimization_entry_code_ = NULL;
+MemoryChunk* Deoptimizer::lazy_deoptimization_entry_code_ = NULL;
 Deoptimizer* Deoptimizer::current_ = NULL;
 DeoptimizingCodeListNode* Deoptimizer::deoptimizing_code_list_ = NULL;
 
@@ -256,7 +256,7 @@ void Deoptimizer::DeleteFrameDescriptions() {
 Address Deoptimizer::GetDeoptimizationEntry(int id, BailoutType type) {
   ASSERT(id >= 0);
   if (id >= kNumberOfEntries) return NULL;
-  LargeObjectChunk* base = NULL;
+  MemoryChunk* base = NULL;
   if (type == EAGER) {
     if (eager_deoptimization_entry_code_ == NULL) {
       eager_deoptimization_entry_code_ = CreateCode(type);
@@ -269,26 +269,26 @@ Address Deoptimizer::GetDeoptimizationEntry(int id, BailoutType type) {
     base = lazy_deoptimization_entry_code_;
   }
   return
-      static_cast<Address>(base->GetStartAddress()) + (id * table_entry_size_);
+      static_cast<Address>(base->body()) + (id * table_entry_size_);
 }
 
 
 int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
-  LargeObjectChunk* base = NULL;
+  MemoryChunk* base = NULL;
   if (type == EAGER) {
     base = eager_deoptimization_entry_code_;
   } else {
     base = lazy_deoptimization_entry_code_;
   }
   if (base == NULL ||
-      addr < base->GetStartAddress() ||
-      addr >= base->GetStartAddress() +
+      addr < base->body() ||
+      addr >= base->body() +
           (kNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;
   }
   ASSERT_EQ(0,
-      static_cast<int>(addr - base->GetStartAddress()) % table_entry_size_);
-  return static_cast<int>(addr - base->GetStartAddress()) / table_entry_size_;
+      static_cast<int>(addr - base->body()) % table_entry_size_);
+  return static_cast<int>(addr - base->body()) / table_entry_size_;
 }
 
 
@@ -299,11 +299,11 @@ void Deoptimizer::Setup() {
 
 void Deoptimizer::TearDown() {
   if (eager_deoptimization_entry_code_ != NULL) {
-    eager_deoptimization_entry_code_->Free(EXECUTABLE);
+    MemoryAllocator::Free(eager_deoptimization_entry_code_);
     eager_deoptimization_entry_code_ = NULL;
   }
   if (lazy_deoptimization_entry_code_ != NULL) {
-    lazy_deoptimization_entry_code_->Free(EXECUTABLE);
+    MemoryAllocator::Free(lazy_deoptimization_entry_code_);
     lazy_deoptimization_entry_code_ = NULL;
   }
 }
@@ -879,7 +879,7 @@ void Deoptimizer::AddDoubleValue(int frame_index,
 }
 
 
-LargeObjectChunk* Deoptimizer::CreateCode(BailoutType type) {
+MemoryChunk* Deoptimizer::CreateCode(BailoutType type) {
   // We cannot run this if the serializer is enabled because this will
   // cause us to emit relocation information for the external
   // references. This is fine because the deoptimizer's code section
@@ -894,9 +894,10 @@ LargeObjectChunk* Deoptimizer::CreateCode(BailoutType type) {
   masm.GetCode(&desc);
   ASSERT(desc.reloc_size == 0);
 
-  LargeObjectChunk* chunk = LargeObjectChunk::New(desc.instr_size, EXECUTABLE);
-  memcpy(chunk->GetStartAddress(), desc.buffer, desc.instr_size);
-  CPU::FlushICache(chunk->GetStartAddress(), desc.instr_size);
+  MemoryChunk* chunk =
+      MemoryAllocator::AllocateChunk(desc.instr_size, EXECUTABLE, NULL);
+  memcpy(chunk->body(), desc.buffer, desc.instr_size);
+  CPU::FlushICache(chunk->body(), desc.instr_size);
   FLAG_debug_code = old_debug_code;
   return chunk;
 }

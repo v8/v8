@@ -1116,8 +1116,8 @@ Code* PcToCodeCache::GcSafeCastToCode(HeapObject* object, Address pc) {
 
 Code* PcToCodeCache::GcSafeFindCodeForPc(Address pc) {
   // Check if the pc points into a large object chunk.
-  LargeObjectChunk* chunk = Heap::lo_space()->FindChunkContainingPc(pc);
-  if (chunk != NULL) return GcSafeCastToCode(chunk->GetObject(), pc);
+  LargePage* large_page = Heap::lo_space()->FindPageContainingPc(pc);
+  if (large_page != NULL) return GcSafeCastToCode(large_page->GetObject(), pc);
 
   // Iterate through the 8K page until we reach the end or find an
   // object starting after the pc.

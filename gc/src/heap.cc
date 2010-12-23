@@ -596,13 +596,6 @@ void Heap::EnsureFromSpaceIsCommitted() {
 
   // Committing memory to from space failed.
   // Try shrinking and try again.
-  PagedSpaces spaces;
-  for (PagedSpace* space = spaces.next();
-       space != NULL;
-       space = spaces.next()) {
-    space->RelinkPageListInChunkOrder(true);
-  }
-
   Shrink();
   if (new_space_.CommitFromSpaceIfNeeded()) return;
 
@@ -4394,9 +4387,9 @@ static bool heap_configured = false;
 // TODO(1236194): Since the heap size is configurable on the command line
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
-bool Heap::ConfigureHeap(int max_semispace_size,
-                         int max_old_gen_size,
-                         int max_executable_size) {
+bool Heap::ConfigureHeap(intptr_t max_semispace_size,
+                         intptr_t max_old_gen_size,
+                         intptr_t max_executable_size) {
   if (HasBeenSetup()) return false;
 
   if (max_semispace_size > 0) max_semispace_size_ = max_semispace_size;
@@ -4443,9 +4436,9 @@ bool Heap::ConfigureHeap(int max_semispace_size,
 
 
 bool Heap::ConfigureHeapDefault() {
-  return ConfigureHeap(FLAG_max_new_space_size / 2 * KB,
-                       FLAG_max_old_space_size * MB,
-                       FLAG_max_executable_size * MB);
+  return ConfigureHeap(static_cast<intptr_t>(FLAG_max_new_space_size / 2) * KB,
+                       static_cast<intptr_t>(FLAG_max_old_space_size) * MB,
+                       static_cast<intptr_t>(FLAG_max_executable_size) * MB);
 }
 
 
@@ -4521,20 +4514,11 @@ bool Heap::Setup(bool create_heap_objects) {
 
   MarkMapPointersAsEncoded(false);
 
-  // Setup memory allocator and reserve a chunk of memory for new
-  // space.  The chunk is double the size of the requested reserved
-  // new space size to ensure that we can find a pair of semispaces that
-  // are contiguous and aligned to their size.
+  // Setup memory allocator.
   if (!MemoryAllocator::Setup(MaxReserved(), MaxExecutableSize())) return false;
-  void* chunk =
-      MemoryAllocator::ReserveInitialChunk(4 * reserved_semispace_size_);
-  if (chunk == NULL) return false;
 
-  // Align the pair of semispaces to their size, which must be a power
-  // of 2.
-  Address new_space_start =
-      RoundUp(reinterpret_cast<byte*>(chunk), 2 * reserved_semispace_size_);
-  if (!new_space_.Setup(new_space_start, 2 * reserved_semispace_size_)) {
+  // Setup new space.
+  if (!new_space_.Setup(reserved_semispace_size_)) {
     return false;
   }
 
@@ -4542,13 +4526,13 @@ bool Heap::Setup(bool create_heap_objects) {
   old_pointer_space_ =
       new OldSpace(max_old_generation_size_, OLD_POINTER_SPACE, NOT_EXECUTABLE);
   if (old_pointer_space_ == NULL) return false;
-  if (!old_pointer_space_->Setup(NULL, 0)) return false;
+  if (!old_pointer_space_->Setup()) return false;
 
   // Initialize old data space.
   old_data_space_ =
       new OldSpace(max_old_generation_size_, OLD_DATA_SPACE, NOT_EXECUTABLE);
   if (old_data_space_ == NULL) return false;
-  if (!old_data_space_->Setup(NULL, 0)) return false;
+  if (!old_data_space_->Setup()) return false;
 
   // Initialize the code space, set its maximum capacity to the old
   // generation size. It needs executable memory.
@@ -4563,21 +4547,19 @@ bool Heap::Setup(bool create_heap_objects) {
   code_space_ =
       new OldSpace(max_old_generation_size_, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;
-  if (!code_space_->Setup(NULL, 0)) return false;
+  if (!code_space_->Setup()) return false;
 
   // Initialize map space.
-  map_space_ = new MapSpace(FLAG_use_big_map_space
-      ? max_old_generation_size_
-      : MapSpace::kMaxMapPageIndex * Page::kPageSize,
-      FLAG_max_map_space_pages,
-      MAP_SPACE);
+  map_space_ = new MapSpace(max_old_generation_size_,
+                            FLAG_max_map_space_pages,
+                            MAP_SPACE);
   if (map_space_ == NULL) return false;
-  if (!map_space_->Setup(NULL, 0)) return false;
+  if (!map_space_->Setup()) return false;
 
   // Initialize global property cell space.
   cell_space_ = new CellSpace(max_old_generation_size_, CELL_SPACE);
   if (cell_space_ == NULL) return false;
-  if (!cell_space_->Setup(NULL, 0)) return false;
+  if (!cell_space_->Setup()) return false;
 
   // The large object code space may contain code or data.  We set the memory
   // to be non-executable here for safety, but this means we need to enable it

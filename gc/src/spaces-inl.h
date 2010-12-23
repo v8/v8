@@ -55,21 +55,15 @@ Page* PageIterator::next() {
 // -----------------------------------------------------------------------------
 // Page
 
-Page* Page::next_page() {
-  return MemoryAllocator::GetNextPage(this);
-}
-
 
 Address Page::AllocationTop() {
-  PagedSpace* owner = MemoryAllocator::PageOwner(this);
-  return owner->PageAllocationTop(this);
+  return static_cast<PagedSpace*>(owner())->PageAllocationTop(this);
 }
 
 
 Address Page::AllocationWatermark() {
-  PagedSpace* owner = MemoryAllocator::PageOwner(this);
-  if (this == owner->AllocationTopPage()) {
-    return owner->top();
+  if (this == static_cast<PagedSpace*>(owner())->AllocationTopPage()) {
+    return static_cast<PagedSpace*>(owner())->top();
   }
   return address() + AllocationWatermarkOffset();
 }
@@ -104,12 +98,12 @@ void Page::SetAllocationWatermark(Address allocation_watermark) {
 
 
 void Page::SetCachedAllocationWatermark(Address allocation_watermark) {
-  mc_first_forwarded = allocation_watermark;
+  allocation_watermark_ = allocation_watermark;
 }
 
 
 Address Page::CachedAllocationWatermark() {
-  return mc_first_forwarded;
+  return allocation_watermark_;
 }
 
 
@@ -130,6 +124,7 @@ void Page::SetRegionMarks(uint32_t marks) {
 
 
 int Page::GetRegionNumberForAddress(Address addr) {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Each page is divided into 256 byte regions. Each region has a corresponding
   // dirty mark bit in the page header. Region can contain intergenerational
   // references iff its dirty mark is set.
@@ -150,6 +145,9 @@ int Page::GetRegionNumberForAddress(Address addr) {
   // beginning of actual page which can be bigger then 8K.
   intptr_t offset_inside_normal_page = OffsetFrom(addr) & kPageAlignmentMask;
   return static_cast<int>(offset_inside_normal_page >> kRegionSizeLog2);
+#else
+  return 0;
+#endif
 }
 
 
@@ -159,6 +157,7 @@ uint32_t Page::GetRegionMaskForAddress(Address addr) {
 
 
 uint32_t Page::GetRegionMaskForSpan(Address start, int length_in_bytes) {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   uint32_t result = 0;
   if (length_in_bytes >= kPageSize) {
     result = kAllRegionsDirtyMarks;
@@ -182,6 +181,9 @@ uint32_t Page::GetRegionMaskForSpan(Address start, int length_in_bytes) {
   }
 #endif
   return result;
+#else
+  return Page::kAllRegionsDirtyMarks;
+#endif
 }
 
 
@@ -196,6 +198,7 @@ bool Page::IsRegionDirty(Address address) {
 
 
 void Page::ClearRegionMarks(Address start, Address end, bool reaches_limit) {
+#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   int rstart = GetRegionNumberForAddress(start);
   int rend = GetRegionNumberForAddress(end);
 
@@ -222,6 +225,7 @@ void Page::ClearRegionMarks(Address start, Address end, bool reaches_limit) {
   if (bitmask) {
     SetRegionMarks(GetRegionMarks() & ~bitmask);
   }
+#endif
 }
 
 
@@ -248,25 +252,6 @@ void Page::InvalidateWatermark(bool value) {
 }
 
 
-bool Page::GetPageFlag(PageFlag flag) {
-  return (flags_ & static_cast<intptr_t>(1 << flag)) != 0;
-}
-
-
-void Page::SetPageFlag(PageFlag flag, bool value) {
-  if (value) {
-    flags_ |= static_cast<intptr_t>(1 << flag);
-  } else {
-    flags_ &= ~static_cast<intptr_t>(1 << flag);
-  }
-}
-
-
-void Page::ClearPageFlags() {
-  flags_ = 0;
-}
-
-
 void Page::ClearGCFields() {
   InvalidateWatermark(true);
   SetAllocationWatermark(ObjectAreaStart());
@@ -277,107 +262,8 @@ void Page::ClearGCFields() {
 }
 
 
-bool Page::WasInUseBeforeMC() {
-  return GetPageFlag(WAS_IN_USE_BEFORE_MC);
-}
-
-
-void Page::SetWasInUseBeforeMC(bool was_in_use) {
-  SetPageFlag(WAS_IN_USE_BEFORE_MC, was_in_use);
-}
-
-
-bool Page::IsLargeObjectPage() {
-  return !GetPageFlag(IS_NORMAL_PAGE);
-}
-
-
-void Page::SetIsLargeObjectPage(bool is_large_object_page) {
-  SetPageFlag(IS_NORMAL_PAGE, !is_large_object_page);
-}
-
-bool Page::IsPageExecutable() {
-  return GetPageFlag(IS_EXECUTABLE);
-}
-
-
-void Page::SetIsPageExecutable(bool is_page_executable) {
-  SetPageFlag(IS_EXECUTABLE, is_page_executable);
-}
-
-
 // -----------------------------------------------------------------------------
 // MemoryAllocator
-
-void MemoryAllocator::ChunkInfo::init(Address a, size_t s, PagedSpace* o) {
-  address_ = a;
-  size_ = s;
-  owner_ = o;
-  executable_ = (o == NULL) ? NOT_EXECUTABLE : o->executable();
-}
-
-
-bool MemoryAllocator::IsValidChunk(int chunk_id) {
-  if (!IsValidChunkId(chunk_id)) return false;
-
-  ChunkInfo& c = chunks_[chunk_id];
-  return (c.address() != NULL) && (c.size() != 0) && (c.owner() != NULL);
-}
-
-
-bool MemoryAllocator::IsValidChunkId(int chunk_id) {
-  return (0 <= chunk_id) && (chunk_id < max_nof_chunks_);
-}
-
-
-bool MemoryAllocator::IsPageInSpace(Page* p, PagedSpace* space) {
-  ASSERT(p->is_valid());
-
-  int chunk_id = GetChunkId(p);
-  if (!IsValidChunkId(chunk_id)) return false;
-
-  ChunkInfo& c = chunks_[chunk_id];
-  return (c.address() <= p->address()) &&
-         (p->address() < c.address() + c.size()) &&
-         (space == c.owner());
-}
-
-
-Page* MemoryAllocator::GetNextPage(Page* p) {
-  ASSERT(p->is_valid());
-  intptr_t raw_addr = p->opaque_header & ~Page::kPageAlignmentMask;
-  return Page::FromAddress(AddressFrom<Address>(raw_addr));
-}
-
-
-int MemoryAllocator::GetChunkId(Page* p) {
-  ASSERT(p->is_valid());
-  return static_cast<int>(p->opaque_header & Page::kPageAlignmentMask);
-}
-
-
-void MemoryAllocator::SetNextPage(Page* prev, Page* next) {
-  ASSERT(prev->is_valid());
-  int chunk_id = GetChunkId(prev);
-  ASSERT_PAGE_ALIGNED(next->address());
-  prev->opaque_header = OffsetFrom(next->address()) | chunk_id;
-}
-
-
-PagedSpace* MemoryAllocator::PageOwner(Page* page) {
-  int chunk_id = GetChunkId(page);
-  ASSERT(IsValidChunk(chunk_id));
-  return chunks_[chunk_id].owner();
-}
-
-
-bool MemoryAllocator::InInitialChunk(Address address) {
-  if (initial_chunk_ == NULL) return false;
-
-  Address start = static_cast<Address>(initial_chunk_->address());
-  return (start <= address) && (address < start + initial_chunk_->size());
-}
-
 
 #ifdef ENABLE_HEAP_PROTECTION
 
@@ -414,15 +300,7 @@ void MemoryAllocator::UnprotectChunkFromPage(Page* page) {
 bool PagedSpace::Contains(Address addr) {
   Page* p = Page::FromAddress(addr);
   if (!p->is_valid()) return false;
-  return MemoryAllocator::IsPageInSpace(p, this);
-}
-
-
-bool PagedSpace::SafeContains(Address addr) {
-  if (!MemoryAllocator::SafeIsInAPageChunk(addr)) return false;
-  Page* p = Page::FromAddress(addr);
-  if (!p->is_valid()) return false;
-  return MemoryAllocator::IsPageInSpace(p, this);
+  return p->owner() == this;
 }
 
 
@@ -456,35 +334,6 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
   return Failure::RetryAfterGC(identity());
 }
 
-
-// Reallocating (and promoting) objects during a compacting collection.
-MaybeObject* PagedSpace::MCAllocateRaw(int size_in_bytes) {
-  ASSERT(HasBeenSetup());
-  ASSERT_OBJECT_SIZE(size_in_bytes);
-  HeapObject* object = AllocateLinearly(&mc_forwarding_info_, size_in_bytes);
-  if (object != NULL) return object;
-
-  object = SlowMCAllocateRaw(size_in_bytes);
-  if (object != NULL) return object;
-
-  return Failure::RetryAfterGC(identity());
-}
-
-
-// -----------------------------------------------------------------------------
-// LargeObjectChunk
-
-Address LargeObjectChunk::GetStartAddress() {
-  // Round the chunk address up to the nearest page-aligned address
-  // and return the heap object in that page.
-  Page* page = Page::FromAddress(RoundUp(address(), Page::kPageSize));
-  return page->ObjectAreaStart();
-}
-
-
-void LargeObjectChunk::Free(Executability executable) {
-  MemoryAllocator::FreeRawMemory(address(), size(), executable);
-}
 
 // -----------------------------------------------------------------------------
 // NewSpace

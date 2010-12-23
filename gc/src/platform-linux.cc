@@ -246,7 +246,7 @@ void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool is_executable) {
   // TODO(805): Port randomization of allocated executable memory to Linux.
-  const size_t msize = RoundUp(requested, sysconf(_SC_PAGESIZE));
+  const size_t msize = RoundUp(requested, AllocateAlignment());
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
   void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) {
@@ -469,42 +469,75 @@ static const int kMmapFdOffset = 0;
 
 
 VirtualMemory::VirtualMemory(size_t size) {
-  address_ = mmap(NULL, size, PROT_NONE,
-                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
-                  kMmapFd, kMmapFdOffset);
+  address_ = ReserveRegion(size);
   size_ = size;
 }
 
 
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
-    if (0 == munmap(address(), size())) address_ = MAP_FAILED;
+    if (0 == munmap(address(), size())) address_ = NULL;
   }
 }
 
 
 bool VirtualMemory::IsReserved() {
-  return address_ != MAP_FAILED;
+  return address_ != NULL;
 }
 
 
 bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  if (MAP_FAILED == mmap(address, size, prot,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-                         kMmapFd, kMmapFdOffset)) {
-    return false;
-  }
-
-  UpdateAllocatedSpaceLimits(address, size);
-  return true;
+  return CommitRegion(address, size, is_executable);
 }
 
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
-  return mmap(address, size, PROT_NONE,
+  return UncommitRegion(address, size);
+}
+
+
+void* VirtualMemory::ReserveRegion(size_t size) {
+  void* result = mmap(NULL,
+                     size,
+                     PROT_NONE,
+                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
+                     kMmapFd,
+                     kMmapFdOffset);
+
+  if (result == MAP_FAILED) return NULL;
+
+  return result;
+}
+
+
+bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
+  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+  if (MAP_FAILED == mmap(base,
+                         size,
+                         prot,
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+                         kMmapFd,
+                         kMmapFdOffset)) {
+    return false;
+  }
+
+  UpdateAllocatedSpaceLimits(base, size);
+  return true;
+}
+
+
+bool VirtualMemory::UncommitRegion(void* base, size_t size) {
+  return mmap(base,
+              size,
+              PROT_NONE,
               MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED,
-              kMmapFd, kMmapFdOffset) != MAP_FAILED;
+              kMmapFd,
+              kMmapFdOffset) != MAP_FAILED;
+}
+
+
+bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
+  return munmap(base, size) == 0;
 }
 
 

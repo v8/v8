@@ -236,7 +236,7 @@ class Deoptimizer : public Malloced {
   void AddInteger32Value(int frame_index, int slot_index, int32_t value);
   void AddDoubleValue(int frame_index, int slot_index, double value);
 
-  static LargeObjectChunk* CreateCode(BailoutType type);
+  static MemoryChunk* CreateCode(BailoutType type);
   static void GenerateDeoptimizationEntries(
       MacroAssembler* masm, int count, BailoutType type);
 
@@ -246,8 +246,8 @@ class Deoptimizer : public Malloced {
   static Code* FindDeoptimizingCodeFromAddress(Address addr);
   static void RemoveDeoptimizingCode(Code* code);
 
-  static LargeObjectChunk* eager_deoptimization_entry_code_;
-  static LargeObjectChunk* lazy_deoptimization_entry_code_;
+  static MemoryChunk* eager_deoptimization_entry_code_;
+  static MemoryChunk* lazy_deoptimization_entry_code_;
   static Deoptimizer* current_;
 
   // List of deoptimized code which still have references from active stack

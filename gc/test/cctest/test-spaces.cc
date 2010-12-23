@@ -32,6 +32,7 @@
 
 using namespace v8::internal;
 
+#if 0
 static void VerifyRegionMarking(Address page_start) {
 #ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   Page* p = Page::FromAddress(page_start);
@@ -57,8 +58,11 @@ static void VerifyRegionMarking(Address page_start) {
   }
 #endif
 }
+#endif
 
 
+// TODO(gc) you can no longer allocate pages like this. Details are hidden.
+#if 0
 TEST(Page) {
   byte* mem = NewArray<byte>(2*Page::kPageSize);
   CHECK(mem != NULL);
@@ -89,59 +93,46 @@ TEST(Page) {
 
   DeleteArray(mem);
 }
+#endif
 
 
 TEST(MemoryAllocator) {
   CHECK(Heap::ConfigureHeapDefault());
   CHECK(MemoryAllocator::Setup(Heap::MaxReserved(), Heap::MaxExecutableSize()));
 
-  OldSpace faked_space(Heap::MaxReserved(), OLD_POINTER_SPACE, NOT_EXECUTABLE);
   int total_pages = 0;
-  int requested = MemoryAllocator::kPagesPerChunk;
-  int allocated;
-  // If we request n pages, we should get n or n - 1.
+  OldSpace faked_space(Heap::MaxReserved(), OLD_POINTER_SPACE, NOT_EXECUTABLE);
   Page* first_page =
-      MemoryAllocator::AllocatePages(requested, &allocated, &faked_space);
+      MemoryAllocator::AllocatePage(&faked_space, NOT_EXECUTABLE);
   CHECK(first_page->is_valid());
-  CHECK(allocated == requested || allocated == requested - 1);
-  total_pages += allocated;
+  CHECK(!first_page->next_page()->is_valid());
+  total_pages++;
 
   Page* last_page = first_page;
   for (Page* p = first_page; p->is_valid(); p = p->next_page()) {
-    CHECK(MemoryAllocator::IsPageInSpace(p, &faked_space));
+    CHECK(p->owner() == &faked_space);
     last_page = p;
   }
 
-  // Again, we should get n or n - 1 pages.
-  Page* others =
-      MemoryAllocator::AllocatePages(requested, &allocated, &faked_space);
-  CHECK(others->is_valid());
-  CHECK(allocated == requested || allocated == requested - 1);
-  total_pages += allocated;
+  CHECK(last_page == first_page);
 
-  MemoryAllocator::SetNextPage(last_page, others);
+  // Again, we should get n or n - 1 pages.
+  Page* other =
+      MemoryAllocator::AllocatePage(&faked_space, NOT_EXECUTABLE);
+  CHECK(other->is_valid());
+  total_pages++;
+  last_page->set_next_page(other);
   int page_count = 0;
   for (Page* p = first_page; p->is_valid(); p = p->next_page()) {
-    CHECK(MemoryAllocator::IsPageInSpace(p, &faked_space));
+    CHECK(p->owner() == &faked_space);
     page_count++;
   }
   CHECK(total_pages == page_count);
 
   Page* second_page = first_page->next_page();
   CHECK(second_page->is_valid());
-
-  // Freeing pages at the first chunk starting at or after the second page
-  // should free the entire second chunk.  It will return the page it was passed
-  // (since the second page was in the first chunk).
-  Page* free_return = MemoryAllocator::FreePages(second_page);
-  CHECK(free_return == second_page);
-  MemoryAllocator::SetNextPage(first_page, free_return);
-
-  // Freeing pages in the first chunk starting at the first page should free
-  // the first chunk and return an invalid page.
-  Page* invalid_page = MemoryAllocator::FreePages(first_page);
-  CHECK(!invalid_page->is_valid());
-
+  MemoryAllocator::Free(first_page);
+  MemoryAllocator::Free(second_page);
   MemoryAllocator::TearDown();
 }
 
@@ -152,12 +143,7 @@ TEST(NewSpace) {
 
   NewSpace new_space;
 
-  void* chunk =
-      MemoryAllocator::ReserveInitialChunk(4 * Heap::ReservedSemiSpaceSize());
-  CHECK(chunk != NULL);
-  Address start = RoundUp(static_cast<Address>(chunk),
-                          2 * Heap::ReservedSemiSpaceSize());
-  CHECK(new_space.Setup(start, 2 * Heap::ReservedSemiSpaceSize()));
+  CHECK(new_space.Setup(Heap::ReservedSemiSpaceSize()));
   CHECK(new_space.HasBeenSetup());
 
   while (new_space.Available() >= Page::kMaxHeapObjectSize) {
@@ -180,13 +166,7 @@ TEST(OldSpace) {
                              NOT_EXECUTABLE);
   CHECK(s != NULL);
 
-  void* chunk =
-      MemoryAllocator::ReserveInitialChunk(4 * Heap::ReservedSemiSpaceSize());
-  CHECK(chunk != NULL);
-  Address start = static_cast<Address>(chunk);
-  size_t size = RoundUp(start, 2 * Heap::ReservedSemiSpaceSize()) - start;
-
-  CHECK(s->Setup(start, size));
+  CHECK(s->Setup());
 
   while (s->Available() > 0) {
     s->AllocateRaw(Page::kMaxHeapObjectSize)->ToObjectUnchecked();
@@ -232,8 +212,5 @@ TEST(LargeObjectSpace) {
 
   CHECK(lo->AllocateRaw(lo_size)->IsFailure());
 
-  lo->TearDown();
-  delete lo;
-
-  MemoryAllocator::TearDown();
+  Heap::TearDown();
 }

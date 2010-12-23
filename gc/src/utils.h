@@ -171,7 +171,7 @@ static inline bool IsAligned(T value, T alignment) {
 // Returns true if (addr + offset) is aligned.
 static inline bool IsAddressAligned(Address addr,
                                     intptr_t alignment,
-                                    int offset) {
+                                    int offset = 0) {
   intptr_t offs = OffsetFrom(addr + offset);
   return IsAligned(offs, alignment);
 }

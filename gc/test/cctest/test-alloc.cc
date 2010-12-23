@@ -173,16 +173,16 @@ unsigned int Pseudorandom() {
 // Plain old data class.  Represents a block of allocated memory.
 class Block {
  public:
-  Block(void* base_arg, int size_arg)
+  Block(Address base_arg, int size_arg)
       : base(base_arg), size(size_arg) {}
 
-  void *base;
+  Address base;
   int size;
 };
 
 
 TEST(CodeRange) {
-  const int code_range_size = 16*MB;
+  const int code_range_size = 32*MB;
   CodeRange::Setup(code_range_size);
   int current_allocated = 0;
   int total_allocated = 0;
@@ -191,11 +191,13 @@ TEST(CodeRange) {
   while (total_allocated < 5 * code_range_size) {
     if (current_allocated < code_range_size / 10) {
       // Allocate a block.
-      // Geometrically distributed sizes, greater than Page::kPageSize.
-      size_t requested = (Page::kPageSize << (Pseudorandom() % 6)) +
+      // Geometrically distributed sizes, greater than Page::kMaxHeapObjectSize.
+      // TODO (gc) instead of using 3 use some contant based on code_range_size
+      // kMaxHeapObjectSize.
+      size_t requested = (Page::kMaxHeapObjectSize << (Pseudorandom() % 3)) +
            Pseudorandom() % 5000 + 1;
       size_t allocated = 0;
-      void* base = CodeRange::AllocateRawMemory(requested, &allocated);
+      Address base = CodeRange::AllocateRawMemory(requested, &allocated);
       blocks.Add(Block(base, static_cast<int>(allocated)));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);

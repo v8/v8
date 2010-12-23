@@ -327,6 +327,15 @@ class VirtualMemory {
   // Uncommit real memory.  Returns whether the operation succeeded.
   bool Uncommit(void* address, size_t size);
 
+  // TODO(gc) this interface should be implemented for Windows platform as well.
+  static void* ReserveRegion(size_t size);
+
+  static bool CommitRegion(void* base, size_t size, bool is_executable);
+
+  static bool UncommitRegion(void* base, size_t size);
+
+  static bool ReleaseRegion(void* base, size_t size);
+
  private:
   void* address_;  // Start address of the virtual memory.
   size_t size_;  // Size of the virtual memory.

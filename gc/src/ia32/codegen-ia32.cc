@@ -10249,11 +10249,14 @@ MemCopyFunction CreateMemCopyFunction() {
 
   // Copy the generated code into an executable chunk and return a pointer
   // to the first instruction in it as a C++ function pointer.
-  LargeObjectChunk* chunk = LargeObjectChunk::New(desc.instr_size, EXECUTABLE);
-  if (chunk == NULL) return &MemCopyWrapper;
-  memcpy(chunk->GetStartAddress(), desc.buffer, desc.instr_size);
-  CPU::FlushICache(chunk->GetStartAddress(), desc.instr_size);
-  return FUNCTION_CAST<MemCopyFunction>(chunk->GetStartAddress());
+  size_t size = RoundUp(desc.instr_size, OS::AllocateAlignment());
+  void* base = VirtualMemory::ReserveRegion(size);
+  if (base == NULL || !VirtualMemory::CommitRegion(base, size, true)) {
+    return &MemCopyWrapper;
+  }
+  memcpy(base, desc.buffer, desc.instr_size);
+  CPU::FlushICache(base, desc.instr_size);
+  return FUNCTION_CAST<MemCopyFunction>(reinterpret_cast<Address>(base));
 }
 
 #undef __

@@ -87,9 +87,9 @@ const uint32_t kDebugZapValue = 0xbadbaddb;
 #endif
 
 
-// Number of bits to represent the page size for paged spaces. The value of 13
-// gives 8K bytes per page.
-const int kPageSizeBits = 13;
+// Number of bits to represent the page size for paged spaces. The value of 20
+// gives 1Mb bytes per page.
+const int kPageSizeBits = 20;
 
 // On Intel architecture, cache line size is 64 bytes.
 // On ARM it may be less (32 bytes), but as far this constant is

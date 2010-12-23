@@ -225,9 +225,9 @@ class Heap : public AllStatic {
  public:
   // Configure heap size before setup. Return false if the heap has been
   // setup already.
-  static bool ConfigureHeap(int max_semispace_size,
-                            int max_old_gen_size,
-                            int max_executable_size);
+  static bool ConfigureHeap(intptr_t max_semispace_size,
+                            intptr_t max_old_gen_size,
+                            intptr_t max_executable_size);
   static bool ConfigureHeapDefault();
 
   // Initializes the global object heap. If create_heap_objects is true,
