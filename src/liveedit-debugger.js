@@ -144,8 +144,8 @@ Debug.LiveEdit = new function() {
           replace_code_list[i].live_shared_function_infos;
 
       if (live_shared_function_infos) {
-        for (var i = 0; i < live_shared_function_infos.length; i++) {
-          replaced_function_infos.push(live_shared_function_infos[i]);
+        for (var j = 0; j < live_shared_function_infos.length; j++) {
+          replaced_function_infos.push(live_shared_function_infos[j]);
         }
       }
     }
