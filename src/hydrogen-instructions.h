@@ -1769,6 +1769,8 @@ class HConstant: public HInstruction {
 
   Handle<Object> handle() const { return handle_; }
 
+  bool InOldSpace() const { return !Heap::InNewSpace(*handle_); }
+
   virtual bool EmitAtUses() const { return !representation().IsDouble(); }
   virtual void PrintDataTo(StringStream* stream) const;
   virtual HType CalculateInferredType() const;
@@ -2687,6 +2689,12 @@ class HLoadKeyedGeneric: public HLoadKeyed {
 };
 
 
+static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
+  return !value->type().IsSmi() &&
+      !(value->IsConstant() && HConstant::cast(value)->InOldSpace());
+}
+
+
 class HStoreNamed: public HBinaryOperation {
  public:
   HStoreNamed(HValue* obj, Handle<Object> name, HValue* val)
@@ -2703,6 +2711,10 @@ class HStoreNamed: public HBinaryOperation {
   Handle<Object> name() const { return name_; }
   HValue* value() const { return OperandAt(1); }
   void set_value(HValue* value) { SetOperandAt(1, value); }
+
+  bool NeedsWriteBarrier() const {
+    return StoringValueNeedsWriteBarrier(value());
+  }
 
   DECLARE_INSTRUCTION(StoreNamed)
 
@@ -2784,6 +2796,10 @@ class HStoreKeyed: public HInstruction {
   HValue* key() const { return OperandAt(1); }
   HValue* value() const { return OperandAt(2); }
 
+  bool NeedsWriteBarrier() const {
+    return StoringValueNeedsWriteBarrier(value());
+  }
+
   DECLARE_INSTRUCTION(StoreKeyed)
 
  protected:
@@ -2801,10 +2817,6 @@ class HStoreKeyedFastElement: public HStoreKeyed {
   HStoreKeyedFastElement(HValue* obj, HValue* key, HValue* val)
       : HStoreKeyed(obj, key, val) {
     SetFlag(kChangesArrayElements);
-  }
-
-  bool NeedsWriteBarrier() const {
-    return !value()->type().IsSmi();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {

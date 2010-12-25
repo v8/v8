@@ -1939,7 +1939,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
-  bool needs_write_barrier = !instr->value()->type().IsSmi();
+  bool needs_write_barrier = instr->NeedsWriteBarrier();
 
   LOperand* obj = needs_write_barrier
       ? UseTempRegister(instr->object())
