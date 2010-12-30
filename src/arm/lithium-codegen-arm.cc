@@ -898,24 +898,19 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 }
 
 
-void LCodeGen::DoArrayLength(LArrayLength* instr) {
+void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
   Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->input());
+  __ ldr(result, FieldMemOperand(array, JSArray::kLengthOffset));
+  Abort("DoJSArrayLength untested.");
+}
 
-  if (instr->hydrogen()->value()->IsLoadElements()) {
-    // We load the length directly from the elements array.
-    Register elements = ToRegister(instr->input());
-    __ ldr(result, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  } else {
-    // Check that the receiver really is an array.
-    Register array = ToRegister(instr->input());
-    Register temporary = ToRegister(instr->temporary());
-    __ CompareObjectType(array, temporary, temporary, JS_ARRAY_TYPE);
-    DeoptimizeIf(ne, instr->environment());
 
-    // Load length directly from the array.
-    __ ldr(result, FieldMemOperand(array, JSArray::kLengthOffset));
-  }
-  Abort("DoArrayLength untested.");
+void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
+  Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->input());
+  __ ldr(result, FieldMemOperand(array, FixedArray::kLengthOffset));
+  Abort("DoFixedArrayLength untested.");
 }
 
 

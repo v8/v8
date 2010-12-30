@@ -118,7 +118,6 @@ class LChunkBuilder;
 //       HStoreKeyedFastElement
 //       HStoreKeyedGeneric
 //     HUnaryOperation
-//       HArrayLength
 //       HBitNot
 //       HChange
 //       HCheckFunction
@@ -128,6 +127,8 @@ class LChunkBuilder;
 //       HCheckPrototypeMaps
 //       HCheckSmi
 //       HDeleteProperty
+//       HFixedArrayLength
+//       HJSArrayLength
 //       HLoadElements
 //         HTypeofIs
 //       HLoadNamedField
@@ -171,7 +172,6 @@ class LChunkBuilder;
   V(ArgumentsElements)                         \
   V(ArgumentsLength)                           \
   V(ArgumentsObject)                           \
-  V(ArrayLength)                               \
   V(ArrayLiteral)                              \
   V(BitAnd)                                    \
   V(BitNot)                                    \
@@ -204,6 +204,7 @@ class LChunkBuilder;
   V(Deoptimize)                                \
   V(Div)                                       \
   V(EnterInlined)                              \
+  V(FixedArrayLength)                          \
   V(FunctionLiteral)                           \
   V(GlobalObject)                              \
   V(GlobalReceiver)                            \
@@ -214,6 +215,7 @@ class LChunkBuilder;
   V(IsSmi)                                     \
   V(HasInstanceType)                           \
   V(HasCachedArrayIndex)                       \
+  V(JSArrayLength)                             \
   V(ClassOfTest)                               \
   V(LeaveInlined)                              \
   V(LoadElements)                              \
@@ -1339,9 +1341,9 @@ class HCallRuntime: public HCall {
 };
 
 
-class HArrayLength: public HUnaryOperation {
+class HJSArrayLength: public HUnaryOperation {
  public:
-  explicit HArrayLength(HValue* value) : HUnaryOperation(value) {
+  explicit HJSArrayLength(HValue* value) : HUnaryOperation(value) {
     // The length of an array is stored as a tagged value in the array
     // object. It is guaranteed to be 32 bit integer, but it can be
     // represented as either a smi or heap number.
@@ -1354,7 +1356,23 @@ class HArrayLength: public HUnaryOperation {
     return Representation::Tagged();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(ArrayLength, "array_length")
+  DECLARE_CONCRETE_INSTRUCTION(JSArrayLength, "js_array_length")
+};
+
+
+class HFixedArrayLength: public HUnaryOperation {
+ public:
+  explicit HFixedArrayLength(HValue* value) : HUnaryOperation(value) {
+    set_representation(Representation::Tagged());
+    SetFlag(kDependsOnArrayLengths);
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(FixedArrayLength, "fixed_array_length")
 };
 
 

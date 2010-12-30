@@ -977,23 +977,17 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 }
 
 
-void LCodeGen::DoArrayLength(LArrayLength* instr) {
+void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
   Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->input());
+  __ mov(result, FieldOperand(array, JSArray::kLengthOffset));
+}
 
-  if (instr->hydrogen()->value()->IsLoadElements()) {
-    // We load the length directly from the elements array.
-    Register elements = ToRegister(instr->input());
-    __ mov(result, FieldOperand(elements, FixedArray::kLengthOffset));
-  } else {
-    // Check that the receiver really is an array.
-    Register array = ToRegister(instr->input());
-    Register temporary = ToRegister(instr->temporary());
-    __ CmpObjectType(array, JS_ARRAY_TYPE, temporary);
-    DeoptimizeIf(not_equal, instr->environment());
 
-    // Load length directly from the array.
-    __ mov(result, FieldOperand(array, JSArray::kLengthOffset));
-  }
+void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
+  Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->input());
+  __ mov(result, FieldOperand(array, FixedArray::kLengthOffset));
 }
 
 
@@ -2932,9 +2926,6 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
   Register temp = ToRegister(instr->temp());
   InstanceType first = instr->hydrogen()->first();
   InstanceType last = instr->hydrogen()->last();
-
-  __ test(input, Immediate(kSmiTagMask));
-  DeoptimizeIf(zero, instr->environment());
 
   __ mov(temp, FieldOperand(input, HeapObject::kMapOffset));
   __ cmpb(FieldOperand(temp, Map::kInstanceTypeOffset),
