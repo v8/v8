@@ -457,7 +457,7 @@ Token::Value JsonScanner::ScanJsonString() {
   ASSERT_EQ('"', c0_);
   Advance();
   LiteralScope literal(this);
-  while (c0_ != '"' && c0_ > 0) {
+  while (c0_ != '"') {
     // Check for control character (0x00-0x1f) or unterminated string (<0).
     if (c0_ < 0x20) return Token::ILLEGAL;
     if (c0_ != '\\') {
@@ -503,9 +503,6 @@ Token::Value JsonScanner::ScanJsonString() {
       }
       Advance();
     }
-  }
-  if (c0_ != '"') {
-    return Token::ILLEGAL;
   }
   literal.Complete();
   Advance();
