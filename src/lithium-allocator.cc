@@ -762,7 +762,6 @@ void LAllocator::AddConstraintsGapMove(int index,
 
 
 void LAllocator::MeetRegisterConstraints(HBasicBlock* block) {
-  first_artificial_register_ = next_virtual_register_;
   int start = block->first_instruction_index();
   int end = block->last_instruction_index();
   for (int i = start; i <= end; ++i) {
@@ -1043,6 +1042,7 @@ void LAllocator::Allocate(LChunk* chunk) {
 
 void LAllocator::MeetRegisterConstraints() {
   HPhase phase("Register constraints", chunk());
+  first_artificial_register_ = next_virtual_register_;
   const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
   for (int i = 0; i < blocks->length(); ++i) {
     HBasicBlock* block = blocks->at(i);
