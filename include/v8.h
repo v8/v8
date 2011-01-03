@@ -3076,6 +3076,18 @@ class V8EXPORT Context {
    * Returns a persistent handle to the newly allocated context. This
    * persistent handle has to be disposed when the context is no
    * longer used so the context can be garbage collected.
+   *
+   * \param extensions An optional extension configuration containing
+   * the extensions to be installed in the newly created context.
+   *
+   * \param global_template An optional object template from which the
+   * global object for the newly created context will be created.
+   *
+   * \param global_object An optional global object to be reused for
+   * the newly created context. This global object must have been
+   * created by a previous call to Context::New with the same global
+   * template. The state of the global object will be completely reset
+   * and only object identify will remain.
    */
   static Persistent<Context> New(
       ExtensionConfiguration* extensions = NULL,
