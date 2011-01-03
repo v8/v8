@@ -438,6 +438,7 @@
         '../../src/messages.h',
         '../../src/natives.h',
         '../../src/objects-debug.cc',
+        '../../src/objects-printer.cc',
         '../../src/objects-inl.h',
         '../../src/objects-visiting.cc',
         '../../src/objects-visiting.h',

@@ -1316,8 +1316,8 @@ LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
 
 LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
   LInstruction* result =
-      new LInstanceOf(UseFixed(instr->left(), r1),
-                      UseFixed(instr->right(), r0));
+      new LInstanceOf(UseFixed(instr->left(), r0),
+                      UseFixed(instr->right(), r1));
   return MarkAsCall(DefineFixed(result, r0), instr);
 }
 
@@ -1666,19 +1666,15 @@ LInstruction* LChunkBuilder::DoClassOfTest(HClassOfTest* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoArrayLength(HArrayLength* instr) {
-  LOperand* array = NULL;
-  LOperand* temporary = NULL;
+LInstruction* LChunkBuilder::DoJSArrayLength(HJSArrayLength* instr) {
+  LOperand* array = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LJSArrayLength(array));
+}
 
-  if (instr->value()->IsLoadElements()) {
-    array = UseRegisterAtStart(instr->value());
-  } else {
-    array = UseRegister(instr->value());
-    temporary = TempRegister();
-  }
 
-  LInstruction* result = new LArrayLength(array, temporary);
-  return AssignEnvironment(DefineAsRegister(result));
+LInstruction* LChunkBuilder::DoFixedArrayLength(HFixedArrayLength* instr) {
+  LOperand* array = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LFixedArrayLength(array));
 }
 
 
@@ -1851,6 +1847,14 @@ LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* object = UseFixed(instr->object(), r0);
   LInstruction* result = DefineFixed(new LLoadNamedGeneric(object), r0);
   return MarkAsCall(result, instr);
+}
+
+
+LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
+    HLoadFunctionPrototype* instr) {
+  return AssignEnvironment(DefineAsRegister(
+      new LLoadFunctionPrototype(UseRegister(instr->function()),
+                                 TempRegister())));
 }
 
 

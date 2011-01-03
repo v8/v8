@@ -5143,6 +5143,26 @@ bool String::IsEqualTo(Vector<const char> str) {
 }
 
 
+bool String::IsAsciiEqualTo(Vector<const char> str) {
+  int slen = length();
+  if (str.length() != slen) return false;
+  for (int i = 0; i < slen; i++) {
+    if (Get(i) != static_cast<uint16_t>(str[i])) return false;
+  }
+  return true;
+}
+
+
+bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
+  int slen = length();
+  if (str.length() != slen) return false;
+  for (int i = 0; i < slen; i++) {
+    if (Get(i) != str[i]) return false;
+  }
+  return true;
+}
+
+
 template <typename schar>
 static inline uint32_t HashSequentialString(const schar* chars, int length) {
   StringHasher hasher(length);
@@ -8086,6 +8106,85 @@ class Utf8SymbolKey : public HashTableKey {
 };
 
 
+template <typename Char>
+class SequentialSymbolKey : public HashTableKey {
+ public:
+  explicit SequentialSymbolKey(Vector<const Char> string)
+      : string_(string), hash_field_(0) { }
+
+  uint32_t Hash() {
+    StringHasher hasher(string_.length());
+
+    // Very long strings have a trivial hash that doesn't inspect the
+    // string contents.
+    if (hasher.has_trivial_hash()) {
+      hash_field_ = hasher.GetHashField();
+    } else {
+      int i = 0;
+      // Do the iterative array index computation as long as there is a
+      // chance this is an array index.
+      while (i < string_.length() && hasher.is_array_index()) {
+        hasher.AddCharacter(static_cast<uc32>(string_[i]));
+        i++;
+      }
+
+      // Process the remaining characters without updating the array
+      // index.
+      while (i < string_.length()) {
+        hasher.AddCharacterNoIndex(static_cast<uc32>(string_[i]));
+        i++;
+      }
+      hash_field_ = hasher.GetHashField();
+    }
+
+    uint32_t result = hash_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+
+  uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  Vector<const Char> string_;
+  uint32_t hash_field_;
+};
+
+
+
+class AsciiSymbolKey : public SequentialSymbolKey<char> {
+ public:
+  explicit AsciiSymbolKey(Vector<const char> str)
+      : SequentialSymbolKey<char>(str) { }
+
+  bool IsMatch(Object* string) {
+    return String::cast(string)->IsAsciiEqualTo(string_);
+  }
+
+  MaybeObject* AsObject() {
+    if (hash_field_ == 0) Hash();
+    return Heap::AllocateAsciiSymbol(string_, hash_field_);
+  }
+};
+
+
+class TwoByteSymbolKey : public SequentialSymbolKey<uc16> {
+ public:
+  explicit TwoByteSymbolKey(Vector<const uc16> str)
+      : SequentialSymbolKey<uc16>(str) { }
+
+  bool IsMatch(Object* string) {
+    return String::cast(string)->IsTwoByteEqualTo(string_);
+  }
+
+  MaybeObject* AsObject() {
+    if (hash_field_ == 0) Hash();
+    return Heap::AllocateTwoByteSymbol(string_, hash_field_);
+  }
+};
+
+
 // SymbolKey carries a string/symbol object as key.
 class SymbolKey : public HashTableKey {
  public:
@@ -8829,6 +8928,19 @@ MaybeObject* SymbolTable::LookupSymbol(Vector<const char> str, Object** s) {
   return LookupKey(&key, s);
 }
 
+
+MaybeObject* SymbolTable::LookupAsciiSymbol(Vector<const char> str,
+                                            Object** s) {
+  AsciiSymbolKey key(str);
+  return LookupKey(&key, s);
+}
+
+
+MaybeObject* SymbolTable::LookupTwoByteSymbol(Vector<const uc16> str,
+                                              Object** s) {
+  TwoByteSymbolKey key(str);
+  return LookupKey(&key, s);
+}
 
 MaybeObject* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
   int entry = FindEntry(key);

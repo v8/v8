@@ -3643,9 +3643,18 @@ HInstruction* HGraphBuilder::BuildLoadKeyedFastElement(HValue* object,
   Handle<Map> map = expr->GetMonomorphicReceiverType();
   ASSERT(map->has_fast_elements());
   AddInstruction(new HCheckMap(object, map));
-  HInstruction* elements = AddInstruction(new HLoadElements(object));
-  HInstruction* length = AddInstruction(new HArrayLength(elements));
-  AddInstruction(new HBoundsCheck(key, length));
+  bool is_array = (map->instance_type() == JS_ARRAY_TYPE);
+  HLoadElements* elements = new HLoadElements(object);
+  HInstruction* length = NULL;
+  if (is_array) {
+    length = AddInstruction(new HJSArrayLength(object));
+    AddInstruction(new HBoundsCheck(key, length));
+    AddInstruction(elements);
+  } else {
+    AddInstruction(elements);
+    length = AddInstruction(new HFixedArrayLength(elements));
+    AddInstruction(new HBoundsCheck(key, length));
+  }
   return new HLoadKeyedFastElement(elements, key);
 }
 
@@ -3671,9 +3680,9 @@ HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
   bool is_array = (map->instance_type() == JS_ARRAY_TYPE);
   HInstruction* length = NULL;
   if (is_array) {
-    length = AddInstruction(new HArrayLength(object));
+    length = AddInstruction(new HJSArrayLength(object));
   } else {
-    length = AddInstruction(new HArrayLength(elements));
+    length = AddInstruction(new HFixedArrayLength(elements));
   }
   AddInstruction(new HBoundsCheck(key, length));
   return new HStoreKeyedFastElement(elements, key, val);
@@ -3720,7 +3729,13 @@ void HGraphBuilder::VisitProperty(Property* expr) {
   if (expr->IsArrayLength()) {
     HValue* array = Pop();
     AddInstruction(new HCheckNonSmi(array));
-    instr = new HArrayLength(array);
+    AddInstruction(new HCheckInstanceType(array, JS_ARRAY_TYPE, JS_ARRAY_TYPE));
+    instr = new HJSArrayLength(array);
+
+  } else if (expr->IsFunctionPrototype()) {
+    HValue* function = Pop();
+    AddInstruction(new HCheckNonSmi(function));
+    instr = new HLoadFunctionPrototype(function);
 
   } else if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
@@ -4854,7 +4869,9 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     switch (op) {
       case Token::EQ:
       case Token::EQ_STRICT: {
+        AddInstruction(new HCheckNonSmi(left));
         AddInstruction(HCheckInstanceType::NewIsJSObjectOrJSFunction(left));
+        AddInstruction(new HCheckNonSmi(right));
         AddInstruction(HCheckInstanceType::NewIsJSObjectOrJSFunction(right));
         instr = new HCompareJSObjectEq(left, right);
         break;

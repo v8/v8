@@ -229,9 +229,10 @@ SOURCES = {
   'os:win32':   ['platform-win32.cc'],
   'mode:release': [],
   'mode:debug': [
-    'objects-debug.cc', 'prettyprinter.cc', 'regexp-macro-assembler-tracer.cc'
+    'objects-debug.cc', 'objects-printer.cc', 'prettyprinter.cc',
+    'regexp-macro-assembler-tracer.cc'
   ],
-  'objectprint:on': ['objects-debug.cc']
+  'objectprint:on': ['objects-printer.cc']
 }
 
 

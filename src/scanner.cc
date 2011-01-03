@@ -324,10 +324,8 @@ void Scanner::LiteralScope::Complete() {
 V8JavaScriptScanner::V8JavaScriptScanner() : JavaScriptScanner() { }
 
 
-void V8JavaScriptScanner::Initialize(UC16CharacterStream* source,
-                                     int literal_flags) {
+void V8JavaScriptScanner::Initialize(UC16CharacterStream* source) {
   source_ = source;
-  literal_flags_ = literal_flags | kLiteralIdentifier;
   // Need to capture identifiers in order to recognize "get" and "set"
   // in object literals.
   Init();
@@ -377,7 +375,7 @@ bool JsonScanner::SkipJsonWhiteSpace() {
 
 
 void JsonScanner::ScanJson() {
-  next_.literal_chars = Vector<const char>();
+  next_.literal_chars = NULL;
   Token::Value token;
   do {
     // Remember the position of the next token

@@ -27,11 +27,6 @@
 
 var $JSON = global.JSON;
 
-function ParseJSONUnfiltered(text) {
-  var s = $String(text);
-  return %ParseJson(s);
-}
-
 function Revive(holder, name, reviver) {
   var val = holder[name];
   if (IS_OBJECT(val)) {
@@ -58,7 +53,7 @@ function Revive(holder, name, reviver) {
 }
 
 function JSONParse(text, reviver) {
-  var unfiltered = ParseJSONUnfiltered(text);
+  var unfiltered = %ParseJson(TO_STRING_INLINE(text));
   if (IS_FUNCTION(reviver)) {
     return Revive({'': unfiltered}, '', reviver);
   } else {
@@ -158,7 +153,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
   if (IS_STRING(value)) {
     return %QuoteJSONString(value);
   } else if (IS_NUMBER(value)) {
-    return $isFinite(value) ? $String(value) : "null";
+    return NUMBER_IS_FINITE(value) ? $String(value) : "null";
   } else if (IS_BOOLEAN(value)) {
     return value ? "true" : "false";
   } else if (IS_NULL(value)) {
@@ -169,7 +164,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
       return SerializeArray(value, replacer, stack, indent, gap);
     } else if (IS_NUMBER_WRAPPER(value)) {
       value = ToNumber(value);
-      return $isFinite(value) ? ToString(value) : "null";
+      return NUMBER_IS_FINITE(value) ? ToString(value) : "null";
     } else if (IS_STRING_WRAPPER(value)) {
       return %QuoteJSONString(ToString(value));
     } else if (IS_BOOLEAN_WRAPPER(value)) {
@@ -244,7 +239,7 @@ function BasicJSONSerialize(key, holder, stack, builder) {
   if (IS_STRING(value)) {
     builder.push(%QuoteJSONString(value));
   } else if (IS_NUMBER(value)) {
-    builder.push(($isFinite(value) ? %_NumberToString(value) : "null"));
+    builder.push(NUMBER_IS_FINITE(value) ? %_NumberToString(value) : "null");
   } else if (IS_BOOLEAN(value)) {
     builder.push(value ? "true" : "false");
   } else if (IS_NULL(value)) {
@@ -254,7 +249,7 @@ function BasicJSONSerialize(key, holder, stack, builder) {
     // Unwrap value if necessary
     if (IS_NUMBER_WRAPPER(value)) {
       value = ToNumber(value);
-      builder.push(($isFinite(value) ? %_NumberToString(value) : "null"));
+      builder.push(NUMBER_IS_FINITE(value) ? %_NumberToString(value) : "null");
     } else if (IS_STRING_WRAPPER(value)) {
       builder.push(%QuoteJSONString(ToString(value)));
     } else if (IS_BOOLEAN_WRAPPER(value)) {

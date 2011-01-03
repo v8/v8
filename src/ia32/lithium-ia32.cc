@@ -1677,19 +1677,15 @@ LInstruction* LChunkBuilder::DoClassOfTest(HClassOfTest* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoArrayLength(HArrayLength* instr) {
-  LOperand* array = NULL;
-  LOperand* temporary = NULL;
+LInstruction* LChunkBuilder::DoJSArrayLength(HJSArrayLength* instr) {
+  LOperand* array = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LJSArrayLength(array));
+}
 
-  if (instr->value()->IsLoadElements()) {
-    array = UseRegisterAtStart(instr->value());
-  } else {
-    array = UseRegister(instr->value());
-    temporary = TempRegister();
-  }
 
-  LInstruction* result = new LArrayLength(array, temporary);
-  return AssignEnvironment(DefineAsRegister(result));
+LInstruction* LChunkBuilder::DoFixedArrayLength(HFixedArrayLength* instr) {
+  LOperand* array = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LFixedArrayLength(array));
 }
 
 
@@ -1860,6 +1856,14 @@ LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
+    HLoadFunctionPrototype* instr) {
+  return AssignEnvironment(DefineAsRegister(
+      new LLoadFunctionPrototype(UseRegister(instr->function()),
+                                 TempRegister())));
+}
+
+
 LInstruction* LChunkBuilder::DoLoadElements(HLoadElements* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
   return DefineSameAsFirst(new LLoadElements(input));
@@ -1931,7 +1935,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
-  bool needs_write_barrier = !instr->value()->type().IsSmi();
+  bool needs_write_barrier = instr->NeedsWriteBarrier();
 
   LOperand* obj = needs_write_barrier
       ? UseTempRegister(instr->object())

@@ -379,7 +379,7 @@ void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const {
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Handle<Object> lit) const {
-  __ mov(result_register(), lit);
+  __ Set(result_register(), Immediate(lit));
 }
 
 

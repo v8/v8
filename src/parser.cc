@@ -323,22 +323,24 @@ TemporaryScope::~TemporaryScope() {
 }
 
 
-Handle<String> Parser::LookupSymbol(int symbol_id,
-                                    Vector<const char> string) {
+Handle<String> Parser::LookupSymbol(int symbol_id) {
   // Length of symbol cache is the number of identified symbols.
   // If we are larger than that, or negative, it's not a cached symbol.
   // This might also happen if there is no preparser symbol data, even
   // if there is some preparser data.
   if (static_cast<unsigned>(symbol_id)
       >= static_cast<unsigned>(symbol_cache_.length())) {
-    return Factory::LookupSymbol(string);
+    if (scanner().is_literal_ascii()) {
+      return Factory::LookupAsciiSymbol(scanner().literal_ascii_string());
+    } else {
+      return Factory::LookupTwoByteSymbol(scanner().literal_uc16_string());
+    }
   }
-  return LookupCachedSymbol(symbol_id, string);
+  return LookupCachedSymbol(symbol_id);
 }
 
 
-Handle<String> Parser::LookupCachedSymbol(int symbol_id,
-                                          Vector<const char> string) {
+Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
   // Make sure the cache is large enough to hold the symbol identifier.
   if (symbol_cache_.length() <= symbol_id) {
     // Increase length to index + 1.
@@ -347,7 +349,11 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id,
   }
   Handle<String> result = symbol_cache_.at(symbol_id);
   if (result.is_null()) {
-    result = Factory::LookupSymbol(string);
+    if (scanner().is_literal_ascii()) {
+      result = Factory::LookupAsciiSymbol(scanner().literal_ascii_string());
+    } else {
+      result = Factory::LookupTwoByteSymbol(scanner().literal_uc16_string());
+    }
     symbol_cache_.at(symbol_id) = result;
     return result;
   }
@@ -615,11 +621,11 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
     // identical calls.
     ExternalTwoByteStringUC16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
-    scanner_.Initialize(&stream, JavaScriptScanner::kAllLiterals);
+    scanner_.Initialize(&stream);
     return DoParseProgram(source, in_global_context, &zone_scope);
   } else {
     GenericStringUC16CharacterStream stream(source, 0, source->length());
-    scanner_.Initialize(&stream, JavaScriptScanner::kAllLiterals);
+    scanner_.Initialize(&stream);
     return DoParseProgram(source, in_global_context, &zone_scope);
   }
 }
@@ -705,7 +711,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
 FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info,
                                    UC16CharacterStream* source,
                                    ZoneScope* zone_scope) {
-  scanner_.Initialize(source, JavaScriptScanner::kAllLiterals);
+  scanner_.Initialize(source);
   ASSERT(target_stack_ == NULL);
 
   Handle<String> name(String::cast(info->name()));
@@ -757,7 +763,7 @@ Handle<String> Parser::GetSymbol(bool* ok) {
   if (pre_data() != NULL) {
     symbol_id = pre_data()->GetSymbolIdentifier();
   }
-  return LookupSymbol(symbol_id, scanner().literal());
+  return LookupSymbol(symbol_id);
 }
 
 
@@ -2715,8 +2721,9 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 
     case Token::NUMBER: {
       Consume(Token::NUMBER);
-      double value =
-        StringToDouble(scanner().literal(), ALLOW_HEX | ALLOW_OCTALS);
+      ASSERT(scanner().is_literal_ascii());
+      double value = StringToDouble(scanner().literal_ascii_string(),
+                                    ALLOW_HEX | ALLOW_OCTALS);
       result = NewNumberLiteral(value);
       break;
     }
@@ -3066,8 +3073,9 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       }
       case Token::NUMBER: {
         Consume(Token::NUMBER);
-        double value =
-          StringToDouble(scanner().literal(), ALLOW_HEX | ALLOW_OCTALS);
+        ASSERT(scanner().is_literal_ascii());
+        double value = StringToDouble(scanner().literal_ascii_string(),
+                                      ALLOW_HEX | ALLOW_OCTALS);
         key = NewNumberLiteral(value);
         break;
       }
@@ -3137,11 +3145,9 @@ Expression* Parser::ParseRegExpLiteral(bool seen_equal, bool* ok) {
 
   int literal_index = temp_scope_->NextMaterializedLiteralIndex();
 
-  Handle<String> js_pattern =
-      Factory::NewStringFromUtf8(scanner().next_literal(), TENURED);
+  Handle<String> js_pattern = NextLiteralString(TENURED);
   scanner().ScanRegExpFlags();
-  Handle<String> js_flags =
-      Factory::NewStringFromUtf8(scanner().next_literal(), TENURED);
+  Handle<String> js_flags = NextLiteralString(TENURED);
   Next();
 
   return new RegExpLiteral(js_pattern, js_flags, literal_index);
@@ -3423,10 +3429,10 @@ Handle<String> Parser::ParseIdentifierOrGetOrSet(bool* is_get,
                                                  bool* ok) {
   Expect(Token::IDENTIFIER, ok);
   if (!*ok) return Handle<String>();
-  if (scanner().literal_length() == 3) {
-    const char* token = scanner().literal_string();
-    *is_get = strcmp(token, "get") == 0;
-    *is_set = !*is_get && strcmp(token, "set") == 0;
+  if (scanner().is_literal_ascii() && scanner().literal_length() == 3) {
+    const char* token = scanner().literal_ascii_string().start();
+    *is_get = strncmp(token, "get", 3) == 0;
+    *is_set = !*is_get && strncmp(token, "set", 3) == 0;
   }
   return GetSymbol(ok);
 }
@@ -3604,9 +3610,11 @@ Handle<String> JsonParser::GetString() {
   if (literal_length == 0) {
     return Factory::empty_string();
   }
-  const char* literal_string = scanner_.literal_string();
-  Vector<const char> literal(literal_string, literal_length);
-  return Factory::NewStringFromUtf8(literal);
+  if (scanner_.is_literal_ascii()) {
+    return Factory::NewStringFromAscii(scanner_.literal_ascii_string());
+  } else {
+    return Factory::NewStringFromTwoByte(scanner_.literal_uc16_string());
+  }
 }
 
 
@@ -3618,7 +3626,8 @@ Handle<Object> JsonParser::ParseJsonValue() {
       return GetString();
     }
     case Token::NUMBER: {
-      double value = StringToDouble(scanner_.literal(),
+      ASSERT(scanner_.is_literal_ascii());
+      double value = StringToDouble(scanner_.literal_ascii_string(),
                                     NO_FLAGS,  // Hex, octal or trailing junk.
                                     OS::nan_value());
       return Factory::NewNumber(value);
@@ -4597,10 +4606,9 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 // Create a Scanner for the preparser to use as input, and preparse the source.
 static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
                                   bool allow_lazy,
-                                  ParserRecorder* recorder,
-                                  int literal_flags) {
+                                  ParserRecorder* recorder) {
   V8JavaScriptScanner scanner;
-  scanner.Initialize(source, literal_flags);
+  scanner.Initialize(source);
   intptr_t stack_limit = StackGuard::real_climit();
   if (!preparser::PreParser::PreParseProgram(&scanner,
                                              recorder,
@@ -4628,8 +4636,7 @@ ScriptDataImpl* ParserApi::PartialPreParse(UC16CharacterStream* source,
     return NULL;
   }
   PartialParserRecorder recorder;
-  return DoPreParse(source, allow_lazy, &recorder,
-                    JavaScriptScanner::kNoLiterals);
+  return DoPreParse(source, allow_lazy, &recorder);
 }
 
 
@@ -4638,9 +4645,7 @@ ScriptDataImpl* ParserApi::PreParse(UC16CharacterStream* source,
   Handle<Script> no_script;
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   CompleteParserRecorder recorder;
-  int kPreParseLiteralsFlags =
-      JavaScriptScanner::kLiteralString | JavaScriptScanner::kLiteralIdentifier;
-  return DoPreParse(source, allow_lazy, &recorder, kPreParseLiteralsFlags);
+  return DoPreParse(source, allow_lazy, &recorder);
 }
 
 

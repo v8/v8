@@ -443,7 +443,7 @@ TEST(DisasmIa320) {
       Code::ComputeFlags(Code::STUB),
       Handle<Object>(Heap::undefined_value()))->ToObjectChecked();
   CHECK(code->IsCode());
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
   Code::cast(code)->Print();
   byte* begin = Code::cast(code)->instruction_start();
   byte* end = begin + Code::cast(code)->instruction_size();

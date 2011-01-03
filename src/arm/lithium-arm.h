@@ -101,7 +101,8 @@ class Translation;
 //     LStoreNamedField
 //     LStoreNamedGeneric
 //   LUnaryOperation
-//     LArrayLength
+//     LJSArrayLength
+//     LFixedArrayLength
 //     LBitNotI
 //     LBranch
 //     LCallNew
@@ -127,6 +128,7 @@ class Translation;
 //     LIsSmiAndBranch
 //     LLoadNamedField
 //     LLoadNamedGeneric
+//     LLoadFunctionPrototype
 //     LNumberTagD
 //     LNumberTagI
 //     LPushArgument
@@ -161,7 +163,6 @@ class Translation;
   V(ArgumentsLength)                            \
   V(ArithmeticD)                                \
   V(ArithmeticT)                                \
-  V(ArrayLength)                                \
   V(ArrayLiteral)                               \
   V(BitI)                                       \
   V(BitNotI)                                    \
@@ -195,6 +196,7 @@ class Translation;
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
+  V(FixedArrayLength)                           \
   V(FunctionLiteral)                            \
   V(Gap)                                        \
   V(GlobalObject)                               \
@@ -209,6 +211,7 @@ class Translation;
   V(IsObjectAndBranch)                          \
   V(IsSmi)                                      \
   V(IsSmiAndBranch)                             \
+  V(JSArrayLength)                              \
   V(HasInstanceType)                            \
   V(HasInstanceTypeAndBranch)                   \
   V(HasCachedArrayIndex)                        \
@@ -223,6 +226,7 @@ class Translation;
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
   V(LoadNamedGeneric)                           \
+  V(LoadFunctionPrototype)                      \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -1141,18 +1145,21 @@ class LCmpMapAndBranch: public LUnaryOperation {
 };
 
 
-class LArrayLength: public LUnaryOperation {
+class LJSArrayLength: public LUnaryOperation {
  public:
-  LArrayLength(LOperand* input, LOperand* temporary)
-      : LUnaryOperation(input), temporary_(temporary) { }
+  explicit LJSArrayLength(LOperand* input) : LUnaryOperation(input) { }
 
-  LOperand* temporary() const { return temporary_; }
+  DECLARE_CONCRETE_INSTRUCTION(JSArrayLength, "js-array-length")
+  DECLARE_HYDROGEN_ACCESSOR(JSArrayLength)
+};
 
-  DECLARE_CONCRETE_INSTRUCTION(ArrayLength, "array-length")
-  DECLARE_HYDROGEN_ACCESSOR(ArrayLength)
 
- private:
-  LOperand* temporary_;
+class LFixedArrayLength: public LUnaryOperation {
+ public:
+  explicit LFixedArrayLength(LOperand* input) : LUnaryOperation(input) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(FixedArrayLength, "fixed-array-length")
+  DECLARE_HYDROGEN_ACCESSOR(FixedArrayLength)
 };
 
 
@@ -1253,6 +1260,22 @@ class LLoadNamedGeneric: public LUnaryOperation {
 
   LOperand* object() const { return input(); }
   Handle<Object> name() const { return hydrogen()->name(); }
+};
+
+
+class LLoadFunctionPrototype: public LUnaryOperation {
+ public:
+  LLoadFunctionPrototype(LOperand* function, LOperand* temporary)
+      : LUnaryOperation(function), temporary_(temporary) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadFunctionPrototype, "load-function-prototype")
+  DECLARE_HYDROGEN_ACCESSOR(LoadFunctionPrototype)
+
+  LOperand* function() const { return input(); }
+  LOperand* temporary() const { return temporary_; }
+
+ private:
+  LOperand* temporary_;
 };
 
 

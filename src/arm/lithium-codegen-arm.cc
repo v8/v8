@@ -898,24 +898,19 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 }
 
 
-void LCodeGen::DoArrayLength(LArrayLength* instr) {
+void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
   Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->input());
+  __ ldr(result, FieldMemOperand(array, JSArray::kLengthOffset));
+  Abort("DoJSArrayLength untested.");
+}
 
-  if (instr->hydrogen()->value()->IsLoadElements()) {
-    // We load the length directly from the elements array.
-    Register elements = ToRegister(instr->input());
-    __ ldr(result, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  } else {
-    // Check that the receiver really is an array.
-    Register array = ToRegister(instr->input());
-    Register temporary = ToRegister(instr->temporary());
-    __ CompareObjectType(array, temporary, temporary, JS_ARRAY_TYPE);
-    DeoptimizeIf(ne, instr->environment());
 
-    // Load length directly from the array.
-    __ ldr(result, FieldMemOperand(array, JSArray::kLengthOffset));
-  }
-  Abort("DoArrayLength untested.");
+void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
+  Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->input());
+  __ ldr(result, FieldMemOperand(array, FixedArray::kLengthOffset));
+  Abort("DoFixedArrayLength untested.");
 }
 
 
@@ -1337,14 +1332,16 @@ void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
 
 
 void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
-  // We expect object and function in registers r1 and r0.
+  ASSERT(ToRegister(instr->left()).is(r0));  // Object is in r0.
+  ASSERT(ToRegister(instr->right()).is(r1));  // Function is in r1.
+
   InstanceofStub stub(InstanceofStub::kArgsInRegisters);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 
   Label true_value, done;
   __ tst(r0, r0);
-  __ mov(r0, Operand(Factory::false_value()), LeaveCC, eq);
-  __ mov(r0, Operand(Factory::true_value()), LeaveCC, ne);
+  __ mov(r0, Operand(Factory::false_value()), LeaveCC, ne);
+  __ mov(r0, Operand(Factory::true_value()), LeaveCC, eq);
 }
 
 
@@ -1444,6 +1441,50 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   __ mov(r2, Operand(instr->name()));
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
+}
+
+
+void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
+  Register function = ToRegister(instr->function());
+  Register temp = ToRegister(instr->temporary());
+  Register result = ToRegister(instr->result());
+
+  // Check that the function really is a function. Load map into the
+  // result register.
+  __ CompareObjectType(function, result, temp, JS_FUNCTION_TYPE);
+  DeoptimizeIf(ne, instr->environment());
+
+  // Make sure that the function has an instance prototype.
+  Label non_instance;
+  __ ldrb(temp, FieldMemOperand(result, Map::kBitFieldOffset));
+  __ tst(temp, Operand(1 << Map::kHasNonInstancePrototype));
+  __ b(ne, &non_instance);
+
+  // Get the prototype or initial map from the function.
+  __ ldr(result,
+         FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // Check that the function has a prototype or an initial map.
+  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ cmp(result, ip);
+  DeoptimizeIf(eq, instr->environment());
+
+  // If the function does not have an initial map, we're done.
+  Label done;
+  __ CompareObjectType(result, temp, temp, MAP_TYPE);
+  __ b(ne, &done);
+
+  // Get the prototype from the initial map.
+  __ ldr(result, FieldMemOperand(result, Map::kPrototypeOffset));
+  __ jmp(&done);
+
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in initial map.
+  __ bind(&non_instance);
+  __ ldr(result, FieldMemOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  __ bind(&done);
 }
 
 
