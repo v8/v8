@@ -1248,8 +1248,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       __ InNewSpace(rbx, rcx, equal, &exit);
 
-      RecordWriteStub stub(rbx, rdx, rcx);
-      __ CallStub(&stub);
+      __ RecordWriteHelper(rbx, rdx, rcx);
 
       __ ret((argc + 1) * kPointerSize);
 

@@ -5618,12 +5618,10 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   // (or them and test against Smi mask.)
 
   __ mov(tmp2, tmp1);
-  RecordWriteStub recordWrite1(tmp1, index1, tmp3);
-  __ CallStub(&recordWrite1);
-
-  RecordWriteStub recordWrite2(tmp2, index2, tmp3);
-  __ CallStub(&recordWrite2);
-
+  __ add(index1, index1, tmp1);
+  __ add(index2, index2, tmp1);
+  __ RecordWriteHelper(tmp1, index1, tmp3);
+  __ RecordWriteHelper(tmp2, index2, tmp3);
   __ bind(&done);
 
   deferred->BindExit();
