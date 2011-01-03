@@ -1199,7 +1199,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
         break;
       case kExternalShortArray:
       case kExternalUnsignedShortArray:
-        __ xor_(ecx, Operand(ecx));
+        __ Set(ecx, Immediate(0));
         __ mov_w(Operand(edi, ebx, times_2, 0), ecx);
         break;
       case kExternalIntArray:

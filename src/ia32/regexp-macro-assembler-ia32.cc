@@ -652,7 +652,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
 
 void RegExpMacroAssemblerIA32::Fail() {
   ASSERT(FAILURE == 0);  // Return value for failure is zero.
-  __ xor_(eax, Operand(eax));  // zero eax.
+  __ Set(eax, Immediate(0));
   __ jmp(&exit_label_);
 }
 

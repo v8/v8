@@ -688,7 +688,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
 
 void RegExpMacroAssemblerX64::Fail() {
   ASSERT(FAILURE == 0);  // Return value for failure is zero.
-  __ xor_(rax, rax);  // zero rax.
+  __ Set(rax, 0);
   __ jmp(&exit_label_);
 }
 

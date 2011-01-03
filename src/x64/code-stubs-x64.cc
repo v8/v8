@@ -104,7 +104,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(length));
 
   // Setup the fixed slots.
-  __ xor_(rbx, rbx);  // Set to NULL.
+  __ Set(rbx, 0);  // Set to NULL.
   __ movq(Operand(rax, Context::SlotOffset(Context::CLOSURE_INDEX)), rcx);
   __ movq(Operand(rax, Context::SlotOffset(Context::FCONTEXT_INDEX)), rax);
   __ movq(Operand(rax, Context::SlotOffset(Context::PREVIOUS_INDEX)), rbx);
@@ -250,7 +250,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ movq(rax, Immediate(1));
   __ ret(1 * kPointerSize);
   __ bind(&false_result);
-  __ xor_(rax, rax);
+  __ Set(rax, 0);
   __ ret(1 * kPointerSize);
 }
 
@@ -2572,7 +2572,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 
   // Before returning we restore the context from the frame pointer if not NULL.
   // The frame pointer is NULL in the exception handler of a JS entry frame.
-  __ xor_(rsi, rsi);  // tentatively set context pointer to NULL
+  __ Set(rsi, 0);  // Tentatively set context pointer to NULL
   NearLabel skip;
   __ cmpq(rbp, Immediate(0));
   __ j(equal, &skip);
@@ -2756,7 +2756,7 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
   }
 
   // Clear the context pointer.
-  __ xor_(rsi, rsi);
+  __ Set(rsi, 0);
 
   // Restore registers from handler.
   STATIC_ASSERT(StackHandlerConstants::kNextOffset + kPointerSize ==

@@ -80,7 +80,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 #ifdef DEBUG
   __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
-  __ xor_(rax, rax);  // No arguments (argc == 0).
+  __ Set(rax, 0);  // No arguments (argc == 0).
   __ movq(rbx, ExternalReference::debug_break());
 
   CEntryStub ceb(1);
