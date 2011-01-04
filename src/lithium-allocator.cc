@@ -106,9 +106,6 @@ void LOperand::PrintTo(StringStream* stream) {
         case LUnallocated::SAME_AS_FIRST_INPUT:
           stream->Add("(1)");
           break;
-        case LUnallocated::SAME_AS_ANY_INPUT:
-          stream->Add("(A)");
-          break;
         case LUnallocated::ANY:
           stream->Add("(-)");
           break;

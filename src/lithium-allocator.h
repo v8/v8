@@ -205,7 +205,6 @@ class LUnallocated: public LOperand {
     MUST_HAVE_REGISTER,
     WRITABLE_REGISTER,
     SAME_AS_FIRST_INPUT,
-    SAME_AS_ANY_INPUT,
     IGNORE
   };
 
@@ -276,7 +275,7 @@ class LUnallocated: public LOperand {
     return policy() == WRITABLE_REGISTER || policy() == MUST_HAVE_REGISTER;
   }
   bool HasSameAsInputPolicy() const {
-    return policy() == SAME_AS_FIRST_INPUT || policy() == SAME_AS_ANY_INPUT;
+    return policy() == SAME_AS_FIRST_INPUT;
   }
   Policy policy() const { return PolicyField::decode(value_); }
   void set_policy(Policy policy) {

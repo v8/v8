@@ -2087,7 +2087,6 @@ class LChunkBuilder BASE_EMBEDDED {
   LInstruction* Define(LInstruction* instr);
   LInstruction* DefineAsRegister(LInstruction* instr);
   LInstruction* DefineAsSpilled(LInstruction* instr, int index);
-  LInstruction* DefineSameAsAny(LInstruction* instr);
   LInstruction* DefineSameAsFirst(LInstruction* instr);
   LInstruction* DefineFixed(LInstruction* instr, Register reg);
   LInstruction* DefineFixedDouble(LInstruction* instr, XMMRegister reg);
