@@ -314,7 +314,7 @@ class Page : public MemoryChunk {
   static const int kObjectAreaSize = kPageSize - kObjectStartOffset;
 
   // Maximum object size that fits in a page.
-  static const int kMaxHeapObjectSize = kObjectAreaSize >> 4;
+  static const int kMaxHeapObjectSize = kObjectAreaSize;
 
 #ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   static const int kDirtyFlagOffset = 2 * kPointerSize;
