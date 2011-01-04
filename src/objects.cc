@@ -2932,7 +2932,6 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
 
   uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
-  if (is_element && IsJSArray()) return Heap::undefined_value();
 
   if (is_element) {
     switch (GetElementsKind()) {
@@ -6945,12 +6944,12 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
   FixedArray* elms = FixedArray::cast(elms_obj);
   uint32_t elms_length = static_cast<uint32_t>(elms->length());
 
-  if (check_prototype && !IsJSArray() &&
-      (index >= elms_length || elms->get(index)->IsTheHole())) {
-    if (SetElementWithCallbackSetterInPrototypes(index, value)) {
-      return value;
-    }
+  if (check_prototype &&
+      (index >= elms_length || elms->get(index)->IsTheHole()) &&
+      SetElementWithCallbackSetterInPrototypes(index, value)) {
+    return value;
   }
+
 
   // Check whether there is extra space in fixed array..
   if (index < elms_length) {
@@ -7080,7 +7079,7 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
         }
       } else {
         // Index not already used. Look for an accessor in the prototype chain.
-        if (check_prototype && !IsJSArray() &&
+        if (check_prototype &&
             SetElementWithCallbackSetterInPrototypes(index, value)) {
           return value;
         }
