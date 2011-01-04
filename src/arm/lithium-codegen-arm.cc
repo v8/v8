@@ -598,7 +598,7 @@ void LCodeGen::DoParallelMove(LParallelMove* move) {
   DoubleRegister dbl_scratch = d0;
   LUnallocated marker_operand(LUnallocated::NONE);
 
-  Register core_scratch = r9;
+  Register core_scratch = scratch0();
   bool destroys_core_scratch = false;
 
   LGapResolver resolver(move->move_operands(), &marker_operand);
@@ -796,8 +796,8 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
 
 void LCodeGen::DoMulI(LMulI* instr) {
+  Register scratch = scratch0();
   Register left = ToRegister(instr->left());
-  Register scratch = r9;
   Register right = EmitLoadRegister(instr->right(), scratch);
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero) &&
@@ -859,6 +859,7 @@ void LCodeGen::DoBitI(LBitI* instr) {
 
 
 void LCodeGen::DoShiftI(LShiftI* instr) {
+  Register scratch = scratch0();
   LOperand* left = instr->left();
   LOperand* right = instr->right();
   ASSERT(left->Equals(instr->result()));
@@ -866,21 +867,21 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
   Register result = ToRegister(left);
   if (right->IsRegister()) {
     // Mask the right operand.
-    __ and_(r9, ToRegister(right), Operand(0x1F));
+    __ and_(scratch, ToRegister(right), Operand(0x1F));
     switch (instr->op()) {
       case Token::SAR:
-        __ mov(result, Operand(result, ASR, r9));
+        __ mov(result, Operand(result, ASR, scratch));
         break;
       case Token::SHR:
         if (instr->can_deopt()) {
-          __ mov(result, Operand(result, LSR, r9), SetCC);
+          __ mov(result, Operand(result, LSR, scratch), SetCC);
           DeoptimizeIf(mi, instr->environment());
         } else {
-          __ mov(result, Operand(result, LSR, r9));
+          __ mov(result, Operand(result, LSR, scratch));
         }
         break;
       case Token::SHL:
-        __ mov(result, Operand(result, LSL, r9));
+        __ mov(result, Operand(result, LSL, scratch));
         break;
       default:
         UNREACHABLE();
@@ -1105,11 +1106,10 @@ void LCodeGen::DoBranch(LBranch* instr) {
       // Test for double values. Zero is false.
       Label call_stub;
       DoubleRegister dbl_scratch = d0;
-      Register core_scratch = r9;
-      ASSERT(!reg.is(core_scratch));
-      __ ldr(core_scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
+      Register scratch = scratch0();
+      __ ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
       __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-      __ cmp(core_scratch, Operand(ip));
+      __ cmp(scratch, Operand(ip));
       __ b(ne, &call_stub);
       __ sub(ip, reg, Operand(kHeapObjectTag));
       __ vldr(dbl_scratch, ip, HeapNumber::kValueOffset);
@@ -1250,6 +1250,7 @@ void LCodeGen::DoIsNull(LIsNull* instr) {
 
 
 void LCodeGen::DoIsNullAndBranch(LIsNullAndBranch* instr) {
+  Register scratch = scratch0();
   Register reg = ToRegister(instr->input());
 
   // TODO(fsc): If the expression is known to be a smi, then it's
@@ -1273,7 +1274,6 @@ void LCodeGen::DoIsNullAndBranch(LIsNullAndBranch* instr) {
     __ b(eq, false_label);
     // Check for undetectable objects by looking in the bit field in
     // the map. The object has already been smi checked.
-    Register scratch = ToRegister(instr->temp());
     __ ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
     __ ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
     __ tst(scratch, Operand(1 << Map::kIsUndetectable));
@@ -1351,8 +1351,8 @@ void LCodeGen::DoHasInstanceType(LHasInstanceType* instr) {
 
 
 void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
+  Register scratch = scratch0();
   Register input = ToRegister(instr->input());
-  Register temp = ToRegister(instr->temp());
 
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
@@ -1362,7 +1362,7 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
   __ tst(input, Operand(kSmiTagMask));
   __ b(eq, false_label);
 
-  __ CompareObjectType(input, temp, temp, instr->TestType());
+  __ CompareObjectType(input, scratch, scratch, instr->TestType());
   EmitBranch(true_block, false_block, instr->BranchCondition());
 }
 
@@ -1533,19 +1533,19 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
 
 
 void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
+  Register scratch = scratch0();
   Register function = ToRegister(instr->function());
-  Register temp = ToRegister(instr->temporary());
   Register result = ToRegister(instr->result());
 
   // Check that the function really is a function. Load map into the
   // result register.
-  __ CompareObjectType(function, result, temp, JS_FUNCTION_TYPE);
+  __ CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE);
   DeoptimizeIf(ne, instr->environment());
 
   // Make sure that the function has an instance prototype.
   Label non_instance;
-  __ ldrb(temp, FieldMemOperand(result, Map::kBitFieldOffset));
-  __ tst(temp, Operand(1 << Map::kHasNonInstancePrototype));
+  __ ldrb(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
+  __ tst(scratch, Operand(1 << Map::kHasNonInstancePrototype));
   __ b(ne, &non_instance);
 
   // Get the prototype or initial map from the function.
@@ -1559,7 +1559,7 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 
   // If the function does not have an initial map, we're done.
   Label done;
-  __ CompareObjectType(result, temp, temp, MAP_TYPE);
+  __ CompareObjectType(result, scratch, scratch, MAP_TYPE);
   __ b(ne, &done);
 
   // Get the prototype from the initial map.
@@ -1895,10 +1895,10 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   };
 
   DoubleRegister input_reg = ToDoubleRegister(instr->input());
+  Register scratch = scratch0();
   Register reg = ToRegister(instr->result());
   Register temp1 = ToRegister(instr->temp1());
   Register temp2 = ToRegister(instr->temp2());
-  Register scratch = r9;
 
   DeferredNumberTagD* deferred = new DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
@@ -1946,8 +1946,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 DoubleRegister result_reg,
                                 LEnvironment* env) {
-  Register core_scratch = r9;
-  ASSERT(!input_reg.is(core_scratch));
+  Register scratch = scratch0();
   SwVfpRegister flt_scratch = s0;
   ASSERT(!result_reg.is(d0));
 
@@ -1958,9 +1957,9 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   __ b(eq, &load_smi);
 
   // Heap number map check.
-  __ ldr(core_scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
+  __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-  __ cmp(core_scratch, Operand(ip));
+  __ cmp(scratch, Operand(ip));
   __ b(eq, &heap_number);
 
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
@@ -2002,16 +2001,15 @@ class DeferredTaggedToI: public LDeferredCode {
 void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   Label done;
   Register input_reg = ToRegister(instr->input());
-  Register core_scratch = r9;
-  ASSERT(!input_reg.is(core_scratch));
+  Register scratch = scratch0();
   DoubleRegister dbl_scratch = d0;
   SwVfpRegister flt_scratch = s0;
   DoubleRegister dbl_tmp = ToDoubleRegister(instr->temp());
 
   // Heap number map check.
-  __ ldr(core_scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
+  __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-  __ cmp(core_scratch, Operand(ip));
+  __ cmp(scratch, Operand(ip));
 
   if (instr->truncating()) {
     Label heap_number;
@@ -2123,11 +2121,12 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
 
 
 void LCodeGen::DoCheckMap(LCheckMap* instr) {
+  Register scratch = scratch0();
   LOperand* input = instr->input();
   ASSERT(input->IsRegister());
   Register reg = ToRegister(input);
-  __ ldr(r9, FieldMemOperand(reg, HeapObject::kMapOffset));
-  __ cmp(r9, Operand(instr->hydrogen()->map()));
+  __ ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
+  __ cmp(scratch, Operand(instr->hydrogen()->map()));
   DeoptimizeIf(ne, instr->environment());
 }
 
@@ -2224,8 +2223,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
                                  Register input,
                                  Handle<String> type_name) {
   Condition final_branch_condition = no_condition;
-  Register core_scratch = r9;
-  ASSERT(!input.is(core_scratch));
+  Register scratch = scratch0();
   if (type_name->Equals(Heap::number_symbol())) {
     __ tst(input, Operand(kSmiTagMask));
     __ b(eq, true_label);
@@ -2241,7 +2239,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ ldrb(ip, FieldMemOperand(input, Map::kBitFieldOffset));
     __ tst(ip, Operand(1 << Map::kIsUndetectable));
     __ b(ne, false_label);
-    __ CompareInstanceType(input, core_scratch, FIRST_NONSTRING_TYPE);
+    __ CompareInstanceType(input, scratch, FIRST_NONSTRING_TYPE);
     final_branch_condition = lo;
 
   } else if (type_name->Equals(Heap::boolean_symbol())) {
@@ -2267,10 +2265,10 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   } else if (type_name->Equals(Heap::function_symbol())) {
     __ tst(input, Operand(kSmiTagMask));
     __ b(eq, false_label);
-    __ CompareObjectType(input, input, core_scratch, JS_FUNCTION_TYPE);
+    __ CompareObjectType(input, input, scratch, JS_FUNCTION_TYPE);
     __ b(eq, true_label);
     // Regular expressions => 'function' (they are callable).
-    __ CompareInstanceType(input, core_scratch, JS_REGEXP_TYPE);
+    __ CompareInstanceType(input, scratch, JS_REGEXP_TYPE);
     final_branch_condition = eq;
 
   } else if (type_name->Equals(Heap::object_symbol())) {
@@ -2280,16 +2278,16 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ cmp(input, ip);
     __ b(eq, true_label);
     // Regular expressions => 'function', not 'object'.
-    __ CompareObjectType(input, input, core_scratch, JS_REGEXP_TYPE);
+    __ CompareObjectType(input, input, scratch, JS_REGEXP_TYPE);
     __ b(eq, false_label);
     // Check for undetectable objects => false.
     __ ldrb(ip, FieldMemOperand(input, Map::kBitFieldOffset));
     __ tst(ip, Operand(1 << Map::kIsUndetectable));
     __ b(ne, false_label);
     // Check for JS objects => true.
-    __ CompareInstanceType(input, core_scratch, FIRST_JS_OBJECT_TYPE);
+    __ CompareInstanceType(input, scratch, FIRST_JS_OBJECT_TYPE);
     __ b(lo, false_label);
-    __ CompareInstanceType(input, core_scratch, LAST_JS_OBJECT_TYPE);
+    __ CompareInstanceType(input, scratch, LAST_JS_OBJECT_TYPE);
     final_branch_condition = ls;
 
   } else {

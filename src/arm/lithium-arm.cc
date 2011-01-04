@@ -1222,7 +1222,6 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
       ASSERT(compare->value()->representation().IsTagged());
 
       return new LHasInstanceTypeAndBranch(UseRegisterAtStart(compare->value()),
-                                           TempRegister(),
                                            first_id,
                                            second_id);
     } else if (v->IsHasCachedArrayIndex()) {
@@ -1235,11 +1234,8 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
       HIsNull* compare = HIsNull::cast(v);
       ASSERT(compare->value()->representation().IsTagged());
 
-      // We only need a temp register for non-strict compare.
-      LOperand* temp = compare->is_strict() ? NULL : TempRegister();
       return new LIsNullAndBranch(UseRegisterAtStart(compare->value()),
                                   compare->is_strict(),
-                                  temp,
                                   first_id,
                                   second_id);
     } else if (v->IsIsObject()) {
@@ -1851,8 +1847,7 @@ LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
 LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
     HLoadFunctionPrototype* instr) {
   return AssignEnvironment(DefineAsRegister(
-      new LLoadFunctionPrototype(UseRegister(instr->function()),
-                                 TempRegister())));
+      new LLoadFunctionPrototype(UseRegister(instr->function()))));
 }
 
 

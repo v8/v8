@@ -103,6 +103,8 @@ class LCodeGen BASE_EMBEDDED {
   HGraph* graph() const { return chunk_->graph(); }
   MacroAssembler* masm() const { return masm_; }
 
+  Register scratch0() { return r9; }
+
   int GetNextEmittedBlock(int block);
   LInstruction* GetNextInstruction();
 
