@@ -730,7 +730,53 @@ void LCodeGen::DoParameter(LParameter* instr) {
 
 
 void LCodeGen::DoCallStub(LCallStub* instr) {
-  Abort("DoCallStub unimplemented.");
+  ASSERT(ToRegister(instr->result()).is(r0));
+  switch (instr->hydrogen()->major_key()) {
+    case CodeStub::RegExpConstructResult: {
+      RegExpConstructResultStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::RegExpExec: {
+      RegExpExecStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::SubString: {
+      SubStringStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::StringCharAt: {
+      Abort("StringCharAtStub unimplemented.");
+      break;
+    }
+    case CodeStub::MathPow: {
+      Abort("MathPowStub unimplemented.");
+      break;
+    }
+    case CodeStub::NumberToString: {
+      NumberToStringStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::StringAdd: {
+      StringAddStub stub(NO_STRING_ADD_FLAGS);
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::StringCompare: {
+      StringCompareStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::TranscendentalCache: {
+      Abort("TranscendentalCache unimplemented.");
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 
@@ -902,7 +948,6 @@ void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->input());
   __ ldr(result, FieldMemOperand(array, JSArray::kLengthOffset));
-  Abort("DoJSArrayLength untested.");
 }
 
 
@@ -1171,7 +1216,36 @@ void LCodeGen::DoCmpJSObjectEqAndBranch(LCmpJSObjectEqAndBranch* instr) {
 
 
 void LCodeGen::DoIsNull(LIsNull* instr) {
-  Abort("DoIsNull unimplemented.");
+  Register reg = ToRegister(instr->input());
+  Register result = ToRegister(instr->result());
+
+  __ LoadRoot(ip, Heap::kNullValueRootIndex);
+  __ cmp(reg, ip);
+  if (instr->is_strict()) {
+    __ LoadRoot(result, Heap::kTrueValueRootIndex, eq);
+    __ LoadRoot(result, Heap::kFalseValueRootIndex, ne);
+  } else {
+    Label true_value, false_value, done;
+    __ b(eq, &true_value);
+    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ cmp(ip, reg);
+    __ b(eq, &true_value);
+    __ tst(reg, Operand(kSmiTagMask));
+    __ b(eq, &false_value);
+    // Check for undetectable objects by looking in the bit field in
+    // the map. The object has already been smi checked.
+    Register scratch = result;
+    __ ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
+    __ ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ tst(scratch, Operand(1 << Map::kIsUndetectable));
+    __ b(ne, &true_value);
+    __ bind(&false_value);
+    __ LoadRoot(result, Heap::kFalseValueRootIndex);
+    __ jmp(&done);
+    __ bind(&true_value);
+    __ LoadRoot(result, Heap::kTrueValueRootIndex);
+    __ bind(&done);
+  }
 }
 
 
@@ -1327,7 +1401,14 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
 
 
 void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
-  Abort("DoCmpMapAndBranch unimplemented.");
+  Register reg = ToRegister(instr->input());
+  Register temp = ToRegister(instr->temp());
+  int true_block = instr->true_block_id();
+  int false_block = instr->false_block_id();
+
+  __ ldr(temp, FieldMemOperand(reg, HeapObject::kMapOffset));
+  __ cmp(temp, Operand(instr->map()));
+  EmitBranch(true_block, false_block, eq);
 }
 
 
@@ -1429,7 +1510,14 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
-  Abort("DoLoadNamedField unimplemented.");
+  Register object = ToRegister(instr->input());
+  Register result = ToRegister(instr->result());
+  if (instr->hydrogen()->is_in_object()) {
+    __ ldr(result, FieldMemOperand(object, instr->hydrogen()->offset()));
+  } else {
+    __ ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
+    __ ldr(result, FieldMemOperand(result, instr->hydrogen()->offset()));
+  }
 }
 
 
@@ -1585,7 +1673,9 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 
 
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
-  Abort("DoCallConstantFunction unimplemented.");
+  ASSERT(ToRegister(instr->result()).is(r0));
+  __ mov(r1, Operand(instr->function()));
+  CallKnownFunction(instr->function(), instr->arity(), instr);
 }
 
 
@@ -1645,7 +1735,13 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
 
 
 void LCodeGen::DoCallFunction(LCallFunction* instr) {
-  Abort("DoCallFunction unimplemented.");
+  ASSERT(ToRegister(instr->result()).is(r0));
+
+  int arity = instr->arity();
+  CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_VALUE);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ Drop(1);
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -1693,7 +1789,8 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
 
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  Abort("DoBoundsCheck unimplemented.");
+  __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));
+  DeoptimizeIf(hs, instr->environment());
 }
 
 
@@ -2037,12 +2134,42 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
 
 void LCodeGen::LoadPrototype(Register result,
                              Handle<JSObject> prototype) {
-  Abort("LoadPrototype unimplemented.");
+  if (Heap::InNewSpace(*prototype)) {
+    Handle<JSGlobalPropertyCell> cell =
+        Factory::NewJSGlobalPropertyCell(prototype);
+    __ mov(result, Operand(cell));
+  } else {
+    __ mov(result, Operand(prototype));
+  }
 }
 
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
-  Abort("DoCheckPrototypeMaps unimplemented.");
+  Register temp1 = ToRegister(instr->temp1());
+  Register temp2 = ToRegister(instr->temp2());
+
+  Handle<JSObject> holder = instr->holder();
+  Handle<Map> receiver_map = instr->receiver_map();
+  Handle<JSObject> current_prototype(JSObject::cast(receiver_map->prototype()));
+
+  // Load prototype object.
+  LoadPrototype(temp1, current_prototype);
+
+  // Check prototype maps up to the holder.
+  while (!current_prototype.is_identical_to(holder)) {
+    __ ldr(temp2, FieldMemOperand(temp1, HeapObject::kMapOffset));
+    __ cmp(temp2, Operand(Handle<Map>(current_prototype->map())));
+    DeoptimizeIf(ne, instr->environment());
+    current_prototype =
+        Handle<JSObject>(JSObject::cast(current_prototype->GetPrototype()));
+    // Load next prototype object.
+    LoadPrototype(temp1, current_prototype);
+  }
+
+  // Check the holder map.
+  __ ldr(temp2, FieldMemOperand(temp1, HeapObject::kMapOffset));
+  __ cmp(temp2, Operand(Handle<Map>(current_prototype->map())));
+  DeoptimizeIf(ne, instr->environment());
 }
 
 

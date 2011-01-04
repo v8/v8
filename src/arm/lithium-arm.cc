@@ -1292,12 +1292,8 @@ LInstruction* LChunkBuilder::DoCompareMapAndBranch(
     HCompareMapAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
-  HBasicBlock* first = instr->FirstSuccessor();
-  HBasicBlock* second = instr->SecondSuccessor();
-  return new LCmpMapAndBranch(value,
-                              instr->map(),
-                              first->block_id(),
-                              second->block_id());
+  LOperand* temp = TempRegister();
+  return new LCmpMapAndBranch(value, temp);
 }
 
 
@@ -1367,6 +1363,9 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       return AssignEnvironment(DefineAsRegister(result));
     case kMathSqrt:
       return DefineSameAsFirst(result);
+    case kMathRound:
+      Abort("MathRound LUnaryMathOperation not implemented");
+      return NULL;
     case kMathPowHalf:
       Abort("MathPowHalf LUnaryMathOperation not implemented");
       return NULL;
@@ -1771,9 +1770,11 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
-  LOperand* temp = TempRegister();
+  LOperand* temp1 = TempRegister();
+  LOperand* temp2 = TempRegister();
   LInstruction* result =
-      new LCheckPrototypeMaps(temp,
+      new LCheckPrototypeMaps(temp1,
+                              temp2,
                               instr->holder(),
                               instr->receiver_map());
   return AssignEnvironment(result);

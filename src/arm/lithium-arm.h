@@ -1121,27 +1121,25 @@ class LBranch: public LUnaryOperation {
 
 class LCmpMapAndBranch: public LUnaryOperation {
  public:
-  LCmpMapAndBranch(LOperand* value,
-                   Handle<Map> map,
-                   int true_block_id,
-                   int false_block_id)
-      : LUnaryOperation(value),
-        map_(map),
-        true_block_id_(true_block_id),
-        false_block_id_(false_block_id) { }
+  LCmpMapAndBranch(LOperand* value, LOperand* temp)
+      : LUnaryOperation(value), temp_(temp) { }
 
   DECLARE_CONCRETE_INSTRUCTION(CmpMapAndBranch, "cmp-map-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareMapAndBranch)
 
   virtual bool IsControl() const { return true; }
 
-  Handle<Map> map() const { return map_; }
-  int true_block_id() const { return true_block_id_; }
-  int false_block_id() const { return false_block_id_; }
+  LOperand* temp() const { return temp_; }
+  Handle<Map> map() const { return hydrogen()->map(); }
+  int true_block_id() const {
+    return hydrogen()->true_destination()->block_id();
+  }
+  int false_block_id() const {
+    return hydrogen()->false_destination()->block_id();
+  }
 
  private:
-  Handle<Map> map_;
-  int true_block_id_;
-  int false_block_id_;
+  LOperand* temp_;
 };
 
 
@@ -1678,21 +1676,25 @@ class LCheckMap: public LUnaryOperation {
 
 class LCheckPrototypeMaps: public LInstruction {
  public:
-  LCheckPrototypeMaps(LOperand* temp,
+  LCheckPrototypeMaps(LOperand* temp1,
+                      LOperand* temp2,
                       Handle<JSObject> holder,
                       Handle<Map> receiver_map)
-      : temp_(temp),
+      : temp1_(temp1),
+        temp2_(temp2),
         holder_(holder),
         receiver_map_(receiver_map) { }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps, "check-prototype-maps")
 
-  LOperand* temp() const { return temp_; }
+  LOperand* temp1() const { return temp1_; }
+  LOperand* temp2() const { return temp2_; }
   Handle<JSObject> holder() const { return holder_; }
   Handle<Map> receiver_map() const { return receiver_map_; }
 
  private:
-  LOperand* temp_;
+  LOperand* temp1_;
+  LOperand* temp2_;
   Handle<JSObject> holder_;
   Handle<Map> receiver_map_;
 };
