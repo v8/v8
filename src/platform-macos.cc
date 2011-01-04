@@ -52,8 +52,6 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <string>
-
 #undef MAP_TYPE
 
 #include "v8.h"
@@ -437,9 +435,10 @@ static void SetThreadName(const char* name) {
     return;
 
   // Mac OS X does not expose the length limit of the name, so hardcode it.
-  const int kMaxNameLength = 63;
-  std::string shortened_name = std::string(name).substr(0, kMaxNameLength);
-  dynamic_pthread_setname_np(shortened_name.c_str());
+  static const int kMaxNameLength = 63;
+  USE(kMaxNameLength);
+  ASSERT(kMaxThreadNameLength <= kMaxNameLength); 
+  dynamic_pthread_setname_np(name);
 }
 
 
