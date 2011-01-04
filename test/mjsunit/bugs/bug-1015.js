@@ -35,7 +35,7 @@ function mkFail(message) {
 }
 
 Object.defineProperty(Object.prototype, "foo",
-		              {get: mkFail("oget"), set: mkFail("oset")});
+                      {get: mkFail("oget"), set: mkFail("oset")});
 Object.defineProperty(Array.prototype, "2",
                       {get: mkFail("aget"), set: mkFail("aset")});
 
