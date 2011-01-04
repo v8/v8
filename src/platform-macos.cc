@@ -437,7 +437,7 @@ static void SetThreadName(const char* name) {
   // Mac OS X does not expose the length limit of the name, so hardcode it.
   static const int kMaxNameLength = 63;
   USE(kMaxNameLength);
-  ASSERT(kMaxThreadNameLength <= kMaxNameLength);
+  ASSERT(Thread::kMaxThreadNameLength <= kMaxNameLength);
   dynamic_pthread_setname_np(name);
 }
 

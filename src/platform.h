@@ -421,15 +421,15 @@ class Thread: public ThreadHandle {
   // A hint to the scheduler to let another thread run.
   static void YieldCPU();
 
+  // The thread name length is limited to 16 based on Linux's implementation of
+  // prctl().
+  static const int kMaxThreadNameLength = 16;
  private:
   void set_name(const char *name);
 
   class PlatformData;
   PlatformData* data_;
 
-  // The thread name length is limited to 16 based on Linux's implementation of
-  // prctl().
-  static const int kMaxThreadNameLength = 16;
   char name_[kMaxThreadNameLength];
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
