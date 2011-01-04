@@ -77,7 +77,7 @@ class GenericBinaryOpStub : public CodeStub {
         rhs_(rhs),
         constant_rhs_(constant_rhs),
         specialized_on_rhs_(RhsIsOneWeWantToOptimizeFor(op, constant_rhs)),
-        runtime_operands_type_(BinaryOpIC::DEFAULT),
+        runtime_operands_type_(BinaryOpIC::UNINIT_OR_SMI),
         name_(NULL) { }
 
   GenericBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info)
@@ -176,6 +176,10 @@ class GenericBinaryOpStub : public CodeStub {
 
   Register RhsRegister(bool lhs_is_r0) {
     return lhs_is_r0 ? r1 : r0;
+  }
+
+  bool HasSmiSmiFastPath() {
+    return op_ != Token::DIV;
   }
 
   bool ShouldGenerateSmiCode() {

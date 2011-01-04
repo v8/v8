@@ -38,6 +38,8 @@
 #include "scopes.h"
 #include "stub-cache.h"
 
+#include "arm/code-stubs-arm.h"
+
 namespace v8 {
 namespace internal {
 
