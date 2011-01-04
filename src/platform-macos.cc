@@ -29,7 +29,6 @@
 // the implementation is in platform-posix.cc.
 
 #include <dlfcn.h>
-#include <string>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <mach/mach_init.h>
@@ -51,8 +50,9 @@
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stdlib.h>
-
 #include <errno.h>
+
+#include <string>
 
 #undef MAP_TYPE
 
