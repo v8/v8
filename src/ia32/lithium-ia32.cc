@@ -2036,7 +2036,7 @@ LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
 
 
 LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
-  LInstruction* result = new LTypeof(Use(instr->value()));
+  LInstruction* result = new LTypeof(UseAtStart(instr->value()));
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 

@@ -1586,7 +1586,27 @@ RegisterKind LAllocator::RequiredRegisterKind(int virtual_register) const {
 
 
 void LAllocator::MarkAsCall() {
-  current_summary()->MarkAsCall();
+  // Call instructions can use only fixed registers as
+  // temporaries and outputs because all registers
+  // are blocked by the calling convention.
+  // Inputs can use either fixed register or have a short lifetime (be
+  // used at start of the instruction).
+  InstructionSummary* summary = current_summary();
+#ifdef DEBUG
+  ASSERT(summary->Output() == NULL ||
+         LUnallocated::cast(summary->Output())->HasFixedPolicy() ||
+         !LUnallocated::cast(summary->Output())->HasRegisterPolicy());
+  for (int i = 0; i < summary->InputCount(); i++) {
+    ASSERT(LUnallocated::cast(summary->InputAt(i))->HasFixedPolicy() ||
+           LUnallocated::cast(summary->InputAt(i))->IsUsedAtStart() ||
+           !LUnallocated::cast(summary->InputAt(i))->HasRegisterPolicy());
+  }
+  for (int i = 0; i < summary->TempCount(); i++) {
+    ASSERT(LUnallocated::cast(summary->TempAt(i))->HasFixedPolicy() ||
+           !LUnallocated::cast(summary->TempAt(i))->HasRegisterPolicy());
+  }
+#endif
+  summary->MarkAsCall();
 }
 
 
