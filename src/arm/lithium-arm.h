@@ -1253,7 +1253,8 @@ class LLoadNamedGeneric: public LUnaryOperation {
 
 class LLoadFunctionPrototype: public LUnaryOperation {
  public:
-  LLoadFunctionPrototype(LOperand* function) : LUnaryOperation(function) { }
+  explicit LLoadFunctionPrototype(LOperand* function)
+      : LUnaryOperation(function) { }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadFunctionPrototype, "load-function-prototype")
   DECLARE_HYDROGEN_ACCESSOR(LoadFunctionPrototype)
