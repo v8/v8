@@ -1474,7 +1474,7 @@ Thread::Thread(const char* name) : ThreadHandle(ThreadHandle::INVALID) {
 
 
 void Thread::set_name(const char* name) {
-  strncpy(name_, name, sizeof(name_));
+  strncpy_s(name_, name, sizeof(name_));
   name_[sizeof(name_) - 1] = '\0';
 }
 
