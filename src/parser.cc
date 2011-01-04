@@ -3680,9 +3680,11 @@ Handle<Object> JsonParser::ParseJsonObject() {
       if (value.is_null()) return Handle<Object>::null();
       uint32_t index;
       if (key->AsArrayIndex(&index)) {
-        SetElement(json_object, index, value);
+        CALL_HEAP_FUNCTION_INLINE(
+            (*json_object)->SetElement(index, *value, true));
       } else {
-        SetProperty(json_object, key, value, NONE);
+        CALL_HEAP_FUNCTION_INLINE(
+            (*json_object)->SetPropertyPostInterceptor(*key, *value, NONE));
       }
     } while (scanner_.Next() == Token::COMMA);
     if (scanner_.current_token() != Token::RBRACE) {

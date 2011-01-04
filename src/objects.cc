@@ -6795,7 +6795,8 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
 
 
 MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
-                                                 Object* value) {
+                                                 Object* value,
+                                                 bool check_prototype) {
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
@@ -6819,7 +6820,9 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
     if (!result.IsEmpty()) return *value_handle;
   }
   MaybeObject* raw_result =
-      this_handle->SetElementWithoutInterceptor(index, *value_handle);
+      this_handle->SetElementWithoutInterceptor(index,
+                                                *value_handle,
+                                                check_prototype);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
 }
@@ -6930,7 +6933,9 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
 // Adding n elements in fast case is O(n*n).
 // Note: revisit design to have dual undefined values to capture absent
 // elements.
-MaybeObject* JSObject::SetFastElement(uint32_t index, Object* value) {
+MaybeObject* JSObject::SetFastElement(uint32_t index,
+                                      Object* value,
+                                      bool check_prototype) {
   ASSERT(HasFastElements());
 
   Object* elms_obj;
@@ -6940,7 +6945,8 @@ MaybeObject* JSObject::SetFastElement(uint32_t index, Object* value) {
   FixedArray* elms = FixedArray::cast(elms_obj);
   uint32_t elms_length = static_cast<uint32_t>(elms->length());
 
-  if (!IsJSArray() && (index >= elms_length || elms->get(index)->IsTheHole())) {
+  if (check_prototype && !IsJSArray() &&
+      (index >= elms_length || elms->get(index)->IsTheHole())) {
     if (SetElementWithCallbackSetterInPrototypes(index, value)) {
       return value;
     }
@@ -6983,11 +6989,13 @@ MaybeObject* JSObject::SetFastElement(uint32_t index, Object* value) {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   ASSERT(HasDictionaryElements());
-  return SetElement(index, value);
+  return SetElement(index, value, check_prototype);
 }
 
 
-MaybeObject* JSObject::SetElement(uint32_t index, Object* value) {
+MaybeObject* JSObject::SetElement(uint32_t index,
+                                  Object* value,
+                                  bool check_prototype) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !Top::MayIndexedAccess(this, index, v8::ACCESS_SET)) {
@@ -7001,24 +7009,25 @@ MaybeObject* JSObject::SetElement(uint32_t index, Object* value) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetElement(index, value);
+    return JSObject::cast(proto)->SetElement(index, value, check_prototype);
   }
 
   // Check for lookup interceptor
   if (HasIndexedInterceptor()) {
-    return SetElementWithInterceptor(index, value);
+    return SetElementWithInterceptor(index, value, check_prototype);
   }
 
-  return SetElementWithoutInterceptor(index, value);
+  return SetElementWithoutInterceptor(index, value, check_prototype);
 }
 
 
 MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
-                                                    Object* value) {
+                                                    Object* value,
+                                                    bool check_prototype) {
   switch (GetElementsKind()) {
     case FAST_ELEMENTS:
       // Fast case.
-      return SetFastElement(index, value);
+      return SetFastElement(index, value, check_prototype);
     case PIXEL_ELEMENTS: {
       PixelArray* pixels = PixelArray::cast(elements());
       return pixels->SetValue(index, value);
@@ -7071,10 +7080,9 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
         }
       } else {
         // Index not already used. Look for an accessor in the prototype chain.
-        if (!IsJSArray()) {
-          if (SetElementWithCallbackSetterInPrototypes(index, value)) {
-            return value;
-          }
+        if (check_prototype && !IsJSArray() &&
+            SetElementWithCallbackSetterInPrototypes(index, value)) {
+          return value;
         }
         // When we set the is_extensible flag to false we always force
         // the element into dictionary mode (and force them to stay there).
