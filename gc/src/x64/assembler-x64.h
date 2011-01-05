@@ -536,6 +536,8 @@ class Assembler : public Malloced {
   // The debug break slot must be able to contain a call instruction.
   static const int kDebugBreakSlotLength = kCallInstructionLength;
 
+  // One byte opcode for test eax,0xXXXXXXXX.
+  static const byte kTestEaxByte = 0xA9;
 
   // ---------------------------------------------------------------------------
   // Code generation

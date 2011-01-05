@@ -917,15 +917,6 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void RecordWriteStub::Generate(MacroAssembler* masm) {
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-  __ add(offset_, object_, Operand(offset_));
-  __ RecordWriteHelper(object_, offset_, scratch_);
-#endif
-  __ Ret();
-}
-
-
 // On entry lhs_ and rhs_ are the values to be compared.
 // On exit r0 is 0, positive or negative to indicate the result of
 // the comparison.
@@ -1231,14 +1222,20 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
   bool generate_code_to_calculate_answer = true;
 
   if (ShouldGenerateFPCode()) {
+    // DIV has neither SmiSmi fast code nor specialized slow code.
+    // So don't try to patch a DIV Stub.
     if (runtime_operands_type_ == BinaryOpIC::DEFAULT) {
       switch (op_) {
         case Token::ADD:
         case Token::SUB:
         case Token::MUL:
-        case Token::DIV:
           GenerateTypeTransition(masm);  // Tail call.
           generate_code_to_calculate_answer = false;
+          break;
+
+        case Token::DIV:
+          // DIV has neither SmiSmi fast code nor specialized slow code.
+          // So don't try to patch a DIV Stub.
           break;
 
         default:
@@ -1301,7 +1298,8 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       // HEAP_NUMBERS stub is slower than GENERIC on a pair of smis.
       // r0 is known to be a smi. If r1 is also a smi then switch to GENERIC.
       Label r1_is_not_smi;
-      if (runtime_operands_type_ == BinaryOpIC::HEAP_NUMBERS) {
+      if ((runtime_operands_type_ == BinaryOpIC::HEAP_NUMBERS) &&
+          HasSmiSmiFastPath()) {
         __ tst(r1, Operand(kSmiTagMask));
         __ b(ne, &r1_is_not_smi);
         GenerateTypeTransition(masm);  // Tail call.
@@ -2896,45 +2894,45 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 
 // Uses registers r0 to r4. Expected input is
-// function in r0 (or at sp+1*ptrsz) and object in
+// object in r0 (or at sp+1*kPointerSize) and function in
 // r1 (or at sp), depending on whether or not
 // args_in_registers() is true.
 void InstanceofStub::Generate(MacroAssembler* masm) {
   // Fixed register usage throughout the stub:
-  const Register object = r1;  // Object (lhs).
+  const Register object = r0;  // Object (lhs).
   const Register map = r3;  // Map of the object.
-  const Register function = r0;  // Function (rhs).
+  const Register function = r1;  // Function (rhs).
   const Register prototype = r4;  // Prototype of the function.
   const Register scratch = r2;
   Label slow, loop, is_instance, is_not_instance, not_js_object;
   if (!args_in_registers()) {
-    __ ldr(function, MemOperand(sp, 1 * kPointerSize));
-    __ ldr(object, MemOperand(sp, 0));
+    __ ldr(object, MemOperand(sp, 1 * kPointerSize));
+    __ ldr(function, MemOperand(sp, 0));
   }
 
   // Check that the left hand is a JS object and load map.
-  __ BranchOnSmi(object, &slow);
-  __ IsObjectJSObjectType(object, map, scratch, &slow);
+  __ BranchOnSmi(object, &not_js_object);
+  __ IsObjectJSObjectType(object, map, scratch, &not_js_object);
 
   // Look up the function and the map in the instanceof cache.
   Label miss;
   __ LoadRoot(ip, Heap::kInstanceofCacheFunctionRootIndex);
-  __ cmp(object, ip);
+  __ cmp(function, ip);
   __ b(ne, &miss);
   __ LoadRoot(ip, Heap::kInstanceofCacheMapRootIndex);
   __ cmp(map, ip);
   __ b(ne, &miss);
-  __ LoadRoot(function, Heap::kInstanceofCacheAnswerRootIndex);
+  __ LoadRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
   __ Ret(args_in_registers() ? 0 : 2);
 
   __ bind(&miss);
-  __ TryGetFunctionPrototype(object, prototype, scratch, &slow);
+  __ TryGetFunctionPrototype(function, prototype, scratch, &slow);
 
   // Check that the function prototype is a JS object.
   __ BranchOnSmi(prototype, &slow);
   __ IsObjectJSObjectType(prototype, scratch, scratch, &slow);
 
-  __ StoreRoot(object, Heap::kInstanceofCacheFunctionRootIndex);
+  __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
   __ StoreRoot(map, Heap::kInstanceofCacheMapRootIndex);
 
   // Register mapping: r3 is object map and r4 is function prototype.
@@ -2959,6 +2957,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   __ bind(&is_not_instance);
   __ mov(r0, Operand(Smi::FromInt(1)));
+  __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
   __ Ret(args_in_registers() ? 0 : 2);
 
   Label object_not_null, object_not_null_or_smi;
@@ -2988,6 +2987,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ Ret(args_in_registers() ? 0 : 2);
 
   // Slow-case.  Tail call builtin.
+  if (args_in_registers()) {
+    __ Push(r0, r1);
+  }
   __ bind(&slow);
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_JS);
 }

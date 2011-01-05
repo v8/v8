@@ -309,9 +309,9 @@ void Deoptimizer::TearDown() {
 }
 
 
-unsigned Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
-                                    unsigned id,
-                                    SharedFunctionInfo* shared) {
+int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
+                               unsigned id,
+                               SharedFunctionInfo* shared) {
   // TODO(kasperl): For now, we do a simple linear search for the PC
   // offset associated with the given node id. This should probably be
   // changed to a binary search.

@@ -134,8 +134,7 @@ class ExternalTwoByteStringUC16CharacterStream: public UC16CharacterStream {
 class V8JavaScriptScanner : public JavaScriptScanner {
  public:
   V8JavaScriptScanner();
-  void Initialize(UC16CharacterStream* source,
-                  int literal_flags = kAllLiterals);
+  void Initialize(UC16CharacterStream* source);
 };
 
 

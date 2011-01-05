@@ -2932,7 +2932,6 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
 
   uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
-  if (is_element && IsJSArray()) return Heap::undefined_value();
 
   if (is_element) {
     switch (GetElementsKind()) {
@@ -5143,6 +5142,26 @@ bool String::IsEqualTo(Vector<const char> str) {
 }
 
 
+bool String::IsAsciiEqualTo(Vector<const char> str) {
+  int slen = length();
+  if (str.length() != slen) return false;
+  for (int i = 0; i < slen; i++) {
+    if (Get(i) != static_cast<uint16_t>(str[i])) return false;
+  }
+  return true;
+}
+
+
+bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
+  int slen = length();
+  if (str.length() != slen) return false;
+  for (int i = 0; i < slen; i++) {
+    if (Get(i) != str[i]) return false;
+  }
+  return true;
+}
+
+
 template <typename schar>
 static inline uint32_t HashSequentialString(const schar* chars, int length) {
   StringHasher hasher(length);
@@ -6775,7 +6794,8 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
 
 
 MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
-                                                 Object* value) {
+                                                 Object* value,
+                                                 bool check_prototype) {
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
@@ -6799,7 +6819,9 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
     if (!result.IsEmpty()) return *value_handle;
   }
   MaybeObject* raw_result =
-      this_handle->SetElementWithoutInterceptor(index, *value_handle);
+      this_handle->SetElementWithoutInterceptor(index,
+                                                *value_handle,
+                                                check_prototype);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
 }
@@ -6910,7 +6932,9 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
 // Adding n elements in fast case is O(n*n).
 // Note: revisit design to have dual undefined values to capture absent
 // elements.
-MaybeObject* JSObject::SetFastElement(uint32_t index, Object* value) {
+MaybeObject* JSObject::SetFastElement(uint32_t index,
+                                      Object* value,
+                                      bool check_prototype) {
   ASSERT(HasFastElements());
 
   Object* elms_obj;
@@ -6920,11 +6944,12 @@ MaybeObject* JSObject::SetFastElement(uint32_t index, Object* value) {
   FixedArray* elms = FixedArray::cast(elms_obj);
   uint32_t elms_length = static_cast<uint32_t>(elms->length());
 
-  if (!IsJSArray() && (index >= elms_length || elms->get(index)->IsTheHole())) {
-    if (SetElementWithCallbackSetterInPrototypes(index, value)) {
-      return value;
-    }
+  if (check_prototype &&
+      (index >= elms_length || elms->get(index)->IsTheHole()) &&
+      SetElementWithCallbackSetterInPrototypes(index, value)) {
+    return value;
   }
+
 
   // Check whether there is extra space in fixed array..
   if (index < elms_length) {
@@ -6963,11 +6988,13 @@ MaybeObject* JSObject::SetFastElement(uint32_t index, Object* value) {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   ASSERT(HasDictionaryElements());
-  return SetElement(index, value);
+  return SetElement(index, value, check_prototype);
 }
 
 
-MaybeObject* JSObject::SetElement(uint32_t index, Object* value) {
+MaybeObject* JSObject::SetElement(uint32_t index,
+                                  Object* value,
+                                  bool check_prototype) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !Top::MayIndexedAccess(this, index, v8::ACCESS_SET)) {
@@ -6981,24 +7008,25 @@ MaybeObject* JSObject::SetElement(uint32_t index, Object* value) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetElement(index, value);
+    return JSObject::cast(proto)->SetElement(index, value, check_prototype);
   }
 
   // Check for lookup interceptor
   if (HasIndexedInterceptor()) {
-    return SetElementWithInterceptor(index, value);
+    return SetElementWithInterceptor(index, value, check_prototype);
   }
 
-  return SetElementWithoutInterceptor(index, value);
+  return SetElementWithoutInterceptor(index, value, check_prototype);
 }
 
 
 MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
-                                                    Object* value) {
+                                                    Object* value,
+                                                    bool check_prototype) {
   switch (GetElementsKind()) {
     case FAST_ELEMENTS:
       // Fast case.
-      return SetFastElement(index, value);
+      return SetFastElement(index, value, check_prototype);
     case PIXEL_ELEMENTS: {
       PixelArray* pixels = PixelArray::cast(elements());
       return pixels->SetValue(index, value);
@@ -7051,10 +7079,9 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
         }
       } else {
         // Index not already used. Look for an accessor in the prototype chain.
-        if (!IsJSArray()) {
-          if (SetElementWithCallbackSetterInPrototypes(index, value)) {
-            return value;
-          }
+        if (check_prototype &&
+            SetElementWithCallbackSetterInPrototypes(index, value)) {
+          return value;
         }
         // When we set the is_extensible flag to false we always force
         // the element into dictionary mode (and force them to stay there).
@@ -8086,6 +8113,85 @@ class Utf8SymbolKey : public HashTableKey {
 };
 
 
+template <typename Char>
+class SequentialSymbolKey : public HashTableKey {
+ public:
+  explicit SequentialSymbolKey(Vector<const Char> string)
+      : string_(string), hash_field_(0) { }
+
+  uint32_t Hash() {
+    StringHasher hasher(string_.length());
+
+    // Very long strings have a trivial hash that doesn't inspect the
+    // string contents.
+    if (hasher.has_trivial_hash()) {
+      hash_field_ = hasher.GetHashField();
+    } else {
+      int i = 0;
+      // Do the iterative array index computation as long as there is a
+      // chance this is an array index.
+      while (i < string_.length() && hasher.is_array_index()) {
+        hasher.AddCharacter(static_cast<uc32>(string_[i]));
+        i++;
+      }
+
+      // Process the remaining characters without updating the array
+      // index.
+      while (i < string_.length()) {
+        hasher.AddCharacterNoIndex(static_cast<uc32>(string_[i]));
+        i++;
+      }
+      hash_field_ = hasher.GetHashField();
+    }
+
+    uint32_t result = hash_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+
+  uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  Vector<const Char> string_;
+  uint32_t hash_field_;
+};
+
+
+
+class AsciiSymbolKey : public SequentialSymbolKey<char> {
+ public:
+  explicit AsciiSymbolKey(Vector<const char> str)
+      : SequentialSymbolKey<char>(str) { }
+
+  bool IsMatch(Object* string) {
+    return String::cast(string)->IsAsciiEqualTo(string_);
+  }
+
+  MaybeObject* AsObject() {
+    if (hash_field_ == 0) Hash();
+    return Heap::AllocateAsciiSymbol(string_, hash_field_);
+  }
+};
+
+
+class TwoByteSymbolKey : public SequentialSymbolKey<uc16> {
+ public:
+  explicit TwoByteSymbolKey(Vector<const uc16> str)
+      : SequentialSymbolKey<uc16>(str) { }
+
+  bool IsMatch(Object* string) {
+    return String::cast(string)->IsTwoByteEqualTo(string_);
+  }
+
+  MaybeObject* AsObject() {
+    if (hash_field_ == 0) Hash();
+    return Heap::AllocateTwoByteSymbol(string_, hash_field_);
+  }
+};
+
+
 // SymbolKey carries a string/symbol object as key.
 class SymbolKey : public HashTableKey {
  public:
@@ -8829,6 +8935,19 @@ MaybeObject* SymbolTable::LookupSymbol(Vector<const char> str, Object** s) {
   return LookupKey(&key, s);
 }
 
+
+MaybeObject* SymbolTable::LookupAsciiSymbol(Vector<const char> str,
+                                            Object** s) {
+  AsciiSymbolKey key(str);
+  return LookupKey(&key, s);
+}
+
+
+MaybeObject* SymbolTable::LookupTwoByteSymbol(Vector<const uc16> str,
+                                              Object** s) {
+  TwoByteSymbolKey key(str);
+  return LookupKey(&key, s);
+}
 
 MaybeObject* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
   int entry = FindEntry(key);

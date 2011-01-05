@@ -1178,7 +1178,7 @@ void MacroAssembler::SmiMul(Register dst,
     jmp(on_not_smi_result);
 
     bind(&zero_correct_result);
-    xor_(dst, dst);
+    Set(dst, 0);
 
     bind(&correct_result);
   } else {

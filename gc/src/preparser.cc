@@ -950,12 +950,16 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
         ParseIdentifierOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
         if ((is_getter || is_setter) && peek() != i::Token::COLON) {
             i::Token::Value name = Next();
+            bool is_keyword = i::Token::IsKeyword(name);
             if (name != i::Token::IDENTIFIER &&
                 name != i::Token::NUMBER &&
                 name != i::Token::STRING &&
-                !i::Token::IsKeyword(name)) {
+                !is_keyword) {
               *ok = false;
               return kUnknownExpression;
+            }
+            if (!is_keyword) {
+              LogSymbol();
             }
             ParseFunctionLiteral(CHECK_OK);
             if (peek() != i::Token::RBRACE) {
@@ -1120,24 +1124,24 @@ void PreParser::ExpectSemicolon(bool* ok) {
 }
 
 
-PreParser::Identifier PreParser::GetIdentifierSymbol() {
-  const char* literal_chars = scanner_->literal_string();
-  int literal_length = scanner_->literal_length();
+void PreParser::LogSymbol() {
   int identifier_pos = scanner_->location().beg_pos;
+  if (scanner_->is_literal_ascii()) {
+    log_->LogAsciiSymbol(identifier_pos, scanner_->literal_ascii_string());
+  } else {
+    log_->LogUC16Symbol(identifier_pos, scanner_->literal_uc16_string());
+  }
+}
 
-  log_->LogSymbol(identifier_pos, literal_chars, literal_length);
 
-  return kUnknownExpression;
+PreParser::Identifier PreParser::GetIdentifierSymbol() {
+  LogSymbol();
+  return kUnknownIdentifier;
 }
 
 
 PreParser::Expression PreParser::GetStringSymbol() {
-  const char* literal_chars = scanner_->literal_string();
-  int literal_length = scanner_->literal_length();
-
-  int literal_position = scanner_->location().beg_pos;
-  log_->LogSymbol(literal_position, literal_chars, literal_length);
-
+  LogSymbol();
   return kUnknownExpression;
 }
 
@@ -1154,7 +1158,8 @@ PreParser::Identifier PreParser::ParseIdentifierName(bool* ok) {
   if (i::Token::IsKeyword(next)) {
     int pos = scanner_->location().beg_pos;
     const char* keyword = i::Token::String(next);
-    log_->LogSymbol(pos, keyword, i::StrLength(keyword));
+    log_->LogAsciiSymbol(pos, i::Vector<const char>(keyword,
+                                                    i::StrLength(keyword)));
     return kUnknownExpression;
   }
   if (next == i::Token::IDENTIFIER) {
@@ -1173,8 +1178,8 @@ PreParser::Identifier PreParser::ParseIdentifierOrGetOrSet(bool* is_get,
                                                            bool* is_set,
                                                            bool* ok) {
   Expect(i::Token::IDENTIFIER, CHECK_OK);
-  if (scanner_->literal_length() == 3) {
-    const char* token = scanner_->literal_string();
+  if (scanner_->is_literal_ascii() && scanner_->literal_length() == 3) {
+    const char* token = scanner_->literal_ascii_string().start();
     *is_get = strncmp(token, "get", 3) == 0;
     *is_set = !*is_get && strncmp(token, "set", 3) == 0;
   }

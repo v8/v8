@@ -573,7 +573,7 @@ void TestStreamScanner(i::UC16CharacterStream* stream,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
   i::V8JavaScriptScanner scanner;
-  scanner.Initialize(stream, i::JavaScriptScanner::kAllLiterals);
+  scanner.Initialize(stream);
 
   int i = 0;
   do {

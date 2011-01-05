@@ -66,13 +66,14 @@ namespace internal {
 // such that we use an enum in optimized mode, and the struct in debug
 // mode. This way we get the compile-time error checking in debug mode
 // and best performance in optimized code.
-//
+
 // Core register
 struct Register {
   static const int kNumRegisters = 16;
   static const int kNumAllocatableRegisters = 8;
 
   static int ToAllocationIndex(Register reg) {
+    ASSERT(reg.code() < kNumAllocatableRegisters);
     return reg.code();
   }
 
@@ -132,7 +133,7 @@ const Register r5  = {  5 };
 const Register r6  = {  6 };
 const Register r7  = {  7 };
 const Register r8  = {  8 };  // Used as context register.
-const Register r9  = {  9 };
+const Register r9  = {  9 };  // Used as lithium codegen scratch register.
 const Register r10 = { 10 };  // Used as roots register.
 const Register fp  = { 11 };
 const Register ip  = { 12 };

@@ -653,8 +653,6 @@ js1_5/extensions/regress-336409-1: FAIL_OK
 js1_5/extensions/regress-336409-2: FAIL_OK
 js1_5/extensions/regress-336410-2: FAIL_OK
 js1_5/extensions/regress-341956-01: FAIL_OK
-js1_5/extensions/regress-341956-02: FAIL_OK
-js1_5/extensions/regress-341956-03: FAIL_OK
 js1_5/extensions/regress-345967: FAIL_OK
 js1_5/extensions/regress-346494-01: FAIL_OK
 js1_5/extensions/regress-346494: FAIL_OK

@@ -1208,6 +1208,7 @@ class Property: public Expression {
         is_monomorphic_(false),
         receiver_types_(NULL),
         is_array_length_(false),
+        is_function_prototype_(false),
         is_arguments_access_(false) { }
 
   DECLARE_NODE_TYPE(Property)
@@ -1219,6 +1220,8 @@ class Property: public Expression {
   Expression* key() const { return key_; }
   int position() const { return pos_; }
   bool is_synthetic() const { return type_ == SYNTHETIC; }
+
+  bool IsFunctionPrototype() const { return is_function_prototype_; }
 
   // Marks that this is actually an argument rewritten to a keyed property
   // accessing the argument through the arguments shadow object.
@@ -1249,6 +1252,7 @@ class Property: public Expression {
   bool is_monomorphic_;
   ZoneMapList* receiver_types_;
   bool is_array_length_;
+  bool is_function_prototype_;
   bool is_arguments_access_;
   Handle<Map> monomorphic_receiver_type_;
 
@@ -1391,7 +1395,7 @@ class BinaryOperation: public Expression {
       : op_(op), left_(left), right_(right), pos_(pos), is_smi_only_(false) {
     ASSERT(Token::IsBinaryOp(op));
     right_id_ = (op == Token::AND || op == Token::OR)
-        ? GetNextId()
+        ? static_cast<int>(GetNextId())
         : AstNode::kNoNumber;
   }
 

@@ -104,7 +104,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
          Immediate(Smi::FromInt(length)));
 
   // Setup the fixed slots.
-  __ xor_(ebx, Operand(ebx));  // Set to NULL.
+  __ Set(ebx, Immediate(0));  // Set to NULL.
   __ mov(Operand(eax, Context::SlotOffset(Context::CLOSURE_INDEX)), ecx);
   __ mov(Operand(eax, Context::SlotOffset(Context::FCONTEXT_INDEX)), eax);
   __ mov(Operand(eax, Context::SlotOffset(Context::PREVIOUS_INDEX)), ebx);
@@ -4307,7 +4307,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // that contains the exponent and high bit of the mantissa.
       STATIC_ASSERT(((kQuietNaNHighBitsMask << 1) & 0x80000000u) != 0);
       __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
-      __ xor_(eax, Operand(eax));
+      __ Set(eax, Immediate(0));
       // Shift value and mask so kQuietNaNHighBitsMask applies to topmost
       // bits.
       __ add(edx, Operand(edx));
@@ -4437,7 +4437,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ j(below, &below_label, not_taken);
       __ j(above, &above_label, not_taken);
 
-      __ xor_(eax, Operand(eax));
+      __ Set(eax, Immediate(0));
       __ ret(0);
 
       __ bind(&below_label);
@@ -4650,7 +4650,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Before returning we restore the context from the frame pointer if
   // not NULL.  The frame pointer is NULL in the exception handler of
   // a JS entry frame.
-  __ xor_(esi, Operand(esi));  // Tentatively set context pointer to NULL.
+  __ Set(esi, Immediate(0));  // Tentatively set context pointer to NULL.
   NearLabel skip;
   __ cmp(ebp, 0);
   __ j(equal, &skip, not_taken);
@@ -4803,7 +4803,7 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
   }
 
   // Clear the context pointer.
-  __ xor_(esi, Operand(esi));
+  __ Set(esi, Immediate(0));
 
   // Restore fp from handler and discard handler state.
   STATIC_ASSERT(StackHandlerConstants::kFPOffset == 1 * kPointerSize);

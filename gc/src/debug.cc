@@ -3037,7 +3037,8 @@ void LockingCommandMessageQueue::Clear() {
 
 
 MessageDispatchHelperThread::MessageDispatchHelperThread()
-    : sem_(OS::CreateSemaphore(0)), mutex_(OS::CreateMutex()),
+    : Thread("v8:MsgDispHelpr"),
+      sem_(OS::CreateSemaphore(0)), mutex_(OS::CreateMutex()),
       already_signalled_(false) {
 }
 

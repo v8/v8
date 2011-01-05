@@ -216,8 +216,11 @@ class PreParser {
   Identifier ParseIdentifierName(bool* ok);
   Identifier ParseIdentifierOrGetOrSet(bool* is_get, bool* is_set, bool* ok);
 
+  // Logs the currently parsed literal as a symbol in the preparser data.
+  void LogSymbol();
+  // Log the currently parsed identifier.
   Identifier GetIdentifierSymbol();
-  unsigned int HexDigitValue(char digit);
+  // Log the currently parsed string literal.
   Expression GetStringSymbol();
 
   i::Token::Value peek() {

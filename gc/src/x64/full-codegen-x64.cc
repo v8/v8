@@ -201,7 +201,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 
 
 void FullCodeGenerator::ClearAccumulator() {
-  __ xor_(rax, rax);
+  __ Set(rax, 0);
 }
 
 
