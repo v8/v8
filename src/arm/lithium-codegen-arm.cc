@@ -1077,6 +1077,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
   } else if (r.IsDouble()) {
     DoubleRegister reg = ToDoubleRegister(instr->input());
     __ vcmp(reg, 0.0);
+    __ vmrs(pc);  // Move vector status bits to normal status bits.
     EmitBranch(true_block, false_block, ne);
   } else {
     ASSERT(r.IsTagged());
@@ -1114,6 +1115,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ sub(ip, reg, Operand(kHeapObjectTag));
       __ vldr(dbl_scratch, ip, HeapNumber::kValueOffset);
       __ vcmp(dbl_scratch, 0.0);
+      __ vmrs(pc);  // Move vector status bits to normal status bits.
       __ b(eq, false_label);
       __ b(true_label);
 
