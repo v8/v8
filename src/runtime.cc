@@ -10406,36 +10406,10 @@ static MaybeObject* Runtime_ExecuteInDebugContext(Arguments args) {
 }
 
 
-// Sets a v8 flag.
-static MaybeObject* Runtime_SetFlags(Arguments args) {
-  CONVERT_CHECKED(String, arg, args[0]);
-  SmartPointer<char> flags =
-      arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  FlagList::SetFlagsFromString(*flags, strlen(*flags));
-  return Heap::undefined_value();
-}
-
-
-// Performs a GC.
-// Presently, it only does a full GC.
-static MaybeObject* Runtime_CollectGarbage(Arguments args) {
-  Heap::CollectAllGarbage(true);
-  return Heap::undefined_value();
-}
-
-
-// Gets the current heap usage.
-static MaybeObject* Runtime_GetHeapUsage(Arguments args) {
-  int usage = Heap::SizeOfObjects();
-  if (!Smi::IsValid(usage)) {
-    return *Factory::NewNumberFromInt(usage);
-  }
-  return Smi::FromInt(usage);
-}
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
-
 #ifdef ENABLE_LOGGING_AND_PROFILING
+
 static MaybeObject* Runtime_ProfilerResume(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
