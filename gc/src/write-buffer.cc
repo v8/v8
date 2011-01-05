@@ -83,6 +83,7 @@ void WriteBuffer::Compact() {
   memset(reinterpret_cast<void*>(hash_map_2_),
          0,
          sizeof(uintptr_t) * kHashMapLength);
+  ASSERT(top_ <= limit_);
   Address* stop = top_;
   top_ = start_;
   // Goes through the addresses in the write buffer attempting to remove

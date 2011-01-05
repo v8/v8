@@ -82,10 +82,11 @@ namespace internal {
   F(LazyRecompile, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyOSR, 0, 1) \
-  F(DeoptimizeFunction, 1, 1)             \
+  F(DeoptimizeFunction, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \
+  F(WriteBufferOverflow, 0, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \

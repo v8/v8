@@ -2483,24 +2483,20 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   // Do the store.
   if (instr->is_in_object()) {
     __ mov(FieldOperand(object, offset), value);
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     if (instr->needs_write_barrier()) {
       Register temp = ToRegister(instr->temp());
       // Update the write barrier for the object for in-object properties.
-      __ RecordWrite(object, offset, value, temp);
+      __ RecordWrite(object, offset, value, temp, kSaveFPRegs);
     }
-#endif
   } else {
     Register temp = ToRegister(instr->temp());
     __ mov(temp, FieldOperand(object, JSObject::kPropertiesOffset));
     __ mov(FieldOperand(temp, offset), value);
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     if (instr->needs_write_barrier()) {
       // Update the write barrier for the properties array.
       // object is used as a scratch register.
-      __ RecordWrite(temp, offset, value, object);
+      __ RecordWrite(temp, offset, value, object, kSaveFPRegs);
     }
-#endif
   }
 }
 
@@ -2538,14 +2534,12 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
            value);
   }
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Update the write barrier unless we're certain that we're storing a smi.
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     // Compute address of modified element and store it into key register.
     __ lea(key, FieldOperand(elements, key, times_4, FixedArray::kHeaderSize));
-    __ RecordWrite(elements, key, value);
+    __ RecordWrite(elements, key, value, kSaveFPRegs);
   }
-#endif
 }
 
 

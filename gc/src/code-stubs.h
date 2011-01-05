@@ -47,6 +47,7 @@ namespace internal {
   V(Compare)                             \
   V(CompareIC)                           \
   V(MathPow)                             \
+  V(WriteBufferOverflow)                 \
   V(TranscendentalCache)                 \
   V(RecordWrite)                         \
   V(ConvertToDouble)                     \
@@ -572,11 +573,11 @@ class CompareStub: public CodeStub {
 
 class CEntryStub : public CodeStub {
  public:
-  explicit CEntryStub(int result_size)
-      : result_size_(result_size), save_doubles_(false) { }
+  explicit CEntryStub(int result_size,
+                      SaveFPRegsMode save_doubles = kDontSaveFPRegs)
+      : result_size_(result_size), save_doubles_(save_doubles) { }
 
   void Generate(MacroAssembler* masm);
-  void SaveDoubles() { save_doubles_ = true; }
 
  private:
   void GenerateCore(MacroAssembler* masm,
@@ -592,7 +593,7 @@ class CEntryStub : public CodeStub {
 
   // Number of pointers/values returned.
   const int result_size_;
-  bool save_doubles_;
+  SaveFPRegsMode save_doubles_;
 
   Major MajorKey() { return CEntry; }
   int MinorKey();

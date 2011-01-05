@@ -264,10 +264,8 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
   __ mov(Operand(r0, 0), value);
 
   // Update write barrier. Make sure not to clobber the value.
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ mov(r1, value);
-  __ RecordWrite(elements, r0, r1);
-#endif
+  __ RecordWrite(elements, r0, r1, kDontSaveFPRegs);
 }
 
 
@@ -1027,11 +1025,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // edi: FixedArray receiver->elements
   __ mov(CodeGenerator::FixedArrayElementOperand(edi, ecx), eax);
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Update write barrier for the elements array address.
   __ mov(edx, Operand(eax));
-  __ RecordWrite(edi, 0, edx, ecx);
-#endif
+  __ RecordWrite(edi, 0, edx, ecx, kDontSaveFPRegs);
   __ ret(0);
 }
 

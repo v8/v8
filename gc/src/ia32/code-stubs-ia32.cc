@@ -259,6 +259,37 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
+void WriteBufferOverflowStub::Generate(MacroAssembler* masm) {
+  // We don't allow a GC during a write buffer overflow so there is no need to
+  // store the registers in any particular way, but we do have to store and
+  // restore them.
+  __ pushad();
+  if (save_doubles_ == kSaveFPRegs) {
+    CpuFeatures::Scope scope(SSE2);
+    __ sub(Operand(esp), Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+      XMMRegister reg = XMMRegister::from_code(i);
+      __ movdbl(Operand(esp, i * kDoubleSize), reg);
+    }
+  }
+  const int argument_count = 0;
+  __ PrepareCallCFunction(argument_count, ecx);
+  ExternalReference write_buffer_overflow =
+      ExternalReference(Runtime::FunctionForId(Runtime::kWriteBufferOverflow));
+  __ CallCFunction(write_buffer_overflow, argument_count);
+  if (save_doubles_ == kSaveFPRegs) {
+    CpuFeatures::Scope scope(SSE2);
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+      XMMRegister reg = XMMRegister::from_code(i);
+      __ movdbl(reg, Operand(esp, i * kDoubleSize));
+    }
+    __ add(Operand(esp), Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+  }
+  __ popad();
+  __ ret(0);
+}
+
+
 const char* GenericBinaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
@@ -3981,16 +4012,16 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Store last subject and last input.
   __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(FieldOperand(ebx, RegExpImpl::kLastSubjectOffset), eax);
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ mov(ecx, ebx);
-  __ RecordWrite(ecx, RegExpImpl::kLastSubjectOffset, eax, edi);
-#endif
+  __ RecordWrite(ecx,
+                 RegExpImpl::kLastSubjectOffset,
+                 eax,
+                 edi,
+                 kDontSaveFPRegs);
   __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(FieldOperand(ebx, RegExpImpl::kLastInputOffset), eax);
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ mov(ecx, ebx);
-  __ RecordWrite(ecx, RegExpImpl::kLastInputOffset, eax, edi);
-#endif
+  __ RecordWrite(ecx, RegExpImpl::kLastInputOffset, eax, edi, kDontSaveFPRegs);
 
   // Get the static offsets vector filled by the native regexp code.
   ExternalReference address_of_static_offsets_vector =
@@ -4728,7 +4759,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &failure_returned, not_taken);
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(save_doubles_);
+  __ LeaveExitFrame(save_doubles_ == kSaveFPRegs);
   __ ret(0);
 
   // Handling of failure.
@@ -4828,7 +4859,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // a garbage collection and retrying the builtin (twice).
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(save_doubles_);
+  __ EnterExitFrame(save_doubles_ == kSaveFPRegs);
 
   // eax: result parameter for PerformGC, if any (setup below)
   // ebx: pointer to builtin function  (C callee-saved)

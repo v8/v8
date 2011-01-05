@@ -498,6 +498,10 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       39,
       "power_double_int_function");
+  Add(ExternalReference::write_buffer_top().address(),
+      UNCLASSIFIED,
+      40,
+      "write_buffer_top");
 }
 
 

@@ -61,6 +61,8 @@ class WriteBuffer : public AllStatic {
   static const int kHashMapLengthLog2 = 12;
   static const int kHashMapLength = 1 << kHashMapLengthLog2;
 
+  static void Compact();
+
  private:
   static Address* top_;
   static Address* start_;
@@ -68,8 +70,6 @@ class WriteBuffer : public AllStatic {
   static VirtualMemory* virtual_memory_;
   static uintptr_t* hash_map_1_;
   static uintptr_t* hash_map_2_;
-
-  static void Compact();
 };
 
 } }  // namespace v8::internal

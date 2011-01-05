@@ -5400,6 +5400,12 @@ static MaybeObject* Runtime_NumberToSmi(Arguments args) {
 }
 
 
+static MaybeObject* Runtime_WriteBufferOverflow(Arguments args) {
+  WriteBuffer::Compact();
+  return Heap::undefined_value();
+}
+
+
 static MaybeObject* Runtime_AllocateHeapNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 0);

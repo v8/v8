@@ -192,7 +192,7 @@ TEST(CodeRange) {
     if (current_allocated < code_range_size / 10) {
       // Allocate a block.
       // Geometrically distributed sizes, greater than Page::kMaxHeapObjectSize.
-      // TODO (gc) instead of using 3 use some contant based on code_range_size
+      // TODO(gc): instead of using 3 use some contant based on code_range_size
       // kMaxHeapObjectSize.
       size_t requested = (Page::kMaxHeapObjectSize << (Pseudorandom() % 3)) +
            Pseudorandom() % 5000 + 1;

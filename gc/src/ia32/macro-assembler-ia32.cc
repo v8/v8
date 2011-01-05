@@ -48,10 +48,10 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
       code_object_(Heap::undefined_value()) {
 }
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register addr,
-                                       Register scratch) {
+                                       Register scratch,
+                                       SaveFPRegsMode save_fp) {
   if (FLAG_debug_code) {
     // Check that the object is not in new space.
     Label not_in_new_space;
@@ -60,24 +60,32 @@ void MacroAssembler::RecordWriteHelper(Register object,
     bind(&not_in_new_space);
   }
 
-  // Compute the page start address from the heap object pointer, and reuse
-  // the 'object' register for it.
-  and_(object, ~Page::kPageAlignmentMask);
-
-  // Compute number of region covering addr. See Page::GetRegionNumberForAddress
-  // method for more details.
-  and_(addr, Page::kPageAlignmentMask);
-  shr(addr, Page::kRegionSizeLog2);
-
-  // Set dirty mark for region.
-  bts(Operand(object, Page::kDirtyFlagOffset), addr);
+  // Load write buffer top.
+  ExternalReference write_buffer = ExternalReference::write_buffer_top();
+  mov(scratch, Operand::StaticVariable(write_buffer));
+  // Store pointer to buffer.
+  mov(Operand(scratch, 0), addr);
+  // Increment buffer top.
+  add(Operand(scratch), Immediate(kPointerSize));
+  // Write back new top of buffer.
+  mov(Operand::StaticVariable(write_buffer), scratch);
+  // Call stub on end of buffer.
+  NearLabel no_overflow;
+  // Check for end of buffer.
+  test(scratch, Immediate(WriteBuffer::kWriteBufferOverflowBit));
+  j(equal, &no_overflow);
+  WriteBufferOverflowStub write_buffer_overflow =
+      WriteBufferOverflowStub(save_fp);
+  CallStub(&write_buffer_overflow);
+  bind(&no_overflow);
 }
 
 
 void MacroAssembler::RecordWrite(Register object,
                                  int offset,
                                  Register value,
-                                 Register scratch) {
+                                 Register scratch,
+                                 SaveFPRegsMode save_fp) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are esi.
@@ -112,7 +120,7 @@ void MacroAssembler::RecordWrite(Register object,
     lea(dst, Operand(object, dst, times_half_pointer_size,
                      FixedArray::kHeaderSize - kHeapObjectTag));
   }
-  RecordWriteHelper(object, dst, value);
+  RecordWriteHelper(object, dst, value, save_fp);
 
   bind(&done);
 
@@ -128,7 +136,8 @@ void MacroAssembler::RecordWrite(Register object,
 
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
-                                 Register value) {
+                                 Register value,
+                                 SaveFPRegsMode save_fp) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are esi.
@@ -145,7 +154,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   InNewSpace(object, value, equal, &done);
 
-  RecordWriteHelper(object, address, value);
+  RecordWriteHelper(object, address, value, save_fp);
 
   bind(&done);
 
@@ -157,7 +166,7 @@ void MacroAssembler::RecordWrite(Register object,
     mov(value, Immediate(BitCast<int32_t>(kZapValue)));
   }
 }
-#endif
+
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
@@ -382,10 +391,22 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   // Optionally restore all XMM registers.
   if (save_doubles) {
     CpuFeatures::Scope scope(SSE2);
-    int offset = -2 * kPointerSize;
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      XMMRegister reg = XMMRegister::from_code(i);
-      movdbl(reg, Operand(ebp, offset - ((i + 1) * kDoubleSize)));
+    if (save_doubles) {
+      int offset = -2 * kPointerSize;
+      for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+        XMMRegister reg = XMMRegister::from_code(i);
+        movdbl(reg, Operand(ebp, offset - ((i + 1) * kDoubleSize)));
+      }
+    } else if (FLAG_debug_code) {
+      // Zap all fp registers on a runtime call if we were not asked to preserve
+      // them.
+      push(eax);
+      mov(eax, Factory::nan_value());
+      for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+        XMMRegister reg = XMMRegister::from_code(i);
+        movdbl(reg, FieldOperand(eax, HeapNumber::kValueOffset));
+      }
+      pop(eax);
     }
   }
 
@@ -1092,8 +1113,7 @@ void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   Runtime::Function* function = Runtime::FunctionForId(id);
   Set(eax, Immediate(function->nargs));
   mov(ebx, Immediate(ExternalReference(function)));
-  CEntryStub ces(1);
-  ces.SaveDoubles();
+  CEntryStub ces(1, kSaveFPRegs);
   CallStub(&ces);
 }
 

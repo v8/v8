@@ -152,6 +152,9 @@ class NearLabel BASE_EMBEDDED {
 };
 
 
+enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
+
+
 // -----------------------------------------------------------------------------
 // Relocation information
 
