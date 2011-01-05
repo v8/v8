@@ -2995,14 +2995,22 @@ ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
   // { ... , get foo() { ... }, ... , set foo(v) { ... v ... } , ... }
   // We have already read the "get" or "set" keyword.
   Token::Value next = Next();
-  // TODO(820): Allow NUMBER and STRING as well (and handle array indices).
-  if (next == Token::IDENTIFIER || Token::IsKeyword(next)) {
-    Handle<String> name = GetSymbol(CHECK_OK);
+  bool is_keyword = Token::IsKeyword(next);
+  if (next == Token::IDENTIFIER || next == Token::NUMBER ||
+      next == Token::STRING || is_keyword) {
+    Handle<String> name;
+    if (is_keyword) {
+      name = Factory::LookupAsciiSymbol(Token::String(next));
+    } else {
+      name = GetSymbol(CHECK_OK);
+    }
     FunctionLiteral* value =
         ParseFunctionLiteral(name,
                              RelocInfo::kNoPosition,
                              DECLARATION,
                              CHECK_OK);
+    // Allow any number of parameters for compatiabilty with JSC.
+    // Specification only allows zero parameters for get and one for set.
     ObjectLiteral::Property* property =
         new ObjectLiteral::Property(is_getter, value);
     return property;
@@ -3672,9 +3680,11 @@ Handle<Object> JsonParser::ParseJsonObject() {
       if (value.is_null()) return Handle<Object>::null();
       uint32_t index;
       if (key->AsArrayIndex(&index)) {
-        SetElement(json_object, index, value);
+        CALL_HEAP_FUNCTION_INLINE(
+            (*json_object)->SetElement(index, *value, true));
       } else {
-        SetProperty(json_object, key, value, NONE);
+        CALL_HEAP_FUNCTION_INLINE(
+            (*json_object)->SetPropertyPostInterceptor(*key, *value, NONE));
       }
     } while (scanner_.Next() == Token::COMMA);
     if (scanner_.current_token() != Token::RBRACE) {

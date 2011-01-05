@@ -74,7 +74,7 @@ void CpuFeatures::Probe(bool portable)  {
   __ xor_(rax, rdx);  // Different if CPUID is supported.
   __ j(not_zero, &cpuid);
 
-  // CPUID not supported. Clear the supported features in edx:eax.
+  // CPUID not supported. Clear the supported features in rax.
   __ xor_(rax, rax);
   __ jmp(&done);
 

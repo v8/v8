@@ -1,3 +1,21 @@
+2010-01-05: Version 3.0.6
+
+        Allowed getters and setters on JSArray elements (Issue 900).
+
+        Stopped JSON objects from hitting inherited setters (part of
+        Issue 1015).
+
+        Allowed numbers and strings as names of getters/setters in object
+        initializer (Issue 820).
+
+        Added use_system_v8 option to gyp (off by default), to make it easier
+        for Linux distributions to ship with system-provided V8 library.
+
+        Exported external array data accessors (Issue 1016).
+
+        Added labelled thread names to help with debugging (on Linux).
+
+
 2011-01-03: Version 3.0.5
 
         Fixed a couple of cast errors for gcc-3.4.3.

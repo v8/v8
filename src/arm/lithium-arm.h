@@ -726,11 +726,9 @@ class LIsNullAndBranch: public LIsNull {
  public:
   LIsNullAndBranch(LOperand* value,
                    bool is_strict,
-                   LOperand* temp,
                    int true_block_id,
                    int false_block_id)
       : LIsNull(value, is_strict),
-        temp_(temp),
         true_block_id_(true_block_id),
         false_block_id_(false_block_id) { }
 
@@ -741,10 +739,7 @@ class LIsNullAndBranch: public LIsNull {
   int true_block_id() const { return true_block_id_; }
   int false_block_id() const { return false_block_id_; }
 
-  LOperand* temp() const { return temp_; }
-
  private:
-  LOperand* temp_;
   int true_block_id_;
   int false_block_id_;
 };
@@ -839,11 +834,9 @@ class LHasInstanceType: public LUnaryOperation {
 class LHasInstanceTypeAndBranch: public LHasInstanceType {
  public:
   LHasInstanceTypeAndBranch(LOperand* value,
-                            LOperand* temporary,
                             int true_block_id,
                             int false_block_id)
       : LHasInstanceType(value),
-        temp_(temporary),
         true_block_id_(true_block_id),
         false_block_id_(false_block_id) { }
 
@@ -855,10 +848,7 @@ class LHasInstanceTypeAndBranch: public LHasInstanceType {
   int true_block_id() const { return true_block_id_; }
   int false_block_id() const { return false_block_id_; }
 
-  LOperand* temp() { return temp_; }
-
  private:
-  LOperand* temp_;
   int true_block_id_;
   int false_block_id_;
 };
@@ -1121,27 +1111,25 @@ class LBranch: public LUnaryOperation {
 
 class LCmpMapAndBranch: public LUnaryOperation {
  public:
-  LCmpMapAndBranch(LOperand* value,
-                   Handle<Map> map,
-                   int true_block_id,
-                   int false_block_id)
-      : LUnaryOperation(value),
-        map_(map),
-        true_block_id_(true_block_id),
-        false_block_id_(false_block_id) { }
+  LCmpMapAndBranch(LOperand* value, LOperand* temp)
+      : LUnaryOperation(value), temp_(temp) { }
 
   DECLARE_CONCRETE_INSTRUCTION(CmpMapAndBranch, "cmp-map-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareMapAndBranch)
 
   virtual bool IsControl() const { return true; }
 
-  Handle<Map> map() const { return map_; }
-  int true_block_id() const { return true_block_id_; }
-  int false_block_id() const { return false_block_id_; }
+  LOperand* temp() const { return temp_; }
+  Handle<Map> map() const { return hydrogen()->map(); }
+  int true_block_id() const {
+    return hydrogen()->true_destination()->block_id();
+  }
+  int false_block_id() const {
+    return hydrogen()->false_destination()->block_id();
+  }
 
  private:
-  Handle<Map> map_;
-  int true_block_id_;
-  int false_block_id_;
+  LOperand* temp_;
 };
 
 
@@ -1265,17 +1253,13 @@ class LLoadNamedGeneric: public LUnaryOperation {
 
 class LLoadFunctionPrototype: public LUnaryOperation {
  public:
-  LLoadFunctionPrototype(LOperand* function, LOperand* temporary)
-      : LUnaryOperation(function), temporary_(temporary) { }
+  explicit LLoadFunctionPrototype(LOperand* function)
+      : LUnaryOperation(function) { }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadFunctionPrototype, "load-function-prototype")
   DECLARE_HYDROGEN_ACCESSOR(LoadFunctionPrototype)
 
   LOperand* function() const { return input(); }
-  LOperand* temporary() const { return temporary_; }
-
- private:
-  LOperand* temporary_;
 };
 
 
@@ -1678,21 +1662,25 @@ class LCheckMap: public LUnaryOperation {
 
 class LCheckPrototypeMaps: public LInstruction {
  public:
-  LCheckPrototypeMaps(LOperand* temp,
+  LCheckPrototypeMaps(LOperand* temp1,
+                      LOperand* temp2,
                       Handle<JSObject> holder,
                       Handle<Map> receiver_map)
-      : temp_(temp),
+      : temp1_(temp1),
+        temp2_(temp2),
         holder_(holder),
         receiver_map_(receiver_map) { }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps, "check-prototype-maps")
 
-  LOperand* temp() const { return temp_; }
+  LOperand* temp1() const { return temp1_; }
+  LOperand* temp2() const { return temp2_; }
   Handle<JSObject> holder() const { return holder_; }
   Handle<Map> receiver_map() const { return receiver_map_; }
 
  private:
-  LOperand* temp_;
+  LOperand* temp1_;
+  LOperand* temp2_;
   Handle<JSObject> holder_;
   Handle<Map> receiver_map_;
 };
@@ -2074,7 +2062,6 @@ class LChunkBuilder BASE_EMBEDDED {
   LInstruction* Define(LInstruction* instr);
   LInstruction* DefineAsRegister(LInstruction* instr);
   LInstruction* DefineAsSpilled(LInstruction* instr, int index);
-  LInstruction* DefineSameAsAny(LInstruction* instr);
   LInstruction* DefineSameAsFirst(LInstruction* instr);
   LInstruction* DefineFixed(LInstruction* instr, Register reg);
   LInstruction* DefineFixedDouble(LInstruction* instr, DoubleRegister reg);

@@ -950,12 +950,16 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
         ParseIdentifierOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
         if ((is_getter || is_setter) && peek() != i::Token::COLON) {
             i::Token::Value name = Next();
+            bool is_keyword = i::Token::IsKeyword(name);
             if (name != i::Token::IDENTIFIER &&
                 name != i::Token::NUMBER &&
                 name != i::Token::STRING &&
-                !i::Token::IsKeyword(name)) {
+                !is_keyword) {
               *ok = false;
               return kUnknownExpression;
+            }
+            if (!is_keyword) {
+              LogSymbol();
             }
             ParseFunctionLiteral(CHECK_OK);
             if (peek() != i::Token::RBRACE) {
@@ -1120,24 +1124,24 @@ void PreParser::ExpectSemicolon(bool* ok) {
 }
 
 
-PreParser::Identifier PreParser::GetIdentifierSymbol() {
+void PreParser::LogSymbol() {
   int identifier_pos = scanner_->location().beg_pos;
   if (scanner_->is_literal_ascii()) {
     log_->LogAsciiSymbol(identifier_pos, scanner_->literal_ascii_string());
   } else {
     log_->LogUC16Symbol(identifier_pos, scanner_->literal_uc16_string());
   }
+}
+
+
+PreParser::Identifier PreParser::GetIdentifierSymbol() {
+  LogSymbol();
   return kUnknownIdentifier;
 }
 
 
 PreParser::Expression PreParser::GetStringSymbol() {
-  int identifier_pos = scanner_->location().beg_pos;
-  if (scanner_->is_literal_ascii()) {
-    log_->LogAsciiSymbol(identifier_pos, scanner_->literal_ascii_string());
-  } else {
-    log_->LogUC16Symbol(identifier_pos, scanner_->literal_uc16_string());
-  }
+  LogSymbol();
   return kUnknownExpression;
 }
 

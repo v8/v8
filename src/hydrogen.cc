@@ -128,7 +128,7 @@ HSimulate* HBasicBlock::CreateSimulate(int id) {
   int push_count = environment->push_count();
   int pop_count = environment->pop_count();
 
-  int length = environment->values()->length();
+  int length = environment->length();
   HSimulate* instr = new HSimulate(id, pop_count, length);
   for (int i = push_count - 1; i >= 0; --i) {
     instr->AddPushedValue(environment->ExpressionStackAt(i));
@@ -222,7 +222,7 @@ void HBasicBlock::RegisterPredecessor(HBasicBlock* pred) {
     ASSERT(IsLoopHeader() || first_ == NULL);
     HEnvironment* incoming_env = pred->last_environment();
     if (IsLoopHeader()) {
-      ASSERT(phis()->length() == incoming_env->values()->length());
+      ASSERT(phis()->length() == incoming_env->length());
       for (int i = 0; i < phis_.length(); ++i) {
         phis_[i]->AddInput(incoming_env->values()->at(i));
       }
@@ -1982,7 +1982,7 @@ AstContext::AstContext(HGraphBuilder* owner, Expression::Context kind)
     : owner_(owner), kind_(kind), outer_(owner->ast_context()) {
   owner->set_ast_context(this);  // Push.
 #ifdef DEBUG
-  original_count_ = owner->environment()->total_count();
+  original_length_ = owner->environment()->length();
 #endif
 }
 
@@ -1995,14 +1995,14 @@ AstContext::~AstContext() {
 EffectContext::~EffectContext() {
   ASSERT(owner()->HasStackOverflow() ||
          !owner()->subgraph()->HasExit() ||
-         owner()->environment()->total_count() == original_count_);
+         owner()->environment()->length() == original_length_);
 }
 
 
 ValueContext::~ValueContext() {
   ASSERT(owner()->HasStackOverflow() ||
          !owner()->subgraph()->HasExit() ||
-         owner()->environment()->total_count() == original_count_ + 1);
+         owner()->environment()->length() == original_length_ + 1);
 }
 
 
@@ -2343,7 +2343,7 @@ void HGraphBuilder::SetupScope(Scope* scope) {
   }
 
   // Set the initial values of stack-allocated locals.
-  for (int i = count; i < environment()->values()->length(); ++i) {
+  for (int i = count; i < environment()->length(); ++i) {
     environment()->Bind(i, undefined_constant);
   }
 
@@ -2702,7 +2702,7 @@ void HSubgraph::PreProcessOsrEntry(IterationStatement* statement) {
   int osr_entry_id = statement->OsrEntryId();
   // We want the correct environment at the OsrEntry instruction.  Build
   // it explicitly.  The expression stack should be empty.
-  int count = osr_entry->last_environment()->total_count();
+  int count = osr_entry->last_environment()->length();
   ASSERT(count == (osr_entry->last_environment()->parameter_count() +
                    osr_entry->last_environment()->local_count()));
   for (int i = 0; i < count; ++i) {
@@ -5279,6 +5279,19 @@ void HEnvironment::Initialize(int parameter_count,
 }
 
 
+void HEnvironment::Initialize(const HEnvironment* other) {
+  closure_ = other->closure();
+  values_.AddAll(other->values_);
+  assigned_variables_.AddAll(other->assigned_variables_);
+  parameter_count_ = other->parameter_count_;
+  local_count_ = other->local_count_;
+  if (other->outer_ != NULL) outer_ = other->outer_->Copy();  // Deep copy.
+  pop_count_ = other->pop_count_;
+  push_count_ = other->push_count_;
+  ast_id_ = other->ast_id_;
+}
+
+
 void HEnvironment::AddIncomingEdge(HBasicBlock* block, HEnvironment* other) {
   ASSERT(!block->IsLoopHeader());
   ASSERT(values_.length() == other->values_.length());
@@ -5309,26 +5322,45 @@ void HEnvironment::AddIncomingEdge(HBasicBlock* block, HEnvironment* other) {
 }
 
 
-void HEnvironment::Initialize(const HEnvironment* other) {
-  closure_ = other->closure();
-  values_.AddAll(other->values_);
-  assigned_variables_.AddAll(other->assigned_variables_);
-  parameter_count_ = other->parameter_count_;
-  local_count_ = other->local_count_;
-  if (other->outer_ != NULL) outer_ = other->outer_->Copy();  // Deep copy.
-  pop_count_ = other->pop_count_;
-  push_count_ = other->push_count_;
-  ast_id_ = other->ast_id_;
+void HEnvironment::Bind(int index, HValue* value) {
+  ASSERT(value != NULL);
+  if (!assigned_variables_.Contains(index)) {
+    assigned_variables_.Add(index);
+  }
+  values_[index] = value;
 }
 
 
-int HEnvironment::IndexFor(Variable* variable) const {
-  Slot* slot = variable->AsSlot();
-  ASSERT(slot != NULL && slot->IsStackAllocated());
-  if (slot->type() == Slot::PARAMETER) {
-    return slot->index() + 1;
-  } else {
-    return parameter_count_ + slot->index();
+bool HEnvironment::HasExpressionAt(int index) const {
+  return index >= parameter_count_ + local_count_;
+}
+
+
+bool HEnvironment::ExpressionStackIsEmpty() const {
+  int first_expression = parameter_count() + local_count();
+  ASSERT(length() >= first_expression);
+  return length() == first_expression;
+}
+
+
+void HEnvironment::SetExpressionStackAt(int index_from_top, HValue* value) {
+  int count = index_from_top + 1;
+  int index = values_.length() - count;
+  ASSERT(HasExpressionAt(index));
+  // The push count must include at least the element in question or else
+  // the new value will not be included in this environment's history.
+  if (push_count_ < count) {
+    // This is the same effect as popping then re-pushing 'count' elements.
+    pop_count_ += (count - push_count_);
+    push_count_ = count;
+  }
+  values_[index] = value;
+}
+
+
+void HEnvironment::Drop(int count) {
+  for (int i = 0; i < count; ++i) {
+    Pop();
   }
 }
 
@@ -5393,7 +5425,7 @@ HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
 
 
 void HEnvironment::PrintTo(StringStream* stream) {
-  for (int i = 0; i < total_count(); i++) {
+  for (int i = 0; i < length(); i++) {
     if (i == 0) stream->Add("parameters\n");
     if (i == parameter_count()) stream->Add("locals\n");
     if (i == parameter_count() + local_count()) stream->Add("expressions");

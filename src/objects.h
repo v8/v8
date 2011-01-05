@@ -1505,11 +1505,15 @@ class JSObject: public HeapObject {
   bool HasElementWithInterceptor(JSObject* receiver, uint32_t index);
   bool HasElementPostInterceptor(JSObject* receiver, uint32_t index);
 
-  MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
+                                              Object* value,
+                                              bool check_prototype = true);
 
   // Set the index'th array element.
   // A Failure object is returned if GC is needed.
-  MUST_USE_RESULT MaybeObject* SetElement(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
+                                          Object* value,
+                                          bool check_prototype = true);
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
@@ -1763,9 +1767,12 @@ class JSObject: public HeapObject {
                                       Object* value,
                                       JSObject* holder);
   MUST_USE_RESULT MaybeObject* SetElementWithInterceptor(uint32_t index,
-                                                         Object* value);
-  MUST_USE_RESULT MaybeObject* SetElementWithoutInterceptor(uint32_t index,
-                                                            Object* value);
+                                                         Object* value,
+                                                         bool check_prototype);
+  MUST_USE_RESULT MaybeObject* SetElementWithoutInterceptor(
+      uint32_t index,
+      Object* value,
+      bool check_prototype);
 
   MaybeObject* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
 

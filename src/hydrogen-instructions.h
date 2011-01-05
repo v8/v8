@@ -910,6 +910,9 @@ class HCompareMapAndBranch: public HUnaryControlInstruction {
   virtual HBasicBlock* FirstSuccessor() const { return true_destination_; }
   virtual HBasicBlock* SecondSuccessor() const { return false_destination_; }
 
+  HBasicBlock* true_destination() const { return true_destination_; }
+  HBasicBlock* false_destination() const { return false_destination_; }
+
   virtual void PrintDataTo(StringStream* stream) const;
 
   Handle<Map> map() const { return map_; }
@@ -1020,10 +1023,10 @@ class HChange: public HUnaryOperation {
 
 class HSimulate: public HInstruction {
  public:
-  HSimulate(int ast_id, int pop_count, int environment_height)
+  HSimulate(int ast_id, int pop_count, int environment_length)
       : ast_id_(ast_id),
         pop_count_(pop_count),
-        environment_height_(environment_height),
+        environment_length_(environment_length),
         values_(2),
         assigned_indexes_(2) {}
   virtual ~HSimulate() {}
@@ -1037,7 +1040,7 @@ class HSimulate: public HInstruction {
     ast_id_ = id;
   }
 
-  int environment_height() const { return environment_height_; }
+  int environment_length() const { return environment_length_; }
   int pop_count() const { return pop_count_; }
   const ZoneList<HValue*>* values() const { return &values_; }
   int GetAssignedIndexAt(int index) const {
@@ -1079,7 +1082,7 @@ class HSimulate: public HInstruction {
   }
   int ast_id_;
   int pop_count_;
-  int environment_height_;
+  int environment_length_;
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_indexes_;
 };

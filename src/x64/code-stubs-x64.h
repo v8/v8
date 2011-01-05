@@ -87,7 +87,7 @@ class GenericBinaryOpStub: public CodeStub {
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 
-  GenericBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info)
+  GenericBinaryOpStub(int key, BinaryOpIC::TypeInfo runtime_operands_type)
       : op_(OpBits::decode(key)),
         mode_(ModeBits::decode(key)),
         flags_(FlagBits::decode(key)),
@@ -95,7 +95,7 @@ class GenericBinaryOpStub: public CodeStub {
         args_reversed_(ArgsReversedBits::decode(key)),
         static_operands_type_(TypeInfo::ExpandedRepresentation(
             StaticTypeInfoBits::decode(key))),
-        runtime_operands_type_(type_info),
+        runtime_operands_type_(runtime_operands_type),
         name_(NULL) {
   }
 
@@ -345,42 +345,6 @@ class NumberToStringStub: public CodeStub {
     PrintF("NumberToStringStub\n");
   }
 #endif
-};
-
-
-class RecordWriteStub : public CodeStub {
- public:
-  RecordWriteStub(Register object, Register addr, Register scratch)
-      : object_(object), addr_(addr), scratch_(scratch) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Register object_;
-  Register addr_;
-  Register scratch_;
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("RecordWriteStub (object reg %d), (addr reg %d), (scratch reg %d)\n",
-           object_.code(), addr_.code(), scratch_.code());
-  }
-#endif
-
-  // Minor key encoding in 12 bits. 4 bits for each of the three
-  // registers (object, address and scratch) OOOOAAAASSSS.
-  class ScratchBits : public BitField<uint32_t, 0, 4> {};
-  class AddressBits : public BitField<uint32_t, 4, 4> {};
-  class ObjectBits : public BitField<uint32_t, 8, 4> {};
-
-  Major MajorKey() { return RecordWrite; }
-
-  int MinorKey() {
-    // Encode the registers.
-    return ObjectBits::encode(object_.code()) |
-           AddressBits::encode(addr_.code()) |
-           ScratchBits::encode(scratch_.code());
-  }
 };
 
 

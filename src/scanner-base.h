@@ -214,7 +214,9 @@ class LiteralBuffer {
     ASSERT(is_ascii_);
     Vector<byte> new_store;
     int new_content_size = position_ * kUC16Size;
-    if (new_content_size > backing_store_.length()) {
+    if (new_content_size >= backing_store_.length()) {
+      // Ensure room for all currently read characters as UC16 as well
+      // as the character about to be stored.
       new_store = Vector<byte>::New(NewCapacity(new_content_size));
     } else {
       new_store = backing_store_;

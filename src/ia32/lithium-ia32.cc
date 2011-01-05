@@ -767,11 +767,6 @@ LInstruction* LChunkBuilder::DefineAsSpilled(LInstruction* instr, int index) {
 }
 
 
-LInstruction* LChunkBuilder::DefineSameAsAny(LInstruction* instr) {
-  return Define(instr, new LUnallocated(LUnallocated::SAME_AS_ANY_INPUT));
-}
-
-
 LInstruction* LChunkBuilder::DefineSameAsFirst(LInstruction* instr) {
   return Define(instr, new LUnallocated(LUnallocated::SAME_AS_FIRST_INPUT));
 }
@@ -1016,9 +1011,6 @@ void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
   HInstruction* current = block->first();
   int start = chunk_->instructions()->length();
   while (current != NULL && !is_aborted()) {
-    if (FLAG_trace_environment) {
-      PrintF("Process instruction %d\n", current->id());
-    }
     // Code for constants in registers is generated lazily.
     if (!current->EmitAtUses()) {
       VisitInstruction(current);
@@ -1125,7 +1117,7 @@ LEnvironment* LChunkBuilder::CreateEnvironment(HEnvironment* hydrogen_env) {
   LEnvironment* outer = CreateEnvironment(hydrogen_env->outer());
   int ast_id = hydrogen_env->ast_id();
   ASSERT(ast_id != AstNode::kNoNumber);
-  int value_count = hydrogen_env->values()->length();
+  int value_count = hydrogen_env->length();
   LEnvironment* result = new LEnvironment(hydrogen_env->closure(),
                                           ast_id,
                                           hydrogen_env->parameter_count(),
@@ -2039,7 +2031,7 @@ LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
 
 
 LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
-  LInstruction* result = new LTypeof(Use(instr->value()));
+  LInstruction* result = new LTypeof(UseAtStart(instr->value()));
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -2063,14 +2055,7 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
       env->Push(value);
     }
   }
-
-  if (FLAG_trace_environment) {
-    PrintF("Reconstructed environment ast_id=%d, instr_id=%d\n",
-           instr->ast_id(),
-           instr->id());
-    env->PrintToStd();
-  }
-  ASSERT(env->values()->length() == instr->environment_height());
+  ASSERT(env->length() == instr->environment_length());
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.

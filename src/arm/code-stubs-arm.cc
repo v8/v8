@@ -917,13 +917,6 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void RecordWriteStub::Generate(MacroAssembler* masm) {
-  __ add(offset_, object_, Operand(offset_));
-  __ RecordWriteHelper(object_, offset_, scratch_);
-  __ Ret();
-}
-
-
 // On entry lhs_ and rhs_ are the values to be compared.
 // On exit r0 is 0, positive or negative to indicate the result of
 // the comparison.
@@ -1229,14 +1222,20 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
   bool generate_code_to_calculate_answer = true;
 
   if (ShouldGenerateFPCode()) {
+    // DIV has neither SmiSmi fast code nor specialized slow code.
+    // So don't try to patch a DIV Stub.
     if (runtime_operands_type_ == BinaryOpIC::DEFAULT) {
       switch (op_) {
         case Token::ADD:
         case Token::SUB:
         case Token::MUL:
-        case Token::DIV:
           GenerateTypeTransition(masm);  // Tail call.
           generate_code_to_calculate_answer = false;
+          break;
+
+        case Token::DIV:
+          // DIV has neither SmiSmi fast code nor specialized slow code.
+          // So don't try to patch a DIV Stub.
           break;
 
         default:
@@ -1299,7 +1298,8 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       // HEAP_NUMBERS stub is slower than GENERIC on a pair of smis.
       // r0 is known to be a smi. If r1 is also a smi then switch to GENERIC.
       Label r1_is_not_smi;
-      if (runtime_operands_type_ == BinaryOpIC::HEAP_NUMBERS) {
+      if ((runtime_operands_type_ == BinaryOpIC::HEAP_NUMBERS) &&
+          HasSmiSmiFastPath()) {
         __ tst(r1, Operand(kSmiTagMask));
         __ b(ne, &r1_is_not_smi);
         GenerateTypeTransition(masm);  // Tail call.

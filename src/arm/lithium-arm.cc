@@ -767,11 +767,6 @@ LInstruction* LChunkBuilder::DefineAsSpilled(LInstruction* instr, int index) {
 }
 
 
-LInstruction* LChunkBuilder::DefineSameAsAny(LInstruction* instr) {
-  return Define(instr, new LUnallocated(LUnallocated::SAME_AS_ANY_INPUT));
-}
-
-
 LInstruction* LChunkBuilder::DefineSameAsFirst(LInstruction* instr) {
   return Define(instr, new LUnallocated(LUnallocated::SAME_AS_FIRST_INPUT));
 }
@@ -1016,9 +1011,6 @@ void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
   HInstruction* current = block->first();
   int start = chunk_->instructions()->length();
   while (current != NULL && !is_aborted()) {
-    if (FLAG_trace_environment) {
-      PrintF("Process instruction %d\n", current->id());
-    }
     // Code for constants in registers is generated lazily.
     if (!current->EmitAtUses()) {
       VisitInstruction(current);
@@ -1125,7 +1117,7 @@ LEnvironment* LChunkBuilder::CreateEnvironment(HEnvironment* hydrogen_env) {
   LEnvironment* outer = CreateEnvironment(hydrogen_env->outer());
   int ast_id = hydrogen_env->ast_id();
   ASSERT(ast_id != AstNode::kNoNumber);
-  int value_count = hydrogen_env->values()->length();
+  int value_count = hydrogen_env->length();
   LEnvironment* result = new LEnvironment(hydrogen_env->closure(),
                                           ast_id,
                                           hydrogen_env->parameter_count(),
@@ -1225,7 +1217,6 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
       ASSERT(compare->value()->representation().IsTagged());
 
       return new LHasInstanceTypeAndBranch(UseRegisterAtStart(compare->value()),
-                                           TempRegister(),
                                            first_id,
                                            second_id);
     } else if (v->IsHasCachedArrayIndex()) {
@@ -1238,11 +1229,8 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
       HIsNull* compare = HIsNull::cast(v);
       ASSERT(compare->value()->representation().IsTagged());
 
-      // We only need a temp register for non-strict compare.
-      LOperand* temp = compare->is_strict() ? NULL : TempRegister();
       return new LIsNullAndBranch(UseRegisterAtStart(compare->value()),
                                   compare->is_strict(),
-                                  temp,
                                   first_id,
                                   second_id);
     } else if (v->IsIsObject()) {
@@ -1295,12 +1283,8 @@ LInstruction* LChunkBuilder::DoCompareMapAndBranch(
     HCompareMapAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
-  HBasicBlock* first = instr->FirstSuccessor();
-  HBasicBlock* second = instr->SecondSuccessor();
-  return new LCmpMapAndBranch(value,
-                              instr->map(),
-                              first->block_id(),
-                              second->block_id());
+  LOperand* temp = TempRegister();
+  return new LCmpMapAndBranch(value, temp);
 }
 
 
@@ -1370,6 +1354,9 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       return AssignEnvironment(DefineAsRegister(result));
     case kMathSqrt:
       return DefineSameAsFirst(result);
+    case kMathRound:
+      Abort("MathRound LUnaryMathOperation not implemented");
+      return NULL;
     case kMathPowHalf:
       Abort("MathPowHalf LUnaryMathOperation not implemented");
       return NULL;
@@ -1774,9 +1761,11 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
-  LOperand* temp = TempRegister();
+  LOperand* temp1 = TempRegister();
+  LOperand* temp2 = TempRegister();
   LInstruction* result =
-      new LCheckPrototypeMaps(temp,
+      new LCheckPrototypeMaps(temp1,
+                              temp2,
                               instr->holder(),
                               instr->receiver_map());
   return AssignEnvironment(result);
@@ -1853,8 +1842,7 @@ LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
 LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
     HLoadFunctionPrototype* instr) {
   return AssignEnvironment(DefineAsRegister(
-      new LLoadFunctionPrototype(UseRegister(instr->function()),
-                                 TempRegister())));
+      new LLoadFunctionPrototype(UseRegister(instr->function()))));
 }
 
 
@@ -2058,13 +2046,7 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
     }
   }
 
-  if (FLAG_trace_environment) {
-    PrintF("Reconstructed environment ast_id=%d, instr_id=%d\n",
-           instr->ast_id(),
-           instr->id());
-    env->PrintToStd();
-  }
-  ASSERT(env->values()->length() == instr->environment_height());
+  ASSERT(env->length() == instr->environment_length());
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.
