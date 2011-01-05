@@ -5003,9 +5003,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   static const int kDeltaToCmpImmediate = 2;
   static const int kDeltaToMov = 8;
   static const int kDeltaToMovImmediate = 9;
-  static const int8_t kCmpEdiImmediateByte1 = static_cast<int8_t>(0x81);
-  static const int8_t kCmpEdiImmediateByte2 = static_cast<int8_t>(0xff);
-  static const int8_t kMovEaxImmediateByte = static_cast<int8_t>(0xb8);
+  static const int8_t kCmpEdiImmediateByte1 = BitCast<int8_t, uint8_t>(0x81);
+  static const int8_t kCmpEdiImmediateByte2 = BitCast<int8_t, uint8_t>(0xff);
+  static const int8_t kMovEaxImmediateByte = BitCast<int8_t, uint8_t>(0xb8);
 
   ExternalReference roots_address = ExternalReference::roots_address();
 
