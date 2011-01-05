@@ -622,7 +622,7 @@ bool Debug::disable_break_ = false;
 
 // Default call debugger on uncaught exception.
 bool Debug::break_on_exception_ = false;
-bool Debug::break_on_uncaught_exception_ = true;
+bool Debug::break_on_uncaught_exception_ = false;
 
 Handle<Context> Debug::debug_context_ = Handle<Context>();
 Code* Debug::debug_break_return_ = NULL;
@@ -2740,8 +2740,10 @@ bool Debugger::StartAgent(const char* name, int port,
   }
 
   if (Socket::Setup()) {
-    agent_ = new DebuggerAgent(name, port);
-    agent_->Start();
+    if (agent_ == NULL) {
+      agent_ = new DebuggerAgent(name, port);
+      agent_->Start();
+    }
     return true;
   }
 

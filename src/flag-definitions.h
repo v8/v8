@@ -355,6 +355,16 @@ DEFINE_string(map_counters, NULL, "Map counters to a file")
 DEFINE_args(js_arguments, JSArguments(),
             "Pass all remaining arguments to the script. Alias for \"--\".")
 
+#if defined(WEBOS__)
+DEFINE_bool(debug_compile_events, false, "Enable debugger compile events")
+DEFINE_bool(debug_script_collected_events, false,
+            "Enable debugger script collected events")
+#else
+DEFINE_bool(debug_compile_events, true, "Enable debugger compile events")
+DEFINE_bool(debug_script_collected_events, true,
+            "Enable debugger script collected events")
+#endif
+
 //
 // Debug only flags
 //

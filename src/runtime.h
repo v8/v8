@@ -363,7 +363,12 @@ namespace internal {
   F(LiveEditCheckAndDropActivations, 2, 1) \
   F(LiveEditCompareStringsLinewise, 2, 1) \
   F(GetFunctionCodePositionFromSource, 2, 1) \
-  F(ExecuteInDebugContext, 2, 1)
+  F(ExecuteInDebugContext, 2, 1) \
+  \
+  F(SetFlags, 1, 1) \
+  F(CollectGarbage, 1, 1) \
+  F(GetHeapUsage, 0, 1)
+
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 #endif
