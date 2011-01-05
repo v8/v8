@@ -2201,7 +2201,19 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
 
 
 void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
-  Abort("DoObjectLiteral unimplemented.");
+  __ ldr(r4, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ ldr(r4, FieldMemOperand(r4, JSFunction::kLiteralsOffset));
+  __ mov(r3, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
+  __ mov(r2, Operand(instr->hydrogen()->constant_properties()));
+  __ mov(r1, Operand(Smi::FromInt(instr->hydrogen()->fast_elements() ? 1 : 0)));
+  __ Push(r4, r3, r2, r1);
+
+  // Pick the right runtime function to call.
+  if (instr->hydrogen()->depth() > 1) {
+    CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
+  } else {
+    CallRuntime(Runtime::kCreateObjectLiteralShallow, 4, instr);
+  }
 }
 
 

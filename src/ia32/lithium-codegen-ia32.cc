@@ -3039,7 +3039,7 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
   __ push(Immediate(instr->hydrogen()->constant_properties()));
   __ push(Immediate(Smi::FromInt(instr->hydrogen()->fast_elements() ? 1 : 0)));
 
-  // Pick the right runtime function or stub to call.
+  // Pick the right runtime function to call.
   if (instr->hydrogen()->depth() > 1) {
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
   } else {
