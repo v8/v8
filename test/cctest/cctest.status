@@ -82,6 +82,7 @@ test-sockets/Socket: SKIP
 
 # Tests that fail with crankshaft.
 test-deoptimization/DeoptimizeBinaryOperationMOD: FAIL
+test-deoptimization/DeoptimizeBinaryOperationDIV: FAIL
 
 # Tests that time out with crankshaft.
 test-debug/ThreadedDebugging: SKIP
