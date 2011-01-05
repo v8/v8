@@ -1772,7 +1772,6 @@ void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 }
 
 
-
 void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
   Label call_runtime;
   ASSERT(operands_type_ == TRBinaryOpIC::STRING);
