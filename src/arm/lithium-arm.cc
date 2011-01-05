@@ -1306,6 +1306,14 @@ LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
+    HInstanceOfKnownGlobal* instr) {
+  LInstruction* result =
+      new LInstanceOfKnownGlobal(UseFixed(instr->value(), r0));
+  return MarkAsCall(DefineFixed(result, r0), instr);
+}
+
+
 LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
   LOperand* function = UseFixed(instr->function(), r1);
   LOperand* receiver = UseFixed(instr->receiver(), r0);

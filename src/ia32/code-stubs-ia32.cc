@@ -5182,36 +5182,6 @@ Register InstanceofStub::left() { return eax; }
 Register InstanceofStub::right() { return edx; }
 
 
-const char* InstanceofStub::GetName() {
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
-  if (name_ == NULL) return "OOM";
-
-  const char* args = "";
-  if (HasArgsInRegisters()) {
-    args = "_REGS";
-  }
-
-  const char* inline_check = "";
-  if (HasCallSiteInlineCheck()) {
-    inline_check = "_INLINE";
-  }
-
-  const char* return_true_false_object = "";
-  if (ReturnTrueFalseObject()) {
-    return_true_false_object = "_TRUEFALSE";
-  }
-
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "InstanceofStub%s%s%s",
-               args,
-               inline_check,
-               return_true_false_object);
-  return name_;
-}
-
-
 int CompareStub::MinorKey() {
   // Encode the three parameters in a unique 16 bit value. To avoid duplicate
   // stubs the never NaN NaN condition is only taken into account if the

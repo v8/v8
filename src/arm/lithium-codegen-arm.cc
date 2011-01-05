@@ -1431,6 +1431,10 @@ void LCodeGen::DoInstanceOfAndBranch(LInstanceOfAndBranch* instr) {
 }
 
 
+void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
+  Abort("DoInstanceOfKnownGlobal unimplemented.");
+}
+
 
 static Condition ComputeCompareCondition(Token::Value op) {
   switch (op) {

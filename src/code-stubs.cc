@@ -197,4 +197,34 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 }
 
 
+const char* InstanceofStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+
+  const char* args = "";
+  if (HasArgsInRegisters()) {
+    args = "_REGS";
+  }
+
+  const char* inline_check = "";
+  if (HasCallSiteInlineCheck()) {
+    inline_check = "_INLINE";
+  }
+
+  const char* return_true_false_object = "";
+  if (ReturnTrueFalseObject()) {
+    return_true_false_object = "_TRUEFALSE";
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "InstanceofStub%s%s%s",
+               args,
+               inline_check,
+               return_true_false_object);
+  return name_;
+}
+
+
 } }  // namespace v8::internal

@@ -62,6 +62,7 @@ class Translation;
 //     LDivI
 //     LInstanceOf
 //     LInstanceOfAndBranch
+//     LInstanceOfKnownGlobal
 //     LLoadKeyedFastElement
 //     LLoadKeyedGeneric
 //     LModI
@@ -204,6 +205,7 @@ class Translation;
   V(Goto)                                       \
   V(InstanceOf)                                 \
   V(InstanceOfAndBranch)                        \
+  V(InstanceOfKnownGlobal)                      \
   V(Integer32ToDouble)                          \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
@@ -990,6 +992,19 @@ class LInstanceOfAndBranch: public LInstanceOf {
  private:
   int true_block_id_;
   int false_block_id_;
+};
+
+
+class LInstanceOfKnownGlobal: public LUnaryOperation {
+ public:
+  explicit LInstanceOfKnownGlobal(LOperand* left)
+      : LUnaryOperation(left) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal,
+                               "instance-of-known-global")
+  DECLARE_HYDROGEN_ACCESSOR(InstanceOfKnownGlobal)
+
+  Handle<JSFunction> function() const { return hydrogen()->function(); }
 };
 
 
