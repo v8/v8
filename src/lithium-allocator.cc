@@ -940,6 +940,9 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
                                     curr_position.InstructionEnd());
             }
           }
+        }
+
+        if (summary->IsCall() || summary->IsSaveDoubles()) {
           for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; ++i) {
             if (output == NULL || !output->IsDoubleRegister() ||
                 output->index() != i) {
@@ -1604,6 +1607,11 @@ void LAllocator::MarkAsCall() {
   }
 #endif
   summary->MarkAsCall();
+}
+
+
+void LAllocator::MarkAsSaveDoubles() {
+  current_summary()->MarkAsSaveDoubles();
 }
 
 

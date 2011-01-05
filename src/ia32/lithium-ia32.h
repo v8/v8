@@ -63,6 +63,7 @@ class LGapNode;
 //     LDivI
 //     LInstanceOf
 //     LInstanceOfAndBranch
+//     LInstanceOfKnownGlobal
 //     LLoadKeyedFastElement
 //     LLoadKeyedGeneric
 //     LModI
@@ -207,6 +208,7 @@ class LGapNode;
   V(FixedArrayLength)                           \
   V(InstanceOf)                                 \
   V(InstanceOfAndBranch)                        \
+  V(InstanceOfKnownGlobal)                      \
   V(Integer32ToDouble)                          \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
@@ -1005,6 +1007,23 @@ class LInstanceOfAndBranch: public LInstanceOf {
  private:
   int true_block_id_;
   int false_block_id_;
+};
+
+
+class LInstanceOfKnownGlobal: public LUnaryOperation {
+ public:
+  LInstanceOfKnownGlobal(LOperand* left, LOperand* temp)
+      : LUnaryOperation(left), temp_(temp) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal,
+                               "instance-of-known-global")
+  DECLARE_HYDROGEN_ACCESSOR(InstanceOfKnownGlobal)
+
+  Handle<JSFunction> function() const { return hydrogen()->function(); }
+  LOperand* temp() const { return temp_; }
+
+ private:
+  LOperand* temp_;
 };
 
 
@@ -2102,6 +2121,7 @@ class LChunkBuilder BASE_EMBEDDED {
       LInstruction* instr,
       HInstruction* hinstr,
       CanDeoptimize can_deoptimize = CANNOT_DEOPTIMIZE_EAGERLY);
+  LInstruction* MarkAsSaveDoubles(LInstruction* instr);
 
   LInstruction* SetInstructionPendingDeoptimizationEnvironment(
       LInstruction* instr, int ast_id);

@@ -4042,7 +4042,6 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     case Token::INSTANCEOF: {
       VisitForStackValue(expr->right());
-      __ IncrementCounter(&Counters::instance_of_full, 1);
       InstanceofStub stub(InstanceofStub::kNoFlags);
       __ CallStub(&stub);
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);

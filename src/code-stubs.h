@@ -327,22 +327,38 @@ class InstanceofStub: public CodeStub {
  public:
   enum Flags {
     kNoFlags = 0,
-    kArgsInRegisters = 1 << 0
+    kArgsInRegisters = 1 << 0,
+    kCallSiteInlineCheck = 1 << 1,
+    kReturnTrueFalseObject = 1 << 2
   };
 
-  explicit InstanceofStub(Flags flags) : flags_(flags) { }
+  explicit InstanceofStub(Flags flags) : flags_(flags), name_(NULL) { }
+
+  static Register left();
+  static Register right();
 
   void Generate(MacroAssembler* masm);
 
  private:
   Major MajorKey() { return Instanceof; }
-  int MinorKey() { return args_in_registers() ? 1 : 0; }
+  int MinorKey() { return static_cast<int>(flags_); }
 
-  bool args_in_registers() {
+  bool HasArgsInRegisters() const {
     return (flags_ & kArgsInRegisters) != 0;
   }
 
+  bool HasCallSiteInlineCheck() const {
+    return (flags_ & kCallSiteInlineCheck) != 0;
+  }
+
+  bool ReturnTrueFalseObject() const {
+    return (flags_ & kReturnTrueFalseObject) != 0;
+  }
+
+  const char* GetName();
+
   Flags flags_;
+  char* name_;
 };
 
 
