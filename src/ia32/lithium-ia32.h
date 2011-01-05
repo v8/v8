@@ -1971,7 +1971,12 @@ class LEnvironment: public ZoneObject {
 class LChunkBuilder;
 class LChunk: public ZoneObject {
  public:
-  explicit LChunk(HGraph* graph);
+  explicit LChunk(HGraph* graph)
+    : spill_slot_count_(0),
+      graph_(graph),
+      instructions_(32),
+      pointer_maps_(8),
+      inlined_closures_(1) { }
 
   int AddInstruction(LInstruction* instruction, HBasicBlock* block);
   LConstantOperand* DefineConstantOperand(HConstant* constant);
