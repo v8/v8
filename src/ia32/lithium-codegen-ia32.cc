@@ -2000,6 +2000,8 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   __ sub(length, index);
   DeoptimizeIf(below_equal, instr->environment());
 
+  // There are two words between the frame pointer and the last argument.
+  // Subtracting from length accounts for one of them add one more.
   __ mov(result, Operand(arguments, length, times_4, kPointerSize));
 }
 
@@ -2049,7 +2051,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register result = ToRegister(instr->result());
 
   // Check for arguments adapter frame.
-  Label done, adapted;
+  NearLabel done, adapted;
   __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(result, Operand(result, StandardFrameConstants::kContextOffset));
   __ cmp(Operand(result),
@@ -2064,7 +2066,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   __ bind(&adapted);
   __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
 
-  // Done. Pointer to topmost argument is in result.
+  // Result is the frame pointer for the frame if not adapted and for the real
+  // frame below the adaptor frame if adapted.
   __ bind(&done);
 }
 
@@ -2073,9 +2076,9 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
   Operand elem = ToOperand(instr->input());
   Register result = ToRegister(instr->result());
 
-  Label done;
+  NearLabel done;
 
-  // No arguments adaptor frame. Number of arguments is fixed.
+  // If no arguments adaptor frame the number of arguments is fixed.
   __ cmp(ebp, elem);
   __ mov(result, Immediate(scope()->num_parameters()));
   __ j(equal, &done);
@@ -2086,7 +2089,7 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
                          ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ SmiUntag(result);
 
-  // Done. Argument length is in result register.
+  // Argument length is in result register.
   __ bind(&done);
 }
 
