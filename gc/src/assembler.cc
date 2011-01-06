@@ -47,7 +47,7 @@
 #include "ast.h"
 #include "regexp-macro-assembler.h"
 #include "platform.h"
-#include "write-buffer.h"
+#include "store-buffer.h"
 // Include native regexp-macro-assembler.
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
@@ -673,8 +673,8 @@ ExternalReference ExternalReference::new_space_start() {
 }
 
 
-ExternalReference ExternalReference::write_buffer_top() {
-  return ExternalReference(WriteBuffer::TopAddress());
+ExternalReference ExternalReference::store_buffer_top() {
+  return ExternalReference(StoreBuffer::TopAddress());
 }
 
 

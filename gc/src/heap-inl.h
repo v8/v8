@@ -31,8 +31,8 @@
 #include "heap.h"
 #include "objects.h"
 #include "v8-counters.h"
-#include "write-buffer.h"
-#include "write-buffer-inl.h"
+#include "store-buffer.h"
+#include "store-buffer-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -272,13 +272,13 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
 
 
 void Heap::RecordWrite(Address address, int offset) {
-  WriteBuffer::Mark(address + offset);
+  StoreBuffer::Mark(address + offset);
 }
 
 
 void Heap::RecordWrites(Address address, int start, int len) {
   for (int i = 0; i < len; i++) {
-    WriteBuffer::Mark(address + start + i);
+    StoreBuffer::Mark(address + start + i);
   }
 }
 

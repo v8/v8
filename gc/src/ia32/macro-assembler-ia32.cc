@@ -60,23 +60,23 @@ void MacroAssembler::RecordWriteHelper(Register object,
     bind(&not_in_new_space);
   }
 
-  // Load write buffer top.
-  ExternalReference write_buffer = ExternalReference::write_buffer_top();
-  mov(scratch, Operand::StaticVariable(write_buffer));
+  // Load store buffer top.
+  ExternalReference store_buffer = ExternalReference::store_buffer_top();
+  mov(scratch, Operand::StaticVariable(store_buffer));
   // Store pointer to buffer.
   mov(Operand(scratch, 0), addr);
   // Increment buffer top.
   add(Operand(scratch), Immediate(kPointerSize));
   // Write back new top of buffer.
-  mov(Operand::StaticVariable(write_buffer), scratch);
+  mov(Operand::StaticVariable(store_buffer), scratch);
   // Call stub on end of buffer.
   NearLabel no_overflow;
   // Check for end of buffer.
-  test(scratch, Immediate(WriteBuffer::kWriteBufferOverflowBit));
+  test(scratch, Immediate(StoreBuffer::kStoreBufferOverflowBit));
   j(equal, &no_overflow);
-  WriteBufferOverflowStub write_buffer_overflow =
-      WriteBufferOverflowStub(save_fp);
-  CallStub(&write_buffer_overflow);
+  StoreBufferOverflowStub store_buffer_overflow =
+      StoreBufferOverflowStub(save_fp);
+  CallStub(&store_buffer_overflow);
   bind(&no_overflow);
 }
 

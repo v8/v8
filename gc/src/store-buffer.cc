@@ -26,25 +26,25 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "v8-counters.h"
-#include "write-buffer.h"
-#include "write-buffer-inl.h"
+#include "store-buffer.h"
+#include "store-buffer-inl.h"
 
 namespace v8 {
 namespace internal {
 
-Address* WriteBuffer::start_ = NULL;
-Address* WriteBuffer::limit_ = NULL;
-uintptr_t* WriteBuffer::hash_map_1_ = NULL;
-uintptr_t* WriteBuffer::hash_map_2_ = NULL;
-VirtualMemory* WriteBuffer::virtual_memory_ = NULL;
+Address* StoreBuffer::start_ = NULL;
+Address* StoreBuffer::limit_ = NULL;
+uintptr_t* StoreBuffer::hash_map_1_ = NULL;
+uintptr_t* StoreBuffer::hash_map_2_ = NULL;
+VirtualMemory* StoreBuffer::virtual_memory_ = NULL;
 
-void WriteBuffer::Setup() {
-  virtual_memory_ = new VirtualMemory(kWriteBufferSize * 3);
+void StoreBuffer::Setup() {
+  virtual_memory_ = new VirtualMemory(kStoreBufferSize * 3);
   uintptr_t start_as_int =
       reinterpret_cast<uintptr_t>(virtual_memory_->address());
   start_ =
-      reinterpret_cast<Address*>(RoundUp(start_as_int, kWriteBufferSize * 2));
-  limit_ = start_ + (kWriteBufferSize / sizeof(*start_));
+      reinterpret_cast<Address*>(RoundUp(start_as_int, kStoreBufferSize * 2));
+  limit_ = start_ + (kStoreBufferSize / sizeof(*start_));
 
   ASSERT(reinterpret_cast<Address>(start_) >= virtual_memory_->address());
   ASSERT(reinterpret_cast<Address>(limit_) >= virtual_memory_->address());
@@ -54,41 +54,41 @@ void WriteBuffer::Setup() {
   ASSERT(start_ <= vm_limit);
   ASSERT(limit_ <= vm_limit);
   USE(vm_limit);
-  ASSERT((reinterpret_cast<uintptr_t>(limit_) & kWriteBufferOverflowBit) != 0);
-  ASSERT((reinterpret_cast<uintptr_t>(limit_ - 1) & kWriteBufferOverflowBit) ==
+  ASSERT((reinterpret_cast<uintptr_t>(limit_) & kStoreBufferOverflowBit) != 0);
+  ASSERT((reinterpret_cast<uintptr_t>(limit_ - 1) & kStoreBufferOverflowBit) ==
          0);
 
   virtual_memory_->Commit(reinterpret_cast<Address>(start_),
-                          kWriteBufferSize,
+                          kStoreBufferSize,
                           false);  // Not executable.
-  Heap::public_set_write_buffer_top(start_);
+  Heap::public_set_store_buffer_top(start_);
 
   hash_map_1_ = new uintptr_t[kHashMapLength];
   hash_map_2_ = new uintptr_t[kHashMapLength];
 }
 
 
-void WriteBuffer::TearDown() {
+void StoreBuffer::TearDown() {
   delete virtual_memory_;
   delete[] hash_map_1_;
   delete[] hash_map_2_;
   start_ = limit_ = NULL;
-  Heap::public_set_write_buffer_top(start_);
+  Heap::public_set_store_buffer_top(start_);
 }
 
 
-void WriteBuffer::Compact() {
+void StoreBuffer::Compact() {
   memset(reinterpret_cast<void*>(hash_map_1_),
          0,
          sizeof(uintptr_t) * kHashMapLength);
   memset(reinterpret_cast<void*>(hash_map_2_),
          0,
          sizeof(uintptr_t) * kHashMapLength);
-  Address* top = reinterpret_cast<Address*>(Heap::write_buffer_top());
+  Address* top = reinterpret_cast<Address*>(Heap::store_buffer_top());
   Address* stop = top;
   ASSERT(top <= limit_);
   top = start_;
-  // Goes through the addresses in the write buffer attempting to remove
+  // Goes through the addresses in the store buffer attempting to remove
   // duplicates.  In the interest of speed this is a lossy operation.  Some
   // duplicates will remain.  We have two hash tables with different hash
   // functions to reduce the number of unnecessary clashes.
@@ -117,7 +117,7 @@ void WriteBuffer::Compact() {
     ASSERT(top <= limit_);
     *top++ = reinterpret_cast<Address>(int_addr << kPointerSizeLog2);
   }
-  Counters::write_buffer_compactions.Increment();
+  Counters::store_buffer_compactions.Increment();
   if (limit_ - top < top - start_) {
     // Compression did not free up at least half.
     // TODO(gc): Set an interrupt to do a GC on the next back edge.
@@ -127,10 +127,10 @@ void WriteBuffer::Compact() {
       // Compression did not free up at least one quarter.
       // TODO(gc): Set a flag to scan all of memory.
       top = start_;
-      Counters::write_buffer_overflows.Increment();
+      Counters::store_buffer_overflows.Increment();
     }
   }
-  Heap::public_set_write_buffer_top(top);
+  Heap::public_set_store_buffer_top(top);
 }
 
 } }  // namespace v8::internal

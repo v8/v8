@@ -47,7 +47,7 @@ namespace internal {
   V(Compare)                             \
   V(CompareIC)                           \
   V(MathPow)                             \
-  V(WriteBufferOverflow)                 \
+  V(StoreBufferOverflow)                 \
   V(TranscendentalCache)                 \
   V(RecordWrite)                         \
   V(ConvertToDouble)                     \

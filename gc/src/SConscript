@@ -128,7 +128,7 @@ SOURCES = {
     variables.cc
     version.cc
     virtual-frame.cc
-    write-buffer.cc
+    store-buffer.cc
     zone.cc
     extensions/gc-extension.cc
     extensions/externalize-string-extension.cc

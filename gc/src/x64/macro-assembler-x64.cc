@@ -86,22 +86,22 @@ void MacroAssembler::RecordWriteHelper(Register object,
     bind(&not_in_new_space);
   }
 
-  // Load write buffer top.
-  LoadRoot(scratch, Heap::kWriteBufferTopRootIndex);
+  // Load store buffer top.
+  LoadRoot(scratch, Heap::kStoreBufferTopRootIndex);
   // Store pointer to buffer.
   movq(Operand(scratch, 0), addr);
   // Increment buffer top.
   addq(scratch, Immediate(kPointerSize));
   // Write back new top of buffer.
-  StoreRoot(scratch, Heap::kWriteBufferTopRootIndex);
+  StoreRoot(scratch, Heap::kStoreBufferTopRootIndex);
   // Call stub on end of buffer.
   NearLabel no_overflow;
   // Check for end of buffer.
-  testq(scratch, Immediate(WriteBuffer::kWriteBufferOverflowBit));
+  testq(scratch, Immediate(StoreBuffer::kStoreBufferOverflowBit));
   j(equal, &no_overflow);
-  WriteBufferOverflowStub write_buffer_overflow =
-      WriteBufferOverflowStub(save_fp);
-  CallStub(&write_buffer_overflow);
+  StoreBufferOverflowStub store_buffer_overflow =
+      StoreBufferOverflowStub(save_fp);
+  CallStub(&store_buffer_overflow);
   bind(&no_overflow);
 }
 

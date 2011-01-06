@@ -259,8 +259,8 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
-void WriteBufferOverflowStub::Generate(MacroAssembler* masm) {
-  // We don't allow a GC during a write buffer overflow so there is no need to
+void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
+  // We don't allow a GC during a store buffer overflow so there is no need to
   // store the registers in any particular way, but we do have to store and
   // restore them.
   __ pushad();
@@ -274,9 +274,9 @@ void WriteBufferOverflowStub::Generate(MacroAssembler* masm) {
   }
   const int argument_count = 0;
   __ PrepareCallCFunction(argument_count, ecx);
-  ExternalReference write_buffer_overflow =
-      ExternalReference(Runtime::FunctionForId(Runtime::kWriteBufferOverflow));
-  __ CallCFunction(write_buffer_overflow, argument_count);
+  ExternalReference store_buffer_overflow =
+      ExternalReference(Runtime::FunctionForId(Runtime::kStoreBufferOverflow));
+  __ CallCFunction(store_buffer_overflow, argument_count);
   if (save_doubles_ == kSaveFPRegs) {
     CpuFeatures::Scope scope(SSE2);
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {

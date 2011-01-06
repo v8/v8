@@ -39,7 +39,7 @@
 #include "serialize.h"
 #include "simulator.h"
 #include "stub-cache.h"
-#include "write-buffer.h"
+#include "store-buffer.h"
 
 namespace v8 {
 namespace internal {
@@ -94,7 +94,7 @@ bool V8::Initialize(Deserializer* des) {
     StackGuard::InitThread(lock);
   }
 
-  WriteBuffer::Setup();
+  StoreBuffer::Setup();
 
   // Setup the object heap
   ASSERT(!Heap::HasBeenSetup());
@@ -183,7 +183,7 @@ void V8::TearDown() {
   Logger::TearDown();
   Heap::TearDown();
 
-  WriteBuffer::TearDown();
+  StoreBuffer::TearDown();
 
   is_running_ = false;
   has_been_disposed_ = true;

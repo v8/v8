@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,44 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_WRITE_BARRIER_INL_H_
-#define V8_WRITE_BARRIER_INL_H_
+#ifndef V8_WRITE_BARRIER_H_
+#define V8_WRITE_BARRIER_H_
 
-#include "v8.h"
-#include "write-buffer.h"
+#include "allocation.h"
+#include "checks.h"
+#include "globals.h"
+#include "platform.h"
 
 namespace v8 {
 namespace internal {
 
-Address WriteBuffer::TopAddress() {
-  return reinterpret_cast<Address>(Heap::write_buffer_top_address());
-}
 
+// Used to implement the write barrier by collecting addresses of pointers
+// between spaces.
+class StoreBuffer : public AllStatic {
+ public:
+  static inline Address TopAddress();
 
-void WriteBuffer::Mark(Address addr) {
-  Address* top = reinterpret_cast<Address*>(Heap::write_buffer_top());
-  *top++ = addr;
-  Heap::public_set_write_buffer_top(top);
-  if ((reinterpret_cast<uintptr_t>(top) & kWriteBufferOverflowBit) != 0) {
-    ASSERT(top == limit_);
-    Compact();
-  } else {
-    ASSERT(top < limit_);
-  }
-}
+  static void Setup();
+  static void TearDown();
+
+  static inline void Mark(Address addr);
+
+  static const int kStoreBufferOverflowBit = 1 << 16;
+  static const int kStoreBufferSize = kStoreBufferOverflowBit;
+  static const int kHashMapLengthLog2 = 12;
+  static const int kHashMapLength = 1 << kHashMapLengthLog2;
+
+  static void Compact();
+
+ private:
+  static Address* start_;
+  static Address* limit_;
+  static VirtualMemory* virtual_memory_;
+  static uintptr_t* hash_map_1_;
+  static uintptr_t* hash_map_2_;
+};
 
 } }  // namespace v8::internal
 
-#endif  // V8_WRITE_BARRIER_INL_H_
+#endif  // V8_WRITE_BARRIER_H_

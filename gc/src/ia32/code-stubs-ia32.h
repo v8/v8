@@ -72,9 +72,9 @@ class ToBooleanStub: public CodeStub {
 };
 
 
-class WriteBufferOverflowStub: public CodeStub {
+class StoreBufferOverflowStub: public CodeStub {
  public:
-  explicit WriteBufferOverflowStub(SaveFPRegsMode save_fp)
+  explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
       : save_doubles_(save_fp) { }
 
   void Generate(MacroAssembler* masm);
@@ -82,7 +82,7 @@ class WriteBufferOverflowStub: public CodeStub {
  private:
   SaveFPRegsMode save_doubles_;
 
-  Major MajorKey() { return WriteBufferOverflow; }
+  Major MajorKey() { return StoreBufferOverflow; }
   int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
 };
 

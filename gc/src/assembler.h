@@ -538,7 +538,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference heap_always_allocate_scope_depth();
 
   // Write barrier.
-  static ExternalReference write_buffer_top();
+  static ExternalReference store_buffer_top();
 
   // Used for fast allocation in generated code.
   static ExternalReference new_space_allocation_top_address();

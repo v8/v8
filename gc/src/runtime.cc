@@ -5400,8 +5400,8 @@ static MaybeObject* Runtime_NumberToSmi(Arguments args) {
 }
 
 
-static MaybeObject* Runtime_WriteBufferOverflow(Arguments args) {
-  WriteBuffer::Compact();
+static MaybeObject* Runtime_StoreBufferOverflow(Arguments args) {
+  StoreBuffer::Compact();
   return Heap::undefined_value();
 }
 

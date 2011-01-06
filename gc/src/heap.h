@@ -48,7 +48,7 @@ namespace internal {
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   /* Cluster the most popular ones in a few cache lines here at the top.    */ \
   V(Smi, stack_limit, StackLimit)                                              \
-  V(Smi, write_buffer_top, WriteBufferTop)                                     \
+  V(Smi, store_buffer_top, StoreBufferTop)                                     \
   V(Object, undefined_value, UndefinedValue)                                   \
   V(Object, the_hole_value, TheHoleValue)                                      \
   V(Object, null_value, NullValue)                                             \
@@ -906,8 +906,8 @@ class Heap : public AllStatic {
     roots_[kEmptyScriptRootIndex] = script;
   }
 
-  static void public_set_write_buffer_top(Address* top) {
-    roots_[kWriteBufferTopRootIndex] = reinterpret_cast<Smi*>(top);
+  static void public_set_store_buffer_top(Address* top) {
+    roots_[kStoreBufferTopRootIndex] = reinterpret_cast<Smi*>(top);
   }
 
   // Update the next script id.
@@ -916,8 +916,8 @@ class Heap : public AllStatic {
   // Generated code can embed this address to get access to the roots.
   static Object** roots_address() { return roots_; }
 
-  static Address* write_buffer_top_address() {
-    return reinterpret_cast<Address*>(&roots_[kWriteBufferTopRootIndex]);
+  static Address* store_buffer_top_address() {
+    return reinterpret_cast<Address*>(&roots_[kStoreBufferTopRootIndex]);
   }
 
   // Get address of global contexts list for serialization support.
