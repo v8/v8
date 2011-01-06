@@ -80,9 +80,9 @@ test-sockets/Socket: SKIP
 ##############################################################################
 [ $arch == arm && $crankshaft ]
 
-# Tests that fail with crankshaft.
-test-deoptimization/DeoptimizeBinaryOperationMOD: FAIL
-test-deoptimization/DeoptimizeBinaryOperationDIV: FAIL
+# Tests that can fail with crankshaft.
+test-deoptimization/DeoptimizeBinaryOperationMOD: PASS || FAIL
+test-deoptimization/DeoptimizeBinaryOperationDIV: PASS || FAIL
 
 # Tests that time out with crankshaft.
 test-debug/ThreadedDebugging: SKIP
