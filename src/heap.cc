@@ -2011,6 +2011,12 @@ bool Heap::CreateInitialObjects() {
   }
   set_the_hole_value(obj);
 
+  { MaybeObject* maybe_obj = CreateOddball("arguments_marker",
+                                           Smi::FromInt(-4));
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_arguments_marker(obj);
+
   { MaybeObject* maybe_obj =
         CreateOddball("no_interceptor_result_sentinel", Smi::FromInt(-2));
     if (!maybe_obj->ToObject(&obj)) return false;

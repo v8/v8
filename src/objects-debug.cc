@@ -368,8 +368,10 @@ void Oddball::OddballVerify() {
   } else {
     ASSERT(number->IsSmi());
     int value = Smi::cast(number)->value();
-    ASSERT(value == 0 || value == 1 || value == -1 ||
-           value == -2 || value == -3);
+    // Hidden oddballs have negative smis.
+    const int kLeastHiddenOddballNumber = -4;
+    ASSERT(value <= 1);
+    ASSERT(value >= kLeastHiddenOddballNumber);
   }
 }
 

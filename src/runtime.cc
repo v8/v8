@@ -6748,7 +6748,7 @@ static MaybeObject* Runtime_NotifyDeoptimized(Arguments args) {
   Handle<JSFunction> function(JSFunction::cast(frame->function()));
   Handle<Object> arguments;
   for (int i = frame->ComputeExpressionsCount() - 1; i >= 0; --i) {
-    if (frame->GetExpression(i) == Heap::the_hole_value()) {
+    if (frame->GetExpression(i) == Heap::arguments_marker()) {
       if (arguments.is_null()) {
         // FunctionGetArguments can't throw an exception, so cast away the
         // doubt with an assert.

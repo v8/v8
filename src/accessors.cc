@@ -775,7 +775,7 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
         if (index >= 0) {
           Handle<Object> arguments =
               Handle<Object>(frame->GetExpression(index));
-          if (!arguments->IsTheHole()) return *arguments;
+          if (!arguments->IsArgumentsMarker()) return *arguments;
         }
 
         // If there isn't an arguments variable in the stack, we need to
