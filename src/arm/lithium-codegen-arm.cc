@@ -1593,8 +1593,10 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Operand index = ToOperand(instr->index());
   Register result = ToRegister(instr->result());
 
-  __ sub(length, length, index);
-  DeoptimizeIf(hi, instr->environment());
+  // Bailout index is not a valid argument index. Use unsigned check to get
+  // negative check for free.
+  __ sub(length, length, index, SetCC);
+  DeoptimizeIf(ls, instr->environment());
 
   // There are two words between the frame pointer and the last argument.
   // Subtracting from length accounts for one of them add one more.
