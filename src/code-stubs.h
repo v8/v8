@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -723,6 +723,10 @@ class CallFunctionStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
+  static int ExtractArgcFromMinorKey(int minor_key) {
+    return ArgcBits::decode(minor_key);
+  }
+
  private:
   int argc_;
   InLoopFlag in_loop_;
@@ -753,11 +757,6 @@ class CallFunctionStub: public CodeStub {
   InLoopFlag InLoop() { return in_loop_; }
   bool ReceiverMightBeValue() {
     return (flags_ & RECEIVER_MIGHT_BE_VALUE) != 0;
-  }
-
- public:
-  static int ExtractArgcFromMinorKey(int minor_key) {
-    return ArgcBits::decode(minor_key);
   }
 };
 
