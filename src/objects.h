@@ -1341,7 +1341,8 @@ class JSObject: public HeapObject {
   MUST_USE_RESULT MaybeObject* SetPropertyWithFailedAccessCheck(
       LookupResult* result,
       String* name,
-      Object* value);
+      Object* value,
+      bool check_prototype);
   MUST_USE_RESULT MaybeObject* SetPropertyWithCallback(Object* structure,
                                                        String* name,
                                                        Object* value,
@@ -1356,7 +1357,7 @@ class JSObject: public HeapObject {
       String* name,
       Object* value,
       PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* IgnoreAttributesAndSetLocalProperty(
+  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       String* key,
       Object* value,
       PropertyAttributes attributes);

@@ -126,8 +126,8 @@ MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
       // This means one of the object's prototypes is a JSArray and
       // the object does not have a 'length' property.
       // Calling SetProperty causes an infinite loop.
-      return object->IgnoreAttributesAndSetLocalProperty(Heap::length_symbol(),
-                                                         value, NONE);
+      return object->SetLocalPropertyIgnoreAttributes(Heap::length_symbol(),
+                                                      value, NONE);
     }
   }
   return Top::Throw(*Factory::NewRangeError("invalid_array_length",
