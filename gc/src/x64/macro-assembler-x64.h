@@ -81,13 +81,13 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // For page containing |object| mark region covering |addr| dirty.
   // RecordWriteHelper only works if the object is not in new
   // space.
   void RecordWriteHelper(Register object,
                          Register addr,
-                         Register scratch);
+                         Register scratch,
+                         SaveFPRegsMode save_fp);
 
   // Check if object is in new space. The condition cc can be equal or
   // not_equal. If it is equal a jump will be done if the object is on new
@@ -108,7 +108,8 @@ class MacroAssembler: public Assembler {
   void RecordWrite(Register object,
                    int offset,
                    Register value,
-                   Register scratch);
+                   Register scratch,
+                   SaveFPRegsMode save_fp);
 
   // For page containing |object| mark region covering [address]
   // dirty. |object| is the object being stored into, |value| is the
@@ -117,7 +118,8 @@ class MacroAssembler: public Assembler {
   // the write barrier if the value is a smi.
   void RecordWrite(Register object,
                    Register address,
-                   Register value);
+                   Register value,
+                   SaveFPRegsMode save_fp);
 
   // For page containing |object| mark region covering [object+offset] dirty.
   // The value is known to not be a smi.
@@ -128,8 +130,8 @@ class MacroAssembler: public Assembler {
   void RecordWriteNonSmi(Register object,
                          int offset,
                          Register value,
-                         Register scratch);
-#endif
+                         Register scratch,
+                         SaveFPRegsMode save_fp);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
@@ -1650,7 +1652,6 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
 }
 
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
 template <typename LabelType>
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
@@ -1685,7 +1686,7 @@ void MacroAssembler::InNewSpace(Register object,
     j(cc, branch);
   }
 }
-#endif
+
 
 template <typename LabelType>
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,

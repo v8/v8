@@ -73,10 +73,11 @@ void MacroAssembler::CompareRoot(Operand with, Heap::RootListIndex index) {
   cmpq(with, kScratchRegister);
 }
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
+
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register addr,
-                                       Register scratch) {
+                                       Register scratch,
+                                       SaveFPRegsMode save_fp) {
   if (FLAG_debug_code) {
     // Check that the object is not in new space.
     NearLabel not_in_new_space;
@@ -85,24 +86,31 @@ void MacroAssembler::RecordWriteHelper(Register object,
     bind(&not_in_new_space);
   }
 
-  // Compute the page start address from the heap object pointer, and reuse
-  // the 'object' register for it.
-  and_(object, Immediate(~Page::kPageAlignmentMask));
-
-  // Compute number of region covering addr. See Page::GetRegionNumberForAddress
-  // method for more details.
-  shrl(addr, Immediate(Page::kRegionSizeLog2));
-  andl(addr, Immediate(Page::kPageAlignmentMask >> Page::kRegionSizeLog2));
-
-  // Set dirty mark for region.
-  bts(Operand(object, Page::kDirtyFlagOffset), addr);
+  // Load write buffer top.
+  LoadRoot(scratch, Heap::kWriteBufferTopRootIndex);
+  // Store pointer to buffer.
+  movq(Operand(scratch, 0), addr);
+  // Increment buffer top.
+  addq(scratch, Immediate(kPointerSize));
+  // Write back new top of buffer.
+  StoreRoot(scratch, Heap::kWriteBufferTopRootIndex);
+  // Call stub on end of buffer.
+  NearLabel no_overflow;
+  // Check for end of buffer.
+  testq(scratch, Immediate(WriteBuffer::kWriteBufferOverflowBit));
+  j(equal, &no_overflow);
+  WriteBufferOverflowStub write_buffer_overflow =
+      WriteBufferOverflowStub(save_fp);
+  CallStub(&write_buffer_overflow);
+  bind(&no_overflow);
 }
 
 
 void MacroAssembler::RecordWrite(Register object,
                                  int offset,
                                  Register value,
-                                 Register index) {
+                                 Register index,
+                                 SaveFPRegsMode save_fp) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are rsi.
@@ -113,7 +121,7 @@ void MacroAssembler::RecordWrite(Register object,
   Label done;
   JumpIfSmi(value, &done);
 
-  RecordWriteNonSmi(object, offset, value, index);
+  RecordWriteNonSmi(object, offset, value, index, save_fp);
   bind(&done);
 
   // Clobber all input registers when running with the debug-code flag
@@ -131,7 +139,8 @@ void MacroAssembler::RecordWrite(Register object,
 
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
-                                 Register value) {
+                                 Register value,
+                                 SaveFPRegsMode save_fp) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are esi.
@@ -144,7 +153,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   InNewSpace(object, value, equal, &done);
 
-  RecordWriteHelper(object, address, value);
+  RecordWriteHelper(object, address, value, save_fp);
 
   bind(&done);
 
@@ -161,7 +170,8 @@ void MacroAssembler::RecordWrite(Register object,
 void MacroAssembler::RecordWriteNonSmi(Register object,
                                        int offset,
                                        Register scratch,
-                                       Register index) {
+                                       Register index,
+                                       SaveFPRegsMode save_fp) {
   Label done;
 
   if (FLAG_debug_code) {
@@ -202,7 +212,7 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
                           times_pointer_size,
                           FixedArray::kHeaderSize));
   }
-  RecordWriteHelper(object, dst, scratch);
+  RecordWriteHelper(object, dst, scratch, save_fp);
 
   bind(&done);
 
@@ -214,7 +224,7 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
     movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
 }
-#endif
+
 
 void MacroAssembler::Assert(Condition cc, const char* msg) {
   if (FLAG_debug_code) Check(cc, msg);

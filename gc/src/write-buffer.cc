@@ -27,11 +27,11 @@
 
 #include "v8-counters.h"
 #include "write-buffer.h"
+#include "write-buffer-inl.h"
 
 namespace v8 {
 namespace internal {
 
-Address* WriteBuffer::top_ = NULL;
 Address* WriteBuffer::start_ = NULL;
 Address* WriteBuffer::limit_ = NULL;
 uintptr_t* WriteBuffer::hash_map_1_ = NULL;
@@ -61,7 +61,7 @@ void WriteBuffer::Setup() {
   virtual_memory_->Commit(reinterpret_cast<Address>(start_),
                           kWriteBufferSize,
                           false);  // Not executable.
-  top_ = start_;
+  Heap::public_set_write_buffer_top(start_);
 
   hash_map_1_ = new uintptr_t[kHashMapLength];
   hash_map_2_ = new uintptr_t[kHashMapLength];
@@ -72,7 +72,8 @@ void WriteBuffer::TearDown() {
   delete virtual_memory_;
   delete[] hash_map_1_;
   delete[] hash_map_2_;
-  top_ = start_ = limit_ = NULL;
+  start_ = limit_ = NULL;
+  Heap::public_set_write_buffer_top(start_);
 }
 
 
@@ -83,9 +84,10 @@ void WriteBuffer::Compact() {
   memset(reinterpret_cast<void*>(hash_map_2_),
          0,
          sizeof(uintptr_t) * kHashMapLength);
-  ASSERT(top_ <= limit_);
-  Address* stop = top_;
-  top_ = start_;
+  Address* top = reinterpret_cast<Address*>(Heap::write_buffer_top());
+  Address* stop = top;
+  ASSERT(top <= limit_);
+  top = start_;
   // Goes through the addresses in the write buffer attempting to remove
   // duplicates.  In the interest of speed this is a lossy operation.  Some
   // duplicates will remain.  We have two hash tables with different hash
@@ -111,23 +113,24 @@ void WriteBuffer::Compact() {
       hash_map_1_[hash1] = int_addr;
       hash_map_2_[hash2] = 0;
     }
-    ASSERT(top_ <= current);
-    ASSERT(top_ <= limit_);
-    *top_++ = reinterpret_cast<Address>(int_addr << kPointerSizeLog2);
+    ASSERT(top <= current);
+    ASSERT(top <= limit_);
+    *top++ = reinterpret_cast<Address>(int_addr << kPointerSizeLog2);
   }
   Counters::write_buffer_compactions.Increment();
-  if (limit_ - top_ < top_ - start_) {
+  if (limit_ - top < top - start_) {
     // Compression did not free up at least half.
     // TODO(gc): Set an interrupt to do a GC on the next back edge.
     // TODO(gc): Allocate the rest of new space to force a GC on the next
     // allocation.
-    if (limit_ - top_ < (top_ - start_) >> 1) {
+    if (limit_ - top < (top - start_) >> 1) {
       // Compression did not free up at least one quarter.
       // TODO(gc): Set a flag to scan all of memory.
-      top_ = start_;
+      top = start_;
       Counters::write_buffer_overflows.Increment();
     }
   }
+  Heap::public_set_write_buffer_top(top);
 }
 
 } }  // namespace v8::internal

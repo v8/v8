@@ -32,6 +32,7 @@
 #include "objects.h"
 #include "v8-counters.h"
 #include "write-buffer.h"
+#include "write-buffer-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -255,6 +255,45 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
+void WriteBufferOverflowStub::Generate(MacroAssembler* masm) {
+  // We don't allow a GC during a write buffer overflow so there is no need to
+  // store the registers in any particular way, but we do have to store and
+  // restore them.
+  Register saved_regs[] =
+      { rax, rcx, rdx, rbx, rbp, rsi, rdi, r8, r9, r10, r11 };
+  const int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
+  for (int i = 0; i < kNumberOfSavedRegs; i++) {
+    __ push(saved_regs[i]);
+  }
+  // R12 to r15 are callee save on all platforms.
+  if (save_doubles_ == kSaveFPRegs) {
+    CpuFeatures::Scope scope(SSE2);
+    __ subq(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+      XMMRegister reg = XMMRegister::from_code(i);
+      __ movsd(Operand(rsp, i * kDoubleSize), reg);
+    }
+  }
+  const int argument_count = 0;
+  __ PrepareCallCFunction(argument_count);
+  ExternalReference write_buffer_overflow =
+      ExternalReference(Runtime::FunctionForId(Runtime::kWriteBufferOverflow));
+  __ CallCFunction(write_buffer_overflow, argument_count);
+  if (save_doubles_ == kSaveFPRegs) {
+    CpuFeatures::Scope scope(SSE2);
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+      XMMRegister reg = XMMRegister::from_code(i);
+      __ movsd(reg, Operand(rsp, i * kDoubleSize));
+    }
+    __ addq(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+  }
+  for (int i = kNumberOfSavedRegs - 1; i >= 0; i--) {
+    __ pop(saved_regs[i]);
+  }
+  __ ret(0);
+}
+
+
 const char* GenericBinaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
@@ -1971,16 +2010,16 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Store last subject and last input.
   __ movq(rax, Operand(rsp, kSubjectOffset));
   __ movq(FieldOperand(rbx, RegExpImpl::kLastSubjectOffset), rax);
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ movq(rcx, rbx);
-  __ RecordWrite(rcx, RegExpImpl::kLastSubjectOffset, rax, rdi);
-#endif
+  __ RecordWrite(rcx,
+                 RegExpImpl::kLastSubjectOffset,
+                 rax,
+                 rdi,
+                 kDontSaveFPRegs);
   __ movq(rax, Operand(rsp, kSubjectOffset));
   __ movq(FieldOperand(rbx, RegExpImpl::kLastInputOffset), rax);
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   __ movq(rcx, rbx);
-  __ RecordWrite(rcx, RegExpImpl::kLastInputOffset, rax, rdi);
-#endif
+  __ RecordWrite(rcx, RegExpImpl::kLastInputOffset, rax, rdi, kDontSaveFPRegs);
 
   // Get the static offsets vector filled by the native regexp code.
   __ movq(rcx, ExternalReference::address_of_static_offsets_vector());

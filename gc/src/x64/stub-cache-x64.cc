@@ -1449,10 +1449,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
     __ j(not_equal, &call_builtin);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label exit, attempt_to_grow_elements;
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-      Label with_write_barrier;
-#endif
+      Label exit, attempt_to_grow_elements, with_write_barrier;
 
       // Get the array's length into rax and calculate new length.
       __ SmiToInteger32(rax, FieldOperand(rdx, JSArray::kLengthOffset));
@@ -1479,22 +1476,18 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       // Check if value is a smi.
       __ Integer32ToSmi(rax, rax);  // Return new length as smi.
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
       __ JumpIfNotSmi(rcx, &with_write_barrier);
-#endif
 
       __ bind(&exit);
       __ ret((argc + 1) * kPointerSize);
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
       __ bind(&with_write_barrier);
 
       __ InNewSpace(rbx, rcx, equal, &exit);
 
-      __ RecordWriteHelper(rbx, rdx, rcx);
+      __ RecordWriteHelper(rbx, rdx, rcx, kDontSaveFPRegs);
 
       __ ret((argc + 1) * kPointerSize);
-#endif
 
       __ bind(&attempt_to_grow_elements);
       if (!FLAG_inline_new) {

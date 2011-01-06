@@ -90,6 +90,8 @@ struct Register {
   }
 
   static Register from_code(int code) {
+    ASSERT(code >= 0);
+    ASSERT(code < kNumRegisters);
     Register r = { code };
     return r;
   }

@@ -63,6 +63,21 @@ class ToBooleanStub: public CodeStub {
 };
 
 
+class WriteBufferOverflowStub: public CodeStub {
+ public:
+  explicit WriteBufferOverflowStub(SaveFPRegsMode save_fp)
+      : save_doubles_(save_fp) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  SaveFPRegsMode save_doubles_;
+
+  Major MajorKey() { return WriteBufferOverflow; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+};
+
+
 // Flag that indicates how to generate code for the stub GenericBinaryOpStub.
 enum GenericBinaryFlags {
   NO_GENERIC_BINARY_FLAGS = 0,

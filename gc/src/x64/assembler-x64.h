@@ -195,6 +195,12 @@ struct XMMRegister {
     return names[index];
   }
 
+  static XMMRegister from_code(int code) {
+    ASSERT(code >= 0);
+    ASSERT(code < kNumRegisters);
+    XMMRegister r = { code };
+    return r;
+  }
   bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
   int code() const {
     ASSERT(is_valid());

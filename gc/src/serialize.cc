@@ -652,6 +652,8 @@ HeapObject* Deserializer::GetAddressFromStart(int space) {
 
 void Deserializer::Deserialize() {
   // Don't GC while deserializing - just expand the heap.
+  Address* write_buffer_top =
+      reinterpret_cast<Address*>(Heap::write_buffer_top());
   AlwaysAllocateScope always_allocate;
   // Don't use the free lists while deserializing.
   LinearAllocationScope allocate_linearly;
@@ -668,6 +670,7 @@ void Deserializer::Deserialize() {
   Heap::IterateWeakRoots(this, VISIT_ALL);
 
   Heap::set_global_contexts_list(Heap::undefined_value());
+  Heap::public_set_write_buffer_top(write_buffer_top);
 }
 
 
