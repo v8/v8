@@ -2321,7 +2321,23 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
 
 
 void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
-  Abort("DoFunctionLiteral unimplemented.");
+  // Use the fast case closure allocation code that allocates in new
+  // space for nested functions that don't need literals cloning.
+  Handle<SharedFunctionInfo> shared_info = instr->shared_info();
+  bool pretenure = !instr->hydrogen()->pretenure();
+  if (shared_info->num_literals() == 0 && !pretenure) {
+    FastNewClosureStub stub;
+    __ mov(r1, Operand(shared_info));
+    __ push(r1);
+    CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  } else {
+    __ mov(r2, Operand(shared_info));
+    __ mov(r1, Operand(pretenure
+                       ? Factory::true_value()
+                       : Factory::false_value()));
+    __ Push(cp, r2, r1);
+    CallRuntime(Runtime::kNewClosure, 3, instr);
+  }
 }
 
 
