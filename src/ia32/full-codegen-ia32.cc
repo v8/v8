@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1497,7 +1497,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       if (expr->is_compound()) {
         if (property->is_arguments_access()) {
           VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
-          __ push(EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx));
+          MemOperand slot_operand =
+              EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
+          __ push(slot_operand);
           __ mov(eax, Immediate(property->key()->AsLiteral()->handle()));
         } else {
           VisitForStackValue(property->obj());
@@ -1508,7 +1510,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       } else {
         if (property->is_arguments_access()) {
           VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
-          __ push(EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx));
+          MemOperand slot_operand =
+              EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
+          __ push(slot_operand);
           __ push(Immediate(property->key()->AsLiteral()->handle()));
         } else {
           VisitForStackValue(property->obj());
@@ -3739,7 +3743,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     } else {
       if (prop->is_arguments_access()) {
         VariableProxy* obj_proxy = prop->obj()->AsVariableProxy();
-        __ push(EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx));
+        MemOperand slot_operand =
+            EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
+        __ push(slot_operand);
         __ mov(eax, Immediate(prop->key()->AsLiteral()->handle()));
       } else {
         VisitForStackValue(prop->obj());
