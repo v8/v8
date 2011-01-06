@@ -1145,27 +1145,20 @@ class LBranch: public LUnaryOperation {
 
 class LCmpMapAndBranch: public LUnaryOperation {
  public:
-  LCmpMapAndBranch(LOperand* value,
-                   Handle<Map> map,
-                   int true_block_id,
-                   int false_block_id)
-      : LUnaryOperation(value),
-        map_(map),
-        true_block_id_(true_block_id),
-        false_block_id_(false_block_id) { }
+  explicit LCmpMapAndBranch(LOperand* value) : LUnaryOperation(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(CmpMapAndBranch, "cmp-map-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareMapAndBranch)
 
   virtual bool IsControl() const { return true; }
 
-  Handle<Map> map() const { return map_; }
-  int true_block_id() const { return true_block_id_; }
-  int false_block_id() const { return false_block_id_; }
-
- private:
-  Handle<Map> map_;
-  int true_block_id_;
-  int false_block_id_;
+  Handle<Map> map() const { return hydrogen()->map(); }
+  int true_block_id() const {
+    return hydrogen()->true_destination()->block_id();
+  }
+  int false_block_id() const {
+    return hydrogen()->false_destination()->block_id();
+  }
 };
 
 
