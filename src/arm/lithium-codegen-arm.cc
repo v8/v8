@@ -2156,7 +2156,26 @@ void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
 
 
 void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
-  Abort("DoCheckInstanceType unimplemented.");
+  Register input = ToRegister(instr->input());
+  Register scratch = scratch0();
+  InstanceType first = instr->hydrogen()->first();
+  InstanceType last = instr->hydrogen()->last();
+
+  __ ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
+  __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  __ cmp(scratch, Operand(first));
+
+  // If there is only one type in the interval check for equality.
+  if (first == last) {
+    DeoptimizeIf(ne, instr->environment());
+  } else {
+    DeoptimizeIf(lo, instr->environment());
+    // Omit check for the last type.
+    if (last != LAST_TYPE) {
+      __ cmp(scratch, Operand(last));
+      DeoptimizeIf(hi, instr->environment());
+    }
+  }
 }
 
 

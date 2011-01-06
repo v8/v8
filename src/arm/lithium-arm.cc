@@ -1762,8 +1762,7 @@ LInstruction* LChunkBuilder::DoCheckNonSmi(HCheckNonSmi* instr) {
 
 LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  LOperand* temp = TempRegister();
-  LInstruction* result = new LCheckInstanceType(value, temp);
+  LInstruction* result = new LCheckInstanceType(value);
   return AssignEnvironment(result);
 }
 

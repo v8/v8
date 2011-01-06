@@ -1653,8 +1653,7 @@ class LCheckFunction: public LUnaryOperation {
 
 class LCheckInstanceType: public LUnaryOperation {
  public:
-  LCheckInstanceType(LOperand* use, LOperand* temp)
-      : LUnaryOperation(use), temp_(temp) { }
+  LCheckInstanceType(LOperand* use) : LUnaryOperation(use) { }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckInstanceType, "check-instance-type")
   DECLARE_HYDROGEN_ACCESSOR(CheckInstanceType)
