@@ -1071,7 +1071,7 @@ DebugRequest.prototype.changeBreakpointCommandToJSONRequest_ =
         break;
       default:
         throw new Error('Invalid arguments.');  
-	}
+    }
   } else {
     throw new Error('Invalid arguments.');
   }
@@ -1094,15 +1094,15 @@ DebugRequest.prototype.infoCommandToJSONRequest_ = function(args) {
   if (args && (args == 'break' || args == 'br')) {
     // Build a evaluate request from the text command.
     request = this.createRequest('listbreakpoints');
-	last_cmd = 'info break';
+    last_cmd = 'info break';
   } else if (args && (args == 'locals' || args == 'lo')) {
     // Build a evaluate request from the text command.
-	request = this.createRequest('frame');
-	last_cmd = 'info locals';
+    request = this.createRequest('frame');
+    last_cmd = 'info locals';
   } else if (args && (args == 'args' || args == 'ar')) {
     // Build a evaluate request from the text command.
-	request = this.createRequest('frame');
-	last_cmd = 'info args';
+    request = this.createRequest('frame');
+    last_cmd = 'info args';
   } else {
     throw new Error('Invalid info arguments.');
   }
