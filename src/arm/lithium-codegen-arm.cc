@@ -2264,7 +2264,57 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
 
 
 void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
-  Abort("DoRegExpLiteral unimplemented.");
+  Label materialized;
+  // Registers will be used as follows:
+  // r3 = JS function.
+  // r7 = literals array.
+  // r1 = regexp literal.
+  // r0 = regexp literal clone.
+  // r2 and r4-r6 are used as temporaries.
+  __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ ldr(r7, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
+  int literal_offset = FixedArray::kHeaderSize +
+      instr->hydrogen()->literal_index() * kPointerSize;
+  __ ldr(r1, FieldMemOperand(r7, literal_offset));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r1, ip);
+  __ b(ne, &materialized);
+
+  // Create regexp literal using runtime function
+  // Result will be in r0.
+  __ mov(r6, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
+  __ mov(r5, Operand(instr->hydrogen()->pattern()));
+  __ mov(r4, Operand(instr->hydrogen()->flags()));
+  __ Push(r7, r6, r5, r4);
+  CallRuntime(Runtime::kMaterializeRegExpLiteral, 4, instr);
+  __ mov(r1, r0);
+
+  __ bind(&materialized);
+  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+  Label allocated, runtime_allocate;
+
+  __ AllocateInNewSpace(size, r0, r2, r3, &runtime_allocate, TAG_OBJECT);
+  __ jmp(&allocated);
+
+  __ bind(&runtime_allocate);
+  __ mov(r0, Operand(Smi::FromInt(size)));
+  __ Push(r1, r0);
+  CallRuntime(Runtime::kAllocateInNewSpace, 1, instr);
+  __ pop(r1);
+
+  __ bind(&allocated);
+  // Copy the content into the newly allocated memory.
+  // (Unroll copy loop once for better throughput).
+  for (int i = 0; i < size - kPointerSize; i += 2 * kPointerSize) {
+    __ ldr(r3, FieldMemOperand(r1, i));
+    __ ldr(r2, FieldMemOperand(r1, i + kPointerSize));
+    __ str(r3, FieldMemOperand(r0, i));
+    __ str(r2, FieldMemOperand(r0, i + kPointerSize));
+  }
+  if ((size % (2 * kPointerSize)) != 0) {
+    __ ldr(r3, FieldMemOperand(r1, size - kPointerSize));
+    __ str(r3, FieldMemOperand(r0, size - kPointerSize));
+  }
 }
 
 
