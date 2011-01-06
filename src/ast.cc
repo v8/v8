@@ -649,19 +649,11 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-void BinaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  TypeInfo left = oracle->BinaryType(this, TypeFeedbackOracle::LEFT);
-  TypeInfo right = oracle->BinaryType(this, TypeFeedbackOracle::RIGHT);
-  is_smi_only_ = left.IsSmi() && right.IsSmi();
-}
-
-
 void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  TypeInfo left = oracle->CompareType(this, TypeFeedbackOracle::LEFT);
-  TypeInfo right = oracle->CompareType(this, TypeFeedbackOracle::RIGHT);
-  if (left.IsSmi() && right.IsSmi()) {
+  TypeInfo info = oracle->CompareType(this);
+  if (info.IsSmi()) {
     compare_type_ = SMI_ONLY;
-  } else if (left.IsNonPrimitive() && right.IsNonPrimitive()) {
+  } else if (info.IsNonPrimitive()) {
     compare_type_ = OBJECT_ONLY;
   } else {
     ASSERT(compare_type_ == NONE);

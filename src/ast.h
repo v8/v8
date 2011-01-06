@@ -1392,7 +1392,7 @@ class BinaryOperation: public Expression {
                   Expression* left,
                   Expression* right,
                   int pos)
-      : op_(op), left_(left), right_(right), pos_(pos), is_smi_only_(false) {
+      : op_(op), left_(left), right_(right), pos_(pos) {
     ASSERT(Token::IsBinaryOp(op));
     right_id_ = (op == Token::AND || op == Token::OR)
         ? static_cast<int>(GetNextId())
@@ -1413,10 +1413,6 @@ class BinaryOperation: public Expression {
   Expression* right() const { return right_; }
   int position() const { return pos_; }
 
-  // Type feedback information.
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
-  bool IsSmiOnly() const { return is_smi_only_; }
-
   // Bailout support.
   int RightId() const { return right_id_; }
 
@@ -1425,7 +1421,6 @@ class BinaryOperation: public Expression {
   Expression* left_;
   Expression* right_;
   int pos_;
-  bool is_smi_only_;
   // The short-circuit logical operations have an AST ID for their
   // right-hand subexpression.
   int right_id_;
