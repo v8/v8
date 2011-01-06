@@ -1590,7 +1590,7 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register arguments = ToRegister(instr->arguments());
   Register length = ToRegister(instr->length());
-  Operand index = ToOperand(instr->index());
+  Register index = ToRegister(instr->index());
   Register result = ToRegister(instr->result());
 
   // Bailout index is not a valid argument index. Use unsigned check to get
@@ -1637,7 +1637,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
 
 
 void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
-  Operand elem = ToOperand(instr->input());
+  Register elem = ToRegister(instr->input());
   Register result = ToRegister(instr->result());
 
   Label done;
@@ -1837,7 +1837,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
 
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));
+  __ cmp(ToRegister(instr->index()), ToRegister(instr->length()));
   DeoptimizeIf(hs, instr->environment());
 }
 

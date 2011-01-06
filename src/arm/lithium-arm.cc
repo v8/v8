@@ -1289,7 +1289,7 @@ LInstruction* LChunkBuilder::DoCompareMapAndBranch(
 
 
 LInstruction* LChunkBuilder::DoArgumentsLength(HArgumentsLength* length) {
-  return DefineAsRegister(new LArgumentsLength(Use(length->value())));
+  return DefineAsRegister(new LArgumentsLength(UseRegister(length->value())));
 }
 
 
@@ -1682,7 +1682,7 @@ LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
 
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
   return AssignEnvironment(new LBoundsCheck(UseRegisterAtStart(instr->index()),
-                                            Use(instr->length())));
+                                            UseRegister(instr->length())));
 }
 
 
@@ -2022,7 +2022,7 @@ LInstruction* LChunkBuilder::DoArgumentsObject(HArgumentsObject* instr) {
 LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
   LOperand* arguments = UseRegister(instr->arguments());
   LOperand* length = UseTempRegister(instr->length());
-  LOperand* index = Use(instr->index());
+  LOperand* index = UseRegister(instr->index());
   LInstruction* result = new LAccessArgumentsAt(arguments, length, index);
   return DefineAsRegister(AssignEnvironment(result));
 }
