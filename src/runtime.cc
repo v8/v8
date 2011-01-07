@@ -10417,7 +10417,7 @@ static MaybeObject* Runtime_SetFlags(Arguments args) {
   CONVERT_CHECKED(String, arg, args[0]);
   SmartPointer<char> flags =
       arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  FlagList::SetFlagsFromString(*flags, strlen(*flags));
+  FlagList::SetFlagsFromString(*flags, StrLength(*flags));
   return Heap::undefined_value();
 }
 
@@ -10432,7 +10432,7 @@ static MaybeObject* Runtime_CollectGarbage(Arguments args) {
 
 // Gets the current heap usage.
 static MaybeObject* Runtime_GetHeapUsage(Arguments args) {
-  int usage = Heap::SizeOfObjects();
+  int usage = static_cast<int>(Heap::SizeOfObjects());
   if (!Smi::IsValid(usage)) {
     return *Factory::NewNumberFromInt(usage);
   }
