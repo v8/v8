@@ -5176,9 +5176,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
   } else {
     // Call the builtin and convert 0/1 to true/false.
+    __ EnterInternalFrame();
     __ push(object);
     __ push(function);
     __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
+    __ LeaveInternalFrame();
     NearLabel true_value, done;
     __ test(eax, Operand(eax));
     __ j(zero, &true_value);

@@ -49,8 +49,10 @@ bool CodeStub::FindCodeInCache(Code** code_out) {
 void CodeStub::GenerateCode(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
   Counters::code_stubs.Increment();
+
   // Nested stubs are not allowed for leafs.
-  masm->set_allow_stub_calls(AllowsStubCalls());
+  AllowStubCallsScope allow_scope(masm, AllowsStubCalls());
+
   // Generate the code for the stub.
   masm->set_generating_stub(true);
   Generate(masm);

@@ -34,7 +34,7 @@ namespace v8 {
 namespace internal {
 
 // List of code stubs used on all platforms. The order in this list is important
-// as only the stubs up to and including RecordWrite allows nested stub calls.
+// as only the stubs up to and including Instanceof allows nested stub calls.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
   V(GenericBinaryOp)                     \
@@ -48,7 +48,7 @@ namespace internal {
   V(CompareIC)                           \
   V(MathPow)                             \
   V(TranscendentalCache)                 \
-  V(RecordWrite)                         \
+  V(Instanceof)                          \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
   V(IntegerMod)                          \
@@ -59,7 +59,6 @@ namespace internal {
   V(GenericUnaryOp)                      \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
-  V(Instanceof)                          \
   V(CounterOp)                           \
   V(ArgumentsAccess)                     \
   V(RegExpExec)                          \
@@ -180,7 +179,7 @@ class CodeStub BASE_EMBEDDED {
            MajorKeyBits::encode(MajorKey());
   }
 
-  bool AllowsStubCalls() { return MajorKey() <= RecordWrite; }
+  bool AllowsStubCalls() { return MajorKey() <= Instanceof; }
 
   class MajorKeyBits: public BitField<uint32_t, 0, kMajorBits> {};
   class MinorKeyBits: public BitField<uint32_t, kMajorBits, kMinorBits> {};
@@ -915,6 +914,24 @@ class StringCharAtGenerator {
   StringCharFromCodeGenerator char_from_code_generator_;
 
   DISALLOW_COPY_AND_ASSIGN(StringCharAtGenerator);
+};
+
+
+class AllowStubCallsScope {
+ public:
+  AllowStubCallsScope(MacroAssembler* masm, bool allow)
+       : masm_(masm), previous_allow_(masm->allow_stub_calls()) {
+    masm_->set_allow_stub_calls(allow);
+  }
+  ~AllowStubCallsScope() {
+    masm_->set_allow_stub_calls(previous_allow_);
+  }
+
+ private:
+  MacroAssembler* masm_;
+  bool previous_allow_;
+
+  DISALLOW_COPY_AND_ASSIGN(AllowStubCallsScope);
 };
 
 } }  // namespace v8::internal
