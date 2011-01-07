@@ -1583,7 +1583,22 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 
 
 void LCodeGen::DoLoadElements(LLoadElements* instr) {
-  Abort("DoLoadElements unimplemented.");
+  ASSERT(instr->result()->Equals(instr->input()));
+  Register reg = ToRegister(instr->input());
+  Register scratch = scratch0();
+
+  __ ldr(reg, FieldMemOperand(reg, JSObject::kElementsOffset));
+  if (FLAG_debug_code) {
+    Label done;
+    __ ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
+    __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+    __ cmp(scratch, ip);
+    __ b(eq, &done);
+    __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
+    __ cmp(scratch, ip);
+    __ Check(eq, "Check for fast elements failed.");
+    __ bind(&done);
+  }
 }
 
 
@@ -1606,7 +1621,38 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 
 
 void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
-  Abort("DoLoadKeyedFastElement unimplemented.");
+  Register elements = ToRegister(instr->elements());
+  Register key = EmitLoadRegister(instr->key(), scratch0());
+  Register result;
+  Register scratch = scratch0();
+
+  if (instr->load_result() != NULL) {
+    result = ToRegister(instr->load_result());
+  } else {
+    result = ToRegister(instr->result());
+    ASSERT(result.is(elements));
+  }
+
+  // Load the result.
+  __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
+  __ ldr(result, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+
+  Representation r = instr->hydrogen()->representation();
+  if (r.IsInteger32()) {
+    // Untag and check for smi.
+    __ SmiUntag(result);
+    DeoptimizeIf(cs, instr->environment());
+  } else if (r.IsDouble()) {
+    EmitNumberUntagD(result,
+                     ToDoubleRegister(instr->result()),
+                     instr->environment());
+  } else {
+    // Check for the hole value.
+    ASSERT(r.IsTagged());
+    __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
+    __ cmp(result, scratch);
+    DeoptimizeIf(eq, instr->environment());
+  }
 }
 
 
@@ -1821,7 +1867,34 @@ void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
 
 
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
-  Abort("DoStoreNamedField unimplemented.");
+  Register object = ToRegister(instr->object());
+  Register value = ToRegister(instr->value());
+  Register scratch = scratch0();
+  int offset = instr->offset();
+
+  ASSERT(!object.is(value));
+
+  if (!instr->transition().is_null()) {
+    __ mov(scratch, Operand(instr->transition()));
+    __ str(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+  }
+
+  // Do the store.
+  if (instr->is_in_object()) {
+    __ str(value, FieldMemOperand(object, offset));
+    if (instr->needs_write_barrier()) {
+      // Update the write barrier for the object for in-object properties.
+      __ RecordWrite(object, Operand(offset), value, scratch);
+    }
+  } else {
+    __ ldr(scratch, FieldMemOperand(object, JSObject::kPropertiesOffset));
+    __ str(value, FieldMemOperand(scratch, offset));
+    if (instr->needs_write_barrier()) {
+      // Update the write barrier for the properties array.
+      // object is used as a scratch register.
+      __ RecordWrite(scratch, Operand(offset), value, object);
+    }
+  }
 }
 
 
@@ -1843,7 +1916,28 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 
 
 void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
-  Abort("DoStoreKeyedFastElement unimplemented.");
+  Register value = ToRegister(instr->value());
+  Register elements = ToRegister(instr->object());
+  Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
+  Register scratch = scratch0();
+
+  // Do the store.
+  if (instr->key()->IsConstantOperand()) {
+    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
+    int offset =
+        ToInteger32(const_operand) * kPointerSize + FixedArray::kHeaderSize;
+    __ str(value, FieldMemOperand(elements, offset));
+  } else {
+    __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
+    __ str(value, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  }
+
+  if (instr->hydrogen()->NeedsWriteBarrier()) {
+    // Compute address of modified element and store it into key register.
+    __ add(key, scratch, Operand(FixedArray::kHeaderSize));
+    __ RecordWrite(elements, key, value);
+  }
 }
 
 

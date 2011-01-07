@@ -1563,13 +1563,11 @@ class LStoreNamedField: public LStoreNamed {
                    LOperand* val,
                    bool in_object,
                    int offset,
-                   LOperand* temp,
                    bool needs_write_barrier,
                    Handle<Map> transition)
       : LStoreNamed(obj, name, val),
         is_in_object_(in_object),
         offset_(offset),
-        temp_(temp),
         needs_write_barrier_(needs_write_barrier),
         transition_(transition) { }
 
@@ -1577,7 +1575,6 @@ class LStoreNamedField: public LStoreNamed {
 
   bool is_in_object() { return is_in_object_; }
   int offset() { return offset_; }
-  LOperand* temp() { return temp_; }
   bool needs_write_barrier() { return needs_write_barrier_; }
   Handle<Map> transition() const { return transition_; }
   void set_transition(Handle<Map> map) { transition_ = map; }
@@ -1585,7 +1582,6 @@ class LStoreNamedField: public LStoreNamed {
  private:
   bool is_in_object_;
   int offset_;
-  LOperand* temp_;
   bool needs_write_barrier_;
   Handle<Map> transition_;
 };

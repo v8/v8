@@ -1924,7 +1924,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
-  bool needs_write_barrier = !instr->value()->type().IsSmi();
+  bool needs_write_barrier = instr->NeedsWriteBarrier();
 
   LOperand* obj = needs_write_barrier
       ? UseTempRegister(instr->object())
@@ -1934,17 +1934,11 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
       ? UseTempRegister(instr->value())
       : UseRegister(instr->value());
 
-  // We only need a scratch register if we have a write barrier or we
-  // have a store into the properties array (not in-object-property).
-  LOperand* temp = (!instr->is_in_object() || needs_write_barrier)
-      ? TempRegister() : NULL;
-
   return new LStoreNamedField(obj,
                               instr->name(),
                               val,
                               instr->is_in_object(),
                               instr->offset(),
-                              temp,
                               needs_write_barrier,
                               instr->transition());
 }
