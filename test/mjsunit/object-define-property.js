@@ -749,13 +749,32 @@ assertTrue(desc.writable);
 assertTrue(desc.enumerable);
 assertFalse(desc.configurable);
 
-// Ensure that we can't overwrite the non configurable element.
+// Can use defineProperty to change the value of a non
+// configurable property.
 try {
   Object.defineProperty(obj6, '2', descElement);
+  desc = Object.getOwnPropertyDescriptor(obj6, '2');
+  assertEquals(desc.value, 'foobar');
+} catch (e) {
+  assertUnreachable();
+}
+
+// Ensure that we can't change the descriptor of a
+// non configurable property.
+try {
+  var descAccessor = { get: function() { return 0; } };
+  Object.defineProperty(obj6, '2', descAccessor);
   assertUnreachable();
 } catch (e) {
   assertTrue(/Cannot redefine property/.test(e));
 }
+
+Object.defineProperty(obj6, '2', descElementNonWritable);
+desc = Object.getOwnPropertyDescriptor(obj6, '2');
+assertEquals(desc.value, 'foofoo');
+assertFalse(desc.writable);
+assertTrue(desc.enumerable);
+assertFalse(desc.configurable);
 
 Object.defineProperty(obj6, '3', descElementNonWritable);
 desc = Object.getOwnPropertyDescriptor(obj6, '3');
@@ -827,13 +846,32 @@ assertTrue(desc.writable);
 assertTrue(desc.enumerable);
 assertFalse(desc.configurable);
 
-// Ensure that we can't overwrite the non configurable element.
+// Can use defineProperty to change the value of a non
+// configurable property of an array.
 try {
   Object.defineProperty(arr, '2', descElement);
+  desc = Object.getOwnPropertyDescriptor(arr, '2');
+  assertEquals(desc.value, 'foobar');
+} catch (e) {
+  assertUnreachable();
+}
+
+// Ensure that we can't change the descriptor of a
+// non configurable property.
+try {
+  var descAccessor = { get: function() { return 0; } };
+  Object.defineProperty(arr, '2', descAccessor);
   assertUnreachable();
 } catch (e) {
   assertTrue(/Cannot redefine property/.test(e));
 }
+
+Object.defineProperty(arr, '2', descElementNonWritable);
+desc = Object.getOwnPropertyDescriptor(arr, '2');
+assertEquals(desc.value, 'foofoo');
+assertFalse(desc.writable);
+assertTrue(desc.enumerable);
+assertFalse(desc.configurable);
 
 Object.defineProperty(arr, '3', descElementNonWritable);
 desc = Object.getOwnPropertyDescriptor(arr, '3');
