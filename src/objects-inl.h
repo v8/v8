@@ -423,11 +423,6 @@ bool MaybeObject::IsTheHole() {
 }
 
 
-bool MaybeObject::IsArgumentsMarker() {
-  return this == Heap::arguments_marker();
-}
-
-
 Failure* Failure::cast(MaybeObject* obj) {
   ASSERT(HAS_FAILURE_TAG(obj));
   return reinterpret_cast<Failure*>(obj);
@@ -732,6 +727,11 @@ bool Object::IsTrue() {
 
 bool Object::IsFalse() {
   return this == Heap::false_value();
+}
+
+
+bool Object::IsArgumentsMarker() {
+  return this == Heap::arguments_marker();
 }
 
 
