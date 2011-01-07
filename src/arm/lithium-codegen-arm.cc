@@ -1840,7 +1840,13 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 
 
 void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
-  Abort("DoCallGlobal unimplemented.");
+  ASSERT(ToRegister(instr->result()).is(r0));
+
+  int arity = instr->arity();
+  Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
+  __ mov(r2, Operand(instr->name()));
+  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
 
