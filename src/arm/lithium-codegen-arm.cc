@@ -2087,7 +2087,13 @@ void LCodeGen::DoSmiTag(LSmiTag* instr) {
 
 
 void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
-  Abort("DoSmiUntag unimplemented.");
+  LOperand* input = instr->input();
+  ASSERT(input->IsRegister() && input->Equals(instr->result()));
+  if (instr->needs_check()) {
+    __ tst(ToRegister(input), Operand(kSmiTagMask));
+    DeoptimizeIf(ne, instr->environment());
+  }
+  __ SmiUntag(ToRegister(input));
 }
 
 
@@ -2461,12 +2467,27 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
 
 
 void LCodeGen::DoTypeof(LTypeof* instr) {
-  Abort("DoTypeof unimplemented.");
+  Register input = ToRegister(instr->input());
+  __ push(input);
+  CallRuntime(Runtime::kTypeof, 1, instr);
 }
 
 
 void LCodeGen::DoTypeofIs(LTypeofIs* instr) {
-  Abort("DoTypeofIs unimplemented.");
+  Register input = ToRegister(instr->input());
+  Register result = ToRegister(instr->result());
+  Label true_label;
+  Label false_label;
+  Label done;
+
+  Condition final_branch_condition = EmitTypeofIs(&true_label,
+                                                  &false_label,
+                                                  input,
+                                                  instr->type_literal());
+
+  __ LoadRoot(result, Heap::kTrueValueRootIndex, final_branch_condition);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex,
+              NegateCondition(final_branch_condition));
 }
 
 
