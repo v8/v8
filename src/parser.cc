@@ -4022,9 +4022,21 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         builder->AddCharacter('\v');
         break;
       case 'c': {
-        Advance(2);
-        uc32 control = ParseControlLetterEscape();
-        builder->AddCharacter(control);
+        Advance();
+        uc32 controlLetter = Next();
+        // Special case if it is an ASCII letter.
+        // Convert lower case letters to uppercase.
+        uc32 letter = controlLetter & ~('a' ^ 'A');
+        if (letter < 'A' || 'Z' < letter) {
+          // controlLetter is not in range 'A'-'Z' or 'a'-'z'.
+          // This is outside the specification. We match JSC in
+          // reading the backslash as a literal character instead
+          // of as starting an escape.
+          builder->AddCharacter('\\');
+        } else {
+          Advance(2);
+          builder->AddCharacter(controlLetter & 0x1f);
+        }
         break;
       }
       case 'x': {
@@ -4299,23 +4311,6 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
 }
 
 
-// Upper and lower case letters differ by one bit.
-STATIC_CHECK(('a' ^ 'A') == 0x20);
-
-uc32 RegExpParser::ParseControlLetterEscape() {
-  if (!has_more())
-    return 'c';
-  uc32 letter = current() & ~(0x20);  // Collapse upper and lower case letters.
-  if (letter < 'A' || 'Z' < letter) {
-    // Non-spec error-correction: "\c" followed by non-control letter is
-    // interpreted as an IdentityEscape of 'c'.
-    return 'c';
-  }
-  Advance();
-  return letter & 0x1f;  // Remainder modulo 32, per specification.
-}
-
-
 uc32 RegExpParser::ParseOctalLiteral() {
   ASSERT('0' <= current() && current() <= '7');
   // For compatibility with some other browsers (not all), we parse
@@ -4381,9 +4376,23 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
     case 'v':
       Advance();
       return '\v';
-    case 'c':
-      Advance();
-      return ParseControlLetterEscape();
+    case 'c': {
+      uc32 controlLetter = Next();
+      uc32 letter = controlLetter & ~('A' ^ 'a');
+      // For compatibility with JSC, inside a character class
+      // we also accept digits and underscore as control characters.
+      if ((controlLetter >= '0' && controlLetter <= '9') ||
+          controlLetter == '_' ||
+          (letter >= 'A' && letter <= 'Z')) {
+        Advance(2);
+        // Control letters mapped to ASCII control characters in the range
+        // 0x00-0x1f.
+        return controlLetter & 0x1f;
+      }
+      // We match JSC in reading the backslash as a literal
+      // character instead of as starting an escape.
+      return '\\';
+    }
     case '0': case '1': case '2': case '3': case '4': case '5':
     case '6': case '7':
       // For compatibility, we interpret a decimal escape that isn't
