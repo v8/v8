@@ -132,7 +132,7 @@ bool TypeFeedbackOracle::LoadIsBuiltin(Property* expr, Builtins::Name id) {
 }
 
 
-TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
+TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr, Side side) {
   Handle<Object> object = GetElement(map_, expr->position());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
@@ -159,12 +159,27 @@ TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
 }
 
 
-TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
+TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr, Side side) {
   Handle<Object> object = GetElement(map_, expr->position());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
-  if (code->is_type_recording_binary_op_stub()) {
+  if (code->is_binary_op_stub()) {
+    BinaryOpIC::TypeInfo type = static_cast<BinaryOpIC::TypeInfo>(
+        code->binary_op_type());
+    switch (type) {
+      case BinaryOpIC::UNINIT_OR_SMI:
+        return TypeInfo::Smi();
+      case BinaryOpIC::DEFAULT:
+        return (expr->op() == Token::DIV || expr->op() == Token::MUL)
+            ? TypeInfo::Double()
+            : TypeInfo::Integer32();
+      case BinaryOpIC::HEAP_NUMBERS:
+        return TypeInfo::Double();
+      default:
+        return unknown;
+    }
+  } else if (code->is_type_recording_binary_op_stub()) {
     TRBinaryOpIC::TypeInfo type = static_cast<TRBinaryOpIC::TypeInfo>(
         code->type_recording_binary_op_type());
     TRBinaryOpIC::TypeInfo result_type = static_cast<TRBinaryOpIC::TypeInfo>(
@@ -276,7 +291,8 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
     int position = source_positions[i];
     InlineCacheState state = target->ic_state();
     Code::Kind kind = target->kind();
-    if (kind == Code::TYPE_RECORDING_BINARY_OP_IC ||
+    if (kind == Code::BINARY_OP_IC ||
+        kind == Code::TYPE_RECORDING_BINARY_OP_IC ||
         kind == Code::COMPARE_IC) {
       // TODO(kasperl): Avoid having multiple ICs with the same
       // position by making sure that we have position information
@@ -316,17 +332,19 @@ void TypeFeedbackOracle::CollectPositions(Code* code,
       if (target->is_inline_cache_stub()) {
         InlineCacheState state = target->ic_state();
         Code::Kind kind = target->kind();
-        if (kind == Code::TYPE_RECORDING_BINARY_OP_IC &&
-            target->type_recording_binary_op_type() == TRBinaryOpIC::GENERIC) {
-          continue;
-        } else if (kind == Code::COMPARE_IC &&
-                   target->compare_state() == CompareIC::GENERIC) {
-          continue;
-        } else if (kind == Code::CALL_IC && state == MONOMORPHIC &&
-                   target->check_type() != RECEIVER_MAP_CHECK) {
-          continue;
-        } else if (state != MONOMORPHIC && state != MEGAMORPHIC) {
-          continue;
+        if (kind == Code::BINARY_OP_IC) {
+          if (target->binary_op_type() == BinaryOpIC::GENERIC) continue;
+        } else if (kind == Code::TYPE_RECORDING_BINARY_OP_IC) {
+          if (target->type_recording_binary_op_type() ==
+              TRBinaryOpIC::GENERIC) {
+            continue;
+          }
+        } else if (kind == Code::COMPARE_IC) {
+          if (target->compare_state() == CompareIC::GENERIC) continue;
+        } else {
+          if (kind == Code::CALL_IC && state == MONOMORPHIC &&
+              target->check_type() != RECEIVER_MAP_CHECK) continue;
+          if (state != MONOMORPHIC && state != MEGAMORPHIC) continue;
         }
         code_positions->Add(
             static_cast<int>(info->pc() - code->instruction_start()));

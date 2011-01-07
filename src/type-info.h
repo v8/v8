@@ -230,6 +230,12 @@ class CaseClause;
 
 class TypeFeedbackOracle BASE_EMBEDDED {
  public:
+  enum Side {
+    LEFT,
+    RIGHT,
+    RESULT
+  };
+
   explicit TypeFeedbackOracle(Handle<Code> code);
 
   bool LoadIsMonomorphic(Property* expr);
@@ -247,8 +253,8 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
 
   // Get type information for arithmetic operations and compares.
-  TypeInfo BinaryType(BinaryOperation* expr);
-  TypeInfo CompareType(CompareOperation* expr);
+  TypeInfo BinaryType(BinaryOperation* expr, Side side);
+  TypeInfo CompareType(CompareOperation* expr, Side side);
   TypeInfo SwitchType(CaseClause* clause);
 
  private:
