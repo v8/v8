@@ -2484,10 +2484,15 @@ void LCodeGen::DoTypeofIs(LTypeofIs* instr) {
                                                   &false_label,
                                                   input,
                                                   instr->type_literal());
+  __ b(final_branch_condition, &true_label);
+  __ bind(&false_label);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ b(&done);
 
-  __ LoadRoot(result, Heap::kTrueValueRootIndex, final_branch_condition);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex,
-              NegateCondition(final_branch_condition));
+  __ bind(&true_label);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+
+  __ bind(&done);
 }
 
 
