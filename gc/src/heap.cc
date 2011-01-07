@@ -216,12 +216,7 @@ bool Heap::HasBeenSetup() {
 
 
 int Heap::GcSafeSizeOfOldObject(HeapObject* object) {
-  ASSERT(!Heap::InNewSpace(object));  // Code only works for old objects.
-  ASSERT(!MarkCompactCollector::are_map_pointers_encoded());
-  MapWord map_word = object->map_word();
-  map_word.ClearMark();
-  map_word.ClearOverflow();
-  return object->SizeFromMap(map_word.ToMap());
+  return object->Size();
 }
 
 
@@ -4598,6 +4593,8 @@ bool Heap::Setup(bool create_heap_objects) {
   ProducerHeapProfile::Setup();
 #endif
 
+  if (!Marking::Setup()) return false;
+
   return true;
 }
 
@@ -4671,6 +4668,8 @@ void Heap::TearDown() {
     delete lo_space_;
     lo_space_ = NULL;
   }
+
+  Marking::TearDown();
 
   MemoryAllocator::TearDown();
 }
@@ -4912,8 +4911,8 @@ class FreeListNodesFilter : public HeapObjectsFilter {
   }
 
   bool SkipObject(HeapObject* object) {
-    if (object->IsMarked()) {
-      object->ClearMark();
+    if (IntrusiveMarking::IsMarked(object)) {
+      IntrusiveMarking::ClearMark(object);
       return true;
     } else {
       return false;
@@ -4935,7 +4934,9 @@ class FreeListNodesFilter : public HeapObjectsFilter {
     for (HeapObject* obj = iter.next_object();
          obj != NULL;
          obj = iter.next_object()) {
-      if (FreeListNode::IsFreeListNode(obj)) obj->SetMark();
+      if (FreeListNode::IsFreeListNode(obj)) {
+        IntrusiveMarking::SetMark(obj);
+      }
     }
   }
 
@@ -4950,8 +4951,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   }
 
   bool SkipObject(HeapObject* object) {
-    if (object->IsMarked()) {
-      object->ClearMark();
+    if (IntrusiveMarking::IsMarked(object)) {
+      IntrusiveMarking::ClearMark(object);
       return true;
     } else {
       return false;
@@ -4967,8 +4968,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       for (Object** p = start; p < end; p++) {
         if (!(*p)->IsHeapObject()) continue;
         HeapObject* obj = HeapObject::cast(*p);
-        if (obj->IsMarked()) {
-          obj->ClearMark();
+        if (IntrusiveMarking::IsMarked(obj)) {
+          IntrusiveMarking::ClearMark(obj);
           list_.Add(obj);
         }
       }
@@ -4990,7 +4991,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     for (HeapObject* obj = iterator.next();
          obj != NULL;
          obj = iterator.next()) {
-      obj->SetMark();
+      IntrusiveMarking::SetMark(obj);
     }
     UnmarkingVisitor visitor;
     Heap::IterateRoots(&visitor, VISIT_ONLY_STRONG);
@@ -5024,7 +5025,7 @@ HeapIterator::~HeapIterator() {
 void HeapIterator::Init() {
   // Start the iteration.
   space_iterator_ = filtering_ == kNoFiltering ? new SpaceIterator :
-      new SpaceIterator(MarkCompactCollector::SizeOfMarkedObject);
+      new SpaceIterator(IntrusiveMarking::SizeOfMarkedObject);
   switch (filtering_) {
     case kFilterFreeListNodes:
       filter_ = new FreeListNodesFilter;
@@ -5284,7 +5285,6 @@ GCTracer::GCTracer()
   // These two fields reflect the state of the previous full collection.
   // Set them before they are changed by the collector.
   previous_has_compacted_ = MarkCompactCollector::HasCompacted();
-  previous_marked_count_ = MarkCompactCollector::previous_marked_count();
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
   start_time_ = OS::TimeCurrentMillis();
   start_size_ = Heap::SizeOfObjects();

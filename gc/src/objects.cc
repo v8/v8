@@ -39,6 +39,7 @@
 #include "objects-inl.h"
 #include "objects-visiting.h"
 #include "macro-assembler.h"
+#include "mark-compact.h"
 #include "safepoint-table.h"
 #include "scanner-base.h"
 #include "scopeinfo.h"
@@ -5372,7 +5373,7 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
         details.type() == CONSTANT_TRANSITION) {
       Map* target = reinterpret_cast<Map*>(contents->get(i));
       ASSERT(target->IsHeapObject());
-      if (!target->IsMarked()) {
+      if (!Marking::IsMarked(target)) {
         ASSERT(target->IsMap());
         contents->set_unchecked(i + 1, NullDescriptorDetails);
         contents->set_null_unchecked(i);

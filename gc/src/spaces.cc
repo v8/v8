@@ -1564,7 +1564,7 @@ void OldSpaceFreeList::MarkNodes() {
     while (cur_addr != NULL) {
       FreeListNode* cur_node = FreeListNode::FromAddress(cur_addr);
       cur_addr = cur_node->next();
-      cur_node->SetMark();
+      IntrusiveMarking::SetMark(cur_node);
     }
   }
 }
@@ -1634,7 +1634,7 @@ void FixedSizeFreeList::MarkNodes() {
   while (cur_addr != NULL && cur_addr != tail_) {
     FreeListNode* cur_node = FreeListNode::FromAddress(cur_addr);
     cur_addr = cur_node->next();
-    cur_node->SetMark();
+    IntrusiveMarking::SetMark(cur_node);
   }
 }
 
@@ -1697,6 +1697,7 @@ void PagedSpace::FreePages(Page* prev, Page* last) {
     first->SetAllocationWatermark(first->ObjectAreaStart());
     first->SetCachedAllocationWatermark(first->ObjectAreaStart());
     first->SetRegionMarks(Page::kAllRegionsCleanMarks);
+    first->markbits()->Clear();
     first = first->next_page();
   } while (first != NULL);
 }
@@ -2328,8 +2329,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* current = first_page_;
   while (current != NULL) {
     HeapObject* object = current->GetObject();
-    if (object->IsMarked()) {
-      object->ClearMark();
+    if (Marking::IsMarked(object)) {
+      Marking::ClearMark(object);
       MarkCompactCollector::tracer()->decrement_marked_count();
       previous = current;
       current = current->next_page();

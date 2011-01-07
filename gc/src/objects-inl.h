@@ -991,36 +991,6 @@ HeapObject* MapWord::ToForwardingAddress() {
 }
 
 
-bool MapWord::IsMarked() {
-  return (value_ & kMarkingMask) == 0;
-}
-
-
-void MapWord::SetMark() {
-  value_ &= ~kMarkingMask;
-}
-
-
-void MapWord::ClearMark() {
-  value_ |= kMarkingMask;
-}
-
-
-bool MapWord::IsOverflowed() {
-  return (value_ & kOverflowMask) != 0;
-}
-
-
-void MapWord::SetOverflow() {
-  value_ |= kOverflowMask;
-}
-
-
-void MapWord::ClearOverflow() {
-  value_ &= ~kOverflowMask;
-}
-
-
 #ifdef DEBUG
 void HeapObject::VerifyObjectField(int offset) {
   VerifyPointer(READ_FIELD(this, offset));
@@ -1078,47 +1048,6 @@ void HeapObject::IteratePointers(ObjectVisitor* v, int start, int end) {
 
 void HeapObject::IteratePointer(ObjectVisitor* v, int offset) {
   v->VisitPointer(reinterpret_cast<Object**>(FIELD_ADDR(this, offset)));
-}
-
-
-bool HeapObject::IsMarked() {
-  return map_word().IsMarked();
-}
-
-
-void HeapObject::SetMark() {
-  ASSERT(!IsMarked());
-  MapWord first_word = map_word();
-  first_word.SetMark();
-  set_map_word(first_word);
-}
-
-
-void HeapObject::ClearMark() {
-  ASSERT(IsMarked());
-  MapWord first_word = map_word();
-  first_word.ClearMark();
-  set_map_word(first_word);
-}
-
-
-bool HeapObject::IsOverflowed() {
-  return map_word().IsOverflowed();
-}
-
-
-void HeapObject::SetOverflow() {
-  MapWord first_word = map_word();
-  first_word.SetOverflow();
-  set_map_word(first_word);
-}
-
-
-void HeapObject::ClearOverflow() {
-  ASSERT(IsOverflowed());
-  MapWord first_word = map_word();
-  first_word.ClearOverflow();
-  set_map_word(first_word);
 }
 
 

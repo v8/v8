@@ -252,6 +252,11 @@ bool Heap::InNewSpace(Object* object) {
 }
 
 
+bool Heap::InNewSpace(Address addr) {
+  return new_space_.Contains(addr);
+}
+
+
 bool Heap::InFromSpace(Object* object) {
   return new_space_.FromSpaceContains(object);
 }

@@ -41,6 +41,122 @@ class RootMarkingVisitor;
 class MarkingVisitor;
 
 
+class Marking {
+ public:
+  INLINE(static bool IsMarked(HeapObject* obj)) {
+    return IsMarked(obj->address());
+  }
+
+  INLINE(static void SetMark(HeapObject* obj)) {
+    SetMark(obj->address());
+  }
+
+  INLINE(static void ClearMark(HeapObject* obj)) {
+    ClearMark(obj->address());
+  }
+
+  INLINE(static bool TestAndMark(Address addr)) {
+    if (Heap::InNewSpace(addr)) {
+      uint32_t index = Heap::new_space()->Address2MarkbitIndex(addr);
+      return new_space_bitmap_->TestAndSet(index);
+    } else {
+      Page *p = Page::FromAddress(addr);
+      return p->markbits()->TestAndSet(p->Address2Markbit(addr));
+    }
+  }
+
+  INLINE(static bool IsMarked(Address addr)) {
+    if (Heap::InNewSpace(addr)) {
+      uint32_t index = Heap::new_space()->Address2MarkbitIndex(addr);
+      return new_space_bitmap_->Get(index);
+    } else {
+      Page *p = Page::FromAddress(addr);
+      return p->markbits()->Get(p->Address2Markbit(addr));
+    }
+  }
+
+  INLINE(static void SetMark(Address addr)) {
+    if (Heap::InNewSpace(addr)) {
+      uint32_t index = Heap::new_space()->Address2MarkbitIndex(addr);
+      new_space_bitmap_->Set(index);
+    } else {
+      Page *p = Page::FromAddress(addr);
+      p->markbits()->Set(p->FastAddress2Markbit(addr));
+    }
+  }
+
+  INLINE(static void ClearMark(Address addr)) {
+    if (Heap::InNewSpace(addr)) {
+      uint32_t index = Heap::new_space()->Address2MarkbitIndex(addr);
+      new_space_bitmap_->Clear(index);
+    } else {
+      Page *p = Page::FromAddress(addr);
+      p->markbits()->Clear(p->FastAddress2Markbit(addr));
+    }
+  }
+
+  INLINE(static void ClearRange(Address addr, int size)) {
+    if (Heap::InNewSpace(addr)) {
+      uint32_t index = Heap::new_space()->Address2MarkbitIndex(addr);
+      new_space_bitmap_->ClearRange(index, size >> kPointerSizeLog2);
+    } else {
+      Page *p = Page::FromAddress(addr);
+      p->markbits()->ClearRange(p->FastAddress2Markbit(addr),
+                                size >> kPointerSizeLog2);
+    }
+  }
+
+  static bool Setup();
+
+  static void TearDown();
+
+ private:
+  class BitmapStorageDescriptor {
+   public:
+    INLINE(static int CellsCount(Address addr)) {
+      return HeaderOf(addr)->cells_count_;
+    }
+
+    static Bitmap<BitmapStorageDescriptor>* Allocate(int cells_count) {
+      VirtualMemory* memory = new VirtualMemory(SizeFor(cells_count));
+
+      if (!memory->Commit(memory->address(), memory->size(), false)) {
+        delete memory;
+        return NULL;
+      }
+
+      Address bitmap_address =
+          reinterpret_cast<Address>(memory->address()) + sizeof(Header);
+      HeaderOf(bitmap_address)->cells_count_ = cells_count;
+      HeaderOf(bitmap_address)->storage_ = memory;
+      return Bitmap<BitmapStorageDescriptor>::FromAddress(bitmap_address);
+    }
+
+    static void Free(Bitmap<BitmapStorageDescriptor>* bitmap) {
+      delete HeaderOf(bitmap->address())->storage_;
+    }
+
+   private:
+    struct Header {
+      VirtualMemory* storage_;
+      int cells_count_;
+    };
+
+    static int SizeFor(int cell_count) {
+      return sizeof(Header) +
+          Bitmap<BitmapStorageDescriptor>::SizeFor(cell_count);
+    }
+
+    static Header* HeaderOf(Address addr) {
+      return reinterpret_cast<Header*>(addr - sizeof(Header));
+    }
+  };
+
+  typedef Bitmap<BitmapStorageDescriptor> NewSpaceMarkbitsBitmap;
+
+  static NewSpaceMarkbitsBitmap* new_space_bitmap_;
+};
+
 // -------------------------------------------------------------------------
 // Mark-Compact collector
 //
@@ -102,10 +218,6 @@ class MarkCompactCollector: public AllStatic {
 #endif
   }
 
-  // The count of the number of objects left marked at the end of the last
-  // completed full GC (expected to be zero).
-  static int previous_marked_count() { return previous_marked_count_; }
-
   // During a full GC, there is a stack-allocated GCTracer that is used for
   // bookkeeping information.  Return a pointer to that tracer.
   static GCTracer* tracer() { return tracer_; }
@@ -118,9 +230,6 @@ class MarkCompactCollector: public AllStatic {
 
   // Determine type of object and emit deletion log event.
   static void ReportDeleteIfNeeded(HeapObject* obj);
-
-  // Returns size of a possibly marked object.
-  static int SizeOfMarkedObject(HeapObject* obj);
 
   // Distinguishable invalid map encodings (for single word and multiple words)
   // that indicate free regions.
@@ -152,10 +261,6 @@ class MarkCompactCollector: public AllStatic {
   // Global flag indicating whether spaces will be compacted on the next GC.
   static bool compact_on_next_gc_;
 
-  // The number of objects left marked at the end of the last completed full
-  // GC (expected to be zero).
-  static int previous_marked_count_;
-
   // A pointer to the current stack-allocated GC tracer object during a full
   // collection (NULL before and after).
   static GCTracer* tracer_;
@@ -184,19 +289,25 @@ class MarkCompactCollector: public AllStatic {
   // Marking operations for objects reachable from roots.
   static void MarkLiveObjects();
 
-  static void MarkUnmarkedObject(HeapObject* obj);
-
   static inline void MarkObject(HeapObject* obj) {
-    if (!obj->IsMarked()) MarkUnmarkedObject(obj);
+    if (!Marking::TestAndMark(obj->address())) {
+      tracer_->increment_marked_count();
+#ifdef DEBUG
+      UpdateLiveObjectCount(obj);
+#endif
+      ProcessNewlyMarkedObject(obj);
+    }
   }
 
   static inline void SetMark(HeapObject* obj) {
+    Marking::SetMark(obj);
     tracer_->increment_marked_count();
 #ifdef DEBUG
     UpdateLiveObjectCount(obj);
 #endif
-    obj->SetMark();
   }
+
+  static void ProcessNewlyMarkedObject(HeapObject* obj);
 
   // Creates back pointers for all map transitions, stores them in
   // the prototype field.  The original prototype pointers are restored
@@ -285,6 +396,9 @@ class MarkCompactCollector: public AllStatic {
   // for the large object space, clearing mark bits and adding unmarked
   // regions to each space's free list.
   static void SweepSpaces();
+
+  static void SweepNewSpace(NewSpace* space);
+  static void SweepSpace(PagedSpace* space);
 
 #ifdef DEBUG
   // -----------------------------------------------------------------------

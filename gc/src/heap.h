@@ -868,6 +868,7 @@ class Heap : public AllStatic {
 
   // Returns whether the object resides in new space.
   static inline bool InNewSpace(Object* object);
+  static inline bool InNewSpace(Address addr);
   static inline bool InFromSpace(Object* object);
   static inline bool InToSpace(Object* object);
 
@@ -1951,10 +1952,6 @@ class GCTracer BASE_EMBEDDED {
   // cleared.  Will be zero on a scavenge collection.
   int marked_count_;
 
-  // The count from the end of the previous full GC.  Will be zero if there
-  // was no previous full GC.
-  int previous_marked_count_;
-
   // Amounts of time spent in different scopes during GC.
   double scopes_[Scope::kNumberOfScopes];
 
@@ -2132,6 +2129,43 @@ class WeakObjectRetainer {
   // object has no references. Otherwise the address of the retained object
   // should be returned as in some GC situations the object has been moved.
   virtual Object* RetainAs(Object* object) = 0;
+};
+
+
+// Intrusive object marking uses least significant bit of
+// heap object's map word to mark objects.
+// Normally all map words have least significant bit set
+// because they contain tagged map pointer.
+// If the bit is not set object is marked.
+// All objects should be unmarked before resuming
+// JavaScript execution.
+class IntrusiveMarking {
+ public:
+  static bool IsMarked(HeapObject* object) {
+    return (object->map_word().ToRawValue() & kNotMarkedBit) == 0;
+  }
+
+  static void ClearMark(HeapObject* object) {
+    uintptr_t map_word = object->map_word().ToRawValue();
+    object->set_map_word(MapWord::FromRawValue(map_word | kNotMarkedBit));
+    ASSERT(!IsMarked(object));
+  }
+
+  static void SetMark(HeapObject* object) {
+    uintptr_t map_word = object->map_word().ToRawValue();
+    object->set_map_word(MapWord::FromRawValue(map_word & ~kNotMarkedBit));
+    ASSERT(IsMarked(object));
+  }
+
+  static int SizeOfMarkedObject(HeapObject* object) {
+    uintptr_t map_word = object->map_word().ToRawValue();
+    Map* map = MapWord::FromRawValue(map_word | kNotMarkedBit).ToMap();
+    return object->SizeFromMap(map);
+  }
+
+ private:
+  static const uintptr_t kNotMarkedBit = 0x1;
+  STATIC_ASSERT((kHeapObjectTag & kNotMarkedBit) != 0);
 };
 
 

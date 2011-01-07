@@ -930,42 +930,13 @@ class MapWord BASE_EMBEDDED {
   // View this map word as a forwarding address.
   inline HeapObject* ToForwardingAddress();
 
-  // Marking phase of full collection: the map word of live objects is
-  // marked, and may be marked as overflowed (eg, the object is live, its
-  // children have not been visited, and it does not fit in the marking
-  // stack).
+  static inline MapWord FromRawValue(uintptr_t value) {
+    return MapWord(value);
+  }
 
-  // True if this map word's mark bit is set.
-  inline bool IsMarked();
-
-  // Return this map word but with its mark bit set.
-  inline void SetMark();
-
-  // Return this map word but with its mark bit cleared.
-  inline void ClearMark();
-
-  // True if this map word's overflow bit is set.
-  inline bool IsOverflowed();
-
-  // Return this map word but with its overflow bit set.
-  inline void SetOverflow();
-
-  // Return this map word but with its overflow bit cleared.
-  inline void ClearOverflow();
-
-  // Bits used by the marking phase of the garbage collector.
-  //
-  // The first word of a heap object is normally a map pointer. The last two
-  // bits are tagged as '01' (kHeapObjectTag). We reuse the last two bits to
-  // mark an object as live and/or overflowed:
-  //   last bit = 0, marked as alive
-  //   second bit = 1, overflowed
-  // An object is only marked as overflowed when it is marked as live while
-  // the marking stack is overflowed.
-  static const int kMarkingBit = 0;  // marking bit
-  static const int kMarkingMask = (1 << kMarkingBit);  // marking mask
-  static const int kOverflowBit = 1;  // overflow bit
-  static const int kOverflowMask = (1 << kOverflowBit);  // overflow mask
+  inline uintptr_t ToRawValue() {
+    return value_;
+  }
 
  private:
   // HeapObject calls the private constructor and directly reads the value.
@@ -1014,30 +985,19 @@ class HeapObject: public Object {
   // GC internal.
   inline int SizeFromMap(Map* map);
 
-  // Support for the marking heap objects during the marking phase of GC.
-  // True if the object is marked live.
-  inline bool IsMarked();
-
-  // Mutate this object's map pointer to indicate that the object is live.
-  inline void SetMark();
-
-  // Mutate this object's map pointer to remove the indication that the
-  // object is live (ie, partially restore the map pointer).
-  inline void ClearMark();
-
   // True if this object is marked as overflowed.  Overflowed objects have
   // been reached and marked during marking of the heap, but their children
   // have not necessarily been marked and they have not been pushed on the
   // marking stack.
-  inline bool IsOverflowed();
+  inline bool IsOverflowed() { return false; }
 
   // Mutate this object's map pointer to indicate that the object is
   // overflowed.
-  inline void SetOverflow();
+  inline void SetOverflow() {}
 
   // Mutate this object's map pointer to remove the indication that the
   // object is overflowed (ie, partially restore the map pointer).
-  inline void ClearOverflow();
+  inline void ClearOverflow() {}
 
   // Returns the field at offset in obj, as a read/write Object* reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.

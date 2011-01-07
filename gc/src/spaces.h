@@ -113,6 +113,121 @@ class MemoryAllocator;
 class AllocationInfo;
 class Space;
 
+
+// Bitmap is a sequence of cells each containing fixed number of bits.
+template<typename StorageDescriptor>
+class Bitmap {
+ public:
+  typedef uint32_t CellType;
+  static const uint32_t kBitsPerCell = 32;
+  static const uint32_t kBitsPerCellLog2 = 5;
+  static const uint32_t kBitIndexMask = kBitsPerCell - 1;
+
+  static int CellsForLength(int length) {
+    return (length + kBitsPerCell - 1) >> kBitsPerCellLog2;
+  }
+
+  int CellsCount() {
+    return StorageDescriptor::CellsCount(this->address());
+  }
+
+  static int SizeFor(int cells_count) {
+    return sizeof(CellType)*cells_count;
+  }
+
+  INLINE(CellType* cells()) {
+    return reinterpret_cast<CellType*>(this);
+  }
+
+  INLINE(Address address()) {
+    return reinterpret_cast<Address>(this);
+  }
+
+  INLINE(static Bitmap* FromAddress(Address addr)) {
+    return reinterpret_cast<Bitmap*>(addr);
+  }
+
+  INLINE(static Bitmap* FromAddress(uint32_t* addr)) {
+    return reinterpret_cast<Bitmap*>(addr);
+  }
+
+  INLINE(bool TestAndSet(const uint32_t index)) {
+    const uint32_t mask = 1 << (index & kBitIndexMask);
+    if (cells()[index >> kBitsPerCellLog2] & mask) {
+      return true;
+    } else {
+      cells()[index >> kBitsPerCellLog2] |= mask;
+      return false;
+    }
+  }
+
+  INLINE(bool Get(uint32_t index)) {
+    uint32_t mask = 1 << (index & kBitIndexMask);
+    return (this->cells()[index >> kBitsPerCellLog2] & mask) != 0;
+  }
+
+  INLINE(void Set(uint32_t index)) {
+    uint32_t mask = 1 << (index & kBitIndexMask);
+    cells()[index >> kBitsPerCellLog2] |= mask;
+  }
+
+  INLINE(void Clear(uint32_t index)) {
+    uint32_t mask = 1 << (index & kBitIndexMask);
+    cells()[index >> kBitsPerCellLog2] &= ~mask;
+  }
+
+  INLINE(void ClearRange(uint32_t start, uint32_t size)) {
+    const uint32_t end = start + size;
+    const uint32_t start_cell = start >> kBitsPerCellLog2;
+    const uint32_t end_cell = end >> kBitsPerCellLog2;
+
+    const uint32_t start_mask = (-1) << (start & kBitIndexMask);
+    const uint32_t end_mask   = (1 << (end & kBitIndexMask)) - 1;
+
+    ASSERT(static_cast<int>(start_cell) < CellsCount());
+    ASSERT(static_cast<int>(end_cell) < CellsCount());
+
+    if (start_cell == end_cell) {
+      cells()[start_cell] &= ~(start_mask & end_mask);
+    } else {
+      cells()[start_cell] &= ~start_mask;
+      if (end_mask != 0) cells()[end_cell] &= ~end_mask;
+
+      for(uint32_t cell = start_cell + 1, last_cell = end_cell - 1;
+          cell <= last_cell;
+          cell++) {
+        cells()[cell] = 0;
+      }
+    }
+  }
+
+  INLINE(void Clear()) {
+    for (int i = 0; i < CellsCount(); i++) cells()[i] = 0;
+  }
+
+  static void PrintWord(const uint32_t& word, const char* sep = " ") {
+    for (uint32_t mask = 1; mask != 0; mask <<= 1) {
+      PrintF((mask & word) ? "1" : "0");
+    }
+    PrintF("%s", sep);
+  }
+
+  void Print() {
+    for (int i = 0; i < CellsCount(); i++) {
+      PrintWord(cells()[i]);
+    }
+    PrintF("\n");
+  }
+
+  bool IsClean() {
+    for (int i = 0; i < CellsCount(); i++) {
+      if (cells()[i] != 0) return false;
+    }
+    return true;
+  }
+};
+
+
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
 // 1MB aligned. Start of the body is aligned so it can accomodate
@@ -161,13 +276,50 @@ class MemoryChunk {
   static const size_t kHeaderSize = kPointerSize + kPointerSize + kPointerSize +
     kPointerSize + kPointerSize;
 
+  static const size_t kMarksBitmapLength =
+    (1 << kPageSizeBits) >> (kPointerSizeLog2);
+
+  static const size_t kMarksBitmapSize =
+    (1 << kPageSizeBits) >> (kPointerSizeLog2 + kBitsPerByteLog2);
+
   static const int kBodyOffset =
-      CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kHeaderSize));
+    CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kHeaderSize + kMarksBitmapSize));
 
   size_t size() const { return size_; }
 
   Executability executable() {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
+  }
+
+  // ---------------------------------------------------------------------
+  // Markbits support
+  class BitmapStorageDescriptor {
+   public:
+    INLINE(static int CellsCount(Address addr)) {
+      return Bitmap<BitmapStorageDescriptor>::CellsForLength(
+          kMarksBitmapLength);
+    }
+  };
+
+  typedef Bitmap<BitmapStorageDescriptor> MarkbitsBitmap;
+
+  inline MarkbitsBitmap* markbits() {
+    return MarkbitsBitmap::FromAddress(address() + kHeaderSize);
+  }
+
+  inline uint32_t Address2Markbit(Address addr) {
+    return static_cast<uint32_t>(addr - this->address()) >> kPointerSizeLog2;
+  }
+
+  inline static uint32_t FastAddress2Markbit(Address addr) {
+    const intptr_t offset =
+        reinterpret_cast<intptr_t>(addr) & kAlignmentMask;
+
+    return static_cast<uint32_t>(offset) >> kPointerSizeLog2;
+  }
+
+  inline Address Markbit2Address(uint32_t index) {
+    return this->address() + (index << kPointerSizeLog2);
   }
 
  protected:
@@ -189,6 +341,7 @@ class MemoryChunk {
     chunk->size_ = size;
     chunk->flags_ = 0;
     chunk->owner_ = owner;
+    chunk->markbits()->Clear();
 
     if (executable == EXECUTABLE) chunk->SetFlag(IS_EXECUTABLE);
 
@@ -1413,6 +1566,16 @@ class NewSpace : public Space {
   // new space with the mask will result in the start address.
   Address start() { return start_; }
   uintptr_t mask() { return address_mask_; }
+
+  INLINE(uint32_t Address2MarkbitIndex(Address addr)) {
+    ASSERT(Contains(addr));
+    ASSERT(IsAligned(OffsetFrom(addr), kPointerSize));
+    return static_cast<uint32_t>(addr - start_) >> kPointerSizeLog2;
+  }
+
+  INLINE(Address MarkbitIndex2Address(uint32_t index)) {
+    return reinterpret_cast<Address>(index << kPointerSizeLog2);
+  }
 
   // The allocation top and limit addresses.
   Address* allocation_top_address() { return &allocation_info_.top; }
