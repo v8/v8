@@ -121,6 +121,7 @@ function Join(array, length, separator, convert) {
         if (IS_STRING(e)) return e;
         return convert(e);
       }
+      return '';
     }
 
     // Construct an array for the elements.
@@ -160,7 +161,7 @@ function Join(array, length, separator, convert) {
 
 
 function ConvertToString(x) {
-  if (IS_STRING(x)) return x;
+  // Assumes x is a non-string. 
   if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   return (IS_NULL_OR_UNDEFINED(x)) ? '' : %ToString(%DefaultString(x));

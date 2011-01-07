@@ -1183,7 +1183,7 @@ function NewFunction(arg1) {  // length == 1
   if (n > 1) {
     p = new $Array(n - 1);
     for (var i = 0; i < n - 1; i++) p[i] = %_Arguments(i);
-    p = Join(p, n - 1, ',', ToString);
+    p = Join(p, n - 1, ',', NonStringToString);
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
     // compile. We avoid this problem by checking for this early on.
