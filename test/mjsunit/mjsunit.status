@@ -116,8 +116,8 @@ compiler/simple-osr: FAIL
 ##############################################################################
 [ $arch == x64 && $crankshaft ]
 
-# Test that currently fails with crankshaft on X64.
-compiler/simple-osr: FAIL
+# BUG (1026) This test is currently flaky.
+compiler/simple-osr: SKIP
 
 
 ##############################################################################
