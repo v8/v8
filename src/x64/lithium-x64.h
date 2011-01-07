@@ -30,6 +30,7 @@
 
 #include "hydrogen.h"
 #include "lithium-allocator.h"
+#include "lithium.h"
 #include "safepoint-table.h"
 
 namespace v8 {

@@ -25,47 +25,39 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "x64/lithium-x64.h"
-#include "x64/lithium-codegen-x64.h"
+#ifndef V8_LITHIUM_H_
+#define V8_LITHIUM_H_
+
+#include "lithium-allocator.h"
 
 namespace v8 {
 namespace internal {
 
-LChunk* LChunkBuilder::Build() {
-  ASSERT(is_unused());
-  chunk_ = new LChunk(graph());
-  HPhase phase("Building chunk", chunk_);
-  status_ = BUILDING;
-  const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
-  for (int i = 0; i < blocks->length(); i++) {
-    HBasicBlock* next = NULL;
-    if (i < blocks->length() - 1) next = blocks->at(i + 1);
-    DoBasicBlock(blocks->at(i), next);
-    if (is_aborted()) return NULL;
-  }
-  status_ = DONE;
-  return chunk_;
-}
+class LGapNode;
 
+class LGapResolver BASE_EMBEDDED {
+ public:
+  LGapResolver(const ZoneList<LMoveOperands>* moves, LOperand* marker_operand);
+  const ZoneList<LMoveOperands>* ResolveInReverseOrder();
 
-void LChunkBuilder::Abort(const char* format, ...) {
-  if (FLAG_trace_bailout) {
-    SmartPointer<char> debug_name = graph()->debug_name()->ToCString();
-    PrintF("Aborting LChunk building in @\"%s\": ", *debug_name);
-    va_list arguments;
-    va_start(arguments, format);
-    OS::VPrint(format, arguments);
-    va_end(arguments);
-    PrintF("\n");
-  }
-  status_ = ABORTED;
-}
+ private:
+  LGapNode* LookupNode(LOperand* operand);
+  bool CanReach(LGapNode* a, LGapNode* b, int visited_id);
+  bool CanReach(LGapNode* a, LGapNode* b);
+  void RegisterMove(LMoveOperands move);
+  void AddResultMove(LOperand* from, LOperand* to);
+  void AddResultMove(LGapNode* from, LGapNode* to);
+  void ResolveCycle(LGapNode* start);
 
-
-void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
-  ASSERT(is_building());
-  Abort("Lithium not implemented on x64.");
-}
+  ZoneList<LGapNode*> nodes_;
+  ZoneList<LGapNode*> identified_cycles_;
+  ZoneList<LMoveOperands> result_;
+  LOperand* marker_operand_;
+  int next_visited_id_;
+  int bailout_after_ast_id_;
+};
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_LITHIUM_H_
