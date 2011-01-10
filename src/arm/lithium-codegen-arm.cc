@@ -1076,8 +1076,16 @@ void LCodeGen::DoBranch(LBranch* instr) {
     EmitBranch(true_block, false_block, nz);
   } else if (r.IsDouble()) {
     DoubleRegister reg = ToDoubleRegister(instr->input());
+    Register scratch = scratch0();
+
+    // Test for the double value. Zero and NaN are false.
+    // Clear the Invalid cumulative exception flags.
+    __ ClearFPSCRBits(kVFPInvalidExceptionBit, scratch);
     __ vcmp(reg, 0.0);
-    __ vmrs(pc);  // Move vector status bits to normal status bits.
+      // Retrieve the exception and status flags and
+      // check for zero or an invalid exception.
+    __ vmrs(scratch);
+    __ tst(scratch, Operand(kVFPZConditionFlagBit | kVFPInvalidExceptionBit));
     EmitBranch(true_block, false_block, ne);
   } else {
     ASSERT(r.IsTagged());
@@ -1104,7 +1112,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ tst(reg, Operand(kSmiTagMask));
       __ b(eq, true_label);
 
-      // Test for double values. Zero is false.
+      // Test for double values. Zero and NaN are false.
       Label call_stub;
       DoubleRegister dbl_scratch = d0;
       Register scratch = scratch0();
@@ -1114,9 +1122,14 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ b(ne, &call_stub);
       __ sub(ip, reg, Operand(kHeapObjectTag));
       __ vldr(dbl_scratch, ip, HeapNumber::kValueOffset);
+      // Clear the Invalid cumulative exception flags.
+      __ ClearFPSCRBits(kVFPInvalidExceptionBit, scratch);
       __ vcmp(dbl_scratch, 0.0);
-      __ vmrs(pc);  // Move vector status bits to normal status bits.
-      __ b(eq, false_label);
+      // Retrieve the exception and status flags and
+      // check for zero or an invalid exception.
+      __ vmrs(scratch);
+      __ tst(scratch, Operand(kVFPZConditionFlagBit | kVFPInvalidExceptionBit));
+      __ b(ne, false_label);
       __ b(true_label);
 
       // The conversion stub doesn't cause garbage collections so it's

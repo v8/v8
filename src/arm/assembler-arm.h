@@ -302,6 +302,8 @@ static const uint32_t kVFPExceptionMask = 0xf;
 static const uint32_t kVFPRoundingModeMask = 3 << 22;
 static const uint32_t kVFPFlushToZeroMask = 1 << 24;
 static const uint32_t kVFPRoundToMinusInfinityBits = 2 << 22;
+static const uint32_t kVFPZConditionFlagBit = 1 << 30;
+static const uint32_t kVFPInvalidExceptionBit = 1;
 
 // Coprocessor register
 struct CRegister {

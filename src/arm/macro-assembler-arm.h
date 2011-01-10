@@ -243,6 +243,9 @@ class MacroAssembler: public Assembler {
             const MemOperand& dst,
             Condition cond = al);
 
+  // Clear FPSCR bits.
+  void ClearFPSCRBits(uint32_t bits_to_clear, Register scratch);
+
   // ---------------------------------------------------------------------------
   // Activation frames
 

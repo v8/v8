@@ -519,6 +519,13 @@ void MacroAssembler::Strd(Register src1, Register src2,
 }
 
 
+void MacroAssembler::ClearFPSCRBits(uint32_t bits_to_clear, Register scratch) {
+  vmrs(scratch);
+  bic(scratch, scratch, Operand(bits_to_clear));
+  vmsr(scratch);
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   // r0-r3: preserved
   stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
