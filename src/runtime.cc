@@ -3499,12 +3499,7 @@ static MaybeObject* Runtime_KeyedGetProperty(Arguments args) {
                                     args.at<Object>(1));
 }
 
-// Implements part of 8.12.9 DefineOwnProperty.
-// There are 3 cases that lead here:
-// Step 4b - define a new accessor property.
-// Steps 9c & 12 - replace an existing data property with an accessor property.
-// Step 12 - update an existing accessor property with an accessor or generic
-//           descriptor.
+
 static MaybeObject* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
   ASSERT(args.length() == 5);
   HandleScope scope;
@@ -3536,12 +3531,6 @@ static MaybeObject* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
   return obj->DefineAccessor(name, flag_setter->value() == 0, fun, attr);
 }
 
-// Implements part of 8.12.9 DefineOwnProperty.
-// There are 3 cases that lead here:
-// Step 4a - define a new data property.
-// Steps 9b & 12 - replace an existing accessor property with a data property.
-// Step 12 - update an existing data property with a data or generic
-//           descriptor.
 static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   ASSERT(args.length() == 4);
   HandleScope scope;
