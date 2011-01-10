@@ -69,8 +69,15 @@ class SafepointTable BASE_EMBEDDED {
     return &Memory::uint8_at(entries_ + (index * entry_size_));
   }
 
-  class GapCodeSizeField: public BitField<unsigned, 0, 8> {};
-  class DeoptimizationIndexField: public BitField<int, 8, 24> {};
+  // Reserve 13 bits for the gap code size. On ARM a constant pool can be
+  // emitted when generating the gap code. The size of the const pool is less
+  // than what can be represented in 12 bits, so 13 bits gives room for having
+  // instructions before potentially emitting a constant pool.
+  static const int kGapCodeSizeBits = 13;
+  static const int kDeoptIndexBits = 32 - kGapCodeSizeBits;
+  class GapCodeSizeField: public BitField<unsigned, 0, kGapCodeSizeBits> {};
+  class DeoptimizationIndexField:
+      public BitField<int, kGapCodeSizeBits, kDeoptIndexBits> {};
 
   static bool HasRegisters(uint8_t* entry);
   static bool HasRegisterAt(uint8_t* entry, int reg_index);
@@ -114,7 +121,8 @@ class SafepointTable BASE_EMBEDDED {
 
 class Safepoint BASE_EMBEDDED {
  public:
-  static const int kNoDeoptimizationIndex = 0x00ffffff;
+  static const int kNoDeoptimizationIndex =
+      (1 << (SafepointTable::kDeoptIndexBits)) - 1;
 
   void DefinePointerSlot(int index) { indexes_->Add(index); }
   void DefinePointerRegister(Register reg) { registers_->Add(reg.code()); }

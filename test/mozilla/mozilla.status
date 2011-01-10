@@ -840,9 +840,6 @@ js1_5/extensions/regress-371636: SKIP
 js1_5/Regress/regress-416628: CRASH
 js1_5/Regress/regress-96128-n: PASS || CRASH
 
-# BUG(1032)
-ecma/Date/15.9.3.1-1.js: PASS || CRASH
-
 [ $fast == yes && $arch == arm ]
 
 # In fast mode on arm we try to skip all tests that would time out,
