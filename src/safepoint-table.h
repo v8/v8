@@ -75,9 +75,9 @@ class SafepointTable BASE_EMBEDDED {
   // instructions before potentially emitting a constant pool.
   static const int kGapCodeSizeBits = 13;
   static const int kDeoptIndexBits = 32 - kGapCodeSizeBits;
-  class GapCodeSizeField: public BitField<unsigned, 0, kGapCodeSizeBits> {};
+  class GapCodeSizeField: public BitField<unsigned, 0, kGapCodeSizeBits> {}
   class DeoptimizationIndexField:
-      public BitField<int, kGapCodeSizeBits, kDeoptIndexBits> {};
+      public BitField<int, kGapCodeSizeBits, kDeoptIndexBits> {}
 
   static bool HasRegisters(uint8_t* entry);
   static bool HasRegisterAt(uint8_t* entry, int reg_index);
