@@ -125,34 +125,45 @@ function Join(array, length, separator, convert) {
     }
 
     // Construct an array for the elements.
-    var elements;
+    var elements = new $Array(length);
     var elements_length = 0;
 
     // We pull the empty separator check outside the loop for speed!
     if (separator.length == 0) {
-      elements = new $Array(length);
       for (var i = 0; i < length; i++) {
         var e = array[i];
-        if (!IS_UNDEFINED(e) || (i in array)) {
+        if (!IS_UNDEFINED(e)) {
           if (!IS_STRING(e)) e = convert(e);
           elements[elements_length++] = e;
         }
       }
-    } else {
-      elements = new $Array(length << 1);
-      for (var i = 0; i < length; i++) {
-        var e = array[i];
-        if (i != 0) elements[elements_length++] = separator;
-        if (!IS_UNDEFINED(e) || (i in array)) {
-          if (!IS_STRING(e)) e = convert(e);
-          elements[elements_length++] = e;
-        }
+      elements.length = elements_length;
+      var result = %_FastAsciiArrayJoin(elements, '');
+      if (!IS_UNDEFINED(result)) return result;
+      return %StringBuilderConcat(elements, elements_length, '');
+    }
+    // Non-empty separator.
+    for (var i = 0; i < length; i++) {
+      var e = array[i];
+      if (!IS_UNDEFINED(e)) {
+        if (!IS_STRING(e)) e = convert(e);
+        elements[i] = e;
+      } else {
+        elements[i] = '';
       }
     }
-    elements.length = elements_length;
-    var result = %_FastAsciiArrayJoin(elements, "");
-    if (!IS_UNDEFINED(result)) return result;
-    return %StringBuilderConcat(elements, elements_length, '');
+    var result = %_FastAsciiArrayJoin(elements, separator);
+    if (!IS_UNDEFINED(result)) return result;   
+
+    var length2 = (length << 1) - 1;
+    var j = length2;
+    var i = length;
+    elements[--j] = elements[--i];
+    while (i > 0) {
+      elements[--j] = separator;
+      elements[--j] = elements[--i];
+    }
+    return %StringBuilderConcat(elements, length2, '');    
   } finally {
     // Make sure to pop the visited array no matter what happens.
     if (is_array) visited_arrays.pop();
