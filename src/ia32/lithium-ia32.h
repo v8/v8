@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,6 +30,7 @@
 
 #include "hydrogen.h"
 #include "lithium-allocator.h"
+#include "lithium.h"
 #include "safepoint-table.h"
 
 namespace v8 {
@@ -39,7 +40,6 @@ namespace internal {
 class LCodeGen;
 class LEnvironment;
 class Translation;
-class LGapNode;
 
 
 // Type hierarchy:
@@ -63,6 +63,7 @@ class LGapNode;
 //     LDivI
 //     LInstanceOf
 //     LInstanceOfAndBranch
+//     LInstanceOfKnownGlobal
 //     LLoadKeyedFastElement
 //     LLoadKeyedGeneric
 //     LModI
@@ -207,6 +208,7 @@ class LGapNode;
   V(FixedArrayLength)                           \
   V(InstanceOf)                                 \
   V(InstanceOfAndBranch)                        \
+  V(InstanceOfKnownGlobal)                      \
   V(Integer32ToDouble)                          \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
@@ -330,29 +332,6 @@ class LInstruction: public ZoneObject {
   SetOncePointer<LOperand> result_;
   HValue* hydrogen_value_;
   SetOncePointer<LEnvironment> deoptimization_environment_;
-};
-
-
-class LGapResolver BASE_EMBEDDED {
- public:
-  LGapResolver(const ZoneList<LMoveOperands>* moves, LOperand* marker_operand);
-  const ZoneList<LMoveOperands>* ResolveInReverseOrder();
-
- private:
-  LGapNode* LookupNode(LOperand* operand);
-  bool CanReach(LGapNode* a, LGapNode* b, int visited_id);
-  bool CanReach(LGapNode* a, LGapNode* b);
-  void RegisterMove(LMoveOperands move);
-  void AddResultMove(LOperand* from, LOperand* to);
-  void AddResultMove(LGapNode* from, LGapNode* to);
-  void ResolveCycle(LGapNode* start);
-
-  ZoneList<LGapNode*> nodes_;
-  ZoneList<LGapNode*> identified_cycles_;
-  ZoneList<LMoveOperands> result_;
-  LOperand* marker_operand_;
-  int next_visited_id_;
-  int bailout_after_ast_id_;
 };
 
 
@@ -1008,6 +987,23 @@ class LInstanceOfAndBranch: public LInstanceOf {
 };
 
 
+class LInstanceOfKnownGlobal: public LUnaryOperation {
+ public:
+  LInstanceOfKnownGlobal(LOperand* left, LOperand* temp)
+      : LUnaryOperation(left), temp_(temp) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal,
+                               "instance-of-known-global")
+  DECLARE_HYDROGEN_ACCESSOR(InstanceOfKnownGlobal)
+
+  Handle<JSFunction> function() const { return hydrogen()->function(); }
+  LOperand* temp() const { return temp_; }
+
+ private:
+  LOperand* temp_;
+};
+
+
 class LBoundsCheck: public LBinaryOperation {
  public:
   LBoundsCheck(LOperand* index, LOperand* length)
@@ -1126,27 +1122,20 @@ class LBranch: public LUnaryOperation {
 
 class LCmpMapAndBranch: public LUnaryOperation {
  public:
-  LCmpMapAndBranch(LOperand* value,
-                   Handle<Map> map,
-                   int true_block_id,
-                   int false_block_id)
-      : LUnaryOperation(value),
-        map_(map),
-        true_block_id_(true_block_id),
-        false_block_id_(false_block_id) { }
+  explicit LCmpMapAndBranch(LOperand* value) : LUnaryOperation(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(CmpMapAndBranch, "cmp-map-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareMapAndBranch)
 
   virtual bool IsControl() const { return true; }
 
-  Handle<Map> map() const { return map_; }
-  int true_block_id() const { return true_block_id_; }
-  int false_block_id() const { return false_block_id_; }
-
- private:
-  Handle<Map> map_;
-  int true_block_id_;
-  int false_block_id_;
+  Handle<Map> map() const { return hydrogen()->map(); }
+  int true_block_id() const {
+    return hydrogen()->true_destination()->block_id();
+  }
+  int false_block_id() const {
+    return hydrogen()->false_destination()->block_id();
+  }
 };
 
 
@@ -1952,7 +1941,12 @@ class LEnvironment: public ZoneObject {
 class LChunkBuilder;
 class LChunk: public ZoneObject {
  public:
-  explicit LChunk(HGraph* graph);
+  explicit LChunk(HGraph* graph)
+    : spill_slot_count_(0),
+      graph_(graph),
+      instructions_(32),
+      pointer_maps_(8),
+      inlined_closures_(1) { }
 
   int AddInstruction(LInstruction* instruction, HBasicBlock* block);
   LConstantOperand* DefineConstantOperand(HConstant* constant);
@@ -2102,6 +2096,7 @@ class LChunkBuilder BASE_EMBEDDED {
       LInstruction* instr,
       HInstruction* hinstr,
       CanDeoptimize can_deoptimize = CANNOT_DEOPTIMIZE_EAGERLY);
+  LInstruction* MarkAsSaveDoubles(LInstruction* instr);
 
   LInstruction* SetInstructionPendingDeoptimizationEnvironment(
       LInstruction* instr, int ast_id);

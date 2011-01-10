@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -264,16 +264,24 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   __ j(above_equal, &ok, taken);
   StackCheckStub stub;
   __ CallStub(&stub);
-  __ bind(&ok);
-  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
-  PrepareForBailoutForId(stmt->OsrEntryId(), NO_REGISTERS);
+  // Record a mapping of this PC offset to the OSR id.  This is used to find
+  // the AST id from the unoptimized code in order to use it as a key into
+  // the deoptimization input data found in the optimized code.
   RecordStackCheck(stmt->OsrEntryId());
-  // Loop stack checks can be patched to perform on-stack
-  // replacement. In order to decide whether or not to perform OSR we
-  // embed the loop depth in a test instruction after the call so we
-  // can extract it from the OSR builtin.
+
+  // Loop stack checks can be patched to perform on-stack replacement. In
+  // order to decide whether or not to perform OSR we embed the loop depth
+  // in a test instruction after the call so we can extract it from the OSR
+  // builtin.
   ASSERT(loop_depth() > 0);
   __ test(eax, Immediate(Min(loop_depth(), Code::kMaxLoopNestingMarker)));
+
+  __ bind(&ok);
+  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
+  // Record a mapping of the OSR id to this PC.  This is used if the OSR
+  // entry becomes the target of a bailout.  We don't expect it to be, but
+  // we want it to work if it is.
+  PrepareForBailoutForId(stmt->OsrEntryId(), NO_REGISTERS);
 }
 
 
@@ -1497,7 +1505,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       if (expr->is_compound()) {
         if (property->is_arguments_access()) {
           VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
-          __ push(EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx));
+          MemOperand slot_operand =
+              EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
+          __ push(slot_operand);
           __ mov(eax, Immediate(property->key()->AsLiteral()->handle()));
         } else {
           VisitForStackValue(property->obj());
@@ -1508,7 +1518,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       } else {
         if (property->is_arguments_access()) {
           VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
-          __ push(EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx));
+          MemOperand slot_operand =
+              EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
+          __ push(slot_operand);
           __ push(Immediate(property->key()->AsLiteral()->handle()));
         } else {
           VisitForStackValue(property->obj());
@@ -3739,7 +3751,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     } else {
       if (prop->is_arguments_access()) {
         VariableProxy* obj_proxy = prop->obj()->AsVariableProxy();
-        __ push(EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx));
+        MemOperand slot_operand =
+            EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
+        __ push(slot_operand);
         __ mov(eax, Immediate(prop->key()->AsLiteral()->handle()));
       } else {
         VisitForStackValue(prop->obj());
@@ -4042,7 +4056,6 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     case Token::INSTANCEOF: {
       VisitForStackValue(expr->right());
-      __ IncrementCounter(&Counters::instance_of_full, 1);
       InstanceofStub stub(InstanceofStub::kNoFlags);
       __ CallStub(&stub);
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);

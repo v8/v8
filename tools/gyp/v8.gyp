@@ -1,4 +1,4 @@
-# Copyright 2009 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -426,6 +426,8 @@
             '../../src/jsregexp.h',
             '../../src/list-inl.h',
             '../../src/list.h',
+            '../../src/lithium.cc',
+            '../../src/lithium.h',
             '../../src/lithium-allocator.cc',
             '../../src/lithium-allocator.h',
             '../../src/liveedit.cc',
@@ -671,6 +673,9 @@
                 '../../src/x64/full-codegen-x64.cc',
                 '../../src/x64/ic-x64.cc',
                 '../../src/x64/jump-target-x64.cc',
+                '../../src/x64/lithium-codegen-x64.h',
+                '../../src/x64/lithium-x64.cc',
+                '../../src/x64/lithium-x64.h',
                 '../../src/x64/macro-assembler-x64.cc',
                 '../../src/x64/macro-assembler-x64.h',
                 '../../src/x64/regexp-macro-assembler-x64.cc',

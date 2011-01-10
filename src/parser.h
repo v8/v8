@@ -321,7 +321,6 @@ class RegExpParser {
   // and sets the value if it is.
   bool ParseHexEscape(int length, uc32* value);
 
-  uc32 ParseControlLetterEscape();
   uc32 ParseOctalLiteral();
 
   // Tries to parse the input as a back reference.  If successful it

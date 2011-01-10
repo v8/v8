@@ -647,6 +647,11 @@ ExternalReference ExternalReference::the_hole_value_location() {
 }
 
 
+ExternalReference ExternalReference::arguments_marker_location() {
+  return ExternalReference(Factory::arguments_marker().location());
+}
+
+
 ExternalReference ExternalReference::roots_address() {
   return ExternalReference(Heap::roots_address());
 }

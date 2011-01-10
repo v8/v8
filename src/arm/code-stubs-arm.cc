@@ -2905,7 +2905,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   const Register prototype = r4;  // Prototype of the function.
   const Register scratch = r2;
   Label slow, loop, is_instance, is_not_instance, not_js_object;
-  if (!args_in_registers()) {
+  if (!HasArgsInRegisters()) {
     __ ldr(object, MemOperand(sp, 1 * kPointerSize));
     __ ldr(function, MemOperand(sp, 0));
   }
@@ -2923,7 +2923,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ cmp(map, ip);
   __ b(ne, &miss);
   __ LoadRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   __ bind(&miss);
   __ TryGetFunctionPrototype(function, prototype, scratch, &slow);
@@ -2953,12 +2953,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ bind(&is_instance);
   __ mov(r0, Operand(Smi::FromInt(0)));
   __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   __ bind(&is_not_instance);
   __ mov(r0, Operand(Smi::FromInt(1)));
   __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   Label object_not_null, object_not_null_or_smi;
   __ bind(&not_js_object);
@@ -2972,25 +2972,25 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ cmp(scratch, Operand(Factory::null_value()));
   __ b(ne, &object_not_null);
   __ mov(r0, Operand(Smi::FromInt(1)));
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   __ bind(&object_not_null);
   // Smi values are not instances of anything.
   __ BranchOnNotSmi(object, &object_not_null_or_smi);
   __ mov(r0, Operand(Smi::FromInt(1)));
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   __ bind(&object_not_null_or_smi);
   // String values are not instances of anything.
   __ IsObjectJSStringType(object, scratch, &slow);
   __ mov(r0, Operand(Smi::FromInt(1)));
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   // Slow-case.  Tail call builtin.
-  if (args_in_registers()) {
+  __ bind(&slow);
+  if (HasArgsInRegisters()) {
     __ Push(r0, r1);
   }
-  __ bind(&slow);
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_JS);
 }
 
@@ -3016,7 +3016,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // through register r0. Use unsigned comparison to get negative
   // check for free.
   __ cmp(r1, r0);
-  __ b(cs, &slow);
+  __ b(hs, &slow);
 
   // Read the argument from the stack and return it.
   __ sub(r3, r0, r1);

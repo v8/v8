@@ -4879,7 +4879,40 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   TypeInfo info = oracle()->CompareType(expr, TypeFeedbackOracle::RESULT);
   HInstruction* instr = NULL;
   if (op == Token::INSTANCEOF) {
-    instr = new HInstanceOf(left, right);
+    // Check to see if the rhs of the instanceof is a global function not
+    // residing in new space. If it is we assume that the function will stay the
+    // same.
+    Handle<JSFunction> target = Handle<JSFunction>::null();
+    Variable* var = expr->right()->AsVariableProxy()->AsVariable();
+    bool global_function = (var != NULL) && var->is_global() && !var->is_this();
+    CompilationInfo* info = graph()->info();
+    if (global_function &&
+        info->has_global_object() &&
+        !info->global_object()->IsAccessCheckNeeded()) {
+      Handle<String> name = var->name();
+      Handle<GlobalObject> global(info->global_object());
+      LookupResult lookup;
+      global->Lookup(*name, &lookup);
+      if (lookup.IsProperty() &&
+          lookup.type() == NORMAL &&
+          lookup.GetValue()->IsJSFunction()) {
+        Handle<JSFunction> candidate(JSFunction::cast(lookup.GetValue()));
+        // If the function is in new space we assume it's more likely to
+        // change and thus prefer the general IC code.
+        if (!Heap::InNewSpace(*candidate)) {
+          target = candidate;
+        }
+      }
+    }
+
+    // If the target is not null we have found a known global function that is
+    // assumed to stay the same for this instanceof.
+    if (target.is_null()) {
+      instr = new HInstanceOf(left, right);
+    } else {
+      AddInstruction(new HCheckFunction(right, target));
+      instr = new HInstanceOfKnownGlobal(left, target);
+    }
   } else if (op == Token::IN) {
     BAILOUT("Unsupported comparison: in");
   } else if (info.IsNonPrimitive()) {

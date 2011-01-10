@@ -745,10 +745,10 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
 
   Comment cmnt(masm_, "[ store arguments object");
   if (mode == LAZY_ARGUMENTS_ALLOCATION && initial) {
-    // When using lazy arguments allocation, we store the hole value
+    // When using lazy arguments allocation, we store the arguments marker value
     // as a sentinel indicating that the arguments object hasn't been
     // allocated yet.
-    frame_->Push(Factory::the_hole_value());
+    frame_->Push(Factory::arguments_marker());
   } else {
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     frame_->PushFunction();
@@ -773,9 +773,9 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     if (probe.is_constant()) {
       // We have to skip updating the arguments object if it has
       // been assigned a proper value.
-      skip_arguments = !probe.handle()->IsTheHole();
+      skip_arguments = !probe.handle()->IsArgumentsMarker();
     } else {
-      __ cmp(Operand(probe.reg()), Immediate(Factory::the_hole_value()));
+      __ cmp(Operand(probe.reg()), Immediate(Factory::arguments_marker()));
       probe.Unuse();
       done.Branch(not_equal);
     }
@@ -3294,9 +3294,9 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
     Label slow, done;
     bool try_lazy = true;
     if (probe.is_constant()) {
-      try_lazy = probe.handle()->IsTheHole();
+      try_lazy = probe.handle()->IsArgumentsMarker();
     } else {
-      __ cmp(Operand(probe.reg()), Immediate(Factory::the_hole_value()));
+      __ cmp(Operand(probe.reg()), Immediate(Factory::arguments_marker()));
       probe.Unuse();
       __ j(not_equal, &slow);
     }
@@ -5068,7 +5068,7 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
   // object has been lazily loaded yet.
   Result result = frame()->Pop();
   if (result.is_constant()) {
-    if (result.handle()->IsTheHole()) {
+    if (result.handle()->IsArgumentsMarker()) {
       result = StoreArgumentsObject(false);
     }
     frame()->Push(&result);
@@ -5079,7 +5079,7 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
   // indicates that we haven't loaded the arguments object yet, we
   // need to do it now.
   JumpTarget exit;
-  __ cmp(Operand(result.reg()), Immediate(Factory::the_hole_value()));
+  __ cmp(Operand(result.reg()), Immediate(Factory::arguments_marker()));
   frame()->Push(&result);
   exit.Branch(not_equal);
 

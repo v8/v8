@@ -482,7 +482,11 @@ class LDoubleRegister: public LOperand {
 class InstructionSummary: public ZoneObject {
  public:
   InstructionSummary()
-      : output_operand_(NULL), input_count_(0), operands_(4), is_call_(false) {}
+      : output_operand_(NULL),
+        input_count_(0),
+        operands_(4),
+        is_call_(false),
+        is_save_doubles_(false) {}
 
   // Output operands.
   LOperand* Output() const { return output_operand_; }
@@ -510,11 +514,15 @@ class InstructionSummary: public ZoneObject {
   void MarkAsCall() { is_call_ = true; }
   bool IsCall() const { return is_call_; }
 
+  void MarkAsSaveDoubles() { is_save_doubles_ = true; }
+  bool IsSaveDoubles() const { return is_save_doubles_; }
+
  private:
   LOperand* output_operand_;
   int input_count_;
   ZoneList<LOperand*> operands_;
   bool is_call_;
+  bool is_save_doubles_;
 };
 
 // Representation of the non-empty interval [start,end[.
@@ -823,6 +831,9 @@ class LAllocator BASE_EMBEDDED {
 
   // Marks the current instruction as a call.
   void MarkAsCall();
+
+  // Marks the current instruction as requiring saving double registers.
+  void MarkAsSaveDoubles();
 
   // Checks whether the value of a given virtual register is tagged.
   bool HasTaggedValue(int virtual_register) const;

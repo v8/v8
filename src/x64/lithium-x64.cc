@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,29 +25,47 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Among other things, this code covers the case of deoptimization
-// after a compare expression in an effect context.
+#include "x64/lithium-x64.h"
+#include "x64/lithium-codegen-x64.h"
 
-function f0(x) { try { } catch (e) {}}
-function f1(x) { try { } catch (e) {}}
-function f2(x) { try { } catch (e) {}}
-function f3(x) { try { } catch (e) {}}
+namespace v8 {
+namespace internal {
 
-var object = { a: "", b: false, c: {}};
-object.f = function(x) { return this; }
-
-
-function test(x) {
-  f0(x);
-  f1(x);
-  f2(x);
-  f3(x);
-  x.a.b == "";
-  object.f("A").b = true;
-  object.f("B").a = "";
-  object.f("C").c.display = "A";
-  object.f("D").c.display = "A";
+LChunk* LChunkBuilder::Build() {
+  ASSERT(is_unused());
+  chunk_ = new LChunk(graph());
+  HPhase phase("Building chunk", chunk_);
+  status_ = BUILDING;
+  const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
+  for (int i = 0; i < blocks->length(); i++) {
+    HBasicBlock* next = NULL;
+    if (i < blocks->length() - 1) next = blocks->at(i + 1);
+    DoBasicBlock(blocks->at(i), next);
+    if (is_aborted()) return NULL;
+  }
+  status_ = DONE;
+  return chunk_;
 }
 
-var x = {a: {b: "" }};
-for (var i = 0; i < 20000; i++) test(x);
+
+void LChunkBuilder::Abort(const char* format, ...) {
+  if (FLAG_trace_bailout) {
+    SmartPointer<char> debug_name = graph()->debug_name()->ToCString();
+    PrintF("Aborting LChunk building in @\"%s\": ", *debug_name);
+    va_list arguments;
+    va_start(arguments, format);
+    OS::VPrint(format, arguments);
+    va_end(arguments);
+    PrintF("\n");
+  }
+  status_ = ABORTED;
+}
+
+
+void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
+  ASSERT(is_building());
+  Abort("Lithium not implemented on x64.");
+}
+
+
+} }  // namespace v8::internal

@@ -596,7 +596,7 @@ void CodeGenerator::StoreArgumentsObject(bool initial) {
     // When using lazy arguments allocation, we store the hole value
     // as a sentinel indicating that the arguments object hasn't been
     // allocated yet.
-    frame_->EmitPushRoot(Heap::kTheHoleValueRootIndex);
+    frame_->EmitPushRoot(Heap::kArgumentsMarkerRootIndex);
   } else {
     frame_->SpillAll();
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
@@ -623,7 +623,7 @@ void CodeGenerator::StoreArgumentsObject(bool initial) {
     // has a local variable named 'arguments'.
     LoadFromSlot(scope()->arguments()->AsSlot(), NOT_INSIDE_TYPEOF);
     Register arguments = frame_->PopToRegister();
-    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+    __ LoadRoot(ip, Heap::kArgumentsMarkerRootIndex);
     __ cmp(arguments, ip);
     done.Branch(ne);
   }
@@ -1748,7 +1748,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // named 'arguments' has been introduced.
   JumpTarget slow;
   Label done;
-  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ LoadRoot(ip, Heap::kArgumentsMarkerRootIndex);
   __ cmp(ip, arguments_reg);
   slow.Branch(ne);
 
@@ -3255,7 +3255,7 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
   // If the loaded value is the sentinel that indicates that we
   // haven't loaded the arguments object yet, we need to do it now.
   JumpTarget exit;
-  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ LoadRoot(ip, Heap::kArgumentsMarkerRootIndex);
   __ cmp(tos, ip);
   exit.Branch(ne);
   frame_->Drop();

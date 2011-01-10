@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,6 +30,7 @@
 
 #include "hydrogen.h"
 #include "lithium-allocator.h"
+#include "lithium.h"
 #include "safepoint-table.h"
 
 namespace v8 {
@@ -62,6 +63,7 @@ class Translation;
 //     LDivI
 //     LInstanceOf
 //     LInstanceOfAndBranch
+//     LInstanceOfKnownGlobal
 //     LLoadKeyedFastElement
 //     LLoadKeyedGeneric
 //     LModI
@@ -204,6 +206,7 @@ class Translation;
   V(Goto)                                       \
   V(InstanceOf)                                 \
   V(InstanceOfAndBranch)                        \
+  V(InstanceOfKnownGlobal)                      \
   V(Integer32ToDouble)                          \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
@@ -326,32 +329,6 @@ class LInstruction: public ZoneObject {
   SetOncePointer<LOperand> result_;
   HValue* hydrogen_value_;
   SetOncePointer<LEnvironment> deoptimization_environment_;
-};
-
-
-class LGapNode;
-
-
-class LGapResolver BASE_EMBEDDED {
- public:
-  LGapResolver(const ZoneList<LMoveOperands>* moves, LOperand* marker_operand);
-  const ZoneList<LMoveOperands>* ResolveInReverseOrder();
-
- private:
-  LGapNode* LookupNode(LOperand* operand);
-  bool CanReach(LGapNode* a, LGapNode* b, int visited_id);
-  bool CanReach(LGapNode* a, LGapNode* b);
-  void RegisterMove(LMoveOperands move);
-  void AddResultMove(LOperand* from, LOperand* to);
-  void AddResultMove(LGapNode* from, LGapNode* to);
-  void ResolveCycle(LGapNode* start);
-
-  ZoneList<LGapNode*> nodes_;
-  ZoneList<LGapNode*> identified_cycles_;
-  ZoneList<LMoveOperands> result_;
-  LOperand* marker_operand_;
-  int next_visited_id_;
-  int bailout_after_ast_id_;
 };
 
 
@@ -993,6 +970,19 @@ class LInstanceOfAndBranch: public LInstanceOf {
 };
 
 
+class LInstanceOfKnownGlobal: public LUnaryOperation {
+ public:
+  explicit LInstanceOfKnownGlobal(LOperand* left)
+      : LUnaryOperation(left) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal,
+                               "instance-of-known-global")
+  DECLARE_HYDROGEN_ACCESSOR(InstanceOfKnownGlobal)
+
+  Handle<JSFunction> function() const { return hydrogen()->function(); }
+};
+
+
 class LBoundsCheck: public LBinaryOperation {
  public:
   LBoundsCheck(LOperand* index, LOperand* length)
@@ -1548,13 +1538,11 @@ class LStoreNamedField: public LStoreNamed {
                    LOperand* val,
                    bool in_object,
                    int offset,
-                   LOperand* temp,
                    bool needs_write_barrier,
                    Handle<Map> transition)
       : LStoreNamed(obj, name, val),
         is_in_object_(in_object),
         offset_(offset),
-        temp_(temp),
         needs_write_barrier_(needs_write_barrier),
         transition_(transition) { }
 
@@ -1562,7 +1550,6 @@ class LStoreNamedField: public LStoreNamed {
 
   bool is_in_object() { return is_in_object_; }
   int offset() { return offset_; }
-  LOperand* temp() { return temp_; }
   bool needs_write_barrier() { return needs_write_barrier_; }
   Handle<Map> transition() const { return transition_; }
   void set_transition(Handle<Map> map) { transition_ = map; }
@@ -1570,7 +1557,6 @@ class LStoreNamedField: public LStoreNamed {
  private:
   bool is_in_object_;
   int offset_;
-  LOperand* temp_;
   bool needs_write_barrier_;
   Handle<Map> transition_;
 };
@@ -1638,8 +1624,7 @@ class LCheckFunction: public LUnaryOperation {
 
 class LCheckInstanceType: public LUnaryOperation {
  public:
-  LCheckInstanceType(LOperand* use, LOperand* temp)
-      : LUnaryOperation(use), temp_(temp) { }
+  explicit LCheckInstanceType(LOperand* use) : LUnaryOperation(use) { }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckInstanceType, "check-instance-type")
   DECLARE_HYDROGEN_ACCESSOR(CheckInstanceType)

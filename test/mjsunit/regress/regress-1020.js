@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,29 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Among other things, this code covers the case of deoptimization
-// after a compare expression in an effect context.
-
-function f0(x) { try { } catch (e) {}}
-function f1(x) { try { } catch (e) {}}
-function f2(x) { try { } catch (e) {}}
-function f3(x) { try { } catch (e) {}}
-
-var object = { a: "", b: false, c: {}};
-object.f = function(x) { return this; }
-
-
-function test(x) {
-  f0(x);
-  f1(x);
-  f2(x);
-  f3(x);
-  x.a.b == "";
-  object.f("A").b = true;
-  object.f("B").a = "";
-  object.f("C").c.display = "A";
-  object.f("D").c.display = "A";
+function isObject(o) {
+  return o instanceof Object;
 }
 
-var x = {a: {b: "" }};
-for (var i = 0; i < 20000; i++) test(x);
+assertTrue(isObject(Object));

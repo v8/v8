@@ -330,13 +330,18 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
       Handle<Object> result;
       uint32_t element_index = 0;
       if (key->IsSymbol()) {
-        // If key is a symbol it is not an array element.
-        Handle<String> name(String::cast(*key));
-        ASSERT(!name->AsArrayIndex(&element_index));
-        result = SetProperty(boilerplate, name, value, NONE);
+        if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
+          // Array index as string (uint32).
+          result = SetOwnElement(boilerplate, element_index, value);
+        } else {
+          Handle<String> name(String::cast(*key));
+          ASSERT(!name->AsArrayIndex(&element_index));
+          result = SetLocalPropertyIgnoreAttributes(boilerplate, name,
+                                                    value, NONE);
+        }
       } else if (key->ToArrayIndex(&element_index)) {
         // Array index (uint32).
-        result = SetElement(boilerplate, element_index, value);
+        result = SetOwnElement(boilerplate, element_index, value);
       } else {
         // Non-uint32 number.
         ASSERT(key->IsNumber());
@@ -345,7 +350,8 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
         Vector<char> buffer(arr, ARRAY_SIZE(arr));
         const char* str = DoubleToCString(num, buffer);
         Handle<String> name = Factory::NewStringFromAscii(CStrVector(str));
-        result = SetProperty(boilerplate, name, value, NONE);
+        result = SetLocalPropertyIgnoreAttributes(boilerplate, name,
+                                                  value, NONE);
       }
       // If setting the property on the boilerplate throws an
       // exception, the exception is converted to an empty handle in
@@ -984,7 +990,7 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
       // of callbacks in the prototype chain (this rules out using
       // SetProperty).  Also, we must use the handle-based version to
       // avoid GC issues.
-      IgnoreAttributesAndSetLocalProperty(global, name, value, attributes);
+      SetLocalPropertyIgnoreAttributes(global, name, value, attributes);
     }
   }
 
@@ -1099,7 +1105,7 @@ static MaybeObject* Runtime_InitializeVarGlobal(Arguments args) {
   // to assign to the property. When adding the property we take
   // special precautions to always add it as a local property even in
   // case of callbacks in the prototype chain (this rules out using
-  // SetProperty).  We have IgnoreAttributesAndSetLocalProperty for
+  // SetProperty).  We have SetLocalPropertyIgnoreAttributes for
   // this.
   // Note that objects can have hidden prototypes, so we need to traverse
   // the whole chain of hidden prototypes to do a 'local' lookup.
@@ -1162,9 +1168,9 @@ static MaybeObject* Runtime_InitializeVarGlobal(Arguments args) {
 
   global = Top::context()->global();
   if (assign) {
-    return global->IgnoreAttributesAndSetLocalProperty(*name,
-                                                       args[1],
-                                                       attributes);
+    return global->SetLocalPropertyIgnoreAttributes(*name,
+                                                    args[1],
+                                                    attributes);
   }
   return Heap::undefined_value();
 }
@@ -1190,13 +1196,13 @@ static MaybeObject* Runtime_InitializeConstGlobal(Arguments args) {
   // there, we add the property and take special precautions to always
   // add it as a local property even in case of callbacks in the
   // prototype chain (this rules out using SetProperty).
-  // We use IgnoreAttributesAndSetLocalProperty instead
+  // We use SetLocalPropertyIgnoreAttributes instead
   LookupResult lookup;
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsProperty()) {
-    return global->IgnoreAttributesAndSetLocalProperty(*name,
-                                                       *value,
-                                                       attributes);
+    return global->SetLocalPropertyIgnoreAttributes(*name,
+                                                    *value,
+                                                    attributes);
   }
 
   // Determine if this is a redeclaration of something not
@@ -1467,27 +1473,27 @@ static MaybeObject* Runtime_RegExpInitializeObject(Arguments args) {
   PropertyAttributes writable =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
   MaybeObject* result;
-  result = regexp->IgnoreAttributesAndSetLocalProperty(Heap::source_symbol(),
-                                                       source,
-                                                       final);
+  result = regexp->SetLocalPropertyIgnoreAttributes(Heap::source_symbol(),
+                                                    source,
+                                                    final);
   ASSERT(!result->IsFailure());
-  result = regexp->IgnoreAttributesAndSetLocalProperty(Heap::global_symbol(),
-                                                       global,
-                                                       final);
-  ASSERT(!result->IsFailure());
-  result =
-      regexp->IgnoreAttributesAndSetLocalProperty(Heap::ignore_case_symbol(),
-                                                  ignoreCase,
-                                                  final);
-  ASSERT(!result->IsFailure());
-  result = regexp->IgnoreAttributesAndSetLocalProperty(Heap::multiline_symbol(),
-                                                       multiline,
-                                                       final);
+  result = regexp->SetLocalPropertyIgnoreAttributes(Heap::global_symbol(),
+                                                    global,
+                                                    final);
   ASSERT(!result->IsFailure());
   result =
-      regexp->IgnoreAttributesAndSetLocalProperty(Heap::last_index_symbol(),
-                                                  Smi::FromInt(0),
-                                                  writable);
+      regexp->SetLocalPropertyIgnoreAttributes(Heap::ignore_case_symbol(),
+                                               ignoreCase,
+                                               final);
+  ASSERT(!result->IsFailure());
+  result = regexp->SetLocalPropertyIgnoreAttributes(Heap::multiline_symbol(),
+                                                    multiline,
+                                                    final);
+  ASSERT(!result->IsFailure());
+  result =
+      regexp->SetLocalPropertyIgnoreAttributes(Heap::last_index_symbol(),
+                                               Smi::FromInt(0),
+                                               writable);
   ASSERT(!result->IsFailure());
   USE(result);
   return regexp;
@@ -3571,9 +3577,9 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
     NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
-    return js_object->IgnoreAttributesAndSetLocalProperty(*name,
-                                                          *obj_value,
-                                                          attr);
+    return js_object->SetLocalPropertyIgnoreAttributes(*name,
+                                                       *obj_value,
+                                                       attr);
   }
 
   return Runtime::SetObjectProperty(js_object, name, obj_value, attr);
@@ -3674,9 +3680,9 @@ MaybeObject* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
-      return js_object->IgnoreAttributesAndSetLocalProperty(*key_string,
-                                                            *value,
-                                                            attr);
+      return js_object->SetLocalPropertyIgnoreAttributes(*key_string,
+                                                         *value,
+                                                         attr);
     }
   }
 
@@ -3689,7 +3695,7 @@ MaybeObject* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
   if (name->AsArrayIndex(&index)) {
     return js_object->SetElement(index, *value);
   } else {
-    return js_object->IgnoreAttributesAndSetLocalProperty(*name, *value, attr);
+    return js_object->SetLocalPropertyIgnoreAttributes(*name, *value, attr);
   }
 }
 
@@ -3771,7 +3777,7 @@ static MaybeObject* Runtime_IgnoreAttributesAndSetProperty(Arguments args) {
   }
 
   return object->
-      IgnoreAttributesAndSetLocalProperty(name, args[2], attributes);
+      SetLocalPropertyIgnoreAttributes(name, args[2], attributes);
 }
 
 
@@ -6742,7 +6748,7 @@ static MaybeObject* Runtime_NotifyDeoptimized(Arguments args) {
   Handle<JSFunction> function(JSFunction::cast(frame->function()));
   Handle<Object> arguments;
   for (int i = frame->ComputeExpressionsCount() - 1; i >= 0; --i) {
-    if (frame->GetExpression(i) == Heap::the_hole_value()) {
+    if (frame->GetExpression(i) == Heap::arguments_marker()) {
       if (arguments.is_null()) {
         // FunctionGetArguments can't throw an exception, so cast away the
         // doubt with an assert.
@@ -10406,10 +10412,36 @@ static MaybeObject* Runtime_ExecuteInDebugContext(Arguments args) {
 }
 
 
+// Sets a v8 flag.
+static MaybeObject* Runtime_SetFlags(Arguments args) {
+  CONVERT_CHECKED(String, arg, args[0]);
+  SmartPointer<char> flags =
+      arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  FlagList::SetFlagsFromString(*flags, StrLength(*flags));
+  return Heap::undefined_value();
+}
+
+
+// Performs a GC.
+// Presently, it only does a full GC.
+static MaybeObject* Runtime_CollectGarbage(Arguments args) {
+  Heap::CollectAllGarbage(true);
+  return Heap::undefined_value();
+}
+
+
+// Gets the current heap usage.
+static MaybeObject* Runtime_GetHeapUsage(Arguments args) {
+  int usage = static_cast<int>(Heap::SizeOfObjects());
+  if (!Smi::IsValid(usage)) {
+    return *Factory::NewNumberFromInt(usage);
+  }
+  return Smi::FromInt(usage);
+}
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
 static MaybeObject* Runtime_ProfilerResume(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);

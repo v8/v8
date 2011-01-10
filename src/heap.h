@@ -53,6 +53,7 @@ namespace internal {
   V(Object, null_value, NullValue)                                             \
   V(Object, true_value, TrueValue)                                             \
   V(Object, false_value, FalseValue)                                           \
+  V(Object, arguments_marker, ArgumentsMarker)                                 \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \

@@ -1,4 +1,4 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -85,6 +85,7 @@ SOURCES = {
     jsregexp.cc
     jump-target.cc
     lithium-allocator.cc
+    lithium.cc
     liveedit.cc
     log-utils.cc
     log.cc
@@ -211,6 +212,7 @@ SOURCES = {
     x64/full-codegen-x64.cc
     x64/ic-x64.cc
     x64/jump-target-x64.cc
+    x64/lithium-x64.cc
     x64/macro-assembler-x64.cc
     x64/regexp-macro-assembler-x64.cc
     x64/register-allocator-x64.cc

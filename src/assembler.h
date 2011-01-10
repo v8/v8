@@ -512,6 +512,9 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable Factory::the_hole_value.location()
   static ExternalReference the_hole_value_location();
 
+  // Static variable Factory::arguments_marker.location()
+  static ExternalReference arguments_marker_location();
+
   // Static variable Heap::roots_address()
   static ExternalReference roots_address();
 

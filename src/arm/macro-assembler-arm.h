@@ -243,6 +243,9 @@ class MacroAssembler: public Assembler {
             const MemOperand& dst,
             Condition cond = al);
 
+  // Clear FPSCR bits.
+  void ClearFPSCRBits(uint32_t bits_to_clear, Register scratch);
+
   // ---------------------------------------------------------------------------
   // Activation frames
 
@@ -379,12 +382,13 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Allocation support
 
-  // Allocate an object in new space. The object_size is specified in words (not
-  // bytes). If the new space is exhausted control continues at the gc_required
-  // label. The allocated object is returned in result. If the flag
-  // tag_allocated_object is true the result is tagged as as a heap object. All
-  // registers are clobbered also when control continues at the gc_required
-  // label.
+  // Allocate an object in new space. The object_size is specified
+  // either in bytes or in words if the allocation flag SIZE_IN_WORDS
+  // is passed. If the new space is exhausted control continues at the
+  // gc_required label. The allocated object is returned in result. If
+  // the flag tag_allocated_object is true the result is tagged as as
+  // a heap object. All registers are clobbered also when control
+  // continues at the gc_required label.
   void AllocateInNewSpace(int object_size,
                           Register result,
                           Register scratch1,

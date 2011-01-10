@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -105,23 +105,25 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
 void Deoptimizer::PatchStackCheckCode(RelocInfo* rinfo,
                                       Code* replacement_code) {
-  // The stack check code matches the pattern (on ia32, for example):
+  // The stack check code matches the pattern:
   //
   //     cmp esp, <limit>
   //     jae ok
   //     call <stack guard>
+  //     test eax, <loop nesting depth>
   // ok: ...
   //
-  // We will patch the code to:
+  // We will patch away the branch so the code is:
   //
   //     cmp esp, <limit>  ;; Not changed
   //     nop
   //     nop
   //     call <on-stack replacment>
+  //     test eax, <loop nesting depth>
   // ok:
   Address call_target_address = rinfo->pc();
   ASSERT(*(call_target_address - 3) == 0x73 &&  // jae
-         *(call_target_address - 2) == 0x05 &&  // offset
+         *(call_target_address - 2) == 0x07 &&  // offset
          *(call_target_address - 1) == 0xe8);   // call
   *(call_target_address - 3) = 0x90;  // nop
   *(call_target_address - 2) = 0x90;  // nop
@@ -130,12 +132,14 @@ void Deoptimizer::PatchStackCheckCode(RelocInfo* rinfo,
 
 
 void Deoptimizer::RevertStackCheckCode(RelocInfo* rinfo, Code* check_code) {
+  // Replace the nops from patching (Deoptimizer::PatchStackCheckCode) to
+  // restore the conditional branch.
   Address call_target_address = rinfo->pc();
   ASSERT(*(call_target_address - 3) == 0x90 &&  // nop
          *(call_target_address - 2) == 0x90 &&  // nop
          *(call_target_address - 1) == 0xe8);   // call
   *(call_target_address - 3) = 0x73;  // jae
-  *(call_target_address - 2) = 0x05;  // offset
+  *(call_target_address - 2) = 0x07;  // offset
   rinfo->set_target_address(check_code->entry());
 }
 

@@ -498,6 +498,10 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       39,
       "power_double_int_function");
+  Add(ExternalReference::arguments_marker_location().address(),
+      UNCLASSIFIED,
+      40,
+      "Factory::arguments_marker().location()");
 }
 
 

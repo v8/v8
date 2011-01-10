@@ -77,6 +77,8 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LGoto* instr);
+  void DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
+                                        Label* map_check);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);

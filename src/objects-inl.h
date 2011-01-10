@@ -730,6 +730,11 @@ bool Object::IsFalse() {
 }
 
 
+bool Object::IsArgumentsMarker() {
+  return this == Heap::arguments_marker();
+}
+
+
 double Object::Number() {
   ASSERT(IsNumber());
   return IsSmi()

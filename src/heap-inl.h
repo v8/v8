@@ -521,10 +521,6 @@ void Heap::SetLastScriptId(Object* last_script_id) {
   CALL_AND_RETRY(FUNCTION_CALL, return, return)
 
 
-#define CALL_HEAP_FUNCTION_INLINE(FUNCTION_CALL) \
-  CALL_AND_RETRY(FUNCTION_CALL, break, break)
-
-
 #ifdef DEBUG
 
 inline bool Heap::allow_allocation(bool new_state) {

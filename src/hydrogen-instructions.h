@@ -73,6 +73,7 @@ class LChunkBuilder;
 //       HCompare
 //       HCompareJSObjectEq
 //       HInstanceOf
+//       HInstanceOfKnownGlobal
 //       HLoadKeyed
 //         HLoadKeyedFastElement
 //         HLoadKeyedGeneric
@@ -210,6 +211,7 @@ class LChunkBuilder;
   V(GlobalReceiver)                            \
   V(Goto)                                      \
   V(InstanceOf)                                \
+  V(InstanceOfKnownGlobal)                     \
   V(IsNull)                                    \
   V(IsObject)                                  \
   V(IsSmi)                                     \
@@ -2259,6 +2261,28 @@ class HInstanceOf: public HBinaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance_of")
+};
+
+
+class HInstanceOfKnownGlobal: public HUnaryOperation {
+ public:
+  HInstanceOfKnownGlobal(HValue* left, Handle<JSFunction> right)
+      : HUnaryOperation(left), function_(right) {
+    set_representation(Representation::Tagged());
+    SetFlagMask(AllSideEffects());
+  }
+
+  Handle<JSFunction> function() { return function_; }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal,
+                               "instance_of_known_global")
+
+ private:
+  Handle<JSFunction> function_;
 };
 
 

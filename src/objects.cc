@@ -1823,8 +1823,9 @@ void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
 // We only need to deal with CALLBACKS and INTERCEPTORS
 MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
                                                         String* name,
-                                                        Object* value) {
-  if (!result->IsProperty()) {
+                                                        Object* value,
+                                                        bool check_prototype) {
+  if (check_prototype && !result->IsProperty()) {
     LookupCallbackSetterInPrototypes(name, result);
   }
 
@@ -1850,7 +1851,8 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
           LookupResult r;
           LookupRealNamedProperty(name, &r);
           if (r.IsProperty()) {
-            return SetPropertyWithFailedAccessCheck(&r, name, value);
+            return SetPropertyWithFailedAccessCheck(&r, name, value,
+                                                    check_prototype);
           }
           break;
         }
@@ -1891,7 +1893,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
   // Check access rights if needed.
   if (IsAccessCheckNeeded()
       && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
-    return SetPropertyWithFailedAccessCheck(result, name, value);
+    return SetPropertyWithFailedAccessCheck(result, name, value, true);
   }
 
   if (IsJSGlobalProxy()) {
@@ -1981,7 +1983,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
 // callback setter removed.  The two lines looking up the LookupResult
 // result are also added.  If one of the functions is changed, the other
 // should be.
-MaybeObject* JSObject::IgnoreAttributesAndSetLocalProperty(
+MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     String* name,
     Object* value,
     PropertyAttributes attributes) {
@@ -1993,14 +1995,14 @@ MaybeObject* JSObject::IgnoreAttributesAndSetLocalProperty(
   // Check access rights if needed.
   if (IsAccessCheckNeeded()
       && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
-    return SetPropertyWithFailedAccessCheck(&result, name, value);
+    return SetPropertyWithFailedAccessCheck(&result, name, value, false);
   }
 
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->IgnoreAttributesAndSetLocalProperty(
+    return JSObject::cast(proto)->SetLocalPropertyIgnoreAttributes(
         name,
         value,
         attributes);

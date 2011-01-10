@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,29 +25,39 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Among other things, this code covers the case of deoptimization
-// after a compare expression in an effect context.
+#ifndef V8_LITHIUM_H_
+#define V8_LITHIUM_H_
 
-function f0(x) { try { } catch (e) {}}
-function f1(x) { try { } catch (e) {}}
-function f2(x) { try { } catch (e) {}}
-function f3(x) { try { } catch (e) {}}
+#include "lithium-allocator.h"
 
-var object = { a: "", b: false, c: {}};
-object.f = function(x) { return this; }
+namespace v8 {
+namespace internal {
+
+class LGapNode;
+
+class LGapResolver BASE_EMBEDDED {
+ public:
+  LGapResolver(const ZoneList<LMoveOperands>* moves, LOperand* marker_operand);
+  const ZoneList<LMoveOperands>* ResolveInReverseOrder();
+
+ private:
+  LGapNode* LookupNode(LOperand* operand);
+  bool CanReach(LGapNode* a, LGapNode* b, int visited_id);
+  bool CanReach(LGapNode* a, LGapNode* b);
+  void RegisterMove(LMoveOperands move);
+  void AddResultMove(LOperand* from, LOperand* to);
+  void AddResultMove(LGapNode* from, LGapNode* to);
+  void ResolveCycle(LGapNode* start);
+
+  ZoneList<LGapNode*> nodes_;
+  ZoneList<LGapNode*> identified_cycles_;
+  ZoneList<LMoveOperands> result_;
+  LOperand* marker_operand_;
+  int next_visited_id_;
+  int bailout_after_ast_id_;
+};
 
 
-function test(x) {
-  f0(x);
-  f1(x);
-  f2(x);
-  f3(x);
-  x.a.b == "";
-  object.f("A").b = true;
-  object.f("B").a = "";
-  object.f("C").c.display = "A";
-  object.f("D").c.display = "A";
-}
+} }  // namespace v8::internal
 
-var x = {a: {b: "" }};
-for (var i = 0; i < 20000; i++) test(x);
+#endif  // V8_LITHIUM_H_

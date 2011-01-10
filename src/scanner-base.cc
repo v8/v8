@@ -731,11 +731,18 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
 
   while (c0_ != '/' || in_character_class) {
     if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
-    if (c0_ == '\\') {  // escaped character
+    if (c0_ == '\\') {  // Escape sequence.
       AddLiteralCharAdvance();
       if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
       AddLiteralCharAdvance();
-    } else {  // unescaped character
+      // If the escape allows more characters, i.e., \x??, \u????, or \c?,
+      // only "safe" characters are allowed (letters, digits, underscore),
+      // otherwise the escape isn't valid and the invalid character has
+      // its normal meaning. I.e., we can just continue scanning without
+      // worrying whether the following characters are part of the escape
+      // or not, since any '/', '\\' or '[' is guaranteed to not be part
+      // of the escape sequence.
+    } else {  // Unescaped character.
       if (c0_ == '[') in_character_class = true;
       if (c0_ == ']') in_character_class = false;
       AddLiteralCharAdvance();

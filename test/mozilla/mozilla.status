@@ -840,6 +840,8 @@ js1_5/extensions/regress-371636: SKIP
 js1_5/Regress/regress-416628: CRASH
 js1_5/Regress/regress-96128-n: PASS || CRASH
 
+# BUG(1031).
+ecma/TypeConversion/9.2: FAIL
 
 [ $fast == yes && $arch == arm ]
 
