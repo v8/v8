@@ -193,9 +193,9 @@ class Bitmap {
       cells()[start_cell] &= ~start_mask;
       if (end_mask != 0) cells()[end_cell] &= ~end_mask;
 
-      for(uint32_t cell = start_cell + 1, last_cell = end_cell - 1;
-          cell <= last_cell;
-          cell++) {
+      for (uint32_t cell = start_cell + 1, last_cell = end_cell - 1;
+           cell <= last_cell;
+           cell++) {
         cells()[cell] = 0;
       }
     }

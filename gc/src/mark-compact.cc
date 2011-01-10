@@ -1202,7 +1202,8 @@ void MarkCompactCollector::MarkObjectGroups() {
     bool group_marked = false;
     for (int j = 0; j < objects.length(); j++) {
       Object* object = *objects[j];
-      if (object->IsHeapObject() && Marking::IsMarked(HeapObject::cast(object))) {
+      if (object->IsHeapObject()
+          && Marking::IsMarked(HeapObject::cast(object))) {
         group_marked = true;
         break;
       }
