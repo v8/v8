@@ -265,7 +265,7 @@ def freduce(f, field, trace, init):
   return reduce(lambda t,r: f(t, r[field]), trace, init)
 
 def calc_total(trace, field):
-  return freduce(lambda t,v: t + v, field, trace, 0)
+  return freduce(lambda t,v: t + long(v), field, trace, long(0))
 
 def calc_max(trace, field):
   return freduce(lambda t,r: max(t, r), field, trace, 0)
@@ -280,6 +280,8 @@ def process_trace(filename):
   marksweeps = filter(lambda r: r['gc'] == 'ms', trace)
   markcompacts = filter(lambda r: r['gc'] == 'mc', trace)
   scavenges = filter(lambda r: r['gc'] == 's', trace)
+  globalgcs = filter(lambda r: r['gc'] != 's', trace)
+
 
   charts = plot_all(plots, trace, filename)
 
@@ -292,7 +294,7 @@ def process_trace(filename):
     else:
       avg = 0
     if n > 1:
-      dev = math.sqrt(freduce(lambda t,r: (r - avg) ** 2, field, trace, 0) /
+      dev = math.sqrt(freduce(lambda t,r: t + (r - avg) ** 2, field, trace, 0) /
                       (n - 1))
     else:
       dev = 0
@@ -300,6 +302,31 @@ def process_trace(filename):
     out.write('<tr><td>%s</td><td>%d</td><td>%d</td>'
               '<td>%d</td><td>%d [dev %f]</td></tr>' %
               (prefix, n, total, max, avg, dev))
+
+  def HumanReadable(size):
+    suffixes = ['bytes', 'kB', 'MB', 'GB']
+    power = 1
+    for i in range(len(suffixes)):
+      if size < power*1024:
+        return "%.1f" % (float(size) / power) + " " + suffixes[i]
+      power *= 1024
+
+  def throughput(name, trace):
+    total_live_after = calc_total(trace, 'total_size_after')
+    total_live_before = calc_total(trace, 'total_size_before')
+    total_gc = calc_total(trace, 'pause')
+    if total_gc == 0:
+      return
+    out.write('GC %s Throughput (after): %s / %s ms = %s/ms<br/>' %
+              (name,
+               HumanReadable(total_live_after),
+               total_gc,
+               HumanReadable(total_live_after / total_gc)))
+    out.write('GC %s Throughput (before): %s / %s ms = %s/ms<br/>' %
+              (name,
+               HumanReadable(total_live_before),
+               total_gc,
+               HumanReadable(total_live_before / total_gc)))
 
 
   with open(filename + '.html', 'w') as out:
@@ -315,6 +342,11 @@ def process_trace(filename):
     stats(out, 'Sweep', filter(lambda r: r['sweep'] != 0, trace), 'sweep')
     stats(out, 'Compact', filter(lambda r: r['compact'] != 0, trace), 'compact')
     out.write('</table>')
+    throughput('TOTAL', trace)
+    throughput('MS', marksweeps)
+    throughput('MC', markcompacts)
+    throughput('OLDSPACE', globalgcs)
+    out.write('<br/>')
     for chart in charts:
       out.write('<img src="%s">' % chart)
       out.write('</body></html>')
