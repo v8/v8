@@ -289,7 +289,7 @@ class MarkCompactCollector: public AllStatic {
   // Marking operations for objects reachable from roots.
   static void MarkLiveObjects();
 
-  static inline void MarkObject(HeapObject* obj) {
+  INLINE(static void MarkObject(HeapObject* obj)) {
     if (!Marking::TestAndMark(obj->address())) {
       tracer_->increment_marked_count();
 #ifdef DEBUG
@@ -299,7 +299,7 @@ class MarkCompactCollector: public AllStatic {
     }
   }
 
-  static inline void SetMark(HeapObject* obj) {
+  INLINE(static void SetMark(HeapObject* obj)) {
     Marking::SetMark(obj);
     tracer_->increment_marked_count();
 #ifdef DEBUG
