@@ -93,32 +93,6 @@ void LLabel::PrintDataTo(StringStream* stream) const {
 }
 
 
-bool LParallelMove::IsRedundant() const {
-  for (int i = 0; i < move_operands_.length(); ++i) {
-    if (!move_operands_[i].IsRedundant()) return false;
-  }
-  return true;
-}
-
-
-void LParallelMove::PrintDataTo(StringStream* stream) const {
-  for (int i = move_operands_.length() - 1; i >= 0; --i) {
-    if (!move_operands_[i].IsEliminated()) {
-      LOperand* from = move_operands_[i].from();
-      LOperand* to = move_operands_[i].to();
-      if (from->Equals(to)) {
-        to->PrintTo(stream);
-      } else {
-        to->PrintTo(stream);
-        stream->Add(" = ");
-        from->PrintTo(stream);
-      }
-      stream->Add("; ");
-    }
-  }
-}
-
-
 bool LGap::IsRedundant() const {
   for (int i = 0; i < 4; i++) {
     if (parallel_moves_[i] != NULL && !parallel_moves_[i]->IsRedundant()) {

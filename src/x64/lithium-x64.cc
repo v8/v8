@@ -31,6 +31,28 @@
 namespace v8 {
 namespace internal {
 
+bool LGap::IsRedundant() const {
+  for (int i = 0; i < 4; i++) {
+    if (parallel_moves_[i] != NULL && !parallel_moves_[i]->IsRedundant()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+void LGap::PrintDataTo(StringStream* stream) const {
+  for (int i = 0; i < 4; i++) {
+    stream->Add("(");
+    if (parallel_moves_[i] != NULL) {
+      parallel_moves_[i]->PrintDataTo(stream);
+    }
+    stream->Add(") ");
+  }
+}
+
+
 LChunk* LChunkBuilder::Build() {
   ASSERT(is_unused());
   chunk_ = new LChunk(graph());

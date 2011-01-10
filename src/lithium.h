@@ -58,6 +58,27 @@ class LGapResolver BASE_EMBEDDED {
 };
 
 
+class LParallelMove : public ZoneObject {
+ public:
+  LParallelMove() : move_operands_(4) { }
+
+  void AddMove(LOperand* from, LOperand* to) {
+    move_operands_.Add(LMoveOperands(from, to));
+  }
+
+  bool IsRedundant() const;
+
+  const ZoneList<LMoveOperands>* move_operands() const {
+    return &move_operands_;
+  }
+
+  void PrintDataTo(StringStream* stream) const;
+
+ private:
+  ZoneList<LMoveOperands> move_operands_;
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_LITHIUM_H_
