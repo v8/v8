@@ -50,7 +50,6 @@ class LArgument;
 class LChunk;
 class LConstantOperand;
 class LGap;
-class LInstruction;
 class LParallelMove;
 class LPointerMap;
 class LStackSlot;
