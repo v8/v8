@@ -2624,7 +2624,14 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 
 
 void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
-  Abort("DoDeleteProperty unimplemented.");
+  Register object = ToRegister(instr->object());
+  Register key = ToRegister(instr->key());
+  __ Push(object, key);
+  RecordPosition(instr->pointer_map()->position());
+  SafepointGenerator safepoint_generator(this,
+                                         instr->pointer_map(),
+                                         Safepoint::kNoDeoptimizationIndex);
+  __ InvokeBuiltin(Builtins::DELETE, CALL_JS, &safepoint_generator);
 }
 
 

@@ -1803,8 +1803,9 @@ LInstruction* LChunkBuilder::DoFunctionLiteral(HFunctionLiteral* instr) {
 
 
 LInstruction* LChunkBuilder::DoDeleteProperty(HDeleteProperty* instr) {
-  LInstruction* result = new LDeleteProperty(Use(instr->object()),
-                                             UseOrConstant(instr->key()));
+  LOperand* object = UseRegisterAtStart(instr->object());
+  LOperand* key = UseRegisterAtStart(instr->key());
+  LInstruction* result = new LDeleteProperty(object, key);
   return MarkAsCall(DefineFixed(result, r0), instr);
 }
 
