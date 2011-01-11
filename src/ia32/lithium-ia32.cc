@@ -1674,8 +1674,9 @@ LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
-  return DefineAsRegister(
-      new LLoadNamedField(UseRegisterAtStart(instr->object())));
+  ASSERT(instr->representation().IsTagged());
+  LOperand* obj = UseRegisterAtStart(instr->object());
+  return DefineAsRegister(new LLoadNamedField(obj));
 }
 
 
@@ -1702,21 +1703,12 @@ LInstruction* LChunkBuilder::DoLoadElements(HLoadElements* instr) {
 
 LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
     HLoadKeyedFastElement* instr) {
-  Representation r = instr->representation();
-  LOperand* obj = UseRegisterAtStart(instr->object());
+  ASSERT(instr->representation().IsTagged());
   ASSERT(instr->key()->representation().IsInteger32());
+  LOperand* obj = UseRegisterAtStart(instr->object());
   LOperand* key = UseRegisterAtStart(instr->key());
-  LOperand* load_result = NULL;
-  // Double needs an extra temp, because the result is converted from heap
-  // number to a double register.
-  if (r.IsDouble()) load_result = TempRegister();
-  LLoadKeyedFastElement* load = new LLoadKeyedFastElement(obj,
-                                                          key,
-                                                          load_result);
-  LInstruction* result = r.IsDouble()
-      ? DefineAsRegister(load)
-      : DefineSameAsFirst(load);
-  return AssignEnvironment(result);
+  LLoadKeyedFastElement* result = new LLoadKeyedFastElement(obj, key);
+  return AssignEnvironment(DefineSameAsFirst(result));
 }
 
 
@@ -1777,14 +1769,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   LOperand* temp = (!instr->is_in_object() || needs_write_barrier)
       ? TempRegister() : NULL;
 
-  return new LStoreNamedField(obj,
-                              instr->name(),
-                              val,
-                              instr->is_in_object(),
-                              instr->offset(),
-                              temp,
-                              needs_write_barrier,
-                              instr->transition());
+  return new LStoreNamedField(obj, val, temp);
 }
 
 
@@ -1792,7 +1777,7 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
   LOperand* obj = UseFixed(instr->object(), edx);
   LOperand* val = UseFixed(instr->value(), eax);
 
-  LStoreNamedGeneric* result = new LStoreNamedGeneric(obj, instr->name(), val);
+  LStoreNamedGeneric* result = new LStoreNamedGeneric(obj, val);
   return MarkAsCall(result, instr);
 }
 
