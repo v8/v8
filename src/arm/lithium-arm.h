@@ -1606,27 +1606,20 @@ class LCheckMap: public LUnaryOperation {
 
 class LCheckPrototypeMaps: public LInstruction {
  public:
-  LCheckPrototypeMaps(LOperand* temp1,
-                      LOperand* temp2,
-                      Handle<JSObject> holder,
-                      Handle<Map> receiver_map)
-      : temp1_(temp1),
-        temp2_(temp2),
-        holder_(holder),
-        receiver_map_(receiver_map) { }
+  LCheckPrototypeMaps(LOperand* temp1, LOperand* temp2)
+      : temp1_(temp1), temp2_(temp2) { }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps, "check-prototype-maps")
+  DECLARE_HYDROGEN_ACCESSOR(CheckPrototypeMaps)
 
+  Handle<JSObject> holder() const { return hydrogen()->holder(); }
+  Handle<Map> receiver_map() const { return hydrogen()->receiver_map(); }
   LOperand* temp1() const { return temp1_; }
   LOperand* temp2() const { return temp2_; }
-  Handle<JSObject> holder() const { return holder_; }
-  Handle<Map> receiver_map() const { return receiver_map_; }
 
  private:
   LOperand* temp1_;
   LOperand* temp2_;
-  Handle<JSObject> holder_;
-  Handle<Map> receiver_map_;
 };
 
 

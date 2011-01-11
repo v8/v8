@@ -1611,10 +1611,7 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 
 LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
   LOperand* temp = TempRegister();
-  LCheckPrototypeMaps* result =
-      new LCheckPrototypeMaps(temp,
-                              instr->holder(),
-                              instr->receiver_map());
+  LCheckPrototypeMaps* result = new LCheckPrototypeMaps(temp);
   return AssignEnvironment(result);
 }
 
