@@ -663,6 +663,8 @@ def GuessVisibility(os, toolchain):
   if os == 'win32' and toolchain == 'gcc':
     # MinGW can't do it.
     return 'default'
+  elif os == 'solaris':
+    return 'default'
   else:
     return 'hidden'
 
