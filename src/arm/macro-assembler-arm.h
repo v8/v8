@@ -247,8 +247,29 @@ class MacroAssembler: public Assembler {
             const MemOperand& dst,
             Condition cond = al);
 
-  // Clear FPSCR bits.
-  void ClearFPSCRBits(uint32_t bits_to_clear, Register scratch);
+  // Clear specified FPSCR bits.
+  void ClearFPSCRBits(const uint32_t bits_to_clear,
+                      const Register scratch,
+                      const Condition cond = al);
+
+  // Compare double values and move the result to the normal condition flags.
+  void VFPCompareAndSetFlags(const DwVfpRegister src1,
+                             const DwVfpRegister src2,
+                             const Condition cond = al);
+  void VFPCompareAndSetFlags(const DwVfpRegister src1,
+                             const double src2,
+                             const Condition cond = al);
+
+  // Compare double values and then load the fpscr flags to a register.
+  void VFPCompareAndLoadFlags(const DwVfpRegister src1,
+                              const DwVfpRegister src2,
+                              const Register fpscr_flags,
+                              const Condition cond = al);
+  void VFPCompareAndLoadFlags(const DwVfpRegister src1,
+                              const double src2,
+                              const Register fpscr_flags,
+                              const Condition cond = al);
+
 
   // ---------------------------------------------------------------------------
   // Activation frames

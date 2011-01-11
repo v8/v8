@@ -2337,7 +2337,6 @@ void Assembler::vdiv(const DwVfpRegister dst,
 
 void Assembler::vcmp(const DwVfpRegister src1,
                      const DwVfpRegister src2,
-                     const SBit s,
                      const Condition cond) {
   // vcmp(Dd, Dm) double precision floating point comparison.
   // We set bit E, as we want any NaN to set the cumulative exception flag
@@ -2353,7 +2352,6 @@ void Assembler::vcmp(const DwVfpRegister src1,
 
 void Assembler::vcmp(const DwVfpRegister src1,
                      const double src2,
-                     const SBit s,
                      const Condition cond) {
   // vcmp(Dd, Dm) double precision floating point comparison.
   // Instruction details available in ARM DDI 0406A, A8-570.

@@ -1080,13 +1080,8 @@ void LCodeGen::DoBranch(LBranch* instr) {
     DoubleRegister reg = ToDoubleRegister(instr->input());
     Register scratch = scratch0();
 
-    // Test for the double value. Zero and NaN are false.
-    // Clear the Invalid cumulative exception flags.
-    __ ClearFPSCRBits(kVFPInvalidExceptionBit, scratch);
-    __ vcmp(reg, 0.0);
-      // Retrieve the exception and status flags and
-      // check for zero or an invalid exception.
-    __ vmrs(scratch);
+    // Test the double value. Zero and NaN are false.
+    __ VFPCompareAndLoadFlags(reg, 0.0, scratch);
     __ tst(scratch, Operand(kVFPZConditionFlagBit | kVFPInvalidExceptionBit));
     EmitBranch(true_block, false_block, ne);
   } else {
@@ -1114,7 +1109,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ tst(reg, Operand(kSmiTagMask));
       __ b(eq, true_label);
 
-      // Test for double values. Zero and NaN are false.
+      // Test double values. Zero and NaN are false.
       Label call_stub;
       DoubleRegister dbl_scratch = d0;
       Register scratch = scratch0();
@@ -1124,12 +1119,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ b(ne, &call_stub);
       __ sub(ip, reg, Operand(kHeapObjectTag));
       __ vldr(dbl_scratch, ip, HeapNumber::kValueOffset);
-      // Clear the Invalid cumulative exception flags.
-      __ ClearFPSCRBits(kVFPInvalidExceptionBit, scratch);
-      __ vcmp(dbl_scratch, 0.0);
-      // Retrieve the exception and status flags and
-      // check for zero or an invalid exception.
-      __ vmrs(scratch);
+      __ VFPCompareAndLoadFlags(dbl_scratch, 0.0, scratch);
       __ tst(scratch, Operand(kVFPZConditionFlagBit | kVFPInvalidExceptionBit));
       __ b(ne, false_label);
       __ b(true_label);
@@ -2206,7 +2196,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ bind(&heap_number);
     __ sub(ip, input_reg, Operand(kHeapObjectTag));
     __ vldr(dbl_tmp, ip, HeapNumber::kValueOffset);
-    __ vcmp(dbl_tmp, 0.0);  // Sets overflow bit if NaN.
+    __ vcmp(dbl_tmp, 0.0);  // Sets overflow bit in FPSCR flags if NaN.
     __ vcvt_s32_f64(flt_scratch, dbl_tmp);
     __ vmov(input_reg, flt_scratch);  // 32-bit result of conversion.
     __ vmrs(pc);  // Move vector status bits to normal status bits.
@@ -2227,8 +2217,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     // back to check; note that using non-overlapping s and d regs would be
     // slightly faster.
     __ vcvt_f64_s32(dbl_scratch, flt_scratch);
-    __ vcmp(dbl_scratch, dbl_tmp);
-    __ vmrs(pc);  // Move vector status bits to normal status bits.
+    __ VFPCompareAndSetFlags(dbl_scratch, dbl_tmp);
     DeoptimizeIf(ne, instr->environment());  // Not equal or unordered.
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ tst(input_reg, Operand(input_reg));

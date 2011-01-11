@@ -866,8 +866,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
       __ vldr(d0, scratch2, HeapNumber::kValueOffset);
       __ sub(probe, probe, Operand(kHeapObjectTag));
       __ vldr(d1, probe, HeapNumber::kValueOffset);
-      __ vcmp(d0, d1);
-      __ vmrs(pc);
+      __ VFPCompareAndSetFlags(d0, d1);
       __ b(ne, not_found);  // The cache did not contain this value.
       __ b(&load_result_from_cache);
     } else {
@@ -975,8 +974,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     CpuFeatures::Scope scope(VFP3);
     Label no_nan;
     // ARMv7 VFP3 instructions to implement double precision comparison.
-    __ vcmp(d7, d6);
-    __ vmrs(pc);  // Move vector status bits to normal status bits.
+    __ VFPCompareAndSetFlags(d7, d6);
     Label nan;
     __ b(vs, &nan);
     __ mov(r0, Operand(EQUAL), LeaveCC, eq);
@@ -1096,8 +1094,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
   __ sub(ip, tos_, Operand(kHeapObjectTag));
   __ vldr(d1, ip, HeapNumber::kValueOffset);
-  __ vcmp(d1, 0.0);
-  __ vmrs(pc);
+  __ VFPCompareAndSetFlags(d1, 0.0);
   // "tos_" is a register, and contains a non zero value by default.
   // Hence we only need to overwrite "tos_" with zero to return false for
   // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
@@ -4915,8 +4912,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
     __ vldr(d1, r2, HeapNumber::kValueOffset);
 
     // Compare operands
-    __ vcmp(d0, d1);
-    __ vmrs(pc);  // Move vector status bits to normal status bits.
+    __ VFPCompareAndSetFlags(d0, d1);
 
     // Don't base result on status bits when a NaN is involved.
     __ b(vs, &unordered);
