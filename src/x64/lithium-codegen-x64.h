@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -39,10 +39,26 @@ namespace internal {
 
 // Forward declarations.
 class LDeferredCode;
+class SafepointGenerator;
 
 class LCodeGen BASE_EMBEDDED {
  public:
-  LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info) { }
+  LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
+      : chunk_(chunk),
+        masm_(assembler),
+        info_(info),
+        current_block_(-1),
+        current_instruction_(-1),
+        instructions_(chunk->instructions()),
+        deoptimizations_(4),
+        deoptimization_literals_(8),
+        inlined_function_count_(0),
+        scope_(chunk->graph()->info()->scope()),
+        status_(UNUSED),
+        deferred_(8),
+        osr_pc_offset_(-1) {
+    PopulateDeoptimizationLiteralsWithInlinedFunctions();
+  }
 
   // Try to generate code for the entire chunk, but it may fail if the
   // chunk contains constructs we cannot handle. Returns true if the
@@ -52,9 +68,148 @@ class LCodeGen BASE_EMBEDDED {
     return false;
   }
 
+
   // Finish the code by setting stack height, safepoint, and bailout
   // information on it.
   void FinishCode(Handle<Code> code) { UNIMPLEMENTED(); }
+
+  // Parallel move support.
+  void DoParallelMove(LParallelMove* move);
+
+  // Declare methods that deal with the individual node types.
+#define DECLARE_DO(type) void Do##type(L##type* node);
+  LITHIUM_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
+#undef DECLARE_DO
+
+ private:
+  enum Status {
+    UNUSED,
+    GENERATING,
+    DONE,
+    ABORTED
+  };
+
+  bool is_unused() const { return status_ == UNUSED; }
+  bool is_generating() const { return status_ == GENERATING; }
+  bool is_done() const { return status_ == DONE; }
+  bool is_aborted() const { return status_ == ABORTED; }
+
+  LChunk* chunk() const { return chunk_; }
+  Scope* scope() const { return scope_; }
+  HGraph* graph() const { return chunk_->graph(); }
+  MacroAssembler* masm() const { return masm_; }
+
+  int GetNextEmittedBlock(int block) {
+    UNIMPLEMENTED();
+    return 0;
+  }
+  LInstruction* GetNextInstruction() {
+    UNIMPLEMENTED();
+    return NULL;
+  }
+
+  void EmitClassOfTest(Label* if_true,
+                       Label* if_false,
+                       Handle<String> class_name,
+                       Register input,
+                       Register temporary,
+                       Register temporary2) { UNIMPLEMENTED(); }
+
+  int StackSlotCount() const { return chunk()->spill_slot_count(); }
+  int ParameterCount() const { return scope()->num_parameters(); }
+
+  void Abort(const char* format, ...) { UNIMPLEMENTED(); }
+  void Comment(const char* format, ...) { UNIMPLEMENTED(); }
+
+  void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code); }
+
+  // Code generation passes.  Returns true if code generation should
+  // continue.
+  bool GeneratePrologue() {
+    UNIMPLEMENTED();
+    return true;
+  }
+  bool GenerateBody() {
+    UNIMPLEMENTED();
+    return true;
+  }
+  bool GenerateDeferredCode() {
+    UNIMPLEMENTED();
+    return true;
+  }
+  bool GenerateSafepointTable() {
+    UNIMPLEMENTED();
+    return true;
+  }
+
+  void CallCode(Handle<Code> code,
+                RelocInfo::Mode mode,
+                LInstruction* instr) { UNIMPLEMENTED(); }
+  void CallRuntime(Runtime::Function* function,
+                   int num_arguments,
+                   LInstruction* instr) { UNIMPLEMENTED(); }
+  void CallRuntime(Runtime::FunctionId id,
+                   int num_arguments,
+                   LInstruction* instr) {
+    Runtime::Function* function = Runtime::FunctionForId(id);
+    CallRuntime(function, num_arguments, instr);
+  }
+
+  void DeoptimizeIf(Condition cc, LEnvironment* environment) {
+    UNIMPLEMENTED();
+  }
+  void PopulateDeoptimizationLiteralsWithInlinedFunctions() { UNIMPLEMENTED(); }
+
+  LChunk* const chunk_;
+  MacroAssembler* const masm_;
+  CompilationInfo* const info_;
+
+  int current_block_;
+  int current_instruction_;
+  const ZoneList<LInstruction*>* instructions_;
+  ZoneList<LEnvironment*> deoptimizations_;
+  ZoneList<Handle<Object> > deoptimization_literals_;
+  int inlined_function_count_;
+  Scope* const scope_;
+  Status status_;
+  TranslationBuffer translations_;
+  ZoneList<LDeferredCode*> deferred_;
+  int osr_pc_offset_;
+
+  // Builder that keeps track of safepoints in the code. The table
+  // itself is emitted at the end of the generated code.
+  SafepointTableBuilder safepoints_;
+
+  friend class LDeferredCode;
+  friend class LEnvironment;
+  friend class SafepointGenerator;
+  DISALLOW_COPY_AND_ASSIGN(LCodeGen);
+};
+
+
+class LDeferredCode: public ZoneObject {
+ public:
+  explicit LDeferredCode(LCodeGen* codegen)
+      : codegen_(codegen), external_exit_(NULL) {
+    codegen->AddDeferredCode(this);
+  }
+
+  virtual ~LDeferredCode() { }
+  virtual void Generate() = 0;
+
+  void SetExit(Label *exit) { external_exit_ = exit; }
+  Label* entry() { return &entry_; }
+  Label* exit() { return external_exit_ != NULL ? external_exit_ : &exit_; }
+
+ protected:
+  LCodeGen* codegen() const { return codegen_; }
+  MacroAssembler* masm() const { return codegen_->masm(); }
+
+ private:
+  LCodeGen* codegen_;
+  Label entry_;
+  Label exit_;
+  Label* external_exit_;
 };
 
 } }  // namespace v8::internal

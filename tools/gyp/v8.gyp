@@ -673,6 +673,7 @@
                 '../../src/x64/full-codegen-x64.cc',
                 '../../src/x64/ic-x64.cc',
                 '../../src/x64/jump-target-x64.cc',
+                '../../src/x64/lithium-codegen-x64.cc',
                 '../../src/x64/lithium-codegen-x64.h',
                 '../../src/x64/lithium-x64.cc',
                 '../../src/x64/lithium-x64.h',
