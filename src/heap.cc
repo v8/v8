@@ -5029,7 +5029,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       obj->SetMark();
     }
     UnmarkingVisitor visitor;
-    Heap::IterateRoots(&visitor, VISIT_ONLY_STRONG);
+    Heap::IterateRoots(&visitor, VISIT_ALL);
     while (visitor.can_process())
       visitor.ProcessNext();
   }
