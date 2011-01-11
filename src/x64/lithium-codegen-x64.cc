@@ -36,6 +36,45 @@ namespace internal {
 #define __ masm()->
 
 
+void LCodeGen::WriteTranslation(LEnvironment* environment,
+                                Translation* translation) {
+  if (environment == NULL) return;
+
+  // The translation includes one command per value in the environment.
+  int translation_size = environment->values()->length();
+  // The output frame height does not include the parameters.
+  int height = translation_size - environment->parameter_count();
+
+  WriteTranslation(environment->outer(), translation);
+  int closure_id = DefineDeoptimizationLiteral(environment->closure());
+  translation->BeginFrame(environment->ast_id(), closure_id, height);
+  for (int i = 0; i < translation_size; ++i) {
+    LOperand* value = environment->values()->at(i);
+    // spilled_registers_ and spilled_double_registers_ are either
+    // both NULL or both set.
+    if (environment->spilled_registers() != NULL && value != NULL) {
+      if (value->IsRegister() &&
+          environment->spilled_registers()[value->index()] != NULL) {
+        translation->MarkDuplicate();
+        AddToTranslation(translation,
+                         environment->spilled_registers()[value->index()],
+                         environment->HasTaggedValueAt(i));
+      } else if (
+          value->IsDoubleRegister() &&
+          environment->spilled_double_registers()[value->index()] != NULL) {
+        translation->MarkDuplicate();
+        AddToTranslation(
+            translation,
+            environment->spilled_double_registers()[value->index()],
+            false);
+      }
+    }
+
+    AddToTranslation(translation, value, environment->HasTaggedValueAt(i));
+  }
+}
+
+
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
   // No code for lazy bailout instruction. Used to capture environment after a
   // call for populating the safepoint data with deoptimization data.

@@ -208,4 +208,38 @@ void LParallelMove::PrintDataTo(StringStream* stream) const {
 }
 
 
+void LEnvironment::PrintTo(StringStream* stream) {
+  stream->Add("[id=%d|", ast_id());
+  stream->Add("[parameters=%d|", parameter_count());
+  stream->Add("[arguments_stack_height=%d|", arguments_stack_height());
+  for (int i = 0; i < values_.length(); ++i) {
+    if (i != 0) stream->Add(";");
+    if (values_[i] == NULL) {
+      stream->Add("[hole]");
+    } else {
+      values_[i]->PrintTo(stream);
+    }
+  }
+  stream->Add("]");
+}
+
+
+void LPointerMap::RecordPointer(LOperand* op) {
+  // Do not record arguments as pointers.
+  if (op->IsStackSlot() && op->index() < 0) return;
+  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  pointer_operands_.Add(op);
+}
+
+
+void LPointerMap::PrintTo(StringStream* stream) {
+  stream->Add("{");
+  for (int i = 0; i < pointer_operands_.length(); ++i) {
+    if (i != 0) stream->Add(";");
+    pointer_operands_[i]->PrintTo(stream);
+  }
+  stream->Add("} @%d", position());
+}
+
+
 } }  // namespace v8::internal

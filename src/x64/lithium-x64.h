@@ -38,8 +38,6 @@ namespace internal {
 
 // Forward declarations.
 class LCodeGen;
-class LEnvironment;
-class Translation;
 
 
 // Type hierarchy:
@@ -280,75 +278,6 @@ class LOsrEntry: public LTemplateInstruction<0> {
   // index.
   LOperand* register_spills_[Register::kNumAllocatableRegisters];
   LOperand* double_register_spills_[DoubleRegister::kNumAllocatableRegisters];
-};
-
-
-class LPointerMap: public ZoneObject {
- public:
-  explicit LPointerMap(int position)
-      : pointer_operands_(8), position_(position), lithium_position_(-1) { }
-
-  int lithium_position() const {
-    UNIMPLEMENTED();
-    return 0;
-  }
-
-  void RecordPointer(LOperand* op) { UNIMPLEMENTED(); }
-
- private:
-  ZoneList<LOperand*> pointer_operands_;
-  int position_;
-  int lithium_position_;
-};
-
-
-class LEnvironment: public ZoneObject {
- public:
-  LEnvironment(Handle<JSFunction> closure,
-               int ast_id,
-               int parameter_count,
-               int argument_count,
-               int value_count,
-               LEnvironment* outer)
-      : closure_(closure),
-        arguments_stack_height_(argument_count),
-        deoptimization_index_(Safepoint::kNoDeoptimizationIndex),
-        translation_index_(-1),
-        ast_id_(ast_id),
-        parameter_count_(parameter_count),
-        values_(value_count),
-        representations_(value_count),
-        spilled_registers_(NULL),
-        spilled_double_registers_(NULL),
-        outer_(outer) {
-  }
-
-  Handle<JSFunction> closure() const { return closure_; }
-  int arguments_stack_height() const { return arguments_stack_height_; }
-  int deoptimization_index() const { return deoptimization_index_; }
-  int translation_index() const { return translation_index_; }
-  int ast_id() const { return ast_id_; }
-  int parameter_count() const { return parameter_count_; }
-  const ZoneList<LOperand*>* values() const { return &values_; }
-  LEnvironment* outer() const { return outer_; }
-
- private:
-  Handle<JSFunction> closure_;
-  int arguments_stack_height_;
-  int deoptimization_index_;
-  int translation_index_;
-  int ast_id_;
-  int parameter_count_;
-  ZoneList<LOperand*> values_;
-  ZoneList<Representation> representations_;
-
-  // Allocation index indexed arrays of spill slot operands for registers
-  // that are also in spill slots at an OSR entry.  NULL for environments
-  // that do not correspond to an OSR entry.
-  LOperand** spilled_registers_;
-  LOperand** spilled_double_registers_;
-
-  LEnvironment* outer_;
 };
 
 

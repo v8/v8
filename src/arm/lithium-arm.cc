@@ -880,59 +880,6 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
 }
 
 
-void LEnvironment::WriteTranslation(LCodeGen* cgen,
-                                    Translation* translation) const {
-  if (this == NULL) return;
-
-  // The translation includes one command per value in the environment.
-  int translation_size = values()->length();
-  // The output frame height does not include the parameters.
-  int height = translation_size - parameter_count();
-
-  outer()->WriteTranslation(cgen, translation);
-  int closure_id = cgen->DefineDeoptimizationLiteral(closure());
-  translation->BeginFrame(ast_id(), closure_id, height);
-  for (int i = 0; i < translation_size; ++i) {
-    LOperand* value = values()->at(i);
-    // spilled_registers_ and spilled_double_registers_ are either
-    // both NULL or both set.
-    if (spilled_registers_ != NULL && value != NULL) {
-      if (value->IsRegister() &&
-          spilled_registers_[value->index()] != NULL) {
-        translation->MarkDuplicate();
-        cgen->AddToTranslation(translation,
-                               spilled_registers_[value->index()],
-                               HasTaggedValueAt(i));
-      } else if (value->IsDoubleRegister() &&
-                 spilled_double_registers_[value->index()] != NULL) {
-        translation->MarkDuplicate();
-        cgen->AddToTranslation(translation,
-                               spilled_double_registers_[value->index()],
-                               false);
-      }
-    }
-
-    cgen->AddToTranslation(translation, value, HasTaggedValueAt(i));
-  }
-}
-
-
-void LEnvironment::PrintTo(StringStream* stream) const {
-  stream->Add("[id=%d|", ast_id());
-  stream->Add("[parameters=%d|", parameter_count());
-  stream->Add("[arguments_stack_height=%d|", arguments_stack_height());
-  for (int i = 0; i < values_.length(); ++i) {
-    if (i != 0) stream->Add(";");
-    if (values_[i] == NULL) {
-      stream->Add("[hole]");
-    } else {
-      values_[i]->PrintTo(stream);
-    }
-  }
-  stream->Add("]");
-}
-
-
 LEnvironment* LChunkBuilder::CreateEnvironment(HEnvironment* hydrogen_env) {
   if (hydrogen_env == NULL) return NULL;
 
@@ -1888,22 +1835,5 @@ LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
   return NULL;
 }
 
-
-void LPointerMap::RecordPointer(LOperand* op) {
-  // Do not record arguments as pointers.
-  if (op->IsStackSlot() && op->index() < 0) return;
-  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
-  pointer_operands_.Add(op);
-}
-
-
-void LPointerMap::PrintTo(StringStream* stream) const {
-  stream->Add("{");
-  for (int i = 0; i < pointer_operands_.length(); ++i) {
-    if (i != 0) stream->Add(";");
-    pointer_operands_[i]->PrintTo(stream);
-  }
-  stream->Add("} @%d", position());
-}
 
 } }  // namespace v8::internal

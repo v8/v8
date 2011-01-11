@@ -76,6 +76,9 @@ class LCodeGen BASE_EMBEDDED {
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
 
+  // Emit frame translation commands for an environment.
+  void WriteTranslation(LEnvironment* environment, Translation* translation);
+
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) void Do##type(L##type* node);
   LITHIUM_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
@@ -157,6 +160,15 @@ class LCodeGen BASE_EMBEDDED {
 
   void DeoptimizeIf(Condition cc, LEnvironment* environment) {
     UNIMPLEMENTED();
+  }
+
+  void AddToTranslation(Translation* translation,
+                        LOperand* op,
+                        bool is_tagged) { UNIMPLEMENTED(); }
+
+  int DefineDeoptimizationLiteral(Handle<Object> literal) {
+    UNIMPLEMENTED();
+    return 0;
   }
   void PopulateDeoptimizationLiteralsWithInlinedFunctions() { UNIMPLEMENTED(); }
 

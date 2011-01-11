@@ -28,12 +28,16 @@
 #ifndef V8_LITHIUM_H_
 #define V8_LITHIUM_H_
 
+#include "hydrogen.h"
 #include "lithium-allocator.h"
+#include "safepoint-table.h"
 
 namespace v8 {
 namespace internal {
 
+class LCodeGen;
 class LGapNode;
+class Translation;
 
 class LGapResolver BASE_EMBEDDED {
  public:
@@ -77,6 +81,111 @@ class LParallelMove : public ZoneObject {
   ZoneList<LMoveOperands> move_operands_;
 };
 
+
+class LPointerMap: public ZoneObject {
+ public:
+  explicit LPointerMap(int position)
+      : pointer_operands_(8), position_(position), lithium_position_(-1) { }
+
+  const ZoneList<LOperand*>* operands() const { return &pointer_operands_; }
+  int position() const { return position_; }
+  int lithium_position() const { return lithium_position_; }
+
+  void set_lithium_position(int pos) {
+    ASSERT(lithium_position_ == -1);
+    lithium_position_ = pos;
+  }
+
+  void RecordPointer(LOperand* op);
+  void PrintTo(StringStream* stream);
+
+ private:
+  ZoneList<LOperand*> pointer_operands_;
+  int position_;
+  int lithium_position_;
+};
+
+
+class LEnvironment: public ZoneObject {
+ public:
+  LEnvironment(Handle<JSFunction> closure,
+               int ast_id,
+               int parameter_count,
+               int argument_count,
+               int value_count,
+               LEnvironment* outer)
+      : closure_(closure),
+        arguments_stack_height_(argument_count),
+        deoptimization_index_(Safepoint::kNoDeoptimizationIndex),
+        translation_index_(-1),
+        ast_id_(ast_id),
+        parameter_count_(parameter_count),
+        values_(value_count),
+        representations_(value_count),
+        spilled_registers_(NULL),
+        spilled_double_registers_(NULL),
+        outer_(outer) {
+  }
+
+  Handle<JSFunction> closure() const { return closure_; }
+  int arguments_stack_height() const { return arguments_stack_height_; }
+  int deoptimization_index() const { return deoptimization_index_; }
+  int translation_index() const { return translation_index_; }
+  int ast_id() const { return ast_id_; }
+  int parameter_count() const { return parameter_count_; }
+  LOperand** spilled_registers() const { return spilled_registers_; }
+  LOperand** spilled_double_registers() const {
+    return spilled_double_registers_;
+  }
+  const ZoneList<LOperand*>* values() const { return &values_; }
+  LEnvironment* outer() const { return outer_; }
+
+  void AddValue(LOperand* operand, Representation representation) {
+    values_.Add(operand);
+    representations_.Add(representation);
+  }
+
+  bool HasTaggedValueAt(int index) const {
+    return representations_[index].IsTagged();
+  }
+
+  void Register(int deoptimization_index, int translation_index) {
+    ASSERT(!HasBeenRegistered());
+    deoptimization_index_ = deoptimization_index;
+    translation_index_ = translation_index;
+  }
+  bool HasBeenRegistered() const {
+    return deoptimization_index_ != Safepoint::kNoDeoptimizationIndex;
+  }
+
+  void SetSpilledRegisters(LOperand** registers,
+                           LOperand** double_registers) {
+    spilled_registers_ = registers;
+    spilled_double_registers_ = double_registers;
+  }
+
+  void PrintTo(StringStream* stream);
+
+ private:
+  Handle<JSFunction> closure_;
+  int arguments_stack_height_;
+  int deoptimization_index_;
+  int translation_index_;
+  int ast_id_;
+  int parameter_count_;
+  ZoneList<LOperand*> values_;
+  ZoneList<Representation> representations_;
+
+  // Allocation index indexed arrays of spill slot operands for registers
+  // that are also in spill slots at an OSR entry.  NULL for environments
+  // that do not correspond to an OSR entry.
+  LOperand** spilled_registers_;
+  LOperand** spilled_double_registers_;
+
+  LEnvironment* outer_;
+
+  friend class LCodegen;
+};
 
 } }  // namespace v8::internal
 
