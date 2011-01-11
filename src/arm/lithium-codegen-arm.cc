@@ -1649,7 +1649,6 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   __ ldr(result, FieldMemOperand(scratch, FixedArray::kHeaderSize));
 
   // Check for the hole value.
-  ASSERT(r.IsTagged());
   __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
   __ cmp(result, scratch);
   DeoptimizeIf(eq, instr->environment());
