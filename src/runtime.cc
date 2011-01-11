@@ -10334,15 +10334,16 @@ static MaybeObject* Runtime_LiveEditCheckAndDropActivations(Arguments args) {
   return *LiveEdit::CheckAndDropActivations(shared_array, do_drop);
 }
 
-// Compares 2 strings line-by-line and returns diff in form of JSArray of
-// triplets (pos1, pos1_end, pos2_end) describing list of diff chunks.
-static MaybeObject* Runtime_LiveEditCompareStringsLinewise(Arguments args) {
+// Compares 2 strings line-by-line, then token-wise and returns diff in form
+// of JSArray of triplets (pos1, pos1_end, pos2_end) describing list
+// of diff chunks.
+static MaybeObject* Runtime_LiveEditCompareStrings(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;
   CONVERT_ARG_CHECKED(String, s1, 0);
   CONVERT_ARG_CHECKED(String, s2, 1);
 
-  return *LiveEdit::CompareStringsLinewise(s1, s2);
+  return *LiveEdit::CompareStrings(s1, s2);
 }
 
 
