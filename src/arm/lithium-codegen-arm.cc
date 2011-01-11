@@ -1150,24 +1150,47 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
 
 void LCodeGen::EmitGoto(int block, LDeferredCode* deferred_stack_check) {
-  // TODO(srdjan): Perform stack overflow check if this goto needs it
-  // before jumping.
   block = chunk_->LookupDestination(block);
   int next_block = GetNextEmittedBlock(current_block_);
   if (block != next_block) {
-    __ jmp(chunk_->GetAssemblyLabel(block));
+    // Perform stack overflow check if this goto needs it before jumping.
+    if (deferred_stack_check != NULL) {
+      __ LoadRoot(ip, Heap::kStackLimitRootIndex);
+      __ cmp(sp, Operand(ip));
+      __ b(hs, chunk_->GetAssemblyLabel(block));
+      __ jmp(deferred_stack_check->entry());
+      deferred_stack_check->SetExit(chunk_->GetAssemblyLabel(block));
+    } else {
+      __ jmp(chunk_->GetAssemblyLabel(block));
+    }
   }
 }
 
 
 void LCodeGen::DoDeferredStackCheck(LGoto* instr) {
-  UNIMPLEMENTED();
+  __ PushSafepointRegisters();
+  __ CallRuntimeSaveDoubles(Runtime::kStackGuard);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
+  __ PopSafepointRegisters();
 }
 
 
 void LCodeGen::DoGoto(LGoto* instr) {
-  // TODO(srdjan): Implement deferred stack check.
-  EmitGoto(instr->block_id(), NULL);
+  class DeferredStackCheck: public LDeferredCode {
+   public:
+    DeferredStackCheck(LCodeGen* codegen, LGoto* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredStackCheck(instr_); }
+   private:
+    LGoto* instr_;
+  };
+
+  DeferredStackCheck* deferred = NULL;
+  if (instr->include_stack_check()) {
+    deferred = new DeferredStackCheck(this, instr);
+  }
+  EmitGoto(instr->block_id(), deferred);
 }
 
 
