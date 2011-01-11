@@ -78,7 +78,7 @@ void LInstruction::PrintTo(StringStream* stream) {
 
   if (HasPointerMap()) {
     stream->Add(" ");
-    //pointer_map()->PrintTo(stream);
+    // pointer_map()->PrintTo(stream);
   }
 }
 
