@@ -5788,7 +5788,6 @@ void HPhase::End() const {
 
 #ifdef DEBUG
   if (graph_ != NULL) graph_->Verify();
-  if (chunk_ != NULL) chunk_->Verify();
   if (allocator_ != NULL) allocator_->Verify();
 #endif
 }

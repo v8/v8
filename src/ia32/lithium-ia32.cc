@@ -67,9 +67,9 @@ void LOsrEntry::MarkSpilledDoubleRegister(int allocation_index,
 void LInstruction::PrintTo(StringStream* stream) {
   stream->Add("%s ", this->Mnemonic());
   if (HasResult()) {
-    LTemplateInstruction<1>::cast(this)->result()->PrintTo(stream);
-    stream->Add(" ");
+    PrintOutputOperandTo(stream);
   }
+
   PrintDataTo(stream);
 
   if (HasEnvironment()) {
@@ -80,6 +80,24 @@ void LInstruction::PrintTo(StringStream* stream) {
   if (HasPointerMap()) {
     stream->Add(" ");
     pointer_map()->PrintTo(stream);
+  }
+}
+
+
+template<int R, int I, int T>
+void LTemplateInstruction<R, I, T>::PrintDataTo(StringStream* stream) {
+  for (int i = 0; i < I; i++) {
+    stream->Add(i == 0 ? "= " : " ");
+    inputs_.at(i)->PrintTo(stream);
+  }
+}
+
+
+template<int R, int I, int T>
+void LTemplateInstruction<R, I, T>::PrintOutputOperandTo(StringStream* stream) {
+  if (this->HasResult()) {
+    this->result()->PrintTo(stream);
+    stream->Add(" ");
   }
 }
 
@@ -140,15 +158,6 @@ const char* LArithmeticT::Mnemonic() const {
       UNREACHABLE();
       return NULL;
   }
-}
-
-
-
-void LBinaryOperation::PrintDataTo(StringStream* stream) {
-  stream->Add("= ");
-  left()->PrintTo(stream);
-  stream->Add(" ");
-  right()->PrintTo(stream);
 }
 
 
@@ -267,7 +276,8 @@ void LCallKnownGlobal::PrintDataTo(StringStream* stream) {
 
 
 void LCallNew::PrintDataTo(StringStream* stream) {
-  LUnaryOperation<1>::PrintDataTo(stream);
+  stream->Add("= ");
+  input()->PrintTo(stream);
   stream->Add(" #%d / ", arity());
 }
 
@@ -279,13 +289,6 @@ void LClassOfTest::PrintDataTo(StringStream* stream) {
 }
 
 
-template <int R>
-void LUnaryOperation<R>::PrintDataTo(StringStream* stream) {
-  stream->Add("= ");
-  input()->PrintTo(stream);
-}
-
-
 void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
   arguments()->PrintTo(stream);
 
@@ -294,11 +297,6 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 
   stream->Add(" index ");
   index()->PrintTo(stream);
-}
-
-
-void LChunk::Verify() const {
-  // TODO(twuerthinger): Implement verification for chunk.
 }
 
 
@@ -573,35 +571,54 @@ LOperand* LChunkBuilder::Use(HValue* value, LUnallocated* operand) {
 }
 
 
-LInstruction* LChunkBuilder::Define(LTemplateInstruction<1>* instr) {
+template<int I, int T>
+LInstruction* LChunkBuilder::Define(LTemplateInstruction<1, I, T>* instr,
+                                    LUnallocated* result) {
+  allocator_->RecordDefinition(current_instruction_, result);
+  instr->set_result(result);
+  return instr;
+}
+
+
+template<int I, int T>
+LInstruction* LChunkBuilder::Define(LTemplateInstruction<1, I, T>* instr) {
   return Define(instr, new LUnallocated(LUnallocated::NONE));
 }
 
 
-LInstruction* LChunkBuilder::DefineAsRegister(LTemplateInstruction<1>* instr) {
+template<int I, int T>
+LInstruction* LChunkBuilder::DefineAsRegister(
+    LTemplateInstruction<1, I, T>* instr) {
   return Define(instr, new LUnallocated(LUnallocated::MUST_HAVE_REGISTER));
 }
 
 
-LInstruction* LChunkBuilder::DefineAsSpilled(LTemplateInstruction<1>* instr,
-                                             int index) {
+template<int I, int T>
+LInstruction* LChunkBuilder::DefineAsSpilled(
+    LTemplateInstruction<1, I, T>* instr,
+    int index) {
   return Define(instr, new LUnallocated(LUnallocated::FIXED_SLOT, index));
 }
 
 
-LInstruction* LChunkBuilder::DefineSameAsFirst(LTemplateInstruction<1>* instr) {
+template<int I, int T>
+LInstruction* LChunkBuilder::DefineSameAsFirst(
+    LTemplateInstruction<1, I, T>* instr) {
   return Define(instr, new LUnallocated(LUnallocated::SAME_AS_FIRST_INPUT));
 }
 
 
-LInstruction* LChunkBuilder::DefineFixed(LTemplateInstruction<1>* instr,
+template<int I, int T>
+LInstruction* LChunkBuilder::DefineFixed(LTemplateInstruction<1, I, T>* instr,
                                          Register reg) {
   return Define(instr, ToUnallocated(reg));
 }
 
 
-LInstruction* LChunkBuilder::DefineFixedDouble(LTemplateInstruction<1>* instr,
-                                               XMMRegister reg) {
+template<int I, int T>
+LInstruction* LChunkBuilder::DefineFixedDouble(
+    LTemplateInstruction<1, I, T>* instr,
+    XMMRegister reg) {
   return Define(instr, ToUnallocated(reg));
 }
 
@@ -665,14 +682,6 @@ LInstruction* LChunkBuilder::MarkAsSaveDoubles(LInstruction* instr) {
 LInstruction* LChunkBuilder::AssignPointerMap(LInstruction* instr) {
   ASSERT(!instr->HasPointerMap());
   instr->set_pointer_map(new LPointerMap(position_));
-  return instr;
-}
-
-
-LInstruction* LChunkBuilder::Define(LTemplateInstruction<1>* instr,
-                                    LUnallocated* result) {
-  allocator_->RecordDefinition(current_instruction_, result);
-  instr->set_result(result);
   return instr;
 }
 
@@ -1279,7 +1288,9 @@ LInstruction* LChunkBuilder::DoBitAnd(HBitAnd* instr) {
 LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
   ASSERT(instr->value()->representation().IsInteger32());
   ASSERT(instr->representation().IsInteger32());
-  return DefineSameAsFirst(new LBitNotI(UseRegisterAtStart(instr->value())));
+  LOperand* input = UseRegisterAtStart(instr->value());
+  LBitNotI* result = new LBitNotI(input);
+  return DefineSameAsFirst(result);
 }
 
 
