@@ -1572,8 +1572,12 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       return AssignPointerMap(Define(result, result_temp));
     } else {
       ASSERT(to.IsInteger32());
-      LOperand* value = UseRegister(instr->value());
-      return AssignEnvironment(DefineAsRegister(new LDoubleToI(value)));
+      bool needs_temp = instr->CanTruncateToInt32() &&
+          !CpuFeatures::IsSupported(SSE3);
+      LOperand* value = needs_temp ?
+          UseTempRegister(instr->value()) : UseRegister(instr->value());
+      LOperand* temp = needs_temp ? TempRegister() : NULL;
+      return AssignEnvironment(DefineAsRegister(new LDoubleToI(value, temp)));
     }
   } else if (from.IsInteger32()) {
     if (to.IsTagged()) {

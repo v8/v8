@@ -1481,12 +1481,17 @@ class LNumberTagD: public LUnaryOperation<1> {
 // Sometimes truncating conversion from a tagged value to an int32.
 class LDoubleToI: public LUnaryOperation<1> {
  public:
-  explicit LDoubleToI(LOperand* value) : LUnaryOperation<1>(value) { }
+  LDoubleToI(LOperand* value, LOperand* temporary)
+      : LUnaryOperation<1>(value), temporary_(temporary) { }
 
   DECLARE_CONCRETE_INSTRUCTION(DoubleToI, "double-to-i")
   DECLARE_HYDROGEN_ACCESSOR(Change)
 
   bool truncating() { return hydrogen()->CanTruncateToInt32(); }
+  LOperand* temporary() const { return temporary_; }
+
+ private:
+  LOperand* temporary_;
 };
 
 
