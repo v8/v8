@@ -1804,7 +1804,65 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 
 
 void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
-  Abort("DoApplyArguments unimplemented.");
+  Register receiver = ToRegister(instr->receiver());
+  Register function = ToRegister(instr->function());
+  Register scratch = scratch0();
+
+  ASSERT(receiver.is(r0));
+  ASSERT(function.is(r1));
+  ASSERT(ToRegister(instr->result()).is(r0));
+
+  // If the receiver is null or undefined, we have to pass the
+  // global object as a receiver.
+  Label global_receiver, receiver_ok;
+  __ LoadRoot(scratch, Heap::kNullValueRootIndex);
+  __ cmp(receiver, scratch);
+  __ b(eq, &global_receiver);
+  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+  __ cmp(receiver, scratch);
+  __ b(ne, &receiver_ok);
+  __ bind(&global_receiver);
+  __ ldr(receiver, GlobalObjectOperand());
+  __ bind(&receiver_ok);
+
+  Register length = ToRegister(instr->length());
+  Register elements = ToRegister(instr->elements());
+
+  Label invoke;
+
+  // Copy the arguments to this function possibly from the
+  // adaptor frame below it.
+  const uint32_t kArgumentsLimit = 1 * KB;
+  __ cmp(length, Operand(kArgumentsLimit));
+  DeoptimizeIf(hi, instr->environment());
+
+  // Push the receiver and use the register to keep the original
+  // number of arguments.
+  __ push(receiver);
+  __ mov(receiver, length);
+  // The arguments are at a one pointer size offset from elements.
+  __ add(elements, elements, Operand(1 * kPointerSize));
+
+  // Loop through the arguments pushing them onto the execution
+  // stack.
+  Label loop;
+  // length is a small non-negative integer, due to the test above.
+  __ tst(length, Operand(length));
+  __ b(eq, &invoke);
+  __ bind(&loop);
+  __ ldr(scratch, MemOperand(elements, length, LSL, 2));
+  __ push(scratch);
+  __ sub(length, length, Operand(1), SetCC);
+  __ b(ne, &loop);
+
+  __ bind(&invoke);
+  // Invoke the function. The number of arguments is stored in receiver
+  // which is r0, as expected by InvokeFunction.
+  v8::internal::ParameterCount actual(receiver);
+  SafepointGenerator safepoint_generator(this,
+                                         instr->pointer_map(),
+                                         Safepoint::kNoDeoptimizationIndex);
+  __ InvokeFunction(function, actual, CALL_FUNCTION, &safepoint_generator);
 }
 
 
