@@ -37,8 +37,9 @@ class LGapNode;
 
 class LGapResolver BASE_EMBEDDED {
  public:
-  LGapResolver(const ZoneList<LMoveOperands>* moves, LOperand* marker_operand);
-  const ZoneList<LMoveOperands>* ResolveInReverseOrder();
+  LGapResolver();
+  const ZoneList<LMoveOperands>* Resolve(const ZoneList<LMoveOperands>* moves,
+                                         LOperand* marker_operand);
 
  private:
   LGapNode* LookupNode(LOperand* operand);
@@ -47,14 +48,12 @@ class LGapResolver BASE_EMBEDDED {
   void RegisterMove(LMoveOperands move);
   void AddResultMove(LOperand* from, LOperand* to);
   void AddResultMove(LGapNode* from, LGapNode* to);
-  void ResolveCycle(LGapNode* start);
+  void ResolveCycle(LGapNode* start, LOperand* marker_operand);
 
   ZoneList<LGapNode*> nodes_;
   ZoneList<LGapNode*> identified_cycles_;
   ZoneList<LMoveOperands> result_;
-  LOperand* marker_operand_;
   int next_visited_id_;
-  int bailout_after_ast_id_;
 };
 
 

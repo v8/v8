@@ -60,23 +60,29 @@ class LGapNode: public ZoneObject {
 };
 
 
-LGapResolver::LGapResolver(const ZoneList<LMoveOperands>* moves,
-                           LOperand* marker_operand)
-    : nodes_(4),
+LGapResolver::LGapResolver()
+    : nodes_(32),
       identified_cycles_(4),
-      result_(4),
-      marker_operand_(marker_operand),
+      result_(16),
       next_visited_id_(0) {
+}
+
+
+const ZoneList<LMoveOperands>* LGapResolver::Resolve(
+    const ZoneList<LMoveOperands>* moves,
+    LOperand* marker_operand) {
+  nodes_.Rewind(0);
+  identified_cycles_.Rewind(0);
+  result_.Rewind(0);
+  next_visited_id_ = 0;
+
   for (int i = 0; i < moves->length(); ++i) {
     LMoveOperands move = moves->at(i);
     if (!move.IsRedundant()) RegisterMove(move);
   }
-}
 
-
-const ZoneList<LMoveOperands>* LGapResolver::ResolveInReverseOrder() {
   for (int i = 0; i < identified_cycles_.length(); ++i) {
-    ResolveCycle(identified_cycles_[i]);
+    ResolveCycle(identified_cycles_[i], marker_operand);
   }
 
   int unresolved_nodes;
@@ -105,20 +111,20 @@ void LGapResolver::AddResultMove(LOperand* from, LOperand* to) {
 }
 
 
-void LGapResolver::ResolveCycle(LGapNode* start) {
-  ZoneList<LOperand*> circle_operands(8);
-  circle_operands.Add(marker_operand_);
+void LGapResolver::ResolveCycle(LGapNode* start, LOperand* marker_operand) {
+  ZoneList<LOperand*> cycle_operands(8);
+  cycle_operands.Add(marker_operand);
   LGapNode* cur = start;
   do {
     cur->MarkResolved();
-    circle_operands.Add(cur->operand());
+    cycle_operands.Add(cur->operand());
     cur = cur->assigned_from();
   } while (cur != start);
-  circle_operands.Add(marker_operand_);
+  cycle_operands.Add(marker_operand);
 
-  for (int i = circle_operands.length() - 1; i > 0; --i) {
-    LOperand* from = circle_operands[i];
-    LOperand* to = circle_operands[i - 1];
+  for (int i = cycle_operands.length() - 1; i > 0; --i) {
+    LOperand* from = cycle_operands[i];
+    LOperand* to = cycle_operands[i - 1];
     AddResultMove(from, to);
   }
 }
@@ -156,7 +162,7 @@ void LGapResolver::RegisterMove(LMoveOperands move) {
     }
     ASSERT(!to->IsAssigned());
     if (CanReach(from, to)) {
-      // This introduces a circle. Save.
+      // This introduces a cycle. Save.
       identified_cycles_.Add(from);
     }
     to->set_assigned_from(from);

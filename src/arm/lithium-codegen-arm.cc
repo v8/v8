@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -601,8 +601,8 @@ void LCodeGen::DoParallelMove(LParallelMove* move) {
   Register core_scratch = scratch0();
   bool destroys_core_scratch = false;
 
-  LGapResolver resolver(move->move_operands(), &marker_operand);
-  const ZoneList<LMoveOperands>* moves = resolver.ResolveInReverseOrder();
+  const ZoneList<LMoveOperands>* moves =
+      resolver_.Resolve(move->move_operands(), &marker_operand);
   for (int i = moves->length() - 1; i >= 0; --i) {
     LMoveOperands move = moves->at(i);
     LOperand* from = move.from();
