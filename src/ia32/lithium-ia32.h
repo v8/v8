@@ -85,10 +85,12 @@ class Translation;
 //     LConstantT
 //   LDeoptimize
 //   LFunctionLiteral
+//   LGap
+//     LLabel
 //   LGlobalObject
 //   LGlobalReceiver
-//   LLabel
-//   LLayzBailout
+//   LGoto
+//   LLazyBailout
 //   LLoadGlobal
 //   LMaterializedLiteral
 //     LArrayLiteral

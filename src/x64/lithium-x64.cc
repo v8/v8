@@ -31,6 +31,67 @@
 namespace v8 {
 namespace internal {
 
+LOsrEntry::LOsrEntry() {
+  for (int i = 0; i < Register::kNumAllocatableRegisters; ++i) {
+    register_spills_[i] = NULL;
+  }
+  for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; ++i) {
+    double_register_spills_[i] = NULL;
+  }
+}
+
+
+void LOsrEntry::MarkSpilledRegister(int allocation_index,
+                                    LOperand* spill_operand) {
+  ASSERT(spill_operand->IsStackSlot());
+  ASSERT(register_spills_[allocation_index] == NULL);
+  register_spills_[allocation_index] = spill_operand;
+}
+
+
+void LOsrEntry::MarkSpilledDoubleRegister(int allocation_index,
+                                          LOperand* spill_operand) {
+  ASSERT(spill_operand->IsDoubleStackSlot());
+  ASSERT(double_register_spills_[allocation_index] == NULL);
+  double_register_spills_[allocation_index] = spill_operand;
+}
+
+
+void LOsrEntry::CompileToNative(LCodeGen* generator) {
+  UNIMPLEMENTED();
+  // Implement in lithium-codegen-x64.cc.
+}
+
+
+void LInstruction::PrintTo(StringStream* stream) {
+  stream->Add("%s ", this->Mnemonic());
+  if (HasResult()) {
+    LTemplateInstruction<1>::cast(this)->result()->PrintTo(stream);
+    stream->Add(" ");
+  }
+  PrintDataTo(stream);
+
+  if (HasEnvironment()) {
+    stream->Add(" ");
+    // environment()->PrintTo(stream);
+  }
+
+  if (HasPointerMap()) {
+    stream->Add(" ");
+    //pointer_map()->PrintTo(stream);
+  }
+}
+
+
+void LLabel::PrintDataTo(StringStream* stream) {
+  LGap::PrintDataTo(stream);
+  LLabel* rep = replacement();
+  if (rep != NULL) {
+    stream->Add(" Dead block replaced with B%d", rep->block_id());
+  }
+}
+
+
 bool LGap::IsRedundant() const {
   for (int i = 0; i < 4; i++) {
     if (parallel_moves_[i] != NULL && !parallel_moves_[i]->IsRedundant()) {
@@ -42,7 +103,7 @@ bool LGap::IsRedundant() const {
 }
 
 
-void LGap::PrintDataTo(StringStream* stream) const {
+void LGap::PrintDataTo(StringStream* stream) {
   for (int i = 0; i < 4; i++) {
     stream->Add("(");
     if (parallel_moves_[i] != NULL) {
@@ -50,6 +111,11 @@ void LGap::PrintDataTo(StringStream* stream) const {
     }
     stream->Add(") ");
   }
+}
+
+
+void LGoto::PrintDataTo(StringStream* stream) {
+  stream->Add("B%d", block_id());
 }
 
 
