@@ -848,18 +848,12 @@ class LHasCachedArrayIndexAndBranch: public LHasCachedArrayIndex {
 
 class LClassOfTest: public LUnaryOperation {
  public:
-  LClassOfTest(LOperand* value, LOperand* temp)
-      : LUnaryOperation(value), temporary_(temp) {}
+  explicit LClassOfTest(LOperand* value) : LUnaryOperation(value) {}
 
   DECLARE_CONCRETE_INSTRUCTION(ClassOfTest, "class-of-test")
   DECLARE_HYDROGEN_ACCESSOR(ClassOfTest)
 
   virtual void PrintDataTo(StringStream* stream) const;
-
-  LOperand* temporary() { return temporary_; }
-
- private:
-  LOperand *temporary_;
 };
 
 
@@ -867,11 +861,10 @@ class LClassOfTestAndBranch: public LClassOfTest {
  public:
   LClassOfTestAndBranch(LOperand* value,
                         LOperand* temporary,
-                        LOperand* temporary2,
                         int true_block_id,
                         int false_block_id)
-      : LClassOfTest(value, temporary),
-        temporary2_(temporary2),
+      : LClassOfTest(value),
+        temporary_(temporary),
         true_block_id_(true_block_id),
         false_block_id_(false_block_id) { }
 
@@ -882,10 +875,10 @@ class LClassOfTestAndBranch: public LClassOfTest {
 
   int true_block_id() const { return true_block_id_; }
   int false_block_id() const { return false_block_id_; }
-  LOperand* temporary2() { return temporary2_; }
+  LOperand* temporary() { return temporary_; }
 
  private:
-  LOperand* temporary2_;
+  LOperand* temporary_;
   int true_block_id_;
   int false_block_id_;
 };

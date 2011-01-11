@@ -998,7 +998,6 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
 
       return new LClassOfTestAndBranch(UseTempRegister(compare->value()),
                                        TempRegister(),
-                                       TempRegister(),
                                        first_id,
                                        second_id);
     } else if (v->IsCompare()) {
@@ -1485,8 +1484,7 @@ LInstruction* LChunkBuilder::DoHasCachedArrayIndex(
 LInstruction* LChunkBuilder::DoClassOfTest(HClassOfTest* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseTempRegister(instr->value());
-
-  return DefineSameAsFirst(new LClassOfTest(value, TempRegister()));
+  return DefineSameAsFirst(new LClassOfTest(value));
 }
 
 

@@ -958,12 +958,26 @@ void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->input());
   __ ldr(result, FieldMemOperand(array, FixedArray::kLengthOffset));
-  Abort("DoFixedArrayLength untested.");
 }
 
 
 void LCodeGen::DoValueOf(LValueOf* instr) {
-  Abort("DoValueOf unimplemented.");
+  Register input = ToRegister(instr->input());
+  Register result = ToRegister(instr->result());
+  Register map = ToRegister(instr->temporary());
+  ASSERT(input.is(result));
+  Label done;
+
+  // If the object is a smi return the object.
+  __ tst(input, Operand(kSmiTagMask));
+  __ b(eq, &done);
+
+  // If the object is not a value type, return the object.
+  __ CompareObjectType(input, map, map, JS_VALUE_TYPE);
+  __ b(ne, &done);
+  __ ldr(result, FieldMemOperand(input, JSValue::kValueOffset));
+
+  __ bind(&done);
 }
 
 
@@ -971,7 +985,6 @@ void LCodeGen::DoBitNotI(LBitNotI* instr) {
   LOperand* input = instr->input();
   ASSERT(input->Equals(instr->result()));
   __ mvn(ToRegister(input), Operand(ToRegister(input)));
-  Abort("DoBitNotI untested.");
 }
 
 
@@ -1408,7 +1421,7 @@ void LCodeGen::DoHasCachedArrayIndexAndBranch(
 }
 
 
-// Branches to a label or falls through with the answer in the z flag.  Trashes
+// Branches to a label or falls through with the answer in flags.  Trashes
 // the temp registers, but not the input.  Only input and temp2 may alias.
 void LCodeGen::EmitClassOfTest(Label* is_true,
                                Label* is_false,
@@ -1416,17 +1429,91 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
                                Register input,
                                Register temp,
                                Register temp2) {
-  Abort("EmitClassOfTest unimplemented.");
+  ASSERT(!input.is(temp));
+  ASSERT(!temp.is(temp2));  // But input and temp2 may be the same register.
+  __ tst(input, Operand(kSmiTagMask));
+  __ b(eq, is_false);
+  __ CompareObjectType(input, temp, temp2, FIRST_JS_OBJECT_TYPE);
+  __ b(lt, is_false);
+
+  // Map is now in temp.
+  // Functions have class 'Function'.
+  __ CompareInstanceType(temp, temp2, JS_FUNCTION_TYPE);
+  if (class_name->IsEqualTo(CStrVector("Function"))) {
+    __ b(eq, is_true);
+  } else {
+    __ b(eq, is_false);
+  }
+
+  // Check if the constructor in the map is a function.
+  __ ldr(temp, FieldMemOperand(temp, Map::kConstructorOffset));
+
+  // As long as JS_FUNCTION_TYPE is the last instance type and it is
+  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+  // LAST_JS_OBJECT_TYPE.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+
+  // Objects with a non-function constructor have class 'Object'.
+  __ CompareObjectType(temp, temp2, temp2, JS_FUNCTION_TYPE);
+  if (class_name->IsEqualTo(CStrVector("Object"))) {
+    __ b(ne, is_true);
+  } else {
+    __ b(ne, is_false);
+  }
+
+  // temp now contains the constructor function. Grab the
+  // instance class name from there.
+  __ ldr(temp, FieldMemOperand(temp, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(temp, FieldMemOperand(temp,
+                               SharedFunctionInfo::kInstanceClassNameOffset));
+  // The class name we are testing against is a symbol because it's a literal.
+  // The name in the constructor is a symbol because of the way the context is
+  // booted.  This routine isn't expected to work for random API-created
+  // classes and it doesn't have to because you can't access it with natives
+  // syntax.  Since both sides are symbols it is sufficient to use an identity
+  // comparison.
+  __ cmp(temp, Operand(class_name));
+  // End with the answer in flags.
 }
 
 
 void LCodeGen::DoClassOfTest(LClassOfTest* instr) {
-  Abort("DoClassOfTest unimplemented.");
+  Register input = ToRegister(instr->input());
+  Register result = ToRegister(instr->result());
+  ASSERT(input.is(result));
+  Handle<String> class_name = instr->hydrogen()->class_name();
+
+  Label done, is_true, is_false;
+
+  EmitClassOfTest(&is_true, &is_false, class_name, input, scratch0(), input);
+  __ b(ne, &is_false);
+
+  __ bind(&is_true);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ jmp(&done);
+
+  __ bind(&is_false);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ bind(&done);
 }
 
 
 void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
-  Abort("DoClassOfTestAndBranch unimplemented.");
+  Register input = ToRegister(instr->input());
+  Register temp = scratch0();
+  Register temp2 = ToRegister(instr->temporary());
+  Handle<String> class_name = instr->hydrogen()->class_name();
+
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  Label* true_label = chunk_->GetAssemblyLabel(true_block);
+  Label* false_label = chunk_->GetAssemblyLabel(false_block);
+
+  EmitClassOfTest(true_label, false_label, class_name, input, temp, temp2);
+
+  EmitBranch(true_block, false_block, eq);
 }
 
 

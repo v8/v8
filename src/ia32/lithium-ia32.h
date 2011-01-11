@@ -898,7 +898,7 @@ class LClassOfTest: public LUnaryOperation<1> {
   LOperand* temporary() { return temporary_; }
 
  private:
-  LOperand *temporary_;
+  LOperand* temporary_;
 };
 
 
