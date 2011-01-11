@@ -771,7 +771,9 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       break;
     }
     case CodeStub::TranscendentalCache: {
-      Abort("TranscendentalCache unimplemented.");
+      __ ldr(r0, MemOperand(sp, 0));
+      TranscendentalCacheStub stub(instr->transcendental_type());
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
     default:
@@ -1482,10 +1484,12 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
     condition = ReverseCondition(condition);
   }
   __ cmp(r0, Operand(0));
-  __ LoadRoot(ToRegister(instr->result()), Heap::kTrueValueRootIndex,
-      condition);
-  __ LoadRoot(ToRegister(instr->result()), Heap::kFalseValueRootIndex,
-      NegateCondition(condition));
+  __ LoadRoot(ToRegister(instr->result()),
+              Heap::kTrueValueRootIndex,
+              condition);
+  __ LoadRoot(ToRegister(instr->result()),
+              Heap::kFalseValueRootIndex,
+              NegateCondition(condition));
 }
 
 

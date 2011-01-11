@@ -445,6 +445,10 @@ class LCallStub: public LInstruction {
  public:
   DECLARE_CONCRETE_INSTRUCTION(CallStub, "call-stub")
   DECLARE_HYDROGEN_ACCESSOR(CallStub)
+
+  TranscendentalCache::Type transcendental_type() {
+    return hydrogen()->transcendental_type();
+  }
 };
 
 
