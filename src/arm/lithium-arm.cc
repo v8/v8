@@ -676,13 +676,6 @@ LInstruction* LChunkBuilder::Define(LInstruction* instr, LUnallocated* result) {
 }
 
 
-LOperand* LChunkBuilder::Temp() {
-  LUnallocated* operand = new LUnallocated(LUnallocated::NONE);
-  allocator_->RecordTemporary(operand);
-  return operand;
-}
-
-
 LUnallocated* LChunkBuilder::TempRegister() {
   LUnallocated* operand = new LUnallocated(LUnallocated::MUST_HAVE_REGISTER);
   allocator_->RecordTemporary(operand);

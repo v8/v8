@@ -2014,8 +2014,6 @@ class LChunkBuilder BASE_EMBEDDED {
 
   LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env);
 
-  // Temporary operand that may be a memory location.
-  LOperand* Temp();
   // Temporary operand that must be in a register.
   LUnallocated* TempRegister();
   LOperand* FixedTemp(Register reg);
