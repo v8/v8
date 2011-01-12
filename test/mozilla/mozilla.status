@@ -833,6 +833,8 @@ js1_5/Regress/regress-404755:  SKIP
 js1_5/Regress/regress-451322: SKIP
 js1_5/extensions/regress-371636: SKIP
 
+# BUG(1040): Allow this test to timeout.
+js1_5/GC/regress-203278-2: PASS || TIMEOUT
 
 [ $arch == arm && $crankshaft ]
 
@@ -861,7 +863,6 @@ js1_5/Regress/regress-347306-01: SKIP
 js1_5/Regress/regress-280769-1: SKIP
 js1_5/Regress/regress-280769-5: SKIP
 js1_5/GC/regress-306788: SKIP
-js1_5/GC/regress-203278-2: SKIP
 js1_5/GC/regress-278725: SKIP
 js1_5/GC/regress-203278-3: SKIP
 js1_5/GC/regress-311497: SKIP
