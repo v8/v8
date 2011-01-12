@@ -532,16 +532,14 @@ void MacroAssembler::VFPCompareAndSetFlags(const DwVfpRegister src1,
                                            const DwVfpRegister src2,
                                            const Condition cond) {
   // Compare and move FPSCR flags to the normal condition flags.
-  vcmp(src1, src2, cond);
-  vmrs(pc, cond);
+  VFPCompareAndLoadFlags(src1, src2, pc, cond);
 }
 
 void MacroAssembler::VFPCompareAndSetFlags(const DwVfpRegister src1,
                                            const double src2,
                                            const Condition cond) {
   // Compare and move FPSCR flags to the normal condition flags.
-  vcmp(src1, src2, cond);
-  vmrs(pc, cond);
+  VFPCompareAndLoadFlags(src1, src2, pc, cond);
 }
 
 
@@ -549,24 +547,18 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
                                             const DwVfpRegister src2,
                                             const Register fpscr_flags,
                                             const Condition cond) {
-  // Clear the Invalid cumulative exception flags (use fpscr_flags as scratch).
-  ClearFPSCRBits(kVFPInvalidExceptionBit, fpscr_flags);
-
   // Compare and load FPSCR.
   vcmp(src1, src2, cond);
-  vmrs(fpscr_flags);
+  vmrs(fpscr_flags, cond);
 }
 
 void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
                                             const double src2,
                                             const Register fpscr_flags,
                                             const Condition cond) {
-  // Clear the Invalid cumulative exception flags (use fpscr_flags as scratch).
-  ClearFPSCRBits(kVFPInvalidExceptionBit, fpscr_flags);
-
   // Compare and load FPSCR.
   vcmp(src1, src2, cond);
-  vmrs(fpscr_flags);
+  vmrs(fpscr_flags, cond);
 }
 
 

@@ -298,12 +298,17 @@ const DwVfpRegister d14 = { 14 };
 const DwVfpRegister d15 = { 15 };
 
 // VFP FPSCR constants.
-static const uint32_t kVFPExceptionMask = 0xf;
-static const uint32_t kVFPRoundingModeMask = 3 << 22;
-static const uint32_t kVFPFlushToZeroMask = 1 << 24;
-static const uint32_t kVFPRoundToMinusInfinityBits = 2 << 22;
+static const uint32_t kVFPNConditionFlagBit = 1 << 31;
 static const uint32_t kVFPZConditionFlagBit = 1 << 30;
-static const uint32_t kVFPInvalidExceptionBit = 1;
+static const uint32_t kVFPCConditionFlagBit = 1 << 29;
+static const uint32_t kVFPVConditionFlagBit = 1 << 28;
+
+static const uint32_t kVFPFlushToZeroMask = 1 << 24;
+
+static const uint32_t kVFPRoundingModeMask = 3 << 22;
+static const uint32_t kVFPRoundToMinusInfinityBits = 2 << 22;
+
+static const uint32_t kVFPExceptionMask = 0xf;
 
 // Coprocessor register
 struct CRegister {

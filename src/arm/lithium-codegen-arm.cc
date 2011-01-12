@@ -1134,7 +1134,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
     // Test the double value. Zero and NaN are false.
     __ VFPCompareAndLoadFlags(reg, 0.0, scratch);
-    __ tst(scratch, Operand(kVFPZConditionFlagBit | kVFPInvalidExceptionBit));
+    __ tst(scratch, Operand(kVFPZConditionFlagBit | kVFPVConditionFlagBit));
     EmitBranch(true_block, false_block, ne);
   } else {
     ASSERT(r.IsTagged());
@@ -1172,7 +1172,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ sub(ip, reg, Operand(kHeapObjectTag));
       __ vldr(dbl_scratch, ip, HeapNumber::kValueOffset);
       __ VFPCompareAndLoadFlags(dbl_scratch, 0.0, scratch);
-      __ tst(scratch, Operand(kVFPZConditionFlagBit | kVFPInvalidExceptionBit));
+      __ tst(scratch, Operand(kVFPZConditionFlagBit | kVFPVConditionFlagBit));
       __ b(ne, false_label);
       __ b(true_label);
 
