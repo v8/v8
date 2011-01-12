@@ -72,6 +72,7 @@ ANDROID_FLAGS = ['-march=armv7-a',
                  '-fgcse-after-reload',
                  '-frerun-cse-after-loop',
                  '-frename-registers',
+                 '-fomit-frame-pointer',
                  '-finline-limit=64',
                  '-DCAN_USE_VFP_INSTRUCTIONS=1',
                  '-DCAN_USE_ARMV7_INSTRUCTIONS=1',
@@ -142,10 +143,10 @@ LIBRARY_FLAGS = {
       }
     },
     'mode:release': {
-      'CCFLAGS':      ['-O2', '-fdata-sections',
+      'CCFLAGS':      ['-O3', '-fomit-frame-pointer', '-fdata-sections',
                        '-ffunction-sections'],
       'os:android': {
-        'CCFLAGS':    ['-mthumb'],
+        'CCFLAGS':    ['-mthumb', '-Os'],
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
     },
