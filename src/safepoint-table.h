@@ -30,12 +30,77 @@
 
 #include "v8.h"
 
-#include "macro-assembler.h"
+#include "heap.h"
 #include "zone.h"
 #include "zone-inl.h"
 
 namespace v8 {
 namespace internal {
+
+struct Register;
+
+class SafepointEntry BASE_EMBEDDED {
+ public:
+  SafepointEntry() : info_(0), bits_(NULL) {}
+
+  SafepointEntry(unsigned info, uint8_t* bits) : info_(info), bits_(bits) {
+    ASSERT(is_valid());
+  }
+
+  bool is_valid() const { return bits_ != NULL; }
+
+  bool Equals(const SafepointEntry& other) const {
+    return info_ == other.info_ && bits_ == other.bits_;
+  }
+
+  void Reset() {
+    info_ = 0;
+    bits_ = NULL;
+  }
+
+  int deoptimization_index() const {
+    ASSERT(is_valid());
+    return DeoptimizationIndexField::decode(info_);
+  }
+
+  int gap_code_size() const {
+    ASSERT(is_valid());
+    return GapCodeSizeField::decode(info_);
+  }
+
+  int argument_count() const {
+    ASSERT(is_valid());
+    return ArgumentsField::decode(info_);
+  }
+
+  uint8_t* bits() {
+    ASSERT(is_valid());
+    return bits_;
+  }
+
+  bool HasRegisters() const;
+  bool HasRegisterAt(int reg_index) const;
+
+  // Reserve 13 bits for the gap code size. On ARM a constant pool can be
+  // emitted when generating the gap code. The size of the const pool is less
+  // than what can be represented in 12 bits, so 13 bits gives room for having
+  // instructions before potentially emitting a constant pool.
+  static const int kGapCodeSizeBits = 13;
+  static const int kArgumentsFieldBits = 3;
+  static const int kDeoptIndexBits =
+      32 - kGapCodeSizeBits - kArgumentsFieldBits;
+  class GapCodeSizeField: public BitField<unsigned, 0, kGapCodeSizeBits> {};
+  class DeoptimizationIndexField: public BitField<int,
+                                                  kGapCodeSizeBits,
+                                                  kDeoptIndexBits> {};  // NOLINT
+  class ArgumentsField: public BitField<unsigned,
+                                        kGapCodeSizeBits + kDeoptIndexBits,
+                                        kArgumentsFieldBits> {};  // NOLINT
+ private:
+  unsigned info_;
+  uint8_t* bits_;
+};
+
 
 class SafepointTable BASE_EMBEDDED {
  public:
@@ -52,34 +117,15 @@ class SafepointTable BASE_EMBEDDED {
     return Memory::uint32_at(GetPcOffsetLocation(index));
   }
 
-  int GetDeoptimizationIndex(unsigned index) const {
+  SafepointEntry GetEntry(unsigned index) const {
     ASSERT(index < length_);
-    unsigned value = Memory::uint32_at(GetDeoptimizationLocation(index));
-    return DeoptimizationIndexField::decode(value);
+    unsigned info = Memory::uint32_at(GetInfoLocation(index));
+    uint8_t* bits = &Memory::uint8_at(entries_ + (index * entry_size_));
+    return SafepointEntry(info, bits);
   }
 
-  unsigned GetGapCodeSize(unsigned index) const {
-    ASSERT(index < length_);
-    unsigned value = Memory::uint32_at(GetDeoptimizationLocation(index));
-    return GapCodeSizeField::decode(value);
-  }
-
-  uint8_t* GetEntry(unsigned index) const {
-    ASSERT(index < length_);
-    return &Memory::uint8_at(entries_ + (index * entry_size_));
-  }
-
-  // Reserve 13 bits for the gap code size. On ARM a constant pool can be
-  // emitted when generating the gap code. The size of the const pool is less
-  // than what can be represented in 12 bits, so 13 bits gives room for having
-  // instructions before potentially emitting a constant pool.
-  static const int kGapCodeSizeBits = 13;
-  static const int kDeoptIndexBits = 32 - kGapCodeSizeBits;
-  class GapCodeSizeField: public BitField<unsigned, 0, kGapCodeSizeBits> {};
-  class DeoptimizationIndexField: public BitField<int, kGapCodeSizeBits, kDeoptIndexBits> {};  // NOLINT
-
-  static bool HasRegisters(uint8_t* entry);
-  static bool HasRegisterAt(uint8_t* entry, int reg_index);
+  // Returns the entry for the given pc.
+  SafepointEntry FindEntry(Address pc) const;
 
   void PrintEntry(unsigned index) const;
 
@@ -100,7 +146,7 @@ class SafepointTable BASE_EMBEDDED {
            (index * kPcAndDeoptimizationIndexSize);
   }
 
-  Address GetDeoptimizationLocation(unsigned index) const {
+  Address GetInfoLocation(unsigned index) const {
     return GetPcOffsetLocation(index) + kPcSize;
   }
 
@@ -115,16 +161,19 @@ class SafepointTable BASE_EMBEDDED {
   Address entries_;
 
   friend class SafepointTableBuilder;
+  friend class SafepointEntry;
+
+  DISALLOW_COPY_AND_ASSIGN(SafepointTable);
 };
 
 
 class Safepoint BASE_EMBEDDED {
  public:
   static const int kNoDeoptimizationIndex =
-      (1 << (SafepointTable::kDeoptIndexBits)) - 1;
+      (1 << (SafepointEntry::kDeoptIndexBits)) - 1;
 
   void DefinePointerSlot(int index) { indexes_->Add(index); }
-  void DefinePointerRegister(Register reg) { registers_->Add(reg.code()); }
+  void DefinePointerRegister(Register reg);
 
  private:
   Safepoint(ZoneList<int>* indexes, ZoneList<int>* registers) :
@@ -177,9 +226,10 @@ class SafepointTableBuilder BASE_EMBEDDED {
     unsigned pc;
     unsigned deoptimization_index;
     unsigned pc_after_gap;
+    unsigned arguments;
   };
 
-  uint32_t EncodeDeoptimizationIndexAndGap(DeoptimizationInfo info);
+  uint32_t EncodeExceptPC(const DeoptimizationInfo& info);
 
   ZoneList<DeoptimizationInfo> deoptimization_info_;
   ZoneList<ZoneList<int>*> indexes_;

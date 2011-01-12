@@ -5987,14 +5987,9 @@ int Code::SourceStatementPosition(Address pc) {
 }
 
 
-uint8_t* Code::GetSafepointEntry(Address pc) {
+SafepointEntry Code::GetSafepointEntry(Address pc) {
   SafepointTable table(this);
-  unsigned pc_offset = static_cast<unsigned>(pc - instruction_start());
-  for (unsigned i = 0; i < table.length(); i++) {
-    // TODO(kasperl): Replace the linear search with binary search.
-    if (table.GetPcOffset(i) == pc_offset) return table.GetEntry(i);
-  }
-  return NULL;
+  return table.FindEntry(pc);
 }
 
 
@@ -6265,11 +6260,14 @@ void Code::Disassemble(const char* name, FILE* out) {
       PrintF(out, "%p  %4d  ", (instruction_start() + pc_offset), pc_offset);
       table.PrintEntry(i);
       PrintF(out, " (sp -> fp)");
-      int deoptimization_index = table.GetDeoptimizationIndex(i);
-      if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
-        PrintF(out, "  %6d", deoptimization_index);
+      SafepointEntry entry = table.GetEntry(i);
+      if (entry.deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
+        PrintF(out, "  %6d", entry.deoptimization_index());
       } else {
         PrintF(out, "  <none>");
+      }
+      if (entry.argument_count() > 0) {
+        PrintF(out, " argc: %d", entry.argument_count());
       }
       PrintF(out, "\n");
     }
