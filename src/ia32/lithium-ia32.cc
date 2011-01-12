@@ -957,22 +957,23 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
       Token::Value op = compare->token();
       HValue* left = compare->left();
       HValue* right = compare->right();
-      if (left->representation().IsInteger32()) {
+      Representation r = compare->GetInputRepresentation();
+      if (r.IsInteger32()) {
+        ASSERT(left->representation().IsInteger32());
         ASSERT(right->representation().IsInteger32());
-        return new LCmpIDAndBranch(op,
-                                   UseRegisterAtStart(left),
+
+        return new LCmpIDAndBranch(UseRegisterAtStart(left),
                                    UseOrConstantAtStart(right),
                                    first_id,
-                                   second_id,
-                                   false);
-      } else if (left->representation().IsDouble()) {
+                                   second_id);
+      } else if (r.IsDouble()) {
+        ASSERT(left->representation().IsDouble());
         ASSERT(right->representation().IsDouble());
-        return new LCmpIDAndBranch(op,
-                                   UseRegisterAtStart(left),
+
+        return new LCmpIDAndBranch(UseRegisterAtStart(left),
                                    UseRegisterAtStart(right),
                                    first_id,
-                                   second_id,
-                                   true);
+                                   second_id);
       } else {
         ASSERT(left->representation().IsTagged());
         ASSERT(right->representation().IsTagged());
@@ -1013,7 +1014,6 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
       // We only need a temp register for non-strict compare.
       LOperand* temp = compare->is_strict() ? NULL : TempRegister();
       return new LIsNullAndBranch(UseRegisterAtStart(compare->value()),
-                                  compare->is_strict(),
                                   temp,
                                   first_id,
                                   second_id);
@@ -1379,17 +1379,22 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
 
 LInstruction* LChunkBuilder::DoCompare(HCompare* instr) {
   Token::Value op = instr->token();
-  if (instr->left()->representation().IsInteger32()) {
+  Representation r = instr->GetInputRepresentation();
+  if (r.IsInteger32()) {
+    ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
-    return DefineAsRegister(new LCmpID(op, left, right, false));
-  } else if (instr->left()->representation().IsDouble()) {
+    return DefineAsRegister(new LCmpID(left, right));
+  } else if (r.IsDouble()) {
+    ASSERT(instr->left()->representation().IsDouble());
     ASSERT(instr->right()->representation().IsDouble());
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseRegisterAtStart(instr->right());
-    return DefineAsRegister(new LCmpID(op, left, right, true));
+    return DefineAsRegister(new LCmpID(left, right));
   } else {
+    ASSERT(instr->left()->representation().IsTagged());
+    ASSERT(instr->right()->representation().IsTagged());
     bool reversed = (op == Token::GT || op == Token::LTE);
     LOperand* left = UseFixed(instr->left(), reversed ? eax : edx);
     LOperand* right = UseFixed(instr->right(), reversed ? edx : eax);
@@ -1412,8 +1417,7 @@ LInstruction* LChunkBuilder::DoIsNull(HIsNull* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
 
-  return DefineAsRegister(new LIsNull(value,
-                                      instr->is_strict()));
+  return DefineAsRegister(new LIsNull(value));
 }
 
 

@@ -633,29 +633,26 @@ class LMulI: public LBinaryOperation<1> {
 
 class LCmpID: public LBinaryOperation<1> {
  public:
-  LCmpID(Token::Value op, LOperand* left, LOperand* right, bool is_double)
-      : LBinaryOperation<1>(left, right), op_(op), is_double_(is_double) { }
+  LCmpID(LOperand* left, LOperand* right)
+      : LBinaryOperation<1>(left, right) { }
 
-  Token::Value op() const { return op_; }
-  bool is_double() const { return is_double_; }
+  Token::Value op() const { return hydrogen()->token(); }
+  bool is_double() const {
+    return hydrogen()->GetInputRepresentation().IsDouble();
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(CmpID, "cmp-id")
-
- private:
-  Token::Value op_;
-  bool is_double_;
+  DECLARE_HYDROGEN_ACCESSOR(Compare)
 };
 
 
 class LCmpIDAndBranch: public LCmpID {
  public:
-  LCmpIDAndBranch(Token::Value op,
-                  LOperand* left,
+  LCmpIDAndBranch(LOperand* left,
                   LOperand* right,
                   int true_block_id,
-                  int false_block_id,
-                  bool is_double)
-      : LCmpID(op, left, right, is_double),
+                  int false_block_id)
+      : LCmpID(left, right),
         true_block_id_(true_block_id),
         false_block_id_(false_block_id) { }
 
@@ -718,26 +715,22 @@ class LCmpJSObjectEqAndBranch: public LCmpJSObjectEq {
 
 class LIsNull: public LUnaryOperation<1> {
  public:
-  LIsNull(LOperand* value, bool is_strict)
-      : LUnaryOperation<1>(value), is_strict_(is_strict) {}
+  explicit LIsNull(LOperand* value) : LUnaryOperation<1>(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(IsNull, "is-null")
+  DECLARE_HYDROGEN_ACCESSOR(IsNull)
 
-  bool is_strict() const { return is_strict_; }
-
- private:
-  bool is_strict_;
+  bool is_strict() const { return hydrogen()->is_strict(); }
 };
 
 
 class LIsNullAndBranch: public LIsNull {
  public:
   LIsNullAndBranch(LOperand* value,
-                   bool is_strict,
                    LOperand* temp,
                    int true_block_id,
                    int false_block_id)
-      : LIsNull(value, is_strict),
+      : LIsNull(value),
         temp_(temp),
         true_block_id_(true_block_id),
         false_block_id_(false_block_id) { }
