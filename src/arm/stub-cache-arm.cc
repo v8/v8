@@ -1965,7 +1965,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
 
   // Check for -0.
-  __ cmp(r0, Operand(0));
+  __ cmp(r0, Operand(0, RelocInfo::NONE));
   __ b(&restore_fpscr_and_return, ne);
   // r5 already holds the HeapNumber exponent.
   __ tst(r5, Operand(HeapNumber::kSignMask));

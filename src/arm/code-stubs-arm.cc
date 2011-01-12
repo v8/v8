@@ -2516,7 +2516,7 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
     ExternalReference external_caught(Top::k_external_caught_exception_address);
-    __ mov(r0, Operand(false));
+    __ mov(r0, Operand(false, RelocInfo::NONE));
     __ mov(r2, Operand(external_caught));
     __ str(r0, MemOperand(r2));
 
