@@ -2093,8 +2093,8 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
-      break;
     case Token::MOD:
+      break;
     case Token::BIT_OR:
     case Token::BIT_AND:
     case Token::BIT_XOR:
@@ -2160,7 +2160,7 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
     }
     case Token::BIT_OR:
     case Token::BIT_AND:
-      case Token::BIT_XOR:
+    case Token::BIT_XOR:
     case Token::SAR:
     case Token::SHL:
     case Token::SHR: {
