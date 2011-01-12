@@ -370,7 +370,7 @@ class JavaScriptScanner : public Scanner {
     bool complete_;
   };
 
-  JavaScriptScanner(ScannerConstants* scanner_constants);
+  explicit JavaScriptScanner(ScannerConstants* scanner_constants);
 
   // Returns the next token.
   Token::Value Next();

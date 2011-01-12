@@ -3500,14 +3500,13 @@ class Internals {
     return *reinterpret_cast<T*>(addr);
   }
 
- static inline bool CanCastToHeapObject(void*) { return false; }
- static inline bool CanCastToHeapObject(Context*) { return true; }
- static inline bool CanCastToHeapObject(String*) { return true; }
- static inline bool CanCastToHeapObject(Object*) { return true; }
- static inline bool CanCastToHeapObject(Message*) { return true; }
- static inline bool CanCastToHeapObject(StackTrace*) { return true; }
- static inline bool CanCastToHeapObject(StackFrame*) { return true; }
-
+  static inline bool CanCastToHeapObject(void* o) { return false; }
+  static inline bool CanCastToHeapObject(Context* o) { return true; }
+  static inline bool CanCastToHeapObject(String* o) { return true; }
+  static inline bool CanCastToHeapObject(Object* o) { return true; }
+  static inline bool CanCastToHeapObject(Message* o) { return true; }
+  static inline bool CanCastToHeapObject(StackTrace* o) { return true; }
+  static inline bool CanCastToHeapObject(StackFrame* o) { return true; }
 };
 
 }  // namespace internal
@@ -3527,8 +3526,8 @@ Local<T> Local<T>::New(Handle<T> that) {
   T* that_ptr = *that;
   internal::Object** p = reinterpret_cast<internal::Object**>(that_ptr);
   if (internal::Internals::CanCastToHeapObject(that_ptr)) {
-    return Local<T>(reinterpret_cast<T*>(
-      HandleScope::CreateHandle(reinterpret_cast<internal::HeapObject*>(*p))));
+    return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(
+        reinterpret_cast<internal::HeapObject*>(*p))));
   }
   return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(*p)));
 }

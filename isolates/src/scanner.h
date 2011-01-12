@@ -103,7 +103,7 @@ class StreamInitializer {
 
 class V8JavaScriptScanner : public JavaScriptScanner {
  public:
-  V8JavaScriptScanner(Isolate* isolate)
+  explicit V8JavaScriptScanner(Isolate* isolate)
       : JavaScriptScanner(isolate->scanner_constants()) {}
 
   // Initialize the Scanner to scan source.

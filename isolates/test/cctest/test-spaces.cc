@@ -158,8 +158,8 @@ TEST(MemoryAllocator) {
 TEST(NewSpace) {
   OS::Setup();
   CHECK(HEAP->ConfigureHeapDefault());
-  CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved(),
-                                                      HEAP->MaxExecutableSize()));
+  CHECK(Isolate::Current()->memory_allocator()->Setup(
+      HEAP->MaxReserved(), HEAP->MaxExecutableSize()));
 
   NewSpace new_space(HEAP);
 
@@ -186,8 +186,8 @@ TEST(NewSpace) {
 TEST(OldSpace) {
   OS::Setup();
   CHECK(HEAP->ConfigureHeapDefault());
-  CHECK(Isolate::Current()->memory_allocator()->Setup(HEAP->MaxReserved(),
-                                                      HEAP->MaxExecutableSize()));
+  CHECK(Isolate::Current()->memory_allocator()->Setup(
+      HEAP->MaxReserved(), HEAP->MaxExecutableSize()));
 
   OldSpace* s = new OldSpace(HEAP,
                              HEAP->MaxOldGenerationSize(),
