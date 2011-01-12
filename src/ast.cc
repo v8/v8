@@ -215,12 +215,16 @@ bool ObjectLiteral::Property::emit_store() {
 
 
 bool IsEqualString(void* first, void* second) {
+  ASSERT((*reinterpret_cast<String**>(first))->IsString());
+  ASSERT((*reinterpret_cast<String**>(second))->IsString());
   Handle<String> h1(reinterpret_cast<String**>(first));
   Handle<String> h2(reinterpret_cast<String**>(second));
   return (*h1)->Equals(*h2);
 }
 
 bool IsEqualSmi(void* first, void* second) {
+  ASSERT((*reinterpret_cast<Smi**>(first))->IsSmi());
+  ASSERT((*reinterpret_cast<Smi**>(second))->IsSmi());
   Handle<Smi> h1(reinterpret_cast<Smi**>(first));
   Handle<Smi> h2(reinterpret_cast<Smi**>(second));
   return (*h1)->value() == (*h2)->value();
@@ -266,12 +270,12 @@ void ObjectLiteral::CalculateEmitStore() {
     // If the key of a computed property is in the table, do not emit
     // a store for the property later.
     if (property->kind() == ObjectLiteral::Property::COMPUTED) {
-      if (table->Lookup(literal, hash, false) != NULL) {
+      if (table->Lookup(key, hash, false) != NULL) {
         property->set_emit_store(false);
       }
     }
     // Add key to the table.
-    table->Lookup(literal, hash, true);
+    table->Lookup(key, hash, true);
   }
 }
 
