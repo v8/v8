@@ -25,6 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
+
+#if defined(V8_TARGET_ARCH_X64)
+
 #include "x64/lithium-codegen-x64.h"
 #include "code-stubs.h"
 #include "stub-cache.h"
@@ -1125,3 +1129,5 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 #undef __
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_X64
