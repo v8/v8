@@ -42,7 +42,6 @@ namespace internal {
 class LDeferredCode;
 class SafepointGenerator;
 
-
 class LCodeGen BASE_EMBEDDED {
  public:
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)

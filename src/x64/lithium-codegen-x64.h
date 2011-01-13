@@ -30,6 +30,7 @@
 
 #include "x64/lithium-x64.h"
 
+#include "checks.h"
 #include "deoptimizer.h"
 #include "safepoint-table.h"
 #include "scopes.h"
@@ -63,15 +64,20 @@ class LCodeGen BASE_EMBEDDED {
   // Try to generate code for the entire chunk, but it may fail if the
   // chunk contains constructs we cannot handle. Returns true if the
   // code generation attempt succeeded.
-  bool GenerateCode() {
-    UNIMPLEMENTED();
-    return false;
-  }
-
+  bool GenerateCode();
 
   // Finish the code by setting stack height, safepoint, and bailout
   // information on it.
-  void FinishCode(Handle<Code> code) { UNIMPLEMENTED(); }
+  void FinishCode(Handle<Code> code);
+
+  // Deferred code support.
+  void DoDeferredNumberTagD(LNumberTagD* instr);
+  void DoDeferredNumberTagI(LNumberTagI* instr);
+  void DoDeferredTaggedToI(LTaggedToI* instr);
+  void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
+  void DoDeferredStackCheck(LGoto* instr);
+  void DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
+                                        Label* map_check);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
@@ -102,55 +108,37 @@ class LCodeGen BASE_EMBEDDED {
   HGraph* graph() const { return chunk_->graph(); }
   MacroAssembler* masm() const { return masm_; }
 
-  int GetNextEmittedBlock(int block) {
-    UNIMPLEMENTED();
-    return 0;
-  }
-  LInstruction* GetNextInstruction() {
-    UNIMPLEMENTED();
-    return NULL;
-  }
+  int GetNextEmittedBlock(int block);
+  LInstruction* GetNextInstruction();
 
   void EmitClassOfTest(Label* if_true,
                        Label* if_false,
                        Handle<String> class_name,
                        Register input,
                        Register temporary,
-                       Register temporary2) { UNIMPLEMENTED(); }
+                       Register temporary2);
 
   int StackSlotCount() const { return chunk()->spill_slot_count(); }
   int ParameterCount() const { return scope()->num_parameters(); }
 
-  void Abort(const char* format, ...) { UNIMPLEMENTED(); }
-  void Comment(const char* format, ...) { UNIMPLEMENTED(); }
+  void Abort(const char* format, ...);
+  void Comment(const char* format, ...);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code); }
 
   // Code generation passes.  Returns true if code generation should
   // continue.
-  bool GeneratePrologue() {
-    UNIMPLEMENTED();
-    return true;
-  }
-  bool GenerateBody() {
-    UNIMPLEMENTED();
-    return true;
-  }
-  bool GenerateDeferredCode() {
-    UNIMPLEMENTED();
-    return true;
-  }
-  bool GenerateSafepointTable() {
-    UNIMPLEMENTED();
-    return true;
-  }
+  bool GeneratePrologue();
+  bool GenerateBody();
+  bool GenerateDeferredCode();
+  bool GenerateSafepointTable();
 
   void CallCode(Handle<Code> code,
                 RelocInfo::Mode mode,
-                LInstruction* instr) { UNIMPLEMENTED(); }
+                LInstruction* instr);
   void CallRuntime(Runtime::Function* function,
                    int num_arguments,
-                   LInstruction* instr) { UNIMPLEMENTED(); }
+                   LInstruction* instr);
   void CallRuntime(Runtime::FunctionId id,
                    int num_arguments,
                    LInstruction* instr) {
@@ -158,19 +146,70 @@ class LCodeGen BASE_EMBEDDED {
     CallRuntime(function, num_arguments, instr);
   }
 
-  void DeoptimizeIf(Condition cc, LEnvironment* environment) {
-    UNIMPLEMENTED();
-  }
+  // Generate a direct call to a known function.  Expects the function
+  // to be in edi.
+  void CallKnownFunction(Handle<JSFunction> function,
+                         int arity,
+                         LInstruction* instr);
+
+  void LoadPrototype(Register result, Handle<JSObject> prototype);
+
+  void RegisterLazyDeoptimization(LInstruction* instr);
+  void RegisterEnvironmentForDeoptimization(LEnvironment* environment);
+  void DeoptimizeIf(Condition cc, LEnvironment* environment);
 
   void AddToTranslation(Translation* translation,
                         LOperand* op,
-                        bool is_tagged) { UNIMPLEMENTED(); }
+                        bool is_tagged);
+  void PopulateDeoptimizationData(Handle<Code> code);
+  int DefineDeoptimizationLiteral(Handle<Object> literal);
 
-  int DefineDeoptimizationLiteral(Handle<Object> literal) {
-    UNIMPLEMENTED();
-    return 0;
-  }
-  void PopulateDeoptimizationLiteralsWithInlinedFunctions() { UNIMPLEMENTED(); }
+  void PopulateDeoptimizationLiteralsWithInlinedFunctions();
+
+  Register ToRegister(int index) const;
+  XMMRegister ToDoubleRegister(int index) const;
+  Register ToRegister(LOperand* op) const;
+  XMMRegister ToDoubleRegister(LOperand* op) const;
+  int ToInteger32(LConstantOperand* op) const;
+  Operand ToOperand(LOperand* op) const;
+
+  // Specific math operations - used from DoUnaryMathOperation.
+  void DoMathAbs(LUnaryMathOperation* instr);
+  void DoMathFloor(LUnaryMathOperation* instr);
+  void DoMathRound(LUnaryMathOperation* instr);
+  void DoMathSqrt(LUnaryMathOperation* instr);
+  void DoMathPowHalf(LUnaryMathOperation* instr);
+  void DoMathLog(LUnaryMathOperation* instr);
+  void DoMathCos(LUnaryMathOperation* instr);
+  void DoMathSin(LUnaryMathOperation* instr);
+
+  // Support for recording safepoint and position information.
+  void RecordSafepoint(LPointerMap* pointers, int deoptimization_index);
+  void RecordSafepointWithRegisters(LPointerMap* pointers,
+                                    int arguments,
+                                    int deoptimization_index);
+  void RecordPosition(int position);
+
+  static Condition TokenToCondition(Token::Value op, bool is_unsigned);
+  void EmitGoto(int block, LDeferredCode* deferred_stack_check = NULL);
+  void EmitBranch(int left_block, int right_block, Condition cc);
+  void EmitCmpI(LOperand* left, LOperand* right);
+  void EmitNumberUntagD(Register input, XMMRegister result, LEnvironment* env);
+
+  // Emits optimized code for typeof x == "y".  Modifies input register.
+  // Returns the condition on which a final split to
+  // true and false label should be made, to optimize fallthrough.
+  Condition EmitTypeofIs(Label* true_label, Label* false_label,
+                         Register input, Handle<String> type_name);
+
+  // Emits optimized code for %_IsObject(x).  Preserves input register.
+  // Returns the condition on which a final split to
+  // true and false label should be made, to optimize fallthrough.
+  Condition EmitIsObject(Register input,
+                         Register temp1,
+                         Register temp2,
+                         Label* is_not_object,
+                         Label* is_object);
 
   LChunk* const chunk_;
   MacroAssembler* const masm_;
@@ -191,6 +230,9 @@ class LCodeGen BASE_EMBEDDED {
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.
   SafepointTableBuilder safepoints_;
+
+  // Compiler from a set of parallel moves to a sequential list of moves.
+  LGapResolver resolver_;
 
   friend class LDeferredCode;
   friend class LEnvironment;

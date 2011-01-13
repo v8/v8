@@ -98,6 +98,16 @@ struct Register {
   static const int kNumRegisters = 16;
   static const int kNumAllocatableRegisters = 10;
 
+  static int ToAllocationIndex(Register reg) {
+    return allocationIndexByRegisterCode[reg.code()];
+  }
+
+  static Register FromAllocationIndex(int index) {
+    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    Register result = { registerCodeByAllocationIndex[index] };
+    return result;
+  }
+
   static const char* AllocationIndexToString(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
@@ -143,6 +153,9 @@ struct Register {
   // Unfortunately we can't make this private in a struct when initializing
   // by assignment.
   int code_;
+ private:
+  static const int registerCodeByAllocationIndex[kNumAllocatableRegisters];
+  static const int allocationIndexByRegisterCode[kNumRegisters];
 };
 
 const Register rax = { 0 };
@@ -171,6 +184,12 @@ struct XMMRegister {
   static int ToAllocationIndex(XMMRegister reg) {
     ASSERT(reg.code() != 0);
     return reg.code() - 1;
+  }
+
+  static XMMRegister FromAllocationIndex(int index) {
+    ASSERT(0 <= index && index < kNumAllocatableRegisters);
+    XMMRegister result = { index + 1 };
+    return result;
   }
 
   static const char* AllocationIndexToString(int index) {
