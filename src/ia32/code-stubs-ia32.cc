@@ -1773,12 +1773,40 @@ void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
+  Label call_runtime;
   ASSERT(operands_type_ == TRBinaryOpIC::STRING);
   ASSERT(op_ == Token::ADD);
+  // If one of the arguments is a string, call the string add stub.
+  // Otherwise, transition to the generic TRBinaryOpIC type.
 
-  // Try to add arguments as strings, otherwise, transition to the generic
-  // TRBinaryOpIC type.
-  GenerateAddStrings(masm);
+  // Registers containing left and right operands respectively.
+  Register left = edx;
+  Register right = eax;
+
+  // Test if left operand is a string.
+  NearLabel left_not_string;
+  __ test(left, Immediate(kSmiTagMask));
+  __ j(zero, &left_not_string);
+  __ CmpObjectType(left, FIRST_NONSTRING_TYPE, ecx);
+  __ j(above_equal, &left_not_string);
+
+  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
+  GenerateRegisterArgsPush(masm);
+  __ TailCallStub(&string_add_left_stub);
+
+  // Left operand is not a string, test right.
+  __ bind(&left_not_string);
+  __ test(right, Immediate(kSmiTagMask));
+  __ j(zero, &call_runtime);
+  __ CmpObjectType(right, FIRST_NONSTRING_TYPE, ecx);
+  __ j(above_equal, &call_runtime);
+
+  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+  GenerateRegisterArgsPush(masm);
+  __ TailCallStub(&string_add_right_stub);
+
+  // Neither argument is a string.
+  __ bind(&call_runtime);
   GenerateTypeTransition(masm);
 }
 
@@ -1939,7 +1967,49 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   // If an allocation fails, or SHR or MOD hit a hard case,
   // use the runtime system to get the correct result.
   __ bind(&call_runtime);
-  GenerateCallRuntime(masm);
+
+  switch (op_) {
+    case Token::ADD:
+      GenerateRegisterArgsPush(masm);
+      __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
+      break;
+    case Token::SUB:
+      GenerateRegisterArgsPush(masm);
+      __ InvokeBuiltin(Builtins::SUB, JUMP_FUNCTION);
+      break;
+    case Token::MUL:
+      GenerateRegisterArgsPush(masm);
+      __ InvokeBuiltin(Builtins::MUL, JUMP_FUNCTION);
+      break;
+    case Token::DIV:
+      GenerateRegisterArgsPush(masm);
+      __ InvokeBuiltin(Builtins::DIV, JUMP_FUNCTION);
+      break;
+    case Token::MOD:
+      GenerateRegisterArgsPush(masm);
+      __ InvokeBuiltin(Builtins::MOD, JUMP_FUNCTION);
+      break;
+    case Token::BIT_OR:
+      __ InvokeBuiltin(Builtins::BIT_OR, JUMP_FUNCTION);
+      break;
+    case Token::BIT_AND:
+      __ InvokeBuiltin(Builtins::BIT_AND, JUMP_FUNCTION);
+      break;
+    case Token::BIT_XOR:
+      __ InvokeBuiltin(Builtins::BIT_XOR, JUMP_FUNCTION);
+      break;
+    case Token::SAR:
+      __ InvokeBuiltin(Builtins::SAR, JUMP_FUNCTION);
+      break;
+    case Token::SHL:
+      __ InvokeBuiltin(Builtins::SHL, JUMP_FUNCTION);
+      break;
+    case Token::SHR:
+      __ InvokeBuiltin(Builtins::SHR, JUMP_FUNCTION);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 
@@ -2079,7 +2149,49 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
   // If an allocation fails, or SHR or MOD hit a hard case,
   // use the runtime system to get the correct result.
   __ bind(&call_runtime);
-  GenerateCallRuntime(masm);
+
+  switch (op_) {
+    case Token::ADD:
+      GenerateRegisterArgsPush(masm);
+      __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
+      break;
+    case Token::SUB:
+      GenerateRegisterArgsPush(masm);
+      __ InvokeBuiltin(Builtins::SUB, JUMP_FUNCTION);
+      break;
+    case Token::MUL:
+      GenerateRegisterArgsPush(masm);
+      __ InvokeBuiltin(Builtins::MUL, JUMP_FUNCTION);
+      break;
+    case Token::DIV:
+      GenerateRegisterArgsPush(masm);
+      __ InvokeBuiltin(Builtins::DIV, JUMP_FUNCTION);
+      break;
+    case Token::MOD:
+      GenerateRegisterArgsPush(masm);
+      __ InvokeBuiltin(Builtins::MOD, JUMP_FUNCTION);
+      break;
+    case Token::BIT_OR:
+      __ InvokeBuiltin(Builtins::BIT_OR, JUMP_FUNCTION);
+      break;
+    case Token::BIT_AND:
+      __ InvokeBuiltin(Builtins::BIT_AND, JUMP_FUNCTION);
+      break;
+    case Token::BIT_XOR:
+      __ InvokeBuiltin(Builtins::BIT_XOR, JUMP_FUNCTION);
+      break;
+    case Token::SAR:
+      __ InvokeBuiltin(Builtins::SAR, JUMP_FUNCTION);
+      break;
+    case Token::SHL:
+      __ InvokeBuiltin(Builtins::SHL, JUMP_FUNCTION);
+      break;
+    case Token::SHR:
+      __ InvokeBuiltin(Builtins::SHR, JUMP_FUNCTION);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 
@@ -2093,8 +2205,8 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
-    case Token::MOD:
       break;
+    case Token::MOD:
     case Token::BIT_OR:
     case Token::BIT_AND:
     case Token::BIT_XOR:
@@ -2160,7 +2272,7 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
     }
     case Token::BIT_OR:
     case Token::BIT_AND:
-    case Token::BIT_XOR:
+      case Token::BIT_XOR:
     case Token::SAR:
     case Token::SHL:
     case Token::SHR: {
@@ -2233,56 +2345,41 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
   // If all else fails, use the runtime system to get the correct
   // result.
   __ bind(&call_runtime);
-
-  // Try to add strings before calling runtime.
-  if (op_ == Token::ADD) {
-    GenerateAddStrings(masm);
-  }
-
-  // Generate the runtime call.
-  GenerateCallRuntime(masm);
-}
-
-
-void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
-  // If one of the arguments is a string, call the string add stub.
-  // Registers containing left and right operands respectively.
-  NearLabel left_not_string, neither_string;
-  Register left = edx;
-  Register right = eax;
-
-  // Test if left operand is a string.
-  __ test(left, Immediate(kSmiTagMask));
-  __ j(zero, &left_not_string);
-  __ CmpObjectType(left, FIRST_NONSTRING_TYPE, ecx);
-  __ j(above_equal, &left_not_string);
-
-  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
-  GenerateRegisterArgsPush(masm);
-  __ TailCallStub(&string_add_left_stub);
-
-  // Left operand is not a string, test right.
-  __ bind(&left_not_string);
-  __ test(right, Immediate(kSmiTagMask));
-  __ j(zero, &neither_string);
-  __ CmpObjectType(right, FIRST_NONSTRING_TYPE, ecx);
-  __ j(above_equal, &neither_string);
-
-  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
-  GenerateRegisterArgsPush(masm);
-  __ TailCallStub(&string_add_right_stub);
-
-  // Neither argument is a string.
-  __ bind(&neither_string);
-}
-
-
-void TypeRecordingBinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
   switch (op_) {
-    case Token::ADD:
+    case Token::ADD: {
       GenerateRegisterArgsPush(masm);
+      // Test for string arguments before calling runtime.
+      // Registers containing left and right operands respectively.
+      Register lhs, rhs;
+      lhs = edx;
+      rhs = eax;
+
+      // Test if left operand is a string.
+      NearLabel lhs_not_string;
+      __ test(lhs, Immediate(kSmiTagMask));
+      __ j(zero, &lhs_not_string);
+      __ CmpObjectType(lhs, FIRST_NONSTRING_TYPE, ecx);
+      __ j(above_equal, &lhs_not_string);
+
+      StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
+      __ TailCallStub(&string_add_left_stub);
+
+      NearLabel call_add_runtime;
+      // Left operand is not a string, test right.
+      __ bind(&lhs_not_string);
+      __ test(rhs, Immediate(kSmiTagMask));
+      __ j(zero, &call_add_runtime);
+      __ CmpObjectType(rhs, FIRST_NONSTRING_TYPE, ecx);
+      __ j(above_equal, &call_add_runtime);
+
+      StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+      __ TailCallStub(&string_add_right_stub);
+
+      // Neither argument is a string.
+      __ bind(&call_add_runtime);
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
       break;
+    }
     case Token::SUB:
       GenerateRegisterArgsPush(masm);
       __ InvokeBuiltin(Builtins::SUB, JUMP_FUNCTION);
@@ -2296,7 +2393,6 @@ void TypeRecordingBinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
       __ InvokeBuiltin(Builtins::DIV, JUMP_FUNCTION);
       break;
     case Token::MOD:
-      GenerateRegisterArgsPush(masm);
       __ InvokeBuiltin(Builtins::MOD, JUMP_FUNCTION);
       break;
     case Token::BIT_OR:

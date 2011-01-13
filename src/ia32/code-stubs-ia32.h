@@ -308,8 +308,6 @@ class TypeRecordingBinaryOpStub: public CodeStub {
   void GenerateHeapNumberStub(MacroAssembler* masm);
   void GenerateStringStub(MacroAssembler* masm);
   void GenerateGenericStub(MacroAssembler* masm);
-  void GenerateAddStrings(MacroAssembler* masm);
-  void GenerateCallRuntime(MacroAssembler* masm);
 
   void GenerateHeapResultAllocation(MacroAssembler* masm, Label* alloc_failure);
   void GenerateRegisterArgsPush(MacroAssembler* masm);
