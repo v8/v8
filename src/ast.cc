@@ -645,10 +645,19 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     }
   }
 #endif
-  if (receiver_types_ != NULL && receiver_types_->length() > 0) {
-    Handle<Map> type = receiver_types_->at(0);
-    is_monomorphic_ = oracle->CallIsMonomorphic(this);
-    if (is_monomorphic_) is_monomorphic_ = ComputeTarget(type, name);
+  is_monomorphic_ = oracle->CallIsMonomorphic(this);
+  check_type_ = oracle->GetCallCheckType(this);
+  if (is_monomorphic_) {
+    Handle<Map> map;
+    if (receiver_types_ != NULL && receiver_types_->length() > 0) {
+      ASSERT(check_type_ == RECEIVER_MAP_CHECK);
+      map = receiver_types_->at(0);
+    } else {
+      ASSERT(check_type_ != RECEIVER_MAP_CHECK);
+      map = Handle<Map>(
+          oracle->GetPrototypeForPrimitiveCheck(check_type_)->map());
+    }
+    is_monomorphic_ = ComputeTarget(map, name);
   }
 }
 

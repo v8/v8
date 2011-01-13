@@ -262,7 +262,9 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
     HTracer::Instance()->TraceCompilation(info->function());
   }
 
-  TypeFeedbackOracle oracle(Handle<Code>(info->shared_info()->code()));
+  TypeFeedbackOracle oracle(
+      Handle<Code>(info->shared_info()->code()),
+      Handle<Context>(info->closure()->context()->global_context()));
   HGraphBuilder builder(&oracle);
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph(info);
