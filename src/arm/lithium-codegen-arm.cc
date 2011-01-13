@@ -1980,12 +1980,44 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
-  Abort("DoMathFloor unimplemented.");
+  DoubleRegister input = ToDoubleRegister(instr->input());
+  Register result = ToRegister(instr->result());
+  Register prev_fpscr = ToRegister(instr->temp());
+  SwVfpRegister single_scratch = single_scratch0();
+  Register scratch = scratch0();
+
+  // Set custom FPCSR:
+  //  - Set rounding mode to "Round towards Minus Infinity".
+  //  - Clear vfp cumulative exception flags.
+  //  - Make sure Flush-to-zero mode control bit is unset.
+  __ vmrs(prev_fpscr);
+  __ bic(scratch, prev_fpscr,
+      Operand(kVFPExceptionMask | kVFPRoundingModeMask | kVFPFlushToZeroMask));
+  __ orr(scratch, scratch, Operand(kVFPRoundToMinusInfinityBits));
+  __ vmsr(scratch);
+
+  // Convert the argument to an integer.
+  __ vcvt_s32_f64(single_scratch,
+                  input,
+                  Assembler::FPSCRRounding,
+                  al);
+
+  // Retrieve FPSCR and check for vfp exceptions.
+  __ vmrs(scratch);
+  // Restore FPSCR
+  __ vmsr(prev_fpscr);
+  __ tst(scratch, Operand(kVFPExceptionMask));
+  DeoptimizeIf(ne, instr->environment());
+
+  // Move the result back to general purpose register r0.
+  __ vmov(result, single_scratch);
 }
 
 
 void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
-  Abort("DoMathSqrt unimplemented.");
+  DoubleRegister input = ToDoubleRegister(instr->input());
+  ASSERT(ToDoubleRegister(instr->result()).is(input));
+  __ vsqrt(input, input);
 }
 
 

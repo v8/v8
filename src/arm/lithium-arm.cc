@@ -1120,7 +1120,8 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   BuiltinFunctionId op = instr->op();
   LOperand* input = UseRegisterAtStart(instr->value());
-  LInstruction* result = new LUnaryMathOperation(input);
+  LOperand* temp = (op == kMathFloor) ? TempRegister() : NULL;
+  LInstruction* result = new LUnaryMathOperation(input, temp);
   switch (op) {
     case kMathAbs:
       return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));

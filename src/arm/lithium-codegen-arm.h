@@ -107,6 +107,9 @@ class LCodeGen BASE_EMBEDDED {
   MacroAssembler* masm() const { return masm_; }
 
   Register scratch0() { return r9; }
+  SwVfpRegister single_scratch0() { return s0; }
+  SwVfpRegister single_scratch1() { return s1; }
+  DwVfpRegister double_scratch0() { return d1; }
 
   int GetNextEmittedBlock(int block);
   LInstruction* GetNextInstruction();

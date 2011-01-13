@@ -621,14 +621,18 @@ class LCmpIDAndBranch: public LCmpID {
 
 class LUnaryMathOperation: public LUnaryOperation {
  public:
-  explicit LUnaryMathOperation(LOperand* value)
-      : LUnaryOperation(value) { }
+  explicit LUnaryMathOperation(LOperand* value, LOperand* temp)
+      : LUnaryOperation(value), temp_(temp) { }
 
   DECLARE_CONCRETE_INSTRUCTION(UnaryMathOperation, "unary-math-operation")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
 
   virtual void PrintDataTo(StringStream* stream) const;
   BuiltinFunctionId op() const { return hydrogen()->op(); }
+  LOperand* temp() const { return temp_; }
+
+ private:
+  LOperand* temp_;
 };
 
 

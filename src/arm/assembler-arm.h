@@ -167,8 +167,11 @@ struct SwVfpRegister {
 struct DwVfpRegister {
   // d0 has been excluded from allocation. This is following ia32
   // where xmm0 is excluded. This should be revisited.
+  // Currently d0 is used as a scratch register.
+  // d1 has also been excluded from allocation to be used as a scratch
+  // register as well.
   static const int kNumRegisters = 16;
-  static const int kNumAllocatableRegisters = 15;
+  static const int kNumAllocatableRegisters = 14;
 
   static int ToAllocationIndex(DwVfpRegister reg) {
     ASSERT(reg.code() != 0);
@@ -177,13 +180,12 @@ struct DwVfpRegister {
 
   static DwVfpRegister FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    return from_code(index + 1);
+    return from_code(index + 2);
   }
 
   static const char* AllocationIndexToString(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
-      "d1",
       "d2",
       "d3",
       "d4",
