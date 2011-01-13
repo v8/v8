@@ -387,6 +387,7 @@
 		89F23C9E0E78D5FD006B2466 /* macro-assembler-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1540E719B8F00D62E90 /* macro-assembler-arm.cc */; };
 		89F23C9F0E78D604006B2466 /* simulator-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF17D0E719B8F00D62E90 /* simulator-arm.cc */; };
 		89F23CA00E78D609006B2466 /* stub-cache-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */; };
+		89F3605B12DCDF6400ACF8A6 /* lithium-codegen-x64.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89F3605A12DCDF6400ACF8A6 /* lithium-codegen-x64.cc */; };
 		89FB0E3A0F8E533F00B04B3C /* d8-posix.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89FB0E360F8E531900B04B3C /* d8-posix.cc */; };
 		9F11D9A0105AF0A300EBE5B2 /* heap-profiler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F11D99E105AF0A300EBE5B2 /* heap-profiler.cc */; };
 		9F11D9A1105AF0A300EBE5B2 /* heap-profiler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F11D99E105AF0A300EBE5B2 /* heap-profiler.cc */; };
@@ -887,6 +888,7 @@
 		89B91BCE12D4F02A002FF4BC /* d8-x64 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "d8-x64"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89F23C870E78D5B2006B2466 /* libv8-arm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libv8-arm.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89F23C950E78D5B6006B2466 /* v8_shell-arm */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "v8_shell-arm"; sourceTree = BUILT_PRODUCTS_DIR; };
+		89F3605A12DCDF6400ACF8A6 /* lithium-codegen-x64.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "lithium-codegen-x64.cc"; path = "x64/lithium-codegen-x64.cc"; sourceTree = "<group>"; };
 		89FB0E360F8E531900B04B3C /* d8-posix.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-posix.cc"; path = "../src/d8-posix.cc"; sourceTree = "<group>"; };
 		89FB0E370F8E531900B04B3C /* d8-windows.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-windows.cc"; path = "../src/d8-windows.cc"; sourceTree = "<group>"; };
 		9F11D99E105AF0A300EBE5B2 /* heap-profiler.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "heap-profiler.cc"; sourceTree = "<group>"; };
@@ -1438,6 +1440,7 @@
 				89B91B8A12D4EF95002FF4BC /* full-codegen-x64.cc */,
 				89B91B8B12D4EF95002FF4BC /* ic-x64.cc */,
 				89B91B8C12D4EF95002FF4BC /* jump-target-x64.cc */,
+				89F3605A12DCDF6400ACF8A6 /* lithium-codegen-x64.cc */,
 				89B91B8D12D4EF95002FF4BC /* lithium-codegen-x64.h */,
 				8938A2A212D63B630080CDDE /* lithium-x64.cc */,
 				89B91B8E12D4EF95002FF4BC /* lithium-x64.h */,
@@ -1954,6 +1957,7 @@
 				89B91BAC12D4EF95002FF4BC /* virtual-frame-x64.cc in Sources */,
 				8938A2A312D63B630080CDDE /* lithium-x64.cc in Sources */,
 				894A59E912D777E80000766D /* lithium.cc in Sources */,
+				89F3605B12DCDF6400ACF8A6 /* lithium-codegen-x64.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
