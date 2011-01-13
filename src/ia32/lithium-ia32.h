@@ -77,6 +77,7 @@ class LCodeGen;
 //   LCallNamed
 //   LCallRuntime
 //   LCallStub
+//   LCheckPrototypeMaps
 //   LConstant
 //     LConstantD
 //     LConstantI
@@ -111,7 +112,6 @@ class LCodeGen;
 //     LCheckFunction
 //     LCheckInstanceType
 //     LCheckMap
-//     LCheckPrototypeMaps
 //     LCheckSmi
 //     LClassOfTest
 //     LClassOfTestAndBranch
@@ -1680,8 +1680,8 @@ class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps, "check-prototype-maps")
   DECLARE_HYDROGEN_ACCESSOR(CheckPrototypeMaps)
 
+  Handle<JSObject> prototype() const { return hydrogen()->prototype(); }
   Handle<JSObject> holder() const { return hydrogen()->holder(); }
-  Handle<Map> receiver_map() const { return hydrogen()->receiver_map(); }
 
   LOperand* temp() const { return temp_; }
 

@@ -3795,9 +3795,9 @@ void HGraphBuilder::AddCheckConstantFunction(Call* expr,
     AddInstruction(new HCheckMap(receiver, receiver_map));
   }
   if (!expr->holder().is_null()) {
-    AddInstruction(new HCheckPrototypeMaps(receiver,
-                                           expr->holder(),
-                                           receiver_map));
+    AddInstruction(new HCheckPrototypeMaps(
+        Handle<JSObject>(JSObject::cast(receiver_map->prototype())),
+        expr->holder()));
   }
 }
 

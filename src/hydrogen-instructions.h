@@ -92,6 +92,7 @@ class LChunkBuilder;
 //       HCallNew
 //       HCallRuntime
 //     HCallStub
+//     HCheckPrototypeMaps
 //     HConstant
 //     HControlInstruction
 //       HDeoptimize
@@ -125,7 +126,6 @@ class LChunkBuilder;
 //       HCheckInstanceType
 //       HCheckMap
 //       HCheckNonSmi
-//       HCheckPrototypeMaps
 //       HCheckSmi
 //       HDeleteProperty
 //       HFixedArrayLength
@@ -1622,42 +1622,40 @@ class HCheckNonSmi: public HUnaryOperation {
 };
 
 
-class HCheckPrototypeMaps: public HUnaryOperation {
+class HCheckPrototypeMaps: public HInstruction {
  public:
-  HCheckPrototypeMaps(HValue* value,
-                      Handle<JSObject> holder,
-                      Handle<Map> receiver_map)
-      : HUnaryOperation(value),
-        holder_(holder),
-        receiver_map_(receiver_map) {
-    set_representation(Representation::Tagged());
+  HCheckPrototypeMaps(Handle<JSObject> prototype, Handle<JSObject> holder)
+      : prototype_(prototype), holder_(holder) {
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::Tagged();
   }
 
 #ifdef DEBUG
   virtual void Verify() const;
 #endif
 
+  Handle<JSObject> prototype() const { return prototype_; }
   Handle<JSObject> holder() const { return holder_; }
-  Handle<Map> receiver_map() const { return receiver_map_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps, "check_prototype_maps")
+
+  virtual intptr_t Hashcode() const {
+    ASSERT(!Heap::IsAllocationAllowed());
+    intptr_t hash = reinterpret_cast<intptr_t>(*prototype());
+    hash = 17 * hash + reinterpret_cast<intptr_t>(*holder());
+    return hash;
+  }
 
  protected:
   virtual bool DataEquals(HValue* other) const {
     HCheckPrototypeMaps* b = HCheckPrototypeMaps::cast(other);
-    return holder_.is_identical_to(b->holder()) &&
-        receiver_map_.is_identical_to(b->receiver_map());
+    return prototype_.is_identical_to(b->prototype()) &&
+        holder_.is_identical_to(b->holder());
   }
 
  private:
+  Handle<JSObject> prototype_;
   Handle<JSObject> holder_;
-  Handle<Map> receiver_map_;
 };
 
 

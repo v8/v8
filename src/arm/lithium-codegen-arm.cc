@@ -2510,6 +2510,7 @@ void LCodeGen::LoadPrototype(Register result,
     Handle<JSGlobalPropertyCell> cell =
         Factory::NewJSGlobalPropertyCell(prototype);
     __ mov(result, Operand(cell));
+    __ ldr(result, FieldMemOperand(result, JSGlobalPropertyCell::kValueOffset));
   } else {
     __ mov(result, Operand(prototype));
   }
@@ -2521,8 +2522,7 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   Register temp2 = ToRegister(instr->temp2());
 
   Handle<JSObject> holder = instr->holder();
-  Handle<Map> receiver_map = instr->receiver_map();
-  Handle<JSObject> current_prototype(JSObject::cast(receiver_map->prototype()));
+  Handle<JSObject> current_prototype = instr->prototype();
 
   // Load prototype object.
   LoadPrototype(temp1, current_prototype);

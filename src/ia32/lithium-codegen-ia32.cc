@@ -3155,8 +3155,7 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   Register reg = ToRegister(instr->temp());
 
   Handle<JSObject> holder = instr->holder();
-  Handle<Map> receiver_map = instr->receiver_map();
-  Handle<JSObject> current_prototype(JSObject::cast(receiver_map->prototype()));
+  Handle<JSObject> current_prototype = instr->prototype();
 
   // Load prototype object.
   LoadPrototype(reg, current_prototype);
