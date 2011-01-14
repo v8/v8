@@ -73,6 +73,11 @@ class SafepointEntry BASE_EMBEDDED {
     return ArgumentsField::decode(info_);
   }
 
+  bool has_doubles() const {
+    ASSERT(is_valid());
+    return SaveDoublesField::decode(info_);
+  }
+
   uint8_t* bits() {
     ASSERT(is_valid());
     return bits_;
@@ -87,8 +92,9 @@ class SafepointEntry BASE_EMBEDDED {
   // instructions before potentially emitting a constant pool.
   static const int kGapCodeSizeBits = 13;
   static const int kArgumentsFieldBits = 3;
+  static const int kSaveDoublesFieldBits = 1;
   static const int kDeoptIndexBits =
-      32 - kGapCodeSizeBits - kArgumentsFieldBits;
+      32 - kGapCodeSizeBits - kArgumentsFieldBits - kSaveDoublesFieldBits;
   class GapCodeSizeField: public BitField<unsigned, 0, kGapCodeSizeBits> {};
   class DeoptimizationIndexField: public BitField<int,
                                                   kGapCodeSizeBits,
@@ -96,6 +102,11 @@ class SafepointEntry BASE_EMBEDDED {
   class ArgumentsField: public BitField<unsigned,
                                         kGapCodeSizeBits + kDeoptIndexBits,
                                         kArgumentsFieldBits> {};  // NOLINT
+  class SaveDoublesField: public BitField<bool,
+                                          kGapCodeSizeBits + kDeoptIndexBits +
+                                          kArgumentsFieldBits,
+                                          kSaveDoublesFieldBits> { }; // NOLINT
+
  private:
   unsigned info_;
   uint8_t* bits_;
@@ -209,6 +220,16 @@ class SafepointTableBuilder BASE_EMBEDDED {
       int arguments,
       int deoptimization_index = Safepoint::kNoDeoptimizationIndex);
 
+  // Define a new safepoint with all double registers and the normal
+  // registers on the stack for the current position in the body and
+  // take the number of arguments on top of the registers into account.
+  // TODO(1043) Rewrite the three SafepointTableBuilder::DefineSafepoint
+  // methods to one method that uses template arguments.
+  Safepoint DefineSafepointWithRegistersAndDoubles(
+      Assembler* assembler,
+      int arguments,
+      int deoptimization_index = Safepoint::kNoDeoptimizationIndex);
+
   // Update the last safepoint with the size of the code generated for the gap
   // following it.
   void SetPcAfterGap(int pc) {
@@ -227,6 +248,7 @@ class SafepointTableBuilder BASE_EMBEDDED {
     unsigned deoptimization_index;
     unsigned pc_after_gap;
     unsigned arguments;
+    bool has_doubles;
   };
 
   uint32_t EncodeExceptPC(const DeoptimizationInfo& info);

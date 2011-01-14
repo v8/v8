@@ -232,6 +232,9 @@ class MacroAssembler: public Assembler {
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
+  void PushSafepointRegistersAndDoubles();
+  void PopSafepointRegistersAndDoubles();
+
   static int SafepointRegisterStackIndex(int reg_code);
 
   // Load two consecutive registers with two consecutive memory locations.
@@ -714,6 +717,16 @@ class MacroAssembler: public Assembler {
 
   void SmiTag(Register reg, SBit s = LeaveCC) {
     add(reg, reg, Operand(reg), s);
+  }
+
+  // Try to convert int32 to smi. If the value is to large, preserve
+  // the original value and jump to not_a_smi. Destroys scratch and
+  // sets flags.
+  void TrySmiTag(Register reg, Label* not_a_smi, Register scratch) {
+    mov(scratch, reg);
+    SmiTag(scratch, SetCC);
+    b(vs, not_a_smi);
+    mov(reg, scratch);
   }
 
   void SmiUntag(Register reg) {

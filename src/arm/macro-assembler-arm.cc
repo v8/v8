@@ -466,6 +466,25 @@ void MacroAssembler::PopSafepointRegisters() {
 }
 
 
+void MacroAssembler::PushSafepointRegistersAndDoubles() {
+  PushSafepointRegisters();
+  sub(sp, sp, Operand(DwVfpRegister::kNumAllocatableRegisters *
+                      kDoubleSize));
+  for (int i = 0; i < DwVfpRegister::kNumAllocatableRegisters; i++) {
+    vstr(DwVfpRegister::FromAllocationIndex(i), sp, i * kDoubleSize);
+  }
+}
+
+
+void MacroAssembler::PopSafepointRegistersAndDoubles() {
+  for (int i = 0; i < DwVfpRegister::kNumAllocatableRegisters; i++) {
+    vldr(DwVfpRegister::FromAllocationIndex(i), sp, i * kDoubleSize);
+  }
+  add(sp, sp, Operand(DwVfpRegister::kNumAllocatableRegisters *
+                      kDoubleSize));
+  PopSafepointRegisters();
+}
+
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // The registers are pushed starting with the highest encoding,
   // which means that lowest encodings are closest to the stack pointer.

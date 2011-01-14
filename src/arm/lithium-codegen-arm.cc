@@ -614,6 +614,27 @@ void LCodeGen::RecordSafepointWithRegisters(LPointerMap* pointers,
 }
 
 
+void LCodeGen::RecordSafepointWithRegistersAndDoubles(
+    LPointerMap* pointers,
+    int arguments,
+    int deoptimization_index) {
+  const ZoneList<LOperand*>* operands = pointers->operands();
+  Safepoint safepoint =
+      safepoints_.DefineSafepointWithRegistersAndDoubles(
+          masm(), arguments, deoptimization_index);
+  for (int i = 0; i < operands->length(); i++) {
+    LOperand* pointer = operands->at(i);
+    if (pointer->IsStackSlot()) {
+      safepoint.DefinePointerSlot(pointer->index());
+    } else if (pointer->IsRegister()) {
+      safepoint.DefinePointerRegister(ToRegister(pointer));
+    }
+  }
+  // Register cp always contains a pointer to the context.
+  safepoint.DefinePointerRegister(cp);
+}
+
+
 void LCodeGen::RecordPosition(int position) {
   if (!FLAG_debug_info || position == RelocInfo::kNoPosition) return;
   masm()->positions_recorder()->RecordPosition(position);
@@ -832,7 +853,97 @@ void LCodeGen::DoModI(LModI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  Abort("DoDivI unimplemented.");
+  class DeferredDivI: public LDeferredCode {
+   public:
+    DeferredDivI(LCodeGen* codegen, LDivI* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredDivI(instr_); }
+   private:
+    LDivI* instr_;
+  };
+
+  const Register left = ToRegister(instr->left());
+  const Register right = ToRegister(instr->right());
+  const Register scratch = scratch0();
+  const Register result = ToRegister(instr->result());
+
+  // Check for x / 0.
+  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ tst(right, right);
+    DeoptimizeIf(eq, instr->environment());
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    Label left_not_zero;
+    __ tst(left, Operand(left));
+    __ b(ne, &left_not_zero);
+    __ tst(right, Operand(right));
+    DeoptimizeIf(mi, instr->environment());
+    __ bind(&left_not_zero);
+  }
+
+  // Check for (-kMinInt / -1).
+  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+    Label left_not_min_int;
+    __ cmp(left, Operand(kMinInt));
+    __ b(ne, &left_not_min_int);
+    __ cmp(right, Operand(-1));
+    DeoptimizeIf(eq, instr->environment());
+    __ bind(&left_not_min_int);
+  }
+
+  Label done, deoptimize;
+  // Test for a few common cases first.
+  __ cmp(right, Operand(1));
+  __ mov(result, left, LeaveCC, eq);
+  __ b(eq, &done);
+
+  __ cmp(right, Operand(2));
+  __ tst(left, Operand(1), eq);
+  __ mov(result, Operand(left, ASR, 1), LeaveCC, eq);
+  __ b(eq, &done);
+
+  __ cmp(right, Operand(4));
+  __ tst(left, Operand(3), eq);
+  __ mov(result, Operand(left, ASR, 2), LeaveCC, eq);
+  __ b(eq, &done);
+
+  // Call the generic stub. The numbers in r0 and r1 have
+  // to be tagged to Smis. If that is not possible, deoptimize.
+  DeferredDivI* deferred = new DeferredDivI(this, instr);
+
+  __ TrySmiTag(left, &deoptimize, scratch);
+  __ TrySmiTag(right, &deoptimize, scratch);
+
+  __ b(al, deferred->entry());
+  __ bind(deferred->exit());
+
+  // If the result in r0 is a Smi, untag it, else deoptimize.
+  __ BranchOnNotSmi(result, &deoptimize);
+  __ SmiUntag(result);
+  __ b(&done);
+
+  __ bind(&deoptimize);
+  DeoptimizeIf(al, instr->environment());
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoDeferredDivI(LDivI* instr) {
+  Register left = ToRegister(instr->left());
+  Register right = ToRegister(instr->right());
+
+  __ PushSafepointRegistersAndDoubles();
+  GenericBinaryOpStub stub(Token::DIV, OVERWRITE_LEFT, left, right);
+  __ CallStub(&stub);
+  RecordSafepointWithRegisters(instr->pointer_map(),
+                               0,
+                               Safepoint::kNoDeoptimizationIndex);
+  // Overwrite the stored value of r0 with the result of the stub.
+  __ str(r0, MemOperand(sp, DwVfpRegister::kNumAllocatableRegisters *
+                        kDoubleSize));
+  __ PopSafepointRegistersAndDoubles();
 }
 
 

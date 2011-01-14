@@ -71,6 +71,7 @@ class LCodeGen BASE_EMBEDDED {
   void FinishCode(Handle<Code> code);
 
   // Deferred code support.
+  void DoDeferredDivI(LDivI* instr);
   void DoDeferredNumberTagD(LNumberTagD* instr);
   void DoDeferredNumberTagI(LNumberTagI* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr);
@@ -200,6 +201,9 @@ class LCodeGen BASE_EMBEDDED {
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     int deoptimization_index);
+  void RecordSafepointWithRegistersAndDoubles(LPointerMap* pointers,
+                                              int arguments,
+                                              int deoptimization_index);
   void RecordPosition(int position);
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
