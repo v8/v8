@@ -64,10 +64,10 @@ class UC16CharacterStream {
   // Returns and advances past the next UC16 character in the input
   // stream. If there are no more characters, it returns a negative
   // value.
-  inline int32_t Advance() {
+  inline uc32 Advance() {
     if (buffer_cursor_ < buffer_end_ || ReadBlock()) {
       pos_++;
-      return *(buffer_cursor_++);
+      return static_cast<uc32>(*(buffer_cursor_++));
     }
     // Note: currently the following increment is necessary to avoid a
     // parser problem! The scanner treats the final kEndOfInput as
@@ -97,13 +97,14 @@ class UC16CharacterStream {
     return SlowSeekForward(character_count);
   }
 
-  // Pushes back the most recently read UC16 character, i.e.,
-  // the value returned by the most recent call to Advance.
+  // Pushes back the most recently read UC16 character (or negative
+  // value if at end of input), i.e., the value returned by the most recent
+  // call to Advance.
   // Must not be used right after calling SeekForward.
-  virtual void PushBack(uc16 character) = 0;
+  virtual void PushBack(int32_t character) = 0;
 
  protected:
-  static const int32_t kEndOfInput = -1;
+  static const uc32 kEndOfInput = -1;
 
   // Ensures that the buffer_cursor_ points to the character at
   // position pos_ of the input, if possible. If the position
