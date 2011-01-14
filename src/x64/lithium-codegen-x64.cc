@@ -73,13 +73,26 @@ void LCodeGen::Abort(const char* format, ...) {
 
 
 void LCodeGen::Comment(const char* format, ...) {
-  Abort("Unimplemented: %s", "Comment");
+  if (!FLAG_code_comments) return;
+  char buffer[4 * KB];
+  StringBuilder builder(buffer, ARRAY_SIZE(buffer));
+  va_list arguments;
+  va_start(arguments, format);
+  builder.AddFormattedList(format, arguments);
+  va_end(arguments);
+
+  // Copy the string before recording it in the assembler to avoid
+  // issues when the stack allocated buffer goes out of scope.
+  size_t length = builder.position();
+  Vector<char> copy = Vector<char>::New(length + 1);
+  memcpy(copy.start(), builder.Finalize(), copy.length());
+  masm()->RecordComment(copy.start());
 }
 
 
 bool LCodeGen::GeneratePrologue() {
   Abort("Unimplemented: %s", "GeneratePrologue");
-  return !is_aborted();
+  return false;
 }
 
 
@@ -131,7 +144,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
 bool LCodeGen::GenerateSafepointTable() {
   Abort("Unimplemented: %s", "GeneratePrologue");
-  return !is_aborted();
+  return false;
 }
 
 
@@ -487,7 +500,8 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
 
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
-  Abort("Unimplemented: %s", "DoConstantT");
+    ASSERT(instr->result()->IsRegister());
+  __ Move(ToRegister(instr->result()), instr->value());
 }
 
 
@@ -561,7 +575,20 @@ void LCodeGen::DoDeferredStackCheck(LGoto* instr) {
 
 
 void LCodeGen::DoGoto(LGoto* instr) {
-  Abort("Unimplemented: %s", "DoGoto");
+  class DeferredStackCheck: public LDeferredCode {
+   public:
+    DeferredStackCheck(LCodeGen* codegen, LGoto* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredStackCheck(instr_); }
+   private:
+    LGoto* instr_;
+  };
+
+  DeferredStackCheck* deferred = NULL;
+  if (instr->include_stack_check()) {
+    deferred = new DeferredStackCheck(this, instr);
+  }
+  EmitGoto(instr->block_id(), deferred);
 }
 
 
@@ -759,7 +786,16 @@ void LCodeGen::DoCmpTAndBranch(LCmpTAndBranch* instr) {
 
 
 void LCodeGen::DoReturn(LReturn* instr) {
-  Abort("Unimplemented: %s", "DoReturn");
+  if (FLAG_trace) {
+    // Preserve the return value on the stack and rely on the runtime
+    // call to return the value in the same register.
+    __ push(rax);
+    __ CallRuntime(Runtime::kTraceExit, 1);
+  }
+  __ movq(rsp, rbp);
+  __ pop(rbp);
+  __ ret((ParameterCount() + 1) * kPointerSize);
+
 }
 
 

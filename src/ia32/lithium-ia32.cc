@@ -1614,7 +1614,7 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   } else if (r.IsTagged()) {
     return DefineAsRegister(new LConstantT(instr->handle()));
   } else {
-    Abort("unsupported constant of type double");
+    UNREACHABLE();
     return NULL;
   }
 }

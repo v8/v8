@@ -738,7 +738,65 @@ LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
 }
 
 void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
-  Abort("Unimplemented: %s", "DoBasicBlock");
+  ASSERT(is_building());
+  current_block_ = block;
+  next_block_ = next_block;
+  if (block->IsStartBlock()) {
+    block->UpdateEnvironment(graph_->start_environment());
+    argument_count_ = 0;
+  } else if (block->predecessors()->length() == 1) {
+    // We have a single predecessor => copy environment and outgoing
+    // argument count from the predecessor.
+    ASSERT(block->phis()->length() == 0);
+    HBasicBlock* pred = block->predecessors()->at(0);
+    HEnvironment* last_environment = pred->last_environment();
+    ASSERT(last_environment != NULL);
+    // Only copy the environment, if it is later used again.
+    if (pred->end()->SecondSuccessor() == NULL) {
+      ASSERT(pred->end()->FirstSuccessor() == block);
+    } else {
+      if (pred->end()->FirstSuccessor()->block_id() > block->block_id() ||
+          pred->end()->SecondSuccessor()->block_id() > block->block_id()) {
+        last_environment = last_environment->Copy();
+      }
+    }
+    block->UpdateEnvironment(last_environment);
+    ASSERT(pred->argument_count() >= 0);
+    argument_count_ = pred->argument_count();
+  } else {
+    // We are at a state join => process phis.
+    HBasicBlock* pred = block->predecessors()->at(0);
+    // No need to copy the environment, it cannot be used later.
+    HEnvironment* last_environment = pred->last_environment();
+    for (int i = 0; i < block->phis()->length(); ++i) {
+      HPhi* phi = block->phis()->at(i);
+      last_environment->SetValueAt(phi->merged_index(), phi);
+    }
+    for (int i = 0; i < block->deleted_phis()->length(); ++i) {
+      last_environment->SetValueAt(block->deleted_phis()->at(i),
+                                   graph_->GetConstantUndefined());
+    }
+    block->UpdateEnvironment(last_environment);
+    // Pick up the outgoing argument count of one of the predecessors.
+    argument_count_ = pred->argument_count();
+  }
+  HInstruction* current = block->first();
+  int start = chunk_->instructions()->length();
+  while (current != NULL && !is_aborted()) {
+    // Code for constants in registers is generated lazily.
+    if (!current->EmitAtUses()) {
+      VisitInstruction(current);
+    }
+    current = current->next();
+  }
+  int end = chunk_->instructions()->length() - 1;
+  if (end >= start) {
+    block->set_first_instruction_index(start);
+    block->set_last_instruction_index(end);
+  }
+  block->set_argument_count(argument_count_);
+  next_block_ = NULL;
+  current_block_ = NULL;
 }
 
 
@@ -808,8 +866,11 @@ LEnvironment* LChunkBuilder::CreateEnvironment(HEnvironment* hydrogen_env) {
 
 
 LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
-  Abort("Unimplemented: %s", "DoGoto");
-  return NULL;
+  LGoto* result = new LGoto(instr->FirstSuccessor()->block_id(),
+                            instr->include_stack_check());
+  return (instr->include_stack_check())
+      ? AssignPointerMap(result)
+      : result;
 }
 
 
@@ -1131,14 +1192,24 @@ LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
 
 
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
-  Abort("Unimplemented: %s", "DoReturn");
-  return NULL;
+  return new LReturn(UseFixed(instr->value(), rax));
 }
 
 
 LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
-  Abort("Unimplemented: %s", "DoConstant");
-  return NULL;
+  Representation r = instr->representation();
+  if (r.IsInteger32()) {
+    int32_t value = instr->Integer32Value();
+    return DefineAsRegister(new LConstantI(value));
+  } else if (r.IsDouble()) {
+    double value = instr->DoubleValue();
+    return DefineAsRegister(new LConstantD(value));
+  } else if (r.IsTagged()) {
+    return DefineAsRegister(new LConstantT(instr->handle()));
+  } else {
+    UNREACHABLE();
+    return NULL;
+  }
 }
 
 
@@ -1254,8 +1325,8 @@ LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
 
 
 LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
-  Abort("Unimplemented: %s", "DoParameter");
-  return NULL;
+  int spill_index = chunk()->GetParameterStackSlot(instr->index());
+  return DefineAsSpilled(new LParameter, spill_index);
 }
 
 
@@ -1295,14 +1366,39 @@ LInstruction* LChunkBuilder::DoTypeofIs(HTypeofIs* instr) {
 }
 
 LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
-  Abort("Unimplemented: %s", "DoSimulate");
+  HEnvironment* env = current_block_->last_environment();
+  ASSERT(env != NULL);
+
+  env->set_ast_id(instr->ast_id());
+
+  env->Drop(instr->pop_count());
+  for (int i = 0; i < instr->values()->length(); ++i) {
+    HValue* value = instr->values()->at(i);
+    if (instr->HasAssignedIndexAt(i)) {
+      env->Bind(instr->GetAssignedIndexAt(i), value);
+    } else {
+      env->Push(value);
+    }
+  }
+  ASSERT(env->length() == instr->environment_length());
+
+  // If there is an instruction pending deoptimization environment create a
+  // lazy bailout instruction to capture the environment.
+  if (pending_deoptimization_ast_id_ == instr->ast_id()) {
+    LLazyBailout* lazy_bailout = new LLazyBailout;
+    LInstruction* result = AssignEnvironment(lazy_bailout);
+    instructions_pending_deoptimization_environment_->
+        set_deoptimization_environment(result->environment());
+    ClearInstructionPendingDeoptimizationEnvironment();
+    return result;
+  }
+
   return NULL;
 }
 
 
 LInstruction* LChunkBuilder::DoStackCheck(HStackCheck* instr) {
-  Abort("Unimplemented: %s", "DoStackCheck");
-  return NULL;
+  return MarkAsCall(new LStackCheck, instr);
 }
 
 

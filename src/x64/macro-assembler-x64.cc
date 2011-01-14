@@ -1274,8 +1274,6 @@ void MacroAssembler::Move(Register dst, Register src) {
 }
 
 
-
-
 void MacroAssembler::Move(Register dst, Handle<Object> source) {
   ASSERT(!source->IsFailure());
   if (source->IsSmi()) {
