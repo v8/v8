@@ -124,10 +124,10 @@ assertTrue(Debug.showBreakPoints(g).indexOf("[B0]") < 0);
 function setBreakpointByPosition(f, position)
 {
   var break_point = Debug.setBreakPointByScriptIdAndPosition(
-	  Debug.findScript(f).id,
-	  position + Debug.sourcePosition(f),
-	  "",
-	  true);
+      Debug.findScript(f).id,
+      position + Debug.sourcePosition(f),
+      "",
+      true);
   return break_point.number();
 }
 
