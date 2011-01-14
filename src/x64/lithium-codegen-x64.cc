@@ -242,8 +242,52 @@ void LCodeGen::Comment(const char* format, ...) {
 
 
 bool LCodeGen::GeneratePrologue() {
-  Abort("Unimplemented: %s", "GeneratePrologue");
-  return false;
+  ASSERT(is_generating());
+
+#ifdef DEBUG
+  if (strlen(FLAG_stop_at) > 0 &&
+      info_->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+    __ int3();
+  }
+#endif
+
+  __ push(rbp);  // Caller's frame pointer.
+  __ movq(rbp, rsp);
+  __ push(rsi);  // Callee's context.
+  __ push(rdi);  // Callee's JS function.
+
+  // Reserve space for the stack slots needed by the code.
+  int slots = StackSlotCount();
+  if (slots > 0) {
+    if (FLAG_debug_code) {
+      __ movl(rax, Immediate(slots));
+      __ movq(kScratchRegister, kSlotsZapValue, RelocInfo::NONE);
+      Label loop;
+      __ bind(&loop);
+      __ push(kScratchRegister);
+      __ decl(rax);
+      __ j(not_zero, &loop);
+    } else {
+      __ subq(rsp, Immediate(slots * kPointerSize));
+#ifdef _MSC_VER
+      // On windows, you may not access the stack more than one page below
+      // the most recently mapped page. To make the allocated area randomly
+      // accessible, we write to each page in turn (the value is irrelevant).
+      const int kPageSize = 4 * KB;
+      for (int offset = slots * kPointerSize - kPageSize;
+           offset > 0;
+           offset -= kPageSize) {
+        __ moveq(Operand(rsp, offset), rax);
+      }
+#endif
+    }
+  }
+
+  // Trace the call.
+  if (FLAG_trace) {
+    __ CallRuntime(Runtime::kTraceEnter, 0);
+  }
+  return !is_aborted();
 }
 
 

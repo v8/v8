@@ -305,15 +305,20 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 
 
 int LChunk::GetNextSpillIndex(bool is_double) {
-  // Need to consider what index means: Is it 32 bit or 64 bit index?
-  UNIMPLEMENTED();
-  return 0;
+  return spill_slot_count_++;
 }
 
 
 LOperand* LChunk::GetNextSpillSlot(bool is_double)  {
-  UNIMPLEMENTED();
-  return NULL;
+  // All stack slots are Double stack slots on x64.
+  // Alternatively, at some point, start using half-size
+  // stack slots for int32 values.
+  int index = GetNextSpillIndex(is_double);
+  if (is_double) {
+    return LDoubleStackSlot::Create(index);
+  } else {
+    return LStackSlot::Create(index);
+  }
 }
 
 
@@ -736,6 +741,7 @@ LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
   Abort("Unimplemented: %s", "DoArithmeticT");
   return NULL;
 }
+
 
 void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
   ASSERT(is_building());

@@ -290,6 +290,17 @@ bool LCodeGen::GeneratePrologue() {
       __ j(not_zero, &loop);
     } else {
       __ sub(Operand(esp), Immediate(slots * kPointerSize));
+#ifdef _MSC_VER
+      // On windows, you may not access the stack more than one page below
+      // the most recently mapped page. To make the allocated area randomly
+      // accessible, we write to each page in turn (the value is irrelevant).
+      const int kPageSize = 4 * KB;
+      for (int offset = slots * kPointerSize - kPageSize;
+           offset > 0;
+           offset -= kPageSize) {
+        __ mov(Operand(esp, offset), eax);
+      }
+#endif
     }
   }
 
