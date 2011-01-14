@@ -1014,6 +1014,8 @@ function errorToString() {
   var message = this.hasOwnProperty("message") ? (": " + this.message) : "";
   return this.name + message;
 }
+
+%FunctionSetName(errorToString, 'toString');
 %SetProperty($Error.prototype, 'toString', errorToString, DONT_ENUM);
 
 
