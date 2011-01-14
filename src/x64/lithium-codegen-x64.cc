@@ -1153,7 +1153,15 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
 
 
 void LCodeGen::DoStackCheck(LStackCheck* instr) {
-  Abort("Unimplemented: %s", "DoStackCheck");
+  // Perform stack overflow check.
+  NearLabel done;
+  ExternalReference stack_limit = ExternalReference::address_of_stack_limit();
+  __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+  __ j(above_equal, &done);
+
+  StackCheckStub stub;
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ bind(&done);
 }
 
 
