@@ -2368,7 +2368,7 @@ static void check_reference_error_message(
 // Test that overwritten toString methods are not invoked on uncaught
 // exception formatting. However, they are invoked when performing
 // normal error string conversions.
-THREADED_TEST(APIThrowMessageOverwrittenToString) {
+TEST(APIThrowMessageOverwrittenToString) {
   v8::HandleScope scope;
   v8::V8::AddMessageListener(check_reference_error_message);
   LocalContext context;
