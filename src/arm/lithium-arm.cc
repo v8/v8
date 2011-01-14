@@ -1255,18 +1255,17 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsInteger32()) {
+    // TODO(1042) The fixed register allocation
+    // is needed because we call GenericBinaryOpStub from
+    // the generated code, which requires registers r0
+    // and r1 to be used. We should remove that
+    // when we provide a native implementation.
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    // The temporary operand is necessary to ensure that right is not allocated
-    // into edx.
-    FixedTemp(r1);
     LOperand* value = UseFixed(instr->left(), r0);
-    LOperand* divisor = UseRegister(instr->right());
-    LInstruction* result = DefineFixed(new LModI(value, divisor), r1);
-    if (instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
-        instr->CheckFlag(HValue::kCanBeDivByZero)) {
-      result = AssignEnvironment(result);
-    }
+    LOperand* divisor = UseFixed(instr->right(), r1);
+    LInstruction* result = DefineFixed(new LModI(value, divisor), r0);
+    result = AssignEnvironment(AssignPointerMap(result));
     return result;
   } else if (instr->representation().IsTagged()) {
     return DoArithmeticT(Token::MOD, instr);

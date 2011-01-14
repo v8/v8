@@ -848,7 +848,57 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 
 void LCodeGen::DoModI(LModI* instr) {
-  Abort("DoModI unimplemented.");
+  class DeferredModI: public LDeferredCode {
+   public:
+    DeferredModI(LCodeGen* codegen, LModI* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() {
+      codegen()->DoDeferredGenericBinaryStub(instr_, Token::MOD);
+    }
+   private:
+    LModI* instr_;
+  };
+  // These registers hold untagged 32 bit values.
+  Register left = ToRegister(instr->left());
+  Register right = ToRegister(instr->right());
+  Register result = ToRegister(instr->result());
+  Register scratch = scratch0();
+
+  Label deoptimize, done;
+  // Check for x % 0.
+  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ tst(right, Operand(right));
+    __ b(eq, &deoptimize);
+  }
+
+  // Check for (0 % -x) that will produce negative zero.
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    Label ok;
+    __ tst(left, Operand(left));
+    __ b(ne, &ok);
+    __ tst(right, Operand(right));
+    __ b(pl, &ok);
+    __ b(al, &deoptimize);
+    __ bind(&ok);
+  }
+
+  // Call the generic stub. The numbers in r0 and r1 have
+  // to be tagged to Smis. If that is not possible, deoptimize.
+  DeferredModI* deferred = new DeferredModI(this, instr);
+  __ TrySmiTag(left, &deoptimize, scratch);
+  __ TrySmiTag(right, &deoptimize, scratch);
+
+  __ b(al, deferred->entry());
+  __ bind(deferred->exit());
+
+  // If the result in r0 is a Smi, untag it, else deoptimize.
+  __ BranchOnNotSmi(result, &deoptimize);
+  __ mov(result, Operand(result, ASR, 1));
+
+  __ b(al, &done);
+  __ bind(&deoptimize);
+  DeoptimizeIf(al, instr->environment());
+  __ bind(&done);
 }
 
 
@@ -857,7 +907,9 @@ void LCodeGen::DoDivI(LDivI* instr) {
    public:
     DeferredDivI(LCodeGen* codegen, LDivI* instr)
         : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() { codegen()->DoDeferredDivI(instr_); }
+    virtual void Generate() {
+      codegen()->DoDeferredGenericBinaryStub(instr_, Token::DIV);
+    }
    private:
     LDivI* instr_;
   };
@@ -930,12 +982,13 @@ void LCodeGen::DoDivI(LDivI* instr) {
 }
 
 
-void LCodeGen::DoDeferredDivI(LDivI* instr) {
+void LCodeGen::DoDeferredGenericBinaryStub(LBinaryOperation* instr,
+                                           Token::Value op) {
   Register left = ToRegister(instr->left());
   Register right = ToRegister(instr->right());
 
   __ PushSafepointRegistersAndDoubles();
-  GenericBinaryOpStub stub(Token::DIV, OVERWRITE_LEFT, left, right);
+  GenericBinaryOpStub stub(op, OVERWRITE_LEFT, left, right);
   __ CallStub(&stub);
   RecordSafepointWithRegisters(instr->pointer_map(),
                                0,
