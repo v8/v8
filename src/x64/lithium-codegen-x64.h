@@ -193,7 +193,10 @@ class LCodeGen BASE_EMBEDDED {
   XMMRegister ToDoubleRegister(int index) const;
   Register ToRegister(LOperand* op) const;
   XMMRegister ToDoubleRegister(LOperand* op) const;
+  bool IsInteger32Constant(LConstantOperand* op) const;
   int ToInteger32(LConstantOperand* op) const;
+  bool IsTaggedConstant(LConstantOperand* op) const;
+  Handle<Object> ToHandle(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op) const;
 
   // Specific math operations - used from DoUnaryMathOperation.

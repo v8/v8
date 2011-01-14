@@ -365,12 +365,32 @@ XMMRegister LCodeGen::ToDoubleRegister(LOperand* op) const {
 }
 
 
+bool LCodeGen::IsInteger32Constant(LConstantOperand* op) const {
+  return op->IsConstantOperand() &&
+      chunk_->LookupLiteralRepresentation(op).IsInteger32();
+}
+
+
+bool LCodeGen::IsTaggedConstant(LConstantOperand* op) const {
+  return op->IsConstantOperand() &&
+      chunk_->LookupLiteralRepresentation(op).IsTagged();
+}
+
+
 int LCodeGen::ToInteger32(LConstantOperand* op) const {
   Handle<Object> value = chunk_->LookupLiteral(op);
   ASSERT(chunk_->LookupLiteralRepresentation(op).IsInteger32());
   ASSERT(static_cast<double>(static_cast<int32_t>(value->Number())) ==
       value->Number());
   return static_cast<int32_t>(value->Number());
+}
+
+
+Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
+  Handle<Object> literal = chunk_->LookupLiteral(op);
+  Representation r = chunk_->LookupLiteralRepresentation(op);
+  ASSERT(r.IsTagged());
+  return literal;
 }
 
 
@@ -621,7 +641,86 @@ void LCodeGen::DoLabel(LLabel* label) {
 
 
 void LCodeGen::DoParallelMove(LParallelMove* move) {
-  Abort("Unimplemented: %s", "DoParallelMove");
+  // xmm0 must always be a scratch register.
+  XMMRegister xmm_scratch = xmm0;
+  LUnallocated marker_operand(LUnallocated::NONE);
+
+  Register cpu_scratch = kScratchRegister;
+
+  const ZoneList<LMoveOperands>* moves =
+      resolver_.Resolve(move->move_operands(), &marker_operand);
+  for (int i = moves->length() - 1; i >= 0; --i) {
+    LMoveOperands move = moves->at(i);
+    LOperand* from = move.from();
+    LOperand* to = move.to();
+    ASSERT(!from->IsDoubleRegister() ||
+           !ToDoubleRegister(from).is(xmm_scratch));
+    ASSERT(!to->IsDoubleRegister() || !ToDoubleRegister(to).is(xmm_scratch));
+    ASSERT(!from->IsRegister() || !ToRegister(from).is(cpu_scratch));
+    ASSERT(!to->IsRegister() || !ToRegister(to).is(cpu_scratch));
+    if (from->IsConstantOperand()) {
+      LConstantOperand* constant_from = LConstantOperand::cast(from);
+      if (to->IsRegister()) {
+        if (IsInteger32Constant(constant_from)) {
+          __ movl(ToRegister(to), Immediate(ToInteger32(constant_from)));
+        } else {
+          __ Move(ToRegister(to), ToHandle(constant_from));
+        }
+      } else {
+        if (IsInteger32Constant(constant_from)) {
+          __ movl(ToOperand(to), Immediate(ToInteger32(constant_from)));
+        } else {
+          __ Move(ToOperand(to), ToHandle(constant_from));
+        }
+      }
+    } else if (from == &marker_operand) {
+      if (to->IsRegister()) {
+        __ movq(ToRegister(to), cpu_scratch);
+      } else if (to->IsStackSlot()) {
+        __ movq(ToOperand(to), cpu_scratch);
+      } else if (to->IsDoubleRegister()) {
+        __ movsd(ToDoubleRegister(to), xmm_scratch);
+      } else {
+        ASSERT(to->IsDoubleStackSlot());
+        __ movsd(ToOperand(to), xmm_scratch);
+      }
+    } else if (to == &marker_operand) {
+      if (from->IsRegister()) {
+        __ movq(cpu_scratch, ToRegister(from));
+      } else if (from->IsStackSlot()) {
+        __ movq(cpu_scratch, ToOperand(from));
+      } else if (from->IsDoubleRegister()) {
+        __ movsd(xmm_scratch, ToDoubleRegister(from));
+      } else {
+        ASSERT(from->IsDoubleStackSlot());
+        __ movsd(xmm_scratch, ToOperand(from));
+      }
+    } else if (from->IsRegister()) {
+      if (to->IsRegister()) {
+        __ movq(ToRegister(to), ToRegister(from));
+      } else {
+        __ movq(ToOperand(to), ToRegister(from));
+      }
+    } else if (to->IsRegister()) {
+      __ movq(ToRegister(to), ToOperand(from));
+    } else if (from->IsStackSlot()) {
+      ASSERT(to->IsStackSlot());
+      __ push(rax);
+      __ movq(rax, ToOperand(from));
+      __ movq(ToOperand(to), rax);
+      __ pop(rax);
+    } else if (from->IsDoubleRegister()) {
+      ASSERT(to->IsDoubleStackSlot());
+      __ movsd(ToOperand(to), ToDoubleRegister(from));
+    } else if (to->IsDoubleRegister()) {
+      ASSERT(from->IsDoubleStackSlot());
+      __ movsd(ToDoubleRegister(to), ToOperand(from));
+    } else {
+      ASSERT(to->IsDoubleStackSlot() && from->IsDoubleStackSlot());
+      __ movsd(xmm_scratch, ToOperand(from));
+      __ movsd(ToOperand(to), xmm_scratch);
+    }
+  }
 }
 
 

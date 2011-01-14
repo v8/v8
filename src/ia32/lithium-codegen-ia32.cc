@@ -412,8 +412,8 @@ Immediate LCodeGen::ToImmediate(LOperand* op) {
 
 
 Operand LCodeGen::ToOperand(LOperand* op) const {
-  if (op->IsRegister()) return Operand(ToRegister(op));
-  if (op->IsDoubleRegister()) return Operand(ToDoubleRegister(op));
+  ASSERT(!op->IsRegister());
+  ASSERT(!op->IsDoubleRegister());
   ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
   int index = op->index();
   if (index >= 0) {
