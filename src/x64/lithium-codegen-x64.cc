@@ -277,7 +277,7 @@ bool LCodeGen::GeneratePrologue() {
       for (int offset = slots * kPointerSize - kPageSize;
            offset > 0;
            offset -= kPageSize) {
-        __ moveq(Operand(rsp, offset), rax);
+        __ movq(Operand(rsp, offset), rax);
       }
 #endif
     }
