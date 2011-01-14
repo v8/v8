@@ -54,6 +54,157 @@ class SafepointGenerator : public PostCallGenerator {
 };
 
 
+class LGapNode: public ZoneObject {
+ public:
+  explicit LGapNode(LOperand* operand)
+      : operand_(operand), resolved_(false), visited_id_(-1) { }
+
+  LOperand* operand() const { return operand_; }
+  bool IsResolved() const { return !IsAssigned() || resolved_; }
+  void MarkResolved() {
+    ASSERT(!IsResolved());
+    resolved_ = true;
+  }
+  int visited_id() const { return visited_id_; }
+  void set_visited_id(int id) {
+    ASSERT(id > visited_id_);
+    visited_id_ = id;
+  }
+
+  bool IsAssigned() const { return assigned_from_.is_set(); }
+  LGapNode* assigned_from() const { return assigned_from_.get(); }
+  void set_assigned_from(LGapNode* n) { assigned_from_.set(n); }
+
+ private:
+  LOperand* operand_;
+  SetOncePointer<LGapNode> assigned_from_;
+  bool resolved_;
+  int visited_id_;
+};
+
+
+LGapResolver::LGapResolver()
+    : nodes_(32),
+      identified_cycles_(4),
+      result_(16),
+      next_visited_id_(0) {
+}
+
+
+const ZoneList<LMoveOperands>* LGapResolver::Resolve(
+    const ZoneList<LMoveOperands>* moves,
+    LOperand* marker_operand) {
+  nodes_.Rewind(0);
+  identified_cycles_.Rewind(0);
+  result_.Rewind(0);
+  next_visited_id_ = 0;
+
+  for (int i = 0; i < moves->length(); ++i) {
+    LMoveOperands move = moves->at(i);
+    if (!move.IsRedundant()) RegisterMove(move);
+  }
+
+  for (int i = 0; i < identified_cycles_.length(); ++i) {
+    ResolveCycle(identified_cycles_[i], marker_operand);
+  }
+
+  int unresolved_nodes;
+  do {
+    unresolved_nodes = 0;
+    for (int j = 0; j < nodes_.length(); j++) {
+      LGapNode* node = nodes_[j];
+      if (!node->IsResolved() && node->assigned_from()->IsResolved()) {
+        AddResultMove(node->assigned_from(), node);
+        node->MarkResolved();
+      }
+      if (!node->IsResolved()) ++unresolved_nodes;
+    }
+  } while (unresolved_nodes > 0);
+  return &result_;
+}
+
+
+void LGapResolver::AddResultMove(LGapNode* from, LGapNode* to) {
+  AddResultMove(from->operand(), to->operand());
+}
+
+
+void LGapResolver::AddResultMove(LOperand* from, LOperand* to) {
+  result_.Add(LMoveOperands(from, to));
+}
+
+
+void LGapResolver::ResolveCycle(LGapNode* start, LOperand* marker_operand) {
+  ZoneList<LOperand*> cycle_operands(8);
+  cycle_operands.Add(marker_operand);
+  LGapNode* cur = start;
+  do {
+    cur->MarkResolved();
+    cycle_operands.Add(cur->operand());
+    cur = cur->assigned_from();
+  } while (cur != start);
+  cycle_operands.Add(marker_operand);
+
+  for (int i = cycle_operands.length() - 1; i > 0; --i) {
+    LOperand* from = cycle_operands[i];
+    LOperand* to = cycle_operands[i - 1];
+    AddResultMove(from, to);
+  }
+}
+
+
+bool LGapResolver::CanReach(LGapNode* a, LGapNode* b, int visited_id) {
+  ASSERT(a != b);
+  LGapNode* cur = a;
+  while (cur != b && cur->visited_id() != visited_id && cur->IsAssigned()) {
+    cur->set_visited_id(visited_id);
+    cur = cur->assigned_from();
+  }
+
+  return cur == b;
+}
+
+
+bool LGapResolver::CanReach(LGapNode* a, LGapNode* b) {
+  ASSERT(a != b);
+  return CanReach(a, b, next_visited_id_++);
+}
+
+
+void LGapResolver::RegisterMove(LMoveOperands move) {
+  if (move.from()->IsConstantOperand()) {
+    // Constant moves should be last in the machine code. Therefore add them
+    // first to the result set.
+    AddResultMove(move.from(), move.to());
+  } else {
+    LGapNode* from = LookupNode(move.from());
+    LGapNode* to = LookupNode(move.to());
+    if (to->IsAssigned() && to->assigned_from() == from) {
+      move.Eliminate();
+      return;
+    }
+    ASSERT(!to->IsAssigned());
+    if (CanReach(from, to)) {
+      // This introduces a cycle. Save.
+      identified_cycles_.Add(from);
+    }
+    to->set_assigned_from(from);
+  }
+}
+
+
+LGapNode* LGapResolver::LookupNode(LOperand* operand) {
+  for (int i = 0; i < nodes_.length(); ++i) {
+    if (nodes_[i]->operand()->Equals(operand)) return nodes_[i];
+  }
+
+  // No node found => create a new one.
+  LGapNode* result = new LGapNode(operand);
+  nodes_.Add(result);
+  return result;
+}
+
+
 #define __ masm()->
 
 bool LCodeGen::GenerateCode() {

@@ -36,30 +36,7 @@ namespace v8 {
 namespace internal {
 
 class LCodeGen;
-class LGapNode;
 class Translation;
-
-class LGapResolver BASE_EMBEDDED {
- public:
-  LGapResolver();
-  const ZoneList<LMoveOperands>* Resolve(const ZoneList<LMoveOperands>* moves,
-                                         LOperand* marker_operand);
-
- private:
-  LGapNode* LookupNode(LOperand* operand);
-  bool CanReach(LGapNode* a, LGapNode* b, int visited_id);
-  bool CanReach(LGapNode* a, LGapNode* b);
-  void RegisterMove(LMoveOperands move);
-  void AddResultMove(LOperand* from, LOperand* to);
-  void AddResultMove(LGapNode* from, LGapNode* to);
-  void ResolveCycle(LGapNode* start, LOperand* marker_operand);
-
-  ZoneList<LGapNode*> nodes_;
-  ZoneList<LGapNode*> identified_cycles_;
-  ZoneList<LMoveOperands> result_;
-  int next_visited_id_;
-};
-
 
 class LParallelMove : public ZoneObject {
  public:
