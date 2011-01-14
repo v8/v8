@@ -554,6 +554,11 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
     parameters_base += safepoint_entry.argument_count();
   }
 
+  if (safepoint_entry.has_doubles()) {
+    parameters_base += DwVfpRegister::kNumAllocatableRegisters *
+        kDoubleSize / kPointerSize;
+  }
+
   // Visit the registers that contain pointers if any.
   if (safepoint_entry.HasRegisters()) {
     for (int i = kNumSafepointRegisters - 1; i >=0; i--) {

@@ -999,6 +999,7 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 
 void LCodeGen::DoModI(LModI* instr) {
+  Abort("ModI not implemented");
   class DeferredModI: public LDeferredCode {
    public:
     DeferredModI(LCodeGen* codegen, LModI* instr)
@@ -1054,6 +1055,7 @@ void LCodeGen::DoModI(LModI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
+  Abort("DivI not implemented");
   class DeferredDivI: public LDeferredCode {
    public:
     DeferredDivI(LCodeGen* codegen, LDivI* instr)
@@ -1141,9 +1143,9 @@ void LCodeGen::DoDeferredGenericBinaryStub(LBinaryOperation* instr,
   __ PushSafepointRegistersAndDoubles();
   GenericBinaryOpStub stub(op, OVERWRITE_LEFT, left, right);
   __ CallStub(&stub);
-  RecordSafepointWithRegisters(instr->pointer_map(),
-                               0,
-                               Safepoint::kNoDeoptimizationIndex);
+  RecordSafepointWithRegistersAndDoubles(instr->pointer_map(),
+                                         0,
+                                         Safepoint::kNoDeoptimizationIndex);
   // Overwrite the stored value of r0 with the result of the stub.
   __ str(r0, MemOperand(sp, DwVfpRegister::kNumAllocatableRegisters *
                         kDoubleSize));
