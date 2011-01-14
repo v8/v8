@@ -1189,9 +1189,9 @@ class LValueOf: public LUnaryOperation<1> {
 };
 
 
-class LThrow: public LUnaryOperation<1> {
+class LThrow: public LUnaryOperation<0> {
  public:
-  explicit LThrow(LOperand* value) : LUnaryOperation<1>(value) { }
+  explicit LThrow(LOperand* value) : LUnaryOperation<0>(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
 };
