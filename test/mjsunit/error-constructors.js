@@ -48,4 +48,14 @@ assertTrue(e1.hasOwnProperty('type'));
 assertTrue(e0.hasOwnProperty('arguments'));
 assertTrue(e1.hasOwnProperty('arguments'));
 
+// Check that the name property on error prototypes is read-only and
+// dont-delete. This is not specified, but allowing overwriting the
+// name property with a getter can leaks error objects from different
+// script tags in the same context in a browser setting. We therefore
+// disallow changes to the name property on error objects.
+assertEquals("ReferenceError", ReferenceError.prototype.name);
+delete ReferenceError.prototype.name;
+assertEquals("ReferenceError", ReferenceError.prototype.name);
+ReferenceError.prototype.name = "not a reference error";
+assertEquals("ReferenceError", ReferenceError.prototype.name);
 
