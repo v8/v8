@@ -555,7 +555,7 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
   }
 
   if (safepoint_entry.has_doubles()) {
-    parameters_base += DwVfpRegister::kNumAllocatableRegisters *
+    parameters_base += DoubleRegister::kNumAllocatableRegisters *
         kDoubleSize / kPointerSize;
   }
 
