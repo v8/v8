@@ -795,7 +795,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
   __ movq(rsp, rbp);
   __ pop(rbp);
   __ ret((ParameterCount() + 1) * kPointerSize);
-
 }
 
 
