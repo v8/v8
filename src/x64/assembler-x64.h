@@ -112,15 +112,15 @@ struct Register {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
       "rax",
-      "rcx",
-      "rdx",
       "rbx",
+      "rdx",
+      "rcx",
       "rdi",
       "r8",
       "r9",
       "r11",
-      "r12",
-      "r14"
+      "r14",
+      "r12"
     };
     return names[index];
   }
