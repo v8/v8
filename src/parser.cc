@@ -600,7 +600,8 @@ Parser::Parser(Handle<Script> script,
       extension_(extension),
       pre_data_(pre_data),
       fni_(NULL),
-      stack_overflow_(false) {
+      stack_overflow_(false),
+      parenthesized_function_(false) {
   AstNode::ResetIds();
 }
 
@@ -2482,9 +2483,13 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         // The calls that need special treatment are the
         // direct (i.e. not aliased) eval calls. These calls are all of the
         // form eval(...) with no explicit receiver object where eval is not
-        // declared in the current scope chain. These calls are marked as
-        // potentially direct eval calls. Whether they are actually direct calls
-        // to eval is determined at run time.
+        // declared in the current scope chain.
+        // These calls are marked as potentially direct eval calls. Whether
+        // they are actually direct calls to eval is determined at run time.
+        // TODO(994): In ES5, it doesn't matter if the "eval" var is declared
+        // in the local scope chain. It only matters that it's called "eval",
+        // is called without a receiver and it refers to the original eval
+        // function.
         VariableProxy* callee = result->AsVariableProxy();
         if (callee != NULL && callee->IsVariable(Factory::eval_symbol())) {
           Handle<String> name = callee->name();
@@ -2734,6 +2739,9 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 
     case Token::LPAREN:
       Consume(Token::LPAREN);
+      // Heuristically try to detect immediately called functions before
+      // seeing the call parentheses.
+      parenthesized_function_ = (peek() == Token::FUNCTION);
       result = ParseExpression(true, CHECK_OK);
       Expect(Token::RPAREN, CHECK_OK);
       break;
@@ -3225,8 +3233,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
 
     // Determine if the function will be lazily compiled. The mode can
     // only be PARSE_LAZILY if the --lazy flag is true.
-    bool is_lazily_compiled =
-        mode() == PARSE_LAZILY && top_scope_->HasTrivialOuterContext();
+    bool is_lazily_compiled = (mode() == PARSE_LAZILY &&
+                               top_scope_->outer_scope()->is_global_scope() &&
+                               top_scope_->HasTrivialOuterContext() &&
+                               !parenthesized_function_);
+    parenthesized_function_ = false;  // The bit was set for this function only.
 
     int function_block_pos = scanner().location().beg_pos;
     int materialized_literal_count;

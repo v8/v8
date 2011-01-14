@@ -682,6 +682,11 @@ class Parser {
   ScriptDataImpl* pre_data_;
   FuncNameInferrer* fni_;
   bool stack_overflow_;
+  // If true, the next (and immediately following) function literal is
+  // preceded by a parenthesis.
+  // Heuristically that means that the function will be called immediately,
+  // so never lazily compile it.
+  bool parenthesized_function_;
 };
 
 
