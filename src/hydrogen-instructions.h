@@ -107,6 +107,7 @@ class LChunkBuilder;
 //     HGlobalObject
 //     HGlobalReceiver
 //     HLeaveInlined
+//     HLoadContextSlot
 //     HLoadGlobal
 //     HMaterializedLiteral
 //       HArrayLiteral
@@ -220,6 +221,7 @@ class LChunkBuilder;
   V(JSArrayLength)                             \
   V(ClassOfTest)                               \
   V(LeaveInlined)                              \
+  V(LoadContextSlot)                           \
   V(LoadElements)                              \
   V(LoadGlobal)                                \
   V(LoadKeyedFastElement)                      \
@@ -2596,6 +2598,39 @@ class HStoreGlobal: public HUnaryOperation {
 
  private:
   Handle<JSGlobalPropertyCell> cell_;
+};
+
+
+class HLoadContextSlot: public HInstruction {
+ public:
+  HLoadContextSlot(int context_chain_length , int slot_index)
+      : context_chain_length_(context_chain_length), slot_index_(slot_index) {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetFlag(kDependsOnCalls);
+  }
+
+  int context_chain_length() const { return context_chain_length_; }
+  int slot_index() const { return slot_index_; }
+
+  virtual void PrintDataTo(StringStream* stream) const;
+
+  virtual intptr_t Hashcode() const {
+    return context_chain_length() * 29 + slot_index();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadContextSlot, "load_context_slot")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const {
+    HLoadContextSlot* b = HLoadContextSlot::cast(other);
+    return (context_chain_length() == b->context_chain_length())
+        && (slot_index() == b->slot_index());
+  }
+
+ private:
+  int context_chain_length_;
+  int slot_index_;
 };
 
 

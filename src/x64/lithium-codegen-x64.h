@@ -175,7 +175,7 @@ class LCodeGen BASE_EMBEDDED {
                          int arity,
                          LInstruction* instr);
 
-  void LoadPrototype(Register result, Handle<JSObject> prototype);
+  void LoadHeapObject(Register result, Handle<HeapObject> object);
 
   void RegisterLazyDeoptimization(LInstruction* instr);
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment);

@@ -2989,13 +2989,6 @@ Code* SharedFunctionInfo::unchecked_code() {
 
 
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
-  // If optimization has been disabled for the shared function info,
-  // reflect that in the code object so it will not be counted as
-  // optimizable code.
-  ASSERT(value->kind() != Code::FUNCTION ||
-         !value->optimizable() ||
-         this->code() == Builtins::builtin(Builtins::Illegal) ||
-         this->allows_lazy_compilation());
   WRITE_FIELD(this, kCodeOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kCodeOffset, mode);
 }

@@ -1102,6 +1102,11 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 }
 
 
+void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
+  Abort("Unimplemented: %s", "DoLoadContextSlot");
+}
+
+
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   Abort("Unimplemented: %s", "DoLoadNamedField");
 }
@@ -1376,8 +1381,8 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
 }
 
 
-void LCodeGen::LoadPrototype(Register result, Handle<JSObject> prototype) {
-  Abort("Unimplemented: %s", "LoadPrototype");
+void LCodeGen::LoadHeapObject(Register result, Handle<HeapObject> object) {
+  Abort("Unimplemented: %s", "LoadHeapObject");
 }
 
 

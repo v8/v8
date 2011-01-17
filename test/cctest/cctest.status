@@ -29,6 +29,10 @@ prefix cctest
 
 test-api/Bug*: FAIL
 
+# The problem is that a code object can get a different optimizable flag
+# in crankshaft after creation.
+test-log/EquivalenceOfLoggingAndTraversal: SKIP
+
 
 ##############################################################################
 # BUG(281): This test fails on some Linuxes.

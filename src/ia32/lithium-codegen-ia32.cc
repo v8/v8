@@ -2115,6 +2115,14 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 }
 
 
+void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
+  // TODO(antonm): load a context with a separate instruction.
+  Register result = ToRegister(instr->result());
+  __ LoadContext(result, instr->context_chain_length());
+  __ mov(result, ContextOperand(result, instr->slot_index()));
+}
+
+
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   Register object = ToRegister(instr->input());
   Register result = ToRegister(instr->result());
@@ -3306,13 +3314,13 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
 }
 
 
-void LCodeGen::LoadPrototype(Register result, Handle<JSObject> prototype) {
-  if (Heap::InNewSpace(*prototype)) {
+void LCodeGen::LoadHeapObject(Register result, Handle<HeapObject> object) {
+  if (Heap::InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
-        Factory::NewJSGlobalPropertyCell(prototype);
+        Factory::NewJSGlobalPropertyCell(object);
     __ mov(result, Operand::Cell(cell));
   } else {
-    __ mov(result, prototype);
+    __ mov(result, object);
   }
 }
 
@@ -3324,7 +3332,7 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   Handle<JSObject> current_prototype = instr->prototype();
 
   // Load prototype object.
-  LoadPrototype(reg, current_prototype);
+  LoadHeapObject(reg, current_prototype);
 
   // Check prototype maps up to the holder.
   while (!current_prototype.is_identical_to(holder)) {
@@ -3334,7 +3342,7 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
     current_prototype =
         Handle<JSObject>(JSObject::cast(current_prototype->GetPrototype()));
     // Load next prototype object.
-    LoadPrototype(reg, current_prototype);
+    LoadHeapObject(reg, current_prototype);
   }
 
   // Check the holder map.

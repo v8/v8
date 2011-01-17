@@ -257,8 +257,13 @@ void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
 }
 
 
+void LLoadContextSlot::PrintDataTo(StringStream* stream) {
+  stream->Add("(%d, %d)", context_chain_length(), slot_index());
+}
+
+
 void LCallKeyed::PrintDataTo(StringStream* stream) {
-  stream->Add("[ecx] #%d / ", arity());
+  stream->Add("[rcx] #%d / ", arity());
 }
 
 
@@ -1227,6 +1232,12 @@ LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
 
 LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
   Abort("Unimplemented: %s", "DoStoreGlobal");
+  return NULL;
+}
+
+
+LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
+  Abort("Unimplemented: %s", "DoLoadContextSlot");
   return NULL;
 }
 

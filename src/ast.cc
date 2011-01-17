@@ -166,12 +166,6 @@ bool FunctionLiteral::AllowsLazyCompilation() {
 }
 
 
-bool FunctionLiteral::AllowOptimize() {
-  // We can't deal with heap-allocated locals.
-  return scope()->num_heap_slots() == 0;
-}
-
-
 ObjectLiteral::Property::Property(Literal* key, Expression* value) {
   emit_store_ = true;
   key_ = key;

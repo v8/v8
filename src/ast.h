@@ -1717,7 +1717,6 @@ class FunctionLiteral: public Expression {
   int num_parameters() { return num_parameters_; }
 
   bool AllowsLazyCompilation();
-  bool AllowOptimize();
 
   Handle<String> debug_name() const {
     if (name_->length() > 0) return name_;

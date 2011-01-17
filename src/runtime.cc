@@ -1749,6 +1749,7 @@ static MaybeObject* Runtime_SetCode(Arguments args) {
     // Array, and Object, and some web code
     // doesn't like seeing source code for constructors.
     target->shared()->set_script(Heap::undefined_value());
+    target->shared()->code()->set_optimizable(false);
     // Clear the optimization hints related to the compiled code as these are no
     // longer valid when the code is overwritten.
     target->shared()->ClearThisPropertyAssignmentsInfo();
@@ -6735,11 +6736,23 @@ static MaybeObject* Runtime_LazyRecompile(Arguments args) {
   // code from the full compiler.
   if (!function->shared()->code()->optimizable() ||
       Debug::has_break_points()) {
+    if (FLAG_trace_opt) {
+      PrintF("[failed to optimize ");
+      function->PrintName();
+      PrintF(": is code optimizable: %s, is debugger enabled: %s]\n",
+          function->shared()->code()->optimizable() ? "T" : "F",
+          Debug::has_break_points() ? "T" : "F");
+    }
     function->ReplaceCode(function->shared()->code());
     return function->code();
   }
   if (CompileOptimized(function, AstNode::kNoNumber)) {
     return function->code();
+  }
+  if (FLAG_trace_opt) {
+    PrintF("[failed to optimize ");
+    function->PrintName();
+    PrintF(": optimized compilation failed]\n");
   }
   function->ReplaceCode(function->shared()->code());
   return Failure::Exception();

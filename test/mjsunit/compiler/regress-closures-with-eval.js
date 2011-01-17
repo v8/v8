@@ -25,34 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --max-new-space-size=256
-
-// Check for GC bug constructing exceptions.
-var v = [1, 2, 3, 4]
-
-Object.preventExtensions(v);
-
-function foo() {
-  var re = /2147483647/;  // Equal to 0x7fffffff.
-  for  (var i = 0; i < 10000; i++) {
-    var ok = false;
-    try {
-      var j = 1;
-      // Allocate some heap numbers in order to randomize the behaviour of the
-      // garbage collector.  93 is chosen to be a prime number to avoid the
-      // allocation settling into a too neat pattern.
-      for (var j = 0; j < i % 93; j++) {
-        j *= 1.123567;  // An arbitrary floating point number.
-      }
-      v[0x7fffffff] = 0;  // Trigger exception.
-      assertTrue(false);
-      return j;  // Make sure that future optimizations don't eliminate j.
-    } catch(e) {
-      ok = true;
-      assertTrue(re.test(e), 'e: ' + e);
+// Verifies that closures in presence of eval work fine.
+function withEval(expr, filter) {
+  function walk(v) {
+    for (var i in v) {
+      for (var i in v) {}
     }
-    assertTrue(ok);
+    return filter(v);
   }
+
+  var o = eval(expr);
+  return walk(o);
 }
 
-foo();
+function makeTagInfoJSON(n) {
+  var a = new Array(n);
+  for (var i = 0; i < n; i++) a.push('{}');
+  return a;
+}
+
+var expr = '([' + makeTagInfoJSON(128).join(', ') + '])'
+
+for (var n = 0; n < 300; n++) {
+  withEval(expr, function(a) { return a; });
+}

@@ -86,7 +86,8 @@ class LCodeGen;
 //   LGlobalObject
 //   LGlobalReceiver
 //   LLabel
-//   LLayzBailout
+//   LLazyBailout
+//   LLoadContextSlot
 //   LLoadGlobal
 //   LMaterializedLiteral
 //     LArrayLiteral
@@ -221,6 +222,7 @@ class LCodeGen;
   V(ClassOfTestAndBranch)                       \
   V(Label)                                      \
   V(LazyBailout)                                \
+  V(LoadContextSlot)                            \
   V(LoadElements)                               \
   V(LoadGlobal)                                 \
   V(LoadKeyedFastElement)                       \
@@ -1270,6 +1272,20 @@ class LStoreGlobal: public LUnaryOperation {
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobal, "store-global")
   DECLARE_HYDROGEN_ACCESSOR(StoreGlobal)
+};
+
+
+class LLoadContextSlot: public LInstruction {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(LoadContextSlot, "load-context-slot")
+  DECLARE_HYDROGEN_ACCESSOR(LoadContextSlot)
+
+  int context_chain_length() const {
+    return hydrogen()->context_chain_length();
+  }
+  int slot_index() const { return hydrogen()->slot_index(); }
+
+  virtual void PrintDataTo(StringStream* stream);
 };
 
 

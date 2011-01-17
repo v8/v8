@@ -2940,6 +2940,21 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       BAILOUT("unsupported context for arguments object");
     }
     ast_context()->ReturnValue(environment()->Lookup(variable));
+  } else if (variable->IsContextSlot()) {
+    if (variable->mode() == Variable::CONST) {
+      BAILOUT("reference to const context slot");
+    }
+    Slot* slot = variable->AsSlot();
+    CompilationInfo* info = graph()->info();
+    int context_chain_length = info->function()->scope()->
+        ContextChainLength(slot->var()->scope());
+    ASSERT(context_chain_length >= 0);
+    // TODO(antonm): if slot's value is not modified by closures, instead
+    // of reading it out of context, we could just embed the value as
+    // a constant.
+    HLoadContextSlot* instr =
+        new HLoadContextSlot(context_chain_length, slot->index());
+    ast_context()->ReturnInstruction(instr, expr->id());
   } else if (variable->is_global()) {
     LookupResult lookup;
     LookupGlobalPropertyCell(variable, &lookup, false);
@@ -2956,7 +2971,7 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     HLoadGlobal* instr = new HLoadGlobal(cell, check_hole);
     ast_context()->ReturnInstruction(instr, expr->id());
   } else {
-    BAILOUT("reference to non-stack-allocated/non-global variable");
+    BAILOUT("reference to a variable which requires dynamic lookup");
   }
 }
 
@@ -3482,7 +3497,7 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
                                      Top(),
                                      expr->position(),
                                      expr->AssignmentId());
-    } else {
+    } else if (var->IsStackAllocated()) {
       // We allow reference to the arguments object only in assignemtns
       // to local variables to make sure that the arguments object does
       // not escape and is not modified.
@@ -3495,6 +3510,8 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
         VISIT_FOR_VALUE(expr->value());
       }
       Bind(proxy->var(), Top());
+    } else {
+      BAILOUT("Assigning to no non-stack-allocated/non-global variable");
     }
     // Return the value.
     ast_context()->ReturnValue(Pop());
