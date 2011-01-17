@@ -836,11 +836,6 @@ js1_5/extensions/regress-371636: SKIP
 # BUG(1040): Allow this test to timeout.
 js1_5/GC/regress-203278-2: PASS || TIMEOUT
 
-[ $arch == arm && $crankshaft ]
-
-# Test that only fail with crankshaft.
-js1_5/Regress/regress-416628: CRASH
-js1_5/Regress/regress-96128-n: PASS || CRASH
 
 [ $fast == yes && $arch == arm ]
 
