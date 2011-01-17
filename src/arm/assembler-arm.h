@@ -171,7 +171,7 @@ struct DwVfpRegister {
   // d1 has also been excluded from allocation to be used as a scratch
   // register as well.
   static const int kNumRegisters = 16;
-  static const int kNumAllocatableRegisters = 14;
+  static const int kNumAllocatableRegisters = 15;
 
   static int ToAllocationIndex(DwVfpRegister reg) {
     ASSERT(reg.code() != 0);
@@ -180,12 +180,13 @@ struct DwVfpRegister {
 
   static DwVfpRegister FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    return from_code(index + 2);
+    return from_code(index + 1);
   }
 
   static const char* AllocationIndexToString(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
+      "d1",
       "d2",
       "d3",
       "d4",

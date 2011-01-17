@@ -2300,7 +2300,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->input());
   Register result = ToRegister(instr->result());
   Register prev_fpscr = ToRegister(instr->temp());
-  SwVfpRegister single_scratch = single_scratch0();
+  SwVfpRegister single_scratch = double_scratch0().low();
   Register scratch = scratch0();
 
   // Set custom FPCSR:
@@ -2508,7 +2508,19 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 
 
 void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
-  Abort("DoInteger32ToDouble unimplemented.");
+  LOperand* input = instr->input();
+  ASSERT(input->IsRegister() || input->IsStackSlot());
+  LOperand* output = instr->result();
+  ASSERT(output->IsDoubleRegister());
+  SwVfpRegister single_scratch = double_scratch0().low();
+  if (input->IsStackSlot()) {
+    Register scratch = scratch0();
+    __ ldr(scratch, ToMemOperand(input));
+    __ vmov(single_scratch, scratch);
+  } else {
+    __ vmov(single_scratch, ToRegister(input));
+  }
+  __ vcvt_f64_s32(ToDoubleRegister(output), single_scratch);
 }
 
 
