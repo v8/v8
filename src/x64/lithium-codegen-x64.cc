@@ -825,12 +825,31 @@ void LCodeGen::DoSubI(LSubI* instr) {
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  Abort("Unimplemented: %s", "DoConstantI");
+  ASSERT(instr->result()->IsRegister());
+  __ movl(ToRegister(instr->result()), Immediate(instr->value()));
 }
 
 
 void LCodeGen::DoConstantD(LConstantD* instr) {
-  Abort("Unimplemented: %s", "DoConstantI");
+  ASSERT(instr->result()->IsDoubleRegister());
+  XMMRegister res = ToDoubleRegister(instr->result());
+  double v = instr->value();
+  // Use xor to produce +0.0 in a fast and compact way, but avoid to
+  // do so if the constant is -0.0.
+  if (BitCast<uint64_t, double>(v) == 0) {
+    __ xorpd(res, res);
+  } else {
+    Register tmp = ToRegister(instr->TempAt(0));
+    int32_t v_int32 = static_cast<int32_t>(v);
+    if (static_cast<double>(v_int32) == v) {
+      __ movl(tmp, Immediate(v_int32));
+      __ cvtlsi2sd(res, tmp);
+    } else {
+      uint64_t int_val = BitCast<uint64_t, double>(v);
+      __ Set(tmp, int_val);
+      __ movd(res, tmp);
+    }
+  }
 }
 
 
@@ -1029,27 +1048,6 @@ void LCodeGen::DoIsSmi(LIsSmi* instr) {
 
 void LCodeGen::DoIsSmiAndBranch(LIsSmiAndBranch* instr) {
   Abort("Unimplemented: %s", "DoIsSmiAndBranch");
-}
-
-
-InstanceType LHasInstanceType::TestType() {
-  InstanceType from = hydrogen()->from();
-  InstanceType to = hydrogen()->to();
-  if (from == FIRST_TYPE) return to;
-  ASSERT(from == to || to == LAST_TYPE);
-  return from;
-}
-
-
-
-Condition LHasInstanceType::BranchCondition() {
-  InstanceType from = hydrogen()->from();
-  InstanceType to = hydrogen()->to();
-  if (from == to) return equal;
-  if (to == LAST_TYPE) return above_equal;
-  if (from == FIRST_TYPE) return below_equal;
-  UNREACHABLE();
-  return equal;
 }
 
 
