@@ -338,8 +338,9 @@ bool LCodeGen::GenerateDeferredCode() {
 
 
 bool LCodeGen::GenerateSafepointTable() {
-  Abort("Unimplemented: %s", "GeneratePrologue");
-  return false;
+  ASSERT(is_done());
+  safepoints_.Emit(masm(), StackSlotCount());
+  return !is_aborted();
 }
 
 
@@ -492,7 +493,24 @@ void LCodeGen::AddToTranslation(Translation* translation,
 void LCodeGen::CallCode(Handle<Code> code,
                         RelocInfo::Mode mode,
                         LInstruction* instr) {
-  Abort("Unimplemented: %s", "CallCode");
+  if (instr != NULL) {
+    LPointerMap* pointers = instr->pointer_map();
+    RecordPosition(pointers->position());
+    __ call(code, mode);
+    RegisterLazyDeoptimization(instr);
+  } else {
+    LPointerMap no_pointers(0);
+    RecordPosition(no_pointers.position());
+    __ call(code, mode);
+    RecordSafepoint(&no_pointers, Safepoint::kNoDeoptimizationIndex);
+  }
+
+  // Signal that we don't inline smi code before these stubs in the
+  // optimizing code generator.
+  if (code->kind() == Code::TYPE_RECORDING_BINARY_OP_IC ||
+      code->kind() == Code::COMPARE_IC) {
+    __ nop();
+  }
 }
 
 
@@ -521,7 +539,30 @@ void LCodeGen::RegisterLazyDeoptimization(LInstruction* instr) {
 
 
 void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment) {
-  Abort("Unimplemented: %s", "RegisterEnvironmentForDeoptimization");
+  if (!environment->HasBeenRegistered()) {
+    // Physical stack frame layout:
+    // -x ............. -4  0 ..................................... y
+    // [incoming arguments] [spill slots] [pushed outgoing arguments]
+
+    // Layout of the environment:
+    // 0 ..................................................... size-1
+    // [parameters] [locals] [expression stack including arguments]
+
+    // Layout of the translation:
+    // 0 ........................................................ size - 1 + 4
+    // [expression stack including arguments] [locals] [4 words] [parameters]
+    // |>------------  translation_size ------------<|
+
+    int frame_count = 0;
+    for (LEnvironment* e = environment; e != NULL; e = e->outer()) {
+      ++frame_count;
+    }
+    Translation translation(&translations_, frame_count);
+    WriteTranslation(environment, &translation);
+    int deoptimization_index = deoptimizations_.length();
+    environment->Register(deoptimization_index, translation.index());
+    deoptimizations_.Add(environment);
+  }
 }
 
 
@@ -859,7 +900,19 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
 
 void LCodeGen::EmitGoto(int block, LDeferredCode* deferred_stack_check) {
-  Abort("Unimplemented: %s", "EmitGoto");
+  block = chunk_->LookupDestination(block);
+  int next_block = GetNextEmittedBlock(current_block_);
+  if (block != next_block) {
+    // Perform stack overflow check if this goto needs it before jumping.
+    if (deferred_stack_check != NULL) {
+      __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+      __ j(above_equal, chunk_->GetAssemblyLabel(block));
+      __ jmp(deferred_stack_check->entry());
+      deferred_stack_check->SetExit(chunk_->GetAssemblyLabel(block));
+    } else {
+      __ jmp(chunk_->GetAssemblyLabel(block));
+    }
+  }
 }
 
 

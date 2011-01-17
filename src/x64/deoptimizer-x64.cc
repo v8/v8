@@ -41,7 +41,8 @@ namespace internal {
 int Deoptimizer::table_entry_size_ = 10;
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  UNIMPLEMENTED();
+  // UNIMPLEMENTED, for now just return.
+  return;
 }
 
 
@@ -68,7 +69,8 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
 
 
 void Deoptimizer::EntryGenerator::Generate() {
-  UNIMPLEMENTED();
+  // UNIMPLEMENTED, for now just return.
+  return;
 }
 
 
