@@ -778,10 +778,26 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
                              const char* type,
                              Vector<const char*> args) {
   MessageLocation location(script_,
-                           source_location.beg_pos, source_location.end_pos);
+                           source_location.beg_pos,
+                           source_location.end_pos);
   Handle<JSArray> array = Factory::NewJSArray(args.length());
   for (int i = 0; i < args.length(); i++) {
     SetElement(array, i, Factory::NewStringFromUtf8(CStrVector(args[i])));
+  }
+  Handle<Object> result = Factory::NewSyntaxError(type, array);
+  Top::Throw(*result, &location);
+}
+
+
+void Parser::ReportMessageAt(Scanner::Location source_location,
+                             const char* type,
+                             Vector<Handle<String> > args) {
+  MessageLocation location(script_,
+                           source_location.beg_pos,
+                           source_location.end_pos);
+  Handle<JSArray> array = Factory::NewJSArray(args.length());
+  for (int i = 0; i < args.length(); i++) {
+    SetElement(array, i, args[i]);
   }
   Handle<Object> result = Factory::NewSyntaxError(type, array);
   Top::Throw(*result, &location);
@@ -1693,12 +1709,16 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   IterationStatement* target = NULL;
   target = LookupContinueTarget(label, CHECK_OK);
   if (target == NULL) {
-    // Illegal continue statement.  To be consistent with KJS we delay
-    // reporting of the syntax error until runtime.
-    Handle<String> error_type = Factory::illegal_continue_symbol();
-    if (!label.is_null()) error_type = Factory::unknown_label_symbol();
-    Expression* throw_error = NewThrowSyntaxError(error_type, label);
-    return new ExpressionStatement(throw_error);
+    // Illegal continue statement.
+    const char* message = "illegal_continue";
+    Vector<Handle<String> > args;
+    if (!label.is_null()) {
+      message = "unknown_label";
+      args = Vector<Handle<String> >(&label, 1);
+    }
+    ReportMessageAt(scanner().location(), message, args);
+    *ok = false;
+    return NULL;
   }
   ExpectSemicolon(CHECK_OK);
   return new ContinueStatement(target);
@@ -1724,12 +1744,16 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
   BreakableStatement* target = NULL;
   target = LookupBreakTarget(label, CHECK_OK);
   if (target == NULL) {
-    // Illegal break statement.  To be consistent with KJS we delay
-    // reporting of the syntax error until runtime.
-    Handle<String> error_type = Factory::illegal_break_symbol();
-    if (!label.is_null()) error_type = Factory::unknown_label_symbol();
-    Expression* throw_error = NewThrowSyntaxError(error_type, label);
-    return new ExpressionStatement(throw_error);
+    // Illegal break statement.
+    const char* message = "illegal_break";
+    Vector<Handle<String> > args;
+    if (!label.is_null()) {
+      message = "unknown_label";
+      args = Vector<Handle<String> >(&label, 1);
+    }
+    ReportMessageAt(scanner().location(), message, args);
+    *ok = false;
+    return NULL;
   }
   ExpectSemicolon(CHECK_OK);
   return new BreakStatement(target);

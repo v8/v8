@@ -430,6 +430,9 @@ class Parser {
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
                        Vector<const char*> args);
+  void ReportMessageAt(Scanner::Location loc,
+                       const char* message,
+                       Vector<Handle<String> > args);
 
  protected:
   FunctionLiteral* ParseLazy(Handle<SharedFunctionInfo> info,
