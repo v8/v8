@@ -341,6 +341,11 @@ bool LCodeGen::GenerateDeferredCode() {
     __ jmp(code->exit());
   }
 
+  // Force constant pool emission at the end of deferred code to make
+  // sure that no constant pools are emitted after the official end of
+  // the instruction sequence.
+  masm()->CheckConstPool(true, false);
+
   // Deferred code is the last part of the instruction sequence. Mark
   // the generated code as done unless we bailed out.
   if (!is_aborted()) status_ = DONE;
