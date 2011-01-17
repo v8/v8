@@ -1897,14 +1897,24 @@ class LChunkBuilder BASE_EMBEDDED {
   MUST_USE_RESULT LOperand* UseRegister(HValue* value);
   MUST_USE_RESULT LOperand* UseRegisterAtStart(HValue* value);
 
-  // A value in a register that may be trashed.
+  // An input operand in a register that may be trashed.
   MUST_USE_RESULT LOperand* UseTempRegister(HValue* value);
+
+  // An input operand in a register or stack slot.
   MUST_USE_RESULT LOperand* Use(HValue* value);
   MUST_USE_RESULT LOperand* UseAtStart(HValue* value);
+
+  // An input operand in a register, stack slot or a constant operand.
   MUST_USE_RESULT LOperand* UseOrConstant(HValue* value);
   MUST_USE_RESULT LOperand* UseOrConstantAtStart(HValue* value);
+
+  // An input operand in a register or a constant operand.
   MUST_USE_RESULT LOperand* UseRegisterOrConstant(HValue* value);
   MUST_USE_RESULT LOperand* UseRegisterOrConstantAtStart(HValue* value);
+
+  // An input operand in register, stack slot or a constant operand.
+  // Will not be moved to a register even if one is freely available.
+  MUST_USE_RESULT LOperand* UseAny(HValue* value);
 
   // Temporary operand that must be in a register.
   MUST_USE_RESULT LUnallocated* TempRegister();
