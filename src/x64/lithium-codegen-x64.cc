@@ -155,13 +155,13 @@ bool LGapResolver::CanReach(LGapNode* a, LGapNode* b) {
 
 
 void LGapResolver::RegisterMove(LMoveOperands move) {
-  if (move.from()->IsConstantOperand()) {
+  if (move.source()->IsConstantOperand()) {
     // Constant moves should be last in the machine code. Therefore add them
     // first to the result set.
-    AddResultMove(move.from(), move.to());
+    AddResultMove(move.source(), move.destination());
   } else {
-    LGapNode* from = LookupNode(move.from());
-    LGapNode* to = LookupNode(move.to());
+    LGapNode* from = LookupNode(move.source());
+    LGapNode* to = LookupNode(move.destination());
     if (to->IsAssigned() && to->assigned_from() == from) {
       move.Eliminate();
       return;
@@ -651,8 +651,8 @@ void LCodeGen::DoParallelMove(LParallelMove* move) {
       resolver_.Resolve(move->move_operands(), &marker_operand);
   for (int i = moves->length() - 1; i >= 0; --i) {
     LMoveOperands move = moves->at(i);
-    LOperand* from = move.from();
-    LOperand* to = move.to();
+    LOperand* from = move.source();
+    LOperand* to = move.destination();
     ASSERT(!from->IsDoubleRegister() ||
            !ToDoubleRegister(from).is(xmm_scratch));
     ASSERT(!to->IsDoubleRegister() || !ToDoubleRegister(to).is(xmm_scratch));

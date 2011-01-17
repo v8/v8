@@ -190,6 +190,7 @@ SOURCES = {
     ia32/ic-ia32.cc
     ia32/jump-target-ia32.cc
     ia32/lithium-codegen-ia32.cc
+    ia32/lithium-gap-resolver-ia32.cc
     ia32/lithium-ia32.cc
     ia32/macro-assembler-ia32.cc
     ia32/regexp-macro-assembler-ia32.cc
