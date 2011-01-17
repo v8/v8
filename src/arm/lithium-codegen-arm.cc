@@ -1004,7 +1004,6 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 
 void LCodeGen::DoModI(LModI* instr) {
-  Abort("ModI not implemented");
   class DeferredModI: public LDeferredCode {
    public:
     DeferredModI(LCodeGen* codegen, LModI* instr)
@@ -1060,7 +1059,6 @@ void LCodeGen::DoModI(LModI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  Abort("DivI not implemented");
   class DeferredDivI: public LDeferredCode {
    public:
     DeferredDivI(LCodeGen* codegen, LDivI* instr)
