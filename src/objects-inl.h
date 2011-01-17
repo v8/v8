@@ -1978,18 +1978,38 @@ void ExternalTwoByteString::set_resource(
 
 
 void JSFunctionResultCache::MakeZeroSize() {
-  set(kFingerIndex, Smi::FromInt(kEntriesIndex));
-  set(kCacheSizeIndex, Smi::FromInt(kEntriesIndex));
+  set_finger_index(kEntriesIndex);
+  set_size(kEntriesIndex);
 }
 
 
 void JSFunctionResultCache::Clear() {
-  int cache_size = Smi::cast(get(kCacheSizeIndex))->value();
+  int cache_size = size();
   Object** entries_start = RawField(this, OffsetOfElementAt(kEntriesIndex));
   MemsetPointer(entries_start,
                 Heap::the_hole_value(),
                 cache_size - kEntriesIndex);
   MakeZeroSize();
+}
+
+
+int JSFunctionResultCache::size() {
+  return Smi::cast(get(kCacheSizeIndex))->value();
+}
+
+
+void JSFunctionResultCache::set_size(int size) {
+  set(kCacheSizeIndex, Smi::FromInt(size));
+}
+
+
+int JSFunctionResultCache::finger_index() {
+  return Smi::cast(get(kFingerIndex))->value();
+}
+
+
+void JSFunctionResultCache::set_finger_index(int finger_index) {
+  set(kFingerIndex, Smi::FromInt(finger_index));
 }
 
 

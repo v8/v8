@@ -2613,6 +2613,11 @@ class JSFunctionResultCache: public FixedArray {
   inline void MakeZeroSize();
   inline void Clear();
 
+  inline int size();
+  inline void set_size(int size);
+  inline int finger_index();
+  inline void set_finger_index(int finger_index);
+
   // Casting
   static inline JSFunctionResultCache* cast(Object* obj);
 
