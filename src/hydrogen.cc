@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -2940,6 +2940,21 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       BAILOUT("unsupported context for arguments object");
     }
     ast_context()->ReturnValue(environment()->Lookup(variable));
+  } else if (variable->IsContextSlot()) {
+    if (variable->mode() == Variable::CONST) {
+      BAILOUT("reference to const context slot");
+    }
+    Slot* slot = variable->AsSlot();
+    CompilationInfo* info = graph()->info();
+    int context_chain_length = info->function()->scope()->
+        ContextChainLength(slot->var()->scope());
+    ASSERT(context_chain_length >= 0);
+    // TODO(antonm): if slot's value is not modified by closures, instead
+    // of reading it out of context, we could just embed the value as
+    // a constant.
+    HLoadContextSlot* instr =
+        new HLoadContextSlot(context_chain_length, slot->index());
+    ast_context()->ReturnInstruction(instr, expr->id());
   } else if (variable->is_global()) {
     LookupResult lookup;
     LookupGlobalPropertyCell(variable, &lookup, false);
@@ -2956,7 +2971,7 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     HLoadGlobal* instr = new HLoadGlobal(cell, check_hole);
     ast_context()->ReturnInstruction(instr, expr->id());
   } else {
-    BAILOUT("reference to non-stack-allocated/non-global variable");
+    BAILOUT("reference to a variable which requires dynamic lookup");
   }
 }
 
@@ -3482,7 +3497,7 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
                                      Top(),
                                      expr->position(),
                                      expr->AssignmentId());
-    } else {
+    } else if (var->IsStackAllocated()) {
       // We allow reference to the arguments object only in assignemtns
       // to local variables to make sure that the arguments object does
       // not escape and is not modified.
@@ -3495,6 +3510,8 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
         VISIT_FOR_VALUE(expr->value());
       }
       Bind(proxy->var(), Top());
+    } else {
+      BAILOUT("Assigning to no non-stack-allocated/non-global variable");
     }
     // Return the value.
     ast_context()->ReturnValue(Pop());
@@ -3795,9 +3812,9 @@ void HGraphBuilder::AddCheckConstantFunction(Call* expr,
     AddInstruction(new HCheckMap(receiver, receiver_map));
   }
   if (!expr->holder().is_null()) {
-    AddInstruction(new HCheckPrototypeMaps(receiver,
-                                           expr->holder(),
-                                           receiver_map));
+    AddInstruction(new HCheckPrototypeMaps(
+        Handle<JSObject>(JSObject::cast(receiver_map->prototype())),
+        expr->holder()));
   }
 }
 
@@ -4009,7 +4026,9 @@ bool HGraphBuilder::TryInline(Call* expr) {
     function_return_->MarkAsInlineReturnTarget();
   }
   call_context_ = ast_context();
-  TypeFeedbackOracle new_oracle(Handle<Code>(shared->code()));
+  TypeFeedbackOracle new_oracle(
+      Handle<Code>(shared->code()),
+      Handle<Context>(target->context()->global_context()));
   oracle_ = &new_oracle;
   graph()->info()->SetOsrAstId(AstNode::kNoNumber);
 
@@ -4211,7 +4230,8 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   HValue* arg_two_value = environment()->Lookup(arg_two->var());
   if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
 
-  if (!expr->IsMonomorphic()) return false;
+  if (!expr->IsMonomorphic() ||
+      expr->check_type() != RECEIVER_MAP_CHECK) return false;
 
   // Found pattern f.apply(receiver, arguments).
   VisitForValue(prop->obj());
@@ -4280,7 +4300,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
     expr->RecordTypeFeedback(oracle());
     ZoneMapList* types = expr->GetReceiverTypes();
 
-    if (expr->IsMonomorphic()) {
+    if (expr->IsMonomorphic() && expr->check_type() == RECEIVER_MAP_CHECK) {
       AddCheckConstantFunction(expr, receiver, types->first(), true);
 
       if (TryMathFunctionInline(expr)) {
@@ -4305,6 +4325,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
       }
 
     } else if (types != NULL && types->length() > 1) {
+      ASSERT(expr->check_type() == RECEIVER_MAP_CHECK);
       HandlePolymorphicCallNamed(expr, receiver, types, name);
       return;
 
@@ -5713,31 +5734,40 @@ void HStatistics::Print() {
     PrintF("%30s", names_[i]);
     double ms = static_cast<double>(timing_[i]) / 1000;
     double percent = static_cast<double>(timing_[i]) * 100 / sum;
-    PrintF(" - %0.3f ms / %0.3f %% \n", ms, percent);
+    PrintF(" - %7.3f ms / %4.1f %% ", ms, percent);
+
+    unsigned size = sizes_[i];
+    double size_percent = static_cast<double>(size) * 100 / total_size_;
+    PrintF(" %8u bytes / %4.1f %%\n", size, size_percent);
   }
-  PrintF("%30s - %0.3f ms \n", "Sum", static_cast<double>(sum) / 1000);
+  PrintF("%30s - %7.3f ms           %8u bytes\n", "Sum",
+         static_cast<double>(sum) / 1000,
+         total_size_);
   PrintF("---------------------------------------------------------------\n");
-  PrintF("%30s - %0.3f ms (%0.1f times slower than full code gen)\n",
+  PrintF("%30s - %7.3f ms (%.1f times slower than full code gen)\n",
          "Total",
          static_cast<double>(total_) / 1000,
          static_cast<double>(total_) / full_code_gen_);
 }
 
 
-void HStatistics::SaveTiming(const char* name, int64_t ticks) {
+void HStatistics::SaveTiming(const char* name, int64_t ticks, unsigned size) {
   if (name == HPhase::kFullCodeGen) {
     full_code_gen_ += ticks;
   } else if (name == HPhase::kTotal) {
     total_ += ticks;
   } else {
+    total_size_ += size;
     for (int i = 0; i < names_.length(); ++i) {
       if (names_[i] == name) {
         timing_[i] += ticks;
+        sizes_[i] += size;
         return;
       }
     }
     names_.Add(name);
     timing_.Add(ticks);
+    sizes_.Add(size);
   }
 }
 
@@ -5758,13 +5788,15 @@ void HPhase::Begin(const char* name,
     chunk_ = allocator->chunk();
   }
   if (FLAG_time_hydrogen) start_ = OS::Ticks();
+  start_allocation_size_ = Zone::allocation_size_;
 }
 
 
 void HPhase::End() const {
   if (FLAG_time_hydrogen) {
     int64_t end = OS::Ticks();
-    HStatistics::Instance()->SaveTiming(name_, end - start_);
+    unsigned size = Zone::allocation_size_ - start_allocation_size_;
+    HStatistics::Instance()->SaveTiming(name_, end - start_, size);
   }
 
   if (FLAG_trace_hydrogen) {
@@ -5777,7 +5809,6 @@ void HPhase::End() const {
 
 #ifdef DEBUG
   if (graph_ != NULL) graph_->Verify();
-  if (chunk_ != NULL) chunk_->Verify();
   if (allocator_ != NULL) allocator_->Verify();
 #endif
 }

@@ -636,15 +636,20 @@ BUILTIN(ArraySlice) {
       return CallJsBuiltin("ArraySlice", args);
     }
     elms = FixedArray::cast(JSObject::cast(receiver)->elements());
-    len = elms->length();
-#ifdef DEBUG
-    // Arguments object by construction should have no holes, check it.
-    if (FLAG_enable_slow_asserts) {
-      for (int i = 0; i < len; i++) {
-        ASSERT(elms->get(i) != Heap::the_hole_value());
+    Object* len_obj = JSObject::cast(receiver)
+        ->InObjectPropertyAt(Heap::arguments_length_index);
+    if (!len_obj->IsSmi()) {
+      return CallJsBuiltin("ArraySlice", args);
+    }
+    len = Smi::cast(len_obj)->value();
+    if (len > elms->length()) {
+      return CallJsBuiltin("ArraySlice", args);
+    }
+    for (int i = 0; i < len; i++) {
+      if (elms->get(i) == Heap::the_hole_value()) {
+        return CallJsBuiltin("ArraySlice", args);
       }
     }
-#endif
   }
   ASSERT(len >= 0);
   int n_arguments = args.length() - 1;

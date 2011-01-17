@@ -30,149 +30,63 @@
 namespace v8 {
 namespace internal {
 
-
-class LGapNode: public ZoneObject {
- public:
-  explicit LGapNode(LOperand* operand)
-      : operand_(operand), resolved_(false), visited_id_(-1) { }
-
-  LOperand* operand() const { return operand_; }
-  bool IsResolved() const { return !IsAssigned() || resolved_; }
-  void MarkResolved() {
-    ASSERT(!IsResolved());
-    resolved_ = true;
+bool LParallelMove::IsRedundant() const {
+  for (int i = 0; i < move_operands_.length(); ++i) {
+    if (!move_operands_[i].IsRedundant()) return false;
   }
-  int visited_id() const { return visited_id_; }
-  void set_visited_id(int id) {
-    ASSERT(id > visited_id_);
-    visited_id_ = id;
-  }
-
-  bool IsAssigned() const { return assigned_from_.is_set(); }
-  LGapNode* assigned_from() const { return assigned_from_.get(); }
-  void set_assigned_from(LGapNode* n) { assigned_from_.set(n); }
-
- private:
-  LOperand* operand_;
-  SetOncePointer<LGapNode> assigned_from_;
-  bool resolved_;
-  int visited_id_;
-};
-
-
-LGapResolver::LGapResolver(const ZoneList<LMoveOperands>* moves,
-                           LOperand* marker_operand)
-    : nodes_(4),
-      identified_cycles_(4),
-      result_(4),
-      marker_operand_(marker_operand),
-      next_visited_id_(0) {
-  for (int i = 0; i < moves->length(); ++i) {
-    LMoveOperands move = moves->at(i);
-    if (!move.IsRedundant()) RegisterMove(move);
-  }
+  return true;
 }
 
 
-const ZoneList<LMoveOperands>* LGapResolver::ResolveInReverseOrder() {
-  for (int i = 0; i < identified_cycles_.length(); ++i) {
-    ResolveCycle(identified_cycles_[i]);
-  }
-
-  int unresolved_nodes;
-  do {
-    unresolved_nodes = 0;
-    for (int j = 0; j < nodes_.length(); j++) {
-      LGapNode* node = nodes_[j];
-      if (!node->IsResolved() && node->assigned_from()->IsResolved()) {
-        AddResultMove(node->assigned_from(), node);
-        node->MarkResolved();
+void LParallelMove::PrintDataTo(StringStream* stream) const {
+  for (int i = move_operands_.length() - 1; i >= 0; --i) {
+    if (!move_operands_[i].IsEliminated()) {
+      LOperand* from = move_operands_[i].from();
+      LOperand* to = move_operands_[i].to();
+      if (from->Equals(to)) {
+        to->PrintTo(stream);
+      } else {
+        to->PrintTo(stream);
+        stream->Add(" = ");
+        from->PrintTo(stream);
       }
-      if (!node->IsResolved()) ++unresolved_nodes;
+      stream->Add("; ");
     }
-  } while (unresolved_nodes > 0);
-  return &result_;
-}
-
-
-void LGapResolver::AddResultMove(LGapNode* from, LGapNode* to) {
-  AddResultMove(from->operand(), to->operand());
-}
-
-
-void LGapResolver::AddResultMove(LOperand* from, LOperand* to) {
-  result_.Add(LMoveOperands(from, to));
-}
-
-
-void LGapResolver::ResolveCycle(LGapNode* start) {
-  ZoneList<LOperand*> circle_operands(8);
-  circle_operands.Add(marker_operand_);
-  LGapNode* cur = start;
-  do {
-    cur->MarkResolved();
-    circle_operands.Add(cur->operand());
-    cur = cur->assigned_from();
-  } while (cur != start);
-  circle_operands.Add(marker_operand_);
-
-  for (int i = circle_operands.length() - 1; i > 0; --i) {
-    LOperand* from = circle_operands[i];
-    LOperand* to = circle_operands[i - 1];
-    AddResultMove(from, to);
   }
 }
 
 
-bool LGapResolver::CanReach(LGapNode* a, LGapNode* b, int visited_id) {
-  ASSERT(a != b);
-  LGapNode* cur = a;
-  while (cur != b && cur->visited_id() != visited_id && cur->IsAssigned()) {
-    cur->set_visited_id(visited_id);
-    cur = cur->assigned_from();
-  }
-
-  return cur == b;
-}
-
-
-bool LGapResolver::CanReach(LGapNode* a, LGapNode* b) {
-  ASSERT(a != b);
-  return CanReach(a, b, next_visited_id_++);
-}
-
-
-void LGapResolver::RegisterMove(LMoveOperands move) {
-  if (move.from()->IsConstantOperand()) {
-    // Constant moves should be last in the machine code. Therefore add them
-    // first to the result set.
-    AddResultMove(move.from(), move.to());
-  } else {
-    LGapNode* from = LookupNode(move.from());
-    LGapNode* to = LookupNode(move.to());
-    if (to->IsAssigned() && to->assigned_from() == from) {
-      move.Eliminate();
-      return;
+void LEnvironment::PrintTo(StringStream* stream) {
+  stream->Add("[id=%d|", ast_id());
+  stream->Add("[parameters=%d|", parameter_count());
+  stream->Add("[arguments_stack_height=%d|", arguments_stack_height());
+  for (int i = 0; i < values_.length(); ++i) {
+    if (i != 0) stream->Add(";");
+    if (values_[i] == NULL) {
+      stream->Add("[hole]");
+    } else {
+      values_[i]->PrintTo(stream);
     }
-    ASSERT(!to->IsAssigned());
-    if (CanReach(from, to)) {
-      // This introduces a circle. Save.
-      identified_cycles_.Add(from);
-    }
-    to->set_assigned_from(from);
   }
+  stream->Add("]");
 }
 
 
-LGapNode* LGapResolver::LookupNode(LOperand* operand) {
-  for (int i = 0; i < nodes_.length(); ++i) {
-    if (nodes_[i]->operand()->Equals(operand)) return nodes_[i];
-  }
+void LPointerMap::RecordPointer(LOperand* op) {
+  // Do not record arguments as pointers.
+  if (op->IsStackSlot() && op->index() < 0) return;
+  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  pointer_operands_.Add(op);
+}
 
-  // No node found => create a new one.
-  LGapNode* result = new LGapNode(operand);
-  nodes_.Add(result);
-  return result;
+
+void LPointerMap::PrintTo(StringStream* stream) {
+  stream->Add("{");
+  for (int i = 0; i < pointer_operands_.length(); ++i) {
+    if (i != 0) stream->Add(";");
+    pointer_operands_[i]->PrintTo(stream);
+  }
+  stream->Add("} @%d", position());
 }
 
 

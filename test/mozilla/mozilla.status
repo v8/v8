@@ -833,6 +833,8 @@ js1_5/Regress/regress-404755:  SKIP
 js1_5/Regress/regress-451322: SKIP
 js1_5/extensions/regress-371636: SKIP
 
+# BUG(1040): Allow this test to timeout.
+js1_5/GC/regress-203278-2: PASS || TIMEOUT
 
 [ $arch == arm && $crankshaft ]
 
@@ -840,8 +842,13 @@ js1_5/extensions/regress-371636: SKIP
 js1_5/Regress/regress-416628: CRASH
 js1_5/Regress/regress-96128-n: PASS || CRASH
 
-# BUG(1031).
-ecma/TypeConversion/9.2: FAIL
+# BUG(1032): test crashes.
+ecma/Date/15.9.3.1-1: PASS || CRASH
+ecma/Date/15.9.3.1-2: PASS || CRASH
+ecma/Date/15.9.3.1-3: PASS || CRASH
+ecma/Date/15.9.3.1-4: PASS || CRASH
+ecma/Date/15.9.3.1-5: PASS || CRASH
+
 
 [ $fast == yes && $arch == arm ]
 
@@ -859,7 +866,6 @@ js1_5/Regress/regress-347306-01: SKIP
 js1_5/Regress/regress-280769-1: SKIP
 js1_5/Regress/regress-280769-5: SKIP
 js1_5/GC/regress-306788: SKIP
-js1_5/GC/regress-203278-2: SKIP
 js1_5/GC/regress-278725: SKIP
 js1_5/GC/regress-203278-3: SKIP
 js1_5/GC/regress-311497: SKIP

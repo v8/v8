@@ -66,6 +66,7 @@ namespace internal {
 
 const double DoubleConstant::min_int = kMinInt;
 const double DoubleConstant::one_half = 0.5;
+const double DoubleConstant::minus_zero = -0.0;
 const double DoubleConstant::negative_infinity = -V8_INFINITY;
 
 
@@ -726,6 +727,12 @@ ExternalReference ExternalReference::address_of_min_int() {
 ExternalReference ExternalReference::address_of_one_half() {
   return ExternalReference(reinterpret_cast<void*>(
       const_cast<double*>(&DoubleConstant::one_half)));
+}
+
+
+ExternalReference ExternalReference::address_of_minus_zero() {
+  return ExternalReference(reinterpret_cast<void*>(
+      const_cast<double*>(&DoubleConstant::minus_zero)));
 }
 
 

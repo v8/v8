@@ -2724,6 +2724,9 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(ByteArray::cast(reloc_info));
   code->set_flags(flags);
+  if (code->is_call_stub() || code->is_keyed_call_stub()) {
+    code->set_check_type(RECEIVER_MAP_CHECK);
+  }
   code->set_deoptimization_data(empty_fixed_array());
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
@@ -5029,7 +5032,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       obj->SetMark();
     }
     UnmarkingVisitor visitor;
-    Heap::IterateRoots(&visitor, VISIT_ONLY_STRONG);
+    Heap::IterateRoots(&visitor, VISIT_ALL);
     while (visitor.can_process())
       visitor.ProcessNext();
   }

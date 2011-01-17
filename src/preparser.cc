@@ -1,3 +1,4 @@
+
 // Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -894,6 +895,7 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
 
     case i::Token::LPAREN:
       Consume(i::Token::LPAREN);
+      parenthesized_function_ = (peek() == i::Token::FUNCTION);
       result = ParseExpression(true, CHECK_OK);
       Expect(i::Token::RPAREN, CHECK_OK);
       if (result == kIdentifierExpression) result = kUnknownExpression;
@@ -1071,8 +1073,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
   // Determine if the function will be lazily compiled.
   // Currently only happens to top-level functions.
   // Optimistically assume that all top-level functions are lazily compiled.
-  bool is_lazily_compiled =
-      (outer_scope_type == kTopLevelScope && !inside_with && allow_lazy_);
+  bool is_lazily_compiled = (outer_scope_type == kTopLevelScope &&
+                             !inside_with && allow_lazy_ &&
+                             !parenthesized_function_);
+  parenthesized_function_ = false;
 
   if (is_lazily_compiled) {
     log_->PauseRecording();

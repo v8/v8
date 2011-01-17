@@ -112,8 +112,8 @@ var debugger_flags = {
 
 
 // Create a new break point object and add it to the list of break points.
-function MakeBreakPoint(source_position, opt_line, opt_column, opt_script_break_point) {
-  var break_point = new BreakPoint(source_position, opt_line, opt_column, opt_script_break_point);
+function MakeBreakPoint(source_position, opt_script_break_point) {
+  var break_point = new BreakPoint(source_position, opt_script_break_point);
   break_points.push(break_point);
   return break_point;
 }
@@ -123,10 +123,8 @@ function MakeBreakPoint(source_position, opt_line, opt_column, opt_script_break_
 // NOTE: This object does not have a reference to the function having break
 // point as this would cause function not to be garbage collected when it is
 // not used any more. We do not want break points to keep functions alive.
-function BreakPoint(source_position, opt_line, opt_column, opt_script_break_point) {
+function BreakPoint(source_position, opt_script_break_point) {
   this.source_position_ = source_position;
-  this.source_line_ = opt_line;
-  this.source_column_ = opt_column;
   if (opt_script_break_point) {
     this.script_break_point_ = opt_script_break_point;
   } else {
@@ -424,7 +422,7 @@ ScriptBreakPoint.prototype.set = function (script) {
   if (position === null) return;
 
   // Create a break point object and set the break point.
-  break_point = MakeBreakPoint(position, this.line(), this.column(), this);
+  break_point = MakeBreakPoint(position, this);
   break_point.setIgnoreCount(this.ignoreCount());
   var actual_position = %SetScriptBreakPoint(script, position, break_point);
   if (IS_UNDEFINED(actual_position)) {
@@ -639,7 +637,7 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
                                         opt_condition);
   } else {
     // Set a break point directly on the function.
-    var break_point = MakeBreakPoint(source_position, opt_line, opt_column);
+    var break_point = MakeBreakPoint(source_position);
     var actual_position =
         %SetFunctionBreakPoint(func, source_position, break_point);
     actual_position += this.sourcePosition(func);
@@ -649,6 +647,25 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
     break_point.setCondition(opt_condition);
     return break_point.number();
   }
+};
+
+
+Debug.setBreakPointByScriptIdAndPosition = function(script_id, position,
+                                                    condition, enabled)
+{
+  break_point = MakeBreakPoint(position);
+  break_point.setCondition(condition);
+  if (!enabled)
+    break_point.disable();
+  var scripts = this.scripts();
+  for (var i = 0; i < scripts.length; i++) {
+    if (script_id == scripts[i].id) {
+      break_point.actual_position = %SetScriptBreakPoint(scripts[i], position,
+                                                         break_point);
+      break;
+    }
+  }
+  return break_point;
 };
 
 

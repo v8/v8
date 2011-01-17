@@ -3121,6 +3121,9 @@ class DeoptimizationOutputData: public FixedArray {
 };
 
 
+class SafepointEntry;
+
+
 // Code describes objects with on-the-fly generated machine code.
 class Code: public HeapObject {
  public:
@@ -3268,9 +3271,8 @@ class Code: public HeapObject {
   inline byte compare_state();
   inline void set_compare_state(byte value);
 
-  // Get the safepoint entry for the given pc. Returns NULL for
-  // non-safepoint pcs.
-  uint8_t* GetSafepointEntry(Address pc);
+  // Get the safepoint entry for the given pc.
+  SafepointEntry GetSafepointEntry(Address pc);
 
   // Mark this code object as not having a stack check table.  Assumes kind
   // is FUNCTION.

@@ -828,6 +828,10 @@ void LAllocator::MeetConstraintsBetween(InstructionSummary* first,
         AllocateFixed(cur_input, gap_index + 1, is_tagged);
         AddConstraintsGapMove(gap_index, input_copy, cur_input);
       } else if (cur_input->policy() == LUnallocated::WRITABLE_REGISTER) {
+        // The live range of writable input registers always goes until the end
+        // of the instruction.
+        ASSERT(!cur_input->IsUsedAtStart());
+
         LUnallocated* input_copy = cur_input->CopyUnconstrained();
         cur_input->set_virtual_register(next_virtual_register_++);
 
@@ -837,7 +841,6 @@ void LAllocator::MeetConstraintsBetween(InstructionSummary* first,
               cur_input->virtual_register() - first_artificial_register_);
         }
 
-        second->AddTemp(cur_input);
         AddConstraintsGapMove(gap_index, input_copy, cur_input);
       }
     }

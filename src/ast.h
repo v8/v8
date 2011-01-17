@@ -1268,6 +1268,7 @@ class Call: public Expression {
         arguments_(arguments),
         pos_(pos),
         is_monomorphic_(false),
+        check_type_(RECEIVER_MAP_CHECK),
         receiver_types_(NULL),
         return_id_(GetNextId()) {
   }
@@ -1283,6 +1284,7 @@ class Call: public Expression {
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
   virtual bool IsMonomorphic() { return is_monomorphic_; }
+  CheckType check_type() const { return check_type_; }
   Handle<JSFunction> target() { return target_; }
   Handle<JSObject> holder() { return holder_; }
   Handle<JSGlobalPropertyCell> cell() { return cell_; }
@@ -1306,6 +1308,7 @@ class Call: public Expression {
   int pos_;
 
   bool is_monomorphic_;
+  CheckType check_type_;
   ZoneMapList* receiver_types_;
   Handle<JSFunction> target_;
   Handle<JSObject> holder_;
@@ -1714,7 +1717,6 @@ class FunctionLiteral: public Expression {
   int num_parameters() { return num_parameters_; }
 
   bool AllowsLazyCompilation();
-  bool AllowOptimize();
 
   Handle<String> debug_name() const {
     if (name_->length() > 0) return name_;

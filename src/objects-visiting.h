@@ -146,7 +146,7 @@ class VisitorDispatchTable {
   }
 
   void Register(StaticVisitorBase::VisitorId id, Callback callback) {
-    ASSERT((0 <= id) && (id < StaticVisitorBase::kVisitorIdCount));
+    ASSERT(id < StaticVisitorBase::kVisitorIdCount);  // id is unsigned.
     callbacks_[id] = callback;
   }
 

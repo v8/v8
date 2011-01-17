@@ -38,8 +38,6 @@ namespace internal {
 
 // Forward declarations.
 class LCodeGen;
-class LEnvironment;
-class Translation;
 
 
 // Type hierarchy:
@@ -78,6 +76,7 @@ class Translation;
 //   LCallNamed
 //   LCallRuntime
 //   LCallStub
+//   LCheckPrototypeMaps
 //   LConstant
 //     LConstantD
 //     LConstantI
@@ -87,7 +86,8 @@ class Translation;
 //   LGlobalObject
 //   LGlobalReceiver
 //   LLabel
-//   LLayzBailout
+//   LLazyBailout
+//   LLoadContextSlot
 //   LLoadGlobal
 //   LMaterializedLiteral
 //     LArrayLiteral
@@ -111,7 +111,6 @@ class Translation;
 //     LCheckFunction
 //     LCheckInstanceType
 //     LCheckMap
-//     LCheckPrototypeMaps
 //     LCheckSmi
 //     LClassOfTest
 //     LClassOfTestAndBranch
@@ -223,6 +222,7 @@ class Translation;
   V(ClassOfTestAndBranch)                       \
   V(Label)                                      \
   V(LazyBailout)                                \
+  V(LoadContextSlot)                            \
   V(LoadElements)                               \
   V(LoadGlobal)                                 \
   V(LoadKeyedFastElement)                       \
@@ -329,27 +329,6 @@ class LInstruction: public ZoneObject {
   SetOncePointer<LOperand> result_;
   HValue* hydrogen_value_;
   SetOncePointer<LEnvironment> deoptimization_environment_;
-};
-
-
-class LParallelMove : public ZoneObject {
- public:
-  LParallelMove() : move_operands_(4) { }
-
-  void AddMove(LOperand* from, LOperand* to) {
-    move_operands_.Add(LMoveOperands(from, to));
-  }
-
-  bool IsRedundant() const;
-
-  const ZoneList<LMoveOperands>* move_operands() const {
-    return &move_operands_;
-  }
-
-  void PrintDataTo(StringStream* stream) const;
-
- private:
-  ZoneList<LMoveOperands> move_operands_;
 };
 
 
@@ -466,6 +445,10 @@ class LCallStub: public LInstruction {
  public:
   DECLARE_CONCRETE_INSTRUCTION(CallStub, "call-stub")
   DECLARE_HYDROGEN_ACCESSOR(CallStub)
+
+  TranscendentalCache::Type transcendental_type() {
+    return hydrogen()->transcendental_type();
+  }
 };
 
 
@@ -602,29 +585,26 @@ class LMulI: public LBinaryOperation {
 
 class LCmpID: public LBinaryOperation {
  public:
-  LCmpID(Token::Value op, LOperand* left, LOperand* right, bool is_double)
-      : LBinaryOperation(left, right), op_(op), is_double_(is_double) { }
+  LCmpID(LOperand* left, LOperand* right)
+      : LBinaryOperation(left, right) { }
 
-  Token::Value op() const { return op_; }
-  bool is_double() const { return is_double_; }
+  Token::Value op() const { return hydrogen()->token(); }
+  bool is_double() const {
+    return hydrogen()->GetInputRepresentation().IsDouble();
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(CmpID, "cmp-id")
-
- private:
-  Token::Value op_;
-  bool is_double_;
+  DECLARE_HYDROGEN_ACCESSOR(Compare)
 };
 
 
 class LCmpIDAndBranch: public LCmpID {
  public:
-  LCmpIDAndBranch(Token::Value op,
-                  LOperand* left,
+  LCmpIDAndBranch(LOperand* left,
                   LOperand* right,
                   int true_block_id,
-                  int false_block_id,
-                  bool is_double)
-      : LCmpID(op, left, right, is_double),
+                  int false_block_id)
+      : LCmpID(left, right),
         true_block_id_(true_block_id),
         false_block_id_(false_block_id) { }
 
@@ -643,14 +623,18 @@ class LCmpIDAndBranch: public LCmpID {
 
 class LUnaryMathOperation: public LUnaryOperation {
  public:
-  explicit LUnaryMathOperation(LOperand* value)
-      : LUnaryOperation(value) { }
+  explicit LUnaryMathOperation(LOperand* value, LOperand* temp)
+      : LUnaryOperation(value), temp_(temp) { }
 
   DECLARE_CONCRETE_INSTRUCTION(UnaryMathOperation, "unary-math-operation")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
 
   virtual void PrintDataTo(StringStream* stream) const;
   BuiltinFunctionId op() const { return hydrogen()->op(); }
+  LOperand* temp() const { return temp_; }
+
+ private:
+  LOperand* temp_;
 };
 
 
@@ -687,25 +671,21 @@ class LCmpJSObjectEqAndBranch: public LCmpJSObjectEq {
 
 class LIsNull: public LUnaryOperation {
  public:
-  LIsNull(LOperand* value, bool is_strict)
-      : LUnaryOperation(value), is_strict_(is_strict) {}
+  explicit LIsNull(LOperand* value) : LUnaryOperation(value) {}
 
   DECLARE_CONCRETE_INSTRUCTION(IsNull, "is-null")
+  DECLARE_HYDROGEN_ACCESSOR(IsNull);
 
-  bool is_strict() const { return is_strict_; }
-
- private:
-  bool is_strict_;
+  bool is_strict() const { return hydrogen()->is_strict(); }
 };
 
 
 class LIsNullAndBranch: public LIsNull {
  public:
   LIsNullAndBranch(LOperand* value,
-                   bool is_strict,
                    int true_block_id,
                    int false_block_id)
-      : LIsNull(value, is_strict),
+      : LIsNull(value),
         true_block_id_(true_block_id),
         false_block_id_(false_block_id) { }
 
@@ -865,18 +845,12 @@ class LHasCachedArrayIndexAndBranch: public LHasCachedArrayIndex {
 
 class LClassOfTest: public LUnaryOperation {
  public:
-  LClassOfTest(LOperand* value, LOperand* temp)
-      : LUnaryOperation(value), temporary_(temp) {}
+  explicit LClassOfTest(LOperand* value) : LUnaryOperation(value) {}
 
   DECLARE_CONCRETE_INSTRUCTION(ClassOfTest, "class-of-test")
   DECLARE_HYDROGEN_ACCESSOR(ClassOfTest)
 
   virtual void PrintDataTo(StringStream* stream) const;
-
-  LOperand* temporary() { return temporary_; }
-
- private:
-  LOperand *temporary_;
 };
 
 
@@ -884,11 +858,10 @@ class LClassOfTestAndBranch: public LClassOfTest {
  public:
   LClassOfTestAndBranch(LOperand* value,
                         LOperand* temporary,
-                        LOperand* temporary2,
                         int true_block_id,
                         int false_block_id)
-      : LClassOfTest(value, temporary),
-        temporary2_(temporary2),
+      : LClassOfTest(value),
+        temporary_(temporary),
         true_block_id_(true_block_id),
         false_block_id_(false_block_id) { }
 
@@ -899,10 +872,10 @@ class LClassOfTestAndBranch: public LClassOfTest {
 
   int true_block_id() const { return true_block_id_; }
   int false_block_id() const { return false_block_id_; }
-  LOperand* temporary2() { return temporary2_; }
+  LOperand* temporary() { return temporary_; }
 
  private:
-  LOperand* temporary2_;
+  LOperand* temporary_;
   int true_block_id_;
   int false_block_id_;
 };
@@ -1263,21 +1236,14 @@ class LLoadElements: public LUnaryOperation {
 
 class LLoadKeyedFastElement: public LBinaryOperation {
  public:
-  LLoadKeyedFastElement(LOperand* elements,
-                        LOperand* key,
-                        LOperand* load_result)
-      : LBinaryOperation(elements, key),
-        load_result_(load_result) { }
+  LLoadKeyedFastElement(LOperand* elements, LOperand* key)
+      : LBinaryOperation(elements, key) { }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastElement, "load-keyed-fast-element")
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastElement)
 
   LOperand* elements() const { return left(); }
   LOperand* key() const { return right(); }
-  LOperand* load_result() const { return load_result_; }
-
- private:
-  LOperand* load_result_;
 };
 
 
@@ -1306,6 +1272,20 @@ class LStoreGlobal: public LUnaryOperation {
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobal, "store-global")
   DECLARE_HYDROGEN_ACCESSOR(StoreGlobal)
+};
+
+
+class LLoadContextSlot: public LInstruction {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(LoadContextSlot, "load-context-slot")
+  DECLARE_HYDROGEN_ACCESSOR(LoadContextSlot)
+
+  int context_chain_length() const {
+    return hydrogen()->context_chain_length();
+  }
+  int slot_index() const { return hydrogen()->slot_index(); }
+
+  virtual void PrintDataTo(StringStream* stream);
 };
 
 
@@ -1513,63 +1493,46 @@ class LSmiUntag: public LUnaryOperation {
 
 class LStoreNamed: public LInstruction {
  public:
-  LStoreNamed(LOperand* obj, Handle<Object> name, LOperand* val)
-      : object_(obj), name_(name), value_(val) { }
+  LStoreNamed(LOperand* obj, LOperand* val)
+      : object_(obj), value_(val) { }
 
   DECLARE_INSTRUCTION(StoreNamed)
+  DECLARE_HYDROGEN_ACCESSOR(StoreNamed)
 
   virtual void PrintDataTo(StringStream* stream) const;
 
   LOperand* object() const { return object_; }
-  Handle<Object> name() const { return name_; }
+  Handle<Object> name() const { return hydrogen()->name(); }
   LOperand* value() const { return value_; }
 
  private:
   LOperand* object_;
-  Handle<Object> name_;
   LOperand* value_;
 };
 
 
 class LStoreNamedField: public LStoreNamed {
  public:
-  LStoreNamedField(LOperand* obj,
-                   Handle<Object> name,
-                   LOperand* val,
-                   bool in_object,
-                   int offset,
-                   bool needs_write_barrier,
-                   Handle<Map> transition)
-      : LStoreNamed(obj, name, val),
-        is_in_object_(in_object),
-        offset_(offset),
-        needs_write_barrier_(needs_write_barrier),
-        transition_(transition) { }
+  LStoreNamedField(LOperand* obj, LOperand* val)
+      : LStoreNamed(obj, val) { }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField, "store-named-field")
+  DECLARE_HYDROGEN_ACCESSOR(StoreNamedField)
 
-  bool is_in_object() { return is_in_object_; }
-  int offset() { return offset_; }
-  bool needs_write_barrier() { return needs_write_barrier_; }
-  Handle<Map> transition() const { return transition_; }
-  void set_transition(Handle<Map> map) { transition_ = map; }
-
- private:
-  bool is_in_object_;
-  int offset_;
-  bool needs_write_barrier_;
-  Handle<Map> transition_;
+  bool is_in_object() { return hydrogen()->is_in_object(); }
+  int offset() { return hydrogen()->offset(); }
+  bool needs_write_barrier() { return hydrogen()->NeedsWriteBarrier(); }
+  Handle<Map> transition() { return hydrogen()->transition(); }
 };
 
 
 class LStoreNamedGeneric: public LStoreNamed {
  public:
-  LStoreNamedGeneric(LOperand* obj,
-                     Handle<Object> name,
-                     LOperand* val)
-      : LStoreNamed(obj, name, val) { }
+  LStoreNamedGeneric(LOperand* obj, LOperand* val)
+      : LStoreNamed(obj, val) { }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store-named-generic")
+  DECLARE_HYDROGEN_ACCESSOR(StoreNamedGeneric)
 };
 
 
@@ -1647,27 +1610,21 @@ class LCheckMap: public LUnaryOperation {
 
 class LCheckPrototypeMaps: public LInstruction {
  public:
-  LCheckPrototypeMaps(LOperand* temp1,
-                      LOperand* temp2,
-                      Handle<JSObject> holder,
-                      Handle<Map> receiver_map)
-      : temp1_(temp1),
-        temp2_(temp2),
-        holder_(holder),
-        receiver_map_(receiver_map) { }
+  LCheckPrototypeMaps(LOperand* temp1, LOperand* temp2)
+      : temp1_(temp1), temp2_(temp2) { }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps, "check-prototype-maps")
+  DECLARE_HYDROGEN_ACCESSOR(CheckPrototypeMaps)
+
+  Handle<JSObject> prototype() const { return hydrogen()->prototype(); }
+  Handle<JSObject> holder() const { return hydrogen()->holder(); }
 
   LOperand* temp1() const { return temp1_; }
   LOperand* temp2() const { return temp2_; }
-  Handle<JSObject> holder() const { return holder_; }
-  Handle<Map> receiver_map() const { return receiver_map_; }
 
  private:
   LOperand* temp1_;
   LOperand* temp2_;
-  Handle<JSObject> holder_;
-  Handle<Map> receiver_map_;
 };
 
 
@@ -1806,108 +1763,6 @@ class LStackCheck: public LInstruction {
   DECLARE_CONCRETE_INSTRUCTION(StackCheck, "stack-check")
 };
 
-
-class LPointerMap: public ZoneObject {
- public:
-  explicit LPointerMap(int position)
-      : pointer_operands_(8), position_(position), lithium_position_(-1) { }
-
-  const ZoneList<LOperand*>* operands() const { return &pointer_operands_; }
-  int position() const { return position_; }
-  int lithium_position() const { return lithium_position_; }
-
-  void set_lithium_position(int pos) {
-    ASSERT(lithium_position_ == -1);
-    lithium_position_ = pos;
-  }
-
-  void RecordPointer(LOperand* op);
-  void PrintTo(StringStream* stream) const;
-
- private:
-  ZoneList<LOperand*> pointer_operands_;
-  int position_;
-  int lithium_position_;
-};
-
-
-class LEnvironment: public ZoneObject {
- public:
-  LEnvironment(Handle<JSFunction> closure,
-               int ast_id,
-               int parameter_count,
-               int argument_count,
-               int value_count,
-               LEnvironment* outer)
-      : closure_(closure),
-        arguments_stack_height_(argument_count),
-        deoptimization_index_(Safepoint::kNoDeoptimizationIndex),
-        translation_index_(-1),
-        ast_id_(ast_id),
-        parameter_count_(parameter_count),
-        values_(value_count),
-        representations_(value_count),
-        spilled_registers_(NULL),
-        spilled_double_registers_(NULL),
-        outer_(outer) {
-  }
-
-  Handle<JSFunction> closure() const { return closure_; }
-  int arguments_stack_height() const { return arguments_stack_height_; }
-  int deoptimization_index() const { return deoptimization_index_; }
-  int translation_index() const { return translation_index_; }
-  int ast_id() const { return ast_id_; }
-  int parameter_count() const { return parameter_count_; }
-  const ZoneList<LOperand*>* values() const { return &values_; }
-  LEnvironment* outer() const { return outer_; }
-
-  void AddValue(LOperand* operand, Representation representation) {
-    values_.Add(operand);
-    representations_.Add(representation);
-  }
-
-  bool HasTaggedValueAt(int index) const {
-    return representations_[index].IsTagged();
-  }
-
-  void Register(int deoptimization_index, int translation_index) {
-    ASSERT(!HasBeenRegistered());
-    deoptimization_index_ = deoptimization_index;
-    translation_index_ = translation_index;
-  }
-  bool HasBeenRegistered() const {
-    return deoptimization_index_ != Safepoint::kNoDeoptimizationIndex;
-  }
-
-  void SetSpilledRegisters(LOperand** registers,
-                           LOperand** double_registers) {
-    spilled_registers_ = registers;
-    spilled_double_registers_ = double_registers;
-  }
-
-  // Emit frame translation commands for this environment.
-  void WriteTranslation(LCodeGen* cgen, Translation* translation) const;
-
-  void PrintTo(StringStream* stream) const;
-
- private:
-  Handle<JSFunction> closure_;
-  int arguments_stack_height_;
-  int deoptimization_index_;
-  int translation_index_;
-  int ast_id_;
-  int parameter_count_;
-  ZoneList<LOperand*> values_;
-  ZoneList<Representation> representations_;
-
-  // Allocation index indexed arrays of spill slot operands for registers
-  // that are also in spill slots at an OSR entry.  NULL for environments
-  // that do not correspond to an OSR entry.
-  LOperand** spilled_registers_;
-  LOperand** spilled_double_registers_;
-
-  LEnvironment* outer_;
-};
 
 class LChunkBuilder;
 class LChunk: public ZoneObject {
@@ -2069,8 +1924,6 @@ class LChunkBuilder BASE_EMBEDDED {
 
   LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env);
 
-  // Temporary operand that may be a memory location.
-  LOperand* Temp();
   // Temporary operand that must be in a register.
   LUnallocated* TempRegister();
   LOperand* FixedTemp(Register reg);

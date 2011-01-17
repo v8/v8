@@ -50,7 +50,6 @@ class LArgument;
 class LChunk;
 class LConstantOperand;
 class LGap;
-class LInstruction;
 class LParallelMove;
 class LPointerMap;
 class LStackSlot;
@@ -706,6 +705,7 @@ class LiveRange: public ZoneObject {
   bool HasAllocatedSpillOperand() const {
     return spill_operand_ != NULL && !spill_operand_->IsUnallocated();
   }
+
   LOperand* GetSpillOperand() const { return spill_operand_; }
   void SetSpillOperand(LOperand* operand) {
     ASSERT(!operand->IsUnallocated());
@@ -722,7 +722,6 @@ class LiveRange: public ZoneObject {
   bool CanCover(LifetimePosition position) const;
   bool Covers(LifetimePosition position);
   LifetimePosition FirstIntersection(LiveRange* other);
-
 
   // Add a new interval or a new use position to this live range.
   void EnsureInterval(LifetimePosition start, LifetimePosition end);

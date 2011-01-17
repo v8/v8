@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,14 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-assertThrows("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }");
+// Verifies that closures in presence of eval work fine.
+function withEval(expr, filter) {
+  function walk(v) {
+    for (var i in v) {
+      for (var i in v) {}
+    }
+    return filter(v);
+  }
 
-function foo() {
-  assertThrows("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }");
+  var o = eval(expr);
+  return walk(o);
 }
-foo();
 
-assertThrows("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }");
+function makeTagInfoJSON(n) {
+  var a = new Array(n);
+  for (var i = 0; i < n; i++) a.push('{}');
+  return a;
+}
 
-xeval = function(s) { eval(s); }
-xeval('$=function(){L: {break L;break L;}};');
+var expr = '([' + makeTagInfoJSON(128).join(', ') + '])'
+
+for (var n = 0; n < 300; n++) {
+  withEval(expr, function(a) { return a; });
+}

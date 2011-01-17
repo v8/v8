@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,6 +24,10 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#include "v8.h"
+
+#if defined(V8_TARGET_ARCH_IA32)
 
 #include "ia32/lithium-codegen-ia32.h"
 #include "code-stubs.h"
@@ -52,6 +56,157 @@ class SafepointGenerator : public PostCallGenerator {
   LPointerMap* pointers_;
   int deoptimization_index_;
 };
+
+
+class LGapNode: public ZoneObject {
+ public:
+  explicit LGapNode(LOperand* operand)
+      : operand_(operand), resolved_(false), visited_id_(-1) { }
+
+  LOperand* operand() const { return operand_; }
+  bool IsResolved() const { return !IsAssigned() || resolved_; }
+  void MarkResolved() {
+    ASSERT(!IsResolved());
+    resolved_ = true;
+  }
+  int visited_id() const { return visited_id_; }
+  void set_visited_id(int id) {
+    ASSERT(id > visited_id_);
+    visited_id_ = id;
+  }
+
+  bool IsAssigned() const { return assigned_from_.is_set(); }
+  LGapNode* assigned_from() const { return assigned_from_.get(); }
+  void set_assigned_from(LGapNode* n) { assigned_from_.set(n); }
+
+ private:
+  LOperand* operand_;
+  SetOncePointer<LGapNode> assigned_from_;
+  bool resolved_;
+  int visited_id_;
+};
+
+
+LGapResolver::LGapResolver()
+    : nodes_(32),
+      identified_cycles_(4),
+      result_(16),
+      next_visited_id_(0) {
+}
+
+
+const ZoneList<LMoveOperands>* LGapResolver::Resolve(
+    const ZoneList<LMoveOperands>* moves,
+    LOperand* marker_operand) {
+  nodes_.Rewind(0);
+  identified_cycles_.Rewind(0);
+  result_.Rewind(0);
+  next_visited_id_ = 0;
+
+  for (int i = 0; i < moves->length(); ++i) {
+    LMoveOperands move = moves->at(i);
+    if (!move.IsRedundant()) RegisterMove(move);
+  }
+
+  for (int i = 0; i < identified_cycles_.length(); ++i) {
+    ResolveCycle(identified_cycles_[i], marker_operand);
+  }
+
+  int unresolved_nodes;
+  do {
+    unresolved_nodes = 0;
+    for (int j = 0; j < nodes_.length(); j++) {
+      LGapNode* node = nodes_[j];
+      if (!node->IsResolved() && node->assigned_from()->IsResolved()) {
+        AddResultMove(node->assigned_from(), node);
+        node->MarkResolved();
+      }
+      if (!node->IsResolved()) ++unresolved_nodes;
+    }
+  } while (unresolved_nodes > 0);
+  return &result_;
+}
+
+
+void LGapResolver::AddResultMove(LGapNode* from, LGapNode* to) {
+  AddResultMove(from->operand(), to->operand());
+}
+
+
+void LGapResolver::AddResultMove(LOperand* from, LOperand* to) {
+  result_.Add(LMoveOperands(from, to));
+}
+
+
+void LGapResolver::ResolveCycle(LGapNode* start, LOperand* marker_operand) {
+  ZoneList<LOperand*> cycle_operands(8);
+  cycle_operands.Add(marker_operand);
+  LGapNode* cur = start;
+  do {
+    cur->MarkResolved();
+    cycle_operands.Add(cur->operand());
+    cur = cur->assigned_from();
+  } while (cur != start);
+  cycle_operands.Add(marker_operand);
+
+  for (int i = cycle_operands.length() - 1; i > 0; --i) {
+    LOperand* from = cycle_operands[i];
+    LOperand* to = cycle_operands[i - 1];
+    AddResultMove(from, to);
+  }
+}
+
+
+bool LGapResolver::CanReach(LGapNode* a, LGapNode* b, int visited_id) {
+  ASSERT(a != b);
+  LGapNode* cur = a;
+  while (cur != b && cur->visited_id() != visited_id && cur->IsAssigned()) {
+    cur->set_visited_id(visited_id);
+    cur = cur->assigned_from();
+  }
+
+  return cur == b;
+}
+
+
+bool LGapResolver::CanReach(LGapNode* a, LGapNode* b) {
+  ASSERT(a != b);
+  return CanReach(a, b, next_visited_id_++);
+}
+
+
+void LGapResolver::RegisterMove(LMoveOperands move) {
+  if (move.from()->IsConstantOperand()) {
+    // Constant moves should be last in the machine code. Therefore add them
+    // first to the result set.
+    AddResultMove(move.from(), move.to());
+  } else {
+    LGapNode* from = LookupNode(move.from());
+    LGapNode* to = LookupNode(move.to());
+    if (to->IsAssigned() && to->assigned_from() == from) {
+      move.Eliminate();
+      return;
+    }
+    ASSERT(!to->IsAssigned());
+    if (CanReach(from, to)) {
+      // This introduces a cycle. Save.
+      identified_cycles_.Add(from);
+    }
+    to->set_assigned_from(from);
+  }
+}
+
+
+LGapNode* LGapResolver::LookupNode(LOperand* operand) {
+  for (int i = 0; i < nodes_.length(); ++i) {
+    if (nodes_[i]->operand()->Equals(operand)) return nodes_[i];
+  }
+
+  // No node found => create a new one.
+  LGapNode* result = new LGapNode(operand);
+  nodes_.Add(result);
+  return result;
+}
 
 
 #define __ masm()->
@@ -135,6 +290,17 @@ bool LCodeGen::GeneratePrologue() {
       __ j(not_zero, &loop);
     } else {
       __ sub(Operand(esp), Immediate(slots * kPointerSize));
+#ifdef _MSC_VER
+      // On windows, you may not access the stack more than one page below
+      // the most recently mapped page. To make the allocated area randomly
+      // accessible, we write to each page in turn (the value is irrelevant).
+      const int kPageSize = 4 * KB;
+      for (int offset = slots * kPointerSize - kPageSize;
+           offset > 0;
+           offset -= kPageSize) {
+        __ mov(Operand(esp, offset), eax);
+      }
+#endif
     }
   }
 
@@ -257,6 +423,45 @@ Operand LCodeGen::ToOperand(LOperand* op) const {
   } else {
     // Incoming parameter. Skip the return address.
     return Operand(ebp, -(index - 1) * kPointerSize);
+  }
+}
+
+
+void LCodeGen::WriteTranslation(LEnvironment* environment,
+                                Translation* translation) {
+  if (environment == NULL) return;
+
+  // The translation includes one command per value in the environment.
+  int translation_size = environment->values()->length();
+  // The output frame height does not include the parameters.
+  int height = translation_size - environment->parameter_count();
+
+  WriteTranslation(environment->outer(), translation);
+  int closure_id = DefineDeoptimizationLiteral(environment->closure());
+  translation->BeginFrame(environment->ast_id(), closure_id, height);
+  for (int i = 0; i < translation_size; ++i) {
+    LOperand* value = environment->values()->at(i);
+    // spilled_registers_ and spilled_double_registers_ are either
+    // both NULL or both set.
+    if (environment->spilled_registers() != NULL && value != NULL) {
+      if (value->IsRegister() &&
+          environment->spilled_registers()[value->index()] != NULL) {
+        translation->MarkDuplicate();
+        AddToTranslation(translation,
+                         environment->spilled_registers()[value->index()],
+                         environment->HasTaggedValueAt(i));
+      } else if (
+          value->IsDoubleRegister() &&
+          environment->spilled_double_registers()[value->index()] != NULL) {
+        translation->MarkDuplicate();
+        AddToTranslation(
+            translation,
+            environment->spilled_double_registers()[value->index()],
+            false);
+      }
+    }
+
+    AddToTranslation(translation, value, environment->HasTaggedValueAt(i));
   }
 }
 
@@ -385,7 +590,7 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment) {
       ++frame_count;
     }
     Translation translation(&translations_, frame_count);
-    environment->WriteTranslation(this, &translation);
+    WriteTranslation(environment, &translation);
     int deoptimization_index = deoptimizations_.length();
     environment->Register(deoptimization_index, translation.index());
     deoptimizations_.Add(environment);
@@ -564,8 +769,8 @@ void LCodeGen::DoParallelMove(LParallelMove* move) {
   Register cpu_scratch = esi;
   bool destroys_cpu_scratch = false;
 
-  LGapResolver resolver(move->move_operands(), &marker_operand);
-  const ZoneList<LMoveOperands>* moves = resolver.ResolveInReverseOrder();
+  const ZoneList<LMoveOperands>* moves =
+      resolver_.Resolve(move->move_operands(), &marker_operand);
   for (int i = moves->length() - 1; i >= 0; --i) {
     LMoveOperands move = moves->at(i);
     LOperand* from = move.from();
@@ -1910,6 +2115,14 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 }
 
 
+void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
+  // TODO(antonm): load a context with a separate instruction.
+  Register result = ToRegister(instr->result());
+  __ LoadContext(result, instr->context_chain_length());
+  __ mov(result, ContextOperand(result, instr->slot_index()));
+}
+
+
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   Register object = ToRegister(instr->input());
   Register result = ToRegister(instr->result());
@@ -2009,32 +2222,15 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   Register elements = ToRegister(instr->elements());
   Register key = ToRegister(instr->key());
-  Register result;
-  if (instr->load_result() != NULL) {
-    result = ToRegister(instr->load_result());
-  } else {
-    result = ToRegister(instr->result());
-    ASSERT(result.is(elements));
-  }
+  Register result = ToRegister(instr->result());
+  ASSERT(result.is(elements));
 
   // Load the result.
   __ mov(result, FieldOperand(elements, key, times_4, FixedArray::kHeaderSize));
 
-  Representation r = instr->hydrogen()->representation();
-  if (r.IsInteger32()) {
-    // Untag and check for smi.
-    __ SmiUntag(result);
-    DeoptimizeIf(carry, instr->environment());
-  } else if (r.IsDouble()) {
-    EmitNumberUntagD(result,
-                     ToDoubleRegister(instr->result()),
-                     instr->environment());
-  } else {
-    // Check for the hole value.
-    ASSERT(r.IsTagged());
-    __ cmp(result, Factory::the_hole_value());
-    DeoptimizeIf(equal, instr->environment());
-  }
+  // Check for the hole value.
+  __ cmp(result, Factory::the_hole_value());
+  DeoptimizeIf(equal, instr->environment());
 }
 
 
@@ -2988,9 +3184,60 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
       __ add(Operand(esp), Immediate(kDoubleSize));
       __ bind(&done);
     } else {
-      // This will bail out if the input was not in the int32 range (or,
-      // unfortunately, if the input was 0x80000000).
-      DeoptimizeIf(equal, instr->environment());
+      NearLabel done;
+      Register temp_reg = ToRegister(instr->temporary());
+      XMMRegister xmm_scratch = xmm0;
+
+      // If cvttsd2si succeeded, we're done. Otherwise, we attempt
+      // manual conversion.
+      __ j(not_equal, &done);
+
+      // Get high 32 bits of the input in result_reg and temp_reg.
+      __ pshufd(xmm_scratch, input_reg, 1);
+      __ movd(Operand(temp_reg), xmm_scratch);
+      __ mov(result_reg, temp_reg);
+
+      // Prepare negation mask in temp_reg.
+      __ sar(temp_reg, kBitsPerInt - 1);
+
+      // Extract the exponent from result_reg and subtract adjusted
+      // bias from it. The adjustment is selected in a way such that
+      // when the difference is zero, the answer is in the low 32 bits
+      // of the input, otherwise a shift has to be performed.
+      __ shr(result_reg, HeapNumber::kExponentShift);
+      __ and_(result_reg,
+              HeapNumber::kExponentMask >> HeapNumber::kExponentShift);
+      __ sub(Operand(result_reg),
+             Immediate(HeapNumber::kExponentBias +
+                       HeapNumber::kExponentBits +
+                       HeapNumber::kMantissaBits));
+      // Don't handle big (> kMantissaBits + kExponentBits == 63) or
+      // special exponents.
+      DeoptimizeIf(greater, instr->environment());
+
+      // Zero out the sign and the exponent in the input (by shifting
+      // it to the left) and restore the implicit mantissa bit,
+      // i.e. convert the input to unsigned int64 shifted left by
+      // kExponentBits.
+      ExternalReference minus_zero = ExternalReference::address_of_minus_zero();
+      // Minus zero has the most significant bit set and the other
+      // bits cleared.
+      __ movdbl(xmm_scratch, Operand::StaticVariable(minus_zero));
+      __ psllq(input_reg, HeapNumber::kExponentBits);
+      __ por(input_reg, xmm_scratch);
+
+      // Get the amount to shift the input right in xmm_scratch.
+      __ neg(result_reg);
+      __ movd(xmm_scratch, Operand(result_reg));
+
+      // Shift the input right and extract low 32 bits.
+      __ psrlq(input_reg, xmm_scratch);
+      __ movd(Operand(result_reg), input_reg);
+
+      // Use the prepared mask in temp_reg to negate the result if necessary.
+      __ xor_(result_reg, Operand(temp_reg));
+      __ sub(result_reg, Operand(temp_reg));
+      __ bind(&done);
     }
   } else {
     NearLabel done;
@@ -3067,13 +3314,13 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
 }
 
 
-void LCodeGen::LoadPrototype(Register result, Handle<JSObject> prototype) {
-  if (Heap::InNewSpace(*prototype)) {
+void LCodeGen::LoadHeapObject(Register result, Handle<HeapObject> object) {
+  if (Heap::InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
-        Factory::NewJSGlobalPropertyCell(prototype);
+        Factory::NewJSGlobalPropertyCell(object);
     __ mov(result, Operand::Cell(cell));
   } else {
-    __ mov(result, prototype);
+    __ mov(result, object);
   }
 }
 
@@ -3082,11 +3329,10 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   Register reg = ToRegister(instr->temp());
 
   Handle<JSObject> holder = instr->holder();
-  Handle<Map> receiver_map = instr->receiver_map();
-  Handle<JSObject> current_prototype(JSObject::cast(receiver_map->prototype()));
+  Handle<JSObject> current_prototype = instr->prototype();
 
   // Load prototype object.
-  LoadPrototype(reg, current_prototype);
+  LoadHeapObject(reg, current_prototype);
 
   // Check prototype maps up to the holder.
   while (!current_prototype.is_identical_to(holder)) {
@@ -3096,7 +3342,7 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
     current_prototype =
         Handle<JSObject>(JSObject::cast(current_prototype->GetPrototype()));
     // Load next prototype object.
-    LoadPrototype(reg, current_prototype);
+    LoadHeapObject(reg, current_prototype);
   }
 
   // Check the holder map.
@@ -3410,3 +3656,5 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 #undef __
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_IA32

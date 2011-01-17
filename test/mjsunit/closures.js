@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,14 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-assertThrows("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }");
-
-function foo() {
-  assertThrows("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }");
+function runner(f, expected) {
+  for (var i = 0; i < 1000000; i++) {
+    assertEquals(expected, f.call(this));
+  }
 }
-foo();
 
-assertThrows("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }");
+function test(n) {
+  function MyFunction() {
+    var result = n * 2 + arguments.length;
+    return result;
+  }
+  runner(MyFunction, n * 2);
+}
 
-xeval = function(s) { eval(s); }
-xeval('$=function(){L: {break L;break L;}};');
+test(1);
+test(42);
+test(239);
+

@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_IA32)
+
 #include "codegen.h"
 #include "deoptimizer.h"
 #include "full-codegen.h"
@@ -56,8 +58,9 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   SafepointTable table(function->code());
   for (unsigned i = 0; i < table.length(); i++) {
     unsigned pc_offset = table.GetPcOffset(i);
-    int deoptimization_index = table.GetDeoptimizationIndex(i);
-    int gap_code_size = table.GetGapCodeSize(i);
+    SafepointEntry safepoint_entry = table.GetEntry(i);
+    int deoptimization_index = safepoint_entry.deoptimization_index();
+    int gap_code_size = safepoint_entry.gap_code_size();
 #ifdef DEBUG
     // Destroy the code which is not supposed to run again.
     unsigned instructions = pc_offset - last_pc_offset;
@@ -617,3 +620,5 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_IA32

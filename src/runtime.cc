@@ -1749,6 +1749,7 @@ static MaybeObject* Runtime_SetCode(Arguments args) {
     // Array, and Object, and some web code
     // doesn't like seeing source code for constructors.
     target->shared()->set_script(Heap::undefined_value());
+    target->shared()->code()->set_optimizable(false);
     // Clear the optimization hints related to the compiled code as these are no
     // longer valid when the code is overwritten.
     target->shared()->ClearThisPropertyAssignmentsInfo();
@@ -4621,12 +4622,12 @@ MaybeObject* AllocateRawString<SeqAsciiString>(int length) {
 }
 
 
-template <typename Char, typename StringType>
+template <typename Char, typename StringType, bool comma>
 static MaybeObject* SlowQuoteJsonString(Vector<const Char> characters) {
   int length = characters.length();
   const Char* read_cursor = characters.start();
   const Char* end = read_cursor + length;
-  const int kSpaceForQuotes = 2;
+  const int kSpaceForQuotes = 2 + (comma ? 1 :0);
   int quoted_length = kSpaceForQuotes;
   while (read_cursor < end) {
     Char c = *(read_cursor++);
@@ -4645,6 +4646,7 @@ static MaybeObject* SlowQuoteJsonString(Vector<const Char> characters) {
 
   Char* write_cursor = reinterpret_cast<Char*>(
       new_string->address() + SeqAsciiString::kHeaderSize);
+  if (comma) *(write_cursor++) = ',';
   *(write_cursor++) = '"';
 
   read_cursor = characters.start();
@@ -4666,14 +4668,14 @@ static MaybeObject* SlowQuoteJsonString(Vector<const Char> characters) {
 }
 
 
-template <typename Char, typename StringType>
+template <typename Char, typename StringType, bool comma>
 static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
   int length = characters.length();
   Counters::quote_json_char_count.Increment(length);
-  const int kSpaceForQuotes = 2;
+  const int kSpaceForQuotes = 2 + (comma ? 1 :0);
   int worst_case_length = length * kJsonQuoteWorstCaseBlowup + kSpaceForQuotes;
   if (worst_case_length > kMaxGuaranteedNewSpaceString) {
-    return SlowQuoteJsonString<Char, StringType>(characters);
+    return SlowQuoteJsonString<Char, StringType, comma>(characters);
   }
 
   MaybeObject* new_alloc = AllocateRawString<StringType>(worst_case_length);
@@ -4686,7 +4688,7 @@ static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
     // handle it being allocated in old space as may happen in the third
     // attempt.  See CALL_AND_RETRY in heap-inl.h and similar code in
     // CEntryStub::GenerateCore.
-    return SlowQuoteJsonString<Char, StringType>(characters);
+    return SlowQuoteJsonString<Char, StringType, comma>(characters);
   }
   StringType* new_string = StringType::cast(new_object);
   ASSERT(Heap::new_space()->Contains(new_string));
@@ -4694,6 +4696,7 @@ static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
   STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
   Char* write_cursor = reinterpret_cast<Char*>(
       new_string->address() + SeqAsciiString::kHeaderSize);
+  if (comma) *(write_cursor++) = ',';
   *(write_cursor++) = '"';
 
   const Char* read_cursor = characters.start();
@@ -4744,12 +4747,31 @@ static MaybeObject* Runtime_QuoteJSONString(Arguments args) {
     ASSERT(str->IsFlat());
   }
   if (str->IsTwoByteRepresentation()) {
-    return QuoteJsonString<uc16, SeqTwoByteString>(str->ToUC16Vector());
+    return QuoteJsonString<uc16, SeqTwoByteString, false>(str->ToUC16Vector());
   } else {
-    return QuoteJsonString<char, SeqAsciiString>(str->ToAsciiVector());
+    return QuoteJsonString<char, SeqAsciiString, false>(str->ToAsciiVector());
   }
 }
 
+
+static MaybeObject* Runtime_QuoteJSONStringComma(Arguments args) {
+  NoHandleAllocation ha;
+  CONVERT_CHECKED(String, str, args[0]);
+  if (!str->IsFlat()) {
+    MaybeObject* try_flatten = str->TryFlatten();
+    Object* flat;
+    if (!try_flatten->ToObject(&flat)) {
+      return try_flatten;
+    }
+    str = String::cast(flat);
+    ASSERT(str->IsFlat());
+  }
+  if (str->IsTwoByteRepresentation()) {
+    return QuoteJsonString<uc16, SeqTwoByteString, true>(str->ToUC16Vector());
+  } else {
+    return QuoteJsonString<char, SeqAsciiString, true>(str->ToAsciiVector());
+  }
+}
 
 
 static MaybeObject* Runtime_StringParseInt(Arguments args) {
@@ -6714,11 +6736,23 @@ static MaybeObject* Runtime_LazyRecompile(Arguments args) {
   // code from the full compiler.
   if (!function->shared()->code()->optimizable() ||
       Debug::has_break_points()) {
+    if (FLAG_trace_opt) {
+      PrintF("[failed to optimize ");
+      function->PrintName();
+      PrintF(": is code optimizable: %s, is debugger enabled: %s]\n",
+          function->shared()->code()->optimizable() ? "T" : "F",
+          Debug::has_break_points() ? "T" : "F");
+    }
     function->ReplaceCode(function->shared()->code());
     return function->code();
   }
   if (CompileOptimized(function, AstNode::kNoNumber)) {
     return function->code();
+  }
+  if (FLAG_trace_opt) {
+    PrintF("[failed to optimize ");
+    function->PrintName();
+    PrintF(": optimized compilation failed]\n");
   }
   function->ReplaceCode(function->shared()->code());
   return Failure::Exception();
@@ -10334,15 +10368,16 @@ static MaybeObject* Runtime_LiveEditCheckAndDropActivations(Arguments args) {
   return *LiveEdit::CheckAndDropActivations(shared_array, do_drop);
 }
 
-// Compares 2 strings line-by-line and returns diff in form of JSArray of
-// triplets (pos1, pos1_end, pos2_end) describing list of diff chunks.
-static MaybeObject* Runtime_LiveEditCompareStringsLinewise(Arguments args) {
+// Compares 2 strings line-by-line, then token-wise and returns diff in form
+// of JSArray of triplets (pos1, pos1_end, pos2_end) describing list
+// of diff chunks.
+static MaybeObject* Runtime_LiveEditCompareStrings(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;
   CONVERT_ARG_CHECKED(String, s1, 0);
   CONVERT_ARG_CHECKED(String, s2, 1);
 
-  return *LiveEdit::CompareStringsLinewise(s1, s2);
+  return *LiveEdit::CompareStrings(s1, s2);
 }
 
 

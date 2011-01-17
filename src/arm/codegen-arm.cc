@@ -4667,8 +4667,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ mov(scratch2, Operand(0x7FF00000));
     __ mov(scratch1, Operand(0, RelocInfo::NONE));
     __ vmov(d1, scratch1, scratch2);  // Load infinity into d1.
-    __ vcmp(d0, d1);
-    __ vmrs(pc);
+    __ VFPCompareAndSetFlags(d0, d1);
     runtime.Branch(eq);  // d0 reached infinity.
     __ vdiv(d0, d2, d0);
     __ b(&allocate_return);
