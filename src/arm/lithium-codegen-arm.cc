@@ -1296,7 +1296,10 @@ void LCodeGen::DoConstantI(LConstantI* instr) {
 
 
 void LCodeGen::DoConstantD(LConstantD* instr) {
-  Abort("DoConstantD unimplemented.");
+  ASSERT(instr->result()->IsDoubleRegister());
+  DwVfpRegister result = ToDoubleRegister(instr->result());
+  double v = instr->value();
+  __ vmov(result, v);
 }
 
 
@@ -2339,6 +2342,15 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
 
   // Move the result back to general purpose register r0.
   __ vmov(result, single_scratch);
+
+  // Test for -0.
+  Label done;
+  __ cmp(result, Operand(0));
+  __ b(ne, &done);
+  __ vmov(scratch, input.high());
+  __ tst(scratch, Operand(HeapNumber::kSignMask));
+  DeoptimizeIf(ne, instr->environment());
+  __ bind(&done);
 }
 
 
