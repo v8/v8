@@ -3168,6 +3168,10 @@ class Code: public HeapObject {
     NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };
 
+  typedef int ExtraICState;
+
+  static const ExtraICState kNoExtraICState = 0;
+
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* Kind2String(Kind kind);
@@ -3203,6 +3207,7 @@ class Code: public HeapObject {
   // [flags]: Access to specific code flags.
   inline Kind kind();
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
+  inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
   inline InLoopFlag ic_in_loop();  // Only valid for IC stubs.
   inline PropertyType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
@@ -3287,22 +3292,26 @@ class Code: public HeapObject {
   Map* FindFirstMap();
 
   // Flags operations.
-  static inline Flags ComputeFlags(Kind kind,
-                                   InLoopFlag in_loop = NOT_IN_LOOP,
-                                   InlineCacheState ic_state = UNINITIALIZED,
-                                   PropertyType type = NORMAL,
-                                   int argc = -1,
-                                   InlineCacheHolderFlag holder = OWN_MAP);
+  static inline Flags ComputeFlags(
+      Kind kind,
+      InLoopFlag in_loop = NOT_IN_LOOP,
+      InlineCacheState ic_state = UNINITIALIZED,
+      ExtraICState extra_ic_state = kNoExtraICState,
+      PropertyType type = NORMAL,
+      int argc = -1,
+      InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
       PropertyType type,
+      ExtraICState extra_ic_state = kNoExtraICState,
       InlineCacheHolderFlag holder = OWN_MAP,
       InLoopFlag in_loop = NOT_IN_LOOP,
       int argc = -1);
 
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
+  static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
   static inline InLoopFlag ExtractICInLoopFromFlags(Flags flags);
   static inline PropertyType ExtractTypeFromFlags(Flags flags);
   static inline int ExtractArgumentsCountFromFlags(Flags flags);
@@ -3423,14 +3432,16 @@ class Code: public HeapObject {
   static const int kFlagsTypeShift           = 4;
   static const int kFlagsKindShift           = 7;
   static const int kFlagsICHolderShift       = 11;
-  static const int kFlagsArgumentsCountShift = 12;
+  static const int kFlagsExtraICStateShift   = 12;
+  static const int kFlagsArgumentsCountShift = 14;
 
   static const int kFlagsICStateMask        = 0x00000007;  // 00000000111
   static const int kFlagsICInLoopMask       = 0x00000008;  // 00000001000
   static const int kFlagsTypeMask           = 0x00000070;  // 00001110000
   static const int kFlagsKindMask           = 0x00000780;  // 11110000000
   static const int kFlagsCacheInPrototypeMapMask = 0x00000800;
-  static const int kFlagsArgumentsCountMask = 0xFFFFF000;
+  static const int kFlagsExtraICStateMask   = 0x00003000;
+  static const int kFlagsArgumentsCountMask = 0xFFFFC000;
 
   static const int kFlagsNotUsedInLookup =
       (kFlagsICInLoopMask | kFlagsTypeMask | kFlagsCacheInPrototypeMapMask);

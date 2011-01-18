@@ -613,6 +613,7 @@ MaybeObject* StubCache::ComputeKeyedStoreField(String* name,
 MaybeObject* StubCache::ComputeCallConstant(int argc,
                                             InLoopFlag in_loop,
                                             Code::Kind kind,
+                                            Code::ExtraICState extra_ic_state,
                                             String* name,
                                             Object* object,
                                             JSObject* holder,
@@ -632,12 +633,12 @@ MaybeObject* StubCache::ComputeCallConstant(int argc,
     check = BOOLEAN_CHECK;
   }
 
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(kind,
-                                    CONSTANT_FUNCTION,
-                                    cache_holder,
-                                    in_loop,
-                                    argc);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(kind,
+                                                    CONSTANT_FUNCTION,
+                                                    extra_ic_state,
+                                                    cache_holder,
+                                                    in_loop,
+                                                    argc);
   Object* code = map_holder->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     // If the function hasn't been compiled yet, we cannot do it now
@@ -646,7 +647,8 @@ MaybeObject* StubCache::ComputeCallConstant(int argc,
     // caches.
     if (!function->is_compiled()) return Failure::InternalError();
     // Compile the stub - only create stubs for fully compiled functions.
-    CallStubCompiler compiler(argc, in_loop, kind, cache_holder);
+    CallStubCompiler compiler(
+        argc, in_loop, kind, extra_ic_state, cache_holder);
     { MaybeObject* maybe_code =
           compiler.CompileCallConstant(object, holder, function, name, check);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -687,12 +689,14 @@ MaybeObject* StubCache::ComputeCallField(int argc,
 
   Code::Flags flags = Code::ComputeMonomorphicFlags(kind,
                                                     FIELD,
+                                                    Code::kNoExtraICState,
                                                     cache_holder,
                                                     in_loop,
                                                     argc);
   Object* code = map_holder->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    CallStubCompiler compiler(argc, in_loop, kind, cache_holder);
+    CallStubCompiler compiler(
+        argc, in_loop, kind, Code::kNoExtraICState, cache_holder);
     { MaybeObject* maybe_code =
           compiler.CompileCallField(JSObject::cast(object),
                                     holder,
@@ -731,15 +735,16 @@ MaybeObject* StubCache::ComputeCallInterceptor(int argc,
     object = holder;
   }
 
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(kind,
-                                    INTERCEPTOR,
-                                    cache_holder,
-                                    NOT_IN_LOOP,
-                                    argc);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(kind,
+                                                    INTERCEPTOR,
+                                                    Code::kNoExtraICState,
+                                                    cache_holder,
+                                                    NOT_IN_LOOP,
+                                                    argc);
   Object* code = map_holder->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    CallStubCompiler compiler(argc, NOT_IN_LOOP, kind, cache_holder);
+    CallStubCompiler compiler(
+        argc, NOT_IN_LOOP, kind, Code::kNoExtraICState, cache_holder);
     { MaybeObject* maybe_code =
           compiler.CompileCallInterceptor(JSObject::cast(object), holder, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -782,12 +787,12 @@ MaybeObject* StubCache::ComputeCallGlobal(int argc,
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(receiver, holder);
   JSObject* map_holder = IC::GetCodeCacheHolder(receiver, cache_holder);
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(kind,
-                                    NORMAL,
-                                    cache_holder,
-                                    in_loop,
-                                    argc);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(kind,
+                                                    NORMAL,
+                                                    Code::kNoExtraICState,
+                                                    cache_holder,
+                                                    in_loop,
+                                                    argc);
   Object* code = map_holder->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     // If the function hasn't been compiled yet, we cannot do it now
@@ -795,7 +800,8 @@ MaybeObject* StubCache::ComputeCallGlobal(int argc,
     // internal error which will make sure we do not update any
     // caches.
     if (!function->is_compiled()) return Failure::InternalError();
-    CallStubCompiler compiler(argc, in_loop, kind, cache_holder);
+    CallStubCompiler compiler(
+        argc, in_loop, kind, Code::kNoExtraICState, cache_holder);
     { MaybeObject* maybe_code =
           compiler.CompileCallGlobal(receiver, holder, cell, function, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -862,8 +868,12 @@ static MaybeObject* FillCache(MaybeObject* maybe_code) {
 Code* StubCache::FindCallInitialize(int argc,
                                     InLoopFlag in_loop,
                                     Code::Kind kind) {
-  Code::Flags flags =
-      Code::ComputeFlags(kind, in_loop, UNINITIALIZED, NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(kind,
+                                         in_loop,
+                                         UNINITIALIZED,
+                                         Code::kNoExtraICState,
+                                         NORMAL,
+                                         argc);
   Object* result = ProbeCache(flags)->ToObjectUnchecked();
   ASSERT(!result->IsUndefined());
   // This might be called during the marking phase of the collector
@@ -875,8 +885,12 @@ Code* StubCache::FindCallInitialize(int argc,
 MaybeObject* StubCache::ComputeCallInitialize(int argc,
                                               InLoopFlag in_loop,
                                               Code::Kind kind) {
-  Code::Flags flags =
-      Code::ComputeFlags(kind, in_loop, UNINITIALIZED, NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(kind,
+                                         in_loop,
+                                         UNINITIALIZED,
+                                         Code::kNoExtraICState,
+                                         NORMAL,
+                                         argc);
   Object* probe;
   { MaybeObject* maybe_probe = ProbeCache(flags);
     if (!maybe_probe->ToObject(&probe)) return maybe_probe;
@@ -918,8 +932,12 @@ Handle<Code> StubCache::ComputeKeyedCallInitialize(int argc,
 MaybeObject* StubCache::ComputeCallPreMonomorphic(int argc,
                                                   InLoopFlag in_loop,
                                                   Code::Kind kind) {
-  Code::Flags flags =
-      Code::ComputeFlags(kind, in_loop, PREMONOMORPHIC, NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(kind,
+                                         in_loop,
+                                         PREMONOMORPHIC,
+                                         Code::kNoExtraICState,
+                                         NORMAL,
+                                         argc);
   Object* probe;
   { MaybeObject* maybe_probe = ProbeCache(flags);
     if (!maybe_probe->ToObject(&probe)) return maybe_probe;
@@ -933,8 +951,12 @@ MaybeObject* StubCache::ComputeCallPreMonomorphic(int argc,
 MaybeObject* StubCache::ComputeCallNormal(int argc,
                                           InLoopFlag in_loop,
                                           Code::Kind kind) {
-  Code::Flags flags =
-      Code::ComputeFlags(kind, in_loop, MONOMORPHIC, NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(kind,
+                                         in_loop,
+                                         MONOMORPHIC,
+                                         Code::kNoExtraICState,
+                                         NORMAL,
+                                         argc);
   Object* probe;
   { MaybeObject* maybe_probe = ProbeCache(flags);
     if (!maybe_probe->ToObject(&probe)) return maybe_probe;
@@ -948,8 +970,12 @@ MaybeObject* StubCache::ComputeCallNormal(int argc,
 MaybeObject* StubCache::ComputeCallMegamorphic(int argc,
                                                InLoopFlag in_loop,
                                                Code::Kind kind) {
-  Code::Flags flags =
-      Code::ComputeFlags(kind, in_loop, MEGAMORPHIC, NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(kind,
+                                         in_loop,
+                                         MEGAMORPHIC,
+                                         Code::kNoExtraICState,
+                                         NORMAL,
+                                         argc);
   Object* probe;
   { MaybeObject* maybe_probe = ProbeCache(flags);
     if (!maybe_probe->ToObject(&probe)) return maybe_probe;
@@ -963,8 +989,13 @@ MaybeObject* StubCache::ComputeCallMegamorphic(int argc,
 MaybeObject* StubCache::ComputeCallMiss(int argc, Code::Kind kind) {
   // MONOMORPHIC_PROTOTYPE_FAILURE state is used to make sure that miss stubs
   // and monomorphic stubs are not mixed up together in the stub cache.
-  Code::Flags flags = Code::ComputeFlags(
-     kind, NOT_IN_LOOP, MONOMORPHIC_PROTOTYPE_FAILURE, NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(kind,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC_PROTOTYPE_FAILURE,
+                                         Code::kNoExtraICState,
+                                         NORMAL,
+                                         argc,
+                                         OWN_MAP);
   Object* probe;
   { MaybeObject* maybe_probe = ProbeCache(flags);
     if (!maybe_probe->ToObject(&probe)) return maybe_probe;
@@ -977,8 +1008,12 @@ MaybeObject* StubCache::ComputeCallMiss(int argc, Code::Kind kind) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 MaybeObject* StubCache::ComputeCallDebugBreak(int argc, Code::Kind kind) {
-  Code::Flags flags =
-      Code::ComputeFlags(kind, NOT_IN_LOOP, DEBUG_BREAK, NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(kind,
+                                         NOT_IN_LOOP,
+                                         DEBUG_BREAK,
+                                         Code::kNoExtraICState,
+                                         NORMAL,
+                                         argc);
   Object* probe;
   { MaybeObject* maybe_probe = ProbeCache(flags);
     if (!maybe_probe->ToObject(&probe)) return maybe_probe;
@@ -991,12 +1026,12 @@ MaybeObject* StubCache::ComputeCallDebugBreak(int argc, Code::Kind kind) {
 
 MaybeObject* StubCache::ComputeCallDebugPrepareStepIn(int argc,
                                                       Code::Kind kind) {
-  Code::Flags flags =
-      Code::ComputeFlags(kind,
-                         NOT_IN_LOOP,
-                         DEBUG_PREPARE_STEP_IN,
-                         NORMAL,
-                         argc);
+  Code::Flags flags = Code::ComputeFlags(kind,
+                                         NOT_IN_LOOP,
+                                         DEBUG_PREPARE_STEP_IN,
+                                         Code::kNoExtraICState,
+                                         NORMAL,
+                                         argc);
   Object* probe;
   { MaybeObject* maybe_probe = ProbeCache(flags);
     if (!maybe_probe->ToObject(&probe)) return maybe_probe;
@@ -1533,11 +1568,13 @@ MaybeObject* KeyedStoreStubCompiler::GetCode(PropertyType type, String* name) {
 CallStubCompiler::CallStubCompiler(int argc,
                                    InLoopFlag in_loop,
                                    Code::Kind kind,
+                                   Code::ExtraICState extra_ic_state,
                                    InlineCacheHolderFlag cache_holder)
-    : arguments_(argc)
-    , in_loop_(in_loop)
-    , kind_(kind)
-    , cache_holder_(cache_holder) {
+    : arguments_(argc),
+      in_loop_(in_loop),
+      kind_(kind),
+      extra_ic_state_(extra_ic_state),
+      cache_holder_(cache_holder) {
 }
 
 
@@ -1574,6 +1611,7 @@ MaybeObject* CallStubCompiler::GetCode(PropertyType type, String* name) {
   int argc = arguments_.immediate();
   Code::Flags flags = Code::ComputeMonomorphicFlags(kind_,
                                                     type,
+                                                    extra_ic_state_,
                                                     cache_holder_,
                                                     in_loop_,
                                                     argc);
