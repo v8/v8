@@ -289,6 +289,10 @@ class Scope: public ZoneObject {
   int ContextChainLength(Scope* scope);
 
   // ---------------------------------------------------------------------------
+  // Strict mode support.
+  bool IsParameterDeclared(Handle<String> name);
+
+  // ---------------------------------------------------------------------------
   // Debugging.
 
 #ifdef DEBUG
