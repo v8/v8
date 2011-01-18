@@ -202,13 +202,7 @@ function FormatMessage(message) {
       array_indexof_not_defined:    "Array.getIndexOf: Argument undefined",
       object_not_extensible:        "Can't add property %0, object is not extensible",
       illegal_access:               "Illegal access",
-      invalid_preparser_data:       "Invalid preparser data for function %0",
-      strict_mode_with:             "Strict mode code may not include a with statement",
-      strict_catch_variable:        "Catch variable may not be eval or arguments in strict mode",
-      strict_param_name:            "Parameter name eval or arguments is not allowed in strict mode",
-      strict_param_dupe:            "Strict mode function may not have duplicate parameter names",
-      strict_var_name:              "Variable name may not be eval or arguments in strict mode",
-      strict_function_name:         "Function name may not be eval or arguments in strict mode",
+      invalid_preparser_data:       "Invalid preparser data for function %0"
     };
   }
   var format = kMessages[message.type];

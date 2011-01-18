@@ -445,18 +445,6 @@ int Scope::ContextChainLength(Scope* scope) {
 }
 
 
-bool Scope::IsParameterDeclared(Handle<String> name) {
-  ASSERT(name->IsSymbol());
-  for (int i = 0, length = num_parameters(); i < length; i ++) {
-    ASSERT(parameter(i)->name()->IsSymbol());
-    if (name.is_identical_to(parameter(i)->name())) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 #ifdef DEBUG
 static const char* Header(Scope::Type type) {
   switch (type) {

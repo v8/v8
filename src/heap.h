@@ -204,7 +204,6 @@ namespace internal {
   V(global_eval_symbol, "GlobalEval")                                    \
   V(identity_hash_symbol, "v8::IdentityHash")                            \
   V(closure_symbol, "(closure)")                                         \
-  V(use_strict, "use strict")                                            \
   V(KeyedLoadExternalArray_symbol, "KeyedLoadExternalArray")             \
   V(KeyedStoreExternalArray_symbol, "KeyedStoreExternalArray")
 
