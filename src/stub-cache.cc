@@ -29,6 +29,7 @@
 
 #include "api.h"
 #include "arguments.h"
+#include "gdb-jit.h"
 #include "ic-inl.h"
 #include "stub-cache.h"
 #include "vm-state-inl.h"
@@ -122,6 +123,7 @@ MaybeObject* StubCache::ComputeLoadNonexistent(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), cache_name));
+    GDBJIT(AddCode(GDBJITInterface::LOAD_IC, cache_name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(cache_name, Code::cast(code));
@@ -146,6 +148,7 @@ MaybeObject* StubCache::ComputeLoadField(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -171,6 +174,7 @@ MaybeObject* StubCache::ComputeLoadCallback(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -196,6 +200,7 @@ MaybeObject* StubCache::ComputeLoadConstant(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -219,6 +224,7 @@ MaybeObject* StubCache::ComputeLoadInterceptor(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -252,6 +258,7 @@ MaybeObject* StubCache::ComputeLoadGlobal(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -276,6 +283,7 @@ MaybeObject* StubCache::ComputeKeyedLoadField(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -301,6 +309,7 @@ MaybeObject* StubCache::ComputeKeyedLoadConstant(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -325,6 +334,7 @@ MaybeObject* StubCache::ComputeKeyedLoadInterceptor(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -350,6 +360,7 @@ MaybeObject* StubCache::ComputeKeyedLoadCallback(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -373,6 +384,7 @@ MaybeObject* StubCache::ComputeKeyedLoadArrayLength(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -395,6 +407,7 @@ MaybeObject* StubCache::ComputeKeyedLoadStringLength(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result = map->UpdateCodeCache(name, Code::cast(code));
       if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -416,6 +429,7 @@ MaybeObject* StubCache::ComputeKeyedLoadFunctionPrototype(
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -461,6 +475,7 @@ MaybeObject* StubCache::ComputeStoreField(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::STORE_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -509,6 +524,7 @@ MaybeObject* StubCache::ComputeStoreGlobal(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::STORE_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -532,6 +548,7 @@ MaybeObject* StubCache::ComputeStoreCallback(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::STORE_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -554,6 +571,7 @@ MaybeObject* StubCache::ComputeStoreInterceptor(String* name,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::STORE_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -579,6 +597,7 @@ MaybeObject* StubCache::ComputeKeyedStoreField(String* name,
     }
     PROFILE(CodeCreateEvent(
         Logger::KEYED_STORE_IC_TAG, Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -636,6 +655,7 @@ MaybeObject* StubCache::ComputeCallConstant(int argc,
     ASSERT_EQ(flags, Code::cast(code)->flags());
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::CALL_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           map_holder->UpdateMapCodeCache(name, Code::cast(code));
@@ -683,6 +703,7 @@ MaybeObject* StubCache::ComputeCallField(int argc,
     ASSERT_EQ(flags, Code::cast(code)->flags());
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::CALL_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           map_holder->UpdateMapCodeCache(name, Code::cast(code));
@@ -726,6 +747,7 @@ MaybeObject* StubCache::ComputeCallInterceptor(int argc,
     ASSERT_EQ(flags, Code::cast(code)->flags());
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::CALL_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           map_holder->UpdateMapCodeCache(name, Code::cast(code));
@@ -781,6 +803,7 @@ MaybeObject* StubCache::ComputeCallGlobal(int argc,
     ASSERT_EQ(flags, Code::cast(code)->flags());
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
+    GDBJIT(AddCode(GDBJITInterface::CALL_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
           map_holder->UpdateMapCodeCache(name, Code::cast(code));
@@ -1257,6 +1280,7 @@ MaybeObject* StubCompiler::CompileCallInitialize(Code::Flags flags) {
   USE(code);
   PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_INITIALIZE_TAG),
                           code, code->arguments_count()));
+  GDBJIT(AddCode(GDBJITInterface::CALL_INITIALIZE, Code::cast(code)));
   return result;
 }
 
@@ -1282,6 +1306,7 @@ MaybeObject* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
   USE(code);
   PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_PRE_MONOMORPHIC_TAG),
                           code, code->arguments_count()));
+  GDBJIT(AddCode(GDBJITInterface::CALL_PRE_MONOMORPHIC, Code::cast(code)));
   return result;
 }
 
@@ -1304,6 +1329,7 @@ MaybeObject* StubCompiler::CompileCallNormal(Code::Flags flags) {
   USE(code);
   PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_NORMAL_TAG),
                           code, code->arguments_count()));
+  GDBJIT(AddCode(GDBJITInterface::CALL_NORMAL, Code::cast(code)));
   return result;
 }
 
@@ -1328,6 +1354,7 @@ MaybeObject* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
   USE(code);
   PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MEGAMORPHIC_TAG),
                           code, code->arguments_count()));
+  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, Code::cast(code)));
   return result;
 }
 
@@ -1350,6 +1377,7 @@ MaybeObject* StubCompiler::CompileCallMiss(Code::Flags flags) {
   USE(code);
   PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MISS_TAG),
                           code, code->arguments_count()));
+  GDBJIT(AddCode(GDBJITInterface::CALL_MISS, Code::cast(code)));
   return result;
 }
 
@@ -1449,6 +1477,9 @@ MaybeObject* LoadStubCompiler::GetCode(PropertyType type, String* name) {
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG,
                             Code::cast(result->ToObjectUnchecked()),
                             name));
+    GDBJIT(AddCode(GDBJITInterface::LOAD_IC,
+                   name,
+                   Code::cast(result->ToObjectUnchecked())));
   }
   return result;
 }
@@ -1461,6 +1492,9 @@ MaybeObject* KeyedLoadStubCompiler::GetCode(PropertyType type, String* name) {
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG,
                             Code::cast(result->ToObjectUnchecked()),
                             name));
+    GDBJIT(AddCode(GDBJITInterface::LOAD_IC,
+                   name,
+                   Code::cast(result->ToObjectUnchecked())));
   }
   return result;
 }
@@ -1473,6 +1507,9 @@ MaybeObject* StoreStubCompiler::GetCode(PropertyType type, String* name) {
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG,
                             Code::cast(result->ToObjectUnchecked()),
                             name));
+    GDBJIT(AddCode(GDBJITInterface::STORE_IC,
+                   name,
+                   Code::cast(result->ToObjectUnchecked())));
   }
   return result;
 }
@@ -1485,6 +1522,9 @@ MaybeObject* KeyedStoreStubCompiler::GetCode(PropertyType type, String* name) {
     PROFILE(CodeCreateEvent(Logger::KEYED_STORE_IC_TAG,
                             Code::cast(result->ToObjectUnchecked()),
                             name));
+    GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC,
+                   name,
+                   Code::cast(result->ToObjectUnchecked())));
   }
   return result;
 }
@@ -1559,6 +1599,7 @@ MaybeObject* ConstructStubCompiler::GetCode() {
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(CodeCreateEvent(Logger::STUB_TAG, code, "ConstructStub"));
+  GDBJIT(AddCode(GDBJITInterface::STUB, "ConstructStub", Code::cast(code)));
   return result;
 }
 

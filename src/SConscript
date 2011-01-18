@@ -71,6 +71,7 @@ SOURCES = {
     frames.cc
     full-codegen.cc
     func-name-inferrer.cc
+    gdb-jit.cc
     global-handles.cc
     fast-dtoa.cc
     fixed-dtoa.cc

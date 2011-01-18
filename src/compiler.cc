@@ -35,6 +35,7 @@
 #include "data-flow.h"
 #include "debug.h"
 #include "full-codegen.h"
+#include "gdb-jit.h"
 #include "hydrogen.h"
 #include "lithium-allocator.h"
 #include "liveedit.h"
@@ -421,6 +422,9 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     OPROFILE(CreateNativeCodeRegion(String::cast(script->name()),
                                     info->code()->instruction_start(),
                                     info->code()->instruction_size()));
+    GDBJIT(AddCode(Handle<String>(String::cast(script->name())),
+                   script,
+                   info->code()));
   } else {
     PROFILE(CodeCreateEvent(
         info->is_eval()
@@ -431,6 +435,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     OPROFILE(CreateNativeCodeRegion(info->is_eval() ? "Eval" : "Script",
                                     info->code()->instruction_start(),
                                     info->code()->instruction_size()));
+    GDBJIT(AddCode(Handle<String>(), script, info->code()));
   }
 
   // Allocate function.
@@ -794,6 +799,10 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                       code->instruction_size()));
     }
   }
+
+  GDBJIT(AddCode(name,
+                 Handle<Script>(info->script()),
+                 Handle<Code>(info->code())));
 }
 
 } }  // namespace v8::internal
