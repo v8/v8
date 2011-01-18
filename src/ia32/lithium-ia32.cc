@@ -1166,8 +1166,8 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
   ASSERT(instr->key()->representation().IsTagged());
   argument_count_ -= instr->argument_count();
-  LOperand* temp = UseFixed(instr->key(), ecx);
-  return MarkAsCall(DefineFixed(new LCallKeyed(temp), eax), instr);
+  LOperand* key = UseFixed(instr->key(), ecx);
+  return MarkAsCall(DefineFixed(new LCallKeyed(key), eax), instr);
 }
 
 

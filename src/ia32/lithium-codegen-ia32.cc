@@ -2506,6 +2506,7 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
 
 void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
+  ASSERT(ToRegister(instr->InputAt(0)).is(ecx));
 
   int arity = instr->arity();
   Handle<Code> ic = StubCache::ComputeKeyedCallInitialize(arity, NOT_IN_LOOP);
