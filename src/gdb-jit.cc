@@ -937,7 +937,7 @@ extern "C" {
   // To prevent GCC from inlining or removing it we place noinline attribute
   // and inline assembler statement inside.
   void __attribute__((noinline)) __jit_debug_register_code() {
-    __asm__ ("");
+    __asm__("");
   }
 
   // GDB will inspect contents of this descriptor.
