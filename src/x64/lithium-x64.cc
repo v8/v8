@@ -754,8 +754,19 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
 
 LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
                                            HArithmeticBinaryOperation* instr) {
-  Abort("Unimplemented: %s", "DoArithmeticT");
-  return NULL;
+  ASSERT(op == Token::ADD ||
+         op == Token::DIV ||
+         op == Token::MOD ||
+         op == Token::MUL ||
+         op == Token::SUB);
+  HValue* left = instr->left();
+  HValue* right = instr->right();
+  ASSERT(left->representation().IsTagged());
+  ASSERT(right->representation().IsTagged());
+  LOperand* left_operand = UseFixed(left, rdx);
+  LOperand* right_operand = UseFixed(right, rax);
+  LArithmeticT* result = new LArithmeticT(op, left_operand, right_operand);
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
@@ -1085,7 +1096,23 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
 
 
 LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
-  Abort("Unimplemented: %s", "DoAdd");
+  if (instr->representation().IsInteger32()) {
+    ASSERT(instr->left()->representation().IsInteger32());
+    ASSERT(instr->right()->representation().IsInteger32());
+    LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
+    LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
+    LAddI* add = new LAddI(left, right);
+    LInstruction* result = DefineSameAsFirst(add);
+    if (instr->CheckFlag(HValue::kCanOverflow)) {
+      result = AssignEnvironment(result);
+    }
+    return result;
+  } else if (instr->representation().IsDouble()) {
+    Abort("Unimplemented: %s", "DoAdd on Doubles");
+  } else {
+    ASSERT(instr->representation().IsTagged());
+    return DoArithmeticT(Token::ADD, instr);
+  }
   return NULL;
 }
 

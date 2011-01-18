@@ -885,7 +885,22 @@ void LCodeGen::DoThrow(LThrow* instr) {
 
 
 void LCodeGen::DoAddI(LAddI* instr) {
-  Abort("Unimplemented: %s", "DoAddI");
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  ASSERT(left->Equals(instr->result()));
+
+  if (right->IsConstantOperand()) {
+    __ addl(ToRegister(left),
+            Immediate(ToInteger32(LConstantOperand::cast(right))));
+  } else if (right->IsRegister()) {
+    __ addl(ToRegister(left), ToRegister(right));
+  } else {
+    __ addl(ToRegister(left), ToOperand(right));
+  }
+
+  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+    DeoptimizeIf(overflow, instr->environment());
+  }
 }
 
 
@@ -895,7 +910,13 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
 
 
 void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
-  Abort("Unimplemented: %s", "DoArithmeticT");
+  ASSERT(ToRegister(instr->InputAt(0)).is(rdx));
+  ASSERT(ToRegister(instr->InputAt(1)).is(rax));
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  GenericBinaryOpStub stub(instr->op(), NO_OVERWRITE, NO_GENERIC_BINARY_FLAGS);
+  stub.SetArgsInRegisters();
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
