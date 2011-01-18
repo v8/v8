@@ -207,7 +207,8 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 
   // Limit the number of times we re-compile a functions with
   // the optimizing compiler.
-  const int kMaxOptCount = FLAG_deopt_every_n_times == 0 ? 10 : 1000;
+  const int kMaxOptCount =
+      FLAG_deopt_every_n_times == 0 ? Compiler::kDefaultMaxOptCount : 1000;
   if (info->shared_info()->opt_count() > kMaxOptCount) {
     AbortAndDisable(info);
     // True indicates the compilation pipeline is still going, not
