@@ -297,6 +297,7 @@ class Logger {
 
  private:
   Logger();
+  ~Logger();
 
   // Size of window used for log records compression.
   static const int kCompressionWindowSize = 4;

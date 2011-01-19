@@ -348,6 +348,10 @@ Logger::Logger()
     prev_code_(NULL) {
 }
 
+Logger::~Logger() {
+  delete log_;
+}
+
 #define DECLARE_LONG_EVENT(ignore1, long_name, ignore2) long_name,
 static const char* const kLongLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
   LOG_EVENTS_AND_TAGS_LIST(DECLARE_LONG_EVENT)

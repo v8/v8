@@ -499,6 +499,11 @@ Isolate::~Isolate() {
   delete cpu_features_;
   cpu_features_ = NULL;
 
+  delete handle_scope_implementer_;
+  handle_scope_implementer_ = NULL;
+  delete break_access_;
+  break_access_ = NULL;
+
   delete compilation_cache_;
   compilation_cache_ = NULL;
   delete bootstrapper_;
@@ -584,11 +589,6 @@ bool Isolate::PreInit() {
   ast_sentinels_ = new AstSentinels();
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  debugger_ = new Debugger();
-  debugger_->isolate_ = this;
-#endif
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   producer_heap_profile_ = new ProducerHeapProfile();
