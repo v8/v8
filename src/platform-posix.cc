@@ -122,11 +122,6 @@ FILE* OS::FOpen(const char* path, const char* mode) {
 }
 
 
-bool OS::Remove(const char* path) {
-  return (remove(path) == 0);
-}
-
-
 const char* OS::LogFileOpenMode = "w";
 
 
