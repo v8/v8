@@ -332,7 +332,7 @@ bool MemoryMappedExternalResource::EnsureIsAscii(bool abort_if_failed) const {
 
       // Report the error and abort if appropriate:
       if (abort_if_failed) {
-        intptr_t char_no = (p - start_of_line) - 1;
+        int char_no = static_cast<int>(p - start_of_line) - 1;
 
         ASSERT(filename_ != NULL);
         PrintF("\n\n\n"
@@ -348,7 +348,7 @@ bool MemoryMappedExternalResource::EnsureIsAscii(bool abort_if_failed) const {
           err_context = data_;
         }
         // Compute the length of the error context and print it.
-        intptr_t err_context_length = p - err_context;
+        int err_context_length = static_cast<int>(p - err_context);
         if (err_context_length != 0) {
           PrintF(" after \"%.*s\"", err_context_length, err_context);
         }
