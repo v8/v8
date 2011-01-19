@@ -674,6 +674,12 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
 }
 
 
+LInstruction* LChunkBuilder::MarkAsSaveDoubles(LInstruction* instr) {
+  allocator_->MarkAsSaveDoubles();
+  return instr;
+}
+
+
 LInstruction* LChunkBuilder::AssignPointerMap(LInstruction* instr) {
   ASSERT(!instr->HasPointerMap());
   instr->set_pointer_map(new LPointerMap(position_));
@@ -1083,8 +1089,9 @@ LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
 LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
     HInstanceOfKnownGlobal* instr) {
   LInstruction* result =
-      new LInstanceOfKnownGlobal(UseFixed(instr->value(), r0));
-  return MarkAsCall(DefineFixed(result, r0), instr);
+      new LInstanceOfKnownGlobal(UseFixed(instr->value(), r0), FixedTemp(r4));
+  MarkAsSaveDoubles(result);
+  return AssignEnvironment(AssignPointerMap(DefineFixed(result, r0)));
 }
 
 

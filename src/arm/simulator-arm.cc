@@ -153,7 +153,12 @@ void Debugger::Stop(Instr* instr) {
   if (sim_->isWatchedStop(code) && !sim_->watched_stops[code].desc) {
     sim_->watched_stops[code].desc = msg;
   }
-  PrintF("Simulator hit %s\n", msg);
+  // Print the stop message and code if it is not the default code.
+  if (code != kMaxStopCode) {
+    PrintF("Simulator hit stop %u: %s\n", code, msg);
+  } else {
+    PrintF("Simulator hit %s\n", msg);
+  }
   sim_->set_pc(sim_->get_pc() + 2 * Instr::kInstrSize);
   Debug();
 }

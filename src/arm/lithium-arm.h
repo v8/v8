@@ -945,14 +945,18 @@ class LInstanceOfAndBranch: public LInstanceOf {
 
 class LInstanceOfKnownGlobal: public LUnaryOperation {
  public:
-  explicit LInstanceOfKnownGlobal(LOperand* left)
-      : LUnaryOperation(left) { }
+  explicit LInstanceOfKnownGlobal(LOperand* left, LOperand* temp)
+      : LUnaryOperation(left), temp_(temp) { }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal,
                                "instance-of-known-global")
   DECLARE_HYDROGEN_ACCESSOR(InstanceOfKnownGlobal)
 
   Handle<JSFunction> function() const { return hydrogen()->function(); }
+  LOperand* temp() const { return temp_; }
+
+ private:
+  LOperand* temp_;
 };
 
 
@@ -1927,6 +1931,7 @@ class LChunkBuilder BASE_EMBEDDED {
       LInstruction* instr,
       HInstruction* hinstr,
       CanDeoptimize can_deoptimize = CANNOT_DEOPTIMIZE_EAGERLY);
+  LInstruction* MarkAsSaveDoubles(LInstruction* instr);
 
   LInstruction* SetInstructionPendingDeoptimizationEnvironment(
       LInstruction* instr, int ast_id);
