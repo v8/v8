@@ -203,9 +203,7 @@ namespace internal {
   V(zero_symbol, "0")                                                    \
   V(global_eval_symbol, "GlobalEval")                                    \
   V(identity_hash_symbol, "v8::IdentityHash")                            \
-  V(closure_symbol, "(closure)")                                         \
-  V(KeyedLoadExternalArray_symbol, "KeyedLoadExternalArray")             \
-  V(KeyedStoreExternalArray_symbol, "KeyedStoreExternalArray")
+  V(closure_symbol, "(closure)")
 
 
 // Forward declarations.
