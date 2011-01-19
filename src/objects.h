@@ -624,6 +624,71 @@ class MaybeObject BASE_EMBEDDED {
 #endif
 };
 
+
+#define OBJECT_TYPE_LIST(V)                    \
+  V(Smi)                                       \
+  V(HeapObject)                                \
+  V(Number)                                    \
+
+#define HEAP_OBJECT_TYPE_LIST(V)               \
+  V(HeapNumber)                                \
+  V(String)                                    \
+  V(Symbol)                                    \
+  V(SeqString)                                 \
+  V(ExternalString)                            \
+  V(ConsString)                                \
+  V(ExternalTwoByteString)                     \
+  V(ExternalAsciiString)                       \
+  V(SeqTwoByteString)                          \
+  V(SeqAsciiString)                            \
+                                               \
+  V(PixelArray)                                \
+  V(ExternalArray)                             \
+  V(ExternalByteArray)                         \
+  V(ExternalUnsignedByteArray)                 \
+  V(ExternalShortArray)                        \
+  V(ExternalUnsignedShortArray)                \
+  V(ExternalIntArray)                          \
+  V(ExternalUnsignedIntArray)                  \
+  V(ExternalFloatArray)                        \
+  V(ByteArray)                                 \
+  V(JSObject)                                  \
+  V(JSContextExtensionObject)                  \
+  V(Map)                                       \
+  V(DescriptorArray)                           \
+  V(DeoptimizationInputData)                   \
+  V(DeoptimizationOutputData)                  \
+  V(FixedArray)                                \
+  V(Context)                                   \
+  V(CatchContext)                              \
+  V(GlobalContext)                             \
+  V(JSFunction)                                \
+  V(Code)                                      \
+  V(Oddball)                                   \
+  V(SharedFunctionInfo)                        \
+  V(JSValue)                                   \
+  V(StringWrapper)                             \
+  V(Proxy)                                     \
+  V(Boolean)                                   \
+  V(JSArray)                                   \
+  V(JSRegExp)                                  \
+  V(HashTable)                                 \
+  V(Dictionary)                                \
+  V(SymbolTable)                               \
+  V(JSFunctionResultCache)                     \
+  V(NormalizedMapCache)                        \
+  V(CompilationCacheTable)                     \
+  V(CodeCacheHashTable)                        \
+  V(MapCache)                                  \
+  V(Primitive)                                 \
+  V(GlobalObject)                              \
+  V(JSGlobalObject)                            \
+  V(JSBuiltinsObject)                          \
+  V(JSGlobalProxy)                             \
+  V(UndetectableObject)                        \
+  V(AccessCheckNeeded)                         \
+  V(JSGlobalPropertyCell)                      \
+
 // Object is the abstract superclass for all classes in the
 // object hierarchy.
 // Object does not use any virtual functions to avoid the
@@ -633,67 +698,10 @@ class MaybeObject BASE_EMBEDDED {
 class Object : public MaybeObject {
  public:
   // Type testing.
-  inline bool IsSmi();
-  inline bool IsHeapObject();
-  inline bool IsHeapNumber();
-  inline bool IsString();
-  inline bool IsSymbol();
-  // See objects-inl.h for more details
-  inline bool IsSeqString();
-  inline bool IsExternalString();
-  inline bool IsExternalTwoByteString();
-  inline bool IsExternalAsciiString();
-  inline bool IsSeqTwoByteString();
-  inline bool IsSeqAsciiString();
-  inline bool IsConsString();
-
-  inline bool IsNumber();
-  inline bool IsByteArray();
-  inline bool IsPixelArray();
-  inline bool IsExternalArray();
-  inline bool IsExternalByteArray();
-  inline bool IsExternalUnsignedByteArray();
-  inline bool IsExternalShortArray();
-  inline bool IsExternalUnsignedShortArray();
-  inline bool IsExternalIntArray();
-  inline bool IsExternalUnsignedIntArray();
-  inline bool IsExternalFloatArray();
-  inline bool IsJSObject();
-  inline bool IsJSContextExtensionObject();
-  inline bool IsMap();
-  inline bool IsFixedArray();
-  inline bool IsDescriptorArray();
-  inline bool IsDeoptimizationInputData();
-  inline bool IsDeoptimizationOutputData();
-  inline bool IsContext();
-  inline bool IsCatchContext();
-  inline bool IsGlobalContext();
-  inline bool IsJSFunction();
-  inline bool IsCode();
-  inline bool IsOddball();
-  inline bool IsSharedFunctionInfo();
-  inline bool IsJSValue();
-  inline bool IsStringWrapper();
-  inline bool IsProxy();
-  inline bool IsBoolean();
-  inline bool IsJSArray();
-  inline bool IsJSRegExp();
-  inline bool IsHashTable();
-  inline bool IsDictionary();
-  inline bool IsSymbolTable();
-  inline bool IsJSFunctionResultCache();
-  inline bool IsNormalizedMapCache();
-  inline bool IsCompilationCacheTable();
-  inline bool IsCodeCacheHashTable();
-  inline bool IsMapCache();
-  inline bool IsPrimitive();
-  inline bool IsGlobalObject();
-  inline bool IsJSGlobalObject();
-  inline bool IsJSBuiltinsObject();
-  inline bool IsJSGlobalProxy();
-  inline bool IsUndetectableObject();
-  inline bool IsAccessCheckNeeded();
-  inline bool IsJSGlobalPropertyCell();
+#define IS_TYPE_FUNCTION_DECL(type_)  inline bool Is##type_();
+  OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+  HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+#undef IS_TYPE_FUNCTION_DECL
 
   // Returns true if this object is an instance of the specified
   // function template.
