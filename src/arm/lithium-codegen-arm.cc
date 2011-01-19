@@ -1756,8 +1756,40 @@ Condition LHasInstanceType::BranchCondition() {
 }
 
 
+static InstanceType TestType(HHasInstanceType* instr) {
+  InstanceType from = instr->from();
+  InstanceType to = instr->to();
+  if (from == FIRST_TYPE) return to;
+  ASSERT(from == to || to == LAST_TYPE);
+  return from;
+}
+
+
+static Condition BranchCondition(HHasInstanceType* instr) {
+  InstanceType from = instr->from();
+  InstanceType to = instr->to();
+  if (from == to) return eq;
+  if (to == LAST_TYPE) return hs;
+  if (from == FIRST_TYPE) return ls;
+  UNREACHABLE();
+  return eq;
+}
+
+
 void LCodeGen::DoHasInstanceType(LHasInstanceType* instr) {
-  Abort("DoHasInstanceType unimplemented.");
+  Register input = ToRegister(instr->input());
+  Register result = ToRegister(instr->result());
+
+  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
+  Label done;
+  __ tst(input, Operand(kSmiTagMask));
+  __ LoadRoot(result, Heap::kFalseValueRootIndex, eq);
+  __ b(eq, &done);
+  __ CompareObjectType(input, result, result, TestType(instr->hydrogen()));
+  Condition cond = BranchCondition(instr->hydrogen());
+  __ LoadRoot(result, Heap::kTrueValueRootIndex, cond);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex, NegateCondition(cond));
+  __ bind(&done);
 }
 
 
