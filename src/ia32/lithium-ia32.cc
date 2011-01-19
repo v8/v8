@@ -1741,6 +1741,20 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
+  LOperand* string = UseRegister(instr->string());
+  LOperand* index = UseRegisterOrConstant(instr->index());
+  return AssignEnvironment(AssignPointerMap(DefineAsRegister(
+      new LStringCharCodeAt(string, index))));
+}
+
+
+LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
+  LOperand* string = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LStringLength(string));
+}
+
+
 LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
   return MarkAsCall(DefineFixed(new LArrayLiteral, eax), instr);
 }

@@ -1724,6 +1724,18 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
+  Abort("LStringCharCodeAt instruction not implemented on ARM");
+  return NULL;
+}
+
+
+LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
+  Abort("LStringLength instruction not implemented on ARM");
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
   return MarkAsCall(DefineFixed(new LArrayLiteral, r0), instr);
 }

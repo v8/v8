@@ -81,6 +81,7 @@ class LChunkBuilder;
 //       HStoreNamed
 //         HStoreNamedField
 //         HStoreNamedGeneric
+//       HStringCharCodeAt
 //     HBlockEntry
 //     HCall
 //       HCallConstantFunction
@@ -137,6 +138,7 @@ class LChunkBuilder;
 //       HLoadNamedGeneric
 //       HLoadFunctionPrototype
 //       HPushArgument
+//       HStringLength
 //       HTypeof
 //       HUnaryMathOperation
 //       HUnaryPredicate
@@ -248,6 +250,8 @@ class LChunkBuilder;
   V(StoreKeyedGeneric)                         \
   V(StoreNamedField)                           \
   V(StoreNamedGeneric)                         \
+  V(StringCharCodeAt)                          \
+  V(StringLength)                              \
   V(Sub)                                       \
   V(Throw)                                     \
   V(Typeof)                                    \
@@ -1579,6 +1583,12 @@ class HCheckInstanceType: public HUnaryOperation {
     ASSERT(first <= last);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
+    if ((FIRST_STRING_TYPE < first && last <= LAST_STRING_TYPE) ||
+        (FIRST_STRING_TYPE <= first && last < LAST_STRING_TYPE)) {
+      // A particular string instance type can change because of GC or
+      // externalization, but the value still remains a string.
+      SetFlag(kDependsOnMaps);
+    }
   }
 
   virtual bool IsCheckInstruction() const { return true; }
@@ -2934,6 +2944,61 @@ class HStoreKeyedGeneric: public HStoreKeyed {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store_keyed_generic")
+};
+
+
+class HStringCharCodeAt: public HBinaryOperation {
+ public:
+  HStringCharCodeAt(HValue* string, HValue* index)
+      : HBinaryOperation(string, index) {
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    // The index is supposed to be Integer32.
+    return (index == 1) ? Representation::Integer32()
+        : Representation::Tagged();
+  }
+
+  virtual bool DataEquals(HValue* other) const { return true; }
+
+  HValue* string() const { return OperandAt(0); }
+  HValue* index() const { return OperandAt(1); }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringCharCodeAt, "string_char_code_at")
+
+ protected:
+  virtual Range* InferRange() {
+    return new Range(0, String::kMaxUC16CharCode);
+  }
+};
+
+
+class HStringLength: public HUnaryOperation {
+ public:
+  explicit HStringLength(HValue* string) : HUnaryOperation(string) {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  virtual HType CalculateInferredType() const {
+    STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
+    return HType::Smi();
+  }
+
+  virtual bool DataEquals(HValue* other) const { return true; }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringLength, "string_length")
+
+ protected:
+  virtual Range* InferRange() {
+    return new Range(0, String::kMaxLength);
+  }
 };
 
 

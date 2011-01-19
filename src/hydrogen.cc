@@ -34,6 +34,7 @@
 #include "lithium-allocator.h"
 #include "parser.h"
 #include "scopes.h"
+#include "stub-cache.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/lithium-codegen-ia32.h"
@@ -4146,12 +4147,29 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value, HBasicBlock* target) {
 }
 
 
-bool HGraphBuilder::TryMathFunctionInline(Call* expr) {
+bool HGraphBuilder::TryInlineBuiltinFunction(Call* expr,
+                                             HValue* receiver,
+                                             Handle<Map> receiver_map,
+                                             CheckType check_type) {
+  ASSERT(check_type != RECEIVER_MAP_CHECK || !receiver_map.is_null());
   // Try to inline calls like Math.* as operations in the calling function.
-  if (!expr->target()->shared()->IsBuiltinMathFunction()) return false;
+  if (!expr->target()->shared()->HasBuiltinFunctionId()) return false;
   BuiltinFunctionId id = expr->target()->shared()->builtin_function_id();
   int argument_count = expr->arguments()->length() + 1;  // Plus receiver.
   switch (id) {
+    case kStringCharCodeAt:
+      if (argument_count == 2 && check_type == STRING_CHECK) {
+        HValue* index = Pop();
+        HValue* string = Pop();
+        ASSERT(!expr->holder().is_null());
+        AddInstruction(new HCheckPrototypeMaps(
+            oracle()->GetPrototypeForPrimitiveCheck(STRING_CHECK),
+            expr->holder()));
+        HStringCharCodeAt* result = BuildStringCharCodeAt(string, index);
+        ast_context()->ReturnInstruction(result, expr->id());
+        return true;
+      }
+      break;
     case kMathRound:
     case kMathFloor:
     case kMathAbs:
@@ -4159,7 +4177,8 @@ bool HGraphBuilder::TryMathFunctionInline(Call* expr) {
     case kMathLog:
     case kMathSin:
     case kMathCos:
-      if (argument_count == 2) {
+      if (argument_count == 2 && check_type == RECEIVER_MAP_CHECK) {
+        AddCheckConstantFunction(expr, receiver, receiver_map, true);
         HValue* argument = Pop();
         Drop(1);  // Receiver.
         HUnaryMathOperation* op = new HUnaryMathOperation(argument, id);
@@ -4169,7 +4188,8 @@ bool HGraphBuilder::TryMathFunctionInline(Call* expr) {
       }
       break;
     case kMathPow:
-      if (argument_count == 3) {
+      if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
+        AddCheckConstantFunction(expr, receiver, receiver_map, true);
         HValue* right = Pop();
         HValue* left = Pop();
         Pop();  // Pop receiver.
@@ -4179,8 +4199,6 @@ bool HGraphBuilder::TryMathFunctionInline(Call* expr) {
           double exponent = HConstant::cast(right)->DoubleValue();
           if (exponent == 0.5) {
             result = new HUnaryMathOperation(left, kMathPowHalf);
-            ast_context()->ReturnInstruction(result, expr->id());
-            return true;
           } else if (exponent == -0.5) {
             HConstant* double_one =
                 new HConstant(Handle<Object>(Smi::FromInt(1)),
@@ -4193,22 +4211,18 @@ bool HGraphBuilder::TryMathFunctionInline(Call* expr) {
             // an environment simulation here.
             ASSERT(!square_root->HasSideEffects());
             result = new HDiv(double_one, square_root);
-            ast_context()->ReturnInstruction(result, expr->id());
-            return true;
           } else if (exponent == 2.0) {
             result = new HMul(left, left);
-            ast_context()->ReturnInstruction(result, expr->id());
-            return true;
           }
         } else if (right->IsConstant() &&
-            HConstant::cast(right)->HasInteger32Value() &&
-            HConstant::cast(right)->Integer32Value() == 2) {
+                   HConstant::cast(right)->HasInteger32Value() &&
+                   HConstant::cast(right)->Integer32Value() == 2) {
           result = new HMul(left, left);
-          ast_context()->ReturnInstruction(result, expr->id());
-          return true;
         }
 
-        result = new HPower(left, right);
+        if (result == NULL) {
+          result = new HPower(left, right);
+        }
         ast_context()->ReturnInstruction(result, expr->id());
         return true;
       }
@@ -4263,6 +4277,13 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
 }
 
 
+static bool HasCustomCallGenerator(Handle<JSFunction> function) {
+  SharedFunctionInfo* info = function->shared();
+  return info->HasBuiltinFunctionId() &&
+      CallStubCompiler::HasCustomCallGenerator(info->builtin_function_id());
+}
+
+
 void HGraphBuilder::VisitCall(Call* expr) {
   Expression* callee = expr->expression();
   int argument_count = expr->arguments()->length() + 1;  // Plus receiver.
@@ -4309,30 +4330,44 @@ void HGraphBuilder::VisitCall(Call* expr) {
     expr->RecordTypeFeedback(oracle());
     ZoneMapList* types = expr->GetReceiverTypes();
 
-    if (expr->IsMonomorphic() && expr->check_type() == RECEIVER_MAP_CHECK) {
-      AddCheckConstantFunction(expr, receiver, types->first(), true);
-
-      if (TryMathFunctionInline(expr)) {
+    if (expr->IsMonomorphic()) {
+      Handle<Map> receiver_map =
+          (types == NULL) ? Handle<Map>::null() : types->first();
+      if (TryInlineBuiltinFunction(expr,
+                                   receiver,
+                                   receiver_map,
+                                   expr->check_type())) {
         return;
-      } else if (TryInline(expr)) {
-        if (subgraph()->HasExit()) {
-          HValue* return_value = Pop();
-          // If we inlined a function in a test context then we need to emit
-          // a simulate here to shadow the ones at the end of the
-          // predecessor blocks.  Those environments contain the return
-          // value on top and do not correspond to any actual state of the
-          // unoptimized code.
-          if (ast_context()->IsEffect()) AddSimulate(expr->id());
-          ast_context()->ReturnValue(return_value);
-        }
-        return;
-      } else {
-        // Check for bailout, as the TryInline call in the if condition above
-        // might return false due to bailout during hydrogen processing.
-        CHECK_BAILOUT;
-        call = new HCallConstantFunction(expr->target(), argument_count);
       }
 
+      if (HasCustomCallGenerator(expr->target()) ||
+          expr->check_type() != RECEIVER_MAP_CHECK) {
+        // When the target has a custom call IC generator, use the IC,
+        // because it is likely to generate better code. Also use the
+        // IC when a primitive receiver check is required.
+        call = new HCallNamed(name, argument_count);
+      } else {
+        AddCheckConstantFunction(expr, receiver, receiver_map, true);
+
+        if (TryInline(expr)) {
+          if (subgraph()->HasExit()) {
+            HValue* return_value = Pop();
+            // If we inlined a function in a test context then we need to emit
+            // a simulate here to shadow the ones at the end of the
+            // predecessor blocks.  Those environments contain the return
+            // value on top and do not correspond to any actual state of the
+            // unoptimized code.
+            if (ast_context()->IsEffect()) AddSimulate(expr->id());
+            ast_context()->ReturnValue(return_value);
+          }
+          return;
+        } else {
+          // Check for bailout, as the TryInline call in the if condition above
+          // might return false due to bailout during hydrogen processing.
+          CHECK_BAILOUT;
+          call = new HCallConstantFunction(expr->target(), argument_count);
+        }
+      }
     } else if (types != NULL && types->length() > 1) {
       ASSERT(expr->check_type() == RECEIVER_MAP_CHECK);
       HandlePolymorphicCallNamed(expr, receiver, types, name);
@@ -4717,6 +4752,18 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
   } else {
     BAILOUT("invalid lhs in count operation");
   }
+}
+
+
+HStringCharCodeAt* HGraphBuilder::BuildStringCharCodeAt(HValue* string,
+                                                        HValue* index) {
+  AddInstruction(new HCheckNonSmi(string));
+  AddInstruction(new HCheckInstanceType(
+      string, FIRST_STRING_TYPE, LAST_STRING_TYPE));
+  HStringLength* length = new HStringLength(string);
+  AddInstruction(length);
+  AddInstruction(new HBoundsCheck(index, length));
+  return new HStringCharCodeAt(string, index);
 }
 
 
@@ -5129,7 +5176,11 @@ void HGraphBuilder::GenerateSetValueOf(int argument_count, int ast_id) {
 
 // Fast support for charCodeAt(n).
 void HGraphBuilder::GenerateStringCharCodeAt(int argument_count, int ast_id) {
-  BAILOUT("inlined runtime function: StringCharCodeAt");
+  ASSERT(argument_count == 2);
+  HValue* index = Pop();
+  HValue* string = Pop();
+  HStringCharCodeAt* result = BuildStringCharCodeAt(string, index);
+  ast_context()->ReturnInstruction(result, ast_id);
 }
 
 

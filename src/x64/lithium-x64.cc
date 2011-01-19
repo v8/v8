@@ -1465,6 +1465,18 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
+  Abort("Unimplemented: %s", "DoStringCharCodeAt");
+  return NULL;
+}
+
+
+LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
+  Abort("Unimplemented: %s", "DoStringLength");
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
   Abort("Unimplemented: %s", "DoArrayLiteral");
   return NULL;

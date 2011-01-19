@@ -114,6 +114,7 @@ class LCodeGen;
 //     LStoreNamed
 //       LStoreNamedField
 //       LStoreNamedGeneric
+//     LStringCharCodeAt
 //     LBitNotI
 //     LCallNew
 //     LCheckFunction
@@ -141,6 +142,7 @@ class LCodeGen;
 //     LReturn
 //     LSmiTag
 //     LStoreGlobal
+//     LStringLength
 //     LTaggedToI
 //     LThrow
 //     LTypeof
@@ -253,6 +255,8 @@ class LCodeGen;
   V(StoreKeyedGeneric)                          \
   V(StoreNamedField)                            \
   V(StoreNamedGeneric)                          \
+  V(StringCharCodeAt)                           \
+  V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
   V(Throw)                                      \
@@ -1587,6 +1591,34 @@ class LStoreKeyedGeneric: public LStoreKeyed {
       : LStoreKeyed(obj, key, val) { }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
+};
+
+
+class LStringCharCodeAt: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LStringCharCodeAt(LOperand* string, LOperand* index) {
+    inputs_[0] = string;
+    inputs_[1] = index;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringCharCodeAt, "string-char-code-at")
+  DECLARE_HYDROGEN_ACCESSOR(StringCharCodeAt)
+
+  LOperand* string() { return inputs_[0]; }
+  LOperand* index() { return inputs_[1]; }
+};
+
+
+class LStringLength: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LStringLength(LOperand* string) {
+    inputs_[0] = string;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringLength, "string-length")
+  DECLARE_HYDROGEN_ACCESSOR(StringLength)
+
+  LOperand* string() { return inputs_[0]; }
 };
 
 
