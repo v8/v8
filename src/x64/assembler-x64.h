@@ -707,6 +707,10 @@ class Assembler : public Malloced {
     arithmetic_op_32(0x1b, dst, src);
   }
 
+  void sbbq(Register dst, Register src) {
+    arithmetic_op(0x1b, dst, src);
+  }
+
   void cmpb(Register dst, Immediate src) {
     immediate_arithmetic_op_8(0x7, dst, src);
   }

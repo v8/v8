@@ -523,7 +523,8 @@ enum InstanceType {
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
-  JS_REGEXP_TYPE,  // LAST_JS_OBJECT_TYPE
+
+  JS_REGEXP_TYPE,  // LAST_JS_OBJECT_TYPE, FIRST_FUNCTION_CLASS_TYPE
 
   JS_FUNCTION_TYPE,
 
@@ -541,7 +542,10 @@ enum InstanceType {
   // function objects are not counted as objects, even though they are
   // implemented as such; only values whose typeof is "object" are included.
   FIRST_JS_OBJECT_TYPE = JS_VALUE_TYPE,
-  LAST_JS_OBJECT_TYPE = JS_REGEXP_TYPE
+  LAST_JS_OBJECT_TYPE = JS_REGEXP_TYPE,
+  // RegExp objects have [[Class]] "function" because they are callable.
+  // All types from this type and above are objects with [[Class]] "function".
+  FIRST_FUNCTION_CLASS_TYPE = JS_REGEXP_TYPE
 };
 
 

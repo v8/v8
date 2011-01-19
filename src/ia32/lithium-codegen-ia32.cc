@@ -1285,11 +1285,11 @@ void LCodeGen::DoCmpID(LCmpID* instr) {
 
   NearLabel done;
   Condition cc = TokenToCondition(instr->op(), instr->is_double());
-  __ mov(ToRegister(result), Handle<Object>(Heap::true_value()));
+  __ mov(ToRegister(result), Factory::true_value());
   __ j(cc, &done);
 
   __ bind(&unordered);
-  __ mov(ToRegister(result), Handle<Object>(Heap::false_value()));
+  __ mov(ToRegister(result), Factory::false_value());
   __ bind(&done);
 }
 
@@ -1320,10 +1320,10 @@ void LCodeGen::DoCmpJSObjectEq(LCmpJSObjectEq* instr) {
   Register result = ToRegister(instr->result());
 
   __ cmp(left, Operand(right));
-  __ mov(result, Handle<Object>(Heap::true_value()));
+  __ mov(result, Factory::true_value());
   NearLabel done;
   __ j(equal, &done);
-  __ mov(result, Handle<Object>(Heap::false_value()));
+  __ mov(result, Factory::false_value());
   __ bind(&done);
 }
 
@@ -1348,10 +1348,10 @@ void LCodeGen::DoIsNull(LIsNull* instr) {
 
   __ cmp(reg, Factory::null_value());
   if (instr->is_strict()) {
-    __ mov(result, Handle<Object>(Heap::true_value()));
+    __ mov(result, Factory::true_value());
     NearLabel done;
     __ j(equal, &done);
-    __ mov(result, Handle<Object>(Heap::false_value()));
+    __ mov(result, Factory::false_value());
     __ bind(&done);
   } else {
     NearLabel true_value, false_value, done;
@@ -1368,10 +1368,10 @@ void LCodeGen::DoIsNull(LIsNull* instr) {
     __ test(scratch, Immediate(1 << Map::kIsUndetectable));
     __ j(not_zero, &true_value);
     __ bind(&false_value);
-    __ mov(result, Handle<Object>(Heap::false_value()));
+    __ mov(result, Factory::false_value());
     __ jmp(&done);
     __ bind(&true_value);
-    __ mov(result, Handle<Object>(Heap::true_value()));
+    __ mov(result, Factory::true_value());
     __ bind(&done);
   }
 }
@@ -1447,11 +1447,11 @@ void LCodeGen::DoIsObject(LIsObject* instr) {
   __ j(true_cond, &is_true);
 
   __ bind(&is_false);
-  __ mov(result, Handle<Object>(Heap::false_value()));
+  __ mov(result, Factory::false_value());
   __ jmp(&done);
 
   __ bind(&is_true);
-  __ mov(result, Handle<Object>(Heap::true_value()));
+  __ mov(result, Factory::true_value());
 
   __ bind(&done);
 }
@@ -1479,10 +1479,10 @@ void LCodeGen::DoIsSmi(LIsSmi* instr) {
 
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
   __ test(input, Immediate(kSmiTagMask));
-  __ mov(result, Handle<Object>(Heap::true_value()));
+  __ mov(result, Factory::true_value());
   NearLabel done;
   __ j(zero, &done);
-  __ mov(result, Handle<Object>(Heap::false_value()));
+  __ mov(result, Factory::false_value());
   __ bind(&done);
 }
 
@@ -1507,7 +1507,6 @@ static InstanceType TestType(HHasInstanceType* instr) {
 }
 
 
-
 static Condition BranchCondition(HHasInstanceType* instr) {
   InstanceType from = instr->from();
   InstanceType to = instr->to();
@@ -1529,10 +1528,10 @@ void LCodeGen::DoHasInstanceType(LHasInstanceType* instr) {
   __ j(zero, &is_false);
   __ CmpObjectType(input, TestType(instr->hydrogen()), result);
   __ j(NegateCondition(BranchCondition(instr->hydrogen())), &is_false);
-  __ mov(result, Handle<Object>(Heap::true_value()));
+  __ mov(result, Factory::true_value());
   __ jmp(&done);
   __ bind(&is_false);
-  __ mov(result, Handle<Object>(Heap::false_value()));
+  __ mov(result, Factory::false_value());
   __ bind(&done);
 }
 
@@ -1559,12 +1558,12 @@ void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
   Register result = ToRegister(instr->result());
 
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
-  __ mov(result, Handle<Object>(Heap::true_value()));
+  __ mov(result, Factory::true_value());
   __ test(FieldOperand(input, String::kHashFieldOffset),
           Immediate(String::kContainsCachedArrayIndexMask));
   NearLabel done;
   __ j(not_zero, &done);
-  __ mov(result, Handle<Object>(Heap::false_value()));
+  __ mov(result, Factory::false_value());
   __ bind(&done);
 }
 
@@ -1653,11 +1652,11 @@ void LCodeGen::DoClassOfTest(LClassOfTest* instr) {
   __ j(not_equal, &is_false);
 
   __ bind(&is_true);
-  __ mov(result, Handle<Object>(Heap::true_value()));
+  __ mov(result, Factory::true_value());
   __ jmp(&done);
 
   __ bind(&is_false);
-  __ mov(result, Handle<Object>(Heap::false_value()));
+  __ mov(result, Factory::false_value());
   __ bind(&done);
 }
 
@@ -3292,11 +3291,11 @@ void LCodeGen::DoTypeofIs(LTypeofIs* instr) {
                                                   instr->type_literal());
   __ j(final_branch_condition, &true_label);
   __ bind(&false_label);
-  __ mov(result, Handle<Object>(Heap::false_value()));
+  __ mov(result, Factory::false_value());
   __ jmp(&done);
 
   __ bind(&true_label);
-  __ mov(result, Handle<Object>(Heap::true_value()));
+  __ mov(result, Factory::true_value());
 
   __ bind(&done);
 }
@@ -3341,9 +3340,9 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     final_branch_condition = below;
 
   } else if (type_name->Equals(Heap::boolean_symbol())) {
-    __ cmp(input, Handle<Object>(Heap::true_value()));
+    __ cmp(input, Factory::true_value());
     __ j(equal, true_label);
-    __ cmp(input, Handle<Object>(Heap::false_value()));
+    __ cmp(input, Factory::false_value());
     final_branch_condition = equal;
 
   } else if (type_name->Equals(Heap::undefined_symbol())) {

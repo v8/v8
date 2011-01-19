@@ -788,11 +788,10 @@ class LHasInstanceType: public LTemplateInstruction<1, 1> {
 };
 
 
-class LHasInstanceTypeAndBranch: public LControlInstruction<1, 1> {
+class LHasInstanceTypeAndBranch: public LControlInstruction<1, 0> {
  public:
-  LHasInstanceTypeAndBranch(LOperand* value, LOperand* temp) {
+  explicit LHasInstanceTypeAndBranch(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(HasInstanceTypeAndBranch,
@@ -840,12 +839,11 @@ class LClassOfTest: public LTemplateInstruction<1, 1, 1> {
 };
 
 
-class LClassOfTestAndBranch: public LControlInstruction<1, 2> {
+class LClassOfTestAndBranch: public LControlInstruction<1, 1> {
  public:
-  LClassOfTestAndBranch(LOperand* value, LOperand* temp, LOperand* temp2) {
+  LClassOfTestAndBranch(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
-    temps_[1] = temp2;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ClassOfTestAndBranch,
