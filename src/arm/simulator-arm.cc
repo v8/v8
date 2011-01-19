@@ -455,7 +455,7 @@ void Debugger::Debug() {
         PrintF("DIV BY ZERO flag: %d; ", sim_->div_zero_vfp_flag_);
         PrintF("OVERFLOW flag: %d; ", sim_->overflow_vfp_flag_);
         PrintF("UNDERFLOW flag: %d; ", sim_->underflow_vfp_flag_);
-        PrintF("INEXACT flag: %d; ", sim_->inexact_vfp_flag_);
+        PrintF("INEXACT flag: %d;\n", sim_->inexact_vfp_flag_);
       } else if (strcmp(cmd, "stop") == 0) {
         int32_t value;
         intptr_t stop_pc = sim_->get_pc() - 2 * Instr::kInstrSize;
@@ -2907,6 +2907,10 @@ void Simulator::InstructionDecode(Instr* instr) {
         break;
       }
     }
+  // If the instruction is a non taken conditional stop, we need to skip the
+  // inlined message address.
+  } else if (instr->IsStop()) {
+    set_pc(get_pc() + 2 * Instr::kInstrSize);
   }
   if (!pc_modified_) {
     set_register(pc, reinterpret_cast<int32_t>(instr) + Instr::kInstrSize);
