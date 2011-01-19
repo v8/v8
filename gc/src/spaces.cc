@@ -57,17 +57,6 @@ HeapObjectIterator::HeapObjectIterator(PagedSpace* space,
 }
 
 
-HeapObjectIterator::HeapObjectIterator(PagedSpace* space, Address start) {
-  Initialize(start, space->top(), NULL);
-}
-
-
-HeapObjectIterator::HeapObjectIterator(PagedSpace* space, Address start,
-                                       HeapObjectCallback size_func) {
-  Initialize(start, space->top(), size_func);
-}
-
-
 HeapObjectIterator::HeapObjectIterator(Page* page,
                                        HeapObjectCallback size_func) {
   Initialize(page->ObjectAreaStart(), page->AllocationTop(), size_func);
@@ -82,6 +71,11 @@ void HeapObjectIterator::Initialize(Address cur, Address end,
   size_func_ = size_f;
   Page* p = Page::FromAllocationTop(cur_addr_);
   cur_limit_ = (p == end_page_) ? end_addr_ : p->AllocationTop();
+
+  if (!p->IsFlagSet(Page::IS_CONTINUOUS)) {
+    cur_addr_ = Marking::FirstLiveObject(cur_addr_, cur_limit_);
+    if (cur_addr_ > cur_limit_) cur_addr_ = cur_limit_;
+  }
 
 #ifdef DEBUG
   Verify();
@@ -99,12 +93,28 @@ HeapObject* HeapObjectIterator::FromNextPage() {
   cur_addr_ = cur_page->ObjectAreaStart();
   cur_limit_ = (cur_page == end_page_) ? end_addr_ : cur_page->AllocationTop();
 
+  if (!cur_page->IsFlagSet(Page::IS_CONTINUOUS)) {
+    cur_addr_ = Marking::FirstLiveObject(cur_addr_, cur_limit_);
+    if (cur_addr_ > cur_limit_) cur_addr_ = cur_limit_;
+  }
+
   if (cur_addr_ == end_addr_) return NULL;
   ASSERT(cur_addr_ < cur_limit_);
 #ifdef DEBUG
   Verify();
 #endif
   return FromCurrentPage();
+}
+
+
+void HeapObjectIterator::AdvanceUsingMarkbits() {
+  HeapObject* obj = HeapObject::FromAddress(cur_addr_);
+  int obj_size = (size_func_ == NULL) ? obj->Size() : size_func_(obj);
+  ASSERT_OBJECT_SIZE(obj_size);
+  cur_addr_ = Marking::NextLiveObject(obj,
+                                      obj_size,
+                                      cur_limit_);
+  if (cur_addr_ > cur_limit_) cur_addr_ = cur_limit_;
 }
 
 
@@ -787,10 +797,10 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
         above_allocation_top = true;
       }
 
-      // It should be packed with objects from the bottom to the top.
-      Address current = current_page->ObjectAreaStart();
-      while (current < top) {
-        HeapObject* object = HeapObject::FromAddress(current);
+      HeapObjectIterator it(current_page, NULL);
+      Address end_of_previous_object = current_page->ObjectAreaStart();
+      for(HeapObject* object = it.next(); object != NULL; object = it.next()) {
+        ASSERT(end_of_previous_object <= object->address());
 
         // The first word should be a map, and we expect all map pointers to
         // be in map space.
@@ -801,6 +811,10 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
         // Perform space-specific object verification.
         VerifyObject(object);
 
+        if (object->IsCodeCache() && ((uint32_t*)object->address())[2] == 0x2) {
+          current_page->PrintMarkbits();
+        }
+
         // The object itself should look OK.
         object->Verify();
 
@@ -810,11 +824,9 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
         int size = object->Size();
         object->IterateBody(map->instance_type(), size, visitor);
 
-        current += size;
+        ASSERT(object->address() + size <= top);
+        end_of_previous_object = object->address() + size;
       }
-
-      // The allocation pointer should not be in the middle of an object.
-      ASSERT(current == top);
     }
 
     current_page = current_page->next_page();
@@ -1672,6 +1684,13 @@ bool NewSpace::ReserveSpace(int bytes) {
 void PagedSpace::FreePages(Page* prev, Page* last) {
   if (last == AllocationTopPage()) {
     // Pages are already at the end of used pages.
+    // Just mark them as continuos.
+    Page* p = prev == NULL ? first_page_ : prev->next_page();
+    Page* end_page = last->next_page();
+    do {
+      p->SetFlag(Page::IS_CONTINUOUS);
+      p = p->next_page();
+    } while (p != end_page);
     return;
   }
 
@@ -1697,9 +1716,10 @@ void PagedSpace::FreePages(Page* prev, Page* last) {
     first->SetAllocationWatermark(first->ObjectAreaStart());
     first->SetCachedAllocationWatermark(first->ObjectAreaStart());
     first->SetRegionMarks(Page::kAllRegionsCleanMarks);
+    first->SetFlag(Page::IS_CONTINUOUS);
     first->markbits()->Clear();
     first = first->next_page();
-  } while (first != NULL);
+  } while (first->is_valid());
 }
 
 
@@ -1776,6 +1796,13 @@ HeapObject* OldSpace::SlowAllocateRaw(int size_in_bytes) {
         // might contain garbage pointers to new space.
         ASSERT(obj->address() == p->AllocationWatermark());
         p->SetAllocationWatermark(obj->address() + size_in_bytes);
+      }
+
+      if (!p->IsFlagSet(Page::IS_CONTINUOUS)) {
+        // This page is not continuous so we have to mark objects
+        // that should be visited by HeapObjectIterator.
+        ASSERT(!Marking::IsMarked(obj));
+        Marking::SetMark(obj);
       }
 
       return obj;

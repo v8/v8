@@ -135,6 +135,22 @@ class Bitmap {
     return sizeof(CellType)*cells_count;
   }
 
+  INLINE(static uint32_t IndexToCell(uint32_t index)) {
+    return index >> kBitsPerCellLog2;
+  }
+
+  INLINE(static uint32_t IndexToBit(uint32_t index)) {
+    return index & kBitIndexMask;
+  }
+
+  INLINE(static uint32_t CellToIndex(uint32_t index)) {
+    return index << kBitsPerCellLog2;
+  }
+
+  INLINE(static uint32_t CellAlignIndex(uint32_t index)) {
+    return (index + kBitIndexMask) & ~kBitIndexMask;
+  }
+
   INLINE(CellType* cells()) {
     return reinterpret_cast<CellType*>(this);
   }
@@ -185,7 +201,8 @@ class Bitmap {
     const uint32_t end_mask   = (1 << (end & kBitIndexMask)) - 1;
 
     ASSERT(static_cast<int>(start_cell) < CellsCount());
-    ASSERT(static_cast<int>(end_cell) < CellsCount());
+    ASSERT(static_cast<int>(end_cell) < CellsCount() ||
+           (end_mask == 0 && static_cast<int>(end_cell) == CellsCount()));
 
     if (start_cell == end_cell) {
       cells()[start_cell] &= ~(start_mask & end_mask);
@@ -205,17 +222,61 @@ class Bitmap {
     for (int i = 0; i < CellsCount(); i++) cells()[i] = 0;
   }
 
-  static void PrintWord(const uint32_t& word, const char* sep = " ") {
+  static void PrintWord(uint32_t word, uint32_t himask = 0) {
     for (uint32_t mask = 1; mask != 0; mask <<= 1) {
+      if ((mask & himask) != 0) PrintF("[");
       PrintF((mask & word) ? "1" : "0");
+      if ((mask & himask) != 0) PrintF("]");
     }
-    PrintF("%s", sep);
   }
 
-  void Print() {
-    for (int i = 0; i < CellsCount(); i++) {
-      PrintWord(cells()[i]);
+  class CellPrinter {
+   public:
+    CellPrinter() : seq_start(0), seq_type(0), seq_length(0) { }
+
+    void Print(uint32_t pos, uint32_t cell) {
+      if (cell == seq_type) {
+        seq_length++;
+        return;
+      }
+
+      Flush();
+
+      if (IsSeq(cell)) {
+        seq_start = pos;
+        seq_length = 0;
+        seq_type = cell;
+        return;
+      }
+
+      PrintF("%d: ", pos);
+      PrintWord(cell);
+      PrintF("\n");
     }
+
+    void Flush() {
+      if (seq_length > 0) {
+        PrintF("%d: %dx%d\n",
+               seq_start,
+               seq_type == 0 ? 0 : 1,
+               seq_length * kBitsPerCell);
+        seq_length = 0;
+      }
+    }
+
+    static bool IsSeq(uint32_t cell) { return cell == 0 || cell == 0xFFFFFFFF; }
+   private:
+    uint32_t seq_start;
+    uint32_t seq_type;
+    uint32_t seq_length;
+  };
+
+  void Print() {
+    CellPrinter printer;
+    for (int i = 0; i < CellsCount(); i++) {
+      printer.Print(i, cells()[i]);
+    }
+    printer.Flush();
     PrintF("\n");
   }
 
@@ -257,15 +318,15 @@ class MemoryChunk {
     NUM_MEMORY_CHUNK_FLAGS
   };
 
-  void SetFlag(MemoryChunkFlags flag) {
+  void SetFlag(int flag) {
     flags_ |= 1 << flag;
   }
 
-  void ClearFlag(MemoryChunkFlags flag) {
+  void ClearFlag(int flag) {
     flags_ &= ~(1 << flag);
   }
 
-  bool IsFlagSet(MemoryChunkFlags flag) {
+  bool IsFlagSet(int flag) {
     return (flags_ & (1 << flag)) != 0;
   }
 
@@ -274,7 +335,7 @@ class MemoryChunk {
   static const intptr_t kAlignmentMask = kAlignment - 1;
 
   static const size_t kHeaderSize = kPointerSize + kPointerSize + kPointerSize +
-    kPointerSize + kPointerSize;
+    kPointerSize + kPointerSize + kPointerSize;
 
   static const size_t kMarksBitmapLength =
     (1 << kPageSizeBits) >> (kPointerSizeLog2);
@@ -293,6 +354,7 @@ class MemoryChunk {
 
   // ---------------------------------------------------------------------
   // Markbits support
+
   class BitmapStorageDescriptor {
    public:
     INLINE(static int CellsCount(Address addr)) {
@@ -307,18 +369,20 @@ class MemoryChunk {
     return MarkbitsBitmap::FromAddress(address() + kHeaderSize);
   }
 
-  inline uint32_t Address2Markbit(Address addr) {
+  void PrintMarkbits() { markbits()->Print(); }
+
+  inline uint32_t AddressToMarkbitIndex(Address addr) {
     return static_cast<uint32_t>(addr - this->address()) >> kPointerSizeLog2;
   }
 
-  inline static uint32_t FastAddress2Markbit(Address addr) {
+  inline static uint32_t FastAddressToMarkbitIndex(Address addr) {
     const intptr_t offset =
         reinterpret_cast<intptr_t>(addr) & kAlignmentMask;
 
     return static_cast<uint32_t>(offset) >> kPointerSizeLog2;
   }
 
-  inline Address Markbit2Address(uint32_t index) {
+  inline Address MarkbitIndexToAddress(uint32_t index) {
     return this->address() + (index << kPointerSizeLog2);
   }
 
@@ -469,6 +533,14 @@ class Page : public MemoryChunk {
   // Maximum object size that fits in a page.
   static const int kMaxHeapObjectSize = kObjectAreaSize;
 
+  static const int kFirstUsedCell =
+    (kBodyOffset/kPointerSize) >> MarkbitsBitmap::kBitsPerCellLog2;
+
+  static const int kLastUsedCell =
+    ((kPageSize - kPointerSize)/kPointerSize) >>
+      MarkbitsBitmap::kBitsPerCellLog2;
+
+
 #ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   static const int kDirtyFlagOffset = 2 * kPointerSize;
   static const int kRegionSizeLog2 = 8;
@@ -482,10 +554,21 @@ class Page : public MemoryChunk {
     // Page allocation watermark was bumped by preallocation during scavenge.
     // Correct watermark can be retrieved by CachedAllocationWatermark() method
     WATERMARK_INVALIDATED = NUM_MEMORY_CHUNK_FLAGS,
+
+    // We say that memory region [start_addr, end_addr[ is continuous if
+    // and only if:
+    //   a) start_addr coincides with the start of a valid heap object
+    //   b) for any valid heap object o in this region address
+    //      o->address() + o->Size() is either equal to end_addr or coincides
+    //      with the start of a valid heap object.
+    // We say that a page is continuous if and only if the region
+    // [page->ObjectAreaStart(), page->AllocationTop()[ is continuous.
+    // For non-continuous pages we say that address lb is a linearity boundary
+    // if and only if [lb, page->AllocationTop()[ is either empty or continuous.
+    IS_CONTINUOUS,
+
     NUM_PAGE_FLAGS  // Must be last
   };
-
-  static const int kPageFlagMask = (1 << NUM_PAGE_FLAGS) - 1;
 
   // To avoid an additional WATERMARK_INVALIDATED flag clearing pass during
   // scavenge we just invalidate the watermark on each old space page after
@@ -510,7 +593,7 @@ class Page : public MemoryChunk {
 
   inline void ClearGCFields();
 
-  static const int kAllocationWatermarkOffsetShift = WATERMARK_INVALIDATED + 1;
+  static const int kAllocationWatermarkOffsetShift = NUM_PAGE_FLAGS;
   static const int kAllocationWatermarkOffsetBits  = kPageSizeBits + 1;
   static const uint32_t kAllocationWatermarkOffsetMask =
       ((1 << kAllocationWatermarkOffsetBits) - 1) <<
@@ -527,15 +610,25 @@ class Page : public MemoryChunk {
   // its meaning at the beginning of a scavenge.
   static intptr_t watermark_invalidated_mark_;
 
+  // See comments for IS_CONTINUOUS flag.
+  Address linearity_boundary() { return linearity_boundary_; }
+  void set_linearity_boundary(Address linearity_boundary) {
+    linearity_boundary_ = linearity_boundary;
+  }
+
  private:
   static Page* Initialize(MemoryChunk* chunk) {
     Page* page = static_cast<Page*>(chunk);
     page->allocation_watermark_ = page->body();
     page->InvalidateWatermark(true);
+    page->SetFlag(IS_CONTINUOUS);
     return page;
   }
 
   Address allocation_watermark_;
+
+  // See comments for IS_CONTINUOUS flag.
+  Address linearity_boundary_;
 
   friend class MemoryAllocator;
 };
@@ -845,9 +938,10 @@ class ObjectIterator : public Malloced {
 // -----------------------------------------------------------------------------
 // Heap object iterator in new/old/map spaces.
 //
-// A HeapObjectIterator iterates objects from a given address to the
-// top of a space. The given address must be below the current
-// allocation pointer (space top). There are some caveats.
+// A HeapObjectIterator iterates objects from the bottom of the given space
+// to it's top or from the bottom of the given page to it's top.
+//
+// There are some caveats.
 //
 // (1) If the space top changes upward during iteration (because of
 //     allocating new objects), the iterator does not iterate objects
@@ -866,16 +960,11 @@ class ObjectIterator : public Malloced {
 
 class HeapObjectIterator: public ObjectIterator {
  public:
-  // Creates a new object iterator in a given space. If a start
-  // address is not given, the iterator starts from the space bottom.
+  // Creates a new object iterator in a given space.
   // If the size function is not given, the iterator calls the default
   // Object::Size().
   explicit HeapObjectIterator(PagedSpace* space);
   HeapObjectIterator(PagedSpace* space, HeapObjectCallback size_func);
-  HeapObjectIterator(PagedSpace* space, Address start);
-  HeapObjectIterator(PagedSpace* space,
-                     Address start,
-                     HeapObjectCallback size_func);
   HeapObjectIterator(Page* page, HeapObjectCallback size_func);
 
   inline HeapObject* next() {
@@ -894,16 +983,23 @@ class HeapObjectIterator: public ObjectIterator {
 
   HeapObject* FromCurrentPage() {
     ASSERT(cur_addr_ < cur_limit_);
-
     HeapObject* obj = HeapObject::FromAddress(cur_addr_);
-    int obj_size = (size_func_ == NULL) ? obj->Size() : size_func_(obj);
-    ASSERT_OBJECT_SIZE(obj_size);
 
-    cur_addr_ += obj_size;
-    ASSERT(cur_addr_ <= cur_limit_);
+    Page* p = Page::FromAddress(cur_addr_);
+    if (p->IsFlagSet(Page::IS_CONTINUOUS)) {
+      int obj_size = (size_func_ == NULL) ? obj->Size() : size_func_(obj);
+      ASSERT_OBJECT_SIZE(obj_size);
+
+      cur_addr_ += obj_size;
+      ASSERT(cur_addr_ <= cur_limit_);
+    } else {
+      AdvanceUsingMarkbits();
+    }
 
     return obj;
   }
+
+  void AdvanceUsingMarkbits();
 
   // Slow path of next, goes into the next page.
   HeapObject* FromNextPage();
@@ -1567,13 +1663,13 @@ class NewSpace : public Space {
   Address start() { return start_; }
   uintptr_t mask() { return address_mask_; }
 
-  INLINE(uint32_t Address2MarkbitIndex(Address addr)) {
+  INLINE(uint32_t AddressToMarkbitIndex(Address addr)) {
     ASSERT(Contains(addr));
     ASSERT(IsAligned(OffsetFrom(addr), kPointerSize));
     return static_cast<uint32_t>(addr - start_) >> kPointerSizeLog2;
   }
 
-  INLINE(Address MarkbitIndex2Address(uint32_t index)) {
+  INLINE(Address MarkbitIndexToAddress(uint32_t index)) {
     return reinterpret_cast<Address>(index << kPointerSizeLog2);
   }
 

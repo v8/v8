@@ -28,6 +28,8 @@
 #ifndef V8_MARK_COMPACT_H_
 #define V8_MARK_COMPACT_H_
 
+#include "compiler-intrinsics.h"
+
 namespace v8 {
 namespace internal {
 
@@ -57,53 +59,165 @@ class Marking {
 
   INLINE(static bool TestAndMark(Address addr)) {
     if (Heap::InNewSpace(addr)) {
-      uint32_t index = Heap::new_space()->Address2MarkbitIndex(addr);
+      uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
       return new_space_bitmap_->TestAndSet(index);
     } else {
       Page *p = Page::FromAddress(addr);
-      return p->markbits()->TestAndSet(p->Address2Markbit(addr));
+      return p->markbits()->TestAndSet(p->AddressToMarkbitIndex(addr));
     }
   }
 
   INLINE(static bool IsMarked(Address addr)) {
     if (Heap::InNewSpace(addr)) {
-      uint32_t index = Heap::new_space()->Address2MarkbitIndex(addr);
+      uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
       return new_space_bitmap_->Get(index);
     } else {
       Page *p = Page::FromAddress(addr);
-      return p->markbits()->Get(p->Address2Markbit(addr));
+      return p->markbits()->Get(p->AddressToMarkbitIndex(addr));
     }
   }
 
   INLINE(static void SetMark(Address addr)) {
     if (Heap::InNewSpace(addr)) {
-      uint32_t index = Heap::new_space()->Address2MarkbitIndex(addr);
+      uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
       new_space_bitmap_->Set(index);
     } else {
       Page *p = Page::FromAddress(addr);
-      p->markbits()->Set(p->FastAddress2Markbit(addr));
+      p->markbits()->Set(p->FastAddressToMarkbitIndex(addr));
     }
   }
 
   INLINE(static void ClearMark(Address addr)) {
     if (Heap::InNewSpace(addr)) {
-      uint32_t index = Heap::new_space()->Address2MarkbitIndex(addr);
+      uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
       new_space_bitmap_->Clear(index);
     } else {
       Page *p = Page::FromAddress(addr);
-      p->markbits()->Clear(p->FastAddress2Markbit(addr));
+      p->markbits()->Clear(p->FastAddressToMarkbitIndex(addr));
     }
   }
 
   INLINE(static void ClearRange(Address addr, int size)) {
     if (Heap::InNewSpace(addr)) {
-      uint32_t index = Heap::new_space()->Address2MarkbitIndex(addr);
+      uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
       new_space_bitmap_->ClearRange(index, size >> kPointerSizeLog2);
     } else {
       Page *p = Page::FromAddress(addr);
-      p->markbits()->ClearRange(p->FastAddress2Markbit(addr),
+      p->markbits()->ClearRange(p->FastAddressToMarkbitIndex(addr),
                                 size >> kPointerSizeLog2);
     }
+  }
+
+  // Find first marked object in the given cell with index cell_index on
+  // the given page.
+  INLINE(static Address FirstMarkedObject(Page* page,
+                                          uint32_t cell_index,
+                                          uint32_t cell)) {
+    ASSERT(cell != 0);
+    uint32_t bit = CompilerIntrinsics::CountTrailingZeros(cell);
+    return page->MarkbitIndexToAddress(
+        Page::MarkbitsBitmap::CellToIndex(cell_index) + bit);
+  }
+
+  INLINE(static Address FirstLiveObject(Address start,
+                                        Address limit)) {
+    ASSERT(!Heap::InNewSpace(start));
+    if (start >= limit) return start;
+
+    Page* page = Page::FromAddress(start);
+
+    // If start is above linearity boundary is continuous then
+    // it coincides with a start of the live object. Just
+    // return it.
+    if (start >= page->linearity_boundary()) return start;
+
+    Page::MarkbitsBitmap* bitmap = page->markbits();
+    uint32_t markbit = page->AddressToMarkbitIndex(start);
+
+    // If the start address is marked return it.
+    if (bitmap->Get(markbit)) return start;
+
+    uint32_t* cells = bitmap->cells();
+    uint32_t cell_index = Page::MarkbitsBitmap::IndexToCell(markbit);
+
+    // Round limit towards start of the next cell.
+    uint32_t last_cell_index =
+        Page::MarkbitsBitmap::IndexToCell(
+            Page::MarkbitsBitmap::CellAlignIndex(
+                page->AddressToMarkbitIndex(limit)));
+
+    ASSERT(cell_index < last_cell_index);
+
+    while (cell_index < last_cell_index && cells[cell_index] == 0) cell_index++;
+
+    if (cell_index == last_cell_index) return limit;
+
+    return FirstMarkedObject(page, cell_index, cells[cell_index]);
+  }
+
+  INLINE(static Address NextLiveObject(HeapObject* obj,
+                                       int size,
+                                       Address end)) {
+    ASSERT(!Heap::InNewSpace(obj));
+    Page* page = Page::FromAddress(obj->address());
+    Address watermark = page->linearity_boundary();
+    Address next_addr = obj->address() + size;
+
+    if (next_addr >= watermark) return next_addr;
+
+    Page::MarkbitsBitmap* bitmap = page->markbits();
+    uint32_t markbit = page->AddressToMarkbitIndex(next_addr);
+
+    if (bitmap->Get(markbit)) return next_addr;
+
+    uint32_t* cells = bitmap->cells();
+    uint32_t cell_index = Page::MarkbitsBitmap::IndexToCell(markbit);
+
+    ASSERT(IsMarked(obj));
+
+    uint32_t bit  = Page::MarkbitsBitmap::IndexToBit(markbit);
+    uint32_t mask = (~1) << bit;
+    if ((cells[cell_index] & mask) != 0) {
+      // There are more marked objects in this cell.
+      return FirstMarkedObject(page, cell_index, cells[cell_index] & mask);
+    }
+
+    Address limit = Min(watermark, end);
+
+    // Round limit towards start of the next cell.
+    uint32_t last_cell_index =
+      Page::MarkbitsBitmap::IndexToCell(
+          Page::MarkbitsBitmap::CellAlignIndex(
+              page->AddressToMarkbitIndex(limit)));
+
+    // We expect last_cell to be bigger than cell because
+    // we rounded limit towards start of the next cell
+    // and limit is bigger than address of the current.
+    ASSERT(cell_index < last_cell_index);
+
+    // We skip current cell because it contains no unvisited
+    // live objects.
+    do {
+      cell_index++;
+    } while (cell_index < last_cell_index && cells[cell_index] == 0);
+
+    // If we reached last_cell return limit
+    // not the start of the last_cell because
+    // limit can be in the middle of the previous cell.
+    if (cell_index == last_cell_index) return limit;
+
+    return FirstMarkedObject(page, cell_index, cells[cell_index]);
+  }
+
+  static inline void TransferMark(Address old_start,
+                                  Address new_start) {
+    if (Heap::InNewSpace(old_start) ||
+        Page::FromAddress(old_start)->IsFlagSet(Page::IS_CONTINUOUS) ||
+        !IsMarked(old_start)) {
+      return;
+    }
+
+    SetMark(new_start);
   }
 
   static bool Setup();
@@ -398,7 +512,10 @@ class MarkCompactCollector: public AllStatic {
   static void SweepSpaces();
 
   static void SweepNewSpace(NewSpace* space);
-  static void SweepSpace(PagedSpace* space);
+
+  enum SweeperType { CONSERVATIVE, PRECISE };
+
+  static void SweepSpace(PagedSpace* space, SweeperType sweeper);
 
 #ifdef DEBUG
   // -----------------------------------------------------------------------

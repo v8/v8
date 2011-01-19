@@ -32,6 +32,7 @@
 #include "bootstrapper.h"
 #include "builtins.h"
 #include "ic-inl.h"
+#include "mark-compact.h"
 #include "vm-state-inl.h"
 
 namespace v8 {
@@ -349,6 +350,10 @@ static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
   Heap::CreateFillerObjectAt(elms->address(), to_trim * kPointerSize);
+
+  // Maintain marking consistency for HeapObjectIterator.
+  Marking::TransferMark(elms->address(),
+                        elms->address() + to_trim * kPointerSize);
 
   former_start[to_trim] = Heap::fixed_array_map();
   former_start[to_trim + 1] = Smi::FromInt(len - to_trim);

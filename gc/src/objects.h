@@ -3586,7 +3586,7 @@ class Map: public HeapObject {
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
-  // being continiously allocated.
+  // being continuously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
   static const int kPointerFieldsEndOffset =
       Map::kCodeCacheOffset + kPointerSize;
