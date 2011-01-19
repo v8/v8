@@ -1337,42 +1337,6 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 }
 
 
-// Convert unsigned integer with specified number of leading zeroes in binary
-// representation to IEEE 754 double.
-// Integer to convert is passed in register hiword.
-// Resulting double is returned in registers hiword:loword.
-// This functions does not work correctly for 0.
-static void GenerateUInt2Double(MacroAssembler* masm,
-                                Register hiword,
-                                Register loword,
-                                Register scratch,
-                                int leading_zeroes) {
-  const int meaningful_bits = kBitsPerInt - leading_zeroes - 1;
-  const int biased_exponent = HeapNumber::kExponentBias + meaningful_bits;
-
-  const int mantissa_shift_for_hi_word =
-      meaningful_bits - HeapNumber::kMantissaBitsInTopWord;
-
-  const int mantissa_shift_for_lo_word =
-      kBitsPerInt - mantissa_shift_for_hi_word;
-
-  __ mov(scratch, Operand(biased_exponent << HeapNumber::kExponentShift));
-  if (mantissa_shift_for_hi_word > 0) {
-    __ mov(loword, Operand(hiword, LSL, mantissa_shift_for_lo_word));
-    __ orr(hiword, scratch, Operand(hiword, LSR, mantissa_shift_for_hi_word));
-  } else {
-    __ mov(loword, Operand(0, RelocInfo::NONE));
-    __ orr(hiword, scratch, Operand(hiword, LSL, mantissa_shift_for_hi_word));
-  }
-
-  // If least significant bit of biased exponent was not 1 it was corrupted
-  // by most significant bit of mantissa so we should fix that.
-  if (!(biased_exponent & 1)) {
-    __ bic(hiword, hiword, Operand(1 << HeapNumber::kExponentShift));
-  }
-}
-
-
 void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
@@ -1566,76 +1530,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ RecordWrite(elements, Operand(r4), r5, r6);
 
   __ Ret();
-}
-
-
-// Convert and store int passed in register ival to IEEE 754 single precision
-// floating point value at memory location (dst + 4 * wordoffset)
-// If VFP3 is available use it for conversion.
-static void StoreIntAsFloat(MacroAssembler* masm,
-                            Register dst,
-                            Register wordoffset,
-                            Register ival,
-                            Register fval,
-                            Register scratch1,
-                            Register scratch2) {
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
-    __ vmov(s0, ival);
-    __ add(scratch1, dst, Operand(wordoffset, LSL, 2));
-    __ vcvt_f32_s32(s0, s0);
-    __ vstr(s0, scratch1, 0);
-  } else {
-    Label not_special, done;
-    // Move sign bit from source to destination.  This works because the sign
-    // bit in the exponent word of the double has the same position and polarity
-    // as the 2's complement sign bit in a Smi.
-    ASSERT(kBinary32SignMask == 0x80000000u);
-
-    __ and_(fval, ival, Operand(kBinary32SignMask), SetCC);
-    // Negate value if it is negative.
-    __ rsb(ival, ival, Operand(0, RelocInfo::NONE), LeaveCC, ne);
-
-    // We have -1, 0 or 1, which we treat specially. Register ival contains
-    // absolute value: it is either equal to 1 (special case of -1 and 1),
-    // greater than 1 (not a special case) or less than 1 (special case of 0).
-    __ cmp(ival, Operand(1));
-    __ b(gt, &not_special);
-
-    // For 1 or -1 we need to or in the 0 exponent (biased).
-    static const uint32_t exponent_word_for_1 =
-        kBinary32ExponentBias << kBinary32ExponentShift;
-
-    __ orr(fval, fval, Operand(exponent_word_for_1), LeaveCC, eq);
-    __ b(&done);
-
-    __ bind(&not_special);
-    // Count leading zeros.
-    // Gets the wrong answer for 0, but we already checked for that case above.
-    Register zeros = scratch2;
-    __ CountLeadingZeros(zeros, ival, scratch1);
-
-    // Compute exponent and or it into the exponent register.
-    __ rsb(scratch1,
-           zeros,
-           Operand((kBitsPerInt - 1) + kBinary32ExponentBias));
-
-    __ orr(fval,
-           fval,
-           Operand(scratch1, LSL, kBinary32ExponentShift));
-
-    // Shift up the source chopping the top bit off.
-    __ add(zeros, zeros, Operand(1));
-    // This wouldn't work for 1 and -1 as the shift would be 32 which means 0.
-    __ mov(ival, Operand(ival, LSL, zeros));
-    // And the top (top 20 bits).
-    __ orr(fval,
-           fval,
-           Operand(ival, LSR, kBitsPerInt - kBinary32MantissaBits));
-
-    __ bind(&done);
-    __ str(fval, MemOperand(dst, wordoffset, LSL, 2));
-  }
 }
 
 
