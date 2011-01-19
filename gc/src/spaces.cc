@@ -799,7 +799,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
 
       HeapObjectIterator it(current_page, NULL);
       Address end_of_previous_object = current_page->ObjectAreaStart();
-      for(HeapObject* object = it.next(); object != NULL; object = it.next()) {
+      for (HeapObject* object = it.next(); object != NULL; object = it.next()) {
         ASSERT(end_of_previous_object <= object->address());
 
         // The first word should be a map, and we expect all map pointers to
@@ -810,10 +810,6 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
 
         // Perform space-specific object verification.
         VerifyObject(object);
-
-        if (object->IsCodeCache() && ((uint32_t*)object->address())[2] == 0x2) {
-          current_page->PrintMarkbits();
-        }
 
         // The object itself should look OK.
         object->Verify();
