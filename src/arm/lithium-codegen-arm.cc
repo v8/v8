@@ -964,7 +964,8 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       break;
     }
     case CodeStub::StringCharAt: {
-      Abort("StringCharAtStub unimplemented.");
+      StringCharAtStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
     case CodeStub::MathPow: {

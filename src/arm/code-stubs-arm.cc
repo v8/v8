@@ -3703,7 +3703,6 @@ int CompareStub::MinorKey() {
 
 
 // StringCharCodeAtGenerator
-
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   Label flat_string;
   Label ascii_string;
@@ -4859,6 +4858,56 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Just jump to runtime to add the two strings.
   __ bind(&string_add_runtime);
   __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
+}
+
+
+void StringCharAtStub::Generate(MacroAssembler* masm) {
+  // Expects two arguments (object, index) on the stack:
+  //  lr: return address
+  //  sp[0]: index
+  //  sp[4]: object
+  Register object = r1;
+  Register index = r0;
+  Register scratch1 = r2;
+  Register scratch2 = r3;
+  Register result = r0;
+
+  // Get object and index from the stack.
+  __ pop(index);
+  __ pop(object);
+
+  Label need_conversion;
+  Label index_out_of_range;
+  Label done;
+  StringCharAtGenerator generator(object,
+                                  index,
+                                  scratch1,
+                                  scratch2,
+                                  result,
+                                  &need_conversion,
+                                  &need_conversion,
+                                  &index_out_of_range,
+                                  STRING_INDEX_IS_NUMBER);
+  generator.GenerateFast(masm);
+  __ b(&done);
+
+  __ bind(&index_out_of_range);
+  // When the index is out of range, the spec requires us to return
+  // the empty string.
+  __ LoadRoot(result, Heap::kEmptyStringRootIndex);
+  __ jmp(&done);
+
+  __ bind(&need_conversion);
+  // Move smi zero into the result register, which will trigger
+  // conversion.
+  __ mov(result, Operand(Smi::FromInt(0)));
+  __ b(&done);
+
+  StubRuntimeCallHelper call_helper;
+  generator.GenerateSlow(masm, call_helper);
+
+  __ bind(&done);
+  __ Ret();
 }
 
 
