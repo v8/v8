@@ -1612,12 +1612,17 @@ void LCodeGen::DoCmpJSObjectEq(LCmpJSObjectEq* instr) {
   __ cmp(left, Operand(right));
   __ LoadRoot(result, Heap::kTrueValueRootIndex, eq);
   __ LoadRoot(result, Heap::kFalseValueRootIndex, ne);
-  Abort("DoCmpJSObjectEq untested.");
 }
 
 
 void LCodeGen::DoCmpJSObjectEqAndBranch(LCmpJSObjectEqAndBranch* instr) {
-  Abort("DoCmpJSObjectEqAndBranch unimplemented.");
+  Register left = ToRegister(instr->left());
+  Register right = ToRegister(instr->right());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+
+  __ cmp(left, Operand(right));
+  EmitBranch(true_block, false_block, eq);
 }
 
 
