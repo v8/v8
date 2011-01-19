@@ -874,6 +874,10 @@ THREADED_TEST(ExternalWrap) {
   TestExternalPointerWrapping();
 
 #if defined(V8_HOST_ARCH_X64)
+  // Check a value with a leading 1 bit in x64 Smi encoding.
+  expected_ptr = reinterpret_cast<void*>(0x400000000);
+  TestExternalPointerWrapping();
+
   expected_ptr = reinterpret_cast<void*>(0xdeadbeefdeadbeef);
   TestExternalPointerWrapping();
 
