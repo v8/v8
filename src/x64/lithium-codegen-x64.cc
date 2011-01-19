@@ -977,25 +977,27 @@ void LCodeGen::DoBranch(LBranch* instr) {
       Label* true_label = chunk_->GetAssemblyLabel(true_block);
       Label* false_label = chunk_->GetAssemblyLabel(false_block);
 
-      __ Cmp(reg, Factory::undefined_value());
+      __ CompareRoot(reg, Heap::kUndefinedValueRootIndex);
       __ j(equal, false_label);
-      __ Cmp(reg, Factory::true_value());
+      __ CompareRoot(reg, Heap::kTrueValueRootIndex);
       __ j(equal, true_label);
-      __ Cmp(reg, Factory::false_value());
+      __ CompareRoot(reg, Heap::kFalseValueRootIndex);
       __ j(equal, false_label);
       __ SmiCompare(reg, Smi::FromInt(0));
       __ j(equal, false_label);
       __ JumpIfSmi(reg, true_label);
 
-      // Test for double values. Plus/minus zero are false. NaN is handled
-      // in the stub.
+      // Test for double values. Plus/minus zero and NaN are false.
       NearLabel call_stub;
-      __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
-             Factory::heap_number_map());
+      __ CompareRoot(FieldOperand(reg, HeapObject::kMapOffset),
+                     Heap::kHeapNumberMapRootIndex);
       __ j(not_equal, &call_stub);
-      __ movq(kScratchRegister, FieldOperand(reg, HeapNumber::kValueOffset));
-      __ shl(kScratchRegister, Immediate(1));  // Shift out the sign bit.
-      __ j(zero, false_label);  // Zero or negative zero.
+
+      // HeapNumber => false iff +0, -0, or NaN. These three cases set the
+      // zero flag when compared to zero using ucomisd.
+      __ xorpd(xmm0, xmm0);
+      __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
+      __ j(zero, false_label);
       __ jmp(true_label);
 
       // The conversion stub doesn't cause garbage collections so it's
