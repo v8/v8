@@ -203,7 +203,8 @@ namespace internal {
   V(zero_symbol, "0")                                                    \
   V(global_eval_symbol, "GlobalEval")                                    \
   V(identity_hash_symbol, "v8::IdentityHash")                            \
-  V(closure_symbol, "(closure)")
+  V(closure_symbol, "(closure)")                                         \
+  V(use_strict, "use strict")
 
 
 // Forward declarations.
