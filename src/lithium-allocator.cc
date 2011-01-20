@@ -2013,20 +2013,6 @@ bool LAllocator::IsBlockBoundary(LifetimePosition pos) {
 }
 
 
-void LAllocator::AddGapMove(int pos, LiveRange* prev, LiveRange* next) {
-  UsePosition* prev_pos = prev->AddUsePosition(
-      LifetimePosition::FromInstructionIndex(pos));
-  UsePosition* next_pos = next->AddUsePosition(
-      LifetimePosition::FromInstructionIndex(pos));
-  LOperand* prev_operand = prev_pos->operand();
-  LOperand* next_operand = next_pos->operand();
-  LGap* gap = chunk_->GetGapAt(pos);
-  gap->GetOrCreateParallelMove(LGap::START)->
-      AddMove(prev_operand, next_operand);
-  next_pos->set_hint(prev_operand);
-}
-
-
 LiveRange* LAllocator::SplitAt(LiveRange* range, LifetimePosition pos) {
   ASSERT(!range->IsFixed());
   TraceAlloc("Splitting live range %d at %d\n", range->id(), pos.Value());

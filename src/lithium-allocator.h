@@ -591,7 +591,6 @@ class LAllocator BASE_EMBEDDED {
 
   void Spill(LiveRange* range);
   bool IsBlockBoundary(LifetimePosition pos);
-  void AddGapMove(int pos, LiveRange* prev, LiveRange* next);
 
   // Helper methods for resolving control flow.
   void ResolveControlFlow(LiveRange* range,
