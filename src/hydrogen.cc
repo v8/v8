@@ -505,19 +505,15 @@ HConstant* HGraph::GetConstantFalse() {
 
 void HSubgraph::AppendOptional(HSubgraph* graph,
                                bool on_true_branch,
-                               HValue* boolean_value) {
+                               HValue* value) {
   ASSERT(HasExit() && graph->HasExit());
   HBasicBlock* other_block = graph_->CreateBasicBlock();
   HBasicBlock* join_block = graph_->CreateBasicBlock();
 
-  HBasicBlock* true_branch = other_block;
-  HBasicBlock* false_branch = graph->entry_block();
-  if (on_true_branch) {
-    true_branch = graph->entry_block();
-    false_branch = other_block;
-  }
-
-  exit_block_->Finish(new HBranch(true_branch, false_branch, boolean_value));
+  HTest* test = on_true_branch
+      ? new HTest(value, graph->entry_block(), other_block)
+      : new HTest(value, other_block, graph->entry_block());
+  exit_block_->Finish(test);
   other_block->Goto(join_block);
   graph->exit_block()->Goto(join_block);
   exit_block_ = join_block;
@@ -935,7 +931,7 @@ class HRangeAnalysis BASE_EMBEDDED {
  private:
   void TraceRange(const char* msg, ...);
   void Analyze(HBasicBlock* block);
-  void InferControlFlowRange(HBranch* branch, HBasicBlock* dest);
+  void InferControlFlowRange(HTest* test, HBasicBlock* dest);
   void InferControlFlowRange(Token::Value op, HValue* value, HValue* other);
   void InferPhiRange(HPhi* phi);
   void InferRange(HValue* value);
@@ -971,8 +967,8 @@ void HRangeAnalysis::Analyze(HBasicBlock* block) {
   // Infer range based on control flow.
   if (block->predecessors()->length() == 1) {
     HBasicBlock* pred = block->predecessors()->first();
-    if (pred->end()->IsBranch()) {
-      InferControlFlowRange(HBranch::cast(pred->end()), block);
+    if (pred->end()->IsTest()) {
+      InferControlFlowRange(HTest::cast(pred->end()), block);
     }
   }
 
@@ -998,14 +994,12 @@ void HRangeAnalysis::Analyze(HBasicBlock* block) {
 }
 
 
-void HRangeAnalysis::InferControlFlowRange(HBranch* branch, HBasicBlock* dest) {
-  ASSERT(branch->FirstSuccessor() == dest || branch->SecondSuccessor() == dest);
-  ASSERT(branch->FirstSuccessor() != dest || branch->SecondSuccessor() != dest);
-
-  if (branch->value()->IsCompare()) {
-    HCompare* compare = HCompare::cast(branch->value());
+void HRangeAnalysis::InferControlFlowRange(HTest* test, HBasicBlock* dest) {
+  ASSERT((test->FirstSuccessor() == dest) == (test->SecondSuccessor() != dest));
+  if (test->value()->IsCompare()) {
+    HCompare* compare = HCompare::cast(test->value());
     Token::Value op = compare->token();
-    if (branch->SecondSuccessor() == dest) {
+    if (test->SecondSuccessor() == dest) {
       op = Token::NegateCompareOp(op);
     }
     Token::Value inverted_op = Token::InvertCompareOp(op);
@@ -2068,8 +2062,8 @@ void TestContext::BuildBranch(HValue* value) {
   HGraphBuilder* builder = owner();
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
-  HBranch* branch = new HBranch(empty_true, empty_false, value);
-  builder->CurrentBlock()->Finish(branch);
+  HTest* test = new HTest(value, empty_true, empty_false);
+  builder->CurrentBlock()->Finish(test);
 
   HValue* const no_return_value = NULL;
   HBasicBlock* true_target = if_true();
@@ -2597,9 +2591,9 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
       prev_graph->exit_block()->Finish(new HGoto(subgraph->entry_block()));
     } else {
       HBasicBlock* empty = graph()->CreateBasicBlock();
-      prev_graph->exit_block()->Finish(new HBranch(empty,
-                                                   subgraph->entry_block(),
-                                                   prev_compare_inst));
+      prev_graph->exit_block()->Finish(new HTest(prev_compare_inst,
+                                                 empty,
+                                                 subgraph->entry_block()));
     }
 
     // Build instructions for current subgraph.
@@ -2618,9 +2612,9 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   if (prev_graph != current_subgraph_) {
     last_false_block = graph()->CreateBasicBlock();
     HBasicBlock* empty = graph()->CreateBasicBlock();
-    prev_graph->exit_block()->Finish(new HBranch(empty,
-                                                 last_false_block,
-                                                 prev_compare_inst));
+    prev_graph->exit_block()->Finish(new HTest(prev_compare_inst,
+                                               empty,
+                                               last_false_block));
   }
 
   // If we have a non-smi compare clause, we deoptimize after trying
@@ -2703,8 +2697,8 @@ void HSubgraph::PreProcessOsrEntry(IterationStatement* statement) {
   HBasicBlock* non_osr_entry = graph()->CreateBasicBlock();
   HBasicBlock* osr_entry = graph()->CreateBasicBlock();
   HValue* true_value = graph()->GetConstantTrue();
-  HBranch* branch = new HBranch(non_osr_entry, osr_entry, true_value);
-  exit_block()->Finish(branch);
+  HTest* test = new HTest(true_value, non_osr_entry, osr_entry);
+  exit_block()->Finish(test);
 
   HBasicBlock* loop_predecessor = graph()->CreateBasicBlock();
   non_osr_entry->Goto(loop_predecessor);
@@ -3106,11 +3100,11 @@ HBasicBlock* HGraphBuilder::BuildTypeSwitch(ZoneMapList* maps,
         (i == (maps->length() - 1))
         ? subgraphs->last()
         : map_compare_subgraphs.last();
-    current_subgraph_->exit_block()->Finish(
-        new HCompareMapAndBranch(receiver,
-                                 maps->at(i),
-                                 subgraphs->at(i)->entry_block(),
-                                 else_subgraph->entry_block()));
+    HCompareMap* compare = new HCompareMap(receiver,
+                                           maps->at(i),
+                                           subgraphs->at(i)->entry_block(),
+                                           else_subgraph->entry_block());
+    current_subgraph_->exit_block()->Finish(compare);
     map_compare_subgraphs.Add(subgraph);
   }
 
@@ -3118,11 +3112,11 @@ HBasicBlock* HGraphBuilder::BuildTypeSwitch(ZoneMapList* maps,
   AddInstruction(new HCheckNonSmi(receiver));
   HSubgraph* else_subgraph =
       (maps->length() == 1) ? subgraphs->at(1) : map_compare_subgraphs.last();
-  current_subgraph_->exit_block()->Finish(
-      new HCompareMapAndBranch(receiver,
-                               Handle<Map>(maps->first()),
-                               subgraphs->first()->entry_block(),
-                               else_subgraph->entry_block()));
+  HCompareMap* compare = new HCompareMap(receiver,
+                                         Handle<Map>(maps->first()),
+                                         subgraphs->first()->entry_block(),
+                                         else_subgraph->entry_block());
+  current_subgraph_->exit_block()->Finish(compare);
 
   // Join all the call subgraphs in a new basic block and make
   // this basic block the current basic block.
@@ -4076,9 +4070,8 @@ bool HGraphBuilder::TryInline(Call* expr) {
       // TODO(3168478): refactor to avoid this.
       HBasicBlock* empty_true = graph()->CreateBasicBlock();
       HBasicBlock* empty_false = graph()->CreateBasicBlock();
-      HBranch* branch =
-          new HBranch(empty_true, empty_false, return_value);
-      body->exit_block()->Finish(branch);
+      HTest* test = new HTest(return_value, empty_true, empty_false);
+      body->exit_block()->Finish(test);
 
       HValue* const no_return_value = NULL;
       empty_true->AddLeaveInlined(no_return_value, test_context->if_true());

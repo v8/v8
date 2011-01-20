@@ -882,8 +882,8 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     if (FLAG_stress_environments && !instr->HasEnvironment()) {
       instr = AssignEnvironment(instr);
     }
-    if (current->IsBranch()) {
-      instr->set_hydrogen_value(HBranch::cast(current)->value());
+    if (current->IsTest()) {
+      instr->set_hydrogen_value(HTest::cast(current)->value());
     } else {
       instr->set_hydrogen_value(current);
     }
@@ -937,7 +937,7 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
+LInstruction* LChunkBuilder::DoTest(HTest* instr) {
   HValue* v = instr->value();
   HBasicBlock* first = instr->FirstSuccessor();
   HBasicBlock* second = instr->SecondSuccessor();
@@ -1059,8 +1059,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCompareMapAndBranch(
-    HCompareMapAndBranch* instr) {
+LInstruction* LChunkBuilder::DoCompareMap(HCompareMap* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
   LOperand* temp = TempRegister();

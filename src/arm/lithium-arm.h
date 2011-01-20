@@ -1082,17 +1082,17 @@ class LCmpMapAndBranch: public LUnaryOperation {
       : LUnaryOperation(value), temp_(temp) { }
 
   DECLARE_CONCRETE_INSTRUCTION(CmpMapAndBranch, "cmp-map-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(CompareMapAndBranch)
+  DECLARE_HYDROGEN_ACCESSOR(CompareMap)
 
   virtual bool IsControl() const { return true; }
 
   LOperand* temp() const { return temp_; }
   Handle<Map> map() const { return hydrogen()->map(); }
   int true_block_id() const {
-    return hydrogen()->true_destination()->block_id();
+    return hydrogen()->FirstSuccessor()->block_id();
   }
   int false_block_id() const {
-    return hydrogen()->false_destination()->block_id();
+    return hydrogen()->SecondSuccessor()->block_id();
   }
 
  private:

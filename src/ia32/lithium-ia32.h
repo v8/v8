@@ -1049,16 +1049,16 @@ class LCmpMapAndBranch: public LTemplateInstruction<0, 1> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CmpMapAndBranch, "cmp-map-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(CompareMapAndBranch)
+  DECLARE_HYDROGEN_ACCESSOR(CompareMap)
 
   virtual bool IsControl() const { return true; }
 
   Handle<Map> map() const { return hydrogen()->map(); }
   int true_block_id() const {
-    return hydrogen()->true_destination()->block_id();
+    return hydrogen()->FirstSuccessor()->block_id();
   }
   int false_block_id() const {
-    return hydrogen()->false_destination()->block_id();
+    return hydrogen()->SecondSuccessor()->block_id();
   }
 };
 

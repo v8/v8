@@ -920,15 +920,15 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     if (FLAG_stress_environments && !instr->HasEnvironment()) {
       instr = AssignEnvironment(instr);
     }
-    if (current->IsBranch() && !instr->IsGoto()) {
-      // TODO(fschneider): Handle branch instructions uniformly like
+    if (current->IsTest() && !instr->IsGoto()) {
+      // TODO(fschneider): Handle test instructions uniformly like
       // other instructions. This requires us to generate the right
       // branch instruction already at the HIR level.
       ASSERT(instr->IsControl());
-      HBranch* branch = HBranch::cast(current);
-      instr->set_hydrogen_value(branch->value());
-      HBasicBlock* first = branch->FirstSuccessor();
-      HBasicBlock* second = branch->SecondSuccessor();
+      HTest* test = HTest::cast(current);
+      instr->set_hydrogen_value(test->value());
+      HBasicBlock* first = test->FirstSuccessor();
+      HBasicBlock* second = test->SecondSuccessor();
       ASSERT(first != NULL && second != NULL);
       instr->SetBranchTargets(first->block_id(), second->block_id());
     } else {
@@ -985,7 +985,7 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
+LInstruction* LChunkBuilder::DoTest(HTest* instr) {
   HValue* v = instr->value();
   if (v->EmitAtUses()) {
     if (v->IsClassOfTest()) {
@@ -1087,8 +1087,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCompareMapAndBranch(
-    HCompareMapAndBranch* instr) {
+LInstruction* LChunkBuilder::DoCompareMap(HCompareMap* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
   return new LCmpMapAndBranch(value);
