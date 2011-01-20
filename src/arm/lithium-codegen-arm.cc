@@ -2451,12 +2451,112 @@ void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
 
 
 void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
-  Abort("DoDeferredMathAbsTaggedHeapNumber unimplemented.");
+  Register input = ToRegister(instr->input());
+  Register scratch = scratch0();
+
+  // Deoptimize if not a heap number.
+  __ ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
+  __ cmp(scratch, Operand(ip));
+  DeoptimizeIf(ne, instr->environment());
+
+  Label done;
+  Register tmp = input.is(r0) ? r1 : r0;
+  Register tmp2 = r2;
+  Register tmp3 = r3;
+
+  Label negative;
+  __ ldr(scratch, FieldMemOperand(input, HeapNumber::kExponentOffset));
+  // Check the sign of the argument. If the argument is positive, just
+  // return it. We do not need to patch the stack since |input| and
+  // |result| are the same register and |input| will be restored
+  // unchanged by popping safepoint registers.
+  __ tst(scratch, Operand(HeapNumber::kSignMask));
+  __ b(ne, &negative);
+  __ jmp(&done);
+
+  __ bind(&negative);
+  // Preserve the value of all registers.
+  __ PushSafepointRegisters();
+
+  Label allocated, slow;
+  __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
+  __ AllocateHeapNumber(tmp, tmp2, tmp3, scratch, &slow);
+  __ b(&allocated);
+
+  // Slow case: Call the runtime system to do the number allocation.
+  __ bind(&slow);
+
+  __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
+  // Set the pointer to the new heap number in tmp.
+  if (!tmp.is(r0)) __ mov(tmp, Operand(r0));
+
+  // Restore input_reg after call to runtime.
+  MemOperand input_register_slot = masm()->SafepointRegisterSlot(input);
+  __ ldr(input, input_register_slot);
+
+  __ bind(&allocated);
+  __ ldr(tmp2, FieldMemOperand(input, HeapNumber::kExponentOffset));
+  __ bic(tmp2, tmp2, Operand(HeapNumber::kSignMask));
+  __ str(tmp2, FieldMemOperand(tmp, HeapNumber::kExponentOffset));
+  __ ldr(tmp2, FieldMemOperand(input, HeapNumber::kMantissaOffset));
+  __ str(tmp2, FieldMemOperand(tmp, HeapNumber::kMantissaOffset));
+
+  __ str(tmp, input_register_slot);
+  __ PopSafepointRegisters();
+
+  __ bind(&done);
+}
+
+
+void LCodeGen::EmitIntegerMathAbs(LUnaryMathOperation* instr) {
+  Label is_positive;
+  uint32_t kSignMask = 0x80000000u;
+  Register input = ToRegister(instr->input());
+  __ tst(input, Operand(kSignMask));
+  __ b(eq, &is_positive);
+  __ rsb(input, input, Operand(0), SetCC);
+  // Deoptimize on overflow.
+  DeoptimizeIf(vs, instr->environment());
+  __ bind(&is_positive);
 }
 
 
 void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
-  Abort("DoMathAbs unimplemented.");
+  // Class for deferred case.
+  class DeferredMathAbsTaggedHeapNumber: public LDeferredCode {
+   public:
+    DeferredMathAbsTaggedHeapNumber(LCodeGen* codegen,
+                                    LUnaryMathOperation* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() {
+      codegen()->DoDeferredMathAbsTaggedHeapNumber(instr_);
+    }
+   private:
+    LUnaryMathOperation* instr_;
+  };
+
+  ASSERT(instr->input()->Equals(instr->result()));
+  Representation r = instr->hydrogen()->value()->representation();
+  if (r.IsDouble()) {
+    DwVfpRegister input = ToDoubleRegister(instr->input());
+    // __ vabs(input, input);
+    Abort("Double DoMathAbs unimplemented");
+  } else if (r.IsInteger32()) {
+    EmitIntegerMathAbs(instr);
+  } else {
+    // Representation is tagged.
+    DeferredMathAbsTaggedHeapNumber* deferred =
+        new DeferredMathAbsTaggedHeapNumber(this, instr);
+    Register input = ToRegister(instr->input());
+    // Smi check.
+    __ BranchOnNotSmi(input, deferred->entry());
+    // If smi, handle it directly.
+    EmitIntegerMathAbs(instr);
+    __ bind(deferred->exit());
+  }
 }
 
 

@@ -2220,11 +2220,12 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
 
   Label negative;
   __ mov(tmp, FieldOperand(input_reg, HeapNumber::kExponentOffset));
-  // Check the sign of the argument. If the argument is positive,
-  // just return it.
+  // Check the sign of the argument. If the argument is positive, just
+  // return it. We do not need to patch the stack since |input| and
+  // |result| are the same register and |input| will be restored
+  // unchanged by popping safepoint registers.
   __ test(tmp, Immediate(HeapNumber::kSignMask));
   __ j(not_zero, &negative);
-  __ mov(tmp, input_reg);
   __ jmp(&done);
 
   __ bind(&negative);
@@ -2251,11 +2252,22 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
   __ mov(FieldOperand(tmp, HeapNumber::kExponentOffset), tmp2);
   __ mov(tmp2, FieldOperand(input_reg, HeapNumber::kMantissaOffset));
   __ mov(FieldOperand(tmp, HeapNumber::kMantissaOffset), tmp2);
-
-  __ bind(&done);
   __ mov(Operand(esp, EspIndexForPushAll(input_reg) * kPointerSize), tmp);
 
+  __ bind(&done);
   __ PopSafepointRegisters();
+}
+
+
+void LCodeGen::EmitIntegerMathAbs(LUnaryMathOperation* instr) {
+  Register input_reg = ToRegister(instr->InputAt(0));
+  __ test(input_reg, Operand(input_reg));
+  Label is_positive;
+  __ j(not_sign, &is_positive);
+  __ neg(input_reg);
+  __ test(input_reg, Operand(input_reg));
+  DeoptimizeIf(negative, instr->environment());
+  __ bind(&is_positive);
 }
 
 
@@ -2283,31 +2295,15 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
     __ subsd(scratch, input_reg);
     __ pand(input_reg, scratch);
   } else if (r.IsInteger32()) {
-    Register input_reg = ToRegister(instr->InputAt(0));
-    __ test(input_reg, Operand(input_reg));
-    Label is_positive;
-    __ j(not_sign, &is_positive);
-    __ neg(input_reg);
-    __ test(input_reg, Operand(input_reg));
-    DeoptimizeIf(negative, instr->environment());
-    __ bind(&is_positive);
+    EmitIntegerMathAbs(instr);
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =
         new DeferredMathAbsTaggedHeapNumber(this, instr);
-    Label not_smi;
     Register input_reg = ToRegister(instr->InputAt(0));
     // Smi check.
     __ test(input_reg, Immediate(kSmiTagMask));
     __ j(not_zero, deferred->entry());
-    __ test(input_reg, Operand(input_reg));
-    Label is_positive;
-    __ j(not_sign, &is_positive);
-    __ neg(input_reg);
-
-    __ test(input_reg, Operand(input_reg));
-    DeoptimizeIf(negative, instr->environment());
-
-    __ bind(&is_positive);
+    EmitIntegerMathAbs(instr);
     __ bind(deferred->exit());
   }
 }

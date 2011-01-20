@@ -187,6 +187,7 @@ class LCodeGen BASE_EMBEDDED {
   int ToInteger32(LConstantOperand* op) const;
 
   // Specific math operations - used from DoUnaryMathOperation.
+  void EmitIntegerMathAbs(LUnaryMathOperation* instr);
   void DoMathAbs(LUnaryMathOperation* instr);
   void DoMathFloor(LUnaryMathOperation* instr);
   void DoMathRound(LUnaryMathOperation* instr);

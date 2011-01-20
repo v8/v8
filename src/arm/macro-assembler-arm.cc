@@ -499,7 +499,7 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 
 
 MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
-  return MemOperand(sp, SafepointRegisterStackIndex(reg.code()) * kInstrSize);
+  return MemOperand(sp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
 }
 
 
