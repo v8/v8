@@ -671,7 +671,7 @@ FILE* OS::FOpen(const char* path, const char* mode) {
 
 
 bool OS::Remove(const char* path) {
-  return (DeleteFile(path) != 0);
+  return (DeleteFileA(path) != 0);
 }
 
 
