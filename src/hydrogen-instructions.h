@@ -2043,15 +2043,25 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
  public:
   HBitwiseBinaryOperation(HValue* left, HValue* right)
       : HBinaryOperation(left, right) {
-    // Default to truncating, Integer32, UseGVN.
-    set_representation(Representation::Integer32());
-    SetFlag(kTruncatingToInt32);
-    SetFlag(kUseGVN);
+    set_representation(Representation::Tagged());
+    SetFlag(kFlexibleRepresentation);
+    SetFlagMask(AllSideEffects());
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::Integer32();
+    return representation();
   }
+
+  virtual void RepresentationChanged(Representation to) {
+    if (!to.IsTagged()) {
+      ASSERT(to.IsInteger32());
+      ClearFlagMask(AllSideEffects());
+      SetFlag(kTruncatingToInt32);
+      SetFlag(kUseGVN);
+    }
+  }
+
+  HType CalculateInferredType() const;
 
   DECLARE_INSTRUCTION(BitwiseBinaryOperation)
 };

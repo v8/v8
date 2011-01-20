@@ -4820,7 +4820,12 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
   if (FLAG_trace_representation) {
     PrintF("Info: %s/%s\n", info.ToString(), ToRepresentation(info).Mnemonic());
   }
-  AssumeRepresentation(instr, ToRepresentation(info));
+  Representation rep = ToRepresentation(info);
+  // We only generate either int32 or generic tagged bitwise operations.
+  if (instr->IsBitwiseBinaryOperation() && rep.IsDouble()) {
+    rep = Representation::Integer32();
+  }
+  AssumeRepresentation(instr, rep);
   return instr;
 }
 
@@ -4901,7 +4906,8 @@ void HGraphBuilder::AssumeRepresentation(HValue* value, Representation r) {
              graph_->GetMaximumValueID());
     }
     value->ChangeRepresentation(r);
-    // The representation of the value is dictated by type feedback.
+    // The representation of the value is dictated by type feedback and
+    // will not be changed later.
     value->ClearFlag(HValue::kFlexibleRepresentation);
   } else if (FLAG_trace_representation) {
     PrintF("No representation assumed\n");

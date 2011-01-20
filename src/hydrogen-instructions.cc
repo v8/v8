@@ -1255,6 +1255,11 @@ HType HUnaryPredicate::CalculateInferredType() const {
 }
 
 
+HType HBitwiseBinaryOperation::CalculateInferredType() const {
+  return HType::TaggedNumber();
+}
+
+
 HType HArithmeticBinaryOperation::CalculateInferredType() const {
   return HType::TaggedNumber();
 }
