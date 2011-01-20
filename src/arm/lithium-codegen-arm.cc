@@ -1039,6 +1039,37 @@ void LCodeGen::DoModI(LModI* instr) {
     __ bind(&ok);
   }
 
+  // Try a few common cases before using the generic stub.
+  Label call_stub;
+  const int kUnfolds = 3;
+  // Skip if either side is negative.
+  __ cmp(left, Operand(0));
+  __ cmp(right, Operand(0), NegateCondition(mi));
+  __ b(mi, &call_stub);
+  // If the right hand side is smaller than the (nonnegative)
+  // left hand side, it is the result. Else try a few subtractions
+  // of the left hand side.
+  __ mov(scratch, left);
+  for (int i = 0; i < kUnfolds; i++) {
+    // Check if the left hand side is less or equal than the
+    // the right hand side.
+    __ cmp(scratch, right);
+    __ mov(result, scratch, LeaveCC, lt);
+    __ b(lt, &done);
+    // If not, reduce the left hand side by the right hand
+    // side and check again.
+    if (i < kUnfolds - 1) __ sub(scratch, scratch, right);
+  }
+
+  // Check for power of two on the right hand side.
+  __ sub(scratch, right, Operand(1), SetCC);
+  __ b(mi, &call_stub);
+  __ tst(scratch, right);
+  __ b(ne, &call_stub);
+  // Perform modulo operation.
+  __ and_(result, scratch, Operand(left));
+
+  __ bind(&call_stub);
   // Call the generic stub. The numbers in r0 and r1 have
   // to be tagged to Smis. If that is not possible, deoptimize.
   DeferredModI* deferred = new DeferredModI(this, instr);
@@ -1050,7 +1081,7 @@ void LCodeGen::DoModI(LModI* instr) {
 
   // If the result in r0 is a Smi, untag it, else deoptimize.
   __ BranchOnNotSmi(result, &deoptimize);
-  __ mov(result, Operand(result, ASR, 1));
+  __ SmiUntag(result);
 
   __ b(al, &done);
   __ bind(&deoptimize);
