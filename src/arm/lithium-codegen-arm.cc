@@ -2780,6 +2780,143 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 }
 
 
+void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
+  class DeferredStringCharCodeAt: public LDeferredCode {
+   public:
+    DeferredStringCharCodeAt(LCodeGen* codegen, LStringCharCodeAt* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredStringCharCodeAt(instr_); }
+   private:
+    LStringCharCodeAt* instr_;
+  };
+
+  DeferredStringCharCodeAt* deferred
+      = new DeferredStringCharCodeAt(this, instr);
+
+  Register scratch = scratch0();
+  Register string = ToRegister(instr->string());
+  Register index = no_reg;
+  int const_index = -1;
+  if (instr->index()->IsConstantOperand()) {
+    const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+  } else {
+    index = ToRegister(instr->index());
+  }
+  Register result = ToRegister(instr->result());
+
+  Label flat_string, ascii_string, done;
+
+  // Fetch the instance type of the receiver into result register.
+  __ ldr(result, FieldMemOperand(string, HeapObject::kMapOffset));
+  __ ldrb(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
+
+  // We need special handling for non-flat strings.
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ tst(result, Operand(kStringRepresentationMask));
+  __ b(eq, &flat_string);
+
+  // Handle non-flat strings.
+  __ tst(result, Operand(kIsConsStringMask));
+  __ b(eq, deferred->entry());
+
+  // ConsString.
+  // Check whether the right hand side is the empty string (i.e. if
+  // this is really a flat string in a cons string). If that is not
+  // the case we would rather go to the runtime system now to flatten
+  // the string.
+  __ ldr(scratch, FieldMemOperand(string, ConsString::kSecondOffset));
+  __ LoadRoot(ip, Heap::kEmptyStringRootIndex);
+  __ cmp(scratch, ip);
+  __ b(ne, deferred->entry());
+  // Get the first of the two strings and load its instance type.
+  __ ldr(string, FieldMemOperand(string, ConsString::kFirstOffset));
+  __ ldr(result, FieldMemOperand(string, HeapObject::kMapOffset));
+  __ ldrb(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
+  // If the first cons component is also non-flat, then go to runtime.
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ tst(result, Operand(kStringRepresentationMask));
+  __ b(ne, deferred->entry());
+
+  // Check for 1-byte or 2-byte string.
+  __ bind(&flat_string);
+  STATIC_ASSERT(kAsciiStringTag != 0);
+  __ tst(result, Operand(kStringEncodingMask));
+  __ b(ne, &ascii_string);
+
+  // 2-byte string.
+  // Load the 2-byte character code into the result register.
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  if (instr->index()->IsConstantOperand()) {
+    __ ldrh(result,
+            FieldMemOperand(string,
+                            SeqTwoByteString::kHeaderSize + 2 * const_index));
+  } else {
+    __ add(scratch,
+           string,
+           Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+    __ ldrh(result, MemOperand(scratch, index, LSL, 1));
+  }
+  __ jmp(&done);
+
+  // ASCII string.
+  // Load the byte into the result register.
+  __ bind(&ascii_string);
+  if (instr->index()->IsConstantOperand()) {
+    __ ldrb(result, FieldMemOperand(string,
+                                    SeqAsciiString::kHeaderSize + const_index));
+  } else {
+    __ add(scratch,
+           string,
+           Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+    __ ldrb(result, MemOperand(scratch, index));
+  }
+  __ bind(&done);
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
+  Register string = ToRegister(instr->string());
+  Register result = ToRegister(instr->result());
+  Register scratch = scratch0();
+
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  __ mov(result, Operand(0));
+
+  __ PushSafepointRegisters();
+  __ push(string);
+  // Push the index as a smi.
+  if (instr->index()->IsConstantOperand()) {
+    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+    __ mov(scratch, Operand(Smi::FromInt(const_index)));
+    __ push(scratch);
+  } else {
+    Register index = ToRegister(instr->index());
+    __ SmiTag(index);
+    __ push(index);
+  }
+  __ CallRuntimeSaveDoubles(Runtime::kStringCharCodeAt);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 2, Safepoint::kNoDeoptimizationIndex);
+  if (FLAG_debug_code) {
+    __ AbortIfNotSmi(r0);
+  }
+  __ SmiUntag(r0);
+  MemOperand result_stack_slot = masm()->SafepointRegisterSlot(result);
+  __ str(r0, result_stack_slot);
+  __ PopSafepointRegisters();
+}
+
+
+void LCodeGen::DoStringLength(LStringLength* instr) {
+  Register string = ToRegister(instr->input());
+  Register result = ToRegister(instr->result());
+  __ ldr(result, FieldMemOperand(string, String::kLengthOffset));
+}
+
+
 void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
   LOperand* input = instr->input();
   ASSERT(input->IsRegister() || input->IsStackSlot());

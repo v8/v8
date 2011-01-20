@@ -2656,8 +2656,8 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
     LStringCharCodeAt* instr_;
   };
 
-  DeferredStringCharCodeAt* deferred = new DeferredStringCharCodeAt(this,
-                                                                    instr);
+  DeferredStringCharCodeAt* deferred
+      = new DeferredStringCharCodeAt(this, instr);
 
   Register string = ToRegister(instr->string());
   Register index = no_reg;
@@ -2710,26 +2710,29 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   // 2-byte string.
   // Load the 2-byte character code into the result register.
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  if (index.is_valid()) {
-    __ movzx_w(result, FieldOperand(string,
-                                    index, times_2,
-                                    SeqTwoByteString::kHeaderSize));
+  if (instr->index()->IsConstantOperand()) {
+    __ movzx_w(result,
+               FieldOperand(string,
+                            SeqTwoByteString::kHeaderSize + 2 * const_index));
   } else {
-    __ movzx_w(result, FieldOperand(
-        string, SeqTwoByteString::kHeaderSize + 2 * const_index));
+    __ movzx_w(result, FieldOperand(string,
+                                    index,
+                                    times_2,
+                                    SeqTwoByteString::kHeaderSize));
   }
   __ jmp(&done);
 
   // ASCII string.
   // Load the byte into the result register.
   __ bind(&ascii_string);
-  if (index.is_valid()) {
-    __ movzx_b(result, FieldOperand(string,
-                                    index, times_1,
-                                    SeqAsciiString::kHeaderSize));
-  } else {
+  if (instr->index()->IsConstantOperand()) {
     __ movzx_b(result, FieldOperand(string,
                                     SeqAsciiString::kHeaderSize + const_index));
+  } else {
+    __ movzx_b(result, FieldOperand(string,
+                                    index,
+                                    times_1,
+                                    SeqAsciiString::kHeaderSize));
   }
   __ bind(&done);
   __ bind(deferred->exit());

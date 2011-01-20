@@ -1970,6 +1970,13 @@ void MacroAssembler::AbortIfSmi(Register object) {
 }
 
 
+void MacroAssembler::AbortIfNotSmi(Register object) {
+  ASSERT_EQ(0, kSmiTag);
+  tst(object, Operand(kSmiTagMask));
+  Assert(eq, "Operand is not smi");
+}
+
+
 void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
     Register first,
     Register second,
