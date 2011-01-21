@@ -36,11 +36,11 @@ e.name = e;
 e.message = e;
 e.stack = e;
 e.arguments = e;
-assertEquals('', e + '');
+assertEquals(': ', e + '');
 
 e = new Error();
 e.name = [ e ];
 e.message = [ e ];
 e.stack = [ e ];
 e.arguments = [ e ];
-assertEquals('', e + '');
+assertEquals(': ', e + '');

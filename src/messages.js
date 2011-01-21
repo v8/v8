@@ -1033,19 +1033,16 @@ function errorToStringDetectCycle() {
 }
 
 function errorToString() {
-  // These helper functions are needed because access to properties on
+  // This helper function is needed because access to properties on
   // the builtins object do not work inside of a catch clause.
   function isCyclicErrorMarker(o) { return o === cyclic_error_marker; }
-  function isVisitedErrorsEmpty() { return visited_errors.length === 0; }
 
   try {
     return %_CallFunction(this, errorToStringDetectCycle);
   } catch(e) {
-    // Propagate cyclic_error_marker exception until all error
-    // formatting is finished and then return the empty string. Safari
-    // and Firefox also returns the empty string when converting a
-    // cyclic error to a string.
-    if (isCyclicErrorMarker(e) && isVisitedErrorsEmpty()) return '';
+    // If this error message was encountered already return the empty
+    // string for it instead of recursively formatting it.
+    if (isCyclicErrorMarker(e)) return '';
     else throw e;
   }
 }
