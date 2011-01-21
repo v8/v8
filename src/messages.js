@@ -1012,18 +1012,46 @@ $Error.captureStackTrace = captureStackTrace;
 // Setup extra properties of the Error.prototype object.
 $Error.prototype.message = '';
 
-function errorToString() {
-  var type = this.type;
-  if (type && !this.hasOwnProperty("message")) {
-    return this.name + ": " + FormatMessage({ type: type, args: this.arguments });
+// Global list of error objects visited during errorToString. This is
+// used to detect cycles in error toString formatting.
+var visited_errors = new $Array();
+var cyclic_error_marker = new $Object();
+
+function errorToStringDetectCycle() {
+  if (!%PushIfAbsent(visited_errors, this)) throw cyclic_error_marker;
+  try {
+    var type = this.type;
+    if (type && !this.hasOwnProperty("message")) {
+      var formatted = FormatMessage({ type: type, args: this.arguments });
+      return this.name + ": " + formatted;
+    }
+    var message = this.hasOwnProperty("message") ? (": " + this.message) : "";
+    return this.name + message;
+  } finally {
+    visited_errors.pop();
   }
-  var message = this.hasOwnProperty("message") ? (": " + this.message) : "";
-  return this.name + message;
+}
+
+function errorToString() {
+  // These helper functions are needed because access to properties on
+  // the builtins object do not work inside of a catch clause.
+  function isCyclicErrorMarker(o) { return o === cyclic_error_marker; }
+  function isVisitedErrorsEmpty() { return visited_errors.length === 0; }
+
+  try {
+    return %_CallFunction(this, errorToStringDetectCycle);
+  } catch(e) {
+    // Propagate cyclic_error_marker exception until all error
+    // formatting is finished and then return the empty string. Safari
+    // and Firefox also returns the empty string when converting a
+    // cyclic error to a string.
+    if (isCyclicErrorMarker(e) && isVisitedErrorsEmpty()) return '';
+    else throw e;
+  }
 }
 
 %FunctionSetName(errorToString, 'toString');
 %SetProperty($Error.prototype, 'toString', errorToString, DONT_ENUM);
-
 
 // Boilerplate for exceptions for stack overflows. Used from
 // Top::StackOverflow().
