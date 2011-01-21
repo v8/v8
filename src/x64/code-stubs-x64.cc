@@ -91,8 +91,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Try to allocate the context in new space.
   Label gc;
-  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ AllocateInNewSpace((length * kPointerSize) + FixedArray::kHeaderSize,
+  __ AllocateInNewSpace((slots_ * kPointerSize) + FixedArray::kHeaderSize,
                         rax, rbx, rcx, &gc, TAG_OBJECT);
 
   // Get the function from the stack.
@@ -101,7 +100,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Setup the object header.
   __ LoadRoot(kScratchRegister, Heap::kContextMapRootIndex);
   __ movq(FieldOperand(rax, HeapObject::kMapOffset), kScratchRegister);
-  __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(length));
+  __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(slots_));
 
   // Setup the fixed slots.
   __ Set(rbx, 0);  // Set to NULL.
@@ -116,7 +115,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 
   // Initialize the rest of the slots to undefined.
   __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
+  for (int i = Context::MIN_CONTEXT_SLOTS; i < slots_; i++) {
     __ movq(Operand(rax, Context::SlotOffset(i)), rbx);
   }
 
