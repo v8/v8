@@ -2656,18 +2656,29 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
     LStringCharCodeAt* instr_;
   };
 
-  DeferredStringCharCodeAt* deferred
-      = new DeferredStringCharCodeAt(this, instr);
-
   Register string = ToRegister(instr->string());
   Register index = no_reg;
   int const_index = -1;
   if (instr->index()->IsConstantOperand()) {
     const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+    STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
+    if (!Smi::IsValid(const_index)) {
+      // Guaranteed to be out of bounds because of the assert above.
+      // So the bounds check that must dominate this instruction must
+      // have deoptimized already.
+      if (FLAG_debug_code) {
+        __ Abort("StringCharCodeAt: out of bounds index.");
+      }
+      // No code needs to be generated.
+      return;
+    }
   } else {
     index = ToRegister(instr->index());
   }
   Register result = ToRegister(instr->result());
+
+  DeferredStringCharCodeAt* deferred =
+      new DeferredStringCharCodeAt(this, instr);
 
   NearLabel flat_string, ascii_string, done;
 
@@ -2750,7 +2761,9 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
 
   __ PushSafepointRegisters();
   __ push(string);
-  // Push the index as a smi.
+  // Push the index as a smi. This is safe because of the checks in
+  // DoStringCharCodeAt above.
+  STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
   if (instr->index()->IsConstantOperand()) {
     int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
     __ push(Immediate(Smi::FromInt(const_index)));
