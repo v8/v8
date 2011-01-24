@@ -277,13 +277,15 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
 
 
 void Heap::RecordWrite(Address address, int offset) {
-  StoreBuffer::Mark(address + offset);
+  if (!InNewSpace(address)) StoreBuffer::Mark(address + offset);
 }
 
 
 void Heap::RecordWrites(Address address, int start, int len) {
-  for (int i = 0; i < len; i++) {
-    StoreBuffer::Mark(address + start + i);
+  if (!InNewSpace(address)) {
+    for (int i = 0; i < len; i += kPointerSize) {
+      StoreBuffer::Mark(address + start + i);
+    }
   }
 }
 
@@ -330,14 +332,10 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
 }
 
 
-void Heap::CopyBlockToOldSpaceAndUpdateRegionMarks(Address dst,
-                                                   Address src,
-                                                   int byte_size) {
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
+void Heap::CopyBlockToOldSpaceAndUpdateWriteBarrier(Address dst,
+                                                    Address src,
+                                                    int byte_size) {
   ASSERT(IsAligned(byte_size, kPointerSize));
-
-  Page* page = Page::FromAddress(dst);
-  uint32_t marks = page->GetRegionMarks();
 
   for (int remaining = byte_size / kPointerSize;
        remaining > 0;
@@ -345,17 +343,12 @@ void Heap::CopyBlockToOldSpaceAndUpdateRegionMarks(Address dst,
     Memory::Object_at(dst) = Memory::Object_at(src);
 
     if (Heap::InNewSpace(Memory::Object_at(dst))) {
-      marks |= page->GetRegionMaskForAddress(dst);
+      StoreBuffer::Mark(dst);
     }
 
     dst += kPointerSize;
     src += kPointerSize;
   }
-
-  page->SetRegionMarks(marks);
-#else
-  CopyBlock(dst, src, byte_size);
-#endif
 }
 
 
@@ -379,21 +372,6 @@ void Heap::MoveBlock(Address dst, Address src, int byte_size) {
   } else {
     memmove(dst, src, byte_size);
   }
-}
-
-
-void Heap::MoveBlockToOldSpaceAndUpdateRegionMarks(Address dst,
-                                                   Address src,
-                                                   int byte_size) {
-  ASSERT(IsAligned(byte_size, kPointerSize));
-  ASSERT((dst >= (src + byte_size)) ||
-         ((OffsetFrom(src) - OffsetFrom(dst)) >= kPointerSize));
-
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-  CopyBlockToOldSpaceAndUpdateRegionMarks(dst, src, byte_size);
-#else
-  MoveBlock(dst, src, byte_size);
-#endif
 }
 
 

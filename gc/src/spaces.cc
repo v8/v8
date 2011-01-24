@@ -1590,6 +1590,43 @@ bool OldSpaceFreeList::Contains(FreeListNode* node) {
   }
   return false;
 }
+
+
+void FreeListNode::Zap() {
+  if (IsByteArray()) {
+    ByteArray* ba = ByteArray::cast(this);
+    // Skip map, length and next pointer.
+    Address payload_start = ba->GetDataStartAddress() + kPointerSize;
+    Address payload_end = ba->address() + ba->Size();
+    for (Address cur = payload_start;
+         cur < payload_end;
+         cur += kPointerSize) {
+      *reinterpret_cast<uintptr_t*>(cur) = kFreeListZapValue;
+    }
+  }
+}
+
+
+void OldSpaceFreeList::Zap() {
+  for (int i = 0; i < kFreeListsLength; i++) {
+    Address cur_addr = free_[i].head_node_;
+    while (cur_addr != NULL) {
+      FreeListNode* cur_node = FreeListNode::FromAddress(cur_addr);
+      cur_node->Zap();
+      cur_addr = cur_node->next();
+    }
+  }
+}
+
+
+void FixedSizeFreeList::Zap() {
+  Address cur_addr = head_;
+  while (cur_addr != NULL && cur_addr != tail_) {
+    FreeListNode* cur_node = FreeListNode::FromAddress(cur_addr);
+    cur_node->Zap();
+    cur_addr = cur_node->next();
+  }
+}
 #endif
 
 
@@ -2331,13 +2368,8 @@ void LargeObjectSpace::IterateDirtyRegions(ObjectSlotCallback copy_object) {
     // object space, and only fixed arrays can possibly contain pointers to
     // the young generation.
     if (object->IsFixedArray()) {
-      Page* page = Page::FromAddress(object->address());
-      uint32_t marks = page->GetRegionMarks();
-
       // TODO(gc): we can no longer assume that LargePage is bigger than normal
       // page.
-      ASSERT(marks == Page::kAllRegionsDirtyMarks);
-      USE(marks);
 
       Address start = object->address();
       Address object_end = start + object->Size();

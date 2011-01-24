@@ -795,7 +795,6 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_BARRIER(object, offset) \
   Heap::RecordWrite(object->address(), offset);
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
 // CONDITIONAL_WRITE_BARRIER must be issued after the actual
 // write due to the assert validating the written value.
 #define CONDITIONAL_WRITE_BARRIER(object, offset, mode) \
@@ -808,9 +807,6 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
            Page::FromAddress(object->address())->           \
                IsRegionDirty(object->address() + offset));  \
   }
-#else
-#define CONDITIONAL_WRITE_BARRIER(object, offset, mode)
-#endif
 
 #define READ_DOUBLE_FIELD(p, offset) \
   (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)))

@@ -933,6 +933,12 @@ class Heap : public AllStatic {
   // Verify the heap is in its normal state before or after a GC.
   static void Verify();
 
+  static void OldPointerSpaceCheckStoreBuffer(
+      ExpectedPageWatermarkState watermark_state);
+  static void MapSpaceCheckStoreBuffer(
+      ExpectedPageWatermarkState watermark_state);
+  static void LargeObjectSpaceCheckStoreBuffer();
+
   // Report heap statistics.
   static void ReportHeapStatistics(const char* title);
   static void ReportCodeStatistics(const char* title);
@@ -1085,17 +1091,13 @@ class Heap : public AllStatic {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
-  static inline void CopyBlockToOldSpaceAndUpdateRegionMarks(Address dst,
-                                                             Address src,
-                                                             int byte_size);
+  static inline void CopyBlockToOldSpaceAndUpdateWriteBarrier(Address dst,
+                                                              Address src,
+                                                              int byte_size);
 
   // Optimized version of memmove for blocks with pointer size aligned sizes and
   // pointer size aligned addresses.
   static inline void MoveBlock(Address dst, Address src, int byte_size);
-
-  static inline void MoveBlockToOldSpaceAndUpdateRegionMarks(Address dst,
-                                                             Address src,
-                                                             int byte_size);
 
   // Check new space expansion criteria and expand semispaces if it was hit.
   static void CheckNewSpaceExpansionCriteria();

@@ -34,9 +34,15 @@ namespace internal {
 
 Address* StoreBuffer::start_ = NULL;
 Address* StoreBuffer::limit_ = NULL;
+Address* StoreBuffer::old_start_ = NULL;
+Address* StoreBuffer::old_limit_ = NULL;
+Address* StoreBuffer::old_top_ = NULL;
 uintptr_t* StoreBuffer::hash_map_1_ = NULL;
 uintptr_t* StoreBuffer::hash_map_2_ = NULL;
 VirtualMemory* StoreBuffer::virtual_memory_ = NULL;
+bool StoreBuffer::must_scan_entire_memory_ = false;
+bool StoreBuffer::old_buffer_is_sorted_ = false;
+bool StoreBuffer::during_gc_ = false;
 
 void StoreBuffer::Setup() {
   virtual_memory_ = new VirtualMemory(kStoreBufferSize * 3);
@@ -45,6 +51,9 @@ void StoreBuffer::Setup() {
   start_ =
       reinterpret_cast<Address*>(RoundUp(start_as_int, kStoreBufferSize * 2));
   limit_ = start_ + (kStoreBufferSize / sizeof(*start_));
+
+  old_top_ = old_start_ = new Address[kOldStoreBufferLength];
+  old_limit_ = old_start_ + kOldStoreBufferLength;
 
   ASSERT(reinterpret_cast<Address>(start_) >= virtual_memory_->address());
   ASSERT(reinterpret_cast<Address>(limit_) >= virtual_memory_->address());
@@ -65,6 +74,11 @@ void StoreBuffer::Setup() {
 
   hash_map_1_ = new uintptr_t[kHashMapLength];
   hash_map_2_ = new uintptr_t[kHashMapLength];
+
+  Heap::AddGCPrologueCallback(&GCPrologue, kGCTypeAll);
+  Heap::AddGCEpilogueCallback(&GCEpilogue, kGCTypeAll);
+
+  GCPrologue(kGCTypeMarkSweepCompact, kNoGCCallbackFlags);
 }
 
 
@@ -72,27 +86,154 @@ void StoreBuffer::TearDown() {
   delete virtual_memory_;
   delete[] hash_map_1_;
   delete[] hash_map_2_;
+  delete[] old_start_;
+  old_start_ = old_top_ = old_limit_ = NULL;
   start_ = limit_ = NULL;
   Heap::public_set_store_buffer_top(start_);
 }
 
 
-void StoreBuffer::Compact() {
+
+#if V8_TARGET_ARCH_X64
+static int CompareAddresses(const void* void_a, const void* void_b) {
+  intptr_t a =
+      reinterpret_cast<intptr_t>(*reinterpret_cast<const Address*>(void_a));
+  intptr_t b =
+      reinterpret_cast<intptr_t>(*reinterpret_cast<const Address*>(void_b));
+  // Unfortunately if int is smaller than intptr_t there is no branch-free
+  // way to return a number with the same sign as the difference between the
+  // pointers.
+  if (a == b) return 0;
+  if (a < b) return -1;
+  ASSERT(a > b);
+  return 1;
+}
+#else
+static int CompareAddresses(const void* void_a, const void* void_b) {
+  intptr_t a =
+      reinterpret_cast<intptr_t>(*reinterpret_cast<const Address*>(void_a));
+  intptr_t b =
+      reinterpret_cast<intptr_t>(*reinterpret_cast<const Address*>(void_b));
+  ASSERT(sizeof(1) == sizeof(a));
+  // Shift down to avoid wraparound.
+  return (a >> kPointerSizeLog2) - (b >> kPointerSizeLog2);
+}
+#endif
+
+
+void StoreBuffer::Uniq() {
+  ASSERT(HashTablesAreZapped());
+  // Remove adjacent duplicates and cells that do not point at new space.
+  Address previous = NULL;
+  Address* write = old_start_;
+  for (Address* read = old_start_; read < old_top_; read++) {
+    Address current = *read;
+    if (current != previous) {
+      if (Heap::InNewSpace(*reinterpret_cast<Address*>(current))) {
+        *write++ = current;
+      }
+    }
+    previous = current;
+  }
+  old_top_ = write;
+}
+
+
+void StoreBuffer::SortUniq() {
+  Compact();
+  if (old_buffer_is_sorted_) return;
+  ZapHashTables();
+  qsort(reinterpret_cast<void*>(old_start_),
+        old_top_ - old_start_,
+        sizeof(*old_top_),
+        &CompareAddresses);
+  Uniq();
+
+  old_buffer_is_sorted_ = true;
+}
+
+
+#ifdef DEBUG
+void StoreBuffer::Clean() {
+  if (must_scan_entire_memory_) {
+    // We don't currently have a way to go back to using the store buffer.
+    // TODO(gc): We should rebuild the store buffer during GC.
+    old_top_ = old_start_;  // Just clear the cache.
+    return;
+  }
+  ZapHashTables();
+  Uniq();  // Also removes things that no longer point to new space.
+  CheckForFullBuffer();
+}
+
+
+static bool Zapped(char* start, int size) {
+  for (int i = 0; i < size; i++) {
+    if (start[i] != 0) return false;
+  }
+  return true;
+}
+
+
+bool StoreBuffer::HashTablesAreZapped() {
+  return Zapped(reinterpret_cast<char*>(hash_map_1_),
+                sizeof(uintptr_t) * kHashMapLength) &&
+      Zapped(reinterpret_cast<char*>(hash_map_2_),
+             sizeof(uintptr_t) * kHashMapLength);
+}
+
+
+#endif
+
+
+void StoreBuffer::ZapHashTables() {
   memset(reinterpret_cast<void*>(hash_map_1_),
          0,
          sizeof(uintptr_t) * kHashMapLength);
   memset(reinterpret_cast<void*>(hash_map_2_),
          0,
          sizeof(uintptr_t) * kHashMapLength);
+}
+
+
+void StoreBuffer::GCPrologue(GCType type, GCCallbackFlags flags) {
+  ZapHashTables();
+  during_gc_ = true;
+  if (type != kGCTypeScavenge) {
+    old_top_ = old_start_;
+    Heap::public_set_store_buffer_top(start_);
+  }
+}
+
+
+void StoreBuffer::Verify() {
+#ifdef DEBUG
+  if (FLAG_verify_heap && !StoreBuffer::must_scan_entire_memory()) {
+    Heap::OldPointerSpaceCheckStoreBuffer(Heap::WATERMARK_SHOULD_BE_VALID);
+    Heap::MapSpaceCheckStoreBuffer(Heap::WATERMARK_SHOULD_BE_VALID);
+    Heap::LargeObjectSpaceCheckStoreBuffer();
+  }
+#endif
+}
+
+
+void StoreBuffer::GCEpilogue(GCType type, GCCallbackFlags flags) {
+  during_gc_ = false;
+  Verify();
+}
+
+
+void StoreBuffer::Compact() {
   Address* top = reinterpret_cast<Address*>(Heap::store_buffer_top());
-  Address* stop = top;
+  if (top == start_) return;
   ASSERT(top <= limit_);
-  top = start_;
+  Heap::public_set_store_buffer_top(start_);
+  if (must_scan_entire_memory_) return;
   // Goes through the addresses in the store buffer attempting to remove
   // duplicates.  In the interest of speed this is a lossy operation.  Some
   // duplicates will remain.  We have two hash tables with different hash
   // functions to reduce the number of unnecessary clashes.
-  for (Address* current = start_; current < stop; current++) {
+  for (Address* current = start_; current < top; current++) {
     uintptr_t int_addr = reinterpret_cast<uintptr_t>(*current);
     // Shift out the last bits including any tags.
     int_addr >>= kPointerSizeLog2;
@@ -113,24 +254,36 @@ void StoreBuffer::Compact() {
       hash_map_1_[hash1] = int_addr;
       hash_map_2_[hash2] = 0;
     }
-    ASSERT(top <= current);
-    ASSERT(top <= limit_);
-    *top++ = reinterpret_cast<Address>(int_addr << kPointerSizeLog2);
+    old_buffer_is_sorted_ = false;
+    *old_top_++ = reinterpret_cast<Address>(int_addr << kPointerSizeLog2);
+    ASSERT(old_top_ <= old_limit_);
   }
   Counters::store_buffer_compactions.Increment();
-  if (limit_ - top < top - start_) {
-    // Compression did not free up at least half.
+  CheckForFullBuffer();
+}
+
+
+void StoreBuffer::CheckForFullBuffer() {
+  if (old_limit_ - old_top_ < kStoreBufferSize * 2) {
+    // After compression we don't have enough space that we can be sure that
+    // the next two compressions will have enough space in the buffer.  We
+    // start by trying a more agressive compression.  If this frees up at least
+    // half the space then we can keep going, otherwise it is time to brake.
+    SortUniq();
+    if (old_limit_ - old_top_ < old_limit_ - old_top_) {
+      return;
+    }
     // TODO(gc): Set an interrupt to do a GC on the next back edge.
     // TODO(gc): Allocate the rest of new space to force a GC on the next
     // allocation.
-    if (limit_ - top < (top - start_) >> 1) {
-      // Compression did not free up at least one quarter.
+    if (old_limit_ - old_top_ < kStoreBufferSize) {
+      // After compression we don't even have enough space for the next
+      // compression to be guaranteed to succeed.
       // TODO(gc): Set a flag to scan all of memory.
-      top = start_;
       Counters::store_buffer_overflows.Increment();
+      must_scan_entire_memory_ = true;
     }
   }
-  Heap::public_set_store_buffer_top(top);
 }
 
 } }  // namespace v8::internal

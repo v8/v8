@@ -116,13 +116,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         // Store it in the context.
         int context_offset = Context::SlotOffset(slot->index());
         __ movq(Operand(rsi, context_offset), rax);
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
         // Update the write barrier. This clobbers all involved
         // registers, so we have use a third register to avoid
         // clobbering rsi.
         __ movq(rcx, rsi);
-        __ RecordWrite(rcx, context_offset, rax, rbx);
-#endif
+        __ RecordWrite(rcx, context_offset, rax, rbx, kDontSaveFPRegs);
       }
     }
   }
@@ -545,13 +543,11 @@ void FullCodeGenerator::Move(Slot* dst,
   ASSERT(!scratch1.is(src) && !scratch2.is(src));
   MemOperand location = EmitSlotSearch(dst, scratch1);
   __ movq(location, src);
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Emit the write barrier code if the location is in the heap.
   if (dst->type() == Slot::CONTEXT) {
     int offset = FixedArray::kHeaderSize + dst->index() * kPointerSize;
-    __ RecordWrite(scratch1, offset, src, scratch2);
+    __ RecordWrite(scratch1, offset, src, scratch2, kDontSaveFPRegs);
   }
-#endif
 }
 
 
@@ -602,11 +598,9 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         } else if (function != NULL) {
           VisitForAccumulatorValue(function);
           __ movq(ContextOperand(rsi, slot->index()), result_register());
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
           int offset = Context::SlotOffset(slot->index());
           __ movq(rbx, rsi);
-          __ RecordWrite(rbx, offset, result_register(), rcx);
-#endif
+          __ RecordWrite(rbx, offset, result_register(), rcx, kDontSaveFPRegs);
         }
         break;
 
@@ -1315,10 +1309,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     int offset = FixedArray::kHeaderSize + (i * kPointerSize);
     __ movq(FieldOperand(rbx, offset), result_register());
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     // Update the write barrier for the array store.
-    __ RecordWrite(rbx, offset, result_register(), rcx);
-#endif
+    __ RecordWrite(rbx, offset, result_register(), rcx, kDontSaveFPRegs);
   }
 
   if (result_saved) {
@@ -1635,13 +1627,11 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         // Perform the assignment and issue the write barrier.
         __ movq(target, rax);
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
         // The value of the assignment is in rax.  RecordWrite clobbers its
         // register arguments.
         __ movq(rdx, rax);
         int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-        __ RecordWrite(rcx, offset, rdx, rbx);
-#endif
+        __ RecordWrite(rcx, offset, rdx, rbx, kDontSaveFPRegs);
         break;
       }
 
@@ -2486,12 +2476,10 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
 
   // Store the value.
   __ movq(FieldOperand(rbx, JSValue::kValueOffset), rax);
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Update the write barrier.  Save the value as it will be
   // overwritten by the write barrier code and is needed afterward.
   __ movq(rdx, rax);
-  __ RecordWrite(rbx, JSValue::kValueOffset, rdx, rcx);
-#endif
+  __ RecordWrite(rbx, JSValue::kValueOffset, rdx, rcx, kDontSaveFPRegs);
 
   __ bind(&done);
   context()->Plug(rax);

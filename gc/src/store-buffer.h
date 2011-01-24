@@ -50,17 +50,53 @@ class StoreBuffer : public AllStatic {
 
   static const int kStoreBufferOverflowBit = 1 << 16;
   static const int kStoreBufferSize = kStoreBufferOverflowBit;
+  static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
+  static const int kOldStoreBufferLength = kStoreBufferLength * 16;
   static const int kHashMapLengthLog2 = 12;
   static const int kHashMapLength = 1 << kHashMapLengthLog2;
 
   static void Compact();
+  static void GCPrologue(GCType type, GCCallbackFlags flags);
+  static void GCEpilogue(GCType type, GCCallbackFlags flags);
+
+  static Object*** Start() { return reinterpret_cast<Object***>(old_start_); }
+  static Object*** Top() { return reinterpret_cast<Object***>(old_top_); }
+
+  static bool must_scan_entire_memory() { return must_scan_entire_memory_; }
+  static bool old_buffer_is_sorted() { return old_buffer_is_sorted_; }
+
+  // Goes through the store buffer removing pointers to things that have
+  // been promoted.  Rebuilds the store buffer completely if it overflowed.
+  static void SortUniq();
+  static void Verify();
+
+#ifdef DEBUG
+  static void Clean();
+#endif
 
  private:
+  // The store buffer is divided up into a new buffer that is constantly being
+  // filled by mutator activity and an old buffer that is filled with the data
+  // from the new buffer after compression.
   static Address* start_;
   static Address* limit_;
+
+  static Address* old_start_;
+  static Address* old_limit_;
+  static Address* old_top_;
+
+  static bool old_buffer_is_sorted_;
+  static bool must_scan_entire_memory_;
+  static bool during_gc_;
+
   static VirtualMemory* virtual_memory_;
   static uintptr_t* hash_map_1_;
   static uintptr_t* hash_map_2_;
+
+  static void CheckForFullBuffer();
+  static void Uniq();
+  static void ZapHashTables();
+  static bool HashTablesAreZapped();
 };
 
 } }  // namespace v8::internal

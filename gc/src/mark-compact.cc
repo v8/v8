@@ -1522,7 +1522,7 @@ static void MigrateObject(Address dst,
                           int size,
                           bool to_old_space) {
   if (to_old_space) {
-    Heap::CopyBlockToOldSpaceAndUpdateRegionMarks(dst, src, size);
+    Heap::CopyBlockToOldSpaceAndUpdateWriteBarrier(dst, src, size);
   } else {
     Heap::CopyBlock(dst, src, size);
   }

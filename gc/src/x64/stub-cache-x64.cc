@@ -807,10 +807,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     __ movq(name_reg, rax);
-    __ RecordWrite(receiver_reg, offset, name_reg, scratch);
-#endif
+    __ RecordWrite(receiver_reg, offset, name_reg, scratch, kDontSaveFPRegs);
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
@@ -820,10 +818,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     __ movq(name_reg, rax);
-    __ RecordWrite(scratch, offset, name_reg, receiver_reg);
-#endif
+    __ RecordWrite(scratch, offset, name_reg, receiver_reg, kDontSaveFPRegs);
   }
 
   // Return the value (register rax).
@@ -2532,9 +2528,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   __ SmiToInteger32(rcx, rcx);
   __ movq(FieldOperand(rdi, rcx, times_pointer_size, FixedArray::kHeaderSize),
           rax);
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-  __ RecordWrite(rdi, 0, rdx, rcx);
-#endif
+  __ RecordWrite(rdi, 0, rdx, rcx, kDontSaveFPRegs);
 
   // Done.
   __ ret(0);

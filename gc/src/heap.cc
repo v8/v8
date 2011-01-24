@@ -991,6 +991,10 @@ void Heap::Scavenge() {
   Address new_space_front = new_space_.ToSpaceLow();
   promotion_queue.Initialize(new_space_.ToSpaceHigh());
 
+#ifdef DEBUG
+  StoreBuffer::Clean();
+#endif
+
   ScavengeVisitor scavenge_visitor;
   // Copy roots.
   IterateRoots(&scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
@@ -3941,6 +3945,8 @@ static void VerifyPointersUnderWatermark(LargeObjectSpace* space) {
 void Heap::Verify() {
   ASSERT(HasBeenSetup());
 
+  StoreBuffer::Verify();
+
   VerifyPointersVisitor visitor;
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
 
@@ -4053,20 +4059,21 @@ void Heap::ZapFromSpace() {
 bool Heap::IteratePointersInDirtyRegion(Address start,
                                         Address end,
                                         ObjectSlotCallback copy_object_func) {
-  Address slot_address = start;
   bool pointers_to_new_space_found = false;
 
-  while (slot_address < end) {
+  for (Address slot_address = start;
+       slot_address < end;
+       slot_address += kPointerSize) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
     if (Heap::InNewSpace(*slot)) {
       ASSERT((*slot)->IsHeapObject());
       copy_object_func(reinterpret_cast<HeapObject**>(slot));
       if (Heap::InNewSpace(*slot)) {
         ASSERT((*slot)->IsHeapObject());
+        StoreBuffer::Mark(reinterpret_cast<Address>(slot));
         pointers_to_new_space_found = true;
       }
     }
-    slot_address += kPointerSize;
   }
   return pointers_to_new_space_found;
 }
@@ -4171,10 +4178,6 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
                                              Address end,
                                              ObjectSlotCallback callback) {
   Address slot_address = start;
-  Page* page = Page::FromAddress(start);
-
-  uint32_t marks = page->GetRegionMarks();
-
   while (slot_address < end) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
     if (Heap::InFromSpace(*slot)) {
@@ -4182,13 +4185,11 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
       callback(reinterpret_cast<HeapObject**>(slot));
       if (Heap::InNewSpace(*slot)) {
         ASSERT((*slot)->IsHeapObject());
-        marks |= page->GetRegionMaskForAddress(slot_address);
+        StoreBuffer::Mark(reinterpret_cast<Address>(slot));
       }
     }
     slot_address += kPointerSize;
   }
-
-  page->SetRegionMarks(marks);
 }
 
 
@@ -4198,70 +4199,158 @@ uint32_t Heap::IterateDirtyRegions(
     Address area_end,
     DirtyRegionCallback visit_dirty_region,
     ObjectSlotCallback copy_object_func) {
-#ifndef ENABLE_CARDMARKING_WRITE_BARRIER
   ASSERT(marks == Page::kAllRegionsDirtyMarks);
   visit_dirty_region(area_start, area_end, copy_object_func);
   return Page::kAllRegionsDirtyMarks;
-#else
-  uint32_t newmarks = 0;
-  uint32_t mask = 1;
-
-  if (area_start >= area_end) {
-    return newmarks;
-  }
-
-  Address region_start = area_start;
-
-  // area_start does not necessarily coincide with start of the first region.
-  // Thus to calculate the beginning of the next region we have to align
-  // area_start by Page::kRegionSize.
-  Address second_region =
-      reinterpret_cast<Address>(
-          reinterpret_cast<intptr_t>(area_start + Page::kRegionSize) &
-          ~Page::kRegionAlignmentMask);
-
-  // Next region might be beyond area_end.
-  Address region_end = Min(second_region, area_end);
-
-  if (marks & mask) {
-    if (visit_dirty_region(region_start, region_end, copy_object_func)) {
-      newmarks |= mask;
-    }
-  }
-  mask <<= 1;
-
-  // Iterate subsequent regions which fully lay inside [area_start, area_end[.
-  region_start = region_end;
-  region_end = region_start + Page::kRegionSize;
-
-  while (region_end <= area_end) {
-    if (marks & mask) {
-      if (visit_dirty_region(region_start, region_end, copy_object_func)) {
-        newmarks |= mask;
-      }
-    }
-
-    region_start = region_end;
-    region_end = region_start + Page::kRegionSize;
-
-    mask <<= 1;
-  }
-
-  if (region_start != area_end) {
-    // A small piece of area left uniterated because area_end does not coincide
-    // with region end. Check whether region covering last part of area is
-    // dirty.
-    if (marks & mask) {
-      if (visit_dirty_region(region_start, area_end, copy_object_func)) {
-        newmarks |= mask;
-      }
-    }
-  }
-
-  return newmarks;
-#endif
 }
 
+
+#ifdef DEBUG
+static void CheckStoreBuffer(Object** current,
+                             Object** limit,
+                             Object**** store_buffer_position,
+                             Object*** store_buffer_top) {
+  for ( ; current < limit; current++) {
+    Object* o = *current;
+    if (reinterpret_cast<uintptr_t>(o) == kFreeListZapValue) {
+      Object*** zap_checker = *store_buffer_position;
+      while (*zap_checker < current) {
+        zap_checker++;
+        if (zap_checker >= store_buffer_top) break;
+      }
+      if (zap_checker < store_buffer_top) {
+        // Objects in the free list shouldn't be in the store buffer.
+        ASSERT(*zap_checker != current);
+      }
+      continue;
+    }
+    // We have to check that the pointer does not point into new space
+    // without trying to cast it to a heap object since the hash field of
+    // a string can contain values like 1 and 3 which are tagged null
+    // pointers.
+    if (!Heap::InNewSpace(o)) continue;
+    while (**store_buffer_position < current &&
+           *store_buffer_position < store_buffer_top) {
+      (*store_buffer_position)++;
+    }
+    if (**store_buffer_position != current ||
+        *store_buffer_position == store_buffer_top) {
+      Object** obj_start = current;
+      while (!(*obj_start)->IsMap()) obj_start--;
+      UNREACHABLE();
+    }
+  }
+}
+
+
+// Check that the store buffer contains all intergenerational pointers by
+// scanning a page and ensuring that all pointers to young space are in the
+// store buffer.
+void Heap::OldPointerSpaceCheckStoreBuffer(
+    ExpectedPageWatermarkState watermark_state) {
+  OldSpace* space = old_pointer_space();
+  PageIterator pages(space, PageIterator::PAGES_IN_USE);
+
+  space->free_list()->Zap();
+
+  StoreBuffer::SortUniq();
+
+  while (pages.has_next()) {
+    Page* page = pages.next();
+    Object** current = reinterpret_cast<Object**>(page->ObjectAreaStart());
+
+    // Do not try to visit pointers beyond page allocation watermark.
+    // Page can contain garbage pointers there.
+    Address end;
+
+    if (watermark_state == WATERMARK_SHOULD_BE_VALID ||
+        page->IsWatermarkValid()) {
+      end = page->AllocationWatermark();
+    } else {
+      end = page->CachedAllocationWatermark();
+    }
+
+    Object*** store_buffer_position = StoreBuffer::Start();
+    Object*** store_buffer_top = StoreBuffer::Top();
+
+    Object** limit = reinterpret_cast<Object**>(end);
+    CheckStoreBuffer(current, limit, &store_buffer_position, store_buffer_top);
+  }
+}
+
+
+void Heap::MapSpaceCheckStoreBuffer(
+    ExpectedPageWatermarkState watermark_state) {
+  MapSpace* space = map_space();
+  PageIterator pages(space, PageIterator::PAGES_IN_USE);
+
+  space->free_list()->Zap();
+
+  StoreBuffer::SortUniq();
+
+  while (pages.has_next()) {
+    Page* page = pages.next();
+
+    // Do not try to visit pointers beyond page allocation watermark.
+    // Page can contain garbage pointers there.
+    Address end;
+
+    if (watermark_state == WATERMARK_SHOULD_BE_VALID ||
+        page->IsWatermarkValid()) {
+      end = page->AllocationWatermark();
+    } else {
+      end = page->CachedAllocationWatermark();
+    }
+
+
+    Address map_aligned_current = page->ObjectAreaStart();
+
+    ASSERT(map_aligned_current == MapStartAlign(map_aligned_current));
+    ASSERT(end == MapEndAlign(end));
+
+    Object*** store_buffer_position = StoreBuffer::Start();
+    Object*** store_buffer_top = StoreBuffer::Top();
+
+    for ( ; map_aligned_current < end; map_aligned_current += Map::kSize) {
+      ASSERT(!Heap::InNewSpace(Memory::Object_at(map_aligned_current)));
+      ASSERT(Memory::Object_at(map_aligned_current)->IsMap());
+
+      Object** current = reinterpret_cast<Object**>(
+          map_aligned_current + Map::kPointerFieldsBeginOffset);
+      Object** limit = reinterpret_cast<Object**>(
+          map_aligned_current + Map::kPointerFieldsEndOffset);
+
+      CheckStoreBuffer(current,
+                       limit,
+                       &store_buffer_position,
+                       store_buffer_top);
+    }
+  }
+}
+
+
+void Heap::LargeObjectSpaceCheckStoreBuffer() {
+  LargeObjectIterator it(lo_space());
+  for (HeapObject* object = it.next(); object != NULL; object = it.next()) {
+    // We only have code, sequential strings, or fixed arrays in large
+    // object space, and only fixed arrays can possibly contain pointers to
+    // the young generation.
+    if (object->IsFixedArray()) {
+      Object*** store_buffer_position = StoreBuffer::Start();
+      Object*** store_buffer_top = StoreBuffer::Top();
+      Object** current = reinterpret_cast<Object**>(object->address());
+      Object** limit =
+          reinterpret_cast<Object**>(object->address() + object->Size());
+      CheckStoreBuffer(current,
+                       limit,
+                       &store_buffer_position,
+                       store_buffer_top);
+    }
+  }
+}
+
+
+#endif
 
 
 void Heap::IterateDirtyRegions(
@@ -4270,36 +4359,32 @@ void Heap::IterateDirtyRegions(
     ObjectSlotCallback copy_object_func,
     ExpectedPageWatermarkState expected_page_watermark_state) {
 
-  PageIterator it(space, PageIterator::PAGES_IN_USE);
+  PageIterator pages(space, PageIterator::PAGES_IN_USE);
 
-  while (it.has_next()) {
-    Page* page = it.next();
-    uint32_t marks = page->GetRegionMarks();
+  while (pages.has_next()) {
+    Page* page = pages.next();
+    Address start = page->ObjectAreaStart();
 
-    if (marks != Page::kAllRegionsCleanMarks) {
-      Address start = page->ObjectAreaStart();
+    // Do not try to visit pointers beyond page allocation watermark.
+    // Page can contain garbage pointers there.
+    Address end;
 
-      // Do not try to visit pointers beyond page allocation watermark.
-      // Page can contain garbage pointers there.
-      Address end;
-
-      if ((expected_page_watermark_state == WATERMARK_SHOULD_BE_VALID) ||
-          page->IsWatermarkValid()) {
-        end = page->AllocationWatermark();
-      } else {
-        end = page->CachedAllocationWatermark();
-      }
-
-      ASSERT(space == old_pointer_space_ ||
-             (space == map_space_ &&
-              ((page->ObjectAreaStart() - end) % Map::kSize == 0)));
-
-      page->SetRegionMarks(IterateDirtyRegions(marks,
-                                               start,
-                                               end,
-                                               visit_dirty_region,
-                                               copy_object_func));
+    if ((expected_page_watermark_state == WATERMARK_SHOULD_BE_VALID) ||
+        page->IsWatermarkValid()) {
+      end = page->AllocationWatermark();
+    } else {
+      end = page->CachedAllocationWatermark();
     }
+
+    ASSERT(space == old_pointer_space_ ||
+           (space == map_space_ &&
+            ((page->ObjectAreaStart() - end) % Map::kSize == 0)));
+
+    IterateDirtyRegions(Page::kAllRegionsDirtyMarks,
+                        start,
+                        end,
+                        visit_dirty_region,
+                        copy_object_func);
 
     // Mark page watermark as invalid to maintain watermark validity invariant.
     // See Page::FlipMeaningOfInvalidatedWatermarkFlag() for details.

@@ -988,6 +988,11 @@ void Deserializer::ReadChunk(Object** current,
         break;
       }
 
+      case kSkip: {
+        current++;
+        break;
+      }
+
       case kNativesStringResource: {
         int index = source_->Get();
         Vector<const char> source_vector = Natives::GetScriptSource(index);
@@ -1103,7 +1108,9 @@ void PartialSerializer::Serialize(Object** object) {
 
 void Serializer::VisitPointers(Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
-    if ((*current)->IsSmi()) {
+    if (reinterpret_cast<Address>(current) == StoreBuffer::TopAddress()) {
+      sink_->Put(kSkip, "Skip");
+    } else if ((*current)->IsSmi()) {
       sink_->Put(kRawData, "RawData");
       sink_->PutInt(kPointerSize, "length");
       for (int i = 0; i < kPointerSize; i++) {

@@ -1819,11 +1819,16 @@ class FreeListNode: public HeapObject {
   inline Address next();
   inline void set_next(Address next);
 
+  inline void Zap();
+
  private:
   static const int kNextOffset = POINTER_SIZE_ALIGN(ByteArray::kHeaderSize);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeListNode);
 };
+
+
+static const uintptr_t kFreeListZapValue = 0xfeed1eaf;
 
 
 // The free list for the old space.
@@ -1852,6 +1857,10 @@ class OldSpaceFreeList BASE_EMBEDDED {
   MUST_USE_RESULT MaybeObject* Allocate(int size_in_bytes, int* wasted_bytes);
 
   void MarkNodes();
+
+#ifdef DEBUG
+  void Zap();
+#endif
 
  private:
   // The size range of blocks, in bytes. (Smaller allocations are allowed, but
@@ -1953,6 +1962,10 @@ class FixedSizeFreeList BASE_EMBEDDED {
 
   void MarkNodes();
 
+#ifdef DEBUG
+  void Zap();
+#endif
+
  private:
   // Available bytes on the free list.
   intptr_t available_;
@@ -2025,6 +2038,8 @@ class OldSpace : public PagedSpace {
 #ifdef DEBUG
   // Reports statistics for the space
   void ReportStatistics();
+
+  OldSpaceFreeList* free_list() { return &free_list_; }
 #endif
 
  protected:
@@ -2091,6 +2106,8 @@ class FixedSpace : public PagedSpace {
 #ifdef DEBUG
   // Reports statistic info of the space
   void ReportStatistics();
+
+  FixedSizeFreeList* free_list() { return &free_list_; }
 #endif
 
  protected:
