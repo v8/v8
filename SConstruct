@@ -127,6 +127,10 @@ LIBRARY_FLAGS = {
     },
     'inspector:on': {
       'CPPDEFINES':   ['INSPECTOR'],
+    },
+    'liveobjectlist:on': {
+      'CPPDEFINES':   ['ENABLE_DEBUGGER_SUPPORT', 'INSPECTOR',
+                       'LIVE_OBJECT_LIST', 'OBJECT_PRINT'],
     }
   },
   'gcc': {
@@ -752,6 +756,11 @@ SIMPLE_OPTIONS = {
     'default': 'off',
     'help': 'enable inspector features'
   },
+  'liveobjectlist': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable live object list features in the debugger'
+  },
   'soname': {
     'values': ['on', 'off'],
     'default': 'off',
@@ -1009,6 +1018,11 @@ def PostprocessOptions(options, os):
       # Print a warning if native regexp is specified for mips
       print "Warning: forcing regexp to interpreted for mips"
     options['regexp'] = 'interpreted'
+  if options['liveobjectlist'] == 'on':
+    if (options['debuggersupport'] != 'on') or (options['mode'] == 'release'):
+      # Print a warning that liveobjectlist will implicitly enable the debugger
+      print "Warning: forcing debuggersupport on for liveobjectlist"
+    options['debuggersupport'] = 'on'
 
 
 def ParseEnvOverrides(arg, imports):
