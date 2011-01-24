@@ -112,13 +112,16 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-void Deoptimizer::PatchStackCheckCode(RelocInfo* rinfo,
+void Deoptimizer::PatchStackCheckCode(Code* unoptimized_code,
+                                      Code* check_code,
                                       Code* replacement_code) {
   UNIMPLEMENTED();
 }
 
 
-void Deoptimizer::RevertStackCheckCode(RelocInfo* rinfo, Code* check_code) {
+void Deoptimizer::RevertStackCheckCode(Code* unoptimized_code,
+                                       Code* check_code,
+                                       Code* replacement_code) {
   UNIMPLEMENTED();
 }
 

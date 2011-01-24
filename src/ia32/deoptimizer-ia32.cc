@@ -106,44 +106,71 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-void Deoptimizer::PatchStackCheckCode(RelocInfo* rinfo,
+void Deoptimizer::PatchStackCheckCode(Code* unoptimized_code,
+                                      Code* check_code,
                                       Code* replacement_code) {
-  // The stack check code matches the pattern:
-  //
-  //     cmp esp, <limit>
-  //     jae ok
-  //     call <stack guard>
-  //     test eax, <loop nesting depth>
-  // ok: ...
-  //
-  // We will patch away the branch so the code is:
-  //
-  //     cmp esp, <limit>  ;; Not changed
-  //     nop
-  //     nop
-  //     call <on-stack replacment>
-  //     test eax, <loop nesting depth>
-  // ok:
-  Address call_target_address = rinfo->pc();
-  ASSERT(*(call_target_address - 3) == 0x73 &&  // jae
-         *(call_target_address - 2) == 0x07 &&  // offset
-         *(call_target_address - 1) == 0xe8);   // call
-  *(call_target_address - 3) = 0x90;  // nop
-  *(call_target_address - 2) = 0x90;  // nop
-  rinfo->set_target_address(replacement_code->entry());
+  // Iterate the unoptimized code and patch every stack check except at
+  // the function entry.  This code assumes the function entry stack
+  // check appears first i.e., is not deferred or otherwise reordered.
+  ASSERT(unoptimized_code->kind() == Code::FUNCTION);
+  bool first = true;
+  for (RelocIterator it(unoptimized_code, RelocInfo::kCodeTargetMask);
+       !it.done();
+       it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    if (rinfo->target_address() == Code::cast(check_code)->entry()) {
+      if (first) {
+        first = false;
+      } else {
+        // The stack check code matches the pattern:
+        //
+        //     cmp esp, <limit>
+        //     jae ok
+        //     call <stack guard>
+        //     test eax, <loop nesting depth>
+        // ok: ...
+        //
+        // We will patch away the branch so the code is:
+        //
+        //     cmp esp, <limit>  ;; Not changed
+        //     nop
+        //     nop
+        //     call <on-stack replacment>
+        //     test eax, <loop nesting depth>
+        // ok:
+        Address call_target_address = rinfo->pc();
+        ASSERT(*(call_target_address - 3) == 0x73 &&  // jae
+               *(call_target_address - 2) == 0x07 &&  // offset
+               *(call_target_address - 1) == 0xe8);   // call
+        *(call_target_address - 3) = 0x90;  // nop
+        *(call_target_address - 2) = 0x90;  // nop
+        rinfo->set_target_address(replacement_code->entry());
+      }
+    }
+  }
 }
 
 
-void Deoptimizer::RevertStackCheckCode(RelocInfo* rinfo, Code* check_code) {
-  // Replace the nops from patching (Deoptimizer::PatchStackCheckCode) to
-  // restore the conditional branch.
-  Address call_target_address = rinfo->pc();
-  ASSERT(*(call_target_address - 3) == 0x90 &&  // nop
-         *(call_target_address - 2) == 0x90 &&  // nop
-         *(call_target_address - 1) == 0xe8);   // call
-  *(call_target_address - 3) = 0x73;  // jae
-  *(call_target_address - 2) = 0x07;  // offset
-  rinfo->set_target_address(check_code->entry());
+void Deoptimizer::RevertStackCheckCode(Code* unoptimized_code,
+                                       Code* check_code,
+                                       Code* replacement_code) {
+  // Iterate the unoptimized code and revert all the patched stack checks.
+  for (RelocIterator it(unoptimized_code, RelocInfo::kCodeTargetMask);
+       !it.done();
+       it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    if (rinfo->target_address() == replacement_code->entry()) {
+      // Replace the nops from patching (Deoptimizer::PatchStackCheckCode) to
+      // restore the conditional branch.
+      Address call_target_address = rinfo->pc();
+      ASSERT(*(call_target_address - 3) == 0x90 &&  // nop
+             *(call_target_address - 2) == 0x90 &&  // nop
+             *(call_target_address - 1) == 0xe8);   // call
+      *(call_target_address - 3) = 0x73;  // jae
+      *(call_target_address - 2) = 0x07;  // offset
+      rinfo->set_target_address(check_code->entry());
+    }
+  }
 }
 
 

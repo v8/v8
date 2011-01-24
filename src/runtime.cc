@@ -6944,15 +6944,9 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(Arguments args) {
   Handle<Code> check_code = check_stub.GetCode();
   Handle<Code> replacement_code(
       Builtins::builtin(Builtins::OnStackReplacement));
-  // Iterate the unoptimized code and revert all the patched stack checks.
-  for (RelocIterator it(*unoptimized, RelocInfo::kCodeTargetMask);
-       !it.done();
-       it.next()) {
-    RelocInfo* rinfo = it.rinfo();
-    if (rinfo->target_address() == replacement_code->entry()) {
-      Deoptimizer::RevertStackCheckCode(rinfo, *check_code);
-    }
-  }
+  Deoptimizer::RevertStackCheckCode(*unoptimized,
+                                    *check_code,
+                                    *replacement_code);
 
   // Allow OSR only at nesting level zero again.
   unoptimized->set_allow_osr_at_loop_nesting_level(0);
