@@ -414,16 +414,20 @@ void LCodeGen::RegisterLazyDeoptimization(LInstruction* instr) {
   // Create the environment to bailout to. If the call has side effects
   // execution has to continue after the call otherwise execution can continue
   // from a previous bailout point repeating the call.
-  LEnvironment* deoptimization_environment;
-  if (instr->HasDeoptimizationEnvironment()) {
-    deoptimization_environment = instr->deoptimization_environment();
+  LEnvironment* lazy_deoptimization_environment;
+  ASSERT(!instr->IsControl());
+  ASSERT(instructions_->at(current_instruction_ + 1)->IsGap());
+  LInstruction* next_instr = instructions_->at(current_instruction_ + 2);
+  if (next_instr->IsLazyBailout()) {
+    ASSERT(next_instr->HasEnvironment());
+    lazy_deoptimization_environment = next_instr->environment();
   } else {
-    deoptimization_environment = instr->environment();
+    lazy_deoptimization_environment = instr->environment();
   }
 
-  RegisterEnvironmentForDeoptimization(deoptimization_environment);
+  RegisterEnvironmentForDeoptimization(lazy_deoptimization_environment);
   RecordSafepoint(instr->pointer_map(),
-                  deoptimization_environment->deoptimization_index());
+                  lazy_deoptimization_environment->deoptimization_index());
 }
 
 

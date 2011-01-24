@@ -321,21 +321,10 @@ class LInstruction: public ZoneObject {
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
 
-  void set_deoptimization_environment(LEnvironment* env) {
-    deoptimization_environment_.set(env);
-  }
-  LEnvironment* deoptimization_environment() const {
-    return deoptimization_environment_.get();
-  }
-  bool HasDeoptimizationEnvironment() const {
-    return deoptimization_environment_.is_set();
-  }
-
  private:
   SetOncePointer<LEnvironment> environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
-  SetOncePointer<LEnvironment> deoptimization_environment_;
 };
 
 
@@ -1881,7 +1870,6 @@ class LChunkBuilder BASE_EMBEDDED {
         argument_count_(0),
         allocator_(allocator),
         position_(RelocInfo::kNoPosition),
-        instructions_pending_deoptimization_environment_(NULL),
         pending_deoptimization_ast_id_(AstNode::kNoNumber) { }
 
   // Build the sequence for the graph.
@@ -1990,10 +1978,6 @@ class LChunkBuilder BASE_EMBEDDED {
       CanDeoptimize can_deoptimize = CANNOT_DEOPTIMIZE_EAGERLY);
   LInstruction* MarkAsSaveDoubles(LInstruction* instr);
 
-  LInstruction* SetInstructionPendingDeoptimizationEnvironment(
-      LInstruction* instr, int ast_id);
-  void ClearInstructionPendingDeoptimizationEnvironment();
-
   LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env);
 
   void VisitInstruction(HInstruction* current);
@@ -2015,7 +1999,6 @@ class LChunkBuilder BASE_EMBEDDED {
   int argument_count_;
   LAllocator* allocator_;
   int position_;
-  LInstruction* instructions_pending_deoptimization_environment_;
   int pending_deoptimization_ast_id_;
 
   DISALLOW_COPY_AND_ASSIGN(LChunkBuilder);
