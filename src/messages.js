@@ -216,6 +216,7 @@ function FormatMessage(message) {
       strict_param_dupe:            "Strict mode function may not have duplicate parameter names",
       strict_var_name:              "Variable name may not be eval or arguments in strict mode",
       strict_function_name:         "Function name may not be eval or arguments in strict mode",
+      strict_octal_literal:         "Octal literals are not allowed in strict mode.",
     };
   }
   var format = kMessages[message.type];

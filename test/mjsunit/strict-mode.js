@@ -115,3 +115,17 @@ function NotStrict(eval) {
   }
   with ({}) {};
 }
+
+// Octal literal
+CheckStrictMode("var x = 012");
+CheckStrictMode("012");
+CheckStrictMode("'Hello octal\\032'");
+CheckStrictMode("function octal() { return 012; }");
+CheckStrictMode("function octal() { return '\\032'; }");
+
+// Octal before "use strict"
+assertThrows('\
+  function strict() {\
+    "octal\\032directive";\
+    "use strict";\
+  }', SyntaxError);

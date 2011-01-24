@@ -664,7 +664,11 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
     TemporaryScope temp_scope(&this->temp_scope_);
     ZoneList<Statement*>* body = new ZoneList<Statement*>(16);
     bool ok = true;
+    int beg_loc = scanner().location().beg_pos;
     ParseSourceElements(body, Token::EOS, &ok);
+    if (ok && temp_scope_->StrictMode()) {
+      CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
+    }
     if (ok) {
       result = new FunctionLiteral(
           no_name,
@@ -3384,7 +3388,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         *ok = false;
         return NULL;
       }
-      // TODO(mmaly): Check for octal escape sequence here.
+      CheckOctalLiteral(start_pos, end_pos, CHECK_OK);
     }
 
     FunctionLiteral* function_literal =
@@ -3528,6 +3532,18 @@ Handle<String> Parser::ParseIdentifierName(bool* ok) {
     return Handle<String>();
   }
   return GetSymbol(ok);
+}
+
+// Checks whether octal literal last seen is between beg_pos and end_pos.
+// If so, reports an error.
+void Parser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
+  int octal = scanner().octal_position();
+  if (beg_pos <= octal && octal <= end_pos) {
+    ReportMessageAt(Scanner::Location(octal, octal + 1), "strict_octal_literal",
+                    Vector<const char*>::empty());
+    scanner().clear_octal_position();
+    *ok = false;
+  }
 }
 
 
