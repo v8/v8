@@ -1018,11 +1018,8 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       HIsObject* compare = HIsObject::cast(v);
       ASSERT(compare->value()->representation().IsTagged());
 
-      LOperand* temp1 = TempRegister();
-      LOperand* temp2 = TempRegister();
-      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
-                                    temp1,
-                                    temp2);
+      LOperand* temp = TempRegister();
+      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()), temp);
     } else if (v->IsCompareJSObjectEq()) {
       HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
       return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
@@ -1404,7 +1401,7 @@ LInstruction* LChunkBuilder::DoIsObject(HIsObject* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
 
-  return DefineAsRegister(new LIsObject(value, TempRegister()));
+  return DefineAsRegister(new LIsObject(value));
 }
 
 
