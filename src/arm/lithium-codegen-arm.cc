@@ -2492,9 +2492,6 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
   DeoptimizeIf(ne, instr->environment());
 
   Label done;
-  Register tmp = input.is(r0) ? r1 : r0;
-  Register tmp2 = r2;
-  Register tmp3 = r3;
 
   Label negative;
   __ ldr(scratch, FieldMemOperand(input, HeapNumber::kExponentOffset));
@@ -2509,6 +2506,10 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
   __ bind(&negative);
   // Preserve the value of all registers.
   __ PushSafepointRegisters();
+
+  Register tmp = input.is(r0) ? r1 : r0;
+  Register tmp2 = input.is(r2) ? r3 : r2;
+  Register tmp3 = input.is(r4) ? r5 : r4;
 
   Label allocated, slow;
   __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
