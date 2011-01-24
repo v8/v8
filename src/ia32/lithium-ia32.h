@@ -339,32 +339,35 @@ class LInstruction: public ZoneObject {
 };
 
 
-template<typename T, int N>
+template<typename ElementType, int NumElements>
 class OperandContainer {
  public:
   OperandContainer() {
-    for (int i = 0; i < N; i++) elems_[i] = NULL;
+    for (int i = 0; i < NumElements; i++) elems_[i] = NULL;
   }
-  int length() { return N; }
-  T& operator[](int i) {
+  int length() { return NumElements; }
+  ElementType& operator[](int i) {
     ASSERT(i < length());
     return elems_[i];
   }
   void PrintOperandsTo(StringStream* stream);
 
  private:
-  T elems_[N];
+  ElementType elems_[NumElements];
 };
 
 
-template<typename T>
-class OperandContainer<T, 0> {
+template<typename ElementType>
+class OperandContainer<ElementType, 0> {
  public:
   int length() { return 0; }
   void PrintOperandsTo(StringStream* stream) { }
 };
 
 
+// R = number of result operands (0 or 1).
+// I = number of input operands.
+// T = number of temporary operands.
 template<int R, int I, int T>
 class LTemplateInstruction: public LInstruction {
  public:
@@ -1436,7 +1439,7 @@ class LNumberTagI: public LTemplateInstruction<1, 1, 0> {
 
 class LNumberTagD: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LNumberTagD(LOperand* value, LOperand* temp) {
+  LNumberTagD(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
   }

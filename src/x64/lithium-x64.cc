@@ -848,9 +848,6 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
       instr = AssignEnvironment(instr);
     }
     if (current->IsTest() && !instr->IsGoto()) {
-      // TODO(fschneider): Handle test instructions uniformly like
-      // other instructions. This requires us to generate the right
-      // branch instruction already at the HIR level.
       ASSERT(instr->IsControl());
       HTest* test = HTest::cast(current);
       instr->set_hydrogen_value(test->value());

@@ -93,7 +93,9 @@ class LCodeGen BASE_EMBEDDED {
   void FinishCode(Handle<Code> code);
 
   // Deferred code support.
-  void DoDeferredGenericBinaryStub(LBinaryOperation* instr, Token::Value op);
+  template<int T>
+  void DoDeferredGenericBinaryStub(LTemplateInstruction<1, 2, T>* instr,
+                                   Token::Value op);
   void DoDeferredNumberTagD(LNumberTagD* instr);
   void DoDeferredNumberTagI(LNumberTagI* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr);
