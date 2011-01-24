@@ -90,21 +90,28 @@ function FormatString(format, args) {
 }
 
 
-function ToDetailString(obj) {
-  if (obj != null && IS_OBJECT(obj) && obj.toString === $Object.prototype.toString) {
-    var constructor = obj.constructor;
-    if (!constructor) return ToString(obj);
-    var constructorName = constructor.name;
-    if (!constructorName) return ToString(obj);
-    return "#<" + GetInstanceName(constructorName) + ">";
-  } else if (obj instanceof $Error) {
-    // When formatting internally created error messages, do not
-    // invoke overwritten error toString methods but explicitly use
-    // the error to string method. This is to avoid leaking error
-    // objects between script tags in a browser setting.
+// When formatting internally created error messages, do not
+// invoke overwritten error toString methods but explicitly use
+// the error to string method. This is to avoid leaking error
+// objects between script tags in a browser setting.
+function ToStringCheckErrorObject(obj) {
+  if (obj instanceof $Error) {
     return %_CallFunction(obj, errorToString);
   } else {
     return ToString(obj);
+  }
+}
+
+
+function ToDetailString(obj) {
+  if (obj != null && IS_OBJECT(obj) && obj.toString === $Object.prototype.toString) {
+    var constructor = obj.constructor;
+    if (!constructor) return ToStringCheckErrorObject(obj);
+    var constructorName = constructor.name;
+    if (!constructorName) return ToStringCheckErrorObject(obj);
+    return "#<" + GetInstanceName(constructorName) + ">";
+  } else {
+    return ToStringCheckErrorObject(obj);
   }
 }
 

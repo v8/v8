@@ -2379,6 +2379,10 @@ TEST(APIThrowMessageOverwrittenToString) {
   CompileRun("ReferenceError.prototype.toString ="
              "  function() { return 'Whoops' }");
   CompileRun("asdf;");
+  CompileRun("ReferenceError.prototype.constructor.name = void 0;");
+  CompileRun("asdf;");
+  CompileRun("ReferenceError.prototype.constructor = void 0;");
+  CompileRun("asdf;");
   v8::Handle<Value> string = CompileRun("try { asdf; } catch(e) { e + ''; }");
   CHECK(string->Equals(v8_str("Whoops")));
   v8::V8::RemoveMessageListeners(check_message);
