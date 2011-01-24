@@ -2992,22 +2992,20 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         if (prop != NULL) {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
+          __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
         } else if (var->is_global()) {
           __ ldr(r1, GlobalObjectOperand());
           __ mov(r0, Operand(var->name()));
           __ Push(r1, r0);
+          __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
         } else {
-          // Non-global variable.  Call the runtime to look up the context
-          // where the variable was introduced.
+          // Non-global variable.  Call the runtime to delete from the
+          // context where the variable was introduced.
           __ push(context_register());
           __ mov(r2, Operand(var->name()));
           __ push(r2);
-          __ CallRuntime(Runtime::kLookupContext, 2);
-          __ push(r0);
-          __ mov(r2, Operand(var->name()));
-          __ push(r2);
+          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
         }
-        __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
         context()->Plug(r0);
       }
       break;
