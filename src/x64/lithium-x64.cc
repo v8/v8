@@ -1027,9 +1027,8 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
 
 
 LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
-  ++argument_count_;
-  LOperand* argument = UseOrConstant(instr->argument());
-  return new LPushArgument(argument);
+  Abort("Unimplemented: %s", "DoPushArgument");
+  return NULL;
 }
 
 
@@ -1082,10 +1081,8 @@ LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
-  LOperand* constructor = UseFixed(instr->constructor(), rdi);
-  argument_count_ -= instr->argument_count();
-  LCallNew* result = new LCallNew(constructor);
-  return MarkAsCall(DefineFixed(result, rax), instr);
+  Abort("Unimplemented: %s", "DoCallNew");
+  return NULL;
 }
 
 
@@ -1381,8 +1378,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckNonSmi(HCheckNonSmi* instr) {
-  LOperand* value = UseRegisterAtStart(instr->value());
-  return AssignEnvironment(new LCheckSmi(value, zero));
+  Abort("Unimplemented: %s", "DoCheckNonSmi");
+  return NULL;
 }
 
 
@@ -1399,8 +1396,8 @@ LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
-  LOperand* value = UseRegisterAtStart(instr->value());
-  return AssignEnvironment(new LCheckSmi(value, not_zero));
+  Abort("Unimplemented: %s", "DoCheckSmi");
+  return NULL;
 }
 
 
@@ -1411,9 +1408,8 @@ LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
-  LOperand* value = UseRegisterAtStart(instr->value());
-  LCheckMap* result = new LCheckMap(value);
-  return AssignEnvironment(result);
+  Abort("Unimplemented: %s", "DoCheckMap");
+  return NULL;
 }
 
 
@@ -1441,10 +1437,8 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
-  LLoadGlobal* result = new LLoadGlobal;
-  return instr->check_hole_value()
-      ? AssignEnvironment(DefineAsRegister(result))
-      : DefineAsRegister(result);
+  Abort("Unimplemented: %s", "DoLoadGlobal");
+  return NULL;
 }
 
 
