@@ -749,8 +749,7 @@
               'sources': [
                 '../../src/platform-win32.cc',
               ],
-              # 4355, 4800 came from common.vsprops
-              'msvs_disabled_warnings': [4355, 4800],
+              'msvs_disabled_warnings': [4351, 4355, 4800],
               'link_settings':  {
                 'libraries': [ '-lwinmm.lib' ],
               },
