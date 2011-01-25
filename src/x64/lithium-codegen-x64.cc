@@ -608,7 +608,22 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
 
 
 void LCodeGen::DoSubI(LSubI* instr) {
-  Abort("Unimplemented: %s", "DoSubI");
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  ASSERT(left->Equals(instr->result()));
+
+  if (right->IsConstantOperand()) {
+    __ subl(ToRegister(left),
+            Immediate(ToInteger32(LConstantOperand::cast(right))));
+  } else if (right->IsRegister()) {
+    __ subl(ToRegister(left), ToRegister(right));
+  } else {
+    __ subl(ToRegister(left), ToOperand(right));
+  }
+
+  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+    DeoptimizeIf(overflow, instr->environment());
+  }
 }
 
 
@@ -1444,7 +1459,8 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
 
 
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
-  Abort("Unimplemented: %s", "DoGlobalObject");
+  Register result = ToRegister(instr->result());
+  __ movq(result, GlobalObjectOperand());
 }
 
 
