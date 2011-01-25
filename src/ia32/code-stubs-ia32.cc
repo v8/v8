@@ -1772,40 +1772,11 @@ void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
-  Label call_runtime;
   ASSERT(operands_type_ == TRBinaryOpIC::STRING);
   ASSERT(op_ == Token::ADD);
-  // If one of the arguments is a string, call the string add stub.
-  // Otherwise, transition to the generic TRBinaryOpIC type.
-
-  // Registers containing left and right operands respectively.
-  Register left = edx;
-  Register right = eax;
-
-  // Test if left operand is a string.
-  NearLabel left_not_string;
-  __ test(left, Immediate(kSmiTagMask));
-  __ j(zero, &left_not_string);
-  __ CmpObjectType(left, FIRST_NONSTRING_TYPE, ecx);
-  __ j(above_equal, &left_not_string);
-
-  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
-  GenerateRegisterArgsPush(masm);
-  __ TailCallStub(&string_add_left_stub);
-
-  // Left operand is not a string, test right.
-  __ bind(&left_not_string);
-  __ test(right, Immediate(kSmiTagMask));
-  __ j(zero, &call_runtime);
-  __ CmpObjectType(right, FIRST_NONSTRING_TYPE, ecx);
-  __ j(above_equal, &call_runtime);
-
-  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
-  GenerateRegisterArgsPush(masm);
-  __ TailCallStub(&string_add_right_stub);
-
-  // Neither argument is a string.
-  __ bind(&call_runtime);
+  // Try to add arguments as strings, otherwise, transition to the generic
+  // TRBinaryOpIC type.
+  GenerateAddStrings(masm);
   GenerateTypeTransition(masm);
 }
 
@@ -2346,36 +2317,8 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&call_runtime);
   switch (op_) {
     case Token::ADD: {
+      GenerateAddStrings(masm);
       GenerateRegisterArgsPush(masm);
-      // Test for string arguments before calling runtime.
-      // Registers containing left and right operands respectively.
-      Register lhs, rhs;
-      lhs = edx;
-      rhs = eax;
-
-      // Test if left operand is a string.
-      NearLabel lhs_not_string;
-      __ test(lhs, Immediate(kSmiTagMask));
-      __ j(zero, &lhs_not_string);
-      __ CmpObjectType(lhs, FIRST_NONSTRING_TYPE, ecx);
-      __ j(above_equal, &lhs_not_string);
-
-      StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
-      __ TailCallStub(&string_add_left_stub);
-
-      NearLabel call_add_runtime;
-      // Left operand is not a string, test right.
-      __ bind(&lhs_not_string);
-      __ test(rhs, Immediate(kSmiTagMask));
-      __ j(zero, &call_add_runtime);
-      __ CmpObjectType(rhs, FIRST_NONSTRING_TYPE, ecx);
-      __ j(above_equal, &call_add_runtime);
-
-      StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
-      __ TailCallStub(&string_add_right_stub);
-
-      // Neither argument is a string.
-      __ bind(&call_add_runtime);
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
       break;
     }
@@ -2415,6 +2358,40 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
+  NearLabel call_runtime;
+
+  // Registers containing left and right operands respectively.
+  Register left = edx;
+  Register right = eax;
+
+  // Test if left operand is a string.
+  NearLabel left_not_string;
+  __ test(left, Immediate(kSmiTagMask));
+  __ j(zero, &left_not_string);
+  __ CmpObjectType(left, FIRST_NONSTRING_TYPE, ecx);
+  __ j(above_equal, &left_not_string);
+
+  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
+  GenerateRegisterArgsPush(masm);
+  __ TailCallStub(&string_add_left_stub);
+
+  // Left operand is not a string, test right.
+  __ bind(&left_not_string);
+  __ test(right, Immediate(kSmiTagMask));
+  __ j(zero, &call_runtime);
+  __ CmpObjectType(right, FIRST_NONSTRING_TYPE, ecx);
+  __ j(above_equal, &call_runtime);
+
+  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+  GenerateRegisterArgsPush(masm);
+  __ TailCallStub(&string_add_right_stub);
+
+  // Neither argument is a string.
+  __ bind(&call_runtime);
 }
 
 
