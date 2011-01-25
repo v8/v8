@@ -691,6 +691,8 @@
                 '../../src/x64/jump-target-x64.cc',
                 '../../src/x64/lithium-codegen-x64.cc',
                 '../../src/x64/lithium-codegen-x64.h',
+                '../../src/x64/lithium-gap-resolver-x64.cc',
+                '../../src/x64/lithium-gap-resolver-x64.h',
                 '../../src/x64/lithium-x64.cc',
                 '../../src/x64/lithium-x64.h',
                 '../../src/x64/macro-assembler-x64.cc',
