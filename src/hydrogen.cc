@@ -3766,6 +3766,14 @@ void HGraphBuilder::VisitProperty(Property* expr) {
     AddInstruction(new HCheckInstanceType(array, JS_ARRAY_TYPE, JS_ARRAY_TYPE));
     instr = new HJSArrayLength(array);
 
+  } else if (expr->IsStringLength()) {
+    HValue* string = Pop();
+    AddInstruction(new HCheckNonSmi(string));
+    AddInstruction(new HCheckInstanceType(string,
+                                          FIRST_STRING_TYPE,
+                                          LAST_STRING_TYPE));
+    instr = new HStringLength(string);
+
   } else if (expr->IsFunctionPrototype()) {
     HValue* function = Pop();
     AddInstruction(new HCheckNonSmi(function));

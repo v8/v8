@@ -521,6 +521,8 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   if (key()->IsPropertyName()) {
     if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_ArrayLength)) {
       is_array_length_ = true;
+    } else if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_StringLength)) {
+      is_string_length_ = true;
     } else if (oracle->LoadIsBuiltin(this,
                                      Builtins::LoadIC_FunctionPrototype)) {
       is_function_prototype_ = true;
