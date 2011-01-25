@@ -1023,6 +1023,8 @@ def PostprocessOptions(options, os):
       # Print a warning that liveobjectlist will implicitly enable the debugger
       print "Warning: forcing debuggersupport on for liveobjectlist"
     options['debuggersupport'] = 'on'
+    options['inspector'] = 'on'
+    options['objectprint'] = 'on'
 
 
 def ParseEnvOverrides(arg, imports):
