@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -339,7 +339,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
     CpuFeatures::Scope scope(SSE2);
     int space = XMMRegister::kNumRegisters * kDoubleSize + argc * kPointerSize;
     sub(Operand(esp), Immediate(space));
-    int offset = -2 * kPointerSize;
+    const int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       movdbl(Operand(ebp, offset - ((i + 1) * kDoubleSize)), reg);
@@ -382,7 +382,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   // Optionally restore all XMM registers.
   if (save_doubles) {
     CpuFeatures::Scope scope(SSE2);
-    int offset = -2 * kPointerSize;
+    const int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       movdbl(reg, Operand(ebp, offset - ((i + 1) * kDoubleSize)));
