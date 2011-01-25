@@ -653,22 +653,6 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::SetInstructionPendingDeoptimizationEnvironment(
-    LInstruction* instr, int ast_id) {
-  ASSERT(instructions_pending_deoptimization_environment_ == NULL);
-  ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
-  instructions_pending_deoptimization_environment_ = instr;
-  pending_deoptimization_ast_id_ = ast_id;
-  return instr;
-}
-
-
-void LChunkBuilder::ClearInstructionPendingDeoptimizationEnvironment() {
-  instructions_pending_deoptimization_environment_ = NULL;
-  pending_deoptimization_ast_id_ = AstNode::kNoNumber;
-}
-
-
 LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
@@ -678,8 +662,8 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   if (hinstr->HasSideEffects()) {
     ASSERT(hinstr->next()->IsSimulate());
     HSimulate* sim = HSimulate::cast(hinstr->next());
-    instr = SetInstructionPendingDeoptimizationEnvironment(
-        instr, sim->ast_id());
+    ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
+    pending_deoptimization_ast_id_ = sim->ast_id();
   }
 
   // If instruction does not have side-effects lazy deoptimization
@@ -1826,12 +1810,11 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.
-  if (pending_deoptimization_ast_id_ == instr->ast_id()) {
-    LInstruction* result = new LLazyBailout;
-    result = AssignEnvironment(result);
-    instructions_pending_deoptimization_environment_->
-        set_deoptimization_environment(result->environment());
-    ClearInstructionPendingDeoptimizationEnvironment();
+  if (pending_deoptimization_ast_id_ != AstNode::kNoNumber) {
+    ASSERT(pending_deoptimization_ast_id_ == instr->ast_id());
+    LInstruction* lazy_bailout = new LLazyBailout;
+    LInstruction* result = AssignEnvironment(lazy_bailout);
+    pending_deoptimization_ast_id_ = AstNode::kNoNumber;
     return result;
   }
 

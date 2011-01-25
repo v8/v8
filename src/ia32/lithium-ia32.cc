@@ -1858,7 +1858,8 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.
-  if (pending_deoptimization_ast_id_ == instr->ast_id()) {
+  if (pending_deoptimization_ast_id_ != AstNode::kNoNumber) {
+    ASSERT(pending_deoptimization_ast_id_ == instr->ast_id());
     LLazyBailout* lazy_bailout = new LLazyBailout;
     LInstruction* result = AssignEnvironment(lazy_bailout);
     pending_deoptimization_ast_id_ = AstNode::kNoNumber;
