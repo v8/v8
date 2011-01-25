@@ -239,12 +239,19 @@ void ObjectLiteral::CalculateEmitStore() {
     HashMap* table;
     void* key;
     uint32_t index;
+    Smi* smi_key_location;
     if (handle->IsSymbol()) {
       Handle<String> name(String::cast(*handle));
-      ASSERT(!name->AsArrayIndex(&index));
-      key = name.location();
-      hash = name->Hash();
-      table = &properties;
+      if (name->AsArrayIndex(&index)) {
+        smi_key_location = Smi::FromInt(index);
+        key = &smi_key_location;
+        hash = index;
+        table = &elements;
+      } else {
+        key = name.location();
+        hash = name->Hash();
+        table = &properties;
+      }
     } else if (handle->ToArrayIndex(&index)) {
       key = handle.location();
       hash = index;
