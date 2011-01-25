@@ -2098,8 +2098,6 @@ MaybeObject* TypeRecordingBinaryOp_Patch(Arguments args) {
 
   Handle<Code> code = GetTypeRecordingBinaryOpStub(key, type, result_type);
   if (!code.is_null()) {
-    TRBinaryOpIC ic;
-    ic.patch(*code);
     if (FLAG_trace_ic) {
       PrintF("[TypeRecordingBinaryOpIC (%s->(%s->%s))#%s]\n",
              TRBinaryOpIC::GetName(previous_type),
@@ -2107,6 +2105,8 @@ MaybeObject* TypeRecordingBinaryOp_Patch(Arguments args) {
              TRBinaryOpIC::GetName(result_type),
              Token::Name(op));
     }
+    TRBinaryOpIC ic;
+    ic.patch(*code);
 
     // Activate inlined smi code.
     if (previous_type == TRBinaryOpIC::UNINITIALIZED) {

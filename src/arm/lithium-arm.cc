@@ -804,6 +804,7 @@ LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
   return MarkAsCall(DefineFixed(result, r0), instr);
 }
 
+
 void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
   ASSERT(is_building());
   current_block_ = block;
@@ -1114,7 +1115,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathAbs:
       return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
     case kMathFloor:
-      return AssignEnvironment(DefineAsRegister(result));
+      return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
     case kMathSqrt:
       return DefineSameAsFirst(result);
     case kMathRound:

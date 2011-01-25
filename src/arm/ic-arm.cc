@@ -1704,7 +1704,7 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
 
 void PatchInlinedSmiCode(Address address) {
-  UNIMPLEMENTED();
+  // Currently there is no smi inlining in the ARM full code generator.
 }
 
 

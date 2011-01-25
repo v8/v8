@@ -719,6 +719,9 @@ class MacroAssembler: public Assembler {
   void SmiTag(Register reg, SBit s = LeaveCC) {
     add(reg, reg, Operand(reg), s);
   }
+  void SmiTag(Register dst, Register src, SBit s = LeaveCC) {
+    add(dst, src, Operand(src), s);
+  }
 
   // Try to convert int32 to smi. If the value is to large, preserve
   // the original value and jump to not_a_smi. Destroys scratch and
@@ -733,6 +736,9 @@ class MacroAssembler: public Assembler {
   void SmiUntag(Register reg) {
     mov(reg, Operand(reg, ASR, kSmiTagSize));
   }
+  void SmiUntag(Register dst, Register src) {
+    mov(dst, Operand(src, ASR, kSmiTagSize));
+  }
 
   // Jump if either of the registers contain a non-smi.
   void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
@@ -742,6 +748,14 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is a smi. Used in debug code.
   void AbortIfSmi(Register object);
   void AbortIfNotSmi(Register object);
+
+  // ---------------------------------------------------------------------------
+  // HeapNumber utilities
+
+  void JumpIfNotHeapNumber(Register object,
+                           Register heap_number_map,
+                           Register scratch,
+                           Label* on_not_heap_number);
 
   // ---------------------------------------------------------------------------
   // String utilities

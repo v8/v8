@@ -1939,7 +1939,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
 void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Register reg2,
                                       Label* on_not_both_smi) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   tst(reg1, Operand(kSmiTagMask));
   tst(reg2, Operand(kSmiTagMask), eq);
   b(ne, on_not_both_smi);
@@ -1949,7 +1949,7 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
 void MacroAssembler::JumpIfEitherSmi(Register reg1,
                                      Register reg2,
                                      Label* on_either_smi) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   tst(reg1, Operand(kSmiTagMask));
   tst(reg2, Operand(kSmiTagMask), ne);
   b(eq, on_either_smi);
@@ -1957,16 +1957,27 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
 
 
 void MacroAssembler::AbortIfSmi(Register object) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
   Assert(ne, "Operand is a smi");
 }
 
 
 void MacroAssembler::AbortIfNotSmi(Register object) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
   Assert(eq, "Operand is not smi");
+}
+
+
+void MacroAssembler::JumpIfNotHeapNumber(Register object,
+                                         Register heap_number_map,
+                                         Register scratch,
+                                         Label* on_not_heap_number) {
+  ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  cmp(scratch, heap_number_map);
+  b(ne, on_not_heap_number);
 }
 
 
@@ -1996,7 +2007,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
                                                          Register scratch2,
                                                          Label* failure) {
   // Check that neither is a smi.
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   and_(scratch1, first, Operand(second));
   tst(scratch1, Operand(kSmiTagMask));
   b(eq, failure);
