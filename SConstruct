@@ -32,7 +32,7 @@ import os
 from os.path import join, dirname, abspath
 from types import DictType, StringTypes
 root_dir = dirname(File('SConstruct').rfile().abspath)
-sys.path.append(join(root_dir, 'tools'))
+sys.path.insert(0, join(root_dir, 'tools'))
 import js2c, utils
 
 # ANDROID_TOP is the top of the Android checkout, fetched from the environment
