@@ -76,19 +76,19 @@ CheckStrictMode("function eval() {}", SyntaxError)
 CheckStrictMode("function arguments() {}", SyntaxError)
 
 // Function parameter named 'eval'.
-//CheckStrictMode("function foo(a, b, eval, c, d) {}", SyntaxError)
+CheckStrictMode("function foo(a, b, eval, c, d) {}", SyntaxError)
 
 // Function parameter named 'arguments'.
-//CheckStrictMode("function foo(a, b, arguments, c, d) {}", SyntaxError)
+CheckStrictMode("function foo(a, b, arguments, c, d) {}", SyntaxError)
 
 // Property accessor parameter named 'eval'.
-//CheckStrictMode("var o = { set foo(eval) {} }", SyntaxError)
+CheckStrictMode("var o = { set foo(eval) {} }", SyntaxError)
 
 // Property accessor parameter named 'arguments'.
-//CheckStrictMode("var o = { set foo(arguments) {} }", SyntaxError)
+CheckStrictMode("var o = { set foo(arguments) {} }", SyntaxError)
 
 // Duplicate function parameter name.
-//CheckStrictMode("function foo(a, b, c, d, b) {}", SyntaxError)
+CheckStrictMode("function foo(a, b, c, d, b) {}", SyntaxError)
 
 // catch(eval)
 CheckStrictMode("try{}catch(eval){};", SyntaxError)
@@ -103,10 +103,10 @@ CheckStrictMode("var eval;", SyntaxError)
 CheckStrictMode("var arguments;", SyntaxError)
 
 // Strict mode applies to the function in which the directive is used..
-//assertThrows('\
-//function foo(eval) {\
-//  "use strict";\
-//}', SyntaxError);
+assertThrows('\
+function foo(eval) {\
+  "use strict";\
+}', SyntaxError);
 
 // Strict mode doesn't affect the outer stop of strict code.
 function NotStrict(eval) {

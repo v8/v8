@@ -3300,10 +3300,21 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     //    '(' (Identifier)*[','] ')'
     Expect(Token::LPAREN, CHECK_OK);
     int start_pos = scanner().location().beg_pos;
+    Scanner::Location name_loc = Scanner::NoLocation();
+    Scanner::Location dupe_loc = Scanner::NoLocation();
 
     bool done = (peek() == Token::RPAREN);
     while (!done) {
       Handle<String> param_name = ParseIdentifier(CHECK_OK);
+
+      // Store locations for possible future error reports.
+      if (!name_loc.IsValid() && IsEvalOrArguments(param_name)) {
+        name_loc = scanner().location();
+      }
+      if (!dupe_loc.IsValid() && top_scope_->IsDeclared(param_name)) {
+        dupe_loc = scanner().location();
+      }
+
       Variable* parameter = top_scope_->DeclareLocal(param_name, Variable::VAR);
       top_scope_->AddParameter(parameter);
       num_parameters++;
@@ -3381,10 +3392,22 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     if (temp_scope_->StrictMode()) {
       if (IsEvalOrArguments(name)) {
         int position = function_token_position != RelocInfo::kNoPosition
-                         ? function_token_position
-                         : (start_pos > 0 ? start_pos - 1 : start_pos);
+            ? function_token_position
+            : (start_pos > 0 ? start_pos - 1 : start_pos);
         ReportMessageAt(Scanner::Location(position, start_pos),
                         "strict_function_name", Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      }
+      if (name_loc.IsValid()) {
+        ReportMessageAt(name_loc, "strict_param_name",
+                        Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      }
+      if (dupe_loc.IsValid()) {
+        ReportMessageAt(dupe_loc, "strict_param_dupe",
+                        Vector<const char*>::empty());
         *ok = false;
         return NULL;
       }

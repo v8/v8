@@ -274,9 +274,18 @@ class Scanner {
   struct Location {
     Location(int b, int e) : beg_pos(b), end_pos(e) { }
     Location() : beg_pos(0), end_pos(0) { }
+
+    bool IsValid() const {
+      return beg_pos >= 0 && end_pos >= beg_pos;
+    }
+
     int beg_pos;
     int end_pos;
   };
+
+  static Location NoLocation() {
+    return Location(-1, -1);
+  }
 
   // Returns the location information for the current token
   // (the token returned by Next()).
