@@ -934,7 +934,18 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
 
 
 void LCodeGen::DoCmpJSObjectEq(LCmpJSObjectEq* instr) {
-  Abort("Unimplemented: %s", "DoCmpJSObjectEq");
+  Register left = ToRegister(instr->InputAt(0));
+  Register right = ToRegister(instr->InputAt(1));
+  Register result = ToRegister(instr->result());
+
+  NearLabel different, done;
+  __ cmpq(left, right);
+  __ j(not_equal, &different);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ jmp(&done);
+  __ bind(&different);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ bind(&done);
 }
 
 
@@ -950,7 +961,45 @@ void LCodeGen::DoCmpJSObjectEqAndBranch(LCmpJSObjectEqAndBranch* instr) {
 
 
 void LCodeGen::DoIsNull(LIsNull* instr) {
-  Abort("Unimplemented: %s", "DoIsNull");
+  Register reg = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  // If the expression is known to be a smi, then it's
+  // definitely not null. Materialize false.
+  // Consider adding other type and representation tests too.
+  if (instr->hydrogen()->value()->type().IsSmi()) {
+    __ LoadRoot(result, Heap::kFalseValueRootIndex);
+    return;
+  }
+
+  __ CompareRoot(reg, Heap::kNullValueRootIndex);
+  if (instr->is_strict()) {
+    __ movl(result, Immediate(Heap::kTrueValueRootIndex));
+    NearLabel load;
+    __ j(equal, &load);
+    __ movl(result, Immediate(Heap::kFalseValueRootIndex));
+    __ bind(&load);
+    __ movq(result, Operand(kRootRegister, result, times_pointer_size, 0));
+  } else {
+    NearLabel true_value, false_value, done;
+    __ j(equal, &true_value);
+    __ CompareRoot(reg, Heap::kUndefinedValueRootIndex);
+    __ j(equal, &true_value);
+    __ JumpIfSmi(reg, &false_value);
+    // Check for undetectable objects by looking in the bit field in
+    // the map. The object has already been smi checked.
+    Register scratch = result;
+    __ movq(scratch, FieldOperand(reg, HeapObject::kMapOffset));
+    __ testb(FieldOperand(scratch, Map::kBitFieldOffset),
+             Immediate(1 << Map::kIsUndetectable));
+    __ j(not_zero, &true_value);
+    __ bind(&false_value);
+    __ LoadRoot(result, Heap::kFalseValueRootIndex);
+    __ jmp(&done);
+    __ bind(&true_value);
+    __ LoadRoot(result, Heap::kTrueValueRootIndex);
+    __ bind(&done);
+  }
 }
 
 
@@ -992,56 +1041,77 @@ void LCodeGen::DoIsNullAndBranch(LIsNullAndBranch* instr) {
 
 
 Condition LCodeGen::EmitIsObject(Register input,
-                                 Register temp1,
-                                 Register temp2,
                                  Label* is_not_object,
                                  Label* is_object) {
-  ASSERT(!input.is(temp1));
-  ASSERT(!input.is(temp2));
-  ASSERT(!temp1.is(temp2));
+  ASSERT(!input.is(kScratchRegister));
 
   __ JumpIfSmi(input, is_not_object);
 
-  __ Cmp(input, Factory::null_value());
+  __ CompareRoot(input, Heap::kNullValueRootIndex);
   __ j(equal, is_object);
 
-  __ movq(temp1, FieldOperand(input, HeapObject::kMapOffset));
+  __ movq(kScratchRegister, FieldOperand(input, HeapObject::kMapOffset));
   // Undetectable objects behave like undefined.
-  __ testb(FieldOperand(temp1, Map::kBitFieldOffset),
+  __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
            Immediate(1 << Map::kIsUndetectable));
   __ j(not_zero, is_not_object);
 
-  __ movzxbl(temp2, FieldOperand(temp1, Map::kInstanceTypeOffset));
-  __ cmpb(temp2, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ movzxbl(kScratchRegister,
+             FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
+  __ cmpb(kScratchRegister, Immediate(FIRST_JS_OBJECT_TYPE));
   __ j(below, is_not_object);
-  __ cmpb(temp2, Immediate(LAST_JS_OBJECT_TYPE));
+  __ cmpb(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
   return below_equal;
 }
 
 
 void LCodeGen::DoIsObject(LIsObject* instr) {
-  Abort("Unimplemented: %s", "DoIsObject");
+  Register reg = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  Label is_false, is_true, done;
+
+  Condition true_cond = EmitIsObject(reg, &is_false, &is_true);
+  __ j(true_cond, &is_true);
+
+  __ bind(&is_false);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ jmp(&done);
+
+  __ bind(&is_true);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+
+  __ bind(&done);
 }
 
 
 void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
   Register reg = ToRegister(instr->InputAt(0));
-  Register temp = ToRegister(instr->TempAt(0));
-  Register temp2 = ToRegister(instr->TempAt(1));
 
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
   Label* true_label = chunk_->GetAssemblyLabel(true_block);
   Label* false_label = chunk_->GetAssemblyLabel(false_block);
 
-  Condition true_cond = EmitIsObject(reg, temp, temp2, false_label, true_label);
+  Condition true_cond = EmitIsObject(reg, false_label, true_label);
 
   EmitBranch(true_block, false_block, true_cond);
 }
 
 
 void LCodeGen::DoIsSmi(LIsSmi* instr) {
-  Abort("Unimplemented: %s", "DoIsSmi");
+  LOperand* input_operand = instr->InputAt(0);
+  Register result = ToRegister(instr->result());
+  if (input_operand->IsRegister()) {
+    Register input = ToRegister(input_operand);
+    __ CheckSmiToIndicator(result, input);
+  } else {
+    Operand input = ToOperand(instr->InputAt(0));
+    __ CheckSmiToIndicator(result, input);
+  }
+  // result is zero if input is a smi, and one otherwise.
+  ASSERT(Heap::kFalseValueRootIndex == Heap::kTrueValueRootIndex + 1);
+  __ movq(result, Operand(kRootRegister, result, times_pointer_size,
+                          Heap::kTrueValueRootIndex * kPointerSize));
 }
 
 
@@ -1174,7 +1244,25 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
 
 
 void LCodeGen::DoClassOfTest(LClassOfTest* instr) {
-  Abort("Unimplemented: %s", "DoClassOfTest");
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  ASSERT(input.is(result));
+  Register temp = ToRegister(instr->TempAt(0));
+  Handle<String> class_name = instr->hydrogen()->class_name();
+  NearLabel done;
+  Label is_true, is_false;
+
+  EmitClassOfTest(&is_true, &is_false, class_name, input, temp);
+
+  __ j(not_equal, &is_false);
+
+  __ bind(&is_true);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ jmp(&done);
+
+  __ bind(&is_false);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ bind(&done);
 }
 
 
@@ -1196,7 +1284,12 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
 
 
 void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
-  Abort("Unimplemented: %s", "DoCmpMapAndBranch");
+  Register reg = ToRegister(instr->InputAt(0));
+  int true_block = instr->true_block_id();
+  int false_block = instr->false_block_id();
+
+  __ Cmp(FieldOperand(reg, HeapObject::kMapOffset), instr->map());
+  EmitBranch(true_block, false_block, equal);
 }
 
 
@@ -1488,27 +1581,63 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 
 
 void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
-  Abort("Unimplemented: %s", "DoInteger32ToDouble");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsRegister() || input->IsStackSlot());
+  LOperand* output = instr->result();
+  ASSERT(output->IsDoubleRegister());
+  __ cvtlsi2sd(ToDoubleRegister(output), ToOperand(input));
 }
 
 
 void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
-  Abort("Unimplemented: %s", "DoNumberTagI");
-}
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsRegister() && input->Equals(instr->result()));
+  Register reg = ToRegister(input);
 
-
-void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
-  Abort("Unimplemented: %s", "DoDeferredNumberTagI");
+  __ Integer32ToSmi(reg, reg);
 }
 
 
 void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
-  Abort("Unimplemented: %s", "DoNumberTagD");
+  class DeferredNumberTagD: public LDeferredCode {
+   public:
+    DeferredNumberTagD(LCodeGen* codegen, LNumberTagD* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredNumberTagD(instr_); }
+   private:
+    LNumberTagD* instr_;
+  };
+
+  XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
+  Register reg = ToRegister(instr->result());
+  Register tmp = ToRegister(instr->TempAt(0));
+
+  DeferredNumberTagD* deferred = new DeferredNumberTagD(this, instr);
+  if (FLAG_inline_new) {
+    __ AllocateHeapNumber(reg, tmp, deferred->entry());
+  } else {
+    __ jmp(deferred->entry());
+  }
+  __ bind(deferred->exit());
+  __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), input_reg);
 }
 
 
 void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
-  Abort("Unimplemented: %s", "DoDeferredNumberTagD");
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  Register reg = ToRegister(instr->result());
+  __ Move(reg, Smi::FromInt(0));
+
+  __ PushSafepointRegisters();
+  __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
+  // Ensure that value in rax survives popping registers.
+  __ movq(kScratchRegister, rax);
+  __ PopSafepointRegisters();
+  __ movq(reg, kScratchRegister);
 }
 
 
@@ -1525,7 +1654,34 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 XMMRegister result_reg,
                                 LEnvironment* env) {
-  Abort("Unimplemented: %s", "EmitNumberUntagD");
+  NearLabel load_smi, heap_number, done;
+
+  // Smi check.
+  __ JumpIfSmi(input_reg, &load_smi);
+
+  // Heap number map check.
+  __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  __ j(equal, &heap_number);
+
+  __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
+  DeoptimizeIf(not_equal, env);
+
+  // Convert undefined to NaN. Compute NaN as 0/0.
+  __ xorpd(result_reg, result_reg);
+  __ divsd(result_reg, result_reg);
+  __ jmp(&done);
+
+  // Heap number to XMM conversion.
+  __ bind(&heap_number);
+  __ movsd(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  __ jmp(&done);
+
+  // Smi to XMM conversion
+  __ bind(&load_smi);
+  __ SmiToInteger32(kScratchRegister, input_reg);  // Untag smi first.
+  __ cvtlsi2sd(result_reg, kScratchRegister);
+  __ bind(&done);
 }
 
 

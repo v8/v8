@@ -87,7 +87,6 @@ class LCodeGen BASE_EMBEDDED {
 
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
-  void DoDeferredNumberTagI(LNumberTagI* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LGoto* instr);
@@ -215,8 +214,6 @@ class LCodeGen BASE_EMBEDDED {
   // Returns the condition on which a final split to
   // true and false label should be made, to optimize fallthrough.
   Condition EmitIsObject(Register input,
-                         Register temp1,
-                         Register temp2,
                          Label* is_not_object,
                          Label* is_object);
 
