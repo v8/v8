@@ -567,7 +567,21 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment) {
 
 
 void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
-  Abort("Unimplemented: %s", "Deoptimiz");
+  RegisterEnvironmentForDeoptimization(environment);
+  ASSERT(environment->HasBeenRegistered());
+  int id = environment->deoptimization_index();
+  Address entry = Deoptimizer::GetDeoptimizationEntry(id, Deoptimizer::EAGER);
+  ASSERT(entry != NULL);
+  if (entry == NULL) {
+    Abort("bailout was not prepared");
+    return;
+  }
+
+  if (cc == no_condition) {
+    __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+  } else {
+    __ j(cc, entry, RelocInfo::RUNTIME_ENTRY);
+  }
 }
 
 

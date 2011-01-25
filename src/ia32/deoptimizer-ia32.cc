@@ -535,7 +535,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Fill in the input registers.
   for (int i = 0; i < kNumberOfRegisters; i++) {
-    int offset = (i * kIntSize) + FrameDescription::registers_offset();
+    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ mov(ecx, Operand(esp, (kNumberOfRegisters - 1 - i) * kPointerSize));
     __ mov(Operand(ebx, offset), ecx);
   }
@@ -618,7 +618,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
-    int offset = (i * kIntSize) + FrameDescription::registers_offset();
+    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ push(Operand(ebx, offset));
   }
 

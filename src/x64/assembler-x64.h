@@ -590,6 +590,9 @@ class Assembler : public Malloced {
   void popfq();
 
   void push(Immediate value);
+  // Push a 32 bit integer, and guarantee that it is actually pushed as a
+  // 32 bit value, the normal push will optimize the 8 bit case.
+  void push_imm32(int32_t imm32);
   void push(Register src);
   void push(const Operand& src);
 
@@ -1122,6 +1125,7 @@ class Assembler : public Malloced {
 
   // Conditional jumps
   void j(Condition cc, Label* L);
+  void j(Condition cc, byte* entry, RelocInfo::Mode rmode);
   void j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode);
 
   // Conditional short jump
