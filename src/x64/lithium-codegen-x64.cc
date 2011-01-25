@@ -1389,7 +1389,19 @@ void LCodeGen::DoReturn(LReturn* instr) {
 
 
 void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
-  Abort("Unimplemented: %s", "DoLoadGlobal");
+  Register result = ToRegister(instr->result());
+  if (result.is(rax)) {
+    __ load_rax(instr->hydrogen()->cell().location(),
+                RelocInfo::GLOBAL_PROPERTY_CELL);
+  } else {
+    __ movq(result, instr->hydrogen()->cell().location(),
+            RelocInfo::GLOBAL_PROPERTY_CELL);
+    __ movq(result, Operand(result, 0));
+  }
+  if (instr->hydrogen()->check_hole_value()) {
+    __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+    DeoptimizeIf(equal, instr->environment());
+  }
 }
 
 
@@ -1454,7 +1466,26 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
 
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
-  Abort("Unimplemented: %s", "DoPushArgument");
+  LOperand* argument = instr->InputAt(0);
+  if (argument->IsConstantOperand()) {
+    LConstantOperand* const_op = LConstantOperand::cast(argument);
+    Handle<Object> literal = chunk_->LookupLiteral(const_op);
+    Representation r = chunk_->LookupLiteralRepresentation(const_op);
+    if (r.IsInteger32()) {
+      ASSERT(literal->IsNumber());
+      __ push(Immediate(static_cast<int32_t>(literal->Number())));
+    } else if (r.IsDouble()) {
+      Abort("unsupported double immediate");
+    } else {
+      ASSERT(r.IsTagged());
+      __ Push(literal);
+    }
+  } else if (argument->IsRegister()) {
+    __ push(ToRegister(argument));
+  } else {
+    ASSERT(!argument->IsDoubleRegister());
+    __ push(ToOperand(argument));
+  }
 }
 
 
@@ -1562,7 +1593,12 @@ void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
 
 
 void LCodeGen::DoCallNew(LCallNew* instr) {
-  Abort("Unimplemented: %s", "DoCallNew");
+  ASSERT(ToRegister(instr->InputAt(0)).is(rdi));
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  Handle<Code> builtin(Builtins::builtin(Builtins::JSConstructCall));
+  __ Set(rax, instr->arity());
+  CallCode(builtin, RelocInfo::CONSTRUCT_CALL, instr);
 }
 
 
@@ -1722,7 +1758,13 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
-  Abort("Unimplemented: %s", "DoCheckSmi");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsRegister());
+  Condition cc = masm()->CheckSmi(ToRegister(input));
+  if (instr->condition() != equal) {
+    cc = NegateCondition(cc);
+  }
+  DeoptimizeIf(cc, instr->environment());
 }
 
 
@@ -1737,7 +1779,12 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
 
 
 void LCodeGen::DoCheckMap(LCheckMap* instr) {
-  Abort("Unimplemented: %s", "DoCheckMap");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsRegister());
+  Register reg = ToRegister(input);
+  __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+         instr->hydrogen()->map());
+  DeoptimizeIf(not_equal, instr->environment());
 }
 
 
