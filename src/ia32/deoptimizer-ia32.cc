@@ -534,26 +534,25 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ mov(ebx, Operand(eax, Deoptimizer::input_offset()));
 
   // Fill in the input registers.
-  for (int i = 0; i < kNumberOfRegisters; i++) {
+  for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    __ mov(ecx, Operand(esp, (kNumberOfRegisters - 1 - i) * kPointerSize));
-    __ mov(Operand(ebx, offset), ecx);
+    __ pop(Operand(ebx, offset));
   }
 
   // Fill in the double input registers.
   int double_regs_offset = FrameDescription::double_registers_offset();
   for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
     int dst_offset = i * kDoubleSize + double_regs_offset;
-    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    int src_offset = i * kDoubleSize;
     __ movdbl(xmm0, Operand(esp, src_offset));
     __ movdbl(Operand(ebx, dst_offset), xmm0);
   }
 
-  // Remove the bailout id and the general purpose registers from the stack.
+  // Remove the bailout id and the double registers from the stack.
   if (type() == EAGER) {
-    __ add(Operand(esp), Immediate(kSavedRegistersAreaSize + kPointerSize));
+    __ add(Operand(esp), Immediate(kDoubleRegsSize + kPointerSize));
   } else {
-    __ add(Operand(esp), Immediate(kSavedRegistersAreaSize + 2 * kPointerSize));
+    __ add(Operand(esp), Immediate(kDoubleRegsSize + 2 * kPointerSize));
   }
 
   // Compute a pointer to the unwinding limit in register ecx; that is

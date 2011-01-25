@@ -381,8 +381,6 @@ void Deoptimizer::EntryGenerator::Generate() {
   for (int i = kNumberOfRegisters -1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ pop(Operand(rbx, offset));
-    // __ movq(rcx, Operand(rsp, (kNumberOfRegisters - 1 - i) * kPointerSize));
-    // __ movq(Operand(rbx, offset), rcx);
   }
 
     // Fill in the double input registers.
@@ -392,7 +390,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ pop(Operand(rbx, dst_offset));
   }
 
-  // Remove the bailout id and the general purpose registers from the stack.
+  // Remove the bailout id from the stack.
   if (type() == EAGER) {
     __ addq(rsp, Immediate(kPointerSize));
   } else {
