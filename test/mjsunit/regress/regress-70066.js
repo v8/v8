@@ -57,16 +57,21 @@ assertEquals("2:false", test2(), "test2");
 assertEquals(0, x, "test2");  // Global x is undisturbed.
 
 
-// Delete on an argument (should be the same code paths as test1 and test2).
+// Delete on an argument.  This hits the same code paths as test5 because
+// 'with' forces all parameters to be indirected through the arguments
+// object.
 function test3(value) {
   var status;
   with ({}) { status = delete value; }
   return value + ":" + status;
 }
 
-assertEquals("3:false", test3(3), "test3");
+assertEquals("undefined:true", test3(3), "test3");
 assertEquals(0, x, "test3");  // Global x is undisturbed.
 
+
+// Delete on an argument from an outer context.  This hits the same code
+// path as test2.
 function test4(value) {
   function f() {
     with ({}) { return delete value; }
