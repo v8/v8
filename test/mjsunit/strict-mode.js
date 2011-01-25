@@ -129,3 +129,52 @@ assertThrows('\
     "octal\\032directive";\
     "use strict";\
   }', SyntaxError);
+
+// Duplicate data properties.
+CheckStrictMode("var x = { dupe : 1, nondupe: 3, dupe : 2 };", SyntaxError)
+CheckStrictMode("var x = { '1234' : 1, '2345' : 2, '1234' : 3 };", SyntaxError)
+CheckStrictMode("var x = { '1234' : 1, '2345' : 2, 1234 : 3 };", SyntaxError)
+CheckStrictMode("var x = { 3.14 : 1, 2.71 : 2, 3.14 : 3 };", SyntaxError)
+CheckStrictMode("var x = { 3.14 : 1, '3.14' : 2 };", SyntaxError)
+CheckStrictMode("var x = { 123: 1, 123.00000000000000000000000000000000000000000000000000000000000000000001 : 2 }", SyntaxError)
+
+// Non-conflicting data properties.
+function StrictModeNonDuplicate() {
+  "use strict";
+  var x = { 123 : 1, "0123" : 2 };
+  var x = { 123: 1, '123.00000000000000000000000000000000000000000000000000000000000000000001' : 2 }
+}
+
+//CheckStrictMode("", SyntaxError)
+
+// Two getters (non-strict)
+assertThrows("var x = { get foo() { }, get foo() { } };", SyntaxError)
+assertThrows("var x = { get foo(){}, get 'foo'(){}};", SyntaxError)
+assertThrows("var x = { get 12(){}, get '12'(){}};", SyntaxError)
+
+// Two setters (non-strict)
+assertThrows("var x = { set foo(v) { }, set foo(v) { } };", SyntaxError)
+assertThrows("var x = { set foo(v) { }, set 'foo'(v) { } };", SyntaxError)
+assertThrows("var x = { set 13(v) { }, set '13'(v) { } };", SyntaxError)
+
+// Setter and data (non-strict)
+assertThrows("var x = { foo: 'data', set foo(v) { } };", SyntaxError)
+assertThrows("var x = { set foo(v) { }, foo: 'data' };", SyntaxError)
+assertThrows("var x = { foo: 'data', set 'foo'(v) { } };", SyntaxError)
+assertThrows("var x = { set foo(v) { }, 'foo': 'data' };", SyntaxError)
+assertThrows("var x = { 'foo': 'data', set foo(v) { } };", SyntaxError)
+assertThrows("var x = { set 'foo'(v) { }, foo: 'data' };", SyntaxError)
+assertThrows("var x = { 'foo': 'data', set 'foo'(v) { } };", SyntaxError)
+assertThrows("var x = { set 'foo'(v) { }, 'foo': 'data' };", SyntaxError)
+assertThrows("var x = { 12: 1, set '12'(v){}};", SyntaxError);
+assertThrows("var x = { 12: 1, set 12(v){}};", SyntaxError);
+assertThrows("var x = { '12': 1, set '12'(v){}};", SyntaxError);
+assertThrows("var x = { '12': 1, set 12(v){}};", SyntaxError);
+
+// Getter and data (non-strict)
+assertThrows("var x = { foo: 'data', get foo() { } };", SyntaxError)
+assertThrows("var x = { get foo() { }, foo: 'data' };", SyntaxError)
+assertThrows("var x = { 'foo': 'data', get foo() { } };", SyntaxError)
+assertThrows("var x = { get 'foo'() { }, 'foo': 'data' };", SyntaxError)
+assertThrows("var x = { '12': 1, get '12'(){}};", SyntaxError);
+assertThrows("var x = { '12': 1, get 12(){}};", SyntaxError);
