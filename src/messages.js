@@ -90,12 +90,28 @@ function FormatString(format, args) {
 }
 
 
+// To check if something is a native error we need to check the
+// concrete native error types. It is not enough to check "obj
+// instanceof $Error" because user code can replace
+// NativeError.prototype.__proto__. User code cannot replace
+// NativeError.prototype though and therefore this is a safe test.
+function IsNativeErrorObject(obj) {
+  return (obj instanceof $Error) ||
+      (obj instanceof $EvalError) ||
+      (obj instanceof $RangeError) ||
+      (obj instanceof $ReferenceError) ||
+      (obj instanceof $SyntaxError) ||
+      (obj instanceof $TypeError) ||
+      (obj instanceof $URIError);
+}
+
+
 // When formatting internally created error messages, do not
 // invoke overwritten error toString methods but explicitly use
 // the error to string method. This is to avoid leaking error
 // objects between script tags in a browser setting.
 function ToStringCheckErrorObject(obj) {
-  if (obj instanceof $Error) {
+  if (IsNativeErrorObject(obj)) {
     return %_CallFunction(obj, errorToString);
   } else {
     return ToString(obj);
