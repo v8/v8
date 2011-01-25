@@ -247,6 +247,9 @@ class LiteralBuffer {
 // Generic functionality used by both JSON and JavaScript scanners.
 class Scanner {
  public:
+  // -1 is outside of the range of any real source code.
+  static const int kNoOctalLocation = -1;
+
   typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
   class LiteralScope {
@@ -279,6 +282,10 @@ class Scanner {
   // (the token returned by Next()).
   Location location() const { return current_.location; }
   Location peek_location() const { return next_.location; }
+
+  // Returns the location of the last seen octal literal
+  int octal_position() const { return octal_pos_; }
+  void clear_octal_position() { octal_pos_ = -1; }
 
   // Returns the literal string, if any, for the current token (the
   // token returned by Next()). The string is 0-terminated and in
@@ -410,6 +417,8 @@ class Scanner {
   // Input stream. Must be initialized to an UC16CharacterStream.
   UC16CharacterStream* source_;
 
+  // Start position of the octal literal last scanned.
+  int octal_pos_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;

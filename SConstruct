@@ -32,7 +32,7 @@ import os
 from os.path import join, dirname, abspath
 from types import DictType, StringTypes
 root_dir = dirname(File('SConstruct').rfile().abspath)
-sys.path.append(join(root_dir, 'tools'))
+sys.path.insert(0, join(root_dir, 'tools'))
 import js2c, utils
 
 # ANDROID_TOP is the top of the Android checkout, fetched from the environment
@@ -330,7 +330,7 @@ V8_EXTRA_FLAGS = {
   },
   'msvc': {
     'all': {
-      'WARNINGFLAGS': ['/W3', '/WX', '/wd4355', '/wd4800']
+      'WARNINGFLAGS': ['/W3', '/WX', '/wd4351', '/wd4355', '/wd4800']
     },
     'library:shared': {
       'CPPDEFINES': ['BUILDING_V8_SHARED'],
@@ -1023,6 +1023,8 @@ def PostprocessOptions(options, os):
       # Print a warning that liveobjectlist will implicitly enable the debugger
       print "Warning: forcing debuggersupport on for liveobjectlist"
     options['debuggersupport'] = 'on'
+    options['inspector'] = 'on'
+    options['objectprint'] = 'on'
 
 
 def ParseEnvOverrides(arg, imports):

@@ -601,16 +601,20 @@ void LCodeGen::RegisterLazyDeoptimization(LInstruction* instr) {
   // Create the environment to bailout to. If the call has side effects
   // execution has to continue after the call otherwise execution can continue
   // from a previous bailout point repeating the call.
-  LEnvironment* deoptimization_environment;
-  if (instr->HasDeoptimizationEnvironment()) {
-    deoptimization_environment = instr->deoptimization_environment();
+  LEnvironment* lazy_deoptimization_environment;
+  ASSERT(!instr->IsControl());
+  ASSERT(instructions_->at(current_instruction_ + 1)->IsGap());
+  LInstruction* next_instr = instructions_->at(current_instruction_ + 2);
+  if (next_instr->IsLazyBailout()) {
+    ASSERT(next_instr->HasEnvironment());
+    lazy_deoptimization_environment = next_instr->environment();
   } else {
-    deoptimization_environment = instr->environment();
+    lazy_deoptimization_environment = instr->environment();
   }
 
-  RegisterEnvironmentForDeoptimization(deoptimization_environment);
+  RegisterEnvironmentForDeoptimization(lazy_deoptimization_environment);
   RecordSafepoint(instr->pointer_map(),
-                  deoptimization_environment->deoptimization_index());
+                  lazy_deoptimization_environment->deoptimization_index());
 }
 
 
@@ -1730,18 +1734,62 @@ Condition LCodeGen::EmitIsObject(Register input,
                                  Register temp2,
                                  Label* is_not_object,
                                  Label* is_object) {
-  Abort("EmitIsObject unimplemented.");
-  return ne;
+  __ BranchOnSmi(input, is_not_object);
+
+  __ LoadRoot(temp1, Heap::kNullValueRootIndex);
+  __ cmp(input, temp1);
+  __ b(eq, is_object);
+
+  // Load map.
+  __ ldr(temp1, FieldMemOperand(input, HeapObject::kMapOffset));
+  // Undetectable objects behave like undefined.
+  __ ldrb(temp2, FieldMemOperand(temp1, Map::kBitFieldOffset));
+  __ tst(temp2, Operand(1 << Map::kIsUndetectable));
+  __ b(ne, is_not_object);
+
+  // Load instance type and check that it is in object type range.
+  __ ldrb(temp2, FieldMemOperand(temp1, Map::kInstanceTypeOffset));
+  __ cmp(temp2, Operand(FIRST_JS_OBJECT_TYPE));
+  __ b(lt, is_not_object);
+  __ cmp(temp2, Operand(LAST_JS_OBJECT_TYPE));
+  return le;
 }
 
 
 void LCodeGen::DoIsObject(LIsObject* instr) {
-  Abort("DoIsObject unimplemented.");
+  Register reg = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  Register temp = scratch0();
+  Label is_false, is_true, done;
+
+  Condition true_cond = EmitIsObject(reg, result, temp, &is_false, &is_true);
+  __ b(true_cond, &is_true);
+
+  __ bind(&is_false);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ b(&done);
+
+  __ bind(&is_true);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+
+  __ bind(&done);
 }
 
 
 void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
-  Abort("DoIsObjectAndBranch unimplemented.");
+  Register reg = ToRegister(instr->InputAt(0));
+  Register temp1 = ToRegister(instr->TempAt(0));
+  Register temp2 = scratch0();
+
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+  Label* true_label = chunk_->GetAssemblyLabel(true_block);
+  Label* false_label = chunk_->GetAssemblyLabel(false_block);
+
+  Condition true_cond =
+      EmitIsObject(reg, temp1, temp2, false_label, true_label);
+
+  EmitBranch(true_block, false_block, true_cond);
 }
 
 

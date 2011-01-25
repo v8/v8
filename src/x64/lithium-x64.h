@@ -317,21 +317,10 @@ class LInstruction: public ZoneObject {
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
 
-  void set_deoptimization_environment(LEnvironment* env) {
-    deoptimization_environment_.set(env);
-  }
-  LEnvironment* deoptimization_environment() const {
-    return deoptimization_environment_.get();
-  }
-  bool HasDeoptimizationEnvironment() const {
-    return deoptimization_environment_.is_set();
-  }
-
  private:
   SetOncePointer<LEnvironment> environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
-  SetOncePointer<LEnvironment> deoptimization_environment_;
 };
 
 
@@ -732,23 +721,20 @@ class LIsNullAndBranch: public LControlInstruction<1, 1> {
 };
 
 
-class LIsObject: public LTemplateInstruction<1, 1, 1> {
+class LIsObject: public LTemplateInstruction<1, 1, 0> {
  public:
-  LIsObject(LOperand* value, LOperand* temp) {
+  explicit LIsObject(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsObject, "is-object")
 };
 
 
-class LIsObjectAndBranch: public LControlInstruction<1, 2> {
+class LIsObjectAndBranch: public LControlInstruction<1, 0> {
  public:
-  LIsObjectAndBranch(LOperand* value, LOperand* temp, LOperand* temp2) {
+  explicit LIsObjectAndBranch(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
-    temps_[1] = temp2;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch, "is-object-and-branch")

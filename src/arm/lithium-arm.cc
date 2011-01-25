@@ -653,22 +653,6 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::SetInstructionPendingDeoptimizationEnvironment(
-    LInstruction* instr, int ast_id) {
-  ASSERT(instructions_pending_deoptimization_environment_ == NULL);
-  ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
-  instructions_pending_deoptimization_environment_ = instr;
-  pending_deoptimization_ast_id_ = ast_id;
-  return instr;
-}
-
-
-void LChunkBuilder::ClearInstructionPendingDeoptimizationEnvironment() {
-  instructions_pending_deoptimization_environment_ = NULL;
-  pending_deoptimization_ast_id_ = AstNode::kNoNumber;
-}
-
-
 LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
@@ -678,8 +662,8 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   if (hinstr->HasSideEffects()) {
     ASSERT(hinstr->next()->IsSimulate());
     HSimulate* sim = HSimulate::cast(hinstr->next());
-    instr = SetInstructionPendingDeoptimizationEnvironment(
-        instr, sim->ast_id());
+    ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
+    pending_deoptimization_ast_id_ = sim->ast_id();
   }
 
   // If instruction does not have side-effects lazy deoptimization
@@ -1018,11 +1002,8 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       HIsObject* compare = HIsObject::cast(v);
       ASSERT(compare->value()->representation().IsTagged());
 
-      LOperand* temp1 = TempRegister();
-      LOperand* temp2 = TempRegister();
-      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
-                                    temp1,
-                                    temp2);
+      LOperand* temp = TempRegister();
+      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()), temp);
     } else if (v->IsCompareJSObjectEq()) {
       HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
       return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
@@ -1313,8 +1294,8 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
-    LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseOrConstantAtStart(instr->right());
     LSubI* sub = new LSubI(left, right);
     LInstruction* result = DefineSameAsFirst(sub);
     if (instr->CheckFlag(HValue::kCanOverflow)) {
@@ -1404,7 +1385,7 @@ LInstruction* LChunkBuilder::DoIsObject(HIsObject* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
 
-  return DefineAsRegister(new LIsObject(value, TempRegister()));
+  return DefineAsRegister(new LIsObject(value));
 }
 
 
@@ -1829,12 +1810,11 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.
-  if (pending_deoptimization_ast_id_ == instr->ast_id()) {
-    LInstruction* result = new LLazyBailout;
-    result = AssignEnvironment(result);
-    instructions_pending_deoptimization_environment_->
-        set_deoptimization_environment(result->environment());
-    ClearInstructionPendingDeoptimizationEnvironment();
+  if (pending_deoptimization_ast_id_ != AstNode::kNoNumber) {
+    ASSERT(pending_deoptimization_ast_id_ == instr->ast_id());
+    LInstruction* lazy_bailout = new LLazyBailout;
+    LInstruction* result = AssignEnvironment(lazy_bailout);
+    pending_deoptimization_ast_id_ = AstNode::kNoNumber;
     return result;
   }
 

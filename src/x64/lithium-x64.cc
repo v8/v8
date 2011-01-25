@@ -651,22 +651,6 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::SetInstructionPendingDeoptimizationEnvironment(
-    LInstruction* instr, int ast_id) {
-  ASSERT(instructions_pending_deoptimization_environment_ == NULL);
-  ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
-  instructions_pending_deoptimization_environment_ = instr;
-  pending_deoptimization_ast_id_ = ast_id;
-  return instr;
-}
-
-
-void LChunkBuilder::ClearInstructionPendingDeoptimizationEnvironment() {
-  instructions_pending_deoptimization_environment_ = NULL;
-  pending_deoptimization_ast_id_ = AstNode::kNoNumber;
-}
-
-
 LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
@@ -676,8 +660,8 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   if (hinstr->HasSideEffects()) {
     ASSERT(hinstr->next()->IsSimulate());
     HSimulate* sim = HSimulate::cast(hinstr->next());
-    instr = SetInstructionPendingDeoptimizationEnvironment(
-        instr, sim->ast_id());
+    ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
+    pending_deoptimization_ast_id_ = sim->ast_id();
   }
 
   // If instruction does not have side-effects lazy deoptimization
@@ -974,12 +958,7 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     } else if (v->IsIsObject()) {
       HIsObject* compare = HIsObject::cast(v);
       ASSERT(compare->value()->representation().IsTagged());
-
-      LOperand* temp1 = TempRegister();
-      LOperand* temp2 = TempRegister();
-      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
-                                    temp1,
-                                    temp2);
+      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()));
     } else if (v->IsCompareJSObjectEq()) {
       HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
       return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
@@ -1054,8 +1033,7 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
 
 
 LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
-  Abort("Unimplemented: %s", "DoGlobalObject");
-  return NULL;
+  return DefineAsRegister(new LGlobalObject);
 }
 
 
@@ -1181,8 +1159,23 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
 
 
 LInstruction* LChunkBuilder::DoSub(HSub* instr) {
-  Abort("Unimplemented: %s", "DoSub");
-  return NULL;
+  if (instr->representation().IsInteger32()) {
+    ASSERT(instr->left()->representation().IsInteger32());
+    ASSERT(instr->right()->representation().IsInteger32());
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseOrConstantAtStart(instr->right());
+    LSubI* sub = new LSubI(left, right);
+    LInstruction* result = DefineSameAsFirst(sub);
+    if (instr->CheckFlag(HValue::kCanOverflow)) {
+      result = AssignEnvironment(result);
+    }
+    return result;
+  } else if (instr->representation().IsDouble()) {
+    return DoArithmeticD(Token::SUB, instr);
+  } else {
+    ASSERT(instr->representation().IsTagged());
+    return DoArithmeticT(Token::SUB, instr);
+  }
 }
 
 
@@ -1243,26 +1236,34 @@ LInstruction* LChunkBuilder::DoCompare(HCompare* instr) {
 
 LInstruction* LChunkBuilder::DoCompareJSObjectEq(
     HCompareJSObjectEq* instr) {
-  Abort("Unimplemented: %s", "DoCompareJSObjectEq");
-  return NULL;
+  LOperand* left = UseRegisterAtStart(instr->left());
+  LOperand* right = UseRegisterAtStart(instr->right());
+  LCmpJSObjectEq* result = new LCmpJSObjectEq(left, right);
+  return DefineAsRegister(result);
 }
 
 
 LInstruction* LChunkBuilder::DoIsNull(HIsNull* instr) {
-  Abort("Unimplemented: %s", "DoIsNull");
-  return NULL;
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+
+  return DefineAsRegister(new LIsNull(value));
 }
 
 
 LInstruction* LChunkBuilder::DoIsObject(HIsObject* instr) {
-  Abort("Unimplemented: %s", "DoIsObject");
-  return NULL;
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegister(instr->value());
+
+  return DefineAsRegister(new LIsObject(value));
 }
 
 
 LInstruction* LChunkBuilder::DoIsSmi(HIsSmi* instr) {
-  Abort("Unimplemented: %s", "DoIsSmi");
-  return NULL;
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseAtStart(instr->value());
+
+  return DefineAsRegister(new LIsSmi(value));
 }
 
 
@@ -1316,7 +1317,62 @@ LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
 
 
 LInstruction* LChunkBuilder::DoChange(HChange* instr) {
-  Abort("Unimplemented: %s", "DoChange");
+  Representation from = instr->from();
+  Representation to = instr->to();
+  if (from.IsTagged()) {
+    if (to.IsDouble()) {
+      LOperand* value = UseRegister(instr->value());
+      LNumberUntagD* res = new LNumberUntagD(value);
+      return AssignEnvironment(DefineAsRegister(res));
+    } else {
+      ASSERT(to.IsInteger32());
+      LOperand* value = UseRegister(instr->value());
+      bool needs_check = !instr->value()->type().IsSmi();
+      if (needs_check) {
+        LOperand* xmm_temp =
+            (instr->CanTruncateToInt32() && CpuFeatures::IsSupported(SSE3))
+            ? NULL
+            : FixedTemp(xmm1);
+        LTaggedToI* res = new LTaggedToI(value, xmm_temp);
+        return AssignEnvironment(DefineSameAsFirst(res));
+      } else {
+        return DefineSameAsFirst(new LSmiUntag(value, needs_check));
+      }
+    }
+  } else if (from.IsDouble()) {
+    if (to.IsTagged()) {
+      LOperand* value = UseRegister(instr->value());
+      LOperand* temp = TempRegister();
+
+      // Make sure that temp and result_temp are different registers.
+      LUnallocated* result_temp = TempRegister();
+      LNumberTagD* result = new LNumberTagD(value, temp);
+      return AssignPointerMap(Define(result, result_temp));
+    } else {
+      ASSERT(to.IsInteger32());
+      bool needs_temp = instr->CanTruncateToInt32() &&
+          !CpuFeatures::IsSupported(SSE3);
+      LOperand* value = needs_temp ?
+          UseTempRegister(instr->value()) : UseRegister(instr->value());
+      LOperand* temp = needs_temp ? TempRegister() : NULL;
+      return AssignEnvironment(DefineAsRegister(new LDoubleToI(value, temp)));
+    }
+  } else if (from.IsInteger32()) {
+    if (to.IsTagged()) {
+      HValue* val = instr->value();
+      LOperand* value = UseRegister(val);
+      if (val->HasRange() && val->range()->IsInSmiRange()) {
+        return DefineSameAsFirst(new LSmiTag(value));
+      } else {
+        LNumberTagI* result = new LNumberTagI(value);
+        return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
+      }
+    } else {
+      ASSERT(to.IsDouble());
+      return DefineAsRegister(new LInteger32ToDouble(Use(instr->value())));
+    }
+  }
+  UNREACHABLE();
   return NULL;
 }
 
@@ -1569,12 +1625,11 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.
-  if (pending_deoptimization_ast_id_ == instr->ast_id()) {
+  if (pending_deoptimization_ast_id_ != AstNode::kNoNumber) {
+    ASSERT(pending_deoptimization_ast_id_ == instr->ast_id());
     LLazyBailout* lazy_bailout = new LLazyBailout;
     LInstruction* result = AssignEnvironment(lazy_bailout);
-    instructions_pending_deoptimization_environment_->
-        set_deoptimization_environment(result->environment());
-    ClearInstructionPendingDeoptimizationEnvironment();
+    pending_deoptimization_ast_id_ = AstNode::kNoNumber;
     return result;
   }
 

@@ -300,6 +300,34 @@ Operand::Operand(const Operand& operand, int32_t offset) {
   }
 }
 
+
+bool Operand::AddressUsesRegister(Register reg) const {
+  int code = reg.code();
+  ASSERT((buf_[0] & 0xC0) != 0xC0);  // Always a memory operand.
+  // Start with only low three bits of base register. Initial decoding doesn't
+  // distinguish on the REX.B bit.
+  int base_code = buf_[0] & 0x07;
+  if (base_code == rsp.code()) {
+    // SIB byte present in buf_[1].
+    // Check the index register from the SIB byte + REX.X prefix.
+    int index_code = ((buf_[1] >> 3) & 0x07) | ((rex_ & 0x02) << 2);
+    // Index code (including REX.X) of 0x04 (rsp) means no index register.
+    if (index_code != rsp.code() && index_code == code) return true;
+    // Add REX.B to get the full base register code.
+    base_code = (buf_[1] & 0x07) | ((rex_ & 0x01) << 3);
+    // A base register of 0x05 (rbp) with mod = 0 means no base register.
+    if (base_code == rbp.code() && ((buf_[0] & 0xC0) == 0)) return false;
+    return code == base_code;
+  } else {
+    // A base register with low bits of 0x05 (rbp or r13) and mod = 0 means
+    // no base register.
+    if (base_code == rbp.code() && ((buf_[0] & 0xC0) == 0)) return false;
+    base_code |= ((rex_ & 0x01) << 3);
+    return code == base_code;
+  }
+}
+
+
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
 
@@ -1278,6 +1306,18 @@ void Assembler::j(Condition cc, NearLabel* L, Hint hint) {
 }
 
 
+void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  RecordRelocInfo(rmode);
+  last_pc_ = pc_;
+  ASSERT((0 <= cc) && (cc < 16));
+  // 0000 1111 1000 tttn #32-bit disp.
+  emit(0x0F);
+  emit(0x80 | cc);
+  emit(entry - (pc_ + sizeof(intptr_t)));
+}
+
+
 void Assembler::jmp(Label* L) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1946,6 +1986,14 @@ void Assembler::push(Immediate value) {
     emit(0x68);
     emitl(value.value_);
   }
+}
+
+
+void Assembler::push_imm32(int32_t imm32) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x68);
+  emitl(imm32);
 }
 
 
@@ -2638,6 +2686,30 @@ void Assembler::movq(Register dst, XMMRegister src) {
   emit(0x0F);
   emit(0x7E);
   emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movdqa(const Operand& dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0x7F);
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movdqa(XMMRegister dst, const Operand& src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x6F);
+  emit_sse_operand(dst, src);
 }
 
 
