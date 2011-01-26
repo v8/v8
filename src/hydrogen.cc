@@ -684,7 +684,7 @@ HGraph::HGraph(CompilationInfo* info)
 }
 
 
-bool HGraph::AllowAggressiveOptimizations() const {
+bool HGraph::AllowCodeMotion() const {
   return info()->shared_info()->opt_count() + 1 < Compiler::kDefaultMaxOptCount;
 }
 
@@ -1446,19 +1446,23 @@ void HGlobalValueNumberer::ProcessLoopBlock(HBasicBlock* block,
   }
 }
 
-// Only move instructions that postdominate the loop header (i.e. are
-// always executed inside the loop). This is to avoid unnecessary
-// deoptimizations assuming the loop is executed at least once.
-// TODO(fschneider): Better type feedback should give us information
-// about code that was never executed.
+
 bool HGlobalValueNumberer::ShouldMove(HInstruction* instr,
                                       HBasicBlock* loop_header) {
-  if (FLAG_aggressive_loop_invariant_motion &&
-      !instr->IsChange() &&
-      (!instr->IsCheckInstruction() ||
-       graph_->AllowAggressiveOptimizations())) {
+  // If we've disabled code motion, don't move any instructions.
+  if (!graph_->AllowCodeMotion()) return false;
+
+  // If --aggressive-loop-invariant-motion, move everything except change
+  // instructions.
+  if (FLAG_aggressive_loop_invariant_motion && !instr->IsChange()) {
     return true;
   }
+
+  // Otherwise only move instructions that postdominate the loop header
+  // (i.e. are always executed inside the loop). This is to avoid
+  // unnecessary deoptimizations assuming the loop is executed at least
+  // once.  TODO(fschneider): Better type feedback should give us
+  // information about code that was never executed.
   HBasicBlock* block = instr->block();
   bool result = true;
   if (block != loop_header) {
