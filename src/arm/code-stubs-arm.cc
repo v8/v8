@@ -2442,7 +2442,7 @@ void TypeRecordingBinaryOpStub::GenerateOptimisticSmiOperation(
 
   switch (op_) {
     case Token::ADD:
-      __ add(right, left, Operand(right), SetCC); // Add optimistically.
+      __ add(right, left, Operand(right), SetCC);  // Add optimistically.
       __ Ret(vc);
       __ sub(right, right, Operand(left));  // Revert optimistic add.
       break;
@@ -2469,7 +2469,6 @@ void TypeRecordingBinaryOpStub::GenerateVFPOperation(
     default:
       UNREACHABLE();
   }
-
 }
 
 
