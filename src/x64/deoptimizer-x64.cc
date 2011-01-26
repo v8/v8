@@ -145,7 +145,7 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   // The 'fixed' part of the frame consists of the incoming parameters and
   // the part described by JavaScriptFrameConstants.
   unsigned fixed_frame_size = ComputeFixedSize(function);
-  unsigned input_frame_size = input_->GetFrameSize();
+  unsigned input_frame_size = static_cast<unsigned>(input_->GetFrameSize());
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
