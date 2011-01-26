@@ -3160,7 +3160,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     if (frame_alignment > kPointerSize) {
       Label alignment_as_expected;
       ASSERT(IsPowerOf2(frame_alignment));
-      __ tst(r2, Operand(frame_alignment_mask));
+      __ tst(sp, Operand(frame_alignment_mask));
       __ b(eq, &alignment_as_expected);
       // Don't use Check here, as it will call Runtime_Abort re-entering here.
       __ stop("Unexpected alignment");
