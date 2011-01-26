@@ -1306,18 +1306,6 @@ void Assembler::j(Condition cc, NearLabel* L, Hint hint) {
 }
 
 
-void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode) {
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(rmode);
-  last_pc_ = pc_;
-  ASSERT((0 <= cc) && (cc < 16));
-  // 0000 1111 1000 tttn #32-bit disp.
-  emit(0x0F);
-  emit(0x80 | cc);
-  emit(entry - (pc_ + sizeof(intptr_t)));
-}
-
-
 void Assembler::jmp(Label* L) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

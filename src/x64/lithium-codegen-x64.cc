@@ -429,7 +429,10 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   if (cc == no_condition) {
     __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
-    __ j(cc, entry, RelocInfo::RUNTIME_ENTRY);
+    NearLabel done;
+    __ j(NegateCondition(cc), &done);
+    __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+    __ bind(&done);
   }
 }
 
