@@ -190,7 +190,7 @@ static void AllocateJSArray(MacroAssembler* masm,
 
   // Check whether an empty sized array is requested.
   __ tst(array_size, array_size);
-  __ b(nz, &not_empty);
+  __ b(ne, &not_empty);
 
   // If an empty array is requested allocate a small elements array anyway. This
   // keeps the code below free of special casing for the empty array.
@@ -666,7 +666,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ mov(r2, Operand(debug_step_in_fp));
     __ ldr(r2, MemOperand(r2));
     __ tst(r2, r2);
-    __ b(nz, &rt_call);
+    __ b(ne, &rt_call);
 #endif
 
     // Load the initial map and verify that it is in fact a map.

@@ -72,7 +72,7 @@ void ThreadLocalTop::Initialize() {
   handler_ = 0;
 #ifdef USE_SIMULATOR
 #ifdef V8_TARGET_ARCH_ARM
-  simulator_ = assembler::arm::Simulator::current();
+  simulator_ = Simulator::current();
 #elif V8_TARGET_ARCH_MIPS
   simulator_ = assembler::mips::Simulator::current();
 #endif
@@ -1095,7 +1095,7 @@ char* Top::RestoreThread(char* from) {
   // thread_local_ is restored on a separate OS thread.
 #ifdef USE_SIMULATOR
 #ifdef V8_TARGET_ARCH_ARM
-  thread_local_.simulator_ = assembler::arm::Simulator::current();
+  thread_local_.simulator_ = Simulator::current();
 #elif V8_TARGET_ARCH_MIPS
   thread_local_.simulator_ = assembler::mips::Simulator::current();
 #endif

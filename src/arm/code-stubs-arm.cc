@@ -41,7 +41,7 @@ namespace internal {
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
                                           Label* slow,
-                                          Condition cc,
+                                          Condition cond,
                                           bool never_nan_nan);
 static void EmitSmiNonsmiComparison(MacroAssembler* masm,
                                     Register lhs,
@@ -49,7 +49,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
                                     Label* lhs_not_nan,
                                     Label* slow,
                                     bool strict);
-static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc);
+static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cond);
 static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
                                            Register lhs,
                                            Register rhs);
@@ -544,7 +544,7 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
 // for "identity and not NaN".
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
                                           Label* slow,
-                                          Condition cc,
+                                          Condition cond,
                                           bool never_nan_nan) {
   Label not_identical;
   Label heap_number, return_equal;
@@ -553,31 +553,31 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
 
   // The two objects are identical.  If we know that one of them isn't NaN then
   // we now know they test equal.
-  if (cc != eq || !never_nan_nan) {
+  if (cond != eq || !never_nan_nan) {
     // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
     // so we do the second best thing - test it ourselves.
     // They are both equal and they are not both Smis so both of them are not
     // Smis.  If it's not a heap number, then return equal.
-    if (cc == lt || cc == gt) {
+    if (cond == lt || cond == gt) {
       __ CompareObjectType(r0, r4, r4, FIRST_JS_OBJECT_TYPE);
       __ b(ge, slow);
     } else {
       __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
       __ b(eq, &heap_number);
       // Comparing JS objects with <=, >= is complicated.
-      if (cc != eq) {
+      if (cond != eq) {
         __ cmp(r4, Operand(FIRST_JS_OBJECT_TYPE));
         __ b(ge, slow);
         // Normally here we fall through to return_equal, but undefined is
         // special: (undefined == undefined) == true, but
         // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
-        if (cc == le || cc == ge) {
+        if (cond == le || cond == ge) {
           __ cmp(r4, Operand(ODDBALL_TYPE));
           __ b(ne, &return_equal);
           __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
           __ cmp(r0, r2);
           __ b(ne, &return_equal);
-          if (cc == le) {
+          if (cond == le) {
             // undefined <= undefined should fail.
             __ mov(r0, Operand(GREATER));
           } else  {
@@ -591,20 +591,20 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   }
 
   __ bind(&return_equal);
-  if (cc == lt) {
+  if (cond == lt) {
     __ mov(r0, Operand(GREATER));  // Things aren't less than themselves.
-  } else if (cc == gt) {
+  } else if (cond == gt) {
     __ mov(r0, Operand(LESS));     // Things aren't greater than themselves.
   } else {
     __ mov(r0, Operand(EQUAL));    // Things are <=, >=, ==, === themselves.
   }
   __ Ret();
 
-  if (cc != eq || !never_nan_nan) {
+  if (cond != eq || !never_nan_nan) {
     // For less and greater we don't have to check for NaN since the result of
     // x < x is false regardless.  For the others here is some code to check
     // for NaN.
-    if (cc != lt && cc != gt) {
+    if (cond != lt && cond != gt) {
       __ bind(&heap_number);
       // It is a heap number, so return non-equal if it's NaN and equal if it's
       // not NaN.
@@ -628,10 +628,10 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
       // if all bits in mantissa are zero (it's an Infinity) and non-zero if
       // not (it's a NaN).  For <= and >= we need to load r0 with the failing
       // value if it's a NaN.
-      if (cc != eq) {
+      if (cond != eq) {
         // All-zero means Infinity means equal.
         __ Ret(eq);
-        if (cc == le) {
+        if (cond == le) {
           __ mov(r0, Operand(GREATER));  // NaN <= NaN should fail.
         } else {
           __ mov(r0, Operand(LESS));     // NaN >= NaN should fail.
@@ -738,7 +738,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 }
 
 
-void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cc) {
+void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cond) {
   bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
   Register rhs_exponent = exp_first ? r0 : r1;
   Register lhs_exponent = exp_first ? r2 : r3;
@@ -778,7 +778,7 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cc) {
   __ bind(&one_is_nan);
   // NaN comparisons always fail.
   // Load whatever we need in r0 to make the comparison fail.
-  if (cc == lt || cc == le) {
+  if (cond == lt || cond == le) {
     __ mov(r0, Operand(GREATER));
   } else {
     __ mov(r0, Operand(LESS));
@@ -790,7 +790,8 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cc) {
 
 
 // See comment at call site.
-static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
+static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm,
+                                          Condition cond) {
   bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
   Register rhs_exponent = exp_first ? r0 : r1;
   Register lhs_exponent = exp_first ? r2 : r3;
@@ -798,7 +799,7 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
   Register lhs_mantissa = exp_first ? r3 : r2;
 
   // r0, r1, r2, r3 have the two doubles.  Neither is a NaN.
-  if (cc == eq) {
+  if (cond == eq) {
     // Doubles are not equal unless they have the same bit pattern.
     // Exception: 0 and -0.
     __ cmp(rhs_mantissa, Operand(lhs_mantissa));
@@ -1087,7 +1088,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   } else if (FLAG_debug_code) {
     __ orr(r2, r1, r0);
     __ tst(r2, Operand(kSmiTagMask));
-    __ Assert(nz, "CompareStub: unexpected smi operands.");
+    __ Assert(ne, "CompareStub: unexpected smi operands.");
   }
 
   // NOTICE! This code is only reached after a smi-fast-case check, so
@@ -3834,7 +3835,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ldr(regexp_data, FieldMemOperand(r0, JSRegExp::kDataOffset));
   if (FLAG_debug_code) {
     __ tst(regexp_data, Operand(kSmiTagMask));
-    __ Check(nz, "Unexpected type for RegExp data, FixedArray expected");
+    __ Check(ne, "Unexpected type for RegExp data, FixedArray expected");
     __ CompareObjectType(regexp_data, r0, r0, FIXED_ARRAY_TYPE);
     __ Check(eq, "Unexpected type for RegExp data, FixedArray expected");
   }
@@ -3937,7 +3938,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Is first part a flat string?
   STATIC_ASSERT(kSeqStringTag == 0);
   __ tst(r0, Operand(kStringRepresentationMask));
-  __ b(nz, &runtime);
+  __ b(ne, &runtime);
 
   __ bind(&seq_string);
   // subject: Subject string
@@ -4385,13 +4386,13 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // If the first cons component is also non-flat, then go to runtime.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ tst(result_, Operand(kStringRepresentationMask));
-  __ b(nz, &call_runtime_);
+  __ b(ne, &call_runtime_);
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
   STATIC_ASSERT(kAsciiStringTag != 0);
   __ tst(result_, Operand(kStringEncodingMask));
-  __ b(nz, &ascii_string);
+  __ b(ne, &ascii_string);
 
   // 2-byte string.
   // Load the 2-byte character code into the result register. We can
@@ -4476,7 +4477,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   __ tst(code_,
          Operand(kSmiTagMask |
                  ((~String::kMaxAsciiCharCode) << kSmiTagSize)));
-  __ b(nz, &slow_case_);
+  __ b(ne, &slow_case_);
 
   __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
   // At this point code register contains smi tagged ascii char code.
@@ -4923,7 +4924,7 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   __ add(hash, hash, Operand(hash, LSL, 15), SetCC);
 
   // if (hash == 0) hash = 27;
-  __ mov(hash, Operand(27), LeaveCC, nz);
+  __ mov(hash, Operand(27), LeaveCC, ne);
 }
 
 

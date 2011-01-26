@@ -95,13 +95,13 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   __ ldrb(t1, FieldMemOperand(t0, Map::kBitFieldOffset));
   __ tst(t1, Operand((1 << Map::kIsAccessCheckNeeded) |
                      (1 << Map::kHasNamedInterceptor)));
-  __ b(nz, miss);
+  __ b(ne, miss);
 
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   __ ldr(t1, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
   __ cmp(t1, ip);
-  __ b(nz, miss);
+  __ b(ne, miss);
 }
 
 
@@ -427,7 +427,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   __ ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
   __ tst(scratch,
          Operand((1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit)));
-  __ b(nz, slow);
+  __ b(ne, slow);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
   // we enter the runtime system to make sure that indexing into string
@@ -1674,7 +1674,7 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
       return ge;
     default:
       UNREACHABLE();
-      return no_condition;
+      return kNoCondition;
   }
 }
 

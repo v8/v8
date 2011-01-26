@@ -661,7 +661,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     return;
   }
 
-  if (cc == no_condition) {
+  if (cc == kNoCondition) {
     if (FLAG_trap_on_deopt) __ stop("trap_on_deopt");
     __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
@@ -1216,7 +1216,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
     __ b(ne, &done);
     if (instr->InputAt(1)->IsConstantOperand()) {
       if (ToInteger32(LConstantOperand::cast(instr->InputAt(1))) < 0) {
-        DeoptimizeIf(no_condition, instr->environment());
+        DeoptimizeIf(kNoCondition, instr->environment());
       }
     } else {
       // Test the non-zero operand for negative sign.
@@ -1483,7 +1483,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
   if (r.IsInteger32()) {
     Register reg = ToRegister(instr->InputAt(0));
     __ cmp(reg, Operand(0));
-    EmitBranch(true_block, false_block, nz);
+    EmitBranch(true_block, false_block, ne);
   } else if (r.IsDouble()) {
     DoubleRegister reg = ToDoubleRegister(instr->InputAt(0));
     Register scratch = scratch0();
@@ -1541,7 +1541,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ CallStub(&stub);
       __ cmp(reg, Operand(0));
       __ ldm(ia_w, sp, saved_regs);
-      EmitBranch(true_block, false_block, nz);
+      EmitBranch(true_block, false_block, ne);
     }
   }
 }
@@ -1593,7 +1593,7 @@ void LCodeGen::DoGoto(LGoto* instr) {
 
 
 Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
-  Condition cond = no_condition;
+  Condition cond = kNoCondition;
   switch (op) {
     case Token::EQ:
     case Token::EQ_STRICT:
@@ -2136,7 +2136,7 @@ static Condition ComputeCompareCondition(Token::Value op) {
       return ge;
     default:
       UNREACHABLE();
-      return no_condition;
+      return kNoCondition;
   }
 }
 
@@ -3556,7 +3556,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
                                  Label* false_label,
                                  Register input,
                                  Handle<String> type_name) {
-  Condition final_branch_condition = no_condition;
+  Condition final_branch_condition = kNoCondition;
   Register scratch = scratch0();
   if (type_name->Equals(Heap::number_symbol())) {
     __ tst(input, Operand(kSmiTagMask));
@@ -3641,7 +3641,7 @@ void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
 
 
 void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
-  DeoptimizeIf(no_condition, instr->environment());
+  DeoptimizeIf(kNoCondition, instr->environment());
 }
 
 

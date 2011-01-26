@@ -1589,7 +1589,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 }
 
 
-void CodeGenerator::Comparison(Condition cc,
+void CodeGenerator::Comparison(Condition cond,
                                Expression* left,
                                Expression* right,
                                bool strict) {
@@ -1603,7 +1603,7 @@ void CodeGenerator::Comparison(Condition cc,
   // result : cc register
 
   // Strict only makes sense for equality comparisons.
-  ASSERT(!strict || cc == eq);
+  ASSERT(!strict || cond == eq);
 
   Register lhs;
   Register rhs;
@@ -1614,8 +1614,8 @@ void CodeGenerator::Comparison(Condition cc,
   // We load the top two stack positions into registers chosen by the virtual
   // frame.  This should keep the register shuffling to a minimum.
   // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
-  if (cc == gt || cc == le) {
-    cc = ReverseCondition(cc);
+  if (cond == gt || cond == le) {
+    cond = ReverseCondition(cond);
     lhs_is_smi = frame_->KnownSmiAt(0);
     rhs_is_smi = frame_->KnownSmiAt(1);
     lhs = frame_->PopToRegister();
@@ -1655,7 +1655,7 @@ void CodeGenerator::Comparison(Condition cc,
     // Perform non-smi comparison by stub.
     // CompareStub takes arguments in r0 and r1, returns <0, >0 or 0 in r0.
     // We call with 0 args because there are 0 on the stack.
-    CompareStub stub(cc, strict, NO_SMI_COMPARE_IN_STUB, lhs, rhs);
+    CompareStub stub(cond, strict, NO_SMI_COMPARE_IN_STUB, lhs, rhs);
     frame_->CallStub(&stub, 0);
     __ cmp(r0, Operand(0, RelocInfo::NONE));
     exit.Jump();
@@ -1667,7 +1667,7 @@ void CodeGenerator::Comparison(Condition cc,
   __ cmp(lhs, Operand(rhs));
 
   exit.Bind();
-  cc_reg_ = cc;
+  cc_reg_ = cond;
 }
 
 
@@ -1885,8 +1885,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
 
 void CodeGenerator::Branch(bool if_true, JumpTarget* target) {
   ASSERT(has_cc());
-  Condition cc = if_true ? cc_reg_ : NegateCondition(cc_reg_);
-  target->Branch(cc);
+  Condition cond = if_true ? cc_reg_ : NegateCondition(cc_reg_);
+  target->Branch(cond);
   cc_reg_ = al;
 }
 
@@ -5572,7 +5572,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   deferred->Branch(lt);
   __ ldrb(tmp2, FieldMemOperand(tmp1, Map::kBitFieldOffset));
   __ tst(tmp2, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
-  deferred->Branch(nz);
+  deferred->Branch(ne);
 
   // Check the object's elements are in fast case and writable.
   __ ldr(tmp1, FieldMemOperand(object, JSObject::kElementsOffset));
@@ -5589,7 +5589,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   __ mov(tmp2, index1);
   __ orr(tmp2, tmp2, index2);
   __ tst(tmp2, Operand(kSmiTagMask));
-  deferred->Branch(nz);
+  deferred->Branch(ne);
 
   // Check that both indices are valid.
   __ ldr(tmp2, FieldMemOperand(object, JSArray::kLengthOffset));

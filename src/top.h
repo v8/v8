@@ -109,7 +109,7 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #ifdef USE_SIMULATOR
 #ifdef V8_TARGET_ARCH_ARM
-  assembler::arm::Simulator* simulator_;
+  Simulator* simulator_;
 #elif V8_TARGET_ARCH_MIPS
   assembler::mips::Simulator* simulator_;
 #endif

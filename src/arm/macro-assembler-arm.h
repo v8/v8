@@ -139,7 +139,7 @@ class MacroAssembler: public Assembler {
   // scratch can be object itself, but it will be clobbered.
   void InNewSpace(Register object,
                   Register scratch,
-                  Condition cc,  // eq for new space, ne otherwise
+                  Condition cond,  // eq for new space, ne otherwise
                   Label* branch);
 
 
@@ -685,14 +685,14 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Debugging
 
-  // Calls Abort(msg) if the condition cc is not satisfied.
+  // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cc, const char* msg);
+  void Assert(Condition cond, const char* msg);
   void AssertRegisterIsRoot(Register reg, Heap::RootListIndex index);
   void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cc, const char* msg);
+  void Check(Condition cond, const char* msg);
 
   // Print a message to stdout and abort execution.
   void Abort(const char* msg);

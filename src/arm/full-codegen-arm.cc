@@ -517,16 +517,16 @@ void FullCodeGenerator::DoTest(Label* if_true,
 }
 
 
-void FullCodeGenerator::Split(Condition cc,
+void FullCodeGenerator::Split(Condition cond,
                               Label* if_true,
                               Label* if_false,
                               Label* fall_through) {
   if (if_false == fall_through) {
-    __ b(cc, if_true);
+    __ b(cond, if_true);
   } else if (if_true == fall_through) {
-    __ b(NegateCondition(cc), if_false);
+    __ b(NegateCondition(cond), if_false);
   } else {
-    __ b(cc, if_true);
+    __ b(cond, if_true);
     __ b(if_false);
   }
 }
@@ -3461,34 +3461,34 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     default: {
       VisitForAccumulatorValue(expr->right());
-      Condition cc = eq;
+      Condition cond = eq;
       bool strict = false;
       switch (op) {
         case Token::EQ_STRICT:
           strict = true;
           // Fall through
         case Token::EQ:
-          cc = eq;
+          cond = eq;
           __ pop(r1);
           break;
         case Token::LT:
-          cc = lt;
+          cond = lt;
           __ pop(r1);
           break;
         case Token::GT:
           // Reverse left and right sides to obtain ECMA-262 conversion order.
-          cc = lt;
+          cond = lt;
           __ mov(r1, result_register());
           __ pop(r0);
          break;
         case Token::LTE:
           // Reverse left and right sides to obtain ECMA-262 conversion order.
-          cc = ge;
+          cond = ge;
           __ mov(r1, result_register());
           __ pop(r0);
           break;
         case Token::GTE:
-          cc = ge;
+          cond = ge;
           __ pop(r1);
           break;
         case Token::IN:
@@ -3503,17 +3503,17 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         __ orr(r2, r0, Operand(r1));
         __ JumpIfNotSmi(r2, &slow_case);
         __ cmp(r1, r0);
-        Split(cc, if_true, if_false, NULL);
+        Split(cond, if_true, if_false, NULL);
         __ bind(&slow_case);
       }
       CompareFlags flags = inline_smi_code
           ? NO_SMI_COMPARE_IN_STUB
           : NO_COMPARE_FLAGS;
-      CompareStub stub(cc, strict, flags, r1, r0);
+      CompareStub stub(cond, strict, flags, r1, r0);
       __ CallStub(&stub);
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
       __ cmp(r0, Operand(0, RelocInfo::NONE));
-      Split(cc, if_true, if_false, fall_through);
+      Split(cond, if_true, if_false, fall_through);
     }
   }
 
