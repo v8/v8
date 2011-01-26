@@ -2628,7 +2628,7 @@ void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::SUB);
+  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::MUL);
 
   ASSERT(operands_type_ == TRBinaryOpIC::INT32);
 
@@ -2772,6 +2772,9 @@ void TypeRecordingBinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
       break;
     case Token::SUB:
       __ InvokeBuiltin(Builtins::SUB, JUMP_JS);
+      break;
+    case Token::MUL:
+      __ InvokeBuiltin(Builtins::MUL, JUMP_JS);
       break;
     default:
       UNREACHABLE();
