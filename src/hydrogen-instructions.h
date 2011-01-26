@@ -133,10 +133,9 @@ class LChunkBuilder;
 //       HFixedArrayLength
 //       HJSArrayLength
 //       HLoadElements
-//         HTypeofIs
+//       HLoadFunctionPrototype
 //       HLoadNamedField
 //       HLoadNamedGeneric
-//       HLoadFunctionPrototype
 //       HPushArgument
 //       HStringLength
 //       HTypeof
@@ -148,6 +147,7 @@ class LChunkBuilder;
 //         HIsNull
 //         HIsObject
 //         HIsSmi
+//         HTypeofIs
 //       HValueOf
 //     HUnknownOSRValue
 //   HPhi
@@ -224,12 +224,12 @@ class LChunkBuilder;
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
   V(LoadElements)                              \
+  V(LoadFunctionPrototype)                     \
   V(LoadGlobal)                                \
   V(LoadKeyedFastElement)                      \
   V(LoadKeyedGeneric)                          \
   V(LoadNamedField)                            \
   V(LoadNamedGeneric)                          \
-  V(LoadFunctionPrototype)                     \
   V(Mod)                                       \
   V(Mul)                                       \
   V(ObjectLiteral)                             \
@@ -268,7 +268,6 @@ class LChunkBuilder;
   V(GlobalVars)                                \
   V(Maps)                                      \
   V(ArrayLengths)                              \
-  V(FunctionPrototypes)                        \
   V(OsrEntries)
 
 #define DECLARE_INSTRUCTION(type)                   \
@@ -2732,7 +2731,8 @@ class HLoadFunctionPrototype: public HUnaryOperation {
   explicit HLoadFunctionPrototype(HValue* function)
       : HUnaryOperation(function) {
     set_representation(Representation::Tagged());
-    SetFlagMask(kDependsOnFunctionPrototypes);
+    SetFlag(kUseGVN);
+    SetFlag(kDependsOnCalls);
   }
 
   HValue* function() const { return OperandAt(0); }
@@ -2742,9 +2742,6 @@ class HLoadFunctionPrototype: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadFunctionPrototype, "load_function_prototype")
-
- protected:
-  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
