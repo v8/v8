@@ -1198,17 +1198,16 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
 }
 
 
-bool StubCompiler::GenerateLoadCallback(JSObject* object,
-                                        JSObject* holder,
-                                        Register receiver,
-                                        Register name_reg,
-                                        Register scratch1,
-                                        Register scratch2,
-                                        Register scratch3,
-                                        AccessorInfo* callback,
-                                        String* name,
-                                        Label* miss,
-                                        Failure** failure) {
+MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
+                                                JSObject* holder,
+                                                Register receiver,
+                                                Register name_reg,
+                                                Register scratch1,
+                                                Register scratch2,
+                                                Register scratch3,
+                                                AccessorInfo* callback,
+                                                String* name,
+                                                Label* miss) {
   // Check that the receiver isn't a smi.
   __ tst(receiver, Operand(kSmiTagMask));
   __ b(eq, miss);
@@ -1229,7 +1228,7 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
       ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
   __ TailCallExternalReference(load_callback_property, 5, 1);
 
-  return true;
+  return Heap::undefined_value();  // Success.
 }
 
 
@@ -2742,12 +2741,11 @@ MaybeObject* LoadStubCompiler::CompileLoadCallback(String* name,
   // -----------------------------------
   Label miss;
 
-  Failure* failure = Failure::InternalError();
-  bool success = GenerateLoadCallback(object, holder, r0, r2, r3, r1, r4,
-                                      callback, name, &miss, &failure);
-  if (!success) {
+  MaybeObject* result = GenerateLoadCallback(object, holder, r0, r2, r3, r1, r4,
+                                             callback, name, &miss);
+  if (result->IsFailure()) {
     miss.Unuse();
-    return failure;
+    return result;
   }
 
   __ bind(&miss);
@@ -2894,12 +2892,11 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadCallback(
   __ cmp(r0, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  Failure* failure = Failure::InternalError();
-  bool success = GenerateLoadCallback(receiver, holder, r1, r0, r2, r3, r4,
-                                      callback, name, &miss, &failure);
-  if (!success) {
+  MaybeObject* result = GenerateLoadCallback(receiver, holder, r1, r0, r2, r3,
+                                             r4, callback, name, &miss);
+  if (result->IsFailure()) {
     miss.Unuse();
-    return failure;
+    return result;
   }
 
   __ bind(&miss);
