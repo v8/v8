@@ -1288,7 +1288,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address();
   cmp(Operand::StaticVariable(scheduled_exception_address),
-         Immediate(Factory::the_hole_value()));
+      Immediate(Factory::the_hole_value()));
   j(not_equal, &promote_scheduled_exception, not_taken);
   LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
