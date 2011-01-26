@@ -2292,6 +2292,11 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     expression = NewThrowReferenceError(type);
   }
 
+  if (temp_scope_->StrictMode()) {
+    // Assignment to eval or arguments is disallowed in strict mode.
+    CheckStrictModeLValue(expression, "strict_lhs_assignment", CHECK_OK);
+  }
+
   Token::Value op = Next();  // Get assignment operator.
   int pos = scanner().location().beg_pos;
   Expression* right = ParseAssignmentExpression(accept_IN, CHECK_OK);
@@ -2518,6 +2523,12 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       Handle<String> type = Factory::invalid_lhs_in_prefix_op_symbol();
       expression = NewThrowReferenceError(type);
     }
+
+    if (temp_scope_->StrictMode()) {
+      // Prefix expression operand in strict mode may not be eval or arguments.
+      CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
+    }
+
     int position = scanner().location().beg_pos;
     IncrementOperation* increment = new IncrementOperation(op, expression);
     return new CountOperation(true /* prefix */, increment, position);
@@ -2543,6 +2554,12 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
       Handle<String> type = Factory::invalid_lhs_in_postfix_op_symbol();
       expression = NewThrowReferenceError(type);
     }
+
+    if (temp_scope_->StrictMode()) {
+      // Postfix expression operand in strict mode may not be eval or arguments.
+      CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
+    }
+
     Token::Value next = Next();
     int position = scanner().location().beg_pos;
     IncrementOperation* increment = new IncrementOperation(next, expression);
@@ -3691,6 +3708,24 @@ Handle<String> Parser::ParseIdentifierName(bool* ok) {
   }
   return GetSymbol(ok);
 }
+
+
+// Checks LHS expression for assignment and prefix/postfix increment/decrement
+// in strict mode.
+void Parser::CheckStrictModeLValue(Expression* expression,
+                                   const char* error,
+                                   bool* ok) {
+  ASSERT(temp_scope_->StrictMode());
+  VariableProxy* lhs = expression != NULL
+      ? expression->AsVariableProxy()
+      : NULL;
+
+  if (lhs != NULL && !lhs->is_this() && IsEvalOrArguments(lhs->name())) {
+    ReportMessage(error, Vector<const char*>::empty());
+    *ok = false;
+  }
+}
+
 
 // Checks whether octal literal last seen is between beg_pos and end_pos.
 // If so, reports an error.
