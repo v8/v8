@@ -525,7 +525,7 @@ static void GenerateCallFunction(MacroAssembler* masm,
   // -----------------------------------
 
   // Check that the function really is a function.
-  __ BranchOnSmi(r1, miss);
+  __ JumpIfSmi(r1, miss);
   __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
   __ b(ne, miss);
 
@@ -664,7 +664,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
 
     // Check that the receiver isn't a smi.
-    __ BranchOnSmi(receiver, miss);
+    __ JumpIfSmi(receiver, miss);
 
     CallOptimization optimization(lookup);
 
@@ -1247,7 +1247,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
   ASSERT(!interceptor_holder->GetNamedInterceptor()->getter()->IsUndefined());
 
   // Check that the receiver isn't a smi.
-  __ BranchOnSmi(receiver, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // So far the most popular follow ups for interceptor loads are FIELD
   // and CALLBACKS, so inline only them, other cases may be added
@@ -1515,7 +1515,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
   __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
 
   // Check that the receiver isn't a smi.
-  __ BranchOnSmi(receiver, &miss);
+  __ JumpIfSmi(receiver, &miss);
 
   // Check that the maps haven't changed.
   CheckPrototypes(JSObject::cast(object), receiver,
@@ -1569,7 +1569,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
 
       // Check for a smi.
-      __ BranchOnNotSmi(r4, &with_write_barrier);
+      __ JumpIfNotSmi(r4, &with_write_barrier);
       __ bind(&exit);
       __ Drop(argc + 1);
       __ Ret();
@@ -1676,7 +1676,7 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
 
   // Check that the receiver isn't a smi.
-  __ BranchOnSmi(receiver, &miss);
+  __ JumpIfSmi(receiver, &miss);
 
   // Check that the maps haven't changed.
   CheckPrototypes(JSObject::cast(object),
@@ -2013,7 +2013,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
     __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
 
     STATIC_ASSERT(kSmiTag == 0);
-    __ BranchOnSmi(r1, &miss);
+    __ JumpIfSmi(r1, &miss);
 
     CheckPrototypes(JSObject::cast(object), r1, holder, r0, r3, r4, name,
                     &miss);
@@ -2172,7 +2172,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   // Check if the argument is a smi.
   Label not_smi;
   STATIC_ASSERT(kSmiTag == 0);
-  __ BranchOnNotSmi(r0, &not_smi);
+  __ JumpIfNotSmi(r0, &not_smi);
 
   // Do bitwise not or do nothing depending on the sign of the
   // argument.
@@ -3365,10 +3365,10 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
   Register receiver = r1;
 
   // Check that the object isn't a smi
-  __ BranchOnSmi(receiver, &slow);
+  __ JumpIfSmi(receiver, &slow);
 
   // Check that the key is a smi.
-  __ BranchOnNotSmi(key, &slow);
+  __ JumpIfNotSmi(key, &slow);
 
   // Check that the object is a JS object. Load map into r2.
   __ CompareObjectType(receiver, r2, r3, FIRST_JS_OBJECT_TYPE);
@@ -3649,7 +3649,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // r3 mostly holds the elements array or the destination external array.
 
   // Check that the object isn't a smi.
-  __ BranchOnSmi(receiver, &slow);
+  __ JumpIfSmi(receiver, &slow);
 
   // Check that the object is a JS object. Load map into r3.
   __ CompareObjectType(receiver, r3, r4, FIRST_JS_OBJECT_TYPE);
@@ -3662,7 +3662,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   __ b(ne, &slow);
 
   // Check that the key is a smi.
-  __ BranchOnNotSmi(key, &slow);
+  __ JumpIfNotSmi(key, &slow);
 
   // Check that the elements array is the appropriate type of ExternalArray.
   __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
@@ -3682,7 +3682,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // runtime for all other kinds of values.
   // r3: external array.
   // r4: key (integer).
-  __ BranchOnNotSmi(value, &check_heap_number);
+  __ JumpIfNotSmi(value, &check_heap_number);
   __ mov(r5, Operand(value, ASR, kSmiTagSize));  // Untag the value.
   __ ldr(r3, FieldMemOperand(r3, ExternalArray::kExternalPointerOffset));
 

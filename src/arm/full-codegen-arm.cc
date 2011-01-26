@@ -817,7 +817,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Convert the object to a JS object.
   Label convert, done_convert;
-  __ BranchOnSmi(r0, &convert);
+  __ JumpIfSmi(r0, &convert);
   __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE);
   __ b(hs, &done_convert);
   __ bind(&convert);
@@ -2135,7 +2135,7 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ BranchOnSmi(r0, if_false);
+  __ JumpIfSmi(r0, if_false);
   __ LoadRoot(ip, Heap::kNullValueRootIndex);
   __ cmp(r0, ip);
   __ b(eq, if_true);
@@ -2167,7 +2167,7 @@ void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ BranchOnSmi(r0, if_false);
+  __ JumpIfSmi(r0, if_false);
   __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(ge, if_true, if_false, fall_through);
@@ -2188,7 +2188,7 @@ void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ BranchOnSmi(r0, if_false);
+  __ JumpIfSmi(r0, if_false);
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kBitFieldOffset));
   __ tst(r1, Operand(1 << Map::kIsUndetectable));
@@ -2234,7 +2234,7 @@ void FullCodeGenerator::EmitIsFunction(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ BranchOnSmi(r0, if_false);
+  __ JumpIfSmi(r0, if_false);
   __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(eq, if_true, if_false, fall_through);
@@ -2255,7 +2255,7 @@ void FullCodeGenerator::EmitIsArray(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ BranchOnSmi(r0, if_false);
+  __ JumpIfSmi(r0, if_false);
   __ CompareObjectType(r0, r1, r1, JS_ARRAY_TYPE);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(eq, if_true, if_false, fall_through);
@@ -2276,7 +2276,7 @@ void FullCodeGenerator::EmitIsRegExp(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ BranchOnSmi(r0, if_false);
+  __ JumpIfSmi(r0, if_false);
   __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(eq, if_true, if_false, fall_through);
@@ -2383,7 +2383,7 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
   VisitForAccumulatorValue(args->at(0));
 
   // If the object is a smi, we return null.
-  __ BranchOnSmi(r0, &null);
+  __ JumpIfSmi(r0, &null);
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
@@ -2534,7 +2534,7 @@ void FullCodeGenerator::EmitValueOf(ZoneList<Expression*>* args) {
 
   Label done;
   // If the object is a smi return the object.
-  __ BranchOnSmi(r0, &done);
+  __ JumpIfSmi(r0, &done);
   // If the object is not a value type, return the object.
   __ CompareObjectType(r0, r1, r1, JS_VALUE_TYPE);
   __ b(ne, &done);
@@ -2564,7 +2564,7 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
 
   Label done;
   // If the object is a smi, return the value.
-  __ BranchOnSmi(r1, &done);
+  __ JumpIfSmi(r1, &done);
 
   // If the object is not a value type, return the value.
   __ CompareObjectType(r1, r2, r2, JS_VALUE_TYPE);
@@ -3087,7 +3087,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       bool inline_smi_code = ShouldInlineSmiCase(expr->op());
       if (inline_smi_code) {
         Label call_stub;
-        __ BranchOnNotSmi(r0, &call_stub);
+        __ JumpIfNotSmi(r0, &call_stub);
         __ mvn(r0, Operand(r0));
         // Bit-clear inverted smi-tag.
         __ bic(r0, r0, Operand(kSmiTagMask));
@@ -3174,7 +3174,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Call ToNumber only if operand is not a smi.
   Label no_conversion;
-  __ BranchOnSmi(r0, &no_conversion);
+  __ JumpIfSmi(r0, &no_conversion);
   __ push(r0);
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS);
   __ bind(&no_conversion);
@@ -3208,7 +3208,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     __ b(vs, &stub_call);
     // We could eliminate this smi check if we split the code at
     // the first smi check before calling ToNumber.
-    __ BranchOnSmi(r0, &done);
+    __ JumpIfSmi(r0, &done);
     __ bind(&stub_call);
     // Call stub. Undo operation first.
     __ sub(r0, r0, Operand(Smi::FromInt(count_value)));
@@ -3501,7 +3501,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       if (inline_smi_code) {
         Label slow_case;
         __ orr(r2, r0, Operand(r1));
-        __ BranchOnNotSmi(r2, &slow_case);
+        __ JumpIfNotSmi(r2, &slow_case);
         __ cmp(r1, r0);
         Split(cc, if_true, if_false, NULL);
         __ bind(&slow_case);

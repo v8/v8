@@ -1385,7 +1385,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Label* fail,
                               bool is_heap_object) {
   if (!is_heap_object) {
-    BranchOnSmi(obj, fail);
+    JumpIfSmi(obj, fail);
   }
   ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
   mov(ip, Operand(map));
@@ -1400,7 +1400,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Label* fail,
                               bool is_heap_object) {
   if (!is_heap_object) {
-    BranchOnSmi(obj, fail);
+    JumpIfSmi(obj, fail);
   }
   ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
   LoadRoot(ip, index);
@@ -1414,7 +1414,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register scratch,
                                              Label* miss) {
   // Check that the receiver isn't a smi.
-  BranchOnSmi(function, miss);
+  JumpIfSmi(function, miss);
 
   // Check that the function really is a function.  Load map into result reg.
   CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE);
@@ -1513,7 +1513,7 @@ void MacroAssembler::ObjectToDoubleVFPRegister(Register object,
   Label done;
   if ((flags & OBJECT_NOT_SMI) == 0) {
     Label not_smi;
-    BranchOnNotSmi(object, &not_smi);
+    JumpIfNotSmi(object, &not_smi);
     // Remove smi tag and convert to double.
     mov(scratch1, Operand(object, ASR, kSmiTagSize));
     vmov(scratch3, scratch1);

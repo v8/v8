@@ -545,16 +545,6 @@ class MacroAssembler: public Assembler {
   }
 
 
-  inline void BranchOnSmi(Register value, Label* smi_label) {
-    tst(value, Operand(kSmiTagMask));
-    b(eq, smi_label);
-  }
-
-  inline void BranchOnNotSmi(Register value, Label* not_smi_label) {
-    tst(value, Operand(kSmiTagMask));
-    b(ne, not_smi_label);
-  }
-
   // Generates code for reporting that an illegal operation has
   // occurred.
   void IllegalOperation(int num_arguments);
@@ -740,6 +730,16 @@ class MacroAssembler: public Assembler {
     mov(dst, Operand(src, ASR, kSmiTagSize));
   }
 
+  // Jump the register contains a smi.
+  inline void JumpIfSmi(Register value, Label* smi_label) {
+    tst(value, Operand(kSmiTagMask));
+    b(eq, smi_label);
+  }
+  // Jump if either of the registers contain a non-smi.
+  inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
+    tst(value, Operand(kSmiTagMask));
+    b(ne, not_smi_label);
+  }
   // Jump if either of the registers contain a non-smi.
   void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
   // Jump if either of the registers contain a smi.

@@ -1762,7 +1762,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   //   sp[2]: applicand.
 
   // Check that the receiver really is a JavaScript object.
-  __ BranchOnSmi(receiver_reg, &build_args);
+  __ JumpIfSmi(receiver_reg, &build_args);
   // We allow all JSObjects including JSFunctions.  As long as
   // JS_FUNCTION_TYPE is the last instance type and it is right
   // after LAST_JS_OBJECT_TYPE, we do not have to check the upper
@@ -1774,7 +1774,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
 
   // Check that applicand.apply is Function.prototype.apply.
   __ ldr(r0, MemOperand(sp, kPointerSize));
-  __ BranchOnSmi(r0, &build_args);
+  __ JumpIfSmi(r0, &build_args);
   __ CompareObjectType(r0, r1, r2, JS_FUNCTION_TYPE);
   __ b(ne, &build_args);
   Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
@@ -1785,7 +1785,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
 
   // Check that applicand is a function.
   __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
-  __ BranchOnSmi(r1, &build_args);
+  __ JumpIfSmi(r1, &build_args);
   __ CompareObjectType(r1, r2, r3, JS_FUNCTION_TYPE);
   __ b(ne, &build_args);
 
@@ -4618,8 +4618,8 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     ASSERT(runtime.entry_frame() == NULL);
     runtime.set_entry_frame(frame_);
 
-    __ BranchOnNotSmi(exponent, &exponent_nonsmi);
-    __ BranchOnNotSmi(base, &base_nonsmi);
+    __ JumpIfNotSmi(exponent, &exponent_nonsmi);
+    __ JumpIfNotSmi(base, &base_nonsmi);
 
     heap_number_map = r6;
     __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);

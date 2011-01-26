@@ -566,7 +566,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // if it's a string already before calling the conversion builtin.
   Label convert_argument;
   __ bind(&not_cached);
-  __ BranchOnSmi(r0, &convert_argument);
+  __ JumpIfSmi(r0, &convert_argument);
 
   // Is it a String?
   __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));

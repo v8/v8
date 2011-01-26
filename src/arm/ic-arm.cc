@@ -420,7 +420,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
                                            int interceptor_bit,
                                            Label* slow) {
   // Check that the object isn't a smi.
-  __ BranchOnSmi(receiver, slow);
+  __ JumpIfSmi(receiver, slow);
   // Get the map of the receiver.
   __ ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check bit field.
@@ -750,7 +750,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   Label index_smi, index_string;
 
   // Check that the key is a smi.
-  __ BranchOnNotSmi(r2, &check_string);
+  __ JumpIfNotSmi(r2, &check_string);
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from below
   // where a numeric string is converted to a smi.
@@ -1166,7 +1166,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Register receiver = r1;
 
   // Check that the key is a smi.
-  __ BranchOnNotSmi(key, &check_string);
+  __ JumpIfNotSmi(key, &check_string);
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from below
   // where a numeric string is converted to a smi.
@@ -1347,7 +1347,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   Label slow;
 
   // Check that the receiver isn't a smi.
-  __ BranchOnSmi(r1, &slow);
+  __ JumpIfSmi(r1, &slow);
 
   // Check that the key is an array index, that is Uint32.
   __ tst(r0, Operand(kSmiTagMask | kSmiSignMask));
@@ -1471,7 +1471,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ b(ne, &slow);
   // Check that the value is a smi. If a conversion is needed call into the
   // runtime to convert and clamp.
-  __ BranchOnNotSmi(value, &slow);
+  __ JumpIfNotSmi(value, &slow);
   __ mov(r4, Operand(key, ASR, kSmiTagSize));  // Untag the key.
   __ ldr(ip, FieldMemOperand(elements, PixelArray::kLengthOffset));
   __ cmp(r4, Operand(ip));
@@ -1590,7 +1590,7 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   Register scratch = r3;
 
   // Check that the receiver isn't a smi.
-  __ BranchOnSmi(receiver, &miss);
+  __ JumpIfSmi(receiver, &miss);
 
   // Check that the object is a JS array.
   __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE);
@@ -1604,7 +1604,7 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   __ b(ne, &miss);
 
   // Check that value is a smi.
-  __ BranchOnNotSmi(value, &miss);
+  __ JumpIfNotSmi(value, &miss);
 
   // Prepare tail call to StoreIC_ArrayLength.
   __ Push(receiver, value);
