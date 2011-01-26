@@ -2434,13 +2434,17 @@ const char* TypeRecordingBinaryOpStub::GetName() {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateOptimisticSmiOperation(
+void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
     MacroAssembler* masm) {
   Register left = r1;
   Register right = r0;
+  Register scratch1 = r7;
+  Register scratch2 = r9;
 
   ASSERT(right.is(r0));
+  STATIC_ASSERT(kSmiTag == 0);
 
+  Label not_smi_result;
   switch (op_) {
     case Token::ADD:
       __ add(right, left, Operand(right), SetCC);  // Add optimistically.
@@ -2452,9 +2456,35 @@ void TypeRecordingBinaryOpStub::GenerateOptimisticSmiOperation(
       __ Ret(vc);
       __ sub(right, left, Operand(right));  // Revert optimistic subtract.
       break;
+    case Token::MUL:
+      // Remove tag from one of the operands. This way the multiplication result
+      // will be a smi if it fits the smi range.
+      __ SmiUntag(ip, right);
+      // Do multiplication
+      // scratch1 = lower 32 bits of ip * left.
+      // scratch2 = higher 32 bits of ip * left.
+      __ smull(scratch1, scratch2, left, ip);
+      // Check for overflowing the smi range - no overflow if higher 33 bits of
+      // the result are identical.
+      __ mov(ip, Operand(scratch1, ASR, 31));
+      __ cmp(ip, Operand(scratch2));
+      __ b(ne, &not_smi_result);
+      // Go slow on zero result to handle -0.
+      __ tst(scratch1, Operand(scratch1));
+      __ mov(right, Operand(scratch1), LeaveCC, ne);
+      __ Ret(ne);
+      // We need -0 if we were multiplying a negative number with 0 to get 0.
+      // We know one of them was zero.
+      __ add(scratch2, right, Operand(left), SetCC);
+      __ mov(right, Operand(Smi::FromInt(0)), LeaveCC, pl);
+      __ Ret(pl);  // Return smi 0 if the non-zero one was positive.
+      // We fall through here if we multiplied a negative number with 0, because
+      // that would mean we should produce -0.
+      break;
     default:
       UNREACHABLE();
   }
+  __ bind(&not_smi_result);
 }
 
 
@@ -2466,6 +2496,9 @@ void TypeRecordingBinaryOpStub::GenerateVFPOperation(
       break;
     case Token::SUB:
       __ vsub(d5, d6, d7);
+      break;
+    case Token::MUL:
+      __ vmul(d5, d6, d7);
       break;
     default:
       UNREACHABLE();
@@ -2482,7 +2515,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
     SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
   Label not_smis;
 
-  ASSERT(op_ == Token::ADD || op_ == Token::SUB);
+  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::MUL);
 
   Register left = r1;
   Register right = r0;
@@ -2495,7 +2528,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
   __ tst(scratch1, Operand(kSmiTagMask));
   __ b(ne, &not_smis);
 
-  GenerateOptimisticSmiOperation(masm);
+  GenerateSmiSmiOperation(masm);
 
   // If heap number results are possible generate the result in an allocated
   // heap number.
@@ -2563,7 +2596,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
 void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   Label not_smis, call_runtime;
 
-  ASSERT(op_ == Token::ADD || op_ == Token::SUB);
+  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::MUL);
 
   if (result_type_ == TRBinaryOpIC::UNINITIALIZED ||
       result_type_ == TRBinaryOpIC::SMI) {
@@ -2595,7 +2628,7 @@ void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD || op_ == Token::SUB);
+  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::SUB);
 
   ASSERT(operands_type_ == TRBinaryOpIC::INT32);
 
@@ -2604,7 +2637,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD || op_ == Token::SUB);
+  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::MUL);
 
   Register scratch1 = r7;
   Register scratch2 = r9;
@@ -2684,7 +2717,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD || op_ == Token::SUB);
+  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::MUL);
 
   Label call_runtime;
 

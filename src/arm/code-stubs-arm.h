@@ -288,7 +288,7 @@ class TypeRecordingBinaryOpStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
   void GenerateGeneric(MacroAssembler* masm);
-  void GenerateOptimisticSmiOperation(MacroAssembler* masm);
+  void GenerateSmiSmiOperation(MacroAssembler* masm);
   void GenerateVFPOperation(MacroAssembler* masm);
   void GenerateSmiCode(MacroAssembler* masm,
                        Label* gc_required,
