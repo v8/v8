@@ -764,6 +764,8 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   // Compile all the tests with branches to their bodies.
   for (int i = 0; i < clauses->length(); i++) {
     CaseClause* clause = clauses->at(i);
+    clause->body_target()->entry_label()->Unuse();
+
     // The default is not a test, but remember it as final fall through.
     if (clause->is_default()) {
       default_clause = clause;
