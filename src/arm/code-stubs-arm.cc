@@ -2433,6 +2433,46 @@ const char* TypeRecordingBinaryOpStub::GetName() {
 }
 
 
+void TypeRecordingBinaryOpStub::GenerateOptimisticSmiOperation(
+    MacroAssembler* masm) {
+  Register left = r1;
+  Register right = r0;
+
+  ASSERT(right.is(r0));
+
+  switch (op_) {
+    case Token::ADD:
+      __ add(right, left, Operand(right), SetCC); // Add optimistically.
+      __ Ret(vc);
+      __ sub(right, right, Operand(left));  // Revert optimistic add.
+      break;
+    case Token::SUB:
+      __ sub(right, left, Operand(right), SetCC);  // Subtract optimistically.
+      __ Ret(vc);
+      __ sub(right, left, Operand(right));  // Revert optimistic subtract.
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateVFPOperation(
+    MacroAssembler* masm) {
+  switch (op_) {
+    case Token::ADD:
+      __ vadd(d5, d6, d7);
+      break;
+    case Token::SUB:
+      __ vsub(d5, d6, d7);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+}
+
+
 // Generate the smi code. If the operation on smis are successful this return is
 // generated. If the result is not a smi and heap number allocation is not
 // requested the code falls through. If number allocation is requested but a
@@ -2442,7 +2482,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
     SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
   Label not_smis;
 
-  ASSERT(op_ == Token::ADD);
+  ASSERT(op_ == Token::ADD || op_ == Token::SUB);
 
   Register left = r1;
   Register right = r0;
@@ -2455,14 +2495,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
   __ tst(scratch1, Operand(kSmiTagMask));
   __ b(ne, &not_smis);
 
-  __ add(right, right, Operand(left), SetCC);  // Add optimistically.
-
-  // Return smi result if no overflow (r0 is the result).
-  ASSERT(right.is(r0));
-  __ Ret(vc);
-
-  // Result is not a smi. Revert the optimistic add.
-  __ sub(right, right, Operand(left));
+  GenerateOptimisticSmiOperation(masm);
 
   // If heap number results are possible generate the result in an allocated
   // heap number.
@@ -2489,7 +2522,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
       // d6: Left value
       // d7: Right value
       CpuFeatures::Scope scope(VFP3);
-      __ vadd(d5, d6, d7);
+      GenerateVFPOperation(masm);
 
       __ sub(r0, heap_number, Operand(kHeapObjectTag));
       __ vstr(d5, r0, HeapNumber::kValueOffset);
@@ -2530,7 +2563,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
 void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   Label not_smis, call_runtime;
 
-  ASSERT(op_ == Token::ADD);
+  ASSERT(op_ == Token::ADD || op_ == Token::SUB);
 
   if (result_type_ == TRBinaryOpIC::UNINITIALIZED ||
       result_type_ == TRBinaryOpIC::SMI) {
@@ -2562,7 +2595,7 @@ void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD);
+  ASSERT(op_ == Token::ADD || op_ == Token::SUB);
 
   ASSERT(operands_type_ == TRBinaryOpIC::INT32);
 
@@ -2571,7 +2604,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD);
+  ASSERT(op_ == Token::ADD || op_ == Token::SUB);
 
   Register scratch1 = r7;
   Register scratch2 = r9;
@@ -2597,7 +2630,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
   if (destination == FloatingPointHelper::kVFPRegisters) {
     // Use floating point instructions for the binary operation.
     CpuFeatures::Scope scope(VFP3);
-    __ vadd(d5, d6, d7);
+    GenerateVFPOperation(masm);
 
     // Get a heap number object for the result - might be left or right if one
     // of these are overwritable.
@@ -2651,7 +2684,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD);
+  ASSERT(op_ == Token::ADD || op_ == Token::SUB);
 
   Label call_runtime;
 
@@ -2695,10 +2728,13 @@ void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
+  GenerateRegisterArgsPush(masm);
   switch (op_) {
     case Token::ADD:
-      GenerateRegisterArgsPush(masm);
       __ InvokeBuiltin(Builtins::ADD, JUMP_JS);
+      break;
+    case Token::SUB:
+      __ InvokeBuiltin(Builtins::SUB, JUMP_JS);
       break;
     default:
       UNREACHABLE();
