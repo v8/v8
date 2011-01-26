@@ -2695,7 +2695,9 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&call_runtime);
 
   // Try to add strings before calling runtime.
-  GenerateAddStrings(masm);
+  if (op_ == Token::ADD) {
+    GenerateAddStrings(masm);
+  }
 
   GenericBinaryOpStub stub(op_, mode_, r1, r0);
   __ TailCallStub(&stub);
@@ -2703,6 +2705,8 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
+  ASSERT(op_ == Token::ADD);
+
   Register left = r1;
   Register right = r0;
   Label call_runtime;
