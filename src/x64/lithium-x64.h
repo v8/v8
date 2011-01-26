@@ -317,10 +317,21 @@ class LInstruction: public ZoneObject {
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
 
+  void set_deoptimization_environment(LEnvironment* env) {
+    deoptimization_environment_.set(env);
+  }
+  LEnvironment* deoptimization_environment() const {
+    return deoptimization_environment_.get();
+  }
+  bool HasDeoptimizationEnvironment() const {
+    return deoptimization_environment_.is_set();
+  }
+
  private:
   SetOncePointer<LEnvironment> environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
+  SetOncePointer<LEnvironment> deoptimization_environment_;
 };
 
 
