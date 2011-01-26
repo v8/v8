@@ -529,7 +529,7 @@ void HInstruction::Verify() {
 HCall::HCall(int count) : arguments_(Zone::NewArray<HValue*>(count), count) {
   for (int i = 0; i < count; ++i) arguments_[i] = NULL;
   set_representation(Representation::Tagged());
-  SetFlagMask(AllSideEffects());
+  SetAllSideEffects();
 }
 
 
@@ -1124,10 +1124,10 @@ void HCompare::PrintDataTo(StringStream* stream) const {
 void HCompare::SetInputRepresentation(Representation r) {
   input_representation_ = r;
   if (r.IsTagged()) {
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
     ClearFlag(kUseGVN);
   } else {
-    ClearFlagMask(AllSideEffects());
+    ClearAllSideEffects();
     SetFlag(kUseGVN);
   }
 }

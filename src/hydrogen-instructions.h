@@ -46,112 +46,6 @@ class LInstruction;
 class LChunkBuilder;
 
 
-// Type hierarchy:
-//
-// HValue
-//   HInstruction
-//     HAccessArgumentsAt
-//     HApplyArguments
-//     HArgumentsElements
-//     HArgumentsLength
-//     HArgumentsObject
-//     HBinaryOperation
-//       HArithmeticBinaryOperation
-//         HAdd
-//         HDiv
-//         HMod
-//         HMul
-//         HSub
-//       HBitwiseBinaryOperation
-//         HBitAnd
-//         HBitOr
-//         HBitXor
-//         HSar
-//         HShl
-//         HShr
-//       HBoundsCheck
-//       HCompare
-//       HCompareJSObjectEq
-//       HInstanceOf
-//       HInstanceOfKnownGlobal
-//       HLoadKeyed
-//         HLoadKeyedFastElement
-//         HLoadKeyedGeneric
-//       HPower
-//       HStoreNamed
-//         HStoreNamedField
-//         HStoreNamedGeneric
-//       HStringCharCodeAt
-//     HBlockEntry
-//     HCall
-//       HCallConstantFunction
-//       HCallFunction
-//       HCallGlobal
-//       HCallKeyed
-//       HCallKnownGlobal
-//       HCallNamed
-//       HCallNew
-//       HCallRuntime
-//     HCallStub
-//     HCheckPrototypeMaps
-//     HConstant
-//     HControlInstruction
-//       HDeoptimize
-//       HGoto
-//       HUnaryControlInstruction
-//         HCompareMap
-//         HReturn
-//         HTest
-//         HThrow
-//     HEnterInlined
-//     HFunctionLiteral
-//     HGlobalObject
-//     HGlobalReceiver
-//     HLeaveInlined
-//     HLoadContextSlot
-//     HLoadGlobal
-//     HMaterializedLiteral
-//       HArrayLiteral
-//       HObjectLiteral
-//       HRegExpLiteral
-//     HOsrEntry
-//     HParameter
-//     HSimulate
-//     HStackCheck
-//     HStoreKeyed
-//       HStoreKeyedFastElement
-//       HStoreKeyedGeneric
-//     HUnaryOperation
-//       HBitNot
-//       HChange
-//       HCheckFunction
-//       HCheckInstanceType
-//       HCheckMap
-//       HCheckNonSmi
-//       HCheckSmi
-//       HDeleteProperty
-//       HFixedArrayLength
-//       HJSArrayLength
-//       HLoadElements
-//       HLoadFunctionPrototype
-//       HLoadNamedField
-//       HLoadNamedGeneric
-//       HPushArgument
-//       HStringLength
-//       HTypeof
-//       HUnaryMathOperation
-//       HUnaryPredicate
-//         HClassOfTest
-//         HHasCachedArrayIndex
-//         HHasInstanceType
-//         HIsNull
-//         HIsObject
-//         HIsSmi
-//         HTypeofIs
-//       HValueOf
-//     HUnknownOSRValue
-//   HPhi
-
 #define HYDROGEN_ALL_INSTRUCTION_LIST(V)       \
   V(ArithmeticBinaryOperation)                 \
   V(BinaryOperation)                           \
@@ -572,11 +466,6 @@ class HValue: public ZoneObject {
     return flags << kChangesToDependsFlagsLeftShift;
   }
 
-  // A flag mask to mark an instruction as having arbitrary side effects.
-  static int AllSideEffects() {
-    return ChangesFlagsMask() & ~(1 << kChangesOsrEntries);
-  }
-
   static HValue* cast(HValue* value) { return value; }
 
   enum Opcode {
@@ -635,9 +524,6 @@ class HValue: public ZoneObject {
     return NULL;
   }
 
-  bool HasSideEffects() const {
-    return (flags_ & AllSideEffects()) != 0;
-  }
   bool IsDefinedAfter(HBasicBlock* other) const;
 
   // Operands.
@@ -660,12 +546,13 @@ class HValue: public ZoneObject {
   void Delete();
 
   int flags() const { return flags_; }
-  void SetFlagMask(int mask) { flags_ |= mask; }
-  void SetFlag(Flag f) { SetFlagMask(1 << f); }
-  void ClearFlagMask(int mask) { flags_ &= ~mask; }
-  void ClearFlag(Flag f) { ClearFlagMask(1 << f); }
-  bool CheckFlag(Flag f) const { return CheckFlagMask(1 << f); }
-  bool CheckFlagMask(int mask) const { return (flags_ & mask) != 0; }
+  void SetFlag(Flag f) { flags_ |= (1 << f); }
+  void ClearFlag(Flag f) { flags_ &= ~(1 << f); }
+  bool CheckFlag(Flag f) const { return (flags_ & (1 << f)) != 0; }
+
+  void SetAllSideEffects() { flags_ |= AllSideEffects(); }
+  void ClearAllSideEffects() { flags_ &= ~AllSideEffects(); }
+  bool HasSideEffects() const { return (flags_ & AllSideEffects()) != 0; }
 
   Range* range() const { return range_; }
   bool HasRange() const { return range_ != NULL; }
@@ -739,6 +626,11 @@ class HValue: public ZoneObject {
   }
 
  private:
+  // A flag mask to mark an instruction as having arbitrary side effects.
+  static int AllSideEffects() {
+    return ChangesFlagsMask() & ~(1 << kChangesOsrEntries);
+  }
+
   void InternalReplaceAtUse(HValue* use, HValue* other);
   void RegisterUse(int index, HValue* new_value);
 
@@ -2073,7 +1965,7 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
       : HBinaryOperation(left, right) {
     set_representation(Representation::Tagged());
     SetFlag(kFlexibleRepresentation);
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -2083,7 +1975,7 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
   virtual void RepresentationChanged(Representation to) {
     if (!to.IsTagged()) {
       ASSERT(to.IsInteger32());
-      ClearFlagMask(AllSideEffects());
+      ClearAllSideEffects();
       SetFlag(kTruncatingToInt32);
       SetFlag(kUseGVN);
     }
@@ -2101,12 +1993,12 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
       : HBinaryOperation(left, right) {
     set_representation(Representation::Tagged());
     SetFlag(kFlexibleRepresentation);
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   virtual void RepresentationChanged(Representation to) {
     if (!to.IsTagged()) {
-      ClearFlagMask(AllSideEffects());
+      ClearAllSideEffects();
       SetFlag(kUseGVN);
     }
   }
@@ -2132,7 +2024,7 @@ class HCompare: public HBinaryOperation {
       : HBinaryOperation(left, right), token_(token) {
     ASSERT(Token::IsCompareOp(token));
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   void SetInputRepresentation(Representation r);
@@ -2329,7 +2221,7 @@ class HInstanceOf: public HBinaryOperation {
  public:
   HInstanceOf(HValue* left, HValue* right) : HBinaryOperation(left, right) {
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   virtual bool EmitAtUses() const { return uses()->length() <= 1; }
@@ -2347,7 +2239,7 @@ class HInstanceOfKnownGlobal: public HUnaryOperation {
   HInstanceOfKnownGlobal(HValue* left, Handle<JSFunction> right)
       : HUnaryOperation(left), function_(right) {
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   Handle<JSFunction> function() { return function_; }
@@ -2614,7 +2506,7 @@ class HCallStub: public HInstruction {
         argument_count_(argument_count),
         transcendental_type_(TranscendentalCache::kNumberOfCaches) {
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   CodeStub::Major major_key() { return major_key_; }
@@ -2778,7 +2670,7 @@ class HLoadNamedGeneric: public HUnaryOperation {
   HLoadNamedGeneric(HValue* object, Handle<Object> name)
       : HUnaryOperation(object), name_(name) {
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   HValue* object() const { return OperandAt(0); }
@@ -2859,7 +2751,7 @@ class HLoadKeyedFastElement: public HLoadKeyed {
 class HLoadKeyedGeneric: public HLoadKeyed {
  public:
   HLoadKeyedGeneric(HValue* obj, HValue* key) : HLoadKeyed(obj, key) {
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric, "load_keyed_generic")
@@ -2940,7 +2832,7 @@ class HStoreNamedGeneric: public HStoreNamed {
  public:
   HStoreNamedGeneric(HValue* obj, Handle<Object> name, HValue* val)
       : HStoreNamed(obj, name, val) {
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store_named_generic")
@@ -3005,7 +2897,7 @@ class HStoreKeyedGeneric: public HStoreKeyed {
  public:
   HStoreKeyedGeneric(HValue* obj, HValue* key, HValue* val)
       : HStoreKeyed(obj, key, val) {
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store_keyed_generic")
@@ -3194,7 +3086,7 @@ class HDeleteProperty: public HBinaryOperation {
   HDeleteProperty(HValue* obj, HValue* key)
       : HBinaryOperation(obj, key) {
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
