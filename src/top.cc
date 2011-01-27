@@ -806,7 +806,7 @@ void Top::ComputeLocation(MessageLocation* target) {
 }
 
 
-bool Top::ShouldReturnException(bool* is_caught_externally,
+bool Top::ShouldReportException(bool* is_caught_externally,
                                 bool catchable_by_javascript) {
   // Find the top-most try-catch handler.
   StackHandler* handler =
@@ -847,15 +847,15 @@ void Top::DoThrow(MaybeObject* exception,
   Handle<Object> exception_handle(exception_object);
 
   // Determine reporting and whether the exception is caught externally.
-  bool is_caught_externally = false;
   bool is_out_of_memory = exception == Failure::OutOfMemoryException();
   bool is_termination_exception = exception == Heap::termination_exception();
   bool catchable_by_javascript = !is_termination_exception && !is_out_of_memory;
   // Only real objects can be caught by JS.
   ASSERT(!catchable_by_javascript || is_object);
-  bool should_return_exception =
-      ShouldReturnException(&is_caught_externally, catchable_by_javascript);
-  bool report_exception = catchable_by_javascript && should_return_exception;
+  bool is_caught_externally = false;
+  bool should_report_exception =
+      ShouldReportException(&is_caught_externally, catchable_by_javascript);
+  bool report_exception = catchable_by_javascript && should_report_exception;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger of exception.

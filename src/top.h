@@ -386,7 +386,9 @@ class Top {
   static void DoThrow(MaybeObject* exception,
                       MessageLocation* location,
                       const char* message);
-  static bool ShouldReturnException(bool* is_caught_externally,
+  // Checks if exception should be reported and finds out if it's
+  // caught externally.
+  static bool ShouldReportException(bool* is_caught_externally,
                                     bool catchable_by_javascript);
 
   // Attempts to compute the current source location, storing the
