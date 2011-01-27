@@ -713,6 +713,11 @@ ExternalReference ExternalReference::handle_scope_limit_address() {
 }
 
 
+ExternalReference ExternalReference::pending_exception_address() {
+  return ExternalReference(Top::pending_exception_address());
+}
+
+
 ExternalReference ExternalReference::scheduled_exception_address() {
   return ExternalReference(Top::scheduled_exception_address());
 }

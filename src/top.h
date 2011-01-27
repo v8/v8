@@ -142,7 +142,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   C(handler_address)                   \
   C(c_entry_fp_address)                \
   C(context_address)                   \
-  C(pending_exception_address)         \
   C(external_caught_exception_address)
 
 #ifdef ENABLE_LOGGING_AND_PROFILING

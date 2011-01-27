@@ -3132,7 +3132,7 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
     // Set pending exception and r0 to out of memory exception.
     Failure* out_of_memory = Failure::OutOfMemoryException();
     __ mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
-    __ mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
+    __ mov(r2, Operand(ExternalReference::pending_exception_address()));
     __ str(r0, MemOperand(r2));
   }
 
@@ -3262,7 +3262,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Retrieve the pending exception and clear the variable.
   __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
   __ ldr(r3, MemOperand(ip));
-  __ mov(ip, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ mov(ip, Operand(ExternalReference::pending_exception_address()));
   __ ldr(r0, MemOperand(ip));
   __ str(r3, MemOperand(ip));
 
@@ -3395,7 +3395,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // exception field in the JSEnv and return a failure sentinel.
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
-  __ mov(ip, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ mov(ip, Operand(ExternalReference::pending_exception_address()));
   __ str(r0, MemOperand(ip));
   __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ b(&exit);
@@ -3412,7 +3412,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Clear any pending exceptions.
   __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
   __ ldr(r5, MemOperand(ip));
-  __ mov(ip, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ mov(ip, Operand(ExternalReference::pending_exception_address()));
   __ str(r5, MemOperand(ip));
 
   // Invoke the function by calling through JS entry trampoline builtin.
@@ -4079,7 +4079,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   __ mov(r0, Operand(ExternalReference::the_hole_value_location()));
   __ ldr(r0, MemOperand(r0, 0));
-  __ mov(r1, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ mov(r1, Operand(ExternalReference::pending_exception_address()));
   __ ldr(r1, MemOperand(r1, 0));
   __ cmp(r0, r1);
   __ b(eq, &runtime);

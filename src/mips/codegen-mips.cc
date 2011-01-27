@@ -1178,7 +1178,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ LoadExternalReference(t0, ExternalReference::the_hole_value_location());
   __ lw(a3, MemOperand(t0));
   __ LoadExternalReference(t0,
-      ExternalReference(Top::k_pending_exception_address));
+      ExternalReference::pending_exception_address());
   __ lw(v0, MemOperand(t0));
   __ sw(a3, MemOperand(t0));
 
@@ -1311,7 +1311,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
   __ LoadExternalReference(t0,
-      ExternalReference(Top::k_pending_exception_address));
+      ExternalReference::pending_exception_address());
   __ sw(v0, MemOperand(t0));  // We come back from 'invoke'. result is in v0.
   __ li(v0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ b(&exit);
@@ -1329,7 +1329,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ LoadExternalReference(t0, ExternalReference::the_hole_value_location());
   __ lw(t1, MemOperand(t0));
   __ LoadExternalReference(t0,
-      ExternalReference(Top::k_pending_exception_address));
+      ExternalReference::pending_exception_address());
   __ sw(t1, MemOperand(t0));
 
   // Invoke the function by calling through JS entry trampoline builtin.

@@ -3922,10 +3922,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  ExternalReference pending_exception(Top::k_pending_exception_address);
+  ExternalReference pending_exception_address =
+      ExternalReference::pending_exception_address();
   __ mov(eax,
          Operand::StaticVariable(ExternalReference::the_hole_value_location()));
-  __ cmp(eax, Operand::StaticVariable(pending_exception));
+  __ cmp(eax, Operand::StaticVariable(pending_exception_address));
   __ j(equal, &runtime);
   __ bind(&failure);
   // For failure and exception return null.
@@ -4715,7 +4716,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(equal, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
-  ExternalReference pending_exception_address(Top::k_pending_exception_address);
+  ExternalReference pending_exception_address =
+      ExternalReference::pending_exception_address();
   __ mov(eax, Operand::StaticVariable(pending_exception_address));
   __ mov(edx,
          Operand::StaticVariable(ExternalReference::the_hole_value_location()));
@@ -4767,9 +4769,10 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
     __ mov(Operand::StaticVariable(external_caught), eax);
 
     // Set pending exception and eax to out of memory exception.
-    ExternalReference pending_exception(Top::k_pending_exception_address);
+    ExternalReference pending_exception_address =
+        ExternalReference::pending_exception_address();
     __ mov(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
-    __ mov(Operand::StaticVariable(pending_exception), eax);
+    __ mov(Operand::StaticVariable(pending_exception_address), eax);
   }
 
   // Clear the context pointer.
@@ -4885,8 +4888,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Caught exception: Store result (exception) in the pending
   // exception field in the JSEnv and return a failure sentinel.
-  ExternalReference pending_exception(Top::k_pending_exception_address);
-  __ mov(Operand::StaticVariable(pending_exception), eax);
+  ExternalReference pending_exception_address =
+      ExternalReference::pending_exception_address();
+  __ mov(Operand::StaticVariable(pending_exception_address), eax);
   __ mov(eax, reinterpret_cast<int32_t>(Failure::Exception()));
   __ jmp(&exit);
 
@@ -4897,7 +4901,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Clear any pending exceptions.
   __ mov(edx,
          Operand::StaticVariable(ExternalReference::the_hole_value_location()));
-  __ mov(Operand::StaticVariable(pending_exception), edx);
+  __ mov(Operand::StaticVariable(pending_exception_address), edx);
 
   // Fake a receiver (NULL).
   __ push(Immediate(0));  // receiver
