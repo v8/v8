@@ -1911,7 +1911,19 @@ void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
 
 void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
   Register value = ToRegister(instr->InputAt(0));
-  __ mov(Operand::Cell(instr->hydrogen()->cell()), value);
+  Operand cell_operand = Operand::Cell(instr->hydrogen()->cell());
+
+  // If the cell we are storing to contains the hole it could have
+  // been deleted from the property dictionary. In that case, we need
+  // to update the property details in the property dictionary to mark
+  // it as no longer deleted. We deoptimize in that case.
+  if (instr->hydrogen()->check_hole_value()) {
+    __ cmp(cell_operand, Factory::the_hole_value());
+    DeoptimizeIf(equal, instr->environment());
+  }
+
+  // Store the value.
+  __ mov(cell_operand, value);
 }
 
 

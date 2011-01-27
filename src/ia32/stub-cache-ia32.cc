@@ -2582,13 +2582,23 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
          Immediate(Handle<Map>(object->map())));
   __ j(not_equal, &miss, not_taken);
 
-  // Store the value in the cell.
+
+  // Compute the cell operand to use.
+  Operand cell_operand = Operand::Cell(Handle<JSGlobalPropertyCell>(cell));
   if (Serializer::enabled()) {
     __ mov(ecx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
-    __ mov(FieldOperand(ecx, JSGlobalPropertyCell::kValueOffset), eax);
-  } else {
-    __ mov(Operand::Cell(Handle<JSGlobalPropertyCell>(cell)), eax);
+    cell_operand = FieldOperand(ecx, JSGlobalPropertyCell::kValueOffset);
   }
+
+  // Check that the value in the cell is not the hole. If it is, this
+  // cell could have been deleted and reintroducing the global needs
+  // to update the property details in the property dictionary of the
+  // global object. We bail out to the runtime system to do that.
+  __ cmp(cell_operand, Factory::the_hole_value());
+  __ j(equal, &miss);
+
+  // Store the value in the cell.
+  __ mov(cell_operand, eax);
 
   // Return the value (register eax).
   __ IncrementCounter(&Counters::named_store_global_inline, 1);

@@ -1602,7 +1602,14 @@ LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  return new LStoreGlobal(UseRegisterAtStart(instr->value()));
+  if (instr->check_hole_value()) {
+    LOperand* temp = TempRegister();
+    LOperand* value = UseRegister(instr->value());
+    return AssignEnvironment(new LStoreGlobal(value, temp));
+  } else {
+    LOperand* value = UseRegisterAtStart(instr->value());
+    return new LStoreGlobal(value, NULL);
+  }
 }
 
 

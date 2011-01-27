@@ -1254,10 +1254,11 @@ class LLoadGlobal: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LStoreGlobal: public LTemplateInstruction<0, 1, 0> {
+class LStoreGlobal: public LTemplateInstruction<0, 1, 1> {
  public:
-  explicit LStoreGlobal(LOperand* value) {
+  LStoreGlobal(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobal, "store-global")

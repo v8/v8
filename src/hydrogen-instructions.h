@@ -2575,12 +2575,17 @@ class HLoadGlobal: public HInstruction {
 
 class HStoreGlobal: public HUnaryOperation {
  public:
-  HStoreGlobal(HValue* value, Handle<JSGlobalPropertyCell> cell)
-      : HUnaryOperation(value), cell_(cell) {
+  HStoreGlobal(HValue* value,
+               Handle<JSGlobalPropertyCell> cell,
+               bool check_hole_value)
+      : HUnaryOperation(value),
+        cell_(cell),
+        check_hole_value_(check_hole_value) {
     SetFlag(kChangesGlobalVars);
   }
 
   Handle<JSGlobalPropertyCell> cell() const { return cell_; }
+  bool check_hole_value() const { return check_hole_value_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -2591,6 +2596,7 @@ class HStoreGlobal: public HUnaryOperation {
 
  private:
   Handle<JSGlobalPropertyCell> cell_;
+  bool check_hole_value_;
 };
 
 
