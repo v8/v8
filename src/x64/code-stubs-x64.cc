@@ -2126,7 +2126,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  __ movq(kScratchRegister, ExternalReference::pending_exception_address());
+  ExternalReference pending_exception_address(Top::k_pending_exception_address);
+  __ movq(kScratchRegister, pending_exception_address);
   __ Cmp(kScratchRegister, Factory::the_hole_value());
   __ j(equal, &runtime);
   __ bind(&failure);
@@ -2884,7 +2885,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(equal, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
-  __ movq(kScratchRegister, ExternalReference::pending_exception_address());
+  ExternalReference pending_exception_address(Top::k_pending_exception_address);
+  __ movq(kScratchRegister, pending_exception_address);
   __ movq(rax, Operand(kScratchRegister, 0));
   __ movq(rdx, ExternalReference::the_hole_value_location());
   __ movq(rdx, Operand(rdx, 0));
@@ -2934,8 +2936,9 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
     __ store_rax(external_caught);
 
     // Set pending exception and rax to out of memory exception.
+    ExternalReference pending_exception(Top::k_pending_exception_address);
     __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
-    __ store_rax(ExternalReference::pending_exception_address());
+    __ store_rax(pending_exception);
   }
 
   // Clear the context pointer.
@@ -3088,7 +3091,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Caught exception: Store result (exception) in the pending
   // exception field in the JSEnv and return a failure sentinel.
-  __ store_rax(ExternalReference::pending_exception_address());
+  ExternalReference pending_exception(Top::k_pending_exception_address);
+  __ store_rax(pending_exception);
   __ movq(rax, Failure::Exception(), RelocInfo::NONE);
   __ jmp(&exit);
 
@@ -3098,7 +3102,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Clear any pending exceptions.
   __ load_rax(ExternalReference::the_hole_value_location());
-  __ store_rax(ExternalReference::pending_exception_address());
+  __ store_rax(pending_exception);
 
   // Fake a receiver (NULL).
   __ push(Immediate(0));  // receiver

@@ -551,7 +551,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference handle_scope_limit_address();
   static ExternalReference handle_scope_level_address();
 
-  static ExternalReference pending_exception_address();
   static ExternalReference scheduled_exception_address();
 
   // Static variables containing common double constants.
