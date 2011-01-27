@@ -1055,8 +1055,7 @@ LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
 
 
 LInstruction* LChunkBuilder::DoGlobalReceiver(HGlobalReceiver* instr) {
-  Abort("Unimplemented: %s", "DoGlobalReceiver");
-  return NULL;
+  return DefineAsRegister(new LGlobalReceiver);
 }
 
 
@@ -1422,8 +1421,8 @@ LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
-  Abort("Unimplemented: %s", "DoCheckFunction");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new LCheckFunction(value));
 }
 
 

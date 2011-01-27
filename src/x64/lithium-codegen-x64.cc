@@ -1517,7 +1517,9 @@ void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
 
 
 void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
-  Abort("Unimplemented: %s", "DoGlobalReceiver");
+  Register result = ToRegister(instr->result());
+  __ movq(result, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ movq(result, FieldOperand(result, GlobalObject::kGlobalReceiverOffset));
 }
 
 
@@ -1820,7 +1822,10 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 
 
 void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
-  Abort("Unimplemented: %s", "DoCheckFunction");
+  ASSERT(instr->InputAt(0)->IsRegister());
+  Register reg = ToRegister(instr->InputAt(0));
+  __ Cmp(reg, instr->hydrogen()->target());
+  DeoptimizeIf(not_equal, instr->environment());
 }
 
 
