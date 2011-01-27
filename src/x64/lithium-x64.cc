@@ -1043,8 +1043,9 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
 
 
 LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
-  Abort("Unimplemented: %s", "DoPushArgument");
-  return NULL;
+  ++argument_count_;
+  LOperand* argument = UseOrConstant(instr->argument());
+  return new LPushArgument(argument);
 }
 
 
@@ -1097,8 +1098,10 @@ LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
-  Abort("Unimplemented: %s", "DoCallNew");
-  return NULL;
+  LOperand* constructor = UseFixed(instr->constructor(), rdi);
+  argument_count_ -= instr->argument_count();
+  LCallNew* result = new LCallNew(constructor);
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
@@ -1394,8 +1397,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckNonSmi(HCheckNonSmi* instr) {
-  Abort("Unimplemented: %s", "DoCheckNonSmi");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new LCheckSmi(value, zero));
 }
 
 
@@ -1412,8 +1415,8 @@ LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
-  Abort("Unimplemented: %s", "DoCheckSmi");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new LCheckSmi(value, not_zero));
 }
 
 
@@ -1424,8 +1427,9 @@ LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
-  Abort("Unimplemented: %s", "DoCheckMap");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  LCheckMap* result = new LCheckMap(value);
+  return AssignEnvironment(result);
 }
 
 
@@ -1453,8 +1457,10 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
-  Abort("Unimplemented: %s", "DoLoadGlobal");
-  return NULL;
+  LLoadGlobal* result = new LLoadGlobal;
+  return instr->check_hole_value()
+      ? AssignEnvironment(DefineAsRegister(result))
+      : DefineAsRegister(result);
 }
 
 
