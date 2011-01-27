@@ -1991,7 +1991,16 @@ void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
 
 
 void LCodeGen::DoInstanceOfAndBranch(LInstanceOfAndBranch* instr) {
-  Abort("DoInstanceOfAndBranch unimplemented.");
+  ASSERT(ToRegister(instr->InputAt(0)).is(r0));  // Object is in r0.
+  ASSERT(ToRegister(instr->InputAt(1)).is(r1));  // Function is in r1.
+
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  InstanceofStub stub(InstanceofStub::kArgsInRegisters);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ tst(r0, Operand(r0));
+  EmitBranch(true_block, false_block, eq);
 }
 
 

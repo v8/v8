@@ -1028,8 +1028,8 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     } else if (v->IsInstanceOf()) {
       HInstanceOf* instance_of = HInstanceOf::cast(v);
       LInstruction* result =
-          new LInstanceOfAndBranch(Use(instance_of->left()),
-                                   Use(instance_of->right()));
+          new LInstanceOfAndBranch(UseFixed(instance_of->left(), r0),
+                                   UseFixed(instance_of->right(), r1));
       return MarkAsCall(result, instr);
     } else if (v->IsTypeofIs()) {
       HTypeofIs* typeof_is = HTypeofIs::cast(v);
