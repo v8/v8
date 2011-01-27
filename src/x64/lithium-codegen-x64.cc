@@ -1411,7 +1411,16 @@ void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
 
 
 void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
-  Abort("Unimplemented: %s", "DoStoreGlobal");
+  Register value = ToRegister(instr->InputAt(0));
+  if (value.is(rax)) {
+    __ store_rax(instr->hydrogen()->cell().location(),
+                 RelocInfo::GLOBAL_PROPERTY_CELL);
+  } else {
+    __ movq(kScratchRegister,
+            Handle<Object>::cast(instr->hydrogen()->cell()),
+            RelocInfo::GLOBAL_PROPERTY_CELL);
+    __ movq(Operand(kScratchRegister, 0), value);
+  }
 }
 
 
@@ -1421,7 +1430,14 @@ void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
-  Abort("Unimplemented: %s", "DoLoadNamedField");
+  Register object = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  if (instr->hydrogen()->is_in_object()) {
+    __ movq(result, FieldOperand(object, instr->hydrogen()->offset()));
+  } else {
+    __ movq(result, FieldOperand(object, JSObject::kPropertiesOffset));
+    __ movq(result, FieldOperand(result, instr->hydrogen()->offset()));
+  }
 }
 
 
@@ -1613,7 +1629,32 @@ void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
 
 
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
-  Abort("Unimplemented: %s", "DoStoreNamedField");
+  Register object = ToRegister(instr->object());
+  Register value = ToRegister(instr->value());
+  int offset = instr->offset();
+
+  if (!instr->transition().is_null()) {
+    __ Move(FieldOperand(object, HeapObject::kMapOffset), instr->transition());
+  }
+
+  // Do the store.
+  if (instr->is_in_object()) {
+    __ movq(FieldOperand(object, offset), value);
+    if (instr->needs_write_barrier()) {
+      Register temp = ToRegister(instr->TempAt(0));
+      // Update the write barrier for the object for in-object properties.
+      __ RecordWrite(object, offset, value, temp);
+    }
+  } else {
+    Register temp = ToRegister(instr->TempAt(0));
+    __ movq(temp, FieldOperand(object, JSObject::kPropertiesOffset));
+    __ movq(FieldOperand(temp, offset), value);
+    if (instr->needs_write_barrier()) {
+      // Update the write barrier for the properties array.
+      // object is used as a scratch register.
+      __ RecordWrite(temp, offset, value, object);
+    }
+  }
 }
 
 
@@ -1799,7 +1840,29 @@ void LCodeGen::LoadHeapObject(Register result, Handle<HeapObject> object) {
 
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
-  Abort("Unimplemented: %s", "DoCheckPrototypeMaps");
+  Register reg = ToRegister(instr->TempAt(0));
+
+  Handle<JSObject> holder = instr->holder();
+  Handle<JSObject> current_prototype = instr->prototype();
+
+  // Load prototype object.
+  LoadHeapObject(reg, current_prototype);
+
+  // Check prototype maps up to the holder.
+  while (!current_prototype.is_identical_to(holder)) {
+    __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+           Handle<Map>(current_prototype->map()));
+    DeoptimizeIf(not_equal, instr->environment());
+    current_prototype =
+        Handle<JSObject>(JSObject::cast(current_prototype->GetPrototype()));
+    // Load next prototype object.
+    LoadHeapObject(reg, current_prototype);
+  }
+
+  // Check the holder map.
+  __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+         Handle<Map>(current_prototype->map()));
+  DeoptimizeIf(not_equal, instr->environment());
 }
 
 

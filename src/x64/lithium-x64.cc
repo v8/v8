@@ -1409,8 +1409,9 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
-  Abort("Unimplemented: %s", "DoCheckPrototypeMaps");
-  return NULL;
+  LOperand* temp = TempRegister();
+  LCheckPrototypeMaps* result = new LCheckPrototypeMaps(temp);
+  return AssignEnvironment(result);
 }
 
 
@@ -1465,9 +1466,7 @@ LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  Abort("Unimplemented: %s", "DoStoreGlobal");
-  return NULL;
-}
+  return new LStoreGlobal(UseRegisterAtStart(instr->value()));}
 
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
@@ -1477,8 +1476,9 @@ LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
-  Abort("Unimplemented: %s", "DoLoadNamedField");
-  return NULL;
+  ASSERT(instr->representation().IsTagged());
+  LOperand* obj = UseRegisterAtStart(instr->object());
+  return DefineAsRegister(new LLoadNamedField(obj));
 }
 
 
@@ -1528,8 +1528,22 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
-  Abort("Unimplemented: %s", "DoStoreNamedField");
-  return NULL;
+  bool needs_write_barrier = instr->NeedsWriteBarrier();
+
+  LOperand* obj = needs_write_barrier
+      ? UseTempRegister(instr->object())
+      : UseRegisterAtStart(instr->object());
+
+  LOperand* val = needs_write_barrier
+      ? UseTempRegister(instr->value())
+      : UseRegister(instr->value());
+
+  // We only need a scratch register if we have a write barrier or we
+  // have a store into the properties array (not in-object-property).
+  LOperand* temp = (!instr->is_in_object() || needs_write_barrier)
+      ? TempRegister() : NULL;
+
+  return new LStoreNamedField(obj, val, temp);
 }
 
 
@@ -1666,7 +1680,14 @@ LInstruction* LChunkBuilder::DoStackCheck(HStackCheck* instr) {
 
 
 LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
-  Abort("Unimplemented: %s", "DoEnterInlined");
+  HEnvironment* outer = current_block_->last_environment();
+  HConstant* undefined = graph()->GetConstantUndefined();
+  HEnvironment* inner = outer->CopyForInlining(instr->closure(),
+                                               instr->function(),
+                                               false,
+                                               undefined);
+  current_block_->UpdateEnvironment(inner);
+  chunk_->AddInlinedClosure(instr->closure());
   return NULL;
 }
 
