@@ -3390,7 +3390,6 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
   // We have a second position recorded in the FullCodeGenerator to have
   // type feedback for the binary operation.
   BinaryOperation* operation = expr->binary_operation();
-  operation->RecordTypeFeedback(oracle());
 
   if (var != NULL) {
     if (!var->is_global() && !var->IsStackAllocated()) {
@@ -4814,7 +4813,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
     default:
       UNREACHABLE();
   }
-  TypeInfo info = oracle()->BinaryType(expr, TypeFeedbackOracle::RESULT);
+  TypeInfo info = oracle()->BinaryType(expr);
   // If we hit an uninitialized binary op stub we will get type info
   // for a smi operation. If one of the operands is a constant string
   // do not generate code assuming it is a smi operation.
@@ -4965,7 +4964,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   HValue* left = Pop();
   Token::Value op = expr->op();
 
-  TypeInfo info = oracle()->CompareType(expr, TypeFeedbackOracle::RESULT);
+  TypeInfo info = oracle()->CompareType(expr);
   HInstruction* instr = NULL;
   if (op == Token::INSTANCEOF) {
     // Check to see if the rhs of the instanceof is a global function not
