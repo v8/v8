@@ -2376,6 +2376,8 @@ TEST(APIThrowMessageOverwrittenToString) {
   v8::HandleScope scope;
   v8::V8::AddMessageListener(check_reference_error_message);
   LocalContext context;
+  CompileRun("Number.prototype.toString = function f() { return 'Yikes'; }");
+  CompileRun("String.prototype.toString = function f() { return 'Yikes'; }");
   CompileRun("ReferenceError.prototype.toString ="
              "  function() { return 'Whoops' }");
   CompileRun("asdf;");
@@ -6246,7 +6248,7 @@ THREADED_TEST(FunctionDescriptorException) {
     "    var str = String(e);"
     "    if (str.indexOf('TypeError') == -1) return 1;"
     "    if (str.indexOf('[object Fun]') != -1) return 2;"
-    "    if (str.indexOf('#<a Fun>') == -1) return 3;"
+    "    if (str.indexOf('#<Fun>') == -1) return 3;"
     "    return 0;"
     "  }"
     "  return 4;"
