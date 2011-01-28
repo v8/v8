@@ -70,9 +70,7 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ Ret();
 
   __ bind(&call_builtin);
-  __ pop(r2);  // Pop return address.
   __ push(r0);
-  __ push(r2);  // Push return address.
   __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_JS);
 }
 
