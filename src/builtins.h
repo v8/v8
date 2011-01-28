@@ -94,7 +94,6 @@ enum BuiltinExtraArguments {
   V(KeyedLoadIC_PreMonomorphic, KEYED_LOAD_IC, PREMONOMORPHIC)            \
   V(KeyedLoadIC_Generic,        KEYED_LOAD_IC, MEGAMORPHIC)               \
   V(KeyedLoadIC_String,         KEYED_LOAD_IC, MEGAMORPHIC)               \
-  V(KeyedLoadIC_PixelArray,     KEYED_LOAD_IC, MONOMORPHIC)               \
   V(KeyedLoadIC_IndexedInterceptor,         KEYED_LOAD_IC, MEGAMORPHIC)   \
                                                                           \
   V(StoreIC_Initialize,         STORE_IC, UNINITIALIZED)                  \

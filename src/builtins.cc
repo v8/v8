@@ -1287,11 +1287,6 @@ static void Generate_KeyedLoadIC_String(MacroAssembler* masm) {
 }
 
 
-static void Generate_KeyedLoadIC_PixelArray(MacroAssembler* masm) {
-  KeyedLoadIC::GeneratePixelArray(masm);
-}
-
-
 static void Generate_KeyedLoadIC_PreMonomorphic(MacroAssembler* masm) {
   KeyedLoadIC::GeneratePreMonomorphic(masm);
 }

@@ -501,66 +501,6 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
 }
 
 
-static void GenerateFastPixelArrayLoad(MacroAssembler* masm,
-                                       Register receiver,
-                                       Register key,
-                                       Register elements_map,
-                                       Register elements,
-                                       Register scratch1,
-                                       Register scratch2,
-                                       Register result,
-                                       Label* not_pixel_array,
-                                       Label* key_not_smi,
-                                       Label* out_of_range) {
-  // Register use:
-  //
-  // receiver - holds the receiver on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  // key      - holds the smi key on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  // elements - set to be the receiver's elements on exit.
-  //
-  // elements_map - set to be the map of the receiver's elements
-  //            on exit.
-  //
-  // result   - holds the result of the pixel array load on exit,
-  //            tagged as a smi if successful.
-  //
-  // Scratch registers:
-  //
-  // scratch1 - holds the receiver's elements, the length of the
-  //            pixel array, the pointer to external elements and
-  //            the untagged result.
-  //
-  // scratch2 - holds the untaged key.
-
-  // Verify that the receiver has pixel array elements.
-  __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  __ LoadRoot(scratch1, Heap::kPixelArrayMapRootIndex);
-  __ ldr(elements_map, FieldMemOperand(elements, JSObject::kMapOffset));
-  __ cmp(elements_map, scratch1);
-  __ b(ne, not_pixel_array);
-
-  // Key must be a smi that is in the range of the pixel array.
-  if (key_not_smi != NULL) {
-    __ JumpIfNotSmi(key, key_not_smi);
-  }
-  __ ldr(scratch1, FieldMemOperand(elements, PixelArray::kLengthOffset));
-  __ SmiUntag(scratch2, key);
-  __ cmp(scratch2, scratch1);
-  __ b(hs, out_of_range);
-
-  // Perform the indexed load and tag the result as a smi.
-  __ ldr(scratch1,
-         FieldMemOperand(elements, PixelArray::kExternalPointerOffset));
-  __ ldrb(scratch1, MemOperand(scratch1, scratch2));
-  __ SmiTag(r0, scratch1);
-  __ Ret();
-}
-
-
 // Checks whether a key is an array index string or a symbol string.
 // Falls through if a key is a symbol.
 static void GenerateKeyStringCheck(MacroAssembler* masm,
@@ -1249,18 +1189,19 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // r0: key
   // r1: receiver
   __ bind(&check_pixel_array);
-
-  GenerateFastPixelArrayLoad(masm,
-                             r1,
-                             r0,
-                             r3,
-                             r4,
-                             r2,
-                             r5,
-                             r0,
-                             &check_number_dictionary,
-                             NULL,
-                             &slow);
+  __ ldr(r4, FieldMemOperand(r1, JSObject::kElementsOffset));
+  __ ldr(r3, FieldMemOperand(r4, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
+  __ cmp(r3, ip);
+  __ b(ne, &check_number_dictionary);
+  __ ldr(ip, FieldMemOperand(r4, PixelArray::kLengthOffset));
+  __ mov(r2, Operand(key, ASR, kSmiTagSize));
+  __ cmp(r2, ip);
+  __ b(hs, &slow);
+  __ ldr(ip, FieldMemOperand(r4, PixelArray::kExternalPointerOffset));
+  __ ldrb(r2, MemOperand(ip, r2));
+  __ mov(r0, Operand(r2, LSL, kSmiTagSize));  // Tag result as smi.
+  __ Ret();
 
   __ bind(&check_number_dictionary);
   // Check whether the elements is a number dictionary.
@@ -1428,41 +1369,6 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // Perform tail call to the entry.
   __ TailCallExternalReference(ExternalReference(
         IC_Utility(kKeyedLoadPropertyWithInterceptor)), 2, 1);
-
-  __ bind(&slow);
-  GenerateMiss(masm);
-}
-
-
-void KeyedLoadIC::GeneratePixelArray(MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- lr     : return address
-  //  -- r0     : key
-  //  -- r1     : receiver
-  // -----------------------------------
-
-  // Register usage.
-  Register key = r0;
-  Register receiver = r1;
-
-  Label slow;
-
-  // Verify that it's safe to access the receiver's elements.
-  GenerateKeyedLoadReceiverCheck(
-      masm, receiver, r5, r6,
-      Map::kHasIndexedInterceptor, &slow);
-
-  GenerateFastPixelArrayLoad(masm,
-                             receiver,
-                             key,
-                             r2,
-                             r3,
-                             r4,
-                             r5,
-                             r0,
-                             &slow,
-                             &slow,
-                             &slow);
 
   __ bind(&slow);
   GenerateMiss(masm);
