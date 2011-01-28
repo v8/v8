@@ -10344,6 +10344,93 @@ THREADED_TEST(PixelArray) {
                       "i");
   CHECK_EQ(255, result->Int32Value());
 
+  // Make sure that pixel array ICs recognize when a non-pixel array
+  // is passed to it.
+  result = CompileRun("function pa_load(p) {"
+                      "  var sum = 0;"
+                      "  for (var j = 0; j < 256; j++) { sum += p[j]; }"
+                      "  return sum;"
+                      "}"
+                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
+                      "for (var i = 0; i < 10; ++i) { pa_load(pixels); }"
+                      "just_ints = new Object();"
+                      "for (var i = 0; i < 256; ++i) { just_ints[i] = i; }"
+                      "for (var i = 0; i < 10; ++i) {"
+                      "  result = pa_load(just_ints);"
+                      "}"
+                      "result");
+  CHECK_EQ(32640, result->Int32Value());
+
+  // Make sure that pixel array ICs recognize out-of-bound accesses.
+  result = CompileRun("function pa_load(p, start) {"
+                      "  var sum = 0;"
+                      "  for (var j = start; j < 256; j++) { sum += p[j]; }"
+                      "  return sum;"
+                      "}"
+                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
+                      "for (var i = 0; i < 10; ++i) { pa_load(pixels,0); }"
+                      "for (var i = 0; i < 10; ++i) {"
+                      "  result = pa_load(pixels,-10);"
+                      "}"
+                      "result");
+  CHECK_EQ(0, result->Int32Value());
+
+  // Make sure that generic ICs properly handles a pixel array.
+  result = CompileRun("function pa_load(p) {"
+                      "  var sum = 0;"
+                      "  for (var j = 0; j < 256; j++) { sum += p[j]; }"
+                      "  return sum;"
+                      "}"
+                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
+                      "just_ints = new Object();"
+                      "for (var i = 0; i < 256; ++i) { just_ints[i] = i; }"
+                      "for (var i = 0; i < 10; ++i) { pa_load(just_ints); }"
+                      "for (var i = 0; i < 10; ++i) {"
+                      "  result = pa_load(pixels);"
+                      "}"
+                      "result");
+  CHECK_EQ(32640, result->Int32Value());
+
+  // Make sure that generic load ICs recognize out-of-bound accesses in
+  // pixel arrays.
+  result = CompileRun("function pa_load(p, start) {"
+                      "  var sum = 0;"
+                      "  for (var j = start; j < 256; j++) { sum += p[j]; }"
+                      "  return sum;"
+                      "}"
+                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
+                      "just_ints = new Object();"
+                      "for (var i = 0; i < 256; ++i) { just_ints[i] = i; }"
+                      "for (var i = 0; i < 10; ++i) { pa_load(just_ints,0); }"
+                      "for (var i = 0; i < 10; ++i) { pa_load(pixels,0); }"
+                      "for (var i = 0; i < 10; ++i) {"
+                      "  result = pa_load(pixels,-10);"
+                      "}"
+                      "result");
+  CHECK_EQ(0, result->Int32Value());
+
+  // Make sure that generic ICs properly handles other types than pixel
+  // arrays (that the inlined fast pixel array test leaves the right information
+  // in the right registers).
+  result = CompileRun("function pa_load(p) {"
+                      "  var sum = 0;"
+                      "  for (var j = 0; j < 256; j++) { sum += p[j]; }"
+                      "  return sum;"
+                      "}"
+                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
+                      "just_ints = new Object();"
+                      "for (var i = 0; i < 256; ++i) { just_ints[i] = i; }"
+                      "for (var i = 0; i < 10; ++i) { pa_load(just_ints); }"
+                      "for (var i = 0; i < 10; ++i) { pa_load(pixels); }"
+                      "sparse_array = new Object();"
+                      "for (var i = 0; i < 256; ++i) { sparse_array[i] = i; }"
+                      "sparse_array[1000000] = 3;"
+                      "for (var i = 0; i < 10; ++i) {"
+                      "  result = pa_load(sparse_array);"
+                      "}"
+                      "result");
+  CHECK_EQ(32640, result->Int32Value());
+
   free(pixel_data);
 }
 

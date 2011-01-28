@@ -491,6 +491,48 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   }
 }
 
+// Loads a indexed element from a pixel array.
+static void GenerateFastPixelArrayLoad(MacroAssembler* masm,
+                                       Register receiver,
+                                       Register key,
+                                       Register elements,
+                                       Register untagged_key,
+                                       Register result,
+                                       Label* not_pixel_array,
+                                       Label* key_not_smi,
+                                       Label* out_of_range) {
+  // Register use:
+  //   receiver - holds the receiver and is unchanged.
+  //   key - holds the key and is unchanged (must be a smi).
+  //   elements - is set to the the receiver's element if
+  //       the receiver doesn't have a pixel array or the
+  //       key is not a smi, otherwise it's the elements'
+  //       external pointer.
+  //   untagged_key - is set to the untagged key
+
+  // Key must be a smi.
+  if (key_not_smi != NULL) {
+    __ test(key, Immediate(kSmiTagMask));
+    __ j(not_zero, key_not_smi, not_taken);
+  }
+  __ mov(untagged_key, key);
+  __ SmiUntag(untagged_key);
+
+  // Verify that the receiver has pixel array elements.
+  __ mov(elements, FieldOperand(receiver, JSObject::kElementsOffset));
+  __ CheckMap(elements, Factory::pixel_array_map(), not_pixel_array, true);
+
+  // Key must be in range.
+  __ cmp(untagged_key, FieldOperand(elements, PixelArray::kLengthOffset));
+  __ j(above_equal, out_of_range);
+
+  // Perform the indexed load and tag the result as a smi.
+  __ mov(elements, FieldOperand(elements, PixelArray::kExternalPointerOffset));
+  __ movzx_b(result, Operand(elements, untagged_key, times_1, 0));
+  __ SmiTag(result);
+  __ ret(0);
+}
+
 
 // Checks whether a key is an array index string or a symbol string.
 // Falls through if the key is a symbol.
@@ -556,19 +598,15 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ret(0);
 
   __ bind(&check_pixel_array);
-  // Check whether the elements is a pixel array.
-  // edx: receiver
-  // eax: key
-  __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
-  __ mov(ebx, eax);
-  __ SmiUntag(ebx);
-  __ CheckMap(ecx, Factory::pixel_array_map(), &check_number_dictionary, true);
-  __ cmp(ebx, FieldOperand(ecx, PixelArray::kLengthOffset));
-  __ j(above_equal, &slow);
-  __ mov(eax, FieldOperand(ecx, PixelArray::kExternalPointerOffset));
-  __ movzx_b(eax, Operand(eax, ebx, times_1, 0));
-  __ SmiTag(eax);
-  __ ret(0);
+  GenerateFastPixelArrayLoad(masm,
+                             edx,
+                             eax,
+                             ecx,
+                             ebx,
+                             eax,
+                             &check_number_dictionary,
+                             NULL,
+                             &slow);
 
   __ bind(&check_number_dictionary);
   // Check whether the elements is a number dictionary.
@@ -756,6 +794,33 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   ExternalReference ref = ExternalReference(
       IC_Utility(kKeyedLoadPropertyWithInterceptor));
   __ TailCallExternalReference(ref, 2, 1);
+
+  __ bind(&slow);
+  GenerateMiss(masm);
+}
+
+
+void KeyedLoadIC::GeneratePixelArray(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label slow;
+
+  // Verify that it's safe to access the receiver's elements.
+  GenerateKeyedLoadReceiverCheck(
+      masm, edx, ecx, Map::kHasNamedInterceptor, &slow);
+
+  GenerateFastPixelArrayLoad(masm,
+                             edx,
+                             eax,
+                             ecx,
+                             ebx,
+                             eax,
+                             &slow,
+                             &slow,
+                             &slow);
 
   __ bind(&slow);
   GenerateMiss(masm);

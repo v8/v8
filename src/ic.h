@@ -348,6 +348,9 @@ class KeyedLoadIC: public IC {
 
   static void GenerateIndexedInterceptor(MacroAssembler* masm);
 
+  // Generator for loading bytes from a pixel array.
+  static void GeneratePixelArray(MacroAssembler* masm);
+
   // Clear the use of the inlined version.
   static void ClearInlinedVersion(Address address);
 
@@ -382,6 +385,9 @@ class KeyedLoadIC: public IC {
     return Builtins::builtin(Builtins::KeyedLoadIC_String);
   }
 
+  static Code* pixel_array_stub() {
+    return Builtins::builtin(Builtins::KeyedLoadIC_PixelArray);
+  }
   static Code* indexed_interceptor_stub() {
     return Builtins::builtin(Builtins::KeyedLoadIC_IndexedInterceptor);
   }
