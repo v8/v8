@@ -1770,10 +1770,18 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   Move(rdi, Handle<JSFunction>(function));
   movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-  // Invoke the cached code.
-  Handle<Code> code(function->code());
-  ParameterCount expected(function->shared()->formal_parameter_count());
-  InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+  if (V8::UseCrankshaft()) {
+    // Since Crankshaft can recompile a function, we need to load
+    // the Code object every time we call the function.
+    movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+    ParameterCount expected(function->shared()->formal_parameter_count());
+    InvokeCode(rdx, expected, actual, flag);
+  } else {
+    // Invoke the cached code.
+    Handle<Code> code(function->code());
+    ParameterCount expected(function->shared()->formal_parameter_count());
+    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+  }
 }
 
 

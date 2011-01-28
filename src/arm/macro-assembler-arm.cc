@@ -318,7 +318,7 @@ void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
   CheckConstPool(true, true);
   add(pc, pc, Operand(index,
                       LSL,
-                      assembler::arm::Instr::kInstrSizeLog2 - kSmiTagSize));
+                      Instruction::kInstrSizeLog2 - kSmiTagSize));
   BlockConstPoolBefore(pc_offset() + (targets.length() + 1) * kInstrSize);
   nop();  // Jump table alignment.
   for (int i = 0; i < targets.length(); i++) {
@@ -369,12 +369,12 @@ void MacroAssembler::RecordWriteHelper(Register object,
 
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
-                                Condition cc,
+                                Condition cond,
                                 Label* branch) {
-  ASSERT(cc == eq || cc == ne);
+  ASSERT(cond == eq || cond == ne);
   and_(scratch, object, Operand(ExternalReference::new_space_mask()));
   cmp(scratch, Operand(ExternalReference::new_space_start()));
-  b(cc, branch);
+  b(cond, branch);
 }
 
 
@@ -926,7 +926,7 @@ void MacroAssembler::IsObjectJSStringType(Register object,
   ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
   ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
   tst(scratch, Operand(kIsNotStringMask));
-  b(nz, fail);
+  b(ne, fail);
 }
 
 
@@ -1385,7 +1385,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Label* fail,
                               bool is_heap_object) {
   if (!is_heap_object) {
-    BranchOnSmi(obj, fail);
+    JumpIfSmi(obj, fail);
   }
   ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
   mov(ip, Operand(map));
@@ -1400,7 +1400,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Label* fail,
                               bool is_heap_object) {
   if (!is_heap_object) {
-    BranchOnSmi(obj, fail);
+    JumpIfSmi(obj, fail);
   }
   ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
   LoadRoot(ip, index);
@@ -1414,7 +1414,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register scratch,
                                              Label* miss) {
   // Check that the receiver isn't a smi.
-  BranchOnSmi(function, miss);
+  JumpIfSmi(function, miss);
 
   // Check that the function really is a function.  Load map into result reg.
   CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE);
@@ -1513,7 +1513,7 @@ void MacroAssembler::ObjectToDoubleVFPRegister(Register object,
   Label done;
   if ((flags & OBJECT_NOT_SMI) == 0) {
     Label not_smi;
-    BranchOnNotSmi(object, &not_smi);
+    JumpIfNotSmi(object, &not_smi);
     // Remove smi tag and convert to double.
     mov(scratch1, Operand(object, ASR, kSmiTagSize));
     vmov(scratch3, scratch1);
@@ -1806,9 +1806,9 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 }
 
 
-void MacroAssembler::Assert(Condition cc, const char* msg) {
+void MacroAssembler::Assert(Condition cond, const char* msg) {
   if (FLAG_debug_code)
-    Check(cc, msg);
+    Check(cond, msg);
 }
 
 
@@ -1841,9 +1841,9 @@ void MacroAssembler::AssertFastElements(Register elements) {
 }
 
 
-void MacroAssembler::Check(Condition cc, const char* msg) {
+void MacroAssembler::Check(Condition cond, const char* msg) {
   Label L;
-  b(cc, &L);
+  b(cond, &L);
   Abort(msg);
   // will not return here
   bind(&L);
@@ -1939,7 +1939,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
 void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Register reg2,
                                       Label* on_not_both_smi) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   tst(reg1, Operand(kSmiTagMask));
   tst(reg2, Operand(kSmiTagMask), eq);
   b(ne, on_not_both_smi);
@@ -1949,7 +1949,7 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
 void MacroAssembler::JumpIfEitherSmi(Register reg1,
                                      Register reg2,
                                      Label* on_either_smi) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   tst(reg1, Operand(kSmiTagMask));
   tst(reg2, Operand(kSmiTagMask), ne);
   b(eq, on_either_smi);
@@ -1957,16 +1957,27 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
 
 
 void MacroAssembler::AbortIfSmi(Register object) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
   Assert(ne, "Operand is a smi");
 }
 
 
 void MacroAssembler::AbortIfNotSmi(Register object) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
   Assert(eq, "Operand is not smi");
+}
+
+
+void MacroAssembler::JumpIfNotHeapNumber(Register object,
+                                         Register heap_number_map,
+                                         Register scratch,
+                                         Label* on_not_heap_number) {
+  ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  cmp(scratch, heap_number_map);
+  b(ne, on_not_heap_number);
 }
 
 
@@ -1996,7 +2007,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
                                                          Register scratch2,
                                                          Label* failure) {
   // Check that neither is a smi.
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   and_(scratch1, first, Operand(second));
   tst(scratch1, Operand(kSmiTagMask));
   b(eq, failure);

@@ -82,8 +82,11 @@ function FormatString(format, args) {
   var result = format;
   for (var i = 0; i < args.length; i++) {
     var str;
-    try { str = ToDetailString(args[i]); }
-    catch (e) { str = "#<error>"; }
+    try {
+      str = ToDetailString(args[i]);
+    } catch (e) {
+      str = "#<error>";
+    }
     result = ArrayJoin.call(StringSplit.call(result, "%" + i), str);
   }
   return result;
@@ -124,7 +127,9 @@ function ToDetailString(obj) {
     var constructor = obj.constructor;
     if (!constructor) return ToStringCheckErrorObject(obj);
     var constructorName = constructor.name;
-    if (!constructorName) return ToStringCheckErrorObject(obj);
+    if (!constructorName || !IS_STRING(constructorName)) {
+      return ToStringCheckErrorObject(obj);
+    }
     return "#<" + GetInstanceName(constructorName) + ">";
   } else {
     return ToStringCheckErrorObject(obj);
@@ -233,6 +238,12 @@ function FormatMessage(message) {
       strict_var_name:              "Variable name may not be eval or arguments in strict mode",
       strict_function_name:         "Function name may not be eval or arguments in strict mode",
       strict_octal_literal:         "Octal literals are not allowed in strict mode.",
+      strict_duplicate_property:    "Duplicate data property in object literal not allowed in strict mode",
+      accessor_data_property:       "Object literal may not have data and accessor property with the same name",
+      accessor_get_set:             "Object literal may not have multiple get/set accessors with the same name",
+      strict_lhs_eval_assignment:   "Assignment to eval or arguments is not allowed in strict mode",
+      strict_lhs_postfix:           "Postfix increment/decrement may not have eval or arguments operand in strict mode",
+      strict_lhs_prefix:            "Prefix increment/decrement may not have eval or arguments operand in strict mode",
     };
   }
   var format = kMessages[message.type];

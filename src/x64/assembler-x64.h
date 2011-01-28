@@ -1134,7 +1134,6 @@ class Assembler : public Malloced {
 
   // Conditional jumps
   void j(Condition cc, Label* L);
-  void j(Condition cc, byte* entry, RelocInfo::Mode rmode);
   void j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode);
 
   // Conditional short jump

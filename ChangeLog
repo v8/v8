@@ -1,3 +1,11 @@
+2011-01-28: Version 3.0.12
+
+        Added support for strict mode parameter and object property
+        validation.
+
+        Fixed a couple of crash bugs.
+
+
 2011-01-25: Version 3.0.11
 
         Fixed a bug in deletion of lookup slots that could cause global

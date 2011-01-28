@@ -188,6 +188,10 @@ bool LCodeGen::GenerateDeferredCode() {
 
 bool LCodeGen::GenerateSafepointTable() {
   ASSERT(is_done());
+  // Ensure that patching a deoptimization point won't overwrite the table.
+  for (int i = 0; i < Assembler::kCallInstructionLength; i++) {
+    masm()->int3();
+  }
   safepoints_.Emit(masm(), StackSlotCount());
   return !is_aborted();
 }
@@ -429,7 +433,10 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   if (cc == no_condition) {
     __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
-    __ j(cc, entry, RelocInfo::RUNTIME_ENTRY);
+    NearLabel done;
+    __ j(NegateCondition(cc), &done);
+    __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+    __ bind(&done);
   }
 }
 
@@ -492,37 +499,40 @@ void LCodeGen::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
 }
 
 
-void LCodeGen::RecordSafepoint(LPointerMap* pointers,
-                               int deoptimization_index) {
+void LCodeGen::RecordSafepoint(
+    LPointerMap* pointers,
+    Safepoint::Kind kind,
+    int arguments,
+    int deoptimization_index) {
   const ZoneList<LOperand*>* operands = pointers->operands();
   Safepoint safepoint = safepoints_.DefineSafepoint(masm(),
-                                                    deoptimization_index);
+      kind, arguments, deoptimization_index);
   for (int i = 0; i < operands->length(); i++) {
     LOperand* pointer = operands->at(i);
     if (pointer->IsStackSlot()) {
       safepoint.DefinePointerSlot(pointer->index());
+    } else if (pointer->IsRegister() && (kind & Safepoint::kWithRegisters)) {
+      safepoint.DefinePointerRegister(ToRegister(pointer));
     }
   }
+  if (kind & Safepoint::kWithRegisters) {
+    // Register rsi always contains a pointer to the context.
+    safepoint.DefinePointerRegister(rsi);
+  }
+}
+
+
+void LCodeGen::RecordSafepoint(LPointerMap* pointers,
+                               int deoptimization_index) {
+  RecordSafepoint(pointers, Safepoint::kSimple, 0, deoptimization_index);
 }
 
 
 void LCodeGen::RecordSafepointWithRegisters(LPointerMap* pointers,
                                             int arguments,
                                             int deoptimization_index) {
-  const ZoneList<LOperand*>* operands = pointers->operands();
-  Safepoint safepoint =
-      safepoints_.DefineSafepointWithRegisters(
-          masm(), arguments, deoptimization_index);
-  for (int i = 0; i < operands->length(); i++) {
-    LOperand* pointer = operands->at(i);
-    if (pointer->IsStackSlot()) {
-      safepoint.DefinePointerSlot(pointer->index());
-    } else if (pointer->IsRegister()) {
-      safepoint.DefinePointerRegister(ToRegister(pointer));
-    }
-  }
-  // Register rsi always contains a pointer to the context.
-  safepoint.DefinePointerRegister(rsi);
+  RecordSafepoint(pointers, Safepoint::kWithRegisters, arguments,
+      deoptimization_index);
 }
 
 
@@ -1385,12 +1395,32 @@ void LCodeGen::DoReturn(LReturn* instr) {
 
 
 void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
-  Abort("Unimplemented: %s", "DoLoadGlobal");
+  Register result = ToRegister(instr->result());
+  if (result.is(rax)) {
+    __ load_rax(instr->hydrogen()->cell().location(),
+                RelocInfo::GLOBAL_PROPERTY_CELL);
+  } else {
+    __ movq(result, instr->hydrogen()->cell(), RelocInfo::GLOBAL_PROPERTY_CELL);
+    __ movq(result, Operand(result, 0));
+  }
+  if (instr->hydrogen()->check_hole_value()) {
+    __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+    DeoptimizeIf(equal, instr->environment());
+  }
 }
 
 
 void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
-  Abort("Unimplemented: %s", "DoStoreGlobal");
+  Register value = ToRegister(instr->InputAt(0));
+  if (value.is(rax)) {
+    __ store_rax(instr->hydrogen()->cell().location(),
+                 RelocInfo::GLOBAL_PROPERTY_CELL);
+  } else {
+    __ movq(kScratchRegister,
+            Handle<Object>::cast(instr->hydrogen()->cell()),
+            RelocInfo::GLOBAL_PROPERTY_CELL);
+    __ movq(Operand(kScratchRegister, 0), value);
+  }
 }
 
 
@@ -1400,7 +1430,14 @@ void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
-  Abort("Unimplemented: %s", "DoLoadNamedField");
+  Register object = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  if (instr->hydrogen()->is_in_object()) {
+    __ movq(result, FieldOperand(object, instr->hydrogen()->offset()));
+  } else {
+    __ movq(result, FieldOperand(object, JSObject::kPropertiesOffset));
+    __ movq(result, FieldOperand(result, instr->hydrogen()->offset()));
+  }
 }
 
 
@@ -1450,7 +1487,26 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
 
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
-  Abort("Unimplemented: %s", "DoPushArgument");
+  LOperand* argument = instr->InputAt(0);
+  if (argument->IsConstantOperand()) {
+    LConstantOperand* const_op = LConstantOperand::cast(argument);
+    Handle<Object> literal = chunk_->LookupLiteral(const_op);
+    Representation r = chunk_->LookupLiteralRepresentation(const_op);
+    if (r.IsInteger32()) {
+      ASSERT(literal->IsNumber());
+      __ push(Immediate(static_cast<int32_t>(literal->Number())));
+    } else if (r.IsDouble()) {
+      Abort("unsupported double immediate");
+    } else {
+      ASSERT(r.IsTagged());
+      __ Push(literal);
+    }
+  } else if (argument->IsRegister()) {
+    __ push(ToRegister(argument));
+  } else {
+    ASSERT(!argument->IsDoubleRegister());
+    __ push(ToOperand(argument));
+  }
 }
 
 
@@ -1461,7 +1517,9 @@ void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
 
 
 void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
-  Abort("Unimplemented: %s", "DoGlobalReceiver");
+  Register result = ToRegister(instr->result());
+  __ movq(result, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ movq(result, FieldOperand(result, GlobalObject::kGlobalReceiverOffset));
 }
 
 
@@ -1558,7 +1616,12 @@ void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
 
 
 void LCodeGen::DoCallNew(LCallNew* instr) {
-  Abort("Unimplemented: %s", "DoCallNew");
+  ASSERT(ToRegister(instr->InputAt(0)).is(rdi));
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  Handle<Code> builtin(Builtins::builtin(Builtins::JSConstructCall));
+  __ Set(rax, instr->arity());
+  CallCode(builtin, RelocInfo::CONSTRUCT_CALL, instr);
 }
 
 
@@ -1568,7 +1631,32 @@ void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
 
 
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
-  Abort("Unimplemented: %s", "DoStoreNamedField");
+  Register object = ToRegister(instr->object());
+  Register value = ToRegister(instr->value());
+  int offset = instr->offset();
+
+  if (!instr->transition().is_null()) {
+    __ Move(FieldOperand(object, HeapObject::kMapOffset), instr->transition());
+  }
+
+  // Do the store.
+  if (instr->is_in_object()) {
+    __ movq(FieldOperand(object, offset), value);
+    if (instr->needs_write_barrier()) {
+      Register temp = ToRegister(instr->TempAt(0));
+      // Update the write barrier for the object for in-object properties.
+      __ RecordWrite(object, offset, value, temp);
+    }
+  } else {
+    Register temp = ToRegister(instr->TempAt(0));
+    __ movq(temp, FieldOperand(object, JSObject::kPropertiesOffset));
+    __ movq(FieldOperand(temp, offset), value);
+    if (instr->needs_write_barrier()) {
+      // Update the write barrier for the properties array.
+      // object is used as a scratch register.
+      __ RecordWrite(temp, offset, value, object);
+    }
+  }
 }
 
 
@@ -1718,7 +1806,13 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
-  Abort("Unimplemented: %s", "DoCheckSmi");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsRegister());
+  Condition cc = masm()->CheckSmi(ToRegister(input));
+  if (instr->condition() != equal) {
+    cc = NegateCondition(cc);
+  }
+  DeoptimizeIf(cc, instr->environment());
 }
 
 
@@ -1728,12 +1822,20 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 
 
 void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
-  Abort("Unimplemented: %s", "DoCheckFunction");
+  ASSERT(instr->InputAt(0)->IsRegister());
+  Register reg = ToRegister(instr->InputAt(0));
+  __ Cmp(reg, instr->hydrogen()->target());
+  DeoptimizeIf(not_equal, instr->environment());
 }
 
 
 void LCodeGen::DoCheckMap(LCheckMap* instr) {
-  Abort("Unimplemented: %s", "DoCheckMap");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsRegister());
+  Register reg = ToRegister(input);
+  __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+         instr->hydrogen()->map());
+  DeoptimizeIf(not_equal, instr->environment());
 }
 
 
@@ -1743,7 +1845,29 @@ void LCodeGen::LoadHeapObject(Register result, Handle<HeapObject> object) {
 
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
-  Abort("Unimplemented: %s", "DoCheckPrototypeMaps");
+  Register reg = ToRegister(instr->TempAt(0));
+
+  Handle<JSObject> holder = instr->holder();
+  Handle<JSObject> current_prototype = instr->prototype();
+
+  // Load prototype object.
+  LoadHeapObject(reg, current_prototype);
+
+  // Check prototype maps up to the holder.
+  while (!current_prototype.is_identical_to(holder)) {
+    __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+           Handle<Map>(current_prototype->map()));
+    DeoptimizeIf(not_equal, instr->environment());
+    current_prototype =
+        Handle<JSObject>(JSObject::cast(current_prototype->GetPrototype()));
+    // Load next prototype object.
+    LoadHeapObject(reg, current_prototype);
+  }
+
+  // Check the holder map.
+  __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+         Handle<Map>(current_prototype->map()));
+  DeoptimizeIf(not_equal, instr->environment());
 }
 
 

@@ -1043,8 +1043,9 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
 
 
 LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
-  Abort("Unimplemented: %s", "DoPushArgument");
-  return NULL;
+  ++argument_count_;
+  LOperand* argument = UseOrConstant(instr->argument());
+  return new LPushArgument(argument);
 }
 
 
@@ -1054,8 +1055,7 @@ LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
 
 
 LInstruction* LChunkBuilder::DoGlobalReceiver(HGlobalReceiver* instr) {
-  Abort("Unimplemented: %s", "DoGlobalReceiver");
-  return NULL;
+  return DefineAsRegister(new LGlobalReceiver);
 }
 
 
@@ -1097,8 +1097,10 @@ LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
-  Abort("Unimplemented: %s", "DoCallNew");
-  return NULL;
+  LOperand* constructor = UseFixed(instr->constructor(), rdi);
+  argument_count_ -= instr->argument_count();
+  LCallNew* result = new LCallNew(constructor);
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
@@ -1394,8 +1396,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckNonSmi(HCheckNonSmi* instr) {
-  Abort("Unimplemented: %s", "DoCheckNonSmi");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new LCheckSmi(value, zero));
 }
 
 
@@ -1406,26 +1408,28 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
-  Abort("Unimplemented: %s", "DoCheckPrototypeMaps");
-  return NULL;
+  LOperand* temp = TempRegister();
+  LCheckPrototypeMaps* result = new LCheckPrototypeMaps(temp);
+  return AssignEnvironment(result);
 }
 
 
 LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
-  Abort("Unimplemented: %s", "DoCheckSmi");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new LCheckSmi(value, not_zero));
 }
 
 
 LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
-  Abort("Unimplemented: %s", "DoCheckFunction");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new LCheckFunction(value));
 }
 
 
 LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
-  Abort("Unimplemented: %s", "DoCheckMap");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  LCheckMap* result = new LCheckMap(value);
+  return AssignEnvironment(result);
 }
 
 
@@ -1453,15 +1457,15 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
-  Abort("Unimplemented: %s", "DoLoadGlobal");
-  return NULL;
+  LLoadGlobal* result = new LLoadGlobal;
+  return instr->check_hole_value()
+      ? AssignEnvironment(DefineAsRegister(result))
+      : DefineAsRegister(result);
 }
 
 
 LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  Abort("Unimplemented: %s", "DoStoreGlobal");
-  return NULL;
-}
+  return new LStoreGlobal(UseRegisterAtStart(instr->value()));}
 
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
@@ -1471,8 +1475,9 @@ LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
-  Abort("Unimplemented: %s", "DoLoadNamedField");
-  return NULL;
+  ASSERT(instr->representation().IsTagged());
+  LOperand* obj = UseRegisterAtStart(instr->object());
+  return DefineAsRegister(new LLoadNamedField(obj));
 }
 
 
@@ -1522,8 +1527,22 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
-  Abort("Unimplemented: %s", "DoStoreNamedField");
-  return NULL;
+  bool needs_write_barrier = instr->NeedsWriteBarrier();
+
+  LOperand* obj = needs_write_barrier
+      ? UseTempRegister(instr->object())
+      : UseRegisterAtStart(instr->object());
+
+  LOperand* val = needs_write_barrier
+      ? UseTempRegister(instr->value())
+      : UseRegister(instr->value());
+
+  // We only need a scratch register if we have a write barrier or we
+  // have a store into the properties array (not in-object-property).
+  LOperand* temp = (!instr->is_in_object() || needs_write_barrier)
+      ? TempRegister() : NULL;
+
+  return new LStoreNamedField(obj, val, temp);
 }
 
 
@@ -1660,7 +1679,14 @@ LInstruction* LChunkBuilder::DoStackCheck(HStackCheck* instr) {
 
 
 LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
-  Abort("Unimplemented: %s", "DoEnterInlined");
+  HEnvironment* outer = current_block_->last_environment();
+  HConstant* undefined = graph()->GetConstantUndefined();
+  HEnvironment* inner = outer->CopyForInlining(instr->closure(),
+                                               instr->function(),
+                                               false,
+                                               undefined);
+  current_block_->UpdateEnvironment(inner);
+  chunk_->AddInlinedClosure(instr->closure());
   return NULL;
 }
 

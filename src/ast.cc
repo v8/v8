@@ -521,6 +521,8 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   if (key()->IsPropertyName()) {
     if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_ArrayLength)) {
       is_array_length_ = true;
+    } else if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_StringLength)) {
+      is_string_length_ = true;
     } else if (oracle->LoadIsBuiltin(this,
                                      Builtins::LoadIC_FunctionPrototype)) {
       is_function_prototype_ = true;
@@ -663,19 +665,11 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-void BinaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  TypeInfo left = oracle->BinaryType(this, TypeFeedbackOracle::LEFT);
-  TypeInfo right = oracle->BinaryType(this, TypeFeedbackOracle::RIGHT);
-  is_smi_only_ = left.IsSmi() && right.IsSmi();
-}
-
-
 void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  TypeInfo left = oracle->CompareType(this, TypeFeedbackOracle::LEFT);
-  TypeInfo right = oracle->CompareType(this, TypeFeedbackOracle::RIGHT);
-  if (left.IsSmi() && right.IsSmi()) {
+  TypeInfo info = oracle->CompareType(this);
+  if (info.IsSmi()) {
     compare_type_ = SMI_ONLY;
-  } else if (left.IsNonPrimitive() && right.IsNonPrimitive()) {
+  } else if (info.IsNonPrimitive()) {
     compare_type_ = OBJECT_ONLY;
   } else {
     ASSERT(compare_type_ == NONE);

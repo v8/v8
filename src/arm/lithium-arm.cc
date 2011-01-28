@@ -820,6 +820,7 @@ LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
   return MarkAsCall(DefineFixed(result, r0), instr);
 }
 
+
 void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
   ASSERT(is_building());
   current_block_ = block;
@@ -1027,8 +1028,8 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     } else if (v->IsInstanceOf()) {
       HInstanceOf* instance_of = HInstanceOf::cast(v);
       LInstruction* result =
-          new LInstanceOfAndBranch(Use(instance_of->left()),
-                                   Use(instance_of->right()));
+          new LInstanceOfAndBranch(UseFixed(instance_of->left(), r0),
+                                   UseFixed(instance_of->right(), r1));
       return MarkAsCall(result, instr);
     } else if (v->IsTypeofIs()) {
       HTypeofIs* typeof_is = HTypeofIs::cast(v);
@@ -1130,7 +1131,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathAbs:
       return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
     case kMathFloor:
-      return AssignEnvironment(DefineAsRegister(result));
+      return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
     case kMathSqrt:
       return DefineSameAsFirst(result);
     case kMathRound:
@@ -1601,7 +1602,14 @@ LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  return new LStoreGlobal(UseRegisterAtStart(instr->value()));
+  if (instr->check_hole_value()) {
+    LOperand* temp = TempRegister();
+    LOperand* value = UseRegister(instr->value());
+    return AssignEnvironment(new LStoreGlobal(value, temp));
+  } else {
+    LOperand* value = UseRegisterAtStart(instr->value());
+    return new LStoreGlobal(value, NULL);
+  }
 }
 
 
