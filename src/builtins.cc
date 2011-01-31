@@ -750,19 +750,26 @@ BUILTIN(ArraySplice) {
                                           : Min(relative_start, len);
 
   // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
-  // given differently from when an undefined delete count is given.
+  // given as a request to delete all the elements from the start.
+  // And it differs from the case of undefined delete count.
   // This does not follow ECMA-262, but we do the same for
   // compatibility.
-  int delete_count = len;
-  if (n_arguments > 1) {
-    Object* arg2 = args[2];
-    if (arg2->IsSmi()) {
-      delete_count = Smi::cast(arg2)->value();
-    } else {
-      return CallJsBuiltin("ArraySplice", args);
+  int actual_delete_count;
+  if (n_arguments == 1) {
+    ASSERT(len - actual_start >= 0);
+    actual_delete_count = len - actual_start;
+  } else {
+    int value = 0;  // ToInteger(undefined) == 0
+    if (n_arguments > 1) {
+      Object* arg2 = args[2];
+      if (arg2->IsSmi()) {
+        value = Smi::cast(arg2)->value();
+      } else {
+        return CallJsBuiltin("ArraySplice", args);
+      }
     }
+    actual_delete_count = Min(Max(value, 0), len - actual_start);
   }
-  int actual_delete_count = Min(Max(delete_count, 0), len - actual_start);
 
   JSArray* result_array = NULL;
   if (actual_delete_count == 0) {
