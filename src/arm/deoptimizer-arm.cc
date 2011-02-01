@@ -112,9 +112,9 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-void Deoptimizer::PatchStackCheckCode(Code* unoptimized_code,
-                                      Code* check_code,
-                                      Code* replacement_code) {
+void Deoptimizer::PatchStackCheckAt(Address pc_after,
+                                    Code* check_code,
+                                    Code* replacement_code) {
   UNIMPLEMENTED();
 }
 

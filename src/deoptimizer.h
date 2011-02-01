@@ -134,6 +134,12 @@ class Deoptimizer : public Malloced {
                                   Code* check_code,
                                   Code* replacement_code);
 
+  // Patch stack guard check at instruction before pc_after in
+  // the unoptimized code to unconditionally call replacement_code.
+  static void PatchStackCheckAt(Address pc_after,
+                                Code* check_code,
+                                Code* replacement_code);
+
   // Change all patched stack guard checks in the unoptimized code
   // back to a normal stack guard check.
   static void RevertStackCheckCode(Code* unoptimized_code,
