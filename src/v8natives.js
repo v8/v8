@@ -545,12 +545,10 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
   if (IS_UNDEFINED(current) && !extensible)
     throw MakeTypeError("define_disallowed", ["defineProperty"]);
 
-  if (!IS_UNDEFINED(current)) {
+  if (!IS_UNDEFINED(current) && !current.isConfigurable()) {
     // Step 5 and 6
-    if ((IsGenericDescriptor(desc) ||
-         IsDataDescriptor(desc) == IsDataDescriptor(current)) &&
-        (!desc.hasEnumerable() ||
-         SameValue(desc.isEnumerable(), current.isEnumerable())) &&
+    if ((!desc.hasEnumerable() ||
+         SameValue(desc.isEnumerable() && current.isEnumerable())) &&
         (!desc.hasConfigurable() ||
          SameValue(desc.isConfigurable(), current.isConfigurable())) &&
         (!desc.hasWritable() ||
@@ -563,35 +561,29 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
          SameValue(desc.getSet(), current.getSet()))) {
       return true;
     }
-    if (!current.isConfigurable()) {
-      // Step 7
-      if (desc.isConfigurable() ||
-          (desc.hasEnumerable() &&
-           desc.isEnumerable() != current.isEnumerable()))
+
+    // Step 7
+    if (desc.isConfigurable() || desc.isEnumerable() != current.isEnumerable())
+      throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+    // Step 9
+    if (IsDataDescriptor(current) != IsDataDescriptor(desc))
+      throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+    // Step 10
+    if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
+      if (!current.isWritable() && desc.isWritable())
         throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
-      // Step 8
-      if (!IsGenericDescriptor(desc)) {
-        // Step 9a
-        if (IsDataDescriptor(current) != IsDataDescriptor(desc))
-          throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
-        // Step 10a
-        if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
-          if (!current.isWritable() && desc.isWritable())
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
-          if (!current.isWritable() && desc.hasValue() &&
-              !SameValue(desc.getValue(), current.getValue())) {
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
-          }
-        }
-        // Step 11
-        if (IsAccessorDescriptor(desc) && IsAccessorDescriptor(current)) {
-          if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())){
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
-          }
-          if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet()))
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
-        }
+      if (!current.isWritable() && desc.hasValue() &&
+          !SameValue(desc.getValue(), current.getValue())) {
+        throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
       }
+    }
+    // Step 11
+    if (IsAccessorDescriptor(desc) && IsAccessorDescriptor(current)) {
+      if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())){
+        throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+      }
+      if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet()))
+        throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
     }
   }
 
@@ -615,16 +607,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
   } else
     flag |= DONT_DELETE;
 
-  if (IsDataDescriptor(desc) ||
-      (IsGenericDescriptor(desc) &&
-       (IS_UNDEFINED(current) || IsDataDescriptor(current)))) {
-    // There are 3 cases that lead here:
-    // Step 4a - defining a new data property.
-    // Steps 9b & 12 - replacing an existing accessor property with a data
-    //                 property.
-    // Step 12 - updating an existing data property with a data or generic
-    //           descriptor.
-
+  if (IsDataDescriptor(desc) || IsGenericDescriptor(desc)) {
     if (desc.hasWritable()) {
       flag |= desc.isWritable() ? 0 : READ_ONLY;
     } else if (!IS_UNDEFINED(current)) {
@@ -632,30 +615,20 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     } else {
       flag |= READ_ONLY;
     }
-
     var value = void 0;  // Default value is undefined.
     if (desc.hasValue()) {
       value = desc.getValue();
-    } else if (!IS_UNDEFINED(current) && IsDataDescriptor(current)) {
+    } else if (!IS_UNDEFINED(current)) {
       value = current.getValue();
     }
-
     %DefineOrRedefineDataProperty(obj, p, value, flag);
-  } else if (IsGenericDescriptor(desc)) {
-    // Step 12 - updating an existing accessor property with generic
-    //           descriptor. Changing flags only.
-    %DefineOrRedefineAccessorProperty(obj, p, GETTER, current.getGet(), flag);
   } else {
-    // There are 3 cases that lead here:
-    // Step 4b - defining a new accessor property.
-    // Steps 9c & 12 - replacing an existing data property with an accessor
-    //                 property.
-    // Step 12 - updating an existing accessor property with an accessor
-    //           descriptor.
-    if (desc.hasGetter()) {
-      %DefineOrRedefineAccessorProperty(obj, p, GETTER, desc.getGet(), flag);
+    if (desc.hasGetter() &&
+        (IS_FUNCTION(desc.getGet()) || IS_UNDEFINED(desc.getGet()))) {
+       %DefineOrRedefineAccessorProperty(obj, p, GETTER, desc.getGet(), flag);
     }
-    if (desc.hasSetter()) {
+    if (desc.hasSetter() &&
+        (IS_FUNCTION(desc.getSet()) || IS_UNDEFINED(desc.getSet()))) {
       %DefineOrRedefineAccessorProperty(obj, p, SETTER, desc.getSet(), flag);
     }
   }
