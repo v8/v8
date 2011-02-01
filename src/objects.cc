@@ -2284,6 +2284,9 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   // The global object is always normalized.
   ASSERT(!IsGlobalObject());
 
+  // JSGlobalProxy must never be normalized
+  ASSERT(!IsJSGlobalProxy());
+
   // Allocate new content.
   int property_count = map()->NumberOfDescribedProperties();
   if (expected_additional_properties > 0) {
