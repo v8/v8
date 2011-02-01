@@ -1053,11 +1053,8 @@ void LCodeGen::DoModI(LModI* instr) {
   }
 
   // Check for power of two on the right hand side.
-  __ sub(scratch, right, Operand(1), SetCC);
-  __ b(mi, &call_stub);
-  __ tst(scratch, right);
-  __ b(ne, &call_stub);
-  // Perform modulo operation.
+  __ JumpIfNotPowerOfTwoOrZero(right, scratch, &call_stub);
+  // Perform modulo operation (scratch contains right - 1).
   __ and_(result, scratch, Operand(left));
 
   __ bind(&call_stub);
