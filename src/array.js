@@ -171,8 +171,9 @@ function Join(array, length, separator, convert) {
     }
     return %StringBuilderConcat(elements, length2, '');    
   } finally {
-    // Make sure to pop the visited array no matter what happens.
-    if (is_array) visited_arrays.pop();
+    // Make sure to remove the last element of the visited array no
+    // matter what happens.
+    if (is_array) visited_arrays.length = visited_arrays.length - 1;
   }
 }
 

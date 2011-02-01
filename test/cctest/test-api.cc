@@ -2369,13 +2369,27 @@ static void check_reference_error_message(
 }
 
 
-// Test that overwritten toString methods are not invoked on uncaught
-// exception formatting. However, they are invoked when performing
-// normal error string conversions.
+static v8::Handle<Value> Fail(const v8::Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  CHECK(false);
+  return v8::Undefined();
+}
+
+
+// Test that overwritten methods are not invoked on uncaught exception
+// formatting. However, they are invoked when performing normal error
+// string conversions.
 TEST(APIThrowMessageOverwrittenToString) {
   v8::HandleScope scope;
   v8::V8::AddMessageListener(check_reference_error_message);
-  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("fail"), v8::FunctionTemplate::New(Fail));
+  LocalContext context(NULL, templ);
+  CompileRun("Array.prototype.pop = fail;");
+  CompileRun("Object.prototype.hasOwnProperty = fail;");
+  CompileRun("Object.prototype.toString = function f() { return 'Yikes'; }");
+  CompileRun("Number.prototype.toString = function f() { return 'Yikes'; }");
+  CompileRun("String.prototype.toString = function f() { return 'Yikes'; }");
   CompileRun("ReferenceError.prototype.toString ="
              "  function() { return 'Whoops' }");
   CompileRun("asdf;");
@@ -6254,7 +6268,7 @@ THREADED_TEST(FunctionDescriptorException) {
     "    var str = String(e);"
     "    if (str.indexOf('TypeError') == -1) return 1;"
     "    if (str.indexOf('[object Fun]') != -1) return 2;"
-    "    if (str.indexOf('#<a Fun>') == -1) return 3;"
+    "    if (str.indexOf('#<Fun>') == -1) return 3;"
     "    return 0;"
     "  }"
     "  return 4;"
