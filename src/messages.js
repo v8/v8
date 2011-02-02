@@ -55,7 +55,8 @@ var kMessages = 0;
 var kReplacementMarkers =
     [ "%0", "%1", "%2", "%3" ]
 
-function FormatString(format, args) {
+function FormatString(format, message) {
+  var args = %MessageGetArguments(message);
   var result = "";
   var arg_num = 0;
   for (var i = 0; i < format.length; i++) {
@@ -227,15 +228,18 @@ function FormatMessage(message) {
       strict_lhs_prefix:            ["Prefix increment/decrement may not have eval or arguments operand in strict mode"],
     };
   }
-  var format = kMessages[message.type];
-  if (!format) return "<unknown message " + message.type + ">";
-  return FormatString(format, message.args);
+  var message_type = %MessageGetType(message);
+  var format = kMessages[message_type];
+  if (!format) return "<unknown message " + message_type + ">";
+  return FormatString(format, message);
 }
 
 
 function GetLineNumber(message) {
-  if (message.startPos == -1) return kNoLineNumberInfo;
-  var location = message.script.locationFromPosition(message.startPos, true);
+  var start_position = %MessageGetStartPosition(message);
+  if (start_position == -1) return kNoLineNumberInfo;
+  var script = %MessageGetScript(message);
+  var location = script.locationFromPosition(start_position, true);
   if (location == null) return kNoLineNumberInfo;
   return location.line + 1;
 }
@@ -244,7 +248,9 @@ function GetLineNumber(message) {
 // Returns the source code line containing the given source
 // position, or the empty string if the position is invalid.
 function GetSourceLine(message) {
-  var location = message.script.locationFromPosition(message.startPos, true);
+  var script = %MessageGetScript(message);
+  var start_position = %MessageGetStartPosition(message);
+  var location = script.locationFromPosition(start_position, true);
   if (location == null) return "";
   location.restrict();
   return location.sourceText();
@@ -623,29 +629,12 @@ SourceSlice.prototype.sourceText = function () {
 // Returns the offset of the given position within the containing
 // line.
 function GetPositionInLine(message) {
-  var location = message.script.locationFromPosition(message.startPos, false);
+  var script = %MessageGetScript(message);
+  var start_position = %MessageGetStartPosition(message);
+  var location = script.locationFromPosition(start_position, false);
   if (location == null) return -1;
   location.restrict();
-  return message.startPos - location.start;
-}
-
-
-function ErrorMessage(type, args, startPos, endPos, script, stackTrace,
-                      stackFrames) {
-  this.startPos = startPos;
-  this.endPos = endPos;
-  this.type = type;
-  this.args = args;
-  this.script = script;
-  this.stackTrace = stackTrace;
-  this.stackFrames = stackFrames;
-}
-
-
-function MakeMessage(type, args, startPos, endPos, script, stackTrace,
-                     stackFrames) {
-  return new ErrorMessage(type, args, startPos, endPos, script, stackTrace,
-                          stackFrames);
+  return start_position - location.start;
 }
 
 
@@ -992,7 +981,7 @@ function DefineError(f) {
         // DefineOneShotAccessor always inserts a message property and
         // ignores setters.
         DefineOneShotAccessor(this, 'message', function (obj) {
-          return FormatMessage({type: obj.type, args: obj.arguments});
+            return FormatMessage(%NewMessageObject(obj.type, obj.arguments));
         });
       } else if (!IS_UNDEFINED(m)) {
         %IgnoreAttributesAndSetProperty(this, 'message', ToString(m));
@@ -1006,11 +995,12 @@ function DefineError(f) {
 
 function captureStackTrace(obj, cons_opt) {
   var stackTraceLimit = $Error.stackTraceLimit;
-  if (!stackTraceLimit) return;
+  if (!stackTraceLimit || !IS_NUMBER(stackTraceLimit)) return;
   if (stackTraceLimit < 0 || stackTraceLimit > 10000)
     stackTraceLimit = 10000;
-  var raw_stack = %CollectStackTrace(cons_opt ? cons_opt : captureStackTrace,
-      stackTraceLimit);
+  var raw_stack = %CollectStackTrace(cons_opt
+                                     ? cons_opt
+                                     : captureStackTrace, stackTraceLimit);
   DefineOneShotAccessor(obj, 'stack', function (obj) {
     return FormatRawStackTrace(obj, raw_stack);
   });
@@ -1041,7 +1031,7 @@ function errorToStringDetectCycle() {
   try {
     var type = this.type;
     if (type && !%_CallFunction(this, "message", ObjectHasOwnProperty)) {
-      var formatted = FormatMessage({ type: type, args: this.arguments });
+      var formatted = FormatMessage(%NewMessageObject(type, this.arguments));
       return this.name + ": " + formatted;
     }
     var message = %_CallFunction(this, "message", ObjectHasOwnProperty)
