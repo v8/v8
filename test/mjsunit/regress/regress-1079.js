@@ -40,6 +40,6 @@ function unoptimized() {
 }
 
 for (var i = 0; i < 100000; ++i) {
-  optimized(1, 2, 3)
+  assertEquals(3, optimized(1, 2, 3).length);
 }
 
