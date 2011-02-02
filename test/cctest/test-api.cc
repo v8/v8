@@ -5309,11 +5309,13 @@ TEST(DetachAndReattachGlobal) {
 }
 
 
+static bool allowed_access_type[v8::ACCESS_KEYS] = { false };
 static bool NamedAccessBlocker(Local<v8::Object> global,
                                Local<Value> name,
                                v8::AccessType type,
                                Local<Value> data) {
-  return Context::GetCurrent()->Global()->Equals(global);
+  return Context::GetCurrent()->Global()->Equals(global) ||
+      allowed_access_type[type];
 }
 
 
@@ -5353,7 +5355,7 @@ static void UnreachableSetter(Local<String>, Local<Value>,
 }
 
 
-THREADED_TEST(AccessControl) {
+TEST(AccessControl) {
   v8::HandleScope handle_scope;
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
 
@@ -5379,6 +5381,15 @@ THREADED_TEST(AccessControl) {
 
   v8::Handle<v8::Object> global0 = context0->Global();
 
+  // Define a property with JS getter and setter.
+  CompileRun(
+      "function getter() { return 'getter'; };\n"
+      "function setter() { return 'setter'; }\n"
+      "Object.defineProperty(this, 'js_accessor_p', {get:getter, set:setter})");
+
+  Local<Value> getter = global0->Get(v8_str("getter"));
+  Local<Value> setter = global0->Get(v8_str("setter"));
+
   v8::HandleScope scope1;
 
   v8::Persistent<Context> context1 = Context::New();
@@ -5387,19 +5398,89 @@ THREADED_TEST(AccessControl) {
   v8::Handle<v8::Object> global1 = context1->Global();
   global1->Set(v8_str("other"), global0);
 
-  v8::Handle<Value> value;
-
   // Access blocked property
-  value = CompileRun("other.blocked_prop = 1");
-  value = CompileRun("other.blocked_prop");
-  CHECK(value->IsUndefined());
+  CompileRun("other.blocked_prop = 1");
 
-  value = CompileRun(
+  ExpectUndefined("other.blocked_prop");
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'blocked_prop')");
+  ExpectFalse("propertyIsEnumerable.call(other, 'blocked_prop')");
+
+  // Enable ACCESS_HAS
+  allowed_access_type[v8::ACCESS_HAS] = true;
+  ExpectUndefined("other.blocked_prop");
+  // ... and now we can get the descriptor...
+  ExpectUndefined(
       "Object.getOwnPropertyDescriptor(other, 'blocked_prop').value");
-  CHECK(value->IsUndefined());
+  // ... and enumerate the property.
+  ExpectTrue("propertyIsEnumerable.call(other, 'blocked_prop')");
+  allowed_access_type[v8::ACCESS_HAS] = false;
 
-  value = CompileRun("propertyIsEnumerable.call(other, 'blocked_prop')");
-  CHECK(value->IsFalse());
+  CompileRun("other.js_accessor_p = 2");
+
+  ExpectUndefined("other.js_accessor_p");
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p')");
+
+  // Enable ACCESS_HAS.
+  allowed_access_type[v8::ACCESS_HAS] = true;
+  ExpectUndefined("other.js_accessor_p");
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').get");
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').set");
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').value");
+  allowed_access_type[v8::ACCESS_HAS] = false;
+
+  // Enable both ACCESS_HAS and ACCESS_GET.
+  allowed_access_type[v8::ACCESS_HAS] = true;
+  allowed_access_type[v8::ACCESS_GET] = true;
+
+  ExpectString("other.js_accessor_p", "getter");
+  ExpectObject(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').get", getter);
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').set");
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').value");
+
+  allowed_access_type[v8::ACCESS_GET] = false;
+  allowed_access_type[v8::ACCESS_HAS] = false;
+
+  // Enable both ACCESS_HAS and ACCESS_SET.
+  allowed_access_type[v8::ACCESS_HAS] = true;
+  allowed_access_type[v8::ACCESS_SET] = true;
+
+  ExpectUndefined("other.js_accessor_p");
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').get");
+  ExpectObject(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').set", setter);
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').value");
+
+  allowed_access_type[v8::ACCESS_SET] = false;
+  allowed_access_type[v8::ACCESS_HAS] = false;
+
+  // Enable both ACCESS_HAS, ACCESS_GET and ACCESS_SET.
+  allowed_access_type[v8::ACCESS_HAS] = true;
+  allowed_access_type[v8::ACCESS_GET] = true;
+  allowed_access_type[v8::ACCESS_SET] = true;
+
+  ExpectString("other.js_accessor_p", "getter");
+  ExpectObject(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').get", getter);
+  ExpectObject(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').set", setter);
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').value");
+
+  allowed_access_type[v8::ACCESS_SET] = false;
+  allowed_access_type[v8::ACCESS_GET] = false;
+  allowed_access_type[v8::ACCESS_HAS] = false;
+
+  v8::Handle<Value> value;
 
   // Access accessible property
   value = CompileRun("other.accessible_prop = 3");

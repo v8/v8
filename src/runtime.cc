@@ -644,6 +644,77 @@ static void GetOwnPropertyImplementation(JSObject* obj,
 }
 
 
+static bool CheckAccessException(LookupResult* result,
+                                 v8::AccessType access_type) {
+  if (result->type() == CALLBACKS) {
+    Object* callback = result->GetCallbackObject();
+    if (callback->IsAccessorInfo()) {
+      AccessorInfo* info = AccessorInfo::cast(callback);
+      bool can_access =
+          (access_type == v8::ACCESS_HAS &&
+              (info->all_can_read() || info->all_can_write())) ||
+          (access_type == v8::ACCESS_GET && info->all_can_read()) ||
+          (access_type == v8::ACCESS_SET && info->all_can_write());
+      return can_access;
+    }
+  }
+
+  return false;
+}
+
+
+static bool CheckAccess(JSObject* obj,
+                        String* name,
+                        LookupResult* result,
+                        v8::AccessType access_type) {
+  ASSERT(result->IsProperty());
+
+  JSObject* holder = result->holder();
+  JSObject* current = obj;
+  while (true) {
+    if (current->IsAccessCheckNeeded() &&
+        !Top::MayNamedAccess(current, name, access_type)) {
+      // Access check callback denied the access, but some properties
+      // can have a special permissions which override callbacks descision
+      // (currently see v8::AccessControl).
+      break;
+    }
+
+    if (current == holder) {
+      return true;
+    }
+
+    current = JSObject::cast(current->GetPrototype());
+  }
+
+  // API callbacks can have per callback access exceptions.
+  switch (result->type()) {
+    case CALLBACKS: {
+      if (CheckAccessException(result, access_type)) {
+        return true;
+      }
+      break;
+    }
+    case INTERCEPTOR: {
+      // If the object has an interceptor, try real named properties.
+      // Overwrite the result to fetch the correct property later.
+      holder->LookupRealNamedProperty(name, result);
+      if (result->IsProperty()) {
+        if (CheckAccessException(result, access_type)) {
+          return true;
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  Top::ReportFailedAccessCheck(current, access_type);
+  return false;
+}
+
+
 // Enumerator used as indices into the array returned from GetOwnProperty
 enum PropertyDescriptorIndices {
   IS_ACCESSOR_INDEX,
@@ -746,6 +817,10 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
     return Heap::undefined_value();
   }
 
+  if (!CheckAccess(*obj, *name, &result, v8::ACCESS_HAS)) {
+    return Heap::undefined_value();
+  }
+
   elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!result.IsDontEnum()));
   elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!result.IsDontDelete()));
 
@@ -754,16 +829,22 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
 
   if (is_js_accessor) {
     // __defineGetter__/__defineSetter__ callback.
-    FixedArray* structure = FixedArray::cast(result.GetCallbackObject());
     elms->set(IS_ACCESSOR_INDEX, Heap::true_value());
-    elms->set(GETTER_INDEX, structure->get(0));
-    elms->set(SETTER_INDEX, structure->get(1));
+
+    FixedArray* structure = FixedArray::cast(result.GetCallbackObject());
+    if (CheckAccess(*obj, *name, &result, v8::ACCESS_GET)) {
+      elms->set(GETTER_INDEX, structure->get(0));
+    }
+    if (CheckAccess(*obj, *name, &result, v8::ACCESS_SET)) {
+      elms->set(SETTER_INDEX, structure->get(1));
+    }
   } else {
     elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
     elms->set(WRITABLE_INDEX, Heap::ToBoolean(!result.IsReadOnly()));
 
     PropertyAttributes attrs;
     Object* value;
+    // GetProperty will check access and report any violations.
     { MaybeObject* maybe_value = obj->GetProperty(*obj, &result, *name, &attrs);
       if (!maybe_value->ToObject(&value)) return maybe_value;
     }
