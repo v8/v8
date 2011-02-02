@@ -2397,6 +2397,8 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
   __ movdbl(xmm_scratch, Operand::StaticVariable(negative_infinity));
   __ ucomisd(xmm_scratch, input_reg);
   DeoptimizeIf(equal, instr->environment());
+  __ xorpd(xmm_scratch, xmm_scratch);
+  __ addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
   __ sqrtsd(input_reg, input_reg);
 }
 
