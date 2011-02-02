@@ -147,9 +147,9 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-void Deoptimizer::PatchStackCheckAt(Address pc_after,
-                                    Code* check_code,
-                                    Code* replacement_code) {
+void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
+                                        Code* check_code,
+                                        Code* replacement_code) {
     Address call_target_address = pc_after - kPointerSize;
     ASSERT(check_code->entry() ==
            Assembler::target_address_at(call_target_address));
@@ -179,26 +179,21 @@ void Deoptimizer::PatchStackCheckAt(Address pc_after,
 }
 
 
-void Deoptimizer::RevertStackCheckCode(Code* unoptimized_code,
-                                       Code* check_code,
-                                       Code* replacement_code) {
-  // Iterate the unoptimized code and revert all the patched stack checks.
-  for (RelocIterator it(unoptimized_code, RelocInfo::kCodeTargetMask);
-       !it.done();
-       it.next()) {
-    RelocInfo* rinfo = it.rinfo();
-    if (rinfo->target_address() == replacement_code->entry()) {
-      // Replace the nops from patching (Deoptimizer::PatchStackCheckCode) to
-      // restore the conditional branch.
-      Address call_target_address = rinfo->pc();
-      ASSERT(*(call_target_address - 3) == 0x90 &&  // nop
-             *(call_target_address - 2) == 0x90 &&  // nop
-             *(call_target_address - 1) == 0xe8);   // call
-      *(call_target_address - 3) = 0x73;  // jae
-      *(call_target_address - 2) = 0x07;  // offset
-      rinfo->set_target_address(check_code->entry());
-    }
-  }
+void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
+                                         Code* check_code,
+                                         Code* replacement_code) {
+  Address call_target_address = pc_after - kPointerSize;
+  ASSERT(replacement_code->entry() ==
+         Assembler::target_address_at(call_target_address));
+  // Replace the nops from patching (Deoptimizer::PatchStackCheckCode) to
+  // restore the conditional branch.
+  ASSERT(*(call_target_address - 3) == 0x90 &&  // nop
+         *(call_target_address - 2) == 0x90 &&  // nop
+         *(call_target_address - 1) == 0xe8);   // call
+  *(call_target_address - 3) = 0x73;  // jae
+  *(call_target_address - 2) = 0x07;  // offset
+  Assembler::set_target_address_at(call_target_address,
+                                   check_code->entry());
 }
 
 
