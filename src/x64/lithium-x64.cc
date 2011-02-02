@@ -653,7 +653,7 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 
 LInstruction* LChunkBuilder::SetInstructionPendingDeoptimizationEnvironment(
     LInstruction* instr, int ast_id) {
-  ASSERT(instructions_pending_deoptimization_environment_ == NULL);
+  ASSERT(instruction_pending_deoptimization_environment_ == NULL);
   ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
   instruction_pending_deoptimization_environment_ = instr;
   pending_deoptimization_ast_id_ = ast_id;
