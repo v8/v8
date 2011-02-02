@@ -562,17 +562,11 @@ void LCodeGen::AddToTranslation(Translation* translation,
 void LCodeGen::CallCode(Handle<Code> code,
                         RelocInfo::Mode mode,
                         LInstruction* instr) {
-  if (instr != NULL) {
-    LPointerMap* pointers = instr->pointer_map();
-    RecordPosition(pointers->position());
-    __ Call(code, mode);
-    RegisterLazyDeoptimization(instr);
-  } else {
-    LPointerMap no_pointers(0);
-    RecordPosition(no_pointers.position());
-    __ Call(code, mode);
-    RecordSafepoint(&no_pointers, Safepoint::kNoDeoptimizationIndex);
-  }
+  ASSERT(instr != NULL);
+  LPointerMap* pointers = instr->pointer_map();
+  RecordPosition(pointers->position());
+  __ Call(code, mode);
+  RegisterLazyDeoptimization(instr);
 }
 
 
@@ -585,15 +579,7 @@ void LCodeGen::CallRuntime(Runtime::Function* function,
   RecordPosition(pointers->position());
 
   __ CallRuntime(function, num_arguments);
-  // Runtime calls to Throw are not supposed to ever return at the
-  // call site, so don't register lazy deoptimization for these. We do
-  // however have to record a safepoint since throwing exceptions can
-  // cause garbage collections.
-  if (!instr->IsThrow()) {
-    RegisterLazyDeoptimization(instr);
-  } else {
-    RecordSafepoint(instr->pointer_map(), Safepoint::kNoDeoptimizationIndex);
-  }
+  RegisterLazyDeoptimization(instr);
 }
 
 
@@ -2446,12 +2432,17 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ b(ne, &loop);
 
   __ bind(&invoke);
-  // Invoke the function. The number of arguments is stored in receiver
-  // which is r0, as expected by InvokeFunction.
-  v8::internal::ParameterCount actual(receiver);
+  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  LEnvironment* env = instr->deoptimization_environment();
+  RecordPosition(pointers->position());
+  RegisterEnvironmentForDeoptimization(env);
   SafepointGenerator safepoint_generator(this,
-                                         instr->pointer_map(),
-                                         Safepoint::kNoDeoptimizationIndex);
+                                         pointers,
+                                         env->deoptimization_index());
+  // The number of arguments is stored in receiver which is r0, as expected
+  // by InvokeFunction.
+  v8::internal::ParameterCount actual(receiver);
   __ InvokeFunction(function, actual, CALL_FUNCTION, &safepoint_generator);
 }
 
@@ -3666,10 +3657,14 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   Register object = ToRegister(instr->object());
   Register key = ToRegister(instr->key());
   __ Push(object, key);
-  RecordPosition(instr->pointer_map()->position());
+  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  LEnvironment* env = instr->deoptimization_environment();
+  RecordPosition(pointers->position());
+  RegisterEnvironmentForDeoptimization(env);
   SafepointGenerator safepoint_generator(this,
-                                         instr->pointer_map(),
-                                         Safepoint::kNoDeoptimizationIndex);
+                                         pointers,
+                                         env->deoptimization_index());
   __ InvokeBuiltin(Builtins::DELETE, CALL_JS, &safepoint_generator);
 }
 

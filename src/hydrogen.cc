@@ -3556,9 +3556,11 @@ void HGraphBuilder::VisitThrow(Throw* expr) {
   VISIT_FOR_VALUE(expr->exception());
 
   HValue* value = environment()->Pop();
-  HControlInstruction* instr = new HThrow(value);
+  HThrow* instr = new HThrow(value);
   instr->set_position(expr->position());
-  current_subgraph_->FinishExit(instr);
+  AddInstruction(instr);
+  AddSimulate(expr->id());
+  current_subgraph_->FinishExit(new HAbnormalExit);
 }
 
 

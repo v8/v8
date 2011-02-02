@@ -46,9 +46,6 @@ test-heap-profiler/HeapSnapshotsDiff: PASS || FAIL
 test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
-# BUG(1079)
-test-api/CaptureStackTraceForUncaughtException: PASS || FAIL
-
 ##############################################################################
 [ $arch == x64 ]
 

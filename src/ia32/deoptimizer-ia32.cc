@@ -37,8 +37,13 @@
 namespace v8 {
 namespace internal {
 
-
 int Deoptimizer::table_entry_size_ = 10;
+
+
+int Deoptimizer::patch_size() {
+  return Assembler::kCallInstructionLength;
+}
+
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   AssertNoAllocation no_allocation;
@@ -77,11 +82,12 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 #endif
     last_pc_offset = pc_offset;
     if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
-      Address call_pc = code->instruction_start() + pc_offset + gap_code_size;
-      CodePatcher patcher(call_pc, Assembler::kCallInstructionLength);
+      last_pc_offset += gap_code_size;
+      Address call_pc = code->instruction_start() + last_pc_offset;
+      CodePatcher patcher(call_pc, patch_size());
       Address entry = GetDeoptimizationEntry(deoptimization_index, LAZY);
       patcher.masm()->call(entry, RelocInfo::NONE);
-      last_pc_offset += gap_code_size + Assembler::kCallInstructionLength;
+      last_pc_offset += patch_size();
       RelocInfo rinfo(call_pc + 1, RelocInfo::RUNTIME_ENTRY,
                       reinterpret_cast<intptr_t>(entry));
       reloc_info_writer.Write(&rinfo);
