@@ -2385,6 +2385,11 @@ TEST(APIThrowMessageOverwrittenToString) {
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->Set(v8_str("fail"), v8::FunctionTemplate::New(Fail));
   LocalContext context(NULL, templ);
+  CompileRun("asdf;");
+  CompileRun("var limit = {};"
+             "limit.valueOf = fail;"
+             "Error.stackTraceLimit = limit;");
+  CompileRun("asdf");
   CompileRun("Array.prototype.pop = fail;");
   CompileRun("Object.prototype.hasOwnProperty = fail;");
   CompileRun("Object.prototype.toString = function f() { return 'Yikes'; }");
