@@ -3073,6 +3073,10 @@ class HTypeof: public HUnaryOperation {
     set_representation(Representation::Tagged());
   }
 
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(Typeof, "typeof")
 };
 
