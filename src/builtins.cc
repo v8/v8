@@ -734,17 +734,14 @@ BUILTIN(ArraySplice) {
 
   int n_arguments = args.length() - 1;
 
-  // Return empty array when no arguments are supplied.
-  if (n_arguments == 0) {
-    return AllocateEmptyJSArray();
-  }
-
   int relative_start = 0;
-  Object* arg1 = args[1];
-  if (arg1->IsSmi()) {
-    relative_start = Smi::cast(arg1)->value();
-  } else if (!arg1->IsUndefined()) {
-    return CallJsBuiltin("ArraySplice", args);
+  if (n_arguments > 0) {
+    Object* arg1 = args[1];
+    if (arg1->IsSmi()) {
+      relative_start = Smi::cast(arg1)->value();
+    } else if (!arg1->IsUndefined()) {
+      return CallJsBuiltin("ArraySplice", args);
+    }
   }
   int actual_start = (relative_start < 0) ? Max(len + relative_start, 0)
                                           : Min(relative_start, len);
