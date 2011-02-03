@@ -1398,7 +1398,18 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ vdiv(left, left, right);
       break;
     case Token::MOD: {
-      Abort("DoArithmeticD unimplemented for MOD.");
+      // Save r0-r3 on the stack.
+      __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit() | r3.bit());
+
+      __ PrepareCallCFunction(4, scratch0());
+      __ vmov(r0, r1, left);
+      __ vmov(r2, r3, right);
+      __ CallCFunction(ExternalReference::double_fp_operation(Token::MOD), 4);
+      // Move the result in the double result register.
+      __ vmov(ToDoubleRegister(instr->result()), r0, r1);
+
+      // Restore r0-r3.
+      __ ldm(ia_w, sp, r0.bit() | r1.bit() | r2.bit() | r3.bit());
       break;
     }
     default:
