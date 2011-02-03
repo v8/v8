@@ -38,10 +38,6 @@ var COMPILATION_TYPE_HOST = 0;
 var COMPILATION_TYPE_EVAL = 1;
 var COMPILATION_TYPE_JSON = 2;
 
-// Lazily initialized.
-var kVowelSounds = 0;
-var kCapitalVowelSounds = 0;
-
 // Matches Messages::kNoLineNumberInfo from v8.h
 var kNoLineNumberInfo = 0;
 
@@ -52,8 +48,7 @@ var kAddMessageAccessorsMarker = { };
 
 var kMessages = 0;
 
-var kReplacementMarkers =
-    [ "%0", "%1", "%2", "%3" ]
+var kReplacementMarkers = [ "%0", "%1", "%2", "%3" ];
 
 function FormatString(format, message) {
   var args = %MessageGetArguments(message);
