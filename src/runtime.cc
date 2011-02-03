@@ -779,6 +779,12 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
       }
 
       case JSObject::DICTIONARY_ELEMENT: {
+        if (obj->IsJSGlobalProxy()) {
+          Object* proto = obj->GetPrototype();
+          if (proto->IsNull()) return Heap::undefined_value();
+          ASSERT(proto->IsJSGlobalObject());
+          obj = Handle<JSObject>(JSObject::cast(proto));
+        }
         NumberDictionary* dictionary = obj->element_dictionary();
         int entry = dictionary->FindEntry(index);
         ASSERT(entry != NumberDictionary::kNotFound);
