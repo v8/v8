@@ -1213,6 +1213,8 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
 MaybeObject* JSObject::AddFastProperty(String* name,
                                        Object* value,
                                        PropertyAttributes attributes) {
+  ASSERT(!IsJSGlobalProxy());
+
   // Normalize the object if the name is an actual string (not the
   // hidden symbols) and is not a real identifier.
   StringInputBuffer buffer(name);
@@ -2287,6 +2289,9 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 
   // The global object is always normalized.
   ASSERT(!IsGlobalObject());
+
+  // JSGlobalProxy must never be normalized
+  ASSERT(!IsJSGlobalProxy());
 
   // Allocate new content.
   int property_count = map()->NumberOfDescribedProperties();
