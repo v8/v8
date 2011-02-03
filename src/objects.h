@@ -3275,13 +3275,13 @@ class Code: public HeapObject {
 
   // [safepoint_table_start]: For kind OPTIMIZED_CODE, the offset in
   // the instruction stream where the safepoint table starts.
-  inline unsigned safepoint_table_start();
-  inline void set_safepoint_table_start(unsigned offset);
+  inline unsigned safepoint_table_offset();
+  inline void set_safepoint_table_offset(unsigned offset);
 
   // [stack_check_table_start]: For kind FUNCTION, the offset in the
   // instruction stream where the stack check table starts.
-  inline unsigned stack_check_table_start();
-  inline void set_stack_check_table_start(unsigned offset);
+  inline unsigned stack_check_table_offset();
+  inline void set_stack_check_table_offset(unsigned offset);
 
   // [check type]: For kind CALL_IC, tells how to check if the
   // receiver is valid for the given call.
@@ -3445,8 +3445,8 @@ class Code: public HeapObject {
   static const int kAllowOSRAtLoopNestingLevelOffset =
       kHasDeoptimizationSupportOffset + 1;
 
-  static const int kSafepointTableStartOffset = kStackSlotsOffset + kIntSize;
-  static const int kStackCheckTableStartOffset = kStackSlotsOffset + kIntSize;
+  static const int kSafepointTableOffsetOffset = kStackSlotsOffset + kIntSize;
+  static const int kStackCheckTableOffsetOffset = kStackSlotsOffset + kIntSize;
 
   // Flags layout.
   static const int kFlagsICStateShift        = 0;

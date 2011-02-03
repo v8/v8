@@ -6970,7 +6970,7 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(Arguments args) {
     // the AST id matching the PC.
     Address start = unoptimized->instruction_start();
     unsigned target_pc_offset = static_cast<unsigned>(frame->pc() - start);
-    Address table_cursor = start + unoptimized->stack_check_table_start();
+    Address table_cursor = start + unoptimized->stack_check_table_offset();
     uint32_t table_length = Memory::uint32_at(table_cursor);
     table_cursor += kIntSize;
     for (unsigned i = 0; i < table_length; ++i) {
