@@ -5309,7 +5309,7 @@ TEST(DetachAndReattachGlobal) {
 }
 
 
-static bool allowed_access_type[v8::ACCESS_KEYS] = { false };
+static bool allowed_access_type[v8::ACCESS_KEYS + 1] = { false };
 static bool NamedAccessBlocker(Local<v8::Object> global,
                                Local<Value> name,
                                v8::AccessType type,
