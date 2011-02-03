@@ -3406,7 +3406,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
   Handle<SharedFunctionInfo> shared_info = instr->shared_info();
-  bool pretenure = !instr->hydrogen()->pretenure();
+  bool pretenure = instr->hydrogen()->pretenure();
   if (shared_info->num_literals() == 0 && !pretenure) {
     FastNewClosureStub stub;
     __ push(Immediate(shared_info));
