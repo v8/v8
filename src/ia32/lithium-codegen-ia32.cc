@@ -1914,10 +1914,25 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 
 
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
-  // TODO(antonm): load a context with a separate instruction.
+  Register context = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
-  __ LoadContext(result, instr->context_chain_length());
+  __ mov(result,
+         Operand(context, Context::SlotOffset(Context::FCONTEXT_INDEX)));
   __ mov(result, ContextOperand(result, instr->slot_index()));
+}
+
+
+void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
+  Register context = ToRegister(instr->context());
+  Register value = ToRegister(instr->value());
+  __ mov(context,
+         Operand(context, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  __ mov(ContextOperand(context, instr->slot_index()), value);
+  if (instr->needs_write_barrier()) {
+    Register temp = ToRegister(instr->TempAt(0));
+    int offset = Context::SlotOffset(instr->slot_index());
+    __ RecordWrite(context, offset, value, temp);
+  }
 }
 
 
@@ -2155,16 +2170,31 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
 }
 
 
-void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
+void LCodeGen::DoContext(LContext* instr) {
   Register result = ToRegister(instr->result());
-  __ mov(result, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(result, esi);
+}
+
+
+void LCodeGen::DoOuterContext(LOuterContext* instr) {
+  Register context = ToRegister(instr->context());
+  Register result = ToRegister(instr->result());
+  __ mov(result, Operand(context, Context::SlotOffset(Context::CLOSURE_INDEX)));
+  __ mov(result, FieldOperand(result, JSFunction::kContextOffset));
+}
+
+
+void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
+  Register context = ToRegister(instr->context());
+  Register result = ToRegister(instr->result());
+  __ mov(result, Operand(context, Context::SlotOffset(Context::GLOBAL_INDEX)));
 }
 
 
 void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
+  Register global = ToRegister(instr->global());
   Register result = ToRegister(instr->result());
-  __ mov(result, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ mov(result, FieldOperand(result, GlobalObject::kGlobalReceiverOffset));
+  __ mov(result, FieldOperand(global, GlobalObject::kGlobalReceiverOffset));
 }
 
 

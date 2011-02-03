@@ -262,7 +262,8 @@ void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
 
 
 void LLoadContextSlot::PrintDataTo(StringStream* stream) {
-  stream->Add("(%d, %d)", context_chain_length(), slot_index());
+  InputAt(0)->PrintTo(stream);
+  stream->Add("[%d]", slot_index());
 }
 
 
@@ -1049,6 +1050,18 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoContext(HContext* instr) {
+  Abort("Unimplemented: DoContext");
+  return NULL;
+}
+
+
+LInstruction* LChunkBuilder::DoOuterContext(HOuterContext* instr) {
+  Abort("Unimplemented: DoOuterContext");
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
   return DefineAsRegister(new LGlobalObject);
 }
@@ -1472,11 +1485,18 @@ LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  return new LStoreGlobal(UseRegisterAtStart(instr->value()));}
+  return new LStoreGlobal(UseRegisterAtStart(instr->value()));
+}
 
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   Abort("Unimplemented: %s", "DoLoadContextSlot");
+  return NULL;
+}
+
+
+LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
+  Abort("Unimplemented: DoStoreContextSlot");
   return NULL;
 }
 

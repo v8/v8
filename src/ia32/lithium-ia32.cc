@@ -268,7 +268,15 @@ void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
 
 
 void LLoadContextSlot::PrintDataTo(StringStream* stream) {
-  stream->Add("(%d, %d)", context_chain_length(), slot_index());
+  InputAt(0)->PrintTo(stream);
+  stream->Add("[%d]", slot_index());
+}
+
+
+void LStoreContextSlot::PrintDataTo(StringStream* stream) {
+  InputAt(0)->PrintTo(stream);
+  stream->Add("[%d] <- ", slot_index());
+  InputAt(1)->PrintTo(stream);
 }
 
 
@@ -1140,13 +1148,26 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoContext(HContext* instr) {
+  return DefineAsRegister(new LContext);
+}
+
+
+LInstruction* LChunkBuilder::DoOuterContext(HOuterContext* instr) {
+  LOperand* context = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LOuterContext(context));
+}
+
+
 LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
-  return DefineAsRegister(new LGlobalObject);
+  LOperand* context = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LGlobalObject(context));
 }
 
 
 LInstruction* LChunkBuilder::DoGlobalReceiver(HGlobalReceiver* instr) {
-  return DefineAsRegister(new LGlobalReceiver);
+  LOperand* global_object = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LGlobalReceiver(global_object));
 }
 
 
@@ -1658,7 +1679,23 @@ LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
-  return DefineAsRegister(new LLoadContextSlot);
+  LOperand* context = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LLoadContextSlot(context));
+}
+
+
+LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
+  LOperand* context = UseTempRegister(instr->context());
+  LOperand* value;
+  LOperand* temp;
+  if (instr->NeedsWriteBarrier()) {
+    value = UseTempRegister(instr->value());
+    temp = TempRegister();
+  } else {
+    value = UseRegister(instr->value());
+    temp = NULL;
+  }
+  return new LStoreContextSlot(context, value, temp);
 }
 
 
@@ -1756,7 +1793,8 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   // We only need a scratch register if we have a write barrier or we
   // have a store into the properties array (not in-object-property).
   LOperand* temp = (!instr->is_in_object() || needs_write_barrier)
-      ? TempRegister() : NULL;
+      ? TempRegister()
+      : NULL;
 
   return new LStoreNamedField(obj, val, temp);
 }

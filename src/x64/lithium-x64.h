@@ -1280,12 +1280,16 @@ class LStoreGlobal: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LLoadContextSlot: public LTemplateInstruction<1, 0, 0> {
+class LLoadContextSlot: public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LLoadContextSlot(LOperand* context) {
+    inputs_[0] = context;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(LoadContextSlot, "load-context-slot")
   DECLARE_HYDROGEN_ACCESSOR(LoadContextSlot)
 
-  int context_chain_length() { return hydrogen()->context_chain_length(); }
+  LOperand* context() { return InputAt(0); }
   int slot_index() { return hydrogen()->slot_index(); }
 
   virtual void PrintDataTo(StringStream* stream);

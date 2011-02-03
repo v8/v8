@@ -2212,10 +2212,24 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 
 
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
-  // TODO(antonm): load a context with a separate instruction.
+  Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
-  __ LoadContext(result, instr->context_chain_length());
+  __ ldr(result,
+         MemOperand(context, Context::SlotOffset(Context::FCONTEXT_INDEX)));
   __ ldr(result, ContextOperand(result, instr->slot_index()));
+}
+
+
+void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
+  Register context = ToRegister(instr->context());
+  Register value = ToRegister(instr->value());
+  __ ldr(context,
+         MemOperand(context, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  __ str(value, ContextOperand(context, instr->slot_index()));
+  if (instr->needs_write_barrier()) {
+    int offset = Context::SlotOffset(instr->slot_index());
+    __ RecordWrite(context, Operand(offset), value, scratch0());
+  }
 }
 
 
@@ -2469,16 +2483,32 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
 }
 
 
+void LCodeGen::DoContext(LContext* instr) {
+  Register result = ToRegister(instr->result());
+  __ mov(result, cp);
+}
+
+
+void LCodeGen::DoOuterContext(LOuterContext* instr) {
+  Register context = ToRegister(instr->context());
+  Register result = ToRegister(instr->result());
+  __ ldr(result,
+         MemOperand(context, Context::SlotOffset(Context::CLOSURE_INDEX)));
+  __ ldr(result, FieldMemOperand(result, JSFunction::kContextOffset));
+}
+
+
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
+  Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
   __ ldr(result, ContextOperand(cp, Context::GLOBAL_INDEX));
 }
 
 
 void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
+  Register global = ToRegister(instr->global());
   Register result = ToRegister(instr->result());
-  __ ldr(result, ContextOperand(cp, Context::GLOBAL_INDEX));
-  __ ldr(result, FieldMemOperand(result, GlobalObject::kGlobalReceiverOffset));
+  __ ldr(result, FieldMemOperand(global, GlobalObject::kGlobalReceiverOffset));
 }
 
 
