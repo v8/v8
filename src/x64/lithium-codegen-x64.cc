@@ -1529,7 +1529,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
   }
 
-  // Set eax to arguments count if adaption is not needed. Assumes that eax
+  // Set rax to arguments count if adaption is not needed. Assumes that rax
   // is available to write to at this point.
   if (!function->NeedsArgumentsAdaption()) {
     __ Set(rax, arity);
@@ -1554,7 +1554,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 
 
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
-  ASSERT(ToRegister(instr->result()).is(eax));
+  ASSERT(ToRegister(instr->result()).is(rax));
   __ Move(rdi, instr->function());
   CallKnownFunction(instr->function(), instr->arity(), instr);
 }
