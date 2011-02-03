@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,34 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
+// Flags: --allow-natives-syntax --expose-gc
 
-namespace v8 {
-namespace internal {
+// This tests that we can correctly handle a GC immediately after a function
+// has been deoptimized, even when we have an activation of this function on
+// the stack.
 
-const char* const GCExtension::kSource = "native function gc();";
+// Ensure that there is code objects before the code for the opt_me function.
+(function() { var a = 10; a++; })();
 
+function opt_me() {
+  deopt();
+}
 
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(GCExtension::GC);
+function deopt() {
+  // Make sure we don't inline this function
+  try { var a = 42; } catch(o) {};
+  %DeoptimizeFunction(opt_me);
+  gc(true);
 }
 
 
-v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
-  bool compact = false;
-  // All allocation spaces other than NEW_SPACE have the same effect.
-  if (args.Length() >= 1 && args[0]->IsBoolean()) {
-    compact = args[0]->BooleanValue();
-  }
-  Heap::CollectAllGarbage(compact);
-  return v8::Undefined();
-}
-
-
-void GCExtension::Register() {
-  static GCExtension gc_extension;
-  static v8::DeclareExtension gc_extension_declaration(&gc_extension);
-}
-
-} }  // namespace v8::internal
+opt_me();
