@@ -214,9 +214,9 @@ class WeakObjectRetainer;
 
 typedef String* (*ExternalStringTableUpdaterCallback)(Object** pointer);
 
-typedef bool (*DirtyRegionCallback)(Address start,
-                                    Address end,
-                                    ObjectSlotCallback copy_object_func);
+typedef void (*PointerRegionCallback)(Address start,
+                                      Address end,
+                                      ObjectSlotCallback copy_object_func);
 
 
 // The all static Heap captures the interface to the global object heap.
@@ -821,49 +821,36 @@ class Heap : public AllStatic {
     WATERMARK_CAN_BE_INVALID
   };
 
-  // For each dirty region on a page in use from an old space call
-  // visit_dirty_region callback.
-  // If either visit_dirty_region or callback can cause an allocation
+  // For each region of pointers on a page in use from an old space call
+  // visit_pointer_region callback.
+  // If either visit_pointer_region or callback can cause an allocation
   // in old space and changes in allocation watermark then
   // can_preallocate_during_iteration should be set to true.
   // All pages will be marked as having invalid watermark upon
   // iteration completion.
-  static void IterateDirtyRegions(
+  static void IteratePointers(
       PagedSpace* space,
-      DirtyRegionCallback visit_dirty_region,
+      PointerRegionCallback visit_pointer_region,
       ObjectSlotCallback callback,
       ExpectedPageWatermarkState expected_page_watermark_state);
 
-  // Interpret marks as a bitvector of dirty marks for regions of size
-  // Page::kRegionSize aligned by Page::kRegionAlignmentMask and covering
-  // memory interval from start to top. For each dirty region call a
-  // visit_dirty_region callback. Return updated bitvector of dirty marks.
-  static uint32_t IterateDirtyRegions(uint32_t marks,
-                                      Address start,
-                                      Address end,
-                                      DirtyRegionCallback visit_dirty_region,
-                                      ObjectSlotCallback callback);
-
   // Iterate pointers to from semispace of new space found in memory interval
   // from start to end.
-  // Update dirty marks for page containing start address.
   static void IterateAndMarkPointersToFromSpace(Address start,
                                                 Address end,
                                                 ObjectSlotCallback callback);
 
   // Iterate pointers to new space found in memory interval from start to end.
-  // Return true if pointers to new space was found.
-  static bool IteratePointersInDirtyRegion(Address start,
-                                           Address end,
-                                           ObjectSlotCallback callback);
+  static void IteratePointersToNewSpace(Address start,
+                                        Address end,
+                                        ObjectSlotCallback callback);
 
 
   // Iterate pointers to new space found in memory interval from start to end.
   // This interval is considered to belong to the map space.
-  // Return true if pointers to new space was found.
-  static bool IteratePointersInDirtyMapsRegion(Address start,
-                                               Address end,
-                                               ObjectSlotCallback callback);
+  static void IteratePointersFromMapsToNewSpace(Address start,
+                                                Address end,
+                                                ObjectSlotCallback callback);
 
 
   // Returns whether the object resides in new space.
@@ -1518,31 +1505,6 @@ class VerifyPointersVisitor: public ObjectVisitor {
     }
   }
 };
-
-
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-// Visitor class to verify interior pointers in spaces that use region marks
-// to keep track of intergenerational references.
-// As VerifyPointersVisitor but also checks that dirty marks are set
-// for regions covering intergenerational references.
-class VerifyPointersAndDirtyRegionsVisitor: public ObjectVisitor {
- public:
-  void VisitPointers(Object** start, Object** end) {
-    for (Object** current = start; current < end; current++) {
-      if ((*current)->IsHeapObject()) {
-        HeapObject* object = HeapObject::cast(*current);
-        ASSERT(Heap::Contains(object));
-        ASSERT(object->map()->IsMap());
-        if (Heap::InNewSpace(object)) {
-          ASSERT(Heap::InToSpace(object));
-          Address addr = reinterpret_cast<Address>(current);
-          ASSERT(Page::FromAddress(addr)->IsRegionDirty(addr));
-        }
-      }
-    }
-  }
-};
-#endif
 #endif
 
 

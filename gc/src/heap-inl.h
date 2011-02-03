@@ -387,7 +387,12 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
   // If the first word is a forwarding address, the object has already been
   // copied.
   if (first_word.IsForwardingAddress()) {
-    *p = first_word.ToForwardingAddress();
+    HeapObject* dest = first_word.ToForwardingAddress();
+    *p = dest;
+    Address slot = reinterpret_cast<Address>(p);
+    if (Heap::InNewSpace(dest) && !Heap::InNewSpace(slot)) {
+      StoreBuffer::EnterDirectlyIntoStoreBuffer(slot);
+    }
     return;
   }
 

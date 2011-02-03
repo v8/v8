@@ -101,9 +101,8 @@ void MarkCompactCollector::CollectGarbage() {
 
   if (FLAG_collect_maps) ClearNonLiveTransitions();
 
-  SweepLargeObjectSpace();
-
   SweepSpaces();
+
   PcToCodeCache::FlushPcToCodeCache();
 
   Finish();
@@ -417,6 +416,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   // Since we don't have the object's start, it is impossible to update the
   // page dirty marks. Therefore, we only replace the string with its left
   // substring when page dirty marks do not change.
+  // TODO(gc): Seems like we could relax this restriction with store buffers.
   Object* first = reinterpret_cast<ConsString*>(object)->unchecked_first();
   if (!Heap::InNewSpace(object) && Heap::InNewSpace(first)) return object;
 
@@ -1428,17 +1428,6 @@ void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
 #endif  // DEBUG
 
 
-void MarkCompactCollector::SweepLargeObjectSpace() {
-#ifdef DEBUG
-  ASSERT(state_ == MARK_LIVE_OBJECTS);
-  state_ =
-      compacting_collection_ ? ENCODE_FORWARDING_ADDRESSES : SWEEP_SPACES;
-#endif
-  // Deallocate unmarked objects and clear marked bits for marked objects.
-  Heap::lo_space()->FreeUnmarkedObjects();
-}
-
-
 // Safe to use during marking phase only.
 bool MarkCompactCollector::SafeIsMap(HeapObject* object) {
   return object->map()->instance_type() == MAP_TYPE;
@@ -1509,14 +1498,18 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
 
 // We scavange new space simultaneously with sweeping. This is done in two
 // passes.
+//
 // The first pass migrates all alive objects from one semispace to another or
-// promotes them to old space. Forwading address is written directly into
-// first word of object without any encoding. If object is dead we are writing
+// promotes them to old space.  Forwarding address is written directly into
+// first word of object without any encoding.  If object is dead we write
 // NULL as a forwarding address.
-// The second pass updates pointers to new space in all spaces. It is possible
-// to encounter pointers to dead objects during traversal of dirty regions we
-// should clear them to avoid encountering them during next dirty regions
-// iteration.
+//
+// The second pass updates pointers to new space in all spaces.  It is possible
+// to encounter pointers to dead new space objects during traversal of pointers
+// to new space.  We should clear them to avoid encountering them during next
+// pointer iteration.  This is an issue if the store buffer overflows and we
+// have to scan the entire old space, including dead objects, looking for
+// pointers to new space.
 static void MigrateObject(Address dst,
                           Address src,
                           int size,
@@ -1526,7 +1519,6 @@ static void MigrateObject(Address dst,
   } else {
     Heap::CopyBlock(dst, src, size);
   }
-
   Memory::Address_at(src) = dst;
 }
 
@@ -1581,23 +1573,27 @@ class PointersToNewGenUpdatingVisitor: public ObjectVisitor {
 };
 
 
-// Visitor for updating pointers from live objects in old spaces to new space.
-// It can encounter pointers to dead objects in new space when traversing map
-// space (see comment for MigrateObject).
-static void UpdatePointerToNewGen(HeapObject** p) {
-  if (!(*p)->IsHeapObject()) return;
+static void UpdatePointerToNewGen(HeapObject** p, HeapObject* object) {
+  ASSERT(Heap::InFromSpace(object));
+  ASSERT(*p == object);
 
-  Address old_addr = (*p)->address();
-  ASSERT(Heap::InFromSpace(*p));
+  Address old_addr = object->address();
 
   Address new_addr = Memory::Address_at(old_addr);
 
-  if (new_addr == NULL) {
-    // We encountered pointer to a dead object. Clear it so we will
-    // not visit it again during next iteration of dirty regions.
-    *p = NULL;
-  } else {
+  // The new space sweep will overwrite the map word of dead objects
+  // with NULL. In this case we do not need to transfer this entry to
+  // the store buffer which we are rebuilding.
+  if (new_addr != NULL) {
     *p = HeapObject::FromAddress(new_addr);
+    if (Heap::InNewSpace(new_addr)) {
+      StoreBuffer::EnterDirectlyIntoStoreBuffer(reinterpret_cast<Address>(p));
+    }
+  } else {
+    // We have to zap this pointer, because the store buffer may overflow later,
+    // and then we have to scan the entire heap and we don't want to find
+    // spurious newspace pointers in the old space.
+    *p = HeapObject::FromAddress(NULL);  // Fake heap object not in new space.
   }
 }
 
@@ -1685,6 +1681,7 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
                     false);
     } else {
       size = object->Size();
+      // Mark dead objects in the new space with null in their map field.
       Memory::Address_at(current) = NULL;
     }
   }
@@ -1704,13 +1701,10 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
   // Update roots.
   Heap::IterateRoots(&updating_visitor, VISIT_ALL_IN_SCAVENGE);
 
-  // Update pointers in old spaces.
-  Heap::IterateDirtyRegions(Heap::old_pointer_space(),
-                            &Heap::IteratePointersInDirtyRegion,
-                            &UpdatePointerToNewGen,
-                            Heap::WATERMARK_SHOULD_BE_VALID);
-
-  Heap::lo_space()->IterateDirtyRegions(&UpdatePointerToNewGen);
+  {
+    StoreBufferRebuildScope scope;
+    StoreBuffer::IteratePointersToNewSpace(&UpdatePointerToNewGen);
+  }
 
   // Update pointers from cells.
   HeapObjectIterator cell_iterator(Heap::cell_space());
@@ -2029,8 +2023,9 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
 
 void MarkCompactCollector::SweepSpaces() {
   GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP);
-
-  ASSERT(state_ == SWEEP_SPACES);
+#ifdef DEBUG
+  state_ = SWEEP_SPACES;
+#endif
   ASSERT(!IsCompacting());
   // Noncompacting collections simply sweep the spaces to clear the mark
   // bits and free the nonlive blocks (for old and map spaces).  We sweep
@@ -2051,12 +2046,10 @@ void MarkCompactCollector::SweepSpaces() {
   // TODO(gc): Implement specialized sweeper for map space.
   SweepSpace(Heap::map_space(), PRECISE);
 
-  Heap::IterateDirtyRegions(Heap::map_space(),
-                            &Heap::IteratePointersInDirtyMapsRegion,
-                            &UpdatePointerToNewGen,
-                            Heap::WATERMARK_SHOULD_BE_VALID);
-
   ASSERT(live_map_objects_size_ <= Heap::map_space()->Size());
+
+  // Deallocate unmarked objects and clear marked bits for marked objects.
+  Heap::lo_space()->FreeUnmarkedObjects();
 }
 
 

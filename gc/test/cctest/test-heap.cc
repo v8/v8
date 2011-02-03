@@ -911,12 +911,6 @@ TEST(Regression39128) {
     return;
   }
   CHECK(Heap::old_pointer_space()->Contains(clone->address()));
-
-  // Step 5: verify validity of region dirty marks.
-  Address clone_addr = clone->address();
-  Page* page = Page::FromAddress(clone_addr);
-  // Check that region covering inobject property 1 is marked dirty.
-  CHECK(page->IsRegionDirty(clone_addr + (object_size - kPointerSize)));
 }
 
 

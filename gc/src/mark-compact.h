@@ -473,10 +473,6 @@ class MarkCompactCollector: public AllStatic {
   static void UpdateLiveObjectCount(HeapObject* obj);
 #endif
 
-  // We sweep the large object space in the same way whether we are
-  // compacting or not, because the large object space is never compacted.
-  static void SweepLargeObjectSpace();
-
   // Test whether a (possibly marked) object is a Map.
   static inline bool SafeIsMap(HeapObject* object);
 

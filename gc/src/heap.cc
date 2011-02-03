@@ -42,6 +42,7 @@
 #include "scanner-base.h"
 #include "scopeinfo.h"
 #include "snapshot.h"
+#include "store-buffer.h"
 #include "v8threads.h"
 #include "vm-state-inl.h"
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
@@ -630,24 +631,6 @@ void Heap::ClearNormalizedMapCaches() {
 }
 
 
-#ifdef DEBUG
-
-enum PageWatermarkValidity {
-  ALL_VALID,
-  ALL_INVALID
-};
-
-static void VerifyPageWatermarkValidity(PagedSpace* space,
-                                        PageWatermarkValidity validity) {
-  PageIterator it(space, PageIterator::PAGES_IN_USE);
-  bool expected_value = (validity == ALL_VALID);
-  while (it.has_next()) {
-    Page* page = it.next();
-    ASSERT(page->IsWatermarkValid() == expected_value);
-  }
-}
-#endif
-
 void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
   double survival_rate =
       (static_cast<double>(young_survivors_after_last_gc_) * 100) /
@@ -942,16 +925,12 @@ void Heap::Scavenge() {
   gc_state_ = SCAVENGE;
 
   Page::FlipMeaningOfInvalidatedWatermarkFlag();
-#ifdef DEBUG
-  VerifyPageWatermarkValidity(old_pointer_space_, ALL_VALID);
-  VerifyPageWatermarkValidity(map_space_, ALL_VALID);
-#endif
 
   // We do not update an allocation watermark of the top page during linear
   // allocation to avoid overhead. So to maintain the watermark invariant
   // we have to manually cache the watermark and mark the top page as having an
-  // invalid watermark. This guarantees that dirty regions iteration will use a
-  // correct watermark even if a linear allocation happens.
+  // invalid watermark.  This guarantees that old space pointer iteration will
+  // use a correct watermark even if a linear allocation happens.
   old_pointer_space_->FlushTopPageWatermark();
   map_space_->FlushTopPageWatermark();
 
@@ -999,19 +978,11 @@ void Heap::Scavenge() {
   // Copy roots.
   IterateRoots(&scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
 
-  // Copy objects reachable from the old generation.  By definition,
-  // there are no intergenerational pointers in code or data spaces.
-  IterateDirtyRegions(old_pointer_space_,
-                      &IteratePointersInDirtyRegion,
-                      &ScavengePointer,
-                      WATERMARK_CAN_BE_INVALID);
-
-  IterateDirtyRegions(map_space_,
-                      &IteratePointersInDirtyMapsRegion,
-                      &ScavengePointer,
-                      WATERMARK_CAN_BE_INVALID);
-
-  lo_space_->IterateDirtyRegions(&ScavengePointer);
+  // Copy objects reachable from the old generation.
+  {
+    StoreBufferRebuildScope scope;
+    StoreBuffer::IteratePointersToNewSpace(&ScavengeObject);
+  }
 
   // Copy objects reachable from cells by scavenging cell values directly.
   HeapObjectIterator cell_iterator(cell_space_);
@@ -1209,19 +1180,22 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
     }
 
     // Promote and process all the to-be-promoted objects.
-    while (!promotion_queue.is_empty()) {
-      HeapObject* target;
-      int size;
-      promotion_queue.remove(&target, &size);
+    {
+      StoreBufferRebuildScope scope;
+      while (!promotion_queue.is_empty()) {
+        HeapObject* target;
+        int size;
+        promotion_queue.remove(&target, &size);
 
-      // Promoted object might be already partially visited
-      // during dirty regions iteration. Thus we search specificly
-      // for pointers to from semispace instead of looking for pointers
-      // to new space.
-      ASSERT(!target->IsMap());
-      IterateAndMarkPointersToFromSpace(target->address(),
-                                        target->address() + size,
-                                        &ScavengePointer);
+        // Promoted object might be already partially visited
+        // during old space pointer iteration. Thus we search specificly
+        // for pointers to from semispace instead of looking for pointers
+        // to new space.
+        ASSERT(!target->IsMap());
+        IterateAndMarkPointersToFromSpace(target->address(),
+                                          target->address() + size,
+                                          &ScavengeObject);
+      }
     }
 
     // Take another spin if there are now unswept objects in new space
@@ -1368,6 +1342,10 @@ class ScavengingVisitor : public StaticVisitorBase {
     Object* result =
         Heap::new_space()->AllocateRaw(object_size)->ToObjectUnchecked();
     *slot = MigrateObject(object, HeapObject::cast(result), object_size);
+    if (!Heap::InNewSpace(reinterpret_cast<Address>(slot))) {
+      StoreBuffer::EnterDirectlyIntoStoreBuffer(
+          reinterpret_cast<Address>(slot));
+    }
     return;
   }
 
@@ -3899,13 +3877,17 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
 
 
 #ifdef DEBUG
-static void DummyScavengePointer(HeapObject** p) {
+static void DummyScavengePointer(HeapObject** p, HeapObject* o) {
+  // When we are not in GC the Heap::InNewSpace() predicate
+  // checks that pointers which satisfy predicate point into
+  // the active semispace.
+  Heap::InNewSpace(*p);
 }
 
 
 static void VerifyPointersUnderWatermark(
     PagedSpace* space,
-    DirtyRegionCallback visit_dirty_region) {
+    PointerRegionCallback visit_pointer_region) {
   PageIterator it(space, PageIterator::PAGES_IN_USE);
 
   while (it.has_next()) {
@@ -3913,11 +3895,9 @@ static void VerifyPointersUnderWatermark(
     Address start = page->ObjectAreaStart();
     Address end = page->AllocationWatermark();
 
-    Heap::IterateDirtyRegions(Page::kAllRegionsDirtyMarks,
-                              start,
-                              end,
-                              visit_dirty_region,
-                              &DummyScavengePointer);
+    Heap::IteratePointersToNewSpace(start,
+                                    end,
+                                    &DummyScavengePointer);
   }
 }
 
@@ -3956,13 +3936,10 @@ void Heap::Verify() {
   map_space_->Verify(&visitor);
 
   VerifyPointersUnderWatermark(old_pointer_space_,
-                               &IteratePointersInDirtyRegion);
+                               &IteratePointersToNewSpace);
   VerifyPointersUnderWatermark(map_space_,
-                               &IteratePointersInDirtyMapsRegion);
+                               &IteratePointersFromMapsToNewSpace);
   VerifyPointersUnderWatermark(lo_space_);
-
-  VerifyPageWatermarkValidity(old_pointer_space_, ALL_INVALID);
-  VerifyPageWatermarkValidity(map_space_, ALL_INVALID);
 
   VerifyPointersVisitor no_dirty_regions_visitor;
   old_data_space_->Verify(&no_dirty_regions_visitor);
@@ -4056,26 +4033,19 @@ void Heap::ZapFromSpace() {
 #endif  // DEBUG
 
 
-bool Heap::IteratePointersInDirtyRegion(Address start,
-                                        Address end,
-                                        ObjectSlotCallback copy_object_func) {
-  bool pointers_to_new_space_found = false;
-
+void Heap::IteratePointersToNewSpace(Address start,
+                                     Address end,
+                                     ObjectSlotCallback copy_object_func) {
   for (Address slot_address = start;
        slot_address < end;
        slot_address += kPointerSize) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
     if (Heap::InNewSpace(*slot)) {
-      ASSERT((*slot)->IsHeapObject());
-      copy_object_func(reinterpret_cast<HeapObject**>(slot));
-      if (Heap::InNewSpace(*slot)) {
-        ASSERT((*slot)->IsHeapObject());
-        StoreBuffer::Mark(reinterpret_cast<Address>(slot));
-        pointers_to_new_space_found = true;
-      }
+      HeapObject* object = reinterpret_cast<HeapObject*>(*slot);
+      ASSERT(object->IsHeapObject());
+      copy_object_func(reinterpret_cast<HeapObject**>(slot), object);
     }
   }
-  return pointers_to_new_space_found;
 }
 
 
@@ -4093,14 +4063,14 @@ static inline Address MapEndAlign(Address addr) {
 }
 
 
-static bool IteratePointersInDirtyMaps(Address start,
-                                       Address end,
-                                       ObjectSlotCallback copy_object_func) {
+static void IteratePointersToNewSpaceInMaps(
+    Address start,
+    Address end,
+    ObjectSlotCallback copy_object_func) {
   ASSERT(MapStartAlign(start) == start);
   ASSERT(MapEndAlign(end) == end);
 
   Address map_address = start;
-  bool pointers_to_new_space_found = false;
 
   while (map_address < end) {
     ASSERT(!Heap::InNewSpace(Memory::Object_at(map_address)));
@@ -4109,68 +4079,27 @@ static bool IteratePointersInDirtyMaps(Address start,
     Address pointer_fields_start = map_address + Map::kPointerFieldsBeginOffset;
     Address pointer_fields_end = map_address + Map::kPointerFieldsEndOffset;
 
-    if (Heap::IteratePointersInDirtyRegion(pointer_fields_start,
-                                           pointer_fields_end,
-                                           copy_object_func)) {
-      pointers_to_new_space_found = true;
-    }
-
+    Heap::IteratePointersToNewSpace(pointer_fields_start,
+                                    pointer_fields_end,
+                                    copy_object_func);
     map_address += Map::kSize;
   }
-
-  return pointers_to_new_space_found;
 }
 
 
-bool Heap::IteratePointersInDirtyMapsRegion(
+void Heap::IteratePointersFromMapsToNewSpace(
     Address start,
     Address end,
     ObjectSlotCallback copy_object_func) {
   Address map_aligned_start = MapStartAlign(start);
   Address map_aligned_end   = MapEndAlign(end);
 
-  bool contains_pointers_to_new_space = false;
+  ASSERT(map_aligned_start == start);
+  ASSERT(map_aligned_end == end);
 
-  if (map_aligned_start != start) {
-    Address prev_map = map_aligned_start - Map::kSize;
-    ASSERT(Memory::Object_at(prev_map)->IsMap());
-
-    Address pointer_fields_start =
-        Max(start, prev_map + Map::kPointerFieldsBeginOffset);
-
-    Address pointer_fields_end =
-        Min(prev_map + Map::kPointerFieldsEndOffset, end);
-
-    contains_pointers_to_new_space =
-      IteratePointersInDirtyRegion(pointer_fields_start,
-                                   pointer_fields_end,
-                                   copy_object_func)
-        || contains_pointers_to_new_space;
-  }
-
-  contains_pointers_to_new_space =
-    IteratePointersInDirtyMaps(map_aligned_start,
-                               map_aligned_end,
-                               copy_object_func)
-      || contains_pointers_to_new_space;
-
-  if (map_aligned_end != end) {
-    ASSERT(Memory::Object_at(map_aligned_end)->IsMap());
-
-    Address pointer_fields_start =
-        map_aligned_end + Map::kPointerFieldsBeginOffset;
-
-    Address pointer_fields_end =
-        Min(end, map_aligned_end + Map::kPointerFieldsEndOffset);
-
-    contains_pointers_to_new_space =
-      IteratePointersInDirtyRegion(pointer_fields_start,
-                                   pointer_fields_end,
-                                   copy_object_func)
-        || contains_pointers_to_new_space;
-  }
-
-  return contains_pointers_to_new_space;
+  IteratePointersToNewSpaceInMaps(map_aligned_start,
+                                  map_aligned_end,
+                                  copy_object_func);
 }
 
 
@@ -4180,28 +4109,28 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
   Address slot_address = start;
   while (slot_address < end) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
-    if (Heap::InFromSpace(*slot)) {
-      ASSERT((*slot)->IsHeapObject());
-      callback(reinterpret_cast<HeapObject**>(slot));
+    Object* object = *slot;
+    // In normal store buffer operation we use this function to process the
+    // promotion queue and we never scan an object twice so we will not see
+    // pointers that have already been updated to point to to-space.  But
+    // in the case of store buffer overflow we scan the entire old space to
+    // find pointers that point to new-space and in that case we may hit
+    // newly promoted objects and fix the pointers before the promotion
+    // queue gets to them.
+    ASSERT(StoreBuffer::store_buffer_mode() !=
+               StoreBuffer::kStoreBufferFunctional ||
+           !Heap::InToSpace(object));
+    if (Heap::InFromSpace(object)) {
+      callback(reinterpret_cast<HeapObject**>(slot), HeapObject::cast(object));
       if (Heap::InNewSpace(*slot)) {
+        ASSERT(Heap::InToSpace(*slot));
         ASSERT((*slot)->IsHeapObject());
-        StoreBuffer::Mark(reinterpret_cast<Address>(slot));
+        StoreBuffer::EnterDirectlyIntoStoreBuffer(
+            reinterpret_cast<Address>(slot));
       }
     }
     slot_address += kPointerSize;
   }
-}
-
-
-uint32_t Heap::IterateDirtyRegions(
-    uint32_t marks,
-    Address area_start,
-    Address area_end,
-    DirtyRegionCallback visit_dirty_region,
-    ObjectSlotCallback copy_object_func) {
-  ASSERT(marks == Page::kAllRegionsDirtyMarks);
-  visit_dirty_region(area_start, area_end, copy_object_func);
-  return Page::kAllRegionsDirtyMarks;
 }
 
 
@@ -4353,9 +4282,9 @@ void Heap::LargeObjectSpaceCheckStoreBuffer() {
 #endif
 
 
-void Heap::IterateDirtyRegions(
+void Heap::IteratePointers(
     PagedSpace* space,
-    DirtyRegionCallback visit_dirty_region,
+    PointerRegionCallback visit_pointer_region,
     ObjectSlotCallback copy_object_func,
     ExpectedPageWatermarkState expected_page_watermark_state) {
 
@@ -4380,11 +4309,7 @@ void Heap::IterateDirtyRegions(
            (space == map_space_ &&
             ((page->ObjectAreaStart() - end) % Map::kSize == 0)));
 
-    IterateDirtyRegions(Page::kAllRegionsDirtyMarks,
-                        start,
-                        end,
-                        visit_dirty_region,
-                        copy_object_func);
+    visit_pointer_region(start, end, copy_object_func);
 
     // Mark page watermark as invalid to maintain watermark validity invariant.
     // See Page::FlipMeaningOfInvalidatedWatermarkFlag() for details.

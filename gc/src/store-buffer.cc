@@ -40,9 +40,12 @@ Address* StoreBuffer::old_top_ = NULL;
 uintptr_t* StoreBuffer::hash_map_1_ = NULL;
 uintptr_t* StoreBuffer::hash_map_2_ = NULL;
 VirtualMemory* StoreBuffer::virtual_memory_ = NULL;
-bool StoreBuffer::must_scan_entire_memory_ = false;
+StoreBuffer::StoreBufferMode StoreBuffer::store_buffer_mode_ =
+    kStoreBufferFunctional;
 bool StoreBuffer::old_buffer_is_sorted_ = false;
 bool StoreBuffer::during_gc_ = false;
+bool StoreBuffer::store_buffer_rebuilding_enabled_ = false;
+bool StoreBuffer::may_move_store_buffer_entries_ = true;
 
 void StoreBuffer::Setup() {
   virtual_memory_ = new VirtualMemory(kStoreBufferSize * 3);
@@ -126,10 +129,11 @@ void StoreBuffer::Uniq() {
   // Remove adjacent duplicates and cells that do not point at new space.
   Address previous = NULL;
   Address* write = old_start_;
+  ASSERT(may_move_store_buffer_entries_);
   for (Address* read = old_start_; read < old_top_; read++) {
     Address current = *read;
     if (current != previous) {
-      if (Heap::InNewSpace(*reinterpret_cast<Address*>(current))) {
+      if (Heap::InNewSpace(*reinterpret_cast<Object**>(current))) {
         *write++ = current;
       }
     }
@@ -142,6 +146,10 @@ void StoreBuffer::Uniq() {
 void StoreBuffer::SortUniq() {
   Compact();
   if (old_buffer_is_sorted_) return;
+  if (store_buffer_mode_ == kStoreBufferDisabled) {
+    old_top_ = old_start_;
+    return;
+  }
   ZapHashTables();
   qsort(reinterpret_cast<void*>(old_start_),
         old_top_ - old_start_,
@@ -155,9 +163,7 @@ void StoreBuffer::SortUniq() {
 
 #ifdef DEBUG
 void StoreBuffer::Clean() {
-  if (must_scan_entire_memory_) {
-    // We don't currently have a way to go back to using the store buffer.
-    // TODO(gc): We should rebuild the store buffer during GC.
+  if (store_buffer_mode_ == kStoreBufferDisabled) {
     old_top_ = old_start_;  // Just clear the cache.
     return;
   }
@@ -183,6 +189,31 @@ bool StoreBuffer::HashTablesAreZapped() {
 }
 
 
+static Address* in_store_buffer_1_element_cache = NULL;
+
+
+bool StoreBuffer::CellIsInStoreBuffer(Address cell_address) {
+  if (!FLAG_enable_slow_asserts) return true;
+  if (store_buffer_mode_ != kStoreBufferFunctional) return true;
+  if (in_store_buffer_1_element_cache != NULL &&
+      *in_store_buffer_1_element_cache == cell_address) {
+    return true;
+  }
+  Address* top = reinterpret_cast<Address*>(Heap::store_buffer_top());
+  for (Address* current = top - 1; current >= start_; current--) {
+    if (*current == cell_address) {
+      in_store_buffer_1_element_cache = current;
+      return true;
+    }
+  }
+  for (Address* current = old_top_ - 1; current >= old_start_; current--) {
+    if (*current == cell_address) {
+      in_store_buffer_1_element_cache = current;
+      return true;
+    }
+  }
+  return false;
+}
 #endif
 
 
@@ -199,16 +230,13 @@ void StoreBuffer::ZapHashTables() {
 void StoreBuffer::GCPrologue(GCType type, GCCallbackFlags flags) {
   ZapHashTables();
   during_gc_ = true;
-  if (type != kGCTypeScavenge) {
-    old_top_ = old_start_;
-    Heap::public_set_store_buffer_top(start_);
-  }
 }
 
 
 void StoreBuffer::Verify() {
 #ifdef DEBUG
-  if (FLAG_verify_heap && !StoreBuffer::must_scan_entire_memory()) {
+  if (FLAG_verify_heap &&
+      StoreBuffer::store_buffer_mode_ == kStoreBufferFunctional) {
     Heap::OldPointerSpaceCheckStoreBuffer(Heap::WATERMARK_SHOULD_BE_VALID);
     Heap::MapSpaceCheckStoreBuffer(Heap::WATERMARK_SHOULD_BE_VALID);
     Heap::LargeObjectSpaceCheckStoreBuffer();
@@ -219,16 +247,72 @@ void StoreBuffer::Verify() {
 
 void StoreBuffer::GCEpilogue(GCType type, GCCallbackFlags flags) {
   during_gc_ = false;
+  if (store_buffer_mode_ == kStoreBufferBeingRebuilt) {
+    store_buffer_mode_ = kStoreBufferFunctional;
+  }
   Verify();
+}
+
+
+void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback callback) {
+  if (store_buffer_mode_ != kStoreBufferFunctional) {
+    old_top_ = old_start_;
+    ZapHashTables();
+    Heap::public_set_store_buffer_top(start_);
+    store_buffer_mode_ = kStoreBufferBeingRebuilt;
+    Heap::IteratePointers(Heap::old_pointer_space(),
+                          &Heap::IteratePointersToNewSpace,
+                          callback,
+                          Heap::WATERMARK_SHOULD_BE_VALID);
+
+    Heap::IteratePointers(Heap::map_space(),
+                          &Heap::IteratePointersFromMapsToNewSpace,
+                          callback,
+                          Heap::WATERMARK_SHOULD_BE_VALID);
+
+    Heap::lo_space()->IteratePointersToNewSpace(callback);
+  } else {
+    SortUniq();
+    Address* limit = old_top_;
+    old_top_ = old_start_;
+    {
+      DontMoveStoreBufferEntriesScope scope;
+      for (Address* current = old_start_; current < limit; current++) {
+#ifdef DEBUG
+        Address* saved_top = old_top_;
+#endif
+        Object** cell = reinterpret_cast<Object**>(*current);
+        Object* object = *cell;
+        // May be invalid if object is not in new space.
+        HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
+        if (Heap::InNewSpace(object)) {
+          callback(reinterpret_cast<HeapObject**>(cell), heap_object);
+        }
+        ASSERT(old_top_ == saved_top + 1 || old_top_ == saved_top);
+        ASSERT((old_top_ == saved_top + 1) ==
+               (Heap::InNewSpace(*cell) &&
+                   !Heap::InNewSpace(reinterpret_cast<Address>(cell)) &&
+                   Memory::Address_at(heap_object->address()) != NULL));
+      }
+    }
+  }
 }
 
 
 void StoreBuffer::Compact() {
   Address* top = reinterpret_cast<Address*>(Heap::store_buffer_top());
+
   if (top == start_) return;
+
+  // There's no check of the limit in the loop below so we check here for
+  // the worst case (compaction doesn't eliminate any pointers).
   ASSERT(top <= limit_);
   Heap::public_set_store_buffer_top(start_);
-  if (must_scan_entire_memory_) return;
+  if (top - start_ > old_limit_ - old_top_) {
+    CheckForFullBuffer();
+  }
+  if (store_buffer_mode_ == kStoreBufferDisabled) return;
+  ASSERT(may_move_store_buffer_entries_);
   // Goes through the addresses in the store buffer attempting to remove
   // duplicates.  In the interest of speed this is a lossy operation.  Some
   // duplicates will remain.  We have two hash tables with different hash
@@ -281,7 +365,7 @@ void StoreBuffer::CheckForFullBuffer() {
       // compression to be guaranteed to succeed.
       // TODO(gc): Set a flag to scan all of memory.
       Counters::store_buffer_overflows.Increment();
-      must_scan_entire_memory_ = true;
+      store_buffer_mode_ = kStoreBufferDisabled;
     }
   }
 }

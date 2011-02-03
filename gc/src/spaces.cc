@@ -1717,7 +1717,7 @@ bool NewSpace::ReserveSpace(int bytes) {
 void PagedSpace::FreePages(Page* prev, Page* last) {
   if (last == AllocationTopPage()) {
     // Pages are already at the end of used pages.
-    // Just mark them as continuos.
+    // Just mark them as continuous.
     Page* p = prev == NULL ? first_page_ : prev->next_page();
     Page* end_page = last->next_page();
     do {
@@ -1748,7 +1748,6 @@ void PagedSpace::FreePages(Page* prev, Page* last) {
     first->InvalidateWatermark(true);
     first->SetAllocationWatermark(first->ObjectAreaStart());
     first->SetCachedAllocationWatermark(first->ObjectAreaStart());
-    first->SetRegionMarks(Page::kAllRegionsCleanMarks);
     first->SetFlag(Page::IS_CONTINUOUS);
     first->markbits()->Clear();
     first = first->next_page();
@@ -2361,7 +2360,8 @@ LargePage* LargeObjectSpace::FindPageContainingPc(Address pc) {
 }
 
 
-void LargeObjectSpace::IterateDirtyRegions(ObjectSlotCallback copy_object) {
+void LargeObjectSpace::IteratePointersToNewSpace(
+    ObjectSlotCallback copy_object) {
   LargeObjectIterator it(this);
   for (HeapObject* object = it.next(); object != NULL; object = it.next()) {
     // We only have code, sequential strings, or fixed arrays in large
@@ -2373,7 +2373,7 @@ void LargeObjectSpace::IterateDirtyRegions(ObjectSlotCallback copy_object) {
 
       Address start = object->address();
       Address object_end = start + object->Size();
-      Heap::IteratePointersInDirtyRegion(start, object_end, copy_object);
+      Heap::IteratePointersToNewSpace(start, object_end, copy_object);
     }
   }
 }
@@ -2463,9 +2463,6 @@ void LargeObjectSpace::Verify() {
                           object->Size(),
                           &code_visitor);
     } else if (object->IsFixedArray()) {
-      // We loop over fixed arrays ourselves, rather then using the visitor,
-      // because the visitor doesn't support the start/offset iteration
-      // needed for IsRegionDirty.
       FixedArray* array = FixedArray::cast(object);
       for (int j = 0; j < array->length(); j++) {
         Object* element = array->get(j);
@@ -2473,13 +2470,6 @@ void LargeObjectSpace::Verify() {
           HeapObject* element_object = HeapObject::cast(element);
           ASSERT(Heap::Contains(element_object));
           ASSERT(element_object->map()->IsMap());
-          if (Heap::InNewSpace(element_object)) {
-            Address array_addr = object->address();
-            Address element_addr = array_addr + FixedArray::kHeaderSize +
-                j * kPointerSize;
-
-            ASSERT(Page::FromAddress(array_addr)->IsRegionDirty(element_addr));
-          }
         }
       }
     }

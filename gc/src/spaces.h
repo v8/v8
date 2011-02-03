@@ -46,34 +46,26 @@ namespace internal {
 //
 // The semispaces of the young generation are contiguous.  The old and map
 // spaces consists of a list of pages. A page has a page header and an object
-// area. A page size is deliberately chosen as 8K bytes.
-// The first word of a page is an opaque page header that has the
-// address of the next page and its ownership information. The second word may
-// have the allocation top address of this page. Heap objects are aligned to the
-// pointer size.
+// area.
 //
 // There is a separate large object space for objects larger than
 // Page::kMaxHeapObjectSize, so that they do not have to move during
 // collection. The large object space is paged. Pages in large object space
-// may be larger than 8K.
+// may be larger than the page size.
 //
-// A card marking write barrier is used to keep track of intergenerational
-// references. Old space pages are divided into regions of Page::kRegionSize
-// size. Each region has a corresponding dirty bit in the page header which is
-// set if the region might contain pointers to new space. For details about
-// dirty bits encoding see comments in the Page::GetRegionNumberForAddress()
-// method body.
+// A store-buffer based write barrier is used to keep track of intergenerational
+// references.  See store-buffer.h.
 //
-// During scavenges and mark-sweep collections we iterate intergenerational
-// pointers without decoding heap object maps so if the page belongs to old
-// pointer space or large object space it is essential to guarantee that
-// the page does not contain any garbage pointers to new space: every pointer
-// aligned word which satisfies the Heap::InNewSpace() predicate must be a
-// pointer to a live heap object in new space. Thus objects in old pointer
-// and large object spaces should have a special layout (e.g. no bare integer
-// fields). This requirement does not apply to map space which is iterated in
-// a special fashion. However we still require pointer fields of dead maps to
-// be cleaned.
+// During scavenges and mark-sweep collections we sometimes (after a store
+// buffer overflow) iterate intergenerational pointers without decoding heap
+// object maps so if the page belongs to old pointer space or large object
+// space it is essential to guarantee that the page does not contain any
+// garbage pointers to new space: every pointer aligned word which satisfies
+// the Heap::InNewSpace() predicate must be a pointer to a live heap object in
+// new space. Thus objects in old pointer and large object spaces should have a
+// special layout (e.g. no bare integer fields). This requirement does not
+// apply to map space which is iterated in a special fashion. However we still
+// require pointer fields of dead maps to be cleaned.
 //
 // To enable lazy cleaning of old space pages we use a notion of allocation
 // watermark. Every pointer under watermark is considered to be well formed.
@@ -498,24 +490,6 @@ class Page : public MemoryChunk {
   }
 
   // ---------------------------------------------------------------------
-  // Card marking support
-
-  static const uint32_t kAllRegionsCleanMarks = 0x0;
-  static const uint32_t kAllRegionsDirtyMarks = 0xFFFFFFFF;
-
-  inline uint32_t GetRegionMarks();
-  inline void SetRegionMarks(uint32_t dirty);
-
-  inline uint32_t GetRegionMaskForAddress(Address addr);
-  inline uint32_t GetRegionMaskForSpan(Address start, int length_in_bytes);
-  inline int GetRegionNumberForAddress(Address addr);
-
-  inline void MarkRegionDirty(Address addr);
-  inline bool IsRegionDirty(Address addr);
-
-  inline void ClearRegionMarks(Address start,
-                               Address end,
-                               bool reaches_limit);
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
@@ -540,15 +514,6 @@ class Page : public MemoryChunk {
     ((kPageSize - kPointerSize)/kPointerSize) >>
       MarkbitsBitmap::kBitsPerCellLog2;
 
-
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-  static const int kDirtyFlagOffset = 2 * kPointerSize;
-  static const int kRegionSizeLog2 = 8;
-  static const int kRegionSize = 1 << kRegionSizeLog2;
-  static const intptr_t kRegionAlignmentMask = (kRegionSize - 1);
-
-  STATIC_CHECK(kRegionSize == kPageSize / kBitsPerInt);
-#endif
 
   enum PageFlag {
     // Page allocation watermark was bumped by preallocation during scavenge.
@@ -2160,54 +2125,7 @@ class MapSpace : public FixedSpace {
   // Should be called after forced sweep to find out if map space needs
   // compaction.
   bool NeedsCompaction(int live_maps) {
-    return !MapPointersEncodable() && live_maps <= CompactionThreshold();
-  }
-
-  Address TopAfterCompaction(int live_maps) {
-    ASSERT(NeedsCompaction(live_maps));
-
-    int pages_left = live_maps / kMapsPerPage;
-    PageIterator it(this, PageIterator::ALL_PAGES);
-    while (pages_left-- > 0) {
-      ASSERT(it.has_next());
-      it.next()->SetRegionMarks(Page::kAllRegionsCleanMarks);
-    }
-    ASSERT(it.has_next());
-    Page* top_page = it.next();
-    top_page->SetRegionMarks(Page::kAllRegionsCleanMarks);
-    ASSERT(top_page->is_valid());
-
-    int offset = live_maps % kMapsPerPage * Map::kSize;
-    Address top = top_page->ObjectAreaStart() + offset;
-    ASSERT(top < top_page->ObjectAreaEnd());
-    ASSERT(Contains(top));
-
-    return top;
-  }
-
-  void FinishCompaction(Address new_top, int live_maps) {
-    Page* top_page = Page::FromAddress(new_top);
-    ASSERT(top_page->is_valid());
-
-    SetAllocationInfo(&allocation_info_, top_page);
-    allocation_info_.top = new_top;
-
-    int new_size = live_maps * Map::kSize;
-    accounting_stats_.DeallocateBytes(accounting_stats_.Size());
-    accounting_stats_.AllocateBytes(new_size);
-
-#ifdef DEBUG
-    if (FLAG_enable_slow_asserts) {
-      intptr_t actual_size = 0;
-      for (Page* p = first_page_; p != top_page; p = p->next_page())
-        actual_size += kMapsPerPage * Map::kSize;
-      actual_size += (new_top - top_page->ObjectAreaStart());
-      ASSERT(accounting_stats_.Size() == actual_size);
-    }
-#endif
-
-    Shrink();
-    ResetFreeList();
+    return false;  // TODO(gc): Bring back map compaction.
   }
 
  protected:
@@ -2305,8 +2223,8 @@ class LargeObjectSpace : public Space {
   // if such a page doesn't exist.
   LargePage* FindPageContainingPc(Address pc);
 
-  // Iterates objects covered by dirty regions.
-  void IterateDirtyRegions(ObjectSlotCallback func);
+  // Iterates over pointers to new space.
+  void IteratePointersToNewSpace(ObjectSlotCallback func);
 
   // Frees unmarked objects.
   void FreeUnmarkedObjects();

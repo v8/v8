@@ -51,6 +51,21 @@ void StoreBuffer::Mark(Address addr) {
   }
 }
 
+
+void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
+  if (store_buffer_rebuilding_enabled_) {
+    Address* top = old_top_;
+    *top++ = addr;
+    old_top_ = top;
+    if (top >= old_limit_) {
+      Counters::store_buffer_overflows.Increment();
+      store_buffer_mode_ = kStoreBufferDisabled;
+      old_top_ = old_start_;
+    }
+  }
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_WRITE_BARRIER_INL_H_
