@@ -715,6 +715,19 @@ static bool CheckAccess(JSObject* obj,
 }
 
 
+// TODO(1095): we should traverse hidden prototype hierachy as well.
+static bool CheckElementAccess(JSObject* obj,
+                               uint32_t index,
+                               v8::AccessType access_type) {
+  if (obj->IsAccessCheckNeeded() &&
+      !Top::MayIndexedAccess(obj, index, access_type)) {
+    return false;
+  }
+
+  return true;
+}
+
+
 // Enumerator used as indices into the array returned from GetOwnProperty
 enum PropertyDescriptorIndices {
   IS_ACCESSOR_INDEX,
@@ -757,7 +770,7 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
         // subsequent cases.
         Handle<JSValue> js_value = Handle<JSValue>::cast(obj);
         Handle<String> str(String::cast(js_value->value()));
-        Handle<String> substr = SubString(str, index, index+1, NOT_TENURED);
+        Handle<String> substr = SubString(str, index, index + 1, NOT_TENURED);
 
         elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
         elms->set(VALUE_INDEX, *substr);
@@ -770,8 +783,7 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
       case JSObject::INTERCEPTED_ELEMENT:
       case JSObject::FAST_ELEMENT: {
         elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-        Handle<Object> element = GetElement(Handle<Object>(obj), index);
-        elms->set(VALUE_INDEX, *element);
+        elms->set(VALUE_INDEX, *GetElement(obj, index));
         elms->set(WRITABLE_INDEX, Heap::true_value());
         elms->set(ENUMERABLE_INDEX,  Heap::true_value());
         elms->set(CONFIGURABLE_INDEX, Heap::true_value());
@@ -779,13 +791,14 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
       }
 
       case JSObject::DICTIONARY_ELEMENT: {
+        Handle<JSObject> holder = obj;
         if (obj->IsJSGlobalProxy()) {
           Object* proto = obj->GetPrototype();
           if (proto->IsNull()) return Heap::undefined_value();
           ASSERT(proto->IsJSGlobalObject());
-          obj = Handle<JSObject>(JSObject::cast(proto));
+          holder = Handle<JSObject>(JSObject::cast(proto));
         }
-        NumberDictionary* dictionary = obj->element_dictionary();
+        NumberDictionary* dictionary = holder->element_dictionary();
         int entry = dictionary->FindEntry(index);
         ASSERT(entry != NumberDictionary::kNotFound);
         PropertyDetails details = dictionary->DetailsAt(entry);
@@ -795,14 +808,18 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
             FixedArray* callbacks =
                 FixedArray::cast(dictionary->ValueAt(entry));
             elms->set(IS_ACCESSOR_INDEX, Heap::true_value());
-            elms->set(GETTER_INDEX, callbacks->get(0));
-            elms->set(SETTER_INDEX, callbacks->get(1));
+            if (CheckElementAccess(*obj, index, v8::ACCESS_GET)) {
+              elms->set(GETTER_INDEX, callbacks->get(0));
+            }
+            if (CheckElementAccess(*obj, index, v8::ACCESS_SET)) {
+              elms->set(SETTER_INDEX, callbacks->get(1));
+            }
             break;
           }
           case NORMAL:
             // This is a data property.
             elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-            elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
+            elms->set(VALUE_INDEX, *GetElement(obj, index));
             elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
             break;
           default:
