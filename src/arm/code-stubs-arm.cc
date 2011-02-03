@@ -5734,6 +5734,73 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 }
 
 
+void GenerateFastPixelArrayLoad(MacroAssembler* masm,
+                                Register receiver,
+                                Register key,
+                                Register elements_map,
+                                Register elements,
+                                Register scratch1,
+                                Register scratch2,
+                                Register result,
+                                Label* not_pixel_array,
+                                Label* key_not_smi,
+                                Label* out_of_range) {
+  // Register use:
+  //
+  // receiver - holds the receiver on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // key      - holds the smi key on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // elements - set to be the receiver's elements on exit.
+  //
+  // elements_map - set to be the map of the receiver's elements
+  //            on exit.
+  //
+  // result   - holds the result of the pixel array load on exit,
+  //            tagged as a smi if successful.
+  //
+  // Scratch registers:
+  //
+  // scratch1 - used a scratch register in map check, if map
+  //            check is successful, contains the length of the
+  //            pixel array, the pointer to external elements and
+  //            the untagged result.
+  //
+  // scratch2 - holds the untaged key.
+
+  // Some callers already have verified that the key is a smi.  key_not_smi is
+  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
+  // to ensure the key is a smi must be added.
+  if (key_not_smi != NULL) {
+    __ JumpIfNotSmi(key, key_not_smi);
+  } else {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(key);
+    }
+  }
+  __ SmiUntag(scratch2, key);
+
+  // Verify that the receiver has pixel array elements.
+  __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ CheckMap(elements, scratch1, Heap::kPixelArrayMapRootIndex,
+              not_pixel_array, true);
+
+  // Key must be in range of the pixel array.
+  __ ldr(scratch1, FieldMemOperand(elements, PixelArray::kLengthOffset));
+  __ cmp(scratch2, scratch1);
+  __ b(hs, out_of_range);  // unsigned check handles negative keys.
+
+  // Perform the indexed load and tag the result as a smi.
+  __ ldr(scratch1,
+         FieldMemOperand(elements, PixelArray::kExternalPointerOffset));
+  __ ldrb(scratch1, MemOperand(scratch1, scratch2));
+  __ SmiTag(r0, scratch1);
+  __ Ret();
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

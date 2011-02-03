@@ -4414,6 +4414,53 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ jmp(rdi);
 }
 
+
+void GenerateFastPixelArrayLoad(MacroAssembler* masm,
+                                Register receiver,
+                                Register key,
+                                Register elements,
+                                Register untagged_key,
+                                Register result,
+                                Label* not_pixel_array,
+                                Label* key_not_smi,
+                                Label* out_of_range) {
+  // Register use:
+  //   receiver - holds the receiver and is unchanged.
+  //   key - holds the key and is unchanged (must be a smi).
+  //   elements - is set to the the receiver's element if
+  //       the receiver doesn't have a pixel array or the
+  //       key is not a smi, otherwise it's the elements'
+  //       external pointer.
+  //   untagged_key - is set to the untagged key
+
+  // Some callers already have verified that the key is a smi.  key_not_smi is
+  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
+  // to ensure the key is a smi must be added.
+  if (key_not_smi != NULL) {
+    __ JumpIfNotSmi(key, key_not_smi);
+  } else {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(key);
+    }
+  }
+  __ SmiToInteger32(untagged_key, key);
+
+  // Verify that the receiver has pixel array elements.
+  __ movq(elements, FieldOperand(receiver, JSObject::kElementsOffset));
+  __ CheckMap(elements, Factory::pixel_array_map(), not_pixel_array, true);
+
+  // Check that the smi is in range.
+  __ cmpl(untagged_key, FieldOperand(elements, PixelArray::kLengthOffset));
+  __ j(above_equal, out_of_range);  // unsigned check handles negative keys.
+
+  // Load and tag the element as a smi.
+  __ movq(elements, FieldOperand(elements, PixelArray::kExternalPointerOffset));
+  __ movzxbq(result, Operand(elements, untagged_key, times_1, 0));
+  __ Integer32ToSmi(result, result);
+  __ ret(0);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

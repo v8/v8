@@ -3574,8 +3574,10 @@ static MaybeObject* Runtime_KeyedGetProperty(Arguments args) {
     HandleScope scope;
     Handle<String> str = args.at<String>(0);
     int index = Smi::cast(args[1])->value();
-    Handle<Object> result = GetCharAt(str, index);
-    return *result;
+    if (index >= 0 && index < str->length()) {
+      Handle<Object> result = GetCharAt(str, index);
+      return *result;
+    }
   }
 
   // Fall back to GetObjectProperty.

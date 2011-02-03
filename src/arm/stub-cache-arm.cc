@@ -3087,6 +3087,38 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
 }
 
 
+MaybeObject* KeyedLoadStubCompiler::CompileLoadPixelArray(JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- r0    : key
+  //  -- r1    : receiver
+  // -----------------------------------
+  Label miss;
+
+  // Check that the map matches.
+  __ CheckMap(r1, r2, Handle<Map>(receiver->map()), &miss, false);
+
+  GenerateFastPixelArrayLoad(masm(),
+                             r1,
+                             r0,
+                             r2,
+                             r3,
+                             r4,
+                             r5,
+                             r0,
+                             &miss,
+                             &miss,
+                             &miss);
+
+  __ bind(&miss);
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Miss));
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
+}
+
+
 MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                                                        int index,
                                                        Map* transition,

@@ -1204,23 +1204,31 @@ MaybeObject* KeyedLoadIC::Load(State state,
 
   if (use_ic) {
     Code* stub = generic_stub();
-    if (object->IsString() && key->IsNumber()) {
-      stub = string_stub();
-    } else if (object->IsJSObject()) {
-      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-      if (receiver->HasExternalArrayElements()) {
-        MaybeObject* probe =
-            StubCache::ComputeKeyedLoadOrStoreExternalArray(*receiver, false);
-        stub =
-            probe->IsFailure() ? NULL : Code::cast(probe->ToObjectUnchecked());
-      } else if (receiver->HasIndexedInterceptor()) {
-        stub = indexed_interceptor_stub();
-      } else if (state == UNINITIALIZED &&
-                 key->IsSmi() &&
-                 receiver->map()->has_fast_elements()) {
-        MaybeObject* probe = StubCache::ComputeKeyedLoadSpecialized(*receiver);
-        stub =
-            probe->IsFailure() ? NULL : Code::cast(probe->ToObjectUnchecked());
+    if (state == UNINITIALIZED) {
+      if (object->IsString() && key->IsNumber()) {
+        stub = string_stub();
+      } else if (object->IsJSObject()) {
+        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+        if (receiver->HasExternalArrayElements()) {
+          MaybeObject* probe =
+              StubCache::ComputeKeyedLoadOrStoreExternalArray(*receiver,
+                                                              false);
+          stub = probe->IsFailure() ?
+              NULL : Code::cast(probe->ToObjectUnchecked());
+        } else if (receiver->HasIndexedInterceptor()) {
+          stub = indexed_interceptor_stub();
+        } else if (receiver->HasPixelElements()) {
+          MaybeObject* probe =
+              StubCache::ComputeKeyedLoadPixelArray(*receiver);
+          stub = probe->IsFailure() ?
+              NULL : Code::cast(probe->ToObjectUnchecked());
+        } else if (key->IsSmi() &&
+                   receiver->map()->has_fast_elements()) {
+          MaybeObject* probe =
+              StubCache::ComputeKeyedLoadSpecialized(*receiver);
+          stub = probe->IsFailure() ?
+              NULL : Code::cast(probe->ToObjectUnchecked());
+        }
       }
     }
     if (stub != NULL) set_target(stub);
