@@ -668,7 +668,9 @@ void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
 
 
 void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
-  Abort("Unimplemented: %s", "DoFixedArrayLength");
+  Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->InputAt(0));
+  __ movq(result, FieldOperand(array, FixedArray::kLengthOffset));
 }
 
 
@@ -1446,7 +1448,19 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 
 
 void LCodeGen::DoLoadElements(LLoadElements* instr) {
-  Abort("Unimplemented: %s", "DoLoadElements");
+  ASSERT(instr->result()->Equals(instr->InputAt(0)));
+  Register reg = ToRegister(instr->InputAt(0));
+  __ movq(reg, FieldOperand(reg, JSObject::kElementsOffset));
+  if (FLAG_debug_code) {
+    NearLabel done;
+    __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+           Factory::fixed_array_map());
+    __ j(equal, &done);
+    __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+           Factory::fixed_cow_array_map());
+    __ Check(equal, "Check for fast elements failed.");
+    __ bind(&done);
+  }
 }
 
 
@@ -1456,7 +1470,20 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 
 
 void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
-  Abort("Unimplemented: %s", "DoLoadKeyedFastElement");
+  Register elements = ToRegister(instr->elements());
+  Register key = ToRegister(instr->key());
+  Register result = ToRegister(instr->result());
+  ASSERT(result.is(elements));
+
+  // Load the result.
+  __ movq(result, FieldOperand(elements,
+                               key,
+                               times_pointer_size,
+                               FixedArray::kHeaderSize));
+
+  // Check for the hole value.
+  __ Cmp(result, Factory::the_hole_value());
+  DeoptimizeIf(equal, instr->environment());
 }
 
 
@@ -1691,7 +1718,12 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
 
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  Abort("Unimplemented: %s", "DoBoundsCheck");
+  if (instr->length()->IsRegister()) {
+    __ cmpq(ToRegister(instr->index()), ToRegister(instr->length()));
+  } else {
+    __ cmpq(ToRegister(instr->index()), ToOperand(instr->length()));
+  }
+  DeoptimizeIf(above_equal, instr->environment());
 }
 
 

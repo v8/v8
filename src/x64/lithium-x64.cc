@@ -1325,8 +1325,8 @@ LInstruction* LChunkBuilder::DoJSArrayLength(HJSArrayLength* instr) {
 
 
 LInstruction* LChunkBuilder::DoFixedArrayLength(HFixedArrayLength* instr) {
-  Abort("Unimplemented: %s", "DoFixedArrayLength");
-  return NULL;
+  LOperand* array = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LFixedArrayLength(array));
 }
 
 
@@ -1337,8 +1337,8 @@ LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
 
 
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
-  Abort("Unimplemented: %s", "DoBoundsCheck");
-  return NULL;
+  return AssignEnvironment(new LBoundsCheck(UseRegisterAtStart(instr->index()),
+                                            Use(instr->length())));
 }
 
 
@@ -1523,15 +1523,19 @@ LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
 
 
 LInstruction* LChunkBuilder::DoLoadElements(HLoadElements* instr) {
-  Abort("Unimplemented: %s", "DoLoadElements");
-  return NULL;
+  LOperand* input = UseRegisterAtStart(instr->value());
+  return DefineSameAsFirst(new LLoadElements(input));
 }
 
 
 LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
     HLoadKeyedFastElement* instr) {
-  Abort("Unimplemented: %s", "DoLoadKeyedFastElement");
-  return NULL;
+  ASSERT(instr->representation().IsTagged());
+  ASSERT(instr->key()->representation().IsInteger32());
+  LOperand* obj = UseRegisterAtStart(instr->object());
+  LOperand* key = UseRegisterAtStart(instr->key());
+  LLoadKeyedFastElement* result = new LLoadKeyedFastElement(obj, key);
+  return AssignEnvironment(DefineSameAsFirst(result));
 }
 
 
