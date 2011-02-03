@@ -2061,6 +2061,8 @@ TRBinaryOpIC::TypeInfo TRBinaryOpIC::GetTypeInfo(Handle<Object> left,
   }
 
   if (left_type.IsInteger32() && right_type.IsInteger32()) {
+    // Platforms with 32-bit Smis have no distinct INT32 type.
+    if (kSmiValueSize == 32) return SMI;
     return INT32;
   }
 
@@ -2104,9 +2106,11 @@ MaybeObject* TypeRecordingBinaryOp_Patch(Arguments args) {
   }
   if (type == TRBinaryOpIC::SMI &&
       previous_type == TRBinaryOpIC::SMI) {
-    if (op == Token::DIV || op == Token::MUL) {
+    if (op == Token::DIV || op == Token::MUL || kSmiValueSize == 32) {
       // Arithmetic on two Smi inputs has yielded a heap number.
       // That is the only way to get here from the Smi stub.
+      // With 32-bit Smis, all overflows give heap numbers, but with
+      // 31-bit Smis, most operations overflow to int32 results.
       result_type = TRBinaryOpIC::HEAP_NUMBER;
     } else {
       // Other operations on SMIs that overflow yield int32s.

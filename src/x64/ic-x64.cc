@@ -1698,7 +1698,8 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 }
 
 void PatchInlinedSmiCode(Address address) {
-  UNIMPLEMENTED();
+  // Disabled, then patched inline smi code is not implemented on X64.
+  // So we do nothing in this case.
 }
 
 

@@ -270,6 +270,11 @@ class TypeRecordingBinaryOpStub: public CodeStub {
   void GenerateSmiCode(MacroAssembler* masm,
                        Label* slow,
                        SmiCodeGenerateHeapNumberResults heapnumber_results);
+  void GenerateFloatingPointCode(MacroAssembler* masm,
+                                 Label* allocation_failure,
+                                 Label* non_numeric_failure);
+  void GenerateStringAddCode(MacroAssembler* masm);
+  void GenerateCallRuntimeCode(MacroAssembler* masm);
   void GenerateLoadArguments(MacroAssembler* masm);
   void GenerateReturn(MacroAssembler* masm);
   void GenerateUninitializedStub(MacroAssembler* masm);
