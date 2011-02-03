@@ -1007,8 +1007,9 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
 
 
 LInstruction* LChunkBuilder::DoCompareMap(HCompareMap* instr) {
-  Abort("Unimplemented: %s", "DoCompareMap");
-  return NULL;
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return new LCmpMapAndBranch(value);
 }
 
 
@@ -1074,8 +1075,8 @@ LInstruction* LChunkBuilder::DoGlobalReceiver(HGlobalReceiver* instr) {
 
 LInstruction* LChunkBuilder::DoCallConstantFunction(
     HCallConstantFunction* instr) {
-  Abort("Unimplemented: %s", "DoCallConstantFunction");
-  return NULL;
+  argument_count_ -= instr->argument_count();
+  return MarkAsCall(DefineFixed(new LCallConstantFunction, rax), instr);
 }
 
 
@@ -1719,7 +1720,8 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
 
 
 LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
-  Abort("Unimplemented: %s", "DoLeaveInlined");
+  HEnvironment* outer = current_block_->last_environment()->outer();
+  current_block_->UpdateEnvironment(outer);
   return NULL;
 }
 

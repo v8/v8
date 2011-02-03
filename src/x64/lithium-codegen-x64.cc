@@ -1520,12 +1520,43 @@ void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int arity,
                                  LInstruction* instr) {
-  Abort("Unimplemented: %s", "CallKnownFunction");
+  // Change context if needed.
+  bool change_context =
+      (graph()->info()->closure()->context() != function->context()) ||
+      scope()->contains_with() ||
+      (scope()->num_heap_slots() > 0);
+  if (change_context) {
+    __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+  }
+
+  // Set eax to arguments count if adaption is not needed. Assumes that eax
+  // is available to write to at this point.
+  if (!function->NeedsArgumentsAdaption()) {
+    __ Set(rax, arity);
+  }
+
+  LPointerMap* pointers = instr->pointer_map();
+  RecordPosition(pointers->position());
+
+  // Invoke function.
+  if (*function == *graph()->info()->closure()) {
+    __ CallSelf();
+  } else {
+    __ call(FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+  }
+
+  // Setup deoptimization.
+  RegisterLazyDeoptimization(instr);
+
+  // Restore context.
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
-  Abort("Unimplemented: %s", "DoCallConstantFunction");
+  ASSERT(ToRegister(instr->result()).is(eax));
+  __ Move(rdi, instr->function());
+  CallKnownFunction(instr->function(), instr->arity(), instr);
 }
 
 
