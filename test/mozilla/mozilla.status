@@ -873,3 +873,8 @@ ecma/Expressions/11.7.3: SKIP
 ecma/Expressions/11.10-3: SKIP
 ecma/Expressions/11.7.1: SKIP
 ecma_3/RegExp/regress-209067: SKIP
+
+[ $arch == x64 ]
+
+# BUG(1100): Times out when running new crankshaft test script.
+ecma/Date/15.9.5.10-2: SKIP
