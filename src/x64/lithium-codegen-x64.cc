@@ -1954,13 +1954,73 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 }
 
 
+class DeferredTaggedToI: public LDeferredCode {
+ public:
+  DeferredTaggedToI(LCodeGen* codegen, LTaggedToI* instr)
+      : LDeferredCode(codegen), instr_(instr) { }
+  virtual void Generate() { codegen()->DoDeferredTaggedToI(instr_); }
+ private:
+  LTaggedToI* instr_;
+};
+
+
 void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
-  Abort("Unimplemented: %s", "DoDeferredTaggedToI");
+  NearLabel done, heap_number;
+  Register input_reg = ToRegister(instr->InputAt(0));
+
+  // Heap number map check.
+  __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+
+  if (instr->truncating()) {
+    __ j(equal, &heap_number);
+    // Check for undefined. Undefined is converted to zero for truncating
+    // conversions.
+    __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
+    DeoptimizeIf(not_equal, instr->environment());
+    __ movl(input_reg, Immediate(0));
+    __ jmp(&done);
+
+    __ bind(&heap_number);
+
+    __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    __ cvttsd2siq(input_reg, xmm0);
+    __ Set(kScratchRegister, V8_UINT64_C(0x8000000000000000));
+    __ cmpl(input_reg, kScratchRegister);
+    DeoptimizeIf(equal, instr->environment());
+  } else {
+    // Deoptimize if we don't have a heap number.
+    DeoptimizeIf(not_equal, instr->environment());
+
+    XMMRegister xmm_temp = ToDoubleRegister(instr->TempAt(0));
+    __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    __ cvttsd2si(input_reg, xmm0);
+    __ cvtlsi2sd(xmm_temp, input_reg);
+    __ ucomisd(xmm0, xmm_temp);
+    DeoptimizeIf(not_equal, instr->environment());
+    DeoptimizeIf(parity_even, instr->environment());  // NaN.
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ testl(input_reg, input_reg);
+      __ j(not_zero, &done);
+      __ movmskpd(input_reg, xmm0);
+      __ andl(input_reg, Immediate(1));
+      DeoptimizeIf(not_zero, instr->environment());
+    }
+  }
+  __ bind(&done);
 }
 
 
 void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
-  Abort("Unimplemented: %s", "DoTaggedToI");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsRegister());
+  ASSERT(input->Equals(instr->result()));
+
+  Register input_reg = ToRegister(input);
+  DeferredTaggedToI* deferred = new DeferredTaggedToI(this, instr);
+  __ JumpIfNotSmi(input_reg, deferred->entry());
+  __ SmiToInteger32(input_reg, input_reg);
+  __ bind(deferred->exit());
 }
 
 
@@ -2217,7 +2277,6 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
 void LCodeGen::DoStackCheck(LStackCheck* instr) {
   // Perform stack overflow check.
   NearLabel done;
-  ExternalReference stack_limit = ExternalReference::address_of_stack_limit();
   __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
   __ j(above_equal, &done);
 
