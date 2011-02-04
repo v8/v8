@@ -1554,7 +1554,10 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
       op == Token::SUB ||
       op == Token::MUL ||
       op == Token::DIV ||
-      op == Token::MOD) {
+      op == Token::MOD ||
+      op == Token::BIT_OR ||
+      op == Token::BIT_AND ||
+      op == Token::BIT_XOR) {
     TypeRecordingBinaryOpStub stub(op, mode);
     __ CallStub(&stub);
   } else {

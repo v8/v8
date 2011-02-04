@@ -1110,7 +1110,7 @@ void DeferredInlineSmiOperation::GenerateNonSmiInput() {
 
   Register int32 = r2;
   // Not a 32bits signed int, fall back to the GenericBinaryOpStub.
-  __ ConvertToInt32(tos_register_, int32, r4, r5, entry_label());
+  __ ConvertToInt32(tos_register_, int32, r4, r5, d0, entry_label());
 
   // tos_register_ (r0 or r1): Original heap number.
   // int32: signed 32bits int.

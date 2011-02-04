@@ -1577,13 +1577,14 @@ void MacroAssembler::ConvertToInt32(Register source,
                                     Register dest,
                                     Register scratch,
                                     Register scratch2,
+                                    DwVfpRegister double_scratch,
                                     Label *not_int32) {
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     sub(scratch, source, Operand(kHeapObjectTag));
-    vldr(d0, scratch, HeapNumber::kValueOffset);
-    vcvt_s32_f64(s0, d0);
-    vmov(dest, s0);
+    vldr(double_scratch, scratch, HeapNumber::kValueOffset);
+    vcvt_s32_f64(double_scratch.low(), double_scratch);
+    vmov(dest, double_scratch.low());
     // Signed vcvt instruction will saturate to the minimum (0x80000000) or
     // maximun (0x7fffffff) signed 32bits integer when the double is out of
     // range. When substracting one, the minimum signed integer becomes the
@@ -1996,6 +1997,16 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
   Assert(eq, "Operand is not smi");
+}
+
+
+void MacroAssembler::AbortIfNotRootValue(Register src,
+                                         Heap::RootListIndex root_value_index,
+                                         const char* message) {
+  ASSERT(!src.is(ip));
+  LoadRoot(ip, root_value_index);
+  cmp(src, ip);
+  Assert(eq, message);
 }
 
 
