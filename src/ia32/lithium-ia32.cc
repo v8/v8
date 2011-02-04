@@ -29,6 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
+#include "lithium-allocator-inl.h"
 #include "ia32/lithium-ia32.h"
 #include "ia32/lithium-codegen-ia32.h"
 
@@ -68,11 +69,35 @@ void LOsrEntry::MarkSpilledDoubleRegister(int allocation_index,
 }
 
 
+#ifdef DEBUG
+void LInstruction::VerifyCall() {
+  // Call instructions can use only fixed registers as
+  // temporaries and outputs because all registers
+  // are blocked by the calling convention.
+  // Inputs can use either fixed register or have a short lifetime (be
+  // used at start of the instruction).
+  ASSERT(Output() == NULL ||
+         LUnallocated::cast(Output())->HasFixedPolicy() ||
+         !LUnallocated::cast(Output())->HasRegisterPolicy());
+  for (UseIterator it(this); it.HasNext(); it.Advance()) {
+    LOperand* operand = it.Next();
+    ASSERT(LUnallocated::cast(operand)->HasFixedPolicy() ||
+           LUnallocated::cast(operand)->IsUsedAtStart() ||
+           !LUnallocated::cast(operand)->HasRegisterPolicy());
+  }
+  for (TempIterator it(this); it.HasNext(); it.Advance()) {
+    LOperand* operand = it.Next();
+    ASSERT(LUnallocated::cast(operand)->HasFixedPolicy() ||
+           !LUnallocated::cast(operand)->HasRegisterPolicy());
+  }
+}
+#endif
+
+
 void LInstruction::PrintTo(StringStream* stream) {
   stream->Add("%s ", this->Mnemonic());
-  if (HasResult()) {
-    PrintOutputOperandTo(stream);
-  }
+
+  PrintOutputOperandTo(stream);
 
   PrintDataTo(stream);
 
@@ -399,7 +424,7 @@ void LStoreKeyed::PrintDataTo(StringStream* stream) {
 }
 
 
-int LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
+void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
   LGap* gap = new LGap(block);
   int index = -1;
   if (instr->IsControl()) {
@@ -415,7 +440,6 @@ int LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
     pointer_maps_.Add(instr->pointer_map());
     instr->pointer_map()->set_lithium_position(index);
   }
-  return index;
 }
 
 
@@ -683,7 +707,10 @@ void LChunkBuilder::ClearInstructionPendingDeoptimizationEnvironment() {
 LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
-  allocator_->MarkAsCall();
+#ifdef DEBUG
+  instr->VerifyCall();
+#endif
+  instr->MarkAsCall();
   instr = AssignPointerMap(instr);
 
   if (hinstr->HasSideEffects()) {
@@ -708,7 +735,7 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
 
 
 LInstruction* LChunkBuilder::MarkAsSaveDoubles(LInstruction* instr) {
-  allocator_->MarkAsSaveDoubles();
+  instr->MarkAsSaveDoubles();
   return instr;
 }
 
@@ -917,7 +944,6 @@ void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
 void LChunkBuilder::VisitInstruction(HInstruction* current) {
   HInstruction* old_current = current_instruction_;
   current_instruction_ = current;
-  allocator_->BeginInstruction();
   if (current->has_position()) position_ = current->position();
   LInstruction* instr = current->CompileToLithium(this);
 
@@ -940,11 +966,7 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
       instr->set_hydrogen_value(current);
     }
 
-    int index = chunk_->AddInstruction(instr, current_block_);
-    allocator_->SummarizeInstruction(index);
-  } else {
-    // This instruction should be omitted.
-    allocator_->OmitInstruction();
+    chunk_->AddInstruction(instr, current_block_);
   }
   current_instruction_ = old_current;
 }

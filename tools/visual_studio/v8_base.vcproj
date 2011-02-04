@@ -705,6 +705,10 @@
         >
       </File>
       <File
+        RelativePath="..\..\src\lithium-allocator-inl.h"
+        >
+      </File>
+      <File
         RelativePath="..\..\src\ia32\lithium-ia32.cc"
         >
       </File>

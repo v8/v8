@@ -182,7 +182,10 @@ class LCodeGen;
 class LInstruction: public ZoneObject {
  public:
   LInstruction()
-      : hydrogen_value_(NULL) { }
+      : environment_(NULL),
+        hydrogen_value_(NULL),
+        is_call_(false),
+        is_save_doubles_(false) { }
   virtual ~LInstruction() { }
 
   virtual void CompileToNative(LCodeGen* generator) = 0;
@@ -199,15 +202,14 @@ class LInstruction: public ZoneObject {
   virtual bool IsControl() const { return false; }
   virtual void SetBranchTargets(int true_block_id, int false_block_id) { }
 
-  void set_environment(LEnvironment* env) { environment_.set(env); }
-  LEnvironment* environment() const { return environment_.get(); }
-  bool HasEnvironment() const { return environment_.is_set(); }
+  void set_environment(LEnvironment* env) { environment_ = env; }
+  LEnvironment* environment() const { return environment_; }
+  bool HasEnvironment() const { return environment_ != NULL; }
 
   void set_pointer_map(LPointerMap* p) { pointer_map_.set(p); }
   LPointerMap* pointer_map() const { return pointer_map_.get(); }
   bool HasPointerMap() const { return pointer_map_.is_set(); }
 
-  virtual bool HasResult() const = 0;
 
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
@@ -222,11 +224,35 @@ class LInstruction: public ZoneObject {
     return deoptimization_environment_.is_set();
   }
 
+  void MarkAsCall() { is_call_ = true; }
+  void MarkAsSaveDoubles() { is_save_doubles_ = true; }
+
+  // Interface to the register allocator and iterators.
+  bool IsMarkedAsCall() const { return is_call_; }
+  bool IsMarkedAsSaveDoubles() const { return is_save_doubles_; }
+
+  virtual bool HasResult() const = 0;
+  virtual LOperand* result() = 0;
+
+  virtual int InputCount() = 0;
+  virtual LOperand* InputAt(int i) = 0;
+  virtual int TempCount() = 0;
+  virtual LOperand* TempAt(int i) = 0;
+
+  LOperand* FirstInput() { return InputAt(0); }
+  LOperand* Output() { return HasResult() ? result() : NULL; }
+
+#ifdef DEBUG
+  void VerifyCall();
+#endif
+
  private:
-  SetOncePointer<LEnvironment> environment_;
+  LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
   SetOncePointer<LEnvironment> deoptimization_environment_;
+  bool is_call_;
+  bool is_save_doubles_;
 };
 
 
@@ -253,6 +279,11 @@ class OperandContainer<ElementType, 0> {
  public:
   int length() { return 0; }
   void PrintOperandsTo(StringStream* stream) { }
+  ElementType& operator[](int i) {
+    UNREACHABLE();
+    static ElementType t = 0;
+    return t;
+  }
 };
 
 
@@ -1760,7 +1791,7 @@ class LChunk: public ZoneObject {
       pointer_maps_(8),
       inlined_closures_(1) { }
 
-  int AddInstruction(LInstruction* instruction, HBasicBlock* block);
+  void AddInstruction(LInstruction* instruction, HBasicBlock* block);
   LConstantOperand* DefineConstantOperand(HConstant* constant);
   Handle<Object> LookupLiteral(LConstantOperand* operand) const;
   Representation LookupLiteralRepresentation(LConstantOperand* operand) const;
