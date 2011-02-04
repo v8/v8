@@ -491,28 +491,29 @@ PropertyDescriptor.prototype.hasSetter = function() {
 }
 
 
-
-// ES5 section 8.12.1.
-function GetOwnProperty(obj, p) {
-  var desc = new PropertyDescriptor();
-
-  // GetOwnProperty returns an array indexed by the constants
-  // defined in macros.py.
-  // If p is not a property on obj undefined is returned.
-  var props = %GetOwnProperty(ToObject(obj), ToString(p));
-
-  if (IS_UNDEFINED(props)) return void 0;
-
-  // This is an accessor
-  if (props[IS_ACCESSOR_INDEX]) {
-    desc.setGet(props[GETTER_INDEX]);
-    desc.setSet(props[SETTER_INDEX]);
-  } else {
-    desc.setValue(props[VALUE_INDEX]);
-    desc.setWritable(props[WRITABLE_INDEX]);
+// Converts an array returned from Runtime_GetOwnProperty to an actual
+// property descriptor. For a description of the array layout please
+// see the runtime.cc file.
+function ConvertDescriptorArrayToDescriptor(desc_array) {
+  if (desc_array == false) {
+    throw 'Internal error: invalid desc_array';
   }
-  desc.setEnumerable(props[ENUMERABLE_INDEX]);
-  desc.setConfigurable(props[CONFIGURABLE_INDEX]);
+
+  if (IS_UNDEFINED(desc_array)) {
+    return void 0;
+  }
+
+  var desc = new PropertyDescriptor();
+  // This is an accessor.
+  if (desc_array[IS_ACCESSOR_INDEX]) {
+    desc.setGet(desc_array[GETTER_INDEX]);
+    desc.setSet(desc_array[SETTER_INDEX]);
+  } else {
+    desc.setValue(desc_array[VALUE_INDEX]);
+    desc.setWritable(desc_array[WRITABLE_INDEX]);
+  }
+  desc.setEnumerable(desc_array[ENUMERABLE_INDEX]);
+  desc.setConfigurable(desc_array[CONFIGURABLE_INDEX]);
 
   return desc;
 }
@@ -535,9 +536,27 @@ function HasProperty(obj, p) {
 }
 
 
+// ES5 section 8.12.1.
+function GetOwnProperty(obj, p) {
+  // GetOwnProperty returns an array indexed by the constants
+  // defined in macros.py.
+  // If p is not a property on obj undefined is returned.
+  var props = %GetOwnProperty(ToObject(obj), ToString(p));
+
+  // A false value here means that access checks failed.
+  if (props == false) return void 0;
+
+  return ConvertDescriptorArrayToDescriptor(props);
+}
+
+
 // ES5 8.12.9.
 function DefineOwnProperty(obj, p, desc, should_throw) {
-  var current = GetOwnProperty(obj, p);
+  var current_or_access = %GetOwnProperty(ToObject(obj), ToString(p));
+  // A false value here means that access checks failed.
+  if (current_or_access == false) return void 0;
+
+  var current = ConvertDescriptorArrayToDescriptor(current_or_access);
   var extensible = %IsExtensible(ToObject(obj));
 
   // Error handling according to spec.
