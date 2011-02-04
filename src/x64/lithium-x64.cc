@@ -1185,8 +1185,8 @@ LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
-  Abort("Unimplemented: %s", "DoCallNamed");
-  return NULL;
+  argument_count_ -= instr->argument_count();
+  return MarkAsCall(DefineFixed(new LCallNamed, rax), instr);
 }
 
 
@@ -1197,8 +1197,8 @@ LInstruction* LChunkBuilder::DoCallGlobal(HCallGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
-  Abort("Unimplemented: %s", "DoCallKnownGlobal");
-  return NULL;
+  argument_count_ -= instr->argument_count();
+  return MarkAsCall(DefineFixed(new LCallKnownGlobal, rax), instr);
 }
 
 
@@ -1408,8 +1408,8 @@ LInstruction* LChunkBuilder::DoClassOfTest(HClassOfTest* instr) {
 
 
 LInstruction* LChunkBuilder::DoJSArrayLength(HJSArrayLength* instr) {
-  Abort("Unimplemented: %s", "DoJSArrayLength");
-  return NULL;
+  LOperand* array = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LJSArrayLength(array));
 }
 
 
@@ -1512,8 +1512,9 @@ LInstruction* LChunkBuilder::DoCheckNonSmi(HCheckNonSmi* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
-  Abort("Unimplemented: %s", "DoCheckInstanceType");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  LCheckInstanceType* result = new LCheckInstanceType(value);
+  return AssignEnvironment(result);
 }
 
 
@@ -1575,7 +1576,9 @@ LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  return new LStoreGlobal(UseRegisterAtStart(instr->value()));
+  LStoreGlobal* result = new LStoreGlobal(UseRegister(instr->value()),
+                                          TempRegister());
+  return instr->check_hole_value() ? AssignEnvironment(result) : result;
 }
 
 

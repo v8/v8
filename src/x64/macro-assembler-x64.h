@@ -74,7 +74,7 @@ class MacroAssembler: public Assembler {
 
   void LoadRoot(Register destination, Heap::RootListIndex index);
   void CompareRoot(Register with, Heap::RootListIndex index);
-  void CompareRoot(Operand with, Heap::RootListIndex index);
+  void CompareRoot(const Operand& with, Heap::RootListIndex index);
   void PushRoot(Heap::RootListIndex index);
   void StoreRoot(Register source, Heap::RootListIndex index);
 
@@ -607,7 +607,7 @@ class MacroAssembler: public Assembler {
   // Emit call to the code we are currently generating.
   void CallSelf() {
     Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
-    call(self, RelocInfo::CODE_TARGET);
+    Call(self, RelocInfo::CODE_TARGET);
   }
 
   // Non-x64 instructions.

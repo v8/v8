@@ -230,4 +230,24 @@ uint32_t SafepointTableBuilder::EncodeExceptPC(const DeoptimizationInfo& info) {
 }
 
 
+int SafepointTableBuilder::CountShortDeoptimizationIntervals(unsigned limit) {
+  int result = 0;
+  if (!deoptimization_info_.is_empty()) {
+    unsigned previous_gap_end = deoptimization_info_[0].pc_after_gap;
+    for (int i = 1, n = deoptimization_info_.length(); i < n; i++) {
+      DeoptimizationInfo info = deoptimization_info_[i];
+      if (static_cast<int>(info.deoptimization_index) !=
+          Safepoint::kNoDeoptimizationIndex) {
+        if (previous_gap_end + limit > info.pc) {
+          result++;
+        }
+        previous_gap_end = info.pc_after_gap;
+      }
+    }
+  }
+  return result;
+}
+
+
+
 } }  // namespace v8::internal

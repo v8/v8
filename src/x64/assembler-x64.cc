@@ -916,6 +916,23 @@ void Assembler::call(const Operand& op) {
 }
 
 
+// Calls directly to the given address using a relative offset.
+// Should only ever be used in Code objects for calls within the
+// same Code object. Should not be used when generating new code (use labels),
+// but only when patching existing code.
+void Assembler::call(Address target) {
+  positions_recorder()->WriteRecordedPositions();
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // 1110 1000 #32-bit disp.
+  emit(0xE8);
+  Address source = pc_ + 4;
+  intptr_t displacement = target - source;
+  ASSERT(is_int32(displacement));
+  emitl(static_cast<int32_t>(displacement));
+}
+
+
 void Assembler::clc() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

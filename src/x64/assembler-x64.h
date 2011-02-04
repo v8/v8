@@ -553,10 +553,12 @@ class Assembler : public Malloced {
   // TODO(X64): Rename this, removing the "Real", after changing the above.
   static const int kRealPatchReturnSequenceAddressOffset = 2;
 
-  // The x64 JS return sequence is padded with int3 to make it large
-  // enough to hold a call instruction when the debugger patches it.
+  // Some x64 JS code is padded with int3 to make it large
+  // enough to hold an instruction when the debugger patches it.
+  static const int kJumpInstructionLength = 13;
   static const int kCallInstructionLength = 13;
   static const int kJSReturnSequenceLength = 13;
+  static const int kShortCallInstructionLength = 5;
 
   // The debug break slot must be able to contain a call instruction.
   static const int kDebugBreakSlotLength = kCallInstructionLength;
@@ -585,7 +587,7 @@ class Assembler : public Malloced {
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
-  // of m. m must be a power of 2.
+  // of m, where m must be a power of 2.
   void Align(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
@@ -1126,6 +1128,12 @@ class Assembler : public Malloced {
   // Call near relative 32-bit displacement, relative to next instruction.
   void call(Label* L);
   void call(Handle<Code> target, RelocInfo::Mode rmode);
+
+  // Calls directly to the given address using a relative offset.
+  // Should only ever be used in Code objects for calls within the
+  // same Code object. Should not be used when generating new code (use labels),
+  // but only when patching existing code.
+  void call(Address target);
 
   // Call near absolute indirect, address in register
   void call(Register adr);

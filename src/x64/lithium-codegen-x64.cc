@@ -188,9 +188,19 @@ bool LCodeGen::GenerateDeferredCode() {
 
 bool LCodeGen::GenerateSafepointTable() {
   ASSERT(is_done());
-  // Ensure that patching a deoptimization point won't overwrite the table.
-  for (int i = 0; i < Assembler::kCallInstructionLength; i++) {
-    masm()->int3();
+  // Ensure that there is space at the end of the code to write a number
+  // of jump instructions, as well as to afford writing a call near the end
+  // of the code.
+  // The jumps are used when there isn't room in the code stream to write
+  // a long call instruction. Instead it writes a shorter call to a
+  // jump instruction in the same code object.
+  // The calls are used when lazy deoptimizing a function and calls to a
+  // deoptimization function.
+  int short_deopts = safepoints_.CountShortDeoptimizationIntervals(
+      static_cast<unsigned>(MacroAssembler::kJumpInstructionLength));
+  int byte_count = (short_deopts) * MacroAssembler::kJumpInstructionLength;
+  while (byte_count-- > 0) {
+    __ int3();
   }
   safepoints_.Emit(masm(), StackSlotCount());
   return !is_aborted();
@@ -505,6 +515,7 @@ void LCodeGen::RecordSafepoint(
     int arguments,
     int deoptimization_index) {
   const ZoneList<LOperand*>* operands = pointers->operands();
+
   Safepoint safepoint = safepoints_.DefineSafepoint(masm(),
       kind, arguments, deoptimization_index);
   for (int i = 0; i < operands->length(); i++) {
@@ -773,7 +784,9 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 
 
 void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
-  Abort("Unimplemented: %s", "DoJSArrayLength");
+  Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->InputAt(0));
+  __ movq(result, FieldOperand(array, JSArray::kLengthOffset));
 }
 
 
@@ -1503,32 +1516,32 @@ void LCodeGen::DoReturn(LReturn* instr) {
 
 
 void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
-  Register result = ToRegister(instr->result());
-  if (result.is(rax)) {
-    __ load_rax(instr->hydrogen()->cell().location(),
-                RelocInfo::GLOBAL_PROPERTY_CELL);
-  } else {
-    __ movq(result, instr->hydrogen()->cell(), RelocInfo::GLOBAL_PROPERTY_CELL);
-    __ movq(result, Operand(result, 0));
-  }
-  if (instr->hydrogen()->check_hole_value()) {
-    __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
-    DeoptimizeIf(equal, instr->environment());
-  }
+  Abort("Unimplemented: %s", "DoLoadGlobal");
 }
 
 
 void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
   Register value = ToRegister(instr->InputAt(0));
-  if (value.is(rax)) {
+  Register temp = ToRegister(instr->TempAt(0));
+  ASSERT(!value.is(temp));
+  bool check_hole = instr->hydrogen()->check_hole_value();
+  if (!check_hole && value.is(rax)) {
     __ store_rax(instr->hydrogen()->cell().location(),
                  RelocInfo::GLOBAL_PROPERTY_CELL);
-  } else {
-    __ movq(kScratchRegister,
-            Handle<Object>::cast(instr->hydrogen()->cell()),
-            RelocInfo::GLOBAL_PROPERTY_CELL);
-    __ movq(Operand(kScratchRegister, 0), value);
+    return;
   }
+  // If the cell we are storing to contains the hole it could have
+  // been deleted from the property dictionary. In that case, we need
+  // to update the property details in the property dictionary to mark
+  // it as no longer deleted. We deoptimize in that case.
+  __ movq(temp,
+          Handle<Object>::cast(instr->hydrogen()->cell()),
+          RelocInfo::GLOBAL_PROPERTY_CELL);
+  if (check_hole) {
+    __ CompareRoot(Operand(temp, 0), Heap::kTheHoleValueRootIndex);
+    DeoptimizeIf(equal, instr->environment());
+  }
+  __ movq(Operand(temp, 0), value);
 }
 
 
@@ -1775,7 +1788,9 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
 
 
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
-  Abort("Unimplemented: %s", "DoCallKnownGlobal");
+  ASSERT(ToRegister(instr->result()).is(rax));
+  __ Move(rdi, instr->target());
+  CallKnownFunction(instr->target(), instr->arity(), instr);
 }
 
 
@@ -2046,7 +2061,33 @@ void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
 
 
 void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
-  Abort("Unimplemented: %s", "DoCheckInstanceType");
+  Register input = ToRegister(instr->InputAt(0));
+  InstanceType first = instr->hydrogen()->first();
+  InstanceType last = instr->hydrogen()->last();
+
+  __ movq(kScratchRegister, FieldOperand(input, HeapObject::kMapOffset));
+
+  // If there is only one type in the interval check for equality.
+  if (first == last) {
+    __ cmpb(FieldOperand(kScratchRegister, Map::kInstanceTypeOffset),
+            Immediate(static_cast<int8_t>(first)));
+    DeoptimizeIf(not_equal, instr->environment());
+  } else if (first == FIRST_STRING_TYPE && last == LAST_STRING_TYPE) {
+    // String has a dedicated bit in instance type.
+    __ testb(FieldOperand(kScratchRegister, Map::kInstanceTypeOffset),
+             Immediate(kIsNotStringMask));
+    DeoptimizeIf(not_zero, instr->environment());
+  } else {
+    __ cmpb(FieldOperand(kScratchRegister, Map::kInstanceTypeOffset),
+            Immediate(static_cast<int8_t>(first)));
+    DeoptimizeIf(below, instr->environment());
+    // Omit check for the last type.
+    if (last != LAST_TYPE) {
+      __ cmpb(FieldOperand(kScratchRegister, Map::kInstanceTypeOffset),
+              Immediate(static_cast<int8_t>(last)));
+      DeoptimizeIf(above, instr->environment());
+    }
+  }
 }
 
 

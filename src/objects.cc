@@ -5925,7 +5925,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       it.rinfo()->set_target_object(*p);
     } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-      Handle<JSGlobalPropertyCell> cell  = it.rinfo()->target_cell_handle();
+      Handle<JSGlobalPropertyCell> cell = it.rinfo()->target_cell_handle();
       it.rinfo()->set_target_cell(*cell);
     } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles in inline cache targets to direct

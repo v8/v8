@@ -1300,10 +1300,11 @@ class LLoadGlobal: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LStoreGlobal: public LTemplateInstruction<0, 1, 0> {
+class LStoreGlobal: public LTemplateInstruction<0, 1, 1> {
  public:
-  explicit LStoreGlobal(LOperand* value) {
+  explicit LStoreGlobal(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobal, "store-global")
@@ -1637,11 +1638,10 @@ class LCheckFunction: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LCheckInstanceType: public LTemplateInstruction<0, 1, 1> {
+class LCheckInstanceType: public LTemplateInstruction<0, 1, 0> {
  public:
-  LCheckInstanceType(LOperand* value, LOperand* temp) {
+  explicit LCheckInstanceType(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckInstanceType, "check-instance-type")
