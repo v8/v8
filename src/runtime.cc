@@ -841,7 +841,7 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
   }
 
   if (!CheckAccess(*obj, *name, &result, v8::ACCESS_HAS)) {
-    return Heap::undefined_value();
+    return Heap::false_value();
   }
 
   elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!result.IsDontEnum()));
