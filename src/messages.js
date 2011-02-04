@@ -147,6 +147,7 @@ function FormatMessage(message) {
       unexpected_token_number:      ["Unexpected number"],
       unexpected_token_string:      ["Unexpected string"],
       unexpected_token_identifier:  ["Unexpected identifier"],
+      unexpected_strict_reserved:   ["Unexpected strict mode reserved word"],
       unexpected_eos:               ["Unexpected end of input"],
       malformed_regexp:             ["Invalid regular expression: /", "%0", "/: ", "%1"],
       unterminated_regexp:          ["Invalid regular expression: missing /"],
@@ -221,6 +222,7 @@ function FormatMessage(message) {
       strict_lhs_assignment:        ["Assignment to eval or arguments is not allowed in strict mode"],
       strict_lhs_postfix:           ["Postfix increment/decrement may not have eval or arguments operand in strict mode"],
       strict_lhs_prefix:            ["Prefix increment/decrement may not have eval or arguments operand in strict mode"],
+      strict_reserved_word:         ["Use of future reserved word in strict mode"],
     };
   }
   var message_type = %MessageGetType(message);

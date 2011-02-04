@@ -548,6 +548,7 @@ class Parser {
 
   ZoneList<Expression*>* ParseArguments(bool* ok);
   FunctionLiteral* ParseFunctionLiteral(Handle<String> var_name,
+                                        bool name_is_reserved,
                                         int function_token_position,
                                         FunctionLiteralType type,
                                         bool* ok);
@@ -576,6 +577,8 @@ class Parser {
     }
     return scanner().Next();
   }
+
+  bool peek_any_identifier();
 
   INLINE(void Consume(Token::Value token));
   void Expect(Token::Value token, bool* ok);
@@ -610,6 +613,7 @@ class Parser {
   Literal* GetLiteralNumber(double value);
 
   Handle<String> ParseIdentifier(bool* ok);
+  Handle<String> ParseIdentifierOrReservedWord(bool* is_reserved, bool* ok);
   Handle<String> ParseIdentifierName(bool* ok);
   Handle<String> ParseIdentifierOrGetOrSet(bool* is_get,
                                            bool* is_set,
