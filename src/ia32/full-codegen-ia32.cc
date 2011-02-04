@@ -610,7 +610,7 @@ void FullCodeGenerator::Move(Slot* dst,
   __ mov(location, src);
   // Emit the write barrier code if the location is in the heap.
   if (dst->type() == Slot::CONTEXT) {
-    int offset = FixedArray::kHeaderSize + dst->index() * kPointerSize;
+    int offset = Context::SlotOffset(dst->index());
     __ RecordWrite(scratch1, offset, src, scratch2);
   }
 }
@@ -666,10 +666,11 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         // We bypass the general EmitSlotSearch because we know more about
         // this specific context.
 
-        // The variable in the decl always resides in the current context.
+        // The variable in the decl always resides in the current function
+        // context.
         ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
         if (FLAG_debug_code) {
-          // Check if we have the correct context pointer.
+          // Check that we're not inside a 'with'.
           __ mov(ebx, ContextOperand(esi, Context::FCONTEXT_INDEX));
           __ cmp(ebx, Operand(esi));
           __ Check(equal, "Unexpected declaration in current context.");
@@ -1124,8 +1125,11 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(
   // Check that last extension is NULL.
   __ cmp(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
   __ j(not_equal, slow);
-  __ mov(temp, ContextOperand(context, Context::FCONTEXT_INDEX));
-  return ContextOperand(temp, slot->index());
+
+  // This function is used only for loads, not stores, so it's safe to
+  // return an esi-based operand (the write barrier cannot be allowed to
+  // destroy the esi register).
+  return ContextOperand(context, slot->index());
 }
 
 
@@ -2000,57 +2004,75 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
-  } else if (var->mode() != Variable::CONST || op == Token::INIT_CONST) {
-    // Perform the assignment for non-const variables and for initialization
-    // of const variables.  Const assignments are simply skipped.
-    Label done;
+  } else if (op == Token::INIT_CONST) {
+    // Like var declarations, const declarations are hoisted to function
+    // scope.  However, unlike var initializers, const initializers are able
+    // to drill a hole to that function context, even from inside a 'with'
+    // context.  We thus bypass the normal static scope lookup.
+    Slot* slot = var->AsSlot();
+    Label skip;
+    switch (slot->type()) {
+      case Slot::PARAMETER:
+        // No const parameters.
+        UNREACHABLE();
+        break;
+      case Slot::LOCAL:
+        __ mov(edx, Operand(ebp, SlotOffset(slot)));
+        __ cmp(edx, Factory::the_hole_value());
+        __ j(not_equal, &skip);
+        __ mov(Operand(ebp, SlotOffset(slot)), eax);
+        break;
+      case Slot::CONTEXT: {
+        __ mov(ecx, ContextOperand(esi, Context::FCONTEXT_INDEX));
+        __ mov(edx, ContextOperand(ecx, slot->index()));
+        __ cmp(edx, Factory::the_hole_value());
+        __ j(not_equal, &skip);
+        __ mov(ContextOperand(ecx, slot->index()), eax);
+        int offset = Context::SlotOffset(slot->index());
+        __ mov(edx, eax);  // Preserve the stored value in eax.
+        __ RecordWrite(ecx, offset, edx, ebx);
+        break;
+      }
+      case Slot::LOOKUP:
+        __ push(eax);
+        __ push(esi);
+        __ push(Immediate(var->name()));
+        __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+        break;
+    }
+    __ bind(&skip);
+
+  } else if (var->mode() != Variable::CONST) {
+    // Perform the assignment for non-const variables.  Const assignments
+    // are simply skipped.
     Slot* slot = var->AsSlot();
     switch (slot->type()) {
       case Slot::PARAMETER:
       case Slot::LOCAL:
-        if (op == Token::INIT_CONST) {
-          // Detect const reinitialization by checking for the hole value.
-          __ mov(edx, Operand(ebp, SlotOffset(slot)));
-          __ cmp(edx, Factory::the_hole_value());
-          __ j(not_equal, &done);
-        }
         // Perform the assignment.
         __ mov(Operand(ebp, SlotOffset(slot)), eax);
         break;
 
       case Slot::CONTEXT: {
         MemOperand target = EmitSlotSearch(slot, ecx);
-        if (op == Token::INIT_CONST) {
-          // Detect const reinitialization by checking for the hole value.
-          __ mov(edx, target);
-          __ cmp(edx, Factory::the_hole_value());
-          __ j(not_equal, &done);
-        }
         // Perform the assignment and issue the write barrier.
         __ mov(target, eax);
         // The value of the assignment is in eax.  RecordWrite clobbers its
         // register arguments.
         __ mov(edx, eax);
-        int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+        int offset = Context::SlotOffset(slot->index());
         __ RecordWrite(ecx, offset, edx, ebx);
         break;
       }
 
       case Slot::LOOKUP:
-        // Call the runtime for the assignment.  The runtime will ignore
-        // const reinitialization.
+        // Call the runtime for the assignment.
         __ push(eax);  // Value.
         __ push(esi);  // Context.
         __ push(Immediate(var->name()));
-        if (op == Token::INIT_CONST) {
-          // The runtime will ignore const redeclaration.
-          __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
-        } else {
-          __ CallRuntime(Runtime::kStoreContextSlot, 3);
-        }
+        __ CallRuntime(Runtime::kStoreContextSlot, 3);
         break;
     }
-    __ bind(&done);
   }
 }
 

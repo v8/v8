@@ -1914,19 +1914,15 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 
 
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
-  Register context = ToRegister(instr->InputAt(0));
+  Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
-  __ mov(result,
-         Operand(context, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-  __ mov(result, ContextOperand(result, instr->slot_index()));
+  __ mov(result, ContextOperand(context, instr->slot_index()));
 }
 
 
 void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register value = ToRegister(instr->value());
-  __ mov(context,
-         Operand(context, Context::SlotOffset(Context::FCONTEXT_INDEX)));
   __ mov(ContextOperand(context, instr->slot_index()), value);
   if (instr->needs_write_barrier()) {
     Register temp = ToRegister(instr->TempAt(0));
