@@ -2153,6 +2153,9 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   ASSERT(receiver.is(eax));
   v8::internal::ParameterCount actual(eax);
   __ InvokeFunction(edi, actual, CALL_FUNCTION, &safepoint_generator);
+
+  // Restore context.
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 }
 
 
