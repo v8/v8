@@ -6679,6 +6679,13 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
     return UNDEFINED_ELEMENT;
   }
 
+  if (IsJSGlobalProxy()) {
+    Object* proto = GetPrototype();
+    if (proto->IsNull()) return UNDEFINED_ELEMENT;
+    ASSERT(proto->IsJSGlobalObject());
+    return JSObject::cast(proto)->HasLocalElement(index);
+  }
+
   // Check for lookup interceptor
   if (HasIndexedInterceptor()) {
     return HasElementWithInterceptor(this, index) ? INTERCEPTED_ELEMENT
