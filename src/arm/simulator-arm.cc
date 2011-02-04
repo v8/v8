@@ -744,10 +744,10 @@ Simulator::Simulator() {
 // offset from the svc instruction so the simulator knows what to call.
 class Redirection {
  public:
-  Redirection(void* external_function, bool fp_return)
+  Redirection(void* external_function, ExternalReference::Type type)
       : external_function_(external_function),
         swi_instruction_(al | (0xf*B24) | kCallRtRedirected),
-        fp_return_(fp_return),
+        type_(type),
         next_(list_) {
     Simulator::current()->
         FlushICache(reinterpret_cast<void*>(&swi_instruction_),
@@ -760,14 +760,15 @@ class Redirection {
   }
 
   void* external_function() { return external_function_; }
-  bool fp_return() { return fp_return_; }
+  ExternalReference::Type type() { return type_; }
 
-  static Redirection* Get(void* external_function, bool fp_return) {
+  static Redirection* Get(void* external_function,
+                          ExternalReference::Type type) {
     Redirection* current;
     for (current = list_; current != NULL; current = current->next_) {
       if (current->external_function_ == external_function) return current;
     }
-    return new Redirection(external_function, fp_return);
+    return new Redirection(external_function, type);
   }
 
   static Redirection* FromSwiInstruction(Instruction* swi_instruction) {
@@ -780,7 +781,7 @@ class Redirection {
  private:
   void* external_function_;
   uint32_t swi_instruction_;
-  bool fp_return_;
+  ExternalReference::Type type_;
   Redirection* next_;
   static Redirection* list_;
 };
@@ -790,8 +791,8 @@ Redirection* Redirection::list_ = NULL;
 
 
 void* Simulator::RedirectExternalReference(void* external_function,
-                                           bool fp_return) {
-  Redirection* redirection = Redirection::Get(external_function, fp_return);
+                                           ExternalReference::Type type) {
+  Redirection* redirection = Redirection::Get(external_function, type);
   return redirection->address_of_swi_instruction();
 }
 
@@ -1528,6 +1529,9 @@ typedef double (*SimulatorRuntimeFPCall)(int32_t arg0,
                                          int32_t arg2,
                                          int32_t arg3);
 
+// This signature supports direct call in to API function native callback
+// (refer to InvocationCallback in v8.h).
+typedef v8::Handle<v8::Value> (*SimulatorRuntimeApiCall)(int32_t arg0);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.
@@ -1550,9 +1554,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       // This is dodgy but it works because the C entry stubs are never moved.
       // See comment in codegen-arm.cc and bug 1242173.
       int32_t saved_lr = get_register(lr);
-      if (redirection->fp_return()) {
-        intptr_t external =
-            reinterpret_cast<intptr_t>(redirection->external_function());
+      intptr_t external =
+          reinterpret_cast<intptr_t>(redirection->external_function());
+      if (redirection->type() == ExternalReference::FP_RETURN_CALL) {
         SimulatorRuntimeFPCall target =
             reinterpret_cast<SimulatorRuntimeFPCall>(external);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
@@ -1568,9 +1572,28 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         CHECK(stack_aligned);
         double result = target(arg0, arg1, arg2, arg3);
         SetFpResult(result);
+      } else if (redirection->type() == ExternalReference::DIRECT_CALL) {
+        SimulatorRuntimeApiCall target =
+            reinterpret_cast<SimulatorRuntimeApiCall>(external);
+        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+          PrintF(
+              "Call to host function at %p args %08x",
+              FUNCTION_ADDR(target),
+              arg0);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08x\n", get_register(sp));
+          }
+          PrintF("\n");
+        }
+        CHECK(stack_aligned);
+        v8::Handle<v8::Value> result = target(arg0);
+        if (::v8::internal::FLAG_trace_sim) {
+          PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
+        }
+        set_register(r0, (int32_t) *result);
       } else {
-        intptr_t external =
-            reinterpret_cast<int32_t>(redirection->external_function());
+        // builtin call.
+        ASSERT(redirection->type() == ExternalReference::BUILTIN_CALL);
         SimulatorRuntimeCall target =
             reinterpret_cast<SimulatorRuntimeCall>(external);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {

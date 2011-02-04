@@ -3501,8 +3501,16 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // this by performing a garbage collection and retrying the
   // builtin once.
 
+  // Compute the argv pointer in a callee-saved register.
+  __ add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
+  __ sub(r6, r6, Operand(kPointerSize));
+
   // Enter the exit frame that transitions from JavaScript to C++.
   __ EnterExitFrame(save_doubles_);
+
+  // Setup argc and the builtin function in callee-saved registers.
+  __ mov(r4, Operand(r0));
+  __ mov(r5, Operand(r1));
 
   // r4: number of arguments (C callee-saved)
   // r5: pointer to builtin function (C callee-saved)
@@ -5903,6 +5911,23 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ pop(r0);
   __ pop(r1);
   __ Jump(r2);
+}
+
+
+void DirectCEntryStub::Generate(MacroAssembler* masm) {
+  __ ldr(pc, MemOperand(sp, 0));
+}
+
+
+void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
+                                    ApiFunction *function) {
+  __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
+                     RelocInfo::CODE_TARGET));
+  // Push return address (accessible to GC through exit frame pc).
+  __ mov(r2,
+         Operand(ExternalReference(function, ExternalReference::DIRECT_CALL)));
+  __ str(pc, MemOperand(sp, 0));
+  __ Jump(r2);  // Call the api function.
 }
 
 

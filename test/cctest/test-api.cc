@@ -7525,6 +7525,61 @@ static void GenerateSomeGarbage() {
       "garbage = undefined;");
 }
 
+v8::Handle<v8::Value> DirectApiCallback(const v8::Arguments& args) {
+  static int count = 0;
+  if (count++ % 3 == 0) {
+    v8::V8::LowMemoryNotification();  // This should move the stub
+    GenerateSomeGarbage();  // This should ensure the old stub memory is flushed
+  }
+  return v8::Handle<v8::Value>();
+}
+
+
+THREADED_TEST(CallICFastApi_DirectCall_GCMoveStub) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::ObjectTemplate> nativeobject_templ = v8::ObjectTemplate::New();
+  nativeobject_templ->Set("callback",
+                          v8::FunctionTemplate::New(DirectApiCallback));
+  v8::Local<v8::Object> nativeobject_obj = nativeobject_templ->NewInstance();
+  context->Global()->Set(v8_str("nativeobject"), nativeobject_obj);
+  // call the api function multiple times to ensure direct call stub creation.
+  CompileRun(
+        "function f() {"
+        "  for (var i = 1; i <= 30; i++) {"
+        "    nativeobject.callback();"
+        "  }"
+        "}"
+        "f();");
+}
+
+
+v8::Handle<v8::Value> ThrowingDirectApiCallback(const v8::Arguments& args) {
+  return v8::ThrowException(v8_str("g"));
+}
+
+
+THREADED_TEST(CallICFastApi_DirectCall_Throw) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::ObjectTemplate> nativeobject_templ = v8::ObjectTemplate::New();
+  nativeobject_templ->Set("callback",
+                          v8::FunctionTemplate::New(ThrowingDirectApiCallback));
+  v8::Local<v8::Object> nativeobject_obj = nativeobject_templ->NewInstance();
+  context->Global()->Set(v8_str("nativeobject"), nativeobject_obj);
+  // call the api function multiple times to ensure direct call stub creation.
+  v8::Handle<Value> result = CompileRun(
+      "var result = '';"
+      "function f() {"
+      "  for (var i = 1; i <= 5; i++) {"
+      "    try { nativeobject.callback(); } catch (e) { result += e; }"
+      "  }"
+      "}"
+      "f(); result;");
+  CHECK_EQ(v8_str("ggggg"), result);
+}
+
+
 THREADED_TEST(InterceptorCallICFastApi_TrivialSignature) {
   int interceptor_call_count = 0;
   v8::HandleScope scope;
