@@ -1606,17 +1606,58 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 
 void LCodeGen::EmitCmpI(LOperand* left, LOperand* right) {
   __ cmp(ToRegister(left), ToOperand(right));
-  Abort("EmitCmpI untested.");
 }
 
 
 void LCodeGen::DoCmpID(LCmpID* instr) {
-  Abort("DoCmpID unimplemented.");
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  LOperand* result = instr->result();
+  Register scratch = scratch0();
+
+  Label unordered, done;
+  if (instr->is_double()) {
+    // Compare left and right as doubles and load the
+    // resulting flags into the normal status register.
+    __ vcmp(ToDoubleRegister(left), ToDoubleRegister(right));
+    __ vmrs(pc);
+    // If a NaN is involved, i.e. the result is unordered (V set),
+    // jump to unordered to return false.
+    __ b(vs, &unordered);
+  } else {
+    EmitCmpI(left, right);
+  }
+
+  Condition cc = TokenToCondition(instr->op(), instr->is_double());
+  __ LoadRoot(ToRegister(result), Heap::kTrueValueRootIndex);
+  __ b(cc, &done);
+
+  __ bind(&unordered);
+  __ LoadRoot(ToRegister(result), Heap::kFalseValueRootIndex);
+  __ bind(&done);
 }
 
 
 void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
-  Abort("DoCmpIDAndBranch unimplemented.");
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+
+  if (instr->is_double()) {
+    // Compare left and right as doubles and load the
+    // resulting flags into the normal status register.
+    __ vcmp(ToDoubleRegister(left), ToDoubleRegister(right));
+    __ vmrs(pc);
+    // If a NaN is involved, i.e. the result is unordered (V set),
+    // jump to false block label.
+    __ b(vs, chunk_->GetAssemblyLabel(false_block));
+  } else {
+    EmitCmpI(left, right);
+  }
+
+  Condition cc = TokenToCondition(instr->op(), instr->is_double());
+  EmitBranch(true_block, false_block, cc);
 }
 
 
