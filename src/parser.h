@@ -423,7 +423,8 @@ class Parser {
 
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram(Handle<String> source,
-                                bool in_global_context);
+                                bool in_global_context,
+                                StrictModeFlag strict_mode);
 
   FunctionLiteral* ParseLazy(Handle<SharedFunctionInfo> info);
 
@@ -446,6 +447,7 @@ class Parser {
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(Handle<String> source,
                                   bool in_global_context,
+                                  StrictModeFlag strict_mode,
                                   ZoneScope* zone_scope);
 
   // Report syntax error

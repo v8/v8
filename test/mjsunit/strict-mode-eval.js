@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,40 +25,58 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+"use strict";
 
-#ifndef V8_CODEGEN_INL_H_
-#define V8_CODEGEN_INL_H_
+var code1 = "function f(eval) {}";
+var code2 = "function f(a, a) {}";
+var code3 = "var x = '\\020;'";
+var code4 = "function arguments() {}";
 
-#include "codegen.h"
-#include "compiler.h"
-#include "register-allocator-inl.h"
+// Verify the code compiles just fine in non-strict mode
+// (using aliased eval to force non-strict mode)
+var eval_alias = eval;
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/codegen-ia32-inl.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/codegen-x64-inl.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/codegen-arm-inl.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/codegen-mips-inl.h"
-#else
-#error Unsupported target architecture.
-#endif
+eval_alias(code1);
+eval_alias(code2);
+eval_alias(code3);
+eval_alias(code4);
 
+function strict1() {
+  try {
+    eval(code1);
+    assertUnreachable("did not throw exception");
+  } catch (e) {
+    assertInstanceof(e, SyntaxError);
+  }
 
-namespace v8 {
-namespace internal {
+  function strict2() {
+    try {
+      eval(code2);
+      assertUnreachable("did not throw exception");
+    } catch (e) {
+      assertInstanceof(e, SyntaxError);
+    }
 
-Handle<Script> CodeGenerator::script() { return info_->script(); }
+    function strict3() {
+      try {
+        eval(code3);
+        assertUnreachable("did not throw exception");
+      } catch (e) {
+        assertInstanceof(e, SyntaxError);
+      }
 
-bool CodeGenerator::is_eval() { return info_->is_eval(); }
-
-Scope* CodeGenerator::scope() { return info_->function()->scope(); }
-
-StrictModeFlag CodeGenerator::strict_mode_flag() {
-  return info_->function()->strict_mode() ? kStrictMode : kNonStrictMode;
+      function strict4() {
+        try {
+          eval(code4);
+          assertUnreachable("did not throw exception");
+        } catch (e) {
+          assertInstanceof(e, SyntaxError);
+        }
+      }
+      strict4();
+    }
+    strict3();
+  }
+  strict2();
 }
-
-} }  // namespace v8::internal
-
-#endif  // V8_CODEGEN_INL_H_
+strict1();

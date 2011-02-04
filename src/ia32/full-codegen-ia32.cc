@@ -2292,7 +2292,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
       // Push the receiver of the enclosing function and do runtime call.
       __ push(Operand(ebp, (2 + scope()->num_parameters()) * kPointerSize));
-      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+      // Push the strict mode flag.
+      __ push(Immediate(Smi::FromInt(strict_mode_flag())));
+      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
 
       // The runtime call returns a pair of values in eax (function) and
       // edx (receiver). Touch up the stack with the right values.

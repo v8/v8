@@ -7998,20 +7998,28 @@ class StringKey : public HashTableKey {
 // StringSharedKeys are used as keys in the eval cache.
 class StringSharedKey : public HashTableKey {
  public:
-  StringSharedKey(String* source, SharedFunctionInfo* shared)
-      : source_(source), shared_(shared) { }
+  StringSharedKey(String* source,
+                  SharedFunctionInfo* shared,
+                  StrictModeFlag strict_mode)
+      : source_(source),
+        shared_(shared),
+        strict_mode_(strict_mode) { }
 
   bool IsMatch(Object* other) {
     if (!other->IsFixedArray()) return false;
     FixedArray* pair = FixedArray::cast(other);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(pair->get(0));
     if (shared != shared_) return false;
+    StrictModeFlag strict_mode = static_cast<StrictModeFlag>(
+        Smi::cast(pair->get(2))->value());
+    if (strict_mode != strict_mode_) return false;
     String* source = String::cast(pair->get(1));
     return source->Equals(source_);
   }
 
   static uint32_t StringSharedHashHelper(String* source,
-                                         SharedFunctionInfo* shared) {
+                                         SharedFunctionInfo* shared,
+                                         StrictModeFlag strict_mode) {
     uint32_t hash = source->Hash();
     if (shared->HasSourceCode()) {
       // Instead of using the SharedFunctionInfo pointer in the hash
@@ -8021,36 +8029,41 @@ class StringSharedKey : public HashTableKey {
       // collection.
       Script* script = Script::cast(shared->script());
       hash ^= String::cast(script->source())->Hash();
+      if (strict_mode == kStrictMode) hash ^= 0x8000;
       hash += shared->start_position();
     }
     return hash;
   }
 
   uint32_t Hash() {
-    return StringSharedHashHelper(source_, shared_);
+    return StringSharedHashHelper(source_, shared_, strict_mode_);
   }
 
   uint32_t HashForObject(Object* obj) {
     FixedArray* pair = FixedArray::cast(obj);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(pair->get(0));
     String* source = String::cast(pair->get(1));
-    return StringSharedHashHelper(source, shared);
+    StrictModeFlag strict_mode = static_cast<StrictModeFlag>(
+        Smi::cast(pair->get(2))->value());
+    return StringSharedHashHelper(source, shared, strict_mode);
   }
 
   MUST_USE_RESULT MaybeObject* AsObject() {
     Object* obj;
-    { MaybeObject* maybe_obj = Heap::AllocateFixedArray(2);
+    { MaybeObject* maybe_obj = Heap::AllocateFixedArray(3);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     FixedArray* pair = FixedArray::cast(obj);
     pair->set(0, shared_);
     pair->set(1, source_);
+    pair->set(2, Smi::FromInt(strict_mode_));
     return pair;
   }
 
  private:
   String* source_;
   SharedFunctionInfo* shared_;
+  StrictModeFlag strict_mode_;
 };
 
 
@@ -9009,8 +9022,10 @@ Object* CompilationCacheTable::Lookup(String* src) {
 }
 
 
-Object* CompilationCacheTable::LookupEval(String* src, Context* context) {
-  StringSharedKey key(src, context->closure()->shared());
+Object* CompilationCacheTable::LookupEval(String* src,
+                                          Context* context,
+                                          StrictModeFlag strict_mode) {
+  StringSharedKey key(src, context->closure()->shared(), strict_mode);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
@@ -9045,8 +9060,10 @@ MaybeObject* CompilationCacheTable::Put(String* src, Object* value) {
 
 MaybeObject* CompilationCacheTable::PutEval(String* src,
                                             Context* context,
-                                            Object* value) {
-  StringSharedKey key(src, context->closure()->shared());
+                                            SharedFunctionInfo* value) {
+  StringSharedKey key(src,
+                      context->closure()->shared(),
+                      value->strict_mode() ? kStrictMode : kNonStrictMode);
   Object* obj;
   { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;

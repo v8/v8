@@ -616,7 +616,8 @@ Parser::Parser(Handle<Script> script,
 
 
 FunctionLiteral* Parser::ParseProgram(Handle<String> source,
-                                      bool in_global_context) {
+                                      bool in_global_context,
+                                      StrictModeFlag strict_mode) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
 
   HistogramTimerScope timer(&Counters::parse);
@@ -632,17 +633,18 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
     ExternalTwoByteStringUC16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
-    return DoParseProgram(source, in_global_context, &zone_scope);
+    return DoParseProgram(source, in_global_context, strict_mode, &zone_scope);
   } else {
     GenericStringUC16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
-    return DoParseProgram(source, in_global_context, &zone_scope);
+    return DoParseProgram(source, in_global_context, strict_mode, &zone_scope);
   }
 }
 
 
 FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
                                         bool in_global_context,
+                                        StrictModeFlag strict_mode,
                                         ZoneScope* zone_scope) {
   ASSERT(target_stack_ == NULL);
   if (pre_data_ != NULL) pre_data_->Initialize();
@@ -662,6 +664,9 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
     LexicalScope lexical_scope(&this->top_scope_, &this->with_nesting_level_,
                                scope);
     TemporaryScope temp_scope(&this->temp_scope_);
+    if (strict_mode == kStrictMode) {
+      temp_scope.EnableStrictMode();
+    }
     ZoneList<Statement*>* body = new ZoneList<Statement*>(16);
     bool ok = true;
     int beg_loc = scanner().location().beg_pos;
@@ -746,6 +751,10 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info,
     LexicalScope lexical_scope(&this->top_scope_, &this->with_nesting_level_,
                                scope);
     TemporaryScope temp_scope(&this->temp_scope_);
+
+    if (info->strict_mode()) {
+      temp_scope.EnableStrictMode();
+    }
 
     FunctionLiteralType type =
         info->is_expression() ? EXPRESSION : DECLARATION;
@@ -5024,7 +5033,9 @@ bool ParserApi::Parse(CompilationInfo* info) {
       ASSERT(Top::has_pending_exception());
     } else {
       Handle<String> source = Handle<String>(String::cast(script->source()));
-      result = parser.ParseProgram(source, info->is_global());
+      result = parser.ParseProgram(source,
+                                   info->is_global(),
+                                   info->StrictMode());
     }
   }
 
