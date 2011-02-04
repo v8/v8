@@ -240,6 +240,10 @@ class LInstruction: public ZoneObject {
   LOperand* FirstInput() { return InputAt(0); }
   LOperand* Output() { return HasResult() ? result() : NULL; }
 
+#ifdef DEBUG
+  void VerifyCall();
+#endif
+
  private:
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
