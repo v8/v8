@@ -162,6 +162,12 @@ const char* LArithmeticT::Mnemonic() const {
     case Token::MUL: return "mul-t";
     case Token::MOD: return "mod-t";
     case Token::DIV: return "div-t";
+    case Token::BIT_AND: return "bit-and-t";
+    case Token::BIT_OR: return "bit-or-t";
+    case Token::BIT_XOR: return "bit-xor-t";
+    case Token::SHL: return "sal-t";
+    case Token::SAR: return "sar-t";
+    case Token::SHR: return "shr-t";
     default:
       UNREACHABLE();
       return NULL;
@@ -319,7 +325,7 @@ int LChunk::GetNextSpillIndex(bool is_double) {
 }
 
 
-LOperand* LChunk::GetNextSpillSlot(bool is_double)  {
+LOperand* LChunk::GetNextSpillSlot(bool is_double) {
   // All stack slots are Double stack slots on x64.
   // Alternatively, at some point, start using half-size
   // stack slots for int32 values.
@@ -741,8 +747,72 @@ LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
 
 LInstruction* LChunkBuilder::DoBit(Token::Value op,
                                    HBitwiseBinaryOperation* instr) {
-  Abort("Unimplemented: %s", "DoBit");
-  return NULL;
+  if (instr->representation().IsInteger32()) {
+    ASSERT(instr->left()->representation().IsInteger32());
+    ASSERT(instr->right()->representation().IsInteger32());
+
+    LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
+    LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
+    return DefineSameAsFirst(new LBitI(op, left, right));
+  } else {
+    ASSERT(instr->representation().IsTagged());
+    ASSERT(instr->left()->representation().IsTagged());
+    ASSERT(instr->right()->representation().IsTagged());
+
+    LOperand* left = UseFixed(instr->left(), rdx);
+    LOperand* right = UseFixed(instr->right(), rax);
+    LArithmeticT* result = new LArithmeticT(op, left, right);
+    return MarkAsCall(DefineFixed(result, rax), instr);
+  }
+}
+
+
+LInstruction* LChunkBuilder::DoShift(Token::Value op,
+                                     HBitwiseBinaryOperation* instr) {
+  if (instr->representation().IsTagged()) {
+    ASSERT(instr->left()->representation().IsTagged());
+    ASSERT(instr->right()->representation().IsTagged());
+
+    LOperand* left = UseFixed(instr->left(), rdx);
+    LOperand* right = UseFixed(instr->right(), rax);
+    LArithmeticT* result = new LArithmeticT(op, left, right);
+    return MarkAsCall(DefineFixed(result, rax), instr);
+  }
+
+  ASSERT(instr->representation().IsInteger32());
+  ASSERT(instr->OperandAt(0)->representation().IsInteger32());
+  ASSERT(instr->OperandAt(1)->representation().IsInteger32());
+  LOperand* left = UseRegisterAtStart(instr->OperandAt(0));
+
+  HValue* right_value = instr->OperandAt(1);
+  LOperand* right = NULL;
+  int constant_value = 0;
+  if (right_value->IsConstant()) {
+    HConstant* constant = HConstant::cast(right_value);
+    right = chunk_->DefineConstantOperand(constant);
+    constant_value = constant->Integer32Value() & 0x1f;
+  } else {
+    right = UseFixed(right_value, rcx);
+  }
+
+  // Shift operations can only deoptimize if we do a logical shift
+  // by 0 and the result cannot be truncated to int32.
+  bool can_deopt = (op == Token::SHR && constant_value == 0);
+  if (can_deopt) {
+    bool can_truncate = true;
+    for (int i = 0; i < instr->uses()->length(); i++) {
+      if (!instr->uses()->at(i)->CheckFlag(HValue::kTruncatingToInt32)) {
+        can_truncate = false;
+        break;
+      }
+    }
+    can_deopt = !can_truncate;
+  }
+
+  LShiftI* result = new LShiftI(op, left, right, can_deopt);
+  return can_deopt
+      ? AssignEnvironment(DefineSameAsFirst(result))
+      : DefineSameAsFirst(result);
 }
 
 
@@ -1131,44 +1201,41 @@ LInstruction* LChunkBuilder::DoCallRuntime(HCallRuntime* instr) {
 
 
 LInstruction* LChunkBuilder::DoShr(HShr* instr) {
-  Abort("Unimplemented: %s", "DoShr");
-  return NULL;
+  return DoShift(Token::SHR, instr);
 }
 
 
 LInstruction* LChunkBuilder::DoSar(HSar* instr) {
-  Abort("Unimplemented: %s", "DoSar");
-  return NULL;
+  return DoShift(Token::SAR, instr);
 }
 
 
 LInstruction* LChunkBuilder::DoShl(HShl* instr) {
-  Abort("Unimplemented: %s", "DoShl");
-  return NULL;
+  return DoShift(Token::SHL, instr);
 }
 
 
 LInstruction* LChunkBuilder::DoBitAnd(HBitAnd* instr) {
-  Abort("Unimplemented: %s", "DoBitAnd");
-  return NULL;
+  return DoBit(Token::BIT_AND, instr);
 }
 
 
 LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
-  Abort("Unimplemented: %s", "DoBitNot");
-  return NULL;
+  ASSERT(instr->value()->representation().IsInteger32());
+  ASSERT(instr->representation().IsInteger32());
+  LOperand* input = UseRegisterAtStart(instr->value());
+  LBitNotI* result = new LBitNotI(input);
+  return DefineSameAsFirst(result);
 }
 
 
 LInstruction* LChunkBuilder::DoBitOr(HBitOr* instr) {
-  Abort("Unimplemented: %s", "DoBitOr");
-  return NULL;
+  return DoBit(Token::BIT_OR, instr);
 }
 
 
 LInstruction* LChunkBuilder::DoBitXor(HBitXor* instr) {
-  Abort("Unimplemented: %s", "DoBitXor");
-  return NULL;
+  return DoBit(Token::BIT_XOR, instr);
 }
 
 

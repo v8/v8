@@ -605,11 +605,115 @@ void LCodeGen::DoMulI(LMulI* instr) {
 
 
 void LCodeGen::DoBitI(LBitI* instr) {
-  Abort("Unimplemented: %s", "DoBitI");}
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  ASSERT(left->Equals(instr->result()));
+  ASSERT(left->IsRegister());
+
+  if (right->IsConstantOperand()) {
+    int right_operand = ToInteger32(LConstantOperand::cast(right));
+    switch (instr->op()) {
+      case Token::BIT_AND:
+        __ andl(ToRegister(left), Immediate(right_operand));
+        break;
+      case Token::BIT_OR:
+        __ orl(ToRegister(left), Immediate(right_operand));
+        break;
+      case Token::BIT_XOR:
+        __ xorl(ToRegister(left), Immediate(right_operand));
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  } else if (right->IsStackSlot()) {
+    switch (instr->op()) {
+      case Token::BIT_AND:
+        __ andl(ToRegister(left), ToOperand(right));
+        break;
+      case Token::BIT_OR:
+        __ orl(ToRegister(left), ToOperand(right));
+        break;
+      case Token::BIT_XOR:
+        __ xorl(ToRegister(left), ToOperand(right));
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  } else {
+    ASSERT(right->IsRegister());
+    switch (instr->op()) {
+      case Token::BIT_AND:
+        __ andl(ToRegister(left), ToRegister(right));
+        break;
+      case Token::BIT_OR:
+        __ orl(ToRegister(left), ToRegister(right));
+        break;
+      case Token::BIT_XOR:
+        __ xorl(ToRegister(left), ToRegister(right));
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  }
+}
 
 
 void LCodeGen::DoShiftI(LShiftI* instr) {
-  Abort("Unimplemented: %s", "DoShiftI");
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  ASSERT(left->Equals(instr->result()));
+  ASSERT(left->IsRegister());
+  if (right->IsRegister()) {
+    ASSERT(ToRegister(right).is(rcx));
+
+    switch (instr->op()) {
+      case Token::SAR:
+        __ sarl_cl(ToRegister(left));
+        break;
+      case Token::SHR:
+        __ shrl_cl(ToRegister(left));
+        if (instr->can_deopt()) {
+          __ testl(ToRegister(left), ToRegister(left));
+          DeoptimizeIf(negative, instr->environment());
+        }
+        break;
+      case Token::SHL:
+        __ shll_cl(ToRegister(left));
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  } else {
+    int value = ToInteger32(LConstantOperand::cast(right));
+    uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
+    switch (instr->op()) {
+      case Token::SAR:
+        if (shift_count != 0) {
+          __ sarl(ToRegister(left), Immediate(shift_count));
+        }
+        break;
+      case Token::SHR:
+        if (shift_count == 0 && instr->can_deopt()) {
+          __ testl(ToRegister(left), ToRegister(left));
+          DeoptimizeIf(negative, instr->environment());
+        } else {
+          __ shrl(ToRegister(left), Immediate(shift_count));
+        }
+        break;
+      case Token::SHL:
+        if (shift_count != 0) {
+          __ shll(ToRegister(left), Immediate(shift_count));
+        }
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  }
 }
 
 
@@ -663,7 +767,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
 
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
-    ASSERT(instr->result()->IsRegister());
+  ASSERT(instr->result()->IsRegister());
   __ Move(ToRegister(instr->result()), instr->value());
 }
 
@@ -686,7 +790,9 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
 
 
 void LCodeGen::DoBitNotI(LBitNotI* instr) {
-  Abort("Unimplemented: %s", "DoBitNotI");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->Equals(instr->result()));
+  __ not_(ToRegister(input));
 }
 
 
@@ -1201,7 +1307,7 @@ void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
 
 void LCodeGen::DoHasCachedArrayIndexAndBranch(
     LHasCachedArrayIndexAndBranch* instr) {
-    Register input = ToRegister(instr->InputAt(0));
+  Register input = ToRegister(instr->InputAt(0));
 
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
