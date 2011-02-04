@@ -81,7 +81,7 @@ void StoreBuffer::Setup() {
   Heap::AddGCPrologueCallback(&GCPrologue, kGCTypeAll);
   Heap::AddGCEpilogueCallback(&GCEpilogue, kGCTypeAll);
 
-  GCPrologue(kGCTypeMarkSweepCompact, kNoGCCallbackFlags);
+  ZapHashTables();
 }
 
 
@@ -146,7 +146,7 @@ void StoreBuffer::Uniq() {
 void StoreBuffer::SortUniq() {
   Compact();
   if (old_buffer_is_sorted_) return;
-  if (store_buffer_mode_ == kStoreBufferDisabled) {
+  if (store_buffer_mode() == kStoreBufferDisabled) {
     old_top_ = old_start_;
     return;
   }
@@ -163,7 +163,7 @@ void StoreBuffer::SortUniq() {
 
 #ifdef DEBUG
 void StoreBuffer::Clean() {
-  if (store_buffer_mode_ == kStoreBufferDisabled) {
+  if (store_buffer_mode() == kStoreBufferDisabled) {
     old_top_ = old_start_;  // Just clear the cache.
     return;
   }
@@ -194,7 +194,7 @@ static Address* in_store_buffer_1_element_cache = NULL;
 
 bool StoreBuffer::CellIsInStoreBuffer(Address cell_address) {
   if (!FLAG_enable_slow_asserts) return true;
-  if (store_buffer_mode_ != kStoreBufferFunctional) return true;
+  if (store_buffer_mode() != kStoreBufferFunctional) return true;
   if (in_store_buffer_1_element_cache != NULL &&
       *in_store_buffer_1_element_cache == cell_address) {
     return true;
@@ -236,7 +236,7 @@ void StoreBuffer::GCPrologue(GCType type, GCCallbackFlags flags) {
 void StoreBuffer::Verify() {
 #ifdef DEBUG
   if (FLAG_verify_heap &&
-      StoreBuffer::store_buffer_mode_ == kStoreBufferFunctional) {
+      StoreBuffer::store_buffer_mode() == kStoreBufferFunctional) {
     Heap::OldPointerSpaceCheckStoreBuffer(Heap::WATERMARK_SHOULD_BE_VALID);
     Heap::MapSpaceCheckStoreBuffer(Heap::WATERMARK_SHOULD_BE_VALID);
     Heap::LargeObjectSpaceCheckStoreBuffer();
@@ -247,19 +247,22 @@ void StoreBuffer::Verify() {
 
 void StoreBuffer::GCEpilogue(GCType type, GCCallbackFlags flags) {
   during_gc_ = false;
-  if (store_buffer_mode_ == kStoreBufferBeingRebuilt) {
-    store_buffer_mode_ = kStoreBufferFunctional;
+  if (store_buffer_mode() == kStoreBufferBeingRebuilt) {
+    set_store_buffer_mode(kStoreBufferFunctional);
   }
   Verify();
 }
 
 
 void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback callback) {
-  if (store_buffer_mode_ != kStoreBufferFunctional) {
+  if (store_buffer_mode() == kStoreBufferFunctional) {
+    SortUniq();
+  }
+  if (store_buffer_mode() != kStoreBufferFunctional) {
     old_top_ = old_start_;
     ZapHashTables();
     Heap::public_set_store_buffer_top(start_);
-    store_buffer_mode_ = kStoreBufferBeingRebuilt;
+    set_store_buffer_mode(kStoreBufferBeingRebuilt);
     Heap::IteratePointers(Heap::old_pointer_space(),
                           &Heap::IteratePointersToNewSpace,
                           callback,
@@ -272,7 +275,6 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback callback) {
 
     Heap::lo_space()->IteratePointersToNewSpace(callback);
   } else {
-    SortUniq();
     Address* limit = old_top_;
     old_top_ = old_start_;
     {
@@ -311,7 +313,7 @@ void StoreBuffer::Compact() {
   if (top - start_ > old_limit_ - old_top_) {
     CheckForFullBuffer();
   }
-  if (store_buffer_mode_ == kStoreBufferDisabled) return;
+  if (store_buffer_mode() == kStoreBufferDisabled) return;
   ASSERT(may_move_store_buffer_entries_);
   // Goes through the addresses in the store buffer attempting to remove
   // duplicates.  In the interest of speed this is a lossy operation.  Some
@@ -353,7 +355,9 @@ void StoreBuffer::CheckForFullBuffer() {
     // the next two compressions will have enough space in the buffer.  We
     // start by trying a more agressive compression.  If this frees up at least
     // half the space then we can keep going, otherwise it is time to brake.
-    SortUniq();
+    if (!during_gc_) {
+      SortUniq();
+    }
     if (old_limit_ - old_top_ < old_limit_ - old_top_) {
       return;
     }
@@ -365,7 +369,7 @@ void StoreBuffer::CheckForFullBuffer() {
       // compression to be guaranteed to succeed.
       // TODO(gc): Set a flag to scan all of memory.
       Counters::store_buffer_overflows.Increment();
-      store_buffer_mode_ = kStoreBufferDisabled;
+      set_store_buffer_mode(kStoreBufferDisabled);
     }
   }
 }

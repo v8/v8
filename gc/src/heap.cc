@@ -4125,8 +4125,8 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
       if (Heap::InNewSpace(*slot)) {
         ASSERT(Heap::InToSpace(*slot));
         ASSERT((*slot)->IsHeapObject());
-        StoreBuffer::EnterDirectlyIntoStoreBuffer(
-            reinterpret_cast<Address>(slot));
+        ASSERT(StoreBuffer::CellIsInStoreBuffer(
+            reinterpret_cast<Address>(slot)));
       }
     }
     slot_address += kPointerSize;
@@ -4230,7 +4230,6 @@ void Heap::MapSpaceCheckStoreBuffer(
     } else {
       end = page->CachedAllocationWatermark();
     }
-
 
     Address map_aligned_current = page->ObjectAreaStart();
 

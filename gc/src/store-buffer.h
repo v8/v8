@@ -64,10 +64,6 @@ class StoreBuffer : public AllStatic {
   // queue and they can overflow this buffer, which we must check for.
   static inline void EnterDirectlyIntoStoreBuffer(Address addr);
 
-  enum RebuildStoreBufferMode {
-    kRebuildStoreBufferWhileIterating,
-    kPreserveStoreBufferWhileIterating};
-
   // Iterates over all pointers that go from old space to new space.  It will
   // delete the store buffer as it starts so the callback should reenter
   // surviving old-to-new pointers into the store buffer to rebuild it.
@@ -94,6 +90,7 @@ class StoreBuffer : public AllStatic {
   };
 
   static StoreBufferMode store_buffer_mode() { return store_buffer_mode_; }
+  static inline void set_store_buffer_mode(StoreBufferMode mode);
   static bool old_buffer_is_sorted() { return old_buffer_is_sorted_; }
 
   // Goes through the store buffer removing pointers to things that have

@@ -52,6 +52,22 @@ void StoreBuffer::Mark(Address addr) {
 }
 
 
+void StoreBuffer::set_store_buffer_mode(StoreBuffer::StoreBufferMode mode) {
+  if (FLAG_trace_gc) {
+    if (mode != store_buffer_mode_) {
+      if (mode == kStoreBufferDisabled) {
+        PrintF("Store buffer overflowed.\n");
+      } else if (mode == kStoreBufferBeingRebuilt) {
+        PrintF("Store buffer being rebuilt.\n");
+      } else if (mode == kStoreBufferFunctional) {
+        PrintF("Store buffer reenabled.\n");
+      }
+    }
+  }
+  store_buffer_mode_ = mode;
+}
+
+
 void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
   if (store_buffer_rebuilding_enabled_) {
     Address* top = old_top_;
@@ -59,9 +75,10 @@ void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
     old_top_ = top;
     if (top >= old_limit_) {
       Counters::store_buffer_overflows.Increment();
-      store_buffer_mode_ = kStoreBufferDisabled;
+      set_store_buffer_mode(kStoreBufferDisabled);
       old_top_ = old_start_;
     }
+    old_buffer_is_sorted_ = false;
   }
 }
 
