@@ -364,7 +364,13 @@ void LCodeGen::CallCode(Handle<Code> code,
 void LCodeGen::CallRuntime(Runtime::Function* function,
                            int num_arguments,
                            LInstruction* instr) {
-  Abort("Unimplemented: %s", "CallRuntime");
+  ASSERT(instr != NULL);
+  ASSERT(instr->HasPointerMap());
+  LPointerMap* pointers = instr->pointer_map();
+  RecordPosition(pointers->position());
+
+  __ CallRuntime(function, num_arguments);
+  RegisterLazyDeoptimization(instr);
 }
 
 
@@ -1929,12 +1935,47 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
 
 void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
-  Abort("Unimplemented: %s", "DoArrayLiteral");
+  // Setup the parameters to the stub/runtime call.
+  __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ push(FieldOperand(rax, JSFunction::kLiteralsOffset));
+  __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
+  __ Push(instr->hydrogen()->constant_elements());
+
+  // Pick the right runtime function or stub to call.
+  int length = instr->hydrogen()->length();
+  if (instr->hydrogen()->IsCopyOnWrite()) {
+    ASSERT(instr->hydrogen()->depth() == 1);
+    FastCloneShallowArrayStub::Mode mode =
+        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS;
+    FastCloneShallowArrayStub stub(mode, length);
+    CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  } else if (instr->hydrogen()->depth() > 1) {
+    CallRuntime(Runtime::kCreateArrayLiteral, 3, instr);
+  } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
+    CallRuntime(Runtime::kCreateArrayLiteralShallow, 3, instr);
+  } else {
+    FastCloneShallowArrayStub::Mode mode =
+        FastCloneShallowArrayStub::CLONE_ELEMENTS;
+    FastCloneShallowArrayStub stub(mode, length);
+    CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  }
 }
 
 
 void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
-  Abort("Unimplemented: %s", "DoObjectLiteral");
+  // Setup the parameters to the stub/runtime call.
+  __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ push(FieldOperand(rax, JSFunction::kLiteralsOffset));
+  __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
+  __ Push(instr->hydrogen()->constant_properties());
+  __ Push(Smi::FromInt(instr->hydrogen()->fast_elements() ? 1 : 0));
+
+  // Pick the right runtime function to call.
+  if (instr->hydrogen()->depth() > 1) {
+    CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
+  } else {
+    CallRuntime(Runtime::kCreateObjectLiteralShallow, 4, instr);
+  }
 }
 
 
@@ -1944,7 +1985,20 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
 
 
 void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
-  Abort("Unimplemented: %s", "DoFunctionLiteral");
+  // Use the fast case closure allocation code that allocates in new
+  // space for nested functions that don't need literals cloning.
+  Handle<SharedFunctionInfo> shared_info = instr->shared_info();
+  bool pretenure = instr->hydrogen()->pretenure();
+  if (shared_info->num_literals() == 0 && !pretenure) {
+    FastNewClosureStub stub;
+    __ Push(shared_info);
+    CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  } else {
+    __ push(rsi);
+    __ Push(shared_info);
+    __ Push(pretenure ? Factory::true_value() : Factory::false_value());
+    CallRuntime(Runtime::kNewClosure, 3, instr);
+  }
 }
 
 

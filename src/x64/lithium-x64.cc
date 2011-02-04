@@ -1125,8 +1125,8 @@ LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallRuntime(HCallRuntime* instr) {
-  Abort("Unimplemented: %s", "DoCallRuntime");
-  return NULL;
+  argument_count_ -= instr->argument_count();
+  return MarkAsCall(DefineFixed(new LCallRuntime, rax), instr);
 }
 
 
@@ -1597,14 +1597,12 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 
 
 LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
-  Abort("Unimplemented: %s", "DoArrayLiteral");
-  return NULL;
+  return MarkAsCall(DefineFixed(new LArrayLiteral, rax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoObjectLiteral(HObjectLiteral* instr) {
-  Abort("Unimplemented: %s", "DoObjectLiteral");
-  return NULL;
+  return MarkAsCall(DefineFixed(new LObjectLiteral, rax), instr);
 }
 
 
@@ -1615,8 +1613,7 @@ LInstruction* LChunkBuilder::DoRegExpLiteral(HRegExpLiteral* instr) {
 
 
 LInstruction* LChunkBuilder::DoFunctionLiteral(HFunctionLiteral* instr) {
-  Abort("Unimplemented: %s", "DoFunctionLiteral");
-  return NULL;
+  return MarkAsCall(DefineFixed(new LFunctionLiteral, rax), instr);
 }
 
 
