@@ -2055,11 +2055,11 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   //  - Make sure Flush-to-zero mode control bit is unset (bit 22).
   __ bic(r9, r3,
       Operand(kVFPExceptionMask | kVFPRoundingModeMask | kVFPFlushToZeroMask));
-  __ orr(r9, r9, Operand(kVFPRoundToMinusInfinityBits));
+  __ orr(r9, r9, Operand(kRoundToMinusInf));
   __ vmsr(r9);
 
   // Convert the argument to an integer.
-  __ vcvt_s32_f64(s0, d1, Assembler::FPSCRRounding, al);
+  __ vcvt_s32_f64(s0, d1, kFPSCRRounding);
 
   // Use vcvt latency to start checking for special cases.
   // Get the argument exponent and clear the sign bit.
@@ -3796,9 +3796,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
 
       // Not infinity or NaN simply convert to int.
       if (IsElementTypeSigned(array_type)) {
-        __ vcvt_s32_f64(s0, d0, Assembler::RoundToZero, ne);
+        __ vcvt_s32_f64(s0, d0, kDefaultRoundToZero, ne);
       } else {
-        __ vcvt_u32_f64(s0, d0, Assembler::RoundToZero, ne);
+        __ vcvt_u32_f64(s0, d0, kDefaultRoundToZero, ne);
       }
       __ vmov(r5, s0, ne);
 

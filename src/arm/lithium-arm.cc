@@ -1535,7 +1535,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegister(instr->value());
-      LDoubleToI* res = new LDoubleToI(value);
+      LDoubleToI* res = new LDoubleToI(value, TempRegister());
       return AssignEnvironment(DefineAsRegister(res));
     }
   } else if (from.IsInteger32()) {

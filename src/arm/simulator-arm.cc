@@ -2539,7 +2539,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
                          (overflow_vfp_flag_ << 2) |
                          (div_zero_vfp_flag_ << 1) |
                          (inv_op_vfp_flag_ << 0) |
-                         (FPSCR_rounding_mode_ << 22);
+                         (FPSCR_rounding_mode_);
         set_register(rt, fpscr);
       }
     } else if ((instr->VLValue() == 0x0) &&
@@ -2562,7 +2562,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         div_zero_vfp_flag_ = (rt_value >> 1) & 1;
         inv_op_vfp_flag_ = (rt_value >> 0) & 1;
         FPSCR_rounding_mode_ =
-          static_cast<FPSCRRoundingModes>((rt_value >> 22) & 3);
+            static_cast<VFPRoundingMode>((rt_value) & kVFPRoundingModeMask);
       }
     } else {
       UNIMPLEMENTED();  // Not used by V8.
@@ -2651,86 +2651,134 @@ void Simulator::DecodeVCVTBetweenDoubleAndSingle(Instruction* instr) {
   }
 }
 
+bool get_inv_op_vfp_flag(VFPRoundingMode mode,
+                         double val,
+                         bool unsigned_) {
+  ASSERT((mode == RN) || (mode == RM) || (mode == RZ));
+  double max_uint = static_cast<double>(0xffffffffu);
+  double max_int = static_cast<double>(kMaxInt);
+  double min_int = static_cast<double>(kMinInt);
+
+  // Check for NaN.
+  if (val != val) {
+    return true;
+  }
+
+  // Check for overflow. This code works because 32bit integers can be
+  // exactly represented by ieee-754 64bit floating-point values.
+  switch (mode) {
+    case RN:
+      return  unsigned_ ? (val >= (max_uint + 0.5)) ||
+                          (val < -0.5)
+                        : (val >= (max_int + 0.5)) ||
+                          (val < (min_int - 0.5));
+
+    case RM:
+      return  unsigned_ ? (val >= (max_uint + 1.0)) ||
+                          (val < 0)
+                        : (val >= (max_int + 1.0)) ||
+                          (val < min_int);
+
+    case RZ:
+      return  unsigned_ ? (val >= (max_uint + 1.0)) ||
+                          (val <= -1)
+                        : (val >= (max_int + 1.0)) ||
+                          (val <= (min_int - 1.0));
+    default:
+      UNREACHABLE();
+      return true;
+  }
+}
+
+
+// We call this function only if we had a vfp invalid exception.
+// It returns the correct saturated value.
+int VFPConversionSaturate(double val, bool unsigned_res) {
+  if (val != val) {
+    return 0;
+  } else {
+    if (unsigned_res) {
+      return (val < 0) ? 0 : 0xffffffffu;
+    } else {
+      return (val < 0) ? kMinInt : kMaxInt;
+    }
+  }
+}
+
 
 void Simulator::DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr) {
-  ASSERT((instr->Bit(4) == 0) && (instr->Opc1Value() == 0x7));
+  ASSERT((instr->Bit(4) == 0) && (instr->Opc1Value() == 0x7) &&
+         (instr->Bits(27, 23) == 0x1D));
   ASSERT(((instr->Opc2Value() == 0x8) && (instr->Opc3Value() & 0x1)) ||
          (((instr->Opc2Value() >> 1) == 0x6) && (instr->Opc3Value() & 0x1)));
 
   // Conversion between floating-point and integer.
   bool to_integer = (instr->Bit(18) == 1);
 
-  VFPRegPrecision src_precision = kSinglePrecision;
-  if (instr->SzValue() == 1) {
-    src_precision = kDoublePrecision;
-  }
+  VFPRegPrecision src_precision = (instr->SzValue() == 1) ? kDoublePrecision
+                                                          : kSinglePrecision;
 
   if (to_integer) {
-    bool unsigned_integer = (instr->Bit(16) == 0);
-    FPSCRRoundingModes mode;
-    if (instr->Bit(7) != 1) {
-      // Use FPSCR defined rounding mode.
-      mode = FPSCR_rounding_mode_;
-      // Only RZ and RM modes are supported.
-      ASSERT((mode == RM) || (mode == RZ));
-    } else {
-      // VFP uses round towards zero by default.
-      mode = RZ;
-    }
+    // We are playing with code close to the C++ standard's limits below,
+    // hence the very simple code and heavy checks.
+    //
+    // Note:
+    // C++ defines default type casting from floating point to integer as
+    // (close to) rounding toward zero ("fractional part discarded").
 
     int dst = instr->VFPDRegValue(kSinglePrecision);
     int src = instr->VFPMRegValue(src_precision);
-    int32_t kMaxInt = v8::internal::kMaxInt;
-    int32_t kMinInt = v8::internal::kMinInt;
-    switch (mode) {
-      case RM:
-        if (src_precision == kDoublePrecision) {
-          double val = get_double_from_d_register(src);
 
-          inv_op_vfp_flag_ = (val > kMaxInt) || (val < kMinInt) || (val != val);
+    // Bit 7 in vcvt instructions indicates if we should use the FPSCR rounding
+    // mode or the default Round to Zero mode.
+    VFPRoundingMode mode = (instr->Bit(7) != 1) ? FPSCR_rounding_mode_
+                                                : RZ;
+    ASSERT((mode == RM) || (mode == RZ) || (mode == RN));
 
-          int sint = unsigned_integer ? static_cast<uint32_t>(val) :
-                                        static_cast<int32_t>(val);
-          sint = sint > val ? sint - 1 : sint;
+    bool unsigned_integer = (instr->Bit(16) == 0);
+    bool double_precision = (src_precision == kDoublePrecision);
 
-          set_s_register_from_sinteger(dst, sint);
-        } else {
-          float val = get_float_from_s_register(src);
+    double val = double_precision ? get_double_from_d_register(src)
+                                  : get_float_from_s_register(src);
 
-          inv_op_vfp_flag_ = (val > kMaxInt) || (val < kMinInt) || (val != val);
+    int temp = unsigned_integer ? static_cast<uint32_t>(val)
+                                : static_cast<int32_t>(val);
 
-          int sint = unsigned_integer ? static_cast<uint32_t>(val) :
-                                        static_cast<int32_t>(val);
-          sint = sint > val ? sint - 1 : sint;
+    inv_op_vfp_flag_ = get_inv_op_vfp_flag(mode, val, unsigned_integer);
 
-          set_s_register_from_sinteger(dst, sint);
+    if (inv_op_vfp_flag_) {
+      temp = VFPConversionSaturate(val, unsigned_integer);
+    } else {
+      switch (mode) {
+        case RN: {
+          double abs_diff =
+            unsigned_integer ? fabs(val - static_cast<uint32_t>(temp))
+                             : fabs(val - temp);
+          int val_sign = (val > 0) ? 1 : -1;
+          if (abs_diff > 0.5) {
+            temp += val_sign;
+          } else if (abs_diff == 0.5) {
+            // Round to even if exactly halfway.
+            temp = ((temp % 2) == 0) ? temp : temp + val_sign;
+          }
+          break;
         }
-        break;
-      case RZ:
-        if (src_precision == kDoublePrecision) {
-          double val = get_double_from_d_register(src);
 
-          inv_op_vfp_flag_ = (val > kMaxInt) || (val < kMinInt) || (val != val);
+        case RM:
+          temp = temp > val ? temp - 1 : temp;
+          break;
 
-          int sint = unsigned_integer ? static_cast<uint32_t>(val) :
-                                        static_cast<int32_t>(val);
+        case RZ:
+          // Nothing to do.
+          break;
 
-          set_s_register_from_sinteger(dst, sint);
-        } else {
-          float val = get_float_from_s_register(src);
-
-          inv_op_vfp_flag_ = (val > kMaxInt) || (val < kMinInt) || (val != val);
-
-          int sint = unsigned_integer ? static_cast<uint32_t>(val) :
-                                        static_cast<int32_t>(val);
-
-          set_s_register_from_sinteger(dst, sint);
-        }
-        break;
-
-      default:
-        UNREACHABLE();
+        default:
+          UNREACHABLE();
+      }
     }
+
+    // Update the destination register.
+    set_s_register_from_sinteger(dst, temp);
 
   } else {
     bool unsigned_integer = (instr->Bit(7) == 0);

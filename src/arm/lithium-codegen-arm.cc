@@ -2666,34 +2666,53 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
 }
 
 
-void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
-  DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-  Register prev_fpscr = ToRegister(instr->TempAt(0));
-  SwVfpRegister single_scratch = double_scratch0().low();
-  Register scratch = scratch0();
+// Truncates a double using a specific rounding mode.
+// Clears the z flag (ne condition) if an overflow occurs.
+void LCodeGen::EmitVFPTruncate(VFPRoundingMode rounding_mode,
+                               SwVfpRegister result,
+                               DwVfpRegister double_input,
+                               Register scratch1,
+                               Register scratch2) {
+  Register prev_fpscr = scratch1;
+  Register scratch = scratch2;
 
   // Set custom FPCSR:
-  //  - Set rounding mode to "Round towards Minus Infinity".
+  //  - Set rounding mode.
   //  - Clear vfp cumulative exception flags.
   //  - Make sure Flush-to-zero mode control bit is unset.
   __ vmrs(prev_fpscr);
-  __ bic(scratch, prev_fpscr,
-      Operand(kVFPExceptionMask | kVFPRoundingModeMask | kVFPFlushToZeroMask));
-  __ orr(scratch, scratch, Operand(kVFPRoundToMinusInfinityBits));
+  __ bic(scratch, prev_fpscr, Operand(kVFPExceptionMask |
+                                      kVFPRoundingModeMask |
+                                      kVFPFlushToZeroMask));
+  __ orr(scratch, scratch, Operand(rounding_mode));
   __ vmsr(scratch);
 
   // Convert the argument to an integer.
-  __ vcvt_s32_f64(single_scratch,
-                  input,
-                  Assembler::FPSCRRounding,
-                  al);
+  __ vcvt_s32_f64(result,
+                  double_input,
+                  kFPSCRRounding);
 
-  // Retrieve FPSCR and check for vfp exceptions.
+  // Retrieve FPSCR.
   __ vmrs(scratch);
-  // Restore FPSCR
+  // Restore FPSCR.
   __ vmsr(prev_fpscr);
+  // Check for vfp exceptions.
   __ tst(scratch, Operand(kVFPExceptionMask));
+}
+
+
+void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  SwVfpRegister single_scratch = double_scratch0().low();
+  Register scratch1 = scratch0();
+  Register scratch2 = ToRegister(instr->TempAt(0));
+
+  EmitVFPTruncate(kRoundToMinusInf,
+                  single_scratch,
+                  input,
+                  scratch1,
+                  scratch2);
   DeoptimizeIf(ne, instr->environment());
 
   // Move the result back to general purpose register r0.
@@ -2703,8 +2722,8 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   Label done;
   __ cmp(result, Operand(0));
   __ b(ne, &done);
-  __ vmov(scratch, input.high());
-  __ tst(scratch, Operand(HeapNumber::kSignMask));
+  __ vmov(scratch1, input.high());
+  __ tst(scratch1, Operand(HeapNumber::kSignMask));
   DeoptimizeIf(ne, instr->environment());
   __ bind(&done);
 }
@@ -3338,7 +3357,43 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
 
 
 void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
-  Abort("DoDoubleToI unimplemented.");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsDoubleRegister());
+  LOperand* result = instr->result();
+  ASSERT(result->IsRegister());
+
+  DoubleRegister double_input = ToDoubleRegister(input);
+  Register result_reg = ToRegister(result);
+  SwVfpRegister single_scratch = double_scratch0().low();
+  Register scratch1 = scratch0();
+  Register scratch2 = ToRegister(instr->TempAt(0));
+
+  VFPRoundingMode rounding_mode = instr->truncating() ? kRoundToMinusInf
+                                                      : kRoundToNearest;
+
+
+  EmitVFPTruncate(rounding_mode,
+                  single_scratch,
+                  double_input,
+                  scratch1,
+                  scratch2);
+  // Deoptimize if we had a vfp invalid exception.
+  DeoptimizeIf(ne, instr->environment());
+  // Retrieve the result.
+  __ vmov(result_reg, single_scratch);
+
+  if (instr->truncating() &&
+      instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    Label done;
+    __ cmp(result_reg, Operand(0));
+    __ b(ne, &done);
+    // Check for -0.
+    __ vmov(scratch1, double_input.high());
+    __ tst(scratch1, Operand(HeapNumber::kSignMask));
+    DeoptimizeIf(ne, instr->environment());
+
+    __ bind(&done);
+  }
 }
 
 
