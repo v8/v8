@@ -4013,16 +4013,10 @@ Handle<String> JsonParser::GetString() {
 Handle<Object> JsonParser::ParseJsonValue() {
   Token::Value token = scanner_.Next();
   switch (token) {
-    case Token::STRING: {
+    case Token::STRING:
       return GetString();
-    }
-    case Token::NUMBER: {
-      ASSERT(scanner_.is_literal_ascii());
-      double value = StringToDouble(scanner_.literal_ascii_string(),
-                                    NO_FLAGS,  // Hex, octal or trailing junk.
-                                    OS::nan_value());
-      return Factory::NewNumber(value);
-    }
+    case Token::NUMBER:
+      return Factory::NewNumber(scanner_.number());
     case Token::FALSE_LITERAL:
       return Factory::false_value();
     case Token::TRUE_LITERAL:
