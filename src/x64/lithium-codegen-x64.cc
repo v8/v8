@@ -1563,7 +1563,12 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
 
 void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
-  Abort("Unimplemented: %s", "DoLoadNamedGeneric");
+  ASSERT(ToRegister(instr->object()).is(rax));
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  __ Move(rcx, instr->name());
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -1926,12 +1931,21 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  Abort("Unimplemented: %s", "DoSmiTag");
+  ASSERT(instr->InputAt(0)->Equals(instr->result()));
+  Register input = ToRegister(instr->InputAt(0));
+  ASSERT(!instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow));
+  __ Integer32ToSmi(input, input);
 }
 
 
 void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
-  Abort("Unimplemented: %s", "DoSmiUntag");
+  ASSERT(instr->InputAt(0)->Equals(instr->result()));
+  Register input = ToRegister(instr->InputAt(0));
+  if (instr->needs_check()) {
+    Condition is_smi = __ CheckSmi(input);
+    DeoptimizeIf(NegateCondition(is_smi), instr->environment());
+  }
+  __ SmiToInteger32(input, input);
 }
 
 
@@ -2110,7 +2124,14 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
 
 
 void LCodeGen::LoadHeapObject(Register result, Handle<HeapObject> object) {
-  Abort("Unimplemented: %s", "LoadHeapObject");
+  if (Heap::InNewSpace(*object)) {
+    Handle<JSGlobalPropertyCell> cell =
+        Factory::NewJSGlobalPropertyCell(object);
+    __ movq(result, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
+    __ movq(result, Operand(result, 0));
+  } else {
+    __ Move(result, object);
+  }
 }
 
 

@@ -1602,8 +1602,9 @@ LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
-  Abort("Unimplemented: %s", "DoLoadNamedGeneric");
-  return NULL;
+  LOperand* object = UseFixed(instr->object(), rax);
+  LLoadNamedGeneric* result = new LLoadNamedGeneric(object);
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
