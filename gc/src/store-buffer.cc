@@ -358,19 +358,18 @@ void StoreBuffer::CheckForFullBuffer() {
     if (!during_gc_) {
       SortUniq();
     }
-    if (old_limit_ - old_top_ < old_limit_ - old_top_) {
+    if (old_limit_ - old_top_ > old_top_ - old_start_) {
       return;
     }
     // TODO(gc): Set an interrupt to do a GC on the next back edge.
     // TODO(gc): Allocate the rest of new space to force a GC on the next
     // allocation.
-    if (old_limit_ - old_top_ < kStoreBufferSize) {
-      // After compression we don't even have enough space for the next
-      // compression to be guaranteed to succeed.
-      // TODO(gc): Set a flag to scan all of memory.
-      Counters::store_buffer_overflows.Increment();
-      set_store_buffer_mode(kStoreBufferDisabled);
-    }
+    // TODO(gc): Make the disabling of the store buffer dependendent on
+    // those two measures failing:
+    // After compression not enough space was freed up in the store buffer.  We
+    // might as well stop sorting and trying to eliminate duplicates.
+    Counters::store_buffer_overflows.Increment();
+    set_store_buffer_mode(kStoreBufferDisabled);
   }
 }
 
