@@ -3076,10 +3076,15 @@ void Assembler::dd(uint32_t data) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   ASSERT(rmode != RelocInfo::NONE);
   // Don't record external references unless the heap will be serialized.
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
-      !Serializer::enabled() &&
-      !FLAG_debug_code) {
-    return;
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+#ifdef DEBUG
+    if (!Serializer::enabled()) {
+      Serializer::TooLateToEnableNow();
+    }
+#endif
+    if (!Serializer::enabled() && !FLAG_debug_code) {
+      return;
+    }
   }
   RelocInfo rinfo(pc_, rmode, data);
   reloc_info_writer.Write(&rinfo);

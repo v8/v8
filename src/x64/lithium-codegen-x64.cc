@@ -1516,7 +1516,18 @@ void LCodeGen::DoReturn(LReturn* instr) {
 
 
 void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
-  Abort("Unimplemented: %s", "DoLoadGlobal");
+  Register result = ToRegister(instr->result());
+  if (result.is(rax)) {
+    __ load_rax(instr->hydrogen()->cell().location(),
+                RelocInfo::GLOBAL_PROPERTY_CELL);
+  } else {
+    __ movq(result, instr->hydrogen()->cell(), RelocInfo::GLOBAL_PROPERTY_CELL);
+    __ movq(result, Operand(result, 0));
+  }
+  if (instr->hydrogen()->check_hole_value()) {
+    __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+    DeoptimizeIf(equal, instr->environment());
+  }
 }
 
 
@@ -1534,9 +1545,7 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
   // been deleted from the property dictionary. In that case, we need
   // to update the property details in the property dictionary to mark
   // it as no longer deleted. We deoptimize in that case.
-  __ movq(temp,
-          Handle<Object>::cast(instr->hydrogen()->cell()),
-          RelocInfo::GLOBAL_PROPERTY_CELL);
+  __ movq(temp, instr->hydrogen()->cell(), RelocInfo::GLOBAL_PROPERTY_CELL);
   if (check_hole) {
     __ CompareRoot(Operand(temp, 0), Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
