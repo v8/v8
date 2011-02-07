@@ -822,6 +822,7 @@ js1_5/extensions/regress-342960: SKIP
 # BUG(3251229): Times out when running new crankshaft test script.
 ecma_3/RegExp/regress-311414: SKIP
 ecma/Date/15.9.5.8: SKIP
+ecma/Date/15.9.5.10-2: SKIP
 ecma/Date/15.9.5.11-2: SKIP
 ecma/Date/15.9.5.12-2: SKIP
 js1_5/Array/regress-99120-02: SKIP
