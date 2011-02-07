@@ -1174,7 +1174,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
 
   if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
     // scratch:left = left * right.
-    __ smull(scratch, left, left, right);
+    __ smull(left, scratch, left, right);
     __ mov(ip, Operand(left, ASR, 31));
     __ cmp(ip, Operand(scratch));
     DeoptimizeIf(ne, instr->environment());
@@ -3411,7 +3411,6 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
   VFPRoundingMode rounding_mode = instr->truncating() ? kRoundToMinusInf
                                                       : kRoundToNearest;
-
 
   EmitVFPTruncate(rounding_mode,
                   single_scratch,
