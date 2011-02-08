@@ -1264,8 +1264,20 @@ LInstruction* LChunkBuilder::DoBitXor(HBitXor* instr) {
 
 
 LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
-  Abort("Unimplemented: %s", "DoDiv");
-  return NULL;
+  if (instr->representation().IsDouble()) {
+    return DoArithmeticD(Token::DIV, instr);
+  } else if (instr->representation().IsInteger32()) {
+    // The temporary operand is necessary to ensure that right is not allocated
+    // into rdx.
+    LOperand* temp = FixedTemp(rdx);
+    LOperand* dividend = UseFixed(instr->left(), rax);
+    LOperand* divisor = UseRegister(instr->right());
+    LDivI* result = new LDivI(dividend, divisor, temp);
+    return AssignEnvironment(DefineFixed(result, rax));
+  } else {
+    ASSERT(instr->representation().IsTagged());
+    return DoArithmeticT(Token::DIV, instr);
+  }
 }
 
 
@@ -1276,8 +1288,19 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
 
 
 LInstruction* LChunkBuilder::DoMul(HMul* instr) {
-  Abort("Unimplemented: %s", "DoMul");
-  return NULL;
+  if (instr->representation().IsInteger32()) {
+    ASSERT(instr->left()->representation().IsInteger32());
+    ASSERT(instr->right()->representation().IsInteger32());
+    LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
+    LOperand* right = UseOrConstant(instr->MostConstantOperand());
+    LMulI* mul = new LMulI(left, right);
+    return AssignEnvironment(DefineSameAsFirst(mul));
+  } else if (instr->representation().IsDouble()) {
+    return DoArithmeticD(Token::MUL, instr);
+  } else {
+    ASSERT(instr->representation().IsTagged());
+    return DoArithmeticT(Token::MUL, instr);
+  }
 }
 
 

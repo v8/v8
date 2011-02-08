@@ -1306,10 +1306,10 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     // the generated code, which requires registers r0
     // and r1 to be used. We should remove that
     // when we provide a native implementation.
-    LOperand* value = UseFixed(instr->left(), r0);
+    LOperand* dividend = UseFixed(instr->left(), r0);
     LOperand* divisor = UseFixed(instr->right(), r1);
     return AssignEnvironment(AssignPointerMap(
-             DefineFixed(new LDivI(value, divisor), r0)));
+             DefineFixed(new LDivI(dividend, divisor), r0)));
   } else {
     return DoArithmeticT(Token::DIV, instr);
   }

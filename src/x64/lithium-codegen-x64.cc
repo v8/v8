@@ -657,11 +657,92 @@ void LCodeGen::DoModI(LModI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  Abort("Unimplemented: %s", "DoDivI");}
+  LOperand* right = instr->InputAt(1);
+  ASSERT(ToRegister(instr->result()).is(rax));
+  ASSERT(ToRegister(instr->InputAt(0)).is(rax));
+  ASSERT(!ToRegister(instr->InputAt(1)).is(rax));
+  ASSERT(!ToRegister(instr->InputAt(1)).is(rdx));
+
+  Register left_reg = rax;
+
+  // Check for x / 0.
+  Register right_reg = ToRegister(right);
+  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ testl(right_reg, right_reg);
+    DeoptimizeIf(zero, instr->environment());
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    NearLabel left_not_zero;
+    __ testl(left_reg, left_reg);
+    __ j(not_zero, &left_not_zero);
+    __ testl(right_reg, right_reg);
+    DeoptimizeIf(sign, instr->environment());
+    __ bind(&left_not_zero);
+  }
+
+  // Check for (-kMinInt / -1).
+  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+    NearLabel left_not_min_int;
+    __ cmpl(left_reg, Immediate(kMinInt));
+    __ j(not_zero, &left_not_min_int);
+    __ cmpl(right_reg, Immediate(-1));
+    DeoptimizeIf(zero, instr->environment());
+    __ bind(&left_not_min_int);
+  }
+
+  // Sign extend to rdx.
+  __ cdq();
+  __ idivl(right_reg);
+
+  // Deoptimize if remainder is not 0.
+  __ testl(rdx, rdx);
+  DeoptimizeIf(not_zero, instr->environment());
+}
 
 
 void LCodeGen::DoMulI(LMulI* instr) {
-  Abort("Unimplemented: %s", "DoMultI");}
+  Register left = ToRegister(instr->InputAt(0));
+  LOperand* right = instr->InputAt(1);
+
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ movl(kScratchRegister, left);
+  }
+
+  if (right->IsConstantOperand()) {
+    int right_value = ToInteger32(LConstantOperand::cast(right));
+    __ imull(left, left, Immediate(right_value));
+  } else if (right->IsStackSlot()) {
+    __ imull(left, ToOperand(right));
+  } else {
+    __ imull(left, ToRegister(right));
+  }
+
+  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+    DeoptimizeIf(overflow, instr->environment());
+  }
+
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    // Bail out if the result is supposed to be negative zero.
+    NearLabel done;
+    __ testl(left, left);
+    __ j(not_zero, &done);
+    if (right->IsConstantOperand()) {
+      if (ToInteger32(LConstantOperand::cast(right)) <= 0) {
+        DeoptimizeIf(no_condition, instr->environment());
+      }
+    } else if (right->IsStackSlot()) {
+      __ or_(kScratchRegister, ToOperand(right));
+      DeoptimizeIf(sign, instr->environment());
+    } else {
+      // Test the non-zero operand for negative sign.
+      __ or_(kScratchRegister, ToRegister(right));
+      DeoptimizeIf(sign, instr->environment());
+    }
+    __ bind(&done);
+  }
+}
 
 
 void LCodeGen::DoBitI(LBitI* instr) {

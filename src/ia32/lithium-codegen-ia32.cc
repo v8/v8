@@ -804,7 +804,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
     __ test(left, Operand(left));
     __ j(not_zero, &done);
     if (right->IsConstantOperand()) {
-      if (ToInteger32(LConstantOperand::cast(right)) < 0) {
+      if (ToInteger32(LConstantOperand::cast(right)) <= 0) {
         DeoptimizeIf(no_condition, instr->environment());
       }
     } else {

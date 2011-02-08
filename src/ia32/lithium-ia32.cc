@@ -1322,9 +1322,9 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     // The temporary operand is necessary to ensure that right is not allocated
     // into edx.
     LOperand* temp = FixedTemp(edx);
-    LOperand* value = UseFixed(instr->left(), eax);
+    LOperand* dividend = UseFixed(instr->left(), eax);
     LOperand* divisor = UseRegister(instr->right());
-    LDivI* result = new LDivI(value, divisor, temp);
+    LDivI* result = new LDivI(dividend, divisor, temp);
     return AssignEnvironment(DefineFixed(result, eax));
   } else {
     ASSERT(instr->representation().IsTagged());

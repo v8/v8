@@ -1188,6 +1188,16 @@ void Assembler::imull(Register dst, Register src) {
 }
 
 
+void Assembler::imull(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xAF);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::imull(Register dst, Register src, Immediate imm) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
