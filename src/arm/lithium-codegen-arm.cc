@@ -647,7 +647,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     return;
   }
 
-  if (cc == kNoCondition) {
+  if (cc == al) {
     if (FLAG_trap_on_deopt) __ stop("trap_on_deopt");
     __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
@@ -1189,7 +1189,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
     __ b(ne, &done);
     if (instr->InputAt(1)->IsConstantOperand()) {
       if (ToInteger32(LConstantOperand::cast(instr->InputAt(1))) <= 0) {
-        DeoptimizeIf(kNoCondition, instr->environment());
+        DeoptimizeIf(al, instr->environment());
       }
     } else {
       // Test the non-zero operand for negative sign.
@@ -3834,7 +3834,7 @@ void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
 
 
 void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
-  DeoptimizeIf(kNoCondition, instr->environment());
+  DeoptimizeIf(al, instr->environment());
 }
 
 
