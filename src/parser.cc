@@ -4058,6 +4058,11 @@ Handle<Object> JsonParser::ParseJsonObject() {
       uint32_t index;
       if (key->AsArrayIndex(&index)) {
         SetOwnElement(json_object, index, value);
+      } else if (key->Equals(Heap::Proto_symbol())) {
+        // We can't remove the __proto__ accessor since it's hardcoded
+        // in several places. Instead go along and add the value as
+        // the prototype of the created object if possible.
+        SetPrototype(json_object, value);
       } else {
         SetLocalPropertyIgnoreAttributes(json_object, key, value, NONE);
       }
