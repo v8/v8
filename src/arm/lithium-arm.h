@@ -153,6 +153,8 @@ class LCodeGen;
   V(Typeof)                                     \
   V(TypeofIs)                                   \
   V(TypeofIsAndBranch)                          \
+  V(IsConstructCall)                            \
+  V(IsConstructCallAndBranch)                   \
   V(UnaryMathOperation)                         \
   V(UnknownOSRValue)                            \
   V(ValueOf)
@@ -1713,6 +1715,24 @@ class LTypeofIsAndBranch: public LControlInstruction<1, 0> {
   Handle<String> type_literal() { return hydrogen()->type_literal(); }
 
   virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LIsConstructCall: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(IsConstructCall, "is-construct-call")
+  DECLARE_HYDROGEN_ACCESSOR(IsConstructCall)
+};
+
+
+class LIsConstructCallAndBranch: public LControlInstruction<0, 1> {
+ public:
+  explicit LIsConstructCallAndBranch(LOperand* temp) {
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsConstructCallAndBranch,
+                               "is-construct-call-and-branch")
 };
 
 

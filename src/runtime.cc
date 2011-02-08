@@ -6681,28 +6681,50 @@ static MaybeObject* Runtime_NewClosure(Arguments args) {
   return *result;
 }
 
+
 static MaybeObject* Runtime_NewObjectFromBound(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
+  // First argument is a function to use as a constructor.
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  CONVERT_ARG_CHECKED(JSArray, params, 1);
 
-  RUNTIME_ASSERT(params->HasFastElements());
-  FixedArray* fixed = FixedArray::cast(params->elements());
+  // Second argument is either null or an array of bound arguments.
+  FixedArray* bound_args = NULL;
+  int bound_argc = 0;
+  if (!args[1]->IsNull()) {
+    CONVERT_ARG_CHECKED(JSArray, params, 1);
+    RUNTIME_ASSERT(params->HasFastElements());
+    bound_args = FixedArray::cast(params->elements());
+    bound_argc = Smi::cast(params->length())->value();
+  }
 
-  int fixed_length = Smi::cast(params->length())->value();
-  SmartPointer<Object**> param_data(NewArray<Object**>(fixed_length));
-  for (int i = 0; i < fixed_length; i++) {
-    Handle<Object> val = Handle<Object>(fixed->get(i));
+  // Find frame containing arguments passed to the caller.
+  JavaScriptFrameIterator it;
+  JavaScriptFrame* frame = it.frame();
+  ASSERT(!frame->is_optimized());
+  it.AdvanceToArgumentsFrame();
+  frame = it.frame();
+  int argc = frame->GetProvidedParametersCount();
+
+  // Prepend bound arguments to caller's arguments.
+  int total_argc = bound_argc + argc;
+  SmartPointer<Object**> param_data(NewArray<Object**>(total_argc));
+  for (int i = 0; i < bound_argc; i++) {
+    Handle<Object> val = Handle<Object>(bound_args->get(i));
     param_data[i] = val.location();
+  }
+  for (int i = 0; i < argc; i++) {
+    Handle<Object> val = Handle<Object>(frame->GetParameter(i));
+    param_data[bound_argc + i] = val.location();
   }
 
   bool exception = false;
-  Handle<Object> result = Execution::New(
-      function, fixed_length, *param_data, &exception);
+  Handle<Object> result =
+      Execution::New(function, total_argc, *param_data, &exception);
   if (exception) {
       return Failure::Exception();
   }
+
   ASSERT(!result.is_null());
   return *result;
 }

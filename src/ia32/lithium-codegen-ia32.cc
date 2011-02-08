@@ -3587,6 +3587,53 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 }
 
 
+void LCodeGen::DoIsConstructCall(LIsConstructCall* instr) {
+  Register result = ToRegister(instr->result());
+  NearLabel true_label;
+  NearLabel false_label;
+  NearLabel done;
+
+  EmitIsConstructCall(result);
+  __ j(equal, &true_label);
+
+  __ mov(result, Factory::false_value());
+  __ jmp(&done);
+
+  __ bind(&true_label);
+  __ mov(result, Factory::true_value());
+
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
+  Register temp = ToRegister(instr->TempAt(0));
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  EmitIsConstructCall(temp);
+  EmitBranch(true_block, false_block, equal);
+}
+
+
+void LCodeGen::EmitIsConstructCall(Register temp) {
+  // Get the frame pointer for the calling frame.
+  __ mov(temp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  NearLabel check_frame_marker;
+  __ cmp(Operand(temp, StandardFrameConstants::kContextOffset),
+         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ j(not_equal, &check_frame_marker);
+  __ mov(temp, Operand(temp, StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ cmp(Operand(temp, StandardFrameConstants::kMarkerOffset),
+         Immediate(Smi::FromInt(StackFrame::CONSTRUCT)));
+}
+
+
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
   // No code for lazy bailout instruction. Used to capture environment after a
   // call for populating the safepoint data with deoptimization data.

@@ -2284,6 +2284,54 @@ void LCodeGen::DoTypeofIs(LTypeofIs* instr) {
 }
 
 
+void LCodeGen::DoIsConstructCall(LIsConstructCall* instr) {
+  Register result = ToRegister(instr->result());
+  NearLabel true_label;
+  NearLabel false_label;
+  NearLabel done;
+
+  EmitIsConstructCall(result);
+  __ j(equal, &true_label);
+
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ jmp(&done);
+
+  __ bind(&true_label);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+
+
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
+  Register temp = ToRegister(instr->TempAt(0));
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  EmitIsConstructCall(temp);
+  EmitBranch(true_block, false_block, equal);
+}
+
+
+void LCodeGen::EmitIsConstructCall(Register temp) {
+  // Get the frame pointer for the calling frame.
+  __ movq(temp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  NearLabel check_frame_marker;
+  __ SmiCompare(Operand(temp, StandardFrameConstants::kContextOffset),
+                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(not_equal, &check_frame_marker);
+  __ movq(temp, Operand(rax, StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ SmiCompare(Operand(temp, StandardFrameConstants::kMarkerOffset),
+                Smi::FromInt(StackFrame::CONSTRUCT));
+}
+
+
 void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
   Register input = ToRegister(instr->InputAt(0));
   int true_block = chunk_->LookupDestination(instr->true_block_id());

@@ -1098,6 +1098,8 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     } else if (v->IsTypeofIs()) {
       HTypeofIs* typeof_is = HTypeofIs::cast(v);
       return new LTypeofIsAndBranch(UseTempRegister(typeof_is->value()));
+    } else if (v->IsIsConstructCall()) {
+      return new LIsConstructCallAndBranch(TempRegister());
     } else {
       if (v->IsConstant()) {
         if (HConstant::cast(v)->handle()->IsTrue()) {
@@ -1924,6 +1926,12 @@ LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
 LInstruction* LChunkBuilder::DoTypeofIs(HTypeofIs* instr) {
   return DefineSameAsFirst(new LTypeofIs(UseRegister(instr->value())));
 }
+
+
+LInstruction* LChunkBuilder::DoIsConstructCall(HIsConstructCall* instr) {
+  return DefineAsRegister(new LIsConstructCall);
+}
+
 
 LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   HEnvironment* env = current_block_->last_environment();

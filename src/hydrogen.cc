@@ -5185,9 +5185,10 @@ void HGraphBuilder::GenerateIsStringWrapperSafeForDefaultValueOf(
 }
 
 
-  // Support for construct call checks.
+// Support for construct call checks.
 void HGraphBuilder::GenerateIsConstructCall(int argument_count, int ast_id) {
-  BAILOUT("inlined runtime function: IsConstructCall");
+  ASSERT(argument_count == 0);
+  ast_context()->ReturnInstruction(new HIsConstructCall, ast_id);
 }
 
 
