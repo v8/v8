@@ -1089,7 +1089,11 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
         const char* type = (lookup.IsReadOnly()) ? "const" : "var";
         return ThrowRedeclarationError(type, name);
       }
-      SetProperty(global, name, value, attributes);
+      Handle<Object> result = SetProperty(global, name, value, attributes);
+      if (result.is_null()) {
+        ASSERT(Top::has_pending_exception());
+        return Failure::Exception();
+      }
     } else {
       // If a property with this name does not already exist on the
       // global object add the property locally.  We take special
@@ -1097,10 +1101,16 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
       // of callbacks in the prototype chain (this rules out using
       // SetProperty).  Also, we must use the handle-based version to
       // avoid GC issues.
-      SetLocalPropertyIgnoreAttributes(global, name, value, attributes);
+      Handle<Object> result =
+          SetLocalPropertyIgnoreAttributes(global, name, value, attributes);
+      if (result.is_null()) {
+        ASSERT(Top::has_pending_exception());
+        return Failure::Exception();
+      }
     }
   }
 
+  ASSERT(!Top::has_pending_exception());
   return Heap::undefined_value();
 }
 
