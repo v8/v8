@@ -565,6 +565,8 @@ class Assembler : public Malloced {
 
   // One byte opcode for test eax,0xXXXXXXXX.
   static const byte kTestEaxByte = 0xA9;
+  // One byte opcode for test al, 0xXX.
+  static const byte kTestAlByte = 0xA8;
 
   // ---------------------------------------------------------------------------
   // Code generation

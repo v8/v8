@@ -2035,7 +2035,10 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   ASSERT(result.is(elements));
 
   // Load the result.
-  __ mov(result, FieldOperand(elements, key, times_4, FixedArray::kHeaderSize));
+  __ mov(result, FieldOperand(elements,
+                              key,
+                              times_pointer_size,
+                              FixedArray::kHeaderSize));
 
   // Check for the hole value.
   __ cmp(result, Factory::the_hole_value());
@@ -2661,13 +2664,20 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
         ToInteger32(const_operand) * kPointerSize + FixedArray::kHeaderSize;
     __ mov(FieldOperand(elements, offset), value);
   } else {
-    __ mov(FieldOperand(elements, key, times_4, FixedArray::kHeaderSize),
+    __ mov(FieldOperand(elements,
+                        key,
+                        times_pointer_size,
+                        FixedArray::kHeaderSize),
            value);
   }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     // Compute address of modified element and store it into key register.
-    __ lea(key, FieldOperand(elements, key, times_4, FixedArray::kHeaderSize));
+    __ lea(key,
+           FieldOperand(elements,
+                        key,
+                        times_pointer_size,
+                        FixedArray::kHeaderSize));
     __ RecordWrite(elements, key, value);
   }
 }

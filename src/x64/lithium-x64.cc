@@ -1439,8 +1439,8 @@ LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
 
 
 LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
-  Abort("Unimplemented: %s", "DoThrow");
-  return NULL;
+  LOperand* value = UseFixed(instr->value(), rax);
+  return MarkAsCall(new LThrow(value), instr);
 }
 
 
@@ -1640,8 +1640,20 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
     HStoreKeyedFastElement* instr) {
-  Abort("Unimplemented: %s", "DoStoreKeyedFastElement");
-  return NULL;
+  bool needs_write_barrier = instr->NeedsWriteBarrier();
+  ASSERT(instr->value()->representation().IsTagged());
+  ASSERT(instr->object()->representation().IsTagged());
+  ASSERT(instr->key()->representation().IsInteger32());
+
+  LOperand* obj = UseTempRegister(instr->object());
+  LOperand* val = needs_write_barrier
+      ? UseTempRegister(instr->value())
+      : UseRegisterAtStart(instr->value());
+  LOperand* key = needs_write_barrier
+      ? UseTempRegister(instr->key())
+      : UseRegisterOrConstantAtStart(instr->key());
+
+  return AssignEnvironment(new LStoreKeyedFastElement(obj, key, val));
 }
 
 

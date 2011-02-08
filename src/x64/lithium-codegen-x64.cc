@@ -810,7 +810,13 @@ void LCodeGen::DoBitNotI(LBitNotI* instr) {
 
 
 void LCodeGen::DoThrow(LThrow* instr) {
-  Abort("Unimplemented: %s", "DoThrow");
+  __ push(ToRegister(instr->InputAt(0)));
+  CallRuntime(Runtime::kThrow, 1, instr);
+
+  if (FLAG_debug_code) {
+    Comment("Unreachable code.");
+    __ int3();
+  }
 }
 
 
@@ -963,7 +969,11 @@ void LCodeGen::EmitGoto(int block, LDeferredCode* deferred_stack_check) {
 
 
 void LCodeGen::DoDeferredStackCheck(LGoto* instr) {
-  Abort("Unimplemented: %s", "DoDeferredStackCheck");
+  __ Pushad();
+  __ CallRuntimeSaveDoubles(Runtime::kStackGuard);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
+  __ Popad();
 }
 
 
@@ -1022,9 +1032,9 @@ void LCodeGen::EmitCmpI(LOperand* left, LOperand* right) {
       __ cmpl(ToOperand(left), Immediate(value));
     }
   } else if (right->IsRegister()) {
-    __ cmpq(ToRegister(left), ToRegister(right));
+    __ cmpl(ToRegister(left), ToRegister(right));
   } else {
-    __ cmpq(ToRegister(left), ToOperand(right));
+    __ cmpl(ToRegister(left), ToOperand(right));
   }
 }
 
@@ -1869,7 +1879,33 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 
 
 void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
-  Abort("Unimplemented: %s", "DoStoreKeyedFastElement");
+  Register value = ToRegister(instr->value());
+  Register elements = ToRegister(instr->object());
+  Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
+
+  // Do the store.
+  if (instr->key()->IsConstantOperand()) {
+    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
+    int offset =
+        ToInteger32(const_operand) * kPointerSize + FixedArray::kHeaderSize;
+    __ movq(FieldOperand(elements, offset), value);
+  } else {
+    __ movq(FieldOperand(elements,
+                         key,
+                         times_pointer_size,
+                         FixedArray::kHeaderSize),
+            value);
+  }
+
+  if (instr->hydrogen()->NeedsWriteBarrier()) {
+    // Compute address of modified element and store it into key register.
+    __ lea(key, FieldOperand(elements,
+                             key,
+                             times_pointer_size,
+                             FixedArray::kHeaderSize));
+    __ RecordWrite(elements, key, value);
+  }
 }
 
 

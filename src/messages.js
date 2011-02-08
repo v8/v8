@@ -316,6 +316,7 @@ Script.prototype.lineFromPosition = function(position) {
       return i;
     }
   }
+
   return -1;
 }
 

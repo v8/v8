@@ -4627,10 +4627,10 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 
   if (GetCondition() == equal) {
     // For equality we do not care about the sign of the result.
-    __ SmiSub(rax, rax, rdx);
+    __ subq(rax, rdx);
   } else {
     NearLabel done;
-    __ SmiSub(rdx, rdx, rax);
+    __ subq(rdx, rax);
     __ j(no_overflow, &done);
     // Correct sign of result in case of overflow.
     __ SmiNot(rdx, rdx);

@@ -3949,8 +3949,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Call stub for +1/-1.
   __ mov(edx, eax);
   __ mov(eax, Immediate(Smi::FromInt(1)));
-  TypeRecordingBinaryOpStub stub(expr->binary_op(),
-                                 NO_OVERWRITE);
+  TypeRecordingBinaryOpStub stub(expr->binary_op(), NO_OVERWRITE);
   EmitCallIC(stub.GetCode(), &patch_site);
   __ bind(&done);
 
