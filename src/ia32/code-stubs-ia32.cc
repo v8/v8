@@ -4723,6 +4723,23 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ test(ecx, Immediate(kFailureTagMask));
   __ j(zero, &failure_returned, not_taken);
 
+  ExternalReference pending_exception_address(Top::k_pending_exception_address);
+
+  // Check that there is no pending exception, otherwise we
+  // should have returned some failure value.
+  if (FLAG_debug_code) {
+    __ push(edx);
+    __ mov(edx, Operand::StaticVariable(
+           ExternalReference::the_hole_value_location()));
+    NearLabel okay;
+    __ cmp(edx, Operand::StaticVariable(pending_exception_address));
+    // Cannot use check here as it attempts to generate call into runtime.
+    __ j(equal, &okay);
+    __ int3();
+    __ bind(&okay);
+    __ pop(edx);
+  }
+
   // Exit the JavaScript to C++ exit frame.
   __ LeaveExitFrame(save_doubles_);
   __ ret(0);
@@ -4741,7 +4758,6 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(equal, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
-  ExternalReference pending_exception_address(Top::k_pending_exception_address);
   __ mov(eax, Operand::StaticVariable(pending_exception_address));
   __ mov(edx,
          Operand::StaticVariable(ExternalReference::the_hole_value_location()));
