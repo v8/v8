@@ -808,6 +808,7 @@ static bool CompileLazyHelper(CompilationInfo* info,
                               ClearExceptionFlag flag) {
   // Compile the source information to a code object.
   ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
+  ASSERT(!Top::has_pending_exception());
   bool result = Compiler::CompileLazy(info);
   ASSERT(result != Top::has_pending_exception());
   if (!result && flag == CLEAR_EXCEPTION) Top::clear_pending_exception();
