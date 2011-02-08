@@ -884,10 +884,17 @@ static MaybeObject* Runtime_PreventExtensions(Arguments args) {
   return obj->PreventExtensions();
 }
 
+
 static MaybeObject* Runtime_IsExtensible(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSObject, obj, args[0]);
-  return obj->map()->is_extensible() ?  Heap::true_value()
+  if (obj->IsJSGlobalProxy()) {
+    Object* proto = obj->GetPrototype();
+    if (proto->IsNull()) return Heap::false_value();
+    ASSERT(proto->IsJSGlobalObject());
+    obj = JSObject::cast(proto);
+  }
+  return obj->map()->is_extensible() ? Heap::true_value()
                                      : Heap::false_value();
 }
 
