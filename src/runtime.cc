@@ -1160,12 +1160,15 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
         } else {
           // The holder is an arguments object.
           Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
-          SetElement(arguments, index, initial_value);
+          Handle<Object> result = SetElement(arguments, index, initial_value);
+          if (result.is_null()) return Failure::Exception();
         }
       } else {
         // Slow case: The property is not in the FixedArray part of the context.
         Handle<JSObject> context_ext = Handle<JSObject>::cast(holder);
-        SetProperty(context_ext, name, initial_value, mode);
+        Handle<Object> result =
+            SetProperty(context_ext, name, initial_value, mode);
+        if (result.is_null()) return Failure::Exception();
       }
     }
 
@@ -1192,8 +1195,8 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
     ASSERT(!context_ext->HasLocalProperty(*name));
     Handle<Object> value(Heap::undefined_value());
     if (*initial_value != NULL) value = initial_value;
-    SetProperty(context_ext, name, value, mode);
-    ASSERT(context_ext->GetLocalPropertyAttribute(*name) == mode);
+    Handle<Object> result = SetProperty(context_ext, name, value, mode);
+    if (result.is_null()) return Failure::Exception();
   }
 
   return Heap::undefined_value();
