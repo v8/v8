@@ -1747,8 +1747,8 @@ LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
-  Abort("Unimplemented: %s", "DoCallStub");
-  return NULL;
+  argument_count_ -= instr->argument_count();
+  return MarkAsCall(DefineFixed(new LCallStub, rax), instr);
 }
 
 

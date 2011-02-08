@@ -593,7 +593,56 @@ void LCodeGen::DoParameter(LParameter* instr) {
 
 
 void LCodeGen::DoCallStub(LCallStub* instr) {
-  Abort("Unimplemented: %s", "DoCallStub");
+  ASSERT(ToRegister(instr->result()).is(rax));
+  switch (instr->hydrogen()->major_key()) {
+    case CodeStub::RegExpConstructResult: {
+      RegExpConstructResultStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::RegExpExec: {
+      RegExpExecStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::SubString: {
+      SubStringStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::StringCharAt: {
+      // TODO(1116): Add StringCharAt stub to x64.
+      Abort("Unimplemented: %s", "StringCharAt Stub");
+      break;
+    }
+    case CodeStub::MathPow: {
+      // TODO(1115): Add MathPow stub to x64.
+      Abort("Unimplemented: %s", "MathPow Stub");
+      break;
+    }
+    case CodeStub::NumberToString: {
+      NumberToStringStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::StringAdd: {
+      StringAddStub stub(NO_STRING_ADD_FLAGS);
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::StringCompare: {
+      StringCompareStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::TranscendentalCache: {
+      TranscendentalCacheStub stub(instr->transcendental_type());
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 
