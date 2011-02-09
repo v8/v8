@@ -1641,9 +1641,9 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
 
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      OverwriteMode mode) {
-  TypeRecordingBinaryOpStub stub(op, mode);
   __ pop(rdx);
-  __ CallStub(&stub);
+  TypeRecordingBinaryOpStub stub(op, mode);
+  EmitCallIC(stub.GetCode(), NULL);  // NULL signals no inlined smi code.
   context()->Plug(rax);
 }
 
