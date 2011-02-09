@@ -11353,6 +11353,26 @@ TEST(CaptureStackTraceForUncaughtException) {
 }
 
 
+TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true,
+                                                    1024,
+                                                    v8::StackTrace::kDetailed);
+
+  CompileRun(
+      "var setters = ['column', 'lineNumber', 'scriptName',\n"
+      "    'scriptNameOrSourceURL', 'functionName', 'isEval',\n"
+      "    'isConstructor'];\n"
+      "for (var i = 0; i < setters.length; i++) {\n"
+      "  var prop = setters[i];\n"
+      "  Object.prototype.__defineSetter__(prop, function() { throw prop; });\n"
+      "}\n");
+  CompileRun("throw 'exception';");
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
+}
+
+
 v8::Handle<Value> AnalyzeStackOfEvalWithSourceURL(const v8::Arguments& args) {
   v8::HandleScope scope;
   v8::Handle<v8::StackTrace> stackTrace =
