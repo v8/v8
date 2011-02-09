@@ -928,6 +928,7 @@ class Assembler : public Malloced {
   void psrlq(XMMRegister dst, XMMRegister src);
   void pshufd(XMMRegister dst, XMMRegister src, int8_t shuffle);
   void pextrd(const Operand& dst, XMMRegister src, int8_t offset);
+  void pinsrd(XMMRegister dst, const Operand& src, int8_t offset);
 
   // Parallel XMM operations.
   void movntdqa(XMMRegister src, const Operand& dst);

@@ -1676,7 +1676,11 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   if (r.IsInteger32()) {
     return DefineAsRegister(new LConstantI);
   } else if (r.IsDouble()) {
-    return DefineAsRegister(new LConstantD);
+    double value = instr->DoubleValue();
+    LOperand* temp = (BitCast<uint64_t, double>(value) != 0)
+        ? TempRegister()
+        : NULL;
+    return DefineAsRegister(new LConstantD(temp));
   } else if (r.IsTagged()) {
     return DefineAsRegister(new LConstantT);
   } else {

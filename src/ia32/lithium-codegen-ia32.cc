@@ -945,19 +945,31 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   if (BitCast<uint64_t, double>(v) == 0) {
     __ xorpd(res, res);
   } else {
-    int32_t v_int32 = static_cast<int32_t>(v);
-    if (static_cast<double>(v_int32) == v) {
-      __ push_imm32(v_int32);
-      __ cvtsi2sd(res, Operand(esp, 0));
-      __ add(Operand(esp), Immediate(kPointerSize));
+    Register temp = ToRegister(instr->TempAt(0));
+    uint64_t int_val = BitCast<uint64_t, double>(v);
+    int32_t lower = static_cast<int32_t>(int_val);
+    int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
+    if (CpuFeatures::IsSupported(SSE4_1)) {
+      CpuFeatures::Scope scope(SSE4_1);
+      if (lower != 0) {
+        __ Set(temp, Immediate(lower));
+        __ movd(res, Operand(temp));
+        __ Set(temp, Immediate(upper));
+        __ pinsrd(res, Operand(temp), 1);
+      } else {
+        __ xorpd(res, res);
+        __ Set(temp, Immediate(upper));
+        __ pinsrd(res, Operand(temp), 1);
+      }
     } else {
-      uint64_t int_val = BitCast<uint64_t, double>(v);
-      int32_t lower = static_cast<int32_t>(int_val);
-      int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
-      __ push_imm32(upper);
-      __ push_imm32(lower);
-      __ movdbl(res, Operand(esp, 0));
-      __ add(Operand(esp), Immediate(2 * kPointerSize));
+      __ Set(temp, Immediate(upper));
+      __ movd(res, Operand(temp));
+      __ psllq(res, 32);
+      if (lower != 0) {
+        __ Set(temp, Immediate(lower));
+        __ movd(xmm0, Operand(temp));
+        __ por(res, xmm0);
+      }
     }
   }
 }

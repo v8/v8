@@ -941,8 +941,12 @@ class LConstantI: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LConstantD: public LTemplateInstruction<1, 0, 0> {
+class LConstantD: public LTemplateInstruction<1, 0, 1> {
  public:
+  explicit LConstantD(LOperand* temp) {
+    temps_[0] = temp;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(ConstantD, "constant-d")
   DECLARE_HYDROGEN_ACCESSOR(Constant)
 
