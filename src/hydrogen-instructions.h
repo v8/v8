@@ -1702,7 +1702,7 @@ class HPhi: public HValue {
   HValue* GetRedundantReplacement() const;
   void AddInput(HValue* value);
 
-  bool HasReceiverOperand();
+  bool IsReceiver() { return merged_index_ == 0; }
 
   int merged_index() const { return merged_index_; }
 
