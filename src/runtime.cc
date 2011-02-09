@@ -7391,12 +7391,17 @@ static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
     if (holder->IsContext()) {
       // Ignore if read_only variable.
       if ((attributes & READ_ONLY) == 0) {
-        Handle<Context>::cast(holder)->set(index, *value);
+        // Context is a fixed array and set cannot fail.
+        Context::cast(*holder)->set(index, *value);
       }
     } else {
       ASSERT((attributes & READ_ONLY) == 0);
-      Handle<JSObject>::cast(holder)->SetElement(index, *value)->
-          ToObjectUnchecked();
+      Handle<Object> result =
+          SetElement(Handle<JSObject>::cast(holder), index, value);
+      if (result.is_null()) {
+        ASSERT(Top::has_pending_exception());
+        return Failure::Exception();
+      }
     }
     return *value;
   }
@@ -7419,8 +7424,8 @@ static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
   // extension object itself.
   if ((attributes & READ_ONLY) == 0 ||
       (context_ext->GetLocalPropertyAttribute(*name) == ABSENT)) {
-    Handle<Object> set = SetProperty(context_ext, name, value, NONE);
-    if (set.is_null()) {
+    Handle<Object> result = SetProperty(context_ext, name, value, NONE);
+    if (result.is_null()) {
       // Failure::Exception is converted to a null handle in the
       // handle-based methods such as SetProperty.  We therefore need
       // to convert null handles back to exceptions.
