@@ -51,5 +51,5 @@ assertEquals('prefix 4000 suffix', function_with_n_args(8000));
 assertEquals('prefix 9000 suffix', function_with_n_args(18000));
 assertEquals('prefix 16000 suffix', function_with_n_args(32000));
 
-assertThrows(function_with_n_args(35000));
-assertThrows(function_with_n_args(100000));
+assertThrows("function_with_n_args(35000)");
+assertThrows("function_with_n_args(100000)");

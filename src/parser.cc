@@ -333,9 +333,6 @@ TemporaryScope::~TemporaryScope() {
 }
 
 
-const int Parser::kMaxNumFunctionParameters;
-
-
 Handle<String> Parser::LookupSymbol(int symbol_id) {
   // Length of symbol cache is the number of identified symbols.
   // If we are larger than that, or negative, it's not a cached symbol.
