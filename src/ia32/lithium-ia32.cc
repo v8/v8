@@ -1157,10 +1157,12 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
   LOperand* receiver = UseFixed(instr->receiver(), eax);
   LOperand* length = UseRegisterAtStart(instr->length());
   LOperand* elements = UseRegisterAtStart(instr->elements());
+  LOperand* temp = FixedTemp(ebx);
   LApplyArguments* result = new LApplyArguments(function,
                                                 receiver,
                                                 length,
-                                                elements);
+                                                elements,
+                                                temp);
   return MarkAsCall(DefineFixed(result, eax), instr, CAN_DEOPTIMIZE_EAGERLY);
 }
 

@@ -461,16 +461,18 @@ class LControlInstruction: public LTemplateInstruction<0, I, T> {
 };
 
 
-class LApplyArguments: public LTemplateInstruction<1, 4, 0> {
+class LApplyArguments: public LTemplateInstruction<1, 4, 1> {
  public:
   LApplyArguments(LOperand* function,
                   LOperand* receiver,
                   LOperand* length,
-                  LOperand* elements) {
+                  LOperand* elements,
+                  LOperand* temp) {
     inputs_[0] = function;
     inputs_[1] = receiver;
     inputs_[2] = length;
     inputs_[3] = elements;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ApplyArguments, "apply-arguments")
