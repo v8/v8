@@ -2206,6 +2206,12 @@ bool Value::Equals(Handle<Value> that) const {
   ENTER_V8;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> other = Utils::OpenHandle(*that);
+  // If both obj and other are JSObjects, we'd better compare by identity
+  // immediately when going into JS builtin.  The reason is Invoke
+  // would overwrite global object receiver with global proxy.
+  if (obj->IsJSObject() && other->IsJSObject()) {
+    return *obj == *other;
+  }
   i::Object** args[1] = { other.location() };
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> result =

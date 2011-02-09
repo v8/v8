@@ -12523,6 +12523,25 @@ TEST(RegExp) {
 }
 
 
+THREADED_TEST(Equals) {
+  v8::HandleScope handleScope;
+  LocalContext localContext;
+
+  v8::Handle<v8::Object> globalProxy = localContext->Global();
+  v8::Handle<Value> global = globalProxy->GetPrototype();
+
+  CHECK(global->StrictEquals(global));
+  CHECK(!global->StrictEquals(globalProxy));
+  CHECK(!globalProxy->StrictEquals(global));
+  CHECK(globalProxy->StrictEquals(globalProxy));
+
+  CHECK(global->Equals(global));
+  CHECK(!global->Equals(globalProxy));
+  CHECK(!globalProxy->Equals(global));
+  CHECK(globalProxy->Equals(globalProxy));
+}
+
+
 static v8::Handle<v8::Value> Getter(v8::Local<v8::String> property,
                                     const v8::AccessorInfo& info ) {
   return v8_str("42!");
