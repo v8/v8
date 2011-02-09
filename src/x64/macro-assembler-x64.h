@@ -920,6 +920,10 @@ class MacroAssembler: public Assembler {
 
   void Ret();
 
+  // Return and drop arguments from stack, where the number of arguments
+  // may be bigger than 2^16 - 1.  Requires a scratch register.
+  void Ret(int bytes_dropped, Register scratch);
+
   Handle<Object> CodeObject() { return code_object_; }
 
 

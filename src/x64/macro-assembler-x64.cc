@@ -1541,6 +1541,18 @@ void MacroAssembler::Ret() {
 }
 
 
+void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
+  if (is_uint16(bytes_dropped)) {
+    ret(bytes_dropped);
+  } else {
+    pop(scratch);
+    addq(rsp, Immediate(bytes_dropped));
+    push(scratch);
+    ret(0);
+  }
+}
+
+
 void MacroAssembler::FCmp() {
   fucomip();
   fstp(0);

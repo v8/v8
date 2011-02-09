@@ -1587,6 +1587,20 @@ void MacroAssembler::Ret() {
 }
 
 
+void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
+  if (is_uint16(bytes_dropped)) {
+    ret(bytes_dropped);
+  } else {
+    pop(scratch);
+    add(Operand(esp), Immediate(bytes_dropped));
+    push(scratch);
+    ret(0);
+  }
+}
+
+
+
+
 void MacroAssembler::Drop(int stack_elements) {
   if (stack_elements > 0) {
     add(Operand(esp), Immediate(stack_elements * kPointerSize));

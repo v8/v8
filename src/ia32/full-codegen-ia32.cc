@@ -310,12 +310,14 @@ void FullCodeGenerator::EmitReturnSequence() {
     // patch with the code required by the debugger.
     __ mov(esp, ebp);
     __ pop(ebp);
-    __ ret((scope()->num_parameters() + 1) * kPointerSize);
+
+    int arguments_bytes = (scope()->num_parameters() + 1) * kPointerSize;
+    __ Ret(arguments_bytes, ecx);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    // Check that the size of the code used for returning matches what is
-    // expected by the debugger.
-    ASSERT_EQ(Assembler::kJSReturnSequenceLength,
-              masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+    // Check that the size of the code used for returning is large enough
+    // for the debugger's requirements.
+    ASSERT(Assembler::kJSReturnSequenceLength <=
+           masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
   }
 }

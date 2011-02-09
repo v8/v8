@@ -1893,7 +1893,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
   __ mov(esp, ebp);
   __ pop(ebp);
-  __ ret((ParameterCount() + 1) * kPointerSize);
+  __ Ret((ParameterCount() + 1) * kPointerSize, ecx);
 }
 
 
