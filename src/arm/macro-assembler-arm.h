@@ -45,6 +45,12 @@ static inline MemOperand FieldMemOperand(Register object, int offset) {
 }
 
 
+static inline Operand SmiUntagOperand(Register object) {
+  return Operand(object, ASR, kSmiTagSize);
+}
+
+
+
 // Give alias names to registers
 const Register cp = { 8 };  // JavaScript context pointer
 const Register roots = { 10 };  // Roots array pointer.
@@ -886,10 +892,14 @@ class CodePatcher {
   MacroAssembler* masm() { return &masm_; }
 
   // Emit an instruction directly.
-  void Emit(Instr x);
+  void Emit(Instr instr);
 
   // Emit an address directly.
   void Emit(Address addr);
+
+  // Emit the condition part of an instruction leaving the rest of the current
+  // instruction unchanged.
+  void EmitCondition(Condition cond);
 
  private:
   byte* address_;  // The address of the code being patched.

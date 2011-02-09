@@ -47,8 +47,7 @@ namespace internal {
 
 class JumpPatchSite BASE_EMBEDDED {
  public:
-  explicit JumpPatchSite(MacroAssembler* masm)
-      : masm_(masm) {
+  explicit JumpPatchSite(MacroAssembler* masm) : masm_(masm) {
 #ifdef DEBUG
     info_emitted_ = false;
 #endif
@@ -60,7 +59,7 @@ class JumpPatchSite BASE_EMBEDDED {
 
   void EmitJumpIfNotSmi(Register reg, NearLabel* target) {
     __ test(reg, Immediate(kSmiTagMask));
-    EmitJump(not_carry, target);   // Always taken before patched.
+    EmitJump(not_carry, target);  // Always taken before patched.
   }
 
   void EmitJumpIfSmi(Register reg, NearLabel* target) {

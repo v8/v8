@@ -1021,7 +1021,7 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
         ASSERT(left->representation().IsInteger32());
         ASSERT(right->representation().IsInteger32());
         return new LCmpIDAndBranch(UseRegisterAtStart(left),
-                                   UseOrConstantAtStart(right));
+                                   UseRegisterAtStart(right));
       } else if (r.IsDouble()) {
         ASSERT(left->representation().IsDouble());
         ASSERT(right->representation().IsDouble());
@@ -1419,7 +1419,7 @@ LInstruction* LChunkBuilder::DoCompare(HCompare* instr) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
     LOperand* left = UseRegisterAtStart(instr->left());
-    LOperand* right = UseOrConstantAtStart(instr->right());
+    LOperand* right = UseRegisterAtStart(instr->right());
     return DefineAsRegister(new LCmpID(left, right));
   } else if (r.IsDouble()) {
     ASSERT(instr->left()->representation().IsDouble());

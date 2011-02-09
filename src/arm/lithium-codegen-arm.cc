@@ -1605,7 +1605,7 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 
 
 void LCodeGen::EmitCmpI(LOperand* left, LOperand* right) {
-  __ cmp(ToRegister(left), ToOperand(right));
+  __ cmp(ToRegister(left), ToRegister(right));
 }
 
 
@@ -1619,8 +1619,7 @@ void LCodeGen::DoCmpID(LCmpID* instr) {
   if (instr->is_double()) {
     // Compare left and right as doubles and load the
     // resulting flags into the normal status register.
-    __ vcmp(ToDoubleRegister(left), ToDoubleRegister(right));
-    __ vmrs(pc);
+    __ VFPCompareAndSetFlags(ToDoubleRegister(left), ToDoubleRegister(right));
     // If a NaN is involved, i.e. the result is unordered (V set),
     // jump to unordered to return false.
     __ b(vs, &unordered);
@@ -1647,8 +1646,7 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
   if (instr->is_double()) {
     // Compare left and right as doubles and load the
     // resulting flags into the normal status register.
-    __ vcmp(ToDoubleRegister(left), ToDoubleRegister(right));
-    __ vmrs(pc);
+    __ VFPCompareAndSetFlags(ToDoubleRegister(left), ToDoubleRegister(right));
     // If a NaN is involved, i.e. the result is unordered (V set),
     // jump to false block label.
     __ b(vs, chunk_->GetAssemblyLabel(false_block));
@@ -2180,12 +2178,12 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
 
   Handle<Code> ic = CompareIC::GetUninitialized(op);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  __ cmp(r0, Operand(0));  // This instruction also signals no smi code inlined.
 
   Condition condition = ComputeCompareCondition(op);
   if (op == Token::GT || op == Token::LTE) {
     condition = ReverseCondition(condition);
   }
-  __ cmp(r0, Operand(0));
   __ LoadRoot(ToRegister(instr->result()),
               Heap::kTrueValueRootIndex,
               condition);
@@ -2196,7 +2194,21 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
 
 
 void LCodeGen::DoCmpTAndBranch(LCmpTAndBranch* instr) {
-  Abort("DoCmpTAndBranch unimplemented.");
+  Token::Value op = instr->op();
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  Handle<Code> ic = CompareIC::GetUninitialized(op);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
+
+  // The compare stub expects compare condition and the input operands
+  // reversed for GT and LTE.
+  Condition condition = ComputeCompareCondition(op);
+  if (op == Token::GT || op == Token::LTE) {
+    condition = ReverseCondition(condition);
+  }
+  __ cmp(r0, Operand(0));
+  EmitBranch(true_block, false_block, condition);
 }
 
 

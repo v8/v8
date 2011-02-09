@@ -1298,7 +1298,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result;
   Label not_heap_number;
-  Register scratch = r7;
+  Register scratch = r9.is(tos_) ? r7 : r9;
 
   __ LoadRoot(ip, Heap::kNullValueRootIndex);
   __ cmp(tos_, ip);
@@ -5809,10 +5809,9 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
     // For equality we do not care about the sign of the result.
     __ sub(r0, r0, r1, SetCC);
   } else {
-    __ sub(r1, r1, r0, SetCC);
-    // Correct sign of result in case of overflow.
-    __ rsb(r1, r1, Operand(0), SetCC, vs);
-    __ mov(r0, r1);
+    // Untag before subtracting to avoid handling overflow.
+    __ SmiUntag(r1);
+    __ sub(r0, r1, SmiUntagOperand(r0));
   }
   __ Ret();
 
