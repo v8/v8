@@ -374,18 +374,6 @@ Handle<String> Top::StackTraceString() {
 }
 
 
-static void SetLocalProperty(Handle<JSObject> object,
-                             Handle<String> key,
-                             Handle<Object> value) {
-  // We set properties on freshly allocated JS object, nothing
-  // should fail except for OOM which is handled by
-  // SetLocalPropertyIgnoreAttributes.
-  ASSERT(!Top::has_pending_exception());
-  CHECK(!SetLocalPropertyIgnoreAttributes(object, key, value, NONE).is_null());
-  CHECK(!Top::has_pending_exception());
-}
-
-
 Handle<JSArray> Top::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
   // Ensure no negative values.
@@ -433,16 +421,16 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
             // tag.
             column_offset += script->column_offset()->value();
           }
-          SetLocalProperty(stackFrame, column_key,
-                           Handle<Smi>(Smi::FromInt(column_offset + 1)));
+          SetLocalPropertyNoThrow(stackFrame, column_key,
+                                  Handle<Smi>(Smi::FromInt(column_offset + 1)));
         }
-        SetLocalProperty(stackFrame, line_key,
-                         Handle<Smi>(Smi::FromInt(line_number + 1)));
+        SetLocalPropertyNoThrow(stackFrame, line_key,
+                                Handle<Smi>(Smi::FromInt(line_number + 1)));
       }
 
       if (options & StackTrace::kScriptName) {
         Handle<Object> script_name(script->name());
-        SetLocalProperty(stackFrame, script_key, script_name);
+        SetLocalPropertyNoThrow(stackFrame, script_key, script_name);
       }
 
       if (options & StackTrace::kScriptNameOrSourceURL) {
@@ -458,7 +446,8 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
         if (caught_exception) {
           result = Factory::undefined_value();
         }
-        SetLocalProperty(stackFrame, script_name_or_source_url_key, result);
+        SetLocalPropertyNoThrow(stackFrame, script_name_or_source_url_key,
+                                result);
       }
 
       if (options & StackTrace::kFunctionName) {
@@ -466,20 +455,20 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
         if (fun_name->ToBoolean()->IsFalse()) {
           fun_name = Handle<Object>(fun->shared()->inferred_name());
         }
-        SetLocalProperty(stackFrame, function_key, fun_name);
+        SetLocalPropertyNoThrow(stackFrame, function_key, fun_name);
       }
 
       if (options & StackTrace::kIsEval) {
         int type = Smi::cast(script->compilation_type())->value();
         Handle<Object> is_eval = (type == Script::COMPILATION_TYPE_EVAL) ?
             Factory::true_value() : Factory::false_value();
-        SetLocalProperty(stackFrame, eval_key, is_eval);
+        SetLocalPropertyNoThrow(stackFrame, eval_key, is_eval);
       }
 
       if (options & StackTrace::kIsConstructor) {
         Handle<Object> is_constructor = (frames[i].is_constructor()) ?
             Factory::true_value() : Factory::false_value();
-        SetLocalProperty(stackFrame, constructor_key, is_constructor);
+        SetLocalPropertyNoThrow(stackFrame, constructor_key, is_constructor);
       }
 
       FixedArray::cast(stack_trace->elements())->set(frames_seen, *stackFrame);

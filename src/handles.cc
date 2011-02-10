@@ -290,6 +290,17 @@ Handle<Object> SetLocalPropertyIgnoreAttributes(
 }
 
 
+void SetLocalPropertyNoThrow(Handle<JSObject> object,
+                             Handle<String> key,
+                             Handle<Object> value,
+                             PropertyAttributes attributes) {
+  ASSERT(!Top::has_pending_exception());
+  CHECK(!SetLocalPropertyIgnoreAttributes(
+        object, key, value, attributes).is_null());
+  CHECK(!Top::has_pending_exception());
+}
+
+
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
                                           Handle<Object> value,

@@ -670,7 +670,7 @@ static void InitializeTemplate(i::Handle<i::TemplateInfo> that, int type) {
 
 void Template::Set(v8::Handle<String> name, v8::Handle<Data> value,
                    v8::PropertyAttribute attribute) {
-  if (IsDeadCheck("v8::Template::SetProperty()")) return;
+  if (IsDeadCheck("v8::Template::Set()")) return;
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::Object> list(Utils::OpenHandle(this)->property_list());
