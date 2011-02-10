@@ -3743,6 +3743,28 @@ HInstruction* HGraphBuilder::BuildLoadKeyedFastElement(HValue* object,
 }
 
 
+HInstruction* HGraphBuilder::BuildLoadKeyedPixelArrayElement(HValue* object,
+                                                             HValue* key,
+                                                             Property* expr) {
+  ASSERT(!expr->key()->IsPropertyName() && expr->IsMonomorphic());
+  AddInstruction(new HCheckNonSmi(object));
+  Handle<Map> map = expr->GetMonomorphicReceiverType();
+  ASSERT(!map->has_fast_elements());
+  ASSERT(map->has_pixel_array_elements());
+  AddInstruction(new HCheckMap(object, map));
+  HLoadElements* elements = new HLoadElements(object);
+  AddInstruction(elements);
+  HInstruction* length = AddInstruction(new HPixelArrayLength(elements));
+  AddInstruction(new HBoundsCheck(key, length));
+  HLoadPixelArrayExternalPointer* external_elements =
+      new HLoadPixelArrayExternalPointer(elements);
+  AddInstruction(external_elements);
+  HLoadPixelArrayElement* pixel_array_value =
+      new HLoadPixelArrayElement(external_elements, key);
+  return pixel_array_value;
+}
+
+
 HInstruction* HGraphBuilder::BuildStoreKeyedGeneric(HValue* object,
                                                     HValue* key,
                                                     HValue* value) {
@@ -3852,12 +3874,20 @@ void HGraphBuilder::VisitProperty(Property* expr) {
     HValue* key = Pop();
     HValue* obj = Pop();
 
-    bool is_fast_elements = expr->IsMonomorphic() &&
-        expr->GetMonomorphicReceiverType()->has_fast_elements();
-
-    instr = is_fast_elements
-        ? BuildLoadKeyedFastElement(obj, key, expr)
-        : BuildLoadKeyedGeneric(obj, key);
+    if (expr->IsMonomorphic()) {
+      Handle<Map> receiver_type(expr->GetMonomorphicReceiverType());
+      // An object has either fast elements or pixel array elements, but never
+      // both. Pixel array maps that are assigned to pixel array elements are
+      // always created with the fast elements flag cleared.
+      if (receiver_type->has_pixel_array_elements()) {
+        instr = BuildLoadKeyedPixelArrayElement(obj, key, expr);
+      } else if (receiver_type->has_fast_elements()) {
+        instr = BuildLoadKeyedFastElement(obj, key, expr);
+      }
+    }
+    if (instr == NULL) {
+      instr = BuildLoadKeyedGeneric(obj, key);
+    }
   }
   instr->set_position(expr->position());
   ast_context()->ReturnInstruction(instr, expr->id());

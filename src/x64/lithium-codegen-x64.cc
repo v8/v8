@@ -927,6 +927,13 @@ void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
 }
 
 
+void LCodeGen::DoPixelArrayLength(LPixelArrayLength* instr) {
+  Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->InputAt(0));
+  __ movq(result, FieldOperand(array, PixelArray::kLengthOffset));
+}
+
+
 void LCodeGen::DoValueOf(LValueOf* instr) {
   Abort("Unimplemented: %s", "DoValueOf");
 }
@@ -1726,19 +1733,30 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 
 
 void LCodeGen::DoLoadElements(LLoadElements* instr) {
-  ASSERT(instr->result()->Equals(instr->InputAt(0)));
-  Register reg = ToRegister(instr->InputAt(0));
-  __ movq(reg, FieldOperand(reg, JSObject::kElementsOffset));
+  Register result = ToRegister(instr->result());
+  Register input = ToRegister(instr->InputAt(0));
+  __ movq(result, FieldOperand(input, JSObject::kElementsOffset));
   if (FLAG_debug_code) {
     NearLabel done;
-    __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
            Factory::fixed_array_map());
     __ j(equal, &done);
-    __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
+           Factory::pixel_array_map());
+    __ j(equal, &done);
+    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
            Factory::fixed_cow_array_map());
     __ Check(equal, "Check for fast elements failed.");
     __ bind(&done);
   }
+}
+
+
+void LCodeGen::DoLoadPixelArrayExternalPointer(
+    LLoadPixelArrayExternalPointer* instr) {
+  Register result = ToRegister(instr->result());
+  Register input = ToRegister(instr->InputAt(0));
+  __ movq(result, FieldOperand(input, PixelArray::kExternalPointerOffset));
 }
 
 
@@ -1762,6 +1780,17 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   // Check for the hole value.
   __ Cmp(result, Factory::the_hole_value());
   DeoptimizeIf(equal, instr->environment());
+}
+
+
+void LCodeGen::DoLoadPixelArrayElement(LLoadPixelArrayElement* instr) {
+  Register external_elements = ToRegister(instr->external_pointer());
+  Register key = ToRegister(instr->key());
+  Register result = ToRegister(instr->result());
+  ASSERT(result.is(external_elements));
+
+  // Load the result.
+  __ movzxbq(result, Operand(external_elements, key, times_1, 0));
 }
 
 

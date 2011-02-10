@@ -1235,6 +1235,14 @@ void HLoadKeyed::PrintDataTo(StringStream* stream) const {
 }
 
 
+void HLoadPixelArrayElement::PrintDataTo(StringStream* stream) const {
+  external_pointer()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("]");
+}
+
+
 void HStoreNamed::PrintDataTo(StringStream* stream) const {
   object()->PrintNameTo(stream);
   stream->Add(".");

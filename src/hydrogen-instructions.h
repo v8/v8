@@ -127,12 +127,15 @@ class LChunkBuilder;
   V(LoadKeyedGeneric)                          \
   V(LoadNamedField)                            \
   V(LoadNamedGeneric)                          \
+  V(LoadPixelArrayElement)                     \
+  V(LoadPixelArrayExternalPointer)             \
   V(Mod)                                       \
   V(Mul)                                       \
   V(ObjectLiteral)                             \
   V(OsrEntry)                                  \
   V(OuterContext)                              \
   V(Parameter)                                 \
+  V(PixelArrayLength)                          \
   V(Power)                                     \
   V(PushArgument)                              \
   V(RegExpLiteral)                             \
@@ -164,6 +167,7 @@ class LChunkBuilder;
   V(InobjectFields)                            \
   V(BackingStoreFields)                        \
   V(ArrayElements)                             \
+  V(PixelArrayElements)                        \
   V(GlobalVars)                                \
   V(Maps)                                      \
   V(ArrayLengths)                              \
@@ -289,6 +293,7 @@ class Representation {
     kTagged,
     kDouble,
     kInteger32,
+    kExternal,
     kNumRepresentations
   };
 
@@ -298,6 +303,7 @@ class Representation {
   static Representation Tagged() { return Representation(kTagged); }
   static Representation Integer32() { return Representation(kInteger32); }
   static Representation Double() { return Representation(kDouble); }
+  static Representation External() { return Representation(kExternal); }
 
   bool Equals(const Representation& other) const {
     return kind_ == other.kind_;
@@ -308,6 +314,7 @@ class Representation {
   bool IsTagged() const { return kind_ == kTagged; }
   bool IsInteger32() const { return kind_ == kInteger32; }
   bool IsDouble() const { return kind_ == kDouble; }
+  bool IsExternal() const { return kind_ == kExternal; }
   bool IsSpecialization() const {
     return kind_ == kInteger32 || kind_ == kDouble;
   }
@@ -1418,6 +1425,27 @@ class HFixedArrayLength: public HUnaryOperation {
 };
 
 
+class HPixelArrayLength: public HUnaryOperation {
+ public:
+  explicit HPixelArrayLength(HValue* value) : HUnaryOperation(value) {
+    set_representation(Representation::Integer32());
+    // The result of this instruction is idempotent as long as its inputs don't
+    // change.  The length of a pixel array cannot change once set, so it's not
+    // necessary to introduce a kDependsOnArrayLengths or any other dependency.
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(PixelArrayLength, "pixel_array_length")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+};
+
+
 class HBitNot: public HUnaryOperation {
  public:
   explicit HBitNot(HValue* value) : HUnaryOperation(value) {
@@ -1530,6 +1558,30 @@ class HLoadElements: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadElements, "load-elements")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+};
+
+
+class HLoadPixelArrayExternalPointer: public HUnaryOperation {
+ public:
+  explicit HLoadPixelArrayExternalPointer(HValue* value)
+      : HUnaryOperation(value) {
+    set_representation(Representation::External());
+    // The result of this instruction is idempotent as long as its inputs don't
+    // change.  The external array of a pixel array elements object cannot
+    // change once set, so it's no necessary to introduce any additional
+    // dependencies on top of the inputs.
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayExternalPointer,
+                               "load-pixel-array-external-pointer")
 
  protected:
   virtual bool DataEquals(HValue* other) const { return true; }
@@ -2946,6 +2998,37 @@ class HLoadKeyedFastElement: public HLoadKeyed {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastElement,
                                "load_keyed_fast_element")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+};
+
+
+class HLoadPixelArrayElement: public HBinaryOperation {
+ public:
+  HLoadPixelArrayElement(HValue* external_elements, HValue* key)
+      : HBinaryOperation(external_elements, key) {
+    set_representation(Representation::Integer32());
+    SetFlag(kDependsOnPixelArrayElements);
+    // Native code could change the pixel array.
+    SetFlag(kDependsOnCalls);
+    SetFlag(kUseGVN);
+  }
+
+  virtual void PrintDataTo(StringStream* stream) const;
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    // The key is supposed to be Integer32, but the base pointer
+    // for the element load is a naked pointer.
+    return (index == 1) ? Representation::Integer32()
+        : Representation::External();
+  }
+
+  HValue* external_pointer() const { return OperandAt(0); }
+  HValue* key() const { return OperandAt(1); }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayElement,
+                               "load_pixel_array_element")
 
  protected:
   virtual bool DataEquals(HValue* other) const { return true; }

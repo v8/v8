@@ -2757,9 +2757,9 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
     return;
   }
   i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(length, data);
-  i::Handle<i::Map> slow_map =
-      i::Factory::GetSlowElementsMap(i::Handle<i::Map>(self->map()));
-  self->set_map(*slow_map);
+  i::Handle<i::Map> pixel_array_map =
+      i::Factory::GetPixelArrayElementsMap(i::Handle<i::Map>(self->map()));
+  self->set_map(*pixel_array_map);
   self->set_elements(*pixels);
 }
 

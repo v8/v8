@@ -334,6 +334,11 @@ Handle<Map> Factory::GetSlowElementsMap(Handle<Map> src) {
 }
 
 
+Handle<Map> Factory::GetPixelArrayElementsMap(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(src->GetPixelArrayElementsMap(), Map);
+}
+
+
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
   CALL_HEAP_FUNCTION(array->Copy(), FixedArray);
 }

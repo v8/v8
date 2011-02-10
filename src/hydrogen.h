@@ -791,6 +791,9 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildLoadKeyedFastElement(HValue* object,
                                           HValue* key,
                                           Property* expr);
+  HInstruction* BuildLoadKeyedPixelArrayElement(HValue* object,
+                                                HValue* key,
+                                                Property* expr);
   HInstruction* BuildLoadKeyedGeneric(HValue* object,
                                       HValue* key);
 

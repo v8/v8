@@ -2747,6 +2747,22 @@ MaybeObject* Map::GetSlowElementsMap() {
 }
 
 
+MaybeObject* Map::GetPixelArrayElementsMap() {
+  if (has_pixel_array_elements()) return this;
+  // TODO(danno): Special case empty object map (or most common case)
+  // to return a pre-canned pixel array map.
+  Object* obj;
+  { MaybeObject* maybe_obj = CopyDropTransitions();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  Map* new_map = Map::cast(obj);
+  new_map->set_has_fast_elements(false);
+  new_map->set_has_pixel_array_elements(true);
+  Counters::map_to_pixel_array_elements.Increment();
+  return new_map;
+}
+
+
 ACCESSORS(Map, instance_descriptors, DescriptorArray,
           kInstanceDescriptorsOffset)
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
