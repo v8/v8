@@ -40,3 +40,11 @@ function f() { return foo; }
 for (i=0 ; i < 100000; ++i) {
   assertEquals(5, f());
 }
+
+// Test calls on functions defined in the prototype of the global object.
+x.gee = function() { return 42; }
+function g() { return gee(); }
+
+for (i=0 ; i < 100000; ++i) {
+  assertEquals(42, g());
+}
