@@ -41,7 +41,6 @@ class LCodeGen;
 
 #define LITHIUM_ALL_INSTRUCTION_LIST(V)         \
   V(ControlInstruction)                         \
-  V(Constant)                                   \
   V(Call)                                       \
   V(StoreKeyed)                                 \
   V(StoreNamed)                                 \
@@ -112,6 +111,8 @@ class LCodeGen;
   V(IsObjectAndBranch)                          \
   V(IsSmi)                                      \
   V(IsSmiAndBranch)                             \
+  V(IsConstructCall)                            \
+  V(IsConstructCallAndBranch)                   \
   V(JSArrayLength)                              \
   V(Label)                                      \
   V(LazyBailout)                                \
@@ -755,6 +756,24 @@ class LHasCachedArrayIndexAndBranch: public LControlInstruction<1, 0> {
 };
 
 
+class LIsConstructCall: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(IsConstructCall, "is-construct-call")
+  DECLARE_HYDROGEN_ACCESSOR(IsConstructCall)
+};
+
+
+class LIsConstructCallAndBranch: public LControlInstruction<0, 1> {
+ public:
+  explicit LIsConstructCallAndBranch(LOperand* temp) {
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsConstructCallAndBranch,
+                               "is-construct-call-and-branch")
+};
+
+
 class LClassOfTest: public LTemplateInstruction<1, 1, 1> {
  public:
   LClassOfTest(LOperand* value, LOperand* temp) {
@@ -913,44 +932,34 @@ class LSubI: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LConstant: public LTemplateInstruction<1, 0, 0> {
-  DECLARE_INSTRUCTION(Constant)
-};
-
-
-class LConstantI: public LConstant {
+class LConstantI: public LTemplateInstruction<1, 0, 0> {
  public:
-  explicit LConstantI(int32_t value) : value_(value) { }
-  int32_t value() const { return value_; }
-
   DECLARE_CONCRETE_INSTRUCTION(ConstantI, "constant-i")
+  DECLARE_HYDROGEN_ACCESSOR(Constant)
 
- private:
-  int32_t value_;
+  int32_t value() const { return hydrogen()->Integer32Value(); }
 };
 
 
-class LConstantD: public LConstant {
+class LConstantD: public LTemplateInstruction<1, 0, 1> {
  public:
-  explicit LConstantD(double value) : value_(value) { }
-  double value() const { return value_; }
+  explicit LConstantD(LOperand* temp) {
+    temps_[0] = temp;
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(ConstantD, "constant-d")
+  DECLARE_HYDROGEN_ACCESSOR(Constant)
 
- private:
-  double value_;
+  double value() const { return hydrogen()->DoubleValue(); }
 };
 
 
-class LConstantT: public LConstant {
+class LConstantT: public LTemplateInstruction<1, 0, 0> {
  public:
-  explicit LConstantT(Handle<Object> value) : value_(value) { }
-  Handle<Object> value() const { return value_; }
-
   DECLARE_CONCRETE_INSTRUCTION(ConstantT, "constant-t")
+  DECLARE_HYDROGEN_ACCESSOR(Constant)
 
- private:
-  Handle<Object> value_;
+  Handle<Object> value() const { return hydrogen()->handle(); }
 };
 
 

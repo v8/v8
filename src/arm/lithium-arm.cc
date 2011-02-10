@@ -1077,6 +1077,8 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     } else if (v->IsTypeofIs()) {
       HTypeofIs* typeof_is = HTypeofIs::cast(v);
       return new LTypeofIsAndBranch(UseTempRegister(typeof_is->value()));
+    } else if (v->IsIsConstructCall()) {
+      return new LIsConstructCallAndBranch(TempRegister());
     } else {
       if (v->IsConstant()) {
         if (HConstant::cast(v)->handle()->IsTrue()) {
@@ -1304,10 +1306,10 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     // the generated code, which requires registers r0
     // and r1 to be used. We should remove that
     // when we provide a native implementation.
-    LOperand* value = UseFixed(instr->left(), r0);
+    LOperand* dividend = UseFixed(instr->left(), r0);
     LOperand* divisor = UseFixed(instr->right(), r1);
     return AssignEnvironment(AssignPointerMap(
-             DefineFixed(new LDivI(value, divisor), r0)));
+             DefineFixed(new LDivI(dividend, divisor), r0)));
   } else {
     return DoArithmeticT(Token::DIV, instr);
   }
@@ -1642,13 +1644,11 @@ LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
 LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   Representation r = instr->representation();
   if (r.IsInteger32()) {
-    int32_t value = instr->Integer32Value();
-    return DefineAsRegister(new LConstantI(value));
+    return DefineAsRegister(new LConstantI);
   } else if (r.IsDouble()) {
-    double value = instr->DoubleValue();
-    return DefineAsRegister(new LConstantD(value));
+    return DefineAsRegister(new LConstantD);
   } else if (r.IsTagged()) {
-    return DefineAsRegister(new LConstantT(instr->handle()));
+    return DefineAsRegister(new LConstantT);
   } else {
     UNREACHABLE();
     return NULL;
@@ -1889,6 +1889,12 @@ LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
 LInstruction* LChunkBuilder::DoTypeofIs(HTypeofIs* instr) {
   return DefineSameAsFirst(new LTypeofIs(UseRegister(instr->value())));
 }
+
+
+LInstruction* LChunkBuilder::DoIsConstructCall(HIsConstructCall* instr) {
+  return DefineAsRegister(new LIsConstructCall());
+}
+
 
 LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   HEnvironment* env = current_block_->last_environment();

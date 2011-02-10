@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,34 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that exceptions are thrown when setting properties on object
-// that have only a getter in a prototype object.
+// Test runtime declaration of properties with var which are intercepted
+// by JS accessors.
 
-var o = {};
-var p = {};
-p.__defineGetter__('x', function(){});
-p.__defineGetter__(0, function(){});
-o.__proto__ = p;
+__proto__.__defineSetter__("x", function() { hasBeenInvoked = true; });
+__proto__.__defineSetter__("y", function() { throw 'exception'; });
 
-assertThrows("o.x = 42");
-assertThrows("o[0] = 42");
+var hasBeenInvoked = false;
+eval("try { } catch (e) { var x = false; }");
+assertTrue(hasBeenInvoked);
 
-function f() {
-  with(o) {
-    x = 42;
-  }
+var exception;
+try {
+  eval("try { } catch (e) { var y = false; }");
+  assertUnreachable();
+} catch (e) {
+  exception = e;
 }
-assertThrows("f()");
-
-__proto__ = p;
-function g() {
-  eval('1');
-  x = 42;
-}
-assertThrows("g()");
-
-__proto__ = p;
-function g2() {
-  this[0] = 42;
-}
-assertThrows("g2()");
+assertEquals('exception', exception);

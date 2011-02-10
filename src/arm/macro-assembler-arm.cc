@@ -1150,7 +1150,8 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
 
   // Calculate new top and bail out if new space is exhausted. Use result
   // to calculate the new top.
-  add(scratch2, result, Operand(obj_size_reg));
+  add(scratch2, result, Operand(obj_size_reg), SetCC);
+  b(cs, gc_required);
   cmp(scratch2, Operand(ip));
   b(hi, gc_required);
   str(scratch2, MemOperand(topaddr));
@@ -1229,10 +1230,11 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   // to calculate the new top. Object size may be in words so a shift is
   // required to get the number of bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
-    add(scratch2, result, Operand(object_size, LSL, kPointerSizeLog2));
+    add(scratch2, result, Operand(object_size, LSL, kPointerSizeLog2), SetCC);
   } else {
-    add(scratch2, result, Operand(object_size));
+    add(scratch2, result, Operand(object_size), SetCC);
   }
+  b(cs, gc_required);
   cmp(scratch2, Operand(ip));
   b(hi, gc_required);
 

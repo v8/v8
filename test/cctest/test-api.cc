@@ -12549,3 +12549,19 @@ TEST(NamedEnumeratorAndForIn) {
   CHECK_EQ(1, result->Length());
   CHECK_EQ(v8_str("universalAnswer"), result->Get(0));
 }
+
+
+TEST(DefinePropertyPostDetach) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::Object> proxy = context->Global();
+  v8::Handle<v8::Function> define_property =
+      CompileRun("(function() {"
+                 "  Object.defineProperty("
+                 "    this,"
+                 "    1,"
+                 "    { configurable: true, enumerable: true, value: 3 });"
+                 "})").As<Function>();
+  context->DetachGlobal();
+  define_property->Call(proxy, 0, NULL);
+}

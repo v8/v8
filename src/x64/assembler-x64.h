@@ -565,6 +565,8 @@ class Assembler : public Malloced {
 
   // One byte opcode for test eax,0xXXXXXXXX.
   static const byte kTestEaxByte = 0xA9;
+  // One byte opcode for test al, 0xXX.
+  static const byte kTestAlByte = 0xA8;
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -863,6 +865,7 @@ class Assembler : public Malloced {
   void imul(Register dst, Register src, Immediate imm);  // dst = src * imm.
   // Signed 32-bit multiply instructions.
   void imull(Register dst, Register src);                 // dst = dst * src.
+  void imull(Register dst, const Operand& src);           // dst = dst * src.
   void imull(Register dst, Register src, Immediate imm);  // dst = src * imm.
 
   void incq(Register dst);

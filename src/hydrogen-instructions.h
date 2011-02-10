@@ -113,6 +113,7 @@ class LChunkBuilder;
   V(IsNull)                                    \
   V(IsObject)                                  \
   V(IsSmi)                                     \
+  V(IsConstructCall)                           \
   V(HasInstanceType)                           \
   V(HasCachedArrayIndex)                       \
   V(JSArrayLength)                             \
@@ -1701,7 +1702,7 @@ class HPhi: public HValue {
   HValue* GetRedundantReplacement() const;
   void AddInput(HValue* value);
 
-  bool HasReceiverOperand();
+  bool IsReceiver() { return merged_index_ == 0; }
 
   int merged_index() const { return merged_index_; }
 
@@ -2173,6 +2174,22 @@ class HIsSmi: public HUnaryPredicate {
   explicit HIsSmi(HValue* value) : HUnaryPredicate(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(IsSmi, "is_smi")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+};
+
+
+class HIsConstructCall: public HInstruction {
+ public:
+  HIsConstructCall() {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual bool EmitAtUses() const { return uses()->length() <= 1; }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsConstructCall, "is_construct_call")
 
  protected:
   virtual bool DataEquals(HValue* other) const { return true; }

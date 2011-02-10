@@ -764,8 +764,6 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info,
                                   RelocInfo::kNoPosition, type, &ok);
     // Make sure the results agree.
     ASSERT(ok == (result != NULL));
-    // The only errors should be stack overflows.
-    ASSERT(ok || stack_overflow_);
   }
 
   // Make sure the target stack is empty.
@@ -774,8 +772,8 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info,
   // If there was a stack overflow we have to get rid of AST and it is
   // not safe to do before scope has been deleted.
   if (result == NULL) {
-    Top::StackOverflow();
     zone_scope->DeleteOnExit();
+    if (stack_overflow_) Top::StackOverflow();
   } else {
     Handle<String> inferred_name(info->inferred_name());
     result->set_inferred_name(inferred_name);
@@ -3501,6 +3499,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       Variable* parameter = top_scope_->DeclareLocal(param_name, Variable::VAR);
       top_scope_->AddParameter(parameter);
       num_parameters++;
+      if (num_parameters > kMaxNumFunctionParameters) {
+        ReportMessageAt(scanner().location(), "too_many_parameters",
+                        Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      }
       done = (peek() == Token::RPAREN);
       if (!done) Expect(Token::COMMA, CHECK_OK);
     }
@@ -4058,6 +4062,11 @@ Handle<Object> JsonParser::ParseJsonObject() {
       uint32_t index;
       if (key->AsArrayIndex(&index)) {
         SetOwnElement(json_object, index, value);
+      } else if (key->Equals(Heap::Proto_symbol())) {
+        // We can't remove the __proto__ accessor since it's hardcoded
+        // in several places. Instead go along and add the value as
+        // the prototype of the created object if possible.
+        SetPrototype(json_object, value);
       } else {
         SetLocalPropertyIgnoreAttributes(json_object, key, value, NONE);
       }

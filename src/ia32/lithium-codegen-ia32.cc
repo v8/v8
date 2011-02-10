@@ -804,7 +804,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
     __ test(left, Operand(left));
     __ j(not_zero, &done);
     if (right->IsConstantOperand()) {
-      if (ToInteger32(LConstantOperand::cast(right)) < 0) {
+      if (ToInteger32(LConstantOperand::cast(right)) <= 0) {
         DeoptimizeIf(no_condition, instr->environment());
       }
     } else {
@@ -945,19 +945,31 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   if (BitCast<uint64_t, double>(v) == 0) {
     __ xorpd(res, res);
   } else {
-    int32_t v_int32 = static_cast<int32_t>(v);
-    if (static_cast<double>(v_int32) == v) {
-      __ push_imm32(v_int32);
-      __ cvtsi2sd(res, Operand(esp, 0));
-      __ add(Operand(esp), Immediate(kPointerSize));
+    Register temp = ToRegister(instr->TempAt(0));
+    uint64_t int_val = BitCast<uint64_t, double>(v);
+    int32_t lower = static_cast<int32_t>(int_val);
+    int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
+    if (CpuFeatures::IsSupported(SSE4_1)) {
+      CpuFeatures::Scope scope(SSE4_1);
+      if (lower != 0) {
+        __ Set(temp, Immediate(lower));
+        __ movd(res, Operand(temp));
+        __ Set(temp, Immediate(upper));
+        __ pinsrd(res, Operand(temp), 1);
+      } else {
+        __ xorpd(res, res);
+        __ Set(temp, Immediate(upper));
+        __ pinsrd(res, Operand(temp), 1);
+      }
     } else {
-      uint64_t int_val = BitCast<uint64_t, double>(v);
-      int32_t lower = static_cast<int32_t>(int_val);
-      int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
-      __ push_imm32(upper);
-      __ push_imm32(lower);
-      __ movdbl(res, Operand(esp, 0));
-      __ add(Operand(esp), Immediate(2 * kPointerSize));
+      __ Set(temp, Immediate(upper));
+      __ movd(res, Operand(temp));
+      __ psllq(res, 32);
+      if (lower != 0) {
+        __ Set(temp, Immediate(lower));
+        __ movd(xmm0, Operand(temp));
+        __ por(res, xmm0);
+      }
     }
   }
 }
@@ -1881,7 +1893,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
   __ mov(esp, ebp);
   __ pop(ebp);
-  __ ret((ParameterCount() + 1) * kPointerSize);
+  __ Ret((ParameterCount() + 1) * kPointerSize, ecx);
 }
 
 
@@ -2035,7 +2047,10 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   ASSERT(result.is(elements));
 
   // Load the result.
-  __ mov(result, FieldOperand(elements, key, times_4, FixedArray::kHeaderSize));
+  __ mov(result, FieldOperand(elements,
+                              key,
+                              times_pointer_size,
+                              FixedArray::kHeaderSize));
 
   // Check for the hole value.
   __ cmp(result, Factory::the_hole_value());
@@ -2661,13 +2676,20 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
         ToInteger32(const_operand) * kPointerSize + FixedArray::kHeaderSize;
     __ mov(FieldOperand(elements, offset), value);
   } else {
-    __ mov(FieldOperand(elements, key, times_4, FixedArray::kHeaderSize),
+    __ mov(FieldOperand(elements,
+                        key,
+                        times_pointer_size,
+                        FixedArray::kHeaderSize),
            value);
   }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     // Compute address of modified element and store it into key register.
-    __ lea(key, FieldOperand(elements, key, times_4, FixedArray::kHeaderSize));
+    __ lea(key,
+           FieldOperand(elements,
+                        key,
+                        times_pointer_size,
+                        FixedArray::kHeaderSize));
     __ RecordWrite(elements, key, value);
   }
 }
@@ -3574,6 +3596,53 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   }
 
   return final_branch_condition;
+}
+
+
+void LCodeGen::DoIsConstructCall(LIsConstructCall* instr) {
+  Register result = ToRegister(instr->result());
+  NearLabel true_label;
+  NearLabel false_label;
+  NearLabel done;
+
+  EmitIsConstructCall(result);
+  __ j(equal, &true_label);
+
+  __ mov(result, Factory::false_value());
+  __ jmp(&done);
+
+  __ bind(&true_label);
+  __ mov(result, Factory::true_value());
+
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
+  Register temp = ToRegister(instr->TempAt(0));
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  EmitIsConstructCall(temp);
+  EmitBranch(true_block, false_block, equal);
+}
+
+
+void LCodeGen::EmitIsConstructCall(Register temp) {
+  // Get the frame pointer for the calling frame.
+  __ mov(temp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  NearLabel check_frame_marker;
+  __ cmp(Operand(temp, StandardFrameConstants::kContextOffset),
+         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ j(not_equal, &check_frame_marker);
+  __ mov(temp, Operand(temp, StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ cmp(Operand(temp, StandardFrameConstants::kMarkerOffset),
+         Immediate(Smi::FromInt(StackFrame::CONSTRUCT)));
 }
 
 

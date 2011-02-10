@@ -368,7 +368,9 @@ static bool ArrayPrototypeHasNoElements(Context* global_context,
   array_proto = JSObject::cast(array_proto->GetPrototype());
   ASSERT(array_proto->elements() == Heap::empty_fixed_array());
   // Object.prototype
-  array_proto = JSObject::cast(array_proto->GetPrototype());
+  Object* proto = array_proto->GetPrototype();
+  if (proto == Heap::null_value()) return false;
+  array_proto = JSObject::cast(proto);
   if (array_proto != global_context->initial_object_prototype()) return false;
   if (array_proto->elements() != Heap::empty_fixed_array()) return false;
   ASSERT(array_proto->GetPrototype()->IsNull());

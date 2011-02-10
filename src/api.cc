@@ -115,7 +115,9 @@ static FatalErrorCallback exception_behavior = NULL;
 
 static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
-  ENTER_V8;
+#ifdef ENABLE_VMSTATE_TRACKING
+  i::VMState __state__(i::OTHER);
+#endif
   API_Fatal(location, message);
 }
 

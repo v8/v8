@@ -1673,11 +1673,23 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
 }
 
 
+static bool HasInlinedSmiCode(Address address) {
+  // The address of the instruction following the call.
+  Address test_instruction_address =
+      address + Assembler::kCallTargetAddressOffset;
+
+  // If the instruction following the call is not a test al, nothing
+  // was inlined.
+  return *test_instruction_address == Assembler::kTestAlByte;
+}
+
+
 void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   HandleScope scope;
   Handle<Code> rewritten;
   State previous_state = GetState();
-  State state = TargetState(previous_state, false, x, y);
+
+  State state = TargetState(previous_state, HasInlinedSmiCode(address()), x, y);
   if (state == GENERIC) {
     CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS);
     rewritten = stub.GetCode();

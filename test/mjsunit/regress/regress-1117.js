@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,34 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that exceptions are thrown when setting properties on object
-// that have only a getter in a prototype object.
+// Test that we actually return the right value (-0) when we multiply
+// constant 0 with a negative integer.
 
-var o = {};
-var p = {};
-p.__defineGetter__('x', function(){});
-p.__defineGetter__(0, function(){});
-o.__proto__ = p;
-
-assertThrows("o.x = 42");
-assertThrows("o[0] = 42");
-
-function f() {
-  with(o) {
-    x = 42;
-  }
+function foo(y) {return 0 * y; }
+for( var i = 0; i< 1000000; i++){
+  foo(42);
 }
-assertThrows("f()");
-
-__proto__ = p;
-function g() {
-  eval('1');
-  x = 42;
-}
-assertThrows("g()");
-
-__proto__ = p;
-function g2() {
-  this[0] = 42;
-}
-assertThrows("g2()");
+assertEquals(1/foo(-42), -Infinity);

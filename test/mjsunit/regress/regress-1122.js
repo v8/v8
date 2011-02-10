@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,34 +25,31 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that exceptions are thrown when setting properties on object
-// that have only a getter in a prototype object.
+// Test that we can handle functions with up to 32766 arguments, and that
+// functions with more arguments throw an exception.
 
-var o = {};
-var p = {};
-p.__defineGetter__('x', function(){});
-p.__defineGetter__(0, function(){});
-o.__proto__ = p;
+// See http://code.google.com/p/v8/issues/detail?id=1122.
 
-assertThrows("o.x = 42");
-assertThrows("o[0] = 42");
-
-function f() {
-  with(o) {
-    x = 42;
+function function_with_n_args(n) {
+  test_prefix = 'prefix ';
+  test_suffix = ' suffix';
+  var source = 'test_prefix + (function f(';
+  for (var arg = 0; arg < n ; arg++) {
+    if (arg != 0) source += ',';
+    source += 'arg' + arg;
   }
+  source += ') { return arg' + (n - n % 2) / 2 + '; })(';
+  for (var arg = 0; arg < n ; arg++) {
+    if (arg != 0) source += ',';
+    source += arg;
+  }
+  source += ') + test_suffix';
+  return eval(source);
 }
-assertThrows("f()");
 
-__proto__ = p;
-function g() {
-  eval('1');
-  x = 42;
-}
-assertThrows("g()");
+assertEquals('prefix 4000 suffix', function_with_n_args(8000));
+assertEquals('prefix 9000 suffix', function_with_n_args(18000));
+assertEquals('prefix 16000 suffix', function_with_n_args(32000));
 
-__proto__ = p;
-function g2() {
-  this[0] = 42;
-}
-assertThrows("g2()");
+assertThrows("function_with_n_args(35000)");
+assertThrows("function_with_n_args(100000)");

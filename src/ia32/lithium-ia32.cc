@@ -1098,6 +1098,8 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     } else if (v->IsTypeofIs()) {
       HTypeofIs* typeof_is = HTypeofIs::cast(v);
       return new LTypeofIsAndBranch(UseTempRegister(typeof_is->value()));
+    } else if (v->IsIsConstructCall()) {
+      return new LIsConstructCallAndBranch(TempRegister());
     } else {
       if (v->IsConstant()) {
         if (HConstant::cast(v)->handle()->IsTrue()) {
@@ -1320,9 +1322,9 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     // The temporary operand is necessary to ensure that right is not allocated
     // into edx.
     LOperand* temp = FixedTemp(edx);
-    LOperand* value = UseFixed(instr->left(), eax);
+    LOperand* dividend = UseFixed(instr->left(), eax);
     LOperand* divisor = UseRegister(instr->right());
-    LDivI* result = new LDivI(value, divisor, temp);
+    LDivI* result = new LDivI(dividend, divisor, temp);
     return AssignEnvironment(DefineFixed(result, eax));
   } else {
     ASSERT(instr->representation().IsTagged());
@@ -1672,13 +1674,15 @@ LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
 LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   Representation r = instr->representation();
   if (r.IsInteger32()) {
-    int32_t value = instr->Integer32Value();
-    return DefineAsRegister(new LConstantI(value));
+    return DefineAsRegister(new LConstantI);
   } else if (r.IsDouble()) {
     double value = instr->DoubleValue();
-    return DefineAsRegister(new LConstantD(value));
+    LOperand* temp = (BitCast<uint64_t, double>(value) != 0)
+        ? TempRegister()
+        : NULL;
+    return DefineAsRegister(new LConstantD(temp));
   } else if (r.IsTagged()) {
-    return DefineAsRegister(new LConstantT(instr->handle()));
+    return DefineAsRegister(new LConstantT);
   } else {
     UNREACHABLE();
     return NULL;
@@ -1924,6 +1928,12 @@ LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
 LInstruction* LChunkBuilder::DoTypeofIs(HTypeofIs* instr) {
   return DefineSameAsFirst(new LTypeofIs(UseRegister(instr->value())));
 }
+
+
+LInstruction* LChunkBuilder::DoIsConstructCall(HIsConstructCall* instr) {
+  return DefineAsRegister(new LIsConstructCall);
+}
+
 
 LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   HEnvironment* env = current_block_->last_environment();
