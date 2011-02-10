@@ -564,6 +564,7 @@ class MacroAssembler: public Assembler {
 
   // Get the number of least significant bits from a register
   void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
+  void GetLeastBitsFromInt32(Register dst, Register src, int mun_least_bits);
 
   // Uses VFP instructions to Convert a Smi to a double.
   void IntegerToDoubleConversionWithVFP3(Register inReg,

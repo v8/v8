@@ -1773,6 +1773,13 @@ void MacroAssembler::GetLeastBitsFromSmi(Register dst,
 }
 
 
+void MacroAssembler::GetLeastBitsFromInt32(Register dst,
+                                           Register src,
+                                           int num_least_bits) {
+  and_(dst, src, Operand((1 << num_least_bits) - 1));
+}
+
+
 void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
   // All parameters are on the stack.  r0 has the return value after call.
 

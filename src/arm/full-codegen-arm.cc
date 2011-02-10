@@ -1612,20 +1612,8 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      OverwriteMode mode) {
   __ pop(r1);
-  if (op == Token::ADD ||
-      op == Token::SUB ||
-      op == Token::MUL ||
-      op == Token::DIV ||
-      op == Token::MOD ||
-      op == Token::BIT_OR ||
-      op == Token::BIT_AND ||
-      op == Token::BIT_XOR) {
-    TypeRecordingBinaryOpStub stub(op, mode);
-    __ CallStub(&stub);
-  } else {
-    GenericBinaryOpStub stub(op, mode, r1, r0);
-    __ CallStub(&stub);
-  }
+  TypeRecordingBinaryOpStub stub(op, mode);
+  EmitCallIC(stub.GetCode(), NULL);
   context()->Plug(r0);
 }
 
