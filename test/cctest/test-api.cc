@@ -1649,6 +1649,23 @@ THREADED_TEST(IdentityHash) {
   CHECK_NE(hash, hash3);
   int hash4 = obj->GetIdentityHash();
   CHECK_EQ(hash, hash4);
+
+  // Check identity hashes behaviour in the presence of JS accessors.
+  // Put a getter for 'v8::IdentityHash' on the Object's prototype:
+  {
+    CompileRun("Object.prototype['v8::IdentityHash'] = 42;\n");
+    Local<v8::Object> o1 = v8::Object::New();
+    Local<v8::Object> o2 = v8::Object::New();
+    CHECK_NE(o1->GetIdentityHash(), o2->GetIdentityHash());
+  }
+  {
+    CompileRun(
+        "function cnst() { return 42; };\n"
+        "Object.prototype.__defineGetter__('v8::IdentityHash', cnst);\n");
+    Local<v8::Object> o1 = v8::Object::New();
+    Local<v8::Object> o2 = v8::Object::New();
+    CHECK_NE(o1->GetIdentityHash(), o2->GetIdentityHash());
+  }
 }
 
 
