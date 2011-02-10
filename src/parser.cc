@@ -3923,16 +3923,15 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
                                   Handle<String> type,
                                   Vector< Handle<Object> > arguments) {
   int argc = arguments.length();
-  Handle<JSArray> array = Factory::NewJSArray(argc, TENURED);
-  ASSERT(array->IsJSArray() && array->HasFastElements());
+  Handle<FixedArray> elements = Factory::NewFixedArray(argc, TENURED);
   for (int i = 0; i < argc; i++) {
     Handle<Object> element = arguments[i];
     if (!element.is_null()) {
-      // We know this doesn't cause a GC here because we allocated the JSArray
-      // large enough.
-      array->SetFastElement(i, *element)->ToObjectUnchecked();
+      elements->set(i, *element);
     }
   }
+  Handle<JSArray> array = Factory::NewJSArrayWithElements(elements, TENURED);
+
   ZoneList<Expression*>* args = new ZoneList<Expression*>(2);
   args->Add(new Literal(type));
   args->Add(new Literal(array));
