@@ -1997,7 +1997,7 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
 
 
 void LCodeGen::DoCallNamed(LCallNamed* instr) {
- ASSERT(ToRegister(instr->result()).is(rax));
+  ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
   Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
