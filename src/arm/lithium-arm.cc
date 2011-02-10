@@ -1088,8 +1088,8 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
 LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
   LOperand* function = UseFixed(instr->function(), r1);
   LOperand* receiver = UseFixed(instr->receiver(), r0);
-  LOperand* length = UseRegisterAtStart(instr->length());
-  LOperand* elements = UseRegisterAtStart(instr->elements());
+  LOperand* length = UseFixed(instr->length(), r2);
+  LOperand* elements = UseFixed(instr->elements(), r3);
   LApplyArguments* result = new LApplyArguments(function,
                                                 receiver,
                                                 length,
