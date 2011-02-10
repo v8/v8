@@ -1728,7 +1728,43 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
 
 
 void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
-  Abort("Unimplemented: %s", "DoLoadFunctionPrototype");
+  Register function = ToRegister(instr->function());
+  Register result = ToRegister(instr->result());
+
+  // Check that the function really is a function.
+  __ CmpObjectType(function, JS_FUNCTION_TYPE, result);
+  DeoptimizeIf(not_equal, instr->environment());
+
+  // Check whether the function has an instance prototype.
+  NearLabel non_instance;
+  __ testb(FieldOperand(result, Map::kBitFieldOffset),
+           Immediate(1 << Map::kHasNonInstancePrototype));
+  __ j(not_zero, &non_instance);
+
+  // Get the prototype or initial map from the function.
+  __ movq(result,
+         FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // Check that the function has a prototype or an initial map.
+  __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+  DeoptimizeIf(equal, instr->environment());
+
+  // If the function does not have an initial map, we're done.
+  NearLabel done;
+  __ CmpObjectType(result, MAP_TYPE, kScratchRegister);
+  __ j(not_equal, &done);
+
+  // Get the prototype from the initial map.
+  __ movq(result, FieldOperand(result, Map::kPrototypeOffset));
+  __ jmp(&done);
+
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in the function's map.
+  __ bind(&non_instance);
+  __ movq(result, FieldOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  __ bind(&done);
 }
 
 
@@ -1835,6 +1871,12 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
     ASSERT(!argument->IsDoubleRegister());
     __ push(ToOperand(argument));
   }
+}
+
+
+void LCodeGen::DoContext(LContext* instr) {
+  Register result = ToRegister(instr->result());
+  __ movq(result, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -1955,7 +1997,13 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
 
 
 void LCodeGen::DoCallNamed(LCallNamed* instr) {
-  Abort("Unimplemented: %s", "DoCallNamed");
+ ASSERT(ToRegister(instr->result()).is(rax));
+
+  int arity = instr->arity();
+  Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
+  __ Move(rcx, instr->name());
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -1965,7 +2013,12 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 
 
 void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
-  Abort("Unimplemented: %s", "DoCallGlobal");
+  ASSERT(ToRegister(instr->result()).is(rax));
+  int arity = instr->arity();
+  Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
+  __ Move(rcx, instr->name());
+  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 

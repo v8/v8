@@ -1144,8 +1144,7 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
 
 
 LInstruction* LChunkBuilder::DoContext(HContext* instr) {
-  Abort("Unimplemented: DoContext");
-  return NULL;
+  return DefineAsRegister(new LContext);
 }
 
 
@@ -1191,8 +1190,8 @@ LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallGlobal(HCallGlobal* instr) {
-  Abort("Unimplemented: %s", "DoCallGlobal");
-  return NULL;
+  argument_count_ -= instr->argument_count();
+  return MarkAsCall(DefineFixed(new LCallGlobal, rax), instr);
 }
 
 
@@ -1637,8 +1636,8 @@ LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
     HLoadFunctionPrototype* instr) {
-  Abort("Unimplemented: %s", "DoLoadFunctionPrototype");
-  return NULL;
+  return AssignEnvironment(DefineAsRegister(
+      new LLoadFunctionPrototype(UseRegister(instr->function()))));
 }
 
 
