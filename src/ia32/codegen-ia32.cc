@@ -3771,14 +3771,15 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // Leave the frame and return popping the arguments and the
   // receiver.
   frame_->Exit();
-  masm_->ret((scope()->num_parameters() + 1) * kPointerSize);
+  int arguments_bytes = (scope()->num_parameters() + 1) * kPointerSize;
+  __ Ret(arguments_bytes, ecx);
   DeleteFrame();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  // Check that the size of the code used for returning matches what is
-  // expected by the debugger.
-  ASSERT_EQ(Assembler::kJSReturnSequenceLength,
-            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+  // Check that the size of the code used for returning is large enough
+  // for the debugger's requirements.
+  ASSERT(Assembler::kJSReturnSequenceLength <=
+         masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
 }
 

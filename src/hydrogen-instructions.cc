@@ -900,17 +900,6 @@ void HPhi::AddInput(HValue* value) {
 }
 
 
-bool HPhi::HasReceiverOperand() {
-  for (int i = 0; i < OperandCount(); i++) {
-    if (OperandAt(i)->IsParameter() &&
-        HParameter::cast(OperandAt(i))->index() == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 HValue* HPhi::GetRedundantReplacement() const {
   HValue* candidate = NULL;
   int count = OperandCount();

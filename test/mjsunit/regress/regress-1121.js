@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,34 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that exceptions are thrown when setting properties on object
-// that have only a getter in a prototype object.
+// See: http://code.google.com/p/v8/issues/detail?id=1121
 
-var o = {};
-var p = {};
-p.__defineGetter__('x', function(){});
-p.__defineGetter__(0, function(){});
-o.__proto__ = p;
+// Test that changing Array.prototype.__proto__ keeps Array functions working.
 
-assertThrows("o.x = 42");
-assertThrows("o[0] = 42");
-
-function f() {
-  with(o) {
-    x = 42;
-  }
-}
-assertThrows("f()");
-
-__proto__ = p;
-function g() {
-  eval('1');
-  x = 42;
-}
-assertThrows("g()");
-
-__proto__ = p;
-function g2() {
-  this[0] = 42;
-}
-assertThrows("g2()");
+Array.prototype.__proto__ = null;
+// pop has custom call generator, so we need some beefier function.
+assertEquals([1, 2, 3], [1, 2, 3].slice());

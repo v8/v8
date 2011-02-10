@@ -2993,21 +2993,22 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // Leave the frame and return popping the arguments and the
   // receiver.
   frame_->Exit();
-  masm_->ret((scope()->num_parameters() + 1) * kPointerSize);
+  int arguments_bytes = (scope()->num_parameters() + 1) * kPointerSize;
+  __ Ret(arguments_bytes, rcx);
   DeleteFrame();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Add padding that will be overwritten by a debugger breakpoint.
-  // frame_->Exit() generates "movq rsp, rbp; pop rbp; ret k"
+  // The shortest return sequence generated is "movq rsp, rbp; pop rbp; ret k"
   // with length 7 (3 + 1 + 3).
   const int kPadding = Assembler::kJSReturnSequenceLength - 7;
   for (int i = 0; i < kPadding; ++i) {
     masm_->int3();
   }
-  // Check that the size of the code used for returning matches what is
-  // expected by the debugger.
-  ASSERT_EQ(Assembler::kJSReturnSequenceLength,
-            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+  // Check that the size of the code used for returning is large enough
+  // for the debugger's requirements.
+  ASSERT(Assembler::kJSReturnSequenceLength <=
+         masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
 }
 

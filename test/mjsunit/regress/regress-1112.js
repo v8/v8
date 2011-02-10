@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,34 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that exceptions are thrown when setting properties on object
-// that have only a getter in a prototype object.
+// Regression test making sure that defineProperty on the global proxy
+// defines the property on the global object.
 
-var o = {};
-var p = {};
-p.__defineGetter__('x', function(){});
-p.__defineGetter__(0, function(){});
-o.__proto__ = p;
+Object.defineProperty(this,
+                      1,
+                      { configurable: true, enumerable: true, value: 3 });
+assertEquals(3, this[1]);
+assertTrue(this.hasOwnProperty("1"));
 
-assertThrows("o.x = 42");
-assertThrows("o[0] = 42");
-
-function f() {
-  with(o) {
-    x = 42;
-  }
-}
-assertThrows("f()");
-
-__proto__ = p;
-function g() {
-  eval('1');
-  x = 42;
-}
-assertThrows("g()");
-
-__proto__ = p;
-function g2() {
-  this[0] = 42;
-}
-assertThrows("g2()");

@@ -2192,15 +2192,10 @@ void CodeGenerator::GenerateReturnSequence() {
     DeleteFrame();
 
 #ifdef DEBUG
-    // Check that the size of the code used for returning matches what is
-    // expected by the debugger. If the sp_delts above cannot be encoded in
-    // the add instruction the add will generate two instructions.
-    int return_sequence_length =
-        masm_->InstructionsGeneratedSince(&check_exit_codesize);
-    CHECK(return_sequence_length ==
-          Assembler::kJSReturnSequenceInstructions ||
-          return_sequence_length ==
-          Assembler::kJSReturnSequenceInstructions + 1);
+    // Check that the size of the code used for returning is large enough
+    // for the debugger's requirements.
+    ASSERT(Assembler::kJSReturnSequenceInstructions <=
+           masm_->InstructionsGeneratedSince(&check_exit_codesize));
 #endif
   }
 }

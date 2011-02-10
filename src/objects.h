@@ -1579,7 +1579,8 @@ class JSObject: public HeapObject {
   void LookupRealNamedProperty(String* name, LookupResult* result);
   void LookupRealNamedPropertyInPrototypes(String* name, LookupResult* result);
   void LookupCallbackSetterInPrototypes(String* name, LookupResult* result);
-  bool SetElementWithCallbackSetterInPrototypes(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetElementWithCallbackSetterInPrototypes(
+      uint32_t index, Object* value, bool* found);
   void LookupCallback(String* name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties

@@ -884,10 +884,17 @@ static MaybeObject* Runtime_PreventExtensions(Arguments args) {
   return obj->PreventExtensions();
 }
 
+
 static MaybeObject* Runtime_IsExtensible(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSObject, obj, args[0]);
-  return obj->map()->is_extensible() ?  Heap::true_value()
+  if (obj->IsJSGlobalProxy()) {
+    Object* proto = obj->GetPrototype();
+    if (proto->IsNull()) return Heap::false_value();
+    ASSERT(proto->IsJSGlobalObject());
+    obj = JSObject::cast(proto);
+  }
+  return obj->map()->is_extensible() ? Heap::true_value()
                                      : Heap::false_value();
 }
 
@@ -1082,7 +1089,11 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
         const char* type = (lookup.IsReadOnly()) ? "const" : "var";
         return ThrowRedeclarationError(type, name);
       }
-      SetProperty(global, name, value, attributes);
+      Handle<Object> result = SetProperty(global, name, value, attributes);
+      if (result.is_null()) {
+        ASSERT(Top::has_pending_exception());
+        return Failure::Exception();
+      }
     } else {
       // If a property with this name does not already exist on the
       // global object add the property locally.  We take special
@@ -1090,10 +1101,16 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
       // of callbacks in the prototype chain (this rules out using
       // SetProperty).  Also, we must use the handle-based version to
       // avoid GC issues.
-      SetLocalPropertyIgnoreAttributes(global, name, value, attributes);
+      Handle<Object> result =
+          SetLocalPropertyIgnoreAttributes(global, name, value, attributes);
+      if (result.is_null()) {
+        ASSERT(Top::has_pending_exception());
+        return Failure::Exception();
+      }
     }
   }
 
+  ASSERT(!Top::has_pending_exception());
   return Heap::undefined_value();
 }
 
@@ -1143,12 +1160,15 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
         } else {
           // The holder is an arguments object.
           Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
-          SetElement(arguments, index, initial_value);
+          Handle<Object> result = SetElement(arguments, index, initial_value);
+          if (result.is_null()) return Failure::Exception();
         }
       } else {
         // Slow case: The property is not in the FixedArray part of the context.
         Handle<JSObject> context_ext = Handle<JSObject>::cast(holder);
-        SetProperty(context_ext, name, initial_value, mode);
+        Handle<Object> result =
+            SetProperty(context_ext, name, initial_value, mode);
+        if (result.is_null()) return Failure::Exception();
       }
     }
 
@@ -1175,8 +1195,8 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
     ASSERT(!context_ext->HasLocalProperty(*name));
     Handle<Object> value(Heap::undefined_value());
     if (*initial_value != NULL) value = initial_value;
-    SetProperty(context_ext, name, value, mode);
-    ASSERT(context_ext->GetLocalPropertyAttribute(*name) == mode);
+    Handle<Object> result = SetProperty(context_ext, name, value, mode);
+    if (result.is_null()) return Failure::Exception();
   }
 
   return Heap::undefined_value();
@@ -3655,12 +3675,20 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   if (((unchecked & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0) &&
       is_element) {
     // Normalize the elements to enable attributes on the property.
+    if (js_object->IsJSGlobalProxy()) {
+      Handle<Object> proto(js_object->GetPrototype());
+      // If proxy is detached, ignore the assignment. Alternatively,
+      // we could throw an exception.
+      if (proto->IsNull()) return *obj_value;
+      js_object = Handle<JSObject>::cast(proto);
+    }
     NormalizeElements(js_object);
     Handle<NumberDictionary> dictionary(js_object->element_dictionary());
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
     PropertyDetails details = PropertyDetails(attr, NORMAL);
     NumberDictionarySet(dictionary, index, obj_value, details);
+    return *obj_value;
   }
 
   LookupResult result;
@@ -3675,6 +3703,11 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   if (result.IsProperty() &&
       (attr != result.GetAttributes() || result.type() == CALLBACKS)) {
     // New attributes - normalize to avoid writing to instance descriptor
+    if (js_object->IsJSGlobalProxy()) {
+      // Since the result is a property, the prototype will exist so
+      // we don't have to check for null.
+      js_object = Handle<JSObject>(JSObject::cast(js_object->GetPrototype()));
+    }
     NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
@@ -7323,12 +7356,17 @@ static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
     if (holder->IsContext()) {
       // Ignore if read_only variable.
       if ((attributes & READ_ONLY) == 0) {
-        Handle<Context>::cast(holder)->set(index, *value);
+        // Context is a fixed array and set cannot fail.
+        Context::cast(*holder)->set(index, *value);
       }
     } else {
       ASSERT((attributes & READ_ONLY) == 0);
-      Handle<JSObject>::cast(holder)->SetElement(index, *value)->
-          ToObjectUnchecked();
+      Handle<Object> result =
+          SetElement(Handle<JSObject>::cast(holder), index, value);
+      if (result.is_null()) {
+        ASSERT(Top::has_pending_exception());
+        return Failure::Exception();
+      }
     }
     return *value;
   }
@@ -7351,8 +7389,8 @@ static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
   // extension object itself.
   if ((attributes & READ_ONLY) == 0 ||
       (context_ext->GetLocalPropertyAttribute(*name) == ABSENT)) {
-    Handle<Object> set = SetProperty(context_ext, name, value, NONE);
-    if (set.is_null()) {
+    Handle<Object> result = SetProperty(context_ext, name, value, NONE);
+    if (result.is_null()) {
       // Failure::Exception is converted to a null handle in the
       // handle-based methods such as SetProperty.  We therefore need
       // to convert null handles back to exceptions.

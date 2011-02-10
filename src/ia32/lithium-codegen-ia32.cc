@@ -1881,7 +1881,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
   __ mov(esp, ebp);
   __ pop(ebp);
-  __ ret((ParameterCount() + 1) * kPointerSize);
+  __ Ret((ParameterCount() + 1) * kPointerSize, ecx);
 }
 
 
@@ -2090,6 +2090,9 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 
 void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   Register receiver = ToRegister(instr->receiver());
+  Register length = ToRegister(instr->length());
+  Register elements = ToRegister(instr->elements());
+  Register temp = ToRegister(instr->TempAt(0));
   ASSERT(ToRegister(instr->function()).is(edi));
   ASSERT(ToRegister(instr->result()).is(eax));
 
@@ -2099,13 +2102,18 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ cmp(receiver, Factory::null_value());
   __ j(equal, &global_receiver);
   __ cmp(receiver, Factory::undefined_value());
-  __ j(not_equal, &receiver_ok);
+  __ j(equal, &global_receiver);
+
+  // The receiver should be a JS object.
+  __ test(receiver, Immediate(kSmiTagMask));
+  DeoptimizeIf(equal, instr->environment());
+  __ CmpObjectType(receiver, FIRST_JS_OBJECT_TYPE, temp);
+  DeoptimizeIf(below, instr->environment());
+  __ jmp(&receiver_ok);
+
   __ bind(&global_receiver);
   __ mov(receiver, GlobalObjectOperand());
   __ bind(&receiver_ok);
-
-  Register length = ToRegister(instr->length());
-  Register elements = ToRegister(instr->elements());
 
   Label invoke;
 
