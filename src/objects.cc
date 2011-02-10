@@ -8565,10 +8565,20 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
         if (value->IsUndefined()) {
           undefs++;
         } else {
+          if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
+            // Adding an entry with the key beyond smi-range requires
+            // allocation. Bailout.
+            return Smi::FromInt(-1);
+          }
           new_dict->AddNumberEntry(pos, value, details)->ToObjectUnchecked();
           pos++;
         }
       } else {
+        if (key > static_cast<uint32_t>(Smi::kMaxValue)) {
+          // Adding an entry with the key beyond smi-range requires
+          // allocation. Bailout.
+          return Smi::FromInt(-1);
+        }
         new_dict->AddNumberEntry(key, value, details)->ToObjectUnchecked();
       }
     }
@@ -8577,6 +8587,11 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
   uint32_t result = pos;
   PropertyDetails no_details = PropertyDetails(NONE, NORMAL);
   while (undefs > 0) {
+    if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
+      // Adding an entry with the key beyond smi-range requires
+      // allocation. Bailout.
+      return Smi::FromInt(-1);
+    }
     new_dict->AddNumberEntry(pos, Heap::undefined_value(), no_details)->
         ToObjectUnchecked();
     pos++;
