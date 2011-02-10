@@ -5365,7 +5365,7 @@ void HGraphBuilder::GenerateRegExpConstructResult(int argument_count,
   HContext* context = new HContext;
   AddInstruction(context);
   HCallStub* result =
-      new HCallStub(context,CodeStub::RegExpConstructResult, argument_count);
+      new HCallStub(context, CodeStub::RegExpConstructResult, argument_count);
   ast_context()->ReturnInstruction(result, ast_id);
 }
 
