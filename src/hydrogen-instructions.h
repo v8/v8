@@ -1176,25 +1176,35 @@ class HCallConstantFunction: public HCall {
 };
 
 
+// TODO(3190496): This class uses hacks to get additional operands that ar
+// not arguments to work with the current setup. This _needs_ a cleanup.
+// (see HCall).
 class HCallKeyed: public HCall {
  public:
-  HCallKeyed(HValue* key, int argument_count)
-      : HCall(argument_count + 1) {
+  HCallKeyed(HValue* context, HValue* key, int argument_count)
+      : HCall(argument_count + 1), context_(NULL) {
     SetOperandAt(0, key);
+    SetOperandAt(argument_count + 1, context);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
 
-  // TODO(3190496): This is a hack to get an additional operand that
-  // is not an argument to work with the current setup. This _needs_ a cleanup.
-  // (see HCall)
   virtual void PrintDataTo(StringStream* stream) const;
+
   HValue* key() const { return OperandAt(0); }
+  HValue* context() const { return context_; }
+
   virtual int argument_count() const { return arguments_.length() - 1; }
-  virtual int OperandCount() const { return arguments_.length(); }
-  virtual HValue* OperandAt(int index) const { return arguments_[index]; }
+  virtual int OperandCount() const { return arguments_.length() + 1; }
+
+  virtual HValue* OperandAt(int index) const {
+    // The key and all the arguments are stored in the base class's
+    // arguments_ vector.  The context is in the object itself.  Ugly.
+    return (index <= argument_count()) ? arguments_[index] : context_;
+  }
+
   virtual HPushArgument* PushArgumentAt(int index) const {
     return HPushArgument::cast(OperandAt(index + 1));
   }
@@ -1203,44 +1213,100 @@ class HCallKeyed: public HCall {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CallKeyed, "call_keyed")
+
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value);
+
+ private:
+  HValue* context_;
 };
 
 
 class HCallNamed: public HCall {
  public:
-  HCallNamed(Handle<String> name, int argument_count)
-      : HCall(argument_count), name_(name) { }
+  HCallNamed(HValue* context, Handle<String> name, int argument_count)
+      : HCall(argument_count), context_(NULL), name_(name) {
+    SetOperandAt(argument_count, context);
+  }
+
   virtual void PrintDataTo(StringStream* stream) const;
 
+  HValue* context() const { return context_; }
   Handle<String> name() const { return name_; }
+
+  virtual int OperandCount() const { return arguments_.length() + 1; }
+
+  virtual HValue* OperandAt(int index) const {
+    // The arguments are in the base class's arguments_ vector.  The context
+    // is in the object itself.
+    return (index < argument_count()) ? arguments_[index] : context_;
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(CallNamed, "call_named")
 
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value);
+
  private:
+  HValue* context_;
   Handle<String> name_;
 };
 
 
 class HCallFunction: public HCall {
  public:
-  explicit HCallFunction(int argument_count) : HCall(argument_count) { }
+  HCallFunction(HValue* context, int argument_count)
+      : HCall(argument_count), context_(NULL) {
+    SetOperandAt(argument_count, context);
+  }
+
+  HValue* context() const { return context_; }
+
+  virtual int OperandCount() const { return arguments_.length() + 1; }
+
+  virtual HValue* OperandAt(int index) const {
+    // The arguments are in the base class's arguments_ vector.  The context
+    // is in the object itself.
+    return (index < argument_count()) ? arguments_[index] : context_;
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(CallFunction, "call_function")
+
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value);
+
+ private:
+  HValue* context_;
 };
 
 
 class HCallGlobal: public HCall {
  public:
-  HCallGlobal(Handle<String> name, int argument_count)
-      : HCall(argument_count), name_(name) { }
+  HCallGlobal(HValue* context, Handle<String> name, int argument_count)
+      : HCall(argument_count), context_(NULL), name_(name) {
+    SetOperandAt(argument_count, context);
+  }
 
   virtual void PrintDataTo(StringStream* stream) const;
 
+  HValue* context() const { return context_; }
   Handle<String> name() const { return name_; }
+
+  virtual int OperandCount() const { return arguments_.length() + 1; }
+
+  virtual HValue* OperandAt(int index) const {
+    // The arguments are in the base class's arguments_ vector.  The context
+    // is in the object itself.
+    return (index < argument_count()) ? arguments_[index] : context_;
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(CallGlobal, "call_global")
 
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value);
+
  private:
+  HValue* context_;
   Handle<String> name_;
 };
 
@@ -1262,15 +1328,33 @@ class HCallKnownGlobal: public HCall {
 
 class HCallNew: public HCall {
  public:
-  explicit HCallNew(int argument_count) : HCall(argument_count) { }
+  HCallNew(HValue* context, int argument_count)
+      : HCall(argument_count), context_(NULL) {
+    SetOperandAt(argument_count, context);
+  }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
 
+  HValue* context() const { return context_; }
   HValue* constructor() const { return ArgumentAt(0); }
 
+  virtual int OperandCount() const { return arguments_.length() + 1; }
+
+  virtual HValue* OperandAt(int index) const {
+    // The arguments are in the base class's arguments_ vector.  The context
+    // is in the object itself.
+    return (index < argument_count()) ? arguments_[index] : context_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CallNew, "call_new")
+
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value);
+
+ private:
+  HValue* context_;
 };
 
 
@@ -1861,7 +1945,6 @@ class HBinaryOperation: public HInstruction {
     operands_[index] = value;
   }
 
- private:
   HOperandVector<2> operands_;
 };
 
@@ -2278,12 +2361,19 @@ class HTypeofIs: public HUnaryPredicate {
 };
 
 
-class HInstanceOf: public HBinaryOperation {
+class HInstanceOf: public HInstruction {
  public:
-  HInstanceOf(HValue* left, HValue* right) : HBinaryOperation(left, right) {
+  HInstanceOf(HValue* context, HValue* left, HValue* right) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, left);
+    SetOperandAt(2, right);
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
+
+  HValue* context() const { return operands_[0]; }
+  HValue* left() const { return operands_[1]; }
+  HValue* right() const { return operands_[2]; }
 
   virtual bool EmitAtUses() const { return uses()->length() <= 1; }
 
@@ -2291,7 +2381,20 @@ class HInstanceOf: public HBinaryOperation {
     return Representation::Tagged();
   }
 
+  virtual void PrintDataTo(StringStream* stream) const;
+
+  virtual int OperandCount() const { return 3; }
+  virtual HValue* OperandAt(int index) const { return operands_[index]; }
+
   DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance_of")
+
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value) {
+    operands_[index] = value;
+  }
+
+ private:
+  HOperandVector<3> operands_;
 };
 
 
@@ -2560,10 +2663,11 @@ class HParameter: public HInstruction {
 };
 
 
-class HCallStub: public HInstruction {
+class HCallStub: public HUnaryOperation {
  public:
-  HCallStub(CodeStub::Major major_key, int argument_count)
-      : major_key_(major_key),
+  HCallStub(HValue* context, CodeStub::Major major_key, int argument_count)
+      : HUnaryOperation(context),
+        major_key_(major_key),
         argument_count_(argument_count),
         transcendental_type_(TranscendentalCache::kNumberOfCaches) {
     set_representation(Representation::Tagged());
@@ -2572,6 +2676,7 @@ class HCallStub: public HInstruction {
 
   CodeStub::Major major_key() { return major_key_; }
   int argument_count() { return argument_count_; }
+  HValue* context() { return OperandAt(0); }
 
   void set_transcendental_type(TranscendentalCache::Type transcendental_type) {
     transcendental_type_ = transcendental_type;
@@ -2763,15 +2868,16 @@ class HLoadNamedField: public HUnaryOperation {
 };
 
 
-class HLoadNamedGeneric: public HUnaryOperation {
+class HLoadNamedGeneric: public HBinaryOperation {
  public:
-  HLoadNamedGeneric(HValue* object, Handle<Object> name)
-      : HUnaryOperation(object), name_(name) {
+  HLoadNamedGeneric(HValue* context, HValue* object, Handle<Object> name)
+      : HBinaryOperation(context, object), name_(name) {
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
 
-  HValue* object() const { return OperandAt(0); }
+  HValue* context() const { return OperandAt(0); }
+  HValue* object() const { return OperandAt(1); }
   Handle<Object> name() const { return name_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -2848,17 +2954,34 @@ class HLoadKeyedFastElement: public HLoadKeyed {
 
 class HLoadKeyedGeneric: public HLoadKeyed {
  public:
-  HLoadKeyedGeneric(HValue* obj, HValue* key) : HLoadKeyed(obj, key) {
+  HLoadKeyedGeneric(HContext* context, HValue* obj, HValue* key)
+      : HLoadKeyed(obj, key), context_(NULL) {
+    SetOperandAt(2, context);
     SetAllSideEffects();
   }
 
+  HValue* context() const { return context_; }
+  HValue* object() const { return operands_[0]; }
+  HValue* key() const { return operands_[1]; }
+
+  virtual int OperandCount() const { return 3; }
+  virtual HValue* OperandAt(int index) const {
+    return (index < 2) ? operands_[index] : context_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric, "load_keyed_generic")
+
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value);
+
+ private:
+  HValue* context_;
 };
 
 
 class HStoreNamed: public HBinaryOperation {
  public:
-  HStoreNamed(HValue* obj, Handle<Object> name, HValue* val)
+  HStoreNamed(HValue* obj, Handle<String> name, HValue* val)
       : HBinaryOperation(obj, val), name_(name) {
   }
 
@@ -2869,21 +2992,21 @@ class HStoreNamed: public HBinaryOperation {
   virtual void PrintDataTo(StringStream* stream) const;
 
   HValue* object() const { return OperandAt(0); }
-  Handle<Object> name() const { return name_; }
+  Handle<String> name() const { return name_; }
   HValue* value() const { return OperandAt(1); }
   void set_value(HValue* value) { SetOperandAt(1, value); }
 
   DECLARE_INSTRUCTION(StoreNamed)
 
  private:
-  Handle<Object> name_;
+  Handle<String> name_;
 };
 
 
 class HStoreNamedField: public HStoreNamed {
  public:
   HStoreNamedField(HValue* obj,
-                   Handle<Object> name,
+                   Handle<String> name,
                    HValue* val,
                    bool in_object,
                    int offset)
@@ -2922,12 +3045,32 @@ class HStoreNamedField: public HStoreNamed {
 
 class HStoreNamedGeneric: public HStoreNamed {
  public:
-  HStoreNamedGeneric(HValue* obj, Handle<Object> name, HValue* val)
-      : HStoreNamed(obj, name, val) {
+  HStoreNamedGeneric(HValue* context,
+                     HValue* object,
+                     Handle<String> name,
+                     HValue* value)
+      : HStoreNamed(object, name, value), context_(NULL) {
+    SetOperandAt(2, context);
     SetAllSideEffects();
   }
 
+  HValue* context() const { return context_; }
+  HValue* object() const { return operands_[0]; }
+  HValue* value() const { return operands_[1]; }
+
+  virtual int OperandCount() const { return 3; }
+
+  virtual HValue* OperandAt(int index) const {
+    return (index < 2) ? operands_[index] : context_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store_named_generic")
+
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value);
+
+ private:
+  HValue* context_;
 };
 
 
@@ -2962,7 +3105,6 @@ class HStoreKeyed: public HInstruction {
     operands_[index] = value;
   }
 
- private:
   HOperandVector<3> operands_;
 };
 
@@ -2987,12 +3129,33 @@ class HStoreKeyedFastElement: public HStoreKeyed {
 
 class HStoreKeyedGeneric: public HStoreKeyed {
  public:
-  HStoreKeyedGeneric(HValue* obj, HValue* key, HValue* val)
-      : HStoreKeyed(obj, key, val) {
+  HStoreKeyedGeneric(HValue* context,
+                     HValue* object,
+                     HValue* key,
+                     HValue* value)
+      : HStoreKeyed(object, key, value), context_(NULL) {
+    SetOperandAt(3, context);
     SetAllSideEffects();
   }
 
+  HValue* context() const { return context_; }
+  HValue* object() const { return operands_[0]; }
+  HValue* key() const { return operands_[1]; }
+  HValue* value() const { return operands_[2]; }
+
+  virtual int OperandCount() const { return 4; }
+
+  virtual HValue* OperandAt(int index) const {
+    return (index < 3) ? operands_[index] : context_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store_keyed_generic")
+
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value);
+
+ private:
+  HValue* context_;
 };
 
 
@@ -3094,22 +3257,36 @@ class HArrayLiteral: public HMaterializedLiteral {
 
 class HObjectLiteral: public HMaterializedLiteral {
  public:
-  HObjectLiteral(Handle<FixedArray> constant_properties,
+  HObjectLiteral(HValue* context,
+                 Handle<FixedArray> constant_properties,
                  bool fast_elements,
                  int literal_index,
                  int depth)
       : HMaterializedLiteral(literal_index, depth),
+        context_(NULL),
         constant_properties_(constant_properties),
-        fast_elements_(fast_elements) {}
+        fast_elements_(fast_elements) {
+    SetOperandAt(0, context);
+  }
 
+  HValue* context() const { return context_; }
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
   }
   bool fast_elements() const { return fast_elements_; }
 
+  virtual int OperandCount() const { return 1; }
+  virtual HValue* OperandAt(int index) const { return context_; }
+
   DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral, "object_literal")
 
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value) {
+    context_ = value;
+  }
+
  private:
+  HValue* context_;
   Handle<FixedArray> constant_properties_;
   bool fast_elements_;
 };

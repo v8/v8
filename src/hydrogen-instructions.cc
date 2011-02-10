@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -278,6 +278,88 @@ void HValue::SetOperandAt(int index, HValue* value) {
   ASSERT(value == NULL || !value->representation().IsNone());
   RegisterUse(index, value);
   InternalSetOperandAt(index, value);
+}
+
+
+void HLoadKeyedGeneric::InternalSetOperandAt(int index, HValue* value) {
+  if (index < 2) {
+    operands_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
+void HCallKeyed::InternalSetOperandAt(int index, HValue* value) {
+  // The key and all the arguments are stored in the base class's arguments_
+  // vector.  The context is in the object itself.  Ugly.
+  if (index <= argument_count()) {
+    arguments_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
+void HCallNamed::InternalSetOperandAt(int index, HValue* value) {
+  // The arguments are in the base class's arguments_ vector.  The context
+  // is in the object itself.
+  if (index < argument_count()) {
+    arguments_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
+void HCallFunction::InternalSetOperandAt(int index, HValue* value) {
+  // The arguments are in the base class's arguments_ vector.  The context
+  // is in the object itself.
+  if (index < argument_count()) {
+    arguments_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
+void HCallGlobal::InternalSetOperandAt(int index, HValue* value) {
+  // The arguments are in the base class's arguments_ vector.  The context
+  // is in the object itself.
+  if (index < argument_count()) {
+    arguments_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
+void HCallNew::InternalSetOperandAt(int index, HValue* value) {
+  // The arguments are in the base class's arguments_ vector.  The context
+  // is in the object itself.
+  if (index < argument_count()) {
+    arguments_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
+void HStoreKeyedGeneric::InternalSetOperandAt(int index, HValue* value) {
+  if (index < 3) {
+    operands_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
+void HStoreNamedGeneric::InternalSetOperandAt(int index, HValue* value) {
+  if (index < 2) {
+    operands_[index] = value;
+  } else {
+    context_ = value;
+  }
 }
 
 
@@ -731,10 +813,21 @@ void HCallRuntime::PrintDataTo(StringStream* stream) const {
   HCall::PrintDataTo(stream);
 }
 
+
 void HCallStub::PrintDataTo(StringStream* stream) const {
-  stream->Add("%s(%d)",
+  HUnaryOperation::PrintDataTo(stream);
+  stream->Add(" %s(%d)",
               CodeStub::MajorName(major_key_, false),
               argument_count_);
+}
+
+
+void HInstanceOf::PrintDataTo(StringStream* stream) const {
+  left()->PrintNameTo(stream);
+  stream->Add(" ");
+  right()->PrintNameTo(stream);
+  stream->Add(" ");
+  context()->PrintNameTo(stream);
 }
 
 

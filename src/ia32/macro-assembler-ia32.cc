@@ -78,11 +78,6 @@ void MacroAssembler::RecordWrite(Register object,
                                  int offset,
                                  Register value,
                                  Register scratch) {
-  // The compiled code assumes that record write doesn't change the
-  // context register, so we check that none of the clobbered
-  // registers are esi.
-  ASSERT(!object.is(esi) && !value.is(esi) && !scratch.is(esi));
-
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
   NearLabel done;
@@ -129,11 +124,6 @@ void MacroAssembler::RecordWrite(Register object,
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
                                  Register value) {
-  // The compiled code assumes that record write doesn't change the
-  // context register, so we check that none of the clobbered
-  // registers are esi.
-  ASSERT(!object.is(esi) && !value.is(esi) && !address.is(esi));
-
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
   Label done;

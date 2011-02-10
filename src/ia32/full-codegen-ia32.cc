@@ -615,6 +615,7 @@ void FullCodeGenerator::Move(Slot* dst,
   // Emit the write barrier code if the location is in the heap.
   if (dst->type() == Slot::CONTEXT) {
     int offset = Context::SlotOffset(dst->index());
+    ASSERT(!scratch1.is(esi) && !src.is(esi) && !scratch2.is(esi));
     __ RecordWrite(scratch1, offset, src, scratch2);
   }
 }

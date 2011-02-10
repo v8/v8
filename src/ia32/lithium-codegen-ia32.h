@@ -149,17 +149,14 @@ class LCodeGen BASE_EMBEDDED {
   bool GenerateDeferredCode();
   bool GenerateSafepointTable();
 
-  void CallCode(Handle<Code> code,
-                RelocInfo::Mode mode,
-                LInstruction* instr);
-  void CallRuntime(Runtime::Function* function,
-                   int num_arguments,
-                   LInstruction* instr);
-  void CallRuntime(Runtime::FunctionId id,
-                   int num_arguments,
-                   LInstruction* instr) {
+  void CallCode(Handle<Code> code, RelocInfo::Mode mode, LInstruction* instr,
+                bool adjusted = true);
+  void CallRuntime(Runtime::Function* fun, int argc, LInstruction* instr,
+                   bool adjusted = true);
+  void CallRuntime(Runtime::FunctionId id, int argc, LInstruction* instr,
+                   bool adjusted = true) {
     Runtime::Function* function = Runtime::FunctionForId(id);
-    CallRuntime(function, num_arguments, instr);
+    CallRuntime(function, argc, instr, adjusted);
   }
 
   // Generate a direct call to a known function.  Expects the function
