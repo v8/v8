@@ -721,12 +721,6 @@ void HChange::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HNeg::PrintDataTo(StringStream* stream) const {
-  HUnaryOperation::PrintDataTo(stream);
-  if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
-}
-
-
 HCheckInstanceType* HCheckInstanceType::NewIsJSObjectOrJSFunction(
     HValue* value)  {
   STATIC_ASSERT((LAST_JS_OBJECT_TYPE + 1) == JS_FUNCTION_TYPE);
@@ -894,22 +888,6 @@ Range* HMod::InferRange() {
     return result;
   } else {
     return HArithmeticBinaryOperation::InferRange();
-  }
-}
-
-
-Range* HNeg::InferRange() {
-  if (representation().IsInteger32()) {
-    Range* input_range = value()->range();
-    Range* result = input_range->Copy();
-    Range neg_one(-1, -1);
-    if (!result->MulAndCheckOverflow(&neg_one)) {
-      ClearFlag(HValue::kCanOverflow);
-    }
-    result->set_can_be_minus_zero(input_range->CanBeZero());
-    return result;
-  } else {
-    return HValue::InferRange();
   }
 }
 
@@ -1336,11 +1314,6 @@ HType HBitNot::CalculateInferredType() const {
 }
 
 
-HType HNeg::CalculateInferredType() const {
-  return HType::TaggedNumber();
-}
-
-
 HType HUnaryMathOperation::CalculateInferredType() const {
   return HType::TaggedNumber();
 }
@@ -1411,15 +1384,6 @@ HValue* HDiv::EnsureAndPropagateNotMinusZero(BitVector* visited) {
 
 
 HValue* HMul::EnsureAndPropagateNotMinusZero(BitVector* visited) {
-  visited->Add(id());
-  if (range() == NULL || range()->CanBeMinusZero()) {
-    SetFlag(kBailoutOnMinusZero);
-  }
-  return NULL;
-}
-
-
-HValue* HNeg::EnsureAndPropagateNotMinusZero(BitVector* visited) {
   visited->Add(id());
   if (range() == NULL || range()->CanBeMinusZero()) {
     SetFlag(kBailoutOnMinusZero);

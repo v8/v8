@@ -1298,12 +1298,6 @@ LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoNeg(HNeg* instr) {
-  Abort("Unimplemented: %s", "DoNeg");
-  return NULL;
-}
-
-
 LInstruction* LChunkBuilder::DoBitOr(HBitOr* instr) {
   return DoBit(Token::BIT_OR, instr);
 }

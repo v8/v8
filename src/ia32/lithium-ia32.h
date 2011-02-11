@@ -128,9 +128,6 @@ class LCodeGen;
   V(LoadPixelArrayExternalPointer)              \
   V(ModI)                                       \
   V(MulI)                                       \
-  V(NegI)                                       \
-  V(NegD)                                       \
-  V(NegT)                                       \
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
   V(NumberUntagD)                               \
@@ -1079,40 +1076,6 @@ class LBitNotI: public LTemplateInstruction<1, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(BitNotI, "bit-not-i")
-};
-
-
-class LNegI: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LNegI(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(NegI, "neg-i")
-  DECLARE_HYDROGEN_ACCESSOR(Neg)
-  LOperand* value() { return inputs_[0]; }
-};
-
-
-class LNegD: public LTemplateInstruction<1, 1, 1> {
- public:
-  explicit LNegD(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(NegD, "neg-d")
-  LOperand* value() { return inputs_[0]; }
-};
-
-
-class LNegT: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LNegT(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(NegT, "neg-t")
 };
 
 

@@ -133,7 +133,6 @@ class LChunkBuilder;
   V(LoadPixelArrayExternalPointer)             \
   V(Mod)                                       \
   V(Mul)                                       \
-  V(Neg)                                       \
   V(ObjectLiteral)                             \
   V(OsrEntry)                                  \
   V(OuterContext)                              \
@@ -1415,39 +1414,6 @@ class HBitNot: public HUnaryOperation {
 
  protected:
   virtual bool DataEquals(HValue* other) const { return true; }
-};
-
-
-class HNeg: public HUnaryOperation {
- public:
-  explicit HNeg(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Tagged());
-    SetFlag(kFlexibleRepresentation);
-    SetFlag(kCanOverflow);
-    SetAllSideEffects();
-  }
-
-  virtual void RepresentationChanged(Representation to) {
-    // May change from tagged to untagged, not vice versa.
-    ASSERT(representation().IsTagged() || representation().Equals(to));
-    if (!to.IsTagged()) {
-      ClearAllSideEffects();
-      SetFlag(kUseGVN);
-    }
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) const {
-    return representation();
-  }
-
-  virtual HType CalculateInferredType() const;
-  virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
-  virtual void PrintDataTo(StringStream* stream) const;
-  DECLARE_CONCRETE_INSTRUCTION(Neg, "neg")
-
- protected:
-  virtual bool DataEquals(HValue* other) const { return true; }
-  virtual Range* InferRange();
 };
 
 
