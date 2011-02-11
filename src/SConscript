@@ -97,7 +97,6 @@ SOURCES = {
     objects.cc
     objects-printer.cc
     objects-visiting.cc
-    oprofile-agent.cc
     parser.cc
     preparser.cc
     preparse-data.cc
