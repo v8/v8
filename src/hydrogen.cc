@@ -1813,16 +1813,14 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
                                               bool is_truncating) {
   // Insert the representation change right before its use. For phi-uses we
   // insert at the end of the corresponding predecessor.
-  HBasicBlock* insert_block = use->block();
+  HInstruction* next = NULL;
   if (use->IsPhi()) {
     int index = 0;
     while (use->OperandAt(index) != value) ++index;
-    insert_block = insert_block->predecessors()->at(index);
+    next = use->block()->predecessors()->at(index)->end();
+  } else {
+    next = HInstruction::cast(use);
   }
-
-  HInstruction* next = (insert_block == use->block())
-      ? HInstruction::cast(use)
-      : insert_block->end();
 
   // For constants we try to make the representation change at compile
   // time. When a representation change is not possible without loss of
