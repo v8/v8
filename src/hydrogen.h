@@ -706,19 +706,17 @@ class HGraphBuilder: public AstVisitor {
                        HBasicBlock* true_block,
                        HBasicBlock* false_block);
 
-  // Visit an argument and wrap it in a PushArgument instruction.
-  HValue* VisitArgument(Expression* expr);
+  // Visit an argument subexpression.
+  void VisitArgument(Expression* expr);
   void VisitArgumentList(ZoneList<Expression*>* arguments);
 
   void AddPhi(HPhi* phi);
 
   void PushAndAdd(HInstruction* instr);
 
-  void PushArgumentsForStubCall(int argument_count);
-
   // Remove the arguments from the bailout environment and emit instructions
   // to push them as outgoing parameters.
-  void ProcessCall(HCall* call);
+  void PreProcessCall(HCall* call);
 
   void AssumeRepresentation(HValue* value, Representation r);
   static Representation ToRepresentation(TypeInfo info);

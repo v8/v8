@@ -48,6 +48,7 @@ class LChunkBuilder;
 
 #define HYDROGEN_ALL_INSTRUCTION_LIST(V)       \
   V(ArithmeticBinaryOperation)                 \
+  V(BinaryCall)                                \
   V(BinaryOperation)                           \
   V(BitwiseBinaryOperation)                    \
   V(Call)                                      \
@@ -58,6 +59,7 @@ class LChunkBuilder;
   V(Phi)                                       \
   V(StoreKeyed)                                \
   V(StoreNamed)                                \
+  V(UnaryCall)                                 \
   V(UnaryControlInstruction)                   \
   V(UnaryOperation)                            \
   HYDROGEN_CONCRETE_INSTRUCTION_LIST(V)
@@ -1049,27 +1051,15 @@ class HLeaveInlined: public HInstruction {
 
 class HPushArgument: public HUnaryOperation {
  public:
-  explicit HPushArgument(HValue* value)
-      : HUnaryOperation(value), argument_index_(-1) {
-    set_representation(Representation::Tagged());
-  }
+  explicit HPushArgument(HValue* value) : HUnaryOperation(value) { }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
 
-  virtual void PrintDataTo(StringStream* stream) const;
   HValue* argument() const { return OperandAt(0); }
-  int argument_index() const { return argument_index_; }
-  void set_argument_index(int index) {
-    ASSERT(argument_index_ == -1 || index == argument_index_);
-    argument_index_ = index;
-  }
 
   DECLARE_CONCRETE_INSTRUCTION(PushArgument, "push_argument")
-
- private:
-  int argument_index_;
 };
 
 
@@ -1132,36 +1122,80 @@ class HGlobalReceiver: public HUnaryOperation {
 
 class HCall: public HInstruction {
  public:
-  // Construct a call with uninitialized arguments. The argument count
-  // includes the receiver.
-  explicit HCall(int count);
+  // The argument count includes the receiver.
+  explicit HCall(int argument_count) : argument_count_(argument_count) {
+    set_representation(Representation::Tagged());
+    SetAllSideEffects();
+  }
 
   virtual HType CalculateInferredType() const { return HType::Tagged(); }
 
-  // TODO(3190496): This needs a cleanup. We don't want the arguments
-  // be operands of the call instruction. This results in bad code quality.
-  virtual int argument_count() const { return arguments_.length(); }
-  virtual int OperandCount() const { return argument_count(); }
-  virtual HValue* OperandAt(int index) const { return arguments_[index]; }
-  virtual HPushArgument* PushArgumentAt(int index) const {
-    return HPushArgument::cast(OperandAt(index));
-  }
-  virtual HValue* ArgumentAt(int index) const {
-    return PushArgumentAt(index)->argument();
-  }
-  virtual void SetArgumentAt(int index, HPushArgument* push_argument);
+  virtual int argument_count() const { return argument_count_; }
 
   virtual void PrintDataTo(StringStream* stream) const;
 
   DECLARE_INSTRUCTION(Call)
 
- protected:
-  virtual void InternalSetOperandAt(int index, HValue* value) {
-    arguments_[index] = value;
+ private:
+  int argument_count_;
+};
+
+
+class HUnaryCall: public HCall {
+ public:
+  HUnaryCall(HValue* value, int argument_count)
+      : HCall(argument_count), value_(NULL) {
+    SetOperandAt(0, value);
   }
 
-  int argument_count_;
-  Vector<HValue*> arguments_;
+  virtual void PrintDataTo(StringStream* stream) const;
+
+  HValue* value() const { return value_; }
+
+  virtual int OperandCount() const { return 1; }
+  virtual HValue* OperandAt(int index) const {
+    ASSERT(index == 0);
+    return value_;
+  }
+
+  DECLARE_INSTRUCTION(UnaryCall)
+
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value) {
+    ASSERT(index == 0);
+    value_ = value;
+  }
+
+ private:
+  HValue* value_;
+};
+
+
+class HBinaryCall: public HCall {
+ public:
+  HBinaryCall(HValue* first, HValue* second, int argument_count)
+      : HCall(argument_count) {
+    SetOperandAt(0, first);
+    SetOperandAt(1, second);
+  }
+
+  virtual void PrintDataTo(StringStream* stream) const;
+
+  HValue* first() const { return operands_[0]; }
+  HValue* second() const { return operands_[1]; }
+
+  virtual int OperandCount() const { return 2; }
+  virtual HValue* OperandAt(int index) const { return operands_[index]; }
+
+  DECLARE_INSTRUCTION(BinaryCall)
+
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value) {
+    operands_[index] = value;
+  }
+
+ private:
+  HOperandVector<2> operands_;
 };
 
 
@@ -1171,6 +1205,7 @@ class HCallConstantFunction: public HCall {
       : HCall(argument_count), function_(function) { }
 
   Handle<JSFunction> function() const { return function_; }
+
   bool IsApplyFunction() const {
     return function_->code() == Builtins::builtin(Builtins::FunctionApply);
   }
@@ -1184,146 +1219,77 @@ class HCallConstantFunction: public HCall {
 };
 
 
-// TODO(3190496): This class uses hacks to get additional operands that ar
-// not arguments to work with the current setup. This _needs_ a cleanup.
-// (see HCall).
-class HCallKeyed: public HCall {
+class HCallKeyed: public HBinaryCall {
  public:
   HCallKeyed(HValue* context, HValue* key, int argument_count)
-      : HCall(argument_count + 1), context_(NULL) {
-    SetOperandAt(0, key);
-    SetOperandAt(argument_count + 1, context);
+      : HBinaryCall(context, key, argument_count) {
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
 
-  virtual void PrintDataTo(StringStream* stream) const;
-
-  HValue* key() const { return OperandAt(0); }
-  HValue* context() const { return context_; }
-
-  virtual int argument_count() const { return arguments_.length() - 1; }
-  virtual int OperandCount() const { return arguments_.length() + 1; }
-
-  virtual HValue* OperandAt(int index) const {
-    // The key and all the arguments are stored in the base class's
-    // arguments_ vector.  The context is in the object itself.  Ugly.
-    return (index <= argument_count()) ? arguments_[index] : context_;
-  }
-
-  virtual HPushArgument* PushArgumentAt(int index) const {
-    return HPushArgument::cast(OperandAt(index + 1));
-  }
-  virtual void SetArgumentAt(int index, HPushArgument* push_argument) {
-    HCall::SetArgumentAt(index + 1, push_argument);
-  }
+  HValue* context() const { return first(); }
+  HValue* key() const { return second(); }
 
   DECLARE_CONCRETE_INSTRUCTION(CallKeyed, "call_keyed")
-
- protected:
-  virtual void InternalSetOperandAt(int index, HValue* value);
-
- private:
-  HValue* context_;
 };
 
 
-class HCallNamed: public HCall {
+class HCallNamed: public HUnaryCall {
  public:
   HCallNamed(HValue* context, Handle<String> name, int argument_count)
-      : HCall(argument_count), context_(NULL), name_(name) {
-    SetOperandAt(argument_count, context);
+      : HUnaryCall(context, argument_count), name_(name) {
   }
 
   virtual void PrintDataTo(StringStream* stream) const;
 
-  HValue* context() const { return context_; }
+  HValue* context() const { return value(); }
   Handle<String> name() const { return name_; }
-
-  virtual int OperandCount() const { return arguments_.length() + 1; }
-
-  virtual HValue* OperandAt(int index) const {
-    // The arguments are in the base class's arguments_ vector.  The context
-    // is in the object itself.
-    return (index < argument_count()) ? arguments_[index] : context_;
-  }
 
   DECLARE_CONCRETE_INSTRUCTION(CallNamed, "call_named")
 
- protected:
-  virtual void InternalSetOperandAt(int index, HValue* value);
-
  private:
-  HValue* context_;
   Handle<String> name_;
 };
 
 
-class HCallFunction: public HCall {
+class HCallFunction: public HUnaryCall {
  public:
   HCallFunction(HValue* context, int argument_count)
-      : HCall(argument_count), context_(NULL) {
-    SetOperandAt(argument_count, context);
+      : HUnaryCall(context, argument_count) {
   }
 
-  HValue* context() const { return context_; }
-
-  virtual int OperandCount() const { return arguments_.length() + 1; }
-
-  virtual HValue* OperandAt(int index) const {
-    // The arguments are in the base class's arguments_ vector.  The context
-    // is in the object itself.
-    return (index < argument_count()) ? arguments_[index] : context_;
-  }
+  HValue* context() const { return value(); }
 
   DECLARE_CONCRETE_INSTRUCTION(CallFunction, "call_function")
-
- protected:
-  virtual void InternalSetOperandAt(int index, HValue* value);
-
- private:
-  HValue* context_;
 };
 
 
-class HCallGlobal: public HCall {
+class HCallGlobal: public HUnaryCall {
  public:
   HCallGlobal(HValue* context, Handle<String> name, int argument_count)
-      : HCall(argument_count), context_(NULL), name_(name) {
-    SetOperandAt(argument_count, context);
+      : HUnaryCall(context, argument_count), name_(name) {
   }
 
   virtual void PrintDataTo(StringStream* stream) const;
 
-  HValue* context() const { return context_; }
+  HValue* context() const { return value(); }
   Handle<String> name() const { return name_; }
-
-  virtual int OperandCount() const { return arguments_.length() + 1; }
-
-  virtual HValue* OperandAt(int index) const {
-    // The arguments are in the base class's arguments_ vector.  The context
-    // is in the object itself.
-    return (index < argument_count()) ? arguments_[index] : context_;
-  }
 
   DECLARE_CONCRETE_INSTRUCTION(CallGlobal, "call_global")
 
- protected:
-  virtual void InternalSetOperandAt(int index, HValue* value);
-
  private:
-  HValue* context_;
   Handle<String> name_;
 };
 
 
 class HCallKnownGlobal: public HCall {
  public:
-  HCallKnownGlobal(Handle<JSFunction> target,
-                   int argument_count)
+  HCallKnownGlobal(Handle<JSFunction> target, int argument_count)
       : HCall(argument_count), target_(target) { }
+
+  virtual void PrintDataTo(StringStream* stream) const;
 
   Handle<JSFunction> target() const { return target_; }
 
@@ -1334,35 +1300,20 @@ class HCallKnownGlobal: public HCall {
 };
 
 
-class HCallNew: public HCall {
+class HCallNew: public HBinaryCall {
  public:
-  HCallNew(HValue* context, int argument_count)
-      : HCall(argument_count), context_(NULL) {
-    SetOperandAt(argument_count, context);
+  HCallNew(HValue* context, HValue* constructor, int argument_count)
+      : HBinaryCall(context, constructor, argument_count) {
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
 
-  HValue* context() const { return context_; }
-  HValue* constructor() const { return ArgumentAt(0); }
-
-  virtual int OperandCount() const { return arguments_.length() + 1; }
-
-  virtual HValue* OperandAt(int index) const {
-    // The arguments are in the base class's arguments_ vector.  The context
-    // is in the object itself.
-    return (index < argument_count()) ? arguments_[index] : context_;
-  }
+  HValue* context() const { return first(); }
+  HValue* constructor() const { return second(); }
 
   DECLARE_CONCRETE_INSTRUCTION(CallNew, "call_new")
-
- protected:
-  virtual void InternalSetOperandAt(int index, HValue* value);
-
- private:
-  HValue* context_;
 };
 
 
@@ -2764,20 +2715,17 @@ class HParameter: public HInstruction {
 };
 
 
-class HCallStub: public HUnaryOperation {
+class HCallStub: public HUnaryCall {
  public:
   HCallStub(HValue* context, CodeStub::Major major_key, int argument_count)
-      : HUnaryOperation(context),
+      : HUnaryCall(context, argument_count),
         major_key_(major_key),
-        argument_count_(argument_count),
         transcendental_type_(TranscendentalCache::kNumberOfCaches) {
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
   }
 
   CodeStub::Major major_key() { return major_key_; }
-  int argument_count() { return argument_count_; }
-  HValue* context() { return OperandAt(0); }
+
+  HValue* context() const { return value(); }
 
   void set_transcendental_type(TranscendentalCache::Type transcendental_type) {
     transcendental_type_ = transcendental_type;
@@ -2785,13 +2733,13 @@ class HCallStub: public HUnaryOperation {
   TranscendentalCache::Type transcendental_type() {
     return transcendental_type_;
   }
+
   virtual void PrintDataTo(StringStream* stream) const;
 
   DECLARE_CONCRETE_INSTRUCTION(CallStub, "call_stub")
 
  private:
   CodeStub::Major major_key_;
-  int argument_count_;
   TranscendentalCache::Type transcendental_type_;
 };
 
