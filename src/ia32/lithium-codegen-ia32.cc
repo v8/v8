@@ -2161,36 +2161,36 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 
 void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   Register receiver = ToRegister(instr->receiver());
+  Register function = ToRegister(instr->function());
   Register length = ToRegister(instr->length());
   Register elements = ToRegister(instr->elements());
-  Register temp = ToRegister(instr->TempAt(0));
-  ASSERT(ToRegister(instr->function()).is(edi));
+  Register scratch = ToRegister(instr->TempAt(0));
+  ASSERT(receiver.is(eax));  // Used for parameter count.
+  ASSERT(function.is(edi));  // Required by InvokeFunction.
   ASSERT(ToRegister(instr->result()).is(eax));
 
-  // If the receiver is null or undefined, we have to pass the
-  // global object as a receiver.
-  NearLabel global_receiver, receiver_ok;
+  // If the receiver is null or undefined, we have to pass the global object
+  // as a receiver.
+  NearLabel global_object, receiver_ok;
   __ cmp(receiver, Factory::null_value());
-  __ j(equal, &global_receiver);
+  __ j(equal, &global_object);
   __ cmp(receiver, Factory::undefined_value());
-  __ j(equal, &global_receiver);
+  __ j(equal, &global_object);
 
   // The receiver should be a JS object.
   __ test(receiver, Immediate(kSmiTagMask));
   DeoptimizeIf(equal, instr->environment());
-  __ CmpObjectType(receiver, FIRST_JS_OBJECT_TYPE, temp);
+  __ CmpObjectType(receiver, FIRST_JS_OBJECT_TYPE, scratch);
   DeoptimizeIf(below, instr->environment());
   __ jmp(&receiver_ok);
 
-  __ bind(&global_receiver);
+  __ bind(&global_object);
   // TODO(kmillikin): We have a hydrogen value for the global object.  See
   // if it's better to use it than to explicitly fetch it from the context
   // here.
   __ mov(receiver, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ mov(receiver, ContextOperand(receiver, Context::GLOBAL_INDEX));
   __ bind(&receiver_ok);
-
-  Label invoke;
 
   // Copy the arguments to this function possibly from the
   // adaptor frame below it.
@@ -2203,7 +2203,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
   // Loop through the arguments pushing them onto the execution
   // stack.
-  Label loop;
+  NearLabel invoke, loop;
   // length is a small non-negative integer, due to the test above.
   __ test(length, Operand(length));
   __ j(zero, &invoke);
@@ -2222,9 +2222,8 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   SafepointGenerator safepoint_generator(this,
                                          pointers,
                                          env->deoptimization_index());
-  ASSERT(receiver.is(eax));
   v8::internal::ParameterCount actual(eax);
-  __ InvokeFunction(edi, actual, CALL_FUNCTION, &safepoint_generator);
+  __ InvokeFunction(function, actual, CALL_FUNCTION, &safepoint_generator);
 }
 
 

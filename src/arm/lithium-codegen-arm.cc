@@ -2488,29 +2488,33 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
-  Register scratch = scratch0();
-
-  ASSERT(receiver.is(r0));
-  ASSERT(function.is(r1));
-  ASSERT(ToRegister(instr->result()).is(r0));
-
-  // If the receiver is null or undefined, we have to pass the
-  // global object as a receiver.
-  Label global_receiver, receiver_ok;
-  __ LoadRoot(scratch, Heap::kNullValueRootIndex);
-  __ cmp(receiver, scratch);
-  __ b(eq, &global_receiver);
-  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
-  __ cmp(receiver, scratch);
-  __ b(ne, &receiver_ok);
-  __ bind(&global_receiver);
-  __ ldr(receiver, GlobalObjectOperand());
-  __ bind(&receiver_ok);
-
   Register length = ToRegister(instr->length());
   Register elements = ToRegister(instr->elements());
+  Register scratch = scratch0();
+  ASSERT(receiver.is(r0));  // Used for parameter count.
+  ASSERT(function.is(r1));  // Required by InvokeFunction.
+  ASSERT(ToRegister(instr->result()).is(r0));
 
-  Label invoke;
+  // If the receiver is null or undefined, we have to pass the global object
+  // as a receiver.
+  Label global_object, receiver_ok;
+  __ LoadRoot(scratch, Heap::kNullValueRootIndex);
+  __ cmp(receiver, scratch);
+  __ b(eq, &global_object);
+  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+  __ cmp(receiver, scratch);
+  __ b(eq, &global_object);
+
+  // Deoptimize if the receiver is not a JS object.
+  __ tst(receiver, Operand(kSmiTagMask));
+  DeoptimizeIf(eq, instr->environment());
+  __ CompareObjectType(receiver, scratch, scratch, FIRST_JS_OBJECT_TYPE);
+  DeoptimizeIf(lo, instr->environment());
+  __ jmp(&receiver_ok);
+
+  __ bind(&global_object);
+  __ ldr(receiver, GlobalObjectOperand());
+  __ bind(&receiver_ok);
 
   // Copy the arguments to this function possibly from the
   // adaptor frame below it.
@@ -2527,7 +2531,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
   // Loop through the arguments pushing them onto the execution
   // stack.
-  Label loop;
+  Label invoke, loop;
   // length is a small non-negative integer, due to the test above.
   __ tst(length, Operand(length));
   __ b(eq, &invoke);
@@ -2550,6 +2554,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // by InvokeFunction.
   v8::internal::ParameterCount actual(receiver);
   __ InvokeFunction(function, actual, CALL_FUNCTION, &safepoint_generator);
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
 
