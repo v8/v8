@@ -497,14 +497,12 @@ MaybeObject* StubCache::ComputeKeyedLoadPixelArray(JSObject* receiver) {
 MaybeObject* StubCache::ComputeStoreField(String* name,
                                           JSObject* receiver,
                                           int field_index,
-                                          Map* transition,
-                                          Code::ExtraICState extra_ic_state) {
+                                          Map* transition) {
   PropertyType type = (transition == NULL) ? FIELD : MAP_TRANSITION;
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, type, extra_ic_state);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, type);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    StoreStubCompiler compiler(extra_ic_state);
+    StoreStubCompiler compiler;
     { MaybeObject* maybe_code =
           compiler.CompileStoreField(receiver, field_index, transition, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -610,22 +608,18 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
 }
 
 
-MaybeObject* StubCache::ComputeStoreNormal(Code::ExtraICState extra_ic_state) {
-  return Builtins::builtin(extra_ic_state == StoreIC::kStoreICStrict
-                            ? Builtins::StoreIC_Normal_Strict
-                            : Builtins::StoreIC_Normal);
+MaybeObject* StubCache::ComputeStoreNormal() {
+  return Builtins::builtin(Builtins::StoreIC_Normal);
 }
 
 
 MaybeObject* StubCache::ComputeStoreGlobal(String* name,
                                            GlobalObject* receiver,
-                                           JSGlobalPropertyCell* cell,
-                                           Code::ExtraICState extra_ic_state) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, NORMAL, extra_ic_state);
+                                           JSGlobalPropertyCell* cell) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, NORMAL);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    StoreStubCompiler compiler(extra_ic_state);
+    StoreStubCompiler compiler;
     { MaybeObject* maybe_code =
           compiler.CompileStoreGlobal(receiver, cell, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -642,17 +636,14 @@ MaybeObject* StubCache::ComputeStoreGlobal(String* name,
 }
 
 
-MaybeObject* StubCache::ComputeStoreCallback(
-    String* name,
-    JSObject* receiver,
-    AccessorInfo* callback,
-    Code::ExtraICState extra_ic_state) {
+MaybeObject* StubCache::ComputeStoreCallback(String* name,
+                                             JSObject* receiver,
+                                             AccessorInfo* callback) {
   ASSERT(v8::ToCData<Address>(callback->setter()) != 0);
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, CALLBACKS, extra_ic_state);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, CALLBACKS);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    StoreStubCompiler compiler(extra_ic_state);
+    StoreStubCompiler compiler;
     { MaybeObject* maybe_code =
           compiler.CompileStoreCallback(receiver, callback, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -669,15 +660,13 @@ MaybeObject* StubCache::ComputeStoreCallback(
 }
 
 
-MaybeObject* StubCache::ComputeStoreInterceptor(
-    String* name,
-    JSObject* receiver,
-    Code::ExtraICState extra_ic_state) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, INTERCEPTOR, extra_ic_state);
+MaybeObject* StubCache::ComputeStoreInterceptor(String* name,
+                                                JSObject* receiver) {
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::STORE_IC, INTERCEPTOR);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    StoreStubCompiler compiler(extra_ic_state);
+    StoreStubCompiler compiler;
     { MaybeObject* maybe_code =
           compiler.CompileStoreInterceptor(receiver, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -1648,8 +1637,7 @@ MaybeObject* KeyedLoadStubCompiler::GetCode(PropertyType type, String* name) {
 
 
 MaybeObject* StoreStubCompiler::GetCode(PropertyType type, String* name) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, type,
-                                                    extra_ic_state_);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, type);
   MaybeObject* result = GetCodeWithFlags(flags, name);
   if (!result->IsFailure()) {
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG,

@@ -6238,35 +6238,10 @@ const char* Code::PropertyType2String(PropertyType type) {
 }
 
 
-void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
-  const char* name = NULL;
-  switch (kind) {
-    case CALL_IC:
-      if (extra == STRING_INDEX_OUT_OF_BOUNDS) {
-        name = "STRING_INDEX_OUT_OF_BOUNDS";
-      }
-      break;
-    case STORE_IC:
-      if (extra == StoreIC::kStoreICStrict) {
-        name = "STRICT";
-      }
-      break;
-    default:
-      break;
-  }
-  if (name != NULL) {
-    PrintF(out, "extra_ic_state = %s\n", name);
-  } else {
-    PrintF(out, "etra_ic_state = %d\n", extra);
-  }
-}
-
-
 void Code::Disassemble(const char* name, FILE* out) {
   PrintF(out, "kind = %s\n", Kind2String(kind()));
   if (is_inline_cache_stub()) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
-    PrintExtraICState(out, kind(), extra_ic_state());
     PrintF(out, "ic_in_loop = %d\n", ic_in_loop() == IN_LOOP);
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", PropertyType2String(type()));

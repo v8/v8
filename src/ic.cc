@@ -342,10 +342,7 @@ void StoreIC::ClearInlinedVersion(Address address) {
 void StoreIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   ClearInlinedVersion(address);
-  SetTargetAtAddress(address,
-      target->extra_ic_state() == kStoreICStrict
-        ? initialize_stub_strict()
-        : initialize_stub());
+  SetTargetAtAddress(address, initialize_stub());
 }
 
 
@@ -1371,7 +1368,6 @@ static bool LookupForWrite(JSObject* object,
 
 
 MaybeObject* StoreIC::Store(State state,
-                            Code::ExtraICState extra_ic_state,
                             Handle<Object> object,
                             Handle<String> name,
                             Handle<Object> value) {
@@ -1401,10 +1397,8 @@ MaybeObject* StoreIC::Store(State state,
 #ifdef DEBUG
     if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
 #endif
-    Builtins::Name target = (extra_ic_state == kStoreICStrict)
-        ? Builtins::StoreIC_ArrayLength_Strict
-        : Builtins::StoreIC_ArrayLength;
-    set_target(Builtins::builtin(target));
+    Code* target = Builtins::builtin(Builtins::StoreIC_ArrayLength);
+    set_target(target);
     return receiver->SetProperty(*name, *value, NONE);
   }
 
@@ -1462,23 +1456,15 @@ MaybeObject* StoreIC::Store(State state,
 
       // If no inlined store ic was patched, generate a stub for this
       // store.
-      UpdateCaches(&lookup, state, extra_ic_state, receiver, name, value);
-    } else {
-      // Strict mode doesn't allow setting non-existent global property.
-      if (extra_ic_state == kStoreICStrict && IsContextual(object)) {
-        return ReferenceError("not_defined", name);
-      }
+      UpdateCaches(&lookup, state, receiver, name, value);
     }
   }
 
   if (receiver->IsJSGlobalProxy()) {
     // Generate a generic stub that goes to the runtime when we see a global
     // proxy as receiver.
-    Code* stub = (extra_ic_state == kStoreICStrict)
-        ? global_proxy_stub_strict()
-        : global_proxy_stub();
-    if (target() != stub) {
-      set_target(stub);
+    if (target() != global_proxy_stub()) {
+      set_target(global_proxy_stub());
 #ifdef DEBUG
       TraceIC("StoreIC", name, state, target());
 #endif
@@ -1492,7 +1478,6 @@ MaybeObject* StoreIC::Store(State state,
 
 void StoreIC::UpdateCaches(LookupResult* lookup,
                            State state,
-                           Code::ExtraICState extra_ic_state,
                            Handle<JSObject> receiver,
                            Handle<String> name,
                            Handle<Object> value) {
@@ -1513,8 +1498,8 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   Object* code = NULL;
   switch (type) {
     case FIELD: {
-      maybe_code = StubCache::ComputeStoreField(
-          *name, *receiver, lookup->GetFieldIndex(), NULL, extra_ic_state);
+      maybe_code = StubCache::ComputeStoreField(*name, *receiver,
+                                                lookup->GetFieldIndex());
       break;
     }
     case MAP_TRANSITION: {
@@ -1523,8 +1508,8 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       ASSERT(type == MAP_TRANSITION);
       Handle<Map> transition(lookup->GetTransitionMap());
       int index = transition->PropertyIndexFor(*name);
-      maybe_code = StubCache::ComputeStoreField(
-          *name, *receiver, index, *transition, extra_ic_state);
+      maybe_code = StubCache::ComputeStoreField(*name, *receiver,
+                                                index, *transition);
       break;
     }
     case NORMAL: {
@@ -1535,11 +1520,10 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
         JSGlobalPropertyCell* cell =
             JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-        maybe_code = StubCache::ComputeStoreGlobal(
-            *name, *global, cell, extra_ic_state);
+        maybe_code = StubCache::ComputeStoreGlobal(*name, *global, cell);
       } else {
         if (lookup->holder() != *receiver) return;
-        maybe_code = StubCache::ComputeStoreNormal(extra_ic_state);
+        maybe_code = StubCache::ComputeStoreNormal();
       }
       break;
     }
@@ -1547,14 +1531,12 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       if (!lookup->GetCallbackObject()->IsAccessorInfo()) return;
       AccessorInfo* callback = AccessorInfo::cast(lookup->GetCallbackObject());
       if (v8::ToCData<Address>(callback->setter()) == 0) return;
-      maybe_code = StubCache::ComputeStoreCallback(
-          *name, *receiver, callback, extra_ic_state);
+      maybe_code = StubCache::ComputeStoreCallback(*name, *receiver, callback);
       break;
     }
     case INTERCEPTOR: {
       ASSERT(!receiver->GetNamedInterceptor()->setter()->IsUndefined());
-      maybe_code = StubCache::ComputeStoreInterceptor(
-          *name, *receiver, extra_ic_state);
+      maybe_code = StubCache::ComputeStoreInterceptor(*name, *receiver);
       break;
     }
     default:
@@ -1570,11 +1552,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     set_target(Code::cast(code));
   } else if (state == MONOMORPHIC) {
     // Only move to megamorphic if the target changes.
-    if (target() != Code::cast(code)) {
-      set_target(extra_ic_state == kStoreICStrict
-                   ? megamorphic_stub_strict()
-                   : megamorphic_stub());
-    }
+    if (target() != Code::cast(code)) set_target(megamorphic_stub());
   } else if (state == MEGAMORPHIC) {
     // Update the stub cache.
     StubCache::Set(*name, receiver->map(), Code::cast(code));
@@ -1817,9 +1795,8 @@ MUST_USE_RESULT MaybeObject* StoreIC_Miss(Arguments args) {
   ASSERT(args.length() == 3);
   StoreIC ic;
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
-  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
-  return ic.Store(state, extra_ic_state, args.at<Object>(0),
-                  args.at<String>(1), args.at<Object>(2));
+  return ic.Store(state, args.at<Object>(0), args.at<String>(1),
+                  args.at<Object>(2));
 }
 
 

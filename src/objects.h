@@ -3200,7 +3200,6 @@ class Code: public HeapObject {
   static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
   static const char* PropertyType2String(PropertyType type);
-  static void PrintExtraICState(FILE* out, Kind kind, ExtraICState extra);
   inline void Disassemble(const char* name) {
     Disassemble(name, stdout);
   }
