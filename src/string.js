@@ -103,18 +103,14 @@ function StringConcat() {
 // ECMA-262 section 15.5.4.7
 function StringIndexOf(pattern /* position */) {  // length == 1
   var subject = TO_STRING_INLINE(this);
-  var pattern = TO_STRING_INLINE(pattern);
-  var subject_len = subject.length;
-  var pattern_len = pattern.length;
   var index = 0;
   if (%_ArgumentsLength() > 1) {
-    var arg1 = %_Arguments(1);  // position
-    index = TO_INTEGER(arg1);
+    index = %_Arguments(1);  // position
+    index = TO_INTEGER(index);
+    if (index < 0) index = 0;
+    if (index > subject.length) index = subject.length;
   }
-  if (index < 0) index = 0;
-  if (index > subject_len) index = subject_len;
-  if (pattern_len + index > subject_len) return -1;
-  return %StringIndexOf(subject, pattern, index);
+  return %StringIndexOf(subject, TO_STRING_INLINE(pattern), index);
 }
 
 
