@@ -3721,24 +3721,28 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         // Result of deleting non-global, non-dynamic variables is false.
         // The subexpression does not have side effects.
         context()->Plug(false);
-      } else {
-        // Property or variable reference.  Call the delete builtin with
-        // object and property name as arguments.
-        if (prop != NULL) {
+      } else if (prop != NULL) {
+        if (prop->is_synthetic()) {
+          // Result of deleting parameters is false, even when they rewrite
+          // to accesses on the arguments object.
+          context()->Plug(false);
+        } else {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
           __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
-        } else if (var->is_global()) {
-          __ push(GlobalObjectOperand());
-          __ push(Immediate(var->name()));
-          __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
-        } else {
-          // Non-global variable.  Call the runtime to delete from the
-          // context where the variable was introduced.
-          __ push(context_register());
-          __ push(Immediate(var->name()));
-          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
+          context()->Plug(eax);
         }
+      } else if (var->is_global()) {
+        __ push(GlobalObjectOperand());
+        __ push(Immediate(var->name()));
+        __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
+        context()->Plug(eax);
+      } else {
+        // Non-global variable.  Call the runtime to try to delete from the
+        // context where the variable was introduced.
+        __ push(context_register());
+        __ push(Immediate(var->name()));
+        __ CallRuntime(Runtime::kDeleteContextSlot, 2);
         context()->Plug(eax);
       }
       break;
