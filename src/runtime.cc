@@ -8888,7 +8888,7 @@ static MaybeObject* Runtime_GetFrameDetails(Arguments args) {
       // If we are inspecting an optimized frame use undefined as the
       // value for all locals.
       //
-      // TODO(3141533): We should be able to get the correct values
+      // TODO(1140): We should be able to get the correct values
       // for locals in optimized frames.
       locals->set(i * 2 + 1, Heap::undefined_value());
     } else if (i < info.number_of_stack_slots()) {
