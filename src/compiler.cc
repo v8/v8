@@ -288,6 +288,11 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   HGraphBuilder builder(&oracle);
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph(info);
+  if (Top::has_pending_exception()) {
+    info->SetCode(Handle<Code>::null());
+    return false;
+  }
+
   if (graph != NULL && FLAG_build_lithium) {
     Handle<Code> code = graph->Compile();
     if (!code.is_null()) {
@@ -601,7 +606,9 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
     // Compile the code.
     if (!MakeCode(info)) {
-      Top::StackOverflow();
+      if (!Top::has_pending_exception()) {
+        Top::StackOverflow();
+      }
     } else {
       ASSERT(!info->code().is_null());
       Handle<Code> code = info->code();

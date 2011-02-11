@@ -4033,6 +4033,9 @@ bool HGraphBuilder::TryInline(Call* expr) {
   CompilationInfo inner_info(target);
   if (!ParserApi::Parse(&inner_info) ||
       !Scope::Analyze(&inner_info)) {
+    if (Top::has_pending_exception()) {
+      SetStackOverflow();
+    }
     return false;
   }
   FunctionLiteral* function = inner_info.function();

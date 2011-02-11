@@ -232,6 +232,10 @@ DEFINE_bool(debugger_auto_break, true,
             "in the queue")
 DEFINE_bool(enable_liveedit, true, "enable liveedit experimental feature")
 
+// execution.cc
+DEFINE_int(stack_size, kPointerSize * 128,
+           "default size of stack region v8 is allowed to use (in KkBytes)")
+
 // frames.cc
 DEFINE_int(max_stack_trace_source_length, 300,
            "maximum length of function source code printed in a stack trace.")
