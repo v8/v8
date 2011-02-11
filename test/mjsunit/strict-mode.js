@@ -335,4 +335,42 @@ for (var i = 0; i < future_reserved_words.length; i++) {
   testFutureReservedWord(future_reserved_words[i]);
 }
 
+function testAssignToUndefined(should_throw) {
+  "use strict";
+  try {
+    possibly_undefined_variable_for_strict_mode_test = "should throw?";
+  } catch (e) {
+    assertTrue(should_throw, "strict mode");
+    assertInstanceof(e, ReferenceError, "strict mode");
+    return;
+  }
+  assertFalse(should_throw, "strict mode");
+}
 
+testAssignToUndefined(true);
+testAssignToUndefined(true);
+testAssignToUndefined(true);
+
+possibly_undefined_variable_for_strict_mode_test = "value";
+
+testAssignToUndefined(false);
+testAssignToUndefined(false);
+testAssignToUndefined(false);
+
+delete possibly_undefined_variable_for_strict_mode_test;
+
+testAssignToUndefined(true);
+testAssignToUndefined(true);
+testAssignToUndefined(true);
+
+function repeat(n, f) {
+ for (var i = 0; i < n; i ++) { f(); }
+}
+
+repeat(10, function() { testAssignToUndefined(true); });
+possibly_undefined_variable_for_strict_mode_test = "value";
+repeat(10, function() { testAssignToUndefined(false); });
+delete possibly_undefined_variable_for_strict_mode_test;
+repeat(10, function() { testAssignToUndefined(true); });
+possibly_undefined_variable_for_strict_mode_test = undefined;
+repeat(10, function() { testAssignToUndefined(false); });

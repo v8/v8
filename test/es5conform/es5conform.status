@@ -264,9 +264,6 @@ chapter10/10.6/10.6-13-c-1-s: FAIL
 # arguments.callee is non-configurable in strict mode
 chapter10/10.6/10.6-13-c-3-s: FAIL
 
-# simple assignment throws ReferenceError if LeftHandSide is an unresolvable
-# reference in strict mode
-chapter11/11.13/11.13.1/11.13.1-1-5-s: FAIL
 # simple assignment throws TypeError if LeftHandSide is a property reference
 # with a primitive base value (this is undefined)
 chapter11/11.13/11.13.1/11.13.1-1-7-s: FAIL

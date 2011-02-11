@@ -5588,7 +5588,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           Load(property->value());
           if (property->emit_store()) {
             Result ignored =
-                frame_->CallStoreIC(Handle<String>::cast(key), false);
+                frame_->CallStoreIC(Handle<String>::cast(key), false,
+                                    strict_mode_flag());
             // A test eax instruction following the store IC call would
             // indicate the presence of an inlined version of the
             // store. Add a nop to indicate that there is no such
@@ -9671,7 +9672,7 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 
   Result result;
   if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
-    result = frame()->CallStoreIC(name, is_contextual);
+    result = frame()->CallStoreIC(name, is_contextual, strict_mode_flag());
     // A test eax instruction following the call signals that the inobject
     // property case was inlined.  Ensure that there is not a test eax
     // instruction here.
@@ -9755,7 +9756,7 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     slow.Bind(&value, &receiver);
     frame()->Push(&receiver);
     frame()->Push(&value);
-    result = frame()->CallStoreIC(name, is_contextual);
+    result = frame()->CallStoreIC(name, is_contextual, strict_mode_flag());
     // Encode the offset to the map check instruction and the offset
     // to the write barrier store address computation in a test eax
     // instruction.

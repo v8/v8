@@ -6926,7 +6926,7 @@ void CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 
   Result result;
   if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
-    frame()->CallStoreIC(name, is_contextual);
+    frame()->CallStoreIC(name, is_contextual, strict_mode_flag());
   } else {
     // Inline the in-object property case.
     JumpTarget slow, done;
