@@ -2208,7 +2208,11 @@ class HCompare: public HBinaryOperation {
   }
 
   void SetInputRepresentation(Representation r);
-  virtual bool EmitAtUses() const { return uses()->length() <= 1; }
+
+  virtual bool EmitAtUses() const {
+    return !HasSideEffects() && (uses()->length() <= 1);
+  }
+
   virtual Representation RequiredInputRepresentation(int index) const {
     return input_representation_;
   }
@@ -2246,7 +2250,10 @@ class HCompareJSObjectEq: public HBinaryOperation {
     SetFlag(kUseGVN);
   }
 
-  virtual bool EmitAtUses() const { return uses()->length() <= 1; }
+  virtual bool EmitAtUses() const {
+    return !HasSideEffects() && (uses()->length() <= 1);
+  }
+
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -2265,7 +2272,11 @@ class HUnaryPredicate: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
-  virtual bool EmitAtUses() const { return uses()->length() <= 1; }
+
+  virtual bool EmitAtUses() const {
+    return !HasSideEffects() && (uses()->length() <= 1);
+  }
+
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -2322,7 +2333,9 @@ class HIsConstructCall: public HInstruction {
     SetFlag(kUseGVN);
   }
 
-  virtual bool EmitAtUses() const { return uses()->length() <= 1; }
+  virtual bool EmitAtUses() const {
+    return !HasSideEffects() && (uses()->length() <= 1);
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(IsConstructCall, "is_construct_call")
 
@@ -2427,7 +2440,9 @@ class HInstanceOf: public HInstruction {
   HValue* left() const { return operands_[1]; }
   HValue* right() const { return operands_[2]; }
 
-  virtual bool EmitAtUses() const { return uses()->length() <= 1; }
+  virtual bool EmitAtUses() const {
+    return !HasSideEffects() && (uses()->length() <= 1);
+  }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
