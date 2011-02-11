@@ -1316,6 +1316,29 @@ LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoNeg(HNeg* instr) {
+  Representation r = instr->representation();
+  if (r.IsInteger32()) {
+    LOperand* input = UseRegister(instr->value());
+    LNegI* result = new LNegI(input);
+    if (instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
+        instr->CheckFlag(HValue::kCanOverflow)) {
+      AssignEnvironment(result);
+    }
+    return DefineSameAsFirst(result);
+  } else if (r.IsDouble()) {
+    LOperand* input = UseRegister(instr->value());
+    LOperand* temp = TempRegister();
+    return DefineSameAsFirst(new LNegD(input, temp));
+  } else {
+    ASSERT(r.IsTagged());
+    LOperand* input = UseFixed(instr->value(), eax);
+    LNegT* result = new LNegT(input);
+    return MarkAsCall(DefineFixed(result, eax), instr);
+  }
+}
+
+
 LInstruction* LChunkBuilder::DoBitOr(HBitOr* instr) {
   return DoBit(Token::BIT_OR, instr);
 }

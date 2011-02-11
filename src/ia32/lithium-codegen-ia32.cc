@@ -1035,6 +1035,36 @@ void LCodeGen::DoBitNotI(LBitNotI* instr) {
 }
 
 
+void LCodeGen::DoNegI(LNegI* instr) {
+  Register input = ToRegister(instr->value());
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ test(input, Operand(input));
+    DeoptimizeIf(zero, instr->environment());
+  }
+  __ neg(input);
+  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+    DeoptimizeIf(overflow, instr->environment());
+  }
+}
+
+
+void LCodeGen::DoNegD(LNegD* instr) {
+  XMMRegister reg = ToDoubleRegister(instr->value());
+  Register temp = ToRegister(instr->TempAt(0));
+  __ Set(temp, Immediate(0x80000000));
+  __ movd(xmm0, Operand(temp));
+  __ psllq(xmm0, 32);
+  __ xorpd(reg, xmm0);
+}
+
+
+void LCodeGen::DoNegT(LNegT* instr) {
+  UnaryOverwriteMode overwrite = UNARY_NO_OVERWRITE;
+  GenericUnaryOpStub stub(Token::SUB, overwrite, NO_UNARY_FLAGS);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+}
+
+
 void LCodeGen::DoThrow(LThrow* instr) {
   __ push(ToOperand(instr->InputAt(0)));
   CallRuntime(Runtime::kThrow, 1, instr, false);

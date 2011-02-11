@@ -4700,7 +4700,7 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
         instr = new HBitNot(value);
         break;
       case Token::SUB:
-        instr = new HMul(graph_->GetConstantMinus1(), value);
+        instr = new HNeg(value);
         break;
       default:
         UNREACHABLE();
@@ -5911,7 +5911,7 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type) {
 
     UsePosition* current_pos = range->first_pos();
     while (current_pos != NULL) {
-      if (current_pos->RegisterIsBeneficial()) {
+      if (current_pos->RegisterIsBeneficial() || FLAG_trace_all_uses) {
         trace_.Add(" %d M", current_pos->pos().Value());
       }
       current_pos = current_pos->next();
