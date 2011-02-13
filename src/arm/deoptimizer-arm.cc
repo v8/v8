@@ -135,8 +135,145 @@ void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
 }
 
 
+static int LookupBailoutId(DeoptimizationInputData* data, unsigned ast_id) {
+  ByteArray* translations = data->TranslationByteArray();
+  int length = data->DeoptCount();
+  for (int i = 0; i < length; i++) {
+    if (static_cast<unsigned>(data->AstId(i)->value()) == ast_id) {
+      TranslationIterator it(translations,  data->TranslationIndex(i)->value());
+      int value = it.Next();
+      ASSERT(Translation::BEGIN == static_cast<Translation::Opcode>(value));
+      // Read the number of frames.
+      value = it.Next();
+      if (value == 1) return i;
+    }
+  }
+  UNREACHABLE();
+  return -1;
+}
+
+
 void Deoptimizer::DoComputeOsrOutputFrame() {
-  UNIMPLEMENTED();
+  DeoptimizationInputData* data = DeoptimizationInputData::cast(
+      optimized_code_->deoptimization_data());
+  unsigned ast_id = data->OsrAstId()->value();
+
+  int bailout_id = LookupBailoutId(data, ast_id);
+  unsigned translation_index = data->TranslationIndex(bailout_id)->value();
+  ByteArray* translations = data->TranslationByteArray();
+
+  TranslationIterator iterator(translations, translation_index);
+  Translation::Opcode opcode =
+      static_cast<Translation::Opcode>(iterator.Next());
+  ASSERT(Translation::BEGIN == opcode);
+  USE(opcode);
+  int count = iterator.Next();
+  ASSERT(count == 1);
+  USE(count);
+
+  opcode = static_cast<Translation::Opcode>(iterator.Next());
+  USE(opcode);
+  ASSERT(Translation::FRAME == opcode);
+  unsigned node_id = iterator.Next();
+  USE(node_id);
+  ASSERT(node_id == ast_id);
+  JSFunction* function = JSFunction::cast(ComputeLiteral(iterator.Next()));
+  USE(function);
+  ASSERT(function == function_);
+  unsigned height = iterator.Next();
+  unsigned height_in_bytes = height * kPointerSize;
+  USE(height_in_bytes);
+
+  unsigned fixed_size = ComputeFixedSize(function_);
+  unsigned input_frame_size = input_->GetFrameSize();
+  ASSERT(fixed_size + height_in_bytes == input_frame_size);
+
+  unsigned stack_slot_size = optimized_code_->stack_slots() * kPointerSize;
+  unsigned outgoing_height = data->ArgumentsStackHeight(bailout_id)->value();
+  unsigned outgoing_size = outgoing_height * kPointerSize;
+  unsigned output_frame_size = fixed_size + stack_slot_size + outgoing_size;
+  ASSERT(outgoing_size == 0);  // OSR does not happen in the middle of a call.
+
+  if (FLAG_trace_osr) {
+    PrintF("[on-stack replacement: begin 0x%08" V8PRIxPTR " ",
+           reinterpret_cast<intptr_t>(function_));
+    function_->PrintName();
+    PrintF(" => node=%u, frame=%d->%d]\n",
+           ast_id,
+           input_frame_size,
+           output_frame_size);
+  }
+
+  // There's only one output frame in the OSR case.
+  output_count_ = 1;
+  output_ = new FrameDescription*[1];
+  output_[0] = new(output_frame_size) FrameDescription(
+      output_frame_size, function_);
+
+  // Clear the incoming parameters in the optimized frame to avoid
+  // confusing the garbage collector.
+  unsigned output_offset = output_frame_size - kPointerSize;
+  int parameter_count = function_->shared()->formal_parameter_count() + 1;
+  for (int i = 0; i < parameter_count; ++i) {
+    output_[0]->SetFrameSlot(output_offset, 0);
+    output_offset -= kPointerSize;
+  }
+
+  // Translate the incoming parameters. This may overwrite some of the
+  // incoming argument slots we've just cleared.
+  int input_offset = input_frame_size - kPointerSize;
+  bool ok = true;
+  int limit = input_offset - (parameter_count * kPointerSize);
+  while (ok && input_offset > limit) {
+    ok = DoOsrTranslateCommand(&iterator, &input_offset);
+  }
+
+  // There are no translation commands for the caller's pc and fp, the
+  // context, and the function.  Set them up explicitly.
+  for (int i = 0; ok && i < 4; i++) {
+    uint32_t input_value = input_->GetFrameSlot(input_offset);
+    if (FLAG_trace_osr) {
+      PrintF("    [sp + %d] <- 0x%08x ; [sp + %d] (fixed part)\n",
+             output_offset,
+             input_value,
+             input_offset);
+    }
+    output_[0]->SetFrameSlot(output_offset, input_->GetFrameSlot(input_offset));
+    input_offset -= kPointerSize;
+    output_offset -= kPointerSize;
+  }
+
+  // Translate the rest of the frame.
+  while (ok && input_offset >= 0) {
+    ok = DoOsrTranslateCommand(&iterator, &input_offset);
+  }
+
+  // If translation of any command failed, continue using the input frame.
+  if (!ok) {
+    delete output_[0];
+    output_[0] = input_;
+    output_[0]->SetPc(reinterpret_cast<uint32_t>(from_));
+  } else {
+    // Setup the frame pointer and the context pointer.
+    output_[0]->SetRegister(fp.code(), input_->GetRegister(fp.code()));
+    output_[0]->SetRegister(cp.code(), input_->GetRegister(cp.code()));
+
+    unsigned pc_offset = data->OsrPcOffset()->value();
+    uint32_t pc = reinterpret_cast<uint32_t>(
+        optimized_code_->entry() + pc_offset);
+    output_[0]->SetPc(pc);
+  }
+  Code* continuation = Builtins::builtin(Builtins::NotifyOSR);
+  output_[0]->SetContinuation(
+      reinterpret_cast<uint32_t>(continuation->entry()));
+
+  if (FLAG_trace_osr) {
+    PrintF("[on-stack replacement translation %s: 0x%08" V8PRIxPTR " ",
+           ok ? "finished" : "aborted",
+           reinterpret_cast<intptr_t>(function));
+    function->PrintName();
+    PrintF(" => pc=0x%0x]\n", output_[0]->GetPc());
+  }
 }
 
 
@@ -318,7 +455,6 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
 // easily ported.
 void Deoptimizer::EntryGenerator::Generate() {
   GeneratePrologue();
-  // TOS: bailout-id; TOS+1: return address if not EAGER.
   CpuFeatures::Scope scope(VFP3);
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -353,6 +489,10 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ mov(r3, Operand(0));
     // Correct one word for bailout id.
     __ add(r4, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
+  } else if (type() == OSR) {
+    __ mov(r3, lr);
+    // Correct one word for bailout id.
+    __ add(r4, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
   } else {
     __ mov(r3, lr);
     // Correct two words for bailout id and return address.
@@ -375,7 +515,6 @@ void Deoptimizer::EntryGenerator::Generate() {
   // frame descriptor pointer to r1 (deoptimizer->input_);
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
 
-
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
   ASSERT(Register::kNumRegisters == kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
@@ -396,7 +535,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Remove the bailout id, eventually return address, and the saved registers
   // from the stack.
-  if (type() == EAGER) {
+  if (type() == EAGER || type() == OSR) {
     __ add(sp, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
   } else {
     __ add(sp, sp, Operand(kSavedRegistersAreaSize + (2 * kPointerSize)));
@@ -449,11 +588,6 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ add(r0, r0, Operand(kPointerSize));
   __ cmp(r0, r1);
   __ b(lt, &outer_push_loop);
-
-  // In case of OSR, we have to restore the XMM registers.
-  if (type() == OSR) {
-    UNIMPLEMENTED();
-  }
 
   // Push state, pc, and continuation from the last output frame.
   if (type() != OSR) {
