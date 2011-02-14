@@ -843,8 +843,16 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
 
 LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
                                            HArithmeticBinaryOperation* instr) {
-  Abort("Unimplemented: %s", "DoArithmeticD");
-  return NULL;
+  ASSERT(instr->representation().IsDouble());
+  ASSERT(instr->left()->representation().IsDouble());
+  ASSERT(instr->right()->representation().IsDouble());
+  if (op == Token::MOD) {
+    Abort("Unimplemented: %s", "DoArithmeticD MOD");
+  }
+  LOperand* left = UseRegisterAtStart(instr->left());
+  LOperand* right = UseRegisterAtStart(instr->right());
+  LArithmeticD* result = new LArithmeticD(op, left, right);
+  return DefineSameAsFirst(result);
 }
 
 

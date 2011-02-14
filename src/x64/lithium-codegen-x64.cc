@@ -978,7 +978,30 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  Abort("Unimplemented: %s", "DoArithmeticD");
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  // All operations except MOD are computed in-place.
+  ASSERT(instr->op() == Token::MOD || left->Equals(instr->result()));
+  switch (instr->op()) {
+    case Token::ADD:
+      __ addsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      break;
+    case Token::SUB:
+       __ subsd(ToDoubleRegister(left), ToDoubleRegister(right));
+       break;
+    case Token::MUL:
+      __ mulsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      break;
+    case Token::DIV:
+      __ divsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      break;
+    case Token::MOD:
+      Abort("Unimplemented: %s", "DoArithmeticD MOD");
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
 }
 
 
@@ -2130,7 +2153,11 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
   ASSERT(input->IsRegister() || input->IsStackSlot());
   LOperand* output = instr->result();
   ASSERT(output->IsDoubleRegister());
-  __ cvtlsi2sd(ToDoubleRegister(output), ToOperand(input));
+  if (input->IsRegister()) {
+    __ cvtlsi2sd(ToDoubleRegister(output), ToRegister(input));
+  } else {
+    __ cvtlsi2sd(ToDoubleRegister(output), ToOperand(input));
+  }
 }
 
 
