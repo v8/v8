@@ -1442,11 +1442,15 @@ void MacroAssembler::Pushad() {
   // r13 is kRootRegister.
   push(r14);
   // r15 is kSmiConstantRegister
-  STATIC_ASSERT(11 == kRegistersPushedByPushad);
+  STATIC_ASSERT(11 == kNumSafepointSavedRegisters);
+  subq(rsp, Immediate(
+      (kNumSafepointRegisters-kNumSafepointSavedRegisters) * kPointerSize));
 }
 
 
 void MacroAssembler::Popad() {
+  addq(rsp, Immediate(
+      (kNumSafepointRegisters-kNumSafepointSavedRegisters) * kPointerSize));
   pop(r14);
   pop(r12);
   pop(r11);
@@ -1462,7 +1466,7 @@ void MacroAssembler::Popad() {
 
 
 void MacroAssembler::Dropad() {
-  addq(rsp, Immediate(kRegistersPushedByPushad * kPointerSize));
+  addq(rsp, Immediate(kNumSafepointRegisters * kPointerSize));
 }
 
 
