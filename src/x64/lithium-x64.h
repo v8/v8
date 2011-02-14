@@ -146,6 +146,7 @@ class LCodeGen;
   V(StoreKeyedGeneric)                          \
   V(StoreNamedField)                            \
   V(StoreNamedGeneric)                          \
+  V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
   V(Throw)                                      \
@@ -1547,6 +1548,19 @@ class LStoreKeyedGeneric: public LStoreKeyed {
       : LStoreKeyed(obj, key, val) { }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
+};
+
+
+class LStringLength: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LStringLength(LOperand* string) {
+    inputs_[0] = string;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringLength, "string-length")
+  DECLARE_HYDROGEN_ACCESSOR(StringLength)
+
+  LOperand* string() { return inputs_[0]; }
 };
 
 

@@ -888,21 +888,15 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   ASSERT(instr->result()->IsDoubleRegister());
   XMMRegister res = ToDoubleRegister(instr->result());
   double v = instr->value();
+  uint64_t int_val = BitCast<uint64_t, double>(v);
   // Use xor to produce +0.0 in a fast and compact way, but avoid to
   // do so if the constant is -0.0.
-  if (BitCast<uint64_t, double>(v) == 0) {
+  if (int_val == 0) {
     __ xorpd(res, res);
   } else {
     Register tmp = ToRegister(instr->TempAt(0));
-    int32_t v_int32 = static_cast<int32_t>(v);
-    if (static_cast<double>(v_int32) == v) {
-      __ movl(tmp, Immediate(v_int32));
-      __ cvtlsi2sd(res, tmp);
-    } else {
-      uint64_t int_val = BitCast<uint64_t, double>(v);
-      __ Set(tmp, int_val);
-      __ movd(res, tmp);
-    }
+    __ Set(tmp, int_val);
+    __ movq(res, tmp);
   }
 }
 
@@ -1820,7 +1814,20 @@ void LCodeGen::DoLoadPixelArrayExternalPointer(
 
 
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
-  Abort("Unimplemented: %s", "DoAccessArgumentsAt");
+  Register arguments = ToRegister(instr->arguments());
+  Register length = ToRegister(instr->length());
+  Register result = ToRegister(instr->result());
+
+  if (instr->index()->IsRegister()) {
+    __ subl(length, ToRegister(instr->index()));
+  } else {
+    __ subl(length, ToOperand(instr->index()));
+  }
+  DeoptimizeIf(below_equal, instr->environment());
+
+  // There are two words between the frame pointer and the last argument.
+  // Subtracting from length accounts for one of them add one more.
+  __ movq(result, Operand(arguments, length, times_pointer_size, kPointerSize));
 }
 
 
@@ -1859,12 +1866,51 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
 
 
 void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
-  Abort("Unimplemented: %s", "DoArgumentsElements");
+  Register result = ToRegister(instr->result());
+
+  // Check for arguments adapter frame.
+  NearLabel done, adapted;
+  __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ SmiCompare(Operand(result, StandardFrameConstants::kContextOffset),
+                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(equal, &adapted);
+
+  // No arguments adaptor frame.
+  __ movq(result, rbp);
+  __ jmp(&done);
+
+  // Arguments adaptor frame present.
+  __ bind(&adapted);
+  __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+
+  // Result is the frame pointer for the frame if not adapted and for the real
+  // frame below the adaptor frame if adapted.
+  __ bind(&done);
 }
 
 
 void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
-  Abort("Unimplemented: %s", "DoArgumentsLength");
+  Register result = ToRegister(instr->result());
+
+  NearLabel done;
+
+  // If no arguments adaptor frame the number of arguments is fixed.
+  if (instr->InputAt(0)->IsRegister()) {
+    __ cmpq(rbp, ToRegister(instr->InputAt(0)));
+  } else {
+    __ cmpq(rbp, ToOperand(instr->InputAt(0)));
+  }
+  __ movq(result, Immediate(scope()->num_parameters()));
+  __ j(equal, &done);
+
+  // Arguments adaptor frame present. Get argument length from there.
+  __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ movq(result, Operand(result,
+                          ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiToInteger32(result, result);
+
+  // Argument length is in result register.
+  __ bind(&done);
 }
 
 
@@ -2148,6 +2194,13 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 }
 
 
+void LCodeGen::DoStringLength(LStringLength* instr) {
+  Register string = ToRegister(instr->string());
+  Register result = ToRegister(instr->result());
+  __ movq(result, FieldOperand(string, String::kLengthOffset));
+}
+
+
 void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister() || input->IsStackSlot());
@@ -2260,7 +2313,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
   // Smi to XMM conversion
   __ bind(&load_smi);
-  __ SmiToInteger32(kScratchRegister, input_reg);  // Untag smi first.
+  __ SmiToInteger32(kScratchRegister, input_reg);
   __ cvtlsi2sd(result_reg, kScratchRegister);
   __ bind(&done);
 }
@@ -2337,7 +2390,15 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
 
 
 void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
-  Abort("Unimplemented: %s", "DoNumberUntagD");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsRegister());
+  LOperand* result = instr->result();
+  ASSERT(result->IsDoubleRegister());
+
+  Register input_reg = ToRegister(input);
+  XMMRegister result_reg = ToDoubleRegister(result);
+
+  EmitNumberUntagD(input_reg, result_reg, instr->environment());
 }
 
 
