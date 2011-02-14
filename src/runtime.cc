@@ -3713,7 +3713,7 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
                                                        attr);
   }
 
-  return Runtime::SetObjectProperty(js_object, name, obj_value, attr);
+  return Runtime::ForceSetObjectProperty(js_object, name, obj_value, attr);
 }
 
 
