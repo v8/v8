@@ -927,6 +927,13 @@ void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
 }
 
 
+void LCodeGen::DoPixelArrayLength(LPixelArrayLength* instr) {
+  Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->InputAt(0));
+  __ movq(result, FieldOperand(array, PixelArray::kLengthOffset));
+}
+
+
 void LCodeGen::DoValueOf(LValueOf* instr) {
   Abort("Unimplemented: %s", "DoValueOf");
 }
@@ -1721,24 +1728,71 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
 
 
 void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
-  Abort("Unimplemented: %s", "DoLoadFunctionPrototype");
+  Register function = ToRegister(instr->function());
+  Register result = ToRegister(instr->result());
+
+  // Check that the function really is a function.
+  __ CmpObjectType(function, JS_FUNCTION_TYPE, result);
+  DeoptimizeIf(not_equal, instr->environment());
+
+  // Check whether the function has an instance prototype.
+  NearLabel non_instance;
+  __ testb(FieldOperand(result, Map::kBitFieldOffset),
+           Immediate(1 << Map::kHasNonInstancePrototype));
+  __ j(not_zero, &non_instance);
+
+  // Get the prototype or initial map from the function.
+  __ movq(result,
+         FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // Check that the function has a prototype or an initial map.
+  __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+  DeoptimizeIf(equal, instr->environment());
+
+  // If the function does not have an initial map, we're done.
+  NearLabel done;
+  __ CmpObjectType(result, MAP_TYPE, kScratchRegister);
+  __ j(not_equal, &done);
+
+  // Get the prototype from the initial map.
+  __ movq(result, FieldOperand(result, Map::kPrototypeOffset));
+  __ jmp(&done);
+
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in the function's map.
+  __ bind(&non_instance);
+  __ movq(result, FieldOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  __ bind(&done);
 }
 
 
 void LCodeGen::DoLoadElements(LLoadElements* instr) {
-  ASSERT(instr->result()->Equals(instr->InputAt(0)));
-  Register reg = ToRegister(instr->InputAt(0));
-  __ movq(reg, FieldOperand(reg, JSObject::kElementsOffset));
+  Register result = ToRegister(instr->result());
+  Register input = ToRegister(instr->InputAt(0));
+  __ movq(result, FieldOperand(input, JSObject::kElementsOffset));
   if (FLAG_debug_code) {
     NearLabel done;
-    __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
            Factory::fixed_array_map());
     __ j(equal, &done);
-    __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
+           Factory::pixel_array_map());
+    __ j(equal, &done);
+    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
            Factory::fixed_cow_array_map());
     __ Check(equal, "Check for fast elements failed.");
     __ bind(&done);
   }
+}
+
+
+void LCodeGen::DoLoadPixelArrayExternalPointer(
+    LLoadPixelArrayExternalPointer* instr) {
+  Register result = ToRegister(instr->result());
+  Register input = ToRegister(instr->InputAt(0));
+  __ movq(result, FieldOperand(input, PixelArray::kExternalPointerOffset));
 }
 
 
@@ -1762,6 +1816,17 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   // Check for the hole value.
   __ Cmp(result, Factory::the_hole_value());
   DeoptimizeIf(equal, instr->environment());
+}
+
+
+void LCodeGen::DoLoadPixelArrayElement(LLoadPixelArrayElement* instr) {
+  Register external_elements = ToRegister(instr->external_pointer());
+  Register key = ToRegister(instr->key());
+  Register result = ToRegister(instr->result());
+  ASSERT(result.is(external_elements));
+
+  // Load the result.
+  __ movzxbq(result, Operand(external_elements, key, times_1, 0));
 }
 
 
@@ -1806,6 +1871,12 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
     ASSERT(!argument->IsDoubleRegister());
     __ push(ToOperand(argument));
   }
+}
+
+
+void LCodeGen::DoContext(LContext* instr) {
+  Register result = ToRegister(instr->result());
+  __ movq(result, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -1926,7 +1997,13 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
 
 
 void LCodeGen::DoCallNamed(LCallNamed* instr) {
-  Abort("Unimplemented: %s", "DoCallNamed");
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  int arity = instr->arity();
+  Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
+  __ Move(rcx, instr->name());
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -1936,7 +2013,12 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 
 
 void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
-  Abort("Unimplemented: %s", "DoCallGlobal");
+  ASSERT(ToRegister(instr->result()).is(rax));
+  int arity = instr->arity();
+  Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
+  __ Move(rcx, instr->name());
+  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 

@@ -1298,7 +1298,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result;
   Label not_heap_number;
-  Register scratch = r7;
+  Register scratch = r9.is(tos_) ? r7 : r9;
 
   __ LoadRoot(ip, Heap::kNullValueRootIndex);
   __ cmp(tos_, ip);
@@ -2588,6 +2588,39 @@ void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
       __ eor(right, left, Operand(right));
       __ Ret();
       break;
+    case Token::SAR:
+      // Remove tags from right operand.
+      __ GetLeastBitsFromSmi(scratch1, right, 5);
+      __ mov(right, Operand(left, ASR, scratch1));
+      // Smi tag result.
+      __ bic(right, right, Operand(kSmiTagMask));
+      __ Ret();
+      break;
+    case Token::SHR:
+      // Remove tags from operands. We can't do this on a 31 bit number
+      // because then the 0s get shifted into bit 30 instead of bit 31.
+      __ SmiUntag(scratch1, left);
+      __ GetLeastBitsFromSmi(scratch2, right, 5);
+      __ mov(scratch1, Operand(scratch1, LSR, scratch2));
+      // Unsigned shift is not allowed to produce a negative number, so
+      // check the sign bit and the sign bit after Smi tagging.
+      __ tst(scratch1, Operand(0xc0000000));
+      __ b(ne, &not_smi_result);
+      // Smi tag result.
+      __ SmiTag(right, scratch1);
+      __ Ret();
+      break;
+    case Token::SHL:
+      // Remove tags from operands.
+      __ SmiUntag(scratch1, left);
+      __ GetLeastBitsFromSmi(scratch2, right, 5);
+      __ mov(scratch1, Operand(scratch1, LSL, scratch2));
+      // Check that the signed result fits in a Smi.
+      __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
+      __ b(mi, &not_smi_result);
+      __ SmiTag(right, scratch1);
+      __ Ret();
+      break;
     default:
       UNREACHABLE();
   }
@@ -2703,7 +2736,10 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
     }
     case Token::BIT_OR:
     case Token::BIT_XOR:
-    case Token::BIT_AND: {
+    case Token::BIT_AND:
+    case Token::SAR:
+    case Token::SHR:
+    case Token::SHL: {
       if (smi_operands) {
         __ SmiUntag(r3, left);
         __ SmiUntag(r2, right);
@@ -2726,6 +2762,8 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
                                                  d0,
                                                  not_numbers);
       }
+
+      Label result_not_a_smi;
       switch (op_) {
         case Token::BIT_OR:
           __ orr(r2, r3, Operand(r2));
@@ -2736,11 +2774,35 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
         case Token::BIT_AND:
           __ and_(r2, r3, Operand(r2));
           break;
+        case Token::SAR:
+          // Use only the 5 least significant bits of the shift count.
+          __ and_(r2, r2, Operand(0x1f));
+          __ GetLeastBitsFromInt32(r2, r2, 5);
+          __ mov(r2, Operand(r3, ASR, r2));
+          break;
+        case Token::SHR:
+          // Use only the 5 least significant bits of the shift count.
+          __ GetLeastBitsFromInt32(r2, r2, 5);
+          __ mov(r2, Operand(r3, LSR, r2), SetCC);
+          // SHR is special because it is required to produce a positive answer.
+          // The code below for writing into heap numbers isn't capable of
+          // writing the register as an unsigned int so we go to slow case if we
+          // hit this case.
+          if (CpuFeatures::IsSupported(VFP3)) {
+            __ b(mi, &result_not_a_smi);
+          } else {
+            __ b(mi, not_numbers);
+          }
+          break;
+        case Token::SHL:
+          // Use only the 5 least significant bits of the shift count.
+          __ GetLeastBitsFromInt32(r2, r2, 5);
+          __ mov(r2, Operand(r3, LSL, r2));
+          break;
         default:
           UNREACHABLE();
       }
 
-      Label result_not_a_smi;
       // Check that the *signed* result fits in a smi.
       __ add(r3, r2, Operand(0x40000000), SetCC);
       __ b(mi, &result_not_a_smi);
@@ -2760,10 +2822,15 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       __ mov(r0, Operand(r5));
 
       if (CpuFeatures::IsSupported(VFP3)) {
-        // Convert the int32 in r2 to the heap number in r0. r3 is corrupted.
+        // Convert the int32 in r2 to the heap number in r0. r3 is corrupted. As
+        // mentioned above SHR needs to always produce a positive result.
         CpuFeatures::Scope scope(VFP3);
         __ vmov(s0, r2);
-        __ vcvt_f64_s32(d0, s0);
+        if (op_ == Token::SHR) {
+          __ vcvt_f64_u32(d0, s0);
+        } else {
+          __ vcvt_f64_s32(d0, s0);
+        }
         __ sub(r3, r0, Operand(kHeapObjectTag));
         __ vstr(d0, r3, HeapNumber::kValueOffset);
         __ Ret();
@@ -2790,15 +2857,6 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
     SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
   Label not_smis;
 
-  ASSERT(op_ == Token::ADD ||
-         op_ == Token::SUB ||
-         op_ == Token::MUL ||
-         op_ == Token::DIV ||
-         op_ == Token::MOD ||
-         op_ == Token::BIT_OR ||
-         op_ == Token::BIT_AND ||
-         op_ == Token::BIT_XOR);
-
   Register left = r1;
   Register right = r0;
   Register scratch1 = r7;
@@ -2824,15 +2882,6 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
 
 void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   Label not_smis, call_runtime;
-
-  ASSERT(op_ == Token::ADD ||
-         op_ == Token::SUB ||
-         op_ == Token::MUL ||
-         op_ == Token::DIV ||
-         op_ == Token::MOD ||
-         op_ == Token::BIT_OR ||
-         op_ == Token::BIT_AND ||
-         op_ == Token::BIT_XOR);
 
   if (result_type_ == TRBinaryOpIC::UNINITIALIZED ||
       result_type_ == TRBinaryOpIC::SMI) {
@@ -2864,15 +2913,6 @@ void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD ||
-         op_ == Token::SUB ||
-         op_ == Token::MUL ||
-         op_ == Token::DIV ||
-         op_ == Token::MOD ||
-         op_ == Token::BIT_OR ||
-         op_ == Token::BIT_AND ||
-         op_ == Token::BIT_XOR);
-
   ASSERT(operands_type_ == TRBinaryOpIC::INT32);
 
   GenerateTypeTransition(masm);
@@ -2880,15 +2920,6 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD ||
-         op_ == Token::SUB ||
-         op_ == Token::MUL ||
-         op_ == Token::DIV ||
-         op_ == Token::MOD ||
-         op_ == Token::BIT_OR ||
-         op_ == Token::BIT_AND ||
-         op_ == Token::BIT_XOR);
-
   Label not_numbers, call_runtime;
   ASSERT(operands_type_ == TRBinaryOpIC::HEAP_NUMBER);
 
@@ -2903,15 +2934,6 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD ||
-         op_ == Token::SUB ||
-         op_ == Token::MUL ||
-         op_ == Token::DIV ||
-         op_ == Token::MOD ||
-         op_ == Token::BIT_OR ||
-         op_ == Token::BIT_AND ||
-         op_ == Token::BIT_XOR);
-
   Label call_runtime;
 
   GenerateSmiCode(masm, &call_runtime, ALLOW_HEAPNUMBER_RESULTS);
@@ -2983,6 +3005,15 @@ void TypeRecordingBinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
       break;
     case Token::BIT_XOR:
       __ InvokeBuiltin(Builtins::BIT_XOR, JUMP_JS);
+      break;
+    case Token::SAR:
+      __ InvokeBuiltin(Builtins::SAR, JUMP_JS);
+      break;
+    case Token::SHR:
+      __ InvokeBuiltin(Builtins::SHR, JUMP_JS);
+      break;
+    case Token::SHL:
+      __ InvokeBuiltin(Builtins::SHL, JUMP_JS);
       break;
     default:
       UNREACHABLE();
@@ -5809,10 +5840,9 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
     // For equality we do not care about the sign of the result.
     __ sub(r0, r0, r1, SetCC);
   } else {
-    __ sub(r1, r1, r0, SetCC);
-    // Correct sign of result in case of overflow.
-    __ rsb(r1, r1, Operand(0), SetCC, vs);
-    __ mov(r0, r1);
+    // Untag before subtracting to avoid handling overflow.
+    __ SmiUntag(r1);
+    __ sub(r0, r1, SmiUntagOperand(r0));
   }
   __ Ret();
 

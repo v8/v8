@@ -74,15 +74,13 @@ void LInstruction::VerifyCall() {
   // Call instructions can use only fixed registers as
   // temporaries and outputs because all registers
   // are blocked by the calling convention.
-  // Inputs can use either fixed register or have a short lifetime (be
-  // used at start of the instruction).
+  // Inputs must use a fixed register.
   ASSERT(Output() == NULL ||
          LUnallocated::cast(Output())->HasFixedPolicy() ||
          !LUnallocated::cast(Output())->HasRegisterPolicy());
   for (UseIterator it(this); it.HasNext(); it.Advance()) {
     LOperand* operand = it.Next();
     ASSERT(LUnallocated::cast(operand)->HasFixedPolicy() ||
-           LUnallocated::cast(operand)->IsUsedAtStart() ||
            !LUnallocated::cast(operand)->HasRegisterPolicy());
   }
   for (TempIterator it(this); it.HasNext(); it.Advance()) {
@@ -1090,10 +1088,11 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
                                          UseRegisterAtStart(compare->right()));
     } else if (v->IsInstanceOf()) {
       HInstanceOf* instance_of = HInstanceOf::cast(v);
+      LOperand* left = UseFixed(instance_of->left(), InstanceofStub::left());
+      LOperand* right = UseFixed(instance_of->right(), InstanceofStub::right());
+      LOperand* context = UseFixed(instance_of->context(), esi);
       LInstanceOfAndBranch* result =
-          new LInstanceOfAndBranch(
-              UseFixed(instance_of->left(), InstanceofStub::left()),
-              UseFixed(instance_of->right(), InstanceofStub::right()));
+          new LInstanceOfAndBranch(context, left, right);
       return MarkAsCall(result, instr);
     } else if (v->IsTypeofIs()) {
       HTypeofIs* typeof_is = HTypeofIs::cast(v);
@@ -1134,9 +1133,10 @@ LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
 
 
 LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
-  LInstanceOf* result =
-      new LInstanceOf(UseFixed(instr->left(), InstanceofStub::left()),
-                      UseFixed(instr->right(), InstanceofStub::right()));
+  LOperand* left = UseFixed(instr->left(), InstanceofStub::left());
+  LOperand* right = UseFixed(instr->right(), InstanceofStub::right());
+  LOperand* context = UseFixed(instr->context(), esi);
+  LInstanceOf* result = new LInstanceOf(context, left, right);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1155,12 +1155,14 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
 LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
   LOperand* function = UseFixed(instr->function(), edi);
   LOperand* receiver = UseFixed(instr->receiver(), eax);
-  LOperand* length = UseRegisterAtStart(instr->length());
-  LOperand* elements = UseRegisterAtStart(instr->elements());
+  LOperand* length = UseFixed(instr->length(), ebx);
+  LOperand* elements = UseFixed(instr->elements(), ecx);
+  LOperand* temp = FixedTemp(edx);
   LApplyArguments* result = new LApplyArguments(function,
                                                 receiver,
                                                 length,
-                                                elements);
+                                                elements,
+                                                temp);
   return MarkAsCall(DefineFixed(result, eax), instr, CAN_DEOPTIMIZE_EAGERLY);
 }
 
@@ -1232,21 +1234,27 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
 
 LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
   ASSERT(instr->key()->representation().IsTagged());
-  argument_count_ -= instr->argument_count();
+  LOperand* context = UseFixed(instr->context(), esi);
   LOperand* key = UseFixed(instr->key(), ecx);
-  return MarkAsCall(DefineFixed(new LCallKeyed(key), eax), instr);
+  argument_count_ -= instr->argument_count();
+  LCallKeyed* result = new LCallKeyed(context, key);
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
+  LOperand* context = UseFixed(instr->context(), esi);
   argument_count_ -= instr->argument_count();
-  return MarkAsCall(DefineFixed(new LCallNamed, eax), instr);
+  LCallNamed* result = new LCallNamed(context);
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoCallGlobal(HCallGlobal* instr) {
+  LOperand* context = UseFixed(instr->context(), esi);
   argument_count_ -= instr->argument_count();
-  return MarkAsCall(DefineFixed(new LCallGlobal, eax), instr);
+  LCallGlobal* result = new LCallGlobal(context);
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
@@ -1257,16 +1265,19 @@ LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
+  LOperand* context = UseFixed(instr->context(), esi);
   LOperand* constructor = UseFixed(instr->constructor(), edi);
   argument_count_ -= instr->argument_count();
-  LCallNew* result = new LCallNew(constructor);
+  LCallNew* result = new LCallNew(context, constructor);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
+  LOperand* context = UseFixed(instr->context(), esi);
   argument_count_ -= instr->argument_count();
-  return MarkAsCall(DefineFixed(new LCallFunction, eax), instr);
+  LCallFunction* result = new LCallFunction(context);
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
@@ -1539,6 +1550,12 @@ LInstruction* LChunkBuilder::DoFixedArrayLength(HFixedArrayLength* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoPixelArrayLength(HPixelArrayLength* instr) {
+  LOperand* array = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LPixelArrayLength(array));
+}
+
+
 LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
   LOperand* object = UseRegister(instr->value());
   LValueOf* result = new LValueOf(object, TempRegister());
@@ -1735,8 +1752,9 @@ LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
+  LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseFixed(instr->object(), eax);
-  LLoadNamedGeneric* result = new LLoadNamedGeneric(object);
+  LLoadNamedGeneric* result = new LLoadNamedGeneric(context, object);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1751,7 +1769,14 @@ LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
 
 LInstruction* LChunkBuilder::DoLoadElements(HLoadElements* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
-  return DefineSameAsFirst(new LLoadElements(input));
+  return DefineAsRegister(new LLoadElements(input));
+}
+
+
+LInstruction* LChunkBuilder::DoLoadPixelArrayExternalPointer(
+    HLoadPixelArrayExternalPointer* instr) {
+  LOperand* input = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LLoadPixelArrayExternalPointer(input));
 }
 
 
@@ -1766,11 +1791,25 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
 }
 
 
+LInstruction* LChunkBuilder::DoLoadPixelArrayElement(
+    HLoadPixelArrayElement* instr) {
+  ASSERT(instr->representation().IsInteger32());
+  ASSERT(instr->key()->representation().IsInteger32());
+  LOperand* external_pointer =
+      UseRegisterAtStart(instr->external_pointer());
+  LOperand* key = UseRegisterAtStart(instr->key());
+  LLoadPixelArrayElement* result =
+      new LLoadPixelArrayElement(external_pointer, key);
+  return DefineSameAsFirst(result);
+}
+
+
 LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
+  LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseFixed(instr->object(), edx);
   LOperand* key = UseFixed(instr->key(), eax);
 
-  LLoadKeyedGeneric* result = new LLoadKeyedGeneric(object, key);
+  LLoadKeyedGeneric* result = new LLoadKeyedGeneric(context, object, key);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1795,15 +1834,18 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
 
 
 LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
-  LOperand* obj = UseFixed(instr->object(), edx);
+  LOperand* context = UseFixed(instr->context(), esi);
+  LOperand* object = UseFixed(instr->object(), edx);
   LOperand* key = UseFixed(instr->key(), ecx);
-  LOperand* val = UseFixed(instr->value(), eax);
+  LOperand* value = UseFixed(instr->value(), eax);
 
   ASSERT(instr->object()->representation().IsTagged());
   ASSERT(instr->key()->representation().IsTagged());
   ASSERT(instr->value()->representation().IsTagged());
 
-  return MarkAsCall(new LStoreKeyedGeneric(obj, key, val), instr);
+  LStoreKeyedGeneric* result =
+      new LStoreKeyedGeneric(context, object, key, value);
+  return MarkAsCall(result, instr);
 }
 
 
@@ -1829,10 +1871,11 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
-  LOperand* obj = UseFixed(instr->object(), edx);
-  LOperand* val = UseFixed(instr->value(), eax);
+  LOperand* context = UseFixed(instr->context(), esi);
+  LOperand* object = UseFixed(instr->object(), edx);
+  LOperand* value = UseFixed(instr->value(), eax);
 
-  LStoreNamedGeneric* result = new LStoreNamedGeneric(obj, val);
+  LStoreNamedGeneric* result = new LStoreNamedGeneric(context, object, value);
   return MarkAsCall(result, instr);
 }
 
@@ -1857,7 +1900,8 @@ LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
 
 
 LInstruction* LChunkBuilder::DoObjectLiteral(HObjectLiteral* instr) {
-  return MarkAsCall(DefineFixed(new LObjectLiteral, eax), instr);
+  LOperand* context = UseFixed(instr->context(), esi);
+  return MarkAsCall(DefineFixed(new LObjectLiteral(context), eax), instr);
 }
 
 
@@ -1898,8 +1942,10 @@ LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
+  LOperand* context = UseFixed(instr->context(), esi);
   argument_count_ -= instr->argument_count();
-  return MarkAsCall(DefineFixed(new LCallStub, eax), instr);
+  LCallStub* result = new LCallStub(context);
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 

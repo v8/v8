@@ -567,6 +567,15 @@ class Assembler : public Malloced {
   static const byte kTestEaxByte = 0xA9;
   // One byte opcode for test al, 0xXX.
   static const byte kTestAlByte = 0xA8;
+  // One byte opcode for nop.
+  static const byte kNopByte = 0x90;
+
+  // One byte prefix for a short conditional jump.
+  static const byte kJccShortPrefix = 0x70;
+  static const byte kJncShortOpcode = kJccShortPrefix | not_carry;
+  static const byte kJcShortOpcode = kJccShortPrefix | carry;
+
+
 
   // ---------------------------------------------------------------------------
   // Code generation

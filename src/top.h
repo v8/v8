@@ -41,6 +41,15 @@ class Simulator;
 #define RETURN_IF_SCHEDULED_EXCEPTION() \
   if (Top::has_scheduled_exception()) return Top::PromoteScheduledException()
 
+#define RETURN_IF_EMPTY_HANDLE_VALUE(call, value) \
+  if (call.is_null()) {                           \
+    ASSERT(Top::has_pending_exception());         \
+    return value;                                 \
+  }
+
+#define RETURN_IF_EMPTY_HANDLE(call)      \
+  RETURN_IF_EMPTY_HANDLE_VALUE(call, Failure::Exception())
+
 // Top has static variables used for JavaScript execution.
 
 class SaveContext;  // Forward declaration.

@@ -3200,6 +3200,7 @@ class Code: public HeapObject {
   static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
   static const char* PropertyType2String(PropertyType type);
+  static void PrintExtraICState(FILE* out, Kind kind, ExtraICState extra);
   inline void Disassemble(const char* name) {
     Disassemble(name, stdout);
   }
@@ -3593,6 +3594,19 @@ class Map: public HeapObject {
     return ((1 << kHasFastElements) & bit_field2()) != 0;
   }
 
+  // Tells whether an instance has pixel array elements.
+  inline void set_has_pixel_array_elements(bool value) {
+    if (value) {
+      set_bit_field2(bit_field2() | (1 << kHasPixelArrayElements));
+    } else {
+      set_bit_field2(bit_field2() & ~(1 << kHasPixelArrayElements));
+    }
+  }
+
+  inline bool has_pixel_array_elements() {
+    return ((1 << kHasPixelArrayElements) & bit_field2()) != 0;
+  }
+
   // Tells whether the map is attached to SharedFunctionInfo
   // (for inobject slack tracking).
   inline void set_attached_to_shared_function_info(bool value);
@@ -3650,6 +3664,11 @@ class Map: public HeapObject {
   // otherwise returns a copy of the map, with all transitions dropped
   // from the descriptors and the fast elements bit cleared.
   MUST_USE_RESULT inline MaybeObject* GetSlowElementsMap();
+
+  // Returns this map if it has the pixel array elements bit is set, otherwise
+  // returns a copy of the map, with all transitions dropped from the
+  // descriptors and the pixel array elements bit set.
+  MUST_USE_RESULT inline MaybeObject* GetPixelArrayElementsMap();
 
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);
@@ -3769,6 +3788,7 @@ class Map: public HeapObject {
   static const int kStringWrapperSafeForDefaultValueOf = 3;
   static const int kAttachedToSharedFunctionInfo = 4;
   static const int kIsShared = 5;
+  static const int kHasPixelArrayElements = 6;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;

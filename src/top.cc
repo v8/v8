@@ -380,16 +380,16 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
   int limit = Max(frame_limit, 0);
   Handle<JSArray> stack_trace = Factory::NewJSArray(frame_limit);
 
-  Handle<String> column_key =  Factory::LookupAsciiSymbol("column");
-  Handle<String> line_key =  Factory::LookupAsciiSymbol("lineNumber");
-  Handle<String> script_key =  Factory::LookupAsciiSymbol("scriptName");
+  Handle<String> column_key = Factory::LookupAsciiSymbol("column");
+  Handle<String> line_key = Factory::LookupAsciiSymbol("lineNumber");
+  Handle<String> script_key = Factory::LookupAsciiSymbol("scriptName");
   Handle<String> name_or_source_url_key =
       Factory::LookupAsciiSymbol("nameOrSourceURL");
   Handle<String> script_name_or_source_url_key =
       Factory::LookupAsciiSymbol("scriptNameOrSourceURL");
-  Handle<String> function_key =  Factory::LookupAsciiSymbol("functionName");
-  Handle<String> eval_key =  Factory::LookupAsciiSymbol("isEval");
-  Handle<String> constructor_key =  Factory::LookupAsciiSymbol("isConstructor");
+  Handle<String> function_key = Factory::LookupAsciiSymbol("functionName");
+  Handle<String> eval_key = Factory::LookupAsciiSymbol("isEval");
+  Handle<String> constructor_key = Factory::LookupAsciiSymbol("isConstructor");
 
   StackTraceFrameIterator it;
   int frames_seen = 0;
@@ -421,16 +421,16 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
             // tag.
             column_offset += script->column_offset()->value();
           }
-          SetProperty(stackFrame, column_key,
-                      Handle<Smi>(Smi::FromInt(column_offset + 1)), NONE);
+          SetLocalPropertyNoThrow(stackFrame, column_key,
+                                  Handle<Smi>(Smi::FromInt(column_offset + 1)));
         }
-        SetProperty(stackFrame, line_key,
-                    Handle<Smi>(Smi::FromInt(line_number + 1)), NONE);
+        SetLocalPropertyNoThrow(stackFrame, line_key,
+                                Handle<Smi>(Smi::FromInt(line_number + 1)));
       }
 
       if (options & StackTrace::kScriptName) {
         Handle<Object> script_name(script->name());
-        SetProperty(stackFrame, script_key, script_name, NONE);
+        SetLocalPropertyNoThrow(stackFrame, script_key, script_name);
       }
 
       if (options & StackTrace::kScriptNameOrSourceURL) {
@@ -446,7 +446,8 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
         if (caught_exception) {
           result = Factory::undefined_value();
         }
-        SetProperty(stackFrame, script_name_or_source_url_key, result, NONE);
+        SetLocalPropertyNoThrow(stackFrame, script_name_or_source_url_key,
+                                result);
       }
 
       if (options & StackTrace::kFunctionName) {
@@ -454,20 +455,20 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
         if (fun_name->ToBoolean()->IsFalse()) {
           fun_name = Handle<Object>(fun->shared()->inferred_name());
         }
-        SetProperty(stackFrame, function_key, fun_name, NONE);
+        SetLocalPropertyNoThrow(stackFrame, function_key, fun_name);
       }
 
       if (options & StackTrace::kIsEval) {
         int type = Smi::cast(script->compilation_type())->value();
         Handle<Object> is_eval = (type == Script::COMPILATION_TYPE_EVAL) ?
             Factory::true_value() : Factory::false_value();
-        SetProperty(stackFrame, eval_key, is_eval, NONE);
+        SetLocalPropertyNoThrow(stackFrame, eval_key, is_eval);
       }
 
       if (options & StackTrace::kIsConstructor) {
         Handle<Object> is_constructor = (frames[i].is_constructor()) ?
             Factory::true_value() : Factory::false_value();
-        SetProperty(stackFrame, constructor_key, is_constructor, NONE);
+        SetLocalPropertyNoThrow(stackFrame, constructor_key, is_constructor);
       }
 
       FixedArray::cast(stack_trace->elements())->set(frames_seen, *stackFrame);

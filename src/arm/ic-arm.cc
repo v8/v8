@@ -1533,7 +1533,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
+                                  Code::ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -1544,7 +1545,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // Get the receiver from the stack and probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
-                                         MONOMORPHIC);
+                                         MONOMORPHIC,
+                                         extra_ic_state);
   StubCache::GenerateProbe(masm, flags, r1, r2, r3, r4, r5);
 
   // Cache miss: Jump to runtime.
@@ -1700,11 +1702,78 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
            Token::Name(op_));
   }
 #endif
+
+  // Activate inlined smi code.
+  if (previous_state == UNINITIALIZED) {
+    PatchInlinedSmiCode(address());
+  }
 }
 
 
 void PatchInlinedSmiCode(Address address) {
-  // Currently there is no smi inlining in the ARM full code generator.
+  Address cmp_instruction_address =
+      address + Assembler::kCallTargetAddressOffset;
+
+  // If the instruction following the call is not a cmp rx, #yyy, nothing
+  // was inlined.
+  Instr instr = Assembler::instr_at(cmp_instruction_address);
+  if (!Assembler::IsCmpImmediate(instr)) {
+    return;
+  }
+
+  // The delta to the start of the map check instruction and the
+  // condition code uses at the patched jump.
+  int delta = Assembler::GetCmpImmediateRawImmediate(instr);
+  delta +=
+      Assembler::GetCmpImmediateRegister(instr).code() * kOff12Mask;
+  // If the delta is 0 the instruction is cmp r0, #0 which also signals that
+  // nothing was inlined.
+  if (delta == 0) {
+    return;
+  }
+
+#ifdef DEBUG
+  if (FLAG_trace_ic) {
+    PrintF("[  patching ic at %p, cmp=%p, delta=%d\n",
+           address, cmp_instruction_address, delta);
+  }
+#endif
+
+  Address patch_address =
+      cmp_instruction_address - delta * Instruction::kInstrSize;
+  Instr instr_at_patch = Assembler::instr_at(patch_address);
+  Instr branch_instr =
+      Assembler::instr_at(patch_address + Instruction::kInstrSize);
+  ASSERT(Assembler::IsCmpRegister(instr_at_patch));
+  ASSERT_EQ(Assembler::GetRn(instr_at_patch).code(),
+            Assembler::GetRm(instr_at_patch).code());
+  ASSERT(Assembler::IsBranch(branch_instr));
+  if (Assembler::GetCondition(branch_instr) == eq) {
+    // This is patching a "jump if not smi" site to be active.
+    // Changing
+    //   cmp rx, rx
+    //   b eq, <target>
+    // to
+    //   tst rx, #kSmiTagMask
+    //   b ne, <target>
+    CodePatcher patcher(patch_address, 2);
+    Register reg = Assembler::GetRn(instr_at_patch);
+    patcher.masm()->tst(reg, Operand(kSmiTagMask));
+    patcher.EmitCondition(ne);
+  } else {
+    ASSERT(Assembler::GetCondition(branch_instr) == ne);
+    // This is patching a "jump if smi" site to be active.
+    // Changing
+    //   cmp rx, rx
+    //   b ne, <target>
+    // to
+    //   tst rx, #kSmiTagMask
+    //   b eq, <target>
+    CodePatcher patcher(patch_address, 2);
+    Register reg = Assembler::GetRn(instr_at_patch);
+    patcher.masm()->tst(reg, Operand(kSmiTagMask));
+    patcher.EmitCondition(eq);
+  }
 }
 
 

@@ -1773,6 +1773,13 @@ void MacroAssembler::GetLeastBitsFromSmi(Register dst,
 }
 
 
+void MacroAssembler::GetLeastBitsFromInt32(Register dst,
+                                           Register src,
+                                           int num_least_bits) {
+  and_(dst, src, Operand((1 << num_least_bits) - 1));
+}
+
+
 void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
   // All parameters are on the stack.  r0 has the return value after call.
 
@@ -2381,7 +2388,6 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 CodePatcher::CodePatcher(byte* address, int instructions)
     : address_(address),
       instructions_(instructions),
@@ -2404,15 +2410,21 @@ CodePatcher::~CodePatcher() {
 }
 
 
-void CodePatcher::Emit(Instr x) {
-  masm()->emit(x);
+void CodePatcher::Emit(Instr instr) {
+  masm()->emit(instr);
 }
 
 
 void CodePatcher::Emit(Address addr) {
   masm()->emit(reinterpret_cast<Instr>(addr));
 }
-#endif  // ENABLE_DEBUGGER_SUPPORT
+
+
+void CodePatcher::EmitCondition(Condition cond) {
+  Instr instr = Assembler::instr_at(masm_.pc_);
+  instr = (instr & ~kCondMask) | cond;
+  masm_.emit(instr);
+}
 
 
 } }  // namespace v8::internal

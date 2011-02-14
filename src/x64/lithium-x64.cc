@@ -74,15 +74,13 @@ void LInstruction::VerifyCall() {
   // Call instructions can use only fixed registers as
   // temporaries and outputs because all registers
   // are blocked by the calling convention.
-  // Inputs can use either fixed register or have a short lifetime (be
-  // used at start of the instruction).
+  // Inputs must use a fixed register.
   ASSERT(Output() == NULL ||
          LUnallocated::cast(Output())->HasFixedPolicy() ||
          !LUnallocated::cast(Output())->HasRegisterPolicy());
   for (UseIterator it(this); it.HasNext(); it.Advance()) {
     LOperand* operand = it.Next();
     ASSERT(LUnallocated::cast(operand)->HasFixedPolicy() ||
-           LUnallocated::cast(operand)->IsUsedAtStart() ||
            !LUnallocated::cast(operand)->HasRegisterPolicy());
   }
   for (TempIterator it(this); it.HasNext(); it.Advance()) {
@@ -1146,8 +1144,7 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
 
 
 LInstruction* LChunkBuilder::DoContext(HContext* instr) {
-  Abort("Unimplemented: DoContext");
-  return NULL;
+  return DefineAsRegister(new LContext);
 }
 
 
@@ -1193,8 +1190,8 @@ LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallGlobal(HCallGlobal* instr) {
-  Abort("Unimplemented: %s", "DoCallGlobal");
-  return NULL;
+  argument_count_ -= instr->argument_count();
+  return MarkAsCall(DefineFixed(new LCallGlobal, rax), instr);
 }
 
 
@@ -1444,6 +1441,12 @@ LInstruction* LChunkBuilder::DoFixedArrayLength(HFixedArrayLength* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoPixelArrayLength(HPixelArrayLength* instr) {
+  LOperand* array = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LPixelArrayLength(array));
+}
+
+
 LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
   Abort("Unimplemented: %s", "DoValueOf");
   return NULL;
@@ -1633,14 +1636,21 @@ LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
     HLoadFunctionPrototype* instr) {
-  Abort("Unimplemented: %s", "DoLoadFunctionPrototype");
-  return NULL;
+  return AssignEnvironment(DefineAsRegister(
+      new LLoadFunctionPrototype(UseRegister(instr->function()))));
 }
 
 
 LInstruction* LChunkBuilder::DoLoadElements(HLoadElements* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
-  return DefineSameAsFirst(new LLoadElements(input));
+  return DefineAsRegister(new LLoadElements(input));
+}
+
+
+LInstruction* LChunkBuilder::DoLoadPixelArrayExternalPointer(
+    HLoadPixelArrayExternalPointer* instr) {
+  LOperand* input = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LLoadPixelArrayExternalPointer(input));
 }
 
 
@@ -1652,6 +1662,19 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
   LOperand* key = UseRegisterAtStart(instr->key());
   LLoadKeyedFastElement* result = new LLoadKeyedFastElement(obj, key);
   return AssignEnvironment(DefineSameAsFirst(result));
+}
+
+
+LInstruction* LChunkBuilder::DoLoadPixelArrayElement(
+    HLoadPixelArrayElement* instr) {
+  ASSERT(instr->representation().IsInteger32());
+  ASSERT(instr->key()->representation().IsInteger32());
+  LOperand* external_pointer =
+      UseRegisterAtStart(instr->external_pointer());
+  LOperand* key = UseRegisterAtStart(instr->key());
+  LLoadPixelArrayElement* result =
+      new LLoadPixelArrayElement(external_pointer, key);
+  return DefineSameAsFirst(result);
 }
 
 

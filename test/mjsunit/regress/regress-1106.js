@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,54 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Test for issue 1106, where the optimizing compiler broke when accessing
+// a property lying on a prototype of the global object, and that prototype
+// object was in dictionary mode.
 
-/**
- * Creates a CSV lines parser.
- */
-function CsvParser() {
-};
+x = Object.prototype;
+x.foo = 3;
+x.bar = 4;
+delete x.foo;
+x.foo = 5;
 
+function f() { return foo; }
 
-/**
- * A regex for matching a CSV field.
- * @private
- */
-CsvParser.CSV_FIELD_RE_ = /^"((?:[^"]|"")*)"|([^,]*)/;
+for (i=0 ; i < 100000; ++i) {
+  assertEquals(5, f());
+}
 
+// Test calls on functions defined in the prototype of the global object.
+x.gee = function() { return 42; }
+function g() { return gee(); }
 
-/**
- * A regex for matching a double quote.
- * @private
- */
-CsvParser.DOUBLE_QUOTE_RE_ = /""/g;
-
-
-/**
- * Parses a line of CSV-encoded values. Returns an array of fields.
- *
- * @param {string} line Input line.
- */
-CsvParser.prototype.parseLine = function(line) {
-  var fieldRe = CsvParser.CSV_FIELD_RE_;
-  var doubleQuoteRe = CsvParser.DOUBLE_QUOTE_RE_;
-  var pos = 0;
-  var endPos = line.length;
-  var fields = [];
-  if (endPos > 0) {
-    do {
-      var fieldMatch = fieldRe.exec(line.substr(pos));
-      if (typeof fieldMatch[1] === "string") {
-        var field = fieldMatch[1];
-        pos += field.length + 3;  // Skip comma and quotes.
-        fields.push(field.replace(doubleQuoteRe, '"'));
-      } else {
-        // The second field pattern will match anything, thus
-        // in the worst case the match will be an empty string.
-        var field = fieldMatch[2];
-        pos += field.length + 1;  // Skip comma.
-        fields.push(field);
-      }
-    } while (pos <= endPos);
-  }
-  return fields;
-};
+for (i=0 ; i < 100000; ++i) {
+  assertEquals(42, g());
+}

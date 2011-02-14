@@ -122,6 +122,8 @@ class LCodeGen;
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
   V(LoadNamedGeneric)                           \
+  V(LoadPixelArrayElement)                      \
+  V(LoadPixelArrayExternalPointer)              \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -131,6 +133,7 @@ class LCodeGen;
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
+  V(PixelArrayLength)                           \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
   V(Return)                                     \
@@ -977,6 +980,17 @@ class LJSArrayLength: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LPixelArrayLength: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LPixelArrayLength(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(PixelArrayLength, "pixel-array-length")
+  DECLARE_HYDROGEN_ACCESSOR(PixelArrayLength)
+};
+
+
 class LFixedArrayLength: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LFixedArrayLength(LOperand* value) {
@@ -1126,6 +1140,17 @@ class LLoadElements: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LLoadPixelArrayExternalPointer: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LLoadPixelArrayExternalPointer(LOperand* object) {
+    inputs_[0] = object;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayExternalPointer,
+                               "load-pixel-array-external-pointer")
+};
+
+
 class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
  public:
   LLoadKeyedFastElement(LOperand* elements, LOperand* key) {
@@ -1137,6 +1162,22 @@ class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastElement)
 
   LOperand* elements() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+};
+
+
+class LLoadPixelArrayElement: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LLoadPixelArrayElement(LOperand* external_pointer, LOperand* key) {
+    inputs_[0] = external_pointer;
+    inputs_[1] = key;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayElement,
+                               "load-pixel-array-element")
+  DECLARE_HYDROGEN_ACCESSOR(LoadPixelArrayElement)
+
+  LOperand* external_pointer() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
 };
 

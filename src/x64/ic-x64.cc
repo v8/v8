@@ -1473,7 +1473,8 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
+                                  Code::ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
@@ -1484,7 +1485,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // Get the receiver from the stack and probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
-                                         MONOMORPHIC);
+                                         MONOMORPHIC,
+                                         extra_ic_state);
   StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, no_reg);
 
   // Cache miss: Jump to runtime.
@@ -1707,11 +1709,43 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
            Token::Name(op_));
   }
 #endif
+
+  // Activate inlined smi code.
+  if (previous_state == UNINITIALIZED) {
+    PatchInlinedSmiCode(address());
+  }
 }
 
 void PatchInlinedSmiCode(Address address) {
-  // Disabled, then patched inline smi code is not implemented on X64.
-  // So we do nothing in this case.
+  // The address of the instruction following the call.
+  Address test_instruction_address =
+      address + Assembler::kCallTargetAddressOffset;
+
+  // If the instruction following the call is not a test al, nothing
+  // was inlined.
+  if (*test_instruction_address != Assembler::kTestAlByte) {
+    ASSERT(*test_instruction_address == Assembler::kNopByte);
+    return;
+  }
+
+  Address delta_address = test_instruction_address + 1;
+  // The delta to the start of the map check instruction and the
+  // condition code uses at the patched jump.
+  int8_t delta = *reinterpret_cast<int8_t*>(delta_address);
+  if (FLAG_trace_ic) {
+    PrintF("[  patching ic at %p, test=%p, delta=%d\n",
+           address, test_instruction_address, delta);
+  }
+
+  // Patch with a short conditional jump. There must be a
+  // short jump-if-carry/not-carry at this position.
+  Address jmp_address = test_instruction_address - delta;
+  ASSERT(*jmp_address == Assembler::kJncShortOpcode ||
+         *jmp_address == Assembler::kJcShortOpcode);
+  Condition cc = *jmp_address == Assembler::kJncShortOpcode
+      ? not_zero
+      : zero;
+  *jmp_address = static_cast<byte>(Assembler::kJccShortPrefix | cc);
 }
 
 

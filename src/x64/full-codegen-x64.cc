@@ -1641,9 +1641,9 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
 
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      OverwriteMode mode) {
-  TypeRecordingBinaryOpStub stub(op, mode);
   __ pop(rdx);
-  __ CallStub(&stub);
+  TypeRecordingBinaryOpStub stub(op, mode);
+  EmitCallIC(stub.GetCode(), NULL);  // NULL signals no inlined smi code.
   context()->Plug(rax);
 }
 
@@ -1715,8 +1715,10 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // rcx, and the global object on the stack.
     __ Move(rcx, var->name());
     __ movq(rdx, GlobalObjectOperand());
-    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-    EmitCallIC(ic, RelocInfo::CODE_TARGET);
+    Handle<Code> ic(Builtins::builtin(is_strict()
+        ? Builtins::StoreIC_Initialize_Strict
+        : Builtins::StoreIC_Initialize));
+    EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
 
   } else if (var->mode() != Variable::CONST || op == Token::INIT_CONST) {
     // Perform the assignment for non-const variables and for initialization
@@ -3060,24 +3062,28 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         // Result of deleting non-global, non-dynamic variables is false.
         // The subexpression does not have side effects.
         context()->Plug(false);
-      } else {
-        // Property or variable reference.  Call the delete builtin with
-        // object and property name as arguments.
-        if (prop != NULL) {
+      } else if (prop != NULL) {
+        if (prop->is_synthetic()) {
+          // Result of deleting parameters is false, even when they rewrite
+          // to accesses on the arguments object.
+          context()->Plug(false);
+        } else {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
           __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
-        } else if (var->is_global()) {
-          __ push(GlobalObjectOperand());
-          __ Push(var->name());
-          __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
-        } else {
-          // Non-global variable.  Call the runtime to delete from the
-          // context where the variable was introduced.
-          __ push(context_register());
-          __ Push(var->name());
-          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
+          context()->Plug(rax);
         }
+      } else if (var->is_global()) {
+        __ push(GlobalObjectOperand());
+        __ Push(var->name());
+        __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
+        context()->Plug(rax);
+      } else {
+        // Non-global variable.  Call the runtime to try to delete from the
+        // context where the variable was introduced.
+        __ push(context_register());
+        __ Push(var->name());
+        __ CallRuntime(Runtime::kDeleteContextSlot, 2);
         context()->Plug(rax);
       }
       break;

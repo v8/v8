@@ -124,6 +124,8 @@ class LCodeGen;
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
   V(LoadNamedGeneric)                           \
+  V(LoadPixelArrayElement)                      \
+  V(LoadPixelArrayExternalPointer)              \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -133,6 +135,7 @@ class LCodeGen;
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
+  V(PixelArrayLength)                           \
   V(Power)                                      \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
@@ -425,10 +428,16 @@ class LParameter: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LCallStub: public LTemplateInstruction<1, 0, 0> {
+class LCallStub: public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LCallStub(LOperand* context) {
+    inputs_[0] = context;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CallStub, "call-stub")
   DECLARE_HYDROGEN_ACCESSOR(CallStub)
+
+  LOperand* context() { return inputs_[0]; }
 
   TranscendentalCache::Type transcendental_type() {
     return hydrogen()->transcendental_type();
@@ -461,16 +470,18 @@ class LControlInstruction: public LTemplateInstruction<0, I, T> {
 };
 
 
-class LApplyArguments: public LTemplateInstruction<1, 4, 0> {
+class LApplyArguments: public LTemplateInstruction<1, 4, 1> {
  public:
   LApplyArguments(LOperand* function,
                   LOperand* receiver,
                   LOperand* length,
-                  LOperand* elements) {
+                  LOperand* elements,
+                  LOperand* temp) {
     inputs_[0] = function;
     inputs_[1] = receiver;
     inputs_[2] = length;
     inputs_[3] = elements;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ApplyArguments, "apply-arguments")
@@ -832,25 +843,31 @@ class LCmpTAndBranch: public LControlInstruction<2, 0> {
 };
 
 
-class LInstanceOf: public LTemplateInstruction<1, 2, 0> {
+class LInstanceOf: public LTemplateInstruction<1, 3, 0> {
  public:
-  LInstanceOf(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
+  LInstanceOf(LOperand* context, LOperand* left, LOperand* right) {
+    inputs_[0] = context;
+    inputs_[1] = left;
+    inputs_[2] = right;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance-of")
+
+  LOperand* context() { return inputs_[0]; }
 };
 
 
-class LInstanceOfAndBranch: public LControlInstruction<2, 0> {
+class LInstanceOfAndBranch: public LControlInstruction<3, 0> {
  public:
-  LInstanceOfAndBranch(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
+  LInstanceOfAndBranch(LOperand* context, LOperand* left, LOperand* right) {
+    inputs_[0] = context;
+    inputs_[1] = left;
+    inputs_[2] = right;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOfAndBranch, "instance-of-and-branch")
+
+  LOperand* context() { return inputs_[0]; }
 };
 
 
@@ -1008,6 +1025,17 @@ class LJSArrayLength: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LPixelArrayLength: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LPixelArrayLength(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(PixelArrayLength, "pixel-array-length")
+  DECLARE_HYDROGEN_ACCESSOR(PixelArrayLength)
+};
+
+
 class LFixedArrayLength: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LFixedArrayLength(LOperand* value) {
@@ -1132,16 +1160,18 @@ class LLoadNamedField: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadNamedGeneric: public LTemplateInstruction<1, 1, 0> {
+class LLoadNamedGeneric: public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LLoadNamedGeneric(LOperand* object) {
-    inputs_[0] = object;
+  LLoadNamedGeneric(LOperand* context, LOperand* object) {
+    inputs_[0] = context;
+    inputs_[1] = object;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric, "load-named-generic")
   DECLARE_HYDROGEN_ACCESSOR(LoadNamedGeneric)
 
-  LOperand* object() { return inputs_[0]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
   Handle<Object> name() const { return hydrogen()->name(); }
 };
 
@@ -1170,6 +1200,17 @@ class LLoadElements: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LLoadPixelArrayExternalPointer: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LLoadPixelArrayExternalPointer(LOperand* object) {
+    inputs_[0] = object;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayExternalPointer,
+                               "load-pixel-array-external-pointer")
+};
+
+
 class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
  public:
   LLoadKeyedFastElement(LOperand* elements, LOperand* key) {
@@ -1185,17 +1226,35 @@ class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LLoadKeyedGeneric: public LTemplateInstruction<1, 2, 0> {
+class LLoadPixelArrayElement: public LTemplateInstruction<1, 2, 0> {
  public:
-  LLoadKeyedGeneric(LOperand* obj, LOperand* key) {
-    inputs_[0] = obj;
+  LLoadPixelArrayElement(LOperand* external_pointer, LOperand* key) {
+    inputs_[0] = external_pointer;
     inputs_[1] = key;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayElement,
+                               "load-pixel-array-element")
+  DECLARE_HYDROGEN_ACCESSOR(LoadPixelArrayElement)
+
+  LOperand* external_pointer() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+};
+
+
+class LLoadKeyedGeneric: public LTemplateInstruction<1, 3, 0> {
+ public:
+  LLoadKeyedGeneric(LOperand* context, LOperand* obj, LOperand* key) {
+    inputs_[0] = context;
+    inputs_[1] = obj;
+    inputs_[2] = key;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric, "load-keyed-generic")
 
-  LOperand* object() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+  LOperand* key() { return inputs_[2]; }
 };
 
 
@@ -1317,49 +1376,68 @@ class LCallConstantFunction: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LCallKeyed: public LTemplateInstruction<1, 1, 0> {
+class LCallKeyed: public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LCallKeyed(LOperand* key) {
-    inputs_[0] = key;
+  LCallKeyed(LOperand* context, LOperand* key) {
+    inputs_[0] = context;
+    inputs_[1] = key;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CallKeyed, "call-keyed")
   DECLARE_HYDROGEN_ACCESSOR(CallKeyed)
 
+  LOperand* context() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+
   virtual void PrintDataTo(StringStream* stream);
 
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
 
 
-class LCallNamed: public LTemplateInstruction<1, 0, 0> {
+class LCallNamed: public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LCallNamed(LOperand* context) {
+    inputs_[0] = context;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CallNamed, "call-named")
   DECLARE_HYDROGEN_ACCESSOR(CallNamed)
 
   virtual void PrintDataTo(StringStream* stream);
 
+  LOperand* context() { return inputs_[0]; }
   Handle<String> name() const { return hydrogen()->name(); }
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
 
 
-class LCallFunction: public LTemplateInstruction<1, 0, 0> {
+class LCallFunction: public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LCallFunction(LOperand* context) {
+    inputs_[0] = context;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CallFunction, "call-function")
   DECLARE_HYDROGEN_ACCESSOR(CallFunction)
 
+  LOperand* context() { return inputs_[0]; }
   int arity() const { return hydrogen()->argument_count() - 2; }
 };
 
 
-class LCallGlobal: public LTemplateInstruction<1, 0, 0> {
+class LCallGlobal: public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LCallGlobal(LOperand* context) {
+    inputs_[0] = context;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CallGlobal, "call-global")
   DECLARE_HYDROGEN_ACCESSOR(CallGlobal)
 
   virtual void PrintDataTo(StringStream* stream);
 
+  LOperand* context() { return inputs_[0]; }
   Handle<String> name() const {return hydrogen()->name(); }
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
@@ -1377,10 +1455,11 @@ class LCallKnownGlobal: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LCallNew: public LTemplateInstruction<1, 1, 0> {
+class LCallNew: public LTemplateInstruction<1, 2, 0> {
  public:
-  explicit LCallNew(LOperand* constructor) {
-    inputs_[0] = constructor;
+  LCallNew(LOperand* context, LOperand* constructor) {
+    inputs_[0] = context;
+    inputs_[1] = constructor;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CallNew, "call-new")
@@ -1388,6 +1467,8 @@ class LCallNew: public LTemplateInstruction<1, 1, 0> {
 
   virtual void PrintDataTo(StringStream* stream);
 
+  LOperand* context() { return inputs_[0]; }
+  LOperand* constructor() { return inputs_[1]; }
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
 
@@ -1534,13 +1615,21 @@ class LStoreNamedField: public LStoreNamed {
 };
 
 
-class LStoreNamedGeneric: public LStoreNamed {
+class LStoreNamedGeneric: public LTemplateInstruction<0, 3, 0> {
  public:
-  LStoreNamedGeneric(LOperand* obj, LOperand* val)
-      : LStoreNamed(obj, val) { }
+  LStoreNamedGeneric(LOperand* context, LOperand* object, LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = object;
+    inputs_[2] = value;
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store-named-generic")
   DECLARE_HYDROGEN_ACCESSOR(StoreNamedGeneric)
+
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
+  Handle<Object> name() const { return hydrogen()->name(); }
 };
 
 
@@ -1573,12 +1662,24 @@ class LStoreKeyedFastElement: public LStoreKeyed {
 };
 
 
-class LStoreKeyedGeneric: public LStoreKeyed {
+class LStoreKeyedGeneric: public LTemplateInstruction<0, 4, 0> {
  public:
-  LStoreKeyedGeneric(LOperand* obj, LOperand* key, LOperand* val)
-      : LStoreKeyed(obj, key, val) { }
+  LStoreKeyedGeneric(LOperand* context,
+                     LOperand* object,
+                     LOperand* key,
+                     LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = object;
+    inputs_[2] = key;
+    inputs_[3] = value;
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
+
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+  LOperand* key() { return inputs_[2]; }
+  LOperand* value() { return inputs_[3]; }
 };
 
 
@@ -1684,10 +1785,16 @@ class LArrayLiteral: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LObjectLiteral: public LTemplateInstruction<1, 0, 0> {
+class LObjectLiteral: public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LObjectLiteral(LOperand* context) {
+    inputs_[0] = context;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral, "object-literal")
   DECLARE_HYDROGEN_ACCESSOR(ObjectLiteral)
+
+  LOperand* context() { return inputs_[0]; }
 };
 
 

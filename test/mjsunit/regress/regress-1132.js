@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,54 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Test the case when exception is thrown from the parser when lazy
+// compiling a function.
 
-/**
- * Creates a CSV lines parser.
- */
-function CsvParser() {
-};
+// Flags: --stack_size=32
+// NOTE: stack size constant above has been empirically chosen.
+// If the test starts to fail in Genesis, consider increasing this constant.
 
-
-/**
- * A regex for matching a CSV field.
- * @private
- */
-CsvParser.CSV_FIELD_RE_ = /^"((?:[^"]|"")*)"|([^,]*)/;
-
-
-/**
- * A regex for matching a double quote.
- * @private
- */
-CsvParser.DOUBLE_QUOTE_RE_ = /""/g;
-
-
-/**
- * Parses a line of CSV-encoded values. Returns an array of fields.
- *
- * @param {string} line Input line.
- */
-CsvParser.prototype.parseLine = function(line) {
-  var fieldRe = CsvParser.CSV_FIELD_RE_;
-  var doubleQuoteRe = CsvParser.DOUBLE_QUOTE_RE_;
-  var pos = 0;
-  var endPos = line.length;
-  var fields = [];
-  if (endPos > 0) {
-    do {
-      var fieldMatch = fieldRe.exec(line.substr(pos));
-      if (typeof fieldMatch[1] === "string") {
-        var field = fieldMatch[1];
-        pos += field.length + 3;  // Skip comma and quotes.
-        fields.push(field.replace(doubleQuoteRe, '"'));
-      } else {
-        // The second field pattern will match anything, thus
-        // in the worst case the match will be an empty string.
-        var field = fieldMatch[2];
-        pos += field.length + 1;  // Skip comma.
-        fields.push(field);
-      }
-    } while (pos <= endPos);
+function test() {
+  try {
+    test(1, test(1));
+  } catch(e) {
+    assertFalse(delete e, "deleting catch variable");
+    assertEquals(42, e);
   }
-  return fields;
-};
+}
+
+try {
+  test();
+  assertUnreachable();
+} catch (e) {
+}

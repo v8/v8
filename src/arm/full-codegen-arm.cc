@@ -45,6 +45,67 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+
+// A patch site is a location in the code which it is possible to patch. This
+// class has a number of methods to emit the code which is patchable and the
+// method EmitPatchInfo to record a marker back to the patchable code. This
+// marker is a cmp rx, #yyy instruction, and x * 0x00000fff + yyy (raw 12 bit
+// immediate value is used) is the delta from the pc to the first instruction of
+// the patchable code.
+class JumpPatchSite BASE_EMBEDDED {
+ public:
+  explicit JumpPatchSite(MacroAssembler* masm) : masm_(masm) {
+#ifdef DEBUG
+    info_emitted_ = false;
+#endif
+  }
+
+  ~JumpPatchSite() {
+    ASSERT(patch_site_.is_bound() == info_emitted_);
+  }
+
+  // When initially emitting this ensure that a jump is always generated to skip
+  // the inlined smi code.
+  void EmitJumpIfNotSmi(Register reg, Label* target) {
+    ASSERT(!patch_site_.is_bound() && !info_emitted_);
+    __ bind(&patch_site_);
+    __ cmp(reg, Operand(reg));
+    // Don't use b(al, ...) as that might emit the constant pool right after the
+    // branch. After patching when the branch is no longer unconditional
+    // execution can continue into the constant pool.
+    __ b(eq, target);  // Always taken before patched.
+  }
+
+  // When initially emitting this ensure that a jump is never generated to skip
+  // the inlined smi code.
+  void EmitJumpIfSmi(Register reg, Label* target) {
+    ASSERT(!patch_site_.is_bound() && !info_emitted_);
+    __ bind(&patch_site_);
+    __ cmp(reg, Operand(reg));
+    __ b(ne, target);  // Never taken before patched.
+  }
+
+  void EmitPatchInfo() {
+    int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
+    Register reg;
+    reg.set_code(delta_to_patch_site / kOff12Mask);
+    __ cmp_raw_immediate(reg, delta_to_patch_site % kOff12Mask);
+#ifdef DEBUG
+    info_emitted_ = true;
+#endif
+  }
+
+  bool is_bound() const { return patch_site_.is_bound(); }
+
+ private:
+  MacroAssembler* masm_;
+  Label patch_site_;
+#ifdef DEBUG
+  bool info_emitted_;
+#endif
+};
+
+
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right.  The actual
 // argument count matches the formal parameter count expected by the
@@ -753,24 +814,24 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // Perform the comparison as if via '==='.
     __ ldr(r1, MemOperand(sp, 0));  // Switch value.
     bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
+    JumpPatchSite patch_site(masm_);
     if (inline_smi_code) {
       Label slow_case;
       __ orr(r2, r1, r0);
-      __ tst(r2, Operand(kSmiTagMask));
-      __ b(ne, &slow_case);
+      patch_site.EmitJumpIfNotSmi(r2, &slow_case);
+
       __ cmp(r1, r0);
       __ b(ne, &next_test);
       __ Drop(1);  // Switch value is no longer needed.
       __ b(clause->body_target()->entry_label());
-    __ bind(&slow_case);
+      __ bind(&slow_case);
     }
 
-    CompareFlags flags = inline_smi_code
-        ? NO_SMI_COMPARE_IN_STUB
-        : NO_COMPARE_FLAGS;
-    CompareStub stub(eq, true, flags, r1, r0);
-    __ CallStub(&stub);
-    __ cmp(r0, Operand(0, RelocInfo::NONE));
+    // Record position before stub call for type feedback.
+    SetSourcePosition(clause->position());
+    Handle<Code> ic = CompareIC::GetUninitialized(Token::EQ_STRICT);
+    EmitCallIC(ic, &patch_site);
+    __ cmp(r0, Operand(0));
     __ b(ne, &next_test);
     __ Drop(1);  // Switch value is no longer needed.
     __ b(clause->body_target()->entry_label());
@@ -1551,20 +1612,8 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      OverwriteMode mode) {
   __ pop(r1);
-  if (op == Token::ADD ||
-      op == Token::SUB ||
-      op == Token::MUL ||
-      op == Token::DIV ||
-      op == Token::MOD ||
-      op == Token::BIT_OR ||
-      op == Token::BIT_AND ||
-      op == Token::BIT_XOR) {
-    TypeRecordingBinaryOpStub stub(op, mode);
-    __ CallStub(&stub);
-  } else {
-    GenericBinaryOpStub stub(op, mode, r1, r0);
-    __ CallStub(&stub);
-  }
+  TypeRecordingBinaryOpStub stub(op, mode);
+  EmitCallIC(stub.GetCode(), NULL);
   context()->Plug(r0);
 }
 
@@ -1636,8 +1685,10 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // r2, and the global object in r1.
     __ mov(r2, Operand(var->name()));
     __ ldr(r1, GlobalObjectOperand());
-    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-    EmitCallIC(ic, RelocInfo::CODE_TARGET);
+    Handle<Code> ic(Builtins::builtin(is_strict()
+        ? Builtins::StoreIC_Initialize_Strict
+        : Builtins::StoreIC_Initialize));
+    EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
 
   } else if (var->mode() != Variable::CONST || op == Token::INIT_CONST) {
     // Perform the assignment for non-const variables and for initialization
@@ -3004,26 +3055,30 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         // Result of deleting non-global, non-dynamic variables is false.
         // The subexpression does not have side effects.
         context()->Plug(false);
-      } else {
-        // Property or variable reference.  Call the delete builtin with
-        // object and property name as arguments.
-        if (prop != NULL) {
+      } else if (prop != NULL) {
+        if (prop->is_synthetic()) {
+          // Result of deleting parameters is false, even when they rewrite
+          // to accesses on the arguments object.
+          context()->Plug(false);
+        } else {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
           __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
-        } else if (var->is_global()) {
-          __ ldr(r1, GlobalObjectOperand());
-          __ mov(r0, Operand(var->name()));
-          __ Push(r1, r0);
-          __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
-        } else {
-          // Non-global variable.  Call the runtime to delete from the
-          // context where the variable was introduced.
-          __ push(context_register());
-          __ mov(r2, Operand(var->name()));
-          __ push(r2);
-          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
+          context()->Plug(r0);
         }
+      } else if (var->is_global()) {
+        __ ldr(r1, GlobalObjectOperand());
+        __ mov(r0, Operand(var->name()));
+        __ Push(r1, r0);
+        __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
+        context()->Plug(r0);
+      } else {
+        // Non-global variable.  Call the runtime to try to delete from the
+        // context where the variable was introduced.
+        __ push(context_register());
+        __ mov(r2, Operand(var->name()));
+        __ push(r2);
+        __ CallRuntime(Runtime::kDeleteContextSlot, 2);
         context()->Plug(r0);
       }
       break;
@@ -3511,21 +3566,22 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       }
 
       bool inline_smi_code = ShouldInlineSmiCase(op);
+      JumpPatchSite patch_site(masm_);
       if (inline_smi_code) {
         Label slow_case;
         __ orr(r2, r0, Operand(r1));
-        __ JumpIfNotSmi(r2, &slow_case);
+        patch_site.EmitJumpIfNotSmi(r2, &slow_case);
         __ cmp(r1, r0);
         Split(cond, if_true, if_false, NULL);
         __ bind(&slow_case);
       }
-      CompareFlags flags = inline_smi_code
-          ? NO_SMI_COMPARE_IN_STUB
-          : NO_COMPARE_FLAGS;
-      CompareStub stub(cond, strict, flags, r1, r0);
-      __ CallStub(&stub);
+
+      // Record position and call the compare IC.
+      SetSourcePosition(expr->position());
+      Handle<Code> ic = CompareIC::GetUninitialized(op);
+      EmitCallIC(ic, &patch_site);
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-      __ cmp(r0, Operand(0, RelocInfo::NONE));
+      __ cmp(r0, Operand(0));
       Split(cond, if_true, if_false, fall_through);
     }
   }
@@ -3589,6 +3645,16 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
   ASSERT(mode == RelocInfo::CODE_TARGET ||
          mode == RelocInfo::CODE_TARGET_CONTEXT);
   __ Call(ic, mode);
+}
+
+
+void FullCodeGenerator::EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site) {
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  if (patch_site != NULL && patch_site->is_bound()) {
+    patch_site->EmitPatchInfo();
+  } else {
+    __ nop();  // Signals no inlined code.
+  }
 }
 
 

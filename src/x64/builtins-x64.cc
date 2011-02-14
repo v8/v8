@@ -596,7 +596,7 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 
 
 void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
-  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::EAGER);
+  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
 }
 
 

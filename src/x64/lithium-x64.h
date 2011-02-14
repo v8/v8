@@ -84,6 +84,7 @@ class LCodeGen;
   V(ConstantD)                                  \
   V(ConstantI)                                  \
   V(ConstantT)                                  \
+  V(Context)                                    \
   V(DeleteProperty)                             \
   V(Deoptimize)                                 \
   V(DivI)                                       \
@@ -121,6 +122,8 @@ class LCodeGen;
   V(LoadNamedField)                             \
   V(LoadNamedGeneric)                           \
   V(LoadFunctionPrototype)                      \
+  V(LoadPixelArrayElement)                      \
+  V(LoadPixelArrayExternalPointer)              \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -129,6 +132,7 @@ class LCodeGen;
   V(ObjectLiteral)                              \
   V(OsrEntry)                                   \
   V(Parameter)                                  \
+  V(PixelArrayLength)                           \
   V(Power)                                      \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
@@ -978,6 +982,17 @@ class LJSArrayLength: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LPixelArrayLength: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LPixelArrayLength(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(PixelArrayLength, "pixel-array-length")
+  DECLARE_HYDROGEN_ACCESSOR(PixelArrayLength)
+};
+
+
 class LFixedArrayLength: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LFixedArrayLength(LOperand* value) {
@@ -1116,11 +1131,10 @@ class LLoadNamedGeneric: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadFunctionPrototype: public LTemplateInstruction<1, 1, 1> {
+class LLoadFunctionPrototype: public LTemplateInstruction<1, 1, 0> {
  public:
-  LLoadFunctionPrototype(LOperand* function, LOperand* temp) {
+  explicit LLoadFunctionPrototype(LOperand* function) {
     inputs_[0] = function;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadFunctionPrototype, "load-function-prototype")
@@ -1140,6 +1154,17 @@ class LLoadElements: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LLoadPixelArrayExternalPointer: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LLoadPixelArrayExternalPointer(LOperand* object) {
+    inputs_[0] = object;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayExternalPointer,
+                               "load-pixel-array-external-pointer")
+};
+
+
 class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
  public:
   LLoadKeyedFastElement(LOperand* elements, LOperand* key) {
@@ -1151,6 +1176,22 @@ class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastElement)
 
   LOperand* elements() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+};
+
+
+class LLoadPixelArrayElement: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LLoadPixelArrayElement(LOperand* external_pointer, LOperand* key) {
+    inputs_[0] = external_pointer;
+    inputs_[1] = key;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayElement,
+                               "load-pixel-array-element")
+  DECLARE_HYDROGEN_ACCESSOR(LoadPixelArrayElement)
+
+  LOperand* external_pointer() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
 };
 
@@ -1211,6 +1252,12 @@ class LPushArgument: public LTemplateInstruction<0, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(PushArgument, "push-argument")
+};
+
+
+class LContext: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(Context, "context")
 };
 
 

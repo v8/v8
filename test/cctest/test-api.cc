@@ -1649,6 +1649,23 @@ THREADED_TEST(IdentityHash) {
   CHECK_NE(hash, hash3);
   int hash4 = obj->GetIdentityHash();
   CHECK_EQ(hash, hash4);
+
+  // Check identity hashes behaviour in the presence of JS accessors.
+  // Put a getter for 'v8::IdentityHash' on the Object's prototype:
+  {
+    CompileRun("Object.prototype['v8::IdentityHash'] = 42;\n");
+    Local<v8::Object> o1 = v8::Object::New();
+    Local<v8::Object> o2 = v8::Object::New();
+    CHECK_NE(o1->GetIdentityHash(), o2->GetIdentityHash());
+  }
+  {
+    CompileRun(
+        "function cnst() { return 42; };\n"
+        "Object.prototype.__defineGetter__('v8::IdentityHash', cnst);\n");
+    Local<v8::Object> o1 = v8::Object::New();
+    Local<v8::Object> o2 = v8::Object::New();
+    CHECK_NE(o1->GetIdentityHash(), o2->GetIdentityHash());
+  }
 }
 
 
@@ -10674,6 +10691,21 @@ THREADED_TEST(PixelArray) {
                       "result");
   CHECK_EQ(32640, result->Int32Value());
 
+    // Make sure that pixel array loads are optimized by crankshaft.
+  result = CompileRun("function pa_load(p) {"
+                      "  var sum = 0;"
+                      "  for (var i=0; i<256; ++i) {"
+                      "    sum += p[i];"
+                      "  }"
+                      "  return sum; "
+                      "}"
+                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
+                      "for (var i = 0; i < 10000; ++i) {"
+                      "  result = pa_load(pixels);"
+                      "}"
+                      "result");
+  CHECK_EQ(32640, result->Int32Value());
+
   free(pixel_data);
 }
 
@@ -11350,6 +11382,26 @@ TEST(CaptureStackTraceForUncaughtException) {
   Function::Cast(*trouble)->Call(global, 0, NULL);
   v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
   v8::V8::RemoveMessageListeners(StackTraceForUncaughtExceptionListener);
+}
+
+
+TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true,
+                                                    1024,
+                                                    v8::StackTrace::kDetailed);
+
+  CompileRun(
+      "var setters = ['column', 'lineNumber', 'scriptName',\n"
+      "    'scriptNameOrSourceURL', 'functionName', 'isEval',\n"
+      "    'isConstructor'];\n"
+      "for (var i = 0; i < setters.length; i++) {\n"
+      "  var prop = setters[i];\n"
+      "  Object.prototype.__defineSetter__(prop, function() { throw prop; });\n"
+      "}\n");
+  CompileRun("throw 'exception';");
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
 }
 
 
@@ -12520,6 +12572,25 @@ TEST(RegExp) {
   CHECK(try_catch.HasCaught());
   context->Global()->Set(v8_str("ex"), try_catch.Exception());
   ExpectTrue("ex instanceof SyntaxError");
+}
+
+
+THREADED_TEST(Equals) {
+  v8::HandleScope handleScope;
+  LocalContext localContext;
+
+  v8::Handle<v8::Object> globalProxy = localContext->Global();
+  v8::Handle<Value> global = globalProxy->GetPrototype();
+
+  CHECK(global->StrictEquals(global));
+  CHECK(!global->StrictEquals(globalProxy));
+  CHECK(!globalProxy->StrictEquals(global));
+  CHECK(globalProxy->StrictEquals(globalProxy));
+
+  CHECK(global->Equals(global));
+  CHECK(!global->Equals(globalProxy));
+  CHECK(!globalProxy->Equals(global));
+  CHECK(globalProxy->Equals(globalProxy));
 }
 
 

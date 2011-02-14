@@ -1322,6 +1322,13 @@ void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
 }
 
 
+void LCodeGen::DoPixelArrayLength(LPixelArrayLength* instr) {
+  Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->InputAt(0));
+  __ ldr(result, FieldMemOperand(array, PixelArray::kLengthOffset));
+}
+
+
 void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->InputAt(0));
@@ -1605,7 +1612,7 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 
 
 void LCodeGen::EmitCmpI(LOperand* left, LOperand* right) {
-  __ cmp(ToRegister(left), ToOperand(right));
+  __ cmp(ToRegister(left), ToRegister(right));
 }
 
 
@@ -1619,8 +1626,7 @@ void LCodeGen::DoCmpID(LCmpID* instr) {
   if (instr->is_double()) {
     // Compare left and right as doubles and load the
     // resulting flags into the normal status register.
-    __ vcmp(ToDoubleRegister(left), ToDoubleRegister(right));
-    __ vmrs(pc);
+    __ VFPCompareAndSetFlags(ToDoubleRegister(left), ToDoubleRegister(right));
     // If a NaN is involved, i.e. the result is unordered (V set),
     // jump to unordered to return false.
     __ b(vs, &unordered);
@@ -1647,8 +1653,7 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
   if (instr->is_double()) {
     // Compare left and right as doubles and load the
     // resulting flags into the normal status register.
-    __ vcmp(ToDoubleRegister(left), ToDoubleRegister(right));
-    __ vmrs(pc);
+    __ VFPCompareAndSetFlags(ToDoubleRegister(left), ToDoubleRegister(right));
     // If a NaN is involved, i.e. the result is unordered (V set),
     // jump to false block label.
     __ b(vs, chunk_->GetAssemblyLabel(false_block));
@@ -2180,12 +2185,12 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
 
   Handle<Code> ic = CompareIC::GetUninitialized(op);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  __ cmp(r0, Operand(0));  // This instruction also signals no smi code inlined.
 
   Condition condition = ComputeCompareCondition(op);
   if (op == Token::GT || op == Token::LTE) {
     condition = ReverseCondition(condition);
   }
-  __ cmp(r0, Operand(0));
   __ LoadRoot(ToRegister(instr->result()),
               Heap::kTrueValueRootIndex,
               condition);
@@ -2196,7 +2201,21 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
 
 
 void LCodeGen::DoCmpTAndBranch(LCmpTAndBranch* instr) {
-  Abort("DoCmpTAndBranch unimplemented.");
+  Token::Value op = instr->op();
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  Handle<Code> ic = CompareIC::GetUninitialized(op);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
+
+  // The compare stub expects compare condition and the input operands
+  // reversed for GT and LTE.
+  Condition condition = ComputeCompareCondition(op);
+  if (op == Token::GT || op == Token::LTE) {
+    condition = ReverseCondition(condition);
+  }
+  __ cmp(r0, Operand(0));
+  EmitBranch(true_block, false_block, condition);
 }
 
 
@@ -2342,15 +2361,18 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
 
 
 void LCodeGen::DoLoadElements(LLoadElements* instr) {
-  ASSERT(instr->result()->Equals(instr->InputAt(0)));
-  Register reg = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  Register input = ToRegister(instr->InputAt(0));
   Register scratch = scratch0();
 
-  __ ldr(reg, FieldMemOperand(reg, JSObject::kElementsOffset));
+  __ ldr(result, FieldMemOperand(input, JSObject::kElementsOffset));
   if (FLAG_debug_code) {
     Label done;
-    __ ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
+    __ ldr(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+    __ cmp(scratch, ip);
+    __ b(eq, &done);
+    __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
     __ cmp(scratch, ip);
     __ b(eq, &done);
     __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
@@ -2358,6 +2380,14 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     __ Check(eq, "Check for fast elements failed.");
     __ bind(&done);
   }
+}
+
+
+void LCodeGen::DoLoadPixelArrayExternalPointer(
+    LLoadPixelArrayExternalPointer* instr) {
+  Register to_reg = ToRegister(instr->result());
+  Register from_reg  = ToRegister(instr->InputAt(0));
+  __ ldr(to_reg, FieldMemOperand(from_reg, PixelArray::kExternalPointerOffset));
 }
 
 
@@ -2394,6 +2424,16 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
   __ cmp(result, scratch);
   DeoptimizeIf(eq, instr->environment());
+}
+
+
+void LCodeGen::DoLoadPixelArrayElement(LLoadPixelArrayElement* instr) {
+  Register external_elements = ToRegister(instr->external_pointer());
+  Register key = ToRegister(instr->key());
+  Register result = ToRegister(instr->result());
+
+  // Load the result.
+  __ ldrb(result, MemOperand(external_elements, key));
 }
 
 
@@ -2448,29 +2488,33 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
-  Register scratch = scratch0();
-
-  ASSERT(receiver.is(r0));
-  ASSERT(function.is(r1));
-  ASSERT(ToRegister(instr->result()).is(r0));
-
-  // If the receiver is null or undefined, we have to pass the
-  // global object as a receiver.
-  Label global_receiver, receiver_ok;
-  __ LoadRoot(scratch, Heap::kNullValueRootIndex);
-  __ cmp(receiver, scratch);
-  __ b(eq, &global_receiver);
-  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
-  __ cmp(receiver, scratch);
-  __ b(ne, &receiver_ok);
-  __ bind(&global_receiver);
-  __ ldr(receiver, GlobalObjectOperand());
-  __ bind(&receiver_ok);
-
   Register length = ToRegister(instr->length());
   Register elements = ToRegister(instr->elements());
+  Register scratch = scratch0();
+  ASSERT(receiver.is(r0));  // Used for parameter count.
+  ASSERT(function.is(r1));  // Required by InvokeFunction.
+  ASSERT(ToRegister(instr->result()).is(r0));
 
-  Label invoke;
+  // If the receiver is null or undefined, we have to pass the global object
+  // as a receiver.
+  Label global_object, receiver_ok;
+  __ LoadRoot(scratch, Heap::kNullValueRootIndex);
+  __ cmp(receiver, scratch);
+  __ b(eq, &global_object);
+  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+  __ cmp(receiver, scratch);
+  __ b(eq, &global_object);
+
+  // Deoptimize if the receiver is not a JS object.
+  __ tst(receiver, Operand(kSmiTagMask));
+  DeoptimizeIf(eq, instr->environment());
+  __ CompareObjectType(receiver, scratch, scratch, FIRST_JS_OBJECT_TYPE);
+  DeoptimizeIf(lo, instr->environment());
+  __ jmp(&receiver_ok);
+
+  __ bind(&global_object);
+  __ ldr(receiver, GlobalObjectOperand());
+  __ bind(&receiver_ok);
 
   // Copy the arguments to this function possibly from the
   // adaptor frame below it.
@@ -2487,7 +2531,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
   // Loop through the arguments pushing them onto the execution
   // stack.
-  Label loop;
+  Label invoke, loop;
   // length is a small non-negative integer, due to the test above.
   __ tst(length, Operand(length));
   __ b(eq, &invoke);
@@ -2510,6 +2554,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // by InvokeFunction.
   v8::internal::ParameterCount actual(receiver);
   __ InvokeFunction(function, actual, CALL_FUNCTION, &safepoint_generator);
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -2899,7 +2944,9 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
   // Name is always in r2.
   __ mov(r2, Operand(instr->name()));
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(info_->is_strict()
+      ? Builtins::StoreIC_Initialize_Strict
+      : Builtins::StoreIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3867,7 +3914,19 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
 
 
 void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
-  Abort("DoOsrEntry unimplemented.");
+  // This is a pseudo-instruction that ensures that the environment here is
+  // properly registered for deoptimization and records the assembler's PC
+  // offset.
+  LEnvironment* environment = instr->environment();
+  environment->SetSpilledRegisters(instr->SpilledRegisterArray(),
+                                   instr->SpilledDoubleRegisterArray());
+
+  // If the environment were already registered, we would have no way of
+  // backpatching it with the spill slot operands.
+  ASSERT(!environment->HasBeenRegistered());
+  RegisterEnvironmentForDeoptimization(environment);
+  ASSERT(osr_pc_offset_ == -1);
+  osr_pc_offset_ = masm()->pc_offset();
 }
 
 
