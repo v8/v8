@@ -65,6 +65,7 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       first_instruction_index_(-1),
       last_instruction_index_(-1),
       deleted_phis_(4),
+      parent_loop_header_(NULL),
       is_inline_return_target_(false) {
 }
 
@@ -293,20 +294,6 @@ void HBasicBlock::Verify() {
   // Check that every block is finished.
   ASSERT(IsFinished());
   ASSERT(block_id() >= 0);
-
-  // Verify that all blocks targetting a branch target, have the same boolean
-  // value on top of their expression stack.
-  if (!cond().is_null()) {
-    ASSERT(predecessors()->length() > 0);
-    for (int i = 1; i < predecessors()->length(); i++) {
-      HBasicBlock* pred = predecessors()->at(i);
-      HValue* top = pred->last_environment()->Top();
-      ASSERT(top->IsConstant());
-      Object* a = *HConstant::cast(top)->handle();
-      Object* b = *cond();
-      ASSERT(a == b);
-    }
-  }
 }
 #endif
 

@@ -611,9 +611,6 @@ class HValue: public ZoneObject {
 
   virtual HType CalculateInferredType() const;
 
-  // Helper for type conversions used by normal and phi instructions.
-  void InsertInputConversion(HInstruction* previous, int index, HType type);
-
 #ifdef DEBUG
   virtual void Verify() = 0;
 #endif

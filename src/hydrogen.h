@@ -103,16 +103,14 @@ class HBasicBlock: public ZoneObject {
   void ClearEnvironment() { last_environment_ = NULL; }
   bool HasEnvironment() const { return last_environment_ != NULL; }
   void UpdateEnvironment(HEnvironment* env) { last_environment_ = env; }
-  HBasicBlock* parent_loop_header() const {
-    if (!HasParentLoopHeader()) return NULL;
-    return parent_loop_header_.get();
-  }
+  HBasicBlock* parent_loop_header() const { return parent_loop_header_; }
 
   void set_parent_loop_header(HBasicBlock* block) {
-    parent_loop_header_.set(block);
+    ASSERT(parent_loop_header_ == NULL);
+    parent_loop_header_ = block;
   }
 
-  bool HasParentLoopHeader() const { return parent_loop_header_.is_set(); }
+  bool HasParentLoopHeader() const { return parent_loop_header_ != NULL; }
 
   void SetJoinId(int id);
 
@@ -135,9 +133,6 @@ class HBasicBlock: public ZoneObject {
   // Goto (target block)
   bool IsInlineReturnTarget() const { return is_inline_return_target_; }
   void MarkAsInlineReturnTarget() { is_inline_return_target_ = true; }
-
-  Handle<Object> cond() { return cond_; }
-  void set_cond(Handle<Object> value) { cond_ = value; }
 
 #ifdef DEBUG
   void Verify();
@@ -166,9 +161,8 @@ class HBasicBlock: public ZoneObject {
   int first_instruction_index_;
   int last_instruction_index_;
   ZoneList<int> deleted_phis_;
-  SetOncePointer<HBasicBlock> parent_loop_header_;
+  HBasicBlock* parent_loop_header_;
   bool is_inline_return_target_;
-  Handle<Object> cond_;
 };
 
 
