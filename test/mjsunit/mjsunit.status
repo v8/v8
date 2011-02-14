@@ -113,9 +113,6 @@ regress/regress-1132: SKIP
 ##############################################################################
 [ $arch == arm && $crankshaft ]
 
-# Test that currently fails with crankshaft on ARM.
-compiler/simple-osr: FAIL
-
 # BUG (1094)
 regress/regress-deopt-gc: SKIP
 
