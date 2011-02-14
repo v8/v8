@@ -347,15 +347,11 @@ chapter11/11.13/11.13.1/11.13.1-4-26-s: FAIL
 # in strict mode (Global.undefined)
 chapter11/11.13/11.13.1/11.13.1-4-27-s: FAIL
 
-# delete operator throws TypeError when deleting a non-configurable data
-# property in strict mode
-chapter11/11.4/11.4.1/11.4.1-4.a-3-s: FAIL
 # delete operator throws TypeError when when deleting a non-configurable
 # data property in strict mode (Global.NaN)
-chapter11/11.4/11.4.1/11.4.1-4.a-4-s: FAIL
-# delete operator throws TypeError when deleting a non-configurable data
-# property in strict mode (Math.LN2)
-chapter11/11.4/11.4.1/11.4.1-4.a-9-s: FAIL
+# Invalid test case - "this" is not a global object within the test case.
+# (http://es5conform.codeplex.com/workitem/29151)
+chapter11/11.4/11.4.1/11.4.1-4.a-4-s: FAIL_OK
 
 # delete operator throws ReferenceError when deleting a direct reference
 # to a var in strict mode

@@ -214,7 +214,7 @@ enum BuiltinExtraArguments {
   V(SHL, 1)                              \
   V(SAR, 1)                              \
   V(SHR, 1)                              \
-  V(DELETE, 1)                           \
+  V(DELETE, 2)                           \
   V(IN, 1)                               \
   V(INSTANCE_OF, 1)                      \
   V(GET_KEYS, 0)                         \

@@ -3888,7 +3888,9 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   Register object = ToRegister(instr->object());
   Register key = ToRegister(instr->key());
-  __ Push(object, key);
+  Register strict = scratch0();
+  __ mov(strict, Operand(Smi::FromInt(strict_mode_flag())));
+  __ Push(object, key, strict);
   ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
   LPointerMap* pointers = instr->pointer_map();
   LEnvironment* env = instr->deoptimization_environment();

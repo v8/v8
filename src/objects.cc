@@ -1399,7 +1399,7 @@ MaybeObject* JSObject::AddProperty(String* name,
   if (!map()->is_extensible()) {
     Handle<Object> args[1] = {Handle<String>(name)};
     return Top::Throw(*Factory::NewTypeError("object_not_extensible",
-                                               HandleVector(args, 1)));
+                                             HandleVector(args, 1)));
   }
   if (HasFastProperties()) {
     // Ensure the descriptor array does not get too big.
@@ -2620,7 +2620,17 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       NumberDictionary* dictionary = element_dictionary();
       int entry = dictionary->FindEntry(index);
       if (entry != NumberDictionary::kNotFound) {
-        return dictionary->DeleteProperty(entry, mode);
+        Object* result = dictionary->DeleteProperty(entry, mode);
+        if (mode == STRICT_DELETION && result == Heap::false_value()) {
+          // In strict mode, deleting a non-configurable property throws
+          // exception. dictionary->DeleteProperty will return false_value()
+          // if a non-configurable property is being deleted.
+          HandleScope scope;
+          Handle<Object> i = Factory::NewNumberFromUint(index);
+          Handle<Object> args[2] = { i, Handle<Object>(this) };
+          return Top::Throw(*Factory::NewTypeError("strict_delete_property",
+                                                   HandleVector(args, 2)));
+        }
       }
       break;
     }
@@ -2659,6 +2669,13 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
     if (!result.IsProperty()) return Heap::true_value();
     // Ignore attributes if forcing a deletion.
     if (result.IsDontDelete() && mode != FORCE_DELETION) {
+      if (mode == STRICT_DELETION) {
+        // Deleting a non-configurable property in strict mode.
+        HandleScope scope;
+        Handle<Object> args[2] = { Handle<Object>(name), Handle<Object>(this) };
+        return Top::Throw(*Factory::NewTypeError("strict_delete_property",
+                                                 HandleVector(args, 2)));
+      }
       return Heap::false_value();
     }
     // Check for interceptor.
@@ -9345,7 +9362,7 @@ Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
                                                JSObject::DeleteMode mode) {
   PropertyDetails details = DetailsAt(entry);
   // Ignore attributes if forcing a deletion.
-  if (details.IsDontDelete() && mode == JSObject::NORMAL_DELETION) {
+  if (details.IsDontDelete() && mode != JSObject::FORCE_DELETION) {
     return Heap::false_value();
   }
   SetEntry(entry, Heap::null_value(), Heap::null_value(), Smi::FromInt(0));

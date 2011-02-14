@@ -280,7 +280,7 @@ CheckStrictMode("function strict() { print(--arguments); }", SyntaxError);
 CheckStrictMode("function strict() { var x = --eval; }", SyntaxError);
 CheckStrictMode("function strict() { var x = --arguments; }", SyntaxError);
 
-// Delete of an unqialified identifier
+// Delete of an unqualified identifier
 CheckStrictMode("delete unqualified;", SyntaxError);
 CheckStrictMode("function strict() { delete unqualified; }", SyntaxError);
 CheckStrictMode("function function_name() { delete function_name; }",
@@ -406,3 +406,33 @@ delete possibly_undefined_variable_for_strict_mode_test;
 repeat(10, function() { testAssignToUndefined(true); });
 possibly_undefined_variable_for_strict_mode_test = undefined;
 repeat(10, function() { testAssignToUndefined(false); });
+
+(function testDeleteNonConfigurable() {
+  function delete_property(o) {
+    "use strict";
+    delete o.property;
+  }
+  function delete_element(o, i) {
+    "use strict";
+    delete o[i];
+  }
+
+  var object = {};
+
+  Object.defineProperty(object, "property", { value: "property_value" });
+  Object.defineProperty(object, "1", { value: "one" });
+  Object.defineProperty(object, 7, { value: "seven" });
+  Object.defineProperty(object, 3.14, { value: "pi" });
+
+  assertThrows(function() { delete_property(object); }, TypeError);
+  assertEquals(object.property, "property_value");
+  assertThrows(function() { delete_element(object, "1"); }, TypeError);
+  assertThrows(function() { delete_element(object, 1); }, TypeError);
+  assertEquals(object[1], "one");
+  assertThrows(function() { delete_element(object, "7"); }, TypeError);
+  assertThrows(function() { delete_element(object, 7); }, TypeError);
+  assertEquals(object[7], "seven");
+  assertThrows(function() { delete_element(object, "3.14"); }, TypeError);
+  assertThrows(function() { delete_element(object, 3.14); }, TypeError);
+  assertEquals(object[3.14], "pi");
+})();

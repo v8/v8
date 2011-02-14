@@ -3730,13 +3730,18 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         } else {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
+          __ push(Immediate(Smi::FromInt(strict_mode_flag())));
           __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
           context()->Plug(eax);
         }
       } else if (var != NULL) {
+        // Delete of an unqualified identifier is disallowed in strict mode
+        // so this code can only be reached in non-strict mode.
+        ASSERT(strict_mode_flag() == kNonStrictMode);
         if (var->is_global()) {
           __ push(GlobalObjectOperand());
           __ push(Immediate(var->name()));
+          __ push(Immediate(Smi::FromInt(kNonStrictMode)));
           __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
           context()->Plug(eax);
         } else if (var->AsSlot() != NULL &&

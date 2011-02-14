@@ -129,6 +129,10 @@ class LCodeGen BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
+  int strict_mode_flag() const {
+    return info_->is_strict() ? kStrictMode : kNonStrictMode;
+  }
+
   LChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }

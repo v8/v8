@@ -5844,15 +5844,20 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     if (property != NULL) {
       Load(property->obj());
       Load(property->key());
-      frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 2);
+      frame_->EmitPush(Operand(Smi::FromInt(strict_mode_flag())));
+      frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 3);
       frame_->EmitPush(r0);
 
     } else if (variable != NULL) {
+      // Delete of an unqualified identifier is disallowed in strict mode
+      // so this code can only be reached in non-strict mode.
+      ASSERT(strict_mode_flag() == kNonStrictMode);
       Slot* slot = variable->AsSlot();
       if (variable->is_global()) {
         LoadGlobal();
         frame_->EmitPush(Operand(variable->name()));
-        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 2);
+        frame_->EmitPush(Operand(Smi::FromInt(kNonStrictMode)));
+        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 3);
         frame_->EmitPush(r0);
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {

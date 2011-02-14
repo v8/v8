@@ -3735,6 +3735,7 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
                                          pointers,
                                          env->deoptimization_index());
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ push(Immediate(Smi::FromInt(strict_mode_flag())));
   __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, &safepoint_generator);
 }
 

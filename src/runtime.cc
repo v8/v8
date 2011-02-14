@@ -3914,11 +3914,14 @@ static MaybeObject* Runtime_IgnoreAttributesAndSetProperty(Arguments args) {
 
 static MaybeObject* Runtime_DeleteProperty(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
 
   CONVERT_CHECKED(JSObject, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
-  return object->DeleteProperty(key, JSObject::NORMAL_DELETION);
+  CONVERT_SMI_CHECKED(strict, args[2]);
+  return object->DeleteProperty(key, strict == kStrictMode
+                                      ? JSObject::STRICT_DELETION
+                                      : JSObject::NORMAL_DELETION);
 }
 
 

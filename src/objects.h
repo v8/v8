@@ -1286,7 +1286,12 @@ class HeapNumber: public HeapObject {
 // caching.
 class JSObject: public HeapObject {
  public:
-  enum DeleteMode { NORMAL_DELETION, FORCE_DELETION };
+  enum DeleteMode {
+    NORMAL_DELETION,
+    STRICT_DELETION,
+    FORCE_DELETION
+  };
+
   enum ElementsKind {
     // The only "fast" kind.
     FAST_ELEMENTS,

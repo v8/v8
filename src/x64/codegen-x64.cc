@@ -7230,19 +7230,24 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     if (property != NULL) {
       Load(property->obj());
       Load(property->key());
-      Result answer = frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
+      frame_->Push(Smi::FromInt(strict_mode_flag()));
+      Result answer = frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 3);
       frame_->Push(&answer);
       return;
     }
 
     Variable* variable = node->expression()->AsVariableProxy()->AsVariable();
     if (variable != NULL) {
+      // Delete of an unqualified identifier is disallowed in strict mode
+      // so this code can only be reached in non-strict mode.
+      ASSERT(strict_mode_flag() == kNonStrictMode);
       Slot* slot = variable->AsSlot();
       if (variable->is_global()) {
         LoadGlobal();
         frame_->Push(variable->name());
+        frame_->Push(Smi::FromInt(kNonStrictMode));
         Result answer = frame_->InvokeBuiltin(Builtins::DELETE,
-                                              CALL_FUNCTION, 2);
+                                              CALL_FUNCTION, 3);
         frame_->Push(&answer);
         return;
 
