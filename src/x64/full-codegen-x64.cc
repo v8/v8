@@ -3060,19 +3060,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Comment cmnt(masm_, "[ UnaryOperation (DELETE)");
       Property* prop = expr->expression()->AsProperty();
       Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
-      if (prop == NULL && var == NULL) {
-        // Result of deleting non-property, non-variable reference is true.
-        // The subexpression may have side effects.
-        VisitForEffect(expr->expression());
-        context()->Plug(true);
-      } else if (var != NULL &&
-                 !var->is_global() &&
-                 var->AsSlot() != NULL &&
-                 var->AsSlot()->type() != Slot::LOOKUP) {
-        // Result of deleting non-global, non-dynamic variables is false.
-        // The subexpression does not have side effects.
-        context()->Plug(false);
-      } else if (prop != NULL) {
+
+      if (prop != NULL) {
         if (prop->is_synthetic()) {
           // Result of deleting parameters is false, even when they rewrite
           // to accesses on the arguments object.
@@ -3083,18 +3072,30 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
           context()->Plug(rax);
         }
-      } else if (var->is_global()) {
-        __ push(GlobalObjectOperand());
-        __ Push(var->name());
-        __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
-        context()->Plug(rax);
+      } else if (var != NULL) {
+        if (var->is_global()) {
+          __ push(GlobalObjectOperand());
+          __ Push(var->name());
+          __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
+          context()->Plug(rax);
+        } else if (var->AsSlot() != NULL &&
+                   var->AsSlot()->type() != Slot::LOOKUP) {
+          // Result of deleting non-global, non-dynamic variables is false.
+          // The subexpression does not have side effects.
+          context()->Plug(false);
+        } else {
+          // Non-global variable.  Call the runtime to try to delete from the
+          // context where the variable was introduced.
+          __ push(context_register());
+          __ Push(var->name());
+          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
+          context()->Plug(rax);
+        }
       } else {
-        // Non-global variable.  Call the runtime to try to delete from the
-        // context where the variable was introduced.
-        __ push(context_register());
-        __ Push(var->name());
-        __ CallRuntime(Runtime::kDeleteContextSlot, 2);
-        context()->Plug(rax);
+        // Result of deleting non-property, non-variable reference is true.
+        // The subexpression may have side effects.
+        VisitForEffect(expr->expression());
+        context()->Plug(true);
       }
       break;
     }
