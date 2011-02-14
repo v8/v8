@@ -1442,6 +1442,7 @@ void MacroAssembler::Pushad() {
   // r13 is kRootRegister.
   push(r14);
   // r15 is kSmiConstantRegister
+  STATIC_ASSERT(11 == kRegistersPushedByPushad);
 }
 
 
@@ -1461,7 +1462,6 @@ void MacroAssembler::Popad() {
 
 
 void MacroAssembler::Dropad() {
-  const int kRegistersPushedByPushad = 11;
   addq(rsp, Immediate(kRegistersPushedByPushad * kPointerSize));
 }
 

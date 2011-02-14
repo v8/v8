@@ -171,7 +171,8 @@ class MacroAssembler: public Assembler {
   void PushSafepointRegisters() { Pushad(); }
   void PopSafepointRegisters() { Popad(); }
   static int SafepointRegisterStackIndex(int reg_code) {
-    return kSafepointPushRegisterIndices[reg_code];
+    return kRegistersPushedByPushad - 1 -
+        kSafepointPushRegisterIndices[reg_code];
   }
 
 
@@ -966,6 +967,8 @@ class MacroAssembler: public Assembler {
   // Order general registers are pushed by Pushad.
   // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14.
   static int kSafepointPushRegisterIndices[Register::kNumRegisters];
+  static const int kRegistersPushedByPushad = 11;
+
   bool generating_stub_;
   bool allow_stub_calls_;
 

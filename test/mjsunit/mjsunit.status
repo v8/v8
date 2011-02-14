@@ -125,9 +125,6 @@ compiler/simple-osr: SKIP
 # BUG (1094)
 regress/regress-deopt-gc: SKIP
 
-# BUG (1153)
-date-parse: SKIP
-
 ##############################################################################
 [ $arch == mips ]
 
