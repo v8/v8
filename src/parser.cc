@@ -2521,6 +2521,16 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       }
     }
 
+    // "delete identifier" is a syntax error in strict mode.
+    if (op == Token::DELETE && temp_scope_->StrictMode()) {
+      VariableProxy* operand = expression->AsVariableProxy();
+      if (operand != NULL && !operand->is_this()) {
+        ReportMessage("strict_delete", Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      }
+    }
+
     return new UnaryOperation(op, expression);
 
   } else if (Token::IsCountOp(op)) {

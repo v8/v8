@@ -169,13 +169,20 @@ CheckStrictMode("var x = { '1234' : 1, '2345' : 2, '1234' : 3 };", SyntaxError);
 CheckStrictMode("var x = { '1234' : 1, '2345' : 2, 1234 : 3 };", SyntaxError);
 CheckStrictMode("var x = { 3.14 : 1, 2.71 : 2, 3.14 : 3 };", SyntaxError);
 CheckStrictMode("var x = { 3.14 : 1, '3.14' : 2 };", SyntaxError);
-CheckStrictMode("var x = { 123: 1, 123.00000000000000000000000000000000000000000000000000000000000000000001 : 2 }", SyntaxError);
+CheckStrictMode("var x = { \
+  123: 1, \
+  123.00000000000000000000000000000000000000000000000000000000000000000001: 2 \
+}", SyntaxError);
 
 // Non-conflicting data properties.
 (function StrictModeNonDuplicate() {
   "use strict";
   var x = { 123 : 1, "0123" : 2 };
-  var x = { 123: 1, '123.00000000000000000000000000000000000000000000000000000000000000000001' : 2 }
+  var x = {
+    123: 1,
+    '123.00000000000000000000000000000000000000000000000000000000000000000001':
+      2
+  };
 })();
 
 // Two getters (non-strict)
@@ -214,23 +221,32 @@ assertThrows("var x = { '12': 1, get 12(){}};", SyntaxError);
 CheckStrictMode("function strict() { eval = undefined; }", SyntaxError);
 CheckStrictMode("function strict() { arguments = undefined; }", SyntaxError);
 CheckStrictMode("function strict() { print(eval = undefined); }", SyntaxError);
-CheckStrictMode("function strict() { print(arguments = undefined); }", SyntaxError);
+CheckStrictMode("function strict() { print(arguments = undefined); }",
+                SyntaxError);
 CheckStrictMode("function strict() { var x = eval = undefined; }", SyntaxError);
-CheckStrictMode("function strict() { var x = arguments = undefined; }", SyntaxError);
+CheckStrictMode("function strict() { var x = arguments = undefined; }",
+                SyntaxError);
 
 // Compound assignment to eval or arguments
 CheckStrictMode("function strict() { eval *= undefined; }", SyntaxError);
 CheckStrictMode("function strict() { arguments /= undefined; }", SyntaxError);
 CheckStrictMode("function strict() { print(eval %= undefined); }", SyntaxError);
-CheckStrictMode("function strict() { print(arguments %= undefined); }", SyntaxError);
-CheckStrictMode("function strict() { var x = eval += undefined; }", SyntaxError);
-CheckStrictMode("function strict() { var x = arguments -= undefined; }", SyntaxError);
+CheckStrictMode("function strict() { print(arguments %= undefined); }",
+                SyntaxError);
+CheckStrictMode("function strict() { var x = eval += undefined; }",
+                SyntaxError);
+CheckStrictMode("function strict() { var x = arguments -= undefined; }",
+                SyntaxError);
 CheckStrictMode("function strict() { eval <<= undefined; }", SyntaxError);
 CheckStrictMode("function strict() { arguments >>= undefined; }", SyntaxError);
-CheckStrictMode("function strict() { print(eval >>>= undefined); }", SyntaxError);
-CheckStrictMode("function strict() { print(arguments &= undefined); }", SyntaxError);
-CheckStrictMode("function strict() { var x = eval ^= undefined; }", SyntaxError);
-CheckStrictMode("function strict() { var x = arguments |= undefined; }", SyntaxError);
+CheckStrictMode("function strict() { print(eval >>>= undefined); }",
+                SyntaxError);
+CheckStrictMode("function strict() { print(arguments &= undefined); }",
+                SyntaxError);
+CheckStrictMode("function strict() { var x = eval ^= undefined; }",
+                SyntaxError);
+CheckStrictMode("function strict() { var x = arguments |= undefined; }",
+                SyntaxError);
 
 // Postfix increment with eval or arguments
 CheckStrictMode("function strict() { eval++; }", SyntaxError);
@@ -263,6 +279,17 @@ CheckStrictMode("function strict() { print(--eval); }", SyntaxError);
 CheckStrictMode("function strict() { print(--arguments); }", SyntaxError);
 CheckStrictMode("function strict() { var x = --eval; }", SyntaxError);
 CheckStrictMode("function strict() { var x = --arguments; }", SyntaxError);
+
+// Delete of an unqialified identifier
+CheckStrictMode("delete unqualified;", SyntaxError);
+CheckStrictMode("function strict() { delete unqualified; }", SyntaxError);
+CheckStrictMode("function function_name() { delete function_name; }",
+                SyntaxError);
+CheckStrictMode("function strict(parameter) { delete parameter; }",
+                SyntaxError);
+CheckStrictMode("function strict() { var variable; delete variable; }",
+                SyntaxError);
+CheckStrictMode("var variable; delete variable;", SyntaxError);
 
 // Prefix unary operators other than delete, ++, -- are valid in strict mode
 (function StrictModeUnaryOperators() {
@@ -318,17 +345,22 @@ function testFutureReservedWord(word) {
   // Function names and arguments when the body is strict
   assertThrows("function " + word + " () { 'use strict'; }", SyntaxError);
   assertThrows("function foo (" + word + ")  'use strict'; {}", SyntaxError);
-  assertThrows("function foo (" + word + ", " + word + ") { 'use strict'; }", SyntaxError);
+  assertThrows("function foo (" + word + ", " + word + ") { 'use strict'; }",
+               SyntaxError);
   assertThrows("function foo (a, " + word + ") { 'use strict'; }", SyntaxError);
   assertThrows("function foo (" + word + ", a) { 'use strict'; }", SyntaxError);
-  assertThrows("function foo (a, " + word + ", b) { 'use strict'; }", SyntaxError);
-  assertThrows("var foo = function (" + word + ") { 'use strict'; }", SyntaxError);
+  assertThrows("function foo (a, " + word + ", b) { 'use strict'; }",
+               SyntaxError);
+  assertThrows("var foo = function (" + word + ") { 'use strict'; }",
+               SyntaxError);
 
   // get/set when the body is strict
   eval("var x = { get " + word + " () { 'use strict'; } };");
   eval("var x = { set " + word + " (value) { 'use strict'; } };");
-  assertThrows("var x = { get foo(" + word + ") { 'use strict'; } };", SyntaxError);
-  assertThrows("var x = { set foo(" + word + ") { 'use strict'; } };", SyntaxError);
+  assertThrows("var x = { get foo(" + word + ") { 'use strict'; } };",
+               SyntaxError);
+  assertThrows("var x = { set foo(" + word + ") { 'use strict'; } };",
+               SyntaxError);
 }
 
 for (var i = 0; i < future_reserved_words.length; i++) {

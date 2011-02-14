@@ -359,16 +359,19 @@ chapter11/11.4/11.4.1/11.4.1-4.a-9-s: FAIL
 
 # delete operator throws ReferenceError when deleting a direct reference
 # to a var in strict mode
+# Invalid test case. Test expects ReferenceError instead of SyntaxError.
+# http://es5conform.codeplex.com/workitem/29084
 chapter11/11.4/11.4.1/11.4.1-5-1-s: FAIL
 # delete operator throws ReferenceError when deleting a direct reference
 # to a function argument in strict mode
+# Invalid test case. Test expects ReferenceError instead of SyntaxError.
+# http://es5conform.codeplex.com/workitem/29084
 chapter11/11.4/11.4.1/11.4.1-5-2-s: FAIL
 # delete operator throws ReferenceError when deleting a direct reference
 # to a function name in strict mode
+# Invalid test case. Test expects ReferenceError instead of SyntaxError.
+# http://es5conform.codeplex.com/workitem/29084
 chapter11/11.4/11.4.1/11.4.1-5-3-s: FAIL
-# delete operator throws SyntaxError when deleting a direct reference
-# to a function argument(object) in strict mode
-chapter11/11.4/11.4.1/11.4.1-5-4-s: FAIL
 
 # eval - a function declaring a var named 'eval' throws EvalError in strict mode
 # Invalid test case. SyntaxError should be expected instead of EvalError.
