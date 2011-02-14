@@ -5803,6 +5803,84 @@ static MaybeObject* Runtime_StringBuilderConcat(Arguments args) {
 }
 
 
+static MaybeObject* Runtime_StringBuilderJoin(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+  CONVERT_CHECKED(JSArray, array, args[0]);
+  if (!args[1]->IsSmi()) {
+    Top::context()->mark_out_of_memory();
+    return Failure::OutOfMemoryException();
+  }
+  int array_length = Smi::cast(args[1])->value();
+  CONVERT_CHECKED(String, separator, args[2]);
+
+  if (!array->HasFastElements()) {
+    return Top::Throw(Heap::illegal_argument_symbol());
+  }
+  FixedArray* fixed_array = FixedArray::cast(array->elements());
+  if (fixed_array->length() < array_length) {
+    array_length = fixed_array->length();
+  }
+
+  if (array_length == 0) {
+    return Heap::empty_string();
+  } else if (array_length == 1) {
+    Object* first = fixed_array->get(0);
+    if (first->IsString()) return first;
+  }
+
+  int separator_length = separator->length();
+  int max_nof_separators =
+      (String::kMaxLength + separator_length - 1) / separator_length;
+  if (max_nof_separators < (array_length - 1)) {
+      Top::context()->mark_out_of_memory();
+      return Failure::OutOfMemoryException();
+  }
+  int length = (array_length - 1) * separator_length;
+  for (int i = 0; i < array_length; i++) {
+    String* element = String::cast(fixed_array->get(i));
+    int increment = element->length();
+    if (increment > String::kMaxLength - length) {
+      Top::context()->mark_out_of_memory();
+      return Failure::OutOfMemoryException();
+    }
+    length += increment;
+  }
+
+  Object* object;
+  { MaybeObject* maybe_object = Heap::AllocateRawTwoByteString(length);
+    if (!maybe_object->ToObject(&object)) return maybe_object;
+  }
+  SeqTwoByteString* answer = SeqTwoByteString::cast(object);
+
+  uc16* sink = answer->GetChars();
+#ifdef DEBUG
+  uc16* end = sink + length;
+#endif
+
+  String* first = String::cast(fixed_array->get(0));
+  int first_length = first->length();
+  String::WriteToFlat(first, sink, 0, first_length);
+  sink += first_length;
+
+  for (int i = 1; i < array_length; i++) {
+    ASSERT(sink + separator_length <= end);
+    String::WriteToFlat(separator, sink, 0, separator_length);
+    sink += separator_length;
+
+    String* element = String::cast(fixed_array->get(i));
+    int element_length = element->length();
+    ASSERT(sink + element_length <= end);
+    String::WriteToFlat(element, sink, 0, element_length);
+    sink += element_length;
+  }
+  ASSERT(sink == end);
+
+  ASSERT(!answer->HasOnlyAsciiChars());  // Use %_FastAsciiArrayJoin instead.
+  return answer;
+}
+
+
 static MaybeObject* Runtime_NumberOr(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
