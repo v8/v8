@@ -4212,6 +4212,14 @@ static MaybeObject* Runtime_LocalKeys(Arguments args) {
   CONVERT_CHECKED(JSObject, raw_object, args[0]);
   HandleScope scope;
   Handle<JSObject> object(raw_object);
+
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype());
+    // If proxy is detached we simply return an empty array.
+    if (proto->IsNull()) return *Factory::NewJSArray(0);
+    object = Handle<JSObject>::cast(proto);
+  }
+
   Handle<FixedArray> contents = GetKeysInFixedArrayFor(object,
                                                        LOCAL_ONLY);
   // Some fast paths through GetKeysInFixedArrayFor reuse a cached
