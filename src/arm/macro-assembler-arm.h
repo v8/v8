@@ -791,6 +791,9 @@ class MacroAssembler: public Assembler {
   void AbortIfSmi(Register object);
   void AbortIfNotSmi(Register object);
 
+  // Abort execution if argument is a string. Used in debug code.
+  void AbortIfNotString(Register object);
+
   // Abort execution if argument is not the root value with the given index.
   void AbortIfNotRootValue(Register src,
                            Heap::RootListIndex root_value_index,

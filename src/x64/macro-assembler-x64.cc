@@ -1610,6 +1610,17 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
 }
 
 
+void MacroAssembler::AbortIfNotString(Register object) {
+  testb(object, Immediate(kSmiTagMask));
+  Assert(not_equal, "Operand is not a string");
+  push(object);
+  movq(object, FieldOperand(object, HeapObject::kMapOffset));
+  CmpInstanceType(object, FIRST_NONSTRING_TYPE);
+  pop(object);
+  Assert(below, "Operand is not a string");
+}
+
+
 void MacroAssembler::AbortIfNotRootValue(Register src,
                                          Heap::RootListIndex root_value_index,
                                          const char* message) {

@@ -108,6 +108,9 @@ static void GenerateStringDictionaryProbes(MacroAssembler* masm,
                                            Register name,
                                            Register r0,
                                            Register r1) {
+  // Assert that name contains a string.
+  if (FLAG_debug_code) __ AbortIfNotString(name);
+
   // Compute the capacity mask.
   const int kCapacityOffset =
       StringDictionary::kHeaderSize +
@@ -1233,7 +1236,13 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // rsp[(argc + 1) * 8]      : argument 0 = receiver
   // -----------------------------------
 
+  // Check if the name is a string.
+  Label miss;
+  __ JumpIfSmi(rcx, &miss);
+  Condition cond = masm->IsObjectStringType(rcx, rax, rax);
+  __ j(NegateCondition(cond), &miss);
   GenerateCallNormal(masm, argc);
+  __ bind(&miss);
   GenerateMiss(masm, argc);
 }
 
